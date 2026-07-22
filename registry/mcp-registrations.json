@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "registrations": [
+    {
+      "id": "linear",
+      "endpoint": "https://mcp.linear.app/mcp",
+      "transport": "streamable-http",
+      "authentication": "oauth",
+      "policy": "Use host-managed OAuth. Never place credentials in this registry.",
+      "hosts": [
+        { "id": "qwen-code", "state": "registered-oauth-pending" }
+      ]
+    },
+    {
+      "id": "shwiki-context",
+      "command": "pnpm",
+      "args": ["--dir", "C:/Repos/shmindmaster/shwiki", "mcp:wiki"],
+      "transport": "stdio",
+      "authentication": "none",
+      "fallbackEndpoint": "https://shwiki.shtrial.com/api/mcp",
+      "policy": "Local read-only ShWiki is canonical on this workstation. The hosted reviewed snapshot is fallback-only and any remote auth remains in the host secret store.",
+      "hosts": [
+        {
+          "id": "codex",
+          "state": "registered-local-configured"
+        },
+        {
+          "id": "claude",
+          "state": "registered-local-configured"
+        },
+        {
+          "id": "amp",
+          "state": "registered-local-configured"
+        },
+        {
+          "id": "factory",
+          "state": "registered-local-configured"
+        },
+        {
+          "id": "opencode",
+          "state": "registered-local-configured"
+        },
+        {
+          "id": "cursor",
+          "state": "registered-local-configured"
+        },
+        {
+          "id": "vscode-insiders",
+          "state": "registered-local-configured"
+        },
+        {
+          "id": "devin",
+          "state": "registered-local-configured"
+        },
+        {
+          "id": "windsurf",
+          "state": "registered-local-configured"
+        }
+      ]
+    }
+  ]
+}

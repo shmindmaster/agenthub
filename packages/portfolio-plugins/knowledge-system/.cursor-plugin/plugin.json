@@ -1,0 +1,6 @@
+{
+  "name": "knowledge-system",
+  "version": "0.1.0",
+  "description": "Search, maintain, and export the private local knowledge corpus via the shared local RAG core. Local-only; no privileged content leaves the box.",
+  "author": { "name": "Sarosh Hussain" }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "product-experience-engineering",
+  "version": "1.0.0",
+  "description": "Audit and remediate product experiences, then issue an evidence-backed demo-readiness handoff before video production.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "keywords": [
+    "product-experience",
+    "user-experience",
+    "frontend",
+    "workflow-design",
+    "usability",
+    "accessibility",
+    "agentic-ai"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Product Experience Engineering",
+    "shortDescription": "Assess, redesign, implement, and validate app experiences.",
+    "longDescription": "Start from a bare repository, inventory public, customer, administrative, internal, and lifecycle surfaces, then design, implement, and validate useful improvements one repository at a time.",
+    "developerName": "MahumTech",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Prepare this product for demo before any video production begins.",
+      "Inventory and deeply audit this application's complete surface area.",
+      "Specify, implement, and validate the highest-impact approved improvement."
+    ],
+    "brandColor": "#4F7CFF",
+    "composerIcon": "./assets/product-experience-engineering-small.svg",
+    "logo": "./assets/product-experience-engineering.png",
+    "logoDark": "./assets/product-experience-engineering-dark.png",
+    "screenshots": []
+  }
+}

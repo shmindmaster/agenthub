@@ -1,0 +1,7 @@
+{
+  "name": "knowledge-system",
+  "version": "0.1.0",
+  "description": "Search, maintain, and export the complete private local knowledge corpus. Routes to the shared local RAG API via the knowledge MCP core. Local-only: no privileged content ever leaves the box.",
+  "author": { "name": "Sarosh Hussain" },
+  "keywords": ["rag", "knowledge", "search", "qdrant", "local", "retrieval", "corpus", "mcp"]
+}

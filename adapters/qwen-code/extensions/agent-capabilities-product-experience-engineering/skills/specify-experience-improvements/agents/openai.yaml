@@ -1,0 +1,4 @@
+interface:
+  display_name: "Specify Experience Improvements"
+  short_description: "Turn findings into implementation-ready specifications"
+  default_prompt: "Use $specify-experience-improvements to convert approved findings into a buildable specification."

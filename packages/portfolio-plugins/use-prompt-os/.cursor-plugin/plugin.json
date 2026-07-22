@@ -1,0 +1,6 @@
+{
+  "name": "use-prompt-os",
+  "version": "0.1.0",
+  "description": "Entry point to the Notion Portfolio Prompt OS: identify the app, fetch the Prompt Router, select one Agent-Ready workflow, resolve dependencies, execute within boundaries, and record the run.",
+  "author": { "name": "Sarosh Hussain" }
+}

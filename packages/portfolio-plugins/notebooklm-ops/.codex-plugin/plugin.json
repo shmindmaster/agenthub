@@ -1,0 +1,18 @@
+{
+  "name": "notebooklm-ops",
+  "version": "0.1.0",
+  "description": "Notebooklm Ops plugin",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Notebooklm Ops",
+    "shortDescription": "Use Notebooklm Ops in Codex.",
+    "longDescription": "Notebooklm Ops adds a local Codex plugin scaffold.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Help me use Notebooklm Ops."
+  }
+}

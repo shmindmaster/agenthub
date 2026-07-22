@@ -1,0 +1,36 @@
+{
+  "name": "product-demo-studio",
+  "version": "0.5.0",
+  "description": "Consume a validated Product Experience handoff, independently reassess all eleven demo-worthiness criteria, and produce persuasive truthful videos or fix-oriented Product-Readiness Feedback.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "product-demo",
+    "video",
+    "remotion",
+    "playwright",
+    "narration",
+    "video-qa",
+    "demo-readiness"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Product Demo Studio",
+    "shortDescription": "Produce killer demos or product-readiness feedback.",
+    "longDescription": "Consume Product Experience Engineering's current pre-video handoff, then plan, independently assess, capture, narrate, compose, render, and validate truthful product demos. Fail closed to fix-oriented Product-Readiness Feedback when the product or story cannot clear the demo-worthiness, persuasion, correctness, and evidence gates.",
+    "developerName": "Sarosh Hussain",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Assess this product and produce only demo-worthy videos.",
+      "Turn this workflow into a persuasive product demo.",
+      "Audit this demo proxy against truth, craft, and persuasion gates."
+    ]
+  }
+}

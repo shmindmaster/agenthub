@@ -1,0 +1,8 @@
+{
+  "assetPath": "apps/videos/out/V1-ProductOverview-wide.mp4",
+  "classification": "approved",
+  "reviewedBy": "jane.doe",
+  "reviewedAt": "2026-07-01",
+  "syntheticDataConfirmed": true,
+  "redactionNotes": "Blurred tenant name in scene 3; all figures are seeded demo data."
+}

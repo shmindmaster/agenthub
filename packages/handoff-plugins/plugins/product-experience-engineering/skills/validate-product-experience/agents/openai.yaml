@@ -1,0 +1,4 @@
+interface:
+  display_name: "Validate Product Experience"
+  short_description: "Verify behavior, usability, access, and polish"
+  default_prompt: "Use $validate-product-experience to validate the implemented experience end to end."

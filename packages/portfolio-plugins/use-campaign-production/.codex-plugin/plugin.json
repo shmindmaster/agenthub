@@ -1,0 +1,37 @@
+{
+  "name": "campaign-production",
+  "version": "0.1.0+codex.20260721",
+  "description": "Orchestrate portfolio creative campaign production across launches, social packs, sales collateral, presentations, event kits, brand variants, and customer stories.",
+  "author": {
+    "name": "SH Mindmaster"
+  },
+  "homepage": "https://shwiki.shtrial.com/",
+  "keywords": [
+    "campaign",
+    "creative",
+    "canva",
+    "adobe",
+    "descript",
+    "remotion",
+    "playwright",
+    "marketing"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Campaign Production",
+    "shortDescription": "Orchestrate creative campaign production across the portfolio.",
+    "longDescription": "Portfolio-focused creative campaign orchestration for SH apps. Selects a canonical creative workflow from the Notion Prompt OS, routes to the owned tool adapters (Canva assembly, Adobe mastering, Descript narration, Remotion motion, Playwright evidence), generates an asset manifest, and records the run in Prompt Runs / Evals.",
+    "developerName": "SH Mindmaster",
+    "category": "Design",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Produce a product launch content system for this app.",
+      "Assemble a social campaign pack from this brand kit.",
+      "Build a narrated product story video."
+    ]
+  }
+}

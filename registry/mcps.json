@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 3,
+  "generatedAt": "2026-07-21T00:00:00-05:00",
+  "mcpServers": [
+    {
+      "id": "linear",
+      "name": "Linear",
+      "scope": "global-default",
+      "transport": "http",
+      "url": "https://mcp.linear.app/mcp",
+      "credentialPolicy": "oauth"
+    },
+    {
+      "id": "context7",
+      "name": "Context7 Docs",
+      "scope": "global-default",
+      "transport": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "credentialPolicy": "provider-managed-or-env"
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "scope": "global-default",
+      "transport": "http",
+      "url": "https://mcp.notion.com/mcp",
+      "credentialPolicy": "oauth"
+    },
+    {
+      "id": "playwright",
+      "name": "Playwright",
+      "scope": "global-default",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--isolated"],
+      "env": {},
+      "credentialPolicy": "none"
+    },
+    {
+      "id": "shwiki-context",
+      "name": "ShWiki",
+      "scope": "global-default",
+      "transport": "stdio",
+      "command": "pnpm",
+      "args": ["--dir", "C:/Repos/shmindmaster/shwiki", "mcp:wiki"],
+      "env": {},
+      "credentialPolicy": "none-local-read-only"
+    },
+    {
+      "id": "firecrawl",
+      "name": "Firecrawl Research",
+      "scope": "global-default",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "firecrawl-mcp"
+      ],
+      "env": {
+        "FIRECRAWL_API_KEY": "${env:FIRECRAWL_API_KEY}"
+      },
+      "credentialPolicy": "environment"
+    },
+    {
+      "id": "tavily",
+      "name": "Tavily Research",
+      "scope": "global-default",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "${env:TAVILY_API_KEY}"
+      },
+      "credentialPolicy": "environment"
+    },
+    {
+      "id": "exa",
+      "name": "Exa Research",
+      "scope": "global-default",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "exa-mcp-server"
+      ],
+      "env": {
+        "EXA_API_KEY": "${env:EXA_API_KEY}"
+      },
+      "credentialPolicy": "environment"
+    },
+    {
+      "id": "brave-search",
+      "name": "Brave Search",
+      "scope": "global-default",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@brave/brave-search-mcp-server",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "${env:BRAVE_API_KEY}"
+      },
+      "credentialPolicy": "environment"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "elevenlabs-media",
+  "version": "0.1.0+codex.20260715235836",
+  "description": "Standalone ElevenLabs API, account-health, voice, speech-to-text, and text-to-speech capability for any project.",
+  "author": {
+    "name": "Local Capability"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ElevenLabs Media",
+    "shortDescription": "Voice, STT, TTS, and account health through the existing API.",
+    "longDescription": "Provides reusable ElevenLabs API health, voice discovery, local-first speech-to-text guidance, and text-to-speech operations for any repository without project-specific assumptions or exposed credentials.",
+    "developerName": "Local Capability",
+    "category": "Creative",
+    "capabilities": [
+      "API health",
+      "Voice discovery",
+      "Speech to text (local-first for privileged media)",
+      "Text to speech",
+      "Secret-safe CLI"
+    ],
+    "defaultPrompt": [
+      "Check ElevenLabs API connectivity.",
+      "Generate speech from this text.",
+      "Plan a local-first transcription workflow for this audio."
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "ediscovery-processing",
+  "version": "0.1.0",
+  "description": "Ingest, search, and analyze local legal evidence with chain-of-custody. Evidence originals stay immutable and read-only. Local-only.",
+  "author": { "name": "Sarosh Hussain" }
+}

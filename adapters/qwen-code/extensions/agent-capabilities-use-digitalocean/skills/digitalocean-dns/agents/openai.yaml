@@ -1,0 +1,4 @@
+interface:
+  display_name: "DigitalOcean DNS"
+  short_description: "Manage DO DNS zones and records safely."
+  default_prompt: "Audit DNS for this app."

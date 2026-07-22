@@ -1,0 +1,6 @@
+{
+  "name": "use-elevenlabs",
+  "version": "0.1.0",
+  "description": "ElevenLabs voice, text-to-speech, speech-to-text, and account health. Resolves ELEVENLABS_API_KEY from the environment at call time; local-first for privileged media.",
+  "author": { "name": "Sarosh Hussain" }
+}

@@ -1,0 +1,380 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-21T20:50:00-05:00",
+  "canonicalRegistryRoot": "C:/Repos/agent-capabilities",
+  "surfaceAliases": [
+    { "surfaceId": "cursor-agent", "inheritsHostId": "cursor" },
+    { "surfaceId": "opencode-desktop", "inheritsHostId": "opencode" },
+    { "surfaceId": "antigravity-desktop", "inheritsHostId": "antigravity" },
+    { "surfaceId": "antigravity-ide", "inheritsHostId": "antigravity" },
+    { "surfaceId": "devin-desktop", "inheritsHostId": "devin" },
+    { "surfaceId": "factory-desktop", "inheritsHostId": "factory" },
+    { "surfaceId": "warp-oz", "inheritsHostId": "warp" }
+  ],
+  "capabilities": [
+    {
+      "id": "clerk",
+      "owner": "portfolio",
+      "capabilityType": "plugin",
+      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/clerk",
+      "contentHash": "AA5D1D62E823436ACDAFBAE51E11CB5F950D00F124C5D1FE70F954F5F8E69B24",
+      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\clerk\\plugin.json",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed"
+        }
+      ]
+    },
+    {
+      "id": "use-digitalocean",
+      "owner": "portfolio",
+      "capabilityType": "plugin",
+      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-digitalocean",
+      "contentHash": "F7E53607BCB3BF5460AD41F249F56EC8F38B1F3296CDBEE87E867DE7F9389B03",
+      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-digitalocean\\plugin.json",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed"
+        }
+      ]
+    },
+    {
+      "id": "use-elevenlabs",
+      "owner": "portfolio",
+      "capabilityType": "plugin",
+      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-elevenlabs",
+      "contentHash": "EADDD5260AFCB40073279EA8659D6BF975A04716A11BB8121F1312372A12CD35",
+      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-elevenlabs\\plugin.json",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed"
+        }
+      ]
+    },
+    {
+      "id": "product-demo-studio",
+      "owner": "handoff",
+      "capabilityType": "plugin+mcp",
+      "canonicalSource": "C:/Repos/agent-capabilities/packages/handoff-plugins/plugins/product-demo-studio",
+      "contentHash": "854990A71CB355EB1EBC5A1DAA7ED8D1459117CBCB900C0F87FD5EE5FB384FCC",
+      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\handoff-plugins\\plugins\\product-demo-studio",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-plugin-installed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-observed-path"
+        }
+      ]
+    },
+    {
+      "id": "product-experience-engineering",
+      "owner": "handoff",
+      "capabilityType": "plugin",
+      "canonicalSource": "C:/Repos/agent-capabilities/packages/handoff-plugins/plugins/product-experience-engineering",
+      "contentHash": "2325BC9D6999EB738D8F98BB433B719D9A142B6C0B295CB23B9E54A13DFB1581",
+      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\handoff-plugins\\plugins\\product-experience-engineering",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-plugin-installed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-observed-path"
+        }
+      ]
+    },
+    {
+      "id": "use-campaign-production",
+      "owner": "portfolio",
+      "capabilityType": "plugin",
+      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-campaign-production",
+      "contentHash": "09AE681E2D3F2DA59BED6918DBD2C08FD81179557ACF8E4FC9F2EA10225A8A66",
+      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-campaign-production\\plugin.json",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed"
+        }
+      ]
+    },
+    {
+      "id": "shwiki-context",
+      "owner": "portfolio",
+      "capabilityType": "skill+mcp",
+      "canonicalSource": "C:/Repos/agent-capabilities/capabilities/shwiki-context",
+      "contentHash": "7286BB4DEAB32D953564C5C9830C7B65A7C0F65B1FE11604849FF467AD6AD8F9",
+      "hashBasis": "C:\\Repos\\agent-capabilities\\capabilities\\shwiki-context\\skills\\shwiki-context\\SKILL.md",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed"
+        }
+      ]
+    },
+    {
+      "id": "use-prompt-os",
+      "owner": "portfolio",
+      "capabilityType": "plugin",
+      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-prompt-os",
+      "contentHash": "49A753DD46E472E0DD8AAA38F19BC451EAD069D6A000EA2CCACFBF86B504304D",
+      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-prompt-os\\plugin.json",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed"
+        }
+      ]
+    }
+  ]
+}

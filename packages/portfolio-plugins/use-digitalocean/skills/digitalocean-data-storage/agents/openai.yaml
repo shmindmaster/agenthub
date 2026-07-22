@@ -1,0 +1,4 @@
+interface:
+  display_name: "DigitalOcean Data Storage"
+  short_description: "Operate Managed DB, Valkey, Spaces, and inference envs."
+  default_prompt: "Check DO data services."

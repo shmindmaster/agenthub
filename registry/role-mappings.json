@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "canonicalRoles": {
+    "scout": "roles/scout/ROLE.md",
+    "implementer": "roles/implementer/ROLE.md",
+    "reviewer": "roles/reviewer/ROLE.md",
+    "verifier": "roles/verifier/ROLE.md"
+  },
+  "hostMappings": [
+    {
+      "hostId": "codex",
+      "scout": ["explorer", "dependency-researcher", "docs-auditor"],
+      "implementer": ["main-agent"],
+      "reviewer": ["reviewer", "security-reviewer"],
+      "verifier": ["test-runner"]
+    },
+    {
+      "hostId": "claude",
+      "scout": ["explorer", "dependency-researcher", "docs-auditor"],
+      "implementer": ["main-agent"],
+      "reviewer": ["reviewer", "security-reviewer"],
+      "verifier": ["test-runner"]
+    },
+    {
+      "hostId": "qwen-code",
+      "scout": ["scout"],
+      "implementer": ["implementer"],
+      "reviewer": ["reviewer"],
+      "verifier": ["main-agent-with-verifier-contract"]
+    },
+    {
+      "hostId": "factory",
+      "scout": ["main-agent"],
+      "implementer": ["main-agent"],
+      "reviewer": ["scrutiny-feature-reviewer"],
+      "verifier": ["user-testing-flow-validator"]
+    },
+    {
+      "hostId": "opencode",
+      "scout": ["agentic-ecosystem-readonly"],
+      "implementer": ["agentic-ecosystem"],
+      "reviewer": ["agentic-ecosystem-review"],
+      "verifier": ["agentic-ecosystem-verify"]
+    }
+  ],
+  "specializedRoles": [
+    "dependency-researcher",
+    "docs-auditor",
+    "security-reviewer",
+    "product-experience-reviewers",
+    "product-demo-reviewers",
+    "user-testing-flow-validator"
+  ]
+}

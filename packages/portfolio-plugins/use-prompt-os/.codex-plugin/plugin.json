@@ -1,0 +1,35 @@
+{
+  "name": "prompt-os",
+  "version": "0.1.0+codex.20260721",
+  "description": "Entry point to the Notion Portfolio Prompt OS: identify the app, fetch the Prompt Router, select one Agent-Ready workflow, resolve dependencies, execute within boundaries, and record the run.",
+  "author": {
+    "name": "SH Mindmaster"
+  },
+  "homepage": "https://shwiki.shtrial.com/",
+  "keywords": [
+    "prompt-os",
+    "notion",
+    "router",
+    "workflow",
+    "portfolio",
+    "orchestration"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Portfolio Prompt OS",
+    "shortDescription": "Route work to canonical Notion Prompt OS workflows.",
+    "longDescription": "The retrieval-and-routing entry point for the SH portfolio. Identifies the current app, fetches its Apps record and the canonical Prompt Router, selects one Agent-Ready primary workflow, resolves required calls, prerequisites, and tool adapters, validates tools/variables/approvals, executes within declared boundaries, and records the run in Prompt Runs / Evals.",
+    "developerName": "SH Mindmaster",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Route this task through the Portfolio Prompt OS.",
+      "Find the canonical workflow for this app and run it.",
+      "Which Agent-Ready prompt applies to this repository?"
+    ]
+  }
+}

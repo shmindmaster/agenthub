@@ -1,0 +1,42 @@
+{
+  "name": "legal-discovery",
+  "version": "0.1.0+codex.20260715235836",
+  "description": "Search and analyze local evidence plus live CourtListener and Trellis legal research.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "Proprietary",
+  "keywords": [
+    "legal",
+    "ediscovery",
+    "evidence",
+    "rag",
+    "courtlistener",
+    "trellis",
+    "midpage",
+    "courtlistener"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Legal Discovery",
+    "shortDescription": "Search and analyze local legal evidence.",
+    "longDescription": "Use the localhost legal discovery API for evidence and work product, CourtListener for live federal and appellate authority, and Trellis for state trial-court research when its provider connection is available.",
+    "developerName": "MahumTech",
+    "category": "Productivity",
+    "capabilities": [
+      "Search",
+      "Analyze",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Search this matter for evidence about a disputed event.",
+      "Review an email thread and its attachment family.",
+      "Research this proposition in CourtListener and compare it with our local authorities."
+    ],
+    "brandColor": "#7C2D12",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.svg",
+    "logoDark": "./assets/logo-dark.svg"
+  },
+  "mcpServers": "./.mcp.json"
+}

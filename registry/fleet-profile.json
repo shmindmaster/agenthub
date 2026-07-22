@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "name": "full-access-unattended",
+  "intent": "User-authorized local coding-agent profile. All configured host tools, local files, network access, and registered MCP tools are available without host permission prompts.",
+  "mcpScope": "global-default",
+  "skillSource": "C:/Repos/agent-capabilities",
+  "canonicalPolicy": "C:/Repos/agent-capabilities/standards/global-agent-policy.md",
+  "autonomyProfiles": [
+    "interactive",
+    "repo-autonomous",
+    "machine-maintenance"
+  ],
+  "managedHosts": [
+    "claude",
+    "codex",
+    "cursor",
+    "qwen-code",
+    "opencode",
+    "amp",
+    "devin",
+    "factory",
+    "windsurf",
+    "gemini",
+    "copilot",
+    "antigravity",
+    "vscode-insiders"
+  ],
+  "retainedSurfaces": [
+    "claude",
+    "codex",
+    "cursor",
+    "cursor-agent",
+    "qwen-code",
+    "opencode",
+    "opencode-desktop",
+    "gemini",
+    "antigravity",
+    "antigravity-desktop",
+    "antigravity-ide",
+    "copilot",
+    "hermes",
+    "amp",
+    "devin",
+    "factory",
+    "grok",
+    "warp",
+    "jules",
+    "windsurf",
+    "vscode-insiders"
+  ],
+  "launchDefaults": {
+    "gemini": ["--yolo", "--skip-trust"],
+    "cursor-agent": ["--yolo", "--sandbox", "disabled", "--approve-mcps"],
+    "copilot": ["--allow-all", "--autopilot", "--no-ask-user", "--allow-all-mcp-server-instructions"],
+    "devin": ["--permission-mode", "dangerous", "--respect-workspace-trust", "false"],
+    "agy": ["--dangerously-skip-permissions"]
+  },
+  "hostSettings": {
+    "qwen-code": {
+      "requiredModelGeneration": {
+        "qwen3.8-max-preview": {
+          "thinkingMandatory": true,
+          "extra_body": {
+            "enable_thinking": true
+          }
+        }
+      }
+    }
+  },
+  "notes": [
+    "OAuth consent and provider login pages remain provider-controlled and cannot be pre-approved by a host configuration.",
+    "The cagent folder is retained as state only because no cagent executable or documented user configuration is installed.",
+    "The .windsurf folder is plans-only; the active Windsurf configuration is .codeium/windsurf."
+  ]
+}

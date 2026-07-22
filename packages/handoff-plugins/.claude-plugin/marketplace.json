@@ -1,0 +1,27 @@
+{
+  "name": "handoff",
+  "owner": { "name": "Sarosh Hussain" },
+  "metadata": {
+    "description": "Personal marketplace: hand off dev work to coding agents, with cross-agent review and gated merge."
+  },
+  "plugins": [
+    {
+      "name": "code-handoff",
+      "source": "./plugins/code-handoff",
+      "description": "Hand off to Copilot/Droid/Codex/Amp/Devin/Cursor; cross-agent review and gated merge.",
+      "category": "productivity"
+    },
+    {
+      "name": "product-demo-studio",
+      "source": "./plugins/product-demo-studio",
+      "description": "Plan, capture, compose, render, and finish product demo videos with Remotion + Descript, with a built-in evidence-redaction gate.",
+      "category": "creative"
+    },
+    {
+      "name": "product-experience-engineering",
+      "source": "./plugins/product-experience-engineering",
+      "description": "Audit and remediate product experiences, then issue an evidence-backed demo-readiness handoff before video production.",
+      "category": "development"
+    }
+  ]
+}

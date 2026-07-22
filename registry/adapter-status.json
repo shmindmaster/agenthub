@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "statuses": [
+    { "host": "codex", "state": "configured", "artifact": "installed owner plugins and native connectors" },
+    { "host": "claude", "state": "policy-configured", "artifact": "global CLAUDE.md header" },
+    { "host": "vscode-insiders", "state": "adapter-ready", "artifact": "Claude-compatible format policy" },
+    { "host": "cursor", "state": "adapter-ready", "artifact": "capability-specific .cursor-plugin policy" },
+    { "host": "amp", "state": "policy-configured", "artifact": "global AGENTS.md header; MCP-first policy" },
+    { "host": "factory", "state": "adapter-ready", "artifact": "native MCP/plugin policy" },
+    { "host": "qwen-code", "state": "configured", "artifact": "user settings, shared MCP sync, and global subagents" },
+    { "host": "opencode", "state": "configured", "artifact": "global agentic-ecosystem agent" },
+    { "host": "devin", "state": "adapter-ready", "artifact": "Open VSX and MCP policy" },
+    { "host": "windsurf", "state": "adapter-ready", "artifact": "IDE-client and MCP policy" }
+    ,{ "host": "gemini", "state": "configured", "artifact": "generated global instructions, Gemini 3.6 Flash High model mapping, shared-skill deduplication" }
+    ,{ "host": "copilot", "state": "configured", "artifact": "launcher plugin directories, global MCP and repository-instruction policy" }
+    ,{ "host": "hermes", "state": "configured", "artifact": "native Windows runtime, generated SOUL policy, native skills and hooks" }
+    ,{ "host": "cursor-agent", "state": "configured", "artifact": "native Windows launcher and shared Cursor home" }
+    ,{ "host": "opencode-desktop", "state": "configured", "artifact": "companion surface sharing the canonical OpenCode home" }
+    ,{ "host": "antigravity", "state": "configured", "artifact": "WinGet CLI plus retained desktop and IDE companion surfaces" }
+    ,{ "host": "grok", "state": "adapter-ready", "artifact": "native configuration, skill and plugin locations inventoried" }
+    ,{ "host": "warp", "state": "adapter-ready", "artifact": "native MCP and Oz cloud-agent surface inventoried" }
+    ,{ "host": "jules", "state": "adapter-ready", "artifact": "cloud-agent CLI inventory and non-dispatch validation policy" }
+  ]
+}

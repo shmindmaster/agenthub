@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare Product for Demo"
+  short_description: "Audit and remediate workflows before recording"
+  default_prompt: "Use $prepare-product-for-demo to make the real workflow demo-ready before video production begins."

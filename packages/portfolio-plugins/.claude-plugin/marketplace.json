@@ -1,0 +1,39 @@
+{
+  "name": "portfolio",
+  "owner": { "name": "Sarosh Hussain" },
+  "metadata": {
+    "description": "Personal portfolio marketplace: reusable capabilities shared across all coding agents (Prompt OS routing, campaign production, DigitalOcean ops, ElevenLabs media, Clerk auth)."
+  },
+  "plugins": [
+    {
+      "name": "use-prompt-os",
+      "source": "./use-prompt-os",
+      "description": "Entry point to the Notion Portfolio Prompt OS: identify the app, fetch the Prompt Router, select one Agent-Ready workflow, resolve dependencies, execute within boundaries, and record the run.",
+      "category": "productivity"
+    },
+    {
+      "name": "use-campaign-production",
+      "source": "./use-campaign-production",
+      "description": "Orchestrate creative campaign production (launches, social packs, sales collateral, presentations, event kits, brand variants, customer stories) by routing to the owned creative tool adapters.",
+      "category": "creative"
+    },
+    {
+      "name": "use-digitalocean",
+      "source": "./use-digitalocean",
+      "description": "Operate the DigitalOcean portfolio across App Platform, Droplets, DNS, managed databases, Spaces, inference, and incidents via the authenticated doctl CLI.",
+      "category": "infrastructure"
+    },
+    {
+      "name": "use-elevenlabs",
+      "source": "./use-elevenlabs",
+      "description": "ElevenLabs media: account health, reusable API/CLI environment, speech-to-text, and text-to-speech, with a strict local-first policy for privileged media.",
+      "category": "creative"
+    },
+    {
+      "name": "clerk",
+      "source": "./clerk",
+      "description": "Clerk authentication integration for portfolio apps.",
+      "category": "productivity"
+    }
+  ]
+}

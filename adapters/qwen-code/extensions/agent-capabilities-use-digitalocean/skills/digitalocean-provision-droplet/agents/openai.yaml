@@ -1,0 +1,4 @@
+interface:
+  display_name: "DigitalOcean Provision Droplet"
+  short_description: "Provision Codex-ready DigitalOcean droplets using doctl."
+  default_prompt: "Provision a DO Codex droplet."

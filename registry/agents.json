@@ -1,0 +1,380 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-22T14:07:15.1030277-05:00",
+  "userProfile": "C:\\Users\\SaroshHussain",
+  "activeAgents": [
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "version": "2.1.217",
+      "executable": "C:\\Users\\SaroshHussain\\.local\\bin\\claude.exe",
+      "nativePaths": {
+        "settings": "C:\\Users\\SaroshHussain\\.claude\\settings.json",
+        "instructions": "C:\\Users\\SaroshHussain\\.claude\\CLAUDE.md",
+        "rulesDir": "C:\\Users\\SaroshHussain\\.claude\\rules",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.claude\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.claude\\agents",
+        "hooksDir": "C:\\Users\\SaroshHussain\\.claude\\hooks",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.claude\\plugins",
+        "mcpUser": "C:\\Users\\SaroshHussain\\.claude.json"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "hooks",
+        "mcp",
+        "plugins"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "codex",
+      "name": "OpenAI Codex",
+      "version": "0.144.4",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe",
+      "nativePaths": {
+        "config": "C:\\Users\\SaroshHussain\\.codex\\config.toml",
+        "instructions": "C:\\Users\\SaroshHussain\\.codex\\AGENTS.md",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.codex\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.codex\\agents",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.codex\\plugins"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "hooks",
+        "mcp",
+        "plugins"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "version": "3.12.17",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin\\cursor.cmd",
+      "nativePaths": {
+        "mcp": "C:\\Users\\SaroshHussain\\.cursor\\mcp.json",
+        "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Cursor\\User\\settings.json",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
+        "rulesDir": "C:\\Users\\SaroshHussain\\.cursor\\rules",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.cursor\\plugins"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "cursor-agent",
+      "name": "Cursor Agent CLI",
+      "version": "2026.07.17-3e2a980",
+      "executable": "C:\\Users\\SaroshHussain\\bin\\cursor-agent.cmd",
+      "nativePaths": {
+        "config": "C:\\Users\\SaroshHussain\\.cursor\\cli-config.json",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp"
+      ],
+      "status": "active",
+      "surfaceType": "companion-cli"
+    },
+    {
+      "id": "qwen-code",
+      "name": "Qwen Code",
+      "version": "0.20.1",
+      "executable": "qwen",
+      "nativePaths": {
+        "settings": "C:\\Users\\SaroshHussain\\.qwen\\settings.json",
+        "instructions": "C:\\Users\\SaroshHussain\\.qwen\\QWEN.md",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.qwen\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.qwen\\agents",
+        "extensionsDir": "C:\\Users\\SaroshHussain\\.qwen\\extensions"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "extensions"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "version": "1.18.4",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\opencode.cmd",
+      "nativePaths": {
+        "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\skills",
+        "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp"
+      ],
+      "status": "active",
+      "notes": "Global skill path follows the official OpenCode ~/.config/opencode/skills contract."
+    },
+    {
+      "id": "opencode-desktop",
+      "name": "OpenCode Desktop",
+      "version": "1.18.4",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\@opencode-aidesktop\\OpenCode.exe",
+      "nativePaths": {
+        "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
+        "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "mcp"
+      ],
+      "status": "active",
+      "surfaceType": "companion-desktop"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "version": "0.51.0",
+      "executable": "C:\\Users\\SaroshHussain\\bin\\gemini.cmd",
+      "nativePaths": {
+        "settings": "C:\\Users\\SaroshHussain\\.gemini\\settings.json",
+        "instructions": "C:\\Users\\SaroshHussain\\.gemini\\GEMINI.md",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\skills"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "mcp"
+      ],
+      "status": "active",
+      "notes": "Gemini 3.6 Flash is selected through the dynamic model registry with HIGH thinking. Shared skills under C:\\Users\\SaroshHussain\\.agents\\skills take precedence; C:\\Users\\SaroshHussain\\.gemini\\skills contains Gemini-only skills."
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes Agent",
+      "version": "0.19.0",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\hermes.exe",
+      "nativePaths": {
+        "config": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\config.yaml",
+        "instructions": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\SOUL.md",
+        "skillsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\skills",
+        "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\hooks",
+        "memoriesDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\memories",
+        "sessionsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\sessions"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "hooks"
+      ],
+      "status": "active",
+      "notes": "Native Windows installation. The former Ubuntu installation was migrated and removed."
+    },
+    {
+      "id": "copilot",
+      "name": "GitHub Copilot CLI",
+      "version": "1.0.73",
+      "executable": "C:\\Users\\SaroshHussain\\bin\\copilot.cmd",
+      "nativePaths": {
+        "mcp": "C:\\Users\\SaroshHussain\\.copilot\\mcp-config.json",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.copilot\\skills"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "antigravity",
+      "name": "Google Antigravity",
+      "version": "1.1.5",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\agy.exe",
+      "nativePaths": {
+        "settings": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\settings.json",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\skills"
+      },
+      "supportedCapabilities": [
+        "skills"
+      ],
+      "status": "active",
+      "notes": "Observed global skill path; public plugin packaging specification remains discovery-required."
+    },
+    {
+      "id": "antigravity-desktop",
+      "name": "Antigravity Desktop",
+      "version": "2.3.1",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\antigravity\\Antigravity.exe",
+      "nativePaths": {
+        "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity"
+      },
+      "supportedCapabilities": ["skills", "mcp"],
+      "status": "active",
+      "surfaceType": "companion-desktop"
+    },
+    {
+      "id": "antigravity-ide",
+      "name": "Antigravity IDE",
+      "version": "2.1.1",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Antigravity IDE\\Antigravity IDE.exe",
+      "nativePaths": {
+        "configHome": "C:\\Users\\SaroshHussain\\.antigravity-ide",
+        "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity IDE\\User\\settings.json"
+      },
+      "supportedCapabilities": ["rules", "skills", "mcp", "extensions"],
+      "status": "active",
+      "surfaceType": "companion-ide"
+    },
+    {
+      "id": "grok",
+      "name": "Grok CLI",
+      "version": "0.2.106",
+      "executable": "C:\\Users\\SaroshHussain\\.grok\\bin\\grok.exe",
+      "nativePaths": {
+        "config": "C:\\Users\\SaroshHussain\\.grok\\config.toml",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.grok\\skills",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.grok\\installed-plugins"
+      },
+      "supportedCapabilities": ["rules", "skills", "mcp", "plugins"],
+      "status": "active"
+    },
+    {
+      "id": "warp",
+      "name": "Warp / Oz",
+      "version": "0.2026.07.15.08.55.stable_01",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Warp\\warp.exe",
+      "nativePaths": {
+        "mcp": "C:\\Users\\SaroshHussain\\.warp\\.mcp.json",
+        "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp"
+      },
+      "supportedCapabilities": ["rules", "skills", "mcp", "cloud-agents"],
+      "status": "active"
+    },
+    {
+      "id": "jules",
+      "name": "Google Jules CLI",
+      "version": "0.1.42",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\jules.cmd",
+      "nativePaths": {
+        "configHome": "C:\\Users\\SaroshHussain\\.jules"
+      },
+      "supportedCapabilities": ["cloud-agents"],
+      "status": "active"
+    }
+  ],
+  "inactiveAgents": [
+    {
+      "id": "amp",
+      "name": "Sourcegraph Amp",
+      "version": "0.0.1784710168-g0b84dc",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\amp.exe",
+      "nativePaths": {
+        "settings": "C:\\Users\\SaroshHussain\\.config\\amp\\settings.json"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "mcp"
+      ],
+      "status": "inactive",
+      "notes": "Retained as inactive inventory; Product Demo Studio skills are preprovisioned, while MCP synchronization remains excluded."
+    },
+    {
+      "id": "devin",
+      "name": "Devin Desktop / CLI",
+      "version": "3000.1.27",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\devin\\cli\\bin\\devin.exe",
+      "nativePaths": {
+        "config": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\config.json"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "mcp"
+      ],
+      "status": "inactive",
+      "notes": "Retained as inactive inventory; Product Demo Studio skills are preprovisioned, while MCP synchronization remains excluded."
+    },
+    {
+      "id": "factory",
+      "name": "Factory Droid",
+      "version": "0.177.0",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.134.0\\resources\\bin\\droid.exe",
+      "nativePaths": {
+        "settings": "C:\\Users\\SaroshHussain\\.factory\\settings.json",
+        "instructions": "C:\\Users\\SaroshHussain\\.factory\\AGENTS.md",
+        "mcp": "C:\\Users\\SaroshHussain\\.factory\\mcp.json",
+        "rulesDir": "C:\\Users\\SaroshHussain\\.factory\\rules",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.factory\\skills",
+        "droidsDir": "C:\\Users\\SaroshHussain\\.factory\\droids",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.factory\\plugins"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins"
+      ],
+      "status": "inactive",
+      "notes": "Retained as inactive inventory; Product Demo Studio skills are preprovisioned, while MCP synchronization remains excluded."
+    },
+    {
+      "id": "vscode-insiders",
+      "name": "VS Code Insiders",
+      "version": "1.130.0-insider",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\bin\\code-insiders.cmd",
+      "nativePaths": {
+        "mcp": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\mcp.json",
+        "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\settings.json"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins"
+      ],
+      "status": "inactive",
+      "notes": "Retained as inactive inventory; Product Demo Studio is registered as a native local plugin through chat.pluginLocations, while MCP synchronization remains excluded."
+    },
+    {
+      "id": "windsurf",
+      "name": "Windsurf / Cascade",
+      "version": "unknown",
+      "executable": null,
+      "nativePaths": {
+        "mcp": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\mcp_config.json",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\skills",
+        "settings": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\user_settings.pb"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "mcp"
+      ],
+      "status": "inactive",
+      "notes": "Active path is .codeium/windsurf; legacy .windsurf is plans-only. Product Demo Studio skills are preprovisioned while the host remains inactive."
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "DigitalOcean Portfolio"
+  short_description: "Inventory and operate the SH DigitalOcean portfolio."
+  default_prompt: "Audit my DigitalOcean portfolio."

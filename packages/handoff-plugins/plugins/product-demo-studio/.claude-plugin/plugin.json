@@ -1,0 +1,19 @@
+{
+  "name": "product-demo-studio",
+  "version": "0.5.0",
+  "description": "Cross-agent, repo-agnostic product-video studio: consume the validated Product Experience pre-video handoff, independently assess all eleven demo-worthiness criteria, and produce persuasive truthful videos only when product/craft gates pass; otherwise deliver fix-oriented Product-Readiness Feedback.",
+  "author": { "name": "Sarosh Hussain" },
+  "keywords": [
+    "remotion",
+    "descript",
+    "video",
+    "product-demo",
+    "marketing",
+    "playwright",
+    "react",
+    "narration",
+    "tts",
+    "video-qa"
+  ],
+  "license": "MIT"
+}

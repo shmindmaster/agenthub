@@ -1,0 +1,41 @@
+{
+  "name": "knowledge-workbench",
+  "version": "0.1.0+codex.20260710184900",
+  "description": "Search, maintain, and export the complete localhost knowledge corpus.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "license": "Proprietary",
+  "keywords": [
+    "knowledge",
+    "search",
+    "rag",
+    "catalog",
+    "local",
+    "qdrant",
+    "vector-search"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Knowledge Workbench",
+    "shortDescription": "Search and operate the local knowledge corpus.",
+    "longDescription": "Use the localhost knowledge API for catalog search, grounded RAG answers, corpus and index health, refresh operations, duplicate review, reusable-asset promotion, vector maintenance, and auditable exports.",
+    "developerName": "MahumTech",
+    "category": "Productivity",
+    "capabilities": [
+      "Search",
+      "Analyze",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Find reusable assets for a healthcare proposal.",
+      "Answer this question from my corpus with citations.",
+      "Check corpus health and pending index work."
+    ],
+    "brandColor": "#155E75",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.svg",
+    "logoDark": "./assets/logo-dark.svg"
+  },
+  "mcpServers": "./.mcp.json"
+}

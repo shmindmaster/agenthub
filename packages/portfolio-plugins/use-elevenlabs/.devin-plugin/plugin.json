@@ -1,0 +1,8 @@
+{
+  "name": "use-elevenlabs",
+  "version": "0.1.0",
+  "description": "Standalone ElevenLabs API, account-health, voice, speech-to-text, and text-to-speech capability for any project. Resolves ELEVENLABS_API_KEY from the environment at call time; enforces a local-first policy for privileged, legal, or discovery media.",
+  "author": { "name": "Sarosh Hussain" },
+  "keywords": ["elevenlabs", "tts", "stt", "voice", "audio", "transcription", "speech"],
+  "homepage": "https://elevenlabs.io/"
+}
