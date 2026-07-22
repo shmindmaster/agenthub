@@ -23,6 +23,8 @@ function Read-Json([string]$Path) {
   return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
 }
 
+. (Join-Path $PSScriptRoot 'AgentCtl.CursorReadiness.ps1')
+
 function Write-Text([string]$Path, [string]$Text) {
   $parent = Split-Path -Parent $Path
   if ($parent) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
@@ -487,6 +489,30 @@ function Invoke-Validation {
     catch { Add-Check 'FAIL' ('mcp-json:' + (Split-Path $mcpPath -Leaf)) $_.Exception.Message }
   }
 
+  $cursorReadiness = Invoke-CursorCloudReadiness
+  if ($cursorReadiness.auth) {
+    Add-Check 'PASS' 'cursor-api-auth' ('authenticated via ' + $cursorReadiness.keySource)
+  } elseif ($cursorReadiness.keySource -eq 'missing') {
+    Add-Check 'WARN' 'cursor-api-auth' 'Cursor API key is not present; live readiness checks were skipped'
+  } else {
+    Add-Check 'FAIL' 'cursor-api-auth' ($cursorReadiness.errors -join '; ')
+  }
+  if ($cursorReadiness.models.reachable) {
+    Add-Check 'PASS' 'cursor-models-list' ('models endpoint reachable: ' + $cursorReadiness.models.endpoint + '; sample=' + $cursorReadiness.models.sampleCount)
+  } elseif ($cursorReadiness.keySource -eq 'missing') {
+    Add-Check 'WARN' 'cursor-models-list' 'Cursor API key is not present; model availability was not checked'
+  } else {
+    Add-Check 'FAIL' 'cursor-models-list' 'models endpoint unreachable'
+  }
+  if ($cursorReadiness.models.reachable) {
+    Add-Check 'WARN' 'cursor-background-launch' 'Cursor does not expose documented spend headroom through the read-only API; launch readiness requires account billing evidence or a real authorized run'
+  } elseif ($cursorReadiness.keySource -eq 'missing') {
+    Add-Check 'WARN' 'cursor-background-launch' 'live launch readiness was not checked'
+  } else {
+    Add-Check 'FAIL' 'cursor-background-launch' 'models endpoint unavailable; launch headroom cannot be evaluated'
+  }
+  Add-Check 'WARN' 'cursor-background-setup' $cursorReadiness.setupReason
+
   foreach ($wrapperTarget in @(
     'C:\Users\SaroshHussain\AppData\Local\Microsoft\WinGet\Links\agy.exe',
     'C:\Users\SaroshHussain\AppData\Local\cursor-agent\cursor-agent.cmd',
@@ -507,7 +533,8 @@ function Invoke-Validation {
   }
   $validationResults | Format-Table -AutoSize
   $failures = @($validationResults | Where-Object status -eq 'FAIL')
-  Write-Host "Validation summary: pass=$(@($validationResults | Where-Object status -eq 'PASS').Count) fail=$($failures.Count)"
+  $warnings = @($validationResults | Where-Object status -eq 'WARN')
+  Write-Host ("Validation summary: pass={0} warn={1} fail={2}" -f @($validationResults | Where-Object status -eq 'PASS').Count, $warnings.Count, $failures.Count)
   if ($failures.Count) { exit 1 }
 }
 

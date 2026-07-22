@@ -23,6 +23,12 @@ Describe 'agentctl read-only commands' {
     ($script:scriptText -match 'cleanup remains report-only even with -Apply') | Should Be $true
   }
 
+  It 'does not infer Cursor billing headroom from undocumented numeric payload fields' {
+    ($script:scriptText -match 'Get-CursorSpendCandidates') | Should Be $false
+    ($script:scriptText -match 'does not expose documented spend headroom') | Should Be $true
+    ($script:scriptText -match "Add-Check 'WARN' 'cursor-background-launch'") | Should Be $true
+  }
+
   It 'generates deterministically and drift does not mutate synthetic output' {
     $fixtureRoot = Join-Path $TestDrive 'control-plane'
     foreach ($directory in @('registry', 'standards', 'templates')) {
