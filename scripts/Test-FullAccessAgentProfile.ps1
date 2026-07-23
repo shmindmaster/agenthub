@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$fleetProfile = Get-Content (Join-Path $RegistryRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
 $expected = @((Get-Content (Join-Path $RegistryRoot 'registry\mcps.json') -Raw | ConvertFrom-Json).mcpServers | Where-Object scope -eq 'global-default' | ForEach-Object id | Sort-Object)
 $failures = @()
 function Assert-Profile([bool]$Condition, [string]$Check) {
@@ -55,7 +56,11 @@ $qwenPrimary = @($qwen.modelProviders.openai | Where-Object id -eq 'qwen3.8-max-
 Assert-Profile ($qwenPrimary.Count -eq 1 -and $qwenPrimary[0].generationConfig.thinkingMandatory -eq $true -and $qwenPrimary[0].generationConfig.extra_body.enable_thinking -eq $true) 'Qwen 3.8 keeps mandatory thinking enabled for /compress side queries'
 Assert-Profile ($openCode.permission -eq 'allow') 'OpenCode allows every permission class'
 $cursorYoloLauncher = Get-Content "$UserProfile\bin\cursor-agent.cmd" -Raw -ErrorAction SilentlyContinue
-Assert-Profile (($cursor.approvalMode -eq 'unrestricted' -or $cursorYoloLauncher -match '--yolo') -and $cursor.sandbox.mode -eq 'disabled') 'Cursor defaults to yolo and is unsandboxed'
+if ($fleetProfile.dispatchPolicy.cursor.enabled -eq $true) {
+  Assert-Profile (($cursor.approvalMode -eq 'unrestricted' -or $cursorYoloLauncher -match '--yolo') -and $cursor.sandbox.mode -eq 'disabled') 'Cursor defaults to yolo and is unsandboxed'
+} else {
+  Assert-Profile ($cursorYoloLauncher -match 'disabled by owner policy' -and $cursorYoloLauncher -notmatch '--yolo') 'Cursor launcher is blocked by owner policy'
+}
 Assert-Profile ($antigravity.toolPermission -eq 'always-proceed') 'Antigravity tool approval is always-proceed'
 Assert-Profile ($amp.'amp.permissions' -is [System.Array] -and $amp.'amp.permissions'.Count -eq 1 -and $amp.'amp.permissions'[0].action -eq 'allow' -and $amp.'amp.permissions'[0].tool -eq '*') 'Amp has a valid global allow-all rule'
 Assert-Profile ($factory.interactionMode -eq 'auto' -and $factory.autonomyMode -eq 'auto-high') 'Factory uses its highest discovered autonomous profile'

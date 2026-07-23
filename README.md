@@ -27,6 +27,13 @@ Use the central utility from this repository:
 
 `inventory`, `evaluate`, `validate`, `drift`, and `cleanup` are side-effect-free by default. Add `-WriteReport` only when a persisted local report is needed. `generate` and `sync` are the explicit configuration-writing commands; `sync` remains a dry run unless `-Apply` is supplied. `cleanup` never removes an agent or configuration. Exact candidates require a separately authorized and validated maintenance action.
 
+Cursor is currently a retained-but-disabled surface. Do not route work to its
+IDE agent, local CLI, Cloud/Background Agents, or API until the owner explicitly
+reauthorizes it after quota is restored. Re-enabling requires one reviewed change
+that updates both `registry/fleet-profile.json` and the provider hold in
+`standards/global-agent-policy.md`, followed by `generate`, `sync -Apply`, and
+validation. Changing the registry flag alone is intentionally insufficient.
+
 ## Operating model
 
 Claude, Codex, and other personal agent hosts share the policy in [`docs/cross-agent-operating-charter.md`](docs/cross-agent-operating-charter.md) and the stable, client-free memory seed in [`docs/cross-agent-memory-seed.md`](docs/cross-agent-memory-seed.md). Personal capability work is isolated from client systems and uses synthetic fixtures.

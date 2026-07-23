@@ -27,6 +27,11 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Use official host formats. Record unsupported or undocumented packaging as discovery-required instead of inventing a format.
 - Specialized roles and capabilities remain specialized; shared roles define coordination semantics, not feature ownership.
 
+## Provider holds
+
+- Obey `registry/fleet-profile.json` dispatch policy before invoking an agent host, CLI, cloud runner, or API.
+- Cursor IDE agents, Cursor Agent CLI, Cursor Cloud/Background Agents, and Cursor API sessions are currently retained but disabled because quota/spend headroom is exhausted. Do not invoke, probe, or route work to Cursor until the owner explicitly reauthorizes it, current availability is verified without launching a paid run, and one reviewed control-plane change updates both this hold and `registry/fleet-profile.json` before regenerated instructions are synchronized.
+
 ## Handoff
 
 Report the outcome, changed files, validation evidence, branch or commit when applicable, remaining risks, and the next required gate. Silence or a missing automated review is not approval.

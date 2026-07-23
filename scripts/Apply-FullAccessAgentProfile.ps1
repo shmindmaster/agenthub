@@ -21,6 +21,7 @@ $ErrorActionPreference = 'Stop'
 $mcps = Get-Content (Join-Path $RegistryRoot 'registry\mcps.json') -Raw | ConvertFrom-Json
 $caps = Get-Content (Join-Path $RegistryRoot 'registry\capabilities.json') -Raw | ConvertFrom-Json
 $profile = Get-Content (Join-Path $RegistryRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
+. (Join-Path $PSScriptRoot 'AgentCtl.CursorReadiness.ps1')
 
 function To-Hash($value) {
   if ($null -eq $value) { return $null }
@@ -654,7 +655,11 @@ $wrappers = @{
   'copilot.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" ' + (@($managedSkillCapabilities | ForEach-Object { '--plugin-dir "' + $_.pluginRoot + '"' }) -join ' ') + ' --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
   'devin.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\devin\cli\bin\devin.exe" --permission-mode dangerous --respect-workspace-trust false %*'
   'agy.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\agy\bin\agy.exe" --dangerously-skip-permissions %*'
-  'cursor-agent.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\cursor-agent\cursor-agent.cmd" --yolo --sandbox disabled --approve-mcps %*'
+  'cursor-agent.cmd' = if (Test-CursorDispatchEnabled $profile.dispatchPolicy.cursor) {
+    '@echo off' + "`r`n" + '"%LOCALAPPDATA%\cursor-agent\cursor-agent.cmd" --yolo --sandbox disabled --approve-mcps %*'
+  } else {
+    '@echo off' + "`r`n" + 'echo Cursor dispatch is disabled by owner policy. Re-enable it in agent-capabilities before use. 1^>^&2' + "`r`n" + 'exit /b 2'
+  }
 }
 foreach ($pair in $wrappers.GetEnumerator()) { Set-Content -LiteralPath (Join-Path $bin $pair.Key) -Value $pair.Value -Encoding ASCII -NoNewline }
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')

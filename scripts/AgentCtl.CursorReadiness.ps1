@@ -7,6 +7,23 @@ function Get-CursorReadinessFailure([string]$Kind, [string]$Uri, $ErrorRecord) {
   return "$Kind $Uri -> $($ErrorRecord.Exception.GetType().Name)"
 }
 
+function Test-CursorDispatchEnabled($DispatchPolicy) {
+  return ($null -ne $DispatchPolicy -and $DispatchPolicy.enabled -is [bool] -and $DispatchPolicy.enabled)
+}
+
+function Invoke-CursorCloudReadinessForPolicy($DispatchPolicy) {
+  if (-not (Test-CursorDispatchEnabled $DispatchPolicy)) {
+    return [ordered]@{
+      policyDisabled = $true
+      policyReason = if ($null -ne $DispatchPolicy -and $DispatchPolicy.reason) { [string]$DispatchPolicy.reason } else { 'Cursor dispatch requires an explicit enabled=true policy' }
+    }
+  }
+
+  $result = Invoke-CursorCloudReadiness
+  $result['policyDisabled'] = $false
+  return $result
+}
+
 function Invoke-CursorCloudReadiness {
   $key = $env:CURSOR_ADMIN_API_KEY
   $keySource = 'CURSOR_ADMIN_API_KEY'

@@ -28,6 +28,22 @@ Describe 'Cursor cloud read-only readiness' {
     Assert-MockCalled Invoke-RestMethod -Times 0
   }
 
+  It 'fails closed without an explicit enabled dispatch policy' {
+    Mock Invoke-RestMethod { throw 'network should not be called' }
+
+    $missingPolicy = Invoke-CursorCloudReadinessForPolicy -DispatchPolicy $null
+    $disabledPolicy = Invoke-CursorCloudReadinessForPolicy -DispatchPolicy ([pscustomobject]@{ enabled = $false; reason = 'synthetic hold' })
+    $stringPolicy = Invoke-CursorCloudReadinessForPolicy -DispatchPolicy ([pscustomobject]@{ enabled = 'true' })
+    $numericPolicy = Invoke-CursorCloudReadinessForPolicy -DispatchPolicy ([pscustomobject]@{ enabled = 1 })
+
+    $missingPolicy.policyDisabled | Should Be $true
+    $disabledPolicy.policyDisabled | Should Be $true
+    $stringPolicy.policyDisabled | Should Be $true
+    $numericPolicy.policyDisabled | Should Be $true
+    $disabledPolicy.policyReason | Should Be 'synthetic hold'
+    Assert-MockCalled Invoke-RestMethod -Times 0
+  }
+
   It 'uses the API key fallback when the admin key is whitespace' {
     $env:CURSOR_ADMIN_API_KEY = '   '
     $env:CURSOR_API_KEY = 'synthetic-fallback-key'

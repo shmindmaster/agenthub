@@ -29,6 +29,13 @@ Describe 'agentctl read-only commands' {
     ($script:scriptText -match "Add-Check 'WARN' 'cursor-background-launch'") | Should Be $true
   }
 
+  It 'keeps Cursor dispatch disabled until the owner explicitly re-enables it' {
+    $fleetProfile = Get-Content -LiteralPath (Join-Path $script:repoRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
+    $fleetProfile.dispatchPolicy.cursor.enabled | Should Be $false
+    $fleetProfile.dispatchPolicy.'cursor-agent'.enabled | Should Be $false
+    ($script:scriptText -match 'disabled by owner policy; no API request attempted') | Should Be $true
+  }
+
   It 'generates deterministically and drift does not mutate synthetic output' {
     $fixtureRoot = Join-Path $TestDrive 'control-plane'
     foreach ($directory in @('registry', 'standards', 'templates')) {

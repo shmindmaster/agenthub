@@ -50,7 +50,6 @@
   ],
   "launchDefaults": {
     "gemini": ["--yolo", "--skip-trust"],
-    "cursor-agent": ["--yolo", "--sandbox", "disabled", "--approve-mcps"],
     "copilot": ["--allow-all", "--autopilot", "--no-ask-user", "--allow-all-mcp-server-instructions"],
     "devin": ["--permission-mode", "dangerous", "--respect-workspace-trust", "false"],
     "agy": ["--dangerously-skip-permissions"]
@@ -67,9 +66,24 @@
       }
     }
   },
+  "dispatchPolicy": {
+    "cursor": {
+      "enabled": false,
+      "scope": "ide-agent, local-cli, cloud-background-agent, api",
+      "reason": "Owner hold: quota/spend headroom exhausted on 2026-07-22",
+      "reenableRequires": "Explicit owner authorization followed by non-mutating quota/billing verification"
+    },
+    "cursor-agent": {
+      "enabled": false,
+      "scope": "local-cli",
+      "reason": "Shares the owner-disabled Cursor account and quota boundary",
+      "reenableRequires": "Explicit owner authorization"
+    }
+  },
   "notes": [
     "OAuth consent and provider login pages remain provider-controlled and cannot be pre-approved by a host configuration.",
     "The cagent folder is retained as state only because no cagent executable or documented user configuration is installed.",
-    "The .windsurf folder is plans-only; the active Windsurf configuration is .codeium/windsurf."
+    "The .windsurf folder is plans-only; the active Windsurf configuration is .codeium/windsurf.",
+    "Cursor surfaces remain installed for preservation but are unavailable for dispatch until explicitly reauthorized."
   ]
 }
