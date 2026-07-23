@@ -346,7 +346,7 @@
       "owner": "portfolio",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-prompt-os",
-      "contentHash": "49A753DD46E472E0DD8AAA38F19BC451EAD069D6A000EA2CCACFBF86B504304D",
+      "contentHash": "2A0BCEF73BA8B304F9F2DA808A50698EF86435871D68D40E011AF9A84A8E8C65",
       "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-prompt-os\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [

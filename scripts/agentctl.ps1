@@ -490,14 +490,55 @@ function Invoke-Validation {
   }
 
   $fleetProfile = Read-Json (Join-Path $RegistryRoot 'registry\fleet-profile.json')
-  $cursorDispatch = $fleetProfile.dispatchPolicy.cursor
-  $cursorReadiness = Invoke-CursorCloudReadinessForPolicy -DispatchPolicy $cursorDispatch
+  $cursorReadiness = Invoke-CursorCloudReadiness -FleetProfile $fleetProfile
   if ($cursorReadiness.policyDisabled) {
     $holdReason = [string]$cursorReadiness.policyReason
     Add-Check 'WARN' 'cursor-api-auth' "disabled by owner policy; no API request attempted: $holdReason"
     Add-Check 'WARN' 'cursor-models-list' 'disabled by owner policy; model availability was not checked'
     Add-Check 'WARN' 'cursor-background-launch' 'disabled by owner policy; do not launch or probe Cursor'
     Add-Check 'WARN' 'cursor-background-setup' 'disabled by owner policy; setup/run state was not checked'
+    $cursorCredentialScopes = @()
+    if (-not [string]::IsNullOrWhiteSpace($env:CURSOR_API_KEY) -or -not [string]::IsNullOrWhiteSpace($env:CURSOR_ADMIN_API_KEY)) { $cursorCredentialScopes += 'process' }
+    if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('CURSOR_API_KEY', 'User')) -or -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('CURSOR_ADMIN_API_KEY', 'User'))) { $cursorCredentialScopes += 'user' }
+    if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('CURSOR_API_KEY', 'Machine')) -or -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('CURSOR_ADMIN_API_KEY', 'Machine'))) { $cursorCredentialScopes += 'machine' }
+    if ($cursorCredentialScopes.Count) {
+      Add-Check 'WARN' 'cursor-credential-residue' ("credential variable remains at {0} scope; value was not read; remove persistent entries and restart inherited sessions" -f ($cursorCredentialScopes -join ','))
+    } else {
+      Add-Check 'PASS' 'cursor-credential-residue' 'no Cursor credential environment variable is present'
+    }
+    $managedCursorWrapperRoot = Join-Path ([Environment]::GetFolderPath('UserProfile')) 'bin'
+    $cursorWrapperShells = [ordered]@{
+      'cursor.cmd' = 'cmd'
+      'cursor' = 'posix'
+      'cursor-agent.cmd' = 'cmd'
+      'cursor-agent' = 'posix'
+    }
+    foreach ($managedCursorWrapper in $cursorWrapperShells.Keys) {
+      $managedCursorWrapperPath = Join-Path $managedCursorWrapperRoot $managedCursorWrapper
+      if (-not (Test-Path -LiteralPath $managedCursorWrapperPath -PathType Leaf)) {
+        Add-Check 'FAIL' ("cursor-hold-wrapper:$managedCursorWrapper") 'blocked launcher is missing'
+        continue
+      }
+      $managedCursorWrapperContent = (Get-Content -LiteralPath $managedCursorWrapperPath -Raw).Replace("`r`n", "`n").TrimEnd("`r", "`n")
+      $expectedCursorWrapperContent = (Get-CursorBlockedLauncherContent -Shell $cursorWrapperShells[$managedCursorWrapper]).Replace("`r`n", "`n").TrimEnd("`r", "`n")
+      if ($managedCursorWrapperContent -ceq $expectedCursorWrapperContent) {
+        Add-Check 'PASS' ("cursor-hold-wrapper:$managedCursorWrapper") 'blocked by owner policy'
+      } else {
+        Add-Check 'FAIL' ("cursor-hold-wrapper:$managedCursorWrapper") 'launcher can bypass the owner hold'
+      }
+    }
+    $cursorHoldRulePath = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.cursor\rules\00-provider-hold.mdc'
+    if (Test-Path -LiteralPath $cursorHoldRulePath -PathType Leaf) {
+      $actualCursorHoldRule = (Get-Content -LiteralPath $cursorHoldRulePath -Raw).Replace("`r`n", "`n").TrimEnd("`r", "`n")
+      $expectedCursorHoldRule = (Get-CursorProviderHoldRuleContent).Replace("`r`n", "`n").TrimEnd("`r", "`n")
+      if ($actualCursorHoldRule -ceq $expectedCursorHoldRule) {
+        Add-Check 'PASS' 'cursor-provider-hold-rule' 'global Cursor-native provider hold is exact'
+      } else {
+        Add-Check 'FAIL' 'cursor-provider-hold-rule' 'global Cursor-native provider hold has drifted'
+      }
+    } else {
+      Add-Check 'FAIL' 'cursor-provider-hold-rule' 'global Cursor-native provider hold is missing'
+    }
   } else {
     if ($cursorReadiness.auth) {
       Add-Check 'PASS' 'cursor-api-auth' ('authenticated via ' + $cursorReadiness.keySource)

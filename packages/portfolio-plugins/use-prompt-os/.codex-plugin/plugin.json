@@ -1,7 +1,7 @@
 {
   "name": "prompt-os",
   "version": "0.1.0+codex.20260721",
-  "description": "Entry point to the Notion Portfolio Prompt OS: identify the app, fetch the Prompt Router, select one Agent-Ready workflow, resolve dependencies, execute within boundaries, and record the run.",
+  "description": "Optional supporting access to Notion Prompt OS assets after repository policy, Linear/GitHub delivery state, runtime evidence, and Shwiki context are established.",
   "author": {
     "name": "SH Mindmaster"
   },
@@ -17,8 +17,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Portfolio Prompt OS",
-    "shortDescription": "Route work to canonical Notion Prompt OS workflows.",
-    "longDescription": "The retrieval-and-routing entry point for the SH portfolio. Identifies the current app, fetches its Apps record and the canonical Prompt Router, selects one Agent-Ready primary workflow, resolves required calls, prerequisites, and tool adapters, validates tools/variables/approvals, executes within declared boundaries, and records the run in Prompt Runs / Evals.",
+    "shortDescription": "Consult optional supporting Notion Prompt OS assets.",
+    "longDescription": "A supporting retrieval tool for reusable SH portfolio prompt assets. Repository AGENTS.md, Linear/GitHub delivery state, deployed runtime evidence, and Shwiki context remain authoritative. Use this only when Prompt OS material is useful and never as a runtime dependency.",
     "developerName": "SH Mindmaster",
     "category": "Developer Tools",
     "capabilities": [
@@ -27,9 +27,9 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Route this task through the Portfolio Prompt OS.",
-      "Find the canonical workflow for this app and run it.",
-      "Which Agent-Ready prompt applies to this repository?"
+      "Consult Prompt OS for supporting material after reading this repository's AGENTS.md and active Linear/GitHub state.",
+      "Find an optional reusable prompt asset for this app without changing delivery authority.",
+      "Which supporting Agent-Ready prompt applies to this repository?"
     ]
   }
 }

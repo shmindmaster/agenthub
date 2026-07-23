@@ -51,47 +51,6 @@
       "status": "active"
     },
     {
-      "id": "cursor",
-      "name": "Cursor",
-      "version": "3.12.17",
-      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin\\cursor.cmd",
-      "nativePaths": {
-        "mcp": "C:\\Users\\SaroshHussain\\.cursor\\mcp.json",
-        "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Cursor\\User\\settings.json",
-        "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills",
-        "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
-        "rulesDir": "C:\\Users\\SaroshHussain\\.cursor\\rules",
-        "pluginsDir": "C:\\Users\\SaroshHussain\\.cursor\\plugins"
-      },
-      "supportedCapabilities": [
-        "rules",
-        "skills",
-        "subagents",
-        "mcp",
-        "plugins"
-      ],
-      "status": "active"
-    },
-    {
-      "id": "cursor-agent",
-      "name": "Cursor Agent CLI",
-      "version": "2026.07.17-3e2a980",
-      "executable": "C:\\Users\\SaroshHussain\\bin\\cursor-agent.cmd",
-      "nativePaths": {
-        "config": "C:\\Users\\SaroshHussain\\.cursor\\cli-config.json",
-        "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
-        "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills"
-      },
-      "supportedCapabilities": [
-        "rules",
-        "skills",
-        "subagents",
-        "mcp"
-      ],
-      "status": "active",
-      "surfaceType": "companion-cli"
-    },
-    {
       "id": "qwen-code",
       "name": "Qwen Code",
       "version": "0.20.1",
@@ -283,6 +242,51 @@
     }
   ],
   "inactiveAgents": [
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "version": "3.12.17",
+      "executable": "C:\\Users\\SaroshHussain\\bin\\cursor.cmd",
+      "nativePaths": {
+        "vendorExecutable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin\\cursor.cmd",
+        "mcp": "C:\\Users\\SaroshHussain\\.cursor\\mcp.json",
+        "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Cursor\\User\\settings.json",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
+        "rulesDir": "C:\\Users\\SaroshHussain\\.cursor\\rules",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.cursor\\plugins"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins"
+      ],
+      "status": "retained-disabled",
+      "notes": "Preserved but unavailable for dispatch; the managed executable is the fail-closed owner-hold shim."
+    },
+    {
+      "id": "cursor-agent",
+      "name": "Cursor Agent CLI",
+      "version": "2026.07.17-3e2a980",
+      "executable": "C:\\Users\\SaroshHussain\\bin\\cursor-agent.cmd",
+      "nativePaths": {
+        "vendorExecutable": "C:\\Users\\SaroshHussain\\AppData\\Local\\cursor-agent\\cursor-agent.cmd",
+        "config": "C:\\Users\\SaroshHussain\\.cursor\\cli-config.json",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills"
+      },
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp"
+      ],
+      "status": "retained-disabled",
+      "surfaceType": "companion-cli",
+      "notes": "Preserved but unavailable for dispatch; the managed executable is the fail-closed owner-hold shim."
+    },
     {
       "id": "amp",
       "name": "Sourcegraph Amp",

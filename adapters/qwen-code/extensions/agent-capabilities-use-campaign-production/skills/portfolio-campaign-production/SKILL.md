@@ -55,5 +55,5 @@ Do not run two adapters in the same lane for one deliverable. Prefer the adapter
 
 ## Handoffs
 
-- **Adobe on Codex/Cursor:** no public Adobe MCP endpoint — use the Adobe REST API (Firefly / Audio-Video) or an explicit Claude Chat/Cowork handoff, per the Adobe tool adapter.
+- **Adobe on coding agents without an Adobe MCP:** use the Adobe REST API (Firefly / Audio-Video) or an explicit Claude Chat/Cowork handoff, per the Adobe tool adapter.
 - Use `portfolio-prompt-os` for router/dependency resolution; this skill only orchestrates production once a workflow is selected.

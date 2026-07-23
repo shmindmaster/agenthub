@@ -90,8 +90,8 @@
       "configHome": "C:\\Users\\SaroshHussain\\.cursor",
       "classification": "canonical",
       "platform": "windows-native",
-      "lifecycle": "active",
-      "readiness": "interactive-only",
+      "lifecycle": "retained-disabled",
+      "readiness": "owner-hold",
       "installed": true,
       "configured": true,
       "authoritative": true
@@ -106,8 +106,8 @@
       "configHome": "C:\\Users\\SaroshHussain\\.cursor",
       "classification": "valid-companion",
       "platform": "windows-native",
-      "lifecycle": "active",
-      "readiness": "headless-ready",
+      "lifecycle": "retained-disabled",
+      "readiness": "owner-hold",
       "installed": true,
       "configured": true,
       "authoritative": true

@@ -4,7 +4,7 @@
     { "host": "codex", "state": "configured", "artifact": "installed owner plugins and native connectors" },
     { "host": "claude", "state": "policy-configured", "artifact": "global CLAUDE.md header" },
     { "host": "vscode-insiders", "state": "adapter-ready", "artifact": "Claude-compatible format policy" },
-    { "host": "cursor", "state": "adapter-ready", "artifact": "capability-specific .cursor-plugin policy" },
+    { "host": "cursor", "state": "retained-disabled", "artifact": "capability-specific .cursor-plugin policy retained behind owner hold" },
     { "host": "amp", "state": "policy-configured", "artifact": "global AGENTS.md header; MCP-first policy" },
     { "host": "factory", "state": "adapter-ready", "artifact": "native MCP/plugin policy" },
     { "host": "qwen-code", "state": "configured", "artifact": "user settings, shared MCP sync, and global subagents" },
@@ -14,7 +14,7 @@
     ,{ "host": "gemini", "state": "configured", "artifact": "generated global instructions, Gemini 3.6 Flash High model mapping, shared-skill deduplication" }
     ,{ "host": "copilot", "state": "configured", "artifact": "launcher plugin directories, global MCP and repository-instruction policy" }
     ,{ "host": "hermes", "state": "configured", "artifact": "native Windows runtime, generated SOUL policy, native skills and hooks" }
-    ,{ "host": "cursor-agent", "state": "configured", "artifact": "native Windows launcher and shared Cursor home" }
+    ,{ "host": "cursor-agent", "state": "retained-disabled", "artifact": "blocked native Windows launchers and preserved shared Cursor home" }
     ,{ "host": "opencode-desktop", "state": "configured", "artifact": "companion surface sharing the canonical OpenCode home" }
     ,{ "host": "antigravity", "state": "configured", "artifact": "WinGet CLI plus retained desktop and IDE companion surfaces" }
     ,{ "host": "grok", "state": "adapter-ready", "artifact": "native configuration, skill and plugin locations inventoried" }

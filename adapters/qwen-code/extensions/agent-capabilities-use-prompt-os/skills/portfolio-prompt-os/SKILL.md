@@ -1,34 +1,36 @@
 ---
 name: portfolio-prompt-os
-description: Route portfolio work to canonical reusable workflows maintained in the Notion Portfolio Prompt OS. Use for implementation, architecture, research, QA, release, security, marketing, branding, content, demo, or media work on any app in C:\Repos\shmindmaster — before reconstructing a workflow from memory. Identifies the app, fetches the Prompt Router, selects one Agent-Ready workflow, resolves its dependencies and tool adapters, and records the run.
+description: Retrieve optional reusable workflow guidance from the Notion Portfolio Prompt OS after repository instructions, Linear outcomes, and GitHub state are understood. Use when a SHMindMaster task benefits from an existing implementation, QA, release, research, content, demo, or media workflow. Notion supports execution but does not override repository, tracker, code, or runtime authority.
 ---
 
 # Portfolio Prompt OS
 
-The single entry point for reusable portfolio workflows. Canonical prompts live in the **Notion Portfolio Prompt OS**, not in local files. This skill is the retrieval-and-routing contract; it does not itself contain the workflow bodies.
+An optional retrieval path for reusable portfolio workflows. Notion stores reusable prompt bodies and examples, but it is not authoritative for current product direction, implementation, work status, or deployed state. This skill is the retrieval-and-routing contract; it does not itself contain workflow bodies.
 
 ## Source-of-truth hierarchy
 
-1. **Notion Prompt OS** — canonical for workflow/prompt bodies, routing, and app profiles.
-2. **The repository and runtime** — authoritative for current implementation state.
-3. **Local bootstrap files** (AGENTS.md / CLAUDE.md prepend) — thin pointers only; never a substitute for the canonical body.
+1. **Repository `AGENTS.md` and code** — authoritative for repository behavior and current implementation.
+2. **Linear, GitHub, and the runtime** — authoritative for outcomes/status, merged code/history, and deployed state respectively.
+3. **Shwiki** — authoritative for shared portfolio guidance.
+4. **Notion Prompt OS** — supporting library for reusable workflow bodies, examples, and execution records.
 
-Never reconstruct a canonical prompt from memory or a stale local copy. If Notion is unavailable, report the access blocker instead of improvising.
+Never let a Notion workflow override current repository instructions or live delivery state. If Notion is unavailable, continue with repository-native guidance unless the requested task explicitly depends on a Notion-only workflow body.
 
 ## Retrieval contract
 
-1. **Identify** the current repository and app.
-2. **Fetch the Apps record** for that app (execution profile + brand/creative profile) from the Notion Apps database.
-3. **Fetch the canonical Prompt Router.**
-4. **Query only agent-ready prompts first** using the live schema: Lifecycle = Canonical,
+1. **Identify** the current repository and app; read its `AGENTS.md` first.
+2. **Confirm current outcome and implementation state** in Linear, GitHub, and the repository as applicable.
+3. **Fetch the Apps record** for that app (supporting execution profile + brand/creative profile) from the Notion Apps database.
+4. **Fetch the Prompt Router.**
+5. **Query only agent-ready prompts first** using the live schema: Lifecycle = Canonical,
    Copy Ready = checked, Validation Status = Both, complete body, and no unresolved prerequisite.
-5. **Select one primary prompt/workflow** appropriate to the task.
-6. **Fetch dependencies from `Prerequisites` and explicit page mentions**, plus supporting tool
+6. **Select one primary prompt/workflow** appropriate to the task.
+7. **Fetch dependencies from `Prerequisites` and explicit page mentions**, plus supporting tool
    adapters. The live `Calls` field is a numeric usage counter, not a dependency relation.
-7. **Validate** required tools, resolved variables, approvals, and execution-host compatibility before acting.
-8. **Execute** within the declared boundaries (side effects, approval gates, restricted-data rules).
-9. **Record the run** in the Notion Prompt Runs / Evals database (agent, model, result, evidence URLs, output artifact).
-10. **On Notion outage**, report the blocker — do not fabricate the workflow.
+8. **Validate** required tools, resolved variables, approvals, and execution-host compatibility before acting.
+9. **Execute** within the declared boundaries (side effects, approval gates, restricted-data rules).
+10. **Record the run** in the Notion Prompt Runs / Evals database when the workflow requires it.
+11. **On Notion outage**, continue with repository-native guidance unless the requested workflow body exists only in Notion; never fabricate that body.
 
 ## What the router returns
 

@@ -1,6 +1,6 @@
 {
   "name": "use-prompt-os",
   "version": "0.1.0",
-  "description": "Entry point to the Notion Portfolio Prompt OS: identify the app, fetch the Prompt Router, select one Agent-Ready workflow, resolve dependencies, execute within boundaries, and record the run.",
+  "description": "Dormant Cursor adapter for optional supporting Notion Prompt OS assets; Cursor dispatch is owner-disabled and this package must not be invoked while the provider hold is active.",
   "author": { "name": "Sarosh Hussain" }
 }

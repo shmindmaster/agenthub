@@ -33,7 +33,16 @@ Describe 'agentctl read-only commands' {
     $fleetProfile = Get-Content -LiteralPath (Join-Path $script:repoRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
     $fleetProfile.dispatchPolicy.cursor.enabled | Should Be $false
     $fleetProfile.dispatchPolicy.'cursor-agent'.enabled | Should Be $false
+    $fleetProfile.providerHolds.cursor.active | Should Be $true
     ($script:scriptText -match 'disabled by owner policy; no API request attempted') | Should Be $true
+    ($script:scriptText -match 'cursor-credential-residue') | Should Be $true
+    ($script:scriptText -match 'value was not read') | Should Be $true
+    ($script:scriptText -match 'cursor-hold-wrapper') | Should Be $true
+    ($script:scriptText -match 'launcher can bypass the owner hold') | Should Be $true
+    . (Join-Path $script:repoRoot 'scripts\AgentCtl.CursorReadiness.ps1')
+    (Test-CursorDispatchEnabled $fleetProfile) | Should Be $false
+    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface agent -Shell cmd) | Should Be (Get-CursorBlockedLauncherContent -Shell cmd)
+    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface ide -Shell posix) | Should Be (Get-CursorBlockedLauncherContent -Shell posix)
   }
 
   It 'generates deterministically and drift does not mutate synthetic output' {

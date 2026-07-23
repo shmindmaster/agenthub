@@ -7,6 +7,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $fleetProfile = Get-Content (Join-Path $RegistryRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
+. (Join-Path $PSScriptRoot 'AgentCtl.CursorReadiness.ps1')
 $expected = @((Get-Content (Join-Path $RegistryRoot 'registry\mcps.json') -Raw | ConvertFrom-Json).mcpServers | Where-Object scope -eq 'global-default' | ForEach-Object id | Sort-Object)
 $failures = @()
 function Assert-Profile([bool]$Condition, [string]$Check) {
@@ -56,10 +57,20 @@ $qwenPrimary = @($qwen.modelProviders.openai | Where-Object id -eq 'qwen3.8-max-
 Assert-Profile ($qwenPrimary.Count -eq 1 -and $qwenPrimary[0].generationConfig.thinkingMandatory -eq $true -and $qwenPrimary[0].generationConfig.extra_body.enable_thinking -eq $true) 'Qwen 3.8 keeps mandatory thinking enabled for /compress side queries'
 Assert-Profile ($openCode.permission -eq 'allow') 'OpenCode allows every permission class'
 $cursorYoloLauncher = Get-Content "$UserProfile\bin\cursor-agent.cmd" -Raw -ErrorAction SilentlyContinue
-if ($fleetProfile.dispatchPolicy.cursor.enabled -eq $true) {
-  Assert-Profile (($cursor.approvalMode -eq 'unrestricted' -or $cursorYoloLauncher -match '--yolo') -and $cursor.sandbox.mode -eq 'disabled') 'Cursor defaults to yolo and is unsandboxed'
+$cursorPosixLauncher = Get-Content "$UserProfile\bin\cursor-agent" -Raw -ErrorAction SilentlyContinue
+$cursorIdeLauncher = Get-Content "$UserProfile\bin\cursor.cmd" -Raw -ErrorAction SilentlyContinue
+$cursorIdePosixLauncher = Get-Content "$UserProfile\bin\cursor" -Raw -ErrorAction SilentlyContinue
+if (Test-CursorDispatchEnabled $fleetProfile) {
+  Assert-Profile (($cursor.approvalMode -eq 'unrestricted' -or $cursorYoloLauncher -match '--yolo') -and $cursorPosixLauncher -match '--yolo' -and $cursor.sandbox.mode -eq 'disabled') 'Cursor defaults to yolo and is unsandboxed'
 } else {
-  Assert-Profile ($cursorYoloLauncher -match 'disabled by owner policy' -and $cursorYoloLauncher -notmatch '--yolo') 'Cursor launcher is blocked by owner policy'
+  $normalize = { param([string]$Value) $Value.Replace("`r`n", "`n").TrimEnd("`r", "`n") }
+  $expectedCmd = & $normalize (Get-CursorBlockedLauncherContent -Shell cmd)
+  $expectedPosix = & $normalize (Get-CursorBlockedLauncherContent -Shell posix)
+  Assert-Profile ((& $normalize $cursorYoloLauncher) -ceq $expectedCmd -and (& $normalize $cursorIdeLauncher) -ceq $expectedCmd -and (& $normalize $cursorPosixLauncher) -ceq $expectedPosix -and (& $normalize $cursorIdePosixLauncher) -ceq $expectedPosix) 'Cursor launchers exactly match the owner-hold shims'
+  Assert-Profile ($cursor.approvalMode -eq 'allowlist' -and $cursor.sandbox.mode -eq 'enabled' -and $cursor.sandbox.networkAccess -eq 'restricted' -and $cursor.autoAcceptWebSearch -eq $false -and @($cursor.permissions.deny) -contains 'Shell(*)' -and @($cursor.permissions.deny) -contains 'Write(**)') 'Cursor native configuration is restrictive while disabled'
+  $actualCursorHoldRule = (Get-Content "$UserProfile\.cursor\rules\00-provider-hold.mdc" -Raw -ErrorAction SilentlyContinue).Replace("`r`n", "`n").TrimEnd("`r", "`n")
+  $expectedCursorHoldRule = (Get-CursorProviderHoldRuleContent).Replace("`r`n", "`n").TrimEnd("`r", "`n")
+  Assert-Profile ($actualCursorHoldRule -ceq $expectedCursorHoldRule) 'Cursor global provider-hold rule is exact'
 }
 Assert-Profile ($antigravity.toolPermission -eq 'always-proceed') 'Antigravity tool approval is always-proceed'
 Assert-Profile ($amp.'amp.permissions' -is [System.Array] -and $amp.'amp.permissions'.Count -eq 1 -and $amp.'amp.permissions'[0].action -eq 'allow' -and $amp.'amp.permissions'[0].tool -eq '*') 'Amp has a valid global allow-all rule'
@@ -67,7 +78,7 @@ Assert-Profile ($factory.interactionMode -eq 'auto' -and $factory.autonomyMode -
 foreach ($name in 'DEVIN_PERMISSION_MODE','COPILOT_ALLOW_ALL','GEMINI_CLI_TRUST_WORKSPACE','QWEN_CODE_SUPPRESS_YOLO_WARNING') {
   Assert-Profile (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'User'))) "user environment contains $name"
 }
-foreach ($launcher in 'gemini.cmd','copilot.cmd','devin.cmd','agy.cmd','cursor-agent.cmd') {
+foreach ($launcher in 'gemini.cmd','copilot.cmd','devin.cmd','agy.cmd','cursor-agent.cmd','cursor-agent','cursor.cmd','cursor') {
   Assert-Profile (Test-Path "$UserProfile\bin\$launcher") "unattended launcher exists: $launcher"
 }
 if ($failures.Count) { exit 1 }

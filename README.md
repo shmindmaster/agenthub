@@ -30,9 +30,13 @@ Use the central utility from this repository:
 Cursor is currently a retained-but-disabled surface. Do not route work to its
 IDE agent, local CLI, Cloud/Background Agents, or API until the owner explicitly
 reauthorizes it after quota is restored. Re-enabling requires one reviewed change
-that updates both `registry/fleet-profile.json` and the provider hold in
+that sets both Cursor dispatch flags to Boolean `true`, sets
+`providerHolds.cursor.active` to Boolean `false`, and updates the provider hold in
 `standards/global-agent-policy.md`, followed by `generate`, `sync -Apply`, and
 validation. Changing the registry flag alone is intentionally insufficient.
+Persistent Cursor API environment variables are removed while the hold is in
+force. Long-lived processes can retain an inherited process-scoped copy until
+they are restarted; validation reports only the remaining scope, never values.
 
 ## Operating model
 

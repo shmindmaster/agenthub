@@ -1,7 +1,7 @@
 {
   "name": "use-prompt-os",
   "version": "0.1.0",
-  "description": "Entry point to the Notion Portfolio Prompt OS. Routes implementation, research, QA, release, marketing, branding, content, and media work to canonical workflows: identify the app, fetch the Prompt Router, select one Agent-Ready workflow, resolve dependencies and tool adapters, execute within boundaries, and record the run.",
+  "description": "Optional supporting access to Notion Prompt OS assets after repository policy, Linear/GitHub delivery state, runtime evidence, and Shwiki context are established.",
   "author": { "name": "Sarosh Hussain" },
   "keywords": ["prompt-os", "notion", "router", "workflow", "portfolio", "orchestration", "agent-ready"],
   "homepage": "https://shwiki.shtrial.com/"

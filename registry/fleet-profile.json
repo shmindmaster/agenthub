@@ -80,6 +80,13 @@
       "reenableRequires": "Explicit owner authorization"
     }
   },
+  "providerHolds": {
+    "cursor": {
+      "active": true,
+      "reason": "Owner hold: quota/spend headroom exhausted",
+      "reenableRequires": "One reviewed change must set both dispatch flags to Boolean true, set this hold to Boolean false, update standards/global-agent-policy.md, regenerate and sync instructions, and validate quota without a paid probe"
+    }
+  },
   "notes": [
     "OAuth consent and provider login pages remain provider-controlled and cannot be pre-approved by a host configuration.",
     "The cagent folder is retained as state only because no cagent executable or documented user configuration is installed.",

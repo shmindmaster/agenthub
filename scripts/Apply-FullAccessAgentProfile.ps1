@@ -601,10 +601,22 @@ Save-JsonHash $openCodePath $openCode
 
 $cursorPath = "$UserProfile\.cursor\cli-config.json"
 $cursor = Read-JsonHash $cursorPath
-$cursor['approvalMode'] = 'unrestricted'
-$cursor['permissions'] = @{ allow=@('Shell(*)','Read(**)','Write(**)'); deny=@() }
-$cursor['sandbox'] = @{ mode='disabled'; networkAccess='full' }
-$cursor['autoAcceptWebSearch'] = $true
+if (Test-CursorDispatchEnabled $profile) {
+  $cursor['approvalMode'] = 'unrestricted'
+  $cursor['permissions'] = @{ allow=@('Shell(*)','Read(**)','Write(**)'); deny=@() }
+  $cursor['sandbox'] = @{ mode='disabled'; networkAccess='full' }
+  $cursor['autoAcceptWebSearch'] = $true
+} else {
+  $cursor['approvalMode'] = 'allowlist'
+  $cursor['permissions'] = @{ allow=@('Read(**)'); deny=@('Shell(*)','Write(**)') }
+  $cursor['sandbox'] = @{ mode='enabled'; networkAccess='restricted' }
+  $cursor['autoAcceptWebSearch'] = $false
+  [Environment]::SetEnvironmentVariable('CURSOR_API_KEY', $null, 'User')
+  [Environment]::SetEnvironmentVariable('CURSOR_ADMIN_API_KEY', $null, 'User')
+  $cursorHoldRulePath = "$UserProfile\.cursor\rules\00-provider-hold.mdc"
+  New-Item -ItemType Directory -Path (Split-Path -Parent $cursorHoldRulePath) -Force | Out-Null
+  Set-Content -LiteralPath $cursorHoldRulePath -Value (Get-CursorProviderHoldRuleContent) -Encoding UTF8 -NoNewline
+}
 Save-JsonHash $cursorPath $cursor
 
 $factorySettingsPath = "$UserProfile\.factory\settings.json"
@@ -655,11 +667,10 @@ $wrappers = @{
   'copilot.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" ' + (@($managedSkillCapabilities | ForEach-Object { '--plugin-dir "' + $_.pluginRoot + '"' }) -join ' ') + ' --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
   'devin.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\devin\cli\bin\devin.exe" --permission-mode dangerous --respect-workspace-trust false %*'
   'agy.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\agy\bin\agy.exe" --dangerously-skip-permissions %*'
-  'cursor-agent.cmd' = if (Test-CursorDispatchEnabled $profile.dispatchPolicy.cursor) {
-    '@echo off' + "`r`n" + '"%LOCALAPPDATA%\cursor-agent\cursor-agent.cmd" --yolo --sandbox disabled --approve-mcps %*'
-  } else {
-    '@echo off' + "`r`n" + 'echo Cursor dispatch is disabled by owner policy. Re-enable it in agent-capabilities before use. 1^>^&2' + "`r`n" + 'exit /b 2'
-  }
+  'cursor-agent.cmd' = Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell cmd
+  'cursor-agent' = Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell posix
+  'cursor.cmd' = Get-CursorLauncherContent -FleetProfile $profile -Surface ide -Shell cmd
+  'cursor' = Get-CursorLauncherContent -FleetProfile $profile -Surface ide -Shell posix
 }
 foreach ($pair in $wrappers.GetEnumerator()) { Set-Content -LiteralPath (Join-Path $bin $pair.Key) -Value $pair.Value -Encoding ASCII -NoNewline }
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
