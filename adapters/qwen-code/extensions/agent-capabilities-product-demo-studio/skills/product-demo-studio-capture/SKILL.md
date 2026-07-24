@@ -18,6 +18,12 @@ Treat manual browser exploration (the agent's native Browser/Chrome tools) as di
 canonical screenshot or recording must come from a checked-in or otherwise versioned automation
 command (Playwright or the repo's equivalent), so it is reproducible.
 
+When the shared Browser Quality Toolkit is installed, use its `browser-debugging` skill and Chrome
+DevTools MCP for live DOM/accessibility, console, network, Lighthouse, and performance evidence.
+Connect only to the dedicated QA Chrome endpoint. A shared browser permits one interactive agent at
+a time; concurrent agents require separate profiles, ports, synthetic identities, and seed
+namespaces. The developer's normal Chrome instance is never an acceptable capture target.
+
 Resolve `PRODUCT_DEMO_STUDIO_ROOT` through the router skill before invoking bundled scripts; do not
 assume a Claude-specific plugin-root variable exists on every coding-agent host.
 

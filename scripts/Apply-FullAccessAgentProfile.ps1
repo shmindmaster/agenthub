@@ -52,10 +52,72 @@ function Get-DirectoryInventory([string]$Path) {
       Sort-Object FullName |
       ForEach-Object {
         $relativePath = $_.FullName.Substring($root.Length).TrimStart('\').Replace('\', '/')
+        # Claude writes per-process .in_use sentinels inside a live plugin
+        # cache. They are runtime state, not package content, and must not
+        # make an otherwise current native plugin appear stale.
+        if ($relativePath -eq '.in_use' -or $relativePath.StartsWith('.in_use/')) { return }
         if ($_.PSIsContainer) { 'D|{0}' -f $relativePath }
         else { 'F|{0}|{1}' -f $relativePath, (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
       }
   )
+}
+
+function Sync-QwenSubagents([string]$SourceRoot, [string]$DestinationRoot) {
+  if (!(Test-Path -LiteralPath $SourceRoot -PathType Container)) {
+    throw "Managed Qwen subagent source is missing: $SourceRoot"
+  }
+  New-Item -ItemType Directory -Path $DestinationRoot -Force | Out-Null
+  foreach ($source in @(Get-ChildItem -LiteralPath $SourceRoot -File -Filter '*.md' | Sort-Object Name)) {
+    $destination = Join-Path $DestinationRoot $source.Name
+    $current = if (Test-Path -LiteralPath $destination -PathType Leaf) { Get-Content -LiteralPath $destination -Raw -Encoding UTF8 } else { $null }
+    $canonical = Get-Content -LiteralPath $source.FullName -Raw -Encoding UTF8
+    if ($current -cne $canonical) {
+      Copy-Item -LiteralPath $source.FullName -Destination $destination -Force
+    }
+  }
+}
+
+function Sync-QwenPortfolioLsp([string]$RegistryRoot) {
+  $contractPath = Join-Path $RegistryRoot 'registry\qwen-lsp-projects.json'
+  if (!(Test-Path -LiteralPath $contractPath -PathType Leaf)) { return }
+  $contract = Get-Content -LiteralPath $contractPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  $template = Join-Path $RegistryRoot ([string]$contract.template)
+  if (!(Test-Path -LiteralPath $template -PathType Leaf)) { throw "Qwen LSP template is missing: $template" }
+  $canonical = Get-Content -LiteralPath $template -Raw -Encoding UTF8
+  foreach ($project in @($contract.projects)) {
+    $projectPath = [string]$project
+    if (!(Test-Path -LiteralPath $projectPath -PathType Container)) {
+      Write-Warning "Qwen LSP project is unavailable; preserving configuration state: $projectPath"
+      continue
+    }
+    $destination = Join-Path $projectPath '.lsp.json'
+    if (Test-Path -LiteralPath $destination -PathType Leaf) {
+      $existing = Get-Content -LiteralPath $destination -Raw -Encoding UTF8
+      if ($existing -cne $canonical) { Write-Warning "Preserving repository-owned Qwen LSP configuration: $destination" }
+      continue
+    }
+    Copy-Item -LiteralPath $template -Destination $destination
+  }
+}
+
+function Set-TomlBoolean([string]$Path, [string]$Section, [string]$Key, [bool]$Value) {
+  if (!(Test-Path -LiteralPath $Path -PathType Leaf)) { return }
+  $toml = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+  $valueText = if ($Value) { 'true' } else { 'false' }
+  $sectionPattern = '(?ms)(^\[' + [regex]::Escape($Section) + '\]\s*$)(.*?)(?=^\[|\z)'
+  if ($toml -notmatch $sectionPattern) {
+    if ($toml.Length -gt 0 -and -not $toml.EndsWith("`n")) { $toml += "`n" }
+    $toml += "`n[$Section]`n$Key = $valueText`n"
+  } else {
+    $block = $Matches[0]
+    if ($block -match ('(?m)^' + [regex]::Escape($Key) + '\s*=')) {
+      $replacement = $block -replace ('(?m)^' + [regex]::Escape($Key) + '\s*=.*$'), "$Key = $valueText"
+    } else {
+      $replacement = $block.TrimEnd() + "`n$Key = $valueText`n"
+    }
+    $toml = [regex]::Replace($toml, $sectionPattern, [System.Text.RegularExpressions.MatchEvaluator]{ param($match) $replacement }, 1)
+  }
+  [System.IO.File]::WriteAllText($Path, $toml, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Test-DirectoryEquivalent([string]$Left, [string]$Right) {
@@ -83,7 +145,10 @@ $skillTargets = [ordered]@{
   'amp' = "$UserProfile\.config\amp\skills"
   'windsurf' = "$UserProfile\.codeium\windsurf\skills"
   'gemini' = "$UserProfile\.gemini\skills"
+  'hermes' = "$UserProfile\AppData\Local\hermes\skills"
+  'grok' = "$UserProfile\.grok\skills"
   'antigravity' = "$UserProfile\.gemini\config\skills"
+  'warp' = "$UserProfile\.warp\skills"
   'copilot' = "$UserProfile\.copilot\skills"
 }
 
@@ -103,7 +168,8 @@ $managedVideoSkillNames = @(
   'product-demo-studio-narration',
   'product-demo-studio-qa',
   'product-demo-studio-remotion',
-  'product-demo-studio-render'
+  'product-demo-studio-render',
+  'product-demo-studio-visual-assets'
 )
 $retiredVideoArtifacts = @(
   @{ name = 'remotion-video-creation'; reason = 'Legacy end-to-end video owner superseded by product-demo-studio.' }
@@ -150,7 +216,7 @@ if (!(Test-Path -LiteralPath $experienceSkillsSource -PathType Container)) { thr
 $experienceManifestPath = Join-Path $experiencePluginRoot '.codex-plugin\plugin.json'
 if (!(Test-Path -LiteralPath $experienceManifestPath -PathType Leaf)) { throw "Canonical Codex plugin manifest is missing: $experienceManifestPath" }
 $experiencePluginVersion = [string](Get-Content -LiteralPath $experienceManifestPath -Raw | ConvertFrom-Json).version
-if ($experiencePluginVersion -ne '1.0.0') { throw "Expected canonical product-experience-engineering v1.0.0; found v$experiencePluginVersion." }
+if ([string]::IsNullOrWhiteSpace($experiencePluginVersion)) { throw "Canonical product-experience-engineering manifest has no version: $experienceManifestPath" }
 $actualExperienceSkillNames = @(Get-ChildItem -LiteralPath $experienceSkillsSource -Directory | ForEach-Object Name | Sort-Object)
 if (($actualExperienceSkillNames -join '|') -cne (($managedExperienceSkillNames | Sort-Object) -join '|')) {
   throw "Canonical product-experience-engineering siblings do not match the managed allowlist. Canonical: $($actualExperienceSkillNames -join ', '); allowlist: $(($managedExperienceSkillNames | Sort-Object) -join ', ')."
@@ -452,29 +518,90 @@ if ($RetireLegacyVideoOwners) {
   }
 }
 
-if ($SkillDistributionOnly) {
-  Write-Host 'Canonical Product Demo Studio and Product Experience Engineering skills distributed; unrelated capabilities and host configuration were not changed.' -ForegroundColor Green
-  return
-}
-
 # Preserve the existing merge behavior for unrelated canonical capabilities.
 # The two canonical handoff packages are excluded because they are managed as
 # exact trees above.
+function Test-ExpectedSkillJunction([string]$Path, [string]$Source) {
+  if (!(Test-Path -LiteralPath $Path -PathType Container)) { return $false }
+  $item = Get-Item -LiteralPath $Path -Force
+  if ($item.LinkType -ne 'Junction') { return $false }
+  $target = [IO.Path]::GetFullPath([string]$item.Target)
+  $expected = [IO.Path]::GetFullPath($Source)
+  return $target.Equals($expected, [StringComparison]::OrdinalIgnoreCase)
+}
+
 foreach ($target in $skillTargets.Values | Select-Object -Unique) { New-Item -ItemType Directory -Path $target -Force | Out-Null }
 foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-demo-studio','product-experience-engineering') }) {
   $sourceSkills = Join-Path $cap.canonicalSource 'skills'
   if (!(Test-Path -LiteralPath $sourceSkills)) { continue }
-  foreach ($skill in Get-ChildItem -LiteralPath $sourceSkills -Directory) {
-    foreach ($targetEntry in $skillTargets.GetEnumerator()) {
-      $target = [string]$targetEntry.Value
-      if ($targetEntry.Key -eq 'gemini' -and (Test-Path -LiteralPath (Join-Path "$UserProfile\.agents\skills" $skill.Name) -PathType Container)) {
-        continue
-      }
+  $sourceSkillDirectories = @(Get-ChildItem -LiteralPath $sourceSkills -Directory)
+  $managedSkillNames = if ($cap.PSObject.Properties.Name -contains 'managedSkillNames') {
+    @($cap.managedSkillNames | ForEach-Object { [string]$_ })
+  } else {
+    @($sourceSkillDirectories | ForEach-Object Name)
+  }
+  $missingManagedSkills = @($managedSkillNames | Where-Object { $_ -notin @($sourceSkillDirectories | ForEach-Object Name) })
+  if ($missingManagedSkills.Count) {
+    throw "Capability $($cap.id) manages missing canonical skill(s): $($missingManagedSkills -join ', ')"
+  }
+  $retiredSkillNames = if ($cap.PSObject.Properties.Name -contains 'retiredSkillNames') {
+    @($cap.retiredSkillNames | ForEach-Object { [string]$_ })
+  } else {
+    @()
+  }
+  foreach ($targetEntry in $skillTargets.GetEnumerator()) {
+    $target = [string]$targetEntry.Value
+    $mapping = @($cap.hostMappings | Where-Object { $_.hostId -eq $targetEntry.Key })
+    if ($mapping.Count -gt 1) { throw "Capability $($cap.id) has duplicate mapping entries for host $($targetEntry.Key)." }
+    $deploymentStatus = if ($mapping.Count -eq 1) { [string]$mapping[0].deploymentStatus } else { '' }
+    $deployLooseSkills = $deploymentStatus -in @(
+      'managed',
+      'managed-loose-skills',
+      'managed-loose-skills-and-mcp',
+      'managed-loose-skills-native-browser-plus-mcp',
+      'preprovisioned-loose-skills'
+    )
+    $skipManagedDeployment = $deploymentStatus -match 'native|offline|observed'
+    if ($mapping.Count -eq 1 -and -not $deployLooseSkills -and -not $skipManagedDeployment) {
+      throw "Capability $($cap.id) has unsupported deployment status '$deploymentStatus' for host $($targetEntry.Key)."
+    }
+
+    foreach ($skill in $sourceSkillDirectories | Where-Object Name -in $managedSkillNames) {
       $destination = Join-Path $target $skill.Name
-      New-Item -ItemType Directory -Path $destination -Force | Out-Null
-      Get-ChildItem -LiteralPath $skill.FullName -Force | Copy-Item -Destination $destination -Recurse -Force
+      if ($deployLooseSkills) {
+        if ($targetEntry.Key -eq 'gemini' -and (Test-Path -LiteralPath (Join-Path "$UserProfile\.agents\skills" $skill.Name) -PathType Container)) {
+          continue
+        }
+        if (Test-ExpectedSkillJunction -Path $destination -Source $skill.FullName) {
+          continue
+        }
+        New-Item -ItemType Directory -Path $destination -Force | Out-Null
+        Get-ChildItem -LiteralPath $skill.FullName -Force | Copy-Item -Destination $destination -Recurse -Force
+      } elseif (
+          (Test-Path -LiteralPath $destination -PathType Container) -and
+          -not (Test-ExpectedSkillJunction -Path $destination -Source $skill.FullName) -and
+          (Test-DirectoryEquivalent $skill.FullName $destination)
+      ) {
+        Move-ToManagedQuarantine $destination $targetEntry.Key 'skills' $skill.Name "Removed an exact canonical $($cap.id) duplicate from a host without a loose-skill ownership mapping." | Out-Null
+      }
+    }
+
+    foreach ($retiredName in $retiredSkillNames) {
+      $retiredSource = Join-Path $sourceSkills $retiredName
+      $destination = Join-Path $target $retiredName
+      if (!(Test-Path -LiteralPath $destination -PathType Container)) { continue }
+      if ((Test-Path -LiteralPath $retiredSource -PathType Container) -and (Test-DirectoryEquivalent $retiredSource $destination)) {
+        Move-ToManagedQuarantine $destination $targetEntry.Key 'skills' $retiredName "Removed an exact canonical $($cap.id) skill name retired by the capability contract." | Out-Null
+      } else {
+        Write-Warning "Preserving non-canonical or ambiguous retired skill path: $destination"
+      }
     }
   }
+}
+
+if ($SkillDistributionOnly) {
+  Write-Host 'Canonical managed capabilities distributed; host configuration and MCP synchronization were not changed.' -ForegroundColor Green
+  return
 }
 
 function Convert-Placeholder([object]$Value, [ValidateSet('generic','claude','qwen','opencode','gemini','windsurf')]$TargetHost) {
@@ -521,23 +648,14 @@ function Set-McpProperty([string]$Path, [string]$Property, [string]$TargetHost) 
   Save-JsonHash $Path $root
 }
 
-# Canonical MCP exposure. This overwrites only the managed MCP object, removing
-# stale OAuth experiments, disabled integrations, and secrets pasted in URLs.
-Set-McpProperty "$UserProfile\.claude.json" 'mcpServers' 'claude'
-Set-McpProperty "$UserProfile\.cursor\mcp.json" 'mcpServers' 'generic'
-Set-McpProperty "$UserProfile\.factory\mcp.json" 'mcpServers' 'generic'
-Set-McpProperty "$UserProfile\.config\devin\config.json" 'mcpServers' 'generic'
-Set-McpProperty "$env:APPDATA\devin\config.json" 'mcpServers' 'generic'
-Set-McpProperty "$UserProfile\.config\amp\settings.json" 'amp.mcpServers' 'generic'
-Set-McpProperty "$UserProfile\.codeium\windsurf\mcp_config.json" 'mcpServers' 'windsurf'
-Set-McpProperty "$UserProfile\.copilot\mcp-config.json" 'mcpServers' 'generic'
-Set-McpProperty "$UserProfile\.gemini\config\mcp_config.json" 'mcpServers' 'gemini'
+# MCPs are rendered only by Sync-AgentCapabilities.ps1. It owns each host's
+# native format, documented Devin roaming user-config path, aliases, and
+# secret references. Keeping a second writer here caused endpoint drift.
 
 $gemini = Read-JsonHash "$UserProfile\.gemini\settings.json"
 $gemini['autoAccept'] = $true
 $gemini['sandbox'] = $false
 $gemini['contextFileName'] = @('AGENTS.md', 'GEMINI.md')
-$gemini['mcpServers'] = Get-McpMap 'gemini'
 # Gemini intentionally rejects persistent YOLO in settings. The generated
 # gemini.cmd launcher supplies --yolo; auto_edit is the strongest valid stored
 # fallback for sessions launched outside that wrapper.
@@ -547,6 +665,10 @@ Save-JsonHash "$UserProfile\.gemini\settings.json" $gemini
 $claude = Read-JsonHash "$UserProfile\.claude\settings.json"
 $claude['permissions'] = @{ defaultMode='bypassPermissions'; deny=@(); additionalDirectories=@('C:\') }
 $claude['skipDangerousModePermissionPrompt'] = $true
+$claude['cleanupPeriodDays'] = 7
+if ($claude.ContainsKey('env') -and $claude['env'] -is [hashtable]) {
+  $claude['env'].Remove('CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS')
+}
 if ($claude.ContainsKey('hooks')) { $claude['hooks'].Remove('PreToolUse') }
 Save-JsonHash "$UserProfile\.claude\settings.json" $claude
 
@@ -555,6 +677,11 @@ $qwen = Read-JsonHash $qwenPath
 $qwen['tools'] = @{ approvalMode='yolo' }
 $qwen['permissions'] = @{ allow=@('*') }
 $qwen['mcp'] = @{ allowed=@((Get-McpMap 'qwen').Keys | Sort-Object) }
+if (-not $qwen.ContainsKey('memory') -or -not ($qwen['memory'] -is [hashtable])) { $qwen['memory'] = @{} }
+# Qwen's managed memory is host-local Markdown.  It keeps useful repository
+# context across sessions without centralizing project data in this registry.
+$qwen['memory']['enableManagedAutoMemory'] = $true
+$qwen['memory']['enableManagedAutoDream'] = $true
 
 # qwen3.8-max-preview is thinking-mandatory on Token Plan.  Qwen Code's
 # side-query path (including /compress) normally asks to disable thinking;
@@ -592,12 +719,24 @@ if ($qwenRequiredGeneration -and $qwen.ContainsKey('modelProviders')) {
   }
 }
 Save-JsonHash $qwenPath $qwen
+Sync-QwenSubagents -SourceRoot (Join-Path $RegistryRoot 'adapters\qwen-code\agents') -DestinationRoot "$UserProfile\.qwen\agents"
+Sync-QwenPortfolioLsp -RegistryRoot $RegistryRoot
 
 $openCodePath = "$UserProfile\.config\opencode\opencode.json"
 $openCode = Read-JsonHash $openCodePath
 $openCode['permission'] = 'allow'
 $openCode['mcp'] = Get-McpMap 'opencode'
 Save-JsonHash $openCodePath $openCode
+
+$copilotPath = "$UserProfile\.copilot\settings.json"
+$copilot = Read-JsonHash $copilotPath
+$copilot['stayInAutopilot'] = $true
+$copilot['askUser'] = $false
+Save-JsonHash $copilotPath $copilot
+
+# Grok documents both an always-approve permission mode and a native YOLO
+# switch. Keep both aligned without rewriting unrelated TOML settings.
+Set-TomlBoolean -Path "$UserProfile\.grok\config.toml" -Section 'ui' -Key 'yolo' -Value $true
 
 $cursorPath = "$UserProfile\.cursor\cli-config.json"
 $cursor = Read-JsonHash $cursorPath
@@ -664,6 +803,7 @@ $bin = "$UserProfile\bin"
 New-Item -ItemType Directory -Path $bin -Force | Out-Null
 $wrappers = @{
   'gemini.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\gemini.cmd" --yolo --skip-trust %*'
+  'qwen.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\qwen.cmd" --yolo --experimental-lsp %*'
   'copilot.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" ' + (@($managedSkillCapabilities | ForEach-Object { '--plugin-dir "' + $_.pluginRoot + '"' }) -join ' ') + ' --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
   'devin.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\devin\cli\bin\devin.exe" --permission-mode dangerous --respect-workspace-trust false %*'
   'agy.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\agy\bin\agy.exe" --dangerously-skip-permissions %*'
@@ -680,6 +820,6 @@ elseif (-not $userPath.StartsWith($bin, [System.StringComparison]::OrdinalIgnore
 
 # Let the existing host-aware synchronizer render Codex and Qwen's native
 # formats and Qwen extension adapters from this same registry.
-& pwsh -NoProfile -File (Join-Path $RegistryRoot 'scripts\Sync-AgentCapabilities.ps1') -Apply -Prune -Validate -ScopeProfile global-default -RegistryRoot $RegistryRoot -UserProfile $UserProfile
+& pwsh -NoProfile -File (Join-Path $RegistryRoot 'scripts\Sync-AgentCapabilities.ps1') -Apply -Validate -IncludeInactiveAgents -ScopeProfile global-default -RegistryRoot $RegistryRoot -UserProfile $UserProfile
 
 Write-Host 'Full-access agent profile applied. Restart open agent sessions and open a new terminal for launcher PATH changes.' -ForegroundColor Green

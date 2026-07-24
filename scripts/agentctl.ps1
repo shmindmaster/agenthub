@@ -116,7 +116,7 @@ function Get-EnvironmentInventory {
   $wrappers = @()
   $wrapperRoot = 'C:\Users\SaroshHussain\bin'
   if (Test-Path -LiteralPath $wrapperRoot) {
-    $wrappers = @(Get-ChildItem -LiteralPath $wrapperRoot -File -Force | Where-Object { $_.Name -match '^(agy|claude|codex|copilot|cursor-agent|devin|droid|gemini|grok|hermes|jules|opencode|qwen|warp)' } | ForEach-Object { [pscustomobject]@{ name = $_.Name; path = $_.FullName; bytes = $_.Length } })
+    $wrappers = @(Get-ChildItem -LiteralPath $wrapperRoot -File -Force | Where-Object { $_.Name -match '^(agy|claude|codex|copilot|cursor-agent|devin|droid|gemini|grok|hermes|opencode|qwen|warp)' } | ForEach-Object { [pscustomobject]@{ name = $_.Name; path = $_.FullName; bytes = $_.Length } })
   }
 
   $npmPackages = @()
@@ -124,21 +124,21 @@ function Get-EnvironmentInventory {
   if ($npmCommand) {
     try {
       $npmJson = & $npmCommand.Source ls -g --depth=0 --json 2>$null | Out-String | ConvertFrom-Json
-      $npmPackages = @($npmJson.dependencies.PSObject.Properties | Where-Object { $_.Name -match 'claude|codex|qwen|opencode|gemini|copilot|amp|warp|jules|grok|devin|factory' } | ForEach-Object { [pscustomobject]@{ name = $_.Name; version = [string]$_.Value.version } })
+      $npmPackages = @($npmJson.dependencies.PSObject.Properties | Where-Object { $_.Name -match 'claude|codex|qwen|opencode|gemini|copilot|amp|warp|grok|devin|factory' } | ForEach-Object { [pscustomobject]@{ name = $_.Name; version = [string]$_.Value.version } })
     } catch {}
   }
 
   $scheduledTasks = @()
   if (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue) {
     try {
-      $scheduledTasks = @(Get-ScheduledTask | Where-Object { ($_.TaskName + $_.TaskPath) -match 'agent|codex|claude|cursor|qwen|opencode|gemini|copilot|antigravity|devin|factory|warp|jules|hermes|windsurf' } | ForEach-Object { [pscustomobject]@{ taskName = $_.TaskName; taskPath = $_.TaskPath; state = [string]$_.State } })
+      $scheduledTasks = @(Get-ScheduledTask | Where-Object { ($_.TaskName + $_.TaskPath) -match 'agent|codex|claude|cursor|qwen|opencode|gemini|copilot|antigravity|devin|factory|warp|hermes|windsurf' } | ForEach-Object { [pscustomobject]@{ taskName = $_.TaskName; taskPath = $_.TaskPath; state = [string]$_.State } })
     } catch {}
   }
 
   $startupItems = @()
   foreach ($startupRoot in @([Environment]::GetFolderPath('Startup'), [Environment]::GetFolderPath('CommonStartup'))) {
     if (Test-Path -LiteralPath $startupRoot) {
-      $startupItems += @(Get-ChildItem -LiteralPath $startupRoot -Force | Where-Object { $_.Name -match 'agent|codex|claude|cursor|qwen|opencode|gemini|copilot|antigravity|devin|factory|warp|jules|hermes|windsurf' } | ForEach-Object { [pscustomobject]@{ name = $_.Name; path = $_.FullName } })
+      $startupItems += @(Get-ChildItem -LiteralPath $startupRoot -Force | Where-Object { $_.Name -match 'agent|codex|claude|cursor|qwen|opencode|gemini|copilot|antigravity|devin|factory|warp|hermes|windsurf' } | ForEach-Object { [pscustomobject]@{ name = $_.Name; path = $_.FullName } })
     }
   }
 
@@ -452,7 +452,7 @@ function Invoke-Validation {
   }
 
   $modelChecks = @(
-    @{ id = 'codex'; path = 'C:\Users\SaroshHussain\.codex\config.toml'; pattern = '(?m)^model\s*=\s*"gpt-5\.6-sol"\s*$' },
+    @{ id = 'codex'; path = 'C:\Users\SaroshHussain\.codex\config.toml'; pattern = '(?m)^model\s*=\s*"gpt-5\.6-terra"\s*$' },
     @{ id = 'qwen-code'; path = 'C:\Users\SaroshHussain\.qwen\settings.json'; json = 'qwen' },
     @{ id = 'opencode'; path = 'C:\Users\SaroshHussain\.config\opencode\opencode.json'; json = 'opencode' },
     @{ id = 'gemini'; path = 'C:\Users\SaroshHussain\.gemini\settings.json'; json = 'gemini' }
@@ -465,7 +465,12 @@ function Invoke-Validation {
         $settings = Read-Json $modelCheck.path
         switch ($modelCheck.json) {
           'qwen' { $ok = $settings.model.name -eq 'qwen3.8-max-preview' }
-          'opencode' { $ok = $settings.model -eq 'qwen-cloud/qwen3.8-max-preview' }
+          'opencode' {
+            $provider = $settings.provider.'bailian-token-plan-personal'
+            $ok = $settings.model -eq 'bailian-token-plan-personal/qwen3.8-max-preview' -and
+              $provider.npm -eq '@ai-sdk/anthropic' -and
+              $provider.options.baseURL -eq 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic/v1'
+          }
           'gemini' {
             $alias = $settings.modelConfigs.customAliases.'gemini-3.6-flash-high'
             $ok = $settings.model.name -eq 'gemini-3.6-flash-high' -and $settings.experimental.dynamicModelConfiguration -eq $true -and $alias.modelConfig.model -eq 'gemini-3.6-flash' -and $alias.modelConfig.generateContentConfig.thinkingConfig.thinkingLevel -eq 'HIGH'
@@ -569,7 +574,8 @@ function Invoke-Validation {
     'C:\Users\SaroshHussain\AppData\Local\cursor-agent\cursor-agent.cmd',
     'C:\Users\SaroshHussain\AppData\Local\devin\cli\bin\devin.exe',
     'C:\Users\SaroshHussain\AppData\Roaming\npm\copilot.cmd',
-    'C:\Users\SaroshHussain\AppData\Roaming\npm\gemini.cmd'
+    'C:\Users\SaroshHussain\AppData\Roaming\npm\gemini.cmd',
+    'C:\Users\SaroshHussain\AppData\Roaming\npm\qwen.cmd'
   )) {
     if (Test-Path -LiteralPath $wrapperTarget -PathType Leaf) { Add-Check 'PASS' ('wrapper-target:' + (Split-Path $wrapperTarget -Leaf)) 'present' }
     else { Add-Check 'FAIL' ('wrapper-target:' + (Split-Path $wrapperTarget -Leaf)) $wrapperTarget }

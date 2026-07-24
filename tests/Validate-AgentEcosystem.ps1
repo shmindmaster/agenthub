@@ -123,6 +123,24 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
         }
     }
 
+    if ($registryObjects.ContainsKey('fleet-profile.json')) {
+        $managedHosts = @($registryObjects['fleet-profile.json'].managedHosts)
+        foreach ($baselineCapabilityId in @('product-demo-studio', 'product-experience-engineering', 'shwiki-context')) {
+            $baselineCapability = @($capabilities | Where-Object id -eq $baselineCapabilityId)
+            if ($baselineCapability.Count -ne 1) {
+                Add-ValidationResult FAIL "coverage:$baselineCapabilityId" 'expected exactly one baseline capability definition'
+                continue
+            }
+            $mappedHosts = @($baselineCapability[0].hostMappings | ForEach-Object hostId)
+            $missingHosts = @($managedHosts | Where-Object { $_ -notin $mappedHosts })
+            if ($missingHosts.Count -eq 0) {
+                Add-ValidationResult PASS "coverage:$baselineCapabilityId" 'mapped to every managed host'
+            } else {
+                Add-ValidationResult FAIL "coverage:$baselineCapabilityId" "missing managed hosts: $($missingHosts -join ', ')"
+            }
+        }
+    }
+
     foreach ($capability in $capabilities) {
         if (-not (Test-Path -LiteralPath $capability.canonicalSource)) {
             Add-ValidationResult FAIL "capability:$($capability.id):source" 'canonical source missing'
@@ -141,6 +159,37 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
             Add-ValidationResult PASS "capability:$($capability.id):hash" "content hash current ($basisKind)"
         } else {
             Add-ValidationResult FAIL "capability:$($capability.id):hash" 'content hash drifted'
+        }
+    }
+}
+
+if ($registryObjects.ContainsKey('mcps.json')) {
+    $mcpRegistry = $registryObjects['mcps.json']
+    $mcpServers = @($mcpRegistry.mcpServers)
+    $mcpIds = @($mcpServers | ForEach-Object { $_.id })
+    $duplicateMcpIds = @(Get-DuplicateValues $mcpIds)
+    if ($duplicateMcpIds.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:mcp-ids' "$($mcpIds.Count) unique MCP IDs"
+    } else {
+        Add-ValidationResult FAIL 'registry:mcp-ids' "duplicate IDs: $($duplicateMcpIds -join ', ')"
+    }
+
+    if ($registryObjects.ContainsKey('agents.json')) {
+        $knownAgentIds = @($registryObjects['agents.json'].activeAgents | ForEach-Object { $_.id }) + @($registryObjects['agents.json'].inactiveAgents | ForEach-Object { $_.id })
+        $unknownMcpOwners = @(
+            foreach ($mcp in $mcpServers) {
+                $ownersProperty = $mcp.PSObject.Properties['pluginOwnersByHost']
+                if (-not $ownersProperty -or $null -eq $ownersProperty.Value) { continue }
+                foreach ($owner in $ownersProperty.Value.PSObject.Properties) {
+                    if ([string]$owner.Name -notin $knownAgentIds) { "$( $mcp.id ):$( $owner.Name )" }
+                    if ([string]::IsNullOrWhiteSpace([string]$owner.Value)) { "$( $mcp.id ):$( $owner.Name ) has no plugin owner" }
+                }
+            }
+        )
+        if ($unknownMcpOwners.Count -eq 0) {
+            Add-ValidationResult PASS 'registry:mcp-plugin-owners' 'plugin-owned MCP mappings reference registered hosts and non-empty owners'
+        } else {
+            Add-ValidationResult FAIL 'registry:mcp-plugin-owners' "invalid mappings: $($unknownMcpOwners -join ', ')"
         }
     }
 }
@@ -188,6 +237,19 @@ if ($IncludeGlobalInstructions) {
         } else {
             Add-ValidationResult FAIL 'global:claude:retention' 'expected cleanupPeriodDays = 7'
         }
+        $agentTeamsEnabled = $false
+        $envProperty = $claudeSettings.PSObject.Properties['env']
+        if ($envProperty -and $null -ne $envProperty.Value) {
+            $agentTeamsProperty = $envProperty.Value.PSObject.Properties['CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS']
+            if ($agentTeamsProperty) {
+                $agentTeamsEnabled = [string]$agentTeamsProperty.Value -eq '1'
+            }
+        }
+        if (-not $agentTeamsEnabled) {
+            Add-ValidationResult PASS 'global:claude:agent-teams' 'experimental agent teams are not globally enabled'
+        } else {
+            Add-ValidationResult FAIL 'global:claude:agent-teams' 'experimental agent teams must remain disabled by default'
+        }
     } catch {
         Add-ValidationResult FAIL 'global:claude:retention' 'settings missing or invalid JSON'
     }
@@ -207,7 +269,7 @@ $summary = [ordered]@{
 }
 
 if ($Json) {
-    [ordered]@{ summary = $summary; results = @($results) } | ConvertTo-Json -Depth 6
+    [ordered]@{ summary = $summary; results = @($results.ToArray()) } | ConvertTo-Json -Depth 6
 } else {
     $results | Format-Table status, check, detail -AutoSize
     Write-Output "Summary: pass=$($summary.pass) warn=$($summary.warn) fail=$($summary.fail)"

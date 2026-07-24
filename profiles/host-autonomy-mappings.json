@@ -4,22 +4,21 @@
     { "hostId": "codex", "defaultProfile": "repo-autonomous", "native": { "approval_policy": "never", "sandbox_mode": "danger-full-access" } },
     { "hostId": "claude", "defaultProfile": "repo-autonomous", "native": { "permissionMode": "bypassPermissions" } },
     { "hostId": "cursor-agent", "defaultProfile": "repo-autonomous", "native": { "flags": ["--yolo", "--sandbox", "disabled", "--approve-mcps"] } },
-    { "hostId": "qwen-code", "defaultProfile": "repo-autonomous", "native": { "permissionMode": "configured-full-access" } },
+    { "hostId": "qwen-code", "defaultProfile": "repo-autonomous", "native": { "approvalMode": "yolo", "permissions": "allow-all", "managedAutoMemory": true, "managedAutoDream": true, "subagents": ["scout", "implementer", "reviewer", "verifier"], "headless": { "promptFlag": "--prompt", "structuredOutput": ["json", "stream-json"] }, "lsp": { "flag": "--experimental-lsp", "projectConfig": ".lsp.json" }, "hooks": "default-enabled; no global command hook" } },
     { "hostId": "opencode", "defaultProfile": "repo-autonomous", "native": { "permission": "allow" } },
     { "hostId": "gemini", "defaultProfile": "repo-autonomous", "native": { "flags": ["--yolo", "--skip-trust"], "sandbox": false } },
-    { "hostId": "copilot", "defaultProfile": "repo-autonomous", "native": { "flags": ["--allow-all", "--autopilot", "--no-ask-user"] } },
+    { "hostId": "copilot", "defaultProfile": "repo-autonomous", "native": { "flags": ["--allow-all", "--autopilot", "--no-ask-user"], "stayInAutopilot": true } },
     { "hostId": "antigravity", "defaultProfile": "repo-autonomous", "native": { "flags": ["--dangerously-skip-permissions"] } },
     { "hostId": "devin", "defaultProfile": "repo-autonomous", "native": { "flags": ["--permission-mode", "dangerous", "--respect-workspace-trust", "false"] } },
-    { "hostId": "grok", "defaultProfile": "repo-autonomous", "native": { "permission_mode": "always-approve" } },
+    { "hostId": "grok", "defaultProfile": "repo-autonomous", "native": { "permission_mode": "always-approve", "yolo": true } },
     { "hostId": "cursor", "defaultProfile": "interactive", "native": { "surface": "ide" } },
     { "hostId": "opencode-desktop", "defaultProfile": "interactive", "native": { "surface": "desktop" } },
     { "hostId": "antigravity-desktop", "defaultProfile": "interactive", "native": { "surface": "desktop" } },
     { "hostId": "antigravity-ide", "defaultProfile": "interactive", "native": { "surface": "ide" } },
-    { "hostId": "factory", "defaultProfile": "interactive", "native": { "surface": "desktop-and-cli" } },
+    { "hostId": "factory", "defaultProfile": "repo-autonomous", "native": { "surface": "desktop-and-cli", "interactionMode": "auto", "autonomyLevel": "high" } },
     { "hostId": "amp", "defaultProfile": "interactive", "native": { "surface": "cli", "headlessConstraint": "paid-tier-required" } },
     { "hostId": "windsurf", "defaultProfile": "interactive", "native": { "surface": "configured-only" } },
     { "hostId": "hermes", "defaultProfile": "interactive", "native": { "surface": "cli" } },
-    { "hostId": "warp", "defaultProfile": "interactive", "native": { "surface": "desktop-and-cloud-cli" } },
-    { "hostId": "jules", "defaultProfile": "interactive", "native": { "surface": "cloud-cli" } }
+    { "hostId": "warp", "defaultProfile": "interactive", "native": { "surface": "desktop-and-cloud-cli" } }
   ]
 }

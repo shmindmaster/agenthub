@@ -4,7 +4,7 @@
     {
       "id": "codex-frontier",
       "hosts": ["codex"],
-      "model": "gpt-5.6-sol",
+      "model": "gpt-5.6-terra",
       "source": "C:/Users/SaroshHussain/.codex/config.toml",
       "validation": "codex --version plus a non-mutating exec when requested"
     },
@@ -14,7 +14,7 @@
       "model": "qwen3.8-max-preview",
       "providerMappings": {
         "qwen-code": "qwen3.8-max-preview",
-        "opencode": "qwen-cloud/qwen3.8-max-preview"
+        "opencode": "bailian-token-plan-personal/qwen3.8-max-preview"
       },
       "thinkingRequired": true
     },
@@ -29,7 +29,7 @@
     },
     {
       "id": "host-managed-default",
-      "hosts": ["claude", "copilot", "cursor", "cursor-agent", "factory", "devin", "grok", "warp", "jules", "hermes", "amp"],
+      "hosts": ["claude", "copilot", "cursor", "cursor-agent", "factory", "devin", "grok", "warp", "hermes", "amp"],
       "model": null,
       "notes": "The provider or host selects the current model unless a task explicitly requests a verified override."
     }

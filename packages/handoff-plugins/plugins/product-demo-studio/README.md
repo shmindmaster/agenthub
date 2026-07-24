@@ -1,11 +1,14 @@
 # product-demo-studio
 
-Current package release: **0.5.0**. The plugin now requires the validated, current Product
+Current package release: **0.6.1**. The plugin now requires the validated, current Product
 Experience Engineering pre-video handoff and independently reruns its eleven-item capture gate.
 The complete self-contained persuasion, craft, production,
 automation, and measurement standard is bundled at
 `skills/product-demo-studio/references/killer-demo-production-guide.md`; the adjacent compact
 playbook maps it to the package's normalized JSON validators.
+The synchronized Visual Communication & Asset Generation Guide is bundled beside it and is owned
+by `product-demo-studio-visual-assets`; it supersedes stale narration/model tables and forbids
+generated product UI or fabricated results.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with
@@ -21,6 +24,7 @@ only the video-production deliverables that repo would own anyway.
 | `product-demo-studio` | Router. Enforces Product Experience handoff → independent demo-worthiness gate → storyboard/narrate → capture → compose → render/QA → video-or-feedback, states the evidence-redaction rule, and reports existing video infra. Start here. |
 | `product-demo-studio-remotion` | Product-demo composition policy layered over the official Remotion mechanics owner when available; 43 bundled rules provide a fallback plus studio-specific overlay/evidence guidance. |
 | `product-demo-studio-capture` | Deterministic browser-automation capture conventions: fixed viewports, reduced motion, discover-first auth, seeded data only, capture manifests, redaction rules. |
+| `product-demo-studio-visual-assets` | Marketing/journey visual survey, non-product-UI asset generation, current model/voice verification, provenance, disclosure, and accessibility. |
 | `product-demo-studio-narration` | Provider-agnostic TTS narration: generation, segment-level regeneration, timing, narration style. |
 | `product-demo-studio-render` | Render orchestration, the video/scene catalog schema, the product-claim ledger, and the evidence gate that must pass before a render is "approved" for external use. |
 | `product-demo-studio-qa` | The proxy-review loop: deterministic technical checks plus five portable independent critic prompts (product-truth, story, visual, audio, technical). |

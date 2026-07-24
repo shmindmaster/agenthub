@@ -44,7 +44,7 @@ Assert-True (Test-Path -LiteralPath $claudeManifestPath) 'Missing Claude plugin 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
 Assert-True ($manifest.name -eq 'product-experience-engineering') 'Unexpected plugin name.'
-Assert-True ($manifest.version -eq '1.0.0') 'Codex plugin version must be 1.0.0.'
+Assert-True ($manifest.version -eq '1.1.0') 'Codex plugin version must be 1.1.0.'
 Assert-True ($claudeManifest.name -eq $manifest.name) 'Claude plugin name must match Codex.'
 Assert-True ($claudeManifest.version -eq $manifest.version) 'Claude plugin version must match Codex.'
 Assert-True ($manifest.version -match '^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$') 'Version is not semantic.'
@@ -83,7 +83,7 @@ foreach ($reference in $expectedPluginReferences) {
 
 $guidePath = Join-Path $pluginRoot 'references\product-experience-audit-remediation-guide.md'
 $guideHash = (Get-FileHash -LiteralPath $guidePath -Algorithm SHA256).Hash
-Assert-True ($guideHash -eq 'ABCAAAF909B245CC6F10B13EDAC98F2BD74DAB0D378CF0568844C51CE8B88C91') 'Canonical pre-video guide is incomplete or differs from the reviewed source.'
+Assert-True ($guideHash -eq 'D4B11030FED14700F0F8921F447481892F91ACDE4070E03967A0F743AC527C34') 'Canonical pre-video guide is incomplete or differs from the reviewed source.'
 
 $referenceRoot = Join-Path $pluginRoot 'references\product-experience-system'
 foreach ($reference in $expectedReferences) {

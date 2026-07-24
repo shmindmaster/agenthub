@@ -31,6 +31,7 @@ param(
     [ValidateSet('global-default','project','on-demand-desktop','all')]
     [string]$ScopeProfile = 'global-default',
     [switch]$IncludeDeprecated,
+    [switch]$IncludeInactiveAgents,
     [string]$RegistryRoot = "C:\Repos\agent-capabilities",
     [string]$UserProfile = "C:\Users\SaroshHussain"
 )
@@ -259,7 +260,7 @@ function ConvertTo-Hashtable {
     if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
         $collection = @()
         foreach ($item in $InputObject) { $collection += (ConvertTo-Hashtable $item) }
-        return $collection
+        return ,$collection
     }
     return $InputObject
 }
@@ -287,7 +288,7 @@ function ConvertTo-StableJsonObject {
         foreach ($item in $InputObject) {
             $arr += (ConvertTo-StableJsonObject $item)
         }
-        return $arr
+        return ,$arr
     }
 
     return $InputObject
@@ -456,6 +457,7 @@ function Get-CanonicalMcpEntry {
             $entry.type = 'http'
             $entry.url = $Mcp.url
             if ($Mcp.headers) { $entry.headers = ConvertTo-Hashtable $Mcp.headers }
+            if ($Mcp.credentialPolicy -eq 'oauth') { $entry.auth = 'oauth' }
         }
     }
     return $entry
@@ -486,9 +488,30 @@ function Get-McpCandidatesForScope {
 }
 
 function Get-PluginProvidedMcpKeysByHost {
-    param([object]$CapabilitiesRegistry)
+    param(
+        [object]$CapabilitiesRegistry,
+        [object]$McpRegistry
+    )
 
     $result = @{}
+
+    # Some native plugins are not represented by a capability package in this
+    # repository (for example Claude's official Notion plugin).  The MCP
+    # registry can still record the host-local plugin owner so the global MCP
+    # writer does not create a second active registration.
+    if ($McpRegistry -and $McpRegistry.mcpServers) {
+        foreach ($mcp in $McpRegistry.mcpServers) {
+            $ownersProperty = $mcp.PSObject.Properties['pluginOwnersByHost']
+            if (-not $ownersProperty -or $null -eq $ownersProperty.Value) { continue }
+            foreach ($owner in $ownersProperty.Value.PSObject.Properties) {
+                $hostId = [string]$owner.Name
+                if (-not $hostId -or [string]::IsNullOrWhiteSpace([string]$owner.Value)) { continue }
+                if (-not $result.ContainsKey($hostId)) { $result[$hostId] = @{} }
+                $result[$hostId][(Resolve-McpAliasKey $mcp.id)] = $true
+            }
+        }
+    }
+
     if (-not $CapabilitiesRegistry -or -not $CapabilitiesRegistry.capabilities) { return $result }
 
     foreach ($cap in $CapabilitiesRegistry.capabilities) {
@@ -551,7 +574,13 @@ $driftReport = @{
 }
 
 function Sync-HostMcp-Claude {
-    param([pscustomobject]$Agent, [hashtable]$McpEntries, [switch]$WhatIf, [switch]$Prune)
+    param(
+        [pscustomobject]$Agent,
+        [hashtable]$McpEntries,
+        [string[]]$PluginOwnedKeys = @(),
+        [switch]$WhatIf,
+        [switch]$Prune
+    )
     $path = $Agent.nativePaths.mcpUser
     if (-not $path) { return @{ status='unsupported' } }
 
@@ -562,6 +591,13 @@ function Sync-HostMcp-Claude {
     }
     if (-not $json.ContainsKey('mcpServers')) { $json.mcpServers = @{} }
     elseif (-not ($json.mcpServers -is [hashtable])) { $json.mcpServers = ConvertTo-Hashtable $json.mcpServers }
+
+    # A plugin-owned MCP must be removed even when broad pruning is disabled.
+    # This is a narrow ownership cleanup, not permission to delete unrelated
+    # user registrations.
+    foreach ($key in $PluginOwnedKeys) {
+        if ($json.mcpServers.ContainsKey($key)) { $json.mcpServers.Remove($key) }
+    }
 
     $claudeEntries = @{}
     foreach ($key in $McpEntries.Keys) {
@@ -617,13 +653,40 @@ function Get-CodexMcpSectionPattern {
     return '(?ms)^\[mcp_servers\.' + $escapedKey + '\]\r?\n.*?(?=^\[(?!mcp_servers\.' + $escapedKey + '\.)[^\]]+\]\r?$|\z)'
 }
 
+function ConvertTo-HostEnvironmentReference {
+    param(
+        [string]$Value,
+        [string]$TargetHost
+    )
+
+    if ($TargetHost -in @('grok', 'hermes')) {
+        return [regex]::Replace($Value, '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}', {
+            param($match)
+            return '${' + $match.Groups[1].Value + '}'
+        })
+    }
+    return $Value
+}
+
 function Sync-HostMcp-Codex {
-    param([pscustomobject]$Agent, [hashtable]$McpEntries, [switch]$WhatIf, [switch]$Prune)
+    param(
+        [pscustomobject]$Agent,
+        [hashtable]$McpEntries,
+        [string[]]$PluginOwnedKeys = @(),
+        [switch]$WhatIf,
+        [switch]$Prune
+    )
     $path = $Agent.nativePaths.config
     if (-not (Test-Path -LiteralPath $path)) { return @{ status='config-missing' } }
 
     $toml = Get-Content -LiteralPath $path -Raw -Encoding UTF8
     $newToml = $toml
+
+    # Remove only entries with an explicit native-plugin owner. Keep all other
+    # unregistered TOML sections intact unless the caller requests broad prune.
+    foreach ($key in $PluginOwnedKeys) {
+        $newToml = [regex]::Replace($newToml, (Get-CodexMcpSectionPattern $key), '')
+    }
 
     foreach ($key in $McpEntries.Keys) {
         $entry = $McpEntries[$key]
@@ -702,6 +765,170 @@ function Sync-HostMcp-Codex {
     }
 
     [System.IO.File]::WriteAllText($path, $newToml, [System.Text.UTF8Encoding]::new($false))
+    $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
+    return @{ status='updated'; path=$path }
+}
+
+function Sync-HostMcp-Grok {
+    param(
+        [Parameter(Mandatory)]$Agent,
+        [Parameter(Mandatory)][hashtable]$Mcps,
+        [switch]$WhatIf,
+        [switch]$Prune
+    )
+
+    # Grok CLI uses TOML sections compatible with Codex's mcp_servers shape,
+    # but environment interpolation is ${NAME}, not ${env:NAME}.
+    $path = $Agent.nativePaths.config
+    $existing = if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { '' }
+    $original = $existing
+    $blocks = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($name in @($Mcps.Keys | Sort-Object)) {
+        $mcp = $Mcps[$name]
+        $sectionPattern = Get-CodexMcpSectionPattern -Key $name
+        $existing = [regex]::Replace($existing, $sectionPattern, '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+        foreach ($alias in @('shwiki', 'shwiki-context-remote', 'sh-knowledge')) {
+            if ((Resolve-McpAliasKey $alias) -eq $name) {
+                $existing = [regex]::Replace($existing, (Get-CodexMcpSectionPattern -Key $alias), '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+            }
+        }
+        $lines = [System.Collections.Generic.List[string]]::new()
+        $null = $lines.Add("[mcp_servers.$name]")
+        if ($mcp.type -eq 'http') {
+            $url = ConvertTo-HostEnvironmentReference -Value $mcp.url -TargetHost 'grok'
+            $null = $lines.Add("url = `"$url`"")
+            if ($mcp.headers) {
+                $pairs = @($mcp.headers.GetEnumerator() | ForEach-Object {
+                    $headerValue = ConvertTo-HostEnvironmentReference -Value ([string]$_.Value) -TargetHost 'grok'
+                    "`"$($_.Key)`" = `"$headerValue`""
+                })
+                if ($pairs.Count -gt 0) { $null = $lines.Add("headers = { $($pairs -join ', ') }") }
+            }
+        }
+        else {
+            $null = $lines.Add("command = `"$($mcp.command)`"")
+            if ($mcp.args) {
+                $args = @($mcp.args | ForEach-Object { "`"$_`"" })
+                $null = $lines.Add("args = [$($args -join ', ')]")
+            }
+            if ($mcp.env) {
+                foreach ($property in $mcp.env.GetEnumerator()) {
+                    $value = ConvertTo-HostEnvironmentReference -Value ([string]$property.Value) -TargetHost 'grok'
+                    $null = $lines.Add("[mcp_servers.$name.env]")
+                    $null = $lines.Add("$($property.Key) = `"$value`"")
+                }
+            }
+        }
+        $null = $blocks.Add(($lines -join "`n"))
+    }
+
+    if ($Prune) {
+        foreach ($name in @('context7', 'firecrawl', 'tavily', 'exa', 'linear', 'notion', 'shwiki-context', 'brave-search', 'playwright')) {
+            $sectionPattern = Get-CodexMcpSectionPattern -Key $name
+            $existing = [regex]::Replace($existing, $sectionPattern, '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+        }
+    }
+
+    $updated = $existing.TrimEnd()
+    if ($updated) { $updated += "`n`n" }
+    $updated += ($blocks -join "`n`n") + "`n"
+    if ($WhatIf) {
+        $status = if ($original.TrimEnd() -eq $updated.TrimEnd()) { 'unchanged' } else { 'drift' }
+        return @{ status = $status; path = $path }
+    }
+    Write-Utf8NoBom -Path $path -Content $updated
+    $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
+    return @{ status='updated'; path=$path }
+}
+
+function Sync-HostMcp-Hermes {
+    param(
+        [Parameter(Mandatory)]$Agent,
+        [Parameter(Mandatory)][hashtable]$Mcps,
+        [switch]$WhatIf
+    )
+
+    # Hermes has a root-level YAML mcp_servers mapping. Replace fleet-managed
+    # entries while preserving unregistered user MCP entries and all other YAML.
+    $path = $Agent.nativePaths.config
+    $existing = if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { '' }
+    $original = $existing
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $null = $lines.Add('mcp_servers:')
+    foreach ($name in @($Mcps.Keys | Sort-Object)) {
+        $mcp = $Mcps[$name]
+        $null = $lines.Add("  ${name}:")
+        if ($mcp.type -eq 'http') {
+            $url = ConvertTo-HostEnvironmentReference -Value $mcp.url -TargetHost 'hermes'
+            $null = $lines.Add("    url: `"$url`"")
+            if ($mcp.auth) { $null = $lines.Add("    auth: $($mcp.auth)") }
+            if ($mcp.headers) {
+                $null = $lines.Add('    headers:')
+                foreach ($property in $mcp.headers.GetEnumerator()) {
+                    $value = ConvertTo-HostEnvironmentReference -Value ([string]$property.Value) -TargetHost 'hermes'
+                    $null = $lines.Add("      $($property.Key): `"$value`"")
+                }
+            }
+        }
+        else {
+            $null = $lines.Add("    command: `"$($mcp.command)`"")
+            if ($mcp.args) {
+                $args = @($mcp.args | ForEach-Object { "`"$_`"" })
+                $null = $lines.Add("    args: [$($args -join ', ')]")
+            }
+            if ($mcp.env) {
+                $null = $lines.Add('    env:')
+                foreach ($property in $mcp.env.GetEnumerator()) {
+                    $value = ConvertTo-HostEnvironmentReference -Value ([string]$property.Value) -TargetHost 'hermes'
+                    $null = $lines.Add("      $($property.Key): `"$value`"")
+                }
+            }
+        }
+    }
+    $mcpBlock = ($lines -join "`n") + "`n"
+    $sectionPattern = '(?ms)^mcp_servers:\s*(?:\r?\n.*?)*(?=^[A-Za-z_][A-Za-z0-9_-]*:\s*(?:#.*)?\r?$|\z)'
+    if ($existing -match '(?m)^mcp_servers:\s*$') {
+        $sectionMatch = [regex]::Match($existing, $sectionPattern)
+        $managedNames = @{}
+        foreach ($name in $Mcps.Keys) { $managedNames[(Resolve-McpAliasKey $name)] = $true }
+        $preservedEntries = [System.Collections.Generic.List[string]]::new()
+        # Determine the existing direct-child indentation dynamically, then
+        # accept normal YAML keys (including dotted, spaced, and quoted names).
+        $anyChildPattern = '(?m)^(?<indent>[ \t]+)(?<key>"(?:[^"\\]|\\.)*"|''(?:[^'']|'''')*''|[^\s:\r\n][^:\r\n]*):(?:\s|$)'
+        $firstChild = [regex]::Match($sectionMatch.Value, $anyChildPattern)
+        if ($firstChild.Success) {
+            $existingIndent = $firstChild.Groups['indent'].Value
+            $escapedIndent = [regex]::Escape($existingIndent)
+            $entryPattern = '(?m)^' + $escapedIndent + '(?<key>"(?:[^"\\]|\\.)*"|''(?:[^'']|'''')*''|[^\s:\r\n][^:\r\n]*):(?:\s|$)'
+            $entryMatches = [regex]::Matches($sectionMatch.Value, $entryPattern)
+            for ($index = 0; $index -lt $entryMatches.Count; $index++) {
+                $entry = $entryMatches[$index]
+                $entryName = $entry.Groups['key'].Value.Trim()
+                if (($entryName.StartsWith('"') -and $entryName.EndsWith('"')) -or ($entryName.StartsWith("'") -and $entryName.EndsWith("'"))) {
+                    $entryName = $entryName.Substring(1, $entryName.Length - 2)
+                }
+                $entryEnd = if ($index + 1 -lt $entryMatches.Count) { $entryMatches[$index + 1].Index } else { $sectionMatch.Value.Length }
+                if (-not $managedNames.ContainsKey((Resolve-McpAliasKey $entryName))) {
+                    $rawEntry = $sectionMatch.Value.Substring($entry.Index, $entryEnd - $entry.Index).TrimEnd()
+                    $normalizedEntry = [regex]::Replace($rawEntry, '(?m)^' + $escapedIndent, '  ')
+                    $null = $preservedEntries.Add($normalizedEntry)
+                }
+            }
+        }
+        if ($preservedEntries.Count -gt 0) {
+            $mcpBlock = $mcpBlock.TrimEnd() + "`n" + ($preservedEntries -join "`n") + "`n"
+        }
+        $updated = $existing.Substring(0, $sectionMatch.Index) + $mcpBlock + $existing.Substring($sectionMatch.Index + $sectionMatch.Length)
+    }
+    else {
+        $updated = $mcpBlock + $(if ($existing) { "`n$existing" } else { '' })
+    }
+    if ($WhatIf) {
+        $status = if ($original.TrimEnd() -eq $updated.TrimEnd()) { 'unchanged' } else { 'drift' }
+        return @{ status = $status; path = $path }
+    }
+    Write-Utf8NoBom -Path $path -Content $updated
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
     return @{ status='updated'; path=$path }
 }
@@ -794,7 +1021,7 @@ function Sync-QwenCapabilityExtensions {
     $expected = @()
     foreach ($capability in @($CapabilitiesRegistry.capabilities)) {
         $mapping = @($capability.hostMappings | Where-Object {
-            $_.hostId -eq 'qwen-code' -and $_.deploymentStatus -eq 'managed'
+            $_.hostId -eq 'qwen-code' -and $_.deploymentStatus -in @('managed','native-extension-junction')
         })
         if ($mapping.Count -eq 0) { continue }
 
@@ -1071,6 +1298,13 @@ function Sync-HostMcp-Windsurf {
         if ($e.ContainsKey('env'))     { $e['env']     = Convert-ToWindsurfPlaceholders $e['env'] }
     }
 
+    # Windsurf previously carried a host-prefixed Context7 alias alongside the
+    # canonical entry. Remove it only when the canonical entry is present;
+    # otherwise preserve the user-owned server instead of guessing ownership.
+    if ($servers.ContainsKey('devin/context7') -and $servers.ContainsKey('context7')) {
+        $servers.Remove('devin/context7')
+    }
+
     # Merge canonical registry entries in Windsurf schema.
     $canonKeys = @{}
     foreach ($key in $McpEntries.Keys) {
@@ -1139,19 +1373,35 @@ foreach ($mcp in $candidateServers) {
     if ($mcp.PSObject.Properties.Match('hosts').Count -gt 0 -and $mcp.hosts) { $mcpHostAllowlist[$mcp.id] = @($mcp.hosts) }
 }
 
-$pluginProvidedByHost = Get-PluginProvidedMcpKeysByHost -CapabilitiesRegistry $capReg
+$pluginProvidedByHost = Get-PluginProvidedMcpKeysByHost -CapabilitiesRegistry $capReg -McpRegistry $mcpsReg
 
-foreach ($agent in $agentsReg.activeAgents) {
+$agentsToSync = @($agentsReg.activeAgents)
+if ($IncludeInactiveAgents) { $agentsToSync += @($agentsReg.inactiveAgents) }
+
+foreach ($agent in $agentsToSync) {
     $hostDrift = @{ host=$agent.id; mcp=@(); files=@(); status='ok' }
     $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -PluginProvidedByHost $pluginProvidedByHost
+    $pluginOwnedKeys = if ($pluginProvidedByHost.ContainsKey($agent.id)) { @($pluginProvidedByHost[$agent.id].Keys) } else { @() }
 
     switch ($agent.id) {
         'claude' {
-            $r = Sync-HostMcp-Claude -Agent $agent -McpEntries $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Claude -Agent $agent -McpEntries $hostMcpEntries -PluginOwnedKeys $pluginOwnedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'codex' {
-            $r = Sync-HostMcp-Codex -Agent $agent -McpEntries $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Codex -Agent $agent -McpEntries $hostMcpEntries -PluginOwnedKeys $pluginOwnedKeys -WhatIf:$whatIfMode -Prune:$Prune
+            $hostDrift.mcp += $r
+        }
+        'grok' {
+            $r = Sync-HostMcp-Grok -Agent $agent -Mcps $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $hostDrift.mcp += $r
+        }
+        'hermes' {
+            $r = Sync-HostMcp-Hermes -Agent $agent -Mcps $hostMcpEntries -WhatIf:$whatIfMode
+            $hostDrift.mcp += $r
+        }
+        'warp' {
+            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'cursor' {
@@ -1212,7 +1462,7 @@ if ($Validate -or $Apply -or $Audit) {
         $UserProfile + '\AppData\Roaming\Code - Insiders\User\mcp.json',
         $UserProfile + '\.factory\mcp.json',
         $UserProfile + '\.qwen\settings.json',
-        $UserProfile + '\.config\devin\config.json',
+        $UserProfile + '\AppData\Roaming\devin\config.json',
         $UserProfile + '\.config\amp\settings.json',
         $UserProfile + '\.config\opencode\opencode.json',
         $UserProfile + '\.gemini\settings.json',
@@ -1223,7 +1473,7 @@ if ($Validate -or $Apply -or $Audit) {
         if (Test-Path -LiteralPath $f) { Test-JsonParse -Path $f }
     }
 
-    $tomlFiles = @($UserProfile + '\.codex\config.toml')
+    $tomlFiles = @($UserProfile + '\.codex\config.toml', $UserProfile + '\.grok\config.toml')
     foreach ($f in $tomlFiles) {
         if (Test-Path -LiteralPath $f) { Test-TomlParse -Path $f }
     }

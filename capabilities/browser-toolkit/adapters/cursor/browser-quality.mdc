@@ -1,0 +1,12 @@
+---
+description: Use the shared Browser Quality Toolkit for authorized browser audits and diagnostics
+globs:
+alwaysApply: false
+---
+
+Use the canonical browser-toolkit skills and the dedicated QA Chrome profile.
+Inspect the product before changing code. Record accessibility, console,
+network, screenshot, and performance evidence. Classify defects as
+product-fix-required, capture-fixable, or informational. Never conceal product
+defects or fabricate product UI/results. Fail closed to a readiness report when
+demo gates do not pass.

@@ -376,22 +376,6 @@
       "authoritative": true
     },
     {
-      "id": "jules-cli",
-      "agentId": "jules",
-      "name": "Google Jules CLI",
-      "kind": "cli",
-      "version": "0.1.42",
-      "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\jules.cmd",
-      "configHome": "C:\\Users\\SaroshHussain\\.jules",
-      "classification": "canonical",
-      "platform": "windows-native",
-      "lifecycle": "active",
-      "readiness": "headless-ready",
-      "installed": true,
-      "configured": true,
-      "authoritative": true
-    },
-    {
       "id": "windsurf-ide",
       "agentId": "windsurf",
       "name": "Windsurf / Cascade configuration",
