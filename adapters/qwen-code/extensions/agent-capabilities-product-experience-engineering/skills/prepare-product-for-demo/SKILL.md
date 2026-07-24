@@ -19,6 +19,9 @@ Start from one target repository and the workflows intended for demo. Existing `
 2. Frame each demo workflow: user, job, valuable outcome, current alternative, intended hero moment, and constraints.
 3. Establish the product model and inventory the implemented product before judging visual design.
 4. Run the actual demo path with realistic synthetic data, including sparse, dense, loading, error, permission, recovery, narrow, zoomed, keyboard, and return/resume states.
+   Use the canonical Browser Quality Toolkit for accessibility snapshots, console/network evidence,
+   Lighthouse, and performance traces from a dedicated QA profile. Keep the normal personal Chrome
+   instance outside the tool boundary.
 5. Audit through usefulness, workflow/information architecture, interaction/state completeness, content/trust, visual hierarchy, responsive/accessibility, perceived performance, and conditional agentic behavior.
 6. Record evidence-backed findings with severity, priority factors, and `DEMO-BLOCKING yes/no`.
 7. Assess all eleven demo-worthiness criteria. Assign `DEMO-READY`, `REMEDIABLE`, or `DEFERRED` before remediation.
@@ -63,7 +66,7 @@ The two context options are optional, but supply them whenever the caller knows 
 
 ## Reference routing
 
-Read the complete [Product Experience Audit & Remediation Guide](../../references/product-experience-audit-remediation-guide.md). Use [application surface coverage](../../references/application-surface-coverage.md) and load specialized numbered references only when the workflow needs more depth. Do not replace the guide with the older read-only UI/UX audit route.
+Read the complete [Product Experience Audit & Remediation Guide](../../references/product-experience-audit-remediation-guide.md). It is the synchronized authoritative guide supplied for this workflow. Use [application surface coverage](../../references/application-surface-coverage.md) and load specialized numbered references only when the workflow needs more depth. Do not replace the guide with the older read-only UI/UX audit route.
 
 ## Common mistakes
 

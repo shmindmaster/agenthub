@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Canonical host-native capability and autonomy contract. A discovery-required field must not be emitted by an adapter.",
+  "contracts": [
+    {
+      "hostId": "codex",
+      "state": "active",
+      "officialSources": ["https://help.openai.com/en/articles/20001256-plugins-in-codex"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "autonomy": { "profile": "repo-autonomous", "settings": { "approval_policy": "never", "sandbox_mode": "danger-full-access" }, "machineMaintenanceFlag": "--dangerously-bypass-approvals-and-sandbox" }
+    },
+    {
+      "hostId": "claude",
+      "state": "active",
+      "officialSources": [
+        "https://code.claude.com/docs/en/features-overview",
+        "https://code.claude.com/docs/en/sub-agents",
+        "https://code.claude.com/docs/en/agent-teams",
+        "https://code.claude.com/docs/en/workflows",
+        "https://code.claude.com/docs/en/mcp",
+        "https://code.claude.com/docs/en/skills",
+        "https://code.claude.com/docs/en/plugins",
+        "https://code.claude.com/docs/en/memory",
+        "https://code.claude.com/docs/en/headless"
+      ],
+      "surfaces": {
+        "rules": "verified",
+        "skills": "verified",
+        "plugins": "verified",
+        "mcp": "verified",
+        "subagents": "verified",
+        "agentView": "verified-research-preview",
+        "agentTeams": "verified-experimental-disabled-by-default",
+        "worktrees": "verified",
+        "workflows": "verified",
+        "codeIntelligence": "verified-plugin-provided",
+        "hooks": "verified",
+        "memory": "verified-project-local",
+        "sessions": "verified",
+        "scheduledTasks": "verified-session-scoped",
+        "artifacts": "verified",
+        "channels": "verified",
+        "headless": "verified",
+        "lsp": "verified-plugin-provided",
+        "acp": "not-applicable"
+      },
+      "autonomy": {
+        "profile": "repo-autonomous",
+        "permissionMode": "bypassPermissions",
+        "flags": ["--dangerously-skip-permissions"],
+        "headless": { "command": "claude -p", "recommendedForAutomation": "--bare plus explicit settings, MCP, agents, and plugins" }
+      },
+      "rolloutGuardrails": {
+        "agentTeams": "Register only; do not globally enable CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS.",
+        "workflows": "Register reusable workflow ownership; do not enable ultracode globally.",
+        "hooks": "No global hooks without a named capability, event contract, input validation, timeout, and test.",
+        "memory": "Keep built-in auto memory project-local and do not synchronize it with the cross-agent control plane.",
+        "scheduledTasks": "Treat /loop and session cron as session-scoped; durable automation needs an explicitly authorized scheduler."
+      }
+    },
+    {
+      "hostId": "qwen-code",
+      "state": "active",
+      "officialSources": ["https://qwenlm.github.io/qwen-code-docs/en/users/configuration/settings/"],
+      "surfaces": { "rules": "verified", "skills": "verified", "extensions": "verified", "mcp": "verified", "subagents": "verified", "lsp": "verified", "hooks": "verified", "memory": "verified", "headless": "verified", "acp": "not-applicable" },
+      "autonomy": { "profile": "repo-autonomous", "flags": ["--yolo"], "lspFlag": "--experimental-lsp" }
+    },
+    {
+      "hostId": "opencode",
+      "state": "active",
+      "officialSources": ["https://opencode.ai/docs/"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "lsp": "verified", "hooks": "verified", "memory": "discovery-required" },
+      "autonomy": { "profile": "repo-autonomous", "settings": { "permission": "allow" }, "flags": ["--auto"] }
+    },
+    {
+      "hostId": "gemini",
+      "state": "active",
+      "officialSources": ["https://geminicli.com/docs/"],
+      "surfaces": { "rules": "verified", "skills": "verified", "extensions": "verified", "mcp": "verified", "acp": "verified", "lsp": "verified", "hooks": "verified", "memory": "verified", "subagents": "discovery-required" },
+      "autonomy": { "profile": "repo-autonomous", "flags": ["--yolo", "--skip-trust"] }
+    },
+    {
+      "hostId": "copilot",
+      "state": "active",
+      "officialSources": ["https://code.visualstudio.com/docs/agents/concepts/customization", "https://code.visualstudio.com/docs/agent-customization/agent-skills"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "lsp": "verified", "hooks": "verified", "memory": "verified" },
+      "autonomy": { "profile": "repo-autonomous", "flags": ["--allow-all", "--autopilot", "--no-ask-user"] }
+    },
+    {
+      "hostId": "vscode-insiders",
+      "state": "inactive",
+      "officialSources": ["https://code.visualstudio.com/docs/agents/concepts/customization", "https://code.visualstudio.com/docs/agent-customization/custom-agents"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "lsp": "verified", "hooks": "verified", "memory": "verified" },
+      "autonomy": { "profile": "repo-autonomous", "implementation": "workspace-and-user-policy" }
+    },
+    {
+      "hostId": "devin",
+      "state": "inactive",
+      "officialSources": ["https://docs.devin.ai/cli/extensibility/configuration", "https://docs.devin.ai/cli/subagents"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "hooks": "verified", "lsp": "not-applicable", "memory": "discovery-required" },
+      "autonomy": { "profile": "repo-autonomous", "flags": ["--permission-mode", "dangerous"] }
+    },
+    {
+      "hostId": "antigravity",
+      "state": "active",
+      "officialSources": ["https://www.antigravity.google/docs/cli-overview", "https://www.antigravity.google/docs/plugins", "https://www.antigravity.google/docs/cli-permissions"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "subagents": "verified", "hooks": "verified", "acp": "discovery-required", "lsp": "discovery-required", "memory": "discovery-required" },
+      "autonomy": { "profile": "repo-autonomous", "flags": ["--dangerously-skip-permissions"], "settings": { "permissions": "wildcard-policy-supported" } }
+    },
+    {
+      "hostId": "grok",
+      "state": "active",
+      "officialSources": ["installed-cli-help", "C:/Users/SaroshHussain/.grok/README.md"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "lsp": "verified", "hooks": "verified", "memory": "verified", "headless": "verified" },
+      "autonomy": { "profile": "repo-autonomous", "settings": { "permission_mode": "always-approve", "yolo": true }, "headlessFlags": ["agent", "--always-approve"] }
+    },
+    {
+      "hostId": "hermes",
+      "state": "active",
+      "officialSources": ["https://github.com/NousResearch/hermes-agent"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "hooks": "verified", "memory": "verified", "subagents": "discovery-required", "lsp": "discovery-required" },
+      "autonomy": { "profile": "interactive", "reason": "No verified universal bypass contract in the managed Windows installation." }
+    },
+    {
+      "hostId": "warp",
+      "state": "active",
+      "officialSources": ["https://docs.warp.dev/"],
+      "surfaces": { "rules": "verified", "skills": "verified", "mcp": "verified", "subagents": "discovery-required", "plugins": "discovery-required", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "autonomy": { "profile": "interactive", "implementation": "UI permission profile and per-task controls" }
+    },
+    {
+      "hostId": "factory",
+      "state": "inactive",
+      "officialSources": ["https://docs.factory.ai/reference/cli-reference"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "subagents": "verified", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "autonomy": { "profile": "repo-autonomous", "flags": ["exec", "--auto", "high"], "unsafeOnlyInIsolatedSandbox": true }
+    },
+    {
+      "hostId": "amp",
+      "state": "inactive",
+      "officialSources": ["https://ampcode.com/manual/plugin-api"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "subagents": "discovery-required", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "autonomy": { "profile": "interactive", "headlessConstraint": "paid-tier-required" }
+    },
+    {
+      "hostId": "windsurf",
+      "state": "inactive",
+      "officialSources": ["https://docs.windsurf.com/"],
+      "surfaces": { "rules": "discovery-required", "skills": "observed", "mcp": "verified", "plugins": "discovery-required", "subagents": "discovery-required", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "autonomy": { "profile": "interactive", "reason": "Do not emit settings without a current official Windows schema." }
+    },
+    {
+      "hostId": "cursor",
+      "state": "retained-disabled",
+      "officialSources": ["https://cursor.com/docs/"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "subagents": "verified", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "autonomy": { "profile": "disabled", "reason": "Provider hold is fail-closed until the owner completes reauthorization." }
+    }
+  ]
+}

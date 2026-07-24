@@ -8,7 +8,8 @@ $canonicalVideoSkills = @(
     'product-demo-studio-narration',
     'product-demo-studio-qa',
     'product-demo-studio-remotion',
-    'product-demo-studio-render'
+    'product-demo-studio-render',
+    'product-demo-studio-visual-assets'
 )
 
 $canonicalExperienceSkills = @(
@@ -31,16 +32,19 @@ function New-DistributionFixture {
     $registryRoot = Join-Path $Root 'registry-root'
     $canonicalRoot = Join-Path $Root 'canonical-product-demo-studio'
     $canonicalExperienceRoot = Join-Path $Root 'canonical-product-experience-engineering'
+    $canonicalBrowserRoot = Join-Path $Root 'canonical-browser-toolkit'
     $fakeProfile = Join-Path $Root 'profile'
     $fakeAppData = Join-Path $fakeProfile 'AppData\Roaming'
     New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $registryRoot 'scripts') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalRoot 'skills') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $canonicalBrowserRoot 'skills\browser-debugging') -Force | Out-Null
     New-Item -ItemType Directory -Path $fakeAppData -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalRoot '.codex-plugin') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalRoot '.claude-plugin') -Force | Out-Null
     '{"name":"product-demo-studio","version":"0.4.0"}' | Set-Content -LiteralPath (Join-Path $canonicalRoot '.codex-plugin\plugin.json') -Encoding UTF8
     '{"name":"product-demo-studio","version":"0.4.0"}' | Set-Content -LiteralPath (Join-Path $canonicalRoot '.claude-plugin\plugin.json') -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $canonicalBrowserRoot 'skills\browser-debugging\SKILL.md') -Value 'canonical:browser-debugging' -Encoding UTF8
 
     foreach ($name in $canonicalVideoSkills) {
         $skillRoot = Join-Path $canonicalRoot "skills\$name"
@@ -51,9 +55,9 @@ function New-DistributionFixture {
     New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot 'skills') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot '.codex-plugin') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot '.claude-plugin') -Force | Out-Null
-    '{"name":"product-experience-engineering","version":"1.0.0"}' |
+    '{"name":"product-experience-engineering","version":"1.1.0"}' |
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.codex-plugin\plugin.json') -Encoding UTF8
-    '{"name":"product-experience-engineering","version":"1.0.0"}' |
+    '{"name":"product-experience-engineering","version":"1.1.0"}' |
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.claude-plugin\plugin.json') -Encoding UTF8
     foreach ($name in $canonicalExperienceSkills) {
         $skillRoot = Join-Path $canonicalExperienceRoot "skills\$name"
@@ -93,11 +97,14 @@ function New-DistributionFixture {
     @{ mcpServers = @() } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
     @{ capabilities = @(
         @{ id = 'product-demo-studio'; canonicalSource = $canonicalRoot },
-        @{ id = 'product-experience-engineering'; canonicalSource = $canonicalExperienceRoot }
+        @{ id = 'product-experience-engineering'; canonicalSource = $canonicalExperienceRoot },
+        @{ id = 'browser-toolkit'; canonicalSource = $canonicalBrowserRoot; managedSkillNames = @('browser-debugging'); hostMappings = @(
+            @{ hostId = 'claude'; deploymentStatus = 'managed-loose-skills-and-mcp' }
+        ) }
     ) } |
         ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
     @{
-        managedHosts = @('claude','codex','cursor','qwen-code','opencode','factory','devin','amp','windsurf','gemini','antigravity','copilot')
+        managedHosts = @('claude','codex','cursor','qwen-code','opencode','factory','devin','amp','windsurf','gemini','hermes','grok','antigravity','warp','copilot')
         hostSettings = @{}
     } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\fleet-profile.json') -Encoding UTF8
 
@@ -110,6 +117,7 @@ function New-DistributionFixture {
         RegistryRoot = $registryRoot
         CanonicalRoot = $canonicalRoot
         CanonicalExperienceRoot = $canonicalExperienceRoot
+        CanonicalBrowserRoot = $canonicalBrowserRoot
         UserProfile = $fakeProfile
         AppData = $fakeAppData
     }
@@ -132,6 +140,25 @@ function Invoke-DistributionOnly {
 }
 
 Describe 'Apply-FullAccessAgentProfile managed video distribution' {
+    It 'preserves an expected Browser Toolkit junction during generic skill distribution' {
+        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'expected-junction')
+        $browserTarget = Join-Path $fixture.UserProfile '.claude\skills\browser-debugging'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $browserTarget) -Force | Out-Null
+        New-Item -ItemType Junction -Path $browserTarget -Target (Join-Path $fixture.CanonicalBrowserRoot 'skills\browser-debugging') | Out-Null
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        (Get-Item -LiteralPath $browserTarget -Force).LinkType | Should Be 'Junction'
+        (Get-Content -LiteralPath (Join-Path $browserTarget 'SKILL.md') -Raw).Trim() | Should Be 'canonical:browser-debugging'
+    }
+
+    It 'does not distribute a canonical capability to hosts without a registry mapping' {
+        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'mapping-boundary')
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\browser-debugging')) | Should Be $true
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.codex\skills\browser-debugging')) | Should Be $false
+    }
+
     It 'exactly replaces canonical siblings everywhere, quarantines mapped conflicts, and is idempotent' {
         $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'replacement')
         $skillTargets = @{
@@ -144,7 +171,10 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
             amp = Join-Path $fixture.UserProfile '.config\amp\skills'
             windsurf = Join-Path $fixture.UserProfile '.codeium\windsurf\skills'
             gemini = Join-Path $fixture.UserProfile '.gemini\skills'
+            hermes = Join-Path $fixture.UserProfile 'AppData\Local\hermes\skills'
+            grok = Join-Path $fixture.UserProfile '.grok\skills'
             antigravity = Join-Path $fixture.UserProfile '.gemini\config\skills'
+            warp = Join-Path $fixture.UserProfile '.warp\skills'
         }
 
         $staleManaged = Join-Path $skillTargets.claude 'product-demo-studio'
@@ -270,7 +300,10 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
             (Join-Path $fixture.UserProfile '.config\amp\skills'),
             (Join-Path $fixture.UserProfile '.codeium\windsurf\skills'),
             (Join-Path $fixture.UserProfile '.gemini\skills'),
-            (Join-Path $fixture.UserProfile '.gemini\config\skills')
+            (Join-Path $fixture.UserProfile 'AppData\Local\hermes\skills'),
+            (Join-Path $fixture.UserProfile '.grok\skills'),
+            (Join-Path $fixture.UserProfile '.gemini\config\skills'),
+            (Join-Path $fixture.UserProfile '.warp\skills')
         )
 
         $staleManaged = Join-Path $looseSkillTargets[0] 'engineer-product-experience'
@@ -312,7 +345,7 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
                 'product-experience-engineering@handoff' = @(@{
                     scope = 'user'
                     installPath = $fixture.CanonicalExperienceRoot
-                    version = '1.0.0'
+                    version = '1.1.0'
                 })
             }
         } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $claudeInstalledPath -Encoding UTF8
@@ -321,9 +354,11 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
         New-Item -ItemType Directory -Path (Split-Path -Parent $codexConfig) -Force | Out-Null
         "[plugins.`"product-experience-engineering@handoff`"]`nenabled = true" |
             Set-Content -LiteralPath $codexConfig -Encoding UTF8
-        $codexCache = Join-Path $fixture.UserProfile '.codex\plugins\cache\handoff\product-experience-engineering\1.0.0'
+        $codexCache = Join-Path $fixture.UserProfile '.codex\plugins\cache\handoff\product-experience-engineering\1.1.0'
         New-Item -ItemType Directory -Path (Split-Path -Parent $codexCache) -Force | Out-Null
         Copy-Item -LiteralPath $fixture.CanonicalExperienceRoot -Destination $codexCache -Recurse
+        New-Item -ItemType Directory -Path (Join-Path $codexCache '.in_use') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $codexCache '.in_use\live-session') -Value 'ephemeral' -Encoding UTF8
 
         foreach ($target in @(
             (Join-Path $fixture.UserProfile '.claude\skills'),

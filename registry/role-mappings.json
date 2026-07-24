@@ -26,7 +26,7 @@
       "scout": ["scout"],
       "implementer": ["implementer"],
       "reviewer": ["reviewer"],
-      "verifier": ["main-agent-with-verifier-contract"]
+      "verifier": ["verifier"]
     },
     {
       "hostId": "factory",

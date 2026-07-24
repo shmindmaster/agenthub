@@ -21,12 +21,20 @@ bounded read-only audit stage and must not be mistaken for the full remediation 
 1. Read repository instructions and verify or generate discovery context.
 2. Build a coverage ledger from [application surface coverage](../../references/application-surface-coverage.md). Include public marketing, acquisition, customer product, customer administration, internal operations, billing, account/security, developer, support, lifecycle communication, and system surfaces when applicable.
 3. Give every discovered surface a coverage status, then select high-risk journeys for deep review. Include happy, empty, loading, error, permission, and recovery states.
-4. Inspect runtime and implementation evidence. Use Playwright for repeatable browser journeys when available.
+4. Inspect runtime and implementation evidence. Use the canonical Browser Quality Toolkit's
+   `browser-debugging` skill and Chrome DevTools MCP for a dedicated-profile accessibility
+   snapshot, console/network evidence, runtime errors, Lighthouse, and performance traces. Use
+   repository-owned Playwright for repeatable journeys when it already exists; do not install a
+   second browser harness merely for the audit.
 5. Evaluate usefulness, feature completeness, workflow coherence, information architecture, feedback, accessibility, responsive behavior, performance perception, and visual hierarchy.
 6. Record each finding with ID, severity, evidence, user impact, recommendation, and validation method.
 7. Prioritize by user impact, frequency, reach, risk, confidence, and implementation leverage.
 8. Write `_product-experience/01-audit.md` and validate it with:
    `node ../../scripts/validate-product-experience-artifact.mjs --type audit <file>`
+
+Classify every finding as exactly `product-fix-required`, `capture-fixable`, or `informational`.
+Do not use `capture-fixable` for product behavior, accessibility, truth, responsiveness, or
+performance defects. Observe and record the first pass before changing code.
 
 ## Reference routing
 

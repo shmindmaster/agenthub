@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "generatedAt": "2026-07-21T00:00:00-05:00",
+  "generatedAt": "2026-07-24T05:41:10.949Z",
   "mcpServers": [
     {
       "id": "linear",
@@ -16,7 +16,11 @@
       "scope": "global-default",
       "transport": "http",
       "url": "https://mcp.context7.com/mcp",
-      "credentialPolicy": "provider-managed-or-env"
+      "credentialPolicy": "environment-api-key",
+      "headers": {
+        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}",
+        "Authorization": "Bearer ${env:CONTEXT7_API_KEY}"
+      }
     },
     {
       "id": "notion",
@@ -24,7 +28,11 @@
       "scope": "global-default",
       "transport": "http",
       "url": "https://mcp.notion.com/mcp",
-      "credentialPolicy": "oauth"
+      "credentialPolicy": "oauth",
+      "pluginOwnersByHost": {
+        "claude": "notion@claude-plugins-official",
+        "codex": "notion@openai-curated"
+      }
     },
     {
       "id": "playwright",
@@ -32,7 +40,11 @@
       "scope": "global-default",
       "transport": "stdio",
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest", "--isolated"],
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--isolated"
+      ],
       "env": {},
       "credentialPolicy": "none"
     },
@@ -40,56 +52,42 @@
       "id": "shwiki-context",
       "name": "ShWiki",
       "scope": "global-default",
-      "transport": "stdio",
-      "command": "pnpm",
-      "args": ["--dir", "C:/Repos/shmindmaster/shwiki", "mcp:wiki"],
-      "env": {},
-      "credentialPolicy": "none-local-read-only"
+      "transport": "http",
+      "url": "https://shwiki.shtrial.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:SHWIKI_MCP_TOKEN}"
+      },
+      "credentialPolicy": "environment-bearer-token"
     },
     {
       "id": "firecrawl",
       "name": "Firecrawl Research",
       "scope": "global-default",
-      "transport": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "firecrawl-mcp"
-      ],
-      "env": {
-        "FIRECRAWL_API_KEY": "${env:FIRECRAWL_API_KEY}"
+      "transport": "http",
+      "url": "https://mcp.firecrawl.dev/v2/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:FIRECRAWL_API_KEY}"
       },
-      "credentialPolicy": "environment"
+      "credentialPolicy": "environment-bearer-token"
     },
     {
       "id": "tavily",
       "name": "Tavily Research",
       "scope": "global-default",
-      "transport": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "tavily-mcp"
-      ],
-      "env": {
-        "TAVILY_API_KEY": "${env:TAVILY_API_KEY}"
-      },
-      "credentialPolicy": "environment"
+      "transport": "http",
+      "url": "https://mcp.tavily.com/mcp/",
+      "credentialPolicy": "environment-bearer-token",
+      "headers": {
+        "Authorization": "Bearer ${env:TAVILY_API_KEY}"
+      }
     },
     {
       "id": "exa",
       "name": "Exa Research",
       "scope": "global-default",
-      "transport": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "exa-mcp-server"
-      ],
-      "env": {
-        "EXA_API_KEY": "${env:EXA_API_KEY}"
-      },
-      "credentialPolicy": "environment"
+      "transport": "http",
+      "url": "https://mcp.exa.ai/mcp",
+      "credentialPolicy": "provider-managed"
     },
     {
       "id": "brave-search",
@@ -106,7 +104,62 @@
       "env": {
         "BRAVE_API_KEY": "${env:BRAVE_API_KEY}"
       },
-      "credentialPolicy": "environment"
+      "credentialPolicy": "environment-local-only"
+    },
+    {
+      "id": "chrome-devtools",
+      "name": "Chrome DevTools",
+      "scope": "browser-quality-agents",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.6.0",
+        "--browser-url=http://127.0.0.1:9333",
+        "--no-usage-statistics",
+        "--no-performance-crux",
+        "--redact-network-headers"
+      ],
+      "env": {},
+      "credentialPolicy": "dedicated-qa-browser-session",
+      "hosts": [
+        "claude",
+        "qwen-code",
+        "opencode",
+        "hermes"
+      ],
+      "experimentalFlagsEnabled": []
+    },
+    {
+      "id": "adobe-for-creativity",
+      "name": "Adobe for creativity",
+      "scope": "global-default",
+      "transport": "http",
+      "url": "https://adobe-creativity.adobe.io/mcp",
+      "credentialPolicy": "oauth",
+      "notes": "Remote Creative Cloud MCP (Photoshop/Lightroom/Illustrator/Firefly/Premiere/Express/InDesign/Stock). Prefer for post-production of real assets; never for fabricating product UI. Host OAuth required; guest mode has reduced tools. Official docs: https://developer.adobe.com/adobe-for-creativity/"
+    },
+    {
+      "id": "canva",
+      "name": "Canva",
+      "scope": "global-default",
+      "transport": "http",
+      "url": "https://mcp.canva.com/mcp",
+      "credentialPolicy": "oauth",
+      "notes": "Remote Canva design MCP for templates, brand kits (Enterprise), exports, social/marketing collateral. Not for fabricating product UI. Docs: https://www.canva.dev/docs/mcp/"
+    },
+    {
+      "id": "descript",
+      "name": "Descript",
+      "scope": "global-default",
+      "transport": "http",
+      "url": "https://api.descript.com/v2/mcp",
+      "credentialPolicy": "oauth",
+      "pluginOwnersByHost": {
+        "claude": "product-demo-studio@handoff",
+        "codex": "product-demo-studio@handoff"
+      },
+      "notes": "Editorial finishing MCP (import, Underlord edits, publish share links). Optional post-render lane only after product-demo-studio evidence gate. No local MP4 export via API. Consumes Descript media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509"
     }
   ]
 }

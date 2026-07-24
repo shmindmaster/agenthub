@@ -38,6 +38,12 @@ standard has two valid outcomes: ship a killer video that clears every gate, or 
 product-readiness feedback for an episode the product
 cannot yet carry. A mediocre-but-accurate video is a defect, not a deliverable.
 
+For marketing/journey visuals, generated imagery, voice/model selection, or narration-provider
+configuration, route to `product-demo-studio-visual-assets` and read the complete
+[Visual Communication & Asset Generation Guide](references/Visual-Asset-Guide.md). That guide is
+authoritative over the older narration model table. Never use generated imagery to depict product
+UI, product data, or a result the real product did not produce.
+
 ## The pipeline
 
 Every video goes through the same stages, in order. Adapt each stage's *mechanics* to the target
@@ -85,7 +91,9 @@ to a final render.
 4. **Capture** — record real product states (screenshots and/or short recordings) through
    deterministic browser automation, synthetic data only. Record selectors, bounding boxes,
    protected regions, cursor paths, console/failed-request evidence, and reset results. See
-   `product-demo-studio-capture`.
+   `product-demo-studio-capture`. Use the Browser Quality Toolkit for live Chrome diagnostics and
+   repository-owned deterministic automation for master capture; those are complementary layers,
+   not competing capture systems.
 5. **Compose** — build a reusable Remotion composition: scenes, camera/zoom, cursor motion, focus
    masks, callouts, captions, narration, and aspect-ratio-specific reframing. See
    `product-demo-studio-remotion` for authoring knowledge and its `overlay-placement` rule for

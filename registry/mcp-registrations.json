@@ -8,53 +8,343 @@
       "authentication": "oauth",
       "policy": "Use host-managed OAuth. Never place credentials in this registry.",
       "hosts": [
-        { "id": "qwen-code", "state": "registered-oauth-pending" }
+        {
+          "id": "claude",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "codex",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "qwen-code",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "opencode",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "gemini",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "hermes",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "copilot",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "grok",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "warp",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "cursor",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "amp",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "devin",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "factory",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "vscode-insiders",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "windsurf",
+          "state": "registered-oauth-pending"
+        }
       ]
     },
     {
       "id": "shwiki-context",
-      "command": "pnpm",
-      "args": ["--dir", "C:/Repos/shmindmaster/shwiki", "mcp:wiki"],
-      "transport": "stdio",
-      "authentication": "none",
-      "fallbackEndpoint": "https://shwiki.shtrial.com/api/mcp",
-      "policy": "Local read-only ShWiki is canonical on this workstation. The hosted reviewed snapshot is fallback-only and any remote auth remains in the host secret store.",
+      "endpoint": "https://shwiki.shtrial.com/api/mcp",
+      "transport": "streamable-http",
+      "authentication": "bearer-token-environment",
+      "credentialEnvironment": "SHWIKI_MCP_TOKEN",
+      "fallbackCommand": "pnpm --dir C:/Repos/shmindmaster/shwiki mcp:wiki",
+      "policy": "The authenticated hosted ShWiki endpoint is canonical for registered hosts. The local read-only stdio server is an explicit offline and freshest-local-index fallback. Keep the bearer token only in each host environment or secret store.",
       "hosts": [
         {
           "id": "codex",
-          "state": "registered-local-configured"
+          "state": "registered-remote-configured"
         },
         {
           "id": "claude",
-          "state": "registered-local-configured"
+          "state": "registered-remote-configured"
         },
         {
           "id": "amp",
-          "state": "registered-local-configured"
+          "state": "registered-remote-configured"
         },
         {
           "id": "factory",
-          "state": "registered-local-configured"
+          "state": "registered-remote-configured"
         },
         {
           "id": "opencode",
-          "state": "registered-local-configured"
+          "state": "registered-remote-configured"
         },
         {
           "id": "cursor",
-          "state": "registered-local-configured"
+          "state": "registered-remote-configured"
         },
         {
           "id": "vscode-insiders",
-          "state": "registered-local-configured"
+          "state": "registered-remote-configured"
         },
         {
           "id": "devin",
-          "state": "registered-local-configured"
+          "state": "registered-remote-configured"
         },
         {
           "id": "windsurf",
-          "state": "registered-local-configured"
+          "state": "registered-remote-configured"
+        },
+        {
+          "id": "qwen-code",
+          "state": "registered-remote-configured"
+        },
+        {
+          "id": "gemini",
+          "state": "registered-remote-configured"
+        },
+        {
+          "id": "hermes",
+          "state": "registered-remote-configured"
+        },
+        {
+          "id": "copilot",
+          "state": "registered-remote-configured"
+        },
+        {
+          "id": "grok",
+          "state": "registered-remote-configured"
+        },
+        {
+          "id": "warp",
+          "state": "registered-remote-configured"
+        }
+      ]
+    },
+    {
+      "id": "adobe-for-creativity",
+      "endpoint": "https://adobe-creativity.adobe.io/mcp",
+      "transport": "streamable-http",
+      "authentication": "oauth",
+      "policy": "Use host-managed OAuth with the user Adobe account (Creative Cloud). Never place credentials in this registry. Prefer post-production (color grade, crop, social resize, sizzle cut, Express collateral) over generative product UI. Guest mode has reduced tools; signed-in unlocks CC storage and higher limits. Official: https://developer.adobe.com/adobe-for-creativity/ — primary product-fit is Claude first-party; other hosts depend on OAuth + tool surface compatibility.",
+      "hosts": [
+        {
+          "id": "claude",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "codex",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "qwen-code",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "opencode",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "gemini",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "hermes",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "copilot",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "grok",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "warp",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "cursor",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "amp",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "devin",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "factory",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "vscode-insiders",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "windsurf",
+          "state": "registered-oauth-pending"
+        }
+      ]
+    },
+    {
+      "id": "canva",
+      "endpoint": "https://mcp.canva.com/mcp",
+      "transport": "streamable-http",
+      "authentication": "oauth",
+      "policy": "Use host-managed OAuth with the user Canva account. Never place credentials in this registry. Use for brand-templated marketing collateral and exports, not for fabricating product UI. Brand kits/templates need Pro/Enterprise as documented. Official: https://www.canva.dev/docs/mcp/",
+      "hosts": [
+        {
+          "id": "claude",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "codex",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "qwen-code",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "opencode",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "gemini",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "hermes",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "copilot",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "grok",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "warp",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "cursor",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "amp",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "devin",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "factory",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "vscode-insiders",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "windsurf",
+          "state": "registered-oauth-pending"
+        }
+      ]
+    },
+    {
+      "id": "descript",
+      "endpoint": "https://api.descript.com/v2/mcp",
+      "transport": "streamable-http",
+      "authentication": "oauth",
+      "policy": "Use host-managed OAuth with the user Descript account (single Drive per connection). Never place credentials in this registry. Optional editorial finishing only after product-demo-studio evidence approval. No direct media file export via MCP — publish share links only. Consumes media minutes and AI credits. Official: https://help.descript.com/hc/en-us/articles/46056322186509 and custom MCP https://help.descript.com/hc/en-us/articles/46351582343309",
+      "hosts": [
+        {
+          "id": "claude",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "codex",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "qwen-code",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "opencode",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "gemini",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "hermes",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "copilot",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "grok",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "warp",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "cursor",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "amp",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "devin",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "factory",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "vscode-insiders",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "windsurf",
+          "state": "registered-oauth-pending"
         }
       ]
     }

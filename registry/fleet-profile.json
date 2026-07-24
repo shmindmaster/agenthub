@@ -22,7 +22,10 @@
     "windsurf",
     "gemini",
     "copilot",
+    "hermes",
+    "grok",
     "antigravity",
+    "warp",
     "vscode-insiders"
   ],
   "retainedSurfaces": [
@@ -44,7 +47,6 @@
     "factory",
     "grok",
     "warp",
-    "jules",
     "windsurf",
     "vscode-insiders"
   ],

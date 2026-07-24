@@ -1,0 +1,8 @@
+model:
+  default: qwen3.7-max
+  provider: custom:qwencloud
+custom_providers:
+  - name: qwencloud
+    base_url: https://coding-intl.dashscope.aliyuncs.com/apps/anthropic
+    key_env: QWEN_API_KEY
+    api_mode: anthropic_messages

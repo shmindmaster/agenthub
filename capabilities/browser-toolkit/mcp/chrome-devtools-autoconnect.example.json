@@ -1,0 +1,16 @@
+{
+  "$comment": "Optional and deliberately not applied. Chrome 144+ must enable remote debugging at chrome://inspect/#remote-debugging. It can expose whichever supported Chrome instance grants the connection.",
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.6.0",
+        "--auto-connect",
+        "--no-usage-statistics",
+        "--no-performance-crux",
+        "--redact-network-headers"
+      ]
+    }
+  }
+}

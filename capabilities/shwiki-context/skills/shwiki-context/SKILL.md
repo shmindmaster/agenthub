@@ -27,8 +27,8 @@ ShWiki is a repository-derived context layer, not an authority above current cod
 3. Use ShWiki for bounded cross-repository context and provenance.
 4. Cite repository, source path, and commit SHA when answering from ShWiki evidence.
 5. Report freshness and confidence when returned by the tool.
-6. Prefer local ShWiki on this workstation because its hourly index covers the approved local clones.
-7. Use the hosted endpoint only when local stdio is unavailable or a reviewed hosted snapshot is specifically required.
+6. Use the hosted ShWiki endpoint by default; its read-only reviewed snapshot is available consistently to every configured host.
+7. Use local stdio only for offline recovery or when the task explicitly requires the freshest approved local index. Confirm the returned commit before relying on it.
 8. Never treat ShWiki output as permission to edit, deploy, merge, rotate credentials, or access restricted data.
 
 ## MCP contract
@@ -37,8 +37,8 @@ Canonical server name: `shwiki-context`.
 
 | Priority | Transport | How |
 | --- | --- | --- |
-| Primary | Local stdio | `pnpm --dir C:/Repos/shmindmaster/shwiki mcp:wiki` |
-| Fallback | Remote HTTP | `https://shwiki.shtrial.com/api/mcp` with host-managed auth |
+| Primary | Remote Streamable HTTP | `https://shwiki.shtrial.com/api/mcp` with host-managed auth |
+| Fallback | Local stdio | `pnpm --dir C:/Repos/shmindmaster/shwiki mcp:wiki` |
 
 The MCP surface is exactly eight read-only, job-oriented tools:
 

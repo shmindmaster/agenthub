@@ -8,8 +8,8 @@ ShWiki is not the ultimate source of truth. Prefer current source code, tests, m
 
 | Mode | Endpoint / command | Auth |
 | --- | --- | --- |
-| Local stdio (canonical on this workstation) | `pnpm --dir C:/Repos/shmindmaster/shwiki mcp:wiki` | None |
-| Remote hosted snapshot (fallback) | `https://shwiki.shtrial.com/api/mcp` | Host-managed bearer/session |
+| Remote Streamable HTTP (canonical) | `https://shwiki.shtrial.com/api/mcp` | Host-managed bearer/session |
+| Local stdio (offline or freshest-local fallback) | `pnpm --dir C:/Repos/shmindmaster/shwiki mcp:wiki` | None |
 
 Canonical MCP server name on every host: **`shwiki-context`**. Do not put tokens or Authorization headers in this package or checked-in host configuration.
 
@@ -28,8 +28,8 @@ The hourly Windows task **ShWiki Local Index** safely updates registered local c
 ## Skill and registration
 
 - Canonical skill: [`skills/shwiki-context/SKILL.md`](./skills/shwiki-context/SKILL.md)
-- Canonical local MCP registration: `registry/mcps.json`
-- Hosted fallback metadata: `registry/mcp-registrations.json`
+- Canonical remote MCP registration: `registry/mcps.json`
+- Hosted transport and local fallback metadata: `registry/mcp-registrations.json`
 - Host adapters remain thin packaging only.
 
 ## Health checks

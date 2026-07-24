@@ -1,7 +1,7 @@
 {
   "name": "product-demo-studio",
-  "version": "0.5.0",
-  "description": "Consume a validated Product Experience handoff, independently reassess all eleven demo-worthiness criteria, and produce persuasive truthful videos or fix-oriented Product-Readiness Feedback.",
+  "version": "0.6.1",
+  "description": "Consume a validated Product Experience handoff, then produce truthful product demos and visual assets or fail closed to Product-Readiness Feedback.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -13,7 +13,8 @@
     "playwright",
     "narration",
     "video-qa",
-    "demo-readiness"
+    "demo-readiness",
+    "visual-assets"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",

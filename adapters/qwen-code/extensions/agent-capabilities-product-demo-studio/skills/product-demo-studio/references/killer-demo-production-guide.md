@@ -5,6 +5,8 @@
 
 This guide is standalone. It assumes **no** prompt framework, companion files, benchmark repo, or specific infrastructure — any team can implement everything here with the tools named in Part 6 and the config in Appendix C. It merges three things into one: what makes a demo worth watching (Parts 1–4), how to produce it and gate its quality (Part 5), and how to automate the whole thing (Part 6).
 
+**Companion guides (optional — this one works alone).** [The Product Experience Audit & Remediation Guide](Product-Audit-Remediation-Guide.md) runs **before** this one and fixes the product so the demo-worthiness gate in 5.2 has little left to block on. [The Visual Communication & Asset Generation Guide](Visual-Asset-Guide.md) runs **alongside** it, and owns the image/voice asset system, the marketing-surface visual plan, and website video that isn't a product demo. It holds the authoritative model configuration — check it before a billed run.
+
 **Do the config in Appendix C first** — an output location, a narration provider + credentials, a seedable demo environment, and your brand tokens. Everything else follows from that.
 
 ---
@@ -191,6 +193,8 @@ Mark pauses and emphasis explicitly (one stressed word per sentence, not whole p
 
 ## 4.7 Narration provider setup
 
+<!-- canonical-model-config: Visual-Asset-Guide.md -->
+
 ### Choosing a provider (2026)
 
 Provider choice is swappable; use a tier by job rather than one tool for everything:
@@ -205,17 +209,21 @@ Pick a default, name it as *your* profile, and never switch providers silently. 
 
 ### Reference implementation — OpenAI Speech API
 
-**Runtime verification is load-bearing, not precautionary.** Model IDs, status, voice rosters, and pricing drift, and provider docs can even contradict each other (as of mid-2026 the models overview flagged the speech model "Deprecated" while the TTS guide still recommended it). Resolve the current recommended speech-generation model against the provider's **models and deprecations endpoints before every billed run**; do not start on a sunset model.
+**Runtime verification is load-bearing, not precautionary.** Model IDs, status, voice rosters, and pricing drift, and provider docs routinely contradict each other. **Resolve status against the deprecations page, not the model catalog** — the catalog conflates model families with snapshots, and a "Deprecated" badge there usually means *one snapshot* is retiring, not the family. Check before every billed run; never start on a sunset snapshot.
 
-**Models (verify each run):**
+**Models and voices (verify each run).** This guide does not maintain its own TTS model table. The authoritative model configuration for TTS, image, and generative video lives in [Visual-Asset-Guide.md](Visual-Asset-Guide.md):
 
-| Model | Notes |
-|---|---|
-| `gpt-4o-mini-tts` | Supports `instructions` (style steering). Latest known snapshot `gpt-4o-mini-tts-2025-12-15` (~35% lower word-error-rate, better custom-voice). Prefer the newest available snapshot after a live quality test. Confirm current status — it has carried a deprecation flag on the models overview. |
-| `tts-1`, `tts-1-hd` | Legacy; no `instructions` support. Don't use for new work. |
-| Realtime family (`gpt-realtime-*`) | Live/conversational surfaces only — not for prerecorded masters. |
+- **TTS deprecations and the `gpt-4o-mini-tts` family** — see §0.1
+- **Image model status** — see §0.2
+- **Generative video shutdown** — see §0.3
+- **Corrected narration model and provider rules** — see §5.1
+- **Voice roster and audition rules** — see §5.2
 
-**Voices:** built-in roster changes (observed 11–13). Query the current list at runtime. Known at last check: `alloy`, `ash`, `ballad`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, `shimmer`, `verse`, `marin`, `cedar`. Custom voices: discover eligibility at runtime; never auto-clone; requires owner consent.
+Resolve every model and voice status against that guide before a billed run.
+
+**Voices:** built-in roster changes (observed 11–13). Query the current list at runtime. Known at last check: `alloy`, `ash`, `ballad`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, `shimmer`, `verse`, `marin`, `cedar` — with **`marin` and `cedar` recommended for best quality**, so start auditions there. Voices are optimized for English. Custom voices: discover eligibility at runtime; never auto-clone; requires a consent recording plus a sample recording, and is limited to eligible organizations.
+
+**⚠️ Disclosure requirement:** provider usage policies require a **clear disclosure to end users that a synthetic voice is AI-generated**. Any narrated video shipped to customers or the public needs that disclosure — an on-screen credit, end-card line, or description note. Add it to the delivery checklist; it is not optional and it is not covered by a generic AI disclaimer elsewhere on the site.
 
 **Request fields:**
 - `model` — resolve live.
@@ -247,7 +255,9 @@ Record the resolved `instructions` and `speed` per segment in the episode manife
 
 **Credentials.** Resolve keys from the environment at runtime; probe with a non-generating auth check before use; never send one provider's key to another; HTTP 429 stops the run.
 
-**Pricing.** Re-check at runtime; don't hardcode. As of mid-2026, `gpt-4o-mini-tts` was ~$0.60 / M text-input tokens and ~$12 / M audio-output tokens; batch text endpoints (for script/QA, *not* TTS) run ~50% cheaper. Estimate audio-output tokens from measured narration duration during the audition step so a billed run has a cost estimate first.
+**Pricing.** Re-check at runtime; don't hardcode. As of mid-2026, `gpt-4o-mini-tts` was ~$0.60 / M text-input tokens and ~$12 / M audio-output tokens, while the legacy tts-1 line bills per *character* (~$15 / 1M for tts-1, ~$30 / 1M for tts-1-hd) — different units, so don't compare the numbers directly. Batch text endpoints (for script/QA, *not* TTS) run ~50% cheaper. Estimate audio-output tokens from measured narration duration during the audition step so a billed run has a cost estimate first.
+
+**A note on generative video.** Do not plan any part of this pipeline around text-to-video generation. OpenAI's Videos API and the entire Sora 2 model line are scheduled to shut down **2026-09-24 with no recommended replacement**. Deterministic screen capture (Part 6) is the durable architecture, and it's the only one that can satisfy this guide's accuracy gates anyway — a generated video of your product is a fabricated claim about software that doesn't exist.
 
 ### Delivery format standards
 
@@ -327,6 +337,7 @@ If a master can't clear this even after re-edit: if the cause is capture/edit, r
 - **Audio QA:** pacing, pauses, emphasis, pronunciation, voice consistency, no monotony/clipping/noise/silence-dropouts, consistent volume, music ducking. Transcribe the final narration and compare to the approved script with **word-level timestamps** (flag missing/added words, wrong names/numbers, drift).
 - **Sync QA:** each segment matches its beat; actions and speech in correct order; pauses align with transitions/reading; results stay visible after their narration; burned captions align with final audio.
 - **Technical QA (fail closed):** valid checksum; expected codec/resolution/frame rate; valid audio stream; black-frame, freeze, silence-dropout, and clipping detection; representative frames extracted; complete manifests.
+- **Compliance QA (fail closed):** if the narration is synthetic, the master carries a **clear AI-voice disclosure** (on-screen credit, end-card line, or description note) — this is a provider policy requirement, not a preference, and a site-wide AI disclaimer elsewhere does not satisfy it. Also verify: no real customer/patient/personal data visible; no third-party logos or trademarks the product isn't licensed to show; any generated imagery disclosed where a viewer would assume photography.
 
 ## 5.5 The two-outcome model + the feedback report
 
@@ -349,7 +360,7 @@ Keep an evidence trail in a working folder in the repo (not the delivery folder)
 
 ## 5.7 Completion criteria
 
-Complete only when: real, working functionality was used with story-shaped synthetic data; every candidate has a demo-worthiness verdict with evidence; every shipped episode has every visible value verified against its truth sheet, clears the craft/persuasion gate and the correctness gates, and has provenance recorded; every FAIL episode has a complete feedback entry with a suggested fix; narration is natural, paced, and correctly pronounced; audio/video/captions/actions are synchronized; requested cut-downs are produced and checked; the delivery folder holds only correctly named final videos (or is untouched if zero passed). **Do not ship a video that fails the craft/persuasion gate. Zero videos plus a clear feedback report is a complete, successful run.**
+Complete only when: real, working functionality was used with story-shaped synthetic data; every candidate has a demo-worthiness verdict with evidence; every shipped episode has every visible value verified against its truth sheet, clears the craft/persuasion gate and the correctness gates, and has provenance recorded; **every master with synthetic narration carries its AI-voice disclosure**; every FAIL episode has a complete feedback entry with a suggested fix; narration is natural, paced, and correctly pronounced; audio/video/captions/actions are synchronized; requested cut-downs are produced and checked **and carry the same disclosure**; the delivery folder holds only correctly named final videos (or is untouched if zero passed). **Do not ship a video that fails the craft/persuasion gate. Zero videos plus a clear feedback report is a complete, successful run.**
 
 ---
 

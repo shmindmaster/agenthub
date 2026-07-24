@@ -1,7 +1,7 @@
 # The Product Experience Audit & Remediation Guide
 ### The pre-production pass: make the product worth demoing before you record it
 
-<!-- version: 1.0 | self-contained edition | companion to demo-video-production-guide.md -->
+<!-- version: 1.0 | self-contained edition | companion to Demo-Production-Guide.md -->
 
 This guide is standalone and repo-agnostic. It assumes no prompt framework and no shared reference library — everything needed is here. It synthesizes a full product-experience system (principles, application UX patterns, agentic patterns, workflow design method, visual system, audit method, and specification templates) into **one executable pass** that inspects an application, fixes what's wrong, and validates the result.
 
@@ -11,16 +11,20 @@ This guide is standalone and repo-agnostic. It assumes no prompt framework and n
 
 ---
 
-## How this pairs with demo production
+## How this pairs with the companion guides
 
-| | This guide | Demo production guide |
-|---|---|---|
-| Question | Is the product good? | Is the demo compelling and true? |
-| Unit of work | A workflow | An episode |
-| Output | Working, coherent, polished workflows + an audit record | A killer video, or a product-readiness report |
-| When | First | After |
+| | This guide | [Demo production guide](Demo-Production-Guide.md) | [Visual & asset guide](Visual-Asset-Guide.md) |
+|---|---|---|---|
+| Question | Is the product good? | Is the demo compelling and true? | Does the surface communicate — and are the assets real? |
+| Unit of work | A workflow | An episode | A section / an asset |
+| Output | Working, coherent, polished workflows + an audit record | A killer video, or a product-readiness report | A visual plan, generated assets, model configuration |
+| When | First | After | Alongside / after |
 
 Run this pass over the workflows you intend to demo. Then run demo production. If demo production still returns product-fix-required defects, they come back here as a second, much smaller pass. **Phase 6 is the explicit bridge** between the two.
+
+The visual & asset guide is independent of that loop — run its surface survey any time. It owns two things this guide deliberately doesn't: the **marketing and journey surfaces** outside the product, and the **image/voice asset system** (including the authoritative model configuration, which drifts). Where it and this guide overlap — in-product visual quality — this guide governs; see the note in Lens 5 on text-heavy in-product surfaces.
+
+All three are standalone. None requires the others.
 
 ---
 
@@ -219,6 +223,15 @@ Visual design follows the user's decision sequence: *What is this? What state is
 - **Data visualization:** start from the question the chart answers. Tables for exact comparison, lines for change, bars for categorical comparison. Label values, ranges, units, sources, freshness. Charts link to the records behind the decision.
 - **Tokens and ownership:** tokens describe role (`text-muted`, `surface-raised`, `border-danger`, `focus-ring`, `space-section`, `radius-control`), raw scales underneath, semantic tokens above. Own component composition locally; avoid multiple competing component foundations.
 
+**Text-heavy in-product surfaces.** Prose is the default output of engineering under time pressure, and it accumulates in predictable places: first-use empty states, onboarding, permission-denied and error explanations, feature-introduction modals, settings descriptions, in-app help, and any screen explaining a multi-step or multi-system process. Audit each for whether an image would do work the text can't:
+
+- **Show the thing** — an annotated screenshot or inline preview of the result the user is about to create. Empty states especially: showing the populated end state beats describing it.
+- **Show the structure** — a small diagram where the concept is spatial or sequential (how records flow between systems, what an approval chain looks like, where this step sits in a longer process).
+- **Show the proof** — an inline chart or before/after where the surface is asserting an outcome.
+- **Show the context** — rarely needed in-product; usually a sign of marketing copy leaking into the application.
+
+Failing all four means the text should be **shortened, not illustrated** — decorative in-product imagery is worse than prose because it adds load to a working surface. The most common real finding is a first-use empty state that explains in 80 words what one annotated screenshot would convey instantly.
+
 ### Lens 6 — Responsive, keyboard, and accessibility
 
 Responsive design preserves **task priority**, not the desktop arrangement. Per workflow define: what context stays visible; where navigation moves; how tables and comparison change; where primary and bulk actions live; how drawers/dialogs/inspectors occupy the viewport; how touch targets and virtual keyboards affect forms; what can be deferred without blocking the task.
@@ -297,19 +310,21 @@ This is where the audit becomes a pre-production pass. Take each workflow you in
 
 ### Demo-readiness remediation map
 
+The eleven criteria below are quoted from the canonical [Demo-Worthiness Rubric](Demo-Production-Guide.md) in the Demo Video Production Guide (§5.2). Do not edit the wording independently here.
+
 | # | Demo-worthiness criterion | Detected by | Typical root cause | Standard remediation |
 |---|---|---|---|---|
-| 1 | **Single clear outcome** — one visible, valuable result in ≤3 min | Lens 1 | UI exposes implementation pieces rather than a complete job; capability marked partial/hidden; user must leave the product mid-workflow | Complete the workflow inside the product; combine or deepen fragmented capabilities; define feature anatomy end-to-end (entry → decision → action → result → downstream) |
-| 2 | **Fast to value** — minimal navigation/setup, no long preamble | Lens 2 | Setup and configuration required before any value; excess handoffs and re-entry | Progressive commitment (explore/draft before full configuration); safe derived defaults; remove duplicate entry; shorten the path to first result |
-| 3 | **Clean, believable states** — empty/loading/success/error all presentable | Lens 3 | Only the populated happy path was ever designed | Build the full state matrix; give each empty state a *specific* answer; seed realistic sparse and dense fixtures |
-| 4 | **Visual stability** — no layout shift, overflow, clipping | Lens 5 + 7 | Skeletons that don't match final layout; content injected without reserved space; controls that resize on pending | Reserve regions matching final layout; fixed-width pending buttons; test at content breakpoints and zoom |
-| 5 | **Legibility** — readable at demo resolution or with reasonable zoom | Lens 5 | Undefined type roles; density without hierarchy; low-contrast metadata | Define typographic roles; tabular numerals in compared columns; verify contrast in all states; restrained containment so dense data reads calmly |
-| 6 | **Bounded, feedback-ed waits** — fast, cuttable, or shows progress | Lens 3 + 7 | Spinner with no task name or stage; full-page pending for a local update | Truthful progress (determinate → stage → activity → indeterminate with elapsed time and escape); localize pending to the affected region; keep prior content visible while refreshing |
-| 7 | **Discoverable primary action** — findable without tribal knowledge | Lens 2 + 5 | Flat action hierarchy; icon-only controls; action placed away from the information it affects | Establish primary/secondary/tertiary treatments; place the primary action near its object; label ambiguous icons; remove competing emphasis |
-| 8 | **Deterministic and resettable** — reseeds and reproduces identically | Lens 1 + technical | No seed/reset path; flaky integration; time- or order-dependent state | Build a reset-and-reseed fixture path; make the flow idempotent; stub or stabilize the flaky dependency with an explicit fallback |
-| 9 | **A guardrail is visible** — a trust/safety/human-control moment exists to show | Lens 4 + 8 | No approval boundary; no evidence surface; suggestions indistinguishable from authoritative records | Add approval proportional to consequence; expose evidence/provenance at the decision unit; separate proposal from authoritative state; surface activity history |
-| 10 | **A hero moment exists** — one real in-product reveal worth building around | Lens 1 | Product does many small things, none impressive; the hard part is hidden entirely so it reads as trivial | Feature decision — deepen, combine, or integrate to create one leverage moment; surface a *taste* of the work being done so the result reads as earned |
-| 11 | **Polish baseline** — consistent theming, nothing visibly unfinished | Lens 5 | Token drift; competing component foundations; one-off values | Consolidate to semantic tokens; standardize repeated component anatomy and states; own composition locally |
+| 1 | **Single clear outcome** — one visible, valuable result in ≤3 min. *No crisp outcome flow → product-fix-required.* | Lens 1 | UI exposes implementation pieces rather than a complete job; capability marked partial/hidden; user must leave the product mid-workflow | Complete the workflow inside the product; combine or deepen fragmented capabilities; define feature anatomy end-to-end (entry → decision → action → result → downstream) |
+| 2 | **Fast to value** — minimal navigation/setup; no long mandatory preamble. | Lens 2 | Setup and configuration required before any value; excess handoffs and re-entry | Progressive commitment (explore/draft before full configuration); safe derived defaults; remove duplicate entry; shorten the path to first result |
+| 3 | **Clean, believable states** — empty/loading/success/error states presentable; realistic data seeds cleanly; no placeholder/broken states on the happy path. | Lens 3 | Only the populated happy path was ever designed | Build the full state matrix; give each empty state a *specific* answer; seed realistic sparse and dense fixtures |
+| 4 | **Visual stability** — no layout shift, overflow, clipping, or broken responsive on the happy path. | Lens 5 + 7 | Skeletons that don't match final layout; content injected without reserved space; controls that resize on pending | Reserve regions matching final layout; fixed-width pending buttons; test at content breakpoints and zoom |
+| 5 | **Legibility** — key UI/text readable at demo resolution or with reasonable zoom. | Lens 5 | Undefined type roles; density without hierarchy; low-contrast metadata | Define typographic roles; tabular numerals in compared columns; verify contrast in all states; restrained containment so dense data reads calmly |
+| 6 | **Bounded, feedback-ed waits** — any wait is fast, cuttable, or shows progress. *A multi-second wait with no feedback on a core step → product-fix-required (missing loading state).* | Lens 3 + 7 | Spinner with no task name or stage; full-page pending for a local update | Truthful progress (determinate → stage → activity → indeterminate with elapsed time and escape); localize pending to the affected region; keep prior content visible while refreshing |
+| 7 | **Discoverable primary action** — findable without tribal knowledge; no dead-ends. | Lens 2 + 5 | Flat action hierarchy; icon-only controls; action placed away from the information it affects | Establish primary/secondary/tertiary treatments; place the primary action near its object; label ambiguous icons; remove competing emphasis |
+| 8 | **Deterministic and resettable** — reseeds and reproduces identically. | Lens 1 + technical | No seed/reset path; flaky integration; time- or order-dependent state | Build a reset-and-reseed fixture path; make the flow idempotent; stub or stabilize the flaky dependency with an explicit fallback |
+| 9 | **A guardrail is visible** — a trust/safety/human-control moment exists to show. | Lens 4 + 8 | No approval boundary; no evidence surface; suggestions indistinguishable from authoritative records | Add approval proportional to consequence; expose evidence/provenance at the decision unit; separate proposal from authoritative state; surface activity history |
+| 10 | **A hero moment exists** — one real in-product reveal worth building around. *None → the product may be useful but isn't demo-worthy yet.* | Lens 1 | Product does many small things, none impressive; the hard part is hidden entirely so it reads as trivial | Feature decision — deepen, combine, or integrate to create one leverage moment; surface a *taste* of the work being done so the result reads as earned |
+| 11 | **Polish baseline** — consistent theming; nothing visibly unfinished on the happy path. | Lens 5 | Token drift; competing component foundations; one-off values | Consolidate to semantic tokens; standardize repeated component anatomy and states; own composition locally |
 
 ### Verdict per workflow
 - **DEMO-READY** — all eleven pass. Proceed to video production.

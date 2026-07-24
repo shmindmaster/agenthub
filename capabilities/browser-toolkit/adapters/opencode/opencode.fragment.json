@@ -1,0 +1,39 @@
+{
+  "provider": {
+    "qwen-coding-plan": {
+      "npm": "@ai-sdk/anthropic",
+      "name": "QwenCloud Coding Plan",
+      "options": {
+        "apiKey": "{env:QWEN_API_KEY}",
+        "baseURL": "https://coding-intl.dashscope.aliyuncs.com/apps/anthropic/v1"
+      },
+      "models": {
+        "qwen3.7-max": {
+          "name": "Qwen3.7 Max"
+        },
+        "qwen3.8-max-preview": {
+          "name": "Qwen3.8 Max Preview"
+        }
+      }
+    }
+  },
+  "model": "qwen-coding-plan/qwen3.7-max",
+  "mcp": {
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@1.6.0",
+        "--browser-url=http://127.0.0.1:9333",
+        "--no-usage-statistics",
+        "--no-performance-crux",
+        "--redact-network-headers"
+      ],
+      "enabled": true
+    }
+  },
+  "permission": {
+    "chrome-devtools_*": "ask"
+  }
+}

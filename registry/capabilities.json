@@ -43,7 +43,7 @@
         },
         {
           "hostId": "qwen-code",
-          "deploymentStatus": "managed"
+          "deploymentStatus": "native-extension-junction"
         }
       ]
     },
@@ -78,7 +78,7 @@
         },
         {
           "hostId": "qwen-code",
-          "deploymentStatus": "managed"
+          "deploymentStatus": "native-extension-junction"
         }
       ]
     },
@@ -113,7 +113,7 @@
         },
         {
           "hostId": "qwen-code",
-          "deploymentStatus": "managed"
+          "deploymentStatus": "native-extension-junction"
         }
       ]
     },
@@ -122,7 +122,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp",
       "canonicalSource": "C:/Repos/agent-capabilities/packages/handoff-plugins/plugins/product-demo-studio",
-      "contentHash": "854990A71CB355EB1EBC5A1DAA7ED8D1459117CBCB900C0F87FD5EE5FB384FCC",
+      "contentHash": "2AA1E2C13E21E3B38844C79FBFC169950790FCC79CF5B84F9FA8BC0583C8D440",
       "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\handoff-plugins\\plugins\\product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -177,6 +177,18 @@
         {
           "hostId": "antigravity",
           "deploymentStatus": "managed-observed-path"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
         }
       ]
     },
@@ -185,7 +197,7 @@
       "owner": "handoff",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/agent-capabilities/packages/handoff-plugins/plugins/product-experience-engineering",
-      "contentHash": "2325BC9D6999EB738D8F98BB433B719D9A142B6C0B295CB23B9E54A13DFB1581",
+      "contentHash": "C5C819F45AE24D552461A573779054B48C6466E6E91108A7B6816359686C2C44",
       "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\handoff-plugins\\plugins\\product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
@@ -240,6 +252,18 @@
         {
           "hostId": "antigravity",
           "deploymentStatus": "managed-observed-path"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
         }
       ]
     },
@@ -274,7 +298,7 @@
         },
         {
           "hostId": "qwen-code",
-          "deploymentStatus": "managed"
+          "deploymentStatus": "native-extension-junction"
         }
       ]
     },
@@ -283,7 +307,7 @@
       "owner": "portfolio",
       "capabilityType": "skill+mcp",
       "canonicalSource": "C:/Repos/agent-capabilities/capabilities/shwiki-context",
-      "contentHash": "7286BB4DEAB32D953564C5C9830C7B65A7C0F65B1FE11604849FF467AD6AD8F9",
+      "contentHash": "AC086A2CD293DB4C27657328620AF8A0D0D6ED32C30E0270F6DED26891A4D5DA",
       "hashBasis": "C:\\Repos\\agent-capabilities\\capabilities\\shwiki-context\\skills\\shwiki-context\\SKILL.md",
       "status": "active-canonical",
       "hostMappings": [
@@ -321,7 +345,7 @@
         },
         {
           "hostId": "qwen-code",
-          "deploymentStatus": "managed"
+          "deploymentStatus": "native-extension-junction"
         },
         {
           "hostId": "opencode",
@@ -338,6 +362,18 @@
         {
           "hostId": "antigravity",
           "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed"
         }
       ]
     },
@@ -346,7 +382,7 @@
       "owner": "portfolio",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-prompt-os",
-      "contentHash": "2A0BCEF73BA8B304F9F2DA808A50698EF86435871D68D40E011AF9A84A8E8C65",
+      "contentHash": "C629B92B266D5BEDC23D45F6415F40B7177BC8E951D38E531B0300BC2BAF4938",
       "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-prompt-os\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
@@ -372,7 +408,46 @@
         },
         {
           "hostId": "qwen-code",
-          "deploymentStatus": "managed"
+          "deploymentStatus": "native-extension-junction"
+        }
+      ]
+    },
+    {
+      "id": "browser-toolkit",
+      "owner": "browser-quality",
+      "capabilityType": "skills+mcp+adapters",
+      "canonicalSource": "C:/Repos/agent-capabilities/capabilities/browser-toolkit",
+      "managedSkillNames": [
+        "browser-debugging",
+        "browser-evidence"
+      ],
+      "retiredSkillNames": [
+        "browser-audit",
+        "product-demo"
+      ],
+      "contentHash": "436719F0FEC9E032F70BC41F095424F3E609A32A7E44926CB661233B619939D2",
+      "hashBasis": "C:\\Repos\\agent-capabilities\\capabilities\\browser-toolkit",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-native-skills-and-mcp"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills-native-browser-plus-mcp"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "offline-adapter-provider-held"
         }
       ]
     }
