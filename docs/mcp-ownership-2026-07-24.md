@@ -8,10 +8,11 @@ pruning is requested.
 
 | MCP | Current owner | Placement | Evidence / decision |
 | --- | --- | --- | --- |
+| `github` | Fleet infrastructure | GitHub-hosted remote server on active hosts; Copilot CLI built-in owns its host surface | `registry/mcps.json`, `docs/github-mcp.md`, and GitHub's official installation guides |
 | `descript` | Product Demo Studio | Native plugin on Claude and Codex; direct fallback elsewhere | `packages/handoff-plugins/plugins/product-demo-studio/.mcp.json` and both installed native plugins |
 | `notion` | Native Notion plugin where installed | Native plugin on Claude and Codex; direct fallback elsewhere | Installed Claude plugin and installed Codex `notion@openai-curated` plugin; global entry is suppressed on those hosts |
 | `chrome-devtools` | Browser Toolkit capability | Direct, host-scoped | `registry/mcps.json` host allowlist; no verified bundle manifest owns this exact server |
-| `shwiki-context` | ShWiki Context capability | Direct global | Shared read-only portfolio context; inactive private package aliases are not promoted |
+| `repocontext` | RepoContext capability | Direct global after remote production verification; local stdio fallback | Shared read-only Git-only portfolio context; retired ShWiki aliases migrate to this owner |
 | `linear` | Fleet infrastructure | Direct global | Cross-project delivery state, not a single skill bundle |
 | `context7` | Fleet infrastructure | Direct global | General documentation lookup used across capabilities |
 | `playwright` | Fleet infrastructure | Direct global | Shared isolated browser automation runtime |

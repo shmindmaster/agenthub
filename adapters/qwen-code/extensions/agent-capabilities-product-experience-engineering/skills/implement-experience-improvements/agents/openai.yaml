@@ -1,4 +1,0 @@
-interface:
-  display_name: "Implement Experience Improvements"
-  short_description: "Build approved frontend and workflow improvements"
-  default_prompt: "Use $implement-experience-improvements to implement the approved experience slice."

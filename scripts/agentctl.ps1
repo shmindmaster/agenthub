@@ -5,7 +5,7 @@ param(
   [ValidateSet('inventory', 'evaluate', 'generate', 'sync', 'validate', 'drift', 'cleanup')]
   [string]$Command,
 
-  [string]$RegistryRoot = 'C:\Repos\agent-capabilities',
+  [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub',
 
   [switch]$Apply,
 
@@ -278,11 +278,11 @@ function New-GeneratedInstructions {
     if ($target.PSObject.Properties.Match('preambleTemplate').Count -gt 0 -and $target.preambleTemplate) {
       $templatePath = Resolve-ControlPath ([string]$target.preambleTemplate)
       $content = (Get-Content -LiteralPath $templatePath -Raw).Replace('{{globalPolicy}}', $policy.Trim())
-      if ($content -notmatch 'agent-capabilities:managed') {
-        $content = $content.TrimEnd() + "`n`n<!-- agent-capabilities:managed -->`n"
+      if ($content -notmatch 'agenthub:managed') {
+        $content = $content.TrimEnd() + "`n`n<!-- agenthub:managed -->`n"
       }
     } else {
-      $content = '# ' + [string]$target.title + "`n`n<!-- agent-capabilities:managed -->`n`n" + $policy.Trim() + "`n"
+      $content = '# ' + [string]$target.title + "`n`n<!-- agenthub:managed -->`n`n" + $policy.Trim() + "`n"
     }
     Write-Text $generatedPath $content
   }

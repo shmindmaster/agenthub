@@ -3,8 +3,8 @@
   "name": "full-access-unattended",
   "intent": "User-authorized local coding-agent profile. All configured host tools, local files, network access, and registered MCP tools are available without host permission prompts.",
   "mcpScope": "global-default",
-  "skillSource": "C:/Repos/agent-capabilities",
-  "canonicalPolicy": "C:/Repos/agent-capabilities/standards/global-agent-policy.md",
+  "skillSource": "C:/Repos/shmindmaster/agenthub",
+  "canonicalPolicy": "C:/Repos/shmindmaster/agenthub/standards/global-agent-policy.md",
   "autonomyProfiles": [
     "interactive",
     "repo-autonomous",
@@ -26,6 +26,8 @@
     "grok",
     "antigravity",
     "warp",
+    "cline",
+    "qoder",
     "vscode-insiders"
   ],
   "retainedSurfaces": [
@@ -47,6 +49,8 @@
     "factory",
     "grok",
     "warp",
+    "cline",
+    "qoder",
     "windsurf",
     "vscode-insiders"
   ],
@@ -54,7 +58,9 @@
     "gemini": ["--yolo", "--skip-trust"],
     "copilot": ["--allow-all", "--autopilot", "--no-ask-user", "--allow-all-mcp-server-instructions"],
     "devin": ["--permission-mode", "dangerous", "--respect-workspace-trust", "false"],
-    "agy": ["--dangerously-skip-permissions"]
+    "agy": ["--dangerously-skip-permissions"],
+    "cline": ["--auto-approve", "true"],
+    "qoder": ["--dangerously-skip-permissions"]
   },
   "hostSettings": {
     "qwen-code": {

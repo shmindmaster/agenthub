@@ -36,9 +36,9 @@ function Get-CursorDispatchHoldReason($FleetProfile) {
 
 function Get-CursorBlockedLauncherContent([ValidateSet('cmd', 'posix')][string]$Shell) {
   if ($Shell -eq 'cmd') {
-    return '@echo off' + "`r`n" + 'echo Cursor dispatch is disabled by owner policy. Re-enable it in agent-capabilities before use. 1>&2' + "`r`n" + 'exit /b 2'
+    return '@echo off' + "`r`n" + 'echo Cursor dispatch is disabled by owner policy. Re-enable it in agenthub before use. 1>&2' + "`r`n" + 'exit /b 2'
   }
-  return '#!/usr/bin/env bash' + "`n" + 'echo "Cursor dispatch is disabled by owner policy. Re-enable it in agent-capabilities before use." >&2' + "`n" + 'exit 2'
+  return '#!/usr/bin/env bash' + "`n" + 'echo "Cursor dispatch is disabled by owner policy. Re-enable it in agenthub before use." >&2' + "`n" + 'exit 2'
 }
 
 function Get-CursorProviderHoldRuleContent {
@@ -56,7 +56,7 @@ Cursor is disabled because quota and spend headroom are exhausted.
 - Do not read, use, forward, or recreate `CURSOR_API_KEY` or `CURSOR_ADMIN_API_KEY`.
 - Existing Cursor configuration, skills, sessions, and recovery assets are preserved as dormant state only.
 - Use the current host's native subagents or another explicitly authorized non-Cursor backend.
-- Reauthorization requires explicit owner approval and one reviewed `agent-capabilities` change that enables both strict Boolean dispatch flags, clears the separate provider hold, regenerates and synchronizes instructions, removes this rule, and passes validation without a paid probe.
+- Reauthorization requires explicit owner approval and one reviewed `agenthub` change that enables both strict Boolean dispatch flags, clears the separate provider hold, regenerates and synchronizes instructions, removes this rule, and passes validation without a paid probe.
 '@
 }
 
@@ -107,7 +107,7 @@ function Invoke-CursorCloudReadiness($FleetProfile) {
     }
   }
 
-  $headers = @{ Authorization = "Bearer $key"; 'User-Agent' = 'agent-capabilities-agentctl/1.0' }
+  $headers = @{ Authorization = "Bearer $key"; 'User-Agent' = 'agenthub-agentctl/1.0' }
   $meUris = @('https://api.cursor.com/v1/me', 'https://api.cursor.com/v0/me')
   $modelsUris = @('https://api.cursor.com/v1/models', 'https://api.cursor.com/v0/models')
   $result = [ordered]@{

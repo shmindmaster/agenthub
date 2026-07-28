@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$PackagesRoot = "C:\Repos\agent-capabilities\packages\portfolio-plugins"
+    [string]$PackagesRoot = "C:\Repos\shmindmaster\agenthub\packages\portfolio-plugins"
 )
 
 Get-ChildItem $PackagesRoot -Directory | ForEach-Object {

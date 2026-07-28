@@ -4,14 +4,14 @@
   Applies the user-authorized full-access profile to installed coding hosts.
 
 .DESCRIPTION
-  C:\Repos\agent-capabilities remains the source of truth for MCP definitions
+  C:\Repos\shmindmaster\agenthub remains the source of truth for MCP definitions
   and reusable skills. This script writes no credential values: MCP processes
   receive environment-variable references only. It deliberately does not
   attempt to bypass OAuth or provider-owned sign-in pages.
 #>
 [CmdletBinding()]
 param(
-  [string]$RegistryRoot = 'C:\Repos\agent-capabilities',
+  [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub',
   [string]$UserProfile = $env:USERPROFILE,
   [switch]$SkillDistributionOnly,
   [switch]$RetireLegacyVideoOwners
@@ -56,6 +56,11 @@ function Get-DirectoryInventory([string]$Path) {
         # cache. They are runtime state, not package content, and must not
         # make an otherwise current native plugin appear stale.
         if ($relativePath -eq '.in_use' -or $relativePath.StartsWith('.in_use/')) { return }
+        # Qoder's optional manifest directory is host-specific metadata. It is
+        # intentionally excluded from Claude/Codex package equivalence checks
+        # so adding a verified Qoder adapter cannot make another native plugin
+        # appear stale.
+        if ($relativePath -eq '.qoder-plugin' -or $relativePath.StartsWith('.qoder-plugin/')) { return }
         if ($_.PSIsContainer) { 'D|{0}' -f $relativePath }
         else { 'F|{0}|{1}' -f $relativePath, (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
       }
@@ -65,6 +70,21 @@ function Get-DirectoryInventory([string]$Path) {
 function Sync-QwenSubagents([string]$SourceRoot, [string]$DestinationRoot) {
   if (!(Test-Path -LiteralPath $SourceRoot -PathType Container)) {
     throw "Managed Qwen subagent source is missing: $SourceRoot"
+  }
+  New-Item -ItemType Directory -Path $DestinationRoot -Force | Out-Null
+  foreach ($source in @(Get-ChildItem -LiteralPath $SourceRoot -File -Filter '*.md' | Sort-Object Name)) {
+    $destination = Join-Path $DestinationRoot $source.Name
+    $current = if (Test-Path -LiteralPath $destination -PathType Leaf) { Get-Content -LiteralPath $destination -Raw -Encoding UTF8 } else { $null }
+    $canonical = Get-Content -LiteralPath $source.FullName -Raw -Encoding UTF8
+    if ($current -cne $canonical) {
+      Copy-Item -LiteralPath $source.FullName -Destination $destination -Force
+    }
+  }
+}
+
+function Sync-QoderSubagents([string]$SourceRoot, [string]$DestinationRoot) {
+  if (!(Test-Path -LiteralPath $SourceRoot -PathType Container)) {
+    throw "Managed Qoder subagent source is missing: $SourceRoot"
   }
   New-Item -ItemType Directory -Path $DestinationRoot -Force | Out-Null
   foreach ($source in @(Get-ChildItem -LiteralPath $SourceRoot -File -Filter '*.md' | Sort-Object Name)) {
@@ -150,12 +170,30 @@ $skillTargets = [ordered]@{
   'antigravity' = "$UserProfile\.gemini\config\skills"
   'warp' = "$UserProfile\.warp\skills"
   'copilot' = "$UserProfile\.copilot\skills"
+  'cline' = "$UserProfile\.cline\skills"
+  'qoder' = "$UserProfile\.qoder\skills"
 }
 
 $nativeOnlyVideoHosts = @('vscode-insiders')
 $unknownSkillHosts = @($profile.managedHosts | Where-Object { -not $skillTargets.Contains($_) -and $_ -notin $nativeOnlyVideoHosts } | Sort-Object -Unique)
 if ($unknownSkillHosts.Count) {
   throw "Managed host(s) have no reviewed skill target: $($unknownSkillHosts -join ', '). Update the allowlist before applying the profile."
+}
+
+# Cline consumes native global rules and the shared ~/.agents/AGENTS.md path.
+# Keep this policy copy credential-free and only create the shared file when no
+# user-authored global file exists. Qoder uses repository AGENTS.md directly;
+# its documented rules are project-scoped under .qoder/rules.
+$globalPolicySource = Join-Path $RegistryRoot 'standards\global-agent-policy.md'
+if (!(Test-Path -LiteralPath $globalPolicySource -PathType Leaf)) { throw "Canonical global policy is missing: $globalPolicySource" }
+$clineRulesRoot = Join-Path $UserProfile '.cline\rules'
+New-Item -ItemType Directory -Path $clineRulesRoot -Force | Out-Null
+Copy-Item -LiteralPath $globalPolicySource -Destination (Join-Path $clineRulesRoot '00-agenthub.md') -Force
+$sharedAgentsRoot = Join-Path $UserProfile '.agents'
+$sharedAgentsFile = Join-Path $sharedAgentsRoot 'AGENTS.md'
+if (!(Test-Path -LiteralPath $sharedAgentsFile -PathType Leaf)) {
+  New-Item -ItemType Directory -Path $sharedAgentsRoot -Force | Out-Null
+  Copy-Item -LiteralPath $globalPolicySource -Destination $sharedAgentsFile -Force
 }
 
 # product-demo-studio is the single owner of the managed product-video skill
@@ -232,7 +270,7 @@ $managedSkillCapabilities = @(
 )
 
 $quarantineBatchId = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssfffZ') + '-' + ([guid]::NewGuid().ToString('N').Substring(0, 8))
-$quarantineBatchRoot = Join-Path $UserProfile ".agent-capabilities\quarantine\$quarantineBatchId"
+$quarantineBatchRoot = Join-Path $UserProfile ".agenthub\quarantine\$quarantineBatchId"
 $quarantineEntries = New-Object System.Collections.ArrayList
 
 function Save-QuarantineManifest {
@@ -269,7 +307,7 @@ function Install-ManagedSkill([string]$HostId, [string]$TargetRoot, [string]$Ski
   if (Test-DirectoryEquivalent $source $destination) { return }
 
   New-Item -ItemType Directory -Path $TargetRoot -Force | Out-Null
-  $stage = Join-Path $TargetRoot ('.agent-capabilities-stage-' + [guid]::NewGuid().ToString('N'))
+  $stage = Join-Path $TargetRoot ('.agenthub-stage-' + [guid]::NewGuid().ToString('N'))
   $backup = $null
   try {
     Copy-DirectoryToStage $source $stage
@@ -321,6 +359,26 @@ function Get-NativePluginState([string]$HostId, [string]$CapabilityId, [string]$
   return @{ installed=$false; current=$false; path=$null }
 }
 
+function Ensure-QoderPlugins {
+  $qoderCli = Join-Path $UserProfile '.qoder\bin\qodercli\qodercli.exe'
+  if (!(Test-Path -LiteralPath $qoderCli -PathType Leaf)) { throw "Qoder CLI is missing: $qoderCli" }
+  $installed = @()
+  try { $installed = @((& $qoderCli plugins list --json 2>$null | ConvertFrom-Json)) } catch { $installed = @() }
+  foreach ($capability in @($caps.capabilities)) {
+    $mapping = @($capability.hostMappings | Where-Object hostId -eq 'qoder' | Select-Object -First 1)
+    if ($mapping.Count -ne 1 -or [string]$mapping[0].deploymentStatus -ne 'native-local-plugin') { continue }
+
+    $source = [string]$capability.canonicalSource
+    $current = @($installed | Where-Object {
+      $_.name -eq [string]$capability.id -and $_.scope -eq 'user' -and $_.enabled -eq $true
+    })
+    if ($current.Count -eq 0) {
+      & $qoderCli plugins install --scope user $source | Out-Host
+      if ($LASTEXITCODE -ne 0) { throw "Qoder could not install native plugin $($capability.id) from $source" }
+    }
+  }
+}
+
 function Ensure-LocalNativeAdapters {
   # Copilot CLI can load a local plugin directly. VS Code Insiders automatically
   # supports the same plugin format and exposes an official local-location map.
@@ -352,6 +410,7 @@ function Ensure-LocalNativeAdapters {
 }
 
 Ensure-LocalNativeAdapters
+Ensure-QoderPlugins
 $nativePluginStates = @{}
 foreach ($capability in $managedSkillCapabilities) {
   foreach ($hostId in @('claude','codex','copilot')) {
@@ -368,6 +427,10 @@ foreach ($capability in $managedSkillCapabilities) {
 foreach ($capability in $managedSkillCapabilities) {
   foreach ($hostId in @($profile.managedHosts | Where-Object { $_ -ne 'qwen-code' -and $skillTargets.Contains($_) })) {
     $targetRoot = [string]$skillTargets[$hostId]
+    $qoderMapping = @($capabilityHostMappings = $caps.capabilities | Where-Object id -eq $capability.id | Select-Object -First 1)
+    if ($hostId -eq 'qoder' -and @($qoderMapping.hostMappings | Where-Object { $_.hostId -eq 'qoder' -and $_.deploymentStatus -eq 'native-local-plugin' }).Count -eq 1) {
+      continue
+    }
     $nativeState = $nativePluginStates["$($capability.id)::$hostId"]
     if ($nativeState -and $nativeState.current) {
       foreach ($skillName in $capability.skillNames) {
@@ -389,7 +452,7 @@ foreach ($capability in $managedSkillCapabilities) {
 # Validate the adapter instead and let Sync-AgentCapabilities maintain it.
 if ('qwen-code' -in @($profile.managedHosts)) {
   foreach ($capability in $managedSkillCapabilities) {
-    $extensionName = "agent-capabilities-$($capability.id)"
+    $extensionName = "agenthub-$($capability.id)"
     $qwenExtensionRoot = Join-Path $UserProfile ".qwen\extensions\$extensionName"
     $qwenAdapterRoot = Join-Path $RegistryRoot "adapters\qwen-code\extensions\$extensionName"
     if (!(Test-Path -LiteralPath $qwenExtensionRoot -PathType Container) -and (Test-Path -LiteralPath $qwenAdapterRoot -PathType Container)) {
@@ -720,6 +783,7 @@ if ($qwenRequiredGeneration -and $qwen.ContainsKey('modelProviders')) {
 }
 Save-JsonHash $qwenPath $qwen
 Sync-QwenSubagents -SourceRoot (Join-Path $RegistryRoot 'adapters\qwen-code\agents') -DestinationRoot "$UserProfile\.qwen\agents"
+Sync-QoderSubagents -SourceRoot (Join-Path $RegistryRoot 'adapters\qoder\agents') -DestinationRoot "$UserProfile\.qoder\agents"
 Sync-QwenPortfolioLsp -RegistryRoot $RegistryRoot
 
 $openCodePath = "$UserProfile\.config\opencode\opencode.json"
@@ -807,6 +871,14 @@ $wrappers = @{
   'copilot.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" ' + (@($managedSkillCapabilities | ForEach-Object { '--plugin-dir "' + $_.pluginRoot + '"' }) -join ' ') + ' --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
   'devin.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\devin\cli\bin\devin.exe" --permission-mode dangerous --respect-workspace-trust false %*'
   'agy.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\agy\bin\agy.exe" --dangerously-skip-permissions %*'
+  'cline.cmd' = '@echo off' + "`r`n" + 'set "_cline_admin="' + "`r`n" + 'for %%A in (auth config plugin skill connect mcp doctor history hook schedule hub dashboard update kanban) do if /I "%~1"=="%%A" set "_cline_admin=1"' + "`r`n" + 'if defined _cline_admin ("%APPDATA%\npm\cline.cmd" %*) else ("%APPDATA%\npm\cline.cmd" --auto-approve true %*)'
+  'cline-acp.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\cline.cmd" --acp --auto-approve true %*'
+  'qodercli.cmd' = '@echo off' + "`r`n" + 'set "_qoder_admin="' + "`r`n" + 'for %%A in (login mcp plugins plugin skills skill hooks hook agents agent update status feedback rollback) do if /I "%~1"=="%%A" set "_qoder_admin=1"' + "`r`n" + 'if defined _qoder_admin ("%USERPROFILE%\.qoder\bin\qodercli\qodercli.exe" %*) else ("%USERPROFILE%\.qoder\bin\qodercli\qodercli.exe" --dangerously-skip-permissions --tools default %*)'
+  'qoder-acp.cmd' = '@echo off' + "`r`n" + '"%USERPROFILE%\.qoder\bin\qodercli\qodercli.exe" --acp --dangerously-skip-permissions --tools default %*'
+  'opencode-acp.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\opencode.cmd" acp %*'
+  'gemini-acp.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\gemini.cmd" --acp --yolo --skip-trust %*'
+  'copilot-acp.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" --acp --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
+  'hermes-acp.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\hermes\hermes-agent\venv\Scripts\hermes.exe" acp --accept-hooks %*'
   'cursor-agent.cmd' = Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell cmd
   'cursor-agent' = Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell posix
   'cursor.cmd' = Get-CursorLauncherContent -FleetProfile $profile -Surface ide -Shell cmd

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Design New Application Experience"
-  short_description: "Define a coherent greenfield product experience"
-  default_prompt: "Use $design-new-application-experience to design this new application from user outcomes."

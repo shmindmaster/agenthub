@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-07-21T20:50:00-05:00",
-  "canonicalRegistryRoot": "C:/Repos/agent-capabilities",
+  "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
   "surfaceAliases": [
     { "surfaceId": "cursor-agent", "inheritsHostId": "cursor" },
     { "surfaceId": "opencode-desktop", "inheritsHostId": "opencode" },
@@ -16,9 +16,9 @@
       "id": "clerk",
       "owner": "portfolio",
       "capabilityType": "plugin",
-      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/clerk",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/clerk",
       "contentHash": "AA5D1D62E823436ACDAFBAE51E11CB5F950D00F124C5D1FE70F954F5F8E69B24",
-      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\clerk\\plugin.json",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\clerk\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -44,6 +44,14 @@
         {
           "hostId": "qwen-code",
           "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
@@ -51,9 +59,9 @@
       "id": "use-digitalocean",
       "owner": "portfolio",
       "capabilityType": "plugin",
-      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-digitalocean",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/use-digitalocean",
       "contentHash": "F7E53607BCB3BF5460AD41F249F56EC8F38B1F3296CDBEE87E867DE7F9389B03",
-      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-digitalocean\\plugin.json",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-digitalocean\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -79,6 +87,14 @@
         {
           "hostId": "qwen-code",
           "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
@@ -86,9 +102,9 @@
       "id": "use-elevenlabs",
       "owner": "portfolio",
       "capabilityType": "plugin",
-      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-elevenlabs",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/use-elevenlabs",
       "contentHash": "EADDD5260AFCB40073279EA8659D6BF975A04716A11BB8121F1312372A12CD35",
-      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-elevenlabs\\plugin.json",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-elevenlabs\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -114,6 +130,14 @@
         {
           "hostId": "qwen-code",
           "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
@@ -121,9 +145,9 @@
       "id": "product-demo-studio",
       "owner": "handoff",
       "capabilityType": "plugin+mcp",
-      "canonicalSource": "C:/Repos/agent-capabilities/packages/handoff-plugins/plugins/product-demo-studio",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-demo-studio",
       "contentHash": "2AA1E2C13E21E3B38844C79FBFC169950790FCC79CF5B84F9FA8BC0583C8D440",
-      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\handoff-plugins\\plugins\\product-demo-studio",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -189,6 +213,14 @@
         {
           "hostId": "warp",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
@@ -196,9 +228,9 @@
       "id": "product-experience-engineering",
       "owner": "handoff",
       "capabilityType": "plugin",
-      "canonicalSource": "C:/Repos/agent-capabilities/packages/handoff-plugins/plugins/product-experience-engineering",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-experience-engineering",
       "contentHash": "C5C819F45AE24D552461A573779054B48C6466E6E91108A7B6816359686C2C44",
-      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\handoff-plugins\\plugins\\product-experience-engineering",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -264,6 +296,14 @@
         {
           "hostId": "warp",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
@@ -271,9 +311,9 @@
       "id": "use-campaign-production",
       "owner": "portfolio",
       "capabilityType": "plugin",
-      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-campaign-production",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/use-campaign-production",
       "contentHash": "09AE681E2D3F2DA59BED6918DBD2C08FD81179557ACF8E4FC9F2EA10225A8A66",
-      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-campaign-production\\plugin.json",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-campaign-production\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -299,16 +339,24 @@
         {
           "hostId": "qwen-code",
           "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
     {
-      "id": "shwiki-context",
+      "id": "repocontext",
       "owner": "portfolio",
       "capabilityType": "skill+mcp",
-      "canonicalSource": "C:/Repos/agent-capabilities/capabilities/shwiki-context",
-      "contentHash": "AC086A2CD293DB4C27657328620AF8A0D0D6ED32C30E0270F6DED26891A4D5DA",
-      "hashBasis": "C:\\Repos\\agent-capabilities\\capabilities\\shwiki-context\\skills\\shwiki-context\\SKILL.md",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/capabilities/repocontext",
+      "contentHash": "6B7AE979C349556041B1F40D8D59BC329325F6F08ED6E1EF192936C790BCAC2F",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\repocontext\\skills\\repocontext\\SKILL.md",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -374,6 +422,14 @@
         {
           "hostId": "warp",
           "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
         }
       ]
     },
@@ -381,9 +437,9 @@
       "id": "use-prompt-os",
       "owner": "portfolio",
       "capabilityType": "plugin",
-      "canonicalSource": "C:/Repos/agent-capabilities/packages/portfolio-plugins/use-prompt-os",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/use-prompt-os",
       "contentHash": "C629B92B266D5BEDC23D45F6415F40B7177BC8E951D38E531B0300BC2BAF4938",
-      "hashBasis": "C:\\Repos\\agent-capabilities\\packages\\portfolio-plugins\\use-prompt-os\\plugin.json",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-prompt-os\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -409,6 +465,14 @@
         {
           "hostId": "qwen-code",
           "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
@@ -416,7 +480,7 @@
       "id": "browser-toolkit",
       "owner": "browser-quality",
       "capabilityType": "skills+mcp+adapters",
-      "canonicalSource": "C:/Repos/agent-capabilities/capabilities/browser-toolkit",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/capabilities/browser-toolkit",
       "managedSkillNames": [
         "browser-debugging",
         "browser-evidence"
@@ -426,7 +490,7 @@
         "product-demo"
       ],
       "contentHash": "436719F0FEC9E032F70BC41F095424F3E609A32A7E44926CB661233B619939D2",
-      "hashBasis": "C:\\Repos\\agent-capabilities\\capabilities\\browser-toolkit",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -448,6 +512,14 @@
         {
           "hostId": "cursor",
           "deploymentStatus": "offline-adapter-provider-held"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
         }
       ]
     }

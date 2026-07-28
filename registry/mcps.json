@@ -3,6 +3,35 @@
   "generatedAt": "2026-07-24T05:41:10.949Z",
   "mcpServers": [
     {
+      "id": "github",
+      "name": "GitHub (shmindmaster)",
+      "scope": "global-default",
+      "transport": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${env:GITHUB_MCP_SHMINDMASTER_TOKEN}"
+      },
+      "credentialPolicy": "environment-bearer-token",
+      "hosts": [
+        "claude",
+        "codex",
+        "qwen-code",
+        "opencode",
+        "gemini",
+        "hermes",
+        "copilot",
+        "antigravity",
+        "grok",
+        "warp",
+        "cline",
+        "qoder"
+      ],
+      "pluginOwnersByHost": {
+        "copilot": "built-in:github-mcp-server"
+      },
+      "notes": "Canonical personal GitHub MCP owner. The remote endpoint is GitHub-hosted; authentication is intentionally pinned to the shmindmaster account through an environment reference. Native automatic multi-account routing is not available in the released server, so do not add duplicate account servers without a reviewed routing design. Official: https://github.com/github/github-mcp-server/tree/main/docs/installation-guides"
+    },
+    {
       "id": "linear",
       "name": "Linear",
       "scope": "global-default",
@@ -49,15 +78,18 @@
       "credentialPolicy": "none"
     },
     {
-      "id": "shwiki-context",
-      "name": "ShWiki",
+      "id": "repocontext",
+      "name": "RepoContext",
       "scope": "global-default",
-      "transport": "http",
-      "url": "https://shwiki.shtrial.com/api/mcp",
-      "headers": {
-        "Authorization": "Bearer ${env:SHWIKI_MCP_TOKEN}"
-      },
-      "credentialPolicy": "environment-bearer-token"
+      "transport": "stdio",
+      "command": "pnpm",
+      "args": [
+        "--dir",
+        "C:/Repos/shmindmaster/repocontext",
+        "mcp:serve"
+      ],
+      "env": {},
+      "credentialPolicy": "none"
     },
     {
       "id": "firecrawl",

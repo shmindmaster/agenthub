@@ -76,7 +76,7 @@ None of these replace real product capture or fix fake homepage media by themsel
 ## Non-goals
 
 - Do not replace product-demo-studio capture/Remotion with Firefly or Canva generative video.
-- Do not store Adobe/Canva secrets in agent-capabilities.
+- Do not store Adobe/Canva secrets in agenthub.
 - Do not treat connector output as DEMO-READY product proof without the existing truth gates.
 
 ## What Descript actually is

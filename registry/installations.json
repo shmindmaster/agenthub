@@ -376,6 +376,38 @@
       "authoritative": true
     },
     {
+      "id": "cline-cli",
+      "agentId": "cline",
+      "name": "Cline CLI",
+      "kind": "cli",
+      "version": "3.0.46",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\cline.ps1",
+      "configHome": "C:\\Users\\SaroshHussain\\.cline",
+      "classification": "canonical",
+      "platform": "windows-native",
+      "lifecycle": "active",
+      "readiness": "headless-ready",
+      "installed": true,
+      "configured": true,
+      "authoritative": true
+    },
+    {
+      "id": "qoder-cli",
+      "agentId": "qoder",
+      "name": "Qoder CLI",
+      "kind": "cli",
+      "version": "1.1.5",
+      "executable": "C:\\Users\\SaroshHussain\\.qoder\\bin\\qodercli\\qodercli.exe",
+      "configHome": "C:\\Users\\SaroshHussain\\.qoder",
+      "classification": "canonical",
+      "platform": "windows-native",
+      "lifecycle": "active",
+      "readiness": "headless-ready",
+      "installed": true,
+      "configured": true,
+      "authoritative": true
+    },
+    {
       "id": "windsurf-ide",
       "agentId": "windsurf",
       "name": "Windsurf / Cascade configuration",

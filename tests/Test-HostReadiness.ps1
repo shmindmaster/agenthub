@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$RegistryRoot = 'C:\Repos\agent-capabilities',
+    [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub',
     [string]$UserProfilePath = $env:USERPROFILE,
     [switch]$Json
 )

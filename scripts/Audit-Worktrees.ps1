@@ -17,7 +17,7 @@ $ErrorActionPreference = 'Stop'
 
 if (-not $OutputPath) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $OutputPath = "$env:TEMP\agent-capabilities-worktree-audit-$stamp.json"
+    $OutputPath = "$env:TEMP\agenthub-worktree-audit-$stamp.json"
 }
 
 function Get-WorktreeBlocks {
@@ -172,7 +172,7 @@ foreach ($path in $AdditionalPaths) {
 
 $report = [ordered]@{
     generatedAt = (Get-Date).ToString('o')
-    policy = 'C:\Repos\agent-capabilities\docs\worktree-management-policy.md'
+    policy = 'C:\Repos\shmindmaster\agenthub\docs\worktree-management-policy.md'
     portfolioRoot = $PortfolioRoot
     recordCount = $records.Count
     records = @($records | Sort-Object path)

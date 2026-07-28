@@ -1,4 +1,0 @@
-interface:
-  display_name: "Discover Application"
-  short_description: "Map users, workflows, architecture, and constraints"
-  default_prompt: "Use $discover-application to build an evidence-based application discovery brief."

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Central synchronization engine for the C:\Repos\agent-capabilities registry.
+    Central synchronization engine for the C:\Repos\shmindmaster\agenthub registry.
 
 .DESCRIPTION
     Reads the central registry and deploys real files / native configuration
@@ -32,7 +32,7 @@ param(
     [string]$ScopeProfile = 'global-default',
     [switch]$IncludeDeprecated,
     [switch]$IncludeInactiveAgents,
-    [string]$RegistryRoot = "C:\Repos\agent-capabilities",
+    [string]$RegistryRoot = "C:\Repos\shmindmaster\agenthub",
     [string]$UserProfile = "C:\Users\SaroshHussain"
 )
 
@@ -206,7 +206,7 @@ function Deploy-File {
     return @{ status = 'updated'; hash = $sourceHash }
 }
 
-function Sync-ShwikiContextSkill {
+function Sync-RepoContextSkill {
     param(
         [pscustomobject]$Agent,
         [object]$CapabilitiesRegistry,
@@ -214,26 +214,26 @@ function Sync-ShwikiContextSkill {
     )
 
     if ($Agent.id -eq 'qwen-code') {
-        return @{ status='extension-managed'; capability='shwiki-context' }
+        return @{ status='extension-managed'; capability='repocontext' }
     }
     if (-not $CapabilitiesRegistry -or -not $CapabilitiesRegistry.capabilities) {
-        return @{ status='registry-missing'; capability='shwiki-context' }
+        return @{ status='registry-missing'; capability='repocontext' }
     }
 
-    $capability = $CapabilitiesRegistry.capabilities | Where-Object id -eq 'shwiki-context' | Select-Object -First 1
-    if (-not $capability) { return @{ status='capability-missing'; capability='shwiki-context' } }
+    $capability = $CapabilitiesRegistry.capabilities | Where-Object id -eq 'repocontext' | Select-Object -First 1
+    if (-not $capability) { return @{ status='capability-missing'; capability='repocontext' } }
     $mapping = $capability.hostMappings | Where-Object hostId -eq $Agent.id | Select-Object -First 1
     if (-not $mapping -or $mapping.deploymentStatus -ne 'managed') {
-        return @{ status='not-mapped'; capability='shwiki-context' }
+        return @{ status='not-mapped'; capability='repocontext' }
     }
     if (-not $Agent.nativePaths -or $Agent.nativePaths.PSObject.Properties.Match('skillsDir').Count -eq 0) {
-        return @{ status='skills-path-unavailable'; capability='shwiki-context' }
+        return @{ status='skills-path-unavailable'; capability='repocontext' }
     }
 
-    $source = Join-Path ([string]$capability.canonicalSource) 'skills\shwiki-context\SKILL.md'
-    $destination = Join-Path ([string]$Agent.nativePaths.skillsDir) 'shwiki-context\SKILL.md'
-    $result = Deploy-File -SourcePath $source -DestPath $destination -OwnerCapability 'shwiki-context' -WhatIf:$WhatIf
-    $result.capability = 'shwiki-context'
+    $source = Join-Path ([string]$capability.canonicalSource) 'skills\repocontext\SKILL.md'
+    $destination = Join-Path ([string]$Agent.nativePaths.skillsDir) 'repocontext\SKILL.md'
+    $result = Deploy-File -SourcePath $source -DestPath $destination -OwnerCapability 'repocontext' -WhatIf:$WhatIf
+    $result.capability = 'repocontext'
     $result.path = $destination
     return $result
 }
@@ -305,17 +305,36 @@ function Get-StableJsonString {
 function Contains-UnresolvedPlaceholder {
     param([string]$Value)
     if (-not $Value) { return $false }
-    return $Value -match '\$\{env:[^}]+\}|\$\{[A-Z_][A-Z0-9_]*\}'
+    return $Value -match '\$\{env:[^}]+\}|\$\{[A-Z_][A-Z0-9_]*\}|\{env:[A-Z_][A-Z0-9_]*\}|\$[A-Z_][A-Z0-9_]*'
 }
 
 function Resolve-McpAliasKey {
     param([string]$Key)
     switch ($Key) {
-        'shwiki' { return 'shwiki-context' }
-        'shwiki-context-remote' { return 'shwiki-context' }
-        'sh-knowledge' { return 'shwiki-context' }
+        'github-shmindmaster' { return 'github' }
+        'github-sh-pendoah' { return 'github' }
+        'github-sarosh-pendoah' { return 'github' }
+        'repo-context' { return 'repocontext' }
+        'shwiki' { return 'repocontext' }
+        'shwiki-context' { return 'repocontext' }
+        'shwiki-context-remote' { return 'repocontext' }
+        'sh-knowledge' { return 'repocontext' }
         default { return $Key }
     }
+}
+
+function Get-McpAliasesForCanonicalKey {
+    param([string]$Key)
+    return @(
+        'github-shmindmaster',
+        'github-sh-pendoah',
+        'github-sarosh-pendoah',
+        'repo-context',
+        'shwiki',
+        'shwiki-context',
+        'shwiki-context-remote',
+        'sh-knowledge'
+    ) | Where-Object { (Resolve-McpAliasKey $_) -eq $Key }
 }
 
 function Normalize-McpTargetKeys {
@@ -690,6 +709,9 @@ function Sync-HostMcp-Codex {
 
     foreach ($key in $McpEntries.Keys) {
         $entry = $McpEntries[$key]
+        foreach ($alias in @(Get-McpAliasesForCanonicalKey $key)) {
+            $newToml = [regex]::Replace($newToml, (Get-CodexMcpSectionPattern $alias), '')
+        }
         $sectionLines = @("[mcp_servers.$key]")
         if ($entry.type -eq 'http' -and $entry.url) {
             $sectionLines += "url = `"$($entry.url)`""
@@ -728,16 +750,14 @@ function Sync-HostMcp-Codex {
             $keep[(Resolve-McpAliasKey $k)] = $true
         }
 
-        # Fold known aliases into canonical names when present.
-        if ($newToml -match '(?m)^\[mcp_servers\.shwiki-context-remote\]') {
-            if ($newToml -match '(?m)^\[mcp_servers\.shwiki-context\]') {
-                $newToml = [regex]::Replace(
-                    $newToml,
-                    (Get-CodexMcpSectionPattern 'shwiki-context-remote'),
-                    ''
-                )
+        # Fold retired portfolio-context aliases into the canonical name.
+        foreach ($legacyKey in @('repo-context', 'shwiki', 'shwiki-context', 'shwiki-context-remote', 'sh-knowledge')) {
+            if ($newToml -notmatch "(?m)^\[mcp_servers\.$([regex]::Escape($legacyKey))\]") { continue }
+            if ($newToml -match '(?m)^\[mcp_servers\.repocontext\]') {
+                $newToml = [regex]::Replace($newToml, (Get-CodexMcpSectionPattern $legacyKey), '')
             } else {
-                $newToml = $newToml -replace '(?m)^\[mcp_servers\.shwiki-context-remote\]$', '[mcp_servers.shwiki-context]'
+                $escapedLegacyKey = [regex]::Escape($legacyKey)
+                $newToml = $newToml -replace "(?m)^\[mcp_servers\.$escapedLegacyKey\]$", '[mcp_servers.repocontext]'
             }
         }
 
@@ -788,10 +808,8 @@ function Sync-HostMcp-Grok {
         $mcp = $Mcps[$name]
         $sectionPattern = Get-CodexMcpSectionPattern -Key $name
         $existing = [regex]::Replace($existing, $sectionPattern, '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
-        foreach ($alias in @('shwiki', 'shwiki-context-remote', 'sh-knowledge')) {
-            if ((Resolve-McpAliasKey $alias) -eq $name) {
-                $existing = [regex]::Replace($existing, (Get-CodexMcpSectionPattern -Key $alias), '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
-            }
+        foreach ($alias in @(Get-McpAliasesForCanonicalKey $name)) {
+            $existing = [regex]::Replace($existing, (Get-CodexMcpSectionPattern -Key $alias), '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
         }
         $lines = [System.Collections.Generic.List[string]]::new()
         $null = $lines.Add("[mcp_servers.$name]")
@@ -824,7 +842,7 @@ function Sync-HostMcp-Grok {
     }
 
     if ($Prune) {
-        foreach ($name in @('context7', 'firecrawl', 'tavily', 'exa', 'linear', 'notion', 'shwiki-context', 'brave-search', 'playwright')) {
+        foreach ($name in @('context7', 'firecrawl', 'tavily', 'exa', 'linear', 'notion', 'repocontext', 'brave-search', 'playwright')) {
             $sectionPattern = Get-CodexMcpSectionPattern -Key $name
             $existing = [regex]::Replace($existing, $sectionPattern, '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
         }
@@ -979,6 +997,7 @@ function Sync-HostMcp-Qwen {
     }
     if (-not $json.ContainsKey('mcpServers')) { $json.mcpServers = @{} }
     elseif (-not ($json.mcpServers -is [hashtable])) { $json.mcpServers = ConvertTo-Hashtable $json.mcpServers }
+    $json.mcpServers = Normalize-McpTargetKeys -Target $json.mcpServers
 
     $canonicalKeys = @{}
     foreach ($key in $McpEntries.Keys) {
@@ -988,6 +1007,22 @@ function Sync-HostMcp-Qwen {
         if (-not ($canonical -is [hashtable])) { $canonical = ConvertTo-Hashtable $canonical }
         $json.mcpServers[$resolved] = ConvertTo-QwenMcpEntry $canonical
     }
+
+    # Qwen treats mcp.allowed as an explicit connection allowlist when it is
+    # present. Keep the user's existing allowlist, retire known aliases, and
+    # add every registry-managed server so a successfully rendered definition
+    # is not silently blocked at runtime.
+    if ($json.ContainsKey('mcp')) {
+        if (-not ($json.mcp -is [hashtable])) { $json.mcp = ConvertTo-Hashtable $json.mcp }
+        if ($json.mcp.ContainsKey('allowed') -and $null -ne $json.mcp.allowed) {
+            $allowed = @($json.mcp.allowed | ForEach-Object {
+                Resolve-McpAliasKey ([string]$_)
+            })
+            $allowed += @($canonicalKeys.Keys)
+            $json.mcp.allowed = @($allowed | Sort-Object -Unique)
+        }
+    }
+
     if ($Prune) {
         foreach ($key in @($json.mcpServers.Keys)) {
             if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key))) { $json.mcpServers.Remove($key) }
@@ -1027,7 +1062,7 @@ function Sync-QwenCapabilityExtensions {
 
         $sourceSkills = Join-Path ([string]$capability.canonicalSource) 'skills'
         if (-not (Test-Path -LiteralPath $sourceSkills)) { continue }
-        $extensionName = 'agent-capabilities-' + [string]$capability.id
+        $extensionName = 'agenthub-' + [string]$capability.id
         $expected += $extensionName
         $adapterPath = Join-Path $adapterRoot $extensionName
         $manifestPath = Join-Path $adapterPath 'qwen-extension.json'
@@ -1097,6 +1132,367 @@ function Sync-HostMcp-JsonFile {
     return @{ status='updated'; path=$Path }
 }
 
+function Convert-McpEnvironmentReference {
+    param(
+        [string]$Value,
+        [ValidateSet('braced','dollar')]
+        [string]$Style
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $Value }
+    return [regex]::Replace(
+        $Value,
+        '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}',
+        {
+            param($match)
+            if ($Style -eq 'dollar') { return '$' + $match.Groups[1].Value }
+            return '$' + '{' + $match.Groups[1].Value + '}'
+        }
+    )
+}
+
+function Convert-McpStringMapEnvironmentReferences {
+    param(
+        [object]$Map,
+        [ValidateSet('braced','dollar')]
+        [string]$Style
+    )
+
+    $converted = @{}
+    foreach ($property in (ConvertTo-Hashtable $Map).GetEnumerator()) {
+        $converted[$property.Key] = Convert-McpEnvironmentReference -Value ([string]$property.Value) -Style $Style
+    }
+    return $converted
+}
+
+function Sync-HostMcp-ConvertedJsonFile {
+    param(
+        [string]$Path,
+        [hashtable]$McpEntries,
+        [scriptblock]$Converter,
+        [string]$JsonProperty = 'mcpServers',
+        [switch]$WhatIf,
+        [switch]$Prune
+    )
+
+    if (-not $Path) { return @{ status='unsupported-path'; note='MCP path missing' } }
+
+    $root = @{}
+    if (Test-Path -LiteralPath $Path) {
+        $root = ConvertTo-Hashtable (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
+    }
+    if (-not $root.ContainsKey($JsonProperty)) { $root[$JsonProperty] = @{} }
+    elseif (-not ($root[$JsonProperty] -is [hashtable])) { $root[$JsonProperty] = ConvertTo-Hashtable $root[$JsonProperty] }
+
+    $servers = Normalize-McpTargetKeys -Target $root[$JsonProperty]
+    $canonicalKeys = @{}
+    foreach ($key in $McpEntries.Keys) {
+        $targetKey = Resolve-McpAliasKey $key
+        $canonicalKeys[$targetKey] = $true
+        $canonical = $McpEntries[$key]
+        if (-not ($canonical -is [hashtable])) { $canonical = ConvertTo-Hashtable $canonical }
+        $target = & $Converter $canonical
+        if (-not $servers.ContainsKey($targetKey)) {
+            $servers[$targetKey] = $target
+            continue
+        }
+
+        $existing = $servers[$targetKey]
+        if (-not ($existing -is [hashtable])) { $existing = ConvertTo-Hashtable $existing }
+        foreach ($field in @('type','url','httpUrl','serverUrl','command','args','cwd','working_directory','env','environment','headers','auth')) {
+            if ($existing.ContainsKey($field)) { $existing.Remove($field) }
+        }
+        foreach ($field in $target.Keys) { $existing[$field] = $target[$field] }
+        $servers[$targetKey] = $existing
+    }
+
+    if ($Prune) {
+        foreach ($key in @($servers.Keys)) {
+            if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key))) { $servers.Remove($key) }
+        }
+    }
+
+    $root[$JsonProperty] = $servers
+    $stableNewJson = Get-StableJsonString $root
+    if ($WhatIf) {
+        $stableExistingJson = if (Test-Path -LiteralPath $Path) {
+            Get-StableJsonString (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
+        } else {
+            Get-StableJsonString @{}
+        }
+        return @{ status = if ($stableExistingJson -eq $stableNewJson) { 'unchanged' } else { 'drift' }; path = $Path }
+    }
+
+    $destDir = Split-Path $Path -Parent
+    if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
+    Write-Utf8NoBom -Path $Path -Content $stableNewJson
+    $script:state.managedFiles[$Path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $Path) }
+    return @{ status='updated'; path=$Path }
+}
+
+function ConvertTo-GeminiMcpEntry {
+    param([hashtable]$CanonicalEntry)
+
+    $entry = @{}
+    if ($CanonicalEntry.type -eq 'http') {
+        $entry.httpUrl = $CanonicalEntry.url
+        if ($CanonicalEntry.ContainsKey('headers')) {
+            $entry.headers = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.headers -Style braced
+        }
+    } elseif ($CanonicalEntry.type -eq 'stdio') {
+        $entry.command = $CanonicalEntry.command
+        $entry.args = @($CanonicalEntry.args)
+        if ($CanonicalEntry.ContainsKey('env')) {
+            $entry.env = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.env -Style braced
+        }
+    }
+    return $entry
+}
+
+function ConvertTo-AntigravityMcpEntry {
+    param([hashtable]$CanonicalEntry)
+
+    $entry = @{}
+    if ($CanonicalEntry.type -eq 'http') {
+        $entry.serverUrl = $CanonicalEntry.url
+        if ($CanonicalEntry.ContainsKey('headers')) {
+            $entry.headers = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.headers -Style dollar
+        }
+    } elseif ($CanonicalEntry.type -eq 'stdio') {
+        $entry.command = $CanonicalEntry.command
+        $entry.args = @($CanonicalEntry.args)
+        if ($CanonicalEntry.ContainsKey('env')) {
+            $entry.env = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.env -Style dollar
+        }
+    }
+    return $entry
+}
+
+function ConvertTo-CopilotMcpEntry {
+    param([hashtable]$CanonicalEntry)
+
+    $entry = @{}
+    if ($CanonicalEntry.type -eq 'http') {
+        $entry.type = 'http'
+        $entry.url = $CanonicalEntry.url
+        if ($CanonicalEntry.ContainsKey('headers')) {
+            $entry.headers = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.headers -Style braced
+        }
+    } elseif ($CanonicalEntry.type -eq 'stdio') {
+        $entry.type = 'stdio'
+        $entry.command = $CanonicalEntry.command
+        $entry.args = @($CanonicalEntry.args)
+        if ($CanonicalEntry.ContainsKey('env')) {
+            $entry.env = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.env -Style braced
+        }
+    }
+    return $entry
+}
+
+function ConvertTo-WarpMcpEntry {
+    param([hashtable]$CanonicalEntry)
+
+    $entry = @{}
+    if ($CanonicalEntry.type -eq 'http') {
+        $entry.url = $CanonicalEntry.url
+        if ($CanonicalEntry.ContainsKey('headers')) {
+            $entry.headers = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.headers -Style braced
+        }
+    } elseif ($CanonicalEntry.type -eq 'stdio') {
+        $entry.command = $CanonicalEntry.command
+        $entry.args = @($CanonicalEntry.args)
+        if ($CanonicalEntry.ContainsKey('env')) {
+            $entry.env = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.env -Style braced
+        }
+    }
+    return $entry
+}
+
+function ConvertTo-ClineMcpEntry {
+    param([hashtable]$CanonicalEntry)
+
+    $entry = @{}
+    if ($CanonicalEntry.type -eq 'http') {
+        # Cline's current runtime uses the documented Streamable HTTP transport
+        # name. Keep the shared registry's environment references untouched so
+        # no secret is resolved or serialized by this adapter.
+        $entry.type = 'streamableHttp'
+        $entry.url = $CanonicalEntry.url
+        if ($CanonicalEntry.ContainsKey('headers')) {
+            $entry.headers = ConvertTo-Hashtable $CanonicalEntry.headers
+        }
+    } elseif ($CanonicalEntry.type -eq 'stdio') {
+        $entry.type = 'stdio'
+        $entry.command = $CanonicalEntry.command
+        $entry.args = @($CanonicalEntry.args)
+        if ($CanonicalEntry.ContainsKey('cwd')) { $entry.cwd = $CanonicalEntry.cwd }
+        if ($CanonicalEntry.ContainsKey('env')) {
+            $entry.env = ConvertTo-Hashtable $CanonicalEntry.env
+        }
+    }
+    # Cline's default is enabled with no per-server auto-approval. YOLO is a
+    # launch/profile concern and must not be persisted into MCP registrations.
+    $entry.disabled = $false
+    $entry.autoApprove = @()
+    return $entry
+}
+
+function Sync-HostMcp-Cline {
+    param(
+        [pscustomobject]$Agent,
+        [hashtable]$McpEntries,
+        [switch]$WhatIf,
+        [switch]$Prune
+    )
+
+    $path = $Agent.nativePaths.mcp
+    if (-not $path) { return @{ status='unsupported-path'; note='Cline MCP path missing' } }
+
+    $root = @{ mcpServers = @{} }
+    if (Test-Path -LiteralPath $path) {
+        $existing = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+        $root = ConvertTo-Hashtable $existing
+        if (-not $root.ContainsKey('mcpServers')) { $root.mcpServers = @{} }
+    }
+
+    $servers = Normalize-McpTargetKeys -Target (ConvertTo-Hashtable $root.mcpServers)
+    $canonicalKeys = @{}
+    foreach ($key in $McpEntries.Keys) {
+        $targetKey = Resolve-McpAliasKey $key
+        $canonicalKeys[$targetKey] = $true
+        $target = ConvertTo-ClineMcpEntry (ConvertTo-Hashtable $McpEntries[$key])
+
+        if (-not $servers.ContainsKey($targetKey)) {
+            $servers[$targetKey] = $target
+            continue
+        }
+
+        $existingServer = ConvertTo-Hashtable $servers[$targetKey]
+        $servers[$targetKey] = $existingServer
+        foreach ($field in @('type','command','args','cwd','url','disabled','autoApprove')) {
+            if ($target.ContainsKey($field)) { $existingServer[$field] = $target[$field] }
+        }
+        if ($target.ContainsKey('url')) {
+            foreach ($field in @('command','args','cwd','env')) {
+                if ($existingServer.ContainsKey($field)) { $existingServer.Remove($field) }
+            }
+        } else {
+            if ($existingServer.ContainsKey('url')) { $existingServer.Remove('url') }
+            if ($existingServer.ContainsKey('headers')) { $existingServer.Remove('headers') }
+        }
+
+        # Keep existing OAuth/secret-bearing fields unless the registry contains
+        # a resolved value. Registry placeholders never overwrite user state.
+        foreach ($field in @('headers','env')) {
+            if (-not $target.ContainsKey($field)) { continue }
+            if (-not $existingServer.ContainsKey($field)) {
+                $existingServer[$field] = $target[$field]
+            } elseif (-not (Contains-UnresolvedPlaceholder ($target[$field] | ConvertTo-Json -Depth 5 -Compress))) {
+                $existingServer[$field] = $target[$field]
+            }
+        }
+    }
+
+    if ($Prune) {
+        foreach ($key in @($servers.Keys)) {
+            if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key))) {
+                $servers.Remove($key)
+            }
+        }
+    }
+
+    $root.mcpServers = $servers
+    $stableNewJson = Get-StableJsonString $root
+    if ($WhatIf) {
+        $stableExistingJson = if (Test-Path -LiteralPath $path) {
+            Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
+        } else { Get-StableJsonString @{} }
+        return @{ status = if ($stableExistingJson -eq $stableNewJson) { 'unchanged' } else { 'drift' }; path = $path }
+    }
+
+    $destDir = Split-Path $path -Parent
+    if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
+    Write-Utf8NoBom -Path $path -Content $stableNewJson
+    $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
+    return @{ status='updated'; path=$path }
+}
+
+function ConvertTo-QoderMcpEntry {
+    param([hashtable]$CanonicalEntry)
+
+    $entry = @{}
+    if ($CanonicalEntry.type -eq 'http') {
+        # Qoder's documented CLI/IDE schema uses http/sse/ws transport values
+        # and does not accept the registry's host-neutral auth marker.
+        $entry.type = 'http'
+        $entry.url = $CanonicalEntry.url
+        if ($CanonicalEntry.ContainsKey('headers')) {
+            $headers = @{}
+            foreach ($header in (ConvertTo-Hashtable $CanonicalEntry.headers).GetEnumerator()) {
+                # Qoder expands ${NAME} from the process environment. The
+                # host-neutral ${env:NAME} spelling is otherwise sent
+                # literally and the remote rejects the request.
+                $headers[$header.Key] = [regex]::Replace(
+                    [string]$header.Value,
+                    '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}',
+                    { param($match) '$' + '{' + $match.Groups[1].Value + '}' }
+                )
+            }
+            $entry.headers = $headers
+        }
+    } elseif ($CanonicalEntry.type -eq 'stdio') {
+        $entry.command = $CanonicalEntry.command
+        $entry.args = @($CanonicalEntry.args)
+        if ($CanonicalEntry.ContainsKey('env')) { $entry.env = ConvertTo-Hashtable $CanonicalEntry.env }
+    }
+    return $entry
+}
+
+function Sync-HostMcp-Qoder {
+    param(
+        [pscustomobject]$Agent,
+        [hashtable]$McpEntries,
+        [switch]$WhatIf,
+        [switch]$Prune
+    )
+
+    $qoderEntries = @{}
+    foreach ($key in $McpEntries.Keys) {
+        $qoderEntries[$key] = ConvertTo-QoderMcpEntry (ConvertTo-Hashtable $McpEntries[$key])
+    }
+    $result = Sync-HostMcp-JsonFile -Path $Agent.nativePaths.mcp -McpEntries $qoderEntries -JsonProperty 'mcpServers' -WhatIf:$WhatIf -Prune:$Prune
+    if (-not $WhatIf -and (Test-Path -LiteralPath $Agent.nativePaths.mcp -PathType Leaf)) {
+        $json = ConvertTo-Hashtable (Get-Content -LiteralPath $Agent.nativePaths.mcp -Raw -Encoding UTF8 | ConvertFrom-Json)
+        $changed = $false
+        foreach ($key in $qoderEntries.Keys) {
+            $targetKey = Resolve-McpAliasKey $key
+            if (-not $json.mcpServers.ContainsKey($targetKey)) { continue }
+            $server = ConvertTo-Hashtable $json.mcpServers[$targetKey]
+            if ($server.ContainsKey('auth')) {
+                $server.Remove('auth')
+                $changed = $true
+            }
+            if ($qoderEntries[$key].ContainsKey('headers')) {
+                $targetHeaders = ConvertTo-Hashtable $qoderEntries[$key].headers
+                $currentHeaders = if ($server.ContainsKey('headers')) {
+                    ConvertTo-Hashtable $server.headers
+                } else { @{} }
+                if ((Get-StableJsonString $currentHeaders) -ne (Get-StableJsonString $targetHeaders)) {
+                    $server.headers = $targetHeaders
+                    $changed = $true
+                }
+            }
+            $json.mcpServers[$targetKey] = $server
+        }
+        if ($changed) {
+            Write-Utf8NoBom -Path $Agent.nativePaths.mcp -Content (Get-StableJsonString $json)
+            $script:state.managedFiles[$Agent.nativePaths.mcp] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $Agent.nativePaths.mcp) }
+            $result.status = 'updated'
+        }
+    }
+    return $result
+}
+
 function ConvertTo-OpenCodeMcpEntry {
     param([hashtable]$CanonicalEntry)
 
@@ -1116,6 +1512,7 @@ function ConvertTo-OpenCodeMcpEntry {
                 )
             }
             $entry.headers = $headers
+            if ($headers.ContainsKey('Authorization')) { $entry.oauth = $false }
         }
     } else {
         $entry.type = 'local'
@@ -1176,7 +1573,7 @@ function Sync-HostMcp-OpenCode {
             }
         }
 
-        foreach ($field in @('type','url','command')) {
+        foreach ($field in @('type','url','command','oauth')) {
             if ($target.ContainsKey($field)) {
                 $candidate = $target[$field]
                 if ($field -eq 'url' -and $existing.ContainsKey('url') -and (Contains-UnresolvedPlaceholder $candidate)) { continue }
@@ -1278,7 +1675,7 @@ function Sync-HostMcp-Windsurf {
         $root = ConvertTo-Hashtable $existing
         if (-not $root.ContainsKey('mcpServers')) { $root.mcpServers = @{} }
     }
-    $servers = $root.mcpServers
+    $servers = Normalize-McpTargetKeys -Target $root.mcpServers
 
     # Normalize any existing entries into valid Windsurf schema.
     foreach ($k in @($servers.Keys)) {
@@ -1401,7 +1798,7 @@ foreach ($agent in $agentsToSync) {
             $hostDrift.mcp += $r
         }
         'warp' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-WarpMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'cursor' {
@@ -1438,16 +1835,32 @@ foreach ($agent in $agentsToSync) {
             $hostDrift.mcp += $r
         }
         'gemini' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.settings -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.settings -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-GeminiMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
+        'antigravity' {
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-AntigravityMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
+            $hostDrift.mcp += $r
+            if ($agent.nativePaths.legacyMcp -and $agent.nativePaths.legacyMcp -ne $agent.nativePaths.mcp) {
+                $legacy = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.legacyMcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-AntigravityMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
+                $hostDrift.mcp += $legacy
+            }
+        }
         'copilot' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-CopilotMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
+            $hostDrift.mcp += $r
+        }
+        'cline' {
+            $r = Sync-HostMcp-Cline -Agent $agent -McpEntries $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $hostDrift.mcp += $r
+        }
+        'qoder' {
+            $r = Sync-HostMcp-Qoder -Agent $agent -McpEntries $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
     }
 
-    $hostDrift.files += Sync-ShwikiContextSkill -Agent $agent -CapabilitiesRegistry $capReg -WhatIf:$whatIfMode
+    $hostDrift.files += Sync-RepoContextSkill -Agent $agent -CapabilitiesRegistry $capReg -WhatIf:$whatIfMode
 
     $driftReport.hosts += $hostDrift
 }
@@ -1466,8 +1879,13 @@ if ($Validate -or $Apply -or $Audit) {
         $UserProfile + '\.config\amp\settings.json',
         $UserProfile + '\.config\opencode\opencode.json',
         $UserProfile + '\.gemini\settings.json',
+        $UserProfile + '\.gemini\antigravity\mcp_config.json',
+        $UserProfile + '\.gemini\config\mcp_config.json',
         $UserProfile + '\.copilot\mcp-config.json',
-        $UserProfile + '\.codeium\windsurf\mcp_config.json'
+        $UserProfile + '\.codeium\windsurf\mcp_config.json',
+        $UserProfile + '\.warp\.mcp.json',
+        $UserProfile + '\.cline\data\settings\cline_mcp_settings.json',
+        $UserProfile + '\.qoder\settings.json'
     )
     foreach ($f in $configFiles) {
         if (Test-Path -LiteralPath $f) { Test-JsonParse -Path $f }

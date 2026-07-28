@@ -19,6 +19,8 @@
     { "id": "antigravity-ide", "name": "Google Antigravity IDE", "adapter": "companion-native-plugin-surface", "status": "active", "officialDocs": "https://www.antigravity.google/docs/settings" },
     { "id": "grok", "name": "Grok CLI", "adapter": "native-rules-agents-skills-plugins-mcp-acp-lsp-hooks-memory", "status": "active", "officialDocs": "C:/Users/SaroshHussain/.grok/README.md" },
     { "id": "warp", "name": "Warp / Oz", "adapter": "native-rules-skills-mcp-cloud-agent; plugin-agent-discovery-required", "status": "active", "officialDocs": "https://docs.warp.dev/" },
+    { "id": "cline", "name": "Cline CLI / ACP / Kanban", "adapter": "native-rules-skills-mcp-cli-acp-kanban; plugins-cli-sdk-kanban-only; custom-agents-schema-discovery-required", "status": "active", "officialDocs": "https://docs.cline.bot/" },
+    { "id": "qoder", "name": "Qoder CLI / Desktop / JetBrains / QoderWork", "adapter": "native-rules-skills-agents-plugins-mcp-acp-canvas-connectors", "status": "active", "officialDocs": "https://docs.qoder.com/" },
     { "id": "devin", "name": "Devin Desktop / CLI", "adapter": "native-rules-agents-skills-plugins-mcp-acp-hooks", "status": "inactive", "officialDocs": "https://docs.devin.ai/cli/extensibility/configuration" },
     { "id": "windsurf", "name": "Windsurf", "adapter": "ide-client-and-mcp; schema-discovery-required", "status": "inactive", "officialDocs": "https://docs.windsurf.com/" }
   ]

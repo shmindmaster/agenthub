@@ -35,7 +35,7 @@
     remove an eligible worktree. Removal uses non-forced `git worktree remove`.
     If Git fails, the script reports the failure and leaves the path untouched.
 
-    Policy: C:\Repos\agent-capabilities\docs\worktree-management-policy.md
+    Policy: C:\Repos\shmindmaster\agenthub\docs\worktree-management-policy.md
 
 .EXAMPLE
     pwsh -File Remove-StaleWorktrees.ps1                  # report only (safe)
@@ -66,7 +66,7 @@ if ($Apply -and $ApprovedPath.Count -eq 0) {
 
 if (-not $OutputPath) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $OutputPath = "$env:TEMP\agent-capabilities-worktree-cleanup-$stamp.json"
+    $OutputPath = "$env:TEMP\agenthub-worktree-cleanup-$stamp.json"
 }
 
 function Write-Line($m, $c = 'Gray') { Write-Host $m -ForegroundColor $c }
@@ -214,7 +214,7 @@ Get-ChildItem -LiteralPath $HomeRoot -Directory -ErrorAction SilentlyContinue | 
 # --- action report ---------------------------------------------------------
 $report = [ordered]@{
     generatedAt   = (Get-Date).ToString('o')
-    policy        = 'C:\Repos\agent-capabilities\docs\worktree-management-policy.md'
+    policy        = 'C:\Repos\shmindmaster\agenthub\docs\worktree-management-policy.md'
     applied       = [bool]$Apply
     minIdleHours  = $MinIdleHours
     includeInRepo = [bool]$IncludeInRepo

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-  [string]$RegistryRoot = 'C:\Repos\agent-capabilities',
+  [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub',
   [string]$UserProfile = $env:USERPROFILE
 )
 
@@ -10,6 +10,8 @@ $fleetProfile = Get-Content (Join-Path $RegistryRoot 'registry\fleet-profile.jso
 . (Join-Path $PSScriptRoot 'AgentCtl.CursorReadiness.ps1')
 $mcpRegistry = Get-Content (Join-Path $RegistryRoot 'registry\mcps.json') -Raw | ConvertFrom-Json
 $expectedGlobal = @($mcpRegistry.mcpServers | Where-Object scope -eq 'global-default' | ForEach-Object id | Sort-Object)
+$mcpById = @{}
+foreach ($mcp in @($mcpRegistry.mcpServers)) { $mcpById[[string]$mcp.id] = $mcp }
 $expectedByHost = @{}
 $pluginOwnedByHost = @{}
 foreach ($mcp in @($mcpRegistry.mcpServers)) {
@@ -54,6 +56,10 @@ $mcpPaths = @{
   'windsurf' = @("$UserProfile\.codeium\windsurf\mcp_config.json", 'mcpServers')
   'copilot' = @("$UserProfile\.copilot\mcp-config.json", 'mcpServers')
   'gemini' = @("$UserProfile\.gemini\settings.json", 'mcpServers')
+  'antigravity' = @("$UserProfile\.gemini\antigravity\mcp_config.json", 'mcpServers')
+  'warp' = @("$UserProfile\.warp\.mcp.json", 'mcpServers')
+  'cline' = @("$UserProfile\.cline\data\settings\cline_mcp_settings.json", 'mcpServers')
+  'qoder' = @("$UserProfile\.qoder\settings.json", 'mcpServers')
   'qwen' = @("$UserProfile\.qwen\settings.json", 'mcp')
 }
 foreach ($hostId in $mcpPaths.Keys | Sort-Object) {
@@ -61,9 +67,15 @@ foreach ($hostId in $mcpPaths.Keys | Sort-Object) {
   $actual = Read-ServerNames $path $prop
   $registryHostId = if ($hostId -eq 'qwen') { 'qwen-code' } else { $hostId }
   $expectedForHost = @($expectedGlobal | Where-Object {
-    -not ($pluginOwnedByHost.ContainsKey($registryHostId) -and $pluginOwnedByHost[$registryHostId].ContainsKey($_))
+    $mcp = $mcpById[$_]
+    $hostAllowed = -not $mcp.hosts -or $registryHostId -in @($mcp.hosts)
+    $hostAllowed -and -not ($pluginOwnedByHost.ContainsKey($registryHostId) -and $pluginOwnedByHost[$registryHostId].ContainsKey($_))
   })
-  if ($hostId -ne 'qwen' -and $expectedByHost.ContainsKey($registryHostId)) { $expectedForHost += @($expectedByHost[$registryHostId]) }
+  if ($hostId -ne 'qwen' -and $expectedByHost.ContainsKey($registryHostId)) {
+    $expectedForHost += @($expectedByHost[$registryHostId] | Where-Object {
+      -not ($pluginOwnedByHost.ContainsKey($registryHostId) -and $pluginOwnedByHost[$registryHostId].ContainsKey($_))
+    })
+  }
   $expectedForHost = @($expectedForHost | Sort-Object -Unique)
   if ($hostId -eq 'qwen') { $actual = @((Get-Content $path -Raw | ConvertFrom-Json).mcp.allowed | Sort-Object) }
   Assert-Profile (($actual -join '|') -eq ($expectedForHost -join '|')) "$hostId has the canonical MCP registrations"
@@ -124,10 +136,19 @@ Assert-Profile ($amp.'amp.permissions' -is [System.Array] -and $amp.'amp.permiss
 Assert-Profile ($factory.interactionMode -eq 'auto' -and $factory.autonomyMode -eq 'auto-high') 'Factory uses its highest discovered autonomous profile'
 Assert-Profile ($copilot.stayInAutopilot -eq $true -and $copilot.askUser -eq $false) 'Copilot persists autopilot and no-question defaults'
 Assert-Profile ($grokToml -match '(?m)^yolo\s*=\s*true\s*$' -and $grokToml -match '(?m)^permission_mode\s*=\s*"always-approve"\s*$') 'Grok uses its persisted yolo and always-approve modes'
+ $clineMcp = Read-ServerSet "$UserProfile\.cline\data\settings\cline_mcp_settings.json" 'mcpServers'
+ $qoderMcp = Read-ServerSet "$UserProfile\.qoder\settings.json" 'mcpServers'
+ Assert-Profile ($clineMcp.PSObject.Properties['context7'].Value.type -eq 'streamableHttp' -and $clineMcp.PSObject.Properties['playwright'].Value.type -eq 'stdio') 'Cline uses native streamableHttp and stdio MCP transports'
+ Assert-Profile ($clineMcp.PSObject.Properties['context7'].Value.autoApprove.Count -eq 0 -and ($clineMcp | ConvertTo-Json -Depth 30 -Compress) -notmatch '"auth"\s*:') 'Cline MCP keeps per-server auto-approval empty and no auth marker'
+ Assert-Profile ($qoderMcp.PSObject.Properties['context7'].Value.type -eq 'http' -and $qoderMcp.PSObject.Properties['playwright'].Value.command -eq 'npx' -and ($qoderMcp | ConvertTo-Json -Depth 30 -Compress) -notmatch '"auth"\s*:') 'Qoder uses documented MCP settings without the unsupported auth marker'
+ Assert-Profile ((Test-Path "$UserProfile\.qoder\agents\scout.md") -and ((Get-Content "$UserProfile\.qoder\agents\scout.md" -Raw) -match '(?m)^name:\s*scout\s*$')) 'Qoder native scout agent is present'
+ Assert-Profile ((Get-Content "$UserProfile\bin\cline.cmd" -Raw) -match '--auto-approve true' -and (Get-Content "$UserProfile\bin\cline.cmd" -Raw) -match 'auth config plugin') 'Cline launcher applies auto-approve only outside administrative commands'
+ Assert-Profile ((Get-Content "$UserProfile\bin\qodercli.cmd" -Raw) -match '--dangerously-skip-permissions' -and (Get-Content "$UserProfile\bin\qodercli.cmd" -Raw) -match 'login mcp plugins') 'Qoder launcher applies bypass permissions only outside administrative commands'
+ Assert-Profile ((Get-Content "$UserProfile\bin\cline-acp.cmd" -Raw) -match '--acp' -and (Get-Content "$UserProfile\bin\qoder-acp.cmd" -Raw) -match '--acp') 'Cline and Qoder ACP launchers are present'
 foreach ($name in 'DEVIN_PERMISSION_MODE','COPILOT_ALLOW_ALL','GEMINI_CLI_TRUST_WORKSPACE','QWEN_CODE_SUPPRESS_YOLO_WARNING') {
   Assert-Profile (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'User'))) "user environment contains $name"
 }
-foreach ($launcher in 'gemini.cmd','qwen.cmd','copilot.cmd','devin.cmd','agy.cmd','cursor-agent.cmd','cursor-agent','cursor.cmd','cursor') {
+foreach ($launcher in 'gemini.cmd','qwen.cmd','copilot.cmd','devin.cmd','agy.cmd','cline.cmd','qodercli.cmd','cline-acp.cmd','qoder-acp.cmd','opencode-acp.cmd','gemini-acp.cmd','copilot-acp.cmd','hermes-acp.cmd','cursor-agent.cmd','cursor-agent','cursor.cmd','cursor') {
   Assert-Profile (Test-Path "$UserProfile\bin\$launcher") "unattended launcher exists: $launcher"
 }
 $qwenLauncher = Get-Content "$UserProfile\bin\qwen.cmd" -Raw -ErrorAction SilentlyContinue

@@ -41,6 +41,13 @@
       "implementer": ["agentic-ecosystem"],
       "reviewer": ["agentic-ecosystem-review"],
       "verifier": ["agentic-ecosystem-verify"]
+    },
+    {
+      "hostId": "qoder",
+      "scout": ["scout"],
+      "implementer": ["implementer"],
+      "reviewer": ["reviewer"],
+      "verifier": ["verifier"]
     }
   ],
   "specializedRoles": [

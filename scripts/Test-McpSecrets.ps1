@@ -1,10 +1,10 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$RegistryRoot = "C:\Repos\agent-capabilities",
+    [string]$RegistryRoot = "C:\Repos\shmindmaster\agenthub",
     [string]$UserProfile = "C:\Users\SaroshHussain",
-    [string]$OutputJson = "$env:TEMP\agent-capabilities-mcp-secret-audit.json",
-    [string]$OutputMd = "$env:TEMP\agent-capabilities-mcp-secret-audit.md"
+    [string]$OutputJson = "$env:TEMP\agenthub-mcp-secret-audit.json",
+    [string]$OutputMd = "$env:TEMP\agenthub-mcp-secret-audit.md"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,6 +37,9 @@ foreach ($path in $targets) {
         $matches = [regex]::Matches($raw, $pattern, 'IgnoreCase')
         foreach ($m in $matches) {
             $value = $m.Value
+            if ($value -match '\$\{(?:env:)?[A-Za-z_][A-Za-z0-9_]*\}|\{env:[A-Za-z_][A-Za-z0-9_]*\}|\$[A-Z_][A-Z0-9_]*') {
+                continue
+            }
             $redacted = if ($value.Length -le 10) { '***' } else { $value.Substring(0, 6) + '***' + $value.Substring($value.Length - 4) }
             $findings += [pscustomobject]@{
                 path = $path

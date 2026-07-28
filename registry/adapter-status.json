@@ -19,5 +19,7 @@
     ,{ "host": "antigravity", "state": "configured", "artifact": "WinGet CLI plus retained desktop and IDE companion surfaces" }
     ,{ "host": "grok", "state": "configured", "artifact": "native configuration, managed capability skills, plugins inventory, and remote MCPs" }
     ,{ "host": "warp", "state": "configured", "artifact": "native MCP registry and documented global skill deployment" }
+    ,{ "host": "cline", "state": "configured", "artifact": "native streamable-HTTP/stdio MCP sync, managed skills, rules policy, connector support metadata, and YOLO launcher" }
+    ,{ "host": "qoder", "state": "configured", "artifact": "native MCP/settings sync, Qoder skills and plugin manifests, ACP profile, and bypass-permissions launcher" }
   ]
 }

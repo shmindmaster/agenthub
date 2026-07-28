@@ -1,4 +1,0 @@
-interface:
-  display_name: "Audit Product Experience"
-  short_description: "Find high-impact usability and workflow problems"
-  default_prompt: "Use $audit-product-experience to deeply audit this application experience."

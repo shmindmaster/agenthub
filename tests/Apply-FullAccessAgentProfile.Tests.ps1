@@ -73,21 +73,21 @@ function New-DistributionFixture {
     $rules = Join-Path $canonicalRoot 'skills\product-demo-studio-remotion\rules'
     New-Item -ItemType Directory -Path $rules -Force | Out-Null
     Set-Content -LiteralPath (Join-Path $rules 'video-layout.md') -Value 'safe-area:80' -Encoding UTF8
-    $qwenExtensionSkills = Join-Path $fakeProfile '.qwen\extensions\agent-capabilities-product-demo-studio\skills'
+    $qwenExtensionSkills = Join-Path $fakeProfile '.qwen\extensions\agenthub-product-demo-studio\skills'
     New-Item -ItemType Directory -Path $qwenExtensionSkills -Force | Out-Null
-    $qwenAdapterRoot = Join-Path $registryRoot 'adapters\qwen-code\extensions\agent-capabilities-product-demo-studio'
+    $qwenAdapterRoot = Join-Path $registryRoot 'adapters\qwen-code\extensions\agenthub-product-demo-studio'
     New-Item -ItemType Directory -Path (Join-Path $qwenAdapterRoot 'skills') -Force | Out-Null
-    '{"name":"agent-capabilities-product-demo-studio","version":"1.0.0","skills":"skills"}' |
+    '{"name":"agenthub-product-demo-studio","version":"1.0.0","skills":"skills"}' |
         Set-Content -LiteralPath (Join-Path $qwenAdapterRoot 'qwen-extension.json') -Encoding UTF8
     foreach ($name in $canonicalVideoSkills) {
         Copy-Item -LiteralPath (Join-Path $canonicalRoot "skills\$name") -Destination $qwenExtensionSkills -Recurse
         Copy-Item -LiteralPath (Join-Path $canonicalRoot "skills\$name") -Destination (Join-Path $qwenAdapterRoot 'skills') -Recurse
     }
-    $qwenExperienceExtensionSkills = Join-Path $fakeProfile '.qwen\extensions\agent-capabilities-product-experience-engineering\skills'
+    $qwenExperienceExtensionSkills = Join-Path $fakeProfile '.qwen\extensions\agenthub-product-experience-engineering\skills'
     New-Item -ItemType Directory -Path $qwenExperienceExtensionSkills -Force | Out-Null
-    $qwenExperienceAdapterRoot = Join-Path $registryRoot 'adapters\qwen-code\extensions\agent-capabilities-product-experience-engineering'
+    $qwenExperienceAdapterRoot = Join-Path $registryRoot 'adapters\qwen-code\extensions\agenthub-product-experience-engineering'
     New-Item -ItemType Directory -Path (Join-Path $qwenExperienceAdapterRoot 'skills') -Force | Out-Null
-    '{"name":"agent-capabilities-product-experience-engineering","version":"1.0.0","skills":"skills"}' |
+    '{"name":"agenthub-product-experience-engineering","version":"1.0.0","skills":"skills"}' |
         Set-Content -LiteralPath (Join-Path $qwenExperienceAdapterRoot 'qwen-extension.json') -Encoding UTF8
     foreach ($name in $canonicalExperienceSkills) {
         Copy-Item -LiteralPath (Join-Path $canonicalExperienceRoot "skills\$name") -Destination $qwenExperienceExtensionSkills -Recurse
@@ -214,7 +214,7 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
         $portablePluginPath = $fixture.CanonicalRoot.Replace('\','/')
         $vscodeSettings.'chat.pluginLocations'.$portablePluginPath | Should Be $true
 
-        $quarantineRoot = Join-Path $fixture.UserProfile '.agent-capabilities\quarantine'
+        $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
         $manifestsBefore = @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse)
         $manifestsBefore.Count | Should Be 1
         $manifest = Get-Content -LiteralPath $manifestsBefore[0].FullName -Raw | ConvertFrom-Json
@@ -234,7 +234,7 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
         (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
 
         (Test-Path -LiteralPath $staleEmptyDirectory) | Should Be $false
-        $quarantineRoot = Join-Path $fixture.UserProfile '.agent-capabilities\quarantine'
+        $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
         @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count | Should Be 1
         (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
         @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count | Should Be 1
@@ -275,7 +275,7 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
 
     It 'self-heals a missing Qwen native extension junction' {
         $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'qwen-self-heal')
-        $extension = Join-Path $fixture.UserProfile '.qwen\extensions\agent-capabilities-product-demo-studio'
+        $extension = Join-Path $fixture.UserProfile '.qwen\extensions\agenthub-product-demo-studio'
         Remove-Item -LiteralPath $extension -Recurse -Force
 
         (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
@@ -330,7 +330,7 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
         $vscodeSettings = Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'AppData\Roaming\Code - Insiders\User\settings.json') -Raw | ConvertFrom-Json
         $vscodeSettings.'chat.pluginLocations'.$($fixture.CanonicalExperienceRoot.Replace('\','/')) | Should Be $true
 
-        $qwenExtension = Join-Path $fixture.UserProfile '.qwen\extensions\agent-capabilities-product-experience-engineering'
+        $qwenExtension = Join-Path $fixture.UserProfile '.qwen\extensions\agenthub-product-experience-engineering'
         foreach ($name in $canonicalExperienceSkills) {
             (Get-Content -LiteralPath (Join-Path $qwenExtension "skills\$name\SKILL.md") -Raw).Trim() | Should Be "canonical:$name"
         }

@@ -49,7 +49,7 @@ Claude, Codex, and other personal agent hosts share the policy in [`docs/cross-a
 
 ## Retained core
 
-The registry owns nine canonical capabilities: seven plugin capabilities (`clerk`, `use-digitalocean`, `use-elevenlabs`, `product-experience-engineering`, `product-demo-studio`, `use-campaign-production`, and `use-prompt-os`), the `shwiki-context` read-only portfolio-context skill and MCP, and the `browser-toolkit` skills, MCP, and host adapters.
+The registry owns nine canonical capabilities: seven plugin capabilities (`clerk`, `use-digitalocean`, `use-elevenlabs`, `product-experience-engineering`, `product-demo-studio`, `use-campaign-production`, and `use-prompt-os`), the `repocontext` read-only portfolio-context skill and MCP, and the `browser-toolkit` skills, MCP, and host adapters.
 
 `product-experience-engineering` is the single owner for making a real workflow useful, coherent, polished, and demo-ready. Its `prepare-product-for-demo` entry skill runs the mandatory pre-production audit, authorized remediation, validation, and revision-bound handoff. Product Demo Studio consumes that handoff; it does not own product remediation.
 
@@ -57,12 +57,12 @@ The registry owns nine canonical capabilities: seven plugin capabilities (`clerk
 
 Run `powershell.exe -NoProfile -File .\scripts\Apply-FullAccessAgentProfile.ps1 -SkillDistributionOnly -RetireLegacyVideoOwners` to refresh the video capability without rewriting unrelated host settings. Restart open agent sessions afterward so they reload skills and plugin manifests.
 
-`shwiki-context` is the portfolio context control plane. Its hosted Streamable HTTP endpoint is canonical for configured hosts and exposes eight read-only tools; local stdio (`pnpm --dir C:/Repos/shmindmaster/shwiki mcp:wiki`) is only the offline or freshest-local fallback. Capability package: `capabilities/shwiki-context/`. Host auth stays in secret stores; never commit tokens.
+`repocontext` is the portfolio context control plane. Local stdio (`pnpm --dir C:/Repos/shmindmaster/repocontext mcp:serve`) is validated and exposes eight read-only tools. The private Streamable HTTP registration remains deployment-pending until its paid production resource is authorized and passes the authenticated remote contract. Capability package: `capabilities/repocontext/`. Host auth stays in secret stores; never commit tokens.
 
 Run `pwsh -File .\tests\Validate-AgentEcosystem.ps1 -IncludeGlobalInstructions` before publishing changes. The check uses no network calls and does not inspect or print secret values.
 
 Run `pwsh -File .\tests\Test-HostReadiness.ps1` to report locally installed host clients and required policy pointers without opening a browser, connecting to an MCP server, or reading credentials.
 
-The shared MCP set is remote-first: Linear, Context7, Notion, ShWiki, Firecrawl, Tavily, and Exa use hosted HTTP endpoints. Playwright stays local for browser control and Brave Search stays local because it has no verified official hosted endpoint. OAuth approval is deliberately per host; see `registry/mcp-registrations.json` for status without storing auth material.
+The shared MCP set is remote-first: GitHub, Linear, Context7, Notion, Firecrawl, Tavily, and Exa use hosted HTTP endpoints. RepoContext is validated locally and in its private container; its hosted registration remains deployment-pending. GitHub is pinned to the `shmindmaster` account until the released server supports native multi-account routing; see [`docs/github-mcp.md`](docs/github-mcp.md). Playwright stays local for browser control and Brave Search stays local because it has no verified official hosted endpoint. OAuth approval is deliberately per host; see `registry/mcp-registrations.json` for status without storing auth material.
 
 Worktree creation, retention, and cleanup are governed by the single shared policy in `docs/worktree-management-policy.md`. Run `scripts/Audit-Worktrees.ps1` for a report-only inventory; cleanup is deliberately separate.

@@ -1,4 +1,0 @@
-interface:
-  display_name: "DigitalOcean Incident Response"
-  short_description: "Diagnose outages, failed deployments, and platform issues."
-  default_prompt: "Investigate this DO incident."

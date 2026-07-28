@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "repocontext": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": [
+        "--dir",
+        "C:/Repos/shmindmaster/repocontext",
+        "mcp:serve"
+      ]
+    }
+  }
+}

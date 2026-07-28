@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$Apply,
-    [string]$RegistryRoot = 'C:\Repos\agent-capabilities'
+    [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub'
 )
 
 $ErrorActionPreference = 'Stop'

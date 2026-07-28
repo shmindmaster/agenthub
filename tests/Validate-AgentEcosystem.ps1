@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$RegistryRoot = 'C:\Repos\agent-capabilities',
+    [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub',
     [switch]$IncludeGlobalInstructions,
     [string]$UserProfilePath = $env:USERPROFILE,
     [switch]$Json
@@ -125,7 +125,7 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
 
     if ($registryObjects.ContainsKey('fleet-profile.json')) {
         $managedHosts = @($registryObjects['fleet-profile.json'].managedHosts)
-        foreach ($baselineCapabilityId in @('product-demo-studio', 'product-experience-engineering', 'shwiki-context')) {
+        foreach ($baselineCapabilityId in @('product-demo-studio', 'product-experience-engineering', 'repocontext')) {
             $baselineCapability = @($capabilities | Where-Object id -eq $baselineCapabilityId)
             if ($baselineCapability.Count -ne 1) {
                 Add-ValidationResult FAIL "coverage:$baselineCapabilityId" 'expected exactly one baseline capability definition'

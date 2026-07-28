@@ -19,12 +19,12 @@ Describe 'Sync-AgentCapabilities Codex TOML preservation' {
         } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\agents.json') -Encoding UTF8
         @{
             mcpServers = @(@{
-                id = 'shwiki-context'
-                name = 'ShWiki Context'
+                id = 'repocontext'
+                name = 'RepoContext'
                 scope = 'global-default'
                 transport = 'http'
-                url = 'https://shwiki.shtrial.com/api/mcp'
-                headers = @{ Authorization = 'Bearer ${env:SHWIKI_MCP_TOKEN}' }
+                url = 'https://repocontext.shtrial.com/api/mcp'
+                headers = @{ Authorization = 'Bearer ${env:REPOCONTEXT_MCP_TOKEN}' }
                 credentialPolicy = 'environment-bearer-token'
             })
         } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
@@ -46,8 +46,10 @@ enabled = true
         $result = Get-Content -LiteralPath $config -Raw
         $result | Should Match '(?m)^\[plugins\."product-demo-studio@handoff"\]$'
         $result | Should Match 'enabled\s*=\s*true'
-        $result | Should Match 'url\s*=\s*"https://shwiki\.shtrial\.com/api/mcp"'
-        $result | Should Match 'bearer_token_env_var\s*=\s*"SHWIKI_MCP_TOKEN"'
+        $result | Should Match '\[mcp_servers\.repocontext\]'
+        $result | Should Not Match '(?m)^\[mcp_servers\.shwiki-context\]$'
+        $result | Should Match 'url\s*=\s*"https://repocontext\.shtrial\.com/api/mcp"'
+        $result | Should Match 'bearer_token_env_var\s*=\s*"REPOCONTEXT_MCP_TOKEN"'
         $result | Should Not Match 'command\s*='
     }
 }
@@ -70,12 +72,12 @@ Describe 'Sync-AgentCapabilities Qwen JSON compatibility' {
         } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\agents.json') -Encoding UTF8
         @{
             mcpServers = @(@{
-                id = 'shwiki-context'
-                name = 'ShWiki Context'
+                id = 'repocontext'
+                name = 'RepoContext'
                 scope = 'global-default'
                 transport = 'http'
-                url = 'https://shwiki.shtrial.com/api/mcp'
-                headers = @{ Authorization = 'Bearer ${env:SHWIKI_MCP_TOKEN}' }
+                url = 'https://repocontext.shtrial.com/api/mcp'
+                headers = @{ Authorization = 'Bearer ${env:REPOCONTEXT_MCP_TOKEN}' }
                 credentialPolicy = 'environment-bearer-token'
             })
         } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
@@ -91,8 +93,8 @@ Describe 'Sync-AgentCapabilities Qwen JSON compatibility' {
         $raw = Get-Content -LiteralPath $settings -Raw
         $result = $raw | ConvertFrom-Json
         $result.model.name | Should Be 'test-model'
-        $result.mcpServers.'shwiki-context'.httpUrl | Should Be 'https://shwiki.shtrial.com/api/mcp'
-        $result.mcpServers.'shwiki-context'.headers.Authorization | Should Be 'Bearer ${SHWIKI_MCP_TOKEN}'
+        $result.mcpServers.repocontext.httpUrl | Should Be 'https://repocontext.shtrial.com/api/mcp'
+        $result.mcpServers.repocontext.headers.Authorization | Should Be 'Bearer ${REPOCONTEXT_MCP_TOKEN}'
     }
 }
 
@@ -284,5 +286,175 @@ Describe 'Sync-AgentCapabilities plugin-owned MCP deduplication' {
         $result = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
         (@($result.mcpServers.PSObject.Properties.Name) -contains 'notion') | Should Be $false
         $result.mcpServers.exa.url | Should Be 'https://mcp.exa.ai/mcp'
+    }
+}
+
+Describe 'Sync-AgentCapabilities GitHub remote MCP host schemas' {
+    It 'renders one shmindmaster registration in each active host-native format without embedding a token' {
+        $fixture = Join-Path $TestDrive 'github-remote-hosts'
+        $registryRoot = Join-Path $fixture 'registry-root'
+        $profile = Join-Path $fixture 'profile'
+        $paths = @{
+            claude = Join-Path $profile '.claude.json'
+            codex = Join-Path $profile '.codex\config.toml'
+            qwen = Join-Path $profile '.qwen\settings.json'
+            opencode = Join-Path $profile '.config\opencode\opencode.json'
+            gemini = Join-Path $profile '.gemini\settings.json'
+            antigravity = Join-Path $profile '.gemini\antigravity\mcp_config.json'
+            antigravityLegacy = Join-Path $profile '.gemini\config\mcp_config.json'
+            warp = Join-Path $profile '.warp\.mcp.json'
+            cline = Join-Path $profile '.cline\data\settings\cline_mcp_settings.json'
+            qoder = Join-Path $profile '.qoder\settings.json'
+            copilot = Join-Path $profile '.copilot\mcp-config.json'
+        }
+
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
+        foreach ($path in $paths.Values) {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force | Out-Null
+        }
+
+        @{
+            activeAgents = @(
+                @{ id = 'claude'; nativePaths = @{ mcpUser = $paths.claude } },
+                @{ id = 'codex'; nativePaths = @{ config = $paths.codex } },
+                @{ id = 'qwen-code'; nativePaths = @{ settings = $paths.qwen } },
+                @{ id = 'opencode'; nativePaths = @{ config = $paths.opencode } },
+                @{ id = 'gemini'; nativePaths = @{ settings = $paths.gemini } },
+                @{ id = 'antigravity'; nativePaths = @{ mcp = $paths.antigravity; legacyMcp = $paths.antigravityLegacy } },
+                @{ id = 'warp'; nativePaths = @{ mcp = $paths.warp } },
+                @{ id = 'cline'; nativePaths = @{ mcp = $paths.cline } },
+                @{ id = 'qoder'; nativePaths = @{ mcp = $paths.qoder } },
+                @{ id = 'copilot'; nativePaths = @{ mcp = $paths.copilot } }
+            )
+            inactiveAgents = @()
+        } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\agents.json') -Encoding UTF8
+
+        @{
+            mcpServers = @(
+                @{
+                    id = 'github'
+                    name = 'GitHub (shmindmaster)'
+                    scope = 'global-default'
+                    transport = 'http'
+                    url = 'https://api.githubcopilot.com/mcp/'
+                    headers = @{ Authorization = 'Bearer ${env:GITHUB_MCP_SHMINDMASTER_TOKEN}' }
+                    credentialPolicy = 'environment-bearer-token'
+                    pluginOwnersByHost = @{ copilot = 'built-in:github-mcp-server' }
+                },
+                @{
+                    id = 'oauth-service'
+                    name = 'OAuth service'
+                    scope = 'global-default'
+                    transport = 'http'
+                    url = 'https://example.test/mcp'
+                    credentialPolicy = 'oauth'
+                    hosts = @('copilot')
+                }
+            )
+        } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
+        @{ capabilities = @() } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
+
+        @{
+            mcpServers = @{
+                'github-sh-pendoah' = @{
+                    type = 'http'
+                    url = 'https://api.githubcopilot.com/mcp/'
+                    headers = @{ Authorization = 'Bearer ${GITHUB_TOKEN_SH_PENDOAH}' }
+                }
+                'github-sarosh-pendoah' = @{
+                    type = 'http'
+                    url = 'https://api.githubcopilot.com/mcp/'
+                    headers = @{ Authorization = 'Bearer ${GITHUB_TOKEN_SAROSH_PENDOAH}' }
+                }
+            }
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $paths.claude -Encoding ASCII -NoNewline
+        @'
+[mcp_servers.github-shmindmaster]
+url = "https://api.githubcopilot.com/mcp/"
+bearer_token_env_var = "GITHUB_TOKEN_SHMINDMASTER"
+
+[mcp_servers.github-sh-pendoah]
+url = "https://api.githubcopilot.com/mcp/"
+bearer_token_env_var = "GITHUB_TOKEN_SH_PENDOAH"
+'@ | Set-Content -LiteralPath $paths.codex -Encoding ASCII -NoNewline
+        '{"mcp":{"allowed":[]}}' | Set-Content -LiteralPath $paths.qwen -Encoding ASCII -NoNewline
+        '{}' | Set-Content -LiteralPath $paths.opencode -Encoding ASCII -NoNewline
+        '{}' | Set-Content -LiteralPath $paths.gemini -Encoding ASCII -NoNewline
+        '{}' | Set-Content -LiteralPath $paths.antigravityLegacy -Encoding ASCII -NoNewline
+        '{}' | Set-Content -LiteralPath $paths.warp -Encoding ASCII -NoNewline
+        '{}' | Set-Content -LiteralPath $paths.cline -Encoding ASCII -NoNewline
+        '{"mcpServers":{"github":{"type":"http","url":"https://api.githubcopilot.com/mcp/","headers":{"Authorization":"Bearer ${env:GITHUB_MCP_SHMINDMASTER_TOKEN}"}}}}' |
+            Set-Content -LiteralPath $paths.qoder -Encoding ASCII -NoNewline
+        '{"mcpServers":{"oauth-service":{"type":"http","url":"https://example.test/mcp","auth":"oauth"}}}' |
+            Set-Content -LiteralPath $paths.copilot -Encoding ASCII -NoNewline
+
+        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+            -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
+        $LASTEXITCODE | Should Be 0
+
+        $claude = Get-Content -LiteralPath $paths.claude -Raw | ConvertFrom-Json
+        $claude.mcpServers.github.type | Should Be 'http'
+        $claude.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        (@($claude.mcpServers.PSObject.Properties.Name | Where-Object { $_ -like 'github-*' }).Count) | Should Be 0
+
+        $codex = Get-Content -LiteralPath $paths.codex -Raw
+        $codex | Should Match 'url\s*=\s*"https://api\.githubcopilot\.com/mcp/"'
+        $codex | Should Match 'bearer_token_env_var\s*=\s*"GITHUB_MCP_SHMINDMASTER_TOKEN"'
+        $codex | Should Not Match '(?m)^\[mcp_servers\.github-'
+
+        $qwen = Get-Content -LiteralPath $paths.qwen -Raw | ConvertFrom-Json
+        $qwen.mcpServers.github.httpUrl | Should Be 'https://api.githubcopilot.com/mcp/'
+        $qwen.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        (@($qwen.mcp.allowed) -contains 'github') | Should Be $true
+
+        $opencode = Get-Content -LiteralPath $paths.opencode -Raw | ConvertFrom-Json
+        $opencode.mcp.github.type | Should Be 'remote'
+        $opencode.mcp.github.oauth | Should Be $false
+        $opencode.mcp.github.headers.Authorization | Should Be 'Bearer {env:GITHUB_MCP_SHMINDMASTER_TOKEN}'
+
+        $gemini = Get-Content -LiteralPath $paths.gemini -Raw | ConvertFrom-Json
+        $gemini.mcpServers.github.httpUrl | Should Be 'https://api.githubcopilot.com/mcp/'
+        $gemini.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        (@($gemini.mcpServers.github.PSObject.Properties.Name) -contains 'type') | Should Be $false
+
+        foreach ($path in @($paths.antigravity, $paths.antigravityLegacy)) {
+            $antigravity = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            $antigravity.mcpServers.github.serverUrl | Should Be 'https://api.githubcopilot.com/mcp/'
+            $antigravity.mcpServers.github.headers.Authorization | Should Be 'Bearer $GITHUB_MCP_SHMINDMASTER_TOKEN'
+            (@($antigravity.mcpServers.github.PSObject.Properties.Name) -contains 'type') | Should Be $false
+        }
+
+        $warp = Get-Content -LiteralPath $paths.warp -Raw | ConvertFrom-Json
+        $warp.mcpServers.github.url | Should Be 'https://api.githubcopilot.com/mcp/'
+        $warp.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        (@($warp.mcpServers.github.PSObject.Properties.Name) -contains 'type') | Should Be $false
+
+        $cline = Get-Content -LiteralPath $paths.cline -Raw | ConvertFrom-Json
+        $cline.mcpServers.github.type | Should Be 'streamableHttp'
+        $cline.mcpServers.github.headers.Authorization | Should Be 'Bearer ${env:GITHUB_MCP_SHMINDMASTER_TOKEN}'
+
+        $qoder = Get-Content -LiteralPath $paths.qoder -Raw | ConvertFrom-Json
+        $qoder.mcpServers.github.type | Should Be 'http'
+        $qoder.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+
+        $copilot = Get-Content -LiteralPath $paths.copilot -Raw | ConvertFrom-Json
+        (@($copilot.mcpServers.PSObject.Properties.Name) -contains 'github') | Should Be $false
+        $copilot.mcpServers.'oauth-service'.type | Should Be 'http'
+        (@($copilot.mcpServers.'oauth-service'.PSObject.Properties.Name) -contains 'auth') | Should Be $false
+
+        $allManaged = @(
+            $paths.claude,
+            $paths.codex,
+            $paths.qwen,
+            $paths.opencode,
+            $paths.gemini,
+            $paths.antigravity,
+            $paths.antigravityLegacy,
+            $paths.warp,
+            $paths.cline,
+            $paths.qoder,
+            $paths.copilot
+        ) | ForEach-Object { Get-Content -LiteralPath $_ -Raw }
+        ($allManaged -join "`n") | Should Not Match 'gh[pousr]_[A-Za-z0-9_]{20,}'
     }
 }
