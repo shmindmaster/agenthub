@@ -26,6 +26,6 @@ Rollback a configuration batch with:
 ```
 
 Loose product-skill backups live under
-`%LOCALAPPDATA%\AgentCapabilities\handoff-skill-backups`. Claude plugin updates
+`%LOCALAPPDATA%\AgentHub\handoff-skill-backups`. Claude plugin updates
 use its native versioned cache and require restart. Secrets are never backed up;
 restore or rotate them separately.

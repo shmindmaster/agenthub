@@ -15,7 +15,7 @@ function Read-JsonSafe {
     try { return Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json } catch { return $null }
 }
 
-$stateFile = Join-Path (Join-Path $env:LOCALAPPDATA 'AgentCapabilities\sync') 'sync-state.json'
+$stateFile = Join-Path (Join-Path $env:LOCALAPPDATA 'AgentHub\sync') 'sync-state.json'
 $state = Read-JsonSafe $stateFile
 if (-not $state) { throw "Missing sync state at $stateFile" }
 

@@ -32,7 +32,7 @@ readiness infrastructure only.
 | Product Demo Studio 0.6.1 | Verified | guide hash validator and `claude plugin validate`; Claude cache updated, prior disabled state preserved |
 | Product Experience Engineering 1.1.0 | Verified | complete plugin test suite; Claude cache updated, prior disabled state preserved |
 | Qwen native extension propagation | Verified | junction inventory contains new/updated skills |
-| OpenCode/Hermes loose-skill propagation | Verified | targeted sync with backups under `%LOCALAPPDATA%\AgentCapabilities\handoff-skill-backups` |
+| OpenCode/Hermes loose-skill propagation | Verified | targeted sync with backups under `%LOCALAPPDATA%\AgentHub\handoff-skill-backups` |
 | Playwright | Partially verified | existing installations preserved; this toolkit neither installs nor owns them |
 | Computer Use | Partially verified | Qwen 0.20.1 setting enabled; native desktop action not run because no justified workflow was in scope |
 | Vite integration | Not verified | conditional fragment supplied; no Vite repository was placed in scope |

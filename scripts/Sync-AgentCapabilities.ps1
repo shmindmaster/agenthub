@@ -42,7 +42,7 @@ $ErrorActionPreference = 'Stop'
 # Paths
 # ---------------------------------------------------------------------------
 $RegistryDir       = Join-Path $RegistryRoot 'registry'
-$RuntimeDir        = Join-Path $env:LOCALAPPDATA 'AgentCapabilities'
+$RuntimeDir        = Join-Path $env:LOCALAPPDATA 'AgentHub'
 $StateDir          = Join-Path $RuntimeDir 'sync'
 $DriftDir          = Join-Path $StateDir 'drift-reports'
 $StateFile         = Join-Path $StateDir 'sync-state.json'

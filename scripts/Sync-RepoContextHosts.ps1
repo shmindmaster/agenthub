@@ -50,7 +50,7 @@ try {
 
     if ($Apply) {
         $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-        $backupRoot = Join-Path $env:LOCALAPPDATA "AgentCapabilities\backups\repocontext-$stamp"
+        $backupRoot = Join-Path $env:LOCALAPPDATA "AgentHub\backups\repocontext-$stamp"
         New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
         $manifest = @()
         foreach ($agent in $targetAgents) {
