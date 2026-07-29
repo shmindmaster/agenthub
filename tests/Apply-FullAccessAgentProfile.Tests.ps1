@@ -39,6 +39,7 @@ function global:New-DistributionFixture {
     $canonicalBrowserRoot = Join-Path $Root 'canonical-browser-toolkit'
     $fakeProfile = Join-Path $Root 'profile'
     $fakeAppData = Join-Path $fakeProfile 'AppData\Roaming'
+    $fakeLocalAppData = Join-Path $fakeProfile 'AppData\Local'
     New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $registryRoot 'scripts') -Force | Out-Null
     $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -81,7 +82,7 @@ function global:New-DistributionFixture {
     Set-Content -LiteralPath (Join-Path $rules 'video-layout.md') -Value 'safe-area:80' -Encoding UTF8
     $qwenExtensionSkills = Join-Path $fakeProfile '.qwen\extensions\agenthub-product-demo-studio\skills'
     New-Item -ItemType Directory -Path $qwenExtensionSkills -Force | Out-Null
-    $qwenAdapterRoot = Join-Path $registryRoot 'adapters\qwen-code\extensions\agenthub-product-demo-studio'
+    $qwenAdapterRoot = Join-Path $fakeLocalAppData 'AgentHub\runtime\qwen-code\extensions\agenthub-product-demo-studio'
     New-Item -ItemType Directory -Path (Join-Path $qwenAdapterRoot 'skills') -Force | Out-Null
     '{"name":"agenthub-product-demo-studio","version":"1.0.0","skills":"skills"}' |
         Set-Content -LiteralPath (Join-Path $qwenAdapterRoot 'qwen-extension.json') -Encoding UTF8
@@ -91,7 +92,7 @@ function global:New-DistributionFixture {
     }
     $qwenExperienceExtensionSkills = Join-Path $fakeProfile '.qwen\extensions\agenthub-product-experience-engineering\skills'
     New-Item -ItemType Directory -Path $qwenExperienceExtensionSkills -Force | Out-Null
-    $qwenExperienceAdapterRoot = Join-Path $registryRoot 'adapters\qwen-code\extensions\agenthub-product-experience-engineering'
+    $qwenExperienceAdapterRoot = Join-Path $fakeLocalAppData 'AgentHub\runtime\qwen-code\extensions\agenthub-product-experience-engineering'
     New-Item -ItemType Directory -Path (Join-Path $qwenExperienceAdapterRoot 'skills') -Force | Out-Null
     '{"name":"agenthub-product-experience-engineering","version":"1.0.0","skills":"skills"}' |
         Set-Content -LiteralPath (Join-Path $qwenExperienceAdapterRoot 'qwen-extension.json') -Encoding UTF8
@@ -126,6 +127,7 @@ function global:New-DistributionFixture {
         CanonicalBrowserRoot = $canonicalBrowserRoot
         UserProfile = $fakeProfile
         AppData = $fakeAppData
+        LocalAppData = $fakeLocalAppData
     }
 }
 
@@ -133,8 +135,10 @@ function global:Invoke-DistributionOnly {
     param([hashtable]$Fixture, [switch]$RetireLegacyVideoOwners)
 
     $previousAppData = $env:APPDATA
+    $previousLocalAppData = $env:LOCALAPPDATA
     try {
         $env:APPDATA = $Fixture.AppData
+        $env:LOCALAPPDATA = $Fixture.LocalAppData
         $arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$global:AgentHubApplyScriptPath,
             '-RegistryRoot',$Fixture.RegistryRoot,'-UserProfile',$Fixture.UserProfile,'-SkillDistributionOnly')
         if ($RetireLegacyVideoOwners) { $arguments += '-RetireLegacyVideoOwners' }
@@ -142,6 +146,7 @@ function global:Invoke-DistributionOnly {
         return $LASTEXITCODE
     } finally {
         $env:APPDATA = $previousAppData
+        $env:LOCALAPPDATA = $previousLocalAppData
     }
 }
 
@@ -321,7 +326,12 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
 
         (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
 
-        (Get-Item -LiteralPath $extension).LinkType | Should -Be 'Junction'
+        $extensionItem = Get-Item -LiteralPath $extension -Force
+        $extensionItem.LinkType | Should -Be 'Junction'
+        [IO.Path]::GetFullPath([string]$extensionItem.Target) | Should -Be (
+            [IO.Path]::GetFullPath((Join-Path $fixture.LocalAppData `
+                'AgentHub\runtime\qwen-code\extensions\agenthub-product-demo-studio'))
+        )
         foreach ($name in $global:canonicalVideoSkills) {
             (Get-Content -LiteralPath (Join-Path $extension "skills\$name\SKILL.md") -Raw).Trim() | Should -Be "canonical:$name"
         }

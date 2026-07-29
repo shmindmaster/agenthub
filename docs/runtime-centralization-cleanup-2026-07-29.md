@@ -60,7 +60,7 @@ inference rather than a process-audit record.
 - Root cleanup manifest:
   `%LOCALAPPDATA%\AgentHub\reports\root-cleanup\2026-07-29-precleanup.json`
 - Final MCP idempotence audit:
-  `%LOCALAPPDATA%\AgentHub\sync\drift-reports\drift-20260729-130205.json`
+  `%LOCALAPPDATA%\AgentHub\sync\drift-reports\drift-20260729-131236.json`
 - Managed-file secret audit:
   `%LOCALAPPDATA%\AgentHub\reports\secret-audit\mcp-secret-audit-20260729-final.json`
 
@@ -81,8 +81,10 @@ references and zero `firecrawl-mcp` process trees.
 - Windows PowerShell 5.1 with Pester 5.6.1: 86 passed, 0 failed.
 - Focused worktree/runtime lanes: 34/34 under each engine.
 - Focused MCP determinism lanes: 28/28 under each engine.
+- Qwen profile self-healing regression: 12/12 under each engine, with the
+  repaired junction asserted against the AgentHub user runtime target.
 - Firecrawl plugin validator: passed against the canonical package.
-- Managed-file secret audit: 1,249 files scanned, 0 potential inline secrets.
+- Managed-file secret audit: 1,309 files scanned, 0 potential inline secrets.
 - JSON, TOML, YAML, plugin manifest, worktree policy, host readiness, and
   second-apply exact-hash checks: passed.
 

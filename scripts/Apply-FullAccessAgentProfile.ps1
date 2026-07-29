@@ -24,6 +24,10 @@ if ([string]::IsNullOrWhiteSpace($env:APPDATA)) {
   throw 'APPDATA is required before the agent profile can create host configuration files.'
 }
 $appDataRoot = Assert-AgentHubSafeWritePath -Path $env:APPDATA -Purpose 'the agent profile AppData directory'
+if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+  throw 'LOCALAPPDATA is required before the agent profile can create host runtime adapters.'
+}
+$localAppDataRoot = Assert-AgentHubSafeWritePath -Path $env:LOCALAPPDATA -Purpose 'the AgentHub user runtime directory'
 $mcps = Get-Content (Join-Path $RegistryRoot 'registry\mcps.json') -Raw | ConvertFrom-Json
 $caps = Get-Content (Join-Path $RegistryRoot 'registry\capabilities.json') -Raw | ConvertFrom-Json
 $profile = Get-Content (Join-Path $RegistryRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
@@ -474,7 +478,7 @@ if ('qwen-code' -in @($profile.managedHosts)) {
   foreach ($capability in $managedSkillCapabilities) {
     $extensionName = "agenthub-$($capability.id)"
     $qwenExtensionRoot = Join-Path $UserProfile ".qwen\extensions\$extensionName"
-    $qwenAdapterRoot = Join-Path $RegistryRoot "adapters\qwen-code\extensions\$extensionName"
+    $qwenAdapterRoot = Join-Path $localAppDataRoot "AgentHub\runtime\qwen-code\extensions\$extensionName"
     if (!(Test-Path -LiteralPath $qwenExtensionRoot -PathType Container) -and (Test-Path -LiteralPath $qwenAdapterRoot -PathType Container)) {
       New-Item -ItemType Directory -Path (Split-Path -Parent $qwenExtensionRoot) -Force | Out-Null
       New-Item -ItemType Junction -Path $qwenExtensionRoot -Target $qwenAdapterRoot | Out-Null
