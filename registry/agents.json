@@ -258,7 +258,7 @@
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Warp\\warp.exe",
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\.warp\\.mcp.json",
-        "worktreeTabConfig": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp\\Warp\\data\\tab_configs\\agenthub_worktree.toml",
+        "worktreeTabConfig": "C:\\Users\\SaroshHussain\\.warp\\tab_configs\\agenthub_worktree.toml",
         "skillsDir": "C:\\Users\\SaroshHussain\\.warp\\skills",
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp"
       },

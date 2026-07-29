@@ -45,6 +45,8 @@ Describe 'AgentHub worktree policy deployment' {
         $qoder.nativeBuiltIn.hookDiscoveryState | Should -Be 'binary-only-undocumented'
         $warp = @($roots.hosts | Where-Object hostId -eq 'warp')
         $warp.mechanism | Should -Be 'agenthub-managed-native-tab-config'
+        $warp.tabConfigPath | Should -Be `
+            'C:/Users/SaroshHussain/.warp/tab_configs/agenthub_worktree.toml'
 
         $installations = Get-Content -LiteralPath `
             (Join-Path $script:repoRoot 'registry\installations.json') -Raw |
@@ -87,7 +89,6 @@ Describe 'AgentHub worktree policy deployment' {
         $fixtureRegistry = Join-Path $fixture 'control'
         $profile = Join-Path $fixture 'profile'
         $localAppData = Join-Path $fixture 'local-app-data'
-        $roamingAppData = Join-Path $fixture 'roaming-app-data'
         New-Item -ItemType Directory -Path `
             (Join-Path $fixtureRegistry 'registry'), `
             (Join-Path $fixtureRegistry 'scripts'), `
@@ -131,6 +132,13 @@ Describe 'AgentHub worktree policy deployment' {
         } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath `
             (Join-Path $profile '.copilot\settings.json') -Encoding UTF8
         @"
+[hints]
+keep = "grok-user-state"
+
+[[marketplace.sources]]
+name = "synthetic"
+git = "https://example.invalid/synthetic.git"
+
 [ui]
 yolo = true
 
@@ -157,7 +165,6 @@ git-worktree-root = 'C:\wt'
             -RegistryRoot $fixtureRegistry `
             -UserProfile $profile `
             -LocalAppData $localAppData `
-            -RoamingAppData $roamingAppData `
             -EnvironmentScope Process | Out-Null
 
         $runtimeHelper = Join-Path $localAppData 'AgentHub\bin\New-AgentHubWorktree.ps1'
@@ -185,15 +192,22 @@ git-worktree-root = 'C:\wt'
         $copilot.experimental | Should -BeFalse
 
         $grokText = Get-Content -LiteralPath (Join-Path $profile '.grok\config.toml') -Raw
-        $grokText | Should -Match '(?ms)^\[hints\].*new_session_worktree_mode\s*=\s*"never"'
-        $grokText | Should -Match '(?ms)^\[hints\].*fork_worktree_mode\s*=\s*"never"'
+        $hints = [regex]::Match(
+            $grokText,
+            '(?ms)^\[hints\]\s*(?<body>.*?)(?=^\[\[marketplace\.sources\]\])'
+        )
+        $hints.Success | Should -BeTrue
+        $hints.Groups['body'].Value | Should -Match 'keep\s*=\s*"grok-user-state"'
+        $hints.Groups['body'].Value | Should -Match 'new_session_worktree_mode\s*=\s*"never"'
+        $hints.Groups['body'].Value | Should -Match 'fork_worktree_mode\s*=\s*"never"'
+        $grokText | Should -Match '(?ms)^\[\[marketplace\.sources\]\]\s*name\s*=\s*"synthetic"'
         $grokText | Should -Match '(?ms)^\[subagents\].*enabled\s*=\s*true'
 
         $hermesText = Get-Content -LiteralPath (Join-Path $localAppData 'hermes\config.yaml') -Raw
         $hermesText | Should -Match '(?m)^worktree:\s*false\s*$'
         $hermesText | Should -Match '(?ms)^model:.*default:\s*synthetic'
 
-        $warpTabConfig = Join-Path $roamingAppData 'warp\Warp\data\tab_configs\agenthub_worktree.toml'
+        $warpTabConfig = Join-Path $profile '.warp\tab_configs\agenthub_worktree.toml'
         Test-Path -LiteralPath $warpTabConfig -PathType Leaf | Should -BeTrue
         $warpText = Get-Content -LiteralPath $warpTabConfig -Raw
         $warpText | Should -Match 'agenthub:managed'
@@ -223,7 +237,6 @@ git-worktree-root = 'C:\wt'
             -RegistryRoot $fixtureRegistry `
             -UserProfile $profile `
             -LocalAppData $localAppData `
-            -RoamingAppData $roamingAppData `
             -EnvironmentScope Process | Out-Null
         (Get-FileHash -LiteralPath (Join-Path $profile '.claude\settings.json') -Algorithm SHA256).Hash |
             Should -Be $claudeHash
@@ -236,7 +249,6 @@ git-worktree-root = 'C:\wt'
         $fixtureRegistry = Join-Path $fixture 'control'
         $profile = Join-Path $fixture 'profile'
         $localAppData = Join-Path $fixture 'local-app-data'
-        $roamingAppData = Join-Path $fixture 'roaming-app-data'
         New-Item -ItemType Directory -Path `
             (Join-Path $fixtureRegistry 'registry'), `
             (Join-Path $fixtureRegistry 'scripts'), `
@@ -276,7 +288,6 @@ git-worktree-root = 'C:\wt'
                 -RegistryRoot $fixtureRegistry `
                 -UserProfile $profile `
                 -LocalAppData $localAppData `
-                -RoamingAppData $roamingAppData `
                 -EnvironmentScope Process
         } | Should -Throw '*WorktreeCreate*already owned*'
 

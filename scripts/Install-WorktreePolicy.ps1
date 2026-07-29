@@ -19,7 +19,6 @@ param(
     [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub',
     [string]$UserProfile = [Environment]::GetFolderPath('UserProfile'),
     [string]$LocalAppData = [Environment]::GetFolderPath('LocalApplicationData'),
-    [string]$RoamingAppData = [Environment]::GetFolderPath('ApplicationData'),
     [ValidateSet('Process', 'User')]
     [string]$EnvironmentScope = 'User'
 )
@@ -113,7 +112,7 @@ function Set-AgentHubTomlSectionValues {
     foreach ($entry in $Values.GetEnumerator()) {
         $sectionEnd = $lines.Count
         for ($index = $sectionStart + 1; $index -lt $lines.Count; $index++) {
-            if ($lines[$index] -match '^\s*\[[^\]]+\]\s*(?:#.*)?$') {
+            if ($lines[$index] -match '^\s*\[(?:\[[^\]]+\]\]|[^\]]+\])\s*(?:#.*)?$') {
                 $sectionEnd = $index
                 break
             }
@@ -193,7 +192,7 @@ $copilotSettingsPath = Join-Path $UserProfile '.copilot\settings.json'
 $grokConfigPath = Join-Path $UserProfile '.grok\config.toml'
 $hermesConfigPath = Join-Path $LocalAppData 'hermes\config.yaml'
 $codexConfigPath = Join-Path $UserProfile '.codex\config.toml'
-$warpTabConfigPath = Join-Path $RoamingAppData 'warp\Warp\data\tab_configs\agenthub_worktree.toml'
+$warpTabConfigPath = Join-Path $UserProfile '.warp\tab_configs\agenthub_worktree.toml'
 
 # Preflight every owned surface before making any change.
 if (-not (Test-Path -LiteralPath $codexConfigPath -PathType Leaf)) {

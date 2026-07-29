@@ -184,7 +184,7 @@
       "hostId": "warp",
       "mechanism": "agenthub-managed-native-tab-config",
       "deploymentState": "controller-install-required",
-      "tabConfigPath": "C:/Users/SaroshHussain/AppData/Roaming/warp/Warp/data/tab_configs/agenthub_worktree.toml",
+      "tabConfigPath": "C:/Users/SaroshHussain/.warp/tab_configs/agenthub_worktree.toml",
       "fallback": "manual Git under C:/wt"
     },
     {
