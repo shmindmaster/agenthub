@@ -702,9 +702,26 @@ function Get-GatewayPlanForHost {
             return $null
         }
         $endpointUri = [Uri]::new([string]$endpoint.url, [UriKind]::Absolute)
+        $declaredBindAddress = [string]$endpoint.bindAddress
+        $declaredPort = [int]$endpoint.port
+        $declaredPath = [string]$endpoint.path
+        $normalizedUriHost = $endpointUri.Host.Trim('[', ']')
+        $normalizedBindAddress = $declaredBindAddress.Trim('[', ']')
         if ($endpointUri.Scheme -notin @('http', 'https') -or
             -not $endpointUri.IsLoopback -or
-            -not [string]::IsNullOrEmpty($endpointUri.UserInfo)) {
+            -not [string]::IsNullOrEmpty($endpointUri.UserInfo) -or
+            [string]::IsNullOrWhiteSpace($declaredBindAddress) -or
+            -not $normalizedUriHost.Equals(
+                $normalizedBindAddress,
+                [System.StringComparison]::OrdinalIgnoreCase
+            ) -or
+            $declaredPort -lt 1 -or
+            $declaredPort -gt 65535 -or
+            $endpointUri.Port -ne $declaredPort -or
+            $declaredPath -notmatch '^/[^?#]*$' -or
+            $endpointUri.AbsolutePath -cne $declaredPath -or
+            -not [string]::IsNullOrEmpty($endpointUri.Query) -or
+            -not [string]::IsNullOrEmpty($endpointUri.Fragment)) {
             return $null
         }
 

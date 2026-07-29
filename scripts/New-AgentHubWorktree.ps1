@@ -222,12 +222,24 @@ if ($branchResult.exitCode -ne 1) {
     throw "Expected branch lookup failed with exit code $($branchResult.exitCode)."
 }
 
+$baseResult = Invoke-AgentHubGit -Arguments @(
+    '-C', $cwd, 'rev-parse', '--verify', 'HEAD'
+) -Operation 'invoking worktree HEAD discovery'
+$baseCommitValues = @($baseResult.output | Where-Object {
+    -not [string]::IsNullOrWhiteSpace($_)
+})
+if ($baseCommitValues.Count -ne 1 -or
+    [string]$baseCommitValues[0] -notmatch '^[0-9a-f]{40,64}$') {
+    throw "Invoking worktree HEAD discovery returned no exact commit for '$cwd'."
+}
+$baseCommit = [string]$baseCommitValues[0]
+
 $parent = Split-Path -Parent $target
 New-Item -ItemType Directory -Path $parent -Force | Out-Null
 
 # git worktree add stdout/stderr is captured by Invoke-AgentHubGit via 2>&1.
 $null = Invoke-AgentHubGit -Arguments @(
-    '-C', $gitIdentity.repositoryRoot, 'worktree', 'add', '-b', $expectedBranch, $target, 'HEAD'
+    '-C', $gitIdentity.repositoryRoot, 'worktree', 'add', '-b', $expectedBranch, $target, $baseCommit
 ) -Operation 'git worktree add'
 
 Write-Output $target

@@ -2,6 +2,11 @@
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
+    $script:currentPowerShellExecutable = if ($PSVersionTable.PSVersion.Major -lt 6) {
+        (Get-Command powershell.exe -ErrorAction Stop).Source
+    } else {
+        (Get-Command pwsh -ErrorAction Stop).Source
+    }
     $script:registryRoot = Join-Path $repoRoot 'registry'
     $script:capabilities = Get-Content -LiteralPath (Join-Path $registryRoot 'capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $script:mcps = Get-Content -LiteralPath (Join-Path $registryRoot 'mcps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -253,6 +258,9 @@ Describe 'Sync-AgentHub gateway and native connector convergence' {
                 endpoint = @{
                     id = 'agenthub-gateway'
                     transport = 'streaming'
+                    bindAddress = '127.0.0.1'
+                    port = 8811
+                    path = '/mcp'
                     url = 'http://127.0.0.1:8811/mcp'
                     authScheme = 'bearer'
                     authTokenEnvironment = 'MCP_GATEWAY_AUTH_TOKEN'
@@ -278,7 +286,7 @@ Describe 'Sync-AgentHub gateway and native connector convergence' {
         $previousLocalAppData = $env:LOCALAPPDATA
         try {
             $env:LOCALAPPDATA = $runtime
-            & (Get-Command pwsh).Source -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            & $currentPowerShellExecutable -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
                 -File (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') `
                 -Apply -Validate -RegistryRoot $fixture -UserProfile $profile | Out-Host
             $LASTEXITCODE | Should -Be 0
@@ -335,7 +343,7 @@ enabled = false
         $previousLocalAppData = $env:LOCALAPPDATA
         try {
             $env:LOCALAPPDATA = $runtime
-            & (Get-Command pwsh).Source -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            & $currentPowerShellExecutable -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
                 -File (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') `
                 -Apply -Validate -RegistryRoot $fixture -UserProfile $profile | Out-Host
             $LASTEXITCODE | Should -Be 0
@@ -390,6 +398,9 @@ enabled = false
                 endpoint = @{
                     id = 'agenthub-gateway'
                     transport = 'streaming'
+                    bindAddress = '127.0.0.1'
+                    port = 8811
+                    path = '/mcp'
                     url = 'http://127.0.0.1:8811/mcp'
                     authScheme = 'bearer'
                     authTokenEnvironment = 'MCP_GATEWAY_AUTH_TOKEN'
@@ -426,6 +437,22 @@ enabled = false
             @{ name = 'non-loopback endpoint'; mutate = {
                 param($gateway, $connector)
                 $gateway.candidates[0].endpoint.url = 'http://192.0.2.10:8811/mcp'
+            } },
+            @{ name = 'declared bind address mismatch'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].endpoint.bindAddress = '127.0.0.2'
+            } },
+            @{ name = 'declared port mismatch'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].endpoint.port = 8812
+            } },
+            @{ name = 'declared path mismatch'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].endpoint.path = '/not-mcp'
+            } },
+            @{ name = 'URL query beyond declared path'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].endpoint.url = 'http://127.0.0.1:8811/mcp?unexpected=true'
             } },
             @{ name = 'missing bearer auth'; mutate = {
                 param($gateway, $connector)
@@ -486,7 +513,7 @@ enabled = false
                 @{ mcpServers = @{ context7 = @{ type = 'http'; url = 'https://mcp.context7.com/mcp' } } } |
                     ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $claudeConfig -Encoding UTF8
 
-                & (Get-Command pwsh).Source -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+                & $currentPowerShellExecutable -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
                     -File (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') `
                     -Apply -Validate -RegistryRoot $fixture -UserProfile $profile | Out-Host
                 $LASTEXITCODE | Should -Be 0 -Because $case.name
@@ -547,6 +574,52 @@ Describe 'AgentHub worktree-root helper' {
         ([regex]::Matches($source, '(?m)& git')).Count | Should -Be 1
     }
 
+    It 'bases a new task branch on the invoking worktree HEAD' {
+        'feature-only' | Set-Content -LiteralPath (Join-Path $nestedFixtureWorktree 'feature-only.txt') -Encoding UTF8
+        $null = & git -C $nestedFixtureWorktree add feature-only.txt 2>&1
+        $null = & git -C $nestedFixtureWorktree commit --quiet -m 'feature-only fixture' 2>&1
+        $featureHead = (& git -C $nestedFixtureWorktree rev-parse HEAD).Trim()
+        $mainHead = (& git -C $canonicalFixtureRepo rev-parse HEAD).Trim()
+        $featureHead | Should -Not -Be $mainHead
+
+        $global:AgentHubMockGitCalls = [System.Collections.Generic.List[object]]::new()
+        Mock git {
+            $call = @($args)
+            $global:AgentHubMockGitCalls.Add($call)
+            $joined = $call -join ' '
+            if ($joined -match '--git-common-dir') {
+                $global:LASTEXITCODE = 0
+                return (Join-Path $canonicalFixtureRepo '.git')
+            }
+            if ($joined -match 'rev-parse --verify HEAD') {
+                $global:LASTEXITCODE = 0
+                return $featureHead
+            }
+            if ($joined -match 'show-ref --verify --quiet') {
+                $global:LASTEXITCODE = 1
+                return
+            }
+            $global:LASTEXITCODE = 0
+        }
+        Mock New-Item { [pscustomobject]@{ FullName = $Path } } -ParameterFilter {
+            [string]$Path -like 'C:\wt\canonical-repo*'
+        }
+
+        $taskName = 'base-' + [guid]::NewGuid().ToString('N')
+        $inputJson = @{ cwd = $nestedFixtureWorktree; name = $taskName } | ConvertTo-Json -Compress
+        $result = @(& $worktreeHelper -InputJson $inputJson)
+        $result | Should -Be "C:\wt\canonical-repo\$taskName"
+
+        $headLookup = @($global:AgentHubMockGitCalls | Where-Object {
+            ($_ -join ' ') -match [regex]::Escape("-C $nestedFixtureWorktree rev-parse --verify HEAD")
+        })
+        $headLookup.Count | Should -Be 1
+        $addCall = @($global:AgentHubMockGitCalls | Where-Object { ($_ -join ' ') -match 'worktree add -b' })
+        $addCall.Count | Should -Be 1
+        $addCall[0][-1] | Should -Be $featureHead
+        Remove-Variable -Name AgentHubMockGitCalls -Scope Global -ErrorAction SilentlyContinue
+    }
+
     It 'consumes only the approved user-owned worktree-root environment contract' {
         $previousRoot = $env:AGENTHUB_WORKTREE_ROOT
         try {
@@ -587,14 +660,14 @@ Describe 'Worktree policy checker and CI wiring' {
 
         $syntheticProfile = Join-Path $TestDrive 'checker-profile'
         New-Item -ItemType Directory -Path $syntheticProfile -Force | Out-Null
-        $normal = @(& (Get-Command pwsh).Source -NoLogo -NoProfile -NonInteractive `
-            -File $checker -UserProfilePath $syntheticProfile 2>&1)
+        $normal = @(& $currentPowerShellExecutable -NoLogo -NoProfile -NonInteractive `
+            -File $checker -RegistryRoot $repoRoot -UserProfilePath $syntheticProfile 2>&1)
         $LASTEXITCODE | Should -Be 0
         ($normal -join "`n") | Should -Match 'Summary:'
         ($normal -join "`n") | Should -Not -Match 'missing or invalid registry'
 
-        $jsonRaw = (& (Get-Command pwsh).Source -NoLogo -NoProfile -NonInteractive `
-            -File $checker -UserProfilePath $syntheticProfile -Json 2>&1) -join "`n"
+        $jsonRaw = (& $currentPowerShellExecutable -NoLogo -NoProfile -NonInteractive `
+            -File $checker -RegistryRoot $repoRoot -UserProfilePath $syntheticProfile -Json 2>&1) -join "`n"
         $LASTEXITCODE | Should -Be 0
         { $jsonRaw | ConvertFrom-Json -ErrorAction Stop } | Should -Not -Throw
         $parsed = $jsonRaw | ConvertFrom-Json
@@ -606,5 +679,17 @@ Describe 'Worktree policy checker and CI wiring' {
         $workflow = Get-Content -LiteralPath (Join-Path $repoRoot '.github\workflows\validate.yml') -Raw -Encoding UTF8
         ([regex]::Matches($workflow, [regex]::Escape('.\tests\RuntimeCentralization.Tests.ps1'))).Count |
             Should -Be 2
+        ([regex]::Matches($workflow, [regex]::Escape('.\tests\StaleWorktreeReaper.Tests.ps1'))).Count |
+            Should -Be 2
+    }
+
+    It 'executes child script checks through the current PowerShell generation' {
+        if ($PSVersionTable.PSVersion.Major -lt 6) {
+            (Split-Path -Leaf $currentPowerShellExecutable) | Should -Be 'powershell.exe'
+        } else {
+            (Split-Path -Leaf $currentPowerShellExecutable) | Should -BeIn @('pwsh', 'pwsh.exe')
+        }
+        $source = Get-Content -LiteralPath $PSCommandPath -Raw -Encoding UTF8
+        ([regex]::Matches($source, '& \$currentPowerShellExecutable')).Count | Should -BeGreaterOrEqual 5
     }
 }
