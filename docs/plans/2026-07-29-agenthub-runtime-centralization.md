@@ -8,9 +8,9 @@ This is personal capability work. Use synthetic fixtures only. Do not invoke Cur
 
 ## Global Constraints
 
-- Do not create or retain new top-level directories or files directly under `C:\`.
+- Do not create or retain new top-level directories or files directly under `C:\` except the user-approved shared worktree root `C:\wt`.
 - The repository owns durable source, policy, adapters, registries, tests, and documentation.
-- User-scoped runtime state belongs under `%LOCALAPPDATA%\AgentHub\runtime`; cache state belongs under `D:\AI-Platform\cache`; Codex-managed worktrees belong under `$CODEX_HOME\worktrees`.
+- User-scoped runtime state belongs under `%LOCALAPPDATA%\AgentHub\runtime`; cache state belongs under `D:\AI-Platform\cache`; every coding agent stores worktrees under `C:\wt\<repo>\<task>`.
 - Every capability has one canonical owner. Prefer native plugin or connector ownership over generated duplicates; use shared MCP/API ownership only where a native exposure is unavailable.
 - `repocontext` is the current knowledge capability. Retired aliases must not be regenerated.
 - `agent-fleet-ops` is retired and must not be regenerated.
@@ -25,7 +25,7 @@ Write failing Pester tests first, observe the failures, then implement the minim
 - Add a reusable path-safety function that rejects a drive root, empty path, and any unapproved top-level `C:\` target before writes.
 - Make `Apply-FullAccessAgentProfile.ps1` synthetic fixtures use an explicit test directory and prevent `$TestDrive` or path-resolution drift from resolving to `C:\`.
 - Update Pester tests to syntax supported by the repository's pinned Pester version and pin CI to an exact compatible version.
-- Update the worktree policy to make `$CODEX_HOME\worktrees` the Codex-native location and `C:\Repos\_worktrees\<owner>\<repo>\<task>` the manual fallback. Remove `C:\wt` as an approved location.
+- Update the worktree policy and generated host guidance so every coding agent uses `C:\wt\<repo>\<task>`. Preserve and verify the user-managed Claude Desktop and Codex Desktop setting changes instead of overwriting them.
 - Add validation for the forbidden root paths and retired `agent-fleet-ops` skill.
 - Do not touch the protected uncommitted `local-ai-stack` work in the original checkout.
 
@@ -46,7 +46,7 @@ Perform fresh read-only dependency/process checks before each mutation.
 
 - Move pnpm's global store from `C:\cache\pnpm` to `D:\AI-Platform\cache\pnpm`, rehydrate required dependencies, and verify no active process depends on the old store.
 - Configure Playwright MCP output under `%LOCALAPPDATA%\AgentHub\runtime\playwright`.
-- Audit every registered and unregistered checkout under `C:\wt`; move protected worktrees to approved locations and remove only clean, redundant worktrees with no unique work.
+- Audit every registered and unregistered checkout under `C:\wt`; keep protected worktrees in place and remove only clean, redundant worktrees with no unique work.
 - Remove the retired user skill `C:\Users\SaroshHussain\.agents\skills\agent-fleet-ops`.
 - Review root-level temporary artifacts, preserve only required evidence outside the repository, then remove the explicitly listed obsolete root paths.
 - Remove plaintext package credentials and user-level token residue without printing values; record any external revocation gate that cannot be completed non-interactively.
