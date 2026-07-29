@@ -26,6 +26,14 @@ function Assert-AgentHubSafeWritePath {
 
     try {
         $expandedPath = [Environment]::ExpandEnvironmentVariables($Path)
+        # Device namespace paths bypass ordinary drive-letter normalization and
+        # can therefore evade the direct-child C:\ safeguard below. They have
+        # no legitimate AgentHub write target, so reject them before any path
+        # canonicalization or filesystem operation.
+        if ($expandedPath.StartsWith('\\?\') -or $expandedPath.StartsWith('\\.\') -or $expandedPath.StartsWith('\??\') -or
+            $expandedPath.StartsWith('//?/') -or $expandedPath.StartsWith('//./')) {
+            throw 'Windows device namespace paths are not permitted.'
+        }
         $normalizedPath = [System.IO.Path]::GetFullPath($expandedPath)
     } catch {
         throw "Refusing to write ${Purpose}: '$Path' is not a valid path."

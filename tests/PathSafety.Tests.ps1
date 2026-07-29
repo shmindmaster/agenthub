@@ -16,6 +16,10 @@ Describe 'AgentHub write-path safety' {
         { Assert-AgentHubSafeWritePath -Path 'C:\agenthub-fixture' -Purpose 'test fixture' } | Should -Throw
     }
 
+    It 'rejects an extended-length device path that bypasses a top-level C drive check' {
+        { Assert-AgentHubSafeWritePath -Path '\\?\C:\agenthub-fixture' -Purpose 'test fixture' } | Should -Throw
+    }
+
     It 'permits C:\wt as the sole approved user-created top-level C drive target' {
         Assert-AgentHubSafeWritePath -Path 'C:\wt' -Purpose 'test fixture' |
             Should -Be 'C:\wt'

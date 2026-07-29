@@ -20,7 +20,7 @@ jobs:
       - name: Run repository-safe tests
         shell: powershell
         run: |
-          $result = Invoke-Pester -Path .\tests\AgentCtlReadOnly.Tests.ps1, .\tests\AdvertisedValidationCommands.Tests.ps1, .\tests\CursorReadiness.Tests.ps1 -PassThru
+          $result = Invoke-Pester -Path .\tests\AgentCtlReadOnly.Tests.ps1, .\tests\AdvertisedValidationCommands.Tests.ps1, .\tests\CursorReadiness.Tests.ps1, .\tests\PathSafety.Tests.ps1 -PassThru
           if ($result.FailedCount -gt 0) { throw "$($result.FailedCount) Pester tests failed" }
           .\tests\Validate-AgentEcosystem.ps1
       - name: Validate declarative files and secret exclusions
@@ -38,7 +38,7 @@ jobs:
       - name: Run repository-safe tests
         shell: pwsh
         run: |
-          $result = Invoke-Pester -Path .\tests\AgentCtlReadOnly.Tests.ps1, .\tests\AdvertisedValidationCommands.Tests.ps1, .\tests\CursorReadiness.Tests.ps1 -PassThru
+          $result = Invoke-Pester -Path .\tests\AgentCtlReadOnly.Tests.ps1, .\tests\AdvertisedValidationCommands.Tests.ps1, .\tests\CursorReadiness.Tests.ps1, .\tests\PathSafety.Tests.ps1 -PassThru
           if ($result.FailedCount -gt 0) { throw "$($result.FailedCount) Pester tests failed" }
           .\tests\Validate-AgentEcosystem.ps1
       - name: Validate declarative files and secret exclusions
