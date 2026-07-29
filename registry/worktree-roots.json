@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T15:45:00.000Z",
+  "canonicalRoot": "C:/wt",
+  "pathPattern": "C:/wt/{repository}/{task}",
+  "policyPath": "docs/worktree-management-policy.md",
+  "helperScript": "scripts/New-AgentHubWorktree.ps1",
+  "mutationPolicy": "Repository automation validates and documents user-managed settings; it never overwrites them.",
+  "environmentContract": {
+    "name": "AGENTHUB_WORKTREE_ROOT",
+    "ownership": "user-managed",
+    "expectedValue": "C:/wt",
+    "required": false,
+    "defaultWhenUnset": "C:/wt",
+    "consumer": "scripts/New-AgentHubWorktree.ps1",
+    "validation": "Any resolved value other than C:/wt is rejected.",
+    "mutationPolicy": "verify-only-never-overwrite"
+  },
+  "fallbackDeployment": {
+    "mechanism": "agenthub-helper-plus-generated-policy",
+    "helperState": "repository-ready",
+    "generatedInstructionState": "generated-repository-artifacts",
+    "liveInstructionState": "controller-sync-required",
+    "deploymentCommandOwner": "scripts/agentctl.ps1 sync",
+    "unsupportedNativeSettingPolicy": "Do not invent host configuration keys."
+  },
+  "hosts": [
+    {
+      "hostId": "codex",
+      "mechanism": "user-managed-native-setting",
+      "settingKey": "git-worktree-root",
+      "expectedValue": "C:/wt",
+      "verificationPath": "C:/Users/SaroshHussain/.codex/config.toml",
+      "verificationState": "verified-read-only-2026-07-29",
+      "mutationPolicy": "verify-only"
+    },
+    {
+      "hostId": "claude",
+      "mechanism": "mixed-native-desktop-and-official-cli-hook",
+      "desktopMechanism": "Settings > Claude Code > Worktree location",
+      "desktopExpectedValue": "C:/wt",
+      "desktopVerificationState": "user-asserted-manual-verification",
+      "desktopMutationPolicy": "verify-manually-never-overwrite",
+      "cliMechanism": "WorktreeCreate-hook",
+      "cliHookState": "declarative-ready-controller-install-pending",
+      "cliHookCommand": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:/Repos/shmindmaster/agenthub/scripts/New-AgentHubWorktree.ps1",
+      "documentation": "https://code.claude.com/docs/en/worktrees"
+    },
+    {
+      "hostId": "vscode-insiders",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "cursor",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "retained-provider-held-controller-sync-required",
+      "providerHeld": true
+    },
+    {
+      "hostId": "cursor-agent",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "retained-provider-held-controller-sync-required",
+      "providerHeld": true,
+      "inheritsHostId": "cursor"
+    },
+    {
+      "hostId": "amp",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "factory",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "qwen-code",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required",
+      "nativeBuiltIn": {
+        "pathPattern": "<repository>/.qwen/worktrees/<name>",
+        "policyState": "noncompliant-disabled",
+        "reason": "The documented built-in location is repository-local and has no supported custom root setting; use the AgentHub helper under C:/wt instead."
+      }
+    },
+    {
+      "hostId": "opencode",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "opencode-desktop",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required",
+      "inheritsHostId": "opencode"
+    },
+    {
+      "hostId": "gemini",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "hermes",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "copilot",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "antigravity",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "antigravity-desktop",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "hostId": "antigravity-ide",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "hostId": "grok",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "warp",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "cline",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "qoder",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "devin",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    },
+    {
+      "hostId": "windsurf",
+      "mechanism": "agenthub-helper-plus-generated-policy",
+      "deploymentState": "repository-ready-controller-sync-required"
+    }
+  ],
+  "unsupportedSettingPolicy": {
+    "status": "instruction-and-wrapper-only",
+    "forbidden": "Do not invent host configuration keys for worktree roots.",
+    "staleSessionState": "Paths such as Claude activeWorktreeSession are historical session records, not verified global root settings."
+  }
+}

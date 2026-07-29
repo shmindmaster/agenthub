@@ -1,6 +1,15 @@
 {
-  "schemaVersion": 3,
-  "generatedAt": "2026-07-24T05:41:10.949Z",
+  "schemaVersion": 4,
+  "generatedAt": "2026-07-29T15:45:00.000Z",
+  "migrationAliases": {
+    "repo-context": "repocontext",
+    "shwiki": "repocontext",
+    "shwiki-context": "repocontext",
+    "shwiki-context-remote": "repocontext",
+    "sh-knowledge": "repocontext",
+    "knowledge": "repocontext",
+    "legal": "repocontext"
+  },
   "mcpServers": [
     {
       "id": "github",
@@ -12,6 +21,10 @@
         "Authorization": "Bearer ${env:GITHUB_MCP_SHMINDMASTER_TOKEN}"
       },
       "credentialPolicy": "environment-bearer-token",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
       "hosts": [
         "claude",
         "codex",
@@ -27,6 +40,7 @@
         "qoder"
       ],
       "pluginOwnersByHost": {
+        "claude": "github@claude-plugins-official",
         "copilot": "built-in:github-mcp-server"
       },
       "notes": "Canonical personal GitHub MCP owner. The remote endpoint is GitHub-hosted; authentication is intentionally pinned to the shmindmaster account through an environment reference. Native automatic multi-account routing is not available in the released server, so do not add duplicate account servers without a reviewed routing design. Official: https://github.com/github/github-mcp-server/tree/main/docs/installation-guides"
@@ -37,7 +51,14 @@
       "scope": "global-default",
       "transport": "http",
       "url": "https://mcp.linear.app/mcp",
-      "credentialPolicy": "oauth"
+      "credentialPolicy": "oauth",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
+      "pluginOwnersByHost": {
+        "codex": "linear@openai-curated-remote"
+      }
     },
     {
       "id": "context7",
@@ -46,6 +67,10 @@
       "transport": "http",
       "url": "https://mcp.context7.com/mcp",
       "credentialPolicy": "environment-api-key",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
       "headers": {
         "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}",
         "Authorization": "Bearer ${env:CONTEXT7_API_KEY}"
@@ -58,6 +83,10 @@
       "transport": "http",
       "url": "https://mcp.notion.com/mcp",
       "credentialPolicy": "oauth",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
       "pluginOwnersByHost": {
         "claude": "notion@claude-plugins-official",
         "codex": "notion@openai-curated"
@@ -75,7 +104,11 @@
         "--isolated"
       ],
       "env": {},
-      "credentialPolicy": "none"
+      "credentialPolicy": "none",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      }
     },
     {
       "id": "repocontext",
@@ -89,7 +122,11 @@
         "mcp:serve"
       ],
       "env": {},
-      "credentialPolicy": "none"
+      "credentialPolicy": "none",
+      "owner": {
+        "type": "capability",
+        "id": "repocontext"
+      }
     },
     {
       "id": "firecrawl",
@@ -100,7 +137,11 @@
       "headers": {
         "Authorization": "Bearer ${env:FIRECRAWL_API_KEY}"
       },
-      "credentialPolicy": "environment-bearer-token"
+      "credentialPolicy": "environment-bearer-token",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      }
     },
     {
       "id": "tavily",
@@ -109,6 +150,10 @@
       "transport": "http",
       "url": "https://mcp.tavily.com/mcp/",
       "credentialPolicy": "environment-bearer-token",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
       "headers": {
         "Authorization": "Bearer ${env:TAVILY_API_KEY}"
       }
@@ -119,7 +164,11 @@
       "scope": "global-default",
       "transport": "http",
       "url": "https://mcp.exa.ai/mcp",
-      "credentialPolicy": "provider-managed"
+      "credentialPolicy": "provider-managed",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      }
     },
     {
       "id": "brave-search",
@@ -136,7 +185,11 @@
       "env": {
         "BRAVE_API_KEY": "${env:BRAVE_API_KEY}"
       },
-      "credentialPolicy": "environment-local-only"
+      "credentialPolicy": "environment-local-only",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      }
     },
     {
       "id": "chrome-devtools",
@@ -154,6 +207,10 @@
       ],
       "env": {},
       "credentialPolicy": "dedicated-qa-browser-session",
+      "owner": {
+        "type": "capability",
+        "id": "browser-toolkit"
+      },
       "hosts": [
         "claude",
         "qwen-code",
@@ -169,6 +226,13 @@
       "transport": "http",
       "url": "https://adobe-creativity.adobe.io/mcp",
       "credentialPolicy": "oauth",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
+      "pluginOwnersByHost": {
+        "codex": "adobe-for-creativity@claude-plugins-official"
+      },
       "notes": "Remote Creative Cloud MCP (Photoshop/Lightroom/Illustrator/Firefly/Premiere/Express/InDesign/Stock). Prefer for post-production of real assets; never for fabricating product UI. Host OAuth required; guest mode has reduced tools. Official docs: https://developer.adobe.com/adobe-for-creativity/"
     },
     {
@@ -178,6 +242,10 @@
       "transport": "http",
       "url": "https://mcp.canva.com/mcp",
       "credentialPolicy": "oauth",
+      "owner": {
+        "type": "registry",
+        "id": "mcp-registry"
+      },
       "notes": "Remote Canva design MCP for templates, brand kits (Enterprise), exports, social/marketing collateral. Not for fabricating product UI. Docs: https://www.canva.dev/docs/mcp/"
     },
     {
@@ -187,6 +255,10 @@
       "transport": "http",
       "url": "https://api.descript.com/v2/mcp",
       "credentialPolicy": "oauth",
+      "owner": {
+        "type": "capability",
+        "id": "product-demo-studio"
+      },
       "pluginOwnersByHost": {
         "claude": "product-demo-studio@handoff",
         "codex": "product-demo-studio@handoff"

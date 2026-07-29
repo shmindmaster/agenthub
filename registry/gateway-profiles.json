@@ -1,0 +1,346 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T15:45:00.000Z",
+  "selectedCandidateId": "docker-mcp-gateway",
+  "policy": {
+    "activation": "Docker MCP Toolkit is installed and the remote-only gateway POC partially passed. Keep host generation disabled until each production profile, authentication path, and duplicate-suppression contract is proven.",
+    "singleEndpoint": "Every profile uses the same authenticated loopback streaming endpoint. Only one profile can be selected for a gateway process at a time.",
+    "profileIsolation": "Profiles separate host groups so plugin-owned and native connectors are not re-exposed by the gateway.",
+    "unsupported": "Only observed remote snapshot mappings are asserted. Container-backed Docker catalog servers are not eligible on this Windows host while the missing-socat failure remains."
+  },
+  "candidates": [
+    {
+      "id": "docker-mcp-gateway",
+      "implementation": "docker-mcp-gateway",
+      "installationState": "installed",
+      "toolkitState": "enabled-by-controller-2026-07-29",
+      "activationState": "partial-poc-pass",
+      "generationEnabled": false,
+      "documentation": [
+        "https://docs.docker.com/ai/mcp-catalog-and-toolkit/profiles/",
+        "https://docs.docker.com/reference/cli/docker/mcp/gateway/run/",
+        "https://github.com/docker/mcp-gateway"
+      ],
+      "endpoint": {
+        "id": "agenthub-gateway",
+        "transport": "streaming",
+        "bindAddress": "127.0.0.1",
+        "port": 8811,
+        "path": "/mcp",
+        "url": "http://127.0.0.1:8811/mcp",
+        "authScheme": "bearer",
+        "authTokenEnvironment": "MCP_GATEWAY_AUTH_TOKEN"
+      },
+      "commandTemplate": [
+        "docker",
+        "mcp",
+        "gateway",
+        "run",
+        "--profile",
+        "{profileId}",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8811",
+        "--transport",
+        "streaming"
+      ],
+      "pocEvidence": {
+        "profileId": "agenthub-poc-remote",
+        "profileKind": "remote-snapshot",
+        "observedAt": "2026-07-29",
+        "bindUrl": "http://127.0.0.1:8811/mcp",
+        "authenticationState": "disabled-for-poc-only",
+        "remoteToolCount": 59,
+        "gatewayToolCountIncludingInternal": 67,
+        "context7ReadOnlyCall": "passed",
+        "linearInitialization": "passed",
+        "notionInitialization": "blocked-missing-oauth",
+        "firecrawlAuthenticatedLoopback": {
+          "profileId": "agenthub-poc-firecrawl",
+          "mappingType": "custom-remote-snapshot",
+          "remoteEndpoint": "https://mcp.firecrawl.dev/v2/mcp",
+          "bindUrl": "http://127.0.0.1:8812/mcp",
+          "unauthenticatedInitialize": 401,
+          "bearerAuthenticatedInitialize": 200,
+          "sessionIssued": true,
+          "toolsList": 200,
+          "gatewayToolCountIncludingInternal": 34,
+          "toolExecutionState": "not-run-no-quota-spend",
+          "shutdownState": "clean-port-freed",
+          "temporaryEvidencePaths": [
+            ".superpowers/sdd/2026-07-29-agenthub-runtime-centralization/agenthub-poc-firecrawl.yaml",
+            ".superpowers/sdd/2026-07-29-agenthub-runtime-centralization/Test-FirecrawlRemoteGateway.ps1"
+          ]
+        },
+        "logPaths": [
+          "C:/Users/SaroshHussain/AppData/Local/AgentHub/reports/gateway-poc/docker-remote-gateway.stderr.log",
+          "C:/Users/SaroshHussain/AppData/Local/AgentHub/reports/gateway-poc/docker-remote-gateway.stdout.log"
+        ],
+        "notes": "The temporary exported profile snapshot is intentionally not committed. The production endpoint remains bearer-authenticated even though the local POC explicitly disabled gateway authentication."
+      },
+      "windowsRuntimeConstraint": {
+        "state": "blocked",
+        "scope": "docker-catalog-container-backed-servers",
+        "observedFailure": "missing socat",
+        "decision": "Use proven remote snapshots where available; do not route container-backed mappings on Windows until separately remediated and revalidated."
+      },
+      "serverMappings": [
+        {
+          "mcpId": "github",
+          "dockerReference": null,
+          "mappingType": "unresolved",
+          "proofState": "discovery-required"
+        },
+        {
+          "mcpId": "linear",
+          "dockerReference": "linear",
+          "mappingType": "remote-snapshot",
+          "profileId": "agenthub-poc-remote",
+          "proofState": "read-only-poc-passed"
+        },
+        {
+          "mcpId": "context7",
+          "dockerReference": "context7",
+          "mappingType": "remote-snapshot",
+          "profileId": "agenthub-poc-remote",
+          "proofState": "read-only-call-passed"
+        },
+        {
+          "mcpId": "notion",
+          "dockerReference": "notion-remote",
+          "mappingType": "remote-snapshot",
+          "profileId": "agenthub-poc-remote",
+          "proofState": "blocked-missing-oauth"
+        },
+        {
+          "mcpId": "firecrawl",
+          "dockerReference": "mcp/firecrawl",
+          "mappingType": "custom-remote-snapshot",
+          "profileId": "agenthub-poc-firecrawl",
+          "catalogImplementation": "container-image",
+          "catalogSecretId": "firecrawl.api_key",
+          "catalogWindowsState": "blocked-missing-socat",
+          "remoteEndpoint": "https://mcp.firecrawl.dev/v2/mcp",
+          "remoteAuth": "Authorization bearer",
+          "proofState": "poc-passed-remote",
+          "toolExecutionState": "not-run-no-quota-spend"
+        },
+        {
+          "mcpId": "tavily",
+          "dockerReference": null,
+          "mappingType": "unresolved",
+          "proofState": "discovery-required"
+        },
+        {
+          "mcpId": "exa",
+          "dockerReference": null,
+          "mappingType": "unresolved",
+          "proofState": "discovery-required"
+        },
+        {
+          "mcpId": "adobe-for-creativity",
+          "dockerReference": null,
+          "mappingType": "unresolved",
+          "proofState": "discovery-required"
+        },
+        {
+          "mcpId": "canva",
+          "dockerReference": null,
+          "mappingType": "unresolved",
+          "proofState": "discovery-required"
+        },
+        {
+          "mcpId": "descript",
+          "dockerReference": null,
+          "mappingType": "unresolved",
+          "proofState": "discovery-required"
+        }
+      ],
+      "profiles": [
+        {
+          "id": "agenthub-codex",
+          "activationState": "poc-pending",
+          "mcpServerIds": [
+            "context7",
+            "exa",
+            "firecrawl",
+            "tavily"
+          ],
+          "hostMappings": [
+            {
+              "hostId": "codex",
+              "state": "poc-pending"
+            }
+          ]
+        },
+        {
+          "id": "agenthub-claude",
+          "activationState": "poc-pending",
+          "mcpServerIds": [
+            "adobe-for-creativity",
+            "canva",
+            "context7",
+            "exa",
+            "firecrawl",
+            "linear",
+            "tavily"
+          ],
+          "hostMappings": [
+            {
+              "hostId": "claude",
+              "state": "poc-pending"
+            }
+          ]
+        },
+        {
+          "id": "agenthub-copilot",
+          "activationState": "poc-pending",
+          "mcpServerIds": [
+            "adobe-for-creativity",
+            "canva",
+            "context7",
+            "descript",
+            "exa",
+            "firecrawl",
+            "linear",
+            "notion",
+            "tavily"
+          ],
+          "hostMappings": [
+            {
+              "hostId": "copilot",
+              "state": "poc-pending"
+            }
+          ]
+        },
+        {
+          "id": "agenthub-full",
+          "activationState": "poc-pending",
+          "mcpServerIds": [
+            "adobe-for-creativity",
+            "canva",
+            "context7",
+            "descript",
+            "exa",
+            "firecrawl",
+            "github",
+            "linear",
+            "notion",
+            "tavily"
+          ],
+          "hostMappings": [
+            {
+              "hostId": "qwen-code",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "opencode",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "opencode-desktop",
+              "state": "inherited-poc-pending"
+            },
+            {
+              "hostId": "gemini",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "hermes",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "antigravity",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "antigravity-desktop",
+              "state": "inherited-poc-pending"
+            },
+            {
+              "hostId": "antigravity-ide",
+              "state": "inherited-poc-pending"
+            },
+            {
+              "hostId": "grok",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "warp",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "cline",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "qoder",
+              "state": "poc-pending"
+            }
+          ]
+        },
+        {
+          "id": "agenthub-no-github",
+          "activationState": "poc-pending",
+          "mcpServerIds": [
+            "adobe-for-creativity",
+            "canva",
+            "context7",
+            "descript",
+            "exa",
+            "firecrawl",
+            "linear",
+            "notion",
+            "tavily"
+          ],
+          "hostMappings": [
+            {
+              "hostId": "vscode-insiders",
+              "state": "retained-poc-pending"
+            },
+            {
+              "hostId": "cursor",
+              "state": "provider-held-poc-pending"
+            },
+            {
+              "hostId": "cursor-agent",
+              "state": "provider-held-poc-pending"
+            },
+            {
+              "hostId": "amp",
+              "state": "retained-poc-pending"
+            },
+            {
+              "hostId": "factory",
+              "state": "retained-poc-pending"
+            },
+            {
+              "hostId": "devin",
+              "state": "retained-poc-pending"
+            },
+            {
+              "hostId": "windsurf",
+              "state": "retained-poc-pending"
+            }
+          ]
+        }
+      ],
+      "activationGuard": {
+        "forbidUntilProductionProfilesPass": [
+          "write-user-or-host-config",
+          "enable-generated-gateway-endpoint",
+          "route-provider-held-host",
+          "route-container-backed-server-on-windows"
+        ],
+        "requiredEvidence": [
+          "exact remote snapshot mapping for every enabled MCP",
+          "authenticated loopback /mcp contract",
+          "profile tool inventory and duplicate suppression",
+          "read-only health check for every profile",
+          "OAuth authorization for OAuth-backed mappings"
+        ]
+      }
+    }
+  ]
+}

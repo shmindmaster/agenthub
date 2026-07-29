@@ -37,6 +37,9 @@ args = ["old"]
 
 [plugins."product-demo-studio@handoff"]
 enabled = true
+
+[plugins."firecrawl-ops@personal".mcp_servers.firecrawl]
+enabled = false
 '@ | Set-Content -LiteralPath $config -Encoding UTF8
 
         & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
@@ -46,6 +49,8 @@ enabled = true
         $result = Get-Content -LiteralPath $config -Raw
         $result | Should -Match '(?m)^\[plugins\."product-demo-studio@handoff"\]\s*$'
         $result | Should -Match 'enabled\s*=\s*true'
+        $result | Should -Match '(?m)^\[plugins\."firecrawl-ops@personal"\.mcp_servers\.firecrawl\]\s*$'
+        $result | Should -Match '(?ms)^\[plugins\."firecrawl-ops@personal"\.mcp_servers\.firecrawl\]\s*\r?\nenabled\s*=\s*false'
         $result | Should -Match '\[mcp_servers\.repocontext\]'
         $result | Should -Not -Match '(?m)^\[mcp_servers\.shwiki-context\]\s*$'
         $result | Should -Match 'url\s*=\s*"https://repocontext\.shtrial\.com/api/mcp"'

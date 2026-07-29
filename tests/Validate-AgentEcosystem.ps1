@@ -57,7 +57,11 @@ $requiredFiles = @(
     'docs\worktree-management-policy.md',
     'registry\agents.json',
     'registry\capabilities.json',
-    'registry\hosts.json'
+    'registry\hosts.json',
+    'registry\mcps.json',
+    'registry\native-connectors.json',
+    'registry\gateway-profiles.json',
+    'registry\worktree-roots.json'
 )
 
 foreach ($relativePath in $requiredFiles) {
@@ -198,6 +202,51 @@ if ($registryObjects.ContainsKey('mcps.json')) {
         Add-ValidationResult FAIL 'registry:mcp-ids' "duplicate IDs: $($duplicateMcpIds -join ', ')"
     }
 
+    $knownCapabilityIds = if ($registryObjects.ContainsKey('capabilities.json')) {
+        @($registryObjects['capabilities.json'].capabilities.id)
+    } else { @() }
+    $invalidOwners = @(
+        foreach ($mcp in $mcpServers) {
+            $ownerProperty = $mcp.PSObject.Properties['owner']
+            $ownerIdProperty = if ($ownerProperty -and $null -ne $ownerProperty.Value) {
+                $ownerProperty.Value.PSObject.Properties['id']
+            } else { $null }
+            $ownerTypeProperty = if ($ownerProperty -and $null -ne $ownerProperty.Value) {
+                $ownerProperty.Value.PSObject.Properties['type']
+            } else { $null }
+            if (-not $ownerProperty -or $null -eq $ownerProperty.Value -or
+                -not $ownerIdProperty -or [string]::IsNullOrWhiteSpace([string]$ownerIdProperty.Value)) {
+                "$($mcp.id):missing-owner"
+            } elseif (-not $ownerTypeProperty -or [string]$ownerTypeProperty.Value -notin @('registry', 'capability')) {
+                "$($mcp.id):unsupported-owner-type"
+            } elseif ([string]$ownerTypeProperty.Value -eq 'capability' -and
+                [string]$ownerIdProperty.Value -notin $knownCapabilityIds) {
+                "$($mcp.id):unknown-capability-owner"
+            }
+        }
+    )
+    if ($invalidOwners.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:mcp-current-owners' 'every MCP has one current registry or capability owner'
+    } else {
+        Add-ValidationResult FAIL 'registry:mcp-current-owners' "invalid owners: $($invalidOwners -join ', ')"
+    }
+
+    $invalidAliases = @(
+        foreach ($retiredId in @('sh-knowledge', 'knowledge', 'legal', 'shwiki')) {
+            $aliasesProperty = $mcpRegistry.PSObject.Properties['migrationAliases']
+            $aliasProperty = if ($aliasesProperty -and $null -ne $aliasesProperty.Value) {
+                $aliasesProperty.Value.PSObject.Properties[$retiredId]
+            } else { $null }
+            if (-not $aliasProperty -or [string]$aliasProperty.Value -ne 'repocontext') { $retiredId }
+            if ($retiredId -in $mcpIds) { "$retiredId:generated-as-current" }
+        }
+    )
+    if ($invalidAliases.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:mcp-migration-aliases' 'retired knowledge labels migrate only to repocontext'
+    } else {
+        Add-ValidationResult FAIL 'registry:mcp-migration-aliases' "invalid aliases: $($invalidAliases -join ', ')"
+    }
+
     if ($registryObjects.ContainsKey('agents.json')) {
         $knownAgentIds = @($registryObjects['agents.json'].activeAgents | ForEach-Object { $_.id }) + @($registryObjects['agents.json'].inactiveAgents | ForEach-Object { $_.id })
         $unknownMcpOwners = @(
@@ -215,6 +264,105 @@ if ($registryObjects.ContainsKey('mcps.json')) {
         } else {
             Add-ValidationResult FAIL 'registry:mcp-plugin-owners' "invalid mappings: $($unknownMcpOwners -join ', ')"
         }
+    }
+}
+
+if ($registryObjects.ContainsKey('native-connectors.json') -and
+    $registryObjects.ContainsKey('hosts.json') -and
+    $registryObjects.ContainsKey('mcps.json')) {
+    $connectorRegistry = $registryObjects['native-connectors.json']
+    $knownHostIds = @($registryObjects['hosts.json'].hosts.id)
+    $knownMcpIds = @($registryObjects['mcps.json'].mcpServers.id)
+    $connectorHostIds = @($connectorRegistry.hosts.hostId)
+    $connectorProblems = @()
+    if (@(Get-DuplicateValues $connectorHostIds).Count -gt 0) { $connectorProblems += 'duplicate-host-rows' }
+    $connectorProblems += @($connectorHostIds | Where-Object { $_ -notin $knownHostIds } | ForEach-Object { "unknown-host:$_" })
+    $connectorProblems += @($knownHostIds | Where-Object { $_ -notin $connectorHostIds } | ForEach-Object { "missing-host:$_" })
+    foreach ($row in @($connectorRegistry.hosts | Where-Object {
+        -not $_.PSObject.Properties['inheritsHostId'] -or -not $_.inheritsHostId
+    })) {
+        $classified = @(
+            @($row.exposures.'plugin-owned') +
+            @($row.exposures.'native-connector') +
+            @($row.exposures.'shared-gateway') +
+            @($row.exposures.'local-only')
+        )
+        $connectorProblems += @($classified | Where-Object { $_ -notin $knownMcpIds } | ForEach-Object { "$($row.hostId):unknown-mcp:$_" })
+        if (@(Get-DuplicateValues $classified).Count -gt 0) { $connectorProblems += "$($row.hostId):duplicate-exposure" }
+    }
+    $codexFirecrawlSuppression = @($connectorRegistry.bundledServerSuppressions | Where-Object {
+        $_.hostId -eq 'codex' -and $_.pluginId -eq 'firecrawl-ops@personal' -and
+        $_.mcpId -eq 'firecrawl' -and -not [bool]$_.expectedValue -and
+        $_.mutationPolicy -eq 'user-setting-preserve-never-enable'
+    })
+    $codexConnector = @($connectorRegistry.hosts | Where-Object hostId -eq 'codex')
+    if ($codexFirecrawlSuppression.Count -ne 1 -or $codexConnector.Count -ne 1 -or
+        'firecrawl' -notin @($codexConnector[0].exposures.'shared-gateway') -or
+        'firecrawl' -in @($codexConnector[0].exposures.'plugin-owned')) {
+        $connectorProblems += 'codex-firecrawl-suppression-contract'
+    }
+    if ($connectorProblems.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:native-connectors' 'host exposure rows reference current hosts and MCPs without duplicate modes'
+    } else {
+        Add-ValidationResult FAIL 'registry:native-connectors' ($connectorProblems -join ', ')
+    }
+}
+
+if ($registryObjects.ContainsKey('gateway-profiles.json') -and $registryObjects.ContainsKey('hosts.json')) {
+    $gatewayRegistry = $registryObjects['gateway-profiles.json']
+    $candidate = @($gatewayRegistry.candidates | Where-Object id -eq $gatewayRegistry.selectedCandidateId)
+    $gatewayProblems = @()
+    if ($candidate.Count -ne 1) { $gatewayProblems += 'selected-candidate-count' }
+    else {
+        if ([bool]$candidate[0].generationEnabled) { $gatewayProblems += 'generation-must-remain-disabled-until-production-profiles-pass' }
+        if ([string]$candidate[0].activationState -ne 'partial-poc-pass') { $gatewayProblems += 'activation-must-record-partial-poc' }
+        if ([string]$candidate[0].pocEvidence.context7ReadOnlyCall -ne 'passed') { $gatewayProblems += 'context7-poc-evidence' }
+        if ([string]$candidate[0].pocEvidence.linearInitialization -ne 'passed') { $gatewayProblems += 'linear-poc-evidence' }
+        if ([string]$candidate[0].pocEvidence.notionInitialization -ne 'blocked-missing-oauth') { $gatewayProblems += 'notion-oauth-evidence' }
+        if ([int]$candidate[0].pocEvidence.firecrawlAuthenticatedLoopback.unauthenticatedInitialize -ne 401 -or
+            [int]$candidate[0].pocEvidence.firecrawlAuthenticatedLoopback.bearerAuthenticatedInitialize -ne 200 -or
+            [int]$candidate[0].pocEvidence.firecrawlAuthenticatedLoopback.toolsList -ne 200) {
+            $gatewayProblems += 'firecrawl-authenticated-poc-evidence'
+        }
+        if ([string]$candidate[0].endpoint.url -ne 'http://127.0.0.1:8811/mcp') { $gatewayProblems += 'unexpected-endpoint' }
+        $mappedHostIds = @($candidate[0].profiles.hostMappings.hostId)
+        $expectedHostIds = @($registryObjects['hosts.json'].hosts.id)
+        $gatewayProblems += @($expectedHostIds | Where-Object { $_ -notin $mappedHostIds } | ForEach-Object { "missing-host:$_" })
+        if (@(Get-DuplicateValues $mappedHostIds).Count -gt 0) { $gatewayProblems += 'host-mapped-to-multiple-profiles' }
+    }
+    if ($gatewayProblems.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:gateway-profiles' 'partial POC evidence is recorded and generation remains disabled for one authenticated endpoint'
+    } else {
+        Add-ValidationResult FAIL 'registry:gateway-profiles' ($gatewayProblems -join ', ')
+    }
+}
+
+if ($registryObjects.ContainsKey('worktree-roots.json') -and $registryObjects.ContainsKey('hosts.json')) {
+    $rootRegistry = $registryObjects['worktree-roots.json']
+    $rootProblems = @()
+    if ([string]$rootRegistry.canonicalRoot -ne 'C:/wt') { $rootProblems += 'canonical-root' }
+    if ([string]$rootRegistry.environmentContract.name -ne 'AGENTHUB_WORKTREE_ROOT' -or
+        [string]$rootRegistry.environmentContract.expectedValue -ne 'C:/wt' -or
+        [string]$rootRegistry.environmentContract.mutationPolicy -ne 'verify-only-never-overwrite') {
+        $rootProblems += 'environment-contract'
+    }
+    $rootHostIds = @($rootRegistry.hosts.hostId)
+    $knownHostIds = @($registryObjects['hosts.json'].hosts.id)
+    $rootProblems += @($knownHostIds | Where-Object { $_ -notin $rootHostIds } | ForEach-Object { "missing-host:$_" })
+    if (@(Get-DuplicateValues $rootHostIds).Count -gt 0) { $rootProblems += 'duplicate-host-row' }
+    $qwenRow = @($rootRegistry.hosts | Where-Object hostId -eq 'qwen-code')
+    if ($qwenRow.Count -ne 1 -or [string]$qwenRow[0].nativeBuiltIn.policyState -ne 'noncompliant-disabled') {
+        $rootProblems += 'qwen-built-in-must-be-disabled'
+    }
+    $fallbackRows = @($rootRegistry.hosts | Where-Object mechanism -eq 'agenthub-helper-plus-generated-policy')
+    if ($fallbackRows.Count -ne 20 -or
+        @($fallbackRows | Where-Object deploymentState -notmatch 'controller-sync-required').Count -gt 0) {
+        $rootProblems += 'fallback-deployment-contract'
+    }
+    if ($rootProblems.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:worktree-roots' 'C:/wt is canonical and every host has a documented enforcement mode'
+    } else {
+        Add-ValidationResult FAIL 'registry:worktree-roots' ($rootProblems -join ', ')
     }
 }
 

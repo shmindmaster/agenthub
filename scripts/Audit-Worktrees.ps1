@@ -2,7 +2,9 @@
 [CmdletBinding()]
 param(
     [string]$PortfolioRoot = "C:\Repos\shmindmaster",
-    [string[]]$AdditionalPaths = @(
+    [string]$ConfiguredRoot = 'C:\wt',
+    [Alias('AdditionalPaths')]
+    [string[]]$LegacyDetectionPaths = @(
         "C:\Users\SaroshHussain\subops-wt-extractor",
         "C:\Users\SaroshHussain\wt-agents",
         "C:\Users\SaroshHussain\wt95",
@@ -14,6 +16,35 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Get-NormalizedPath {
+    param([Parameter(Mandatory)][string]$Path)
+    return ([System.IO.Path]::GetFullPath($Path) -replace '/', '\').TrimEnd('\')
+}
+
+$configuredRootPath = Get-NormalizedPath -Path $ConfiguredRoot
+if (-not $configuredRootPath.Equals('C:\wt', [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "The only configured AgentHub worktree root is C:\wt; received '$ConfiguredRoot'."
+}
+$legacyDetectionPathSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+foreach ($legacyPath in $LegacyDetectionPaths) {
+    $null = $legacyDetectionPathSet.Add((Get-NormalizedPath -Path $legacyPath))
+}
+
+function Get-WorktreeRootPolicy {
+    param([Parameter(Mandatory)][string]$Path)
+    $normalized = Get-NormalizedPath -Path $Path
+    if ($normalized.StartsWith($configuredRootPath + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+        return 'configured-root'
+    }
+    foreach ($legacyPath in $legacyDetectionPathSet) {
+        if ($normalized.Equals($legacyPath, [System.StringComparison]::OrdinalIgnoreCase) -or
+            $normalized.StartsWith($legacyPath + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+            return 'forbidden-migration-source'
+        }
+    }
+    return 'outside-configured-root'
+}
 
 if (-not $OutputPath) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -49,7 +80,8 @@ function Get-CheckoutRecord {
         [string]$Head,
         [string]$Branch,
         [bool]$Registered,
-        [string]$InitialKind = 'RegisteredWorktree'
+        [string]$InitialKind = 'RegisteredWorktree',
+        [string]$RootPolicy = 'outside-configured-root'
     )
 
     $exists = Test-Path -LiteralPath $Path
@@ -102,6 +134,7 @@ function Get-CheckoutRecord {
         ownerRoot = $OwnerRoot
         path = $Path
         kind = $kind
+        rootPolicy = $RootPolicy
         registered = $Registered
         exists = $exists
         head = $Head
@@ -160,20 +193,27 @@ foreach ($repo in $repoCandidates) {
         if (-not $path) { continue }
         $null = $registeredPaths.Add([System.IO.Path]::GetFullPath($path))
         $branch = if ($block.branch) { ([string]$block.branch) -replace '^refs/heads/', '' } elseif ($block.detached) { '(detached)' } else { $null }
-        $records.Add((Get-CheckoutRecord -OwnerRoot $repo.FullName -Path $path -Head ([string]$block.HEAD) -Branch $branch -Registered $true))
+        $rootPolicy = if ((Get-NormalizedPath -Path $path).Equals((Get-NormalizedPath -Path $repo.FullName), [System.StringComparison]::OrdinalIgnoreCase)) {
+            'source-checkout'
+        } else {
+            Get-WorktreeRootPolicy -Path $path
+        }
+        $records.Add((Get-CheckoutRecord -OwnerRoot $repo.FullName -Path $path -Head ([string]$block.HEAD) -Branch $branch -Registered $true -RootPolicy $rootPolicy))
     }
 }
 
-foreach ($path in $AdditionalPaths) {
+foreach ($path in $LegacyDetectionPaths) {
     $fullPath = [System.IO.Path]::GetFullPath($path)
     if ($registeredPaths.Contains($fullPath)) { continue }
-    $records.Add((Get-CheckoutRecord -OwnerRoot $null -Path $fullPath -Head $null -Branch $null -Registered $false -InitialKind 'UnregisteredDirectory'))
+    $records.Add((Get-CheckoutRecord -OwnerRoot $null -Path $fullPath -Head $null -Branch $null -Registered $false -InitialKind 'LegacyDetectionPath' -RootPolicy 'forbidden-migration-source'))
 }
 
 $report = [ordered]@{
     generatedAt = (Get-Date).ToString('o')
     policy = 'C:\Repos\shmindmaster\agenthub\docs\worktree-management-policy.md'
     portfolioRoot = $PortfolioRoot
+    configuredRoot = $configuredRootPath
+    legacyDetectionPaths = @($LegacyDetectionPaths)
     recordCount = $records.Count
     records = @($records | Sort-Object path)
 }

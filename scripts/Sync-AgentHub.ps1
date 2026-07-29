@@ -50,6 +50,8 @@ $StateFile         = Join-Path $StateDir 'sync-state.json'
 $AgentsFile        = Join-Path $RegistryDir 'agents.json'
 $McpsFile          = Join-Path $RegistryDir 'mcps.json'
 $CapabilitiesFile  = Join-Path $RegistryDir 'capabilities.json'
+$ConnectorsFile    = Join-Path $RegistryDir 'native-connectors.json'
+$GatewaysFile      = Join-Path $RegistryDir 'gateway-profiles.json'
 
 New-Item -ItemType Directory -Path $StateDir -Force | Out-Null
 New-Item -ItemType Directory -Path $DriftDir -Force | Out-Null
@@ -77,9 +79,32 @@ function Write-Utf8NoBom {
 $agentsReg = Read-JsonFile $AgentsFile
 $mcpsReg   = Read-JsonFile $McpsFile
 $capReg    = Read-JsonFile $CapabilitiesFile
+$connectorReg = Read-JsonFile $ConnectorsFile
+$gatewayReg   = Read-JsonFile $GatewaysFile
 
 if (-not $agentsReg) { throw "Missing $AgentsFile" }
 if (-not $mcpsReg)   { throw "Missing $McpsFile" }
+
+$script:mcpMigrationAliases = @{
+    'github-shmindmaster' = 'github'
+    'github-sh-pendoah' = 'github'
+    'github-sarosh-pendoah' = 'github'
+    'repo-context' = 'repocontext'
+    'shwiki' = 'repocontext'
+    'shwiki-context' = 'repocontext'
+    'shwiki-context-remote' = 'repocontext'
+    'sh-knowledge' = 'repocontext'
+    'knowledge' = 'repocontext'
+    'legal' = 'repocontext'
+}
+if ($mcpsReg.PSObject.Properties['migrationAliases'] -and $mcpsReg.migrationAliases) {
+    foreach ($alias in $mcpsReg.migrationAliases.PSObject.Properties) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$alias.Name) -and
+            -not [string]::IsNullOrWhiteSpace([string]$alias.Value)) {
+            $script:mcpMigrationAliases[[string]$alias.Name] = [string]$alias.Value
+        }
+    }
+}
 
 # ---------------------------------------------------------------------------
 # State helpers
@@ -318,31 +343,17 @@ function Contains-UnresolvedPlaceholder {
 
 function Resolve-McpAliasKey {
     param([string]$Key)
-    switch ($Key) {
-        'github-shmindmaster' { return 'github' }
-        'github-sh-pendoah' { return 'github' }
-        'github-sarosh-pendoah' { return 'github' }
-        'repo-context' { return 'repocontext' }
-        'shwiki' { return 'repocontext' }
-        'shwiki-context' { return 'repocontext' }
-        'shwiki-context-remote' { return 'repocontext' }
-        'sh-knowledge' { return 'repocontext' }
-        default { return $Key }
+    if ($script:mcpMigrationAliases.ContainsKey($Key)) {
+        return [string]$script:mcpMigrationAliases[$Key]
     }
+    return $Key
 }
 
 function Get-McpAliasesForCanonicalKey {
     param([string]$Key)
-    return @(
-        'github-shmindmaster',
-        'github-sh-pendoah',
-        'github-sarosh-pendoah',
-        'repo-context',
-        'shwiki',
-        'shwiki-context',
-        'shwiki-context-remote',
-        'sh-knowledge'
-    ) | Where-Object { (Resolve-McpAliasKey $_) -eq $Key }
+    return @($script:mcpMigrationAliases.Keys | Where-Object {
+        [string]$script:mcpMigrationAliases[$_] -eq $Key
+    })
 }
 
 function Normalize-McpTargetKeys {
@@ -379,6 +390,21 @@ function Normalize-McpTargetKeys {
         $Target.Remove($a.from)
     }
 
+    return $Target
+}
+
+function Remove-McpTargetKeys {
+    param(
+        [hashtable]$Target,
+        [string[]]$Keys = @()
+    )
+
+    foreach ($key in @($Keys)) {
+        $resolved = Resolve-McpAliasKey $key
+        foreach ($candidate in @($resolved) + @(Get-McpAliasesForCanonicalKey $resolved)) {
+            if ($Target.ContainsKey($candidate)) { $Target.Remove($candidate) }
+        }
+    }
     return $Target
 }
 
@@ -517,7 +543,8 @@ function Get-McpCandidatesForScope {
 function Get-PluginProvidedMcpKeysByHost {
     param(
         [object]$CapabilitiesRegistry,
-        [object]$McpRegistry
+        [object]$McpRegistry,
+        [object]$ConnectorRegistry
     )
 
     $result = @{}
@@ -539,33 +566,49 @@ function Get-PluginProvidedMcpKeysByHost {
         }
     }
 
-    if (-not $CapabilitiesRegistry -or -not $CapabilitiesRegistry.capabilities) { return $result }
+    if ($CapabilitiesRegistry -and $CapabilitiesRegistry.capabilities) {
+        foreach ($cap in $CapabilitiesRegistry.capabilities) {
+            if (-not $cap.hostMappings) { continue }
 
-    foreach ($cap in $CapabilitiesRegistry.capabilities) {
-        if (-not $cap.hostMappings) { continue }
+            $sourceRoot = [string]$cap.canonicalSource
+            if (-not $sourceRoot) { continue }
 
-        $sourceRoot = [string]$cap.canonicalSource
-        if (-not $sourceRoot) { continue }
+            $mcpManifest = Join-Path $sourceRoot '.mcp.json'
+            if (-not (Test-Path -LiteralPath $mcpManifest)) { continue }
 
-        $mcpManifest = Join-Path $sourceRoot '.mcp.json'
-        if (-not (Test-Path -LiteralPath $mcpManifest)) { continue }
+            try {
+                $manifestJson = Get-Content -LiteralPath $mcpManifest -Raw -Encoding UTF8 | ConvertFrom-Json
+            } catch {
+                continue
+            }
 
-        try {
-            $manifestJson = Get-Content -LiteralPath $mcpManifest -Raw -Encoding UTF8 | ConvertFrom-Json
-        } catch {
-            continue
+            if (-not $manifestJson.mcpServers) { continue }
+            $serverKeys = @($manifestJson.mcpServers.PSObject.Properties.Name | ForEach-Object { Resolve-McpAliasKey $_ })
+
+            foreach ($mapping in $cap.hostMappings) {
+                if ([string]$mapping.deploymentStatus -ne 'plugin-owned') { continue }
+                $hostId = [string]$mapping.hostId
+                if (-not $hostId) { continue }
+                if (-not $result.ContainsKey($hostId)) { $result[$hostId] = @{} }
+                foreach ($k in $serverKeys) {
+                    $result[$hostId][$k] = $true
+                }
+            }
         }
+    }
 
-        if (-not $manifestJson.mcpServers) { continue }
-        $serverKeys = @($manifestJson.mcpServers.PSObject.Properties.Name | ForEach-Object { Resolve-McpAliasKey $_ })
-
-        foreach ($mapping in $cap.hostMappings) {
-            if ([string]$mapping.deploymentStatus -ne 'plugin-owned') { continue }
-            $hostId = [string]$mapping.hostId
-            if (-not $hostId) { continue }
+    if ($ConnectorRegistry -and $ConnectorRegistry.hosts) {
+        foreach ($connectorHost in @($ConnectorRegistry.hosts)) {
+            $effective = Get-ConnectorHostRow -HostId ([string]$connectorHost.hostId) -ConnectorRegistry $ConnectorRegistry
+            if (-not $effective -or -not $effective.exposures) { continue }
+            $hostId = [string]$connectorHost.hostId
             if (-not $result.ContainsKey($hostId)) { $result[$hostId] = @{} }
-            foreach ($k in $serverKeys) {
-                $result[$hostId][$k] = $true
+            foreach ($mode in @('plugin-owned', 'native-connector')) {
+                $property = $effective.exposures.PSObject.Properties[$mode]
+                if (-not $property) { continue }
+                foreach ($mcpId in @($property.Value)) {
+                    $result[$hostId][(Resolve-McpAliasKey ([string]$mcpId))] = $true
+                }
             }
         }
     }
@@ -573,12 +616,83 @@ function Get-PluginProvidedMcpKeysByHost {
     return $result
 }
 
+function Get-ConnectorHostRow {
+    param(
+        [string]$HostId,
+        [object]$ConnectorRegistry,
+        [string[]]$Visited = @()
+    )
+
+    if (-not $ConnectorRegistry -or -not $ConnectorRegistry.hosts) { return $null }
+    if ($HostId -in $Visited) { throw "Connector host inheritance cycle at '$HostId'." }
+    $row = @($ConnectorRegistry.hosts | Where-Object hostId -eq $HostId)
+    if ($row.Count -ne 1) { return $null }
+    if ($row[0].PSObject.Properties['inheritsHostId'] -and $row[0].inheritsHostId) {
+        return Get-ConnectorHostRow -HostId ([string]$row[0].inheritsHostId) -ConnectorRegistry $ConnectorRegistry -Visited (@($Visited) + $HostId)
+    }
+    return $row[0]
+}
+
+function Get-GatewayPlanForHost {
+    param(
+        [string]$HostId,
+        [object]$GatewayRegistry,
+        [object]$ConnectorRegistry
+    )
+
+    if (-not $GatewayRegistry -or -not $GatewayRegistry.selectedCandidateId) { return $null }
+    $candidate = @($GatewayRegistry.candidates | Where-Object id -eq $GatewayRegistry.selectedCandidateId)
+    if ($candidate.Count -ne 1 -or
+        [string]$candidate[0].activationState -ne 'validated' -or
+        -not [bool]$candidate[0].generationEnabled) {
+        return $null
+    }
+
+    foreach ($profile in @($candidate[0].profiles)) {
+        if ([string]$profile.activationState -ne 'validated') { continue }
+        $mapping = @($profile.hostMappings | Where-Object {
+            $_.hostId -eq $HostId -and $_.state -eq 'enabled'
+        })
+        if ($mapping.Count -ne 1) { continue }
+
+        $managedKeys = @($profile.mcpServerIds | ForEach-Object {
+            Resolve-McpAliasKey ([string]$_)
+        })
+        $connectorRow = Get-ConnectorHostRow -HostId $HostId -ConnectorRegistry $ConnectorRegistry
+        if ($connectorRow -and $connectorRow.exposures) {
+            $shared = @($connectorRow.exposures.'shared-gateway' | ForEach-Object {
+                Resolve-McpAliasKey ([string]$_)
+            })
+            $managedKeys = @($managedKeys | Where-Object { $_ -in $shared })
+        }
+        $managedKeys = @($managedKeys | Sort-Object -Unique)
+        if ($managedKeys.Count -eq 0) { return $null }
+
+        $endpoint = $candidate[0].endpoint
+        $entry = @{
+            type = 'http'
+            url = [string]$endpoint.url
+            headers = @{
+                Authorization = 'Bearer ${env:' + [string]$endpoint.authTokenEnvironment + '}'
+            }
+        }
+        return @{
+            entryKey = [string]$endpoint.id
+            entry = $entry
+            managedKeys = $managedKeys
+            profileId = [string]$profile.id
+        }
+    }
+    return $null
+}
+
 function Get-HostMcpEntries {
     param(
         [string]$HostId,
         [hashtable]$BaseEntries,
         [hashtable]$HostAllowlist,
-        [hashtable]$PluginProvidedByHost
+        [hashtable]$PluginProvidedByHost,
+        [object]$GatewayPlan
     )
 
     $filtered = @{}
@@ -586,7 +700,11 @@ function Get-HostMcpEntries {
         $resolved = Resolve-McpAliasKey $key
         if ($HostAllowlist.ContainsKey($resolved) -and $HostId -notin $HostAllowlist[$resolved]) { continue }
         if ($PluginProvidedByHost.ContainsKey($HostId) -and $PluginProvidedByHost[$HostId].ContainsKey($resolved)) { continue }
+        if ($GatewayPlan -and $resolved -in @($GatewayPlan.managedKeys)) { continue }
         $filtered[$key] = $BaseEntries[$key]
+    }
+    if ($GatewayPlan) {
+        $filtered[[string]$GatewayPlan.entryKey] = ConvertTo-Hashtable $GatewayPlan.entry
     }
     return $filtered
 }
@@ -801,6 +919,7 @@ function Sync-HostMcp-Grok {
     param(
         [Parameter(Mandatory)]$Agent,
         [Parameter(Mandatory)][hashtable]$Mcps,
+        [string[]]$SuppressedKeys = @(),
         [switch]$WhatIf,
         [switch]$Prune
     )
@@ -811,6 +930,13 @@ function Sync-HostMcp-Grok {
     $existing = if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { '' }
     $original = $existing
     $blocks = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($name in @($SuppressedKeys)) {
+        $existing = [regex]::Replace($existing, (Get-CodexMcpSectionPattern -Key $name), '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+        foreach ($alias in @(Get-McpAliasesForCanonicalKey $name)) {
+            $existing = [regex]::Replace($existing, (Get-CodexMcpSectionPattern -Key $alias), '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+        }
+    }
 
     foreach ($name in @($Mcps.Keys | Sort-Object)) {
         $mcp = $Mcps[$name]
@@ -872,6 +998,7 @@ function Sync-HostMcp-Hermes {
     param(
         [Parameter(Mandatory)]$Agent,
         [Parameter(Mandatory)][hashtable]$Mcps,
+        [string[]]$SuppressedKeys = @(),
         [switch]$WhatIf
     )
 
@@ -921,6 +1048,7 @@ function Sync-HostMcp-Hermes {
         $sectionMatch = [regex]::Match($existing, $sectionPattern)
         $managedNames = @{}
         foreach ($name in $Mcps.Keys) { $managedNames[(Resolve-McpAliasKey $name)] = $true }
+        foreach ($name in $SuppressedKeys) { $managedNames[(Resolve-McpAliasKey $name)] = $true }
         $preservedEntries = [System.Collections.Generic.List[string]]::new()
         # Determine the existing direct-child indentation dynamically, then
         # accept normal YAML keys (including dotted, spaced, and quoted names).
@@ -1000,7 +1128,13 @@ function ConvertTo-QwenMcpEntry {
 }
 
 function Sync-HostMcp-Qwen {
-    param([pscustomobject]$Agent, [hashtable]$McpEntries, [switch]$WhatIf, [switch]$Prune)
+    param(
+        [pscustomobject]$Agent,
+        [hashtable]$McpEntries,
+        [string[]]$SuppressedKeys = @(),
+        [switch]$WhatIf,
+        [switch]$Prune
+    )
     $path = $Agent.nativePaths.settings
     $json = @{}
     if (Test-Path -LiteralPath $path) {
@@ -1009,6 +1143,7 @@ function Sync-HostMcp-Qwen {
     if (-not $json.ContainsKey('mcpServers')) { $json.mcpServers = @{} }
     elseif (-not ($json.mcpServers -is [hashtable])) { $json.mcpServers = ConvertTo-Hashtable $json.mcpServers }
     $json.mcpServers = Normalize-McpTargetKeys -Target $json.mcpServers
+    $json.mcpServers = Remove-McpTargetKeys -Target $json.mcpServers -Keys $SuppressedKeys
 
     $canonicalKeys = @{}
     foreach ($key in $McpEntries.Keys) {
@@ -1026,9 +1161,13 @@ function Sync-HostMcp-Qwen {
     if ($json.ContainsKey('mcp')) {
         if (-not ($json.mcp -is [hashtable])) { $json.mcp = ConvertTo-Hashtable $json.mcp }
         if ($json.mcp.ContainsKey('allowed') -and $null -ne $json.mcp.allowed) {
+            $suppressedLookup = @{}
+            foreach ($suppressedKey in $SuppressedKeys) {
+                $suppressedLookup[(Resolve-McpAliasKey ([string]$suppressedKey))] = $true
+            }
             $allowed = @($json.mcp.allowed | ForEach-Object {
                 Resolve-McpAliasKey ([string]$_)
-            })
+            } | Where-Object { -not $suppressedLookup.ContainsKey([string]$_) })
             $allowed += @($canonicalKeys.Keys)
             $json.mcp.allowed = @($allowed | Sort-Object -Unique)
         }
@@ -1108,6 +1247,7 @@ function Sync-HostMcp-JsonFile {
         [string]$Path,
         [hashtable]$McpEntries,
         [string]$JsonProperty = 'mcpServers',
+        [string[]]$SuppressedKeys = @(),
         [switch]$WhatIf,
         [switch]$Prune
     )
@@ -1123,6 +1263,7 @@ function Sync-HostMcp-JsonFile {
         if (-not $json[$JsonProperty]) { $json[$JsonProperty] = @{} }
     }
 
+    $json[$JsonProperty] = Remove-McpTargetKeys -Target $json[$JsonProperty] -Keys $SuppressedKeys
     $json[$JsonProperty] = Merge-McpServers -Target $json[$JsonProperty] -Additions $McpEntries -PruneUnknown:$Prune
 
     $stableNewJson = Get-StableJsonString $json
@@ -1182,6 +1323,7 @@ function Sync-HostMcp-ConvertedJsonFile {
         [hashtable]$McpEntries,
         [scriptblock]$Converter,
         [string]$JsonProperty = 'mcpServers',
+        [string[]]$SuppressedKeys = @(),
         [switch]$WhatIf,
         [switch]$Prune
     )
@@ -1196,6 +1338,7 @@ function Sync-HostMcp-ConvertedJsonFile {
     elseif (-not ($root[$JsonProperty] -is [hashtable])) { $root[$JsonProperty] = ConvertTo-Hashtable $root[$JsonProperty] }
 
     $servers = Normalize-McpTargetKeys -Target $root[$JsonProperty]
+    $servers = Remove-McpTargetKeys -Target $servers -Keys $SuppressedKeys
     $canonicalKeys = @{}
     foreach ($key in $McpEntries.Keys) {
         $targetKey = Resolve-McpAliasKey $key
@@ -1352,6 +1495,7 @@ function Sync-HostMcp-Cline {
     param(
         [pscustomobject]$Agent,
         [hashtable]$McpEntries,
+        [string[]]$SuppressedKeys = @(),
         [switch]$WhatIf,
         [switch]$Prune
     )
@@ -1367,6 +1511,7 @@ function Sync-HostMcp-Cline {
     }
 
     $servers = Normalize-McpTargetKeys -Target (ConvertTo-Hashtable $root.mcpServers)
+    $servers = Remove-McpTargetKeys -Target $servers -Keys $SuppressedKeys
     $canonicalKeys = @{}
     foreach ($key in $McpEntries.Keys) {
         $targetKey = Resolve-McpAliasKey $key
@@ -1463,6 +1608,7 @@ function Sync-HostMcp-Qoder {
     param(
         [pscustomobject]$Agent,
         [hashtable]$McpEntries,
+        [string[]]$SuppressedKeys = @(),
         [switch]$WhatIf,
         [switch]$Prune
     )
@@ -1471,7 +1617,7 @@ function Sync-HostMcp-Qoder {
     foreach ($key in $McpEntries.Keys) {
         $qoderEntries[$key] = ConvertTo-QoderMcpEntry (ConvertTo-Hashtable $McpEntries[$key])
     }
-    $result = Sync-HostMcp-JsonFile -Path $Agent.nativePaths.mcp -McpEntries $qoderEntries -JsonProperty 'mcpServers' -WhatIf:$WhatIf -Prune:$Prune
+    $result = Sync-HostMcp-JsonFile -Path $Agent.nativePaths.mcp -McpEntries $qoderEntries -JsonProperty 'mcpServers' -SuppressedKeys $SuppressedKeys -WhatIf:$WhatIf -Prune:$Prune
     if (-not $WhatIf -and (Test-Path -LiteralPath $Agent.nativePaths.mcp -PathType Leaf)) {
         $json = ConvertTo-Hashtable (Get-Content -LiteralPath $Agent.nativePaths.mcp -Raw -Encoding UTF8 | ConvertFrom-Json)
         $changed = $false
@@ -1537,7 +1683,13 @@ function ConvertTo-OpenCodeMcpEntry {
 }
 
 function Sync-HostMcp-OpenCode {
-    param([pscustomobject]$Agent, [hashtable]$McpEntries, [switch]$WhatIf, [switch]$Prune)
+    param(
+        [pscustomobject]$Agent,
+        [hashtable]$McpEntries,
+        [string[]]$SuppressedKeys = @(),
+        [switch]$WhatIf,
+        [switch]$Prune
+    )
 
     $basePath = $Agent.nativePaths.config
     if (-not $basePath) { return @{ status='unsupported-path'; note='OpenCode config path missing' } }
@@ -1560,6 +1712,7 @@ function Sync-HostMcp-OpenCode {
         $root.mcp[$resolved] = $root.mcp[$k]
         $root.mcp.Remove($k)
     }
+    $root.mcp = Remove-McpTargetKeys -Target $root.mcp -Keys $SuppressedKeys
 
     foreach ($key in $McpEntries.Keys) {
         $canonical = $McpEntries[$key]
@@ -1673,6 +1826,7 @@ function Sync-HostMcp-Windsurf {
     param(
         [pscustomobject]$Agent,
         [hashtable]$McpEntries,
+        [string[]]$SuppressedKeys = @(),
         [switch]$WhatIf,
         [switch]$Prune,
         [string[]]$ProtectKeys = @()
@@ -1687,6 +1841,7 @@ function Sync-HostMcp-Windsurf {
         if (-not $root.ContainsKey('mcpServers')) { $root.mcpServers = @{} }
     }
     $servers = Normalize-McpTargetKeys -Target $root.mcpServers
+    $servers = Remove-McpTargetKeys -Target $servers -Keys $SuppressedKeys
 
     # Normalize any existing entries into valid Windsurf schema.
     foreach ($k in @($servers.Keys)) {
@@ -1781,92 +1936,96 @@ foreach ($mcp in $candidateServers) {
     if ($mcp.PSObject.Properties.Match('hosts').Count -gt 0 -and $mcp.hosts) { $mcpHostAllowlist[$mcp.id] = @($mcp.hosts) }
 }
 
-$pluginProvidedByHost = Get-PluginProvidedMcpKeysByHost -CapabilitiesRegistry $capReg -McpRegistry $mcpsReg
+$pluginProvidedByHost = Get-PluginProvidedMcpKeysByHost -CapabilitiesRegistry $capReg -McpRegistry $mcpsReg -ConnectorRegistry $connectorReg
 
 $agentsToSync = @($agentsReg.activeAgents)
 if ($IncludeInactiveAgents) { $agentsToSync += @($agentsReg.inactiveAgents) }
 
 foreach ($agent in $agentsToSync) {
     $hostDrift = @{ host=$agent.id; mcp=@(); files=@(); status='ok' }
-    $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -PluginProvidedByHost $pluginProvidedByHost
+    $gatewayPlan = Get-GatewayPlanForHost -HostId $agent.id -GatewayRegistry $gatewayReg -ConnectorRegistry $connectorReg
+    $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan
     $pluginOwnedKeys = if ($pluginProvidedByHost.ContainsKey($agent.id)) { @($pluginProvidedByHost[$agent.id].Keys) } else { @() }
+    $suppressedKeys = @($pluginOwnedKeys)
+    if ($gatewayPlan) { $suppressedKeys += @($gatewayPlan.managedKeys) }
+    $suppressedKeys = @($suppressedKeys | Sort-Object -Unique)
 
     switch ($agent.id) {
         'claude' {
-            $r = Sync-HostMcp-Claude -Agent $agent -McpEntries $hostMcpEntries -PluginOwnedKeys $pluginOwnedKeys -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Claude -Agent $agent -McpEntries $hostMcpEntries -PluginOwnedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'codex' {
-            $r = Sync-HostMcp-Codex -Agent $agent -McpEntries $hostMcpEntries -PluginOwnedKeys $pluginOwnedKeys -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Codex -Agent $agent -McpEntries $hostMcpEntries -PluginOwnedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'grok' {
-            $r = Sync-HostMcp-Grok -Agent $agent -Mcps $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Grok -Agent $agent -Mcps $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'hermes' {
-            $r = Sync-HostMcp-Hermes -Agent $agent -Mcps $hostMcpEntries -WhatIf:$whatIfMode
+            $r = Sync-HostMcp-Hermes -Agent $agent -Mcps $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode
             $hostDrift.mcp += $r
         }
         'warp' {
-            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-WarpMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-WarpMcpEntry} -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'cursor' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'vscode-insiders' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'servers' -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'servers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'factory' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'qwen-code' {
-            $r = Sync-HostMcp-Qwen -Agent $agent -McpEntries $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Qwen -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
             $hostDrift.files += Sync-QwenCapabilityExtensions -Agent $agent -CapabilitiesRegistry $capReg -WhatIf:$whatIfMode -Prune:$Prune
         }
         'devin' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.config -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.config -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'amp' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.settings -McpEntries $hostMcpEntries -JsonProperty 'amp.mcpServers' -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.settings -McpEntries $hostMcpEntries -JsonProperty 'amp.mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'windsurf' {
-            $r = Sync-HostMcp-Windsurf -Agent $agent -McpEntries $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Windsurf -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'opencode' {
-            $r = Sync-HostMcp-OpenCode -Agent $agent -McpEntries $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-OpenCode -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'gemini' {
-            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.settings -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-GeminiMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.settings -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-GeminiMcpEntry} -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'antigravity' {
-            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-AntigravityMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-AntigravityMcpEntry} -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
             if ($agent.nativePaths.legacyMcp -and $agent.nativePaths.legacyMcp -ne $agent.nativePaths.mcp) {
-                $legacy = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.legacyMcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-AntigravityMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
+                $legacy = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.legacyMcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-AntigravityMcpEntry} -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
                 $hostDrift.mcp += $legacy
             }
         }
         'copilot' {
-            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-CopilotMcpEntry} -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-CopilotMcpEntry} -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'cline' {
-            $r = Sync-HostMcp-Cline -Agent $agent -McpEntries $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Cline -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'qoder' {
-            $r = Sync-HostMcp-Qoder -Agent $agent -McpEntries $hostMcpEntries -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-Qoder -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
     }

@@ -22,10 +22,9 @@
     Apply also requires the exact worktree path in -ApprovedPath. Idle time is
     evidence, not ownership transfer; it never authorizes deletion by itself.
 
-    Scope: only worktrees under the configured ephemeral roots are
-    eligible by default. In-repo review siblings under -PortfolioRoot are
-    report-only unless -IncludeInRepo is passed. Dirty / unpushed / busy
-    worktrees are always reported and left in place.
+    Scope: only worktrees under C:\wt, the sole configured root, can become
+    eligible. In-repo siblings and legacy roots are always report-only.
+    Dirty / unpushed / busy worktrees are always reported and left in place.
 
     Also reports (never deletes): the non-git subops-monorepo COPIES the
     Playwright harness drops in the home dir, and orphaned worktree dirs git
@@ -40,19 +39,24 @@
 .EXAMPLE
     pwsh -File Remove-StaleWorktrees.ps1                  # report only (safe)
     pwsh -File Remove-StaleWorktrees.ps1 -Apply -ApprovedPath C:\path\to\worktree
-    pwsh -File Remove-StaleWorktrees.ps1 -IncludeInRepo -Apply -ApprovedPath C:\path\to\worktree
 #>
 [CmdletBinding()]
 param(
     [string]   $PortfolioRoot = 'C:\Repos\shmindmaster',
-    [string[]] $EphemeralRoots = @(
+    [string]   $ConfiguredRoot = 'C:\wt',
+    [string[]] $LegacyDetectionRoots = @(
+        'C:\Users\SaroshHussain\subops-wt-extractor',
+        'C:\Users\SaroshHussain\wt-agents',
+        'C:\Users\SaroshHussain\wt95',
+        'C:\Repos\shmindmaster\.worktrees',
+        'C:\Repos\shmindmaster\.wt',
+        'C:\Repos\shmindmaster\lawli-worktrees',
         "$env:TEMP\opencode",
         "$env:TEMP\claude",
         "$env:TEMP\claude-worktrees"
     ),
     [string]   $HomeRoot     = $env:USERPROFILE,
     [int]      $MinIdleHours = 12,
-    [switch]   $IncludeInRepo,
     [switch]   $Apply,
     [string[]] $ApprovedPath = @(),
     [string]   $OutputPath
@@ -71,6 +75,11 @@ if (-not $OutputPath) {
 
 function Write-Line($m, $c = 'Gray') { Write-Host $m -ForegroundColor $c }
 function Get-Norm($p) { ($p -replace '/', '\').TrimEnd('\').ToLowerInvariant() }
+
+$configuredRootPath = [System.IO.Path]::GetFullPath($ConfiguredRoot)
+if ((Get-Norm $configuredRootPath) -ne 'c:\wt') {
+    throw "The only configured AgentHub worktree root is C:\wt; received '$ConfiguredRoot'."
+}
 
 # Most-recent activity: newest of worktree root mtime and its git metadata
 # mtime (index / HEAD / logs). Cheap heuristic -- avoids walking node_modules.
@@ -92,17 +101,16 @@ function Get-IdleHours($p) {
     return [math]::Round(((Get-Date) - $newest).TotalHours, 1)
 }
 
-$ephNorms = @($EphemeralRoots | ForEach-Object { Get-Norm $_ })
+$configuredRootNorm = Get-Norm $configuredRootPath
 $approvedNorms = @{}
 foreach ($approved in $ApprovedPath) {
     if (-not [string]::IsNullOrWhiteSpace($approved)) {
         $approvedNorms[(Get-Norm ([System.IO.Path]::GetFullPath($approved)))] = $true
     }
 }
-function Test-Ephemeral($p) {
+function Test-ConfiguredRoot($p) {
     $n = Get-Norm $p
-    foreach ($r in $ephNorms) { if ($n.StartsWith($r + '\')) { return $true } }
-    return $false
+    return $n.StartsWith($configuredRootNorm + '\')
 }
 
 # --- enumerate every registered worktree, deduped by common git-dir --------
@@ -161,9 +169,9 @@ foreach ($k in $seen.Keys) {
         Write-Line "  BUSY  $label  active ${idle}h ago (< ${MinIdleHours}h)" 'Yellow'; continue
     }
 
-    if (-not (Test-Ephemeral $p) -and -not $IncludeInRepo) {
+    if (-not (Test-ConfiguredRoot $p)) {
         $keptInRepo += [pscustomobject]@{ path = $p; branch = $r.branch }
-        Write-Line "  IN-REPO (clean+pushed+idle, kept; -IncludeInRepo to reap)  $label" 'DarkGray'; continue
+        Write-Line "  OUTSIDE C:\wt (report-only; migration/owner review required)  $label" 'DarkGray'; continue
     }
 
     $candidate = [pscustomobject]@{ path = $p; branch = $r.branch; idleHours = $idle }
@@ -194,11 +202,22 @@ foreach ($k in $seen.Keys) {
 # --- orphaned worktree dirs git no longer tracks (have a .git pointer) ------
 $known = @{}; foreach ($k in $seen.Keys) { $known[$k] = $true }; foreach ($k in $mainPaths.Keys) { $known[$k] = $true }
 $orphans = @()
-foreach ($root in $EphemeralRoots) {
+foreach ($root in @($configuredRootPath)) {
     if (-not (Test-Path -LiteralPath $root)) { continue }
     Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue | ForEach-Object {
         if ($known.ContainsKey((Get-Norm $_.FullName))) { return }
         if (Test-Path -LiteralPath (Join-Path $_.FullName '.git')) { $orphans += $_.FullName }
+    }
+}
+
+# --- legacy roots are forbidden migration sources, never cleanup targets ----
+$legacyRootFindings = @()
+foreach ($root in $LegacyDetectionRoots) {
+    if (-not (Test-Path -LiteralPath $root)) { continue }
+    $legacyRootFindings += [pscustomobject]@{
+        path = [System.IO.Path]::GetFullPath($root)
+        classification = 'forbidden-migration-source'
+        action = 'report-only'
     }
 }
 
@@ -216,14 +235,16 @@ $report = [ordered]@{
     generatedAt   = (Get-Date).ToString('o')
     policy        = 'C:\Repos\shmindmaster\agenthub\docs\worktree-management-policy.md'
     applied       = [bool]$Apply
+    configuredRoot = $configuredRootPath
+    legacyDetectionRoots = @($LegacyDetectionRoots)
     minIdleHours  = $MinIdleHours
-    includeInRepo = [bool]$IncludeInRepo
     approvedPaths = @($ApprovedPath)
     eligible      = @($eligible)
     removed       = @($removed)
     heldBack      = @($held)
     keptInRepo    = @($keptInRepo)
     orphanDirs    = @($orphans)
+    legacyRootFindings = @($legacyRootFindings)
     homeCopies    = @($homeCopies)
     failed        = @($failed)
 }
@@ -236,8 +257,9 @@ Write-Line "==================== SUMMARY ====================" 'White'
 Write-Line ("{0} eligible worktree(s); explicit path approval required" -f $eligible.Count) 'Cyan'
 Write-Line ("{0} worktree(s) removed" -f $removed.Count) 'Green'
 Write-Line ("{0} held back (dirty / unpushed / busy)" -f $held.Count) 'Yellow'
-if (-not $IncludeInRepo -and $keptInRepo.Count) { Write-Line ("{0} clean in-repo sibling(s) kept (-IncludeInRepo to reap)" -f $keptInRepo.Count) 'DarkGray' }
+if ($keptInRepo.Count) { Write-Line ("{0} clean worktree(s) outside C:\wt kept for owner/migration review" -f $keptInRepo.Count) 'DarkGray' }
 if ($orphans)    { Write-Line ("{0} orphaned worktree dir(s) -- review manually:" -f $orphans.Count) 'Magenta'; $orphans    | ForEach-Object { Write-Line "    $_" 'Magenta' } }
+if ($legacyRootFindings) { Write-Line ("{0} forbidden legacy root(s) detected -- report only" -f $legacyRootFindings.Count) 'Magenta' }
 if ($homeCopies) { Write-Line ("{0} home-dir subops COPY(ies) -- NOT worktrees, delete manually:" -f $homeCopies.Count) 'Magenta'; $homeCopies | ForEach-Object { Write-Line "    $_" 'Magenta' } }
 if ($failed)     { Write-Line ("{0} deletion error(s) -- file-locked; rerun later" -f $failed.Count) 'Red' }
 Write-Line "Action report written to $OutputPath"
