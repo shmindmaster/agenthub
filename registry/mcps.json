@@ -228,7 +228,8 @@
         "claude",
         "qwen-code",
         "opencode",
-        "hermes"
+        "hermes",
+        "qoder"
       ],
       "experimentalFlagsEnabled": []
     },
@@ -276,10 +277,9 @@
         "id": "product-demo-studio"
       },
       "pluginOwnersByHost": {
-        "claude": "product-demo-studio@handoff",
         "codex": "product-demo-studio@handoff"
       },
-      "notes": "Editorial finishing MCP (import, Underlord edits, publish share links). Optional post-render lane only after product-demo-studio evidence gate. No local MP4 export via API. Consumes Descript media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509"
+      "notes": "Editorial finishing MCP (import, Underlord edits, publish share links). Optional post-render lane only after product-demo-studio evidence gate. Claude uses its native account connector while retaining canonical Product Demo Studio loose skills; Codex and reviewed native plugin adapters use the plugin-owned MCP. No local MP4 export via API. Consumes Descript media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509"
     }
   ]
 }

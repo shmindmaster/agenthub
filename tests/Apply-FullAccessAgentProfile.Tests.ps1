@@ -103,8 +103,16 @@ function global:New-DistributionFixture {
 
     @{ mcpServers = @() } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
     @{ capabilities = @(
-        @{ id = 'product-demo-studio'; canonicalSource = $canonicalRoot },
-        @{ id = 'product-experience-engineering'; canonicalSource = $canonicalExperienceRoot },
+        @{ id = 'product-demo-studio'; canonicalSource = $canonicalRoot; hostMappings = @(
+            @{ hostId = 'claude'; deploymentStatus = 'managed-loose-skills' },
+            @{ hostId = 'codex'; deploymentStatus = 'native-plugin-installed' },
+            @{ hostId = 'copilot'; deploymentStatus = 'native-local-plugin-skills-only' }
+        ) },
+        @{ id = 'product-experience-engineering'; canonicalSource = $canonicalExperienceRoot; hostMappings = @(
+            @{ hostId = 'claude'; deploymentStatus = 'native-plugin-installed' },
+            @{ hostId = 'codex'; deploymentStatus = 'native-plugin-installed' },
+            @{ hostId = 'copilot'; deploymentStatus = 'native-local-plugin' }
+        ) },
         @{ id = 'browser-toolkit'; canonicalSource = $canonicalBrowserRoot; managedSkillNames = @('browser-debugging'); hostMappings = @(
             @{ hostId = 'claude'; deploymentStatus = 'managed-loose-skills-and-mcp' }
         ) }
@@ -157,6 +165,102 @@ AfterAll {
 }
 
 Describe 'Apply-FullAccessAgentProfile managed video distribution' {
+    It 'honors the loose-skill mapping when a disabled Claude plugin cache entry remains' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'claude-disabled-plugin-transition'
+        )
+        $installedPath = Join-Path $fixture.UserProfile '.claude\plugins\installed_plugins.json'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $installedPath) -Force | Out-Null
+        @{
+            plugins = @{
+                'product-demo-studio@handoff' = @(@{
+                    scope = 'user'
+                    installPath = $fixture.CanonicalRoot
+                    version = '0.4.0'
+                })
+            }
+        } | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $installedPath -Encoding UTF8
+        @{
+            enabledPlugins = @{
+                'product-demo-studio@handoff' = $false
+            }
+        } | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath (Join-Path $fixture.UserProfile '.claude\settings.json') -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        $skillPath = Join-Path $fixture.UserProfile '.claude\skills\product-demo-studio\SKILL.md'
+        (Get-Content -LiteralPath $skillPath -Raw).Trim() | Should -Be 'canonical:product-demo-studio'
+    }
+
+    It 'fails closed when Claude still enables a plugin mapped to loose skills' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'claude-enabled-plugin-conflict'
+        )
+        $installedPath = Join-Path $fixture.UserProfile '.claude\plugins\installed_plugins.json'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $installedPath) -Force | Out-Null
+        @{
+            plugins = @{
+                'product-demo-studio@handoff' = @(@{
+                    scope = 'user'
+                    installPath = $fixture.CanonicalRoot
+                    version = '0.4.0'
+                })
+            }
+        } | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $installedPath -Encoding UTF8
+        @{
+            enabledPlugins = @{
+                'product-demo-studio@handoff' = $true
+            }
+        } | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath (Join-Path $fixture.UserProfile '.claude\settings.json') -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Not -Be 0
+    }
+
+    It 'accepts the singular managed-loose-skill status used by single-skill capabilities' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'singular-managed-loose-skill'
+        )
+        $capabilitiesPath = Join-Path $fixture.RegistryRoot 'registry\capabilities.json'
+        $capabilities = Get-Content -LiteralPath $capabilitiesPath -Raw | ConvertFrom-Json
+        ($capabilities.capabilities | Where-Object id -eq 'browser-toolkit').hostMappings[0].deploymentStatus =
+            'managed-loose-skill'
+        $capabilities | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $capabilitiesPath -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        $skillPath = Join-Path $fixture.UserProfile '.claude\skills\browser-debugging\SKILL.md'
+        (Get-Content -LiteralPath $skillPath -Raw).Trim() | Should -Be 'canonical:browser-debugging'
+    }
+
+    It 'deploys Qwen native-skill mappings and replaces their stale junctions' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'qwen-managed-native-skills'
+        )
+        $capabilitiesPath = Join-Path $fixture.RegistryRoot 'registry\capabilities.json'
+        $capabilities = Get-Content -LiteralPath $capabilitiesPath -Raw | ConvertFrom-Json
+        $browserCapability = $capabilities.capabilities | Where-Object id -eq 'browser-toolkit'
+        $browserCapability.hostMappings = @($browserCapability.hostMappings) + @(
+            @{ hostId = 'qwen-code'; deploymentStatus = 'managed-native-skills-and-mcp' }
+        )
+        $capabilities | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $capabilitiesPath -Encoding UTF8
+
+        $qwenSkill = Join-Path $fixture.UserProfile '.qwen\skills\browser-debugging'
+        $retiredTarget = Join-Path $fixture.UserProfile 'retired-qwen-browser-skill'
+        New-Item -ItemType Directory -Path $retiredTarget -Force | Out-Null
+        New-Item -ItemType Directory -Path (Split-Path -Parent $qwenSkill) -Force | Out-Null
+        New-Item -ItemType Junction -Path $qwenSkill -Target $retiredTarget | Out-Null
+        Remove-Item -LiteralPath $retiredTarget -Recurse -Force
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        (Get-Content -LiteralPath (Join-Path $qwenSkill 'SKILL.md') -Raw).Trim() |
+            Should -Be 'canonical:browser-debugging'
+        (Get-Item -LiteralPath $qwenSkill -Force).LinkType | Should -BeNullOrEmpty
+    }
+
     It 'preserves an expected Browser Toolkit junction during generic skill distribution' {
         $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'expected-junction')
         $browserTarget = Join-Path $fixture.UserProfile '.claude\skills\browser-debugging'
@@ -168,12 +272,102 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
         (Get-Content -LiteralPath (Join-Path $browserTarget 'SKILL.md') -Raw).Trim() | Should -Be 'canonical:browser-debugging'
     }
 
+    It 'replaces a broken managed-skill junction without traversing its missing target' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'broken-managed-junction'
+        )
+        $browserTarget = Join-Path $fixture.UserProfile '.claude\skills\browser-debugging'
+        $retiredTarget = Join-Path $fixture.UserProfile 'retired-source\browser-debugging'
+        New-Item -ItemType Directory -Path $retiredTarget -Force | Out-Null
+        New-Item -ItemType Directory -Path (Split-Path -Parent $browserTarget) -Force | Out-Null
+        New-Item -ItemType Junction -Path $browserTarget -Target $retiredTarget | Out-Null
+        Remove-Item -LiteralPath $retiredTarget -Recurse -Force
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+
+        (Get-Content -LiteralPath (Join-Path $browserTarget 'SKILL.md') -Raw).Trim() |
+            Should -Be 'canonical:browser-debugging'
+        (Get-Item -LiteralPath $browserTarget -Force).LinkType | Should -BeNullOrEmpty
+        $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
+        $manifest = Get-Content -LiteralPath (
+            Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse |
+                Select-Object -First 1 -ExpandProperty FullName
+        ) -Raw | ConvertFrom-Json
+        @($manifest.entries | Where-Object {
+            $_.hostId -eq 'claude' -and
+            $_.artifactKind -eq 'skills' -and
+            $_.artifactName -eq 'browser-debugging'
+        }).Count | Should -Be 1
+    }
+
     It 'does not distribute a canonical capability to hosts without a registry mapping' {
         $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'mapping-boundary')
 
         (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\browser-debugging')) | Should -Be $true
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.codex\skills\browser-debugging')) | Should -Be $false
+    }
+
+    It 'quarantines shared Agent Skills shadows after deploying each mapped host copy' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'shared-agent-skills-shadow'
+        )
+        $canonicalRoot = Join-Path $fixture.RegistryRoot 'capabilities\shared-fixture'
+        $canonicalSkill = Join-Path $canonicalRoot 'skills\shared-fixture-skill'
+        New-Item -ItemType Directory -Path $canonicalSkill -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $canonicalSkill 'SKILL.md') `
+            -Value 'canonical:shared-fixture-skill' -Encoding UTF8
+
+        $capabilitiesPath = Join-Path $fixture.RegistryRoot 'registry\capabilities.json'
+        $registry = Get-Content -LiteralPath $capabilitiesPath -Raw | ConvertFrom-Json
+        $registry.capabilities = @($registry.capabilities) + @(
+            @{
+                id = 'shared-fixture'
+                canonicalSource = $canonicalRoot
+                hostMappings = @(
+                    @{ hostId = 'codex'; deploymentStatus = 'managed' },
+                    @{ hostId = 'gemini'; deploymentStatus = 'managed' }
+                )
+            }
+        )
+        $registry | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $capabilitiesPath -Encoding UTF8
+
+        $sharedRoot = Join-Path $fixture.UserProfile '.agents\skills'
+        $managedShadow = Join-Path $sharedRoot 'shared-fixture-skill'
+        $unrelatedSkill = Join-Path $sharedRoot 'user-owned-skill'
+        New-Item -ItemType Directory -Path $managedShadow -Force | Out-Null
+        New-Item -ItemType Directory -Path $unrelatedSkill -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $managedShadow 'SKILL.md') `
+            -Value 'stale:shared-fixture-skill' -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $unrelatedSkill 'SKILL.md') `
+            -Value 'preserve:user-owned-skill' -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+
+        (Test-Path -LiteralPath $managedShadow) | Should -Be $false
+        (Get-Content -LiteralPath (
+            Join-Path $fixture.UserProfile '.codex\skills\shared-fixture-skill\SKILL.md'
+        ) -Raw).Trim() | Should -Be 'canonical:shared-fixture-skill'
+        (Get-Content -LiteralPath (
+            Join-Path $fixture.UserProfile '.gemini\skills\shared-fixture-skill\SKILL.md'
+        ) -Raw).Trim() | Should -Be 'canonical:shared-fixture-skill'
+        (Get-Content -LiteralPath (Join-Path $unrelatedSkill 'SKILL.md') -Raw).Trim() |
+            Should -Be 'preserve:user-owned-skill'
+
+        $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
+        $manifests = @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse)
+        $manifests.Count | Should -Be 1
+        $manifest = Get-Content -LiteralPath $manifests[0].FullName -Raw | ConvertFrom-Json
+        @($manifest.entries | Where-Object {
+            $_.hostId -eq 'shared-agent-skills' -and
+            $_.artifactKind -eq 'skills' -and
+            $_.artifactName -eq 'shared-fixture-skill'
+        }).Count | Should -Be 1
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count |
+            Should -Be $manifests.Count
     }
 
     It 'exactly replaces canonical siblings everywhere, quarantines mapped conflicts, and is idempotent' {
@@ -226,7 +420,19 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
         (Test-Path -LiteralPath $mappedExtensionConflict) | Should -Be $false
         (Get-Content -LiteralPath (Join-Path $unmappedVideoSkill 'SKILL.md') -Raw).Trim() | Should -Be 'keep-me'
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.copilot\skills\product-demo-studio')) | Should -Be $false
-        (Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'bin\copilot.cmd') -Raw) | Should -Match '--plugin-dir'
+        $copilotWrapper = Get-Content -LiteralPath (
+            Join-Path $fixture.UserProfile 'bin\copilot.cmd'
+        ) -Raw
+        $copilotWrapper | Should -Match '--plugin-dir'
+        $copilotAdapter = Join-Path $fixture.LocalAppData `
+            'AgentHub\runtime\copilot\plugins\product-demo-studio'
+        $copilotWrapper.Replace('\','/') | Should -Match `
+            ([regex]::Escape($copilotAdapter.Replace('\','/')))
+        Test-Path -LiteralPath (Join-Path $copilotAdapter '.mcp.json') |
+            Should -BeFalse
+        (Get-Content -LiteralPath (
+            Join-Path $copilotAdapter 'skills\product-demo-studio\SKILL.md'
+        ) -Raw).Trim() | Should -Be 'canonical:product-demo-studio'
         $vscodeSettings = Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'AppData\Roaming\Code - Insiders\User\settings.json') -Raw | ConvertFrom-Json
         $portablePluginPath = $fixture.CanonicalRoot.Replace('\','/')
         $vscodeSettings.'chat.pluginLocations'.$portablePluginPath | Should -Be $true
@@ -376,8 +582,14 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.qwen\skills\engineer-product-experience')) | Should -Be $false
 
         $copilotWrapper = Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'bin\copilot.cmd') -Raw
-        $copilotWrapper | Should -Match ([regex]::Escape($fixture.CanonicalRoot))
-        $copilotWrapper | Should -Match ([regex]::Escape($fixture.CanonicalExperienceRoot))
+        $copilotAdapterRoot = Join-Path $fixture.LocalAppData `
+            'AgentHub\runtime\copilot\plugins'
+        $copilotWrapper.Replace('\','/') | Should -Match ([regex]::Escape(
+            (Join-Path $copilotAdapterRoot 'product-demo-studio').Replace('\','/')
+        ))
+        $copilotWrapper.Replace('\','/') | Should -Match ([regex]::Escape(
+            (Join-Path $copilotAdapterRoot 'product-experience-engineering').Replace('\','/')
+        ))
         $vscodeSettings = Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'AppData\Roaming\Code - Insiders\User\settings.json') -Raw | ConvertFrom-Json
         $vscodeSettings.'chat.pluginLocations'.$($fixture.CanonicalExperienceRoot.Replace('\','/')) | Should -Be $true
 
@@ -400,6 +612,12 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
                 })
             }
         } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $claudeInstalledPath -Encoding UTF8
+        @{
+            enabledPlugins = @{
+                'product-experience-engineering@handoff' = $true
+            }
+        } | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath (Join-Path $fixture.UserProfile '.claude\settings.json') -Encoding UTF8
 
         $codexConfig = Join-Path $fixture.UserProfile '.codex\config.toml'
         New-Item -ItemType Directory -Path (Split-Path -Parent $codexConfig) -Force | Out-Null

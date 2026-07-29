@@ -37,7 +37,7 @@
 | --- | --- | --- |
 | `C:\.codex-plugin`, `C:\registry`, `C:\scripts`, `C:\skills`, `C:\product-demo-studio`, `C:\package.js` | Matching timestamps and fixture-shaped content identify an elevated Pester fixture whose test path escaped to the drive root | Fixture construction and path validation corrected; all removed |
 | `C:\.playwright-mcp` | A Codex/Playwright screenshot operation used `C:\` as its current directory | Removed; canonical `--output-dir` deployed under AgentHub runtime |
-| `C:\cache` | Pnpm `storeDir` | Store moved to `D:\AI-Platform\cache\pnpm`; root directory removed |
+| `C:\cache` | An earlier Pnpm invocation initialized an empty v11 metadata database at 16:42. Windows process-creation telemetry was not retained, so the exact invoking process is an inference rather than an audit fact. | The current Pnpm store and npm cache resolve to `D:\AI-Platform\cache\pnpm` and `D:\AI-Platform\cache\npm`. The recreated root cache was moved intact to `%LOCALAPPDATA%\AgentHub\quarantine\root-cleanup\cache-20260729-164221`; Pnpm, Qwen, and Qoder probes did not recreate it. |
 | `C:\tmp` | Claude Desktop session paths using `/tmp/...` | Removed; no active process references it |
 | `C:\Temp` | Mixed historical use; observed Claude/Cowork tooling and later Codex test output | Required evidence moved to AgentHub reports; root directory removed |
 | `C:\wt` | Historical manual worktree fallback | Retained and promoted to the explicitly approved canonical root |
@@ -93,8 +93,16 @@ trees.
   None contains an AgentHub-registered `on-demand-local` launcher. Codex's
   host-native `node_repl` remains host-owned and starts only for an explicit
   browser or computer-use session.
-- Claude Code's installed MCP plugin manifests (GitHub, Notion, and Descript)
-  are HTTP-only. The installed Codex/agent plugin caches contain no local MCP
+- Claude Code loads GitHub and Notion once from enabled HTTP plugins. Canva
+  and Descript load once from Claude account connectors. Product Demo Studio
+  remains available through eight exact canonical loose skills on Claude, so
+  its bundled Descript MCP is not loaded a second time.
+- Copilot loads Product Demo Studio and Product Experience Engineering from
+  generated AgentHub plugin adapters. The Product Demo adapter is
+  skills-only for Copilot because that host does not expose an external
+  plugin's bundled MCP through its management surface; one direct remote
+  Descript registration supplies the connector without duplication.
+- The installed Codex/agent plugin caches contain no persistent local MCP
   command declaration. Claude Desktop's native MCP config contains zero
   servers.
 - Claude Desktop's account-installed Desktop Commander plugin was the one
@@ -102,9 +110,13 @@ trees.
   despite the empty native config. The plugin was disabled through Claude's
   supported Plugins settings. Its two Node workers exited immediately and did
   not respawn during a 20-second observation.
-- The final process scan found no persistent agent-owned Node or Python MCP
-  worker. The one remaining Node process was the current Codex task's
-  explicitly invoked, on-demand Computer Use `node_repl` session.
+- The final process scan found zero known local MCP workers. Codex Desktop
+  retained several idle `node_repl` wrapper processes owned by its tool
+  runtime, with one active kernel child; unrelated TypeScript language-server
+  and lint workers belonged to another development task. A Qwen CLI tree left
+  by a management-surface probe was traced and stopped without touching other
+  agents. Across the final five-second sample, the remaining Node/Python set
+  consumed 0 CPU-seconds.
 - Hosted HTTP MCPs may establish a lightweight client session per coding
   agent, but they do not create one Node or Python server process per agent on
   this machine. Local tools run only when their owning plugin or skill is
@@ -116,24 +128,25 @@ trees.
 
 ## Verification
 
-- PowerShell 7 with Pester 5.6.1: 92 passed, 0 failed.
-- Windows PowerShell 5.1 with Pester 5.6.1: 92 passed, 0 failed.
-- Focused worktree/runtime lanes: 34/34 under each engine.
-- Focused MCP determinism lanes: 28/28 under each engine.
-- Qwen profile self-healing regression: 12/12 under each engine, with the
-  repaired junction asserted against the AgentHub user runtime target.
+- PowerShell 7 with Pester 6.0.1: 99 passed, 0 failed.
+- Windows PowerShell 5.1 with Pester 5.6.1: 99 passed, 0 failed.
+- Full-access profile distribution lane: 18/18 under each engine, including
+  stale-junction recovery, Claude plugin-to-loose-skill transitions, Copilot
+  adapter ownership, and Qwen native-skill deployment.
+- Exact managed-skill audit: 410 required host placements and 19 Qoder
+  plugin-materialized skill views checked, with 0 missing and 0 content
+  mismatches. No AgentHub-managed shadow remains under `~/.agents/skills`.
 - Firecrawl plugin validator: passed against the canonical package.
-- Managed-file secret audit: 1,309 files scanned, 0 potential inline secrets.
+- Managed-file secret audit: 1,927 files scanned, 0 potential inline secrets.
 - JSON, TOML, YAML, plugin manifest, worktree policy, host readiness, and
   second-apply exact-hash checks: passed.
 
-The advertised validator intentionally reads absolute canonical-source paths
-from `C:\Repos\shmindmaster\agenthub`. Before this branch is integrated it
-therefore reports the new Firecrawl source as missing. It also reports the
-pre-existing `product-demo-studio` and `browser-toolkit` hash drift from the
-protected dirty canonical checkout. The Pester contract correctly treats
-those mutable external-state findings as validator evidence rather than test
-runner failures; their content hashes were not silently blessed.
+The advertised validator now resolves repository-owned canonical paths through
+the checkout or worktree being validated while requiring deployed global
+instructions to keep pointing at the durable canonical checkout. This prevents
+an isolated branch from silently validating another checkout. The ecosystem
+validator passes 83/83 under both PowerShell engines, including canonical
+content hashes and global policy pointers.
 
 ## GitHub Actions retirement
 

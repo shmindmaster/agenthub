@@ -51,7 +51,7 @@ Describe 'Cursor compound dispatch gate and readiness' {
       (Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell cmd) | Should -Be (Get-CursorBlockedLauncherContent -Shell cmd)
       (Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell posix) | Should -Be (Get-CursorBlockedLauncherContent -Shell posix)
     }
-    Assert-MockCalled Invoke-RestMethod -Times 0
+    Should -Invoke Invoke-RestMethod -Times 0 -Exactly
   }
 
   It 'requires both strict Boolean flags and an explicitly inactive provider hold' {
@@ -83,7 +83,7 @@ Describe 'Cursor compound dispatch gate and readiness' {
     $result.keySource | Should -Be 'missing'
     $result.auth | Should -Be $false
     $result.models.reachable | Should -Be $false
-    Assert-MockCalled Invoke-RestMethod -Times 0
+    Should -Invoke Invoke-RestMethod -Times 0 -Exactly
   }
 
   It 'uses the API key fallback when fully enabled and the admin key is whitespace' {
@@ -100,7 +100,7 @@ Describe 'Cursor compound dispatch gate and readiness' {
     $result.auth | Should -Be $true
     $result.models.reachable | Should -Be $true
     $result.models.sampleCount | Should -Be 1
-    Assert-MockCalled Invoke-RestMethod -Times 2 -ParameterFilter { $Method -eq 'Get' }
+    Should -Invoke Invoke-RestMethod -Times 2 -Exactly -ParameterFilter { $Method -eq 'Get' }
   }
 
   It 'falls back from v1 to v0 without exposing an exception message' {

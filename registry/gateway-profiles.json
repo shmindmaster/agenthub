@@ -164,7 +164,6 @@
           "id": "agenthub-shared",
           "activationState": "poc-pending",
           "mcpServerIds": [
-            "context7",
             "exa",
             "firecrawl",
             "tavily"

@@ -10,6 +10,10 @@ param(
 if ([string]::IsNullOrWhiteSpace($RegistryRoot)) {
     $RegistryRoot = Split-Path -Parent $PSScriptRoot
 }
+$RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot)
+$canonicalRepositoryRoot = [System.IO.Path]::GetFullPath(
+    'C:\Repos\shmindmaster\agenthub'
+).TrimEnd('\')
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -77,8 +81,32 @@ foreach ($relativePath in $requiredFiles) {
     }
 }
 
+function Resolve-RegistryOwnedPath([string]$Path) {
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    if ($fullPath.Equals($canonicalRepositoryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        return $RegistryRoot
+    }
+    $canonicalPrefix = $canonicalRepositoryRoot + '\'
+    if ($fullPath.StartsWith($canonicalPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        $relativePath = $fullPath.Substring($canonicalPrefix.Length)
+        return Join-Path $RegistryRoot $relativePath
+    }
+    return $fullPath
+}
+
 if ($IncludeGlobalInstructions) {
     $forbiddenRootPaths = @(
+        'C:\package.js',
+        'C:\.codex-plugin',
+        'C:\.playwright-mcp',
+        'C:\cache',
+        'C:\product-demo-studio',
+        'C:\registry',
+        'C:\scripts',
+        'C:\skills',
+        'C:\Temp',
+        'C:\tmp',
         'C:\registry-root',
         'C:\canonical-product-demo-studio',
         'C:\canonical-product-experience-engineering',
@@ -174,20 +202,22 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
     }
 
     foreach ($capability in $capabilities) {
-        if (-not (Test-Path -LiteralPath $capability.canonicalSource)) {
+        $canonicalSource = Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
+        if (-not (Test-Path -LiteralPath $canonicalSource)) {
             Add-ValidationResult FAIL "capability:$($capability.id):source" 'canonical source missing'
             continue
         }
         Add-ValidationResult PASS "capability:$($capability.id):source" 'canonical source present'
 
-        if (-not (Test-Path -LiteralPath $capability.hashBasis)) {
+        $hashBasis = Resolve-RegistryOwnedPath ([string]$capability.hashBasis)
+        if (-not (Test-Path -LiteralPath $hashBasis)) {
             Add-ValidationResult FAIL "capability:$($capability.id):hash" 'hash-basis path missing'
             continue
         }
 
-        $actualHash = Get-RegistryHashBasisValue $capability.hashBasis
+        $actualHash = Get-RegistryHashBasisValue $hashBasis
         if ($actualHash -eq $capability.contentHash) {
-            $basisKind = if (Test-Path -LiteralPath $capability.hashBasis -PathType Container) { 'full tree' } else { 'file' }
+            $basisKind = if (Test-Path -LiteralPath $hashBasis -PathType Container) { 'full tree' } else { 'file' }
             Add-ValidationResult PASS "capability:$($capability.id):hash" "content hash current ($basisKind)"
         } else {
             Add-ValidationResult FAIL "capability:$($capability.id):hash" 'content hash drifted'
@@ -510,7 +540,9 @@ if ($LASTEXITCODE -eq 0 -and $originUrl) {
 }
 
 if ($IncludeGlobalInstructions) {
-    $policyPath = Join-Path $RegistryRoot 'docs\worktree-management-policy.md'
+    # Deployed global instructions must reference the durable canonical
+    # checkout, even when validation is running from an isolated worktree.
+    $policyPath = Join-Path $canonicalRepositoryRoot 'docs\worktree-management-policy.md'
     $instructionPaths = @(
         @{ id = 'codex'; path = Join-Path $UserProfilePath '.codex\AGENTS.md' },
         @{ id = 'claude'; path = Join-Path $UserProfilePath '.claude\CLAUDE.md' }

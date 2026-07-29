@@ -139,6 +139,35 @@ Describe 'Runtime-centralization registry contracts' {
         $codexRow = Resolve-ConnectorRow -HostId 'codex'
         @($codexRow.exposures.'plugin-owned') | Should -Not -Contain 'firecrawl'
         @($codexRow.exposures.'shared-gateway') | Should -Contain 'firecrawl'
+
+        foreach ($hostId in @('qwen-code', 'qoder', 'vscode-insiders')) {
+            $pluginHost = Resolve-ConnectorRow -HostId $hostId
+            @($pluginHost.exposures.'plugin-owned') | Should -Contain 'descript'
+            @($pluginHost.exposures.'shared-gateway') | Should -Not -Contain 'descript'
+        }
+        $copilotRow = Resolve-ConnectorRow -HostId 'copilot'
+        @($copilotRow.exposures.'plugin-owned') | Should -Not -Contain 'descript'
+        @($copilotRow.exposures.'shared-gateway') | Should -Contain 'descript'
+        $qoderRow = Resolve-ConnectorRow -HostId 'qoder'
+        @($qoderRow.exposures.'plugin-owned') | Should -Contain 'context7'
+        @($qoderRow.exposures.'plugin-owned') | Should -Contain 'chrome-devtools'
+        @($qoderRow.exposures.'shared-gateway') | Should -Not -Contain 'context7'
+
+        $claudeRow = Resolve-ConnectorRow -HostId 'claude'
+        @($claudeRow.exposures.'plugin-owned') | Should -Contain 'github'
+        @($claudeRow.exposures.'plugin-owned') | Should -Contain 'notion'
+        @($claudeRow.exposures.'native-connector') | Should -Contain 'canva'
+        @($claudeRow.exposures.'native-connector') | Should -Contain 'descript'
+        @($claudeRow.exposures.'shared-gateway') | Should -Not -Contain 'canva'
+        @($claudeRow.exposures.'plugin-owned') | Should -Not -Contain 'descript'
+
+        $productDemo = @($capabilities.capabilities | Where-Object id -eq 'product-demo-studio')
+        $productDemo.Count | Should -Be 1
+        $claudeProductDemoMapping = @($productDemo[0].hostMappings |
+            Where-Object hostId -eq 'claude')
+        $claudeProductDemoMapping.Count | Should -Be 1
+        $claudeProductDemoMapping[0].deploymentStatus |
+            Should -Be 'managed-loose-skills'
     }
 
     It 'owns the Firecrawl skills in the portfolio package without duplicating its MCP service' {

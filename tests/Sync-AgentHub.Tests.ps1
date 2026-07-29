@@ -367,6 +367,95 @@ Describe 'Sync-AgentHub plugin-owned MCP deduplication' {
         (@($result.mcpServers.PSObject.Properties.Name) -contains 'notion') | Should -Be $false
         $result.mcpServers.exa.url | Should -Be 'https://mcp.exa.ai/mcp'
     }
+
+    It 'infers MCP ownership from every reviewed native plugin deployment status' {
+        $fixture = Join-Path $TestDrive 'native-plugin-status-mcp'
+        $registryRoot = Join-Path $fixture 'registry-root'
+        $profile = Join-Path $fixture 'profile'
+        $config = Join-Path $profile '.claude.json'
+        $pluginRoot = Join-Path $fixture 'product-demo-studio'
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
+        New-Item -ItemType Directory -Path $profile -Force | Out-Null
+        New-Item -ItemType Directory -Path $pluginRoot -Force | Out-Null
+
+        @{
+            mcpServers = @{
+                descript = @{
+                    type = 'http'
+                    url = 'https://api.descript.com/v2/mcp'
+                }
+            }
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $pluginRoot '.mcp.json') -Encoding UTF8
+        @{
+            activeAgents = @(
+                @{ id = 'claude'; nativePaths = @{ mcpUser = $config } }
+            )
+            inactiveAgents = @()
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\agents.json') -Encoding UTF8
+        @{
+            mcpServers = @(
+                @{
+                    id = 'descript'
+                    name = 'Descript'
+                    scope = 'global-default'
+                    transport = 'http'
+                    activationMode = 'shared-remote'
+                    url = 'https://api.descript.com/v2/mcp'
+                    credentialPolicy = 'provider-managed'
+                },
+                @{
+                    id = 'exa'
+                    name = 'Exa'
+                    scope = 'global-default'
+                    transport = 'http'
+                    activationMode = 'shared-remote'
+                    url = 'https://mcp.exa.ai/mcp'
+                    credentialPolicy = 'provider-managed'
+                }
+            )
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
+        @{
+            capabilities = @(
+                @{
+                    id = 'product-demo-studio'
+                    canonicalSource = $pluginRoot
+                    hostMappings = @(
+                        @{
+                            hostId = 'claude'
+                            deploymentStatus = 'native-plugin-installed'
+                        }
+                    )
+                }
+            )
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
+        @{
+            mcpServers = @{
+                descript = @{
+                    type = 'http'
+                    url = 'https://api.descript.com/v2/mcp'
+                }
+                exa = @{
+                    type = 'http'
+                    url = 'https://mcp.exa.ai/mcp'
+                }
+            }
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath $config -Encoding UTF8
+
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
+            -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile |
+            Out-Host
+        $LASTEXITCODE | Should -Be 0
+
+        $result = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
+        @($result.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'descript'
+        $result.mcpServers.exa.url | Should -Be 'https://mcp.exa.ai/mcp'
+    }
 }
 
 Describe 'Sync-AgentHub default MCP lifecycle suppression' {

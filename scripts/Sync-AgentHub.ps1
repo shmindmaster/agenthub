@@ -586,7 +586,15 @@ function Get-PluginProvidedMcpKeysByHost {
             $serverKeys = @($manifestJson.mcpServers.PSObject.Properties.Name | ForEach-Object { Resolve-McpAliasKey $_ })
 
             foreach ($mapping in $cap.hostMappings) {
-                if ([string]$mapping.deploymentStatus -ne 'plugin-owned') { continue }
+                $deploymentStatus = [string]$mapping.deploymentStatus
+                if ($deploymentStatus -notin @(
+                    'plugin-owned',
+                    'native-plugin-installed',
+                    'native-local-plugin',
+                    'native-extension-junction'
+                )) {
+                    continue
+                }
                 $hostId = [string]$mapping.hostId
                 if (-not $hostId) { continue }
                 if (-not $result.ContainsKey($hostId)) { $result[$hostId] = @{} }

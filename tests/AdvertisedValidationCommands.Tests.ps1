@@ -28,7 +28,7 @@ Describe 'Advertised offline validation commands' {
         }
 
         $exitCode = Invoke-AdvertisedCommand -ScriptPath $global:AgentHubValidateScript -Arguments @('-RegistryRoot', $global:AgentHubRepoRoot)
-        $exitCode | Should -BeIn @(0, 1)
+        $exitCode | Should -Be 0
     }
 
     It 'defaults validation to the repository containing the script' {

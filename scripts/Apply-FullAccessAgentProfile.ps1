@@ -54,7 +54,7 @@ function Save-JsonHash([string]$Path, [hashtable]$Value) {
   $Value | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $Path -Encoding UTF8 -NoNewline
 }
 
-function Get-DirectoryInventory([string]$Path) {
+function Get-DirectoryInventory([string]$Path, [string[]]$ExcludedRelativePaths = @()) {
   if (!(Test-Path -LiteralPath $Path -PathType Container)) { return @() }
   $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\')
   return @(
@@ -62,6 +62,13 @@ function Get-DirectoryInventory([string]$Path) {
       Sort-Object FullName |
       ForEach-Object {
         $relativePath = $_.FullName.Substring($root.Length).TrimStart('\').Replace('\', '/')
+        foreach ($excludedPath in @($ExcludedRelativePaths)) {
+          $normalizedExcludedPath = ([string]$excludedPath).Trim('/').Replace('\', '/')
+          if ($relativePath -eq $normalizedExcludedPath -or
+              $relativePath.StartsWith("$normalizedExcludedPath/", [StringComparison]::OrdinalIgnoreCase)) {
+            return
+          }
+        }
         # Claude writes per-process .in_use sentinels inside a live plugin
         # cache. They are runtime state, not package content, and must not
         # make an otherwise current native plugin appear stale.
@@ -165,7 +172,28 @@ function Test-DirectoryEquivalent([string]$Left, [string]$Right) {
   if (!(Test-Path -LiteralPath $Left -PathType Container) -or !(Test-Path -LiteralPath $Right -PathType Container)) {
     return $false
   }
-  return ((Get-DirectoryInventory $Left) -join "`n") -ceq ((Get-DirectoryInventory $Right) -join "`n")
+  try {
+    return ((Get-DirectoryInventory $Left) -join "`n") -ceq ((Get-DirectoryInventory $Right) -join "`n")
+  } catch [System.IO.IOException], [System.Management.Automation.ItemNotFoundException] {
+    # A stale junction can still satisfy Test-Path even when its target was
+    # retired. Treat an unreadable managed destination as drift so the exact
+    # reparse point can be quarantined and replaced without traversing it.
+    return $false
+  }
+}
+
+function Test-CopilotPluginAdapterEquivalent([string]$Source, [string]$Destination, [bool]$StripMcpManifest) {
+  if (!(Test-Path -LiteralPath $Source -PathType Container) -or
+      !(Test-Path -LiteralPath $Destination -PathType Container)) {
+    return $false
+  }
+  $sourceExclusions = if ($StripMcpManifest) { @('.mcp.json') } else { @() }
+  try {
+    return ((Get-DirectoryInventory $Source $sourceExclusions) -join "`n") -ceq
+      ((Get-DirectoryInventory $Destination) -join "`n")
+  } catch [System.IO.IOException], [System.Management.Automation.ItemNotFoundException] {
+    return $false
+  }
 }
 
 function Copy-DirectoryToStage([string]$Source, [string]$Stage) {
@@ -282,6 +310,12 @@ $managedSkillCapabilities = @(
   @{ id='product-demo-studio'; pluginRoot=$videoPluginRoot; skillsSource=$videoSkillsSource; version=$videoPluginVersion; skillNames=$managedVideoSkillNames },
   @{ id='product-experience-engineering'; pluginRoot=$experiencePluginRoot; skillsSource=$experienceSkillsSource; version=$experiencePluginVersion; skillNames=$managedExperienceSkillNames }
 )
+$copilotPluginRoots = @($managedSkillCapabilities | ForEach-Object {
+  Join-Path $localAppDataRoot "AgentHub\runtime\copilot\plugins\$($_.id)"
+})
+$copilotPluginArgs = @($copilotPluginRoots | ForEach-Object {
+  '--plugin-dir "' + ([string]$_).Replace('\','/') + '"'
+}) -join ' '
 
 $quarantineBatchId = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssfffZ') + '-' + ([guid]::NewGuid().ToString('N').Substring(0, 8))
 $quarantineBatchRoot = Join-Path $UserProfile ".agenthub\quarantine\$quarantineBatchId"
@@ -340,9 +374,33 @@ function Install-ManagedSkill([string]$HostId, [string]$TargetRoot, [string]$Ski
 
 function Get-NativePluginState([string]$HostId, [string]$CapabilityId, [string]$PluginRoot, [string]$PluginVersion) {
   $marketplaceKey = "$CapabilityId@handoff"
+  $capability = $caps.capabilities | Where-Object id -eq $CapabilityId | Select-Object -First 1
+  $mapping = @($capability.hostMappings | Where-Object hostId -eq $HostId | Select-Object -First 1)
+  $deploymentStatus = if ($mapping.Count -eq 1) { [string]$mapping[0].deploymentStatus } else { '' }
+  $expectsNativePlugin = $deploymentStatus -in @(
+    'native-plugin-installed',
+    'native-local-plugin',
+    'native-local-plugin-skills-only'
+  )
   if ($HostId -eq 'claude') {
     $installedPath = Join-Path $UserProfile '.claude\plugins\installed_plugins.json'
-    if (!(Test-Path -LiteralPath $installedPath -PathType Leaf)) { return @{ installed=$false; current=$false; path=$null } }
+    $settingsPath = Join-Path $UserProfile '.claude\settings.json'
+    $enabled = $false
+    if (Test-Path -LiteralPath $settingsPath -PathType Leaf) {
+      $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
+      $enabledProperty = if ($settings.enabledPlugins) {
+        $settings.enabledPlugins.PSObject.Properties[$marketplaceKey]
+      } else {
+        $null
+      }
+      $enabled = $enabledProperty -and $enabledProperty.Value -eq $true
+    }
+    if ($enabled -and -not $expectsNativePlugin) {
+      throw "Claude has enabled $marketplaceKey, but the registry maps $CapabilityId as '$deploymentStatus'. Disable or uninstall the plugin before deploying loose skills."
+    }
+    if (-not $enabled -or !(Test-Path -LiteralPath $installedPath -PathType Leaf)) {
+      return @{ installed=$false; current=$false; path=$null }
+    }
     $installed = Get-Content -LiteralPath $installedPath -Raw | ConvertFrom-Json
     $pluginProperty = if ($installed.plugins) { $installed.plugins.PSObject.Properties[$marketplaceKey] } else { $null }
     if (-not $pluginProperty) { return @{ installed=$false; current=$false; path=$null } }
@@ -359,6 +417,9 @@ function Get-NativePluginState([string]$HostId, [string]$CapabilityId, [string]$
     $enabledPattern = '(?m)^\[plugins\."' + [regex]::Escape($marketplaceKey) + '"\]\r?\nenabled\s*=\s*true\s*$'
     $enabled = (Test-Path -LiteralPath $configPath -PathType Leaf) -and
       ((Get-Content -LiteralPath $configPath -Raw) -match $enabledPattern)
+    if ($enabled -and -not $expectsNativePlugin) {
+      throw "Codex has enabled $marketplaceKey, but the registry maps $CapabilityId as '$deploymentStatus'. Disable the plugin before deploying loose skills."
+    }
     if (-not $enabled) { return @{ installed=$false; current=$false; path=$null } }
     $path = Join-Path $UserProfile ".codex\plugins\cache\handoff\$CapabilityId\$PluginVersion"
     return @{ installed=$true; current=(Test-DirectoryEquivalent $PluginRoot $path); path=$path }
@@ -366,9 +427,17 @@ function Get-NativePluginState([string]$HostId, [string]$CapabilityId, [string]$
   if ($HostId -eq 'copilot') {
     $wrapper = Join-Path $UserProfile 'bin\copilot.cmd'
     if (!(Test-Path -LiteralPath $wrapper -PathType Leaf)) { return @{ installed=$false; current=$false; path=$null } }
+    $path = Join-Path $localAppDataRoot "AgentHub\runtime\copilot\plugins\$CapabilityId"
     $raw = Get-Content -LiteralPath $wrapper -Raw
-    $current = $raw.Contains('--plugin-dir') -and $raw.Contains($PluginRoot)
-    return @{ installed=$current; current=$current; path=$PluginRoot }
+    $portablePath = $path.Replace('\','/')
+    $stripMcpManifest = $CapabilityId -eq 'product-demo-studio'
+    $current = $raw.Contains('--plugin-dir') -and
+      ($raw.Contains($path) -or $raw.Contains($portablePath)) -and
+      (Test-CopilotPluginAdapterEquivalent $PluginRoot $path $stripMcpManifest)
+    if ($current -and -not $expectsNativePlugin) {
+      throw "Copilot loads $CapabilityId as a native adapter, but the registry maps it as '$deploymentStatus'."
+    }
+    return @{ installed=$current; current=$current; path=$path }
   }
   return @{ installed=$false; current=$false; path=$null }
 }
@@ -398,8 +467,36 @@ function Ensure-LocalNativeAdapters {
   # supports the same plugin format and exposes an official local-location map.
   $bin = Join-Path $UserProfile 'bin'
   New-Item -ItemType Directory -Path $bin -Force | Out-Null
+  foreach ($capability in $managedSkillCapabilities) {
+    $adapterRoot = Join-Path $localAppDataRoot "AgentHub\runtime\copilot\plugins\$($capability.id)"
+    $stripMcpManifest = $capability.id -eq 'product-demo-studio'
+    if (!(Test-CopilotPluginAdapterEquivalent $capability.pluginRoot $adapterRoot $stripMcpManifest)) {
+      New-Item -ItemType Directory -Path (Split-Path -Parent $adapterRoot) -Force | Out-Null
+      $stage = Join-Path (Split-Path -Parent $adapterRoot) ('.agenthub-stage-' + [guid]::NewGuid().ToString('N'))
+      $backup = $null
+      try {
+        Copy-DirectoryToStage $capability.pluginRoot $stage
+        if ($stripMcpManifest) {
+          $mcpManifest = Join-Path $stage '.mcp.json'
+          if (Test-Path -LiteralPath $mcpManifest -PathType Leaf) {
+            Remove-Item -LiteralPath $mcpManifest -Force
+          }
+        }
+        if (Test-Path -LiteralPath $adapterRoot -PathType Container) {
+          $backup = Move-ToManagedQuarantine $adapterRoot 'copilot' 'plugin-adapters' $capability.id `
+            "Replaced by the current canonical $($capability.id) Copilot adapter."
+        }
+        Move-Item -LiteralPath $stage -Destination $adapterRoot
+      } catch {
+        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
+        if ($backup -and !(Test-Path -LiteralPath $adapterRoot) -and (Test-Path -LiteralPath $backup)) {
+          Move-Item -LiteralPath $backup -Destination $adapterRoot
+        }
+        throw
+      }
+    }
+  }
   $copilotWrapper = Join-Path $bin 'copilot.cmd'
-  $copilotPluginArgs = @($managedSkillCapabilities | ForEach-Object { '--plugin-dir "' + $_.pluginRoot + '"' }) -join ' '
   $copilotWrapperContent = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" ' + $copilotPluginArgs + ' --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
   if (!(Test-Path -LiteralPath $copilotWrapper) -or (Get-Content -LiteralPath $copilotWrapper -Raw) -cne $copilotWrapperContent) {
     Set-Content -LiteralPath $copilotWrapper -Value $copilotWrapperContent -Encoding ASCII -NoNewline
@@ -643,7 +740,9 @@ foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-dem
     $deploymentStatus = if ($mapping.Count -eq 1) { [string]$mapping[0].deploymentStatus } else { '' }
     $deployLooseSkills = $deploymentStatus -in @(
       'managed',
+      'managed-loose-skill',
       'managed-loose-skills',
+      'managed-native-skills-and-mcp',
       'managed-loose-skills-and-mcp',
       'managed-loose-skills-native-browser-plus-mcp',
       'preprovisioned-loose-skills'
@@ -656,14 +755,10 @@ foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-dem
     foreach ($skill in $sourceSkillDirectories | Where-Object Name -in $managedSkillNames) {
       $destination = Join-Path $target $skill.Name
       if ($deployLooseSkills) {
-        if ($targetEntry.Key -eq 'gemini' -and (Test-Path -LiteralPath (Join-Path "$UserProfile\.agents\skills" $skill.Name) -PathType Container)) {
-          continue
-        }
         if (Test-ExpectedSkillJunction -Path $destination -Source $skill.FullName) {
           continue
         }
-        New-Item -ItemType Directory -Path $destination -Force | Out-Null
-        Get-ChildItem -LiteralPath $skill.FullName -Force | Copy-Item -Destination $destination -Recurse -Force
+        Install-ManagedSkill $targetEntry.Key $target $skill.Name $sourceSkills $cap.id
       } elseif (
           (Test-Path -LiteralPath $destination -PathType Container) -and
           -not (Test-ExpectedSkillJunction -Path $destination -Source $skill.FullName) -and
@@ -684,6 +779,40 @@ foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-dem
       }
     }
   }
+}
+
+# ~/.agents/skills is discovered alongside host-native skill directories by
+# several coding agents. It is not an AgentHub deployment target, so retaining
+# an AgentHub-managed name there creates a second owner, can override a current
+# host-native copy, and can expose a capability to hosts that are not mapped to
+# it. Preserve only those managed-name shadows in quarantine after every mapped
+# host deployment has completed successfully. Unregistered user skills remain
+# untouched.
+$sharedAgentSkillsRoot = Join-Path $UserProfile '.agents\skills'
+$sharedManagedSkillOwners = @{}
+foreach ($cap in @($caps.capabilities)) {
+  $sourceSkills = Join-Path ([string]$cap.canonicalSource) 'skills'
+  if (!(Test-Path -LiteralPath $sourceSkills -PathType Container)) { continue }
+  $sourceSkillDirectories = @(Get-ChildItem -LiteralPath $sourceSkills -Directory)
+  $managedSkillNames = if ($cap.PSObject.Properties.Name -contains 'managedSkillNames') {
+    @($cap.managedSkillNames | ForEach-Object { [string]$_ })
+  } else {
+    @($sourceSkillDirectories | ForEach-Object Name)
+  }
+  foreach ($skillName in $managedSkillNames) {
+    if ($sharedManagedSkillOwners.ContainsKey($skillName) -and
+        $sharedManagedSkillOwners[$skillName] -ne [string]$cap.id) {
+      throw "Managed skill $skillName has multiple capability owners: $($sharedManagedSkillOwners[$skillName]), $($cap.id)."
+    }
+    $sharedManagedSkillOwners[$skillName] = [string]$cap.id
+  }
+}
+foreach ($skillName in @($sharedManagedSkillOwners.Keys | Sort-Object)) {
+  $sharedPath = Join-Path $sharedAgentSkillsRoot $skillName
+  if (!(Test-Path -LiteralPath $sharedPath -PathType Container)) { continue }
+  $ownerId = [string]$sharedManagedSkillOwners[$skillName]
+  Move-ToManagedQuarantine $sharedPath 'shared-agent-skills' 'skills' $skillName `
+    "Removed a shared Agent Skills shadow of the canonical $ownerId capability." | Out-Null
 }
 
 if ($SkillDistributionOnly) {
@@ -908,7 +1037,7 @@ New-Item -ItemType Directory -Path $bin -Force | Out-Null
 $wrappers = @{
   'gemini.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\gemini.cmd" --yolo --skip-trust %*'
   'qwen.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\qwen.cmd" --yolo --experimental-lsp %*'
-  'copilot.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" ' + (@($managedSkillCapabilities | ForEach-Object { '--plugin-dir "' + $_.pluginRoot + '"' }) -join ' ') + ' --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
+  'copilot.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" ' + $copilotPluginArgs + ' --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
   'devin.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\devin\cli\bin\devin.exe" --permission-mode dangerous --respect-workspace-trust false %*'
   'agy.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\agy\bin\agy.exe" --dangerously-skip-permissions %*'
   'cline.cmd' = '@echo off' + "`r`n" + 'set "_cline_admin="' + "`r`n" + 'for %%A in (auth config plugin skill connect mcp doctor history hook schedule hub dashboard update kanban) do if /I "%~1"=="%%A" set "_cline_admin=1"' + "`r`n" + 'if defined _cline_admin ("%APPDATA%\npm\cline.cmd" %*) else ("%APPDATA%\npm\cline.cmd" --auto-approve true %*)'
@@ -917,7 +1046,7 @@ $wrappers = @{
   'qoder-acp.cmd' = '@echo off' + "`r`n" + '"%USERPROFILE%\.qoder\bin\qodercli\qodercli.exe" --acp --dangerously-skip-permissions --tools default %*'
   'opencode-acp.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\opencode.cmd" acp %*'
   'gemini-acp.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\gemini.cmd" --acp --yolo --skip-trust %*'
-  'copilot-acp.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" --acp --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
+  'copilot-acp.cmd' = '@echo off' + "`r`n" + '"%APPDATA%\npm\copilot.cmd" ' + $copilotPluginArgs + ' --acp --allow-all --autopilot --no-ask-user --allow-all-mcp-server-instructions %*'
   'hermes-acp.cmd' = '@echo off' + "`r`n" + '"%LOCALAPPDATA%\hermes\hermes-agent\venv\Scripts\hermes.exe" acp --accept-hooks %*'
   'cursor-agent.cmd' = Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell cmd
   'cursor-agent' = Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell posix
@@ -932,6 +1061,6 @@ elseif (-not $userPath.StartsWith($bin, [System.StringComparison]::OrdinalIgnore
 
 # Let the existing host-aware synchronizer render Codex and Qwen's native
 # formats and Qwen extension adapters from this same registry.
-& pwsh -NoProfile -File (Join-Path $RegistryRoot 'scripts\Sync-AgentHub.ps1') -Apply -Validate -IncludeInactiveAgents -ScopeProfile global-default -RegistryRoot $RegistryRoot -UserProfile $UserProfile
+& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Sync-AgentHub.ps1') -Apply -Validate -IncludeInactiveAgents -ScopeProfile global-default -RegistryRoot $RegistryRoot -UserProfile $UserProfile
 
 Write-Host 'Full-access agent profile applied. Restart open agent sessions and open a new terminal for launcher PATH changes.' -ForegroundColor Green

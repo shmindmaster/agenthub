@@ -83,14 +83,15 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
-          "descript",
           "github",
           "notion"
         ],
-        "native-connector": [],
+        "native-connector": [
+          "canva",
+          "descript"
+        ],
         "shared-gateway": [
           "adobe-for-creativity",
-          "canva",
           "context7",
           "exa",
           "firecrawl",
@@ -105,20 +106,22 @@
         ]
       },
       "evidence": [
-        "Claude installed_plugins.json and package manifests own GitHub, Notion, and Product Demo Studio Descript."
+        "Claude installed_plugins.json and package manifests own GitHub and Notion.",
+        "Claude account connectors own Canva and Descript; Product Demo Studio deploys canonical loose skills on Claude so its bundled Descript MCP is not loaded twice."
       ]
     },
     {
       "hostId": "vscode-insiders",
       "providerHeld": false,
       "exposures": {
-        "plugin-owned": [],
+        "plugin-owned": [
+          "descript"
+        ],
         "native-connector": [],
         "shared-gateway": [
           "adobe-for-creativity",
           "canva",
           "context7",
-          "descript",
           "exa",
           "firecrawl",
           "linear",
@@ -212,13 +215,14 @@
       "hostId": "qwen-code",
       "providerHeld": false,
       "exposures": {
-        "plugin-owned": [],
+        "plugin-owned": [
+          "descript"
+        ],
         "native-connector": [],
         "shared-gateway": [
           "adobe-for-creativity",
           "canva",
           "context7",
-          "descript",
           "exa",
           "firecrawl",
           "github",
@@ -453,13 +457,15 @@
       "hostId": "qoder",
       "providerHeld": false,
       "exposures": {
-        "plugin-owned": [],
+        "plugin-owned": [
+          "chrome-devtools",
+          "context7",
+          "descript"
+        ],
         "native-connector": [],
         "shared-gateway": [
           "adobe-for-creativity",
           "canva",
-          "context7",
-          "descript",
           "exa",
           "firecrawl",
           "github",
