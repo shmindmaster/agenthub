@@ -44,10 +44,10 @@ enabled = true
         $LASTEXITCODE | Should Be 0
 
         $result = Get-Content -LiteralPath $config -Raw
-        $result | Should Match '(?m)^\[plugins\."product-demo-studio@handoff"\]$'
+        $result | Should Match '(?m)^\[plugins\."product-demo-studio@handoff"\]\s*$'
         $result | Should Match 'enabled\s*=\s*true'
         $result | Should Match '\[mcp_servers\.repocontext\]'
-        $result | Should Not Match '(?m)^\[mcp_servers\.shwiki-context\]$'
+        $result | Should Not Match '(?m)^\[mcp_servers\.shwiki-context\]\s*$'
         $result | Should Match 'url\s*=\s*"https://repocontext\.shtrial\.com/api/mcp"'
         $result | Should Match 'bearer_token_env_var\s*=\s*"REPOCONTEXT_MCP_TOKEN"'
         $result | Should Not Match 'command\s*='
