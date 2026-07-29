@@ -116,8 +116,8 @@ trees.
 
 ## Verification
 
-- PowerShell 7 with Pester 5.6.1: 91 passed, 0 failed.
-- Windows PowerShell 5.1 with Pester 5.6.1: 91 passed, 0 failed.
+- PowerShell 7 with Pester 5.6.1: 92 passed, 0 failed.
+- Windows PowerShell 5.1 with Pester 5.6.1: 92 passed, 0 failed.
 - Focused worktree/runtime lanes: 34/34 under each engine.
 - Focused MCP determinism lanes: 28/28 under each engine.
 - Qwen profile self-healing regression: 12/12 under each engine, with the

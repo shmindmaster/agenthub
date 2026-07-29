@@ -826,12 +826,12 @@ function Sync-HostMcp-Claude {
     if (-not $json.ContainsKey('mcpServers')) { $json.mcpServers = @{} }
     elseif (-not ($json.mcpServers -is [hashtable])) { $json.mcpServers = ConvertTo-Hashtable $json.mcpServers }
 
-    # A plugin-owned MCP must be removed even when broad pruning is disabled.
-    # This is a narrow ownership cleanup, not permission to delete unrelated
-    # user registrations.
-    foreach ($key in $PluginOwnedKeys) {
-        if ($json.mcpServers.ContainsKey($key)) { $json.mcpServers.Remove($key) }
-    }
+    # Plugin-owned and lifecycle-suppressed MCPs must be removed even when
+    # broad pruning is disabled. Remove canonical keys and declared migration
+    # aliases narrowly; unrelated user registrations remain intact.
+    $json.mcpServers = Remove-McpTargetKeys `
+        -Target $json.mcpServers `
+        -Keys $PluginOwnedKeys
 
     $claudeEntries = @{}
     foreach ($key in @($McpEntries.Keys | Sort-Object)) {
@@ -916,10 +916,18 @@ function Sync-HostMcp-Codex {
     $toml = Get-Content -LiteralPath $path -Raw -Encoding UTF8
     $newToml = $toml
 
-    # Remove only entries with an explicit native-plugin owner. Keep all other
-    # unregistered TOML sections intact unless the caller requests broad prune.
+    # Remove only entries with an explicit native-plugin owner or lifecycle
+    # suppression, including their declared migration aliases. Keep all other
+    # unregistered TOML sections intact unless broad prune is requested.
     foreach ($key in $PluginOwnedKeys) {
-        $newToml = [regex]::Replace($newToml, (Get-CodexMcpSectionPattern $key), '')
+        $resolved = Resolve-McpAliasKey $key
+        foreach ($candidate in @($resolved) + @(Get-McpAliasesForCanonicalKey $resolved)) {
+            $newToml = [regex]::Replace(
+                $newToml,
+                (Get-CodexMcpSectionPattern $candidate),
+                ''
+            )
+        }
     }
 
     foreach ($key in $McpEntries.Keys) {

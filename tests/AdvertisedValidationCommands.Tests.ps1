@@ -31,6 +31,17 @@ Describe 'Advertised offline validation commands' {
         $exitCode | Should -BeIn @(0, 1)
     }
 
+    It 'defaults validation to the repository containing the script' {
+        $output = & $global:AgentHubAdvertisedPowerShell -NoLogo -NoProfile `
+            -NonInteractive -ExecutionPolicy Bypass `
+            -File $global:AgentHubValidateScript -Json 2>$null
+        $output | Should -Not -BeNullOrEmpty
+        $parsed = (@($output) -join [Environment]::NewLine) | ConvertFrom-Json
+
+        @($parsed.results | Where-Object check -eq 'registry:mcp-lifecycle').Count |
+            Should -Be 1
+    }
+
     It 'reports local host readiness without treating optional missing clients as failure' {
         if (-not (Test-Path -LiteralPath $global:AgentHubReadinessScript -PathType Leaf)) {
             throw "Missing advertised command: $global:AgentHubReadinessScript"

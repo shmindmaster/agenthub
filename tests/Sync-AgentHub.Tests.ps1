@@ -377,14 +377,17 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
         $runtime = Join-Path $fixture 'runtime'
         $claudeConfig = Join-Path $profile '.claude.json'
         $clineConfig = Join-Path $profile '.cline\data\settings\cline_mcp_settings.json'
+        $codexConfig = Join-Path $profile '.codex\config.toml'
         New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
         New-Item -ItemType Directory -Path (Split-Path -Parent $claudeConfig) -Force | Out-Null
         New-Item -ItemType Directory -Path (Split-Path -Parent $clineConfig) -Force | Out-Null
+        New-Item -ItemType Directory -Path (Split-Path -Parent $codexConfig) -Force | Out-Null
 
         @{
             activeAgents = @(
                 @{ id = 'claude'; nativePaths = @{ mcpUser = $claudeConfig } },
-                @{ id = 'cline'; nativePaths = @{ mcp = $clineConfig } }
+                @{ id = 'cline'; nativePaths = @{ mcp = $clineConfig } },
+                @{ id = 'codex'; nativePaths = @{ config = $codexConfig } }
             )
             inactiveAgents = @()
         } | ConvertTo-Json -Depth 8 |
@@ -407,6 +410,15 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
                     command = 'npx'
                     args = @('-y', '@playwright/mcp@latest')
                     credentialPolicy = 'none'
+                },
+                @{
+                    id = 'repocontext'
+                    scope = 'on-demand-desktop'
+                    transport = 'stdio'
+                    activationMode = 'on-demand-local'
+                    command = 'pnpm'
+                    args = @('mcp:serve')
+                    credentialPolicy = 'none'
                 }
             )
         } | ConvertTo-Json -Depth 8 |
@@ -417,6 +429,7 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
         @{
             mcpServers = @{
                 playwright = @{ command = 'npx'; args = @('-y', '@playwright/mcp@latest') }
+                shwiki = @{ command = 'pnpm'; args = @('mcp:serve') }
                 custom = @{ type = 'http'; url = 'https://user-owned.example.test/mcp' }
             }
         } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $claudeConfig -Encoding UTF8
@@ -426,6 +439,14 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
                 custom = @{ type = 'streamableHttp'; url = 'https://user-owned.example.test/mcp'; disabled = $false }
             }
         } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $clineConfig -Encoding UTF8
+        @'
+[mcp_servers.repo-context]
+command = "pnpm"
+args = ["mcp:serve"]
+
+[plugins."user-owned@personal"]
+enabled = true
+'@ | Set-Content -LiteralPath $codexConfig -Encoding UTF8
 
         $previousLocalAppData = $env:LOCALAPPDATA
         try {
@@ -440,11 +461,18 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
             @($claude.mcpServers.PSObject.Properties.Name) | Should -Contain 'context7'
             @($claude.mcpServers.PSObject.Properties.Name) | Should -Contain 'custom'
             @($claude.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'playwright'
+            @($claude.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'shwiki'
+            @($claude.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'repocontext'
 
             $cline = Get-Content -LiteralPath $clineConfig -Raw | ConvertFrom-Json
             @($cline.mcpServers.PSObject.Properties.Name) | Should -Contain 'context7'
             @($cline.mcpServers.PSObject.Properties.Name) | Should -Contain 'custom'
             @($cline.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'playwright'
+
+            $codex = Get-Content -LiteralPath $codexConfig -Raw
+            $codex | Should -Not -Match '(?m)^\[mcp_servers\.repo-context\]\s*$'
+            $codex | Should -Not -Match '(?m)^\[mcp_servers\.repocontext\]\s*$'
+            $codex | Should -Match '(?m)^\[plugins\."user-owned@personal"\]\s*$'
 
             & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive `
                 -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
@@ -457,11 +485,17 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
                 ConvertFrom-Json
             @($claudeAfterAll.mcpServers.PSObject.Properties.Name) |
                 Should -Not -Contain 'playwright'
+            @($claudeAfterAll.mcpServers.PSObject.Properties.Name) |
+                Should -Not -Contain 'shwiki'
 
             $clineAfterAll = Get-Content -LiteralPath $clineConfig -Raw |
                 ConvertFrom-Json
             @($clineAfterAll.mcpServers.PSObject.Properties.Name) |
                 Should -Not -Contain 'playwright'
+
+            $codexAfterAll = Get-Content -LiteralPath $codexConfig -Raw
+            $codexAfterAll |
+                Should -Not -Match '(?m)^\[mcp_servers\.repo-context\]\s*$'
         } finally {
             $env:LOCALAPPDATA = $previousLocalAppData
         }

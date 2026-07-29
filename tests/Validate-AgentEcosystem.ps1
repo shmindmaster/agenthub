@@ -1,11 +1,15 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub',
+    [string]$RegistryRoot,
     [switch]$IncludeGlobalInstructions,
     [string]$UserProfilePath = $env:USERPROFILE,
     [switch]$Json
 )
+
+if ([string]::IsNullOrWhiteSpace($RegistryRoot)) {
+    $RegistryRoot = Split-Path -Parent $PSScriptRoot
+}
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
