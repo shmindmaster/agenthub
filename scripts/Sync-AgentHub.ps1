@@ -42,7 +42,28 @@ $ErrorActionPreference = 'Stop'
 # Paths
 # ---------------------------------------------------------------------------
 $RegistryDir       = Join-Path $RegistryRoot 'registry'
-$RuntimeDir        = Join-Path $env:LOCALAPPDATA 'AgentHub'
+$effectiveLocalAppData = [System.IO.Path]::GetFullPath($env:LOCALAPPDATA)
+$invokingUserProfile = if ([string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+    $null
+} else {
+    [System.IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
+}
+$targetUserProfile = [System.IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+if ($invokingUserProfile -and
+    -not $targetUserProfile.Equals($invokingUserProfile, [StringComparison]::OrdinalIgnoreCase)) {
+    $invokingLocalAppData = [System.IO.Path]::GetFullPath(
+        (Join-Path $invokingUserProfile 'AppData\Local')
+    ).TrimEnd('\')
+    if ($effectiveLocalAppData.TrimEnd('\').Equals(
+        $invokingLocalAppData,
+        [StringComparison]::OrdinalIgnoreCase
+    )) {
+        # A synthetic or alternate profile must not contaminate the invoking
+        # user's live AgentHub state merely because LOCALAPPDATA was inherited.
+        $effectiveLocalAppData = Join-Path $targetUserProfile 'AppData\Local'
+    }
+}
+$RuntimeDir        = Join-Path $effectiveLocalAppData 'AgentHub'
 $StateDir          = Join-Path $RuntimeDir 'sync'
 $DriftDir          = Join-Path $StateDir 'drift-reports'
 $StateFile         = Join-Path $StateDir 'sync-state.json'
@@ -131,8 +152,21 @@ if (Test-Path -LiteralPath $StateFile) {
         }
     }
 }
+if ($Apply) {
+    # An apply produces a fresh inventory. Retaining untouched entries turns
+    # old destinations and surviving test fixtures into false current owners.
+    $state.managedFiles = @{}
+}
 
 function Save-State {
+    # State is an inventory of current managed files, not an append-only
+    # history. Retired destinations and deleted test fixtures must not inflate
+    # secret scans or appear to remain managed indefinitely.
+    foreach ($managedPath in @($state.managedFiles.Keys)) {
+        if (-not (Test-Path -LiteralPath $managedPath)) {
+            $state.managedFiles.Remove($managedPath)
+        }
+    }
     $state.lastRun = (Get-Date -Format "o")
     Write-Utf8NoBom -Path $StateFile -Content ($state | ConvertTo-Json -Depth 6)
 }
@@ -895,6 +929,59 @@ function Get-CodexMcpSectionPattern {
     return '(?ms)^\[mcp_servers\.' + $escapedKey + '\]\r?\n.*?(?=^\[(?!mcp_servers\.' + $escapedKey + '\.)[^\]]+\]\r?$|\z)'
 }
 
+function Set-CodexManagedMarketplaceSources {
+    param(
+        [string]$Toml,
+        [object]$ConnectorRegistry
+    )
+
+    if (-not $ConnectorRegistry -or
+        -not $ConnectorRegistry.PSObject.Properties['skillsOnlyPlugins']) {
+        return $Toml
+    }
+
+    $portfolioRows = @($ConnectorRegistry.skillsOnlyPlugins | Where-Object {
+        $_.hostId -eq 'codex' -and
+        [string]$_.pluginId -match '@portfolio$' -and
+        -not [string]::IsNullOrWhiteSpace([string]$_.installedSourcePath)
+    })
+    if ($portfolioRows.Count -eq 0) { return $Toml }
+
+    $sourceRoots = @($portfolioRows | ForEach-Object {
+        $pluginSource = [System.IO.Path]::GetFullPath(
+            ([string]$_.installedSourcePath).Replace('/', '\')
+        )
+        Split-Path -Parent $pluginSource
+    } | Sort-Object -Unique)
+    if ($sourceRoots.Count -ne 1) {
+        throw "Codex portfolio plugins resolve to multiple marketplace roots: $($sourceRoots -join ', ')"
+    }
+
+    $expectedSource = '\\?\' + $sourceRoots[0]
+    $sourceLine = "source = '$expectedSource'"
+    $sectionPattern = '(?ms)^\[marketplaces\.portfolio\]\s*$.*?(?=^\[|\z)'
+    if ($Toml -match $sectionPattern) {
+        $section = $Matches[0]
+        if ($section -match '(?m)^source\s*=') {
+            $newSection = $section -replace '(?m)^source\s*=.*$', $sourceLine
+        } else {
+            $newSection = $section.TrimEnd() + [Environment]::NewLine +
+                $sourceLine + [Environment]::NewLine
+        }
+        return [regex]::Replace(
+            $Toml,
+            $sectionPattern,
+            [System.Text.RegularExpressions.MatchEvaluator]{
+                param($match)
+                return $newSection
+            },
+            1
+        )
+    }
+
+    throw 'Codex portfolio marketplace is missing while the connector registry records an installed portfolio plugin. Restore it through Codex plugin management before synchronizing.'
+}
+
 function ConvertTo-HostEnvironmentReference {
     param(
         [string]$Value,
@@ -1009,6 +1096,10 @@ function Sync-HostMcp-Codex {
             $newToml = [regex]::Replace($newToml, $sectionPattern, '')
         }
     }
+
+    $newToml = Set-CodexManagedMarketplaceSources `
+        -Toml $newToml `
+        -ConnectorRegistry $connectorReg
 
     if ($WhatIf) {
         $status = if ($toml -ne $newToml) { 'drift' } else { 'unchanged' }

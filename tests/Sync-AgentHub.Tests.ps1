@@ -29,6 +29,28 @@ Describe 'Sync-AgentHub Codex TOML preservation' {
             })
         } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
         @{ capabilities = @() } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
+        @{
+            skillsOnlyPlugins = @(@{
+                hostId = 'codex'
+                pluginId = 'firecrawl-ops@portfolio'
+                installedSourcePath = 'C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops'
+            })
+            hosts = @()
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\native-connectors.json') -Encoding UTF8
+        $statePath = Join-Path $profile 'AppData\Local\AgentHub\sync\sync-state.json'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $statePath) -Force | Out-Null
+        $retiredFixturePath = Join-Path $fixture 'retired\config.json'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $retiredFixturePath) -Force | Out-Null
+        Set-Content -LiteralPath $retiredFixturePath -Value 'retired but still present' -Encoding UTF8
+        @{
+            managedFiles = @{
+                $retiredFixturePath = @{
+                    capability = 'retired-test-fixture'
+                    hash = 'DEAD'
+                }
+            }
+            lastRun = '2026-07-29T00:00:00Z'
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $statePath -Encoding UTF8
 
         @'
 [mcp_servers.shwiki-context]
@@ -40,6 +62,11 @@ enabled = true
 
 [plugins."sample-plugin@personal".settings.runtime]
 mode = "skills-only"
+
+[marketplaces.portfolio]
+last_updated = "2026-07-29T17:35:22Z"
+source_type = "local"
+source = '\\?\C:\wt\agenthub\runtime-centralization\packages\portfolio-plugins'
 '@ | Set-Content -LiteralPath $config -Encoding UTF8
 
         & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
@@ -56,6 +83,16 @@ mode = "skills-only"
         $result | Should -Match 'url\s*=\s*"https://repocontext\.shtrial\.com/api/mcp"'
         $result | Should -Match 'bearer_token_env_var\s*=\s*"REPOCONTEXT_MCP_TOKEN"'
         $result | Should -Not -Match 'command\s*='
+        $result | Should -Match ([regex]::Escape(
+            "source = '\\?\C:\Repos\shmindmaster\agenthub\packages\portfolio-plugins'"
+        ))
+        $result | Should -Not -Match ([regex]::Escape(
+            'C:\wt\agenthub\runtime-centralization\packages\portfolio-plugins'
+        ))
+        Test-Path -LiteralPath $statePath -PathType Leaf | Should -BeTrue
+        $managedState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+        @($managedState.managedFiles.PSObject.Properties.Name) |
+            Should -Not -Contain $retiredFixturePath
     }
 }
 

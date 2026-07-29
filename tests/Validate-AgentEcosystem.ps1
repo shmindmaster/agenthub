@@ -400,7 +400,8 @@ if ($registryObjects.ContainsKey('native-connectors.json') -and
         $_.installedState -eq 'skills-only-no-mcp-manifest' -and
         $_.mcpOwner -eq 'registry/mcps.json' -and
         $_.sourcePath -eq 'C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops' -and
-        $_.deploymentState -eq 'live-verified-pending-canonical-merge' -and
+        $_.installedSourcePath -eq 'C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops' -and
+        $_.deploymentState -eq 'live-verified' -and
         $_.mutationPolicy -eq 'do-not-add-bundled-mcp-without-owner-reassignment'
     })
     $codexConnector = @($connectorRegistry.hosts | Where-Object hostId -eq 'codex')
@@ -582,6 +583,21 @@ if ($IncludeGlobalInstructions) {
         Add-ValidationResult PASS 'global:codex:retention' 'managed worktree keep count is 5'
     } else {
         Add-ValidationResult FAIL 'global:codex:retention' 'expected worktree-keep-count = 5'
+    }
+    $portfolioSection = [regex]::Match(
+        $codexRaw,
+        '(?ms)^\[marketplaces\.portfolio\]\s*$.*?(?=^\[|\z)'
+    ).Value
+    $portfolioSource = [regex]::Match(
+        $portfolioSection,
+        "(?m)^source\s*=\s*['`"](?<value>[^'`"]+)['`"]\s*$"
+    )
+    $expectedPortfolioSource = '\\?\C:\Repos\shmindmaster\agenthub\packages\portfolio-plugins'
+    if ($portfolioSource.Success -and
+        $portfolioSource.Groups['value'].Value -ceq $expectedPortfolioSource) {
+        Add-ValidationResult PASS 'global:codex:portfolio-marketplace' 'canonical AgentHub repository referenced'
+    } else {
+        Add-ValidationResult FAIL 'global:codex:portfolio-marketplace' 'canonical AgentHub portfolio marketplace reference missing'
     }
 
     $claudeSettingsPath = Join-Path $UserProfilePath '.claude\settings.json'

@@ -326,6 +326,51 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
         ) -Raw).Trim() | Should -Be 'canonical:local-ai-stack'
     }
 
+    It 'quarantines only exact registry-signed retired skills' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'retired-skill-signature'
+        )
+        $exactRetired = Join-Path $fixture.UserProfile '.claude\skills\browser-evidence'
+        $userOwnedConflict = Join-Path $fixture.UserProfile '.codex\skills\browser-evidence'
+        New-Item -ItemType Directory -Path $exactRetired, $userOwnedConflict -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $exactRetired 'SKILL.md') `
+            -Value 'retired:browser-evidence' -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $userOwnedConflict 'SKILL.md') `
+            -Value 'preserve:user-owned-browser-evidence' -Encoding UTF8
+
+        $capabilitiesPath = Join-Path $fixture.RegistryRoot 'registry\capabilities.json'
+        $capabilities = Get-Content -LiteralPath $capabilitiesPath -Raw | ConvertFrom-Json
+        $browserCapability = $capabilities.capabilities |
+            Where-Object id -eq 'browser-toolkit'
+        $browserCapability | Add-Member -NotePropertyName retiredSkills -NotePropertyValue @(
+            @{
+                name = 'browser-evidence'
+                contentHash = (Get-FileHash -LiteralPath (
+                    Join-Path $exactRetired 'SKILL.md'
+                ) -Algorithm SHA256).Hash
+                reason = 'Synthetic retired skill.'
+            }
+        )
+        $capabilities | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $capabilitiesPath -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        Test-Path -LiteralPath $exactRetired | Should -BeFalse
+        (Get-Content -LiteralPath (Join-Path $userOwnedConflict 'SKILL.md') -Raw).Trim() |
+            Should -Be 'preserve:user-owned-browser-evidence'
+
+        $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
+        $manifest = Get-Content -LiteralPath (
+            Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse |
+                Select-Object -First 1 -ExpandProperty FullName
+        ) -Raw | ConvertFrom-Json
+        @($manifest.entries | Where-Object {
+            $_.hostId -eq 'claude' -and
+            $_.artifactKind -eq 'skills' -and
+            $_.artifactName -eq 'browser-evidence'
+        }).Count | Should -Be 1
+    }
+
     It 'deploys Qwen native-skill mappings and replaces their stale junctions' {
         $fixture = New-DistributionFixture -Root (
             Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'qwen-managed-native-skills'
