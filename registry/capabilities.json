@@ -17,7 +17,7 @@
       "owner": "portfolio",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/clerk",
-      "contentHash": "9A23A6E9E56ACEAE109FF2234B18C376AB3B19DDA321ED7C078D369B432F6862",
+      "contentHash": "AA5D1D62E823436ACDAFBAE51E11CB5F950D00F124C5D1FE70F954F5F8E69B24",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\clerk\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
@@ -60,7 +60,7 @@
       "owner": "portfolio",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/use-digitalocean",
-      "contentHash": "1129BED183E2123ADA1E54EB38B21C2B8986CC790C6E5EDB7D5FC6295BAB165C",
+      "contentHash": "F7E53607BCB3BF5460AD41F249F56EC8F38B1F3296CDBEE87E867DE7F9389B03",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-digitalocean\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
@@ -103,7 +103,7 @@
       "owner": "portfolio",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/use-elevenlabs",
-      "contentHash": "C3AF1F1C5A335ADA0AA063AC143FC2C22E5E0643144BB66D48F60E2B2393D5B5",
+      "contentHash": "EADDD5260AFCB40073279EA8659D6BF975A04716A11BB8121F1312372A12CD35",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-elevenlabs\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
@@ -146,7 +146,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-demo-studio",
-      "contentHash": "444B0E23F30486ACAF14235AE2FB1025F1E79533A6851273F310DD7E85811D8E",
+      "contentHash": "9CB9B781F375BACAB21534B51C3006D4FCADC2381090640898056C48794921CA",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -229,7 +229,7 @@
       "owner": "handoff",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-experience-engineering",
-      "contentHash": "E380918E83065AE6D986F2593C91006EE21958B669E3398B59217DEEFCEDBF84",
+      "contentHash": "D44C7C612C0313E18740904C460395E6C8B96A66FDBCC82D44A707CAE79B8907",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
@@ -312,7 +312,7 @@
       "owner": "portfolio",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/use-campaign-production",
-      "contentHash": "0D155676B8623035A4E1A18380E65B3E34D14AAE89C9FABA16856AACFADA4DD6",
+      "contentHash": "09AE681E2D3F2DA59BED6918DBD2C08FD81179557ACF8E4FC9F2EA10225A8A66",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-campaign-production\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
@@ -355,7 +355,7 @@
       "owner": "portfolio",
       "capabilityType": "skill+mcp",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/capabilities/repocontext",
-      "contentHash": "32FA6790D74016572CE53E68E7B39F19DBC0F4117D96AE8D55C13A4C1B6EB41D",
+      "contentHash": "6B7AE979C349556041B1F40D8D59BC329325F6F08ED6E1EF192936C790BCAC2F",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\repocontext\\skills\\repocontext\\SKILL.md",
       "status": "active-canonical",
       "retiredSkills": [
@@ -445,7 +445,7 @@
       "owner": "portfolio",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/use-prompt-os",
-      "contentHash": "C629B92B266D5BEDC23D45F6415F40B7177BC8E951D38E531B0300BC2BAF4938",
+      "contentHash": "2A0BCEF73BA8B304F9F2DA808A50698EF86435871D68D40E011AF9A84A8E8C65",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-prompt-os\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
@@ -488,7 +488,7 @@
       "owner": "portfolio",
       "capabilityType": "skills-only-plugin",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops",
-      "contentHash": "6D05A2EDF2BBCB4B4F4DDD145E50DA0697B9CEC238EC18EE6433B3A4739C9740",
+      "contentHash": "5FBFBCFF7C58B9B8B3A90FC713766CD52B5FCF1514237EAEA8C23FEECEB51FCF",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\firecrawl-ops\\.codex-plugin\\plugin.json",
       "status": "active-canonical",
       "hostMappings": [
@@ -529,7 +529,7 @@
         "browser-audit",
         "product-demo"
       ],
-      "contentHash": "1435FFAF00AB99D75504A1E5D934F048027252D75BD3D89A5B84C0B89041E761",
+      "contentHash": "A0A40C7E3C8AC19204A37567EFD18C2BFABE8C58877F5ABAF6B356643CCCBAED",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [

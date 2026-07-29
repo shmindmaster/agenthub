@@ -14,6 +14,53 @@ BeforeAll {
     $script:connectorsPath = Join-Path $registryRoot 'native-connectors.json'
     $script:gatewaysPath = Join-Path $registryRoot 'gateway-profiles.json'
     $script:worktreeRootsPath = Join-Path $registryRoot 'worktree-roots.json'
+    . (Join-Path $repoRoot 'scripts\RegistryContentHash.ps1')
+}
+
+Describe 'Registry content hashes' {
+    It 'normalizes text line endings' {
+        $lfPath = Join-Path $TestDrive 'lf.md'
+        $crlfPath = Join-Path $TestDrive 'crlf.md'
+        [System.IO.File]::WriteAllText(
+            $lfPath,
+            "first`nsecond`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        [System.IO.File]::WriteAllText(
+            $crlfPath,
+            "first`r`nsecond`r`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+
+        Get-AgentHubStableFileHash -Path $lfPath |
+            Should -Be (Get-AgentHubStableFileHash -Path $crlfPath)
+    }
+
+    It 'excludes dependency and build artifact directories from tree hashes' {
+        $left = Join-Path $TestDrive 'left'
+        $right = Join-Path $TestDrive 'right'
+        foreach ($root in @($left, $right)) {
+            New-Item -ItemType Directory -Path $root, (Join-Path $root 'node_modules\sample') -Force |
+                Out-Null
+        }
+        [System.IO.File]::WriteAllText(
+            (Join-Path $left 'source.json'),
+            "{`n  `"value`": true`n}`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        [System.IO.File]::WriteAllText(
+            (Join-Path $right 'source.json'),
+            "{`r`n  `"value`": true`r`n}`r`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Set-Content -LiteralPath (Join-Path $left 'node_modules\sample\index.js') `
+            -Value 'left dependency output' -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $right 'node_modules\sample\index.js') `
+            -Value 'right dependency output' -Encoding UTF8
+
+        Get-AgentHubRegistryHashBasisValue -Path $left |
+            Should -Be (Get-AgentHubRegistryHashBasisValue -Path $right)
+    }
 }
 
 Describe 'Runtime-centralization registry contracts' {

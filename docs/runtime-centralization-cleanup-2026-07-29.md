@@ -130,8 +130,8 @@ trees.
 
 ## Verification
 
-- PowerShell 7 with Pester 6.0.1: 102 passed, 0 failed.
-- Windows PowerShell 5.1 with Pester 5.6.1: 102 passed, 0 failed.
+- PowerShell 7 with Pester 6.0.1: 104 passed, 0 failed.
+- Windows PowerShell 5.1 with Pester 5.6.1: 104 passed, 0 failed.
 - Full-access profile distribution lane: 21/21 under each engine, including
   stale-junction recovery, Claude plugin-to-loose-skill transitions, Copilot
   adapter ownership, Qwen native-skill deployment, and signature-gated
@@ -152,6 +152,10 @@ trees.
   same-named user content is preserved.
 - JSON, TOML, YAML, plugin manifest, worktree policy, host readiness, and
   second-apply exact-hash checks: passed.
+- Registry content hashes normalize text line endings and exclude dependency
+  and build artifact directories. The canonical checkout and the task worktree
+  now produce identical hashes even when Git materializes different line
+  endings or a local `node_modules` tree exists.
 - The live full-access checker now derives each host's persisted MCP set from
   `registry/native-connectors.json`, rejects every on-demand local MCP in host
   configuration, and runs under both PowerShell generations without the
