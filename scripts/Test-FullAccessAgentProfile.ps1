@@ -83,6 +83,42 @@ foreach ($pluginOwnedKey in @($pluginOwnedByHost['codex'].Keys)) {
   $escapedKey = [regex]::Escape([string]$pluginOwnedKey)
   Assert-Profile ($codexRaw -notmatch "(?m)^\[mcp_servers\.$escapedKey\]") "codex omits plugin-owned MCP: $pluginOwnedKey"
 }
+$portfolioSection = [regex]::Match(
+  $codexRaw,
+  '(?ms)^\[marketplaces\.portfolio\]\s*$.*?(?=^\[|\z)'
+).Value
+$portfolioSource = [regex]::Match(
+  $portfolioSection,
+  "(?m)^source\s*=\s*['`"](?<value>[^'`"]+)['`"]\s*$"
+)
+$expectedPortfolioSource = '\\?\C:\Repos\shmindmaster\agenthub\packages\portfolio-plugins'
+Assert-Profile (
+  $portfolioSource.Success -and
+  $portfolioSource.Groups['value'].Value -ceq $expectedPortfolioSource
+) 'Codex portfolio marketplace uses the canonical AgentHub repository'
+$retiredShwikiSkillPaths = @(
+  "$UserProfile\.agents\skills\shwiki-context",
+  "$UserProfile\.claude\skills\shwiki-context",
+  "$UserProfile\.codex\skills\shwiki-context",
+  "$UserProfile\.cursor\skills\shwiki-context",
+  "$UserProfile\.qwen\skills\shwiki-context",
+  "$UserProfile\.config\opencode\skills\shwiki-context",
+  "$UserProfile\.factory\skills\shwiki-context",
+  "$env:APPDATA\devin\skills\shwiki-context",
+  "$UserProfile\.config\amp\skills\shwiki-context",
+  "$UserProfile\.codeium\windsurf\skills\shwiki-context",
+  "$UserProfile\.gemini\skills\shwiki-context",
+  "$UserProfile\AppData\Local\hermes\skills\shwiki-context",
+  "$UserProfile\.grok\skills\shwiki-context",
+  "$UserProfile\.gemini\config\skills\shwiki-context",
+  "$UserProfile\.warp\skills\shwiki-context",
+  "$UserProfile\.copilot\skills\shwiki-context",
+  "$UserProfile\.cline\skills\shwiki-context",
+  "$UserProfile\.qoder\skills\shwiki-context"
+)
+Assert-Profile (
+  @($retiredShwikiSkillPaths | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 0
+) 'retired shwiki-context loose skills are absent'
 
 $claude = Get-Content "$UserProfile\.claude\settings.json" -Raw | ConvertFrom-Json
 $qwen = Get-Content "$UserProfile\.qwen\settings.json" -Raw | ConvertFrom-Json

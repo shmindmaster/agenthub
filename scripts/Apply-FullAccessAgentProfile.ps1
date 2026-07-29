@@ -759,6 +759,18 @@ foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-dem
   } else {
     @()
   }
+  $retiredSkillContracts = if ($cap.PSObject.Properties.Name -contains 'retiredSkills') {
+    @($cap.retiredSkills)
+  } else {
+    @()
+  }
+  $invalidRetiredSkillContracts = @($retiredSkillContracts | Where-Object {
+    [string]::IsNullOrWhiteSpace([string]$_.name) -or
+    [string]$_.contentHash -notmatch '^[A-Fa-f0-9]{64}$'
+  })
+  if ($invalidRetiredSkillContracts.Count) {
+    throw "Capability $($cap.id) has an invalid retired skill signature contract."
+  }
   foreach ($targetEntry in $skillTargets.GetEnumerator()) {
     $target = [string]$targetEntry.Value
     $mapping = @($cap.hostMappings | Where-Object { $_.hostId -eq $targetEntry.Key })
@@ -800,6 +812,28 @@ foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-dem
       if (!(Test-Path -LiteralPath $destination -PathType Container)) { continue }
       if ((Test-Path -LiteralPath $retiredSource -PathType Container) -and (Test-DirectoryEquivalent $retiredSource $destination)) {
         Move-ToManagedQuarantine $destination $targetEntry.Key 'skills' $retiredName "Removed an exact canonical $($cap.id) skill name retired by the capability contract." | Out-Null
+      } else {
+        Write-Warning "Preserving non-canonical or ambiguous retired skill path: $destination"
+      }
+    }
+
+    foreach ($retiredSkill in $retiredSkillContracts) {
+      $retiredName = [string]$retiredSkill.name
+      $destination = Join-Path $target $retiredName
+      if (!(Test-Path -LiteralPath $destination -PathType Container)) { continue }
+      $entries = @(Get-ChildItem -LiteralPath $destination -Recurse -Force)
+      $skillFile = Join-Path $destination 'SKILL.md'
+      $isExactRetiredSkill = $entries.Count -eq 1 -and
+        (Test-Path -LiteralPath $skillFile -PathType Leaf) -and
+        (Get-FileHash -LiteralPath $skillFile -Algorithm SHA256).Hash -ceq
+          ([string]$retiredSkill.contentHash).ToUpperInvariant()
+      if ($isExactRetiredSkill) {
+        $reason = if ([string]::IsNullOrWhiteSpace([string]$retiredSkill.reason)) {
+          "Removed an exact retired $($cap.id) skill generation."
+        } else {
+          [string]$retiredSkill.reason
+        }
+        Move-ToManagedQuarantine $destination $targetEntry.Key 'skills' $retiredName $reason | Out-Null
       } else {
         Write-Warning "Preserving non-canonical or ambiguous retired skill path: $destination"
       }

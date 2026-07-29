@@ -102,8 +102,18 @@ Describe 'Runtime-centralization registry contracts' {
         $firecrawlSkillsOnly[0].mutationPolicy | Should -Be 'do-not-add-bundled-mcp-without-owner-reassignment'
         $firecrawlSkillsOnly[0].sourcePath | Should -Be `
             'C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops'
+        $firecrawlSkillsOnly[0].installedSourcePath | Should -Be `
+            'C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops'
         $firecrawlSkillsOnly[0].deploymentState | Should -Be `
-            'live-verified-pending-canonical-merge'
+            'live-verified'
+
+        $repoContext = @($capabilities.capabilities | Where-Object id -eq 'repocontext')
+        $repoContext.Count | Should -Be 1
+        $retiredShwiki = @($repoContext[0].retiredSkills |
+            Where-Object name -eq 'shwiki-context')
+        $retiredShwiki.Count | Should -Be 1
+        $retiredShwiki[0].contentHash | Should -Be `
+            'AC086A2CD293DB4C27657328620AF8A0D0D6ED32C30E0270F6DED26891A4D5DA'
 
         $rowByHost = @{}
         foreach ($row in $hostRows) { $rowByHost[[string]$row.hostId] = $row }

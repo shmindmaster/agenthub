@@ -358,6 +358,13 @@
       "contentHash": "32FA6790D74016572CE53E68E7B39F19DBC0F4117D96AE8D55C13A4C1B6EB41D",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\repocontext\\skills\\repocontext\\SKILL.md",
       "status": "active-canonical",
+      "retiredSkills": [
+        {
+          "name": "shwiki-context",
+          "contentHash": "AC086A2CD293DB4C27657328620AF8A0D0D6ED32C30E0270F6DED26891A4D5DA",
+          "reason": "Replaced by the canonical repocontext capability and MCP migration aliases."
+        }
+      ],
       "hostMappings": [
         {
           "hostId": "claude",

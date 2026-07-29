@@ -130,9 +130,9 @@ trees.
 
 ## Verification
 
-- PowerShell 7 with Pester 6.0.1: 101 passed, 0 failed.
-- Windows PowerShell 5.1 with Pester 5.6.1: 101 passed, 0 failed.
-- Full-access profile distribution lane: 20/20 under each engine, including
+- PowerShell 7 with Pester 6.0.1: 102 passed, 0 failed.
+- Windows PowerShell 5.1 with Pester 5.6.1: 102 passed, 0 failed.
+- Full-access profile distribution lane: 21/21 under each engine, including
   stale-junction recovery, Claude plugin-to-loose-skill transitions, Copilot
   adapter ownership, Qwen native-skill deployment, and signature-gated
   quarantine of the orphan Claude `local-ai-stack` skill.
@@ -140,7 +140,16 @@ trees.
   plugin-materialized skill views checked, with 0 missing and 0 content
   mismatches. No AgentHub-managed shadow remains under `~/.agents/skills`.
 - Firecrawl plugin validator: passed against the canonical package.
-- Managed-file secret audit: 2,102 files scanned, 0 potential inline secrets.
+- Managed-file secret audit: 31 current managed files scanned, 0 potential
+  inline secrets. The earlier count included 2,162 dead Pester fixture paths
+  accumulated in sync state; the state-isolation and fresh-inventory fixes
+  remove that false history.
+- Sync state now resolves beneath a supplied synthetic user profile instead of
+  inheriting the invoking user's live `LOCALAPPDATA`, and apply removes missing
+  destinations from the current managed-file inventory.
+- The retired `shwiki-context` loose-skill generation has one registry-owned
+  signature under `repocontext`; exact historical copies are quarantined while
+  same-named user content is preserved.
 - JSON, TOML, YAML, plugin manifest, worktree policy, host readiness, and
   second-apply exact-hash checks: passed.
 - The live full-access checker now derives each host's persisted MCP set from
@@ -152,7 +161,7 @@ The advertised validator now resolves repository-owned canonical paths through
 the checkout or worktree being validated while requiring deployed global
 instructions to keep pointing at the durable canonical checkout. This prevents
 an isolated branch from silently validating another checkout. The ecosystem
-validator passes 86/86 under both PowerShell engines, including canonical
+validator passes 87/87 under both PowerShell engines, including canonical
 content hashes and global policy pointers.
 
 ## GitHub Actions retirement
@@ -171,14 +180,16 @@ the local validator under both PowerShell 7 and Windows PowerShell 5.1.
 
 ## Remaining gates
 
-1. Merge `codex/agenthub-runtime-centralization` into the protected canonical
-   checkout only after its unrelated dirty `registry/capabilities.json` and
-   `capabilities/local-ai-stack` work is reconciled. Then repoint the Codex
-   `portfolio` marketplace from this task worktree to the canonical repository
-   and rerun the advertised validator.
-2. Restart Codex Desktop before relying on the newly named
+The runtime-centralization change is merged. The protected
+`C:\Repos\shmindmaster\agenthub` checkout is clean on `main`, the previously
+unrelated `local-ai-stack` work was reconciled byte-for-byte, and its original
+working state remains recoverable in a named Git stash. Codex's `portfolio`
+marketplace now points at the canonical repository, and fleet synchronization
+enforces that path.
+
+1. Restart Codex Desktop before relying on the newly named
    `firecrawl-ops@portfolio` skill package in a fresh task. No current process
    depends on the retired bundled Firecrawl runtime.
-3. Cursor remains retained-disabled under the provider hold. Qoder has no
+2. Cursor remains retained-disabled under the provider hold. Qoder has no
    verified public global worktree hook, so AgentHub instructions and the
    stable helper remain its reviewed enforcement path.
