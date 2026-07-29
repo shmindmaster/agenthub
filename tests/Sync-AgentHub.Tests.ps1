@@ -406,7 +406,7 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
                     id = 'playwright'
                     scope = 'on-demand-desktop'
                     transport = 'stdio'
-                    activationMode = 'on-demand-local'
+                    activationMode = 'On-Demand-Local'
                     command = 'npx'
                     args = @('-y', '@playwright/mcp@latest')
                     credentialPolicy = 'none'

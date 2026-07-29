@@ -2055,7 +2055,7 @@ function Sync-HostMcp-Windsurf {
 $whatIfMode = $Audit -or (-not $Apply -and -not $Validate)
 
 $onDemandLocalMcpKeys = @($mcpsReg.mcpServers | Where-Object {
-    [string]$_.activationMode -ceq 'on-demand-local'
+    [string]$_.activationMode -eq 'on-demand-local'
 } | ForEach-Object {
     Resolve-McpAliasKey ([string]$_.id)
 } | Sort-Object -Unique)
@@ -2067,7 +2067,7 @@ $candidateServers = @(Get-McpCandidatesForScope `
     -Servers $mcpsReg.mcpServers `
     -Scope $ScopeProfile `
     -AllowDeprecated:$IncludeDeprecated | Where-Object {
-        [string]$_.activationMode -cne 'on-demand-local'
+        [string]$_.activationMode -ne 'on-demand-local'
     })
 
 $allMcpEntries = @{}
