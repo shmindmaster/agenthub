@@ -12,6 +12,7 @@ $rows = New-Object System.Collections.Generic.List[object]
 $failures = New-Object System.Collections.Generic.List[string]
 $agentsPath = Join-Path $RegistryRoot 'registry\agents.json'
 $policyPath = Join-Path $RegistryRoot 'docs\worktree-management-policy.md'
+$policyReference = 'docs\worktree-management-policy.md'
 
 if (-not (Test-Path -LiteralPath $agentsPath -PathType Leaf)) {
     Write-Error "Missing agent registry: $agentsPath"
@@ -50,8 +51,8 @@ foreach ($agent in @($registry.activeAgents)) {
             $policyPointer = 'missing-instruction-file'
             $failures.Add("$($agent.id): instruction file missing")
         } else {
-            $instructionRaw = Get-Content -LiteralPath $instructions -Raw -Encoding UTF8
-            if ($instructionRaw.Contains($policyPath)) {
+            $instructionRaw = (Get-Content -LiteralPath $instructions -Raw -Encoding UTF8) -replace '/', '\'
+            if ($instructionRaw.Contains($policyReference)) {
                 $policyPointer = 'present'
             } else {
                 $policyPointer = 'missing-policy-pointer'
@@ -77,7 +78,11 @@ $summary = [ordered]@{
 }
 
 if ($Json) {
-    [ordered]@{ summary = $summary; hosts = @($rows); failures = @($failures) } | ConvertTo-Json -Depth 5
+    [ordered]@{
+        summary = $summary
+        hosts = $rows.ToArray()
+        failures = $failures.ToArray()
+    } | ConvertTo-Json -Depth 5
 } else {
     $rows | Format-Table id, name, installed, instructionFile, worktreePolicy -AutoSize
     Write-Output "Summary: registered=$($summary.registered) installed=$($summary.installed) optionalMissing=$($summary.optionalMissing) policyFailures=$($summary.policyFailures)"

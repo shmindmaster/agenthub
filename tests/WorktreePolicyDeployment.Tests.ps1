@@ -5,6 +5,7 @@ Describe 'AgentHub worktree policy deployment' {
         $script:repoRoot = Split-Path -Parent $PSScriptRoot
         $script:helperScript = Join-Path $script:repoRoot 'scripts\New-AgentHubWorktree.ps1'
         $script:installerScript = Join-Path $script:repoRoot 'scripts\Install-WorktreePolicy.ps1'
+        $script:readinessScript = Join-Path $script:repoRoot 'tests\Test-HostReadiness.ps1'
         $script:originalProcessRoot = $env:AGENTHUB_WORKTREE_ROOT
     }
 
@@ -80,6 +81,42 @@ Describe 'AgentHub worktree policy deployment' {
         $LASTEXITCODE | Should -Be 0
         $parsed = $output | ConvertFrom-Json
         $parsed.summary.fail | Should -Be 0
+    }
+
+    It 'returns valid readiness JSON for managed instruction targets' {
+        $fixture = Join-Path $TestDrive 'readiness-json'
+        $registry = Join-Path $fixture 'registry'
+        $docs = Join-Path $fixture 'docs'
+        $instruction = Join-Path $fixture 'profile\AGENTS.md'
+        $policy = Join-Path $docs 'worktree-management-policy.md'
+        New-Item -ItemType Directory -Path `
+            $registry, `
+            $docs, `
+            (Split-Path -Parent $instruction) -Force | Out-Null
+        'synthetic policy' | Set-Content -LiteralPath $policy -Encoding UTF8
+        "Follow $policy" | Set-Content -LiteralPath $instruction -Encoding UTF8
+        @{
+            activeAgents = @(
+                @{
+                    id = 'synthetic'
+                    name = 'Synthetic Agent'
+                    executable = 'powershell.exe'
+                    nativePaths = @{ instructions = $instruction }
+                }
+            )
+        } | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath (Join-Path $registry 'agents.json') -Encoding UTF8
+
+        $output = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -ExecutionPolicy Bypass `
+            -File $script:readinessScript `
+            -RegistryRoot $fixture `
+            -Json
+        $LASTEXITCODE | Should -Be 0
+        $result = $output | ConvertFrom-Json
+        $result.summary.policyFailures | Should -Be 0
+        @($result.hosts).Count | Should -Be 1
+        $result.hosts[0].worktreePolicy | Should -Be 'present'
     }
 
     It 'deploys the helper and merges supported settings without destroying unrelated state' {
