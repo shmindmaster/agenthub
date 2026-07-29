@@ -49,7 +49,7 @@ Claude, Codex, and other personal agent hosts share the policy in [`docs/cross-a
 
 ## Retained core
 
-The registry owns ten canonical capabilities: eight plugin capabilities (`clerk`, `firecrawl-ops`, `use-digitalocean`, `use-elevenlabs`, `product-experience-engineering`, `product-demo-studio`, `use-campaign-production`, and `use-prompt-os`), the `repocontext` read-only portfolio-context skill and MCP, and the `browser-toolkit` skills, MCP, and host adapters. `firecrawl-ops` is a skills-only plugin; the Firecrawl service remains owned by `registry/mcps.json`.
+The registry owns eleven canonical capabilities: eight plugin capabilities (`clerk`, `firecrawl-ops`, `use-digitalocean`, `use-elevenlabs`, `product-experience-engineering`, `product-demo-studio`, `use-campaign-production`, and `use-prompt-os`), the `repocontext` read-only portfolio-context skill and MCP, the Codex-only `local-ai-stack` skill for the `D:\AI-Platform` runtime, and the `browser-toolkit` skills, MCP, and host adapters. `firecrawl-ops` is a skills-only plugin; the Firecrawl service remains owned by `registry/mcps.json`.
 
 `product-experience-engineering` is the single owner for making a real workflow useful, coherent, polished, and demo-ready. Its `prepare-product-for-demo` entry skill runs the mandatory pre-production audit, authorized remediation, validation, and revision-bound handoff. Product Demo Studio consumes that handoff; it does not own product remediation.
 
@@ -75,3 +75,8 @@ Run `pwsh -File .\tests\Test-HostReadiness.ps1` to report locally installed host
 MCP ownership is host-aware. Installed plugins and native connectors suppress duplicate direct registrations. Hosted HTTP services are referenced remotely, so opening several agents does not create one local Node or Python server per agent. Playwright, RepoContext, Brave Search, and host-scoped Chrome DevTools are on-demand local tools and are never persisted in host configuration under any fleet sync scope. Docker MCP Gateway has an installed, partial POC: Linear and Context7 passed, Firecrawl's custom remote snapshot passed bearer-authenticated discovery, and Notion still needs OAuth. Generation remains disabled until the one shared production profile passes. Container-backed catalog servers remain blocked on this Windows host by missing `socat`. See `registry/native-connectors.json`, `registry/gateway-profiles.json`, and [`docs/mcp-ownership-2026-07-24.md`](docs/mcp-ownership-2026-07-24.md).
 
 Worktree creation, retention, and cleanup are governed by the single shared policy in `docs/worktree-management-policy.md`; `registry/worktree-roots.json` records current host-specific enforcement. `C:\wt\<repo>\<task>` is the sole user-created root. `scripts\New-AgentHubWorktree.ps1` supports both the Claude Code `WorktreeCreate` stdin contract and manual `-Cwd` / `-Name` invocation. `scripts\Install-WorktreePolicy.ps1` deploys the stable helper, documented opt-out settings, Claude hook, and Warp Tab Config after backup; `scripts\agentctl.ps1 sync -Apply` deploys managed global instructions with conflict protection. Run `scripts\Audit-Worktrees.ps1` for report-only inventory; cleanup is separate and legacy roots are migration-detection only.
+
+The full-access profile also pins the user-level `TMPDIR` to
+`%LOCALAPPDATA%\AgentHub\tmp`. This prevents POSIX-style `/tmp` paths used by
+coding-agent runtimes from materializing as a user-created `C:\tmp` directory
+on Windows.

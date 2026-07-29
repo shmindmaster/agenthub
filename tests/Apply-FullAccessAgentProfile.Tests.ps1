@@ -235,6 +235,97 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
         (Get-Content -LiteralPath $skillPath -Raw).Trim() | Should -Be 'canonical:browser-debugging'
     }
 
+    It 'quarantines only the audited orphan Claude local-ai-stack skill when Codex is its sole owner' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'retired-claude-local-ai-stack'
+        )
+        $canonicalRoot = Join-Path $fixture.RegistryRoot 'capabilities\local-ai-stack'
+        $canonicalSkill = Join-Path $canonicalRoot 'skills\local-ai-stack'
+        New-Item -ItemType Directory -Path $canonicalSkill -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $canonicalSkill 'SKILL.md') `
+            -Value 'canonical:local-ai-stack' -Encoding UTF8
+
+        $capabilitiesPath = Join-Path $fixture.RegistryRoot 'registry\capabilities.json'
+        $registry = Get-Content -LiteralPath $capabilitiesPath -Raw | ConvertFrom-Json
+        $registry.capabilities = @($registry.capabilities) + @(
+            @{
+                id = 'local-ai-stack'
+                canonicalSource = $canonicalRoot
+                managedSkillNames = @('local-ai-stack')
+                hostMappings = @(
+                    @{ hostId = 'codex'; deploymentStatus = 'managed-loose-skill' }
+                )
+            }
+        )
+        $registry | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $capabilitiesPath -Encoding UTF8
+
+        $legacyPath = Join-Path $fixture.UserProfile '.claude\skills\local-ai-stack'
+        New-Item -ItemType Directory -Path $legacyPath -Force | Out-Null
+        @'
+---
+name: local-ai-stack
+---
+## The father's-memorial pipeline (personal, high-care)
+Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committed).
+'@ | Set-Content -LiteralPath (Join-Path $legacyPath 'SKILL.md') -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture -RetireLegacyVideoOwners) | Should -Be 0
+        (Test-Path -LiteralPath $legacyPath) | Should -BeFalse
+        (Get-Content -LiteralPath (
+            Join-Path $fixture.UserProfile '.codex\skills\local-ai-stack\SKILL.md'
+        ) -Raw).Trim() | Should -Be 'canonical:local-ai-stack'
+
+        $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
+        $manifest = Get-Content -LiteralPath (
+            Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse |
+                Select-Object -First 1 -ExpandProperty FullName
+        ) -Raw | ConvertFrom-Json
+        @($manifest.entries | Where-Object {
+            $_.hostId -eq 'claude' -and
+            $_.artifactKind -eq 'skills' -and
+            $_.artifactName -eq 'local-ai-stack'
+        }).Count | Should -Be 1
+    }
+
+    It 'preserves an unexpected Claude local-ai-stack skill that lacks the audited legacy signature' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'preserved-claude-local-ai-stack'
+        )
+        $canonicalRoot = Join-Path $fixture.RegistryRoot 'capabilities\local-ai-stack'
+        $canonicalSkill = Join-Path $canonicalRoot 'skills\local-ai-stack'
+        New-Item -ItemType Directory -Path $canonicalSkill -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $canonicalSkill 'SKILL.md') `
+            -Value 'canonical:local-ai-stack' -Encoding UTF8
+
+        $capabilitiesPath = Join-Path $fixture.RegistryRoot 'registry\capabilities.json'
+        $registry = Get-Content -LiteralPath $capabilitiesPath -Raw | ConvertFrom-Json
+        $registry.capabilities = @($registry.capabilities) + @(
+            @{
+                id = 'local-ai-stack'
+                canonicalSource = $canonicalRoot
+                managedSkillNames = @('local-ai-stack')
+                hostMappings = @(
+                    @{ hostId = 'codex'; deploymentStatus = 'managed-loose-skill' }
+                )
+            }
+        )
+        $registry | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $capabilitiesPath -Encoding UTF8
+
+        $unexpectedPath = Join-Path $fixture.UserProfile '.claude\skills\local-ai-stack'
+        New-Item -ItemType Directory -Path $unexpectedPath -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $unexpectedPath 'SKILL.md') `
+            -Value 'preserve:user-owned-local-ai-stack' -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture -RetireLegacyVideoOwners) | Should -Be 0
+        (Get-Content -LiteralPath (Join-Path $unexpectedPath 'SKILL.md') -Raw).Trim() |
+            Should -Be 'preserve:user-owned-local-ai-stack'
+        (Get-Content -LiteralPath (
+            Join-Path $fixture.UserProfile '.codex\skills\local-ai-stack\SKILL.md'
+        ) -Raw).Trim() | Should -Be 'canonical:local-ai-stack'
+    }
+
     It 'deploys Qwen native-skill mappings and replaces their stale junctions' {
         $fixture = New-DistributionFixture -Root (
             Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'qwen-managed-native-skills'

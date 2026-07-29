@@ -43,6 +43,8 @@ Describe 'Apply-FullAccessAgentProfile fixture safety' {
 
     It 'guards the supplied user profile before profile writes' {
         $profileSource | Should -Match 'Assert-AgentHubSafeWritePath\s+-Path\s+\$UserProfile'
+        $profileSource | Should -Match "name='TMPDIR';\s*value=\`$agentTempRoot"
+        $profileSource | Should -Match "Join-Path\s+\`$localAppDataRoot\s+'AgentHub\\tmp'"
     }
 
     It 'uses an explicit safe fixture directory instead of Pester TestDrive' {
@@ -63,6 +65,7 @@ Describe 'AgentHub root-path validation' {
         $script:validationSource | Should -Match 'C:\\canonical-product-demo-studio'
         $script:validationSource | Should -Match "retired-skill:agent-fleet-ops"
         $script:validationSource | Should -Match '\.agents\\skills\\agent-fleet-ops'
+        $script:validationSource | Should -Match 'global:agent-temp-root'
     }
 
     It 'documents C:\wt as the sole user-created worktree root without mutating host settings' {

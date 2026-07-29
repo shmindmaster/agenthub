@@ -17,6 +17,8 @@
   worktrees below `C:\wt` were preserved.
 - Pnpm's store is `D:\AI-Platform\cache\pnpm`; the on-demand Playwright MCP
   contract pins output to `%LOCALAPPDATA%\AgentHub\runtime\playwright`.
+- The user-level `TMPDIR` is pinned to `%LOCALAPPDATA%\AgentHub\tmp` so
+  POSIX-style agent runtimes cannot materialize `/tmp` as `C:\tmp`.
 - Firecrawl service ownership remains in `registry/mcps.json`. Its 41-file
   skill package is now the AgentHub-owned
   `packages/portfolio-plugins/firecrawl-ops`, installed in Codex as
@@ -38,7 +40,7 @@
 | `C:\.codex-plugin`, `C:\registry`, `C:\scripts`, `C:\skills`, `C:\product-demo-studio`, `C:\package.js` | Matching timestamps and fixture-shaped content identify an elevated Pester fixture whose test path escaped to the drive root | Fixture construction and path validation corrected; all removed |
 | `C:\.playwright-mcp` | A Codex/Playwright screenshot operation used `C:\` as its current directory | Removed; canonical `--output-dir` deployed under AgentHub runtime |
 | `C:\cache` | An earlier Pnpm invocation initialized an empty v11 metadata database at 16:42. Windows process-creation telemetry was not retained, so the exact invoking process is an inference rather than an audit fact. | The current Pnpm store and npm cache resolve to `D:\AI-Platform\cache\pnpm` and `D:\AI-Platform\cache\npm`. The recreated root cache was moved intact to `%LOCALAPPDATA%\AgentHub\quarantine\root-cleanup\cache-20260729-164221`; Pnpm, Qwen, and Qoder probes did not recreate it. |
-| `C:\tmp` | Claude Desktop session paths using `/tmp/...` | Removed; no active process references it |
+| `C:\tmp` | Codex Desktop `codex.exe` code-mode host created `/tmp/sessions/<session-id>` because its process inherited `TEMP` and `TMP` but no `TMPDIR` | User `TMPDIR` pinned to `%LOCALAPPDATA%\AgentHub\tmp`; the empty tree was moved intact to `%LOCALAPPDATA%\AgentHub\quarantine\root-cleanup\tmp-20260729-175945` after process-reference and content checks |
 | `C:\Temp` | Mixed historical use; observed Claude/Cowork tooling and later Codex test output | Required evidence moved to AgentHub reports; root directory removed |
 | `C:\wt` | Historical manual worktree fallback | Retained and promoted to the explicitly approved canonical root |
 
@@ -128,24 +130,29 @@ trees.
 
 ## Verification
 
-- PowerShell 7 with Pester 6.0.1: 99 passed, 0 failed.
-- Windows PowerShell 5.1 with Pester 5.6.1: 99 passed, 0 failed.
-- Full-access profile distribution lane: 18/18 under each engine, including
+- PowerShell 7 with Pester 6.0.1: 101 passed, 0 failed.
+- Windows PowerShell 5.1 with Pester 5.6.1: 101 passed, 0 failed.
+- Full-access profile distribution lane: 20/20 under each engine, including
   stale-junction recovery, Claude plugin-to-loose-skill transitions, Copilot
-  adapter ownership, and Qwen native-skill deployment.
-- Exact managed-skill audit: 410 required host placements and 19 Qoder
+  adapter ownership, Qwen native-skill deployment, and signature-gated
+  quarantine of the orphan Claude `local-ai-stack` skill.
+- Exact managed-skill audit: 411 required host placements and 19 Qoder
   plugin-materialized skill views checked, with 0 missing and 0 content
   mismatches. No AgentHub-managed shadow remains under `~/.agents/skills`.
 - Firecrawl plugin validator: passed against the canonical package.
-- Managed-file secret audit: 1,927 files scanned, 0 potential inline secrets.
+- Managed-file secret audit: 2,102 files scanned, 0 potential inline secrets.
 - JSON, TOML, YAML, plugin manifest, worktree policy, host readiness, and
   second-apply exact-hash checks: passed.
+- The live full-access checker now derives each host's persisted MCP set from
+  `registry/native-connectors.json`, rejects every on-demand local MCP in host
+  configuration, and runs under both PowerShell generations without the
+  unsupported Windows PowerShell `ConvertFrom-Json -Depth` flag.
 
 The advertised validator now resolves repository-owned canonical paths through
 the checkout or worktree being validated while requiring deployed global
 instructions to keep pointing at the durable canonical checkout. This prevents
 an isolated branch from silently validating another checkout. The ecosystem
-validator passes 83/83 under both PowerShell engines, including canonical
+validator passes 86/86 under both PowerShell engines, including canonical
 content hashes and global policy pointers.
 
 ## GitHub Actions retirement

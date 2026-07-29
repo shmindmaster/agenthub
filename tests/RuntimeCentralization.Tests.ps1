@@ -74,6 +74,14 @@ Describe 'Runtime-centralization registry contracts' {
             Should -Be 'never-persist-on-demand-local-in-host-config'
         $connectors.lifecyclePolicy.localActivationOwnerPolicy |
             Should -Be 'plugin-skill-or-reviewed-shared-gateway'
+
+        $liveProfileChecker = Get-Content -LiteralPath (
+            Join-Path $repoRoot 'scripts\Test-FullAccessAgentProfile.ps1'
+        ) -Raw -Encoding UTF8
+        $liveProfileChecker | Should -Match 'registry\\native-connectors\.json'
+        $liveProfileChecker | Should -Match 'omits on-demand local MCP registrations'
+        $liveProfileChecker | Should -Not -Match 'uses isolated Playwright'
+        $liveProfileChecker | Should -Not -Match 'ConvertFrom-Json\s+-Depth'
     }
 
     It 'classifies every current host exposure as plugin-owned, native-connector, shared-gateway, local-only, or provider-held' {

@@ -121,6 +121,21 @@ if ($IncludeGlobalInstructions) {
         }
     }
 
+    $expectedAgentTempRoot = [System.IO.Path]::GetFullPath(
+        (Join-Path $env:LOCALAPPDATA 'AgentHub\tmp')
+    )
+    $configuredAgentTempRoot = [Environment]::GetEnvironmentVariable('TMPDIR', 'User')
+    if (-not [string]::IsNullOrWhiteSpace($configuredAgentTempRoot) -and
+        [System.IO.Path]::GetFullPath($configuredAgentTempRoot).Equals(
+            $expectedAgentTempRoot,
+            [StringComparison]::OrdinalIgnoreCase
+        ) -and
+        (Test-Path -LiteralPath $expectedAgentTempRoot -PathType Container)) {
+        Add-ValidationResult PASS 'global:agent-temp-root' 'TMPDIR is pinned below the AgentHub user runtime'
+    } else {
+        Add-ValidationResult FAIL 'global:agent-temp-root' 'TMPDIR must resolve to the AgentHub user runtime before agents restart'
+    }
+
     $retiredAgentFleetOpsPath = Join-Path $UserProfilePath '.agents\skills\agent-fleet-ops'
     if (Test-Path -LiteralPath $retiredAgentFleetOpsPath) {
         Add-ValidationResult FAIL 'retired-skill:agent-fleet-ops' 'retired user skill remains installed; remove it only through an explicit cleanup task'

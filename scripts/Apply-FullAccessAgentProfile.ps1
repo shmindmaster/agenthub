@@ -663,6 +663,24 @@ $retiredLegacyOwners = @(
     reason = 'Uninstalled Claude cache generations 0.1.0 through 0.1.4 superseded by canonical 0.3.0.'
   }
 )
+$localAiCapabilities = @($caps.capabilities | Where-Object id -eq 'local-ai-stack')
+if ($localAiCapabilities.Count -eq 1) {
+  $localAiCapability = $localAiCapabilities[0]
+  $localAiHostIds = @($localAiCapability.hostMappings | ForEach-Object { [string]$_.hostId })
+  $localAiSkill = Join-Path $localAiCapability.canonicalSource 'skills\local-ai-stack\SKILL.md'
+  if ($localAiHostIds.Count -eq 1 -and
+      $localAiHostIds[0] -eq 'codex' -and
+      (Test-Path -LiteralPath $localAiSkill -PathType Leaf)) {
+    $retiredLegacyOwners += @{
+      hostId = 'claude'
+      kind = 'skills'
+      name = 'local-ai-stack'
+      path = (Join-Path $UserProfile '.claude\skills\local-ai-stack')
+      signature = 'claude-creative-lab-local-ai'
+      reason = 'Orphan Creative Lab local-ai-stack skill superseded by the AgentHub-owned Codex capability and D:\AI-Platform runtime.'
+    }
+  }
+}
 function Test-RetiredLegacySignature([hashtable]$Owner) {
   switch ($Owner.signature) {
     'autonomous-0.1' {
@@ -682,6 +700,14 @@ function Test-RetiredLegacySignature([hashtable]$Owner) {
     'claude-cache-0.1' {
       $versions = @(Get-ChildItem -LiteralPath $Owner.path -Directory | ForEach-Object Name)
       return $versions.Count -gt 0 -and @($versions | Where-Object { $_ -notin @('0.1.0','0.1.1','0.1.2','0.1.3','0.1.4') }).Count -eq 0
+    }
+    'claude-creative-lab-local-ai' {
+      $skillFile = Join-Path $Owner.path 'SKILL.md'
+      if (!(Test-Path -LiteralPath $skillFile -PathType Leaf)) { return $false }
+      $content = Get-Content -LiteralPath $skillFile -Raw
+      return $content -match '(?m)^name:\s*local-ai-stack\s*$' -and
+        $content.Contains('Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committed).') -and
+        $content.Contains("## The father's-memorial pipeline (personal, high-care)")
     }
     default { return $false }
   }
@@ -1002,12 +1028,19 @@ if (Test-Path -LiteralPath $commanderPath) {
 # Official environment-backed unattended defaults for hosts whose permission
 # control is command-line based. New terminals inherit these values.
 # Record prior presence (not values) for rollback before overwriting.
+$agentTempRoot = Assert-AgentHubSafeWritePath `
+  -Path (Join-Path $localAppDataRoot 'AgentHub\tmp') `
+  -Purpose 'the shared coding-agent temporary directory'
+New-Item -ItemType Directory -Path $agentTempRoot -Force | Out-Null
 $envVarRollback = @{}
 $envVarsToSet = @(
   @{ name='DEVIN_PERMISSION_MODE'; value='dangerous' }
   @{ name='COPILOT_ALLOW_ALL'; value='1' }
   @{ name='GEMINI_CLI_TRUST_WORKSPACE'; value='true' }
   @{ name='QWEN_CODE_SUPPRESS_YOLO_WARNING'; value='1' }
+  # Codex Desktop's code-mode host honors the POSIX TMPDIR convention. Without
+  # it, its /tmp/sessions path materializes as C:\tmp on Windows.
+  @{ name='TMPDIR'; value=$agentTempRoot }
 )
 foreach ($ev in $envVarsToSet) {
   $priorValue = [Environment]::GetEnvironmentVariable($ev.name, 'User')

@@ -492,6 +492,24 @@
       ]
     },
     {
+      "id": "local-ai-stack",
+      "owner": "personal-infrastructure",
+      "capabilityType": "skill+cli",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/capabilities/local-ai-stack",
+      "managedSkillNames": [
+        "local-ai-stack"
+      ],
+      "contentHash": "156D336F5ECB426BA334A1F3E957F9D539BD3E33B8D27B09C28D4DF533534BBC",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\local-ai-stack\\skills\\local-ai-stack\\SKILL.md",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skill"
+        }
+      ]
+    },
+    {
       "id": "browser-toolkit",
       "owner": "browser-quality",
       "capabilityType": "skills+mcp+adapters",

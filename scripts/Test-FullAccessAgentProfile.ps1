@@ -9,16 +9,10 @@ $ErrorActionPreference = 'Stop'
 $fleetProfile = Get-Content (Join-Path $RegistryRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
 . (Join-Path $PSScriptRoot 'AgentCtl.CursorReadiness.ps1')
 $mcpRegistry = Get-Content (Join-Path $RegistryRoot 'registry\mcps.json') -Raw | ConvertFrom-Json
+$connectorRegistry = Get-Content (Join-Path $RegistryRoot 'registry\native-connectors.json') -Raw | ConvertFrom-Json
 $expectedGlobal = @($mcpRegistry.mcpServers | Where-Object scope -eq 'global-default' | ForEach-Object id | Sort-Object)
-$mcpById = @{}
-foreach ($mcp in @($mcpRegistry.mcpServers)) { $mcpById[[string]$mcp.id] = $mcp }
-$expectedByHost = @{}
 $pluginOwnedByHost = @{}
 foreach ($mcp in @($mcpRegistry.mcpServers)) {
-  foreach ($hostEntry in @($mcp.hosts)) {
-    if (-not $expectedByHost.ContainsKey([string]$hostEntry)) { $expectedByHost[[string]$hostEntry] = New-Object System.Collections.Generic.List[string] }
-    [void]$expectedByHost[[string]$hostEntry].Add([string]$mcp.id)
-  }
   $ownersProperty = $mcp.PSObject.Properties['pluginOwnersByHost']
   if ($ownersProperty -and $ownersProperty.Value) {
     foreach ($owner in $ownersProperty.Value.PSObject.Properties) {
@@ -35,7 +29,7 @@ function Assert-Profile([bool]$Condition, [string]$Check) {
 }
 function Read-ServerSet([string]$Path, [string]$Property) {
   try {
-    $root = Get-Content $Path -Raw | ConvertFrom-Json -Depth 100
+    $root = Get-Content $Path -Raw | ConvertFrom-Json
     $propertyInfo = $root.PSObject.Properties[$Property]
     if ($null -eq $propertyInfo) { return $null }
     return $propertyInfo.Value
@@ -66,27 +60,21 @@ foreach ($hostId in $mcpPaths.Keys | Sort-Object) {
   $path, $prop = $mcpPaths[$hostId]
   $actual = Read-ServerNames $path $prop
   $registryHostId = if ($hostId -eq 'qwen') { 'qwen-code' } else { $hostId }
-  $expectedForHost = @($expectedGlobal | Where-Object {
-    $mcp = $mcpById[$_]
-    $hostAllowed = -not $mcp.hosts -or $registryHostId -in @($mcp.hosts)
-    $hostAllowed -and -not ($pluginOwnedByHost.ContainsKey($registryHostId) -and $pluginOwnedByHost[$registryHostId].ContainsKey($_))
-  })
-  if ($hostId -ne 'qwen' -and $expectedByHost.ContainsKey($registryHostId)) {
-    $expectedForHost += @($expectedByHost[$registryHostId] | Where-Object {
-      -not ($pluginOwnedByHost.ContainsKey($registryHostId) -and $pluginOwnedByHost[$registryHostId].ContainsKey($_))
-    })
+  $connectorRows = @($connectorRegistry.hosts | Where-Object hostId -eq $registryHostId)
+  Assert-Profile ($connectorRows.Count -eq 1) "$hostId has one native-connector ownership row"
+  $expectedForHost = if ($connectorRows.Count -eq 1) {
+    @($connectorRows[0].exposures.'shared-gateway' | Sort-Object -Unique)
+  } else {
+    @()
   }
-  $expectedForHost = @($expectedForHost | Sort-Object -Unique)
   if ($hostId -eq 'qwen') { $actual = @((Get-Content $path -Raw | ConvertFrom-Json).mcp.allowed | Sort-Object) }
   Assert-Profile (($actual -join '|') -eq ($expectedForHost -join '|')) "$hostId has the canonical MCP registrations"
-  $serverSet = if ($hostId -eq 'qwen') {
-    Read-ServerSet $path 'mcpServers'
-  } else {
-    Read-ServerSet $path $prop
-  }
-  $serverJson = if ($null -ne $serverSet) { $serverSet | ConvertTo-Json -Depth 100 -Compress } else { '' }
-  Assert-Profile ($serverJson -match '"playwright"[\s\S]*?--isolated') "$hostId uses isolated Playwright"
-  Assert-Profile ($serverJson -notmatch 'exaApiKey=|fc-[a-z0-9]{20,}|pendoah\.app\.n8n') "$hostId has no stale embedded-provider endpoint"
+  $leakedLocalMcpIds = @($actual | Where-Object {
+    $_ -in @($connectorRegistry.lifecyclePolicy.onDemandLocalMcpIds)
+  })
+  Assert-Profile ($leakedLocalMcpIds.Count -eq 0) "$hostId omits on-demand local MCP registrations"
+  $configRaw = Get-Content -LiteralPath $path -Raw -ErrorAction SilentlyContinue
+  Assert-Profile ($configRaw -notmatch 'exaApiKey=|fc-[a-z0-9]{20,}|pendoah\.app\.n8n') "$hostId has no stale embedded-provider endpoint"
 }
 
 $codexConfigPath = "$UserProfile\.codex\config.toml"
@@ -138,9 +126,16 @@ Assert-Profile ($copilot.stayInAutopilot -eq $true -and $copilot.askUser -eq $fa
 Assert-Profile ($grokToml -match '(?m)^yolo\s*=\s*true\s*$' -and $grokToml -match '(?m)^permission_mode\s*=\s*"always-approve"\s*$') 'Grok uses its persisted yolo and always-approve modes'
  $clineMcp = Read-ServerSet "$UserProfile\.cline\data\settings\cline_mcp_settings.json" 'mcpServers'
  $qoderMcp = Read-ServerSet "$UserProfile\.qoder\settings.json" 'mcpServers'
- Assert-Profile ($clineMcp.PSObject.Properties['context7'].Value.type -eq 'streamableHttp' -and $clineMcp.PSObject.Properties['playwright'].Value.type -eq 'stdio') 'Cline uses native streamableHttp and stdio MCP transports'
+ Assert-Profile (
+   $clineMcp.PSObject.Properties['context7'].Value.type -eq 'streamableHttp' -and
+   $null -eq $clineMcp.PSObject.Properties['playwright']
+ ) 'Cline uses native streamableHttp and keeps Playwright on demand'
  Assert-Profile ($clineMcp.PSObject.Properties['context7'].Value.autoApprove.Count -eq 0 -and ($clineMcp | ConvertTo-Json -Depth 30 -Compress) -notmatch '"auth"\s*:') 'Cline MCP keeps per-server auto-approval empty and no auth marker'
- Assert-Profile ($qoderMcp.PSObject.Properties['context7'].Value.type -eq 'http' -and $qoderMcp.PSObject.Properties['playwright'].Value.command -eq 'npx' -and ($qoderMcp | ConvertTo-Json -Depth 30 -Compress) -notmatch '"auth"\s*:') 'Qoder uses documented MCP settings without the unsupported auth marker'
+ Assert-Profile (
+   $null -eq $qoderMcp.PSObject.Properties['context7'] -and
+   $null -eq $qoderMcp.PSObject.Properties['playwright'] -and
+   ($qoderMcp | ConvertTo-Json -Depth 30 -Compress) -notmatch '"auth"\s*:'
+ ) 'Qoder defers Context7 to its plugin, keeps Playwright on demand, and omits the unsupported auth marker'
  Assert-Profile ((Test-Path "$UserProfile\.qoder\agents\scout.md") -and ((Get-Content "$UserProfile\.qoder\agents\scout.md" -Raw) -match '(?m)^name:\s*scout\s*$')) 'Qoder native scout agent is present'
  Assert-Profile ((Get-Content "$UserProfile\bin\cline.cmd" -Raw) -match '--auto-approve true' -and (Get-Content "$UserProfile\bin\cline.cmd" -Raw) -match 'auth config plugin') 'Cline launcher applies auto-approve only outside administrative commands'
  Assert-Profile ((Get-Content "$UserProfile\bin\qodercli.cmd" -Raw) -match '--dangerously-skip-permissions' -and (Get-Content "$UserProfile\bin\qodercli.cmd" -Raw) -match 'login mcp plugins') 'Qoder launcher applies bypass permissions only outside administrative commands'
@@ -148,6 +143,16 @@ Assert-Profile ($grokToml -match '(?m)^yolo\s*=\s*true\s*$' -and $grokToml -matc
 foreach ($name in 'DEVIN_PERMISSION_MODE','COPILOT_ALLOW_ALL','GEMINI_CLI_TRUST_WORKSPACE','QWEN_CODE_SUPPRESS_YOLO_WARNING') {
   Assert-Profile (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name, 'User'))) "user environment contains $name"
 }
+$expectedAgentTempRoot = [System.IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'AgentHub\tmp'))
+$configuredAgentTempRoot = [Environment]::GetEnvironmentVariable('TMPDIR', 'User')
+Assert-Profile (
+  -not [string]::IsNullOrWhiteSpace($configuredAgentTempRoot) -and
+  [System.IO.Path]::GetFullPath($configuredAgentTempRoot).Equals(
+    $expectedAgentTempRoot,
+    [StringComparison]::OrdinalIgnoreCase
+  ) -and
+  (Test-Path -LiteralPath $expectedAgentTempRoot -PathType Container)
+) 'user TMPDIR redirects coding-agent temporary files below AgentHub runtime'
 foreach ($launcher in 'gemini.cmd','qwen.cmd','copilot.cmd','devin.cmd','agy.cmd','cline.cmd','qodercli.cmd','cline-acp.cmd','qoder-acp.cmd','opencode-acp.cmd','gemini-acp.cmd','copilot-acp.cmd','hermes-acp.cmd','cursor-agent.cmd','cursor-agent','cursor.cmd','cursor') {
   Assert-Profile (Test-Path "$UserProfile\bin\$launcher") "unattended launcher exists: $launcher"
 }
