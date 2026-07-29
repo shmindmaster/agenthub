@@ -1,5 +1,5 @@
 param(
-    [string]$RegistryPath = "C:\Repos\agent-capabilities\registry\mcps.json",
+    [string]$RegistryPath = "C:\Repos\shmindmaster\agenthub\registry\mcps.json",
     [string]$Scope = "global-default",
     [int]$TimeoutSec = 20,
     [string]$OutputJson = "",
@@ -147,10 +147,10 @@ foreach ($m in $targets) {
 
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 if ([string]::IsNullOrWhiteSpace($OutputJson)) {
-    $OutputJson = "$env:TEMP\agent-capabilities-mcp-live-check-$stamp.json"
+    $OutputJson = "$env:TEMP\agenthub-mcp-live-check-$stamp.json"
 }
 if ([string]::IsNullOrWhiteSpace($OutputMd)) {
-    $OutputMd = "$env:TEMP\agent-capabilities-mcp-live-check-$stamp.md"
+    $OutputMd = "$env:TEMP\agenthub-mcp-live-check-$stamp.md"
 }
 
 $results | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $OutputJson -Encoding UTF8

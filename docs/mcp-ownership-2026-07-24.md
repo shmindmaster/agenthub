@@ -1,30 +1,62 @@
-# MCP ownership and placement — 2026-07-24
+# MCP ownership and placement — updated 2026-07-29
 
-The fleet uses a hybrid MCP model. A native plugin or capability bundle owns
-an MCP on the hosts where it is installed; genuinely cross-cutting services
-remain direct global registrations. The synchronizer removes only an explicit
-plugin-owned duplicate and preserves unrelated user MCP entries unless broad
-pruning is requested.
+The fleet uses one ownership registry with host-specific exposure modes. An
+installed plugin or native connector owns its host surface. Remote services
+without a native owner are candidates for one authenticated streaming gateway.
+Local browser and repository tools remain on-demand and are never persisted in
+host configuration by fleet synchronization. They may run through their owning
+plugin or skill, or one reviewed shared gateway.
+Gateway generation is disabled until the shared production profile passes.
+Docker MCP Toolkit is now enabled and
+a remote-only profile partially passed: Linear initialized, Context7 initialized
+and completed a read-only call, and Notion was blocked by missing OAuth. A
+separate Firecrawl custom-remote POC proved the loopback bearer gate (401
+without auth, 200 with auth), session issuance, and tool discovery without
+executing a quota-bearing tool. No live host configuration is generated from
+those POCs.
 
-| MCP | Current owner | Placement | Evidence / decision |
+The production declaration is intentionally one profile bound to one endpoint.
+It contains only the four-service intersection shared by every enabled,
+non-held host: Context7, Exa, Firecrawl, and Tavily. Services with host-specific
+plugin or native ownership remain direct instead of creating per-host gateway
+profiles that a single endpoint cannot isolate concurrently.
+
+| MCP | Registry owner | Current placement decision |
 | --- | --- | --- | --- |
-| `descript` | Product Demo Studio | Native plugin on Claude and Codex; direct fallback elsewhere | `packages/handoff-plugins/plugins/product-demo-studio/.mcp.json` and both installed native plugins |
-| `notion` | Native Notion plugin where installed | Native plugin on Claude and Codex; direct fallback elsewhere | Installed Claude plugin and installed Codex `notion@openai-curated` plugin; global entry is suppressed on those hosts |
-| `chrome-devtools` | Browser Toolkit capability | Direct, host-scoped | `registry/mcps.json` host allowlist; no verified bundle manifest owns this exact server |
-| `shwiki-context` | ShWiki Context capability | Direct global | Shared read-only portfolio context; inactive private package aliases are not promoted |
-| `linear` | Fleet infrastructure | Direct global | Cross-project delivery state, not a single skill bundle |
-| `context7` | Fleet infrastructure | Direct global | General documentation lookup used across capabilities |
-| `playwright` | Fleet infrastructure | Direct global | Shared isolated browser automation runtime |
-| `firecrawl`, `tavily`, `exa`, `brave-search` | Fleet research infrastructure | Direct global | Multiple research workflows consume them; no active installed bundle owns the MCP definitions |
-| `adobe-for-creativity`, `canva` | External creative connectors | Direct global for now | Official plugin caches exist, but no active managed native plugin owner was found; do not claim bundle ownership from cache presence alone |
+| `github` | MCP registry | Codex native connector, Claude and Copilot plugins, gateway candidate elsewhere |
+| `linear` | MCP registry | Codex plugin, gateway candidate elsewhere |
+| `context7`, `tavily`, `exa` | MCP registry | Gateway candidates on all eligible hosts |
+| `notion` | MCP registry | Claude and Codex plugins, gateway candidate elsewhere |
+| `firecrawl` | MCP registry | Gateway candidate on Codex and elsewhere; the Codex `firecrawl-ops@portfolio` package remains installed as skills-only and declares no bundled MCP server |
+| `adobe-for-creativity` | MCP registry | Codex plugin, gateway candidate elsewhere |
+| `canva` | MCP registry | Codex native connector, gateway candidate elsewhere |
+| `descript` | Product Demo Studio capability | Claude and Codex plugins, gateway candidate elsewhere |
+| `chrome-devtools` | Browser Toolkit capability | On-demand local and host-scoped |
+| `repocontext` | RepoContext capability | On-demand through the skill/local profile until its remote contract is production-ready |
+| `playwright`, `brave-search` | MCP registry | On-demand local; never fleet-wide persistent |
 
 ## Rules
 
-- Do not emit a direct MCP registration on a host when an enabled native plugin
-  already declares the same server.
-- Do not install a plugin merely to make a classification look symmetrical;
-  install only when it replaces a duplicate or is explicitly requested.
+- `registry/mcps.json` records the single service/capability owner.
+- `registry/native-connectors.json` records the effective host exposure:
+  `plugin-owned`, `native-connector`, `shared-gateway`, or `local-only`.
+- Fleet synchronization is remote-only under every scope, including `all`. An
+  MCP with `activationMode: on-demand-local` must be suppressed from every host
+  config, including stale registrations left by an older sync.
+- Do not emit a direct MCP registration when a plugin/native connector owns the
+  surface. Once a gateway profile is validated and explicitly enabled, replace
+  only its listed direct remotes with the single `agenthub-gateway` endpoint.
+- Keep `firecrawl-ops@portfolio` skills-only. Do not add `mcpServers` to its
+  manifest or restore its `.mcp.json` without deliberately reassigning the
+  `firecrawl` owner away from `registry/mcps.json` and reviewing every host
+  exposure.
+- `registry/gateway-profiles.json` records the partial POC. Linear and Context7
+  have observed remote snapshot mappings; Notion is OAuth-blocked. Container
+  catalog servers are Windows-blocked by missing `socat`. Firecrawl's catalog
+  entry is container-backed, so its official remote HTTP endpoint needs a
+  custom remote snapshot passed its transport/auth/tool-discovery POC. The
+  container image remains blocked; only the custom remote mapping is eligible
+  for a future production profile.
 - Do not promote inactive private-corpus MCP packages into the global fleet.
-- `pluginOwnersByHost` in `registry/mcps.json` is the machine-readable
-  ownership contract. It is intentionally host-specific because one plugin
-  may be installed on only part of the fleet.
+- Historical labels `sh-knowledge`, `knowledge`, `legal`, and `shwiki` are
+  migration aliases to `repocontext`; generated configuration never emits them.

@@ -62,7 +62,7 @@ None of these replace real product capture or fix fake homepage media by themsel
 - `registry/mcps.json`: `adobe-for-creativity`, `canva` (global-default, http, oauth)
 - `registry/mcp-registrations.json`: both, hosts `registered-oauth-pending`
 - Skill policy: `product-demo-studio-visual-assets` updated with connector routing
-- Host apply: `Sync-AgentCapabilities.ps1 -Apply` for Grok + Qwen (and other active hosts)
+- Host apply: `Sync-AgentHub.ps1 -Apply` for Grok + Qwen (and other active hosts)
 
 ## Human gates remaining
 
@@ -76,7 +76,7 @@ None of these replace real product capture or fix fake homepage media by themsel
 ## Non-goals
 
 - Do not replace product-demo-studio capture/Remotion with Firefly or Canva generative video.
-- Do not store Adobe/Canva secrets in agent-capabilities.
+- Do not store Adobe/Canva secrets in agenthub.
 - Do not treat connector output as DEMO-READY product proof without the existing truth gates.
 
 ## What Descript actually is

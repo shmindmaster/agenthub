@@ -1,7 +1,7 @@
 # Cross-Agent Operating Charter
 
 Version: 1.0  
-Owner: `C:\Repos\agent-capabilities`  
+Owner: `C:\Repos\shmindmaster\agenthub`  
 Applies to: Claude, Codex, and other personal agent hosts
 
 This charter is the durable personal control plane for cross-agent work. It governs how agents coordinate; it is not a source of truth for any client project.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Firecrawl Monitoring"
+  short_description: "Monitor source freshness and changes"
+  default_prompt: "Plan source freshness monitoring for a small set of URLs."

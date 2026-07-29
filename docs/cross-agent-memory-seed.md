@@ -1,7 +1,7 @@
 # Cross-Agent Memory Seed
 
 Version: 1.1  
-Canonical policy: `C:\Repos\agent-capabilities\docs\cross-agent-operating-charter.md`
+Canonical policy: `C:\Repos\shmindmaster\agenthub\docs\cross-agent-operating-charter.md`
 
 Load these stable rules in Claude and Codex:
 
@@ -9,7 +9,7 @@ Load these stable rules in Claude and Codex:
 - Personal tooling never writes to or uses a client repository, tracker, documentation system, communication system, identity, domain, account, dataset, or deployment as its control plane or test fixture.
 - Split mixed personal/client requests before execution.
 - Reusable capabilities use synthetic projects and data.
-- `C:\Repos\agent-capabilities` is the owner of shared personal capability policy and registry metadata.
+- `C:\Repos\shmindmaster\agenthub` is the owner of shared personal capability policy and registry metadata.
 - One capability has one owner; one writer owns a file/change set at a time; peers review separately.
 - Claude and Codex do not share hidden memory. Shared truth exists only in explicit personal files and supported host instructions.
 - Memory stores stable rules and pointers, not client facts or time-sensitive operational state.
@@ -25,7 +25,7 @@ This seed supersedes any older memory that implicitly allowed personal agent coo
 
 1. Read the applicable repository instructions, then this seed; do not reconstruct cross-agent policy from old chats or project reports.
 2. Classify the request and state the boundary only when it materially affects execution.
-3. For personal capability work, start at `C:\Repos\agent-capabilities`: inspect `registry/capabilities.json`, the canonical capability package, and `state/cross-agent/` for an active handoff.
+3. For personal capability work, start at `C:\Repos\shmindmaster\agenthub`: inspect `registry/capabilities.json`, the canonical capability package, and `state/cross-agent/` for an active handoff.
 4. Reuse the existing capability owner and host adapters. Search before creating a new plugin, skill, MCP server, wrapper, or memory file.
 5. Do not scan client repositories or invoke client connectors merely to obtain context for personal tooling.
 6. Load only task-relevant references; avoid replaying old alignment reports unless the user asks for historical analysis.

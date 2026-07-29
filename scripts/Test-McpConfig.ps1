@@ -106,7 +106,7 @@ foreach ($p in $ConfigPaths) {
 }
 
 if ($IncludeRepoConfigs) {
-    $repoRoot = "C:\Repos\agent-capabilities"
+    $repoRoot = "C:\Repos\shmindmaster\agenthub"
     if (Test-Path $repoRoot) {
         Get-ChildItem $repoRoot -Recurse -File -Include "*.mcp.json" |
             ForEach-Object { $allPaths.Add($_.FullName) }

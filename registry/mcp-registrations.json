@@ -2,6 +2,77 @@
   "schemaVersion": 1,
   "registrations": [
     {
+      "id": "github",
+      "endpoint": "https://api.githubcopilot.com/mcp/",
+      "transport": "streamable-http",
+      "authentication": "bearer-token-environment",
+      "credentialEnvironment": "GITHUB_MCP_SHMINDMASTER_TOKEN",
+      "account": "shmindmaster",
+      "policy": "Use the GitHub-hosted remote server. Keep the bearer token outside adapters and repository files. Copilot CLI owns its built-in github-mcp-server; OpenCode Desktop inherits OpenCode configuration; Antigravity desktop and IDE inherit the Antigravity configuration. Native automatic multi-account routing is not released, so the canonical default remains shmindmaster.",
+      "hosts": [
+        {
+          "id": "claude",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "codex",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "qwen-code",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "opencode",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "opencode-desktop",
+          "state": "inherited-from-opencode"
+        },
+        {
+          "id": "gemini",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "hermes",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "copilot",
+          "state": "built-in-native"
+        },
+        {
+          "id": "antigravity",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "antigravity-desktop",
+          "state": "inherited-from-antigravity"
+        },
+        {
+          "id": "antigravity-ide",
+          "state": "inherited-from-antigravity"
+        },
+        {
+          "id": "grok",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "warp",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "cline",
+          "state": "registered-remote-auth-environment-pending"
+        },
+        {
+          "id": "qoder",
+          "state": "registered-remote-auth-environment-pending"
+        }
+      ]
+    },
+    {
       "id": "linear",
       "endpoint": "https://mcp.linear.app/mcp",
       "transport": "streamable-http",
@@ -67,77 +138,93 @@
         {
           "id": "windsurf",
           "state": "registered-oauth-pending"
+        },
+        {
+          "id": "cline",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "qoder",
+          "state": "registered-oauth-pending"
         }
       ]
     },
     {
-      "id": "shwiki-context",
-      "endpoint": "https://shwiki.shtrial.com/api/mcp",
+      "id": "repocontext",
+      "endpoint": "https://repocontext.shtrial.com/api/mcp",
       "transport": "streamable-http",
       "authentication": "bearer-token-environment",
-      "credentialEnvironment": "SHWIKI_MCP_TOKEN",
-      "fallbackCommand": "pnpm --dir C:/Repos/shmindmaster/shwiki mcp:wiki",
-      "policy": "The authenticated hosted ShWiki endpoint is canonical for registered hosts. The local read-only stdio server is an explicit offline and freshest-local-index fallback. Keep the bearer token only in each host environment or secret store.",
+      "credentialEnvironment": "REPOCONTEXT_MCP_TOKEN",
+      "fallbackCommand": "pnpm --dir C:/Repos/shmindmaster/repocontext mcp:serve",
+      "policy": "RepoContext is validated locally over stdio and in its private snapshot container. Do not propagate the remote registration to hosts until the paid production deployment is explicitly authorized and passes the authenticated remote contract. Keep the bearer token only in each host environment or secret store.",
       "hosts": [
         {
           "id": "codex",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "claude",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "amp",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "factory",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "opencode",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "cursor",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "vscode-insiders",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "devin",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "windsurf",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "qwen-code",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "gemini",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "hermes",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "copilot",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "grok",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
         },
         {
           "id": "warp",
-          "state": "registered-remote-configured"
+          "state": "remote-deployment-pending"
+        },
+        {
+          "id": "cline",
+          "state": "remote-deployment-pending"
+        },
+        {
+          "id": "qoder",
+          "state": "remote-deployment-pending"
         }
       ]
     },
@@ -206,6 +293,14 @@
         },
         {
           "id": "windsurf",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "cline",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "qoder",
           "state": "registered-oauth-pending"
         }
       ]
@@ -276,6 +371,14 @@
         {
           "id": "windsurf",
           "state": "registered-oauth-pending"
+        },
+        {
+          "id": "cline",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "qoder",
+          "state": "registered-oauth-pending"
         }
       ]
     },
@@ -344,6 +447,14 @@
         },
         {
           "id": "windsurf",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "cline",
+          "state": "registered-oauth-pending"
+        },
+        {
+          "id": "qoder",
           "state": "registered-oauth-pending"
         }
       ]

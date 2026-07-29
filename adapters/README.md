@@ -4,5 +4,4 @@ An adapter is a host-specific exposure of an existing capability owner. It may c
 
 All adapters inherit the root `AGENTS.md` policy. Use the host folders for installation guidance and verified support state.
 
-Portfolio context uses the single owner **`shwiki-context`** (remote + local MCP and shared skill under `capabilities/shwiki-context/`). Adapters must not fork ShWiki tools or embed credentials. Remove only Devin/DeepWiki MCP endpoints during host rollout; keep unrelated functional MCPs.
-
+Portfolio context uses the single owner **`repocontext`** (remote + local MCP and shared skill under `capabilities/repocontext/`). Adapters must not fork RepoContext tools or embed credentials. Retired ShWiki aliases migrate to `repocontext`; keep unrelated functional MCPs.

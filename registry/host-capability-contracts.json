@@ -129,6 +129,99 @@
       "autonomy": { "profile": "interactive", "implementation": "UI permission profile and per-task controls" }
     },
     {
+      "hostId": "cline",
+      "state": "active",
+      "officialSources": [
+        "https://docs.cline.bot/customization/cline-rules",
+        "https://docs.cline.bot/getting-started/config",
+        "https://docs.cline.bot/customization/skills",
+        "https://docs.cline.bot/customization/plugins",
+        "https://docs.cline.bot/features/subagents",
+        "https://docs.cline.bot/mcp/mcp-overview",
+        "https://docs.cline.bot/features/auto-approve",
+        "https://docs.cline.bot/cli/connectors",
+        "https://docs.cline.bot/tools-reference/all-cline-tools",
+        "https://docs.cline.bot/cli/cli-reference"
+      ],
+      "surfaces": {
+        "rules": "verified",
+        "skills": "verified",
+        "plugins": "verified-cli-sdk-kanban-only",
+        "mcp": "verified",
+        "subagents": "verified-read-only",
+        "connectors": "verified-support-only",
+        "acp": "verified",
+        "kanban": "verified",
+        "headless": "verified",
+        "customAgents": "discovery-required",
+        "hooks": "discovery-required"
+      },
+      "autonomy": {
+        "profile": "repo-autonomous",
+        "flags": ["--auto-approve", "true"],
+        "equivalent": "--yolo",
+        "acpFlags": ["--acp", "--auto-approve", "true"],
+        "warning": "YOLO/auto-approve authorizes file, terminal, browser, MCP, and mode-transition operations."
+      },
+      "rolloutGuardrails": {
+        "plugins": "Install only verified Cline AgentPlugin packages; current registry capabilities remain portable skills and MCP.",
+        "customAgents": "Do not emit agents.yaml or .cline/agents role files until an official schema is verified.",
+        "connectors": "Register support metadata only; connector activation requires user-mediated credentials and a named channel."
+      }
+    },
+    {
+      "hostId": "qoder",
+      "state": "active",
+      "officialSources": [
+        "https://docs.qoder.com/",
+        "https://docs.qoder.com/extensions/skills",
+        "https://docs.qoder.com/extensions/plugins",
+        "https://docs.qoder.com/extensions/canvas",
+        "https://docs.qoder.com/user-guide/rules",
+        "https://docs.qoder.com/user-guide/chat/model-context-protocol",
+        "https://docs.qoder.com/en/cli/quick-start",
+        "https://docs.qoder.com/en/cli/using-cli",
+        "https://docs.qoder.com/en/cli/command",
+        "https://docs.qoder.com/en/cli/plugins",
+        "https://docs.qoder.com/en/cli/Skills",
+        "https://docs.qoder.com/en/cli/mcp-servers",
+        "https://docs.qoder.com/en/cli/acp",
+        "https://docs.qoder.com/qoderwork/connectors",
+        "https://docs.qoder.com/qoderwork/computer-use",
+        "https://docs.qoder.com/qoderwork/expert-kits",
+        "https://docs.qoder.com/qoderwork/skills",
+        "https://docs.qoder.com/qoderwork/expert-kits-in-action",
+        "https://docs.qoder.com/qoderwork/mcp-walkthrough"
+      ],
+      "surfaces": {
+        "rules": "verified",
+        "skills": "verified",
+        "plugins": "verified",
+        "agents": "verified",
+        "mcp": "verified",
+        "subagents": "verified",
+        "connectors": "support-only",
+        "computerUse": "support-only",
+        "canvas": "verified",
+        "qoderWork": "verified",
+        "acp": "verified",
+        "headless": "verified"
+      },
+      "autonomy": {
+        "profile": "repo-autonomous",
+        "flags": ["--dangerously-skip-permissions"],
+        "permissionMode": "bypass_permissions",
+        "tools": "default",
+        "acpFlags": ["--acp"],
+        "warning": "Bypass mode skips permission checks and automatically executes tools."
+      },
+      "rolloutGuardrails": {
+        "connectors": "Keep QoderWork connectors inactive until explicitly enabled and authorized.",
+        "computerUse": "Keep Computer Control inactive until explicitly enabled and authorized.",
+        "credentials": "Never put QODER_PERSONAL_ACCESS_TOKEN or connector credentials in the registry."
+      }
+    },
+    {
       "hostId": "factory",
       "state": "inactive",
       "officialSources": ["https://docs.factory.ai/reference/cli-reference"],

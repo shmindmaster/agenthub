@@ -1,0 +1,46 @@
+{
+  "name": "firecrawl-ops",
+  "version": "0.1.0+codex.20260729172634",
+  "description": "MCP- and CLI-first Firecrawl capabilities for live research, structured web data, governed ingestion, product QA, customer discovery, and repeatable research workflows.",
+  "author": {
+    "name": "SH Mindmaster"
+  },
+  "homepage": "https://www.firecrawl.dev/",
+  "repository": "https://github.com/firecrawl/firecrawl-codex-plugin",
+  "license": "MIT",
+  "keywords": [
+    "firecrawl",
+    "research",
+    "web-scraping",
+    "crawl",
+    "agent",
+    "cli",
+    "deep-research",
+    "competitive-intelligence",
+    "product-qa",
+    "customer-research",
+    "knowledge-base",
+    "rag",
+    "monitoring",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Firecrawl Ops",
+    "shortDescription": "Research, extract, QA, and monitor live web sources.",
+    "longDescription": "A capability-specific Firecrawl package for current web research, V2 search/scrape/map/crawl/interact/parse/agent operations, structured extraction, governed ingestion, product readiness, customer discovery, and repeatable workflow deliverables.",
+    "developerName": "SH Mindmaster",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Research a market with cited Firecrawl evidence.",
+      "Run a bounded product QA or readiness review.",
+      "Build a customer or knowledge-base research brief."
+    ],
+    "brandColor": "#fa5d19"
+  }
+}

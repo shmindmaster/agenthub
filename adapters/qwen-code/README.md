@@ -19,7 +19,7 @@ by Qwen by default; no global shell hook is installed because hooks execute at
 user privilege. Add a project-local hook only when that repository defines a
 reviewed, narrow lifecycle requirement.
 
-`Sync-AgentCapabilities.ps1` also creates Qwen extension adapters under this
+`Sync-AgentHub.ps1` also creates Qwen extension adapters under this
 directory and junctions them into `~/.qwen/extensions`. Each adapter references
 the canonical capability's `skills` directory rather than copying it, so Qwen
 receives the same skill packages as the other active coding agents without a

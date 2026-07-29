@@ -57,6 +57,8 @@ the installed CLI help; **D** = discovery required before emitting a format;
 | Grok CLI | V | V | V | V | V / V | V | V | V | `--permission-mode bypassPermissions`; headless `grok agent --always-approve` | Active, needs full role/LSP/memory adapter |
 | Hermes | V | D | V | V | V / V | D | V | V | No verified universal bypass contract in the managed Windows install | Active; complete discovery before expanding beyond skills/MCP/hooks |
 | Warp / Oz | V | D | V | D | V / D | D | D | UI permission profile and per-task run-until-complete controls | Active; retain skill/MCP path, discover native plugin/agent schema before emitting it |
+| Cline CLI / ACP / Kanban | V | V (read-only built-in subagents; custom role schema D) | V | V (CLI/SDK/Kanban native plugins only) | V / V | D | D | D | `--auto-approve true` (YOLO equivalent); `--acp` for ACP | Active; native MCP/skills/rules/profile configured, connectors support-only |
+| Qoder CLI / Desktop / JetBrains / QoderWork | V | V | V | V | V / V | D | D | D | `--dangerously-skip-permissions` / `bypass_permissions`; `--acp` for ACP | Active; native MCP/settings, skills, plugins, agents, and ACP profile configured |
 | Factory Droid | V | V | V | V | V / D | D | D | `droid exec --auto high`; unsafe skip is only for isolated sandboxes | Retained inactive; never make unsafe skip the desktop default |
 | Sourcegraph Amp | V | D | V | V | V / D | D | D | Commands are normally non-interactive; headless availability is plan-dependent | Retained inactive; MCP first, plugin only for Amp-native behavior |
 | Windsurf / Cascade | D | D | V (observed) | D | V / D | D | D | D | D | Retained inactive; preserve current files and complete official-schema discovery first |
@@ -82,7 +84,7 @@ the installed CLI help; **D** = discovery required before emitting a format;
 3. **Roles compile independently from skills.** The common fleet roles are
    scout, implementer, reviewer, and verifier. They must be generated as
    Claude-style agents, OpenCode Markdown agents, Devin `AGENT.md` profiles,
-   Qwen agents, Grok profiles, Factory droids, or Copilot custom agents only
+   Qwen agents, Qoder Markdown agents, Grok profiles, Factory droids, or Copilot custom agents only
    where the native contract is verified. A host without a verified role format
    gets the global policy and skills—not a fabricated agent file.
 

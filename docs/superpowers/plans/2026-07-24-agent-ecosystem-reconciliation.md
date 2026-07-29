@@ -108,7 +108,7 @@
 
 - [x] Run `pwsh -NoProfile -File .\scripts\Test-McpConfig.ps1`.
 - [x] Run `pwsh -NoProfile -File .\scripts\Test-McpSecrets.ps1`.
-- [x] Apply MCP synchronization only through `Sync-AgentCapabilities.ps1`; no credentials were written.
+- [x] Apply MCP synchronization only through `Sync-AgentHub.ps1`; no credentials were written.
 - [x] Confirm OAuth-pending servers remain pending and no credentials are written.
 
 ### Task 7: Full verification and handoff
@@ -121,7 +121,7 @@
 - Produces: Evidence-backed status by gate and a list of remaining external/discovery/authorization blockers.
 
 - [x] Run `pwsh -NoProfile -File .\tests\Apply-FullAccessAgentProfile.Tests.ps1`.
-- [x] Run `pwsh -NoProfile -File .\tests\Sync-AgentCapabilities.Tests.ps1`.
+- [x] Run `pwsh -NoProfile -File .\tests\Sync-AgentHub.Tests.ps1`.
 - [x] Run `pwsh -NoProfile -File .\tests\QwenSubagents.Tests.ps1`.
 - [x] Run `pwsh -NoProfile -File .\scripts\Verify-PluginPackages.ps1`.
 - [x] Run `pwsh -NoProfile -File .\tests\Test-HostReadiness.ps1`.

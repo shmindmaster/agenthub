@@ -44,46 +44,46 @@ Describe 'Cursor compound dispatch gate and readiness' {
 
     foreach ($profile in $profiles) {
       $result = Invoke-CursorCloudReadiness -FleetProfile $profile
-      $result.policyDisabled | Should Be $true
-      (Test-CursorDispatchEnabled $profile) | Should Be $false
-      (Get-CursorLauncherContent -FleetProfile $profile -Surface ide -Shell cmd) | Should Be (Get-CursorBlockedLauncherContent -Shell cmd)
-      (Get-CursorLauncherContent -FleetProfile $profile -Surface ide -Shell posix) | Should Be (Get-CursorBlockedLauncherContent -Shell posix)
-      (Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell cmd) | Should Be (Get-CursorBlockedLauncherContent -Shell cmd)
-      (Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell posix) | Should Be (Get-CursorBlockedLauncherContent -Shell posix)
+      $result.policyDisabled | Should -Be $true
+      (Test-CursorDispatchEnabled $profile) | Should -Be $false
+      (Get-CursorLauncherContent -FleetProfile $profile -Surface ide -Shell cmd) | Should -Be (Get-CursorBlockedLauncherContent -Shell cmd)
+      (Get-CursorLauncherContent -FleetProfile $profile -Surface ide -Shell posix) | Should -Be (Get-CursorBlockedLauncherContent -Shell posix)
+      (Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell cmd) | Should -Be (Get-CursorBlockedLauncherContent -Shell cmd)
+      (Get-CursorLauncherContent -FleetProfile $profile -Surface agent -Shell posix) | Should -Be (Get-CursorBlockedLauncherContent -Shell posix)
     }
-    Assert-MockCalled Invoke-RestMethod -Times 0
+    Should -Invoke Invoke-RestMethod -Times 0 -Exactly
   }
 
   It 'requires both strict Boolean flags and an explicitly inactive provider hold' {
     $enabled = New-CursorProfile $true $true $false
-    (Test-CursorDispatchEnabled $enabled) | Should Be $true
-    (Get-CursorLauncherContent -FleetProfile $enabled -Surface ide -Shell cmd) | Should Match 'Programs\\cursor'
-    (Get-CursorLauncherContent -FleetProfile $enabled -Surface ide -Shell posix) | Should Match 'cursor\.cmd'
-    (Get-CursorLauncherContent -FleetProfile $enabled -Surface agent -Shell posix) | Should Match '--yolo'
+    (Test-CursorDispatchEnabled $enabled) | Should -Be $true
+    (Get-CursorLauncherContent -FleetProfile $enabled -Surface ide -Shell cmd) | Should -Match 'Programs\\cursor'
+    (Get-CursorLauncherContent -FleetProfile $enabled -Surface ide -Shell posix) | Should -Match 'cursor\.cmd'
+    (Get-CursorLauncherContent -FleetProfile $enabled -Surface agent -Shell posix) | Should -Match '--yolo'
   }
 
   It 'makes appended launch commands fail exact blocked-wrapper equality' {
     $expected = (Get-CursorBlockedLauncherContent -Shell cmd).Replace("`r`n", "`n").TrimEnd("`r", "`n")
     $tampered = ((Get-CursorBlockedLauncherContent -Shell cmd) + "`r`n" + 'cursor-agent.cmd %*').Replace("`r`n", "`n").TrimEnd("`r", "`n")
-    ($tampered -ceq $expected) | Should Be $false
+    ($tampered -ceq $expected) | Should -Be $false
   }
 
   It 'ships a Cursor-native always-on rule that blocks SDK, API, CLI, and cloud dispatch' {
     $rule = Get-CursorProviderHoldRuleContent
-    $rule | Should Match 'alwaysApply: true'
-    $rule | Should Match 'Cursor SDK'
-    $rule | Should Match 'Do not read, use, forward, or recreate'
-    $rule | Should Match 'both strict Boolean dispatch flags'
+    $rule | Should -Match 'alwaysApply: true'
+    $rule | Should -Match 'Cursor SDK'
+    $rule | Should -Match 'Do not read, use, forward, or recreate'
+    $rule | Should -Match 'both strict Boolean dispatch flags'
   }
 
   It 'reports missing credentials without making a network request when fully enabled' {
     Mock Invoke-RestMethod { throw 'network should not be called' }
     $result = Invoke-CursorCloudReadiness -FleetProfile (New-CursorProfile)
-    $result.policyDisabled | Should Be $false
-    $result.keySource | Should Be 'missing'
-    $result.auth | Should Be $false
-    $result.models.reachable | Should Be $false
-    Assert-MockCalled Invoke-RestMethod -Times 0
+    $result.policyDisabled | Should -Be $false
+    $result.keySource | Should -Be 'missing'
+    $result.auth | Should -Be $false
+    $result.models.reachable | Should -Be $false
+    Should -Invoke Invoke-RestMethod -Times 0 -Exactly
   }
 
   It 'uses the API key fallback when fully enabled and the admin key is whitespace' {
@@ -96,11 +96,11 @@ Describe 'Cursor compound dispatch gate and readiness' {
     }
 
     $result = Invoke-CursorCloudReadiness -FleetProfile (New-CursorProfile)
-    $result.keySource | Should Be 'CURSOR_API_KEY'
-    $result.auth | Should Be $true
-    $result.models.reachable | Should Be $true
-    $result.models.sampleCount | Should Be 1
-    Assert-MockCalled Invoke-RestMethod -Times 2 -ParameterFilter { $Method -eq 'Get' }
+    $result.keySource | Should -Be 'CURSOR_API_KEY'
+    $result.auth | Should -Be $true
+    $result.models.reachable | Should -Be $true
+    $result.models.sampleCount | Should -Be 1
+    Should -Invoke Invoke-RestMethod -Times 2 -Exactly -ParameterFilter { $Method -eq 'Get' }
   }
 
   It 'falls back from v1 to v0 without exposing an exception message' {
@@ -114,10 +114,10 @@ Describe 'Cursor compound dispatch gate and readiness' {
 
     $result = Invoke-CursorCloudReadiness -FleetProfile (New-CursorProfile)
     $serialized = $result | ConvertTo-Json -Depth 8
-    $result.authEndpoint | Should Be 'https://api.cursor.com/v0/me'
-    $result.models.endpoint | Should Be 'https://api.cursor.com/v0/models'
-    $serialized | Should Not Match 'synthetic-secret-value'
-    $serialized | Should Not Match 'synthetic-api-key'
+    $result.authEndpoint | Should -Be 'https://api.cursor.com/v0/me'
+    $result.models.endpoint | Should -Be 'https://api.cursor.com/v0/models'
+    $serialized | Should -Not -Match 'synthetic-secret-value'
+    $serialized | Should -Not -Match 'synthetic-api-key'
   }
 
   It 'does not mark an empty or unrecognized models payload reachable' {
@@ -128,10 +128,10 @@ Describe 'Cursor compound dispatch gate and readiness' {
       return @{ unexpected = @(@{ limit = 9999 }) }
     }
     $result = Invoke-CursorCloudReadiness -FleetProfile (New-CursorProfile)
-    $result.auth | Should Be $true
-    $result.models.reachable | Should Be $false
-    $result.models.sampleCount | Should Be 0
-    ($result.errors -join '|') | Should Match 'empty or unrecognized payload'
+    $result.auth | Should -Be $true
+    $result.models.reachable | Should -Be $false
+    $result.models.sampleCount | Should -Be 0
+    ($result.errors -join '|') | Should -Match 'empty or unrecognized payload'
   }
 
   It 'records an HTTP status without retaining response content' {
@@ -141,6 +141,6 @@ Describe 'Cursor compound dispatch gate and readiness' {
       }
     }
     $message = Get-CursorReadinessFailure -Kind 'AUTH' -Uri 'https://api.cursor.com/v1/me' -ErrorRecord $syntheticRecord
-    $message | Should Be 'AUTH https://api.cursor.com/v1/me -> 401'
+    $message | Should -Be 'AUTH https://api.cursor.com/v1/me -> 401'
   }
 }

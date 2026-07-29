@@ -1,0 +1,532 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T17:29:00.000Z",
+  "authority": {
+    "capabilitiesRegistry": "registry/capabilities.json",
+    "mcpRegistry": "registry/mcps.json",
+    "installedState": [
+      "C:/Users/SaroshHussain/.claude/plugins/installed_plugins.json",
+      "C:/Users/SaroshHussain/.codex/plugins/cache"
+    ],
+    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. On-demand-local MCPs are removed from every host configuration under every fleet-sync scope and may run only through their owning plugin or skill, or one reviewed shared gateway. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners."
+  },
+  "lifecyclePolicy": {
+    "defaultHostConfiguration": "shared-remote-only",
+    "sharedRemoteTransport": "http",
+    "onDemandLocalMcpIds": [
+      "brave-search",
+      "chrome-devtools",
+      "playwright",
+      "repocontext"
+    ],
+    "localFanoutPolicy": "never-persist-on-demand-local-in-host-config",
+    "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
+    "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider"
+  },
+  "bundledServerSuppressions": [],
+  "skillsOnlyPlugins": [
+    {
+      "hostId": "codex",
+      "pluginId": "firecrawl-ops@portfolio",
+      "version": "0.1.0+codex.20260729172634",
+      "mcpId": "firecrawl",
+      "sourcePath": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops",
+      "installedSourcePath": "C:/wt/agenthub/runtime-centralization/packages/portfolio-plugins/firecrawl-ops",
+      "deploymentState": "live-verified-pending-canonical-merge",
+      "installedState": "skills-only-no-mcp-manifest",
+      "mcpOwner": "registry/mcps.json",
+      "mutationPolicy": "do-not-add-bundled-mcp-without-owner-reassignment"
+    }
+  ],
+  "exposureModes": [
+    "plugin-owned",
+    "native-connector",
+    "shared-gateway",
+    "local-only",
+    "provider-held"
+  ],
+  "hosts": [
+    {
+      "hostId": "codex",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "adobe-for-creativity",
+          "descript",
+          "linear",
+          "notion"
+        ],
+        "native-connector": [
+          "canva",
+          "github"
+        ],
+        "shared-gateway": [
+          "context7",
+          "exa",
+          "firecrawl",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      },
+      "evidence": [
+        "Installed Codex plugin MCP manifests own Adobe, Descript, Linear, and Notion.",
+        "The installed Firecrawl plugin is skills-only and contains no MCP manifest; registry/mcps.json retains the Firecrawl service contract.",
+        "Installed Codex app connectors own Canva and GitHub."
+      ]
+    },
+    {
+      "hostId": "claude",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "github",
+          "notion"
+        ],
+        "native-connector": [
+          "canva",
+          "descript"
+        ],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "context7",
+          "exa",
+          "firecrawl",
+          "linear",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "chrome-devtools",
+          "playwright",
+          "repocontext"
+        ]
+      },
+      "evidence": [
+        "Claude installed_plugins.json and package manifests own GitHub and Notion.",
+        "Claude account connectors own Canva and Descript; Product Demo Studio deploys canonical loose skills on Claude so its bundled Descript MCP is not loaded twice."
+      ]
+    },
+    {
+      "hostId": "vscode-insiders",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "descript"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "cursor",
+      "providerHeld": true,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "cursor-agent",
+      "inheritsHostId": "cursor"
+    },
+    {
+      "hostId": "amp",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "factory",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "qwen-code",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "descript"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "chrome-devtools",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "opencode",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "chrome-devtools",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "opencode-desktop",
+      "inheritsHostId": "opencode"
+    },
+    {
+      "hostId": "gemini",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "hermes",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "chrome-devtools",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "copilot",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "github"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "antigravity",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "antigravity-desktop",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "hostId": "antigravity-ide",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "hostId": "grok",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "warp",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "cline",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "qoder",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "chrome-devtools",
+          "context7",
+          "descript"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "devin",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    },
+    {
+      "hostId": "windsurf",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "adobe-for-creativity",
+          "canva",
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion",
+          "tavily"
+        ],
+        "local-only": [
+          "brave-search",
+          "playwright",
+          "repocontext"
+        ]
+      }
+    }
+  ]
+}

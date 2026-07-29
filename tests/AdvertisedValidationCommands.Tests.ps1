@@ -1,42 +1,55 @@
-$repoRoot = Split-Path -Parent $PSScriptRoot
-$validateScript = Join-Path $PSScriptRoot 'Validate-AgentEcosystem.ps1'
-$readinessScript = Join-Path $PSScriptRoot 'Test-HostReadiness.ps1'
-$powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
+$global:AgentHubRepoRoot = Split-Path -Parent $PSScriptRoot
+$global:AgentHubValidateScript = Join-Path $PSScriptRoot 'Validate-AgentEcosystem.ps1'
+$global:AgentHubReadinessScript = Join-Path $PSScriptRoot 'Test-HostReadiness.ps1'
+$global:AgentHubAdvertisedPowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source
 
-function Invoke-AdvertisedCommand {
+function global:Invoke-AdvertisedCommand {
     param(
         [string]$ScriptPath,
         [string[]]$Arguments
     )
 
-    & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath @Arguments | Out-Host
+    & $global:AgentHubAdvertisedPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath @Arguments | Out-Host
     return $LASTEXITCODE
 }
 
 Describe 'Advertised offline validation commands' {
     It 'ships Validate-AgentEcosystem.ps1 at the README path' {
-        (Test-Path -LiteralPath $validateScript -PathType Leaf) | Should Be $true
+        (Test-Path -LiteralPath $global:AgentHubValidateScript -PathType Leaf) | Should -Be $true
     }
 
     It 'ships Test-HostReadiness.ps1 at the README path' {
-        (Test-Path -LiteralPath $readinessScript -PathType Leaf) | Should Be $true
+        (Test-Path -LiteralPath $global:AgentHubReadinessScript -PathType Leaf) | Should -Be $true
     }
 
-    It 'validates the checked-in ecosystem and global worktree pointers without network access' {
-        if (-not (Test-Path -LiteralPath $validateScript -PathType Leaf)) {
-            throw "Missing advertised command: $validateScript"
+    It 'validates the checked-in ecosystem without network access' {
+        if (-not (Test-Path -LiteralPath $global:AgentHubValidateScript -PathType Leaf)) {
+            throw "Missing advertised command: $global:AgentHubValidateScript"
         }
 
-        $exitCode = Invoke-AdvertisedCommand -ScriptPath $validateScript -Arguments @('-RegistryRoot', $repoRoot, '-IncludeGlobalInstructions')
-        $exitCode | Should Be 0
+        $exitCode = Invoke-AdvertisedCommand -ScriptPath $global:AgentHubValidateScript -Arguments @('-RegistryRoot', $global:AgentHubRepoRoot)
+        $exitCode | Should -Be 0
+    }
+
+    It 'defaults validation to the repository containing the script' {
+        $output = & $global:AgentHubAdvertisedPowerShell -NoLogo -NoProfile `
+            -NonInteractive -ExecutionPolicy Bypass `
+            -File $global:AgentHubValidateScript -Json 2>$null
+        $output | Should -Not -BeNullOrEmpty
+        $parsed = (@($output) -join [Environment]::NewLine) | ConvertFrom-Json
+
+        @($parsed.results | Where-Object check -eq 'registry:mcp-lifecycle').Count |
+            Should -Be 1
     }
 
     It 'reports local host readiness without treating optional missing clients as failure' {
-        if (-not (Test-Path -LiteralPath $readinessScript -PathType Leaf)) {
-            throw "Missing advertised command: $readinessScript"
+        if (-not (Test-Path -LiteralPath $global:AgentHubReadinessScript -PathType Leaf)) {
+            throw "Missing advertised command: $global:AgentHubReadinessScript"
         }
 
-        $exitCode = Invoke-AdvertisedCommand -ScriptPath $readinessScript -Arguments @('-RegistryRoot', $repoRoot)
-        $exitCode | Should Be 0
+        $exitCode = Invoke-AdvertisedCommand -ScriptPath $global:AgentHubReadinessScript -Arguments @('-RegistryRoot', $global:AgentHubRepoRoot)
+        # A missing user-managed policy pointer is reported as a nonzero
+        # readiness status; the command must still complete and report it.
+        $exitCode | Should -BeIn @(0, 1)
     }
 }

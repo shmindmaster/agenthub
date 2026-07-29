@@ -1,12 +1,12 @@
 [CmdletBinding()]
 param(
     [switch]$Apply,
-    [string]$RegistryRoot = 'C:\Repos\agent-capabilities'
+    [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub'
 )
 
 $ErrorActionPreference = 'Stop'
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$backupRoot = Join-Path $env:LOCALAPPDATA "AgentCapabilities\handoff-skill-backups\$timestamp"
+$backupRoot = Join-Path $env:LOCALAPPDATA "AgentHub\handoff-skill-backups\$timestamp"
 $sourceRoots = @(
     Join-Path $RegistryRoot 'packages\handoff-plugins\plugins\product-demo-studio\skills'
     Join-Path $RegistryRoot 'packages\handoff-plugins\plugins\product-experience-engineering\skills'

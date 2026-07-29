@@ -1,0 +1,4 @@
+interface:
+  display_name: "Firecrawl Web Ingestion"
+  short_description: "Plan governed web ingestion"
+  default_prompt: "Plan a provenance-aware website ingestion pipeline."

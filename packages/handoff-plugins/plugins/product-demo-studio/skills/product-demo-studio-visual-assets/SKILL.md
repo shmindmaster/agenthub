@@ -66,12 +66,12 @@ product-demo-studio, or the Visual Asset Guide integrity rules.
 
 ### MCP registration (fleet)
 
-Canonical registry entries (agent-capabilities):
+Canonical registry entries (agenthub):
 
 - `adobe-for-creativity` → `https://adobe-creativity.adobe.io/mcp` (OAuth, host-managed)
 - `canva` → `https://mcp.canva.com/mcp` (OAuth, host-managed)
 
-Sync with `Sync-AgentCapabilities.ps1 -Apply` so Grok, Qwen, Claude, and other active hosts receive
+Sync with `Sync-AgentHub.ps1 -Apply` so Grok, Qwen, Claude, and other active hosts receive
 the remote MCP definitions. Credentials stay in host OAuth stores — never in the registry.
 
 ### Host notes

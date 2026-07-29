@@ -1,0 +1,4 @@
+interface:
+  display_name: "Firecrawl Product Integration"
+  short_description: "Integrate Firecrawl into app backends"
+  default_prompt: "Design a secure Firecrawl server-side integration."

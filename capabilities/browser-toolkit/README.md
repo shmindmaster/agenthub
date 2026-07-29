@@ -58,7 +58,7 @@ vision, memory, WebMCP, extension, third-party, and DevTools flags are disabled.
 Run PowerShell 7 from the repository:
 
 ```powershell
-cd C:\Repos\agent-capabilities\capabilities\browser-toolkit
+cd C:\Repos\shmindmaster\agenthub\capabilities\browser-toolkit
 npm ci
 .\scripts\configure-agents.ps1
 .\scripts\configure-agents.ps1 -Apply

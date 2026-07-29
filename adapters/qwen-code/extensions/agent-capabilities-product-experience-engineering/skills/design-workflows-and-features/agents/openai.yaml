@@ -1,4 +1,0 @@
-interface:
-  display_name: "Design Workflows and Features"
-  short_description: "Shape useful features and end-to-end workflows"
-  default_prompt: "Use $design-workflows-and-features to redesign this workflow around user outcomes."

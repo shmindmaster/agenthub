@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-22T14:07:15.1030277-05:00",
+  "generatedAt": "2026-07-29T16:22:29-05:00",
   "userProfile": "C:\\Users\\SaroshHussain",
   "activeAgents": [
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.217",
+      "version": "2.1.220",
       "executable": "C:\\Users\\SaroshHussain\\.local\\bin\\claude.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.claude\\settings.json",
@@ -68,7 +68,7 @@
     {
       "id": "qwen-code",
       "name": "Qwen Code",
-      "version": "0.20.1",
+      "version": "0.21.1",
       "executable": "qwen",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.qwen\\settings.json",
@@ -93,10 +93,11 @@
     {
       "id": "opencode",
       "name": "OpenCode",
-      "version": "1.18.4",
+      "version": "1.18.9",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\opencode.cmd",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
+        "instructions": "C:\\Users\\SaroshHussain\\.config\\opencode\\AGENTS.md",
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\skills",
         "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode"
       },
@@ -104,7 +105,8 @@
         "rules",
         "skills",
         "subagents",
-        "mcp"
+        "mcp",
+        "acp"
       ],
       "status": "active",
       "notes": "Global skill path follows the official OpenCode ~/.config/opencode/skills contract."
@@ -112,10 +114,11 @@
     {
       "id": "opencode-desktop",
       "name": "OpenCode Desktop",
-      "version": "1.18.4",
+      "version": "1.18.9",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\@opencode-aidesktop\\OpenCode.exe",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
+        "instructions": "C:\\Users\\SaroshHussain\\.config\\opencode\\AGENTS.md",
         "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode"
       },
       "supportedCapabilities": [
@@ -129,7 +132,7 @@
     {
       "id": "gemini",
       "name": "Gemini CLI",
-      "version": "0.51.0",
+      "version": "0.53.0",
       "executable": "C:\\Users\\SaroshHussain\\bin\\gemini.cmd",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.gemini\\settings.json",
@@ -139,10 +142,11 @@
       "supportedCapabilities": [
         "rules",
         "skills",
-        "mcp"
+        "mcp",
+        "acp"
       ],
       "status": "active",
-      "notes": "Gemini 3.6 Flash is selected through the dynamic model registry with HIGH thinking. Shared skills under C:\\Users\\SaroshHussain\\.agents\\skills take precedence; C:\\Users\\SaroshHussain\\.gemini\\skills contains Gemini-only skills."
+      "notes": "Gemini 3.6 Flash is selected through the dynamic model registry with HIGH thinking. Shared user-authored skills under C:\\Users\\SaroshHussain\\.agents\\skills take precedence; AgentHub-managed capabilities are deployed exactly once under C:\\Users\\SaroshHussain\\.gemini\\skills."
     },
     {
       "id": "hermes",
@@ -161,7 +165,8 @@
         "rules",
         "skills",
         "hooks",
-        "mcp"
+        "mcp",
+        "acp"
       ],
       "status": "active",
       "notes": "Native Windows installation. The former Ubuntu installation was migrated and removed."
@@ -169,9 +174,11 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.73",
+      "version": "1.0.75",
       "executable": "C:\\Users\\SaroshHussain\\bin\\copilot.cmd",
       "nativePaths": {
+        "settings": "C:\\Users\\SaroshHussain\\.copilot\\settings.json",
+        "instructions": "C:\\Users\\SaroshHussain\\.copilot\\copilot-instructions.md",
         "mcp": "C:\\Users\\SaroshHussain\\.copilot\\mcp-config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.copilot\\skills"
       },
@@ -180,18 +187,20 @@
         "skills",
         "subagents",
         "mcp",
-        "plugins"
+        "plugins",
+        "acp"
       ],
       "status": "active"
     },
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.1.5",
+      "version": "1.1.8",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\agy.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\settings.json",
-        "mcp": "C:\\Users\\SaroshHussain\\.gemini\\config\\mcp_config.json",
+        "mcp": "C:\\Users\\SaroshHussain\\.gemini\\antigravity\\mcp_config.json",
+        "legacyMcp": "C:\\Users\\SaroshHussain\\.gemini\\config\\mcp_config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\skills"
       },
       "supportedCapabilities": [
@@ -199,12 +208,12 @@
         "mcp"
       ],
       "status": "active",
-      "notes": "The documented global MCP file is ~/.gemini/config/mcp_config.json and applies to Antigravity sessions. Its verified schema exposes stdio and SSE serverUrl transport only; do not emit the streamable-HTTP fleet registry until that transport and authenticated headers are documented."
+      "notes": "GitHub's current official Antigravity guide owns ~/.gemini/antigravity/mcp_config.json and documents remote serverUrl plus headers. The installed CLI also retains the older ~/.gemini/config/mcp_config.json path, so the canonical adapter keeps both synchronized without embedding credentials."
     },
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "2.3.1",
+      "version": "2.4.3",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\antigravity\\Antigravity.exe",
       "nativePaths": {
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity"
@@ -212,7 +221,7 @@
       "supportedCapabilities": ["skills", "mcp"],
       "status": "active",
       "surfaceType": "companion-desktop",
-      "notes": "Uses the documented Antigravity global MCP configuration owned by the Antigravity CLI entry; streamable-HTTP and authenticated-header support remain discovery-required."
+      "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry."
     },
     {
       "id": "antigravity-ide",
@@ -226,15 +235,16 @@
       "supportedCapabilities": ["rules", "skills", "mcp", "extensions"],
       "status": "active",
       "surfaceType": "companion-ide",
-      "notes": "Uses the documented Antigravity global MCP configuration owned by the Antigravity CLI entry; streamable-HTTP and authenticated-header support remain discovery-required."
+      "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry."
     },
     {
       "id": "grok",
       "name": "Grok CLI",
-      "version": "0.2.106",
+      "version": "0.2.112",
       "executable": "C:\\Users\\SaroshHussain\\.grok\\bin\\grok.exe",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.grok\\config.toml",
+        "instructions": "C:\\Users\\SaroshHussain\\.grok\\AGENTS.md",
         "skillsDir": "C:\\Users\\SaroshHussain\\.grok\\skills",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.grok\\installed-plugins"
       },
@@ -248,18 +258,58 @@
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Warp\\warp.exe",
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\.warp\\.mcp.json",
+        "worktreeTabConfig": "C:\\Users\\SaroshHussain\\.warp\\tab_configs\\agenthub_worktree.toml",
         "skillsDir": "C:\\Users\\SaroshHussain\\.warp\\skills",
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp"
       },
       "supportedCapabilities": ["rules", "skills", "mcp", "cloud-agents"],
       "status": "active"
+    },
+    {
+      "id": "cline",
+      "name": "Cline CLI / ACP / Kanban",
+      "version": "3.0.47",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\cline.cmd",
+      "nativePaths": {
+        "dataDir": "C:\\Users\\SaroshHussain\\.cline",
+        "config": "C:\\Users\\SaroshHussain\\.cline\\data\\settings",
+        "mcp": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\cline_mcp_settings.json",
+        "instructions": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules\\00-agenthub.md",
+        "desktopInstructions": "C:\\Users\\SaroshHussain\\Documents\\Cline\\Rules\\00-agenthub.md",
+        "rulesDir": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.cline\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.cline\\agents",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.cline\\plugins",
+        "hooksDir": "C:\\Users\\SaroshHussain\\.cline\\hooks"
+      },
+      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "connectors", "acp", "kanban", "headless"],
+      "status": "active",
+      "notes": "Cline 3.0.47. Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; desktop rules use Documents/Cline/Rules. Shared skills are also discovered from ~/.agents/skills."
+    },
+    {
+      "id": "qoder",
+      "name": "Qoder CLI / Desktop / JetBrains / QoderWork",
+      "version": "1.1.5",
+      "executable": "C:\\Users\\SaroshHussain\\.qoder\\bin\\qodercli\\qodercli.exe",
+      "nativePaths": {
+        "configHome": "C:\\Users\\SaroshHussain\\.qoder",
+        "settings": "C:\\Users\\SaroshHussain\\.qoder\\settings.json",
+        "mcp": "C:\\Users\\SaroshHussain\\.qoder\\settings.json",
+        "skillsDir": "C:\\Users\\SaroshHussain\\.qoder\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.qoder\\agents",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.qoder\\plugins",
+        "canvasDir": "C:\\Users\\SaroshHussain\\.qoder\\canvas"
+      },
+      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "connectors", "computer-use", "acp", "canvas", "qoderwork", "headless"],
+      "status": "active",
+      "notes": "Qoder CLI 1.1.5. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
     }
   ],
   "inactiveAgents": [
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.12.17",
+      "version": "3.13.21",
       "executable": "C:\\Users\\SaroshHussain\\bin\\cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin\\cursor.cmd",
@@ -304,7 +354,7 @@
     {
       "id": "amp",
       "name": "Sourcegraph Amp",
-      "version": "0.0.1784710168-g0b84dc",
+      "version": "0.0.1785334225-g9abe75",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\amp.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.config\\amp\\settings.json"
@@ -315,12 +365,12 @@
         "mcp"
       ],
       "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
     },
     {
       "id": "devin",
       "name": "Devin Desktop / CLI",
-      "version": "3000.1.27",
+      "version": "3000.2.17",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\devin\\cli\\bin\\devin.exe",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\config.json"
@@ -331,13 +381,13 @@
         "mcp"
       ],
       "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
     },
     {
       "id": "factory",
       "name": "Factory Droid",
-      "version": "0.177.0",
-      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.134.0\\resources\\bin\\droid.exe",
+      "version": "0.182.0",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.139.0\\resources\\bin\\droid.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.factory\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.factory\\AGENTS.md",
@@ -355,7 +405,7 @@
         "plugins"
       ],
       "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
     },
     {
       "id": "vscode-insiders",
@@ -374,7 +424,7 @@
         "plugins"
       ],
       "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch. Product Demo Studio remains registered as a native local plugin through chat.pluginLocations."
+      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch. Product Demo Studio remains registered as a native local plugin through chat.pluginLocations."
     },
     {
       "id": "windsurf",
@@ -392,7 +442,7 @@
         "mcp"
       ],
       "status": "inactive",
-      "notes": "Active path is .codeium/windsurf; legacy .windsurf is plans-only. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "notes": "Active path is .codeium/windsurf; legacy .windsurf is plans-only. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
     }
   ]
 }

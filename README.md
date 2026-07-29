@@ -49,7 +49,7 @@ Claude, Codex, and other personal agent hosts share the policy in [`docs/cross-a
 
 ## Retained core
 
-The registry owns nine canonical capabilities: seven plugin capabilities (`clerk`, `use-digitalocean`, `use-elevenlabs`, `product-experience-engineering`, `product-demo-studio`, `use-campaign-production`, and `use-prompt-os`), the `shwiki-context` read-only portfolio-context skill and MCP, and the `browser-toolkit` skills, MCP, and host adapters.
+The registry owns eleven canonical capabilities: eight plugin capabilities (`clerk`, `firecrawl-ops`, `use-digitalocean`, `use-elevenlabs`, `product-experience-engineering`, `product-demo-studio`, `use-campaign-production`, and `use-prompt-os`), the `repocontext` read-only portfolio-context skill and MCP, the Codex-only `local-ai-stack` skill for the `D:\AI-Platform` runtime, and the `browser-toolkit` skills, MCP, and host adapters. `firecrawl-ops` is a skills-only plugin; the Firecrawl service remains owned by `registry/mcps.json`.
 
 `product-experience-engineering` is the single owner for making a real workflow useful, coherent, polished, and demo-ready. Its `prepare-product-for-demo` entry skill runs the mandatory pre-production audit, authorized remediation, validation, and revision-bound handoff. Product Demo Studio consumes that handoff; it does not own product remediation.
 
@@ -57,12 +57,26 @@ The registry owns nine canonical capabilities: seven plugin capabilities (`clerk
 
 Run `powershell.exe -NoProfile -File .\scripts\Apply-FullAccessAgentProfile.ps1 -SkillDistributionOnly -RetireLegacyVideoOwners` to refresh the video capability without rewriting unrelated host settings. Restart open agent sessions afterward so they reload skills and plugin manifests.
 
-`shwiki-context` is the portfolio context control plane. Its hosted Streamable HTTP endpoint is canonical for configured hosts and exposes eight read-only tools; local stdio (`pnpm --dir C:/Repos/shmindmaster/shwiki mcp:wiki`) is only the offline or freshest-local fallback. Capability package: `capabilities/shwiki-context/`. Host auth stays in secret stores; never commit tokens.
+`repocontext` is the portfolio context control plane. Its local stdio server (`pnpm --dir C:/Repos/shmindmaster/repocontext mcp:serve`) is retained as an on-demand, skill-owned tool and is never written into fleet host configuration. The private Streamable HTTP registration remains deployment-pending until its paid production resource is authorized and passes the authenticated remote contract. Capability package: `capabilities/repocontext/`. Host auth stays in secret stores; never commit tokens.
 
-Run `pwsh -File .\tests\Validate-AgentEcosystem.ps1 -IncludeGlobalInstructions` before publishing changes. The check uses no network calls and does not inspect or print secret values.
+## Validation policy
+
+AgentHub is a configuration-management control plane. It does not produce a build, package, release, or deployment artifact, so GitHub Actions is intentionally not configured. Validate changes locally in both supported PowerShell engines:
+
+```powershell
+pwsh -NoProfile -File .\tests\Validate-AgentEcosystem.ps1
+powershell.exe -NoProfile -File .\tests\Validate-AgentEcosystem.ps1
+```
+
+Add `-IncludeGlobalInstructions` before publishing changes that affect generated host policy. The validator uses no network calls and does not inspect or print secret values.
 
 Run `pwsh -File .\tests\Test-HostReadiness.ps1` to report locally installed host clients and required policy pointers without opening a browser, connecting to an MCP server, or reading credentials.
 
-The shared MCP set is remote-first: Linear, Context7, Notion, ShWiki, Firecrawl, Tavily, and Exa use hosted HTTP endpoints. Playwright stays local for browser control and Brave Search stays local because it has no verified official hosted endpoint. OAuth approval is deliberately per host; see `registry/mcp-registrations.json` for status without storing auth material.
+MCP ownership is host-aware. Installed plugins and native connectors suppress duplicate direct registrations. Hosted HTTP services are referenced remotely, so opening several agents does not create one local Node or Python server per agent. Playwright, RepoContext, Brave Search, and host-scoped Chrome DevTools are on-demand local tools and are never persisted in host configuration under any fleet sync scope. Docker MCP Gateway has an installed, partial POC: Linear and Context7 passed, Firecrawl's custom remote snapshot passed bearer-authenticated discovery, and Notion still needs OAuth. Generation remains disabled until the one shared production profile passes. Container-backed catalog servers remain blocked on this Windows host by missing `socat`. See `registry/native-connectors.json`, `registry/gateway-profiles.json`, and [`docs/mcp-ownership-2026-07-24.md`](docs/mcp-ownership-2026-07-24.md).
 
-Worktree creation, retention, and cleanup are governed by the single shared policy in `docs/worktree-management-policy.md`. Run `scripts/Audit-Worktrees.ps1` for a report-only inventory; cleanup is deliberately separate.
+Worktree creation, retention, and cleanup are governed by the single shared policy in `docs/worktree-management-policy.md`; `registry/worktree-roots.json` records current host-specific enforcement. `C:\wt\<repo>\<task>` is the sole user-created root. `scripts\New-AgentHubWorktree.ps1` supports both the Claude Code `WorktreeCreate` stdin contract and manual `-Cwd` / `-Name` invocation. `scripts\Install-WorktreePolicy.ps1` deploys the stable helper, documented opt-out settings, Claude hook, and Warp Tab Config after backup; `scripts\agentctl.ps1 sync -Apply` deploys managed global instructions with conflict protection. Run `scripts\Audit-Worktrees.ps1` for report-only inventory; cleanup is separate and legacy roots are migration-detection only.
+
+The full-access profile also pins the user-level `TMPDIR` to
+`%LOCALAPPDATA%\AgentHub\tmp`. This prevents POSIX-style `/tmp` paths used by
+coding-agent runtimes from materializing as a user-created `C:\tmp` directory
+on Windows.

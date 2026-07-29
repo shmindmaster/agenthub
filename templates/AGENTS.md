@@ -1,6 +1,6 @@
 # Repository Agent Instructions
 
-<!-- agent-capabilities:managed -->
+<!-- agenthub:managed -->
 
 Read and follow the repository-specific content below together with the compiled global policy.
 
