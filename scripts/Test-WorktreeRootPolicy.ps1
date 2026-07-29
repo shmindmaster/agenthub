@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$RegistryRoot = 'C:\Repos\shmindmaster\agenthub',
+    [string]$RegistryRoot = (Split-Path -Parent $PSScriptRoot),
     [string]$UserProfilePath = $env:USERPROFILE,
     [switch]$Json
 )
@@ -95,7 +95,7 @@ $summary = [ordered]@{
 }
 
 if ($Json) {
-    [ordered]@{ summary = $summary; results = @($results) } | ConvertTo-Json -Depth 5
+    [ordered]@{ summary = $summary; results = @($results.ToArray()) } | ConvertTo-Json -Depth 5
 } else {
     $results | Format-Table status, check, detail -AutoSize
     Write-Output "Summary: pass=$($summary.pass) warn=$($summary.warn) fail=$($summary.fail)"

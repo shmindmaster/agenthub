@@ -599,8 +599,34 @@ function Get-PluginProvidedMcpKeysByHost {
 
     if ($ConnectorRegistry -and $ConnectorRegistry.hosts) {
         foreach ($connectorHost in @($ConnectorRegistry.hosts)) {
-            $effective = Get-ConnectorHostRow -HostId ([string]$connectorHost.hostId) -ConnectorRegistry $ConnectorRegistry
-            if (-not $effective -or -not $effective.exposures) { continue }
+            try {
+                $effective = Get-ConnectorHostRow -HostId ([string]$connectorHost.hostId) -ConnectorRegistry $ConnectorRegistry
+                if (-not $effective -or
+                    [bool]$effective.providerHeld -or
+                    -not $effective.exposures) {
+                    continue
+                }
+                $classified = @()
+                $validExposureRow = $true
+                foreach ($mode in @('plugin-owned', 'native-connector', 'shared-gateway', 'local-only')) {
+                    $property = $effective.exposures.PSObject.Properties[$mode]
+                    if (-not $property) {
+                        $validExposureRow = $false
+                        break
+                    }
+                    $classified += @($property.Value | ForEach-Object {
+                        Resolve-McpAliasKey ([string]$_)
+                    })
+                }
+                if (-not $validExposureRow -or
+                    @($classified | Where-Object { $_ -notmatch '^[a-z0-9][a-z0-9._-]*$' }).Count -gt 0 -or
+                    @($classified | Sort-Object -Unique).Count -ne $classified.Count) {
+                    continue
+                }
+            } catch {
+                # A malformed connector registry must never suppress direct MCPs.
+                continue
+            }
             $hostId = [string]$connectorHost.hostId
             if (-not $result.ContainsKey($hostId)) { $result[$hostId] = @{} }
             foreach ($mode in @('plugin-owned', 'native-connector')) {
@@ -640,50 +666,96 @@ function Get-GatewayPlanForHost {
         [object]$ConnectorRegistry
     )
 
-    if (-not $GatewayRegistry -or -not $GatewayRegistry.selectedCandidateId) { return $null }
-    $candidate = @($GatewayRegistry.candidates | Where-Object id -eq $GatewayRegistry.selectedCandidateId)
-    if ($candidate.Count -ne 1 -or
-        [string]$candidate[0].activationState -ne 'validated' -or
-        -not [bool]$candidate[0].generationEnabled) {
-        return $null
-    }
+    try {
+        if (-not $GatewayRegistry -or
+            [string]::IsNullOrWhiteSpace([string]$GatewayRegistry.selectedCandidateId)) {
+            return $null
+        }
 
-    foreach ($profile in @($candidate[0].profiles)) {
-        if ([string]$profile.activationState -ne 'validated') { continue }
-        $mapping = @($profile.hostMappings | Where-Object {
-            $_.hostId -eq $HostId -and $_.state -eq 'enabled'
+        $candidate = @($GatewayRegistry.candidates | Where-Object {
+            [string]$_.id -ceq [string]$GatewayRegistry.selectedCandidateId
         })
-        if ($mapping.Count -ne 1) { continue }
+        if ($candidate.Count -ne 1 -or
+            [string]$candidate[0].activationState -cne 'validated' -or
+            -not [bool]$candidate[0].generationEnabled) {
+            return $null
+        }
+
+        $selectedProfileId = [string]$candidate[0].selectedProfileId
+        if ($selectedProfileId -notmatch '^[a-z0-9][a-z0-9._-]*$') { return $null }
+        $profiles = @($candidate[0].profiles | Where-Object {
+            [string]$_.id -ceq $selectedProfileId
+        })
+        if ($profiles.Count -ne 1 -or
+            [string]$profiles[0].activationState -cne 'validated') {
+            return $null
+        }
+        $profile = $profiles[0]
+
+        $endpoint = $candidate[0].endpoint
+        if (-not $endpoint -or
+            [string]$endpoint.boundProfileId -cne $selectedProfileId -or
+            [string]$endpoint.transport -cne 'streaming' -or
+            [string]$endpoint.authScheme -cne 'bearer' -or
+            [string]$endpoint.id -notmatch '^[a-z0-9][a-z0-9._-]*$' -or
+            [string]$endpoint.authTokenEnvironment -notmatch '^[A-Z_][A-Z0-9_]*$') {
+            return $null
+        }
+        $endpointUri = [Uri]::new([string]$endpoint.url, [UriKind]::Absolute)
+        if ($endpointUri.Scheme -notin @('http', 'https') -or
+            -not $endpointUri.IsLoopback -or
+            -not [string]::IsNullOrEmpty($endpointUri.UserInfo)) {
+            return $null
+        }
+
+        $connectorRow = Get-ConnectorHostRow -HostId $HostId -ConnectorRegistry $ConnectorRegistry
+        if (-not $connectorRow -or
+            [bool]$connectorRow.providerHeld -or
+            -not $connectorRow.exposures) {
+            return $null
+        }
+        $shared = @($connectorRow.exposures.'shared-gateway' | ForEach-Object {
+            Resolve-McpAliasKey ([string]$_)
+        })
+        $pluginOwned = @($connectorRow.exposures.'plugin-owned' | ForEach-Object {
+            Resolve-McpAliasKey ([string]$_)
+        })
+        $nativeOwned = @($connectorRow.exposures.'native-connector' | ForEach-Object {
+            Resolve-McpAliasKey ([string]$_)
+        })
+
+        $mapping = @($profile.hostMappings | Where-Object {
+            [string]$_.hostId -ceq $HostId -and [string]$_.state -ceq 'enabled'
+        })
+        if ($mapping.Count -ne 1) { return $null }
 
         $managedKeys = @($profile.mcpServerIds | ForEach-Object {
             Resolve-McpAliasKey ([string]$_)
         })
-        $connectorRow = Get-ConnectorHostRow -HostId $HostId -ConnectorRegistry $ConnectorRegistry
-        if ($connectorRow -and $connectorRow.exposures) {
-            $shared = @($connectorRow.exposures.'shared-gateway' | ForEach-Object {
-                Resolve-McpAliasKey ([string]$_)
-            })
-            $managedKeys = @($managedKeys | Where-Object { $_ -in $shared })
+        if ($managedKeys.Count -eq 0 -or
+            @($managedKeys | Where-Object { $_ -notmatch '^[a-z0-9][a-z0-9._-]*$' }).Count -gt 0 -or
+            @($managedKeys | Sort-Object -Unique).Count -ne $managedKeys.Count -or
+            @($managedKeys | Where-Object { $_ -notin $shared }).Count -gt 0 -or
+            @($managedKeys | Where-Object { $_ -in $pluginOwned -or $_ -in $nativeOwned }).Count -gt 0) {
+            return $null
         }
-        $managedKeys = @($managedKeys | Sort-Object -Unique)
-        if ($managedKeys.Count -eq 0) { return $null }
 
-        $endpoint = $candidate[0].endpoint
-        $entry = @{
-            type = 'http'
-            url = [string]$endpoint.url
-            headers = @{
-                Authorization = 'Bearer ${env:' + [string]$endpoint.authTokenEnvironment + '}'
-            }
-        }
         return @{
             entryKey = [string]$endpoint.id
-            entry = $entry
-            managedKeys = $managedKeys
-            profileId = [string]$profile.id
+            entry = @{
+                type = 'http'
+                url = $endpointUri.AbsoluteUri
+                headers = @{
+                    Authorization = 'Bearer ${env:' + [string]$endpoint.authTokenEnvironment + '}'
+                }
+            }
+            managedKeys = @($managedKeys)
+            profileId = $selectedProfileId
         }
+    } catch {
+        # Registry drift must never suppress a direct MCP registration.
+        return $null
     }
-    return $null
 }
 
 function Get-HostMcpEntries {

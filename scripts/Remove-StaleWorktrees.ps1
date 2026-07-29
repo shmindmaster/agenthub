@@ -63,6 +63,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'WorktreeRootPolicy.ps1')
 
 if ($Apply -and $ApprovedPath.Count -eq 0) {
     throw '-Apply requires at least one -ApprovedPath.'
@@ -201,14 +202,7 @@ foreach ($k in $seen.Keys) {
 
 # --- orphaned worktree dirs git no longer tracks (have a .git pointer) ------
 $known = @{}; foreach ($k in $seen.Keys) { $known[$k] = $true }; foreach ($k in $mainPaths.Keys) { $known[$k] = $true }
-$orphans = @()
-foreach ($root in @($configuredRootPath)) {
-    if (-not (Test-Path -LiteralPath $root)) { continue }
-    Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-        if ($known.ContainsKey((Get-Norm $_.FullName))) { return }
-        if (Test-Path -LiteralPath (Join-Path $_.FullName '.git')) { $orphans += $_.FullName }
-    }
-}
+$orphans = @(Get-AgentHubOrphanedWorktreeDirectories -ConfiguredRoot $configuredRootPath -KnownPaths $known)
 
 # --- legacy roots are forbidden migration sources, never cleanup targets ----
 $legacyRootFindings = @()

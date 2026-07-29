@@ -308,7 +308,9 @@ if ($registryObjects.ContainsKey('native-connectors.json') -and
     }
 }
 
-if ($registryObjects.ContainsKey('gateway-profiles.json') -and $registryObjects.ContainsKey('hosts.json')) {
+if ($registryObjects.ContainsKey('gateway-profiles.json') -and
+    $registryObjects.ContainsKey('hosts.json') -and
+    $registryObjects.ContainsKey('native-connectors.json')) {
     $gatewayRegistry = $registryObjects['gateway-profiles.json']
     $candidate = @($gatewayRegistry.candidates | Where-Object id -eq $gatewayRegistry.selectedCandidateId)
     $gatewayProblems = @()
@@ -325,10 +327,55 @@ if ($registryObjects.ContainsKey('gateway-profiles.json') -and $registryObjects.
             $gatewayProblems += 'firecrawl-authenticated-poc-evidence'
         }
         if ([string]$candidate[0].endpoint.url -ne 'http://127.0.0.1:8811/mcp') { $gatewayProblems += 'unexpected-endpoint' }
-        $mappedHostIds = @($candidate[0].profiles.hostMappings.hostId)
-        $expectedHostIds = @($registryObjects['hosts.json'].hosts.id)
-        $gatewayProblems += @($expectedHostIds | Where-Object { $_ -notin $mappedHostIds } | ForEach-Object { "missing-host:$_" })
-        if (@(Get-DuplicateValues $mappedHostIds).Count -gt 0) { $gatewayProblems += 'host-mapped-to-multiple-profiles' }
+        if ([string]$candidate[0].endpoint.authScheme -ne 'bearer') { $gatewayProblems += 'endpoint-must-use-bearer-auth' }
+        if ([string]$candidate[0].endpoint.boundProfileId -ne [string]$candidate[0].selectedProfileId) {
+            $gatewayProblems += 'endpoint-profile-binding'
+        }
+        $profiles = @($candidate[0].profiles)
+        $selectedProfiles = @($profiles | Where-Object id -eq $candidate[0].selectedProfileId)
+        if ($profiles.Count -ne 1 -or $selectedProfiles.Count -ne 1) {
+            $gatewayProblems += 'single-selected-profile'
+        } else {
+            $connectorRows = @{}
+            foreach ($connectorRow in @($registryObjects['native-connectors.json'].hosts)) {
+                $connectorRows[[string]$connectorRow.hostId] = $connectorRow
+            }
+            $eligibleHostIds = @()
+            $sharedIntersection = $null
+            foreach ($hostId in @($registryObjects['hosts.json'].hosts.id)) {
+                $effectiveRow = $connectorRows[[string]$hostId]
+                $visited = @{}
+                while ($effectiveRow -and
+                    $effectiveRow.PSObject.Properties['inheritsHostId'] -and
+                    $effectiveRow.inheritsHostId) {
+                    if ($visited.ContainsKey([string]$effectiveRow.inheritsHostId)) {
+                        $effectiveRow = $null
+                        break
+                    }
+                    $visited[[string]$effectiveRow.inheritsHostId] = $true
+                    $effectiveRow = $connectorRows[[string]$effectiveRow.inheritsHostId]
+                }
+                if (-not $effectiveRow) {
+                    $gatewayProblems += "missing-effective-connector:$hostId"
+                    continue
+                }
+                if ([bool]$effectiveRow.providerHeld) { continue }
+                $eligibleHostIds += [string]$hostId
+                $hostShared = @($effectiveRow.exposures.'shared-gateway')
+                if ($null -eq $sharedIntersection) {
+                    $sharedIntersection = @($hostShared)
+                } else {
+                    $sharedIntersection = @($sharedIntersection | Where-Object { $_ -in $hostShared })
+                }
+            }
+            $mappedHostIds = @($selectedProfiles[0].hostMappings.hostId)
+            $gatewayProblems += @($eligibleHostIds | Where-Object { $_ -notin $mappedHostIds } | ForEach-Object { "missing-host:$_" })
+            $gatewayProblems += @($mappedHostIds | Where-Object { $_ -notin $eligibleHostIds } | ForEach-Object { "ineligible-host:$_" })
+            if (@(Get-DuplicateValues $mappedHostIds).Count -gt 0) { $gatewayProblems += 'duplicate-host-mapping' }
+            $managedIds = @($selectedProfiles[0].mcpServerIds)
+            $gatewayProblems += @($sharedIntersection | Where-Object { $_ -notin $managedIds } | ForEach-Object { "missing-intersection-mcp:$_" })
+            $gatewayProblems += @($managedIds | Where-Object { $_ -notin $sharedIntersection } | ForEach-Object { "non-intersection-mcp:$_" })
+        }
     }
     if ($gatewayProblems.Count -eq 0) {
         Add-ValidationResult PASS 'registry:gateway-profiles' 'partial POC evidence is recorded and generation remains disabled for one authenticated endpoint'
@@ -351,8 +398,16 @@ if ($registryObjects.ContainsKey('worktree-roots.json') -and $registryObjects.Co
     $rootProblems += @($knownHostIds | Where-Object { $_ -notin $rootHostIds } | ForEach-Object { "missing-host:$_" })
     if (@(Get-DuplicateValues $rootHostIds).Count -gt 0) { $rootProblems += 'duplicate-host-row' }
     $qwenRow = @($rootRegistry.hosts | Where-Object hostId -eq 'qwen-code')
-    if ($qwenRow.Count -ne 1 -or [string]$qwenRow[0].nativeBuiltIn.policyState -ne 'noncompliant-disabled') {
+    if ($qwenRow.Count -ne 1 -or
+        [string]$qwenRow[0].nativeBuiltIn.pathPattern -ne '<repository>/.qwen/worktrees/<name>' -or
+        [string]$qwenRow[0].nativeBuiltIn.policyState -ne 'noncompliant-disabled') {
         $rootProblems += 'qwen-built-in-must-be-disabled'
+    }
+    $geminiRow = @($rootRegistry.hosts | Where-Object hostId -eq 'gemini')
+    if ($geminiRow.Count -ne 1 -or
+        [string]$geminiRow[0].nativeBuiltIn.pathPattern -ne '<repository>/.gemini/worktrees/<name>' -or
+        [string]$geminiRow[0].nativeBuiltIn.policyState -ne 'noncompliant-disabled') {
+        $rootProblems += 'gemini-built-in-must-be-disabled'
     }
     $fallbackRows = @($rootRegistry.hosts | Where-Object mechanism -eq 'agenthub-helper-plus-generated-policy')
     if ($fallbackRows.Count -ne 20 -or

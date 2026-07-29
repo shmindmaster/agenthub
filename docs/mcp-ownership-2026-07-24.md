@@ -4,13 +4,19 @@ The fleet uses one ownership registry with host-specific exposure modes. An
 installed plugin or native connector owns its host surface. Remote services
 without a native owner are candidates for one authenticated streaming gateway.
 Local browser and repository tools remain direct. Gateway generation is
-disabled until production profiles pass. Docker MCP Toolkit is now enabled and
+disabled until the shared production profile passes. Docker MCP Toolkit is now enabled and
 a remote-only profile partially passed: Linear initialized, Context7 initialized
 and completed a read-only call, and Notion was blocked by missing OAuth. A
 separate Firecrawl custom-remote POC proved the loopback bearer gate (401
 without auth, 200 with auth), session issuance, and tool discovery without
 executing a quota-bearing tool. No live host configuration is generated from
 those POCs.
+
+The production declaration is intentionally one profile bound to one endpoint.
+It contains only the four-service intersection shared by every enabled,
+non-held host: Context7, Exa, Firecrawl, and Tavily. Services with host-specific
+plugin or native ownership remain direct instead of creating per-host gateway
+profiles that a single endpoint cannot isolate concurrently.
 
 | MCP | Registry owner | Current placement decision |
 | --- | --- | --- | --- |

@@ -111,15 +111,47 @@ Describe 'Runtime-centralization registry contracts' {
         $candidate[0].windowsRuntimeConstraint.observedFailure | Should -Be 'missing socat'
         (@($candidate[0].serverMappings | Where-Object mcpId -eq 'firecrawl'))[0].proofState |
             Should -Be 'poc-passed-remote'
-        @($candidate[0].profiles).Count | Should -BeGreaterThan 0
-        @($candidate[0].profiles.hostMappings.hostId | Sort-Object) |
-            Should -Be @($hosts.hosts.id | Sort-Object)
+        @($candidate[0].profiles).Count | Should -Be 1
+        $candidate[0].selectedProfileId | Should -Be $candidate[0].profiles[0].id
+        $candidate[0].endpoint.boundProfileId | Should -Be $candidate[0].selectedProfileId
+
+        $connectors = Get-Content -LiteralPath $connectorsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $connectorRows = @{}
+        foreach ($connectorRow in @($connectors.hosts)) { $connectorRows[[string]$connectorRow.hostId] = $connectorRow }
+        function Resolve-GatewayConnectorRow {
+            param([string]$HostId)
+            $row = $connectorRows[$HostId]
+            if ($row.inheritsHostId) { return Resolve-GatewayConnectorRow -HostId ([string]$row.inheritsHostId) }
+            return $row
+        }
+
+        $eligibleHostIds = @(
+            $hosts.hosts.id | Where-Object {
+                $resolvedRow = Resolve-GatewayConnectorRow -HostId ([string]$_)
+                -not [bool]$resolvedRow.providerHeld
+            }
+        )
+        @($candidate[0].profiles[0].hostMappings.hostId | Sort-Object) |
+            Should -Be @($eligibleHostIds | Sort-Object)
+
+        $sharedIntersection = $null
+        foreach ($eligibleHostId in $eligibleHostIds) {
+            $resolvedConnector = Resolve-GatewayConnectorRow -HostId $eligibleHostId
+            $sharedForHost = @($resolvedConnector.exposures.'shared-gateway')
+            $sharedIntersection = if ($null -eq $sharedIntersection) {
+                @($sharedForHost)
+            } else {
+                @($sharedIntersection | Where-Object { $_ -in $sharedForHost })
+            }
+        }
+        @($candidate[0].profiles[0].mcpServerIds | Sort-Object) |
+            Should -Be @($sharedIntersection | Sort-Object)
 
         $localOnly = @(
-            (Get-Content -LiteralPath $connectorsPath -Raw -Encoding UTF8 | ConvertFrom-Json).hosts |
+            $connectors.hosts |
                 ForEach-Object { $_.exposures.'local-only' }
         )
-        @($candidate[0].profiles.mcpServerIds | Where-Object { $_ -in $localOnly }) | Should -BeNullOrEmpty
+        @($candidate[0].profiles[0].mcpServerIds | Where-Object { $_ -in $localOnly }) | Should -BeNullOrEmpty
     }
 
     It 'records C:\wt as the only root without inventing unsupported host settings' {
@@ -148,6 +180,11 @@ Describe 'Runtime-centralization registry contracts' {
         $qwen[0].mechanism | Should -Be 'agenthub-helper-plus-generated-policy'
         $qwen[0].nativeBuiltIn.policyState | Should -Be 'noncompliant-disabled'
 
+        $gemini = @($roots.hosts | Where-Object hostId -eq 'gemini')
+        $gemini.Count | Should -Be 1
+        $gemini[0].nativeBuiltIn.pathPattern | Should -Be '<repository>/.gemini/worktrees/<name>'
+        $gemini[0].nativeBuiltIn.policyState | Should -Be 'noncompliant-disabled'
+
         $fallbackRows = @($roots.hosts | Where-Object mechanism -eq 'agenthub-helper-plus-generated-policy')
         $fallbackRows.Count | Should -Be 20
         @($fallbackRows | Where-Object deploymentState -notmatch 'controller-sync-required') | Should -BeNullOrEmpty
@@ -170,6 +207,7 @@ Describe 'Sync-AgentHub gateway and native connector convergence' {
                 notion = @{ type = 'http'; url = 'https://mcp.notion.com/mcp' }
                 context7 = @{ type = 'http'; url = 'https://mcp.context7.com/mcp' }
                 exa = @{ type = 'http'; url = 'https://mcp.exa.ai/mcp' }
+                other = @{ type = 'http'; url = 'https://other.example.test/mcp' }
                 custom = @{ type = 'http'; url = 'https://example.test/mcp' }
             }
         } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $claudeConfig -Encoding UTF8
@@ -185,6 +223,7 @@ Describe 'Sync-AgentHub gateway and native connector convergence' {
                 @{ id = 'notion'; scope = 'global-default'; transport = 'http'; url = 'https://mcp.notion.com/mcp'; credentialPolicy = 'oauth'; owner = @{ type = 'registry'; id = 'mcp-registry' } },
                 @{ id = 'context7'; scope = 'global-default'; transport = 'http'; url = 'https://mcp.context7.com/mcp'; credentialPolicy = 'provider-managed'; owner = @{ type = 'registry'; id = 'mcp-registry' } },
                 @{ id = 'exa'; scope = 'global-default'; transport = 'http'; url = 'https://mcp.exa.ai/mcp'; credentialPolicy = 'provider-managed'; owner = @{ type = 'registry'; id = 'mcp-registry' } },
+                @{ id = 'other'; scope = 'global-default'; transport = 'http'; url = 'https://other.example.test/mcp'; credentialPolicy = 'provider-managed'; owner = @{ type = 'registry'; id = 'mcp-registry' } },
                 @{ id = 'repocontext'; scope = 'global-default'; transport = 'stdio'; command = 'synthetic-repocontext'; args = @('serve'); credentialPolicy = 'none'; owner = @{ type = 'capability'; id = 'repocontext' } }
             )
         } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $fixtureRegistry 'mcps.json') -Encoding UTF8
@@ -197,7 +236,7 @@ Describe 'Sync-AgentHub gateway and native connector convergence' {
                 exposures = @{
                     'plugin-owned' = @('notion')
                     'native-connector' = @()
-                    'shared-gateway' = @('context7', 'exa')
+                    'shared-gateway' = @('context7', 'exa', 'other')
                     'local-only' = @('repocontext')
                 }
             })
@@ -210,18 +249,29 @@ Describe 'Sync-AgentHub gateway and native connector convergence' {
                 implementation = 'docker-mcp-gateway'
                 activationState = 'validated'
                 generationEnabled = $true
+                selectedProfileId = 'synthetic-shared'
                 endpoint = @{
                     id = 'agenthub-gateway'
                     transport = 'streaming'
                     url = 'http://127.0.0.1:8811/mcp'
+                    authScheme = 'bearer'
                     authTokenEnvironment = 'MCP_GATEWAY_AUTH_TOKEN'
+                    boundProfileId = 'synthetic-shared'
                 }
-                profiles = @(@{
-                    id = 'synthetic-shared'
-                    activationState = 'validated'
-                    mcpServerIds = @('context7', 'exa')
-                    hostMappings = @(@{ hostId = 'claude'; state = 'enabled' })
-                })
+                profiles = @(
+                    @{
+                        id = 'wrong-profile'
+                        activationState = 'validated'
+                        mcpServerIds = @('other')
+                        hostMappings = @(@{ hostId = 'claude'; state = 'enabled' })
+                    },
+                    @{
+                        id = 'synthetic-shared'
+                        activationState = 'validated'
+                        mcpServerIds = @('context7', 'exa')
+                        hostMappings = @(@{ hostId = 'claude'; state = 'enabled' })
+                    }
+                )
             })
         } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $fixtureRegistry 'gateway-profiles.json') -Encoding UTF8
 
@@ -238,7 +288,7 @@ Describe 'Sync-AgentHub gateway and native connector convergence' {
 
         $result = Get-Content -LiteralPath $claudeConfig -Raw -Encoding UTF8 | ConvertFrom-Json
         @($result.mcpServers.PSObject.Properties.Name | Sort-Object) |
-            Should -Be @('agenthub-gateway', 'custom', 'repocontext')
+            Should -Be @('agenthub-gateway', 'custom', 'other', 'repocontext')
         $result.mcpServers.'agenthub-gateway'.url | Should -Be 'http://127.0.0.1:8811/mcp'
         $result.mcpServers.'agenthub-gateway'.headers.Authorization |
             Should -Be 'Bearer ${MCP_GATEWAY_AUTH_TOKEN}'
@@ -298,30 +348,219 @@ enabled = false
         $result | Should -Match '(?m)^\[mcp_servers\.context7\]\s*$'
         $result | Should -Match '(?ms)^\[plugins\."firecrawl-ops@personal"\.mcp_servers\.firecrawl\]\s*\r?\nenabled\s*=\s*false'
     }
+
+    It 'fails closed and preserves direct MCPs for malformed or ineligible gateway contracts' {
+        $fixture = Join-Path $TestDrive 'gateway-fail-closed'
+        $fixtureRegistry = Join-Path $fixture 'registry'
+        $profile = Join-Path $fixture 'profile'
+        $runtime = Join-Path $fixture 'runtime'
+        $claudeConfig = Join-Path $profile '.claude.json'
+        New-Item -ItemType Directory -Path $fixtureRegistry, $profile, $runtime -Force | Out-Null
+
+        @{
+            activeAgents = @(@{ id = 'claude'; nativePaths = @{ mcpUser = $claudeConfig } })
+            inactiveAgents = @()
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $fixtureRegistry 'agents.json') -Encoding UTF8
+        @{
+            mcpServers = @(
+                @{ id = 'context7'; scope = 'global-default'; transport = 'http'; url = 'https://mcp.context7.com/mcp'; credentialPolicy = 'provider-managed'; owner = @{ type = 'registry'; id = 'mcp-registry' } }
+            )
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $fixtureRegistry 'mcps.json') -Encoding UTF8
+        @{ capabilities = @() } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $fixtureRegistry 'capabilities.json') -Encoding UTF8
+
+        $baseConnector = @{
+            hosts = @(@{
+                hostId = 'claude'
+                providerHeld = $false
+                exposures = @{
+                    'plugin-owned' = @()
+                    'native-connector' = @()
+                    'shared-gateway' = @('context7')
+                    'local-only' = @()
+                }
+            })
+        }
+        $baseGateway = @{
+            selectedCandidateId = 'docker-mcp-gateway'
+            candidates = @(@{
+                id = 'docker-mcp-gateway'
+                activationState = 'validated'
+                generationEnabled = $true
+                selectedProfileId = 'shared'
+                endpoint = @{
+                    id = 'agenthub-gateway'
+                    transport = 'streaming'
+                    url = 'http://127.0.0.1:8811/mcp'
+                    authScheme = 'bearer'
+                    authTokenEnvironment = 'MCP_GATEWAY_AUTH_TOKEN'
+                    boundProfileId = 'shared'
+                }
+                profiles = @(@{
+                    id = 'shared'
+                    activationState = 'validated'
+                    mcpServerIds = @('context7')
+                    hostMappings = @(@{ hostId = 'claude'; state = 'enabled' })
+                })
+            })
+        }
+
+        $cases = @(
+            @{ name = 'duplicate selected candidates'; mutate = {
+                param($gateway, $connector)
+                $duplicate = $gateway.candidates[0] |
+                    ConvertTo-Json -Depth 10 | ConvertFrom-Json
+                $gateway.candidates += @($duplicate)
+            } },
+            @{ name = 'candidate not validated'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].activationState = 'partial-poc-pass'
+            } },
+            @{ name = 'generation disabled'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].generationEnabled = $false
+            } },
+            @{ name = 'selected profile not validated'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].profiles[0].activationState = 'poc-pending'
+            } },
+            @{ name = 'non-loopback endpoint'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].endpoint.url = 'http://192.0.2.10:8811/mcp'
+            } },
+            @{ name = 'missing bearer auth'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].endpoint.authScheme = 'none'
+            } },
+            @{ name = 'unsafe token environment name'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].endpoint.authTokenEnvironment = 'bad-token-name'
+            } },
+            @{ name = 'endpoint bound to another profile'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].endpoint.boundProfileId = 'not-shared'
+            } },
+            @{ name = 'provider-held host'; mutate = {
+                param($gateway, $connector)
+                $connector.hosts[0].providerHeld = $true
+            } },
+            @{ name = 'host mapping disabled'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].profiles[0].hostMappings[0].state = 'poc-pending'
+            } },
+            @{ name = 'managed MCP not declared shared'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].profiles[0].mcpServerIds += @('other')
+            } },
+            @{ name = 'duplicate managed MCP'; mutate = {
+                param($gateway, $connector)
+                $gateway.candidates[0].profiles[0].mcpServerIds += @('context7')
+            } },
+            @{ name = 'plugin/native overlap'; mutate = {
+                param($gateway, $connector)
+                $connector.hosts[0].exposures.'native-connector' = @('context7')
+            } },
+            @{ name = 'missing connector row'; mutate = {
+                param($gateway, $connector)
+                $connector.hosts = @()
+            } },
+            @{ name = 'duplicate selected profile definitions'; mutate = {
+                param($gateway, $connector)
+                $duplicate = $gateway.candidates[0].profiles[0] |
+                    ConvertTo-Json -Depth 10 | ConvertFrom-Json
+                $gateway.candidates[0].profiles += @($duplicate)
+            } }
+        )
+
+        $previousLocalAppData = $env:LOCALAPPDATA
+        try {
+            $env:LOCALAPPDATA = $runtime
+            foreach ($case in $cases) {
+                $gateway = $baseGateway | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+                $connector = $baseConnector | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+                $mutation = $case.mutate
+                & $mutation $gateway $connector
+                $gateway | ConvertTo-Json -Depth 10 |
+                    Set-Content -LiteralPath (Join-Path $fixtureRegistry 'gateway-profiles.json') -Encoding UTF8
+                $connector | ConvertTo-Json -Depth 10 |
+                    Set-Content -LiteralPath (Join-Path $fixtureRegistry 'native-connectors.json') -Encoding UTF8
+                @{ mcpServers = @{ context7 = @{ type = 'http'; url = 'https://mcp.context7.com/mcp' } } } |
+                    ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $claudeConfig -Encoding UTF8
+
+                & (Get-Command pwsh).Source -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+                    -File (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') `
+                    -Apply -Validate -RegistryRoot $fixture -UserProfile $profile | Out-Host
+                $LASTEXITCODE | Should -Be 0 -Because $case.name
+
+                $result = Get-Content -LiteralPath $claudeConfig -Raw -Encoding UTF8 | ConvertFrom-Json
+                @($result.mcpServers.PSObject.Properties.Name) | Should -Contain 'context7' -Because $case.name
+                @($result.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'agenthub-gateway' -Because $case.name
+            }
+        } finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+        }
+    }
 }
 
 Describe 'AgentHub worktree-root helper' {
-    It 'plans a normalized C:\wt\{repository}\{task} target from synthetic hook input' {
-        $helper = Join-Path $repoRoot 'scripts\New-AgentHubWorktree.ps1'
-        Test-Path -LiteralPath $helper -PathType Leaf | Should -BeTrue
-        $result = '{"cwd":"C:\\Repos\\Synthetic\\sample-repo","name":"Feature/Auth"}' |
-            & $helper -PlanOnly -RepositoryName 'sample-repo'
-        $result | Should -Be 'C:\wt\sample-repo\feature-auth'
+    BeforeAll {
+        $script:worktreeHelper = Join-Path $repoRoot 'scripts\New-AgentHubWorktree.ps1'
+        $script:canonicalFixtureRepo = Join-Path $TestDrive 'canonical-repo'
+        $script:nestedFixtureWorktree = Join-Path $TestDrive 'nested-host-worktree'
+        $null = & git init --quiet $canonicalFixtureRepo 2>&1
+        $null = & git -C $canonicalFixtureRepo config user.name 'AgentHub Synthetic Test' 2>&1
+        $null = & git -C $canonicalFixtureRepo config user.email 'agenthub-test@example.invalid' 2>&1
+        'synthetic' | Set-Content -LiteralPath (Join-Path $canonicalFixtureRepo 'fixture.txt') -Encoding UTF8
+        $null = & git -C $canonicalFixtureRepo add fixture.txt 2>&1
+        $null = & git -C $canonicalFixtureRepo commit --quiet -m 'synthetic fixture' 2>&1
+        $null = & git -C $canonicalFixtureRepo worktree add --quiet -b nested-fixture $nestedFixtureWorktree 2>&1
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to create nested synthetic worktree fixture.' }
+    }
+
+    It 'derives the canonical repository identity from git common-dir when invoked inside a worktree' {
+        Test-Path -LiteralPath $worktreeHelper -PathType Leaf | Should -BeTrue
+        $inputJson = @{ cwd = $nestedFixtureWorktree; name = 'safe-task' } | ConvertTo-Json -Compress
+        $result = @($inputJson | & $worktreeHelper -PlanOnly)
+        $result.Count | Should -Be 1
+        $result[0] | Should -Be 'C:\wt\canonical-repo\safe-task'
+    }
+
+    It 'rejects ambiguous normalized names and repository identity overrides' {
+        $slashName = @{ cwd = $nestedFixtureWorktree; name = 'Feature/Auth' } | ConvertTo-Json -Compress
+        $spaceName = @{ cwd = $nestedFixtureWorktree; name = 'feature auth' } | ConvertTo-Json -Compress
+        $trailingDotName = @{ cwd = $nestedFixtureWorktree; name = 'feature.' } | ConvertTo-Json -Compress
+        { & $worktreeHelper -InputJson $slashName -PlanOnly } | Should -Throw '*safe*component*'
+        { & $worktreeHelper -InputJson $spaceName -PlanOnly } | Should -Throw '*safe*component*'
+        { & $worktreeHelper -InputJson $trailingDotName -PlanOnly } | Should -Throw '*safe*component*'
+        {
+            & $worktreeHelper -InputJson (@{ cwd = $nestedFixtureWorktree; name = 'safe-task' } | ConvertTo-Json -Compress) `
+                -PlanOnly -RepositoryName 'not-the-canonical-repo'
+        } | Should -Throw '*does not match*canonical*'
+    }
+
+    It 'fails closed for branch/target ambiguity and captures all git command output' {
+        $source = Get-Content -LiteralPath $worktreeHelper -Raw -Encoding UTF8
+        $source | Should -Match '--git-common-dir'
+        $source | Should -Match 'expected.*branch'
+        $source | Should -Match 'branch.*exists.*without.*registered target'
+        $source | Should -Match 'git common dir'
+        $source | Should -Match 'worktree add.*2>&1'
+        ([regex]::Matches($source, '(?m)& git')).Count | Should -Be 1
     }
 
     It 'consumes only the approved user-owned worktree-root environment contract' {
-        $helper = Join-Path $repoRoot 'scripts\New-AgentHubWorktree.ps1'
         $previousRoot = $env:AGENTHUB_WORKTREE_ROOT
         try {
             $env:AGENTHUB_WORKTREE_ROOT = 'C:\wt'
-            $result = & $helper -InputJson '{"cwd":"C:\\Repos\\Synthetic\\sample-repo","name":"Env Contract"}' `
-                -PlanOnly -RepositoryName 'sample-repo'
-            $result | Should -Be 'C:\wt\sample-repo\env-contract'
+            $result = & $worktreeHelper -InputJson (
+                @{ cwd = $nestedFixtureWorktree; name = 'env-contract' } | ConvertTo-Json -Compress
+            ) -PlanOnly
+            $result | Should -Be 'C:\wt\canonical-repo\env-contract'
 
             $env:AGENTHUB_WORKTREE_ROOT = 'D:\not-agenthub'
             {
-                & $helper -InputJson '{"cwd":"C:\\Repos\\Synthetic\\sample-repo","name":"Rejected"}' `
-                    -PlanOnly -RepositoryName 'sample-repo'
+                & $worktreeHelper -InputJson (
+                    @{ cwd = $nestedFixtureWorktree; name = 'rejected' } | ConvertTo-Json -Compress
+                ) -PlanOnly
             } | Should -Throw '*must use C:\wt*'
         } finally {
             $env:AGENTHUB_WORKTREE_ROOT = $previousRoot
@@ -337,5 +576,35 @@ Describe 'AgentHub worktree-root helper' {
         $reaperSource | Should -Not -Match '\$EphemeralRoots'
         $auditSource | Should -Match 'forbidden-migration-source'
         $reaperSource | Should -Match 'forbidden-migration-source'
+    }
+}
+
+Describe 'Worktree policy checker and CI wiring' {
+    It 'defaults to its containing repository and emits valid normal and JSON output' {
+        $checker = Join-Path $repoRoot 'scripts\Test-WorktreeRootPolicy.ps1'
+        $source = Get-Content -LiteralPath $checker -Raw -Encoding UTF8
+        $source | Should -Match '\$RegistryRoot\s*=\s*\(Split-Path -Parent \$PSScriptRoot\)'
+
+        $syntheticProfile = Join-Path $TestDrive 'checker-profile'
+        New-Item -ItemType Directory -Path $syntheticProfile -Force | Out-Null
+        $normal = @(& (Get-Command pwsh).Source -NoLogo -NoProfile -NonInteractive `
+            -File $checker -UserProfilePath $syntheticProfile 2>&1)
+        $LASTEXITCODE | Should -Be 0
+        ($normal -join "`n") | Should -Match 'Summary:'
+        ($normal -join "`n") | Should -Not -Match 'missing or invalid registry'
+
+        $jsonRaw = (& (Get-Command pwsh).Source -NoLogo -NoProfile -NonInteractive `
+            -File $checker -UserProfilePath $syntheticProfile -Json 2>&1) -join "`n"
+        $LASTEXITCODE | Should -Be 0
+        { $jsonRaw | ConvertFrom-Json -ErrorAction Stop } | Should -Not -Throw
+        $parsed = $jsonRaw | ConvertFrom-Json
+        [int]$parsed.summary.fail | Should -Be 0
+        @($parsed.results).Count | Should -BeGreaterThan 0
+    }
+
+    It 'runs runtime-centralization regressions in both Windows CI jobs' {
+        $workflow = Get-Content -LiteralPath (Join-Path $repoRoot '.github\workflows\validate.yml') -Raw -Encoding UTF8
+        ([regex]::Matches($workflow, [regex]::Escape('.\tests\RuntimeCentralization.Tests.ps1'))).Count |
+            Should -Be 2
     }
 }

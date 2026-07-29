@@ -3,9 +3,9 @@
   "generatedAt": "2026-07-29T15:45:00.000Z",
   "selectedCandidateId": "docker-mcp-gateway",
   "policy": {
-    "activation": "Docker MCP Toolkit is installed and the remote-only gateway POC partially passed. Keep host generation disabled until each production profile, authentication path, and duplicate-suppression contract is proven.",
-    "singleEndpoint": "Every profile uses the same authenticated loopback streaming endpoint. Only one profile can be selected for a gateway process at a time.",
-    "profileIsolation": "Profiles separate host groups so plugin-owned and native connectors are not re-exposed by the gateway.",
+    "activation": "Docker MCP Toolkit is installed and the remote-only gateway POC partially passed. Keep host generation disabled until the single production profile, authentication path, and duplicate-suppression contract are proven.",
+    "singleEndpoint": "One selected profile is bound to one authenticated loopback streaming endpoint.",
+    "profileIsolation": "The selected profile contains only the MCP intersection shared by every eligible non-held host. Plugin-owned, native-connector, and local-only services remain direct.",
     "unsupported": "Only observed remote snapshot mappings are asserted. Container-backed Docker catalog servers are not eligible on this Windows host while the missing-socat failure remains."
   },
   "candidates": [
@@ -16,6 +16,7 @@
       "toolkitState": "enabled-by-controller-2026-07-29",
       "activationState": "partial-poc-pass",
       "generationEnabled": false,
+      "selectedProfileId": "agenthub-shared",
       "documentation": [
         "https://docs.docker.com/ai/mcp-catalog-and-toolkit/profiles/",
         "https://docs.docker.com/reference/cli/docker/mcp/gateway/run/",
@@ -29,7 +30,8 @@
         "path": "/mcp",
         "url": "http://127.0.0.1:8811/mcp",
         "authScheme": "bearer",
-        "authTokenEnvironment": "MCP_GATEWAY_AUTH_TOKEN"
+        "authTokenEnvironment": "MCP_GATEWAY_AUTH_TOKEN",
+        "boundProfileId": "agenthub-shared"
       },
       "commandTemplate": [
         "docker",
@@ -159,7 +161,7 @@
       ],
       "profiles": [
         {
-          "id": "agenthub-codex",
+          "id": "agenthub-shared",
           "activationState": "poc-pending",
           "mcpServerIds": [
             "context7",
@@ -171,65 +173,23 @@
             {
               "hostId": "codex",
               "state": "poc-pending"
-            }
-          ]
-        },
-        {
-          "id": "agenthub-claude",
-          "activationState": "poc-pending",
-          "mcpServerIds": [
-            "adobe-for-creativity",
-            "canva",
-            "context7",
-            "exa",
-            "firecrawl",
-            "linear",
-            "tavily"
-          ],
-          "hostMappings": [
+            },
             {
               "hostId": "claude",
               "state": "poc-pending"
-            }
-          ]
-        },
-        {
-          "id": "agenthub-copilot",
-          "activationState": "poc-pending",
-          "mcpServerIds": [
-            "adobe-for-creativity",
-            "canva",
-            "context7",
-            "descript",
-            "exa",
-            "firecrawl",
-            "linear",
-            "notion",
-            "tavily"
-          ],
-          "hostMappings": [
+            },
             {
-              "hostId": "copilot",
+              "hostId": "vscode-insiders",
               "state": "poc-pending"
-            }
-          ]
-        },
-        {
-          "id": "agenthub-full",
-          "activationState": "poc-pending",
-          "mcpServerIds": [
-            "adobe-for-creativity",
-            "canva",
-            "context7",
-            "descript",
-            "exa",
-            "firecrawl",
-            "github",
-            "linear",
-            "notion",
-            "tavily"
-          ],
-          "hostMappings": [
+            },
+            {
+              "hostId": "amp",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "factory",
+              "state": "poc-pending"
+            },
             {
               "hostId": "qwen-code",
               "state": "poc-pending"
@@ -240,7 +200,7 @@
             },
             {
               "hostId": "opencode-desktop",
-              "state": "inherited-poc-pending"
+              "state": "poc-pending"
             },
             {
               "hostId": "gemini",
@@ -251,16 +211,20 @@
               "state": "poc-pending"
             },
             {
+              "hostId": "copilot",
+              "state": "poc-pending"
+            },
+            {
               "hostId": "antigravity",
               "state": "poc-pending"
             },
             {
               "hostId": "antigravity-desktop",
-              "state": "inherited-poc-pending"
+              "state": "poc-pending"
             },
             {
               "hostId": "antigravity-ide",
-              "state": "inherited-poc-pending"
+              "state": "poc-pending"
             },
             {
               "hostId": "grok",
@@ -277,51 +241,14 @@
             {
               "hostId": "qoder",
               "state": "poc-pending"
-            }
-          ]
-        },
-        {
-          "id": "agenthub-no-github",
-          "activationState": "poc-pending",
-          "mcpServerIds": [
-            "adobe-for-creativity",
-            "canva",
-            "context7",
-            "descript",
-            "exa",
-            "firecrawl",
-            "linear",
-            "notion",
-            "tavily"
-          ],
-          "hostMappings": [
-            {
-              "hostId": "vscode-insiders",
-              "state": "retained-poc-pending"
-            },
-            {
-              "hostId": "cursor",
-              "state": "provider-held-poc-pending"
-            },
-            {
-              "hostId": "cursor-agent",
-              "state": "provider-held-poc-pending"
-            },
-            {
-              "hostId": "amp",
-              "state": "retained-poc-pending"
-            },
-            {
-              "hostId": "factory",
-              "state": "retained-poc-pending"
             },
             {
               "hostId": "devin",
-              "state": "retained-poc-pending"
+              "state": "poc-pending"
             },
             {
               "hostId": "windsurf",
-              "state": "retained-poc-pending"
+              "state": "poc-pending"
             }
           ]
         }

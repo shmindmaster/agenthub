@@ -98,7 +98,12 @@
     {
       "hostId": "gemini",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required"
+      "deploymentState": "repository-ready-controller-sync-required",
+      "nativeBuiltIn": {
+        "pathPattern": "<repository>/.gemini/worktrees/<name>",
+        "policyState": "noncompliant-disabled",
+        "reason": "The documented built-in location is repository-local and has no supported custom root setting; use the AgentHub helper under C:/wt instead."
+      }
     },
     {
       "hostId": "hermes",
