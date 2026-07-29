@@ -61,6 +61,17 @@ function Get-DirectoryInventory([string]$Path) {
         # so adding a verified Qoder adapter cannot make another native plugin
         # appear stale.
         if ($relativePath -eq '.qoder-plugin' -or $relativePath.StartsWith('.qoder-plugin/')) { return }
+        # Dependency and build artifact directories are runtime state, not
+        # package content. They must not make an otherwise current capability
+        # appear stale when npm/pip/etc. materializes them between syncs.
+        # Match at any depth (e.g. product-demo-studio/node_modules/...).
+        $segments = $relativePath -split '/'
+        if ($segments -contains 'node_modules') { return }
+        if ($segments -contains '.venv') { return }
+        if ($segments -contains '__pycache__') { return }
+        if ($segments -contains 'dist') { return }
+        if ($segments -contains 'build') { return }
+        if ($segments -contains '.next') { return }
         if ($_.PSIsContainer) { 'D|{0}' -f $relativePath }
         else { 'F|{0}|{1}' -f $relativePath, (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
       }
@@ -149,7 +160,9 @@ function Test-DirectoryEquivalent([string]$Left, [string]$Right) {
 
 function Copy-DirectoryToStage([string]$Source, [string]$Stage) {
   New-Item -ItemType Directory -Path $Stage -Force | Out-Null
-  Get-ChildItem -LiteralPath $Source -Force | Copy-Item -Destination $Stage -Recurse -Force
+  $excludedNames = @('node_modules', '.venv', '__pycache__', 'dist', 'build', '.next')
+  Get-ChildItem -LiteralPath $Source -Force | Where-Object { $_.Name -notin $excludedNames } |
+    Copy-Item -Destination $Stage -Recurse -Force
 }
 
 # Skill targets are an explicit host allowlist. A new managed host must declare a
@@ -410,7 +423,9 @@ function Ensure-LocalNativeAdapters {
 }
 
 Ensure-LocalNativeAdapters
-Ensure-QoderPlugins
+if (-not $SkillDistributionOnly) {
+  Ensure-QoderPlugins
+}
 $nativePluginStates = @{}
 foreach ($capability in $managedSkillCapabilities) {
   foreach ($hostId in @('claude','codex','copilot')) {
@@ -848,10 +863,26 @@ if (Test-Path -LiteralPath $commanderPath) {
 
 # Official environment-backed unattended defaults for hosts whose permission
 # control is command-line based. New terminals inherit these values.
-[Environment]::SetEnvironmentVariable('DEVIN_PERMISSION_MODE', 'dangerous', 'User')
-[Environment]::SetEnvironmentVariable('COPILOT_ALLOW_ALL', '1', 'User')
-[Environment]::SetEnvironmentVariable('GEMINI_CLI_TRUST_WORKSPACE', 'true', 'User')
-[Environment]::SetEnvironmentVariable('QWEN_CODE_SUPPRESS_YOLO_WARNING', '1', 'User')
+# Record prior presence (not values) for rollback before overwriting.
+$envVarRollback = @{}
+$envVarsToSet = @(
+  @{ name='DEVIN_PERMISSION_MODE'; value='dangerous' }
+  @{ name='COPILOT_ALLOW_ALL'; value='1' }
+  @{ name='GEMINI_CLI_TRUST_WORKSPACE'; value='true' }
+  @{ name='QWEN_CODE_SUPPRESS_YOLO_WARNING'; value='1' }
+)
+foreach ($ev in $envVarsToSet) {
+  $priorValue = [Environment]::GetEnvironmentVariable($ev.name, 'User')
+  $envVarRollback[$ev.name] = @{ wasPresent = (-not [string]::IsNullOrEmpty($priorValue)) }
+  [Environment]::SetEnvironmentVariable($ev.name, $ev.value, 'User')
+}
+# Write the env-var rollback manifest alongside the quarantine manifest.
+$envRollbackPath = Join-Path $quarantineBatchRoot 'env-var-rollback.json'
+if ($envVarRollback.Count -gt 0) {
+  New-Item -ItemType Directory -Path $quarantineBatchRoot -Force | Out-Null
+  @{ schemaVersion=1; createdAtUtc=(Get-Date).ToUniversalTime().ToString('o'); variables=$envVarRollback } |
+    ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $envRollbackPath -Encoding UTF8
+}
 
 # Amp's current CLI serializes a one-rule configuration as an object, although
 # its runtime schema requires an array. Write the documented array shape here.

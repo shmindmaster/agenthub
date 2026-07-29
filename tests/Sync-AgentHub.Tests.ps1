@@ -458,3 +458,87 @@ bearer_token_env_var = "GITHUB_TOKEN_SH_PENDOAH"
         ($allManaged -join "`n") | Should Not Match 'gh[pousr]_[A-Za-z0-9_]{20,}'
     }
 }
+
+Describe 'Sync-AgentHub Hermes absent discovery skip' {
+    It 'returns not-verified when Hermes config path does not exist' {
+        $fixture = Join-Path $TestDrive 'hermes-absent'
+        $registryRoot = Join-Path $fixture 'registry-root'
+        $profile = Join-Path $fixture 'profile'
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'scripts') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'standards') -Force | Out-Null
+        $repoRoot = Split-Path -Parent $PSScriptRoot
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'standards\global-agent-policy.md') -Destination (Join-Path $registryRoot 'standards\global-agent-policy.md') -Force
+
+        # Minimal registry with Hermes as an active agent but no config file on disk
+        $agents = @{
+            activeAgents = @(@{
+                id = 'hermes'
+                name = 'Hermes'
+                version = '1.0'
+                executable = 'C:\fake\hermes.exe'
+                nativePaths = @{ config = (Join-Path $profile 'AppData\Local\hermes\config.yaml') }
+                supportedCapabilities = @('mcp')
+                status = 'active'
+            })
+            inactiveAgents = @()
+        }
+        $agents | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\agents.json') -Encoding UTF8
+        @{ mcpServers = @() } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
+        @{ capabilities = @() } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
+        @{ managedHosts = @('hermes'); hostSettings = @{} } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\fleet-profile.json') -Encoding UTF8
+
+        $arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$scriptPath,
+            '-Apply','-RegistryRoot',$registryRoot,'-UserProfile',$profile)
+        $output = & $powershell @arguments 2>&1 | Out-String
+        $LASTEXITCODE | Should Be 0
+        $output | Should Match 'not-verified|Hermes is absent'
+        # The config file should NOT have been created
+        (Test-Path -LiteralPath (Join-Path $profile 'AppData\Local\hermes\config.yaml')) | Should Be $false
+    }
+}
+
+Describe 'Sync-AgentHub Deploy-File user-owned conflict reporting' {
+    It 'reports user-owned-conflict in WhatIf mode without mutating the destination' {
+        $fixture = Join-Path $TestDrive 'user-owned-conflict'
+        $registryRoot = Join-Path $fixture 'registry-root'
+        $profile = Join-Path $fixture 'profile'
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'scripts') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'standards') -Force | Out-Null
+        $repoRoot = Split-Path -Parent $PSScriptRoot
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'standards\global-agent-policy.md') -Destination (Join-Path $registryRoot 'standards\global-agent-policy.md') -Force
+
+        # Create a user-owned file at the destination that is NOT in managed state
+        $destDir = Join-Path $profile '.gemini'
+        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+        $destFile = Join-Path $destDir 'GEMINI.md'
+        'user-owned content' | Set-Content -LiteralPath $destFile -Encoding UTF8
+
+        # Minimal registry with Gemini as an active agent
+        $agents = @{
+            activeAgents = @(@{
+                id = 'gemini'
+                name = 'Gemini'
+                version = '1.0'
+                executable = 'C:\fake\gemini.exe'
+                nativePaths = @{ config = (Join-Path $profile '.gemini\settings.json'); instruction = $destFile }
+                supportedCapabilities = @('mcp','instructions')
+                status = 'active'
+            })
+            inactiveAgents = @()
+        }
+        $agents | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\agents.json') -Encoding UTF8
+        @{ mcpServers = @() } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
+        @{ capabilities = @() } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
+        @{ managedHosts = @('gemini'); hostSettings = @{} } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\fleet-profile.json') -Encoding UTF8
+
+        # Run in Audit mode (WhatIf)
+        $arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$scriptPath,
+            '-Audit','-RegistryRoot',$registryRoot,'-UserProfile',$profile)
+        $output = & $powershell @arguments 2>&1 | Out-String
+        $LASTEXITCODE | Should Be 0
+        # The user-owned file should be unchanged
+        (Get-Content -LiteralPath $destFile -Raw).Trim() | Should Be 'user-owned content'
+    }
+}

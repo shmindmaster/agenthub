@@ -37,6 +37,8 @@ function New-DistributionFixture {
     $fakeAppData = Join-Path $fakeProfile 'AppData\Roaming'
     New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $registryRoot 'scripts') -Force | Out-Null
+    $repoRoot = Split-Path -Parent $PSScriptRoot
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'standards') -Destination (Join-Path $registryRoot 'standards') -Recurse -Force
     New-Item -ItemType Directory -Path (Join-Path $canonicalRoot 'skills') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalBrowserRoot 'skills\browser-debugging') -Force | Out-Null
     New-Item -ItemType Directory -Path $fakeAppData -Force | Out-Null
@@ -381,5 +383,26 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
                 (Test-Path -LiteralPath (Join-Path $target $name)) | Should Be $false
             }
         }
+    }
+}
+
+Describe 'Apply-FullAccessAgentProfile dependency artifact exclusion' {
+    It 'treats a capability with node_modules as equivalent to one without' {
+        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'node-modules-exclusion')
+        # Add node_modules to the canonical source so it would normally cause drift
+        $videoSkill = Join-Path $fixture.CanonicalRoot 'skills\product-demo-studio'
+        $nodeModules = Join-Path $videoSkill 'node_modules'
+        New-Item -ItemType Directory -Path $nodeModules -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $nodeModules 'package.js') -Value 'runtime artifact' -Encoding UTF8
+
+        # Deploy once to get the canonical skill without node_modules
+        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+
+        # The deployed skill should be considered current despite node_modules
+        # being in the source. Run again - it should be idempotent (exit 0).
+        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+
+        # Verify node_modules was NOT copied to the destination
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\product-demo-studio\node_modules')) | Should Be $false
     }
 }

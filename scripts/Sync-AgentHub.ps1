@@ -186,9 +186,6 @@ function Deploy-File {
         return @{ status = 'source-missing' }
     }
 
-    $destDir = Split-Path $DestPath -Parent
-    if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
-
     $sourceHash = Get-FileHash256 $SourcePath
     $destHash   = Get-FileHash256 $DestPath
 
@@ -197,9 +194,20 @@ function Deploy-File {
         return @{ status = 'unchanged'; hash = $sourceHash }
     }
 
+    # Detect user-owned path conflicts: a file exists at the destination but
+    # is not recorded in managed state. In WhatIf mode, report the conflict
+    # without mutating or creating directories so the preview is complete.
+    $isManaged = $script:state.managedFiles.ContainsKey($DestPath)
+    $destExists = Test-Path -LiteralPath $DestPath
     if ($WhatIf) {
+        if ($destExists -and -not $isManaged) {
+            return @{ status = 'user-owned-conflict'; sourceHash=$sourceHash; destHash=$destHash; path=$DestPath }
+        }
         return @{ status = 'drift'; sourceHash=$sourceHash; destHash=$destHash }
     }
+
+    $destDir = Split-Path $DestPath -Parent
+    if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
 
     Copy-Item -LiteralPath $SourcePath -Destination $DestPath -Force
     $script:state.managedFiles[$DestPath] = @{ capability=$OwnerCapability; hash=$sourceHash }
@@ -870,7 +878,10 @@ function Sync-HostMcp-Hermes {
     # Hermes has a root-level YAML mcp_servers mapping. Replace fleet-managed
     # entries while preserving unregistered user MCP entries and all other YAML.
     $path = $Agent.nativePaths.config
-    $existing = if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { '' }
+    if (-not (Test-Path -LiteralPath $path)) {
+        return @{ status='not-verified'; path=$path; reason='Hermes is absent; discovery skipped' }
+    }
+    $existing = Get-Content -LiteralPath $path -Raw
     $original = $existing
     $lines = [System.Collections.Generic.List[string]]::new()
     $null = $lines.Add('mcp_servers:')
