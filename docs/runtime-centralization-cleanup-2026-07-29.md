@@ -35,7 +35,7 @@
 
 | Artifact | Evidence-based attribution | Disposition |
 | --- | --- | --- |
-| `C:\.codex-plugin`, `C:\registry`, `C:\scripts`, `C:\skills`, `C:\product-demo-studio`, `C:\package.js` | Matching timestamps and fixture-shaped content identify an elevated Pester fixture whose test path escaped to the drive root | Fixture construction and path validation corrected; all removed except `C:\package.js` |
+| `C:\.codex-plugin`, `C:\registry`, `C:\scripts`, `C:\skills`, `C:\product-demo-studio`, `C:\package.js` | Matching timestamps and fixture-shaped content identify an elevated Pester fixture whose test path escaped to the drive root | Fixture construction and path validation corrected; all removed |
 | `C:\.playwright-mcp` | A Codex/Playwright screenshot operation used `C:\` as its current directory | Removed; canonical `--output-dir` deployed under AgentHub runtime |
 | `C:\cache` | Pnpm `storeDir` | Store moved to `D:\AI-Platform\cache\pnpm`; root directory removed |
 | `C:\tmp` | Claude Desktop session paths using `/tmp/...` | Removed; no active process references it |
@@ -63,6 +63,8 @@ inference rather than a process-audit record.
   `%LOCALAPPDATA%\AgentHub\sync\drift-reports\drift-20260729-131236.json`
 - Managed-file secret audit:
   `%LOCALAPPDATA%\AgentHub\reports\secret-audit\mcp-secret-audit-20260729-final.json`
+- Guarded elevated root-file cleanup result:
+  `%LOCALAPPDATA%\AgentHub\runtime\remove-root-package.result.json`
 
 The worktree policy checker reports 5 pass, 1 warning, and 0 failures. The
 warning is the intentional manual-verification boundary for Claude Desktop;
@@ -98,19 +100,14 @@ runner failures; their content hashes were not silently blessed.
 
 ## Remaining gates
 
-1. `C:\package.js` is the sole remaining forbidden root artifact. Its High
-   Mandatory Integrity label prevents deletion from the current
-   medium-integrity Codex process. The guarded removal script is
-   `%LOCALAPPDATA%\AgentHub\runtime\remove-root-package.ps1`; it requires one
-   elevated execution.
-2. Merge `codex/agenthub-runtime-centralization` into the protected canonical
+1. Merge `codex/agenthub-runtime-centralization` into the protected canonical
    checkout only after its unrelated dirty `registry/capabilities.json` and
    `capabilities/local-ai-stack` work is reconciled. Then repoint the Codex
    `portfolio` marketplace from this task worktree to the canonical repository
    and rerun the advertised validator.
-3. Restart Codex Desktop before relying on the newly named
+2. Restart Codex Desktop before relying on the newly named
    `firecrawl-ops@portfolio` skill package in a fresh task. No current process
    depends on the retired bundled Firecrawl runtime.
-4. Cursor remains retained-disabled under the provider hold. Qoder has no
+3. Cursor remains retained-disabled under the provider hold. Qoder has no
    verified public global worktree hook, so AgentHub instructions and the
    stable helper remain its reviewed enforcement path.
