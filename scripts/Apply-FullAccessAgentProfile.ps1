@@ -449,7 +449,7 @@ foreach ($capability in $managedSkillCapabilities) {
 
 # Qwen's native extensions are junctions to the canonical capabilities. Copying
 # the same skills into ~/.qwen/skills would expose two owners in the same host.
-# Validate the adapter instead and let Sync-AgentCapabilities maintain it.
+# Validate the adapter instead and let Sync-AgentHub maintain it.
 if ('qwen-code' -in @($profile.managedHosts)) {
   foreach ($capability in $managedSkillCapabilities) {
     $extensionName = "agenthub-$($capability.id)"
@@ -461,7 +461,7 @@ if ('qwen-code' -in @($profile.managedHosts)) {
     }
     $qwenExtensionSkills = Join-Path $qwenExtensionRoot 'skills'
     if (!(Test-DirectoryEquivalent $capability.skillsSource $qwenExtensionSkills)) {
-      throw "Qwen $($capability.id) extension is missing or stale: $qwenExtensionSkills. Run Sync-AgentCapabilities before applying skill distribution."
+      throw "Qwen $($capability.id) extension is missing or stale: $qwenExtensionSkills. Run Sync-AgentHub before applying skill distribution."
     }
   }
 }
@@ -711,7 +711,7 @@ function Set-McpProperty([string]$Path, [string]$Property, [string]$TargetHost) 
   Save-JsonHash $Path $root
 }
 
-# MCPs are rendered only by Sync-AgentCapabilities.ps1. It owns each host's
+# MCPs are rendered only by Sync-AgentHub.ps1. It owns each host's
 # native format, documented Devin roaming user-config path, aliases, and
 # secret references. Keeping a second writer here caused endpoint drift.
 
@@ -892,6 +892,6 @@ elseif (-not $userPath.StartsWith($bin, [System.StringComparison]::OrdinalIgnore
 
 # Let the existing host-aware synchronizer render Codex and Qwen's native
 # formats and Qwen extension adapters from this same registry.
-& pwsh -NoProfile -File (Join-Path $RegistryRoot 'scripts\Sync-AgentCapabilities.ps1') -Apply -Validate -IncludeInactiveAgents -ScopeProfile global-default -RegistryRoot $RegistryRoot -UserProfile $UserProfile
+& pwsh -NoProfile -File (Join-Path $RegistryRoot 'scripts\Sync-AgentHub.ps1') -Apply -Validate -IncludeInactiveAgents -ScopeProfile global-default -RegistryRoot $RegistryRoot -UserProfile $UserProfile
 
 Write-Host 'Full-access agent profile applied. Restart open agent sessions and open a new terminal for launcher PATH changes.' -ForegroundColor Green

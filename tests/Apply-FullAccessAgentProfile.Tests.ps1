@@ -111,7 +111,7 @@ function New-DistributionFixture {
     # This should never be reached by -SkillDistributionOnly, but make an
     # accidental invocation fail loudly rather than altering a real host.
     "throw 'Synchronizer must not run in a distribution-only test.'" |
-        Set-Content -LiteralPath (Join-Path $registryRoot 'scripts\Sync-AgentCapabilities.ps1') -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $registryRoot 'scripts\Sync-AgentHub.ps1') -Encoding UTF8
 
     return @{
         RegistryRoot = $registryRoot

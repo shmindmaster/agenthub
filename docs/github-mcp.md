@@ -18,7 +18,7 @@ the fleet uses the user-approved fallback account, `shmindmaster`.
 
 ## Host ownership
 
-`Sync-AgentCapabilities.ps1` renders the canonical registration into each
+`Sync-AgentHub.ps1` renders the canonical registration into each
 active host's native format. OpenCode Desktop inherits the OpenCode
 configuration. Antigravity Desktop and Antigravity IDE inherit the Antigravity
 configuration. GitHub Copilot CLI keeps its built-in `github-mcp-server`;
@@ -52,8 +52,8 @@ Persisting or rotating a credential requires explicit owner authorization.
 ## Verification
 
 ```powershell
-powershell.exe -NoProfile -File .\tests\Sync-AgentCapabilities.Tests.ps1
-pwsh -NoProfile -File .\scripts\Sync-AgentCapabilities.ps1 -Apply -Validate
+powershell.exe -NoProfile -File .\tests\Sync-AgentHub.Tests.ps1
+pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Apply -Validate
 pwsh -NoProfile -File .\scripts\Test-McpSecrets.ps1
 pwsh -NoProfile -File .\scripts\Test-McpLiveness.ps1
 ```

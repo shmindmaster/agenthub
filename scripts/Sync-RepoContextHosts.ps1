@@ -13,7 +13,7 @@ $ErrorActionPreference = 'Stop'
 if ($Audit -and $Apply) { throw 'Choose either -Audit or -Apply.' }
 if (-not $Audit -and -not $Apply) { $Audit = $true }
 
-$syncScript = Join-Path $RegistryRoot 'scripts\Sync-AgentCapabilities.ps1'
+$syncScript = Join-Path $RegistryRoot 'scripts\Sync-AgentHub.ps1'
 $registryDir = Join-Path $RegistryRoot 'registry'
 $agents = Get-Content -Raw -LiteralPath (Join-Path $registryDir 'agents.json') | ConvertFrom-Json
 $mcps = Get-Content -Raw -LiteralPath (Join-Path $registryDir 'mcps.json') | ConvertFrom-Json

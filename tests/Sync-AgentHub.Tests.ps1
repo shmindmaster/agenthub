@@ -1,7 +1,7 @@
-$scriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\Sync-AgentCapabilities.ps1'
+$scriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\Sync-AgentHub.ps1'
 $powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
 
-Describe 'Sync-AgentCapabilities Codex TOML preservation' {
+Describe 'Sync-AgentHub Codex TOML preservation' {
     It 'writes a bearer-authenticated HTTP MCP without consuming a following plugin section' {
         $fixture = Join-Path $TestDrive 'codex-plugin-preservation'
         $registryRoot = Join-Path $fixture 'registry-root'
@@ -54,7 +54,7 @@ enabled = true
     }
 }
 
-Describe 'Sync-AgentCapabilities Qwen JSON compatibility' {
+Describe 'Sync-AgentHub Qwen JSON compatibility' {
     It 'writes Qwen settings as UTF-8 without a BOM and preserves unrelated settings' {
         $fixture = Join-Path $TestDrive 'qwen-bom-compatibility'
         $registryRoot = Join-Path $fixture 'registry-root'
@@ -98,7 +98,7 @@ Describe 'Sync-AgentCapabilities Qwen JSON compatibility' {
     }
 }
 
-Describe 'Sync-AgentCapabilities inactive Devin user configuration' {
+Describe 'Sync-AgentHub inactive Devin user configuration' {
     It 'writes remote HTTP MCP entries to the documented Windows user config path only when requested' {
         $fixture = Join-Path $TestDrive 'devin-user-config'
         $registryRoot = Join-Path $fixture 'registry-root'
@@ -127,7 +127,7 @@ Describe 'Sync-AgentCapabilities inactive Devin user configuration' {
     }
 }
 
-Describe 'Sync-AgentCapabilities JSON collection preservation' {
+Describe 'Sync-AgentHub JSON collection preservation' {
     It 'preserves OpenCode model modality arrays while updating MCPs' {
         $fixture = Join-Path $TestDrive 'opencode-model-modality-array'
         $registryRoot = Join-Path $fixture 'registry-root'
@@ -212,7 +212,7 @@ Describe 'Sync-AgentCapabilities JSON collection preservation' {
     }
 }
 
-Describe 'Sync-AgentCapabilities Grok and Hermes remote MCP adapters' {
+Describe 'Sync-AgentHub Grok and Hermes remote MCP adapters' {
     It 'writes remote HTTP entries without materializing environment secrets' {
         $fixture = Join-Path $TestDrive 'text-host-configs'
         $registryRoot = Join-Path $fixture 'registry-root'
@@ -260,7 +260,7 @@ Describe 'Sync-AgentCapabilities Grok and Hermes remote MCP adapters' {
     }
 }
 
-Describe 'Sync-AgentCapabilities plugin-owned MCP deduplication' {
+Describe 'Sync-AgentHub plugin-owned MCP deduplication' {
     It 'omits a host-native plugin MCP from the global Claude registration' {
         $fixture = Join-Path $TestDrive 'plugin-owned-mcp'
         $registryRoot = Join-Path $fixture 'registry-root'
@@ -289,7 +289,7 @@ Describe 'Sync-AgentCapabilities plugin-owned MCP deduplication' {
     }
 }
 
-Describe 'Sync-AgentCapabilities GitHub remote MCP host schemas' {
+Describe 'Sync-AgentHub GitHub remote MCP host schemas' {
     It 'renders one shmindmaster registration in each active host-native format without embedding a token' {
         $fixture = Join-Path $TestDrive 'github-remote-hosts'
         $registryRoot = Join-Path $fixture 'registry-root'

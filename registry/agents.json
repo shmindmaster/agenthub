@@ -357,7 +357,7 @@
         "mcp"
       ],
       "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
     },
     {
       "id": "devin",
@@ -373,7 +373,7 @@
         "mcp"
       ],
       "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
     },
     {
       "id": "factory",
@@ -397,7 +397,7 @@
         "plugins"
       ],
       "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
     },
     {
       "id": "vscode-insiders",
@@ -416,7 +416,7 @@
         "plugins"
       ],
       "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch. Product Demo Studio remains registered as a native local plugin through chat.pluginLocations."
+      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch. Product Demo Studio remains registered as a native local plugin through chat.pluginLocations."
     },
     {
       "id": "windsurf",
@@ -434,7 +434,7 @@
         "mcp"
       ],
       "status": "inactive",
-      "notes": "Active path is .codeium/windsurf; legacy .windsurf is plans-only. MCP configuration can be refreshed explicitly with Sync-AgentCapabilities.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "notes": "Active path is .codeium/windsurf; legacy .windsurf is plans-only. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
     }
   ]
 }
