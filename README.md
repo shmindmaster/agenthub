@@ -49,7 +49,7 @@ Claude, Codex, and other personal agent hosts share the policy in [`docs/cross-a
 
 ## Retained core
 
-The registry owns nine canonical capabilities: seven plugin capabilities (`clerk`, `use-digitalocean`, `use-elevenlabs`, `product-experience-engineering`, `product-demo-studio`, `use-campaign-production`, and `use-prompt-os`), the `repocontext` read-only portfolio-context skill and MCP, and the `browser-toolkit` skills, MCP, and host adapters.
+The registry owns ten canonical capabilities: eight plugin capabilities (`clerk`, `firecrawl-ops`, `use-digitalocean`, `use-elevenlabs`, `product-experience-engineering`, `product-demo-studio`, `use-campaign-production`, and `use-prompt-os`), the `repocontext` read-only portfolio-context skill and MCP, and the `browser-toolkit` skills, MCP, and host adapters. `firecrawl-ops` is a skills-only plugin; the Firecrawl service remains owned by `registry/mcps.json`.
 
 `product-experience-engineering` is the single owner for making a real workflow useful, coherent, polished, and demo-ready. Its `prepare-product-for-demo` entry skill runs the mandatory pre-production audit, authorized remediation, validation, and revision-bound handoff. Product Demo Studio consumes that handoff; it does not own product remediation.
 

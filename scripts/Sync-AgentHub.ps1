@@ -834,7 +834,7 @@ function Sync-HostMcp-Claude {
     }
 
     $claudeEntries = @{}
-    foreach ($key in $McpEntries.Keys) {
+    foreach ($key in @($McpEntries.Keys | Sort-Object)) {
         $entry = ConvertTo-Hashtable $McpEntries[$key]
         if ($entry.headers) {
             $headers = @{}
@@ -941,9 +941,9 @@ function Sync-HostMcp-Codex {
             $sectionLines += "command = `"$($entry.command)`""
             $argsStr = ($entry.args | ForEach-Object { '"' + (($_ -replace '\\','\\\\') -replace '"','\"') + '"' }) -join ', '
             $sectionLines += "args = [$argsStr]"
-            if ($entry.env) {
+            if ($entry.env -and $entry.env.Count -gt 0) {
                 $sectionLines += "[mcp_servers.$key.env]"
-                foreach ($e in $entry.env.GetEnumerator()) {
+                foreach ($e in @($entry.env.GetEnumerator() | Sort-Object Key)) {
                     $sectionLines += "$($e.Key) = `"$($e.Value)`""
                 }
             }
@@ -1040,7 +1040,7 @@ function Sync-HostMcp-Grok {
             $url = ConvertTo-HostEnvironmentReference -Value $mcp.url -TargetHost 'grok'
             $null = $lines.Add("url = `"$url`"")
             if ($mcp.headers) {
-                $pairs = @($mcp.headers.GetEnumerator() | ForEach-Object {
+                $pairs = @($mcp.headers.GetEnumerator() | Sort-Object Key | ForEach-Object {
                     $headerValue = ConvertTo-HostEnvironmentReference -Value ([string]$_.Value) -TargetHost 'grok'
                     "`"$($_.Key)`" = `"$headerValue`""
                 })
@@ -1054,7 +1054,7 @@ function Sync-HostMcp-Grok {
                 $null = $lines.Add("args = [$($args -join ', ')]")
             }
             if ($mcp.env) {
-                foreach ($property in $mcp.env.GetEnumerator()) {
+                foreach ($property in @($mcp.env.GetEnumerator() | Sort-Object Key)) {
                     $value = ConvertTo-HostEnvironmentReference -Value ([string]$property.Value) -TargetHost 'grok'
                     $null = $lines.Add("[mcp_servers.$name.env]")
                     $null = $lines.Add("$($property.Key) = `"$value`"")
@@ -1110,7 +1110,7 @@ function Sync-HostMcp-Hermes {
             if ($mcp.auth) { $null = $lines.Add("    auth: $($mcp.auth)") }
             if ($mcp.headers) {
                 $null = $lines.Add('    headers:')
-                foreach ($property in $mcp.headers.GetEnumerator()) {
+                foreach ($property in @($mcp.headers.GetEnumerator() | Sort-Object Key)) {
                     $value = ConvertTo-HostEnvironmentReference -Value ([string]$property.Value) -TargetHost 'hermes'
                     $null = $lines.Add("      $($property.Key): `"$value`"")
                 }
@@ -1124,7 +1124,7 @@ function Sync-HostMcp-Hermes {
             }
             if ($mcp.env) {
                 $null = $lines.Add('    env:')
-                foreach ($property in $mcp.env.GetEnumerator()) {
+                foreach ($property in @($mcp.env.GetEnumerator() | Sort-Object Key)) {
                     $value = ConvertTo-HostEnvironmentReference -Value ([string]$property.Value) -TargetHost 'hermes'
                     $null = $lines.Add("      $($property.Key): `"$value`"")
                 }
@@ -1291,7 +1291,7 @@ function Sync-QwenCapabilityExtensions {
     $extensionsRoot = $Agent.nativePaths.extensionsDir
     if (-not $extensionsRoot) { return @{ status='unsupported-path'; note='Qwen extensions path missing' } }
 
-    $adapterRoot = Join-Path $PSScriptRoot '..\adapters\qwen-code\extensions'
+    $adapterRoot = Join-Path $RuntimeDir 'runtime\qwen-code\extensions'
     $expected = @()
     foreach ($capability in @($CapabilitiesRegistry.capabilities)) {
         $mapping = @($capability.hostMappings | Where-Object {
@@ -1310,8 +1310,24 @@ function Sync-QwenCapabilityExtensions {
         $manifest = @{ name=$extensionName; version='1.0.0'; description="Registry adapter for $($capability.id)"; skills='skills' }
         $manifestJson = Get-StableJsonString $manifest
 
-        $adapterReady = (Test-Path -LiteralPath $manifestPath) -and ((Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8) -eq $manifestJson) -and (Test-Path -LiteralPath $skillsLink)
-        $userReady = Test-Path -LiteralPath $userLink
+        $skillsItem = Get-Item -LiteralPath $skillsLink -Force -ErrorAction SilentlyContinue
+        $userItem = Get-Item -LiteralPath $userLink -Force -ErrorAction SilentlyContinue
+        $skillsTarget = if ($skillsItem -and $skillsItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            [string]$skillsItem.Target
+        } else { '' }
+        $userTarget = if ($userItem -and $userItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            [string]$userItem.Target
+        } else { '' }
+        $adapterReady = (
+            (Test-Path -LiteralPath $manifestPath -PathType Leaf) -and
+            ((Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8) -eq $manifestJson) -and
+            $skillsTarget -and
+            [IO.Path]::GetFullPath($skillsTarget) -eq [IO.Path]::GetFullPath($sourceSkills)
+        )
+        $userReady = (
+            $userTarget -and
+            [IO.Path]::GetFullPath($userTarget) -eq [IO.Path]::GetFullPath($adapterPath)
+        )
         if ($WhatIf) {
             if (-not ($adapterReady -and $userReady)) { return @{ status='drift'; path=$extensionsRoot } }
             continue
@@ -1319,11 +1335,25 @@ function Sync-QwenCapabilityExtensions {
 
         if (-not (Test-Path -LiteralPath $adapterPath)) { New-Item -ItemType Directory -Path $adapterPath -Force | Out-Null }
         $manifestJson | Set-Content -LiteralPath $manifestPath -Encoding UTF8 -NoNewline
-        if (-not (Test-Path -LiteralPath $skillsLink)) {
+        if ($skillsItem -and -not $skillsTarget) {
+            throw "Refusing to replace non-junction Qwen adapter path: $skillsLink"
+        }
+        if ($skillsItem -and -not $adapterReady) {
+            Remove-Item -LiteralPath $skillsLink -Force
+            $skillsItem = $null
+        }
+        if (-not $skillsItem) {
             New-Item -ItemType Junction -Path $skillsLink -Target $sourceSkills | Out-Null
         }
         if (-not (Test-Path -LiteralPath $extensionsRoot)) { New-Item -ItemType Directory -Path $extensionsRoot -Force | Out-Null }
-        if (-not (Test-Path -LiteralPath $userLink)) {
+        if ($userItem -and -not $userTarget) {
+            throw "Refusing to replace non-junction Qwen extension path: $userLink"
+        }
+        if ($userItem -and -not $userReady) {
+            Remove-Item -LiteralPath $userLink -Force
+            $userItem = $null
+        }
+        if (-not $userItem) {
             New-Item -ItemType Junction -Path $userLink -Target $adapterPath | Out-Null
         }
     }

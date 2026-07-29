@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-21T20:50:00-05:00",
+  "generatedAt": "2026-07-29T12:34:00-05:00",
   "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
   "surfaceAliases": [
     { "surfaceId": "cursor-agent", "inheritsHostId": "cursor" },
@@ -473,6 +473,21 @@
         {
           "hostId": "qoder",
           "deploymentStatus": "native-local-plugin"
+        }
+      ]
+    },
+    {
+      "id": "firecrawl-ops",
+      "owner": "portfolio",
+      "capabilityType": "skills-only-plugin",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops",
+      "contentHash": "6D05A2EDF2BBCB4B4F4DDD145E50DA0697B9CEC238EC18EE6433B3A4739C9740",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\firecrawl-ops\\.codex-plugin\\plugin.json",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed"
         }
       ]
     },

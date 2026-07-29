@@ -24,7 +24,7 @@ profiles that a single endpoint cannot isolate concurrently.
 | `linear` | MCP registry | Codex plugin, gateway candidate elsewhere |
 | `context7`, `tavily`, `exa` | MCP registry | Gateway candidates on all eligible hosts |
 | `notion` | MCP registry | Claude and Codex plugins, gateway candidate elsewhere |
-| `firecrawl` | MCP registry | Gateway candidate on Codex and elsewhere; the Codex `firecrawl-ops@personal` skills remain installed but its bundled `npx firecrawl-mcp` server is suppressed |
+| `firecrawl` | MCP registry | Gateway candidate on Codex and elsewhere; the Codex `firecrawl-ops@portfolio` package remains installed as skills-only and declares no bundled MCP server |
 | `adobe-for-creativity` | MCP registry | Codex plugin, gateway candidate elsewhere |
 | `canva` | MCP registry | Codex native connector, gateway candidate elsewhere |
 | `descript` | Product Demo Studio capability | Claude and Codex plugins, gateway candidate elsewhere |
@@ -40,9 +40,10 @@ profiles that a single endpoint cannot isolate concurrently.
 - Do not emit a direct MCP registration when a plugin/native connector owns the
   surface. Once a gateway profile is validated and explicitly enabled, replace
   only its listed direct remotes with the single `agenthub-gateway` endpoint.
-- Preserve the Codex user setting that disables
-  `[plugins."firecrawl-ops@personal".mcp_servers.firecrawl]`; do not re-enable
-  the process-heavy bundled server while retaining the plugin's skills.
+- Keep `firecrawl-ops@portfolio` skills-only. Do not add `mcpServers` to its
+  manifest or restore its `.mcp.json` without deliberately reassigning the
+  `firecrawl` owner away from `registry/mcps.json` and reviewing every host
+  exposure.
 - `registry/gateway-profiles.json` records the partial POC. Linear and Context7
   have observed remote snapshot mappings; Notion is OAuth-blocked. Container
   catalog servers are Windows-blocked by missing `socat`. Firecrawl's catalog

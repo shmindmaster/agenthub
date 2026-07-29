@@ -252,6 +252,35 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
         @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count | Should -Be 1
     }
 
+    It 'retires historical VS Code plugin locations without removing unrelated user entries' {
+        $fixture = New-DistributionFixture -Root `
+            (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'vscode-retired-locations')
+        $settingsPath = Join-Path $fixture.UserProfile `
+            'AppData\Roaming\Code - Insiders\User\settings.json'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $settingsPath) -Force |
+            Out-Null
+        @{
+            'chat.pluginLocations' = @{
+                'C:/Repos/agent-capabilities/packages/portfolio-plugins/clerk' = $true
+                'C:/Repos/agenthub/packages/handoff-plugins/plugins/product-demo-studio' = $true
+                'D:/user-owned/plugin' = $true
+            }
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath $settingsPath -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+
+        $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
+        $locationNames = @($settings.'chat.pluginLocations'.PSObject.Properties.Name)
+        $locationNames | Should -Not -Contain `
+            'C:/Repos/agent-capabilities/packages/portfolio-plugins/clerk'
+        $locationNames | Should -Not -Contain `
+            'C:/Repos/agenthub/packages/handoff-plugins/plugins/product-demo-studio'
+        $settings.'chat.pluginLocations'.'D:/user-owned/plugin' | Should -BeTrue
+        $settings.'chat.pluginLocations'.$($fixture.CanonicalRoot.Replace('\','/')) |
+            Should -BeTrue
+    }
+
     It 'fails closed when a configured host has no allowlisted skill target' {
         $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'unknown-host')
         $profilePath = Join-Path $fixture.RegistryRoot 'registry\fleet-profile.json'

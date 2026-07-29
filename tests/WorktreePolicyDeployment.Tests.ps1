@@ -30,6 +30,8 @@ Describe 'AgentHub worktree policy deployment' {
         $roots.environmentContract.ownership | Should -Be 'agenthub-controller-managed'
         $roots.environmentContract.required | Should -BeTrue
         $roots.environmentContract.mutationPolicy | Should -Be 'controller-set-to-canonical-value'
+        $roots.fallbackDeployment.helperState | Should -Be 'live-verified'
+        $roots.fallbackDeployment.liveInstructionState | Should -Be 'live-verified-12-targets'
         $roots.deployedHelper | Should -Be `
             'C:/Users/SaroshHussain/AppData/Local/AgentHub/bin/New-AgentHubWorktree.ps1'
         $roots.installerScript | Should -Be 'scripts/Install-WorktreePolicy.ps1'
@@ -44,10 +46,14 @@ Describe 'AgentHub worktree policy deployment' {
         $copilot.disableSetting | Should -Be 'experimental=false'
         $qoder = @($roots.hosts | Where-Object hostId -eq 'qoder')
         $qoder.nativeBuiltIn.hookDiscoveryState | Should -Be 'binary-only-undocumented'
+        $qoder.deploymentState | Should -Be 'repository-policy-required'
         $warp = @($roots.hosts | Where-Object hostId -eq 'warp')
         $warp.mechanism | Should -Be 'agenthub-managed-native-tab-config'
+        $warp.deploymentState | Should -Be 'live-verified'
         $warp.tabConfigPath | Should -Be `
             'C:/Users/SaroshHussain/.warp/tab_configs/agenthub_worktree.toml'
+        $claude = @($roots.hosts | Where-Object hostId -eq 'claude')
+        $claude.cliHookState | Should -Be 'live-verified-2026-07-29'
 
         $installations = Get-Content -LiteralPath `
             (Join-Path $script:repoRoot 'registry\installations.json') -Raw |

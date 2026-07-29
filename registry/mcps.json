@@ -101,7 +101,9 @@
       "args": [
         "-y",
         "@playwright/mcp@latest",
-        "--isolated"
+        "--isolated",
+        "--output-dir",
+        "C:/Users/SaroshHussain/AppData/Local/AgentHub/runtime/playwright"
       ],
       "env": {},
       "credentialPolicy": "none",

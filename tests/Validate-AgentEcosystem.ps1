@@ -231,6 +231,27 @@ if ($registryObjects.ContainsKey('mcps.json')) {
         Add-ValidationResult FAIL 'registry:mcp-current-owners' "invalid owners: $($invalidOwners -join ', ')"
     }
 
+    $playwright = @($mcpServers | Where-Object id -eq 'playwright')
+    $playwrightOutputValid = $false
+    if ($playwright.Count -eq 1) {
+        [object[]]$playwrightArgs = @($playwright[0].args)
+        $playwrightOutputIndex = [Array]::IndexOf(
+            $playwrightArgs,
+            '--output-dir'
+        )
+        $playwrightOutputValid = (
+            $playwrightOutputIndex -ge 0 -and
+            $playwrightOutputIndex + 1 -lt $playwrightArgs.Count -and
+            [string]$playwrightArgs[$playwrightOutputIndex + 1] -eq
+                'C:/Users/SaroshHussain/AppData/Local/AgentHub/runtime/playwright'
+        )
+    }
+    if ($playwrightOutputValid) {
+        Add-ValidationResult PASS 'registry:playwright-output' 'output is pinned below the AgentHub user runtime root'
+    } else {
+        Add-ValidationResult FAIL 'registry:playwright-output' 'missing canonical --output-dir contract'
+    }
+
     $invalidAliases = @(
         foreach ($retiredId in @('sh-knowledge', 'knowledge', 'legal', 'shwiki')) {
             $aliasesProperty = $mcpRegistry.PSObject.Properties['migrationAliases']
@@ -290,16 +311,21 @@ if ($registryObjects.ContainsKey('native-connectors.json') -and
         $connectorProblems += @($classified | Where-Object { $_ -notin $knownMcpIds } | ForEach-Object { "$($row.hostId):unknown-mcp:$_" })
         if (@(Get-DuplicateValues $classified).Count -gt 0) { $connectorProblems += "$($row.hostId):duplicate-exposure" }
     }
-    $codexFirecrawlSuppression = @($connectorRegistry.bundledServerSuppressions | Where-Object {
-        $_.hostId -eq 'codex' -and $_.pluginId -eq 'firecrawl-ops@personal' -and
-        $_.mcpId -eq 'firecrawl' -and -not [bool]$_.expectedValue -and
-        $_.mutationPolicy -eq 'user-setting-preserve-never-enable'
+    $codexFirecrawlSkillsOnly = @($connectorRegistry.skillsOnlyPlugins | Where-Object {
+        $_.hostId -eq 'codex' -and $_.pluginId -eq 'firecrawl-ops@portfolio' -and
+        $_.mcpId -eq 'firecrawl' -and
+        $_.installedState -eq 'skills-only-no-mcp-manifest' -and
+        $_.mcpOwner -eq 'registry/mcps.json' -and
+        $_.sourcePath -eq 'C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops' -and
+        $_.deploymentState -eq 'live-verified-pending-canonical-merge' -and
+        $_.mutationPolicy -eq 'do-not-add-bundled-mcp-without-owner-reassignment'
     })
     $codexConnector = @($connectorRegistry.hosts | Where-Object hostId -eq 'codex')
-    if ($codexFirecrawlSuppression.Count -ne 1 -or $codexConnector.Count -ne 1 -or
+    if (@($connectorRegistry.bundledServerSuppressions).Count -ne 0 -or
+        $codexFirecrawlSkillsOnly.Count -ne 1 -or $codexConnector.Count -ne 1 -or
         'firecrawl' -notin @($codexConnector[0].exposures.'shared-gateway') -or
         'firecrawl' -in @($codexConnector[0].exposures.'plugin-owned')) {
-        $connectorProblems += 'codex-firecrawl-suppression-contract'
+        $connectorProblems += 'codex-firecrawl-skills-only-contract'
     }
     if ($connectorProblems.Count -eq 0) {
         Add-ValidationResult PASS 'registry:native-connectors' 'host exposure rows reference current hosts and MCPs without duplicate modes'

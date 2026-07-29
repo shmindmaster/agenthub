@@ -38,8 +38,8 @@ args = ["old"]
 [plugins."product-demo-studio@handoff"]
 enabled = true
 
-[plugins."firecrawl-ops@personal".mcp_servers.firecrawl]
-enabled = false
+[plugins."sample-plugin@personal".settings.runtime]
+mode = "skills-only"
 '@ | Set-Content -LiteralPath $config -Encoding UTF8
 
         & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
@@ -49,8 +49,8 @@ enabled = false
         $result = Get-Content -LiteralPath $config -Raw
         $result | Should -Match '(?m)^\[plugins\."product-demo-studio@handoff"\]\s*$'
         $result | Should -Match 'enabled\s*=\s*true'
-        $result | Should -Match '(?m)^\[plugins\."firecrawl-ops@personal"\.mcp_servers\.firecrawl\]\s*$'
-        $result | Should -Match '(?ms)^\[plugins\."firecrawl-ops@personal"\.mcp_servers\.firecrawl\]\s*\r?\nenabled\s*=\s*false'
+        $result | Should -Match '(?m)^\[plugins\."sample-plugin@personal"\.settings\.runtime\]\s*$'
+        $result | Should -Match '(?ms)^\[plugins\."sample-plugin@personal"\.settings\.runtime\]\s*\r?\nmode\s*=\s*"skills-only"'
         $result | Should -Match '\[mcp_servers\.repocontext\]'
         $result | Should -Not -Match '(?m)^\[mcp_servers\.shwiki-context\]\s*$'
         $result | Should -Match 'url\s*=\s*"https://repocontext\.shtrial\.com/api/mcp"'
@@ -100,6 +100,71 @@ Describe 'Sync-AgentHub Qwen JSON compatibility' {
         $result.model.name | Should -Be 'test-model'
         $result.mcpServers.repocontext.httpUrl | Should -Be 'https://repocontext.shtrial.com/api/mcp'
         $result.mcpServers.repocontext.headers.Authorization | Should -Be 'Bearer ${REPOCONTEXT_MCP_TOKEN}'
+    }
+}
+
+Describe 'Sync-AgentHub Qwen extension runtime placement' {
+    It 'replaces an AgentHub-owned stale junction with the user runtime adapter' {
+        $fixture = Join-Path $TestDrive 'qwen-extension-runtime'
+        $registryRoot = Join-Path $fixture 'registry-root'
+        $profile = Join-Path $fixture 'profile'
+        $runtime = Join-Path $fixture 'runtime'
+        $settings = Join-Path $profile '.qwen\settings.json'
+        $extensions = Join-Path $profile '.qwen\extensions'
+        $source = Join-Path $fixture 'canonical\synthetic'
+        $sourceSkills = Join-Path $source 'skills'
+        $staleTarget = Join-Path $fixture 'stale-adapter'
+        $userLink = Join-Path $extensions 'agenthub-synthetic'
+        New-Item -ItemType Directory -Path `
+            (Join-Path $registryRoot 'registry'), `
+            (Split-Path -Parent $settings), `
+            $extensions, `
+            $sourceSkills, `
+            $staleTarget, `
+            $runtime -Force | Out-Null
+
+        @{ activeAgents = @(@{
+            id = 'qwen-code'
+            nativePaths = @{ settings = $settings; extensionsDir = $extensions }
+        }); inactiveAgents = @() } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\agents.json') -Encoding UTF8
+        @{ mcpServers = @() } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
+        @{ capabilities = @(@{
+            id = 'synthetic'
+            canonicalSource = $source
+            hostMappings = @(@{
+                hostId = 'qwen-code'
+                deploymentStatus = 'native-extension-junction'
+            })
+        }) } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
+        '{"mcpServers":{}}' | Set-Content -LiteralPath $settings -Encoding ASCII -NoNewline
+        New-Item -ItemType Junction -Path $userLink -Target $staleTarget | Out-Null
+
+        $previousLocalAppData = $env:LOCALAPPDATA
+        try {
+            $env:LOCALAPPDATA = $runtime
+            & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+                -File $global:AgentHubSyncScriptPath -Apply -Validate `
+                -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
+            $LASTEXITCODE | Should -Be 0
+
+            $adapterPath = Join-Path $runtime `
+                'AgentHub\runtime\qwen-code\extensions\agenthub-synthetic'
+            [IO.Path]::GetFullPath([string](Get-Item -LiteralPath $userLink -Force).Target) |
+                Should -Be ([IO.Path]::GetFullPath($adapterPath))
+            [IO.Path]::GetFullPath([string](Get-Item -LiteralPath `
+                (Join-Path $adapterPath 'skills') -Force).Target) |
+                Should -Be ([IO.Path]::GetFullPath($sourceSkills))
+
+            & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+                -File $global:AgentHubSyncScriptPath -Audit -Validate `
+                -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
+            $LASTEXITCODE | Should -Be 0
+        } finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+        }
     }
 }
 
@@ -248,6 +313,16 @@ Describe 'Sync-AgentHub Grok and Hermes remote MCP adapters' {
         & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
         $LASTEXITCODE | Should -Be 0
+
+        $firstGrokHash = (Get-FileHash -LiteralPath $grokConfig -Algorithm SHA256).Hash
+        $firstHermesHash = (Get-FileHash -LiteralPath $hermesConfig -Algorithm SHA256).Hash
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
+            -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
+        $LASTEXITCODE | Should -Be 0
+        (Get-FileHash -LiteralPath $grokConfig -Algorithm SHA256).Hash |
+            Should -Be $firstGrokHash
+        (Get-FileHash -LiteralPath $hermesConfig -Algorithm SHA256).Hash |
+            Should -Be $firstHermesHash
 
         $grok = Get-Content -LiteralPath $grokConfig -Raw
         $grok | Should -Match '\[mcp_servers\.exa\]'

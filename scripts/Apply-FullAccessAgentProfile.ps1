@@ -406,6 +406,14 @@ function Ensure-LocalNativeAdapters {
   $locations = @{}
   if ($vscodeSettings.ContainsKey('chat.pluginLocations')) { $locations = To-Hash $vscodeSettings['chat.pluginLocations'] }
   $locationsChanged = $false
+  foreach ($existingLocation in @($locations.Keys)) {
+    $portableExistingLocation = ([string]$existingLocation).Replace('\','/')
+    if ($portableExistingLocation.StartsWith('C:/Repos/agent-capabilities/', [StringComparison]::OrdinalIgnoreCase) -or
+        $portableExistingLocation.StartsWith('C:/Repos/agenthub/', [StringComparison]::OrdinalIgnoreCase)) {
+      $locations.Remove($existingLocation)
+      $locationsChanged = $true
+    }
+  }
   foreach ($capability in $managedSkillCapabilities) {
     $portablePluginPath = ([string]$capability.pluginRoot).Replace('\','/')
     if (-not $locations.ContainsKey($portablePluginPath) -or $locations[$portablePluginPath] -ne $true) {

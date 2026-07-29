@@ -34,6 +34,12 @@
       "source": "./clerk",
       "description": "Clerk authentication integration for portfolio apps.",
       "category": "productivity"
+    },
+    {
+      "name": "firecrawl-ops",
+      "source": "./firecrawl-ops",
+      "description": "Research, extract, QA, and monitor live web sources through Firecrawl while keeping MCP ownership centralized in AgentHub.",
+      "category": "developer-tools"
     }
   ]
 }

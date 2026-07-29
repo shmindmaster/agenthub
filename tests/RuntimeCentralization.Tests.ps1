@@ -34,6 +34,14 @@ Describe 'Runtime-centralization registry contracts' {
         foreach ($retiredId in $retiredIds) {
             [string]$mcps.migrationAliases.$retiredId | Should -Be 'repocontext'
         }
+
+        $playwright = @($mcps.mcpServers | Where-Object id -eq 'playwright')
+        $playwright.Count | Should -Be 1
+        $playwright[0].args | Should -Contain '--output-dir'
+        $outputIndex = [Array]::IndexOf([object[]]$playwright[0].args, '--output-dir')
+        $outputIndex | Should -BeGreaterThan -1
+        $playwright[0].args[$outputIndex + 1] | Should -Be `
+            'C:/Users/SaroshHussain/AppData/Local/AgentHub/runtime/playwright'
     }
 
     It 'classifies every current host exposure as plugin-owned, native-connector, shared-gateway, local-only, or provider-held' {
@@ -45,11 +53,17 @@ Describe 'Runtime-centralization registry contracts' {
         @($hostRows.hostId | Sort-Object) | Should -Be @($hosts.hosts.id | Sort-Object)
         @($connectors.exposureModes | Sort-Object) |
             Should -Be @('local-only', 'native-connector', 'plugin-owned', 'provider-held', 'shared-gateway')
-        $firecrawlSuppression = @($connectors.bundledServerSuppressions |
-            Where-Object { $_.hostId -eq 'codex' -and $_.pluginId -eq 'firecrawl-ops@personal' -and $_.mcpId -eq 'firecrawl' })
-        $firecrawlSuppression.Count | Should -Be 1
-        [bool]$firecrawlSuppression[0].expectedValue | Should -BeFalse
-        $firecrawlSuppression[0].mutationPolicy | Should -Be 'user-setting-preserve-never-enable'
+        @($connectors.bundledServerSuppressions).Count | Should -Be 0
+        $firecrawlSkillsOnly = @($connectors.skillsOnlyPlugins |
+            Where-Object { $_.hostId -eq 'codex' -and $_.pluginId -eq 'firecrawl-ops@portfolio' -and $_.mcpId -eq 'firecrawl' })
+        $firecrawlSkillsOnly.Count | Should -Be 1
+        $firecrawlSkillsOnly[0].installedState | Should -Be 'skills-only-no-mcp-manifest'
+        $firecrawlSkillsOnly[0].mcpOwner | Should -Be 'registry/mcps.json'
+        $firecrawlSkillsOnly[0].mutationPolicy | Should -Be 'do-not-add-bundled-mcp-without-owner-reassignment'
+        $firecrawlSkillsOnly[0].sourcePath | Should -Be `
+            'C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops'
+        $firecrawlSkillsOnly[0].deploymentState | Should -Be `
+            'live-verified-pending-canonical-merge'
 
         $rowByHost = @{}
         foreach ($row in $hostRows) { $rowByHost[[string]$row.hostId] = $row }
@@ -93,6 +107,32 @@ Describe 'Runtime-centralization registry contracts' {
         $codexRow = Resolve-ConnectorRow -HostId 'codex'
         @($codexRow.exposures.'plugin-owned') | Should -Not -Contain 'firecrawl'
         @($codexRow.exposures.'shared-gateway') | Should -Contain 'firecrawl'
+    }
+
+    It 'owns the Firecrawl skills in the portfolio package without duplicating its MCP service' {
+        $firecrawl = @($capabilities.capabilities | Where-Object id -eq 'firecrawl-ops')
+        $firecrawl.Count | Should -Be 1
+        $firecrawl[0].owner | Should -Be 'portfolio'
+        $firecrawl[0].capabilityType | Should -Be 'skills-only-plugin'
+        @($firecrawl[0].hostMappings).Count | Should -Be 1
+        $firecrawl[0].hostMappings[0].hostId | Should -Be 'codex'
+        $firecrawl[0].hostMappings[0].deploymentStatus | Should -Be `
+            'native-plugin-installed'
+
+        $packageRoot = Join-Path $repoRoot 'packages\portfolio-plugins\firecrawl-ops'
+        $manifestPath = Join-Path $packageRoot '.codex-plugin\plugin.json'
+        Test-Path -LiteralPath $manifestPath -PathType Leaf | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $packageRoot '.mcp.json') | Should -BeFalse
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 |
+            ConvertFrom-Json
+        $manifest.PSObject.Properties.Name | Should -Not -Contain 'mcpServers'
+
+        $marketplace = Get-Content -LiteralPath `
+            (Join-Path $repoRoot 'packages\portfolio-plugins\.claude-plugin\marketplace.json') `
+            -Raw -Encoding UTF8 | ConvertFrom-Json
+        $marketplaceEntry = @($marketplace.plugins | Where-Object name -eq 'firecrawl-ops')
+        $marketplaceEntry.Count | Should -Be 1
+        $marketplaceEntry[0].source | Should -Be './firecrawl-ops'
     }
 
     It 'declares one inactive Docker streaming endpoint with partial POC evidence and least-privilege mappings' {
@@ -349,8 +389,8 @@ Describe 'Sync-AgentHub gateway and native connector convergence' {
 [mcp_servers.canva]
 url = "https://mcp.canva.com/mcp"
 
-[plugins."firecrawl-ops@personal".mcp_servers.firecrawl]
-enabled = false
+[plugins."sample-plugin@personal".settings.runtime]
+mode = "skills-only"
 '@ | Set-Content -LiteralPath $codexConfig -Encoding UTF8
 
         $previousLocalAppData = $env:LOCALAPPDATA
@@ -364,10 +404,23 @@ enabled = false
             $env:LOCALAPPDATA = $previousLocalAppData
         }
 
+        $firstHash = (Get-FileHash -LiteralPath $codexConfig -Algorithm SHA256).Hash
+        try {
+            $env:LOCALAPPDATA = $runtime
+            & $currentPowerShellExecutable -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+                -File (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') `
+                -Apply -Validate -RegistryRoot $fixture -UserProfile $profile | Out-Host
+            $LASTEXITCODE | Should -Be 0
+        } finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+        }
+        (Get-FileHash -LiteralPath $codexConfig -Algorithm SHA256).Hash |
+            Should -Be $firstHash
+
         $result = Get-Content -LiteralPath $codexConfig -Raw -Encoding UTF8
         $result | Should -Not -Match '(?m)^\[mcp_servers\.canva\]\s*$'
         $result | Should -Match '(?m)^\[mcp_servers\.context7\]\s*$'
-        $result | Should -Match '(?ms)^\[plugins\."firecrawl-ops@personal"\.mcp_servers\.firecrawl\]\s*\r?\nenabled\s*=\s*false'
+        $result | Should -Match '(?ms)^\[plugins\."sample-plugin@personal"\.settings\.runtime\]\s*\r?\nmode\s*=\s*"skills-only"'
     }
 
     It 'fails closed and preserves direct MCPs for malformed or ineligible gateway contracts' {
