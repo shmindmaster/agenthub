@@ -14,6 +14,7 @@ $RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot)
 $canonicalRepositoryRoot = [System.IO.Path]::GetFullPath(
     'C:\Repos\shmindmaster\agenthub'
 ).TrimEnd('\')
+. (Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\RegistryContentHash.ps1')
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -36,27 +37,6 @@ function Add-ValidationResult {
 function Get-DuplicateValues {
     param([object[]]$Values)
     return @($Values | Where-Object { $null -ne $_ -and "$_" -ne '' } | Group-Object | Where-Object Count -gt 1 | ForEach-Object Name)
-}
-
-function Get-RegistryHashBasisValue([string]$Path) {
-    if (Test-Path -LiteralPath $Path -PathType Leaf) {
-        return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
-    }
-    if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return $null }
-
-    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\')
-    [string[]]$filePaths = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force | ForEach-Object FullName)
-    [Array]::Sort($filePaths, [System.StringComparer]::Ordinal)
-    $inventory = @(
-        foreach ($filePath in $filePaths) {
-            $relativePath = $filePath.Substring($root.Length).TrimStart('\').Replace('\', '/')
-            '{0}|{1}' -f $relativePath, (Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash
-        }
-    ) -join "`n"
-    $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($inventory)
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try { return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '') }
-    finally { $sha.Dispose() }
 }
 
 $requiredFiles = @(
@@ -230,7 +210,7 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
             continue
         }
 
-        $actualHash = Get-RegistryHashBasisValue $hashBasis
+        $actualHash = Get-AgentHubRegistryHashBasisValue -Path $hashBasis
         if ($actualHash -eq $capability.contentHash) {
             $basisKind = if (Test-Path -LiteralPath $hashBasis -PathType Container) { 'full tree' } else { 'file' }
             Add-ValidationResult PASS "capability:$($capability.id):hash" "content hash current ($basisKind)"
