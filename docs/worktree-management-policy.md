@@ -7,8 +7,8 @@ This file is the single policy owner for Git worktree lifecycle decisions across
 - A worktree is optional. Use the current checkout for ordinary sequential work.
 - Use a worktree only when the user requests isolation, two tasks must run concurrently, or a risky change genuinely needs a separate checkout.
 - Detect existing isolation first with `git rev-parse --show-toplevel`, `git rev-parse --git-dir`, and `git rev-parse --git-common-dir`. Never nest or manually replace a host-provided worktree.
-- Prefer the host's native worktree feature because the host owns its placement and cleanup.
-- If a host has no native feature, the only manual fallback root is `C:\wt\<repo>\<task>`. Keep names short. Do not create new worktrees beside portfolio repositories, directly under the user profile, or in `.wt` / `.worktrees` containers.
+- All coding agents use `C:\wt\<repo>\<task>` as the sole approved user-created worktree root. Keep names short. Do not create new worktrees beside portfolio repositories, directly under the user profile, or in `.wt` / `.worktrees` containers.
+- Host-native worktree controls must use that same root where their settings support it. Do not overwrite user-managed host settings from a repository script.
 
 ## Creation and generated files
 
@@ -31,10 +31,10 @@ Never clean up a worktree owned by another active task unless the user explicitl
 
 ## Retention and audit
 
-Native per-host behavior verified from official documentation in July 2026:
+Native per-host behavior and user-managed location verification as of July 2026:
 
-- **Codex desktop** — creates managed worktrees under `$CODEX_HOME/worktrees` by default, and **Settings > Worktrees** can change the worktree root. This machine keeps 5 managed worktrees. A checkout created manually with `git worktree add` is not assumed to be desktop-managed.
-- **Claude Code** — `cleanupPeriodDays` is set to **7** here. Its periodic sweep covers clean subagent/background worktrees only and never explicit `--worktree` sessions; dirty, untracked, or unpushed work remains protected.
+- **Codex desktop** — its user-managed **Settings > Worktrees** location has been set to `C:\wt` by the user. The application defaults to `$CODEX_HOME\worktrees`, but repository automation must not replace the user setting. This machine keeps 5 managed worktrees.
+- **Claude Desktop / Claude Code** — its user-managed worktree location has been set to `C:\wt` by the user. `cleanupPeriodDays` remains **7**; its periodic sweep covers clean subagent/background worktrees only and never explicit `--worktree` sessions. Dirty, untracked, or unpushed work remains protected.
 - **Cursor** — exposes machine-scoped `cursor.worktreeMaxCount` and `cursor.worktreeCleanupIntervalHours`. This shared policy does not assume those timers prove task ownership or authorize removal.
 - **Manual Git and other host checkouts** — treat cleanup as owner-managed unless the creating host provides verifiable lifecycle ownership. Observed sibling and `%TEMP%\opencode` worktrees are not assumed safe merely because they are clean or old.
 - Run `scripts\Audit-Worktrees.ps1` as a report-only audit. Review its output before any removal. Cleanup is always a separate, explicit operation.

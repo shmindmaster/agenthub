@@ -1,7 +1,11 @@
-$scriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\Apply-FullAccessAgentProfile.ps1'
-$powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
+$global:AgentHubApplyScriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\Apply-FullAccessAgentProfile.ps1'
+$global:AgentHubTestPowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source
+$pathSafetyScript = Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\PathSafety.ps1'
+. $pathSafetyScript
+$env:AGENTHUB_PROFILE_TEST_DIRECTORY = Assert-AgentHubSafeWritePath -Path (Join-Path ([System.IO.Path]::GetTempPath()) ('agenthub-profile-tests-' + [guid]::NewGuid().ToString('N'))) -Purpose 'the synthetic agent-profile test directory'
+New-Item -ItemType Directory -Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY -Force | Out-Null
 
-$canonicalVideoSkills = @(
+$global:canonicalVideoSkills = @(
     'product-demo-studio',
     'product-demo-studio-capture',
     'product-demo-studio-descript',
@@ -12,7 +16,7 @@ $canonicalVideoSkills = @(
     'product-demo-studio-visual-assets'
 )
 
-$canonicalExperienceSkills = @(
+$global:canonicalExperienceSkills = @(
     'audit-product-experience',
     'design-agentic-experiences',
     'design-new-application-experience',
@@ -26,7 +30,7 @@ $canonicalExperienceSkills = @(
     'validate-product-experience'
 )
 
-function New-DistributionFixture {
+function global:New-DistributionFixture {
     param([string]$Root)
 
     $registryRoot = Join-Path $Root 'registry-root'
@@ -48,7 +52,7 @@ function New-DistributionFixture {
     '{"name":"product-demo-studio","version":"0.4.0"}' | Set-Content -LiteralPath (Join-Path $canonicalRoot '.claude-plugin\plugin.json') -Encoding UTF8
     Set-Content -LiteralPath (Join-Path $canonicalBrowserRoot 'skills\browser-debugging\SKILL.md') -Value 'canonical:browser-debugging' -Encoding UTF8
 
-    foreach ($name in $canonicalVideoSkills) {
+    foreach ($name in $global:canonicalVideoSkills) {
         $skillRoot = Join-Path $canonicalRoot "skills\$name"
         New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Value "canonical:$name" -Encoding UTF8
@@ -61,7 +65,7 @@ function New-DistributionFixture {
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.codex-plugin\plugin.json') -Encoding UTF8
     '{"name":"product-experience-engineering","version":"1.1.0"}' |
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.claude-plugin\plugin.json') -Encoding UTF8
-    foreach ($name in $canonicalExperienceSkills) {
+    foreach ($name in $global:canonicalExperienceSkills) {
         $skillRoot = Join-Path $canonicalExperienceRoot "skills\$name"
         New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Value "canonical:$name" -Encoding UTF8
@@ -81,7 +85,7 @@ function New-DistributionFixture {
     New-Item -ItemType Directory -Path (Join-Path $qwenAdapterRoot 'skills') -Force | Out-Null
     '{"name":"agenthub-product-demo-studio","version":"1.0.0","skills":"skills"}' |
         Set-Content -LiteralPath (Join-Path $qwenAdapterRoot 'qwen-extension.json') -Encoding UTF8
-    foreach ($name in $canonicalVideoSkills) {
+    foreach ($name in $global:canonicalVideoSkills) {
         Copy-Item -LiteralPath (Join-Path $canonicalRoot "skills\$name") -Destination $qwenExtensionSkills -Recurse
         Copy-Item -LiteralPath (Join-Path $canonicalRoot "skills\$name") -Destination (Join-Path $qwenAdapterRoot 'skills') -Recurse
     }
@@ -91,7 +95,7 @@ function New-DistributionFixture {
     New-Item -ItemType Directory -Path (Join-Path $qwenExperienceAdapterRoot 'skills') -Force | Out-Null
     '{"name":"agenthub-product-experience-engineering","version":"1.0.0","skills":"skills"}' |
         Set-Content -LiteralPath (Join-Path $qwenExperienceAdapterRoot 'qwen-extension.json') -Encoding UTF8
-    foreach ($name in $canonicalExperienceSkills) {
+    foreach ($name in $global:canonicalExperienceSkills) {
         Copy-Item -LiteralPath (Join-Path $canonicalExperienceRoot "skills\$name") -Destination $qwenExperienceExtensionSkills -Recurse
         Copy-Item -LiteralPath (Join-Path $canonicalExperienceRoot "skills\$name") -Destination (Join-Path $qwenExperienceAdapterRoot 'skills') -Recurse
     }
@@ -125,44 +129,50 @@ function New-DistributionFixture {
     }
 }
 
-function Invoke-DistributionOnly {
+function global:Invoke-DistributionOnly {
     param([hashtable]$Fixture, [switch]$RetireLegacyVideoOwners)
 
     $previousAppData = $env:APPDATA
     try {
         $env:APPDATA = $Fixture.AppData
-        $arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$scriptPath,
+        $arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$global:AgentHubApplyScriptPath,
             '-RegistryRoot',$Fixture.RegistryRoot,'-UserProfile',$Fixture.UserProfile,'-SkillDistributionOnly')
         if ($RetireLegacyVideoOwners) { $arguments += '-RetireLegacyVideoOwners' }
-        & $powershell @arguments | Out-Host
+        & $global:AgentHubTestPowerShell @arguments | Out-Host
         return $LASTEXITCODE
     } finally {
         $env:APPDATA = $previousAppData
     }
 }
 
+AfterAll {
+    if (Test-Path -LiteralPath $env:AGENTHUB_PROFILE_TEST_DIRECTORY) {
+        Remove-Item -LiteralPath $env:AGENTHUB_PROFILE_TEST_DIRECTORY -Recurse -Force
+    }
+}
+
 Describe 'Apply-FullAccessAgentProfile managed video distribution' {
     It 'preserves an expected Browser Toolkit junction during generic skill distribution' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'expected-junction')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'expected-junction')
         $browserTarget = Join-Path $fixture.UserProfile '.claude\skills\browser-debugging'
         New-Item -ItemType Directory -Path (Split-Path -Parent $browserTarget) -Force | Out-Null
         New-Item -ItemType Junction -Path $browserTarget -Target (Join-Path $fixture.CanonicalBrowserRoot 'skills\browser-debugging') | Out-Null
 
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
-        (Get-Item -LiteralPath $browserTarget -Force).LinkType | Should Be 'Junction'
-        (Get-Content -LiteralPath (Join-Path $browserTarget 'SKILL.md') -Raw).Trim() | Should Be 'canonical:browser-debugging'
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        (Get-Item -LiteralPath $browserTarget -Force).LinkType | Should -Be 'Junction'
+        (Get-Content -LiteralPath (Join-Path $browserTarget 'SKILL.md') -Raw).Trim() | Should -Be 'canonical:browser-debugging'
     }
 
     It 'does not distribute a canonical capability to hosts without a registry mapping' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'mapping-boundary')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'mapping-boundary')
 
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
-        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\browser-debugging')) | Should Be $true
-        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.codex\skills\browser-debugging')) | Should Be $false
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\browser-debugging')) | Should -Be $true
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.codex\skills\browser-debugging')) | Should -Be $false
     }
 
     It 'exactly replaces canonical siblings everywhere, quarantines mapped conflicts, and is idempotent' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'replacement')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'replacement')
         $skillTargets = @{
             claude = Join-Path $fixture.UserProfile '.claude\skills'
             codex = Join-Path $fixture.UserProfile '.codex\skills'
@@ -196,102 +206,102 @@ Describe 'Apply-FullAccessAgentProfile managed video distribution' {
         New-Item -ItemType Directory -Path $unmappedVideoSkill -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $unmappedVideoSkill 'SKILL.md') -Value 'keep-me' -Encoding UTF8
 
-        (Invoke-DistributionOnly -Fixture $fixture -RetireLegacyVideoOwners) | Should Be 0
+        (Invoke-DistributionOnly -Fixture $fixture -RetireLegacyVideoOwners) | Should -Be 0
 
         foreach ($target in $skillTargets.Values) {
-            foreach ($name in $canonicalVideoSkills) {
-                (Get-Content -LiteralPath (Join-Path $target "$name\SKILL.md") -Raw).Trim() | Should Be "canonical:$name"
+            foreach ($name in $global:canonicalVideoSkills) {
+                (Get-Content -LiteralPath (Join-Path $target "$name\SKILL.md") -Raw).Trim() | Should -Be "canonical:$name"
             }
-            (Get-Content -LiteralPath (Join-Path $target 'product-demo-studio\references\portfolio-standard.md') -Raw).Trim() | Should Be 'version:2'
-            (Get-Content -LiteralPath (Join-Path $target 'product-demo-studio-remotion\rules\video-layout.md') -Raw).Trim() | Should Be 'safe-area:80'
+            (Get-Content -LiteralPath (Join-Path $target 'product-demo-studio\references\portfolio-standard.md') -Raw).Trim() | Should -Be 'version:2'
+            (Get-Content -LiteralPath (Join-Path $target 'product-demo-studio-remotion\rules\video-layout.md') -Raw).Trim() | Should -Be 'safe-area:80'
         }
-        (Test-Path -LiteralPath (Join-Path $staleManaged 'references\retired-v1.md')) | Should Be $false
-        (Test-Path -LiteralPath $mappedConflict) | Should Be $false
-        (Test-Path -LiteralPath $mappedPluginConflict) | Should Be $false
-        (Test-Path -LiteralPath $mappedExtensionConflict) | Should Be $false
-        (Get-Content -LiteralPath (Join-Path $unmappedVideoSkill 'SKILL.md') -Raw).Trim() | Should Be 'keep-me'
-        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.copilot\skills\product-demo-studio')) | Should Be $false
-        (Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'bin\copilot.cmd') -Raw) | Should Match '--plugin-dir'
+        (Test-Path -LiteralPath (Join-Path $staleManaged 'references\retired-v1.md')) | Should -Be $false
+        (Test-Path -LiteralPath $mappedConflict) | Should -Be $false
+        (Test-Path -LiteralPath $mappedPluginConflict) | Should -Be $false
+        (Test-Path -LiteralPath $mappedExtensionConflict) | Should -Be $false
+        (Get-Content -LiteralPath (Join-Path $unmappedVideoSkill 'SKILL.md') -Raw).Trim() | Should -Be 'keep-me'
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.copilot\skills\product-demo-studio')) | Should -Be $false
+        (Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'bin\copilot.cmd') -Raw) | Should -Match '--plugin-dir'
         $vscodeSettings = Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'AppData\Roaming\Code - Insiders\User\settings.json') -Raw | ConvertFrom-Json
         $portablePluginPath = $fixture.CanonicalRoot.Replace('\','/')
-        $vscodeSettings.'chat.pluginLocations'.$portablePluginPath | Should Be $true
+        $vscodeSettings.'chat.pluginLocations'.$portablePluginPath | Should -Be $true
 
         $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
         $manifestsBefore = @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse)
-        $manifestsBefore.Count | Should Be 1
+        $manifestsBefore.Count | Should -Be 1
         $manifest = Get-Content -LiteralPath $manifestsBefore[0].FullName -Raw | ConvertFrom-Json
         @($manifest.entries | ForEach-Object { "$($_.artifactKind):$($_.artifactName)" } | Sort-Object) -join '|' |
-            Should Be 'extensions:remotion-video-creation|plugins:remotion-video-creation|skills:product-demo-studio|skills:remotion-video-creation'
+            Should -Be 'extensions:remotion-video-creation|plugins:remotion-video-creation|skills:product-demo-studio|skills:remotion-video-creation'
 
-        (Invoke-DistributionOnly -Fixture $fixture -RetireLegacyVideoOwners) | Should Be 0
-        @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count | Should Be $manifestsBefore.Count
+        (Invoke-DistributionOnly -Fixture $fixture -RetireLegacyVideoOwners) | Should -Be 0
+        @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count | Should -Be $manifestsBefore.Count
     }
 
     It 'removes stale empty directories from an otherwise current managed sibling' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'empty-directory-drift')
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'empty-directory-drift')
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
         $staleEmptyDirectory = Join-Path $fixture.UserProfile '.claude\skills\product-demo-studio\references\retired-empty'
         New-Item -ItemType Directory -Path $staleEmptyDirectory -Force | Out-Null
 
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
 
-        (Test-Path -LiteralPath $staleEmptyDirectory) | Should Be $false
+        (Test-Path -LiteralPath $staleEmptyDirectory) | Should -Be $false
         $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
-        @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count | Should Be 1
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
-        @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count | Should Be 1
+        @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count | Should -Be 1
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count | Should -Be 1
     }
 
     It 'fails closed when a configured host has no allowlisted skill target' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'unknown-host')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'unknown-host')
         $profilePath = Join-Path $fixture.RegistryRoot 'registry\fleet-profile.json'
         $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
         $profile.managedHosts = @($profile.managedHosts) + 'future-agent'
         $profile | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $profilePath -Encoding UTF8
 
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Not Be 0
-        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\product-demo-studio')) | Should Be $false
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Not -Be 0
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\product-demo-studio')) | Should -Be $false
     }
 
     It 'preserves a future canonical plugin cache that does not match the retired signature' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'future-cache')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'future-cache')
         $futureCache = Join-Path $fixture.UserProfile '.claude\plugins\cache\handoff\product-demo-studio\0.3.0'
         New-Item -ItemType Directory -Path $futureCache -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $futureCache 'marker.txt') -Value 'keep-future-canonical' -Encoding UTF8
 
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
 
-        (Get-Content -LiteralPath (Join-Path $futureCache 'marker.txt') -Raw).Trim() | Should Be 'keep-future-canonical'
+        (Get-Content -LiteralPath (Join-Path $futureCache 'marker.txt') -Raw).Trim() | Should -Be 'keep-future-canonical'
     }
 
     It 'preserves exact-named conflicts without an audited legacy signature' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'unsigned-conflict')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'unsigned-conflict')
         $unsigned = Join-Path $fixture.UserProfile '.claude\skills\remotion-video-creation'
         New-Item -ItemType Directory -Path $unsigned -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $unsigned 'SKILL.md') -Value "---`nname: custom-remotion-helper`n---`nkeep" -Encoding UTF8
 
-        (Invoke-DistributionOnly -Fixture $fixture -RetireLegacyVideoOwners) | Should Be 0
+        (Invoke-DistributionOnly -Fixture $fixture -RetireLegacyVideoOwners) | Should -Be 0
 
-        (Test-Path -LiteralPath $unsigned) | Should Be $true
+        (Test-Path -LiteralPath $unsigned) | Should -Be $true
     }
 
     It 'self-heals a missing Qwen native extension junction' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'qwen-self-heal')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'qwen-self-heal')
         $extension = Join-Path $fixture.UserProfile '.qwen\extensions\agenthub-product-demo-studio'
         Remove-Item -LiteralPath $extension -Recurse -Force
 
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
 
-        (Get-Item -LiteralPath $extension).LinkType | Should Be 'Junction'
-        foreach ($name in $canonicalVideoSkills) {
-            (Get-Content -LiteralPath (Join-Path $extension "skills\$name\SKILL.md") -Raw).Trim() | Should Be "canonical:$name"
+        (Get-Item -LiteralPath $extension).LinkType | Should -Be 'Junction'
+        foreach ($name in $global:canonicalVideoSkills) {
+            (Get-Content -LiteralPath (Join-Path $extension "skills\$name\SKILL.md") -Raw).Trim() | Should -Be "canonical:$name"
         }
     }
 }
 
 Describe 'Apply-FullAccessAgentProfile managed product experience distribution' {
     It 'uses native plugin locations and exact loose-skill trees without duplicating the Qwen extension' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'product-experience')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'product-experience')
         $looseSkillTargets = @(
             (Join-Path $fixture.UserProfile '.claude\skills'),
             (Join-Path $fixture.UserProfile '.codex\skills'),
@@ -313,33 +323,33 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
         Set-Content -LiteralPath (Join-Path $staleManaged 'SKILL.md') -Value 'version:personal' -Encoding UTF8
         Set-Content -LiteralPath (Join-Path $staleManaged 'references\retired-personal.md') -Value 'stale' -Encoding UTF8
 
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
 
         foreach ($target in $looseSkillTargets) {
-            foreach ($name in $canonicalExperienceSkills) {
-                (Get-Content -LiteralPath (Join-Path $target "$name\SKILL.md") -Raw).Trim() | Should Be "canonical:$name"
+            foreach ($name in $global:canonicalExperienceSkills) {
+                (Get-Content -LiteralPath (Join-Path $target "$name\SKILL.md") -Raw).Trim() | Should -Be "canonical:$name"
             }
             (Get-Content -LiteralPath (Join-Path $target 'engineer-product-experience\references\surface-coverage.md') -Raw).Trim() |
-                Should Be 'coverage:complete'
+                Should -Be 'coverage:complete'
         }
-        (Test-Path -LiteralPath (Join-Path $staleManaged 'references\retired-personal.md')) | Should Be $false
-        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.copilot\skills\engineer-product-experience')) | Should Be $false
-        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.qwen\skills\engineer-product-experience')) | Should Be $false
+        (Test-Path -LiteralPath (Join-Path $staleManaged 'references\retired-personal.md')) | Should -Be $false
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.copilot\skills\engineer-product-experience')) | Should -Be $false
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.qwen\skills\engineer-product-experience')) | Should -Be $false
 
         $copilotWrapper = Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'bin\copilot.cmd') -Raw
-        $copilotWrapper | Should Match ([regex]::Escape($fixture.CanonicalRoot))
-        $copilotWrapper | Should Match ([regex]::Escape($fixture.CanonicalExperienceRoot))
+        $copilotWrapper | Should -Match ([regex]::Escape($fixture.CanonicalRoot))
+        $copilotWrapper | Should -Match ([regex]::Escape($fixture.CanonicalExperienceRoot))
         $vscodeSettings = Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'AppData\Roaming\Code - Insiders\User\settings.json') -Raw | ConvertFrom-Json
-        $vscodeSettings.'chat.pluginLocations'.$($fixture.CanonicalExperienceRoot.Replace('\','/')) | Should Be $true
+        $vscodeSettings.'chat.pluginLocations'.$($fixture.CanonicalExperienceRoot.Replace('\','/')) | Should -Be $true
 
         $qwenExtension = Join-Path $fixture.UserProfile '.qwen\extensions\agenthub-product-experience-engineering'
-        foreach ($name in $canonicalExperienceSkills) {
-            (Get-Content -LiteralPath (Join-Path $qwenExtension "skills\$name\SKILL.md") -Raw).Trim() | Should Be "canonical:$name"
+        foreach ($name in $global:canonicalExperienceSkills) {
+            (Get-Content -LiteralPath (Join-Path $qwenExtension "skills\$name\SKILL.md") -Raw).Trim() | Should -Be "canonical:$name"
         }
     }
 
     It 'removes loose duplicates when current Claude and Codex native plugins are enabled' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'product-experience-native')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'product-experience-native')
         $claudeInstalledPath = Join-Path $fixture.UserProfile '.claude\plugins\installed_plugins.json'
         New-Item -ItemType Directory -Path (Split-Path -Parent $claudeInstalledPath) -Force | Out-Null
         @{
@@ -366,21 +376,21 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
             (Join-Path $fixture.UserProfile '.claude\skills'),
             (Join-Path $fixture.UserProfile '.codex\skills')
         )) {
-            foreach ($name in $canonicalExperienceSkills) {
+            foreach ($name in $global:canonicalExperienceSkills) {
                 $skillRoot = Join-Path $target $name
                 New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
                 Set-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Value 'duplicate-loose-copy' -Encoding UTF8
             }
         }
 
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
 
         foreach ($target in @(
             (Join-Path $fixture.UserProfile '.claude\skills'),
             (Join-Path $fixture.UserProfile '.codex\skills')
         )) {
-            foreach ($name in $canonicalExperienceSkills) {
-                (Test-Path -LiteralPath (Join-Path $target $name)) | Should Be $false
+            foreach ($name in $global:canonicalExperienceSkills) {
+                (Test-Path -LiteralPath (Join-Path $target $name)) | Should -Be $false
             }
         }
     }
@@ -388,7 +398,7 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
 
 Describe 'Apply-FullAccessAgentProfile dependency artifact exclusion' {
     It 'treats a capability with node_modules as equivalent to one without' {
-        $fixture = New-DistributionFixture -Root (Join-Path $TestDrive 'node-modules-exclusion')
+        $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'node-modules-exclusion')
         # Add node_modules to the canonical source so it would normally cause drift
         $videoSkill = Join-Path $fixture.CanonicalRoot 'skills\product-demo-studio'
         $nodeModules = Join-Path $videoSkill 'node_modules'
@@ -396,13 +406,13 @@ Describe 'Apply-FullAccessAgentProfile dependency artifact exclusion' {
         Set-Content -LiteralPath (Join-Path $nodeModules 'package.js') -Value 'runtime artifact' -Encoding UTF8
 
         # Deploy once to get the canonical skill without node_modules
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
 
         # The deployed skill should be considered current despite node_modules
         # being in the source. Run again - it should be idempotent (exit 0).
-        (Invoke-DistributionOnly -Fixture $fixture) | Should Be 0
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
 
         # Verify node_modules was NOT copied to the destination
-        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\product-demo-studio\node_modules')) | Should Be $false
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\product-demo-studio\node_modules')) | Should -Be $false
     }
 }

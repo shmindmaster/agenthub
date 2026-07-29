@@ -69,6 +69,30 @@ foreach ($relativePath in $requiredFiles) {
     }
 }
 
+if ($IncludeGlobalInstructions) {
+    $forbiddenRootPaths = @(
+        'C:\registry-root',
+        'C:\canonical-product-demo-studio',
+        'C:\canonical-product-experience-engineering',
+        'C:\canonical-browser-toolkit',
+        'C:\profile'
+    )
+    foreach ($forbiddenPath in $forbiddenRootPaths) {
+        if (Test-Path -LiteralPath $forbiddenPath) {
+            Add-ValidationResult FAIL "forbidden-root:$forbiddenPath" 'unexpected drive-root fixture remains; remove it only through an explicit cleanup task'
+        } else {
+            Add-ValidationResult PASS "forbidden-root:$forbiddenPath" 'absent'
+        }
+    }
+
+    $retiredAgentFleetOpsPath = Join-Path $UserProfilePath '.agents\skills\agent-fleet-ops'
+    if (Test-Path -LiteralPath $retiredAgentFleetOpsPath) {
+        Add-ValidationResult FAIL 'retired-skill:agent-fleet-ops' 'retired user skill remains installed; remove it only through an explicit cleanup task'
+    } else {
+        Add-ValidationResult PASS 'retired-skill:agent-fleet-ops' 'absent'
+    }
+}
+
 $registryObjects = @{}
 $registryDir = Join-Path $RegistryRoot 'registry'
 if (Test-Path -LiteralPath $registryDir -PathType Container) {

@@ -1,5 +1,5 @@
-$scriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\Sync-AgentHub.ps1'
-$powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
+$global:AgentHubSyncScriptPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\Sync-AgentHub.ps1'
+$global:AgentHubSyncPowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source
 
 Describe 'Sync-AgentHub Codex TOML preservation' {
     It 'writes a bearer-authenticated HTTP MCP without consuming a following plugin section' {
@@ -39,18 +39,18 @@ args = ["old"]
 enabled = true
 '@ | Set-Content -LiteralPath $config -Encoding UTF8
 
-        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
 
         $result = Get-Content -LiteralPath $config -Raw
-        $result | Should Match '(?m)^\[plugins\."product-demo-studio@handoff"\]\s*$'
-        $result | Should Match 'enabled\s*=\s*true'
-        $result | Should Match '\[mcp_servers\.repocontext\]'
-        $result | Should Not Match '(?m)^\[mcp_servers\.shwiki-context\]\s*$'
-        $result | Should Match 'url\s*=\s*"https://repocontext\.shtrial\.com/api/mcp"'
-        $result | Should Match 'bearer_token_env_var\s*=\s*"REPOCONTEXT_MCP_TOKEN"'
-        $result | Should Not Match 'command\s*='
+        $result | Should -Match '(?m)^\[plugins\."product-demo-studio@handoff"\]\s*$'
+        $result | Should -Match 'enabled\s*=\s*true'
+        $result | Should -Match '\[mcp_servers\.repocontext\]'
+        $result | Should -Not -Match '(?m)^\[mcp_servers\.shwiki-context\]\s*$'
+        $result | Should -Match 'url\s*=\s*"https://repocontext\.shtrial\.com/api/mcp"'
+        $result | Should -Match 'bearer_token_env_var\s*=\s*"REPOCONTEXT_MCP_TOKEN"'
+        $result | Should -Not -Match 'command\s*='
     }
 }
 
@@ -84,17 +84,17 @@ Describe 'Sync-AgentHub Qwen JSON compatibility' {
         @{ capabilities = @() } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
         '{"$version":4,"model":{"name":"test-model"}}' | Set-Content -LiteralPath $settings -Encoding ASCII -NoNewline
 
-        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
 
         $bytes = [System.IO.File]::ReadAllBytes($settings)
-        @($bytes[0..2]) -join ',' | Should Not Be '239,187,191'
+        @($bytes[0..2]) -join ',' | Should -Not -Be '239,187,191'
         $raw = Get-Content -LiteralPath $settings -Raw
         $result = $raw | ConvertFrom-Json
-        $result.model.name | Should Be 'test-model'
-        $result.mcpServers.repocontext.httpUrl | Should Be 'https://repocontext.shtrial.com/api/mcp'
-        $result.mcpServers.repocontext.headers.Authorization | Should Be 'Bearer ${REPOCONTEXT_MCP_TOKEN}'
+        $result.model.name | Should -Be 'test-model'
+        $result.mcpServers.repocontext.httpUrl | Should -Be 'https://repocontext.shtrial.com/api/mcp'
+        $result.mcpServers.repocontext.headers.Authorization | Should -Be 'Bearer ${REPOCONTEXT_MCP_TOKEN}'
     }
 }
 
@@ -116,14 +116,14 @@ Describe 'Sync-AgentHub inactive Devin user configuration' {
         @{ capabilities = @() } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
         '{"agent":{"show_hints":true},"mcpServers":{}}' | Set-Content -LiteralPath $config -Encoding ASCII -NoNewline
 
-        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -IncludeInactiveAgents -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
 
         $result = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
-        $result.agent.show_hints | Should Be $true
-        $result.mcpServers.exa.type | Should Be 'http'
-        $result.mcpServers.exa.url | Should Be 'https://mcp.exa.ai/mcp'
+        $result.agent.show_hints | Should -Be $true
+        $result.mcpServers.exa.type | Should -Be 'http'
+        $result.mcpServers.exa.url | Should -Be 'https://mcp.exa.ai/mcp'
     }
 }
 
@@ -144,16 +144,16 @@ Describe 'Sync-AgentHub JSON collection preservation' {
         @{ provider = @{ 'bailian-token-plan-personal' = @{ models = @{ 'qwen3.6-flash' = @{ modalities = @{ input = @('text', 'image'); output = @('text') } } } }; mcp = @{} } } |
             ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $config -Encoding UTF8
 
-        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
 
         $raw = Get-Content -LiteralPath $config -Raw
-        $raw | Should Match '"output":\["text"\]'
+        $raw | Should -Match '"output":\["text"\]'
         $result = $raw | ConvertFrom-Json
-        @($result.provider.'bailian-token-plan-personal'.models.'qwen3.6-flash'.modalities.output).Count | Should Be 1
-        $result.provider.'bailian-token-plan-personal'.models.'qwen3.6-flash'.modalities.output[0] | Should Be 'text'
-        $result.mcp.exa.url | Should Be 'https://mcp.exa.ai/mcp'
+        @($result.provider.'bailian-token-plan-personal'.models.'qwen3.6-flash'.modalities.output).Count | Should -Be 1
+        $result.provider.'bailian-token-plan-personal'.models.'qwen3.6-flash'.modalities.output[0] | Should -Be 'text'
+        $result.mcp.exa.url | Should -Be 'https://mcp.exa.ai/mcp'
     }
 
     It 'does not collapse an unrelated one-item array while updating Amp MCPs' {
@@ -172,16 +172,16 @@ Describe 'Sync-AgentHub JSON collection preservation' {
         @{ 'amp.permissions' = @(@{ action = 'allow'; tool = '*' }); 'amp.mcpServers' = @{} } |
             ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $settings -Encoding UTF8
 
-        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
 
         $raw = Get-Content -LiteralPath $settings -Raw
-        $raw | Should Match '"amp\.permissions":\['
+        $raw | Should -Match '"amp\.permissions":\['
         $result = $raw | ConvertFrom-Json
-        @($result.'amp.permissions').Count | Should Be 1
-        $result.'amp.permissions'[0].tool | Should Be '*'
-        $result.'amp.mcpServers'.exa.url | Should Be 'https://mcp.exa.ai/mcp'
+        @($result.'amp.permissions').Count | Should -Be 1
+        $result.'amp.permissions'[0].tool | Should -Be '*'
+        $result.'amp.mcpServers'.exa.url | Should -Be 'https://mcp.exa.ai/mcp'
     }
 
     It 'removes the legacy Windsurf Context7 alias when the canonical entry exists' {
@@ -202,13 +202,13 @@ Describe 'Sync-AgentHub JSON collection preservation' {
             'devin/context7' = @{ serverUrl = 'https://old-context7.invalid/mcp' }
         } } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $config -Encoding UTF8
 
-        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
 
         $result = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
-        (@($result.mcpServers.PSObject.Properties.Name) -contains 'devin/context7') | Should Be $false
-        $result.mcpServers.context7.serverUrl | Should Be 'https://mcp.context7.com/mcp'
+        (@($result.mcpServers.PSObject.Properties.Name) -contains 'devin/context7') | Should -Be $false
+        $result.mcpServers.context7.serverUrl | Should -Be 'https://mcp.context7.com/mcp'
     }
 }
 
@@ -240,23 +240,23 @@ Describe 'Sync-AgentHub Grok and Hermes remote MCP adapters' {
         "[plugins]`nenabled = true`n" | Set-Content -LiteralPath $grokConfig -Encoding ASCII -NoNewline
         "mcp_servers:`n    `"custom user.mcp`":`n      url: `"https://example.invalid/mcp`"`nprofiles:`n  default: true`n" | Set-Content -LiteralPath $hermesConfig -Encoding ASCII -NoNewline
 
-        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
 
         $grok = Get-Content -LiteralPath $grokConfig -Raw
-        $grok | Should Match '\[mcp_servers\.exa\]'
-        $grok | Should Match 'https://mcp\.firecrawl\.dev/v2/mcp'
-        $grok | Should Match 'Bearer \$\{FIRECRAWL_API_KEY\}'
-        $grok | Should Not Match '\$\{env:FIRECRAWL_API_KEY\}'
+        $grok | Should -Match '\[mcp_servers\.exa\]'
+        $grok | Should -Match 'https://mcp\.firecrawl\.dev/v2/mcp'
+        $grok | Should -Match 'Bearer \$\{FIRECRAWL_API_KEY\}'
+        $grok | Should -Not -Match '\$\{env:FIRECRAWL_API_KEY\}'
 
         $hermes = Get-Content -LiteralPath $hermesConfig -Raw
-        $hermes | Should Match '^mcp_servers:'
-        $hermes | Should Match 'https://mcp\.exa\.ai/mcp'
-        $hermes | Should Match 'Bearer \$\{FIRECRAWL_API_KEY\}'
-        $hermes | Should Match '"custom user\.mcp":'
-        $hermes | Should Match 'https://example\.invalid/mcp'
-        $hermes | Should Match '(?m)^profiles:'
+        $hermes | Should -Match '^mcp_servers:'
+        $hermes | Should -Match 'https://mcp\.exa\.ai/mcp'
+        $hermes | Should -Match 'Bearer \$\{FIRECRAWL_API_KEY\}'
+        $hermes | Should -Match '"custom user\.mcp":'
+        $hermes | Should -Match 'https://example\.invalid/mcp'
+        $hermes | Should -Match '(?m)^profiles:'
     }
 }
 
@@ -279,13 +279,13 @@ Describe 'Sync-AgentHub plugin-owned MCP deduplication' {
         @{ mcpServers = @{ notion = @{ type = 'http'; url = 'https://mcp.notion.com/mcp' }; exa = @{ type = 'http'; url = 'https://mcp.exa.ai/mcp' } } } |
             ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $config -Encoding UTF8
 
-        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
 
         $result = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
-        (@($result.mcpServers.PSObject.Properties.Name) -contains 'notion') | Should Be $false
-        $result.mcpServers.exa.url | Should Be 'https://mcp.exa.ai/mcp'
+        (@($result.mcpServers.PSObject.Properties.Name) -contains 'notion') | Should -Be $false
+        $result.mcpServers.exa.url | Should -Be 'https://mcp.exa.ai/mcp'
     }
 }
 
@@ -388,59 +388,59 @@ bearer_token_env_var = "GITHUB_TOKEN_SH_PENDOAH"
         '{"mcpServers":{"oauth-service":{"type":"http","url":"https://example.test/mcp","auth":"oauth"}}}' |
             Set-Content -LiteralPath $paths.copilot -Encoding ASCII -NoNewline
 
-        & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath `
+        & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
             -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
 
         $claude = Get-Content -LiteralPath $paths.claude -Raw | ConvertFrom-Json
-        $claude.mcpServers.github.type | Should Be 'http'
-        $claude.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
-        (@($claude.mcpServers.PSObject.Properties.Name | Where-Object { $_ -like 'github-*' }).Count) | Should Be 0
+        $claude.mcpServers.github.type | Should -Be 'http'
+        $claude.mcpServers.github.headers.Authorization | Should -Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        (@($claude.mcpServers.PSObject.Properties.Name | Where-Object { $_ -like 'github-*' }).Count) | Should -Be 0
 
         $codex = Get-Content -LiteralPath $paths.codex -Raw
-        $codex | Should Match 'url\s*=\s*"https://api\.githubcopilot\.com/mcp/"'
-        $codex | Should Match 'bearer_token_env_var\s*=\s*"GITHUB_MCP_SHMINDMASTER_TOKEN"'
-        $codex | Should Not Match '(?m)^\[mcp_servers\.github-'
+        $codex | Should -Match 'url\s*=\s*"https://api\.githubcopilot\.com/mcp/"'
+        $codex | Should -Match 'bearer_token_env_var\s*=\s*"GITHUB_MCP_SHMINDMASTER_TOKEN"'
+        $codex | Should -Not -Match '(?m)^\[mcp_servers\.github-'
 
         $qwen = Get-Content -LiteralPath $paths.qwen -Raw | ConvertFrom-Json
-        $qwen.mcpServers.github.httpUrl | Should Be 'https://api.githubcopilot.com/mcp/'
-        $qwen.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
-        (@($qwen.mcp.allowed) -contains 'github') | Should Be $true
+        $qwen.mcpServers.github.httpUrl | Should -Be 'https://api.githubcopilot.com/mcp/'
+        $qwen.mcpServers.github.headers.Authorization | Should -Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        (@($qwen.mcp.allowed) -contains 'github') | Should -Be $true
 
         $opencode = Get-Content -LiteralPath $paths.opencode -Raw | ConvertFrom-Json
-        $opencode.mcp.github.type | Should Be 'remote'
-        $opencode.mcp.github.oauth | Should Be $false
-        $opencode.mcp.github.headers.Authorization | Should Be 'Bearer {env:GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        $opencode.mcp.github.type | Should -Be 'remote'
+        $opencode.mcp.github.oauth | Should -Be $false
+        $opencode.mcp.github.headers.Authorization | Should -Be 'Bearer {env:GITHUB_MCP_SHMINDMASTER_TOKEN}'
 
         $gemini = Get-Content -LiteralPath $paths.gemini -Raw | ConvertFrom-Json
-        $gemini.mcpServers.github.httpUrl | Should Be 'https://api.githubcopilot.com/mcp/'
-        $gemini.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
-        (@($gemini.mcpServers.github.PSObject.Properties.Name) -contains 'type') | Should Be $false
+        $gemini.mcpServers.github.httpUrl | Should -Be 'https://api.githubcopilot.com/mcp/'
+        $gemini.mcpServers.github.headers.Authorization | Should -Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        (@($gemini.mcpServers.github.PSObject.Properties.Name) -contains 'type') | Should -Be $false
 
         foreach ($path in @($paths.antigravity, $paths.antigravityLegacy)) {
             $antigravity = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
-            $antigravity.mcpServers.github.serverUrl | Should Be 'https://api.githubcopilot.com/mcp/'
-            $antigravity.mcpServers.github.headers.Authorization | Should Be 'Bearer $GITHUB_MCP_SHMINDMASTER_TOKEN'
-            (@($antigravity.mcpServers.github.PSObject.Properties.Name) -contains 'type') | Should Be $false
+            $antigravity.mcpServers.github.serverUrl | Should -Be 'https://api.githubcopilot.com/mcp/'
+            $antigravity.mcpServers.github.headers.Authorization | Should -Be 'Bearer $GITHUB_MCP_SHMINDMASTER_TOKEN'
+            (@($antigravity.mcpServers.github.PSObject.Properties.Name) -contains 'type') | Should -Be $false
         }
 
         $warp = Get-Content -LiteralPath $paths.warp -Raw | ConvertFrom-Json
-        $warp.mcpServers.github.url | Should Be 'https://api.githubcopilot.com/mcp/'
-        $warp.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
-        (@($warp.mcpServers.github.PSObject.Properties.Name) -contains 'type') | Should Be $false
+        $warp.mcpServers.github.url | Should -Be 'https://api.githubcopilot.com/mcp/'
+        $warp.mcpServers.github.headers.Authorization | Should -Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        (@($warp.mcpServers.github.PSObject.Properties.Name) -contains 'type') | Should -Be $false
 
         $cline = Get-Content -LiteralPath $paths.cline -Raw | ConvertFrom-Json
-        $cline.mcpServers.github.type | Should Be 'streamableHttp'
-        $cline.mcpServers.github.headers.Authorization | Should Be 'Bearer ${env:GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        $cline.mcpServers.github.type | Should -Be 'streamableHttp'
+        $cline.mcpServers.github.headers.Authorization | Should -Be 'Bearer ${env:GITHUB_MCP_SHMINDMASTER_TOKEN}'
 
         $qoder = Get-Content -LiteralPath $paths.qoder -Raw | ConvertFrom-Json
-        $qoder.mcpServers.github.type | Should Be 'http'
-        $qoder.mcpServers.github.headers.Authorization | Should Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
+        $qoder.mcpServers.github.type | Should -Be 'http'
+        $qoder.mcpServers.github.headers.Authorization | Should -Be 'Bearer ${GITHUB_MCP_SHMINDMASTER_TOKEN}'
 
         $copilot = Get-Content -LiteralPath $paths.copilot -Raw | ConvertFrom-Json
-        (@($copilot.mcpServers.PSObject.Properties.Name) -contains 'github') | Should Be $false
-        $copilot.mcpServers.'oauth-service'.type | Should Be 'http'
-        (@($copilot.mcpServers.'oauth-service'.PSObject.Properties.Name) -contains 'auth') | Should Be $false
+        (@($copilot.mcpServers.PSObject.Properties.Name) -contains 'github') | Should -Be $false
+        $copilot.mcpServers.'oauth-service'.type | Should -Be 'http'
+        (@($copilot.mcpServers.'oauth-service'.PSObject.Properties.Name) -contains 'auth') | Should -Be $false
 
         $allManaged = @(
             $paths.claude,
@@ -455,7 +455,7 @@ bearer_token_env_var = "GITHUB_TOKEN_SH_PENDOAH"
             $paths.qoder,
             $paths.copilot
         ) | ForEach-Object { Get-Content -LiteralPath $_ -Raw }
-        ($allManaged -join "`n") | Should Not Match 'gh[pousr]_[A-Za-z0-9_]{20,}'
+        ($allManaged -join "`n") | Should -Not -Match 'gh[pousr]_[A-Za-z0-9_]{20,}'
     }
 }
 
@@ -488,13 +488,13 @@ Describe 'Sync-AgentHub Hermes absent discovery skip' {
         @{ capabilities = @() } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
         @{ managedHosts = @('hermes'); hostSettings = @{} } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\fleet-profile.json') -Encoding UTF8
 
-        $arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$scriptPath,
+        $arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$global:AgentHubSyncScriptPath,
             '-Apply','-RegistryRoot',$registryRoot,'-UserProfile',$profile)
-        $output = & $powershell @arguments 2>&1 | Out-String
-        $LASTEXITCODE | Should Be 0
-        $output | Should Match 'not-verified|Hermes is absent'
+        $output = & $global:AgentHubSyncPowerShell @arguments 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 0
+        $output | Should -Match 'not-verified|Hermes is absent'
         # The config file should NOT have been created
-        (Test-Path -LiteralPath (Join-Path $profile 'AppData\Local\hermes\config.yaml')) | Should Be $false
+        (Test-Path -LiteralPath (Join-Path $profile 'AppData\Local\hermes\config.yaml')) | Should -Be $false
     }
 }
 
@@ -534,11 +534,11 @@ Describe 'Sync-AgentHub Deploy-File user-owned conflict reporting' {
         @{ managedHosts = @('gemini'); hostSettings = @{} } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\fleet-profile.json') -Encoding UTF8
 
         # Run in Audit mode (WhatIf)
-        $arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$scriptPath,
+        $arguments = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$global:AgentHubSyncScriptPath,
             '-Audit','-RegistryRoot',$registryRoot,'-UserProfile',$profile)
-        $output = & $powershell @arguments 2>&1 | Out-String
-        $LASTEXITCODE | Should Be 0
+        $output = & $global:AgentHubSyncPowerShell @arguments 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 0
         # The user-owned file should be unchanged
-        (Get-Content -LiteralPath $destFile -Raw).Trim() | Should Be 'user-owned content'
+        (Get-Content -LiteralPath $destFile -Raw).Trim() | Should -Be 'user-owned content'
     }
 }

@@ -8,41 +8,41 @@ Describe 'agentctl read-only commands' {
   }
 
   It 'requires an explicit switch before persisting reports' {
-    ($script:scriptText -match '\[switch\]\$WriteReport') | Should Be $true
-    ($script:scriptText -match 'if \(\$WriteReport\)') | Should Be $true
+    ($script:scriptText -match '\[switch\]\$WriteReport') | Should -Be $true
+    ($script:scriptText -match 'if \(\$WriteReport\)') | Should -Be $true
   }
 
   It 'does not regenerate instructions from validation or drift' {
     $validateBody = [regex]::Match($script:scriptText, 'function Invoke-Validation \{(?<body>[\s\S]*?)\r?\n\}', 'Singleline').Groups['body'].Value
     $driftBody = [regex]::Match($script:scriptText, 'function Save-DriftReport \{(?<body>[\s\S]*?)\r?\n\}', 'Singleline').Groups['body'].Value
-    ($validateBody -match 'New-GeneratedInstructions') | Should Be $false
-    ($driftBody -match 'New-GeneratedInstructions') | Should Be $false
+    ($validateBody -match 'New-GeneratedInstructions') | Should -Be $false
+    ($driftBody -match 'New-GeneratedInstructions') | Should -Be $false
   }
 
   It 'keeps cleanup report-only even when Apply is supplied' {
-    ($script:scriptText -match 'cleanup remains report-only even with -Apply') | Should Be $true
+    ($script:scriptText -match 'cleanup remains report-only even with -Apply') | Should -Be $true
   }
 
   It 'does not infer Cursor billing headroom from undocumented numeric payload fields' {
-    ($script:scriptText -match 'Get-CursorSpendCandidates') | Should Be $false
-    ($script:scriptText -match 'does not expose documented spend headroom') | Should Be $true
-    ($script:scriptText -match "Add-Check 'WARN' 'cursor-background-launch'") | Should Be $true
+    ($script:scriptText -match 'Get-CursorSpendCandidates') | Should -Be $false
+    ($script:scriptText -match 'does not expose documented spend headroom') | Should -Be $true
+    ($script:scriptText -match "Add-Check 'WARN' 'cursor-background-launch'") | Should -Be $true
   }
 
   It 'keeps Cursor dispatch disabled until the owner explicitly re-enables it' {
     $fleetProfile = Get-Content -LiteralPath (Join-Path $script:repoRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
-    $fleetProfile.dispatchPolicy.cursor.enabled | Should Be $false
-    $fleetProfile.dispatchPolicy.'cursor-agent'.enabled | Should Be $false
-    $fleetProfile.providerHolds.cursor.active | Should Be $true
-    ($script:scriptText -match 'disabled by owner policy; no API request attempted') | Should Be $true
-    ($script:scriptText -match 'cursor-credential-residue') | Should Be $true
-    ($script:scriptText -match 'value was not read') | Should Be $true
-    ($script:scriptText -match 'cursor-hold-wrapper') | Should Be $true
-    ($script:scriptText -match 'launcher can bypass the owner hold') | Should Be $true
+    $fleetProfile.dispatchPolicy.cursor.enabled | Should -Be $false
+    $fleetProfile.dispatchPolicy.'cursor-agent'.enabled | Should -Be $false
+    $fleetProfile.providerHolds.cursor.active | Should -Be $true
+    ($script:scriptText -match 'disabled by owner policy; no API request attempted') | Should -Be $true
+    ($script:scriptText -match 'cursor-credential-residue') | Should -Be $true
+    ($script:scriptText -match 'value was not read') | Should -Be $true
+    ($script:scriptText -match 'cursor-hold-wrapper') | Should -Be $true
+    ($script:scriptText -match 'launcher can bypass the owner hold') | Should -Be $true
     . (Join-Path $script:repoRoot 'scripts\AgentCtl.CursorReadiness.ps1')
-    (Test-CursorDispatchEnabled $fleetProfile) | Should Be $false
-    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface agent -Shell cmd) | Should Be (Get-CursorBlockedLauncherContent -Shell cmd)
-    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface ide -Shell posix) | Should Be (Get-CursorBlockedLauncherContent -Shell posix)
+    (Test-CursorDispatchEnabled $fleetProfile) | Should -Be $false
+    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface agent -Shell cmd) | Should -Be (Get-CursorBlockedLauncherContent -Shell cmd)
+    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface ide -Shell posix) | Should -Be (Get-CursorBlockedLauncherContent -Shell posix)
   }
 
   It 'generates deterministically and drift does not mutate synthetic output' {
@@ -55,11 +55,11 @@ Describe 'agentctl read-only commands' {
     $first = @(Get-ChildItem (Join-Path $fixtureRoot 'generated') -File -Recurse | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash })
     & $script:agentctl generate -RegistryRoot $fixtureRoot | Out-Null
     $second = @(Get-ChildItem (Join-Path $fixtureRoot 'generated') -File -Recurse | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash })
-    ($first -join '|') | Should Be ($second -join '|')
+    ($first -join '|') | Should -Be ($second -join '|')
 
     & $script:agentctl drift -RegistryRoot $fixtureRoot | Out-Null
     $afterDrift = @(Get-ChildItem (Join-Path $fixtureRoot 'generated') -File -Recurse | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash })
-    ($second -join '|') | Should Be ($afterDrift -join '|')
-    (Test-Path (Join-Path $fixtureRoot 'reports')) | Should Be $false
+    ($second -join '|') | Should -Be ($afterDrift -join '|')
+    (Test-Path (Join-Path $fixtureRoot 'reports')) | Should -Be $false
   }
 }

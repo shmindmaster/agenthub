@@ -18,6 +18,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'PathSafety.ps1')
+$UserProfile = Assert-AgentHubSafeWritePath -Path $UserProfile -Purpose 'the agent profile user directory'
+if ([string]::IsNullOrWhiteSpace($env:APPDATA)) {
+  throw 'APPDATA is required before the agent profile can create host configuration files.'
+}
+$appDataRoot = Assert-AgentHubSafeWritePath -Path $env:APPDATA -Purpose 'the agent profile AppData directory'
 $mcps = Get-Content (Join-Path $RegistryRoot 'registry\mcps.json') -Raw | ConvertFrom-Json
 $caps = Get-Content (Join-Path $RegistryRoot 'registry\capabilities.json') -Raw | ConvertFrom-Json
 $profile = Get-Content (Join-Path $RegistryRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
@@ -174,7 +180,7 @@ $skillTargets = [ordered]@{
   'qwen-code' = "$UserProfile\.qwen\skills"
   'opencode' = "$UserProfile\.config\opencode\skills"
   'factory' = "$UserProfile\.factory\skills"
-  'devin' = "$env:APPDATA\devin\skills"
+  'devin' = "$appDataRoot\devin\skills"
   'amp' = "$UserProfile\.config\amp\skills"
   'windsurf' = "$UserProfile\.codeium\windsurf\skills"
   'gemini' = "$UserProfile\.gemini\skills"
