@@ -231,6 +231,29 @@ if ($registryObjects.ContainsKey('mcps.json')) {
         Add-ValidationResult FAIL 'registry:mcp-current-owners' "invalid owners: $($invalidOwners -join ', ')"
     }
 
+    $invalidLifecycles = @(
+        foreach ($mcp in $mcpServers) {
+            $activationMode = [string]$mcp.activationMode
+            if ($activationMode -notin @('shared-remote', 'on-demand-local')) {
+                "$($mcp.id):invalid-activation-mode"
+                continue
+            }
+            if ($activationMode -eq 'shared-remote' -and
+                ([string]$mcp.transport -ne 'http' -or [string]$mcp.scope -ne 'global-default')) {
+                "$($mcp.id):shared-remote-must-be-global-http"
+            }
+            if ($activationMode -eq 'on-demand-local' -and
+                ([string]$mcp.transport -ne 'stdio' -or [string]$mcp.scope -eq 'global-default')) {
+                "$($mcp.id):on-demand-local-must-be-non-global-stdio"
+            }
+        }
+    )
+    if ($invalidLifecycles.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:mcp-lifecycle' 'global defaults are shared HTTP services and local stdio servers are on-demand only'
+    } else {
+        Add-ValidationResult FAIL 'registry:mcp-lifecycle' ($invalidLifecycles -join ', ')
+    }
+
     $playwright = @($mcpServers | Where-Object id -eq 'playwright')
     $playwrightOutputValid = $false
     if ($playwright.Count -eq 1) {
@@ -296,6 +319,17 @@ if ($registryObjects.ContainsKey('native-connectors.json') -and
     $knownMcpIds = @($registryObjects['mcps.json'].mcpServers.id)
     $connectorHostIds = @($connectorRegistry.hosts.hostId)
     $connectorProblems = @()
+    $expectedOnDemandLocal = @('brave-search', 'chrome-devtools', 'playwright', 'repocontext')
+    $onDemandLifecycleDifference = @(Compare-Object `
+        -ReferenceObject @($expectedOnDemandLocal | Sort-Object) `
+        -DifferenceObject @($connectorRegistry.lifecyclePolicy.onDemandLocalMcpIds | Sort-Object))
+    if ([string]$connectorRegistry.lifecyclePolicy.defaultHostConfiguration -ne 'shared-remote-only' -or
+        [string]$connectorRegistry.lifecyclePolicy.sharedRemoteTransport -ne 'http' -or
+        [string]$connectorRegistry.lifecyclePolicy.localFanoutPolicy -ne 'never-persist-on-demand-local-in-host-config' -or
+        [string]$connectorRegistry.lifecyclePolicy.localActivationOwnerPolicy -ne 'plugin-skill-or-reviewed-shared-gateway' -or
+        $onDemandLifecycleDifference.Count -ne 0) {
+        $connectorProblems += 'mcp-lifecycle-policy'
+    }
     if (@(Get-DuplicateValues $connectorHostIds).Count -gt 0) { $connectorProblems += 'duplicate-host-rows' }
     $connectorProblems += @($connectorHostIds | Where-Object { $_ -notin $knownHostIds } | ForEach-Object { "unknown-host:$_" })
     $connectorProblems += @($knownHostIds | Where-Object { $_ -notin $connectorHostIds } | ForEach-Object { "missing-host:$_" })

@@ -44,6 +44,38 @@ Describe 'Runtime-centralization registry contracts' {
             'C:/Users/SaroshHussain/AppData/Local/AgentHub/runtime/playwright'
     }
 
+    It 'keeps the fleet-wide default remote-only and local MCP runtimes on demand' {
+        $globalDefaults = @($mcps.mcpServers | Where-Object scope -eq 'global-default')
+        $onDemandLocal = @($mcps.mcpServers |
+            Where-Object activationMode -eq 'on-demand-local')
+
+        $globalDefaults.Count | Should -BeGreaterThan 0
+        @($globalDefaults | Where-Object {
+            $_.transport -ne 'http' -or $_.activationMode -ne 'shared-remote'
+        }) | Should -BeNullOrEmpty
+
+        @($onDemandLocal.id | Sort-Object) | Should -Be @(
+            'brave-search',
+            'chrome-devtools',
+            'playwright',
+            'repocontext'
+        )
+        @($onDemandLocal | Where-Object {
+            $_.transport -ne 'stdio' -or $_.scope -eq 'global-default'
+        }) | Should -BeNullOrEmpty
+
+        $context7 = @($globalDefaults | Where-Object id -eq 'context7')
+        $context7.Count | Should -Be 1
+        $context7[0].url | Should -Be 'https://mcp.context7.com/mcp'
+
+        $connectors = Get-Content -LiteralPath $connectorsPath -Raw -Encoding UTF8 |
+            ConvertFrom-Json
+        $connectors.lifecyclePolicy.localFanoutPolicy |
+            Should -Be 'never-persist-on-demand-local-in-host-config'
+        $connectors.lifecyclePolicy.localActivationOwnerPolicy |
+            Should -Be 'plugin-skill-or-reviewed-shared-gateway'
+    }
+
     It 'classifies every current host exposure as plugin-owned, native-connector, shared-gateway, local-only, or provider-held' {
         Test-Path -LiteralPath $connectorsPath -PathType Leaf | Should -BeTrue
         $connectors = Get-Content -LiteralPath $connectorsPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -718,7 +750,7 @@ Describe 'AgentHub worktree-root helper' {
     }
 }
 
-Describe 'Worktree policy checker and CI wiring' {
+Describe 'Worktree policy checker and local validation wiring' {
     It 'defaults to its containing repository and emits valid normal and JSON output' {
         $checker = Join-Path $repoRoot 'scripts\Test-WorktreeRootPolicy.ps1'
         $source = Get-Content -LiteralPath $checker -Raw -Encoding UTF8
@@ -742,12 +774,13 @@ Describe 'Worktree policy checker and CI wiring' {
         @($parsed.results).Count | Should -BeGreaterThan 0
     }
 
-    It 'runs runtime-centralization regressions in both Windows CI jobs' {
-        $workflow = Get-Content -LiteralPath (Join-Path $repoRoot '.github\workflows\validate.yml') -Raw -Encoding UTF8
-        ([regex]::Matches($workflow, [regex]::Escape('.\tests\RuntimeCentralization.Tests.ps1'))).Count |
-            Should -Be 2
-        ([regex]::Matches($workflow, [regex]::Escape('.\tests\StaleWorktreeReaper.Tests.ps1'))).Count |
-            Should -Be 2
+    It 'does not delegate configuration validation to a hosted workflow' {
+        $workflowRoot = Join-Path $repoRoot '.github\workflows'
+        @(
+            Get-ChildItem -LiteralPath $workflowRoot -File `
+                -ErrorAction SilentlyContinue |
+                Where-Object Extension -in @('.yml', '.yaml')
+        ) | Should -BeNullOrEmpty
     }
 
     It 'executes child script checks through the current PowerShell generation' {

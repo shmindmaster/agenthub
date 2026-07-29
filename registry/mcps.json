@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "generatedAt": "2026-07-29T15:45:00.000Z",
   "migrationAliases": {
     "repo-context": "repocontext",
@@ -16,6 +16,7 @@
       "name": "GitHub (shmindmaster)",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://api.githubcopilot.com/mcp/",
       "headers": {
         "Authorization": "Bearer ${env:GITHUB_MCP_SHMINDMASTER_TOKEN}"
@@ -50,6 +51,7 @@
       "name": "Linear",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://mcp.linear.app/mcp",
       "credentialPolicy": "oauth",
       "owner": {
@@ -65,6 +67,7 @@
       "name": "Context7 Docs",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://mcp.context7.com/mcp",
       "credentialPolicy": "environment-api-key",
       "owner": {
@@ -81,6 +84,7 @@
       "name": "Notion",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://mcp.notion.com/mcp",
       "credentialPolicy": "oauth",
       "owner": {
@@ -95,8 +99,9 @@
     {
       "id": "playwright",
       "name": "Playwright",
-      "scope": "global-default",
+      "scope": "on-demand-desktop",
       "transport": "stdio",
+      "activationMode": "on-demand-local",
       "command": "npx",
       "args": [
         "-y",
@@ -115,8 +120,9 @@
     {
       "id": "repocontext",
       "name": "RepoContext",
-      "scope": "global-default",
+      "scope": "on-demand-desktop",
       "transport": "stdio",
+      "activationMode": "on-demand-local",
       "command": "pnpm",
       "args": [
         "--dir",
@@ -135,6 +141,7 @@
       "name": "Firecrawl Research",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://mcp.firecrawl.dev/v2/mcp",
       "headers": {
         "Authorization": "Bearer ${env:FIRECRAWL_API_KEY}"
@@ -150,6 +157,7 @@
       "name": "Tavily Research",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://mcp.tavily.com/mcp/",
       "credentialPolicy": "environment-bearer-token",
       "owner": {
@@ -165,6 +173,7 @@
       "name": "Exa Research",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://mcp.exa.ai/mcp",
       "credentialPolicy": "provider-managed",
       "owner": {
@@ -175,8 +184,9 @@
     {
       "id": "brave-search",
       "name": "Brave Search",
-      "scope": "global-default",
+      "scope": "on-demand-desktop",
       "transport": "stdio",
+      "activationMode": "on-demand-local",
       "command": "npx",
       "args": [
         "-y",
@@ -198,6 +208,7 @@
       "name": "Chrome DevTools",
       "scope": "browser-quality-agents",
       "transport": "stdio",
+      "activationMode": "on-demand-local",
       "command": "npx",
       "args": [
         "-y",
@@ -226,6 +237,7 @@
       "name": "Adobe for creativity",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://adobe-creativity.adobe.io/mcp",
       "credentialPolicy": "oauth",
       "owner": {
@@ -242,6 +254,7 @@
       "name": "Canva",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://mcp.canva.com/mcp",
       "credentialPolicy": "oauth",
       "owner": {
@@ -255,6 +268,7 @@
       "name": "Descript",
       "scope": "global-default",
       "transport": "http",
+      "activationMode": "shared-remote",
       "url": "https://api.descript.com/v2/mcp",
       "credentialPolicy": "oauth",
       "owner": {

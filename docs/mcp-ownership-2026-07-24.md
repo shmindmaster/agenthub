@@ -3,8 +3,11 @@
 The fleet uses one ownership registry with host-specific exposure modes. An
 installed plugin or native connector owns its host surface. Remote services
 without a native owner are candidates for one authenticated streaming gateway.
-Local browser and repository tools remain direct. Gateway generation is
-disabled until the shared production profile passes. Docker MCP Toolkit is now enabled and
+Local browser and repository tools remain on-demand and are never persisted in
+host configuration by fleet synchronization. They may run through their owning
+plugin or skill, or one reviewed shared gateway.
+Gateway generation is disabled until the shared production profile passes.
+Docker MCP Toolkit is now enabled and
 a remote-only profile partially passed: Linear initialized, Context7 initialized
 and completed a read-only call, and Notion was blocked by missing OAuth. A
 separate Firecrawl custom-remote POC proved the loopback bearer gate (401
@@ -28,15 +31,18 @@ profiles that a single endpoint cannot isolate concurrently.
 | `adobe-for-creativity` | MCP registry | Codex plugin, gateway candidate elsewhere |
 | `canva` | MCP registry | Codex native connector, gateway candidate elsewhere |
 | `descript` | Product Demo Studio capability | Claude and Codex plugins, gateway candidate elsewhere |
-| `chrome-devtools` | Browser Toolkit capability | Direct local and host-scoped |
-| `repocontext` | RepoContext capability | Direct local |
-| `playwright`, `brave-search` | MCP registry | Direct local |
+| `chrome-devtools` | Browser Toolkit capability | On-demand local and host-scoped |
+| `repocontext` | RepoContext capability | On-demand through the skill/local profile until its remote contract is production-ready |
+| `playwright`, `brave-search` | MCP registry | On-demand local; never fleet-wide persistent |
 
 ## Rules
 
 - `registry/mcps.json` records the single service/capability owner.
 - `registry/native-connectors.json` records the effective host exposure:
   `plugin-owned`, `native-connector`, `shared-gateway`, or `local-only`.
+- Fleet synchronization is remote-only under every scope, including `all`. An
+  MCP with `activationMode: on-demand-local` must be suppressed from every host
+  config, including stale registrations left by an older sync.
 - Do not emit a direct MCP registration when a plugin/native connector owns the
   surface. Once a gateway profile is validated and explicitly enabled, replace
   only its listed direct remotes with the single `agenthub-gateway` endpoint.

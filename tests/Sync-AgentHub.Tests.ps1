@@ -369,6 +369,105 @@ Describe 'Sync-AgentHub plugin-owned MCP deduplication' {
     }
 }
 
+Describe 'Sync-AgentHub default MCP lifecycle suppression' {
+    It 'removes stale on-demand local servers without pruning unrelated user MCPs' {
+        $fixture = Join-Path $TestDrive 'default-remote-only'
+        $registryRoot = Join-Path $fixture 'registry-root'
+        $profile = Join-Path $fixture 'profile'
+        $runtime = Join-Path $fixture 'runtime'
+        $claudeConfig = Join-Path $profile '.claude.json'
+        $clineConfig = Join-Path $profile '.cline\data\settings\cline_mcp_settings.json'
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Split-Path -Parent $claudeConfig) -Force | Out-Null
+        New-Item -ItemType Directory -Path (Split-Path -Parent $clineConfig) -Force | Out-Null
+
+        @{
+            activeAgents = @(
+                @{ id = 'claude'; nativePaths = @{ mcpUser = $claudeConfig } },
+                @{ id = 'cline'; nativePaths = @{ mcp = $clineConfig } }
+            )
+            inactiveAgents = @()
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\agents.json') -Encoding UTF8
+        @{
+            mcpServers = @(
+                @{
+                    id = 'context7'
+                    scope = 'global-default'
+                    transport = 'http'
+                    activationMode = 'shared-remote'
+                    url = 'https://mcp.context7.com/mcp'
+                    credentialPolicy = 'provider-managed'
+                },
+                @{
+                    id = 'playwright'
+                    scope = 'on-demand-desktop'
+                    transport = 'stdio'
+                    activationMode = 'on-demand-local'
+                    command = 'npx'
+                    args = @('-y', '@playwright/mcp@latest')
+                    credentialPolicy = 'none'
+                }
+            )
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
+        @{ capabilities = @() } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
+
+        @{
+            mcpServers = @{
+                playwright = @{ command = 'npx'; args = @('-y', '@playwright/mcp@latest') }
+                custom = @{ type = 'http'; url = 'https://user-owned.example.test/mcp' }
+            }
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $claudeConfig -Encoding UTF8
+        @{
+            mcpServers = @{
+                playwright = @{ type = 'stdio'; command = 'npx'; args = @('-y', '@playwright/mcp@latest'); disabled = $false }
+                custom = @{ type = 'streamableHttp'; url = 'https://user-owned.example.test/mcp'; disabled = $false }
+            }
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $clineConfig -Encoding UTF8
+
+        $previousLocalAppData = $env:LOCALAPPDATA
+        try {
+            $env:LOCALAPPDATA = $runtime
+            & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive `
+                -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
+                -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile |
+                Out-Host
+            $LASTEXITCODE | Should -Be 0
+
+            $claude = Get-Content -LiteralPath $claudeConfig -Raw | ConvertFrom-Json
+            @($claude.mcpServers.PSObject.Properties.Name) | Should -Contain 'context7'
+            @($claude.mcpServers.PSObject.Properties.Name) | Should -Contain 'custom'
+            @($claude.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'playwright'
+
+            $cline = Get-Content -LiteralPath $clineConfig -Raw | ConvertFrom-Json
+            @($cline.mcpServers.PSObject.Properties.Name) | Should -Contain 'context7'
+            @($cline.mcpServers.PSObject.Properties.Name) | Should -Contain 'custom'
+            @($cline.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'playwright'
+
+            & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive `
+                -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
+                -Apply -Validate -ScopeProfile all -RegistryRoot $registryRoot `
+                -UserProfile $profile |
+                Out-Host
+            $LASTEXITCODE | Should -Be 0
+
+            $claudeAfterAll = Get-Content -LiteralPath $claudeConfig -Raw |
+                ConvertFrom-Json
+            @($claudeAfterAll.mcpServers.PSObject.Properties.Name) |
+                Should -Not -Contain 'playwright'
+
+            $clineAfterAll = Get-Content -LiteralPath $clineConfig -Raw |
+                ConvertFrom-Json
+            @($clineAfterAll.mcpServers.PSObject.Properties.Name) |
+                Should -Not -Contain 'playwright'
+        } finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+        }
+    }
+}
+
 Describe 'Sync-AgentHub GitHub remote MCP host schemas' {
     It 'renders one shmindmaster registration in each active host-native format without embedding a token' {
         $fixture = Join-Path $TestDrive 'github-remote-hosts'

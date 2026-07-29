@@ -57,12 +57,21 @@ The registry owns ten canonical capabilities: eight plugin capabilities (`clerk`
 
 Run `powershell.exe -NoProfile -File .\scripts\Apply-FullAccessAgentProfile.ps1 -SkillDistributionOnly -RetireLegacyVideoOwners` to refresh the video capability without rewriting unrelated host settings. Restart open agent sessions afterward so they reload skills and plugin manifests.
 
-`repocontext` is the portfolio context control plane. Local stdio (`pnpm --dir C:/Repos/shmindmaster/repocontext mcp:serve`) is validated and exposes eight read-only tools. The private Streamable HTTP registration remains deployment-pending until its paid production resource is authorized and passes the authenticated remote contract. Capability package: `capabilities/repocontext/`. Host auth stays in secret stores; never commit tokens.
+`repocontext` is the portfolio context control plane. Its local stdio server (`pnpm --dir C:/Repos/shmindmaster/repocontext mcp:serve`) is retained as an on-demand, skill-owned tool and is never written into fleet host configuration. The private Streamable HTTP registration remains deployment-pending until its paid production resource is authorized and passes the authenticated remote contract. Capability package: `capabilities/repocontext/`. Host auth stays in secret stores; never commit tokens.
 
-Run `pwsh -File .\tests\Validate-AgentEcosystem.ps1 -IncludeGlobalInstructions` before publishing changes. The check uses no network calls and does not inspect or print secret values.
+## Validation policy
+
+AgentHub is a configuration-management control plane. It does not produce a build, package, release, or deployment artifact, so GitHub Actions is intentionally not configured. Validate changes locally in both supported PowerShell engines:
+
+```powershell
+pwsh -NoProfile -File .\tests\Validate-AgentEcosystem.ps1
+powershell.exe -NoProfile -File .\tests\Validate-AgentEcosystem.ps1
+```
+
+Add `-IncludeGlobalInstructions` before publishing changes that affect generated host policy. The validator uses no network calls and does not inspect or print secret values.
 
 Run `pwsh -File .\tests\Test-HostReadiness.ps1` to report locally installed host clients and required policy pointers without opening a browser, connecting to an MCP server, or reading credentials.
 
-MCP ownership is host-aware. Installed plugins and native connectors suppress duplicate direct registrations; eligible remote services are declared for a single authenticated streaming gateway, while Playwright, RepoContext, Brave Search, and host-scoped Chrome DevTools stay local. Docker MCP Gateway has an installed, partial POC: Linear and Context7 passed, Firecrawl's custom remote snapshot passed bearer-authenticated discovery, and Notion still needs OAuth. Generation remains disabled until the one shared production profile passes. Container-backed catalog servers remain blocked on this Windows host by missing `socat`. See `registry/native-connectors.json`, `registry/gateway-profiles.json`, and [`docs/mcp-ownership-2026-07-24.md`](docs/mcp-ownership-2026-07-24.md).
+MCP ownership is host-aware. Installed plugins and native connectors suppress duplicate direct registrations. Hosted HTTP services are referenced remotely, so opening several agents does not create one local Node or Python server per agent. Playwright, RepoContext, Brave Search, and host-scoped Chrome DevTools are on-demand local tools and are never persisted in host configuration under any fleet sync scope. Docker MCP Gateway has an installed, partial POC: Linear and Context7 passed, Firecrawl's custom remote snapshot passed bearer-authenticated discovery, and Notion still needs OAuth. Generation remains disabled until the one shared production profile passes. Container-backed catalog servers remain blocked on this Windows host by missing `socat`. See `registry/native-connectors.json`, `registry/gateway-profiles.json`, and [`docs/mcp-ownership-2026-07-24.md`](docs/mcp-ownership-2026-07-24.md).
 
 Worktree creation, retention, and cleanup are governed by the single shared policy in `docs/worktree-management-policy.md`; `registry/worktree-roots.json` records current host-specific enforcement. `C:\wt\<repo>\<task>` is the sole user-created root. `scripts\New-AgentHubWorktree.ps1` supports both the Claude Code `WorktreeCreate` stdin contract and manual `-Cwd` / `-Name` invocation. `scripts\Install-WorktreePolicy.ps1` deploys the stable helper, documented opt-out settings, Claude hook, and Warp Tab Config after backup; `scripts\agentctl.ps1 sync -Apply` deploys managed global instructions with conflict protection. Run `scripts\Audit-Worktrees.ps1` for report-only inventory; cleanup is separate and legacy roots are migration-detection only.

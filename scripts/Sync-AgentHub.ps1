@@ -2046,7 +2046,21 @@ function Sync-HostMcp-Windsurf {
 # ---------------------------------------------------------------------------
 $whatIfMode = $Audit -or (-not $Apply -and -not $Validate)
 
-$candidateServers = Get-McpCandidatesForScope -Servers $mcpsReg.mcpServers -Scope $ScopeProfile -AllowDeprecated:$IncludeDeprecated
+$onDemandLocalMcpKeys = @($mcpsReg.mcpServers | Where-Object {
+    [string]$_.activationMode -ceq 'on-demand-local'
+} | ForEach-Object {
+    Resolve-McpAliasKey ([string]$_.id)
+} | Sort-Object -Unique)
+
+# Fleet synchronization persists configuration, so it must never emit a local
+# stdio launcher. Local MCPs are activated by their owning plugin/skill or a
+# reviewed shared gateway, not by any Sync-AgentHub scope (including `all`).
+$candidateServers = @(Get-McpCandidatesForScope `
+    -Servers $mcpsReg.mcpServers `
+    -Scope $ScopeProfile `
+    -AllowDeprecated:$IncludeDeprecated | Where-Object {
+        [string]$_.activationMode -cne 'on-demand-local'
+    })
 
 $allMcpEntries = @{}
 $mcpHostAllowlist = @{}
@@ -2065,7 +2079,9 @@ foreach ($agent in $agentsToSync) {
     $gatewayPlan = Get-GatewayPlanForHost -HostId $agent.id -GatewayRegistry $gatewayReg -ConnectorRegistry $connectorReg
     $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan
     $pluginOwnedKeys = if ($pluginProvidedByHost.ContainsKey($agent.id)) { @($pluginProvidedByHost[$agent.id].Keys) } else { @() }
-    $suppressedKeys = @($pluginOwnedKeys)
+    # Remove stale local registrations narrowly even without -Prune so an
+    # older sync or a broad scope cannot recreate process-fanout entries.
+    $suppressedKeys = @($pluginOwnedKeys) + @($onDemandLocalMcpKeys)
     if ($gatewayPlan) { $suppressedKeys += @($gatewayPlan.managedKeys) }
     $suppressedKeys = @($suppressedKeys | Sort-Object -Unique)
 

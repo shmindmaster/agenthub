@@ -8,7 +8,20 @@
       "C:/Users/SaroshHussain/.claude/plugins/installed_plugins.json",
       "C:/Users/SaroshHussain/.codex/plugins/cache"
     ],
-    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners."
+    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. On-demand-local MCPs are removed from every host configuration under every fleet-sync scope and may run only through their owning plugin or skill, or one reviewed shared gateway. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners."
+  },
+  "lifecyclePolicy": {
+    "defaultHostConfiguration": "shared-remote-only",
+    "sharedRemoteTransport": "http",
+    "onDemandLocalMcpIds": [
+      "brave-search",
+      "chrome-devtools",
+      "playwright",
+      "repocontext"
+    ],
+    "localFanoutPolicy": "never-persist-on-demand-local-in-host-config",
+    "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
+    "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider"
   },
   "bundledServerSuppressions": [],
   "skillsOnlyPlugins": [
