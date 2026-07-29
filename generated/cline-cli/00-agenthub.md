@@ -1,4 +1,4 @@
-# Shared Codex Guidance
+# Cline CLI Global Rules
 
 <!-- agenthub:managed -->
 

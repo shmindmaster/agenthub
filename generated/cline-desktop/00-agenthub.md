@@ -1,4 +1,4 @@
-# Shared Codex Guidance
+# Cline Desktop Global Rules
 
 <!-- agenthub:managed -->
 

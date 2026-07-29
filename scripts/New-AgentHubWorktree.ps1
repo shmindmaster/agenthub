@@ -15,6 +15,8 @@
 param(
     [Parameter(ValueFromPipeline)]
     [string]$InputJson,
+    [string]$Cwd,
+    [string]$Name,
     [string]$RepositoryName,
     [string]$WorktreeRoot,
     [switch]$PlanOnly
@@ -137,6 +139,22 @@ function Get-AgentHubWorktreeTarget {
         throw "Resolved worktree target escapes C:\wt: $target"
     }
     return $target
+}
+
+if (-not [string]::IsNullOrWhiteSpace($InputJson) -and
+    (-not [string]::IsNullOrWhiteSpace($Cwd) -or -not [string]::IsNullOrWhiteSpace($Name))) {
+    throw 'Use either WorktreeCreate JSON input or the manual -Cwd and -Name parameters, not both.'
+}
+
+if ([string]::IsNullOrWhiteSpace($InputJson) -and
+    (-not [string]::IsNullOrWhiteSpace($Cwd) -or -not [string]::IsNullOrWhiteSpace($Name))) {
+    if ([string]::IsNullOrWhiteSpace($Cwd) -or [string]::IsNullOrWhiteSpace($Name)) {
+        throw 'Manual invocation requires both -Cwd and -Name.'
+    }
+    $InputJson = @{
+        cwd = $Cwd
+        name = $Name
+    } | ConvertTo-Json -Compress
 }
 
 if ([string]::IsNullOrWhiteSpace($InputJson)) {

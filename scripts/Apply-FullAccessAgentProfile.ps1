@@ -199,21 +199,12 @@ if ($unknownSkillHosts.Count) {
   throw "Managed host(s) have no reviewed skill target: $($unknownSkillHosts -join ', '). Update the allowlist before applying the profile."
 }
 
-# Cline consumes native global rules and the shared ~/.agents/AGENTS.md path.
-# Keep this policy copy credential-free and only create the shared file when no
-# user-authored global file exists. Qoder uses repository AGENTS.md directly;
-# its documented rules are project-scoped under .qoder/rules.
+# Global instruction deployment is owned by scripts/agentctl.ps1 sync so the
+# generated artifacts, destination inventory, drift guard, and backups stay
+# centralized. Qoder uses repository AGENTS.md directly; its documented rules
+# are project-scoped under .qoder/rules.
 $globalPolicySource = Join-Path $RegistryRoot 'standards\global-agent-policy.md'
 if (!(Test-Path -LiteralPath $globalPolicySource -PathType Leaf)) { throw "Canonical global policy is missing: $globalPolicySource" }
-$clineRulesRoot = Join-Path $UserProfile '.cline\rules'
-New-Item -ItemType Directory -Path $clineRulesRoot -Force | Out-Null
-Copy-Item -LiteralPath $globalPolicySource -Destination (Join-Path $clineRulesRoot '00-agenthub.md') -Force
-$sharedAgentsRoot = Join-Path $UserProfile '.agents'
-$sharedAgentsFile = Join-Path $sharedAgentsRoot 'AGENTS.md'
-if (!(Test-Path -LiteralPath $sharedAgentsFile -PathType Leaf)) {
-  New-Item -ItemType Directory -Path $sharedAgentsRoot -Force | Out-Null
-  Copy-Item -LiteralPath $globalPolicySource -Destination $sharedAgentsFile -Force
-}
 
 # product-demo-studio is the single owner of the managed product-video skill
 # surface. Keep its sibling list explicit so a rename/addition fails closed

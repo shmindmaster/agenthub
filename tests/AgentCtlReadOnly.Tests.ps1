@@ -62,4 +62,38 @@ Describe 'agentctl read-only commands' {
     ($second -join '|') | Should -Be ($afterDrift -join '|')
     (Test-Path (Join-Path $fixtureRoot 'reports')) | Should -Be $false
   }
+
+  It 'refuses to overwrite unmanaged global instructions and accepts managed destinations' {
+    $fixtureRoot = Join-Path $TestDrive 'instruction-sync'
+    foreach ($directory in @('registry', 'standards', 'templates')) {
+      Copy-Item -LiteralPath (Join-Path $script:repoRoot $directory) -Destination (Join-Path $fixtureRoot $directory) -Recurse -Force
+    }
+    $destination = Join-Path $fixtureRoot 'profile\AGENTS.md'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+    'user-owned instructions' | Set-Content -LiteralPath $destination -Encoding UTF8
+
+    $installationsPath = Join-Path $fixtureRoot 'registry\installations.json'
+    $installations = Get-Content -LiteralPath $installationsPath -Raw | ConvertFrom-Json
+    $installations.managedInstructionTargets = @(
+      [pscustomobject]@{
+        id = 'synthetic'
+        title = 'Synthetic Global Instructions'
+        generatedPath = 'generated/synthetic/AGENTS.md'
+        destination = $destination
+      }
+    )
+    $installations | ConvertTo-Json -Depth 40 |
+      Set-Content -LiteralPath $installationsPath -Encoding UTF8
+
+    {
+      & $script:agentctl sync -Apply -RegistryRoot $fixtureRoot
+    } | Should -Throw '*Refusing to overwrite unmanaged instruction file*'
+    (Get-Content -LiteralPath $destination -Raw).Trim() | Should -Be 'user-owned instructions'
+
+    "<!-- agenthub:managed -->`nold managed policy" |
+      Set-Content -LiteralPath $destination -Encoding UTF8
+    & $script:agentctl sync -Apply -RegistryRoot $fixtureRoot | Out-Null
+    (Get-Content -LiteralPath $destination -Raw) | Should -Match 'agenthub:managed'
+    (Get-Content -LiteralPath $destination -Raw) | Should -Match 'Global Coding-Agent Policy'
+  }
 }

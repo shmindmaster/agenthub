@@ -166,7 +166,9 @@ Describe 'Runtime-centralization registry contracts' {
         $roots.pathPattern | Should -Be 'C:/wt/{repository}/{task}'
         $roots.environmentContract.name | Should -Be 'AGENTHUB_WORKTREE_ROOT'
         $roots.environmentContract.expectedValue | Should -Be 'C:/wt'
-        $roots.environmentContract.mutationPolicy | Should -Be 'verify-only-never-overwrite'
+        $roots.environmentContract.ownership | Should -Be 'agenthub-controller-managed'
+        $roots.environmentContract.mutationPolicy | Should -Be 'controller-set-to-canonical-value'
+        $roots.deployedHelper | Should -Be 'C:/Users/SaroshHussain/AppData/Local/AgentHub/bin/New-AgentHubWorktree.ps1'
         @($roots.hosts.hostId | Sort-Object) | Should -Be @($hosts.hosts.id | Sort-Object)
 
         $codex = @($roots.hosts | Where-Object hostId -eq 'codex')
@@ -189,12 +191,23 @@ Describe 'Runtime-centralization registry contracts' {
         $gemini.Count | Should -Be 1
         $gemini[0].nativeBuiltIn.pathPattern | Should -Be '<repository>/.gemini/worktrees/<name>'
         $gemini[0].nativeBuiltIn.policyState | Should -Be 'noncompliant-disabled'
+        $gemini[0].disableSetting | Should -Be 'experimental.worktrees=false'
 
         $fallbackRows = @($roots.hosts | Where-Object mechanism -eq 'agenthub-helper-plus-generated-policy')
-        $fallbackRows.Count | Should -Be 20
-        @($fallbackRows | Where-Object deploymentState -notmatch 'controller-sync-required') | Should -BeNullOrEmpty
+        $fallbackRows.Count | Should -Be 19
+        @($fallbackRows | Where-Object { [string]::IsNullOrWhiteSpace([string]$_.deploymentState) }) |
+            Should -BeNullOrEmpty
         @($roots.hosts | Where-Object hostId -ne 'codex' |
             Where-Object { $_.PSObject.Properties['settingKey'] }) | Should -BeNullOrEmpty
+
+        $hermes = @($roots.hosts | Where-Object hostId -eq 'hermes')
+        $hermes[0].disableSetting | Should -Be 'worktree=false'
+        $copilot = @($roots.hosts | Where-Object hostId -eq 'copilot')
+        $copilot[0].disableSetting | Should -Be 'experimental=false'
+        $warp = @($roots.hosts | Where-Object hostId -eq 'warp')
+        $warp[0].mechanism | Should -Be 'agenthub-managed-native-tab-config'
+        $qoder = @($roots.hosts | Where-Object hostId -eq 'qoder')
+        $qoder[0].nativeBuiltIn.hookDiscoveryState | Should -Be 'binary-only-undocumented'
     }
 }
 
@@ -656,7 +669,8 @@ Describe 'Worktree policy checker and CI wiring' {
     It 'defaults to its containing repository and emits valid normal and JSON output' {
         $checker = Join-Path $repoRoot 'scripts\Test-WorktreeRootPolicy.ps1'
         $source = Get-Content -LiteralPath $checker -Raw -Encoding UTF8
-        $source | Should -Match '\$RegistryRoot\s*=\s*\(Split-Path -Parent \$PSScriptRoot\)'
+        $source | Should -Match 'if\s*\(\[string\]::IsNullOrWhiteSpace\(\$RegistryRoot\)\)'
+        $source | Should -Match '\$RegistryRoot\s*=\s*Split-Path -Parent \$PSScriptRoot'
 
         $syntheticProfile = Join-Path $TestDrive 'checker-profile'
         New-Item -ItemType Directory -Path $syntheticProfile -Force | Out-Null

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-22T14:07:15.1030277-05:00",
+  "generatedAt": "2026-07-29T12:15:00-05:00",
   "userProfile": "C:\\Users\\SaroshHussain",
   "activeAgents": [
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.217",
+      "version": "2.1.220",
       "executable": "C:\\Users\\SaroshHussain\\.local\\bin\\claude.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.claude\\settings.json",
@@ -68,7 +68,7 @@
     {
       "id": "qwen-code",
       "name": "Qwen Code",
-      "version": "0.20.1",
+      "version": "0.21.1",
       "executable": "qwen",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.qwen\\settings.json",
@@ -93,10 +93,11 @@
     {
       "id": "opencode",
       "name": "OpenCode",
-      "version": "1.18.4",
+      "version": "1.18.9",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\opencode.cmd",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
+        "instructions": "C:\\Users\\SaroshHussain\\.config\\opencode\\AGENTS.md",
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\skills",
         "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode"
       },
@@ -113,10 +114,11 @@
     {
       "id": "opencode-desktop",
       "name": "OpenCode Desktop",
-      "version": "1.18.4",
+      "version": "1.18.9",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\@opencode-aidesktop\\OpenCode.exe",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
+        "instructions": "C:\\Users\\SaroshHussain\\.config\\opencode\\AGENTS.md",
         "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode"
       },
       "supportedCapabilities": [
@@ -130,7 +132,7 @@
     {
       "id": "gemini",
       "name": "Gemini CLI",
-      "version": "0.51.0",
+      "version": "0.53.0",
       "executable": "C:\\Users\\SaroshHussain\\bin\\gemini.cmd",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.gemini\\settings.json",
@@ -172,9 +174,11 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.73",
+      "version": "1.0.75",
       "executable": "C:\\Users\\SaroshHussain\\bin\\copilot.cmd",
       "nativePaths": {
+        "settings": "C:\\Users\\SaroshHussain\\.copilot\\settings.json",
+        "instructions": "C:\\Users\\SaroshHussain\\.copilot\\copilot-instructions.md",
         "mcp": "C:\\Users\\SaroshHussain\\.copilot\\mcp-config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.copilot\\skills"
       },
@@ -191,7 +195,7 @@
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.1.5",
+      "version": "1.1.8",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\agy.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\settings.json",
@@ -209,7 +213,7 @@
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "2.3.1",
+      "version": "2.4.3",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\antigravity\\Antigravity.exe",
       "nativePaths": {
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity"
@@ -236,10 +240,11 @@
     {
       "id": "grok",
       "name": "Grok CLI",
-      "version": "0.2.106",
+      "version": "0.2.112",
       "executable": "C:\\Users\\SaroshHussain\\.grok\\bin\\grok.exe",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.grok\\config.toml",
+        "instructions": "C:\\Users\\SaroshHussain\\.grok\\AGENTS.md",
         "skillsDir": "C:\\Users\\SaroshHussain\\.grok\\skills",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.grok\\installed-plugins"
       },
@@ -253,6 +258,7 @@
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Warp\\warp.exe",
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\.warp\\.mcp.json",
+        "worktreeTabConfig": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp\\Warp\\data\\tab_configs\\agenthub_worktree.toml",
         "skillsDir": "C:\\Users\\SaroshHussain\\.warp\\skills",
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp"
       },
@@ -262,13 +268,15 @@
     {
       "id": "cline",
       "name": "Cline CLI / ACP / Kanban",
-      "version": "3.0.46",
+      "version": "3.0.47",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\cline.cmd",
       "nativePaths": {
         "dataDir": "C:\\Users\\SaroshHussain\\.cline",
         "config": "C:\\Users\\SaroshHussain\\.cline\\data\\settings",
         "mcp": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\cline_mcp_settings.json",
-        "rulesDir": "C:\\Users\\SaroshHussain\\.cline\\rules",
+        "instructions": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules\\00-agenthub.md",
+        "desktopInstructions": "C:\\Users\\SaroshHussain\\Documents\\Cline\\Rules\\00-agenthub.md",
+        "rulesDir": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.cline\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.cline\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.cline\\plugins",
@@ -276,7 +284,7 @@
       },
       "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "connectors", "acp", "kanban", "headless"],
       "status": "active",
-      "notes": "Cline 3.0.46. Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. Shared skills are also discovered from ~/.agents/skills."
+      "notes": "Cline 3.0.47. Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; desktop rules use Documents/Cline/Rules. Shared skills are also discovered from ~/.agents/skills."
     },
     {
       "id": "qoder",

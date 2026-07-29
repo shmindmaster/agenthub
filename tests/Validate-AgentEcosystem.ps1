@@ -388,10 +388,17 @@ if ($registryObjects.ContainsKey('worktree-roots.json') -and $registryObjects.Co
     $rootRegistry = $registryObjects['worktree-roots.json']
     $rootProblems = @()
     if ([string]$rootRegistry.canonicalRoot -ne 'C:/wt') { $rootProblems += 'canonical-root' }
-    if ([string]$rootRegistry.environmentContract.name -ne 'AGENTHUB_WORKTREE_ROOT' -or
+    if ([int]$rootRegistry.schemaVersion -ne 2 -or
+        [string]$rootRegistry.environmentContract.name -ne 'AGENTHUB_WORKTREE_ROOT' -or
+        [string]$rootRegistry.environmentContract.ownership -ne 'agenthub-controller-managed' -or
         [string]$rootRegistry.environmentContract.expectedValue -ne 'C:/wt' -or
-        [string]$rootRegistry.environmentContract.mutationPolicy -ne 'verify-only-never-overwrite') {
+        [bool]$rootRegistry.environmentContract.required -ne $true -or
+        [string]$rootRegistry.environmentContract.mutationPolicy -ne 'controller-set-to-canonical-value') {
         $rootProblems += 'environment-contract'
+    }
+    if ([string]$rootRegistry.deployedHelper -ne 'C:/Users/SaroshHussain/AppData/Local/AgentHub/bin/New-AgentHubWorktree.ps1' -or
+        [string]$rootRegistry.installerScript -ne 'scripts/Install-WorktreePolicy.ps1') {
+        $rootProblems += 'controller-deployment-contract'
     }
     $rootHostIds = @($rootRegistry.hosts.hostId)
     $knownHostIds = @($registryObjects['hosts.json'].hosts.id)
@@ -410,8 +417,18 @@ if ($registryObjects.ContainsKey('worktree-roots.json') -and $registryObjects.Co
         $rootProblems += 'gemini-built-in-must-be-disabled'
     }
     $fallbackRows = @($rootRegistry.hosts | Where-Object mechanism -eq 'agenthub-helper-plus-generated-policy')
-    if ($fallbackRows.Count -ne 20 -or
-        @($fallbackRows | Where-Object deploymentState -notmatch 'controller-sync-required').Count -gt 0) {
+    $allowedFallbackStates = @(
+        'repository-ready-controller-sync-required',
+        'retained-provider-held-controller-sync-required',
+        'controller-sync-required',
+        'controller-setting-and-sync-required',
+        'managed-gemini-instructions',
+        'repository-policy-required',
+        'live-verified',
+        'retained-provider-held-live-verified'
+    )
+    if ($fallbackRows.Count -ne 19 -or
+        @($fallbackRows | Where-Object deploymentState -notin $allowedFallbackStates).Count -gt 0) {
         $rootProblems += 'fallback-deployment-contract'
     }
     if ($rootProblems.Count -eq 0) {

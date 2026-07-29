@@ -1,4 +1,4 @@
-# Shared Codex Guidance
+# Factory Droid Global Instructions
 
 <!-- agenthub:managed -->
 

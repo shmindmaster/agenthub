@@ -1,4 +1,4 @@
-# Shared Codex Guidance
+# OpenCode Global Instructions
 
 <!-- agenthub:managed -->
 

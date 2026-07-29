@@ -1,13 +1,16 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$RegistryRoot = (Split-Path -Parent $PSScriptRoot),
+    [string]$RegistryRoot,
     [string]$UserProfilePath = $env:USERPROFILE,
     [switch]$Json
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($RegistryRoot)) {
+    $RegistryRoot = Split-Path -Parent $PSScriptRoot
+}
 $results = New-Object System.Collections.Generic.List[object]
 
 function Add-Result {
@@ -48,14 +51,18 @@ if ($rootPolicy) {
     $environmentContract = $rootPolicy.PSObject.Properties['environmentContract']
     if (-not $environmentContract -or
         [string]$environmentContract.Value.name -ne 'AGENTHUB_WORKTREE_ROOT' -or
-        [string]$environmentContract.Value.expectedValue -ne 'C:/wt') {
-        Add-Result FAIL 'registry:environment-contract' 'expected optional user-owned AGENTHUB_WORKTREE_ROOT=C:\wt contract'
-    } elseif ([string]::IsNullOrWhiteSpace($env:AGENTHUB_WORKTREE_ROOT)) {
-        Add-Result PASS 'live:environment-contract' 'unset; helper default is C:\wt'
-    } elseif ([System.IO.Path]::GetFullPath([string]$env:AGENTHUB_WORKTREE_ROOT).TrimEnd('\') -eq 'C:\wt') {
-        Add-Result PASS 'live:environment-contract' 'user-owned value is C:\wt'
+        [string]$environmentContract.Value.expectedValue -ne 'C:/wt' -or
+        [string]$environmentContract.Value.ownership -ne 'agenthub-controller-managed') {
+        Add-Result FAIL 'registry:environment-contract' 'expected controller-managed AGENTHUB_WORKTREE_ROOT=C:\wt contract'
     } else {
-        Add-Result FAIL 'live:environment-contract' 'user-owned value is not C:\wt; no write attempted'
+        $userWorktreeRoot = [Environment]::GetEnvironmentVariable('AGENTHUB_WORKTREE_ROOT', 'User')
+        if ([string]::IsNullOrWhiteSpace($userWorktreeRoot)) {
+            Add-Result WARN 'live:environment-contract' 'user-scoped value is unset; run Install-WorktreePolicy.ps1 -Apply'
+        } elseif ([System.IO.Path]::GetFullPath([string]$userWorktreeRoot).TrimEnd('\') -eq 'C:\wt') {
+            Add-Result PASS 'live:environment-contract' 'controller-managed user-scoped value is C:\wt'
+        } else {
+            Add-Result FAIL 'live:environment-contract' 'user-scoped value is not C:\wt'
+        }
     }
 
     if ($hosts) {

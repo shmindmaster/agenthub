@@ -45,7 +45,7 @@ foreach ($agent in @($registry.activeAgents)) {
     }
 
     $policyPointer = 'not-required'
-    if ($agent.id -in @('codex', 'claude')) {
+    if ($instructions) {
         if (-not $instructions -or -not (Test-Path -LiteralPath $instructions -PathType Leaf)) {
             $policyPointer = 'missing-instruction-file'
             $failures.Add("$($agent.id): instruction file missing")

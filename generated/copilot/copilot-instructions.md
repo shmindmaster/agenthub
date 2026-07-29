@@ -1,4 +1,4 @@
-# Shared Codex Guidance
+# GitHub Copilot CLI Global Instructions
 
 <!-- agenthub:managed -->
 

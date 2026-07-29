@@ -1,4 +1,4 @@
-# Shared Codex Guidance
+# Grok CLI Global Instructions
 
 <!-- agenthub:managed -->
 

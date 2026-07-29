@@ -1,27 +1,32 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-07-29T15:45:00.000Z",
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-29T17:15:00.000Z",
   "canonicalRoot": "C:/wt",
   "pathPattern": "C:/wt/{repository}/{task}",
   "policyPath": "docs/worktree-management-policy.md",
   "helperScript": "scripts/New-AgentHubWorktree.ps1",
-  "mutationPolicy": "Repository automation validates and documents user-managed settings; it never overwrites them.",
+  "deployedHelper": "C:/Users/SaroshHussain/AppData/Local/AgentHub/bin/New-AgentHubWorktree.ps1",
+  "installerScript": "scripts/Install-WorktreePolicy.ps1",
+  "mutationPolicy": "The controller deploys only AgentHub-owned helpers, hooks, generated instructions, and documented opt-out settings. User-managed native roots are verified without replacement, and undocumented keys are forbidden.",
   "environmentContract": {
     "name": "AGENTHUB_WORKTREE_ROOT",
-    "ownership": "user-managed",
+    "ownership": "agenthub-controller-managed",
     "expectedValue": "C:/wt",
-    "required": false,
+    "required": true,
     "defaultWhenUnset": "C:/wt",
-    "consumer": "scripts/New-AgentHubWorktree.ps1",
+    "consumer": "deployed AgentHub worktree helper",
     "validation": "Any resolved value other than C:/wt is rejected.",
-    "mutationPolicy": "verify-only-never-overwrite"
+    "mutationPolicy": "controller-set-to-canonical-value"
   },
   "fallbackDeployment": {
     "mechanism": "agenthub-helper-plus-generated-policy",
-    "helperState": "repository-ready",
+    "helperState": "controller-deploy-required",
     "generatedInstructionState": "generated-repository-artifacts",
     "liveInstructionState": "controller-sync-required",
-    "deploymentCommandOwner": "scripts/agentctl.ps1 sync",
+    "deploymentCommandOwner": [
+      "scripts/Install-WorktreePolicy.ps1",
+      "scripts/agentctl.ps1 sync"
+    ],
     "unsupportedNativeSettingPolicy": "Do not invent host configuration keys."
   },
   "hosts": [
@@ -42,8 +47,8 @@
       "desktopVerificationState": "user-asserted-manual-verification",
       "desktopMutationPolicy": "verify-manually-never-overwrite",
       "cliMechanism": "WorktreeCreate-hook",
-      "cliHookState": "declarative-ready-controller-install-pending",
-      "cliHookCommand": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:/Repos/shmindmaster/agenthub/scripts/New-AgentHubWorktree.ps1",
+      "cliHookState": "controller-install-pending",
+      "cliHookCommand": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:/Users/SaroshHussain/AppData/Local/AgentHub/bin/New-AgentHubWorktree.ps1\"",
       "documentation": "https://code.claude.com/docs/en/worktrees"
     },
     {
@@ -87,7 +92,12 @@
     {
       "hostId": "opencode",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required"
+      "deploymentState": "controller-sync-required",
+      "nativeBuiltIn": {
+        "pathPattern": "<opencode-data>/worktree/<project-id>",
+        "policyState": "noncompliant-disabled-by-managed-instructions",
+        "reason": "OpenCode 1.18.9 exposes a native worktree API without a supported custom root argument. Do not relocate all OpenCode data to change one feature."
+      }
     },
     {
       "hostId": "opencode-desktop",
@@ -98,7 +108,8 @@
     {
       "hostId": "gemini",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required",
+      "deploymentState": "controller-setting-and-sync-required",
+      "disableSetting": "experimental.worktrees=false",
       "nativeBuiltIn": {
         "pathPattern": "<repository>/.gemini/worktrees/<name>",
         "policyState": "noncompliant-disabled",
@@ -108,17 +119,40 @@
     {
       "hostId": "hermes",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required"
+      "deploymentState": "controller-setting-and-sync-required",
+      "disableSetting": "worktree=false",
+      "nativeBuiltIn": {
+        "pathPattern": "<repository>/.worktrees/<name>",
+        "policyState": "noncompliant-disabled",
+        "reason": "Hermes 0.19.0 has no documented custom-root setting."
+      }
     },
     {
       "hostId": "copilot",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required"
+      "deploymentState": "controller-setting-and-sync-required",
+      "disableSetting": "experimental=false",
+      "nativeBuiltIn": {
+        "surfaces": [
+          "/worktree",
+          "/move",
+          "--worktree"
+        ],
+        "pathPattern": "<repository>.worktrees/<name>",
+        "policyState": "noncompliant-disabled",
+        "reason": "Copilot CLI 1.0.75 exposes no supported custom-root setting."
+      }
     },
     {
       "hostId": "antigravity",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required"
+      "deploymentState": "managed-gemini-instructions",
+      "nativeBuiltIn": {
+        "surface": "Desktop New Worktree mode",
+        "pathPattern": "discovery-required",
+        "policyState": "noncompliant-prohibited",
+        "reason": "Official documentation exposes Local and New Worktree modes but no custom root. Create with AgentHub first, open the returned checkout, and select Local Mode."
+      }
     },
     {
       "hostId": "antigravity-desktop",
@@ -135,22 +169,46 @@
     {
       "hostId": "grok",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required"
+      "deploymentState": "controller-setting-and-sync-required",
+      "disableSettings": {
+        "hints.new_session_worktree_mode": "never",
+        "hints.fork_worktree_mode": "never"
+      },
+      "nativeBuiltIn": {
+        "pathPattern": "<user-profile>/.grok/worktrees/<repository>/<name>",
+        "policyState": "noncompliant-disabled",
+        "reason": "Grok 0.2.112 exposes no custom-root setting; worktree subagent isolation remains prohibited by managed instructions."
+      }
     },
     {
       "hostId": "warp",
-      "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required"
+      "mechanism": "agenthub-managed-native-tab-config",
+      "deploymentState": "controller-install-required",
+      "tabConfigPath": "C:/Users/SaroshHussain/AppData/Roaming/warp/Warp/data/tab_configs/agenthub_worktree.toml",
+      "fallback": "manual Git under C:/wt"
     },
     {
       "hostId": "cline",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required"
+      "deploymentState": "controller-sync-required",
+      "nativeBuiltIn": {
+        "surface": "--worktree",
+        "pathPattern": "<user-profile>/.cline/worktrees/<name>",
+        "policyState": "noncompliant-disabled-by-managed-rules",
+        "reason": "Cline 3.0.47 exposes no supported custom-root setting."
+      }
     },
     {
       "hostId": "qoder",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "repository-ready-controller-sync-required"
+      "deploymentState": "repository-policy-required",
+      "nativeBuiltIn": {
+        "surface": "--worktree",
+        "pathPattern": "<repository>/.qoder/worktrees/<name>",
+        "policyState": "noncompliant-prohibited",
+        "hookDiscoveryState": "binary-only-undocumented",
+        "reason": "Qoder 1.1.5 binary strings expose WorktreeCreate, but current public docs do not define that hook event or custom-root contract. Do not install the hook."
+      }
     },
     {
       "hostId": "devin",

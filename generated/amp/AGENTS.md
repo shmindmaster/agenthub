@@ -23,7 +23,7 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Prefer root-cause fixes and repository-native commands. Run focused verification first and broader verification when shared contracts are affected.
 - Keep proposed, implemented, tested, committed, reviewed, merged, deployed, production-verified, and user-validated states distinct.
 - Use isolated worktrees only when parallel write isolation or repository policy requires them. Follow `C:\Repos\shmindmaster\agenthub\docs\worktree-management-policy.md` before creating or removing one.
-- `C:\wt\<repo>\<task>` is the sole approved user-created worktree root. Verify user-managed native settings without overwriting them. Where a host cannot choose this root, use `C:\Repos\shmindmaster\agenthub\scripts\New-AgentHubWorktree.ps1` under the generated policy instead of inventing a setting. The helper accepts the optional user-owned `AGENTHUB_WORKTREE_ROOT`, defaults it to `C:\wt`, and rejects every other resolved root.
+- `C:\wt\<repo>\<task>` is the sole approved user-created worktree root. Use a documented native root control only when it resolves to `C:\wt`. Otherwise, do not invoke the host's native worktree command, flag, isolation mode, or UI; run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\SaroshHussain\AppData\Local\AgentHub\bin\New-AgentHubWorktree.ps1" -Cwd <repository-path> -Name <task-slug>` or use manual Git under `C:\wt`. The helper consumes the AgentHub-managed `AGENTHUB_WORKTREE_ROOT`, defaults it to `C:\wt`, and rejects every other resolved root.
 
 ## Capability ownership
 

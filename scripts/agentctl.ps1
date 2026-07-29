@@ -331,6 +331,12 @@ function Sync-Instructions {
       Write-Host "WOULD SYNC $($row.id): $($row.destination)"
       continue
     }
+    if (Test-Path -LiteralPath $row.destination -PathType Leaf) {
+      $existingContent = Get-Content -LiteralPath $row.destination -Raw -Encoding UTF8
+      if ($existingContent -notmatch 'agenthub:managed') {
+        throw "Refusing to overwrite unmanaged instruction file for '$($row.id)': $($row.destination)"
+      }
+    }
     $content = Get-Content -LiteralPath $row.generatedPath -Raw
     Write-Text $row.destination $content
     Write-Host "SYNCED $($row.id): $($row.destination)" -ForegroundColor Green
