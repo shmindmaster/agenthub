@@ -39,9 +39,9 @@ Native per-host behavior and enforcement as verified on July 29, 2026:
 - **OpenCode CLI/Desktop 1.18.9** — its experimental native API stores worktrees under OpenCode's global data directory and exposes no custom-root argument. Do not relocate all OpenCode data; use the helper.
 - **Gemini CLI 0.53.0** — its fixed `<repo>\.gemini\worktrees` mode is disabled with `experimental.worktrees=false`.
 - **Hermes 0.19.0** — its fixed `<repo>\.worktrees` mode is disabled with `worktree: false`; do not pass `-w`.
-- **GitHub Copilot CLI 1.0.75** — `/worktree`, `/move`, and its hidden worktree flag have no custom-root setting. Keep `experimental=false` and use the helper.
+- **GitHub Copilot CLI 1.0.76** — `/worktree`, `/move`, and its hidden worktree flag have no custom-root setting. Keep `experimental=false` and use the helper.
 - **Antigravity 1.1.8 / Desktop 2.4.3 / IDE 2.1.1** — create the checkout with AgentHub first, open the returned path, and select Local Mode. New Worktree mode has no documented root control and is prohibited.
-- **Grok 0.2.112** — set new-session and fork worktree modes to `never`; worktree subagent isolation remains prohibited by generated instructions.
+- **Grok 0.2.114** — set new-session and fork worktree modes to `never`; worktree subagent isolation remains prohibited by generated instructions.
 - **Warp** — the managed parameterized TOML Tab Config invokes the deployed helper and opens its returned path. Warp's general worktree root is not configurable.
 - **Cline 3.0.47** — its `--worktree` path is fixed under `~\.cline\worktrees`; do not use the flag. CLI and Desktop consume their documented global rule locations.
 - **Qoder 1.1.5** — its public docs do not define the `WorktreeCreate` event found in installed binary strings. The hook remains discovery-required and is not installed; do not use `--worktree`.

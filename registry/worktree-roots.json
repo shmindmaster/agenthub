@@ -140,7 +140,7 @@
         ],
         "pathPattern": "<repository>.worktrees/<name>",
         "policyState": "noncompliant-disabled",
-        "reason": "Copilot CLI 1.0.75 exposes no supported custom-root setting."
+        "reason": "Copilot CLI 1.0.76 exposes no supported custom-root setting."
       }
     },
     {
@@ -177,7 +177,7 @@
       "nativeBuiltIn": {
         "pathPattern": "<user-profile>/.grok/worktrees/<repository>/<name>",
         "policyState": "noncompliant-disabled",
-        "reason": "Grok 0.2.112 exposes no custom-root setting; worktree subagent isolation remains prohibited by managed instructions."
+        "reason": "Grok 0.2.114 exposes no custom-root setting; worktree subagent isolation remains prohibited by managed instructions."
       }
     },
     {

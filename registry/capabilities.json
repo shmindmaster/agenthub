@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-29T12:34:00-05:00",
+  "generatedAt": "2026-07-30T16:05:00-05:00",
   "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
   "surfaceAliases": [
     { "surfaceId": "cursor-agent", "inheritsHostId": "cursor" },
@@ -146,17 +146,21 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-demo-studio",
-      "contentHash": "5AD20683CE0F5D1A24EF96A9D414E8C1BF5B33BE346524742409F255CD83F0F5",
+      "contentHash": "8CEDE83AAEB66464985026C6780EEEFFC427D42AD297B13BD2A481C869231BDA",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
         {
           "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-plugin-installed",
+          "components": ["skills", "agents", "mcp"],
+          "reviewIsolation": "shell-free-role-tools-plus-external-signed-receipt-required"
         },
         {
           "hostId": "codex",
-          "deploymentStatus": "native-plugin-installed"
+          "deploymentStatus": "native-plugin-installed",
+          "components": ["plugin-skills", "plugin-mcp", "managed-native-agents"],
+          "reviewIsolation": "sandbox-mode-read-only-plus-external-signed-receipt-required"
         },
         {
           "hostId": "cursor",
@@ -164,15 +168,23 @@
         },
         {
           "hostId": "vscode-insiders",
-          "deploymentStatus": "native-local-plugin"
+          "deploymentStatus": "native-local-plugin",
+          "components": ["skills", "agents", "mcp"],
+          "reviewIsolation": "tool-limited-only-external-signed-receipt-required"
         },
         {
           "hostId": "qwen-code",
-          "deploymentStatus": "native-extension-junction"
+          "deploymentStatus": "native-extension-junction",
+          "components": ["skills", "agents"],
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "tool-limited-parent-yolo-not-release-eligible"
         },
         {
           "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "roleAdapter": "managed-native-markdown-agents",
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "edit-bash-task-denied-plus-external-signed-receipt-required"
         },
         {
           "hostId": "amp",
@@ -180,11 +192,15 @@
         },
         {
           "hostId": "devin",
-          "deploymentStatus": "preprovisioned-loose-skills"
+          "deploymentStatus": "preprovisioned-loose-skills",
+          "nativePluginManifest": ".devin-plugin/plugin.json",
+          "runtimeState": "inactive-pending-native-install-smoke"
         },
         {
           "hostId": "factory",
-          "deploymentStatus": "preprovisioned-loose-skills"
+          "deploymentStatus": "native-plugin-installed",
+          "components": ["translated-skills", "translated-droids", "translated-mcp"],
+          "runtimeState": "inactive-configured"
         },
         {
           "hostId": "windsurf",
@@ -192,15 +208,24 @@
         },
         {
           "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "roleAdapter": "managed-preview-extension-agents",
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "explicit-read-tools-plus-external-signed-receipt-required"
         },
         {
           "hostId": "copilot",
-          "deploymentStatus": "native-local-plugin-skills-only"
+          "deploymentStatus": "native-local-plugin",
+          "components": ["skills", "agents"],
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "tool-limited-only-external-read-only-boundary-required"
         },
         {
           "hostId": "antigravity",
-          "deploymentStatus": "managed-observed-path"
+          "deploymentStatus": "managed-loose-skills",
+          "roleAdapter": "managed-cli-native-plugin-agents",
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "command-policy-off-plus-external-signed-receipt-required"
         },
         {
           "hostId": "hermes",
@@ -208,7 +233,9 @@
         },
         {
           "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-plugin-installed",
+          "components": ["skills", "agents", "mcp"],
+          "reviewIsolation": "windows-native-read-only-enforcement-unverified"
         },
         {
           "hostId": "warp",
@@ -216,11 +243,15 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "roleCapability": "fixed-read-only-research-subagent-only",
+          "runtimeParity": "blocked-for-generation-and-mcp-dependent-review"
         },
         {
           "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
+          "deploymentStatus": "native-local-plugin",
+          "components": ["skills", "agents", "mcp"],
+          "reviewIsolation": "tool-limited-plus-external-signed-receipt-required"
         }
       ]
     },

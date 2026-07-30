@@ -232,7 +232,7 @@ Describe 'Runtime-centralization registry contracts' {
             Where-Object hostId -eq 'claude')
         $claudeProductDemoMapping.Count | Should -Be 1
         $claudeProductDemoMapping[0].deploymentStatus |
-            Should -Be 'managed-loose-skills'
+            Should -Be 'native-plugin-installed'
     }
 
     It 'owns the Firecrawl skills in the portfolio package without duplicating its MCP service' {

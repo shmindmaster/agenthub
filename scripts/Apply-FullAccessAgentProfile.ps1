@@ -70,7 +70,10 @@ function Read-JsonHash([string]$Path) {
 function Save-JsonHash([string]$Path, [hashtable]$Value) {
   $dir = Split-Path -Parent $Path
   New-Item -ItemType Directory -Path $dir -Force | Out-Null
-  $Value | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $Path -Encoding UTF8 -NoNewline
+  $json = $Value | ConvertTo-Json -Depth 30
+  # Windows PowerShell 5.1's `-Encoding UTF8` adds a BOM. Current Factory
+  # rejects an otherwise valid settings.json when that BOM is present.
+  [IO.File]::WriteAllText($Path, $json, [Text.UTF8Encoding]::new($false))
 }
 
 function Get-DirectoryInventory([string]$Path, [string[]]$ExcludedRelativePaths = @()) {
@@ -484,6 +487,61 @@ function Get-NativePluginState([string]$HostId, [string]$CapabilityId, [string]$
     }
     return @{ installed=$current; current=$current; path=$path }
   }
+  if ($HostId -eq 'factory') {
+    $installedPath = Join-Path $UserProfile '.factory\plugins\installed_plugins.json'
+    if (!(Test-Path -LiteralPath $installedPath -PathType Leaf)) {
+      return @{ installed=$false; current=$false; path=$null }
+    }
+    $installed = Get-Content -LiteralPath $installedPath -Raw | ConvertFrom-Json
+    $pluginKey = "$CapabilityId@handoff-plugins"
+    $pluginProperty = if ($installed.plugins) {
+      $installed.plugins.PSObject.Properties[$pluginKey]
+    } else {
+      $null
+    }
+    if (-not $pluginProperty) {
+      return @{ installed=$false; current=$false; path=$null }
+    }
+    $entry = @($pluginProperty.Value |
+      Where-Object scope -eq 'user' |
+      Select-Object -First 1)
+    if ($entry.Count -ne 1) {
+      return @{ installed=$false; current=$false; path=$null }
+    }
+    $path = [string]$entry[0].installPath
+    $current = $expectsNativePlugin -and
+      (Test-DirectoryEquivalent $PluginRoot $path)
+    return @{ installed=$true; current=$current; path=$path }
+  }
+  if ($HostId -eq 'grok') {
+    $registryPath = Join-Path $UserProfile '.grok\installed-plugins\registry.json'
+    $configPath = Join-Path $UserProfile '.grok\config.toml'
+    if (!(Test-Path -LiteralPath $registryPath -PathType Leaf) -or
+        !(Test-Path -LiteralPath $configPath -PathType Leaf)) {
+      return @{ installed=$false; current=$false; path=$null }
+    }
+    $configRaw = Get-Content -LiteralPath $configPath -Raw
+    $enabledPattern = '(?s)\[plugins\].*?enabled\s*=\s*\[[^\]]*"' +
+      [regex]::Escape($CapabilityId) + '"'
+    if ($configRaw -notmatch $enabledPattern) {
+      return @{ installed=$false; current=$false; path=$null }
+    }
+    $registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+    $matchingRepos = @($registry.repos.PSObject.Properties | Where-Object {
+      $_.Value.plugins -and
+      $_.Value.plugins.PSObject.Properties[$CapabilityId]
+    })
+    if ($matchingRepos.Count -ne 1) {
+      return @{ installed=($matchingRepos.Count -gt 0); current=$false; path=$null }
+    }
+    $repo = $matchingRepos[0].Value
+    $path = [string]$repo.path
+    $reportedVersion = [string]$repo.plugins.PSObject.Properties[$CapabilityId].Value.version
+    $current = $expectsNativePlugin -and
+      $reportedVersion -eq $PluginVersion -and
+      (Test-DirectoryEquivalent $PluginRoot $path)
+    return @{ installed=$true; current=$current; path=$path }
+  }
   return @{ installed=$false; current=$false; path=$null }
 }
 
@@ -538,8 +596,14 @@ function Ensure-QoderPlugins {
     $cacheRoot = Split-Path -Parent $currentPath
     foreach ($cachedVersion in @(Get-ChildItem -LiteralPath $cacheRoot -Directory -Force)) {
       if ($cachedVersion.FullName.Equals($currentPath, [StringComparison]::OrdinalIgnoreCase)) { continue }
-      $cachedManifestPath = Join-Path $cachedVersion.FullName '.qoder-plugin\plugin.json'
-      if (!(Test-Path -LiteralPath $cachedManifestPath -PathType Leaf)) {
+      $cachedManifestPath = @(
+        (Join-Path $cachedVersion.FullName '.qoder-plugin\plugin.json'),
+        (Join-Path $cachedVersion.FullName '.codex-plugin\plugin.json'),
+        (Join-Path $cachedVersion.FullName '.claude-plugin\plugin.json')
+      ) | Where-Object {
+        Test-Path -LiteralPath $_ -PathType Leaf
+      } | Select-Object -First 1
+      if (-not $cachedManifestPath) {
         Write-Warning "Preserving unverified Qoder cache sibling: $($cachedVersion.FullName)"
         continue
       }
@@ -680,7 +744,7 @@ if (-not $SkillDistributionOnly) {
 }
 $nativePluginStates = @{}
 foreach ($capability in $managedSkillCapabilities) {
-  foreach ($hostId in @('claude','codex','copilot')) {
+  foreach ($hostId in @('claude','codex','copilot','factory','grok')) {
     $stateForHost = Get-NativePluginState $hostId $capability.id $capability.pluginRoot $capability.version
     if ($stateForHost.installed -and -not $stateForHost.current) {
       throw "$hostId has an enabled but stale $($capability.id) plugin at $($stateForHost.path). Reinstall v$($capability.version) before distribution to avoid duplicate generations."
@@ -694,8 +758,19 @@ foreach ($capability in $managedSkillCapabilities) {
 foreach ($capability in $managedSkillCapabilities) {
   foreach ($hostId in @($profile.managedHosts | Where-Object { $_ -ne 'qwen-code' -and $skillTargets.Contains($_) })) {
     $targetRoot = [string]$skillTargets[$hostId]
-    $qoderMapping = @($capabilityHostMappings = $caps.capabilities | Where-Object id -eq $capability.id | Select-Object -First 1)
-    if ($hostId -eq 'qoder' -and @($qoderMapping.hostMappings | Where-Object { $_.hostId -eq 'qoder' -and $_.deploymentStatus -eq 'native-local-plugin' }).Count -eq 1) {
+    $capabilityRegistration = $caps.capabilities |
+      Where-Object id -eq $capability.id |
+      Select-Object -First 1
+    $hostMapping = @($capabilityRegistration.hostMappings |
+      Where-Object hostId -eq $hostId |
+      Select-Object -First 1)
+    $hostDeploymentStatus = if ($hostMapping.Count -eq 1) {
+      [string]$hostMapping[0].deploymentStatus
+    } else {
+      ''
+    }
+    if ($hostDeploymentStatus -match 'native' -and
+        $hostId -notin @('claude','codex','copilot','factory','grok')) {
       continue
     }
     $nativeState = $nativePluginStates["$($capability.id)::$hostId"]
@@ -726,7 +801,11 @@ foreach ($capability in $managedSkillCapabilities) {
 $cursorLocalPluginRoot = Join-Path $UserProfile '.cursor\plugins\local'
 foreach ($capability in @($caps.capabilities)) {
   $cursorMapping = @($capability.hostMappings | Where-Object hostId -eq 'cursor' | Select-Object -First 1)
-  if ($cursorMapping.Count -ne 1 -or [string]$cursorMapping[0].deploymentStatus -ne 'managed') { continue }
+  if ($cursorMapping.Count -ne 1 -or [string]$cursorMapping[0].deploymentStatus -notin @(
+      'managed',
+      'managed-loose-skills',
+      'preprovisioned-loose-skills'
+    )) { continue }
   $legacyPluginPath = Join-Path $cursorLocalPluginRoot ([string]$capability.id)
   if (Test-Path -LiteralPath $legacyPluginPath -PathType Container) {
     Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $legacyPluginPath `
@@ -1303,9 +1382,22 @@ Save-JsonHash $cursorPath $cursor
 
 $factorySettingsPath = "$UserProfile\.factory\settings.json"
 $factorySettings = Read-JsonHash $factorySettingsPath
-$factorySettings['interactionMode'] = 'auto'
-$factorySettings['autonomyLevel'] = 'high'
-$factorySettings['autonomyMode'] = 'auto-high'
+# Current Droid rejects these historical AgentHub fields at the document root
+# and treats the entire settings file as malformed. The supported persistent
+# location is sessionDefaultSettings; headless execution additionally uses
+# `droid exec --auto high`.
+foreach ($invalidFactoryKey in @('interactionMode','autonomyLevel','autonomyMode')) {
+  $factorySettings.Remove($invalidFactoryKey)
+}
+$factorySessionDefaults = if ($factorySettings.ContainsKey('sessionDefaultSettings')) {
+  To-Hash $factorySettings['sessionDefaultSettings']
+} else {
+  @{}
+}
+$factorySessionDefaults['interactionMode'] = 'auto'
+$factorySessionDefaults['autonomyLevel'] = 'high'
+$factorySessionDefaults.Remove('autonomyMode')
+$factorySettings['sessionDefaultSettings'] = $factorySessionDefaults
 Save-JsonHash $factorySettingsPath $factorySettings
 
 $antigravityPath = "$UserProfile\.gemini\antigravity-cli\settings.json"
@@ -1394,6 +1486,7 @@ elseif (-not $userPath.StartsWith($bin, [System.StringComparison]::OrdinalIgnore
 
 # Let the existing host-aware synchronizer render Codex and Qwen's native
 # formats and Qwen extension adapters from this same registry.
+& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Sync-ProductDemoStudioHostAdapters.ps1') -RegistryRoot $RegistryRoot -UserProfile $UserProfile
 & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Sync-AgentHub.ps1') -Apply -Validate -IncludeInactiveAgents -ScopeProfile global-default -RegistryRoot $RegistryRoot -UserProfile $UserProfile
 Retire-QoderNativePluginLooseSkills
 Write-AgentHubQuarantineManifest -Batch $quarantineBatch | Out-Null

@@ -100,6 +100,8 @@
         "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
         "instructions": "C:\\Users\\SaroshHussain\\.config\\opencode\\AGENTS.md",
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\agents",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\plugins",
         "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode"
       },
       "supportedCapabilities": [
@@ -107,7 +109,10 @@
         "skills",
         "subagents",
         "mcp",
-        "acp"
+        "plugins",
+        "acp",
+        "lsp",
+        "hooks"
       ],
       "status": "active",
       "notes": "Global skill path follows the official OpenCode ~/.config/opencode/skills contract."
@@ -139,11 +144,16 @@
         "settings": "C:\\Users\\SaroshHussain\\.gemini\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.gemini\\GEMINI.md",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\agents",
+        "extensionsDir": "C:\\Users\\SaroshHussain\\.gemini\\extensions",
         "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills"
       },
       "supportedCapabilities": [
         "rules",
         "skills",
+        "subagents",
+        "extensions",
+        "hooks",
         "mcp",
         "acp"
       ],
@@ -160,12 +170,15 @@
         "instructions": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\SOUL.md",
         "skillsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\skills",
         "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\hooks",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\plugins",
         "memoriesDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\memories",
         "sessionsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\sessions"
       },
       "supportedCapabilities": [
         "rules",
         "skills",
+        "subagents",
+        "plugins",
         "hooks",
         "mcp",
         "acp"
@@ -176,7 +189,7 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "executable": "C:\\Users\\SaroshHussain\\bin\\copilot.cmd",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.copilot\\settings.json",
@@ -202,17 +215,24 @@
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\agy.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\settings.json",
-        "mcp": "C:\\Users\\SaroshHussain\\.gemini\\antigravity\\mcp_config.json",
-        "legacyMcp": "C:\\Users\\SaroshHussain\\.gemini\\config\\mcp_config.json",
+        "mcp": "C:\\Users\\SaroshHussain\\.gemini\\config\\mcp_config.json",
+        "legacyMcp": "C:\\Users\\SaroshHussain\\.gemini\\antigravity\\mcp_config.json",
+        "cliSkillsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\skills",
+        "cliPluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\plugins",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\skills",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\plugins"
       },
       "supportedCapabilities": [
+        "rules",
         "skills",
+        "subagents",
+        "plugins",
+        "hooks",
         "mcp"
       ],
       "status": "active",
-      "notes": "GitHub's current official Antigravity guide owns ~/.gemini/antigravity/mcp_config.json and documents remote serverUrl plus headers. The installed CLI also retains the older ~/.gemini/config/mcp_config.json path, so the canonical adapter keeps both synchronized without embedding credentials."
+      "notes": "Official Antigravity CLI 1.1.8 uses ~/.gemini/antigravity-cli/plugins and ~/.gemini/config/mcp_config.json. Desktop and IDE use ~/.gemini/config skills, agents, and plugins. The extra ~/.gemini/antigravity/mcp_config.json is synchronized temporarily as a compatibility path and is not the canonical authority."
     },
     {
       "id": "antigravity-desktop",
@@ -244,15 +264,17 @@
     {
       "id": "grok",
       "name": "Grok CLI",
-      "version": "0.2.112",
+      "version": "0.2.114",
       "executable": "C:\\Users\\SaroshHussain\\.grok\\bin\\grok.exe",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.grok\\config.toml",
         "instructions": "C:\\Users\\SaroshHussain\\.grok\\AGENTS.md",
         "skillsDir": "C:\\Users\\SaroshHussain\\.grok\\skills",
-        "pluginsDir": "C:\\Users\\SaroshHussain\\.grok\\installed-plugins"
+        "agentsDir": "C:\\Users\\SaroshHussain\\.grok\\agents",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.grok\\installed-plugins",
+        "documentedPluginsDir": "C:\\Users\\SaroshHussain\\.grok\\plugins"
       },
-      "supportedCapabilities": ["rules", "skills", "mcp", "plugins"],
+      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "sandbox", "worktrees"],
       "status": "active"
     },
     {
@@ -266,7 +288,7 @@
         "skillsDir": "C:\\Users\\SaroshHussain\\.warp\\skills",
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp"
       },
-      "supportedCapabilities": ["rules", "skills", "mcp", "cloud-agents"],
+      "supportedCapabilities": ["rules", "skills", "mcp", "cloud-agents", "orchestration", "profiles", "worktrees"],
       "status": "active"
     },
     {
@@ -287,7 +309,7 @@
         "pluginsDir": "C:\\Users\\SaroshHussain\\.cline\\plugins",
         "hooksDir": "C:\\Users\\SaroshHussain\\.cline\\hooks"
       },
-      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "connectors", "acp", "kanban", "headless"],
+      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "connectors", "acp", "kanban", "headless"],
       "status": "active",
       "notes": "Cline 3.0.47. Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; desktop rules use Documents/Cline/Rules. Shared skills are also discovered from ~/.agents/skills."
     },
@@ -305,7 +327,7 @@
         "pluginsDir": "C:\\Users\\SaroshHussain\\.qoder\\plugins",
         "canvasDir": "C:\\Users\\SaroshHussain\\.qoder\\canvas"
       },
-      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "connectors", "computer-use", "acp", "canvas", "qoderwork", "headless"],
+      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "connectors", "computer-use", "acp", "canvas", "qoderwork", "headless"],
       "status": "active",
       "notes": "Qoder CLI 1.1.5. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
     }
@@ -360,16 +382,20 @@
     {
       "id": "amp",
       "name": "Sourcegraph Amp",
-      "version": "0.0.1785334225-g9abe75",
+      "version": "0.0.1785401491-g022332",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\amp.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.config\\amp\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.config\\amp\\AGENTS.md",
-        "skillsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\skills"
+        "skillsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\skills",
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\plugins"
       },
       "supportedCapabilities": [
         "rules",
         "skills",
+        "subagents",
+        "plugins",
+        "hooks",
         "mcp"
       ],
       "status": "inactive",
@@ -383,11 +409,18 @@
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\skills",
-        "pluginsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\cli\\plugins"
+        "pluginsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\cli\\plugins",
+        "agentsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\agents",
+        "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\hooks"
       },
       "supportedCapabilities": [
         "rules",
         "skills",
+        "subagents",
+        "plugins",
+        "hooks",
+        "sandbox",
+        "acp",
         "mcp"
       ],
       "status": "inactive",
@@ -396,8 +429,8 @@
     {
       "id": "factory",
       "name": "Factory Droid",
-      "version": "0.182.0",
-      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.139.0\\resources\\bin\\droid.exe",
+      "version": "0.183.0",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.140.0\\resources\\bin\\droid.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.factory\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.factory\\AGENTS.md",
@@ -412,7 +445,8 @@
         "skills",
         "subagents",
         "mcp",
-        "plugins"
+        "plugins",
+        "hooks"
       ],
       "status": "inactive",
       "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
@@ -444,11 +478,17 @@
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\mcp_config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\skills",
-        "settings": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\user_settings.pb"
+        "settings": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\user_settings.pb",
+        "hooksDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\hooks",
+        "workflowsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\workflows"
       },
       "supportedCapabilities": [
         "rules",
         "skills",
+        "hooks",
+        "workflows",
+        "worktrees",
+        "parallel-agents",
         "mcp"
       ],
       "status": "inactive",

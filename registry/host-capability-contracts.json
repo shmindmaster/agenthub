@@ -6,7 +6,7 @@
       "hostId": "codex",
       "state": "active",
       "officialSources": ["https://help.openai.com/en/articles/20001256-plugins-in-codex"],
-      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
       "autonomy": { "profile": "repo-autonomous", "settings": { "approval_policy": "never", "sandbox_mode": "danger-full-access" }, "machineMaintenanceFlag": "--dangerously-bypass-approvals-and-sandbox" }
     },
     {
@@ -75,8 +75,8 @@
     {
       "hostId": "gemini",
       "state": "active",
-      "officialSources": ["https://geminicli.com/docs/"],
-      "surfaces": { "rules": "verified", "skills": "verified", "extensions": "verified", "mcp": "verified", "acp": "verified", "lsp": "verified", "hooks": "verified", "memory": "verified", "subagents": "discovery-required" },
+      "officialSources": ["https://geminicli.com/docs/", "https://geminicli.com/docs/extensions/reference/", "https://geminicli.com/docs/core/subagents/"],
+      "surfaces": { "rules": "verified", "skills": "verified", "extensions": "verified", "mcp": "verified", "acp": "verified", "lsp": "verified", "hooks": "verified", "memory": "verified", "subagents": "verified-preview" },
       "autonomy": { "profile": "repo-autonomous", "flags": ["--yolo", "--skip-trust"] }
     },
     {
@@ -97,7 +97,7 @@
       "hostId": "devin",
       "state": "inactive",
       "officialSources": ["https://docs.devin.ai/cli/extensibility/configuration", "https://docs.devin.ai/cli/subagents"],
-      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "hooks": "verified", "lsp": "not-applicable", "memory": "discovery-required" },
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "hooks": "verified", "sandbox": "verified", "lsp": "not-applicable", "memory": "discovery-required" },
       "autonomy": { "profile": "repo-autonomous", "flags": ["--permission-mode", "dangerous"] }
     },
     {
@@ -110,22 +110,22 @@
     {
       "hostId": "grok",
       "state": "active",
-      "officialSources": ["installed-cli-help", "C:/Users/SaroshHussain/.grok/README.md"],
-      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "lsp": "verified", "hooks": "verified", "memory": "verified", "headless": "verified" },
+      "officialSources": ["https://docs.x.ai/build/features/skills-plugins-marketplaces", "https://docs.x.ai/build/features/subagents", "https://docs.x.ai/build/features/sandbox", "https://docs.x.ai/build/features/worktrees"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "subagents": "verified", "lsp": "verified", "hooks": "verified", "memory": "verified", "headless": "verified", "sandbox": "verified-non-windows", "worktrees": "verified" },
       "autonomy": { "profile": "repo-autonomous", "settings": { "permission_mode": "always-approve", "yolo": true }, "headlessFlags": ["agent", "--always-approve"] }
     },
     {
       "hostId": "hermes",
       "state": "active",
-      "officialSources": ["https://github.com/NousResearch/hermes-agent"],
-      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "hooks": "verified", "memory": "verified", "subagents": "discovery-required", "lsp": "discovery-required" },
+      "officialSources": ["https://hermes-agent.nousresearch.com/docs/user-guide/features/plugins", "https://hermes-agent.nousresearch.com/docs/user-guide/features/delegation", "https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "acp": "verified", "hooks": "verified-non-fail-closed", "memory": "verified", "subagents": "verified-delegation", "lsp": "discovery-required" },
       "autonomy": { "profile": "interactive", "reason": "No verified universal bypass contract in the managed Windows installation." }
     },
     {
       "hostId": "warp",
       "state": "active",
       "officialSources": ["https://docs.warp.dev/"],
-      "surfaces": { "rules": "verified", "skills": "verified", "mcp": "verified", "subagents": "discovery-required", "plugins": "discovery-required", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "surfaces": { "rules": "verified", "skills": "verified", "mcp": "verified", "orchestration": "verified", "profiles": "verified", "worktrees": "verified-unapproved-root", "subagents": "verified-oz-cloud", "plugins": "not-documented", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
       "autonomy": { "profile": "interactive", "implementation": "UI permission profile and per-task controls" }
     },
     {
@@ -153,8 +153,8 @@
         "acp": "verified",
         "kanban": "verified",
         "headless": "verified",
-        "customAgents": "discovery-required",
-        "hooks": "discovery-required"
+        "customAgents": "not-documented",
+        "hooks": "verified"
       },
       "autonomy": {
         "profile": "repo-autonomous",
@@ -205,7 +205,8 @@
         "canvas": "verified",
         "qoderWork": "verified",
         "acp": "verified",
-        "headless": "verified"
+        "headless": "verified",
+        "hooks": "verified"
       },
       "autonomy": {
         "profile": "repo-autonomous",
@@ -224,22 +225,22 @@
     {
       "hostId": "factory",
       "state": "inactive",
-      "officialSources": ["https://docs.factory.ai/reference/cli-reference"],
-      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "subagents": "verified", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "officialSources": ["https://docs.factory.ai/harness/plugins", "https://docs.factory.ai/harness/skills", "https://docs.factory.ai/harness/subagents", "https://docs.factory.ai/harness/mcp"],
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified-claude-layout-compatible", "mcp": "verified", "subagents": "verified", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "verified", "memory": "discovery-required" },
       "autonomy": { "profile": "repo-autonomous", "flags": ["exec", "--auto", "high"], "unsafeOnlyInIsolatedSandbox": true }
     },
     {
       "hostId": "amp",
       "state": "inactive",
       "officialSources": ["https://ampcode.com/manual/plugin-api"],
-      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "subagents": "discovery-required", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "subagents": "verified", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "verified-plugin-api", "memory": "discovery-required" },
       "autonomy": { "profile": "interactive", "headlessConstraint": "paid-tier-required" }
     },
     {
       "hostId": "windsurf",
       "state": "inactive",
       "officialSources": ["https://docs.windsurf.com/"],
-      "surfaces": { "rules": "discovery-required", "skills": "observed", "mcp": "verified", "plugins": "discovery-required", "subagents": "discovery-required", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
+      "surfaces": { "rules": "verified", "skills": "verified", "mcp": "verified", "plugins": "not-documented", "parallelAgents": "verified", "workflows": "verified", "worktrees": "verified-unapproved-root", "subagents": "verified-cascade", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "verified", "memory": "discovery-required" },
       "autonomy": { "profile": "interactive", "reason": "Do not emit settings without a current official Windows schema." }
     },
     {

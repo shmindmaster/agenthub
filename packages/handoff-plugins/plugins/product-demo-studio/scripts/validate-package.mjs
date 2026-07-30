@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.0.0";
+const expectedVersion = "1.1.0";
 const failures = [];
 
 function readJson(relativePath) {
@@ -34,11 +34,22 @@ function requireFiles(relativeRoot, expectedNames, { exact = false } = {}) {
 
 const claude = readJson(".claude-plugin/plugin.json");
 const codex = readJson(".codex-plugin/plugin.json");
-for (const [name, manifest] of [["Claude", claude], ["Codex", codex]]) {
+const cursor = readJson(".cursor-plugin/plugin.json");
+const devin = readJson(".devin-plugin/plugin.json");
+const qoder = readJson(".qoder-plugin/plugin.json");
+for (const [name, manifest] of [
+  ["Claude", claude],
+  ["Codex", codex],
+  ["Cursor", cursor],
+  ["Devin", devin],
+  ["Qoder", qoder],
+]) {
   if (manifest.name !== "product-demo-studio") failures.push(`${name} manifest has wrong plugin name`);
   if (manifest.version !== expectedVersion) failures.push(`${name} manifest version must be ${expectedVersion}`);
 }
-if (claude.version !== codex.version) failures.push("Claude and Codex manifest versions differ");
+if (new Set([claude.version, codex.version, cursor.version, devin.version, qoder.version]).size !== 1) {
+  failures.push("host-native plugin manifest versions differ");
+}
 
 const agents = [
   "audio-captions-sync-reviewer.md",
@@ -56,6 +67,20 @@ const agents = [
   "technical-frame-integrity-reviewer.md",
 ];
 requireFiles("agents", agents, { exact: true });
+const readOnlyAgents = agents.filter((name) => {
+  const source = readFileSync(join(root, "agents", name), "utf8");
+  return /^readonly:\s*true\s*$/m.test(source);
+});
+if (readOnlyAgents.length !== 6) {
+  failures.push(`agents: expected six readonly:true roles, found ${readOnlyAgents.length}`);
+}
+for (const name of readOnlyAgents) {
+  const source = readFileSync(join(root, "agents", name), "utf8");
+  const tools = /^tools:\s*(.+)$/m.exec(source)?.[1] ?? "";
+  if (/(^|,\s*)Bash(\s*,|$)/.test(tools) || /(^|,\s*)(?:Edit|Write)(\s*,|$)/.test(tools)) {
+    failures.push(`agents/${name}: read-only role exposes Bash, Edit, or Write`);
+  }
+}
 
 requireFiles("schemas", [
   "delivery-spec.schema.json",

@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
   "hosts": [
-    { "id": "codex", "name": "ChatGPT / Codex", "adapter": "native-rules-skills-plugins-mcp-acp", "status": "active", "officialDocs": "https://help.openai.com/en/articles/20001256-plugins-in-codex" },
+    { "id": "codex", "name": "ChatGPT / Codex", "adapter": "native-rules-skills-plugins-mcp-subagents-acp", "status": "active", "officialDocs": "https://developers.openai.com/plugins/build/plugins" },
     { "id": "claude", "name": "Claude Code", "adapter": "native-rules-skills-subagents-agent-teams-worktrees-workflows-code-intelligence-hooks-mcp-plugins-memory-headless", "status": "active", "officialDocs": "https://code.claude.com/docs/en/features-overview" },
     { "id": "vscode-insiders", "name": "VS Code Insiders agent plugins", "adapter": "native-rules-skills-agents-hooks-plugins-mcp-acp", "status": "inactive", "officialDocs": "https://code.visualstudio.com/docs/agents/concepts/customization" },
     { "id": "cursor", "name": "Cursor", "adapter": "cursor-plugin", "status": "retained-disabled", "officialDocs": "https://cursor.com/docs/plugins" },
     { "id": "cursor-agent", "name": "Cursor Agent CLI", "adapter": "cursor-native-agent-cli", "status": "retained-disabled", "officialDocs": "https://cursor.com/docs/cli/overview" },
     { "id": "amp", "name": "Sourcegraph Amp", "adapter": "mcp-plus-plugin-api", "status": "inactive", "officialDocs": "https://ampcode.com/manual/plugin-api" },
-    { "id": "factory", "name": "Factory Droid", "adapter": "mcp-plus-native-plugin", "status": "inactive", "officialDocs": "https://docs.factory.ai/reference/cli-reference" },
+    { "id": "factory", "name": "Factory Droid", "adapter": "native-rules-skills-droids-hooks-mcp-plugins-claude-plugin-translation", "status": "inactive", "officialDocs": "https://docs.factory.ai/harness/plugins" },
     { "id": "qwen-code", "name": "Qwen Code", "adapter": "instructions-skills-subagents-memory-headless-lsp-hooks-mcp", "status": "active", "officialDocs": "https://qwenlm.github.io/qwen-code-docs/en/" },
     { "id": "opencode", "name": "OpenCode", "adapter": "native-rules-agents-skills-plugins-mcp-acp-lsp-hooks", "status": "active", "officialDocs": "https://opencode.ai/docs/" },
     { "id": "opencode-desktop", "name": "OpenCode Desktop", "adapter": "opencode-companion-surface", "status": "active", "officialDocs": "https://opencode.ai/docs/" },
-    { "id": "gemini", "name": "Gemini CLI", "adapter": "native-rules-skills-extensions-mcp-acp-lsp-hooks-memory", "status": "active", "officialDocs": "https://geminicli.com/docs/" },
-    { "id": "hermes", "name": "Hermes Agent", "adapter": "native-windows-skills-and-hooks", "status": "active", "officialDocs": "https://github.com/NousResearch/hermes-agent" },
+    { "id": "gemini", "name": "Gemini CLI", "adapter": "native-rules-skills-extensions-preview-subagents-mcp-acp-lsp-hooks-memory", "status": "active", "officialDocs": "https://geminicli.com/docs/extensions/reference/" },
+    { "id": "hermes", "name": "Hermes Agent", "adapter": "native-windows-rules-skills-plugins-delegation-hooks-mcp", "status": "active", "officialDocs": "https://hermes-agent.nousresearch.com/docs/user-guide/features/plugins" },
     { "id": "copilot", "name": "GitHub Copilot CLI", "adapter": "agent-skills", "status": "active", "officialDocs": "https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills" },
     { "id": "antigravity", "name": "Google Antigravity", "adapter": "native-rules-skills-plugins-mcp-subagents-hooks", "status": "active", "officialDocs": "https://www.antigravity.google/docs/cli-overview" },
     { "id": "antigravity-desktop", "name": "Google Antigravity Desktop", "adapter": "companion-native-plugin-surface", "status": "active", "officialDocs": "https://www.antigravity.google/docs/settings" },
     { "id": "antigravity-ide", "name": "Google Antigravity IDE", "adapter": "companion-native-plugin-surface", "status": "active", "officialDocs": "https://www.antigravity.google/docs/settings" },
-    { "id": "grok", "name": "Grok CLI", "adapter": "native-rules-agents-skills-plugins-mcp-acp-lsp-hooks-memory", "status": "active", "officialDocs": "C:/Users/SaroshHussain/.grok/README.md" },
-    { "id": "warp", "name": "Warp / Oz", "adapter": "native-rules-skills-mcp-cloud-agent; plugin-agent-discovery-required", "status": "active", "officialDocs": "https://docs.warp.dev/" },
-    { "id": "cline", "name": "Cline CLI / ACP / Kanban", "adapter": "native-rules-skills-mcp-cli-acp-kanban; plugins-cli-sdk-kanban-only; custom-agents-schema-discovery-required", "status": "active", "officialDocs": "https://docs.cline.bot/" },
+    { "id": "grok", "name": "Grok CLI", "adapter": "native-rules-agents-skills-claude-compatible-plugins-mcp-acp-lsp-hooks-memory-sandbox-worktrees", "status": "active", "officialDocs": "https://docs.x.ai/build/features/skills-plugins-marketplaces" },
+    { "id": "warp", "name": "Warp / Oz", "adapter": "native-rules-skills-mcp-profiles-environments-orchestration-cloud-agent; no-general-plugin-manifest", "status": "active", "officialDocs": "https://docs.warp.dev/agent-platform/capabilities/skills" },
+    { "id": "cline", "name": "Cline CLI / ACP / Kanban / IDE", "adapter": "native-rules-skills-hooks-mcp-cli-acp-kanban; plugins-cli-sdk-kanban-only; fixed-read-only-subagent", "status": "active", "officialDocs": "https://docs.cline.bot/customization/plugins" },
     { "id": "qoder", "name": "Qoder CLI / Desktop / JetBrains / QoderWork", "adapter": "native-rules-skills-agents-plugins-mcp-acp-canvas-connectors", "status": "active", "officialDocs": "https://docs.qoder.com/" },
-    { "id": "devin", "name": "Devin Desktop / CLI", "adapter": "native-rules-agents-skills-plugins-mcp-acp-hooks", "status": "inactive", "officialDocs": "https://docs.devin.ai/cli/extensibility/configuration" },
-    { "id": "windsurf", "name": "Windsurf", "adapter": "ide-client-and-mcp; schema-discovery-required", "status": "inactive", "officialDocs": "https://docs.windsurf.com/" }
+    { "id": "devin", "name": "Devin Desktop / CLI", "adapter": "native-rules-agents-skills-plugins-mcp-acp-hooks-sandbox; cloud-surface-separate", "status": "inactive", "officialDocs": "https://docs.devin.ai/cli/extensibility/plugins/overview" },
+    { "id": "windsurf", "name": "Windsurf", "adapter": "native-rules-skills-hooks-workflows-worktrees-parallel-agents-mcp; no-general-plugin-manifest", "status": "inactive", "officialDocs": "https://docs.windsurf.com/windsurf/cascade/skills" }
   ]
 }

@@ -648,6 +648,14 @@ function Get-PluginProvidedMcpKeysByHost {
                 )) {
                     continue
                 }
+                # Some hosts load the capability through a native plugin
+                # adapter while intentionally keeping MCP ownership in the
+                # shared registry. Copilot's Product Demo Studio adapter is
+                # one example: its generated plugin tree strips .mcp.json so
+                # the shared Descript registration remains the only owner.
+                if ([string]$mapping.mcpOwnership -eq 'shared-registry') {
+                    continue
+                }
                 $hostId = [string]$mapping.hostId
                 if (-not $hostId) { continue }
                 if (-not $result.ContainsKey($hostId)) { $result[$hostId] = @{} }
@@ -1429,28 +1437,45 @@ function Sync-QwenCapabilityExtensions {
             Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
         ) 'skills'
         if (-not (Test-Path -LiteralPath $sourceSkills)) { continue }
+        $sourceAgents = Join-Path (
+            Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
+        ) 'agents'
+        $hasSourceAgents = Test-Path -LiteralPath $sourceAgents -PathType Container
         $extensionName = 'agenthub-' + [string]$capability.id
         $expected += $extensionName
         $adapterPath = Join-Path $adapterRoot $extensionName
         $manifestPath = Join-Path $adapterPath 'qwen-extension.json'
         $skillsLink = Join-Path $adapterPath 'skills'
+        $agentsLink = Join-Path $adapterPath 'agents'
         $userLink = Join-Path $extensionsRoot $extensionName
         $manifest = @{ name=$extensionName; version='1.0.0'; description="Registry adapter for $($capability.id)"; skills='skills' }
+        if ($hasSourceAgents) { $manifest.agents = 'agents' }
         $manifestJson = Get-StableJsonString $manifest
 
         $skillsItem = Get-Item -LiteralPath $skillsLink -Force -ErrorAction SilentlyContinue
+        $agentsItem = Get-Item -LiteralPath $agentsLink -Force -ErrorAction SilentlyContinue
         $userItem = Get-Item -LiteralPath $userLink -Force -ErrorAction SilentlyContinue
         $skillsTarget = if ($skillsItem -and $skillsItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             [string]$skillsItem.Target
         } else { '' }
+        $agentsTarget = if ($agentsItem -and $agentsItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            [string]$agentsItem.Target
+        } else { '' }
         $userTarget = if ($userItem -and $userItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             [string]$userItem.Target
         } else { '' }
+        $agentsReady = if ($hasSourceAgents) {
+            $agentsTarget -and
+            [IO.Path]::GetFullPath($agentsTarget) -eq [IO.Path]::GetFullPath($sourceAgents)
+        } else {
+            -not $agentsItem
+        }
         $adapterReady = (
             (Test-Path -LiteralPath $manifestPath -PathType Leaf) -and
             ((Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8) -eq $manifestJson) -and
             $skillsTarget -and
-            [IO.Path]::GetFullPath($skillsTarget) -eq [IO.Path]::GetFullPath($sourceSkills)
+            [IO.Path]::GetFullPath($skillsTarget) -eq [IO.Path]::GetFullPath($sourceSkills) -and
+            $agentsReady
         )
         $userReady = (
             $userTarget -and
@@ -1472,6 +1497,18 @@ function Sync-QwenCapabilityExtensions {
         }
         if (-not $skillsItem) {
             New-Item -ItemType Junction -Path $skillsLink -Target $sourceSkills | Out-Null
+        }
+        if ($agentsItem -and -not $agentsTarget) {
+            throw "Refusing to replace non-junction Qwen adapter path: $agentsLink"
+        }
+        if ($agentsItem -and -not $agentsReady) {
+            Remove-Item -LiteralPath $agentsLink -Force
+            $agentsItem = $null
+        }
+        if ($hasSourceAgents -and -not $agentsItem) {
+            New-Item -ItemType Junction -Path $agentsLink -Target $sourceAgents | Out-Null
+        } elseif (-not $hasSourceAgents -and $agentsItem) {
+            Remove-Item -LiteralPath $agentsLink -Force
         }
         if (-not (Test-Path -LiteralPath $extensionsRoot)) { New-Item -ItemType Directory -Path $extensionsRoot -Force | Out-Null }
         if ($userItem -and -not $userTarget) {

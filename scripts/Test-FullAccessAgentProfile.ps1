@@ -157,7 +157,13 @@ if (Test-CursorDispatchEnabled $fleetProfile) {
 }
 Assert-Profile ($antigravity.toolPermission -eq 'always-proceed') 'Antigravity tool approval is always-proceed'
 Assert-Profile ($amp.'amp.permissions' -is [System.Array] -and $amp.'amp.permissions'.Count -eq 1 -and $amp.'amp.permissions'[0].action -eq 'allow' -and $amp.'amp.permissions'[0].tool -eq '*') 'Amp has a valid global allow-all rule'
-Assert-Profile ($factory.interactionMode -eq 'auto' -and $factory.autonomyMode -eq 'auto-high') 'Factory uses its highest discovered autonomous profile'
+Assert-Profile (
+  $null -eq $factory.PSObject.Properties['interactionMode'] -and
+  $null -eq $factory.PSObject.Properties['autonomyLevel'] -and
+  $null -eq $factory.PSObject.Properties['autonomyMode'] -and
+  $factory.sessionDefaultSettings.interactionMode -eq 'auto' -and
+  $factory.sessionDefaultSettings.autonomyLevel -eq 'high'
+) 'Factory uses the current nested session-default autonomy schema'
 Assert-Profile ($copilot.stayInAutopilot -eq $true -and $copilot.askUser -eq $false) 'Copilot persists autopilot and no-question defaults'
 Assert-Profile ($grokToml -match '(?m)^yolo\s*=\s*true\s*$' -and $grokToml -match '(?m)^permission_mode\s*=\s*"always-approve"\s*$') 'Grok uses its persisted yolo and always-approve modes'
  $clineMcp = Read-ServerSet "$UserProfile\.cline\data\settings\cline_mcp_settings.json" 'mcpServers'

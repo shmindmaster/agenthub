@@ -844,12 +844,16 @@ if (Test-Path -LiteralPath $cursorLocalPlugins -PathType Container) {
     }
 }
 
-# Antigravity plugin directories are installed packages. Their activation
-# format remains host-owned; inventory them without claiming they are active.
-$antigravityPlugins = Join-Path $UserProfilePath '.gemini\config\plugins'
-if (Test-Path -LiteralPath $antigravityPlugins -PathType Container) {
-    foreach ($plugin in Get-ChildItem -LiteralPath $antigravityPlugins -Directory -ErrorAction SilentlyContinue) {
-        Add-PluginRoot 'antigravity' $plugin.Name $plugin.FullName $antigravityPlugins 'installed-observed'
+# Antigravity CLI and Desktop/IDE have distinct documented plugin roots.
+foreach ($antigravityPlugins in @(
+    (Join-Path $UserProfilePath '.gemini\antigravity-cli\plugins'),
+    (Join-Path $UserProfilePath '.gemini\config\plugins')
+)) {
+    if (Test-Path -LiteralPath $antigravityPlugins -PathType Container) {
+        foreach ($plugin in Get-ChildItem -LiteralPath $antigravityPlugins -Directory -ErrorAction SilentlyContinue) {
+            Add-PluginRoot 'antigravity' $plugin.Name $plugin.FullName `
+                $antigravityPlugins 'installed-observed'
+        }
     }
 }
 
@@ -988,6 +992,125 @@ if ($null -ne $skillOwnershipRegistry) {
             Add-DriftResult $status 'skill' `
                 "preserve-pending-evidence:$($record.hostId):${skillId}" `
                 $detail $record.hostId @($record.path)
+        }
+    }
+}
+
+# Product Demo Studio's multi-agent workflow is not deployed merely because its
+# skills are visible. Verify each generated native role surface that AgentHub
+# owns, including the six roles that must have mechanical read-only controls.
+$productDemoCapability = @($capabilityRegistry.capabilities |
+    Where-Object id -eq 'product-demo-studio')
+if ($productDemoCapability.Count -eq 1) {
+    $productDemoSource = Resolve-RegistryOwnedPath (
+        [string]$productDemoCapability[0].canonicalSource
+    )
+    $canonicalProductDemoAgents = Join-Path $productDemoSource 'agents'
+    if (Test-Path -LiteralPath $canonicalProductDemoAgents -PathType Container) {
+        $expectedRoleNames = @(
+            Get-ChildItem -LiteralPath $canonicalProductDemoAgents -Filter '*.md' -File |
+                Sort-Object BaseName |
+                ForEach-Object BaseName
+        )
+        $readOnlyRoleNames = @(
+            Get-ChildItem -LiteralPath $canonicalProductDemoAgents -Filter '*.md' -File |
+                Where-Object {
+                    (Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8) -match
+                        '(?m)^readonly:\s*true\s*$'
+                } |
+                ForEach-Object BaseName
+        )
+        if ($expectedRoleNames.Count -ne 13 -or $readOnlyRoleNames.Count -ne 6) {
+            Add-DriftResult FAIL 'role' 'product-demo-studio:canonical-role-contract' `
+                "canonical role inventory must contain 13 roles and six read-only roles; found $($expectedRoleNames.Count) and $($readOnlyRoleNames.Count)" `
+                '' @($canonicalProductDemoAgents)
+        } else {
+            Add-DriftResult PASS 'role' 'product-demo-studio:canonical-role-contract' `
+                'canonical role inventory contains 13 roles and six read-only roles' `
+                '' @($canonicalProductDemoAgents)
+        }
+
+        $managedRoleTargets = @(
+            @{
+                hostId='codex'
+                root=(Join-Path $UserProfilePath '.codex\agents')
+                prefix='product-demo-studio-'
+                extension='.toml'
+                readOnlyPattern='(?m)^sandbox_mode\s*=\s*"read-only"\s*$'
+            },
+            @{
+                hostId='opencode'
+                root=(Join-Path $UserProfilePath '.config\opencode\agents')
+                prefix='product-demo-studio-'
+                extension='.md'
+                readOnlyPattern='(?ms)^permission:\s*\r?\n(?:\s+.*\r?\n)*?\s+edit:\s*deny\s*$[\s\S]*?\s+bash:\s*deny\s*$'
+            },
+            @{
+                hostId='gemini'
+                root=(Join-Path $UserProfilePath '.gemini\extensions\agenthub-product-demo-studio\agents')
+                prefix='product-demo-studio-'
+                extension='.md'
+                readOnlyPattern='(?ms)^tools:\s*\r?\n(?:\s+-\s+(?:read_file|grep_search|glob)\s*\r?\n)+'
+            },
+            @{
+                hostId='antigravity'
+                root=(Join-Path $UserProfilePath '.gemini\antigravity-cli\plugins\product-demo-studio\agents')
+                prefix='product-demo-studio-'
+                extension='.md'
+                readOnlyPattern='(?m)^commandExecutionPolicy:\s*off\s*$'
+            }
+        )
+        foreach ($target in $managedRoleTargets) {
+            $mapping = @($productDemoCapability[0].hostMappings |
+                Where-Object hostId -eq $target.hostId)
+            if ($mapping.Count -ne 1) { continue }
+            $missing = @()
+            $unenforced = @()
+            foreach ($roleName in $expectedRoleNames) {
+                $path = Join-Path $target.root (
+                    "$($target.prefix)$roleName$($target.extension)"
+                )
+                if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
+                    $missing += $path
+                    continue
+                }
+                if ($roleName -in $readOnlyRoleNames) {
+                    $raw = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+                    if ($raw -notmatch $target.readOnlyPattern) {
+                        $unenforced += $path
+                    }
+                }
+            }
+            if ($missing.Count -gt 0 -or $unenforced.Count -gt 0) {
+                Add-DriftResult FAIL 'role' `
+                    "product-demo-studio:native-roles:$($target.hostId)" `
+                    "native Product Demo Studio role drift: $($missing.Count) missing, $($unenforced.Count) without expected read-only restriction" `
+                    $target.hostId @($missing + $unenforced)
+            } else {
+                Add-DriftResult PASS 'role' `
+                    "product-demo-studio:native-roles:$($target.hostId)" `
+                    '13 native roles present; six read-only roles carry the expected host restriction' `
+                    $target.hostId @($target.root)
+            }
+        }
+
+        $qwenExtensionRoot = Join-Path $UserProfilePath `
+            '.qwen\extensions\agenthub-product-demo-studio'
+        $qwenManifestPath = Join-Path $qwenExtensionRoot 'qwen-extension.json'
+        $qwenAgentsRoot = Join-Path $qwenExtensionRoot 'agents'
+        $qwenManifest = Read-JsonFile -Path $qwenManifestPath
+        $qwenMissing = @($expectedRoleNames | Where-Object {
+            !(Test-Path -LiteralPath (Join-Path $qwenAgentsRoot "$_.md") -PathType Leaf)
+        })
+        if ($qwenManifest -and [string]$qwenManifest.agents -eq 'agents' -and
+            $qwenMissing.Count -eq 0) {
+            Add-DriftResult PASS 'role' 'product-demo-studio:native-roles:qwen-code' `
+                'Qwen extension exposes all 13 Product Demo Studio agents' `
+                'qwen-code' @($qwenManifestPath, $qwenAgentsRoot)
+        } else {
+            Add-DriftResult FAIL 'role' 'product-demo-studio:native-roles:qwen-code' `
+                "Qwen Product Demo Studio agent extension is missing its agents declaration or $($qwenMissing.Count) roles" `
+                'qwen-code' @($qwenManifestPath, $qwenAgentsRoot)
         }
     }
 }

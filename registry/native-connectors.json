@@ -191,13 +191,14 @@
       "hostId": "factory",
       "providerHeld": false,
       "exposures": {
-        "plugin-owned": [],
+        "plugin-owned": [
+          "descript"
+        ],
         "native-connector": [],
         "shared-gateway": [
           "adobe-for-creativity",
           "canva",
           "context7",
-          "descript",
           "exa",
           "firecrawl",
           "linear",
@@ -382,13 +383,14 @@
       "hostId": "grok",
       "providerHeld": false,
       "exposures": {
-        "plugin-owned": [],
+        "plugin-owned": [
+          "descript"
+        ],
         "native-connector": [],
         "shared-gateway": [
           "adobe-for-creativity",
           "canva",
           "context7",
-          "descript",
           "exa",
           "firecrawl",
           "github",
