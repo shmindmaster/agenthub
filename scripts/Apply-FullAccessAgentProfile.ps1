@@ -182,6 +182,26 @@ function Test-DirectoryEquivalent([string]$Left, [string]$Right) {
   }
 }
 
+function Test-QoderPluginEquivalent([string]$Left, [string]$Right) {
+  if (!(Test-Path -LiteralPath $Left -PathType Container) -or !(Test-Path -LiteralPath $Right -PathType Container)) {
+    return $false
+  }
+  try {
+    # Qoder materializes empty optional directories and writes .orphaned_at
+    # lifecycle state into local plugin caches. Neither changes executable
+    # package content, so compare the managed files only.
+    $leftFiles = @(Get-DirectoryInventory $Left | Where-Object {
+      $_.StartsWith('F|', [StringComparison]::Ordinal) -and -not $_.StartsWith('F|.orphaned_at|', [StringComparison]::Ordinal)
+    })
+    $rightFiles = @(Get-DirectoryInventory $Right | Where-Object {
+      $_.StartsWith('F|', [StringComparison]::Ordinal) -and -not $_.StartsWith('F|.orphaned_at|', [StringComparison]::Ordinal)
+    })
+    return ($leftFiles -join "`n") -ceq ($rightFiles -join "`n")
+  } catch [System.IO.IOException], [System.Management.Automation.ItemNotFoundException] {
+    return $false
+  }
+}
+
 function Test-CopilotPluginAdapterEquivalent([string]$Source, [string]$Destination, [bool]$StripMcpManifest) {
   if (!(Test-Path -LiteralPath $Source -PathType Container) -or
       !(Test-Path -LiteralPath $Destination -PathType Container)) {
@@ -455,10 +475,65 @@ function Ensure-QoderPlugins {
     $current = @($installed | Where-Object {
       $_.name -eq [string]$capability.id -and $_.scope -eq 'user' -and $_.enabled -eq $true
     })
-    if ($current.Count -eq 0) {
-      & $qoderCli plugins install --scope user $source | Out-Host
+    $currentEntry = $current | Select-Object -First 1
+    $currentPath = if ($currentEntry) { [string]$currentEntry.installPath } else { $null }
+    $needsInstall = $current.Count -ne 1 -or
+      [string]::IsNullOrWhiteSpace($currentPath) -or
+      -not (Test-QoderPluginEquivalent $source $currentPath)
+
+    if ($needsInstall) {
+      if ($current.Count -gt 0) {
+        & $qoderCli plugins uninstall --scope user "$($capability.id)@local" --json | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+          throw "Qoder could not uninstall stale native plugin $($capability.id) before replacement."
+        }
+      }
+
+      & $qoderCli plugins install --scope user $source --json | Out-Host
       if ($LASTEXITCODE -ne 0) { throw "Qoder could not install native plugin $($capability.id) from $source" }
     }
+
+    $refreshed = @()
+    try { $refreshed = @((& $qoderCli plugins list --json 2>$null | ConvertFrom-Json)) } catch { $refreshed = @() }
+    $current = @($refreshed | Where-Object {
+      $_.name -eq [string]$capability.id -and $_.scope -eq 'user' -and $_.enabled -eq $true
+    })
+    if ($current.Count -ne 1) {
+      throw "Qoder did not report exactly one enabled user plugin for $($capability.id) after reconciliation."
+    }
+    $currentPath = [string]$current[0].installPath
+    if (-not (Test-QoderPluginEquivalent $source $currentPath)) {
+      throw "Qoder plugin $($capability.id) remains content-stale after reconciliation: $currentPath"
+    }
+
+    # Qoder's official uninstall leaves old version directories in its cache.
+    # They remain discoverable to inventory tools and can be selected by older
+    # host builds, so retire only same-name version siblings after the current
+    # installed tree has been verified byte-equivalent.
+    $cacheRoot = Split-Path -Parent $currentPath
+    foreach ($cachedVersion in @(Get-ChildItem -LiteralPath $cacheRoot -Directory -Force)) {
+      if ($cachedVersion.FullName.Equals($currentPath, [StringComparison]::OrdinalIgnoreCase)) { continue }
+      $cachedManifestPath = Join-Path $cachedVersion.FullName '.qoder-plugin\plugin.json'
+      if (!(Test-Path -LiteralPath $cachedManifestPath -PathType Leaf)) {
+        Write-Warning "Preserving unverified Qoder cache sibling: $($cachedVersion.FullName)"
+        continue
+      }
+      try {
+        $cachedManifest = Get-Content -LiteralPath $cachedManifestPath -Raw | ConvertFrom-Json
+      } catch {
+        Write-Warning "Preserving unreadable Qoder cache sibling: $($cachedVersion.FullName)"
+        continue
+      }
+      if ([string]$cachedManifest.name -ne [string]$capability.id) {
+        Write-Warning "Preserving mismatched Qoder cache sibling: $($cachedVersion.FullName)"
+        continue
+      }
+      Move-ToManagedQuarantine $cachedVersion.FullName 'qoder' 'plugin-cache' `
+        "$($capability.id)-$($cachedVersion.Name)" `
+        "Superseded Qoder cache generation retired after the current native plugin was verified." | Out-Null
+    }
+
+    $installed = $refreshed
   }
 }
 
@@ -528,9 +603,29 @@ function Ensure-LocalNativeAdapters {
   }
 }
 
+function Retire-QoderNativePluginLooseSkills {
+  $qoderSkillRoot = Join-Path $UserProfile '.qoder\skills'
+  foreach ($capability in @($caps.capabilities)) {
+    $qoderMapping = @($capability.hostMappings | Where-Object hostId -eq 'qoder' | Select-Object -First 1)
+    if ($qoderMapping.Count -ne 1 -or [string]$qoderMapping[0].deploymentStatus -ne 'native-local-plugin') { continue }
+    $sourceSkills = Join-Path ([string]$capability.canonicalSource) 'skills'
+    if (!(Test-Path -LiteralPath $sourceSkills -PathType Container)) { continue }
+    foreach ($sourceSkill in @(Get-ChildItem -LiteralPath $sourceSkills -Directory)) {
+      $loosePath = Join-Path $qoderSkillRoot $sourceSkill.Name
+      if (!(Test-Path -LiteralPath $loosePath -PathType Container)) { continue }
+      if (-not (Test-DirectoryEquivalent $sourceSkill.FullName $loosePath)) {
+        throw "Qoder has a divergent loose $($sourceSkill.Name) skill alongside the verified native $($capability.id) plugin: $loosePath"
+      }
+      Move-ToManagedQuarantine $loosePath 'qoder' 'skills' $sourceSkill.Name `
+        "Current native $($capability.id) plugin is enabled; duplicate loose skill retired." | Out-Null
+    }
+  }
+}
+
 Ensure-LocalNativeAdapters
 if (-not $SkillDistributionOnly) {
   Ensure-QoderPlugins
+  Retire-QoderNativePluginLooseSkills
 }
 $nativePluginStates = @{}
 foreach ($capability in $managedSkillCapabilities) {
@@ -565,6 +660,22 @@ foreach ($capability in $managedSkillCapabilities) {
         Install-ManagedSkill $hostId $targetRoot $skillName $capability.skillsSource $capability.id
       }
     }
+  }
+}
+
+# Cursor discovers both ~/.cursor/skills and ~/.cursor/plugins/local. Capabilities
+# mapped as managed loose skills must not retain an older local plugin copy,
+# otherwise Cursor sees two owners (and can select stale instructions). Cursor
+# remains provider-held; this only reconciles its on-disk discovery paths and
+# does not launch or probe the host.
+$cursorLocalPluginRoot = Join-Path $UserProfile '.cursor\plugins\local'
+foreach ($capability in @($caps.capabilities)) {
+  $cursorMapping = @($capability.hostMappings | Where-Object hostId -eq 'cursor' | Select-Object -First 1)
+  if ($cursorMapping.Count -ne 1 -or [string]$cursorMapping[0].deploymentStatus -ne 'managed') { continue }
+  $legacyPluginPath = Join-Path $cursorLocalPluginRoot ([string]$capability.id)
+  if (Test-Path -LiteralPath $legacyPluginPath -PathType Container) {
+    Move-ToManagedQuarantine $legacyPluginPath 'cursor' 'plugins' ([string]$capability.id) `
+      "Registry maps this capability to managed loose skills; conflicting local plugin copy retired." | Out-Null
   }
 }
 
@@ -1129,5 +1240,6 @@ elseif (-not $userPath.StartsWith($bin, [System.StringComparison]::OrdinalIgnore
 # Let the existing host-aware synchronizer render Codex and Qwen's native
 # formats and Qwen extension adapters from this same registry.
 & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Sync-AgentHub.ps1') -Apply -Validate -IncludeInactiveAgents -ScopeProfile global-default -RegistryRoot $RegistryRoot -UserProfile $UserProfile
+Retire-QoderNativePluginLooseSkills
 
 Write-Host 'Full-access agent profile applied. Restart open agent sessions and open a new terminal for launcher PATH changes.' -ForegroundColor Green

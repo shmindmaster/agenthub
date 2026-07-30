@@ -809,3 +809,24 @@ Describe 'Apply-FullAccessAgentProfile dependency artifact exclusion' {
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\product-demo-studio\node_modules')) | Should -Be $false
     }
 }
+
+Describe 'Apply-FullAccessAgentProfile Qoder plugin convergence' {
+    BeforeAll {
+        $script:applyProfileSource = Get-Content -LiteralPath $global:AgentHubApplyScriptPath -Raw -Encoding UTF8
+    }
+
+    It 'upgrades stale native plugins and verifies the installed package contents' {
+        $script:applyProfileSource | Should -Match 'function Test-QoderPluginEquivalent'
+        $script:applyProfileSource | Should -Match 'plugins uninstall --scope user'
+        $script:applyProfileSource | Should -Match 'plugins install --scope user'
+        $script:applyProfileSource | Should -Match 'remains content-stale after reconciliation'
+    }
+
+    It 'retires duplicate loose skills after the final AgentHub synchronization' {
+        $script:applyProfileSource | Should -Match 'function Retire-QoderNativePluginLooseSkills'
+        $finalSyncIndex = $script:applyProfileSource.LastIndexOf("Sync-AgentHub.ps1")
+        $finalRetirementIndex = $script:applyProfileSource.LastIndexOf('Retire-QoderNativePluginLooseSkills')
+        $finalSyncIndex | Should -BeGreaterThan -1
+        $finalRetirementIndex | Should -BeGreaterThan $finalSyncIndex
+    }
+}
