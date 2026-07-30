@@ -513,8 +513,10 @@ Describe 'AgentHub managed quarantine' {
         @($batch.Entries).Count | Should -Be 0
         $batch.ManifestPersisted | Should -BeFalse
         $batch.ManifestWritten | Should -BeFalse
-        @(Get-ChildItem -LiteralPath $batch.BatchRoot -Filter 'manifest.json.*' `
-            -File -ErrorAction SilentlyContinue).Count | Should -Be 0
+        @(Get-ChildItem -LiteralPath $batch.BatchRoot -File `
+            -ErrorAction SilentlyContinue | Where-Object {
+                $_.Name -match '^manifest\.json\.(tmp|bak)-'
+            }).Count | Should -Be 0
     }
 
     It 'rolls back only the latest move when manifest replacement fails' {
@@ -560,7 +562,9 @@ Describe 'AgentHub managed quarantine' {
         @($batch.Entries)[0].artifactName | Should -Be 'first'
         $batch.ManifestPersisted | Should -BeTrue
         $batch.ManifestWritten | Should -BeFalse
-        @(Get-ChildItem -LiteralPath $batch.BatchRoot -Filter 'manifest.json.*' `
-            -File -ErrorAction SilentlyContinue).Count | Should -Be 0
+        @(Get-ChildItem -LiteralPath $batch.BatchRoot -File `
+            -ErrorAction SilentlyContinue | Where-Object {
+                $_.Name -match '^manifest\.json\.(tmp|bak)-'
+            }).Count | Should -Be 0
     }
 }

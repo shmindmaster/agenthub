@@ -65,14 +65,15 @@ function Get-AgentHubReparseTargetPath {
     return [IO.Path]::GetFullPath($target)
 }
 
-function Assert-AgentHubQuarantinePhysicalContainment {
+function Resolve-AgentHubQuarantinePhysicalPath {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$Path,
         [Parameter(Mandatory)]
         [string]$Root,
-        [switch]$AllowSafeLeafReparsePoint
+        [ValidateRange(1, 32)]
+        [int]$MaximumReparseHops = 32
     )
 
     $normalizedPath = [IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
@@ -87,44 +88,120 @@ function Assert-AgentHubQuarantinePhysicalContainment {
         throw "Path is outside its approved containment root: $normalizedPath"
     }
 
-    $pathsToInspect = [Collections.ArrayList]::new()
-    [void]$pathsToInspect.Add($normalizedRoot)
-    if (-not $normalizedPath.Equals(
-        $normalizedRoot,
-        [StringComparison]::OrdinalIgnoreCase
-    )) {
-        $relativePath = $normalizedPath.Substring($normalizedRoot.Length).
-            TrimStart('\', '/')
-        $cursor = $normalizedRoot
-        foreach ($segment in @($relativePath -split '[\\/]')) {
-            if ([string]::IsNullOrWhiteSpace($segment)) {
+    $workingPath = $normalizedPath
+    $visitedReparsePoints = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::OrdinalIgnoreCase
+    )
+    $reparsePoints = [Collections.ArrayList]::new()
+    $reparseHopCount = 0
+
+    while ($true) {
+        $pathsToInspect = [Collections.ArrayList]::new()
+        [void]$pathsToInspect.Add($normalizedRoot)
+        if (-not $workingPath.Equals(
+            $normalizedRoot,
+            [StringComparison]::OrdinalIgnoreCase
+        )) {
+            $relativePath = $workingPath.Substring($normalizedRoot.Length).
+                TrimStart('\', '/')
+            $cursor = $normalizedRoot
+            foreach ($segment in @($relativePath -split '[\\/]')) {
+                if ([string]::IsNullOrWhiteSpace($segment)) {
+                    continue
+                }
+                $cursor = Join-Path $cursor $segment
+                [void]$pathsToInspect.Add($cursor)
+            }
+        }
+
+        $resolvedReparsePoint = $false
+        foreach ($candidate in $pathsToInspect) {
+            $item = $null
+            try {
+                $item = Get-Item -LiteralPath $candidate -Force -ErrorAction Stop
+            } catch {
+                if ($_.CategoryInfo.Category -eq
+                    [Management.Automation.ErrorCategory]::ObjectNotFound) {
+                    break
+                }
+                throw "Cannot safely inspect quarantine path '$candidate': $($_.Exception.Message)"
+            }
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) {
                 continue
             }
-            $cursor = Join-Path $cursor $segment
-            [void]$pathsToInspect.Add($cursor)
+
+            $candidatePath = [IO.Path]::GetFullPath($candidate).TrimEnd('\', '/')
+            if (-not $visitedReparsePoints.Add($candidatePath)) {
+                throw "Refusing a cyclic quarantine reparse-point chain at: $candidatePath"
+            }
+            $reparseHopCount++
+            if ($reparseHopCount -gt $MaximumReparseHops) {
+                throw "Refusing a quarantine reparse-point chain longer than $MaximumReparseHops hops."
+            }
+            [void]$reparsePoints.Add($candidatePath)
+
+            $targetPath = Get-AgentHubReparseTargetPath -Item $item
+            if (-not (Test-AgentHubPathWithinRoot `
+                -Path $targetPath `
+                -Root $normalizedRoot
+            )) {
+                throw "Refusing a quarantine reparse point outside the approved profile: $candidatePath -> $targetPath"
+            }
+
+            $remainingPath = $workingPath.Substring($candidatePath.Length).
+                TrimStart('\', '/')
+            if (-not [string]::IsNullOrEmpty($remainingPath)) {
+                $targetPath = [IO.Path]::GetFullPath(
+                    (Join-Path $targetPath $remainingPath)
+                )
+            }
+            if (-not $targetPath.Equals(
+                $normalizedRoot,
+                [StringComparison]::OrdinalIgnoreCase
+            ) -and -not (Test-AgentHubPathWithinRoot `
+                -Path $targetPath `
+                -Root $normalizedRoot
+            )) {
+                throw "Refusing a quarantine reparse-point tail outside the approved profile: $candidatePath -> $targetPath"
+            }
+
+            $workingPath = $targetPath.TrimEnd('\', '/')
+            $resolvedReparsePoint = $true
+            break
+        }
+
+        if (-not $resolvedReparsePoint) {
+            return [pscustomobject]@{
+                ResolvedPath = $workingPath
+                ReparsePoints = @($reparsePoints)
+            }
         }
     }
+}
 
-    foreach ($candidate in $pathsToInspect) {
-        $item = Get-Item -LiteralPath $candidate -Force `
-            -ErrorAction SilentlyContinue
-        if ($null -eq $item -or
-            ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) {
-            continue
-        }
+function Assert-AgentHubQuarantinePhysicalContainment {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+        [Parameter(Mandatory)]
+        [string]$Root,
+        [switch]$AllowSafeLeafReparsePoint
+    )
 
-        $isLeaf = ([IO.Path]::GetFullPath($candidate).TrimEnd('\', '/')).
-            Equals($normalizedPath, [StringComparison]::OrdinalIgnoreCase)
+    $normalizedPath = [IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
+    $resolution = Resolve-AgentHubQuarantinePhysicalPath `
+        -Path $normalizedPath `
+        -Root $Root
+    $reparsePoints = @($resolution.ReparsePoints)
+    if ($reparsePoints.Count -gt 0) {
+        $firstReparsePoint = [string]$reparsePoints[0]
+        $isLeaf = $firstReparsePoint.Equals(
+            $normalizedPath,
+            [StringComparison]::OrdinalIgnoreCase
+        )
         if (-not $AllowSafeLeafReparsePoint -or -not $isLeaf) {
-            throw "Refusing a quarantine path that traverses a reparse point: $candidate"
-        }
-
-        $targetPath = Get-AgentHubReparseTargetPath -Item $item
-        if (-not (Test-AgentHubPathWithinRoot `
-            -Path $targetPath `
-            -Root $normalizedRoot
-        )) {
-            throw "Refusing a quarantine source reparse point outside the approved profile: $candidate -> $targetPath"
+            throw "Refusing a quarantine path that traverses a reparse point: $firstReparsePoint"
         }
     }
 
@@ -198,6 +275,33 @@ function New-AgentHubQuarantineBatch {
     }
 }
 
+function Invoke-AgentHubQuarantineManifestPersistence {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$TemporaryPath,
+        [Parameter(Mandatory)]
+        [string]$ManifestPath,
+        [Parameter(Mandatory)]
+        [string]$BackupPath,
+        [Parameter(Mandatory)]
+        [string]$ManifestJson,
+        [Parameter(Mandatory)]
+        [bool]$ManifestExists
+    )
+
+    [IO.File]::WriteAllText(
+        $TemporaryPath,
+        $ManifestJson,
+        [Text.UTF8Encoding]::new($false)
+    )
+    if ($ManifestExists) {
+        [IO.File]::Replace($TemporaryPath, $ManifestPath, $BackupPath)
+    } else {
+        [IO.File]::Move($TemporaryPath, $ManifestPath)
+    }
+}
+
 function Write-AgentHubQuarantineManifestSnapshot {
     [CmdletBinding()]
     param(
@@ -245,16 +349,12 @@ function Write-AgentHubQuarantineManifestSnapshot {
             createdAtUtc = [string]$Batch.CreatedAtUtc
             entries = @($Batch.Entries)
         } | ConvertTo-Json -Depth 10
-        [IO.File]::WriteAllText(
-            $temporaryPath,
-            $manifestJson,
-            [Text.UTF8Encoding]::new($false)
-        )
-        if (Test-Path -LiteralPath $manifestPath) {
-            [IO.File]::Replace($temporaryPath, $manifestPath, $backupPath)
-        } else {
-            [IO.File]::Move($temporaryPath, $manifestPath)
-        }
+        Invoke-AgentHubQuarantineManifestPersistence `
+            -TemporaryPath $temporaryPath `
+            -ManifestPath $manifestPath `
+            -BackupPath $backupPath `
+            -ManifestJson $manifestJson `
+            -ManifestExists (Test-Path -LiteralPath $manifestPath)
     } finally {
         foreach ($cleanupPath in @($temporaryPath, $backupPath)) {
             try {
