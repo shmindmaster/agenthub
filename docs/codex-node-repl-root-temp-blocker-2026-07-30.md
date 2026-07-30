@@ -2,11 +2,13 @@
 
 ## Decision
 
-`C:\tmp` remains a verified Codex Desktop platform blocker. AgentHub's
+Codex Desktop remains a verified root-temp recurrence risk. AgentHub's
 controllable environment and deployment paths are correct, but the current
-Codex Desktop sandbox still creates `C:\tmp\sessions`. AgentHub must not hide
-this result with a junction, ACL change, scanner exclusion, undocumented
-configuration, or by disabling the sandbox.
+Codex Desktop sandbox can still create `C:\tmp\sessions`. The empty observed
+tree was moved recoverably into AgentHub quarantine and `C:\tmp` was absent in
+the final live scan. AgentHub must not hide the proven recurrence risk with a
+junction, ACL change, scanner exclusion, undocumented configuration, or by
+disabling the sandbox.
 
 ## Current evidence
 

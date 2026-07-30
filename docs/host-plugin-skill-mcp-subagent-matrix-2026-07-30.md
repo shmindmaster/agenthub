@@ -1,7 +1,7 @@
 # Coding-agent plugin, skill, MCP, and subagent matrix
 
-Status date: 2026-07-30  
-Scope: installed or retained AgentHub hosts on this workstation  
+Status date: 2026-07-30
+Scope: installed or retained AgentHub hosts on this workstation
 Authority: official host documentation plus read-only inspection of the installed CLI/configuration
 
 This matrix records the host-native facts used by AgentHub adapters. A skill being visible is

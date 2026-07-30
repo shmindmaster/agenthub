@@ -270,6 +270,69 @@ function Test-CopilotPluginAdapterEquivalent([string]$Source, [string]$Destinati
   }
 }
 
+function Test-FactoryPluginAdapterEquivalent([string]$Source, [string]$Destination) {
+  if (!(Test-Path -LiteralPath $Source -PathType Container) -or
+      !(Test-Path -LiteralPath $Destination -PathType Container)) {
+    return $false
+  }
+  try {
+    # Factory translates Claude-compatible packages at install time:
+    # agents -> droids, .claude-plugin -> .factory-plugin, and .mcp.json ->
+    # mcp.json. Compare the translated contract rather than raw directory
+    # names, while retaining byte-level checks for every executable asset.
+    foreach ($pair in @(
+        @('agents','droids'),
+        @('skills','skills'),
+        @('policy','policy'),
+        @('schemas','schemas'),
+        @('scripts','scripts'),
+        @('tests','tests')
+    )) {
+      $sourcePath = Join-Path $Source $pair[0]
+      $destinationPath = Join-Path $Destination $pair[1]
+      if (-not (Test-DirectoryEquivalent $sourcePath $destinationPath)) {
+        return $false
+      }
+    }
+
+    foreach ($relativePath in @(
+        'README.md',
+        '.codex-plugin\plugin.json',
+        '.cursor-plugin\plugin.json',
+        '.devin-plugin\plugin.json',
+        '.qoder-plugin\plugin.json'
+    )) {
+      $sourceFile = Join-Path $Source $relativePath
+      $destinationFile = Join-Path $Destination $relativePath
+      if (!(Test-Path -LiteralPath $sourceFile -PathType Leaf) -or
+          !(Test-Path -LiteralPath $destinationFile -PathType Leaf) -or
+          (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -cne
+          (Get-FileHash -LiteralPath $destinationFile -Algorithm SHA256).Hash) {
+        return $false
+      }
+    }
+
+    $sourceManifest = Get-Content -LiteralPath (
+      Join-Path $Source '.claude-plugin\plugin.json'
+    ) -Raw | ConvertFrom-Json
+    $factoryManifest = Get-Content -LiteralPath (
+      Join-Path $Destination '.factory-plugin\plugin.json'
+    ) -Raw | ConvertFrom-Json
+    if ([string]$sourceManifest.name -cne [string]$factoryManifest.name -or
+        [string]$sourceManifest.version -cne [string]$factoryManifest.version) {
+      return $false
+    }
+
+    $sourceMcp = Get-Content -LiteralPath (Join-Path $Source '.mcp.json') -Raw |
+      ConvertFrom-Json | ConvertTo-Json -Depth 30 -Compress
+    $factoryMcp = Get-Content -LiteralPath (Join-Path $Destination 'mcp.json') -Raw |
+      ConvertFrom-Json | ConvertTo-Json -Depth 30 -Compress
+    return $sourceMcp -ceq $factoryMcp
+  } catch [System.IO.IOException], [System.Management.Automation.ItemNotFoundException] {
+    return $false
+  }
+}
+
 function Copy-DirectoryToStage([string]$Source, [string]$Stage) {
   New-Item -ItemType Directory -Path $Stage -Force | Out-Null
   $excludedNames = @('node_modules', '.venv', '__pycache__', 'dist', 'build', '.next')
@@ -510,7 +573,7 @@ function Get-NativePluginState([string]$HostId, [string]$CapabilityId, [string]$
     }
     $path = [string]$entry[0].installPath
     $current = $expectsNativePlugin -and
-      (Test-DirectoryEquivalent $PluginRoot $path)
+      (Test-FactoryPluginAdapterEquivalent $PluginRoot $path)
     return @{ installed=$true; current=$current; path=$path }
   }
   if ($HostId -eq 'grok') {
