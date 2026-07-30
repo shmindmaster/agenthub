@@ -2,7 +2,8 @@
 name: product-demo-studio-qa
 description: >
   Fail-closed product-video preflight, evidence extraction, four-domain independent review,
-  release arbitration, least-privilege remediation, rerender, and fresh final verification.
+  release arbitration, least-privilege remediation, rerender, and mandatory final independent
+  review and verification.
   Use after a proxy/final render or when validating truth, persuasion, screen accuracy, privacy,
   audio, captions, synchronization, accessibility, frame integrity, playback, or reproducibility.
 ---
@@ -13,7 +14,8 @@ This is the canonical Product Demo Studio review/release contract. Resolve
 `PRODUCT_DEMO_STUDIO_ROOT` through the router skill. Use product-local capture/render tooling; do
 not copy a product runtime, data, authentication state, media, or credentials into AgentHub.
 
-Generation agents cannot approve release. Reviewers, the arbiter, and final verifier are fresh,
+Generation agents cannot approve release. Reviewers, the arbiter, and the mandatory terminal
+independent reviewer/verifier are fresh,
 isolated, and read-only; each writes only its own report. Remediation agents write only the files
 named in a validated assignment and cannot approve their work.
 
@@ -206,16 +208,18 @@ After any relevant product, data, source, media, configuration, or environment c
 Never reuse previous passes across a candidate change or weaken thresholds. Continue until `PASS`
 or evidence proves a genuine `PRODUCT_BLOCKED` or `PIPELINE_BLOCKED` result.
 
-## Stage 6 — fresh final verifier
+## Stage 6 — mandatory final independent review and verification
 
-After arbiter `PASS`, run `agents/final-verifier.md` in a fresh read-only context. It independently
-checks candidate/report identities, changed-source invalidation, thresholds, checksums, provenance,
-playback, reproduction, and delivery-folder contents. Only after this final report returns `PASS`
-may the human approver create and sign a receipt that binds the candidate SHA-256/bytes, arbiter
-SHA-256, final-verification SHA-256, reviewer identity/time, `approved` classification, completed
-watch-through, synthetic-data confirmation, redaction notes, and trusted public-key fingerprint.
-The gate verifies the receipt and its raw 64-byte Ed25519 signature; missing or untrusted keys,
-modified receipts, and stale signatures fail.
+After arbiter `PASS`, dispatch `agents/final-verifier.md` as the mandatory terminal independent
+reviewer and verifier in a fresh read-only context. A candidate cannot be packaged, delivered, or
+released without this role's schema-valid `PASS` report for the exact unchanged candidate. It
+independently checks candidate/report identities, changed-source invalidation, thresholds,
+checksums, provenance, playback, reproduction, and delivery-folder contents. Only after this final
+report returns `PASS` may the human approver create and sign a receipt that binds the candidate
+SHA-256/bytes, arbiter SHA-256, final-verification SHA-256, reviewer identity/time, `approved`
+classification, completed watch-through, synthetic-data confirmation, redaction notes, and trusted
+public-key fingerprint. The gate verifies the receipt and its raw 64-byte Ed25519 signature;
+missing or untrusted keys, modified receipts, and stale signatures fail.
 
 ## Quality bar
 

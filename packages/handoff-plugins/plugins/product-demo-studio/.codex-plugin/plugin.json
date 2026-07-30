@@ -1,7 +1,7 @@
 {
   "name": "product-demo-studio",
-  "version": "1.1.1",
-  "description": "Generate truthful product videos or readiness feedback through deterministic evidence, four independent reviews, release arbitration, remediation, and reproducible delivery.",
+  "version": "1.1.2",
+  "description": "Generate truthful product videos or readiness feedback through deterministic evidence, four independent reviews, release arbitration, remediation, mandatory final independent review and verification, and reproducible delivery.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Product Demo Studio",
     "shortDescription": "Produce verified videos or readiness feedback.",
-    "longDescription": "Consume Product Experience Engineering's current pre-video handoff, then plan, assess, capture, narrate, compose, preflight, independently review, arbitrate, remediate, rerender, and verify truthful product videos. Fail closed to fix-oriented Product-Readiness Feedback when the product or pipeline cannot clear the persuasion, correctness, evidence, privacy, compliance, and reproducibility gates.",
+    "longDescription": "Consume Product Experience Engineering's current pre-video handoff, then plan, assess, capture, narrate, compose, preflight, independently review, arbitrate, remediate, rerender, and require a mandatory final independent review and verification of truthful product videos. Fail closed to fix-oriented Product-Readiness Feedback when the product or pipeline cannot clear the persuasion, correctness, evidence, privacy, compliance, and reproducibility gates.",
     "developerName": "Sarosh Hussain",
     "category": "Productivity",
     "capabilities": [

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.1.1";
+const expectedVersion = "1.1.2";
 const failures = [];
 
 function readJson(relativePath) {
@@ -139,6 +139,18 @@ if (policy.connectorPolicy?.descriptEditCreatesNewCandidate !== true ||
     policy.connectorPolicy?.unchecksumableDescriptOutputDecision !== "PIPELINE_BLOCKED") {
   failures.push("policy does not invalidate Descript edits or block unchecksumable outputs");
 }
+if (policy.permissions?.finalVerifier?.mandatoryTerminalGate !== true ||
+    policy.permissions?.finalVerifier?.runsAfterArbiterPass !== true ||
+    policy.releasePolicy?.terminalIndependentReview?.required !== true ||
+    policy.releasePolicy?.terminalIndependentReview?.role !== "final-verifier" ||
+    policy.releasePolicy?.terminalIndependentReview?.runsAfter !== "arbiter-pass" ||
+    policy.releasePolicy?.terminalIndependentReview?.freshReadOnlyContextRequired !== true ||
+    policy.releasePolicy?.terminalIndependentReview?.mustBindExactFinalCandidate !== true ||
+    policy.releasePolicy?.terminalIndependentReview?.publicationPackagingRequiresPass !== true ||
+    policy.releasePolicy?.terminalIndependentReview?.failureDecision !== "PIPELINE_BLOCKED" ||
+    policy.rerunPolicy?.freshFinalIndependentReviewAfterEveryArbiterPass !== true) {
+  failures.push("policy does not require the terminal independent reviewer/verifier after arbiter PASS");
+}
 const hostParityPolicy = readJson("policy/host-parity.json");
 if (hostParityPolicy.validationScope?.defaultMode !== "STATIC_INVENTORY_ONLY" ||
     hostParityPolicy.validationScope?.staticValidationMayClaimLiveParity !== false ||
@@ -150,6 +162,8 @@ const requiredText = [
   ["README.md", "four independent"],
   ["skills/product-demo-studio/SKILL.md", "Release Arbiter"],
   ["skills/product-demo-studio-qa/SKILL.md", "schemas/video-finding.schema.json"],
+  ["agents/final-verifier.md", "mandatory terminal independent reviewer and verifier"],
+  ["skills/product-demo-studio-qa/SKILL.md", "mandatory final independent review and verification"],
   ["skills/product-demo-studio/references/product-pipeline-compatibility.md", "Product-pipeline compatibility"],
   ["policy/product-video-policy.json", '"humanPublicationAttestationSeparate": true'],
 ];

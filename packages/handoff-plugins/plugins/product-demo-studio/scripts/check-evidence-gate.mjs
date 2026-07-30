@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Fail-closed publication gate. Approval is accepted only from a detached
 // Ed25519 signature over an immutable receipt bound to the exact candidate,
-// PASS arbiter decision, and PASS final-verification report.
+// PASS arbiter decision, and PASS mandatory terminal independent final-verification report.
 //
 // Usage: node check-evidence-gate.mjs --manifest <path> [--text <path>]
 import { createHash, createPublicKey, verify as verifySignature } from "node:crypto";

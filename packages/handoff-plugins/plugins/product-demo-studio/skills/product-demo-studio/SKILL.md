@@ -97,9 +97,12 @@ their own product-specific pipeline and data boundaries.
    subsystem. Any relevant product/data/source/media/configuration/environment change requires a
    new candidate, regenerated evidence, fresh affected-domain reviews, mandatory technical/sync/
    accuracy/privacy/compliance reruns, and a new arbiter decision.
-9. **Verify, deliver, measure, and optionally finish** — after arbiter `PASS`, a fresh read-only
-   verifier rechecks the final bytes, reports, checksums, provenance, playback, and delivery
-   contents. Deliver only approved masters and requested cuts. Failed candidates always receive a
+9. **Mandatory final independent review and verification, then deliver and measure** — after
+   arbiter `PASS`, dispatch `agents/final-verifier.md` as the mandatory terminal independent
+   reviewer and verifier in a fresh read-only context. It rechecks the final bytes, reports,
+   checksums, provenance, playback, and delivery contents. No candidate may be packaged,
+   delivered, or released without its schema-valid `PASS`. Deliver only approved masters and
+   requested cuts. Failed candidates always receive a
    readiness report; zero videos is valid. External reuse still requires the named-human evidence
    gate. Descript is optional third-party editorial finishing and must not duplicate an
    already-connected session-level connector. Every edit creates a new candidate and forces new
@@ -213,8 +216,9 @@ build, product behavior, truth, claims, and synthetic data; the four independent
 reviews finish; the Release Arbiter returns `PASS`; no blocker/critical finding remains; Story and
 Experience is at least 85; Audio/Captions/Synchronization is at least 95; accuracy, claims, privacy,
 compliance, browser playback, technical integrity, checksums, and provenance pass completely; the
-render is reproducible; delivery contains only approved outputs; and a fresh final verifier
-confirms the same immutable candidate. An external-release claim additionally requires the
+render is reproducible; delivery contains only approved outputs; and the mandatory terminal
+independent reviewer/verifier confirms the same immutable candidate. An external-release claim
+additionally requires the
 named-human evidence/watch-through attestation. **Never claim completion without verified evidence.
 Zero approved videos plus complete feedback is a valid completed outcome.**
 

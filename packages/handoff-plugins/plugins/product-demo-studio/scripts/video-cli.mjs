@@ -273,7 +273,7 @@ const VERBS = {
         "  - audio-captions-sync-reviewer.md\n" +
         "  - technical-frame-integrity-reviewer.md\n" +
         "Validate every report, then dispatch release-arbiter.md in a fresh read-only context. " +
-        "See product-demo-studio-qa for the immutable evidence, remediation, rerender, and final-verifier loop.",
+        "See product-demo-studio-qa for the immutable evidence, remediation, rerender, and mandatory terminal independent reviewer/verifier loop.",
     );
     return 2;
   },
@@ -377,7 +377,7 @@ const VERBS = {
         "  13. review        dispatch four isolated reviewers; validate each report\n" +
         "  14. arbitrate     dispatch a fresh release arbiter; validate its decision\n" +
         "  15. remediate     if required, use least-privilege assignments and restart at step 9\n" +
-        "  16. final-verifier dispatch a fresh read-only verifier against the unchanged candidate\n" +
+        "  16. final-verifier dispatch the mandatory terminal independent reviewer/verifier in a fresh read-only context against the unchanged candidate\n" +
         "  17. signed-human-evidence record the signed human attestation for those exact approved bytes\n" +
         `  18. package       node video-cli.mjs package --repo ${repoPath} --out bundle.json ` +
           "--decision <decision.json> --final-verification <final.json> " +

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Validate the fresh final-verifier report and every immutable artifact it cites.
+// Validate the mandatory terminal independent final-verifier report and every immutable artifact it cites.
 // All artifact paths are resolved relative to the JSON document that contains them.
 // Usage: node validate-final-verification.mjs <path-to-final-verification.json>
 import { createHash } from "node:crypto";

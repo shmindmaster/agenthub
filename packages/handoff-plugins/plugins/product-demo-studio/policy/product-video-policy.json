@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.1.1",
+  "capabilityVersion": "1.1.2",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -71,7 +71,9 @@
       "isolated": true,
       "readOnlySourceAndMedia": true,
       "writeScope": "own-verification-report-only",
-      "mayApproveExternalPublication": false
+      "mayApproveExternalPublication": false,
+      "mandatoryTerminalGate": true,
+      "runsAfterArbiterPass": true
     }
   },
   "deterministicEvidence": {
@@ -150,12 +152,22 @@
       "synchronization",
       "visualIntegrity"
     ],
+    "terminalIndependentReview": {
+      "required": true,
+      "role": "final-verifier",
+      "runsAfter": "arbiter-pass",
+      "freshReadOnlyContextRequired": true,
+      "mustBindExactFinalCandidate": true,
+      "publicationPackagingRequiresPass": true,
+      "failureDecision": "PIPELINE_BLOCKED"
+    },
     "humanPublicationAttestationSeparate": true
   },
   "rerunPolicy": {
     "newCandidateAfterRelevantChange": true,
     "regenerateEvidence": true,
     "freshReviewerContexts": true,
+    "freshFinalIndependentReviewAfterEveryArbiterPass": true,
     "alwaysRerun": [
       "technical-frame-integrity",
       "audio-captions-synchronization",

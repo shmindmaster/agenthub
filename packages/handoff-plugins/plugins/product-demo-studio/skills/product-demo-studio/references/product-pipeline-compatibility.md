@@ -1,6 +1,6 @@
 # Product-pipeline compatibility
 
-Version: 1.1.1
+Version: 1.1.2
 Owner: AgentHub `handoff/product-demo-studio`
 
 This matrix maps known repository-native product-video pipelines to the canonical Product Demo

@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.1.1**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.1.2**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Product repositories retain their product-specific capture/render implementations and
 map evidence into this shared contract. The reviewed mapping is documented in
@@ -54,13 +54,13 @@ host copy (see `tests/Validate-AgentEcosystem.ps1`'s `deployment-freshness:*` ch
 
 | Skill | Purpose |
 |---|---|
-| `product-demo-studio` | Router. Enforces Product Experience handoff → episode/truth architecture → timed source → deterministic state/capture → narration/composition → evidence/preflight → four reviews/arbiter → remediation/final verification → video-or-feedback. Start here. |
+| `product-demo-studio` | Router. Enforces Product Experience handoff → episode/truth architecture → timed source → deterministic state/capture → narration/composition → evidence/preflight → four reviews/arbiter → remediation → mandatory final independent review and verification → video-or-feedback. Start here. |
 | `product-demo-studio-remotion` | Product-demo composition policy layered over the official Remotion mechanics owner when available; 43 bundled rules provide a fallback plus studio-specific overlay/evidence guidance. |
 | `product-demo-studio-capture` | Deterministic browser-automation capture conventions: fixed viewports, reduced motion, discover-first auth, seeded data only, capture manifests, redaction rules. |
 | `product-demo-studio-visual-assets` | Marketing/journey visual survey, non-product-UI asset generation, current model/voice verification, provenance, disclosure, and accessibility. |
 | `product-demo-studio-narration` | Provider-agnostic TTS narration: generation, segment-level regeneration, timing, narration style. |
 | `product-demo-studio-render` | Render orchestration, the video/scene catalog schema, the product-claim ledger, and the evidence gate that must pass before a render is "approved" for external use. |
-| `product-demo-studio-qa` | Immutable evidence package, deterministic preflight, four independent schema-valid reviews, release arbitration, remediation/rerender, and fresh final verification. |
+| `product-demo-studio-qa` | Immutable evidence package, deterministic preflight, four independent schema-valid reviews, release arbitration, remediation/rerender, and mandatory final independent review and verification. |
 | `product-demo-studio-descript` | Optional third-party editorial finishing. Any edit creates a new candidate and forces new evidence/review/attestation; publishing requires explicit authorization. |
 
 ## Agents
@@ -73,7 +73,8 @@ skill-only hosts:
   Preflight;
 - independent review: Story and Experience; Screen, Accuracy, and Compliance; Audio, Captions, and
   Synchronization; Technical and Frame Integrity;
-- decision/control: Release Arbiter, least-privilege Remediation Agent, and fresh Final Verifier.
+- decision/control: Release Arbiter, least-privilege Remediation Agent, and the mandatory terminal
+  independent reviewer/verifier (`final-verifier`).
 
 Plugin-aware hosts may invoke them as `product-demo-studio:<name>`. Skill-only hosts resolve the
 same prompts from the canonical package and create equivalent isolated contexts. The old five-role
@@ -106,7 +107,9 @@ validation. Release decisions are limited to `PASS`, `REMEDIATE`, `PRODUCT_BLOCK
 `PASS` requires zero blocker/critical findings; Story and Experience >= 85; Audio/Captions/
 Synchronization >= 95; and complete passes for accuracy, compliance, privacy, technical
 integrity, browser playback, claims, checksums, provenance, captions, synchronization, and visual
-integrity. Machine `PASS` remains separate from external publication approval. Publication requires
+integrity. After arbiter `PASS`, the mandatory terminal independent reviewer/verifier must return a
+schema-valid `PASS` for the exact unchanged candidate before packaging, delivery, or release.
+Machine `PASS` remains separate from external publication approval. Publication requires
 a detached Ed25519 signature over the exact approval-receipt bytes; the receipt binds the candidate,
 arbiter, final verification, named-human watch-through, synthetic-data confirmation, classification,
 and redaction decision. `AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY` must reference the trusted
