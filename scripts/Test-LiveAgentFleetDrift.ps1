@@ -7,6 +7,7 @@ param(
     [string]$LocalAppDataPath,
     [string]$ReposRoot = 'C:\Repos',
     [string]$WorktreeRoot = 'C:\wt',
+    [string]$CodexPluginStatePath,
     [switch]$SkipRepositoryScan,
     [string]$ReportPath,
     [switch]$Json
@@ -21,6 +22,10 @@ if ([string]::IsNullOrWhiteSpace($AppDataPath)) {
 if ([string]::IsNullOrWhiteSpace($LocalAppDataPath)) {
     $LocalAppDataPath = Join-Path $UserProfilePath 'AppData\Local'
 }
+if ([string]::IsNullOrWhiteSpace($CodexPluginStatePath)) {
+    $CodexPluginStatePath = Join-Path $LocalAppDataPath `
+        'AgentHub\state\codex-plugin-install-state.json'
+}
 
 $RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot)
 $UserProfilePath = [System.IO.Path]::GetFullPath($UserProfilePath)
@@ -28,6 +33,7 @@ $AppDataPath = [System.IO.Path]::GetFullPath($AppDataPath)
 $LocalAppDataPath = [System.IO.Path]::GetFullPath($LocalAppDataPath)
 $ReposRoot = [System.IO.Path]::GetFullPath($ReposRoot)
 $WorktreeRoot = [System.IO.Path]::GetFullPath($WorktreeRoot).TrimEnd('\')
+$CodexPluginStatePath = [System.IO.Path]::GetFullPath($CodexPluginStatePath)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -90,6 +96,71 @@ function Read-JsonFile {
     } catch {
         Add-DriftResult FAIL 'configuration' "invalid-json:$Path" $_.Exception.Message '' @($Path)
         return $null
+    }
+}
+
+function Get-CodexPluginInstallSnapshot {
+    param([string]$Path)
+
+    $unknown = [pscustomobject]@{
+        available = $false
+        reason = ''
+        states = @{}
+    }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        $unknown.reason = 'authoritative plugin-state snapshot is absent'
+        return $unknown
+    }
+    try {
+        $snapshot = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 |
+            ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        $unknown.reason = 'authoritative plugin-state snapshot is malformed'
+        return $unknown
+    }
+
+    $generatedAtText = [string](Get-PropertyValue $snapshot 'generatedAt' '')
+    $generatedAt = [DateTimeOffset]::MinValue
+    if ([string]::IsNullOrWhiteSpace($generatedAtText) -or
+        -not [DateTimeOffset]::TryParse($generatedAtText, [ref]$generatedAt)) {
+        $unknown.reason = 'authoritative plugin-state snapshot has no valid generatedAt'
+        return $unknown
+    }
+    $expiresAt = $generatedAt.AddHours(24)
+    $expiresAtText = [string](Get-PropertyValue $snapshot 'expiresAt' '')
+    if (-not [string]::IsNullOrWhiteSpace($expiresAtText)) {
+        $parsedExpiry = [DateTimeOffset]::MinValue
+        if (-not [DateTimeOffset]::TryParse($expiresAtText, [ref]$parsedExpiry)) {
+            $unknown.reason = 'authoritative plugin-state snapshot has an invalid expiresAt'
+            return $unknown
+        }
+        $expiresAt = $parsedExpiry
+    }
+    if ([DateTimeOffset]::UtcNow -gt $expiresAt.ToUniversalTime()) {
+        $unknown.reason = 'authoritative plugin-state snapshot is stale'
+        return $unknown
+    }
+
+    $states = @{}
+    foreach ($app in @((Get-PropertyValue $snapshot 'apps' @()))) {
+        $state = ([string](Get-PropertyValue $app 'state' '')).ToLowerInvariant()
+        if ($state -notin @('installed', 'enabled', 'uninstalled', 'not-installed')) {
+            continue
+        }
+        foreach ($identity in @(
+            [string](Get-PropertyValue $app 'appId' ''),
+            [string](Get-PropertyValue $app 'name' '')
+        )) {
+            $normalized = ($identity.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')
+            if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+                $states[$normalized] = $state
+            }
+        }
+    }
+    return [pscustomobject]@{
+        available = $true
+        reason = ''
+        states = $states
     }
 }
 
@@ -963,6 +1034,7 @@ foreach ($definition in $mcpConfigDefinitions) {
 # Codex remote connector packages can overlap direct registrations even though
 # they create no local Node process. Inventory this as logical tool duplication.
 $codexRemoteRoot = Join-Path $UserProfilePath '.codex\plugins\cache\openai-curated-remote'
+$codexPluginSnapshot = Get-CodexPluginInstallSnapshot -Path $CodexPluginStatePath
 if (Test-Path -LiteralPath $codexRemoteRoot -PathType Container) {
     $codexDirectState = @($mcpStates.ToArray() | Where-Object {
         $_.hostId -eq 'codex' -and $_.surface -eq 'primary'
@@ -974,6 +1046,7 @@ if (Test-Path -LiteralPath $codexRemoteRoot -PathType Container) {
         adobe = 'adobe-for-creativity'
         'adobe-formerly-photoshop' = 'adobe-for-creativity'
         'tavily-ai' = 'tavily'
+        'tavily' = 'tavily'
         'github' = 'github'
         'context7' = 'context7'
         'exa' = 'exa'
@@ -998,9 +1071,40 @@ if (Test-Path -LiteralPath $codexRemoteRoot -PathType Container) {
             [string]$mcpAliases[$package.Name.ToLowerInvariant()]
         } else { '' }
         if (-not [string]::IsNullOrWhiteSpace($candidateId) -and $candidateId -in $codexDirect) {
-            Add-DriftResult FAIL 'mcp' "codex-remote-and-direct-duplicate:$candidateId" `
-                'Codex has both a remote connector package and a direct MCP registration for the same service' `
-                'codex' @($package.FullName, $codexConfigPath)
+            $installState = if ($codexPluginSnapshot.available -and
+                $codexPluginSnapshot.states.ContainsKey($candidateId)) {
+                [string]$codexPluginSnapshot.states[$candidateId]
+            } else { 'unknown' }
+            switch ($installState) {
+                'installed' {
+                    Add-DriftResult FAIL 'mcp' "codex-remote-and-direct-duplicate:$candidateId" `
+                        'Codex has both a direct MCP registration and an installed remote connector package' `
+                        'codex' @($package.FullName, $codexConfigPath, $CodexPluginStatePath)
+                }
+                'enabled' {
+                    Add-DriftResult FAIL 'mcp' "codex-remote-and-direct-duplicate:$candidateId" `
+                        'Codex has both a direct MCP registration and an enabled remote connector package' `
+                        'codex' @($package.FullName, $codexConfigPath, $CodexPluginStatePath)
+                }
+                'uninstalled' {
+                    Add-DriftResult PASS 'mcp' "codex-remote-and-direct-duplicate:$candidateId" `
+                        'direct MCP registration is canonical; retained remote-package cache is uninstalled per authoritative state' `
+                        'codex' @($package.FullName, $codexConfigPath, $CodexPluginStatePath)
+                }
+                'not-installed' {
+                    Add-DriftResult PASS 'mcp' "codex-remote-and-direct-duplicate:$candidateId" `
+                        'direct MCP registration is canonical; retained remote-package cache is not installed per authoritative state' `
+                        'codex' @($package.FullName, $codexConfigPath, $CodexPluginStatePath)
+                }
+                default {
+                    $reason = if ($codexPluginSnapshot.available) {
+                        'authoritative plugin-state snapshot has no state for this package'
+                    } else { $codexPluginSnapshot.reason }
+                    Add-DriftResult WARN 'mcp' "codex-remote-and-direct-duplicate:$candidateId" `
+                        "retained remote-package cache cannot establish an active duplicate: $reason" `
+                        'codex' @($package.FullName, $codexConfigPath, $CodexPluginStatePath)
+                }
+            }
         }
     }
 }
