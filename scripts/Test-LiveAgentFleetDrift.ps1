@@ -220,6 +220,65 @@ function Add-SkillsFromRoot {
     }
 }
 
+function Add-CopilotManifestSkills {
+    param(
+        [string]$PluginRoot,
+        [string]$SourceId
+    )
+
+    # Copilot plugin packages can retain nested source inputs below skills/.
+    # Their generated manifest is the runtime contract: only bodyPath entries
+    # are exposed, rather than every SKILL.md that happens to be in the cache.
+    $manifestPath = Join-Path $PluginRoot 'generated\skill-manifest.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        return $false
+    }
+    $manifest = Read-JsonFile -Path $manifestPath
+    if ($null -eq $manifest) { return $true }
+    $skills = Get-PropertyValue -InputObject $manifest -Name 'skills'
+    if ($null -eq $skills) {
+        Add-DriftResult FAIL 'plugin' "copilot-manifest-missing-skills:$SourceId" `
+            'Copilot plugin skill manifest has no skills object' 'copilot' @($manifestPath)
+        return $true
+    }
+
+    foreach ($entry in @($skills.PSObject.Properties)) {
+        $bodyPath = [string](Get-PropertyValue -InputObject $entry.Value -Name 'bodyPath' -DefaultValue '')
+        if ([string]::IsNullOrWhiteSpace($bodyPath)) {
+            Add-DriftResult FAIL 'plugin' "copilot-manifest-missing-body-path:${SourceId}:$($entry.Name)" `
+                'Copilot plugin skill manifest entry has no bodyPath' 'copilot' @($manifestPath)
+            continue
+        }
+        $candidate = Normalize-FullPath (Join-Path $PluginRoot $bodyPath)
+        if (-not (Test-PathWithin -Path $candidate -Root $PluginRoot)) {
+            Add-DriftResult FAIL 'plugin' "copilot-manifest-body-path-outside-plugin:${SourceId}:$($entry.Name)" `
+                'Copilot plugin skill manifest bodyPath resolves outside its plugin root' `
+                'copilot' @($manifestPath, $candidate)
+            continue
+        }
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            Add-DriftResult FAIL 'plugin' "copilot-manifest-body-missing:${SourceId}:$($entry.Name)" `
+                'Copilot plugin manifest-selected skill body is missing' 'copilot' @($manifestPath, $candidate)
+            continue
+        }
+        $existing = @($script:skillRecords | Where-Object {
+            $_.hostId -eq 'copilot' -and
+            $_.path.Equals($candidate, [StringComparison]::OrdinalIgnoreCase)
+        })
+        if ($existing.Count -gt 0) { continue }
+        $script:skillRecords.Add([pscustomobject]@{
+            hostId = 'copilot'
+            skillId = Get-SkillId -SkillPath $candidate
+            hash = Get-AgentHubStableFileHash -Path $candidate
+            path = $candidate
+            root = Normalize-FullPath $PluginRoot
+            sourceType = 'plugin-manifest'
+            sourceId = $SourceId
+        })
+    }
+    return $true
+}
+
 function Get-JsonObjectPropertyNames {
     param(
         [object]$Root,
@@ -640,6 +699,10 @@ foreach ($root in @($discoveryRoots.ToArray() | Where-Object { $_.kind -eq 'skil
     Add-SkillsFromRoot -HostId $root.hostId -Root $root.path -SourceType 'loose' -SourceId $root.source
 }
 foreach ($plugin in @($pluginRoots.ToArray() | Where-Object exists)) {
+    if ($plugin.hostId -eq 'copilot' -and
+        (Add-CopilotManifestSkills -PluginRoot $plugin.path -SourceId $plugin.pluginId)) {
+        continue
+    }
     $skillRoot = Get-PluginSkillRoot -PluginRoot $plugin.path
     if (-not [string]::IsNullOrWhiteSpace($skillRoot)) {
         Add-SkillsFromRoot -HostId $plugin.hostId -Root $skillRoot `

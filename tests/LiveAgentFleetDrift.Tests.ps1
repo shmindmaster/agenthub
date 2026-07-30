@@ -190,6 +190,83 @@ Describe 'Comprehensive live fleet drift inventory' {
             'required-plugin-source-missing:devin:deleted-plugin-source'
     }
 
+    It 'uses Copilot manifest-selected skill bodies instead of nested build inputs' {
+        $fixtureRoot = Join-Path $TestDrive 'copilot-manifest-fixture'
+        $registryRoot = Join-Path $fixtureRoot 'agenthub'
+        $registryDir = Join-Path $registryRoot 'registry'
+        $profile = Join-Path $fixtureRoot 'profile'
+        $appData = Join-Path $profile 'AppData\Roaming'
+        $localAppData = Join-Path $profile 'AppData\Local'
+        $pluginRoot = Join-Path $profile '.copilot\installed-plugins\_direct\fixture-plugin'
+        $executable = (Get-Command powershell.exe -ErrorAction Stop).Source
+
+        Write-FixtureSkill -Path (Join-Path $pluginRoot 'skills\fixture-skill\SKILL.md') `
+            -Name 'fixture-skill' -Body 'manifest-selected output'
+        Write-FixtureSkill -Path (Join-Path $pluginRoot 'skills\fixture-skill\upstream\SKILL.md') `
+            -Name 'fixture-skill' -Body 'non-runtime build input'
+        Write-FixtureJson -Path (Join-Path $pluginRoot 'generated\skill-manifest.json') -Value @{
+            skills = @{
+                'fixture-skill' = @{ bodyPath = 'skills/fixture-skill/SKILL.md' }
+            }
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'agents.json') -Value @{
+            activeAgents = @(
+                @{
+                    id='copilot'; name='Copilot'; version='fixture'; executable=$executable
+                    status='active'
+                    nativePaths=@{ pluginsDir=(Join-Path $profile '.copilot\installed-plugins') }
+                }
+            )
+            inactiveAgents = @()
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'capabilities.json') -Value @{ capabilities = @() }
+        Write-FixtureJson -Path (Join-Path $registryDir 'mcps.json') -Value @{ mcpServers = @() }
+        Write-FixtureJson -Path (Join-Path $registryDir 'native-connectors.json') -Value @{
+            lifecyclePolicy = @{ onDemandLocalMcpIds=@() }
+            hosts = @(@{
+                hostId='copilot'
+                exposures=@{
+                    'plugin-owned'=@()
+                    'native-connector'=@()
+                    'shared-gateway'=@()
+                    'local-only'=@()
+                }
+            })
+        }
+        Write-FixtureJson -Path (Join-Path $profile '.copilot\config.json') -Value @{
+            installedPlugins = @(@{
+                name='fixture-plugin'
+                enabled=$true
+                cache_path=$pluginRoot
+            })
+        }
+        Write-FixtureJson -Path (Join-Path $profile '.copilot\mcp-config.json') -Value @{ mcpServers = @{} }
+
+        $report = Join-Path $fixtureRoot 'report.json'
+        $checkerOutput = @(& $powerShell -NoLogo -NoProfile -NonInteractive -File $checker `
+            -RegistryRoot $registryRoot `
+            -UserProfilePath $profile `
+            -AppDataPath $appData `
+            -LocalAppDataPath $localAppData `
+            -ReposRoot (Join-Path $fixtureRoot 'Repos') `
+            -WorktreeRoot (Join-Path $fixtureRoot 'wt') `
+            -SkipRepositoryScan `
+            -ReportPath $report `
+            -Json 2>&1)
+
+        $LASTEXITCODE | Should -Be 1
+        if (-not (Test-Path -LiteralPath $report -PathType Leaf)) {
+            throw "Checker did not produce its report:`n$($checkerOutput -join [Environment]::NewLine)"
+        }
+        $parsed = Get-Content -LiteralPath $report -Raw -Encoding UTF8 | ConvertFrom-Json
+        @($parsed.results.check) | Should -Not -Contain 'duplicate-skill-exposure:copilot:fixture-skill'
+        $inventoried = @($parsed.inventory.skills | Where-Object {
+            $_.hostId -eq 'copilot' -and $_.skillId -eq 'fixture-skill'
+        })
+        $inventoried.Count | Should -Be 1
+        $inventoried[0].path | Should -Be (Join-Path $pluginRoot 'skills\fixture-skill\SKILL.md')
+    }
+
     It 'keeps normal agent runtimes distinct from local MCP workers' {
         $source = Get-Content -LiteralPath $checker -Raw -Encoding UTF8
         $source | Should -Match "'agent-runtime'"
