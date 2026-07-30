@@ -5,6 +5,40 @@ BeforeAll {
     if (Test-Path -LiteralPath $script:managedQuarantinePath -PathType Leaf) {
         . $script:managedQuarantinePath
     }
+
+    function New-AgentHubTestJunctionOrSkip {
+        param(
+            [Parameter(Mandatory)]
+            [string]$Path,
+            [Parameter(Mandatory)]
+            [string]$Target
+        )
+
+        try {
+            return New-Item -ItemType Junction -Path $Path -Target $Target `
+                -ErrorAction Stop
+        } catch {
+            $junctionDenied = $_.Exception -is [UnauthorizedAccessException] -or
+                $_.Exception -is [PlatformNotSupportedException] -or
+                $_.Exception -is [NotSupportedException] -or
+                $_.CategoryInfo.Category -eq [Management.Automation.ErrorCategory]::PermissionDenied -or
+                $_.Exception.Message -match '(?i)privilege.*not held|junction.*not supported'
+            if (-not $junctionDenied) {
+                throw
+            }
+
+            $reason = "The operating system denied synthetic junction creation: $($_.Exception.Message)"
+            if (Get-Command Set-ItResult -ErrorAction SilentlyContinue) {
+                Set-ItResult -Skipped -Because $reason
+                return $null
+            }
+            if (Get-Command Set-TestInconclusive -ErrorAction SilentlyContinue) {
+                Set-TestInconclusive $reason
+                return $null
+            }
+            throw $reason
+        }
+    }
 }
 
 Describe 'AgentHub managed quarantine' {
@@ -39,7 +73,7 @@ Describe 'AgentHub managed quarantine' {
             Should -BeTrue
 
         $expectedManifestPath = Join-Path $batch.BatchRoot 'manifest.json'
-        Test-Path -LiteralPath $expectedManifestPath | Should -BeFalse
+        Test-Path -LiteralPath $expectedManifestPath | Should -BeTrue
         $manifestPath = Write-AgentHubQuarantineManifest -Batch $batch
         $manifestPath | Should -Be $expectedManifestPath
         @(Get-ChildItem -LiteralPath $batch.BatchRoot -Filter manifest.json -File).Count |
@@ -78,6 +112,73 @@ Describe 'AgentHub managed quarantine' {
         Test-Path -LiteralPath (
             Join-Path $batch.BatchRoot 'fixture-host\skills\fixture'
         ) | Should -BeFalse
+    }
+
+    It 'refuses an in-profile source junction that resolves outside the approved profile' {
+        $profile = Join-Path $TestDrive 'source-junction-profile'
+        $outside = Join-Path $TestDrive 'outside-source'
+        $source = Join-Path $profile '.host\skills\fixture'
+        New-Item -ItemType Directory -Path (
+            Split-Path -Parent $source
+        ), $outside -Force | Out-Null
+        $outsideMarker = Join-Path $outside 'marker.txt'
+        Set-Content -LiteralPath $outsideMarker -Value 'preserve outside source' `
+            -Encoding UTF8
+        $junction = New-AgentHubTestJunctionOrSkip -Path $source -Target $outside
+        if ($null -eq $junction) {
+            return
+        }
+        $batch = New-AgentHubQuarantineBatch -UserProfilePath $profile
+
+        {
+            Move-ToAgentHubQuarantine -Batch $batch -Path $source `
+                -HostId 'fixture-host' -ArtifactKind 'skills' -ArtifactName 'fixture' `
+                -Reason 'Outside junction targets are forbidden.' -ContentHash ('B' * 64)
+        } | Should -Throw
+
+        Test-Path -LiteralPath $source | Should -BeTrue
+        Test-Path -LiteralPath $outside | Should -BeTrue
+        (Get-Content -LiteralPath $outsideMarker -Raw).Trim() |
+            Should -Be 'preserve outside source'
+        Test-Path -LiteralPath (
+            Join-Path $batch.BatchRoot 'fixture-host\skills\fixture'
+        ) | Should -BeFalse
+    }
+
+    It 'refuses a quarantine destination that traverses a junction outside the approved profile' {
+        $profile = Join-Path $TestDrive 'destination-junction-profile'
+        $source = Join-Path $profile '.host\skills\fixture'
+        $outside = Join-Path $TestDrive 'outside-destination'
+        New-Item -ItemType Directory -Path $source, $outside -Force | Out-Null
+        $sourceMarker = Join-Path $source 'SKILL.md'
+        $outsideMarker = Join-Path $outside 'marker.txt'
+        Set-Content -LiteralPath $sourceMarker -Value 'preserve source' -Encoding UTF8
+        Set-Content -LiteralPath $outsideMarker -Value 'preserve outside destination' `
+            -Encoding UTF8
+        $batch = New-AgentHubQuarantineBatch -UserProfilePath $profile
+        New-Item -ItemType Directory -Path $batch.BatchRoot -Force | Out-Null
+        $destinationAncestor = Join-Path $batch.BatchRoot 'fixture-host'
+        $junction = New-AgentHubTestJunctionOrSkip `
+            -Path $destinationAncestor -Target $outside
+        if ($null -eq $junction) {
+            return
+        }
+
+        {
+            Move-ToAgentHubQuarantine -Batch $batch -Path $source `
+                -HostId 'fixture-host' -ArtifactKind 'skills' -ArtifactName 'fixture' `
+                -Reason 'Outside destination junctions are forbidden.' `
+                -ContentHash ('C' * 64)
+        } | Should -Throw
+
+        Test-Path -LiteralPath $source | Should -BeTrue
+        (Get-Content -LiteralPath $sourceMarker -Raw).Trim() |
+            Should -Be 'preserve source'
+        (Get-Content -LiteralPath $outsideMarker -Raw).Trim() |
+            Should -Be 'preserve outside destination'
+        Test-Path -LiteralPath (Join-Path $outside 'skills') | Should -BeFalse
+        (Get-Item -LiteralPath $destinationAncestor -Force).LinkType |
+            Should -Be 'Junction'
     }
 
     It 'does not overwrite an existing quarantine destination' {
@@ -131,5 +232,99 @@ Describe 'AgentHub managed quarantine' {
         } | Should -Throw
 
         Test-Path -LiteralPath $source | Should -BeTrue
+    }
+
+    It 'rejects a SHA-256 hash with a trailing line feed before moving the source' {
+        $profile = Join-Path $TestDrive 'line-feed-hash-profile'
+        $source = Join-Path $profile '.host\skills\fixture'
+        New-Item -ItemType Directory -Path $source -Force | Out-Null
+        $batch = New-AgentHubQuarantineBatch -UserProfilePath $profile
+
+        {
+            Move-ToAgentHubQuarantine -Batch $batch -Path $source `
+                -HostId 'fixture-host' -ArtifactKind 'skills' -ArtifactName 'fixture' `
+                -Reason 'Trailing line feed fixture.' `
+                -ContentHash (('E' * 64) + "`n")
+        } | Should -Throw
+
+        Test-Path -LiteralPath $source | Should -BeTrue
+    }
+
+    It 'rejects dot metadata segments and reserved manifest collisions before moving' {
+        $cases = @(
+            @{
+                Root = 'dot-kind'
+                HostId = 'fixture-host'
+                ArtifactKind = '.'
+                ArtifactName = 'fixture'
+            },
+            @{
+                Root = 'dot-dot-manifest'
+                HostId = 'fixture-host'
+                ArtifactKind = '..'
+                ArtifactName = 'manifest.json'
+            }
+        )
+
+        foreach ($case in $cases) {
+            $profile = Join-Path $TestDrive "$($case.Root)-profile"
+            $source = Join-Path $profile '.host\skills\fixture'
+            New-Item -ItemType Directory -Path $source -Force | Out-Null
+            $sourceMarker = Join-Path $source 'SKILL.md'
+            Set-Content -LiteralPath $sourceMarker -Value 'preserve source' `
+                -Encoding UTF8
+            $batch = New-AgentHubQuarantineBatch -UserProfilePath $profile
+
+            {
+                Move-ToAgentHubQuarantine -Batch $batch -Path $source `
+                    -HostId $case.HostId -ArtifactKind $case.ArtifactKind `
+                    -ArtifactName $case.ArtifactName `
+                    -Reason 'Dot segments are forbidden.' -ContentHash ('F' * 64)
+            } | Should -Throw
+
+            Test-Path -LiteralPath $source | Should -BeTrue
+            (Get-Content -LiteralPath $sourceMarker -Raw).Trim() |
+                Should -Be 'preserve source'
+            Test-Path -LiteralPath (
+                Join-Path $batch.BatchRoot 'manifest.json'
+            ) | Should -BeFalse
+        }
+    }
+
+    It 'persists the same recoverable manifest after each move and finalizes it once' {
+        $profile = Join-Path $TestDrive 'incremental-manifest-profile'
+        $firstSource = Join-Path $profile '.host\skills\first'
+        $secondSource = Join-Path $profile '.host\skills\second'
+        New-Item -ItemType Directory -Path $firstSource, $secondSource -Force |
+            Out-Null
+        $batch = New-AgentHubQuarantineBatch -UserProfilePath $profile
+        $manifestPath = Join-Path $batch.BatchRoot 'manifest.json'
+
+        Move-ToAgentHubQuarantine -Batch $batch -Path $firstSource `
+            -HostId 'fixture-host' -ArtifactKind 'skills' -ArtifactName 'first' `
+            -Reason 'First synthetic move.' -ContentHash ('1' * 64) | Out-Null
+
+        Test-Path -LiteralPath $manifestPath | Should -BeTrue
+        $firstManifest = Get-Content -LiteralPath $manifestPath -Raw |
+            ConvertFrom-Json
+        @($firstManifest.entries).Count | Should -Be 1
+        @($firstManifest.entries)[0].artifactName | Should -Be 'first'
+
+        Move-ToAgentHubQuarantine -Batch $batch -Path $secondSource `
+            -HostId 'fixture-host' -ArtifactKind 'skills' -ArtifactName 'second' `
+            -Reason 'Second synthetic move.' -ContentHash ('2' * 64) | Out-Null
+
+        Test-Path -LiteralPath $manifestPath | Should -BeTrue
+        $secondManifest = Get-Content -LiteralPath $manifestPath -Raw |
+            ConvertFrom-Json
+        @($secondManifest.entries).Count | Should -Be 2
+        @($secondManifest.entries | ForEach-Object artifactName | Sort-Object) -join ',' |
+            Should -Be 'first,second'
+
+        Write-AgentHubQuarantineManifest -Batch $batch |
+            Should -Be $manifestPath
+        $batch.ManifestWritten | Should -BeTrue
+        @(Get-ChildItem -LiteralPath $batch.BatchRoot -Filter manifest.json -File).Count |
+            Should -Be 1
     }
 }

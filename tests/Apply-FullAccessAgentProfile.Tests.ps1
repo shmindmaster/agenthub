@@ -639,6 +639,47 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\product-demo-studio')) | Should -Be $false
     }
 
+    It 'persists recovery metadata when a later distribution failure follows a quarantine move' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'failure-after-quarantine'
+        )
+        $staleManaged = Join-Path $fixture.UserProfile `
+            '.claude\skills\product-demo-studio'
+        New-Item -ItemType Directory -Path $staleManaged -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $staleManaged 'SKILL.md') `
+            -Value 'stale before late failure' -Encoding UTF8
+
+        $capabilitiesPath = Join-Path $fixture.RegistryRoot `
+            'registry\capabilities.json'
+        $capabilities = Get-Content -LiteralPath $capabilitiesPath -Raw |
+            ConvertFrom-Json
+        $browserCapability = @($capabilities.capabilities |
+            Where-Object id -eq 'browser-toolkit')[0]
+        @($browserCapability.hostMappings |
+            Where-Object hostId -eq 'claude')[0].deploymentStatus =
+            'unsupported-test-status'
+        $capabilities | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $capabilitiesPath -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Not -Be 0
+
+        $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
+        $manifests = @(Get-ChildItem -LiteralPath $quarantineRoot `
+            -Filter manifest.json -File -Recurse)
+        $manifests.Count | Should -Be 1
+        $manifest = Get-Content -LiteralPath $manifests[0].FullName -Raw |
+            ConvertFrom-Json
+        $movedEntry = @($manifest.entries | Where-Object {
+            $_.sourcePath -eq [IO.Path]::GetFullPath($staleManaged) -and
+            $_.hostId -eq 'claude' -and
+            $_.artifactKind -eq 'skills' -and
+            $_.artifactName -eq 'product-demo-studio'
+        })
+        $movedEntry.Count | Should -Be 1
+        Test-Path -LiteralPath $movedEntry[0].quarantinePath |
+            Should -BeTrue
+    }
+
     It 'preserves a future canonical plugin cache that does not match the retired signature' {
         $fixture = New-DistributionFixture -Root (Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'future-cache')
         $futureCache = Join-Path $fixture.UserProfile '.claude\plugins\cache\handoff\product-demo-studio\0.3.0'
