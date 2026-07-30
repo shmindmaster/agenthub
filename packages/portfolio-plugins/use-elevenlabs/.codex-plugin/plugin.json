@@ -1,6 +1,6 @@
 {
-  "name": "elevenlabs-media",
-  "version": "0.1.0+codex.20260715235836",
+  "name": "use-elevenlabs",
+  "version": "0.2.0",
   "description": "Standalone ElevenLabs API, account-health, voice, speech-to-text, and text-to-speech capability for any project.",
   "author": {
     "name": "Local Capability"

@@ -1,8 +1,6 @@
 ---
 name: timing
 description: Interpolation and timing in Remotion—prefer interpolate with Bézier easing; springs as a specialized option
-metadata:
-  tags: easing, bezier, interpolation, spring, timing
 ---
 
 Drive motion with `interpolate()` over an explicit frame range. Prefer `interpolate()` over `spring()` unless the user explicitly asks for physics-based motion. To customize timing, use **`Easing.bezier`**. The four parameters are the same as CSS `cubic-bezier(x1, y1, x2, y2)`.

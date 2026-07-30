@@ -1,163 +1,228 @@
 ---
 name: product-demo-studio-qa
 description: >
-  Fail-closed QA for product-video captures and renders using deterministic technical checks and a
-  five-reviewer critic loop. Use after proxy/final renders or to critique product truth, craft,
-  persuasion, narration, framing, accessibility, occlusion, delivery formats, or reproducibility.
-  Enforce one hero moment, shown before-state, segment WIIFM, emotional payoff, attention cadence,
-  and the video-versus-UX-feedback boundary before final render or Descript handoff.
+  Fail-closed product-video preflight, evidence extraction, four-domain independent review,
+  release arbitration, least-privilege remediation, rerender, and fresh final verification.
+  Use after a proxy/final render or when validating truth, persuasion, screen accuracy, privacy,
+  audio, captions, synchronization, accessibility, frame integrity, playback, or reproducibility.
 ---
 
-## Scope
+## Authority and boundary
 
-Treat QA as a production stage, not a final glance. This skill covers technical validation,
-frame-based visual inspection, a five-role critic loop, and reproducibility evidence. It does not
-grant approval to publish or attest that footage contains no sensitive data — a named human
-reviewer makes that call via `product-demo-studio-render`'s evidence gate.
+This is the canonical Product Demo Studio review/release contract. Resolve
+`PRODUCT_DEMO_STUDIO_ROOT` through the router skill. Use product-local capture/render tooling; do
+not copy a product runtime, data, authentication state, media, or credentials into AgentHub.
 
-Resolve `PRODUCT_DEMO_STUDIO_ROOT` through the router skill before invoking bundled scripts.
+Generation agents cannot approve release. Reviewers, the arbiter, and final verifier are fresh,
+isolated, and read-only; each writes only its own report. Remediation agents write only the files
+named in a validated assignment and cannot approve their work.
 
-## Step 1 — deterministic technical checks
+The executing host or AgentHub adapter must enforce that read-only isolation and record the
+enforcement evidence. Prompt instructions and plugin-wide tool declarations are not a security
+boundary. If the host cannot prove isolation from write-capable tools, stop with
+`PIPELINE_BLOCKED`.
 
-Run before any subjective review; a technically broken proxy isn't worth a human's or a critic
-agent's time.
+Machine `PASS` does not fabricate external-publication approval. Before any asset crosses the
+external reuse boundary, a named human must complete a start-to-finish watch-through with captions
+on and off, confirm synthetic data and redaction, and sign the exact publication-approval receipt
+with the trusted Ed25519 private key outside the agent runtime. `check-evidence-gate.mjs` verifies
+the raw detached signature against the public-key-only PEM named by
+`AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY`. Agents must never create, copy, or request the private
+key, and an editable name/classification in the release manifest is never approval.
+
+## Immutable candidate and evidence package
+
+Give every stage one immutable `candidateId`. The evidence package must conform to
+`schemas/evidence-package.schema.json` and include:
+
+- master/variant media metadata and SHA-256 checksums;
+- frames, contact sheets, scene boundaries, frame-integrity, and motion reports;
+- audio loudness, clipping, artifact, silence, ASR, word-timestamp, and caption-layout reports;
+- OCR-visible text and values;
+- browser playback, console, network, assertion, capture, and redaction reports;
+- episode brief, script/storyboard, truth sheet, claim ledger, and claim verification;
+- source commit, product build, configuration, inputs, tool versions, render command, and logs.
+
+Use deterministic tools for measurable facts and reviewers only for judgment. Missing or stale
+evidence is a pipeline failure, not permission to infer a pass.
+
+## Signed publication approval
+
+`schemas/release-evidence.schema.json` describes the unsigned evidence graph. It references the
+candidate, arbiter decision, final verification, approval receipt, and detached signature by exact
+path, SHA-256, and byte count. The separately signed receipt is strict JSON with exactly:
+
+- `schemaVersion: "1.0.0"` and a unique `PVA-...-001` `receiptId`;
+- `signatureAlgorithm: "Ed25519"` and `approverPublicKeySha256`, calculated from the trusted
+  public key's DER SPKI bytes;
+- `candidateId`, `candidateSha256`, and `candidateBytes`;
+- `arbiterDecisionSha256` and `finalVerificationSha256`;
+- `reviewerIdentity`, RFC 3339 `reviewedAt`, `classification: "approved"`,
+  `watchThroughStatus: "completed"`, `syntheticDataConfirmed: true`, and `redactionNotes`.
+
+Sign the exact receipt file bytes in the human-controlled approval system and store the raw
+64-byte Ed25519 signature as a separate artifact. Then run:
 
 ```bash
-node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/technical-checks.mjs" --video <path-to-proxy.mp4> --out <qa-output-dir>
+AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY=/trusted/path/publication-approver.pem \
+  node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/check-evidence-gate.mjs" \
+  --manifest <release-evidence.json>
 ```
 
-Requires `ffmpeg`/`ffprobe` on PATH; the script fails with an explicit install instruction rather
-than silently skipping checks if they're missing. It reports codec, resolution, frame rate,
-duration, audio stream presence, black-frame and freeze-frame ranges, and loudness/silence, and
-extracts frames at the opening, every scene transition, every focus/zoom moment, and the final hold
-into `<qa-output-dir>/frames/` plus a contact sheet — the inputs the visual and technical reviewer
-agents inspect in step 2.
+The public key environment variable is a trust decision supplied by the operator. A manifest,
+receipt, or agent cannot select its own trusted key.
 
-## Step 2 — the five-role critic loop
+## Stage 1 — deterministic preflight
 
-Run these read-only reviewer prompts independently (they don't depend on each other), one per
-finding category:
+Run technical inspection and package preflight before independent review:
 
-| Agent | Portable prompt | Validates |
+```bash
+node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/technical-checks.mjs" \
+  --video <candidate.mp4> \
+  --out <evidence-dir>/technical \
+  --spec <delivery-spec.json> \
+  --candidate-id <candidate-id> \
+  --artifact-id <media-artifact-id> \
+  --deterministic-out <evidence-dir>/deterministic
+
+node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/preflight.mjs" \
+  --evidence-package <evidence-package.json> --out <preflight-report.json>
+```
+
+Preflight fails on missing artifacts; script/narration/ASR/caption or claim differences; wrong
+names, dates, numbers, values, or states; caption overflow/obstruction/speed/safe-area failures;
+loudness, clipping, artifact, ducking, or unintended-silence failures; black/frozen/duplicate/
+corrupt frames; browser, console, network, capture, asset, font, decode, or render errors; invalid
+output specifications; or incomplete/mismatched checksums and provenance.
+
+Route failures to the responsible generator. Do not dispatch reviewers until preflight passes.
+
+## Stage 2 — four independent reviewers
+
+Dispatch all four isolated prompts against the same immutable candidate and evidence package:
+
+| Domain | Prompt | Pass standard |
 |---|---|---|
-| Product-truth reviewer | `agents/product-truth-reviewer.md` | Every claim against the product-claim ledger, readiness state, visible evidence, environment accuracy, synthetic-data safety. |
-| Story reviewer | `agents/story-reviewer.md` | Audience fit, cold open, shown before-state, one hero moment, per-segment WIIFM, payoff ladder rung, emotional target, pacing/cadence, CTA, duration. |
-| Visual reviewer | `agents/visual-reviewer.md` | Product readability, hero staging, progressive screens, zoom accuracy, cursor acting, attention resets, text/caption occlusion, aspect-ratio framing. |
-| Audio reviewer | `agents/audio-reviewer.md` | Viewer-centered narration, naturalness, vocal dynamics, pronunciation, hero silence, emotional delivery, music balance, loudness/clipping, visual alignment. |
-| Technical reviewer | `agents/technical-reviewer.md` | Resolution/frame-rate/codec correctness, missing/black/frozen frames, caption overflow, file integrity, checksums, reproduction commands. |
+| Story and Experience | `agents/story-experience-reviewer.md` | Persuasive and polished; score >= 85 |
+| Screen, Accuracy, and Compliance | `agents/screen-accuracy-compliance-reviewer.md` | Accuracy, claims, privacy, compliance, and playback all pass |
+| Audio, Captions, and Synchronization | `agents/audio-captions-sync-reviewer.md` | Audio/captions/sync/accessibility all pass; score >= 95 |
+| Technical and Frame Integrity | `agents/technical-frame-integrity-reviewer.md` | Delivery, frames, checksums, provenance, playback, and reproducibility all pass |
 
-Resolve each file from `${PRODUCT_DEMO_STUDIO_ROOT}`. If the host exposes packaged
-`product-demo-studio:<reviewer>` agents, invoke them. Otherwise create five independent read-only
-reviewer/subagent passes from these Markdown prompts. On a host without subagents, run five
-separate isolated review passes and record that limitation in the QA report. Missing named plugin
-agents never permits skipping or collapsing the five reviews into one opinion.
+Use packaged agents when the host supports enforceable read-only contexts. Otherwise create four
+independent read-only subagent contexts from these files. If host capacity is lower than four, use fresh isolated waves;
+never collapse domains into one opinion or let one reviewer read another review before writing its
+own.
 
-Give each agent the same context bundle: the proxy video path, `<qa-output-dir>/frames/` +
-contact sheet, the technical-checks.mjs report, the render manifest, the capture manifest(s), the
-product-claim ledger, and the narration script/transcript. Each returns a verdict in this shape:
+If the host cannot enforce those contexts as read-only, do not simulate isolation with prompt
+text. Record the missing enforcement evidence and return `PIPELINE_BLOCKED`.
+The host must emit and sign the exact execution receipt. Validate its detached Ed25519 signature
+against the operator-owned registry selected by `AGENTHUB_EXECUTION_HOST_TRUST_CONFIG`. An agent
+may consume this receipt but may never author or sign it. Unknown or disabled keys, unauthorized
+roles/mechanisms/tools, missing trust configuration, or receipt/signature drift fail closed.
 
-```json
-{
-  "accepted": false,
-  "revisions": [
-    {
-      "scene": "workflow-result",
-      "category": "visual",
-      "issue": "The headline overlaps the result status.",
-      "action": "Move the headline to the upper-left safe region and reduce it to one line."
-    }
-  ]
-}
-```
+Each report must conform to `schemas/review-report.schema.json`. Every finding must conform to
+`schemas/video-finding.schema.json` and contain:
 
-## Step 3 — apply, rerender, repeat
+- unique ID, category, severity, and fix classification;
+- exact timestamps and frame range;
+- expected and observed behavior;
+- viewer or release impact;
+- direct evidence;
+- concrete fix and automated validation;
+- confidence.
 
-1. Review every reported revision; discard ones that are wrong or out of scope, but don't discard a
-   revision just because it's inconvenient.
-2. Apply justified revisions to the *source* composition, capture manifest, or claim ledger — never
-   patch only the exported binary while the source stays wrong.
-3. Re-render the proxy (`video-cli.mjs render-proxy`) and repeat from Step 1.
-4. Use up to **three** normal iterations. Continue beyond three only if a serious product-truth,
-   privacy, technical, or accessibility issue remains — note why in the QA report when you do.
-
-For a full parallel run in one shot instead of driving five separate Agent calls by hand, use the
-`video:qa` verb:
+Validate each report:
 
 ```bash
-node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/video-cli.mjs" qa --repo <path-to-repo> --video <path-to-proxy.mp4>
+node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/validate-review-report.mjs" <review-report.json>
 ```
 
-This runs `technical-checks.mjs`, prints the exact five Agent-tool dispatch prompts pre-filled with
-the context bundle above, and validates the resulting revision JSON — it does not spawn the agents
-itself (only the calling Claude session can do that), it prepares everything needed to spawn them
-in one pass.
+Reject vague, duplicated, malformed, speculative, unsupported, or wrong-candidate findings.
 
-## Craft and engagement gate
+## Stage 3 — release arbitration
 
-Review full playback plus representative frames. Fail unless all are true:
+Run `agents/release-arbiter.md` in a fresh read-only context with the preflight and four validated
+reports. The arbiter validates evidence, deduplicates overlap, resolves contradictions using
+evidence or a fresh targeted review, applies thresholds, routes retained findings, and writes one
+decision conforming to `schemas/release-decision.schema.json`.
 
-- the first frame carries pain, tension, or a result glimpse, and the problem/desired outcome lands
-  within five to eight seconds without login, tour, logo, or "in this video" preamble;
-- a three-to-five-second before-state makes the old-way cost felt;
-- exactly one hero moment is named, staged with pre-silence/push-in/cue/hold, and uncontested;
-- every segment has one WIIFM and one idea, and the payoff reaches the primary `outcome` or
-  `identity` rung (the validator also accepts refined outcome/identity aliases);
-- no uncut dead time remains and pace, visual, sound, zoom, text, or framing changes at least about
-  every 10–15 seconds;
-- results stay visible in deliberate near-silence long enough to register;
-- the declared emotional target is supported by voice, motion, music, silence, and wording;
-- voice is conversational, varied, correctly pronounced, and not wall-to-wall;
-- final frames are stable, legible at delivery size, spatially coherent, and free of occlusion;
-- the video ends quickly after payoff with exactly one takeaway/next step and a designed end frame.
+```bash
+node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/validate-release-decision.mjs" \
+  <release-decision.json>
+```
 
-If a proxy still fails after justified re-editing, classify the cause. Re-edit a capture-fixable
-cause. Pull the episode and write demo-readiness feedback for a product-fix-required cause. Never
-lower the bar or accept a mediocre master to meet an episode quota.
+Allowed decisions:
 
-## Required checks (what "accepted" should mean across all five roles)
+- `PASS`
+- `REMEDIATE`
+- `PRODUCT_BLOCKED`
+- `PIPELINE_BLOCKED`
 
-- The product state shown is real for the declared environment and uses synthetic or authorized
-  demo data.
-- Every claim has a source and readiness state; unverified or roadmap claims are excluded or
-  disclosed.
-- The intended outcome is legible at each target viewport. Vertical and square cuts are recomposed,
-  not mechanically cropped from the wide master.
-- Text stays within safe areas, has sufficient contrast, and never overlaps the focus region, an
-  active control, a cursor destination, or a status/evidence region — cross-check against
-  `compute-overlay-placement.mjs`'s output for that scene (see `product-demo-studio-remotion`).
-- Cursor motion, zooms, transitions, and holds clarify the workflow rather than merely decorate it.
-- The hard case and its complexity are legible without making the flow look chaotic; AI episodes
-  show enough reasoning and adjacent human control to earn trust.
-- Console errors, failed requests, and reset results from the capture manifest are clean or
-  explained.
-- Reduced-motion and poster/fallback assets exist for autoplaying homepage media.
-- Output hashes, source commit, package command, manifests, and generated captions/transcripts are
-  stored with the deliverable so the render is reproducible.
+`PASS` requires zero blocker/critical findings, Story and Experience >= 85, Audio/Captions/Sync
+>= 95, and complete passes for accuracy, compliance, privacy, technical integrity, browser
+playback, claims, checksums, and provenance.
 
-## Transcript check — the narration matches the approved script
+Only deduplicated product-level defects may become Linear issues, and only during an authorized
+product task. Video edits and AgentHub capability defects do not belong in a product tracker.
 
-Audio QA isn't only "does it sound good." Transcribe the *final rendered* audio and compare it to the
-approved narration script with word-level timestamps. Flag: missing or added words, a wrong name or
-number, a mispronunciation, an unexpected sound, and timing drift between a segment's spoken end and
-where the next beat starts. Because captions are generated from the ground-truth narration text (see
-`product-demo-studio-render`), this check also protects against a caption that has silently drifted
-from the audio. Every visible on-screen value (name, date/timezone, number, calculation, status,
-chart, table, notification, permission, AI result, workflow outcome) is checked against the episode's
-demo **truth sheet** (see `product-demo-studio-render`), not just eyeballed.
+## Stage 4 — least-privilege remediation
 
-## Human watch-through approval — the final gate
+For `REMEDIATE`, create independent assignments by subsystem:
 
-Technical + critic passes never substitute for a person watching the master. Before delivery, a named
-human watches every final master **start to finish at normal speed**: once **with captions on**, once
-**with captions off**, on the **intended delivery display size**. No video is delivered without a
-recorded watch-and-listen approval. This is recorded in the evidence manifest's `watchThroughStatus`
-and `reviewedBy` (see `product-demo-studio-render`) — you prepare everything for it, but you never
-attest it on the reviewer's behalf.
+- story and script;
+- product or seed data;
+- capture and Playwright;
+- Remotion composition;
+- narration and audio;
+- captions;
+- export pipeline;
+- infrastructure and assets.
 
-## Report
+Each assignment must conform to `schemas/remediation-assignment.schema.json` and include only its
+finding IDs, permitted files, prohibited files, evidence, reproduction/validation commands, and
+definition of done.
 
-Write a concise QA report beside the render manifest: files reviewed, source commit, target
-formats, pass/fail per role, issues with timestamp/frame references, corrective action taken,
-remaining limitations, and the human evidence-review status. A technically and critically passing
-render remains `needs-human-review` until a real reviewer completes the release-evidence manifest
-in `product-demo-studio-render`.
+```bash
+node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/validate-remediation-assignment.mjs" \
+  <assignment.json>
+```
+
+The remediation agent reproduces, finds root cause, improves automated coverage where feasible,
+implements the smallest coherent fix, runs targeted validation, and reports exact changed files,
+commands, results, and evidence. It cannot approve its work or conceal a product defect in editing.
+
+## Stage 5 — rerender and fresh review
+
+After any relevant product, data, source, media, configuration, or environment change:
+
+1. Create a new immutable candidate.
+2. Rerender from source.
+3. Regenerate the complete evidence package.
+4. Use fresh reviewer contexts.
+5. Rerun every affected domain.
+6. Always rerun technical integrity, synchronization, accuracy, privacy, and compliance.
+7. Obtain a new arbiter decision.
+
+Never reuse previous passes across a candidate change or weaken thresholds. Continue until `PASS`
+or evidence proves a genuine `PRODUCT_BLOCKED` or `PIPELINE_BLOCKED` result.
+
+## Stage 6 — fresh final verifier
+
+After arbiter `PASS`, run `agents/final-verifier.md` in a fresh read-only context. It independently
+checks candidate/report identities, changed-source invalidation, thresholds, checksums, provenance,
+playback, reproduction, and delivery-folder contents. Only after this final report returns `PASS`
+may the human approver create and sign a receipt that binds the candidate SHA-256/bytes, arbiter
+SHA-256, final-verification SHA-256, reviewer identity/time, `approved` classification, completed
+watch-through, synthetic-data confirmation, redaction notes, and trusted public-key fingerprint.
+The gate verifies the receipt and its raw 64-byte Ed25519 signature; missing or untrusted keys,
+modified receipts, and stale signatures fail.
+
+## Quality bar
+
+A technically valid but ineffective video fails. A persuasive video that misrepresents the product
+fails. Release only truthful, persuasive, visually polished, synchronized, accessible, private,
+compliant, technically valid, and reproducible videos.
+
+Every episode must have a clear audience/outcome, felt before-state, one protected hero moment,
+visible payoff, trust/control moment, and clear next step. A precise product-readiness report with
+zero videos is valid; a mediocre video is not.

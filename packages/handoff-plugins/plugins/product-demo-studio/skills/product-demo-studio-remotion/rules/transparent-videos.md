@@ -1,8 +1,6 @@
 ---
 name: transparent-videos
 description: Rendering transparent videos in Remotion
-metadata:
-  tags: transparent, alpha, codec, vp9, prores, webm
 ---
 
 # Rendering Transparent Videos

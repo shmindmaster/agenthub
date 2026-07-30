@@ -1,8 +1,6 @@
 ---
 name: get-video-duration
 description: Getting the duration of a video file in seconds with Mediabunny
-metadata:
-  tags: duration, video, length, time, seconds
 ---
 
 # Getting video duration with Mediabunny

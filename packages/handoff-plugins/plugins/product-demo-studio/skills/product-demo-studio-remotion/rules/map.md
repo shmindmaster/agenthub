@@ -1,8 +1,6 @@
 ---
 name: maps
 description: Choose between simple static maps, Mapbox GL JS maps, and MapLibre GL JS maps for Remotion videos.
-metadata:
-  tags: map, map animation, mapbox, maplibre, static map, route animation
 ---
 
 Use this rule first for map-related Remotion work.

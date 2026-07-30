@@ -1,8 +1,27 @@
 {
-  "assetPath": "apps/videos/out/V1-ProductOverview-wide.mp4",
-  "classification": "approved",
-  "reviewedBy": "jane.doe",
-  "reviewedAt": "2026-07-01",
-  "syntheticDataConfirmed": true,
-  "redactionNotes": "Blurred tenant name in scene 3; all figures are seeded demo data."
+  "schemaVersion": "2.0.0",
+  "candidateId": "replace-with-candidate-id",
+  "assetPath": "path/to/final-candidate.mp4",
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "bytes": 1,
+  "arbiterDecision": {
+    "artifactPath": "path/to/release-decision.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "bytes": 1
+  },
+  "finalVerification": {
+    "artifactPath": "path/to/final-verification.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "bytes": 1
+  },
+  "approvalReceipt": {
+    "artifactPath": "path/to/signed-publication-approval.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "bytes": 1
+  },
+  "approvalSignature": {
+    "artifactPath": "path/to/signed-publication-approval.ed25519",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "bytes": 64
+  }
 }

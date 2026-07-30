@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "1.0.0",
+  "decisionId": "PVD-SYNTHETIC-001",
+  "candidate": {
+    "candidateId": "synthetic-candidate-001",
+    "artifactPath": "evidence/candidate.mp4",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 23,
+    "sourceRevision": "synthetic-revision-001",
+    "renderProvenanceId": "synthetic-render-001"
+  },
+  "arbiter": {
+    "contextId": "isolated-arbiter-context-001",
+    "readOnly": true,
+    "executionReceipt": {
+      "receipt": {
+        "artifactPath": "execution-receipt.arbiter-pass.json",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 1
+      },
+      "signature": {
+        "artifactPath": "execution-receipt.arbiter-pass.ed25519",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 64
+      }
+    }
+  },
+  "policy": {
+    "artifactPath": "policy/product-video-policy.json",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "policyVersion": "1.0.0"
+  },
+  "preflight": {
+    "artifactPath": "preflight-report.json",
+    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "reviewReports": [
+    {
+      "domain": "story-experience",
+      "reportPath": "reviews/story.json",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "status": "COMPLETE",
+      "score": 92,
+      "passed": true,
+      "findingCount": 0,
+      "blockerFindings": 0,
+      "criticalFindings": 0
+    },
+    {
+      "domain": "screen-accuracy-compliance",
+      "reportPath": "reviews/screen.json",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "status": "COMPLETE",
+      "score": 100,
+      "passed": true,
+      "findingCount": 0,
+      "blockerFindings": 0,
+      "criticalFindings": 0
+    },
+    {
+      "domain": "audio-captions-synchronization",
+      "reportPath": "reviews/audio.json",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "status": "COMPLETE",
+      "score": 98,
+      "passed": true,
+      "findingCount": 0,
+      "blockerFindings": 0,
+      "criticalFindings": 0
+    },
+    {
+      "domain": "technical-frame-integrity",
+      "reportPath": "reviews/technical.json",
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "status": "COMPLETE",
+      "score": 100,
+      "passed": true,
+      "findingCount": 0,
+      "blockerFindings": 0,
+      "criticalFindings": 0
+    }
+  ],
+  "releaseChecks": {
+    "accuracy": true,
+    "compliance": true,
+    "privacy": true,
+    "technicalIntegrity": true,
+    "browserPlayback": true,
+    "claims": true,
+    "checksums": true,
+    "provenance": true,
+    "captions": true,
+    "synchronization": true,
+    "visualIntegrity": true
+  },
+  "findingDispositions": [],
+  "evidenceValidation": {
+    "allReportsValidated": true,
+    "unsupportedFindingsRejected": true,
+    "overlapsDeduplicated": true,
+    "contradictionsResolved": true
+  },
+  "decision": "PASS",
+  "rationale": "All four independent domains and every mandatory release check pass the canonical policy.",
+  "decidedAt": "2026-07-29T15:10:00.000Z"
+}

@@ -60,7 +60,26 @@ def tts(args: argparse.Namespace) -> int:
     if not voice_id:
         raise RuntimeError("Provide --voice-id or set ELEVENLABS_VOICE_ID")
     model_id = args.model_id or os.environ.get("ELEVENLABS_MODEL_TTS_DEFAULT", "eleven_multilingual_v2")
-    payload = json.dumps({"text": args.text, "model_id": model_id}).encode("utf-8")
+    voice_settings = {
+        key: value
+        for key, value in {
+            "stability": args.stability,
+            "similarity_boost": args.similarity_boost,
+            "style": args.style,
+            "speed": args.speed,
+            "use_speaker_boost": args.use_speaker_boost,
+        }.items()
+        if value is not None
+    }
+    payload_object = {
+        "text": args.text,
+        "model_id": model_id,
+        **({"voice_settings": voice_settings} if voice_settings else {}),
+        **({"apply_text_normalization": args.text_normalization} if args.text_normalization else {}),
+        **({"previous_text": args.previous_text} if args.previous_text else {}),
+        **({"next_text": args.next_text} if args.next_text else {}),
+    }
+    payload = json.dumps(payload_object).encode("utf-8")
     _, content_type, raw = request(f"/text-to-speech/{voice_id}", method="POST", body=payload, content_type="application/json")
     output = pathlib.Path(args.output).expanduser()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -148,6 +167,18 @@ def main() -> int:
     p_tts.add_argument("--output", required=True)
     p_tts.add_argument("--voice-id")
     p_tts.add_argument("--model-id")
+    p_tts.add_argument("--stability", type=float)
+    p_tts.add_argument("--similarity-boost", type=float)
+    p_tts.add_argument("--style", type=float)
+    p_tts.add_argument("--speed", type=float)
+    p_tts.add_argument(
+        "--use-speaker-boost",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    p_tts.add_argument("--text-normalization", choices=["auto", "on", "off"])
+    p_tts.add_argument("--previous-text")
+    p_tts.add_argument("--next-text")
     p_tts.set_defaults(func=tts)
     p_transcribe = sub.add_parser("transcribe", help="Transcribe an explicitly approved, non-sensitive local file")
     p_transcribe.add_argument("--input", required=True)

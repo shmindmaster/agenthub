@@ -1,7 +1,6 @@
 ---
 name: tailwind
 description: Using TailwindCSS in Remotion.
-metadata:
 ---
 
 You can and should use TailwindCSS in Remotion, if TailwindCSS is installed in the project.

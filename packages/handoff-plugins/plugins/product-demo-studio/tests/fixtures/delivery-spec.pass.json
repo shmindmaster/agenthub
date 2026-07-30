@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "platform": "synthetic-web-fixture",
+  "container": "mov",
+  "video": {
+    "codec": "h264",
+    "width": 320,
+    "height": 180,
+    "frameRate": 30,
+    "frameRateTolerance": 0.01,
+    "pixelFormat": "yuv420p",
+    "colorSpace": "bt709",
+    "colorTransfer": "bt709",
+    "colorPrimaries": "bt709",
+    "minimumDurationSeconds": 1.5,
+    "maximumDurationSeconds": 2.5
+  },
+  "audio": {
+    "required": true,
+    "codec": "aac",
+    "sampleRate": 48000,
+    "channels": 2,
+    "targetIntegratedLUFS": -16,
+    "loudnessToleranceLU": 2,
+    "maximumTruePeakDb": -0.5
+  },
+  "fastStartRequired": true,
+  "maxConsecutiveDuplicateFrames": 2
+}

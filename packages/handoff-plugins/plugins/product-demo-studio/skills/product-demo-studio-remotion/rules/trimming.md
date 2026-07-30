@@ -1,8 +1,6 @@
 ---
 name: trimming
 description: Trimming patterns for Remotion - cut the beginning or end of animations
-metadata:
-  tags: sequence, trim, clip, cut, offset
 ---
 
 Use `<Sequence>` with a negative `from` value to trim the start of an animation.

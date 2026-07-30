@@ -1,8 +1,6 @@
 ---
 name: maps-maplibre
 description: Make deterministic Remotion map animations with MapLibre GL JS and Turf. Use when the user chooses MapLibre for animated routes, flyovers, map markers, labels, and camera movement.
-metadata:
-  tags: map, map animation, maplibre, turf, geojson, route animation
 ---
 
 Use MapLibre GL JS for rendering maps in Remotion. Use Turf for geospatial operations such as great-circle routes, distances, slicing lines, and positions along routes.

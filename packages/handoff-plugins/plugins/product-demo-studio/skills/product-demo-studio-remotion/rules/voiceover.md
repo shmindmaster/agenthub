@@ -24,35 +24,26 @@ node --strip-types generate-voiceover.ts
 
 ## Generating audio with ElevenLabs
 
-Create a script that reads the config, calls the ElevenLabs API for each scene, and writes MP3 files to the `public/` directory so Remotion can access them via `staticFile()`.
+`use-elevenlabs` is the single provider owner. Do not add another ElevenLabs HTTP client to a
+product video workspace. Product Demo Studio's `generate-narration.mjs` delegates to the
+AgentHub-managed CLI, which preserves the approved voice/model settings and writes each
+checksumable audio artifact:
 
-The core API call for a single scene:
-
-```ts title="generate-voiceover.ts"
-const response = await fetch(
-  `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-  {
-    method: "POST",
-    headers: {
-      "xi-api-key": process.env.ELEVENLABS_API_KEY!,
-      "Content-Type": "application/json",
-      Accept: "audio/mpeg",
-    },
-    body: JSON.stringify({
-      text: "Welcome to the show.",
-      model_id: "eleven_multilingual_v2",
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        style: 0.3,
-      },
-    }),
-  },
-);
-
-const audioBuffer = Buffer.from(await response.arrayBuffer());
-writeFileSync(`public/voiceover/${compositionId}/${scene.id}.mp3`, audioBuffer);
+```bash
+python "<AGENTHUB_ROOT>/packages/portfolio-plugins/use-elevenlabs/scripts/elevenlabs_cli.py" \
+  tts \
+  --text "Welcome to the show." \
+  --output "public/voiceover/<composition-id>/<scene-id>.mp3" \
+  --voice-id "<approved-voice-id>" \
+  --model-id "<approved-model-id>" \
+  --stability 0.5 \
+  --similarity-boost 0.75 \
+  --style 0.3
 ```
+
+Record the capability version, model, voice ID, settings, input text hash, output hash, and
+generation command in the narration manifest. Never copy credentials into a script, manifest, or
+adapter.
 
 ## Dynamic composition duration with calculateMetadata
 

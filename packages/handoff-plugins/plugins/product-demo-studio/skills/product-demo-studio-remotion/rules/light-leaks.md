@@ -1,8 +1,6 @@
 ---
 name: light-leaks
 description: Light leak overlay effects for Remotion using @remotion/light-leaks.
-metadata:
-  tags: light-leaks, overlays, effects, transitions
 ---
 
 ## Light Leaks

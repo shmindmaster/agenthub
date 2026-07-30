@@ -1,8 +1,6 @@
 ---
 name: video-layout
 description: Video-first layout, composition, and text sizing guidance for Remotion.
-metadata:
-  tags: layout, composition, typography, text, motion graphics, promo
 ---
 
 # Video layout

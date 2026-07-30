@@ -1,8 +1,6 @@
 ---
 name: silence-detection
 description: Adaptive silence detection for video/audio files using FFmpeg loudnorm and silencedetect
-metadata:
-  tags: silence, detection, trimming, ffmpeg, loudnorm, audio
 ---
 
 # Adaptive Silence Detection

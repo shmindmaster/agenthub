@@ -1,8 +1,6 @@
 ---
 name: lottie
 description: Embedding Lottie animations in Remotion.
-metadata:
-  category: Animation
 ---
 
 # Using Lottie Animations in Remotion

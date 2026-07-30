@@ -1,8 +1,6 @@
 ---
 name: ffmpeg
 description: Using FFmpeg and FFprobe in Remotion
-metadata:
-  tags: ffmpeg, ffprobe, video, trimming
 ---
 
 ## FFmpeg in Remotion

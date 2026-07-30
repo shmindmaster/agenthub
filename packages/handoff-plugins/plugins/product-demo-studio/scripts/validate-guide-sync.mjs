@@ -11,7 +11,10 @@ const failures = [];
 
 for (const [path, expectedHash] of expected) {
   const bytes = await readFile(new URL(path, root));
-  const actual = createHash("sha256").update(bytes).digest("hex").toUpperCase();
+  // The reviewed hashes are over repository-normalized LF text. Git may materialize CRLF on
+  // Windows, which must not be reported as content drift.
+  const normalized = bytes.toString("utf8").replace(/\r\n/g, "\n");
+  const actual = createHash("sha256").update(normalized).digest("hex").toUpperCase();
   if (actual !== expectedHash) failures.push(`${path}: expected ${expectedHash}, got ${actual}`);
 }
 
@@ -19,8 +22,8 @@ const manifests = [
   JSON.parse(await readFile(new URL(".claude-plugin/plugin.json", root), "utf8")),
   JSON.parse(await readFile(new URL(".codex-plugin/plugin.json", root), "utf8"))
 ];
-if (manifests.some(manifest => manifest.version !== "0.6.1")) {
-  failures.push("Claude and Codex plugin manifests must both be version 0.6.1.");
+if (manifests.some(manifest => manifest.version !== "1.0.0")) {
+  failures.push("Claude and Codex plugin manifests must both be version 1.0.0.");
 }
 const visualSkill = await readFile(new URL("skills/product-demo-studio-visual-assets/SKILL.md", root), "utf8");
 if (!visualSkill.includes("name: product-demo-studio-visual-assets")) {

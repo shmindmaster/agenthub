@@ -5,11 +5,12 @@
 // Usage: node video-cli.mjs <verb> --repo <path> [verb-specific options]
 //
 // Verbs: inventory | discover | readiness | storyboard | claims | reset | capture | voice |
-//        render-proxy | frames | qa | revise | render-final | package | all
+//        render-proxy | frames | preflight | review | validate-review | arbitrate |
+//        validate-decision | validate-assignment | qa | revise | render-candidate | package | all
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { detectPackageManager, detectVideoConvention, readJson } from "./lib.mjs";
 
@@ -36,6 +37,18 @@ function withoutRepoFlag(argList) {
   for (let i = 0; i < argList.length; i++) {
     if (argList[i] === "--repo") {
       i++; // also skip its value
+      continue;
+    }
+    out.push(argList[i]);
+  }
+  return out;
+}
+
+function withoutNamedValueFlags(argList, names) {
+  const out = [];
+  for (let i = 0; i < argList.length; i++) {
+    if (names.has(argList[i])) {
+      i++;
       continue;
     }
     out.push(argList[i]);
@@ -167,74 +180,184 @@ const VERBS = {
     return runNode("render-videos.mjs", ["--repo", repoPath, ...withoutRepoFlag(rest)]);
   },
 
-  "render-final"(repoPath) {
+  "render-candidate"(repoPath) {
     return runNode("render-videos.mjs", ["--repo", repoPath, ...withoutRepoFlag(rest)]);
+  },
+
+  "render-final"() {
+    console.error(
+      'The "render-final" verb was removed because a post-approval rerender invalidates the approved bytes. ' +
+        "Use `render-candidate` before evidence generation, independent review, arbitration, final verification, " +
+        "and signed human publication evidence. Any later media change creates a new candidate and restarts those gates.",
+    );
+    return 2;
   },
 
   frames() {
     return runNode("technical-checks.mjs", rest);
   },
 
-  qa() {
-    const status = runNode("technical-checks.mjs", rest);
-    if (status !== 0) return status;
-    console.log(
-      "\nTechnical checks complete. Resolve PRODUCT_DEMO_STUDIO_ROOT and run five independent " +
-        "read-only reviewer passes from agents/:\n" +
-        "  - product-truth-reviewer.md\n" +
-        "  - story-reviewer.md\n" +
-        "  - visual-reviewer.md\n" +
-        "  - audio-reviewer.md\n" +
-        "  - technical-reviewer.md\n" +
-        "Use packaged named agents when available; otherwise create equivalent reviewer/subagents " +
-        "from these files, or five isolated passes when subagents are unavailable.\n" +
-        "Give each the proxy video path, the frames/contact-sheet output above, the technical " +
-        "report, the render/capture manifests, and the product-claim ledger. See " +
-        "product-demo-studio-qa for the full loop and the revision JSON shape.",
+  preflight() {
+    const evidencePackage = flag("--evidence-package");
+    const outPath = flag("--out");
+    if (!evidencePackage || !outPath) {
+      console.error('Usage: video-cli.mjs preflight --evidence-package <package.json> --out <report.json>');
+      return 1;
+    }
+    return runNode("preflight.mjs", ["--evidence-package", evidencePackage, "--out", outPath]);
+  },
+
+  review() {
+    console.error(
+      'The "review" verb is dispatch guidance, not a release gate, and intentionally exits nonzero.\n' +
+      "Dispatch four isolated read-only reviewers against the same immutable candidate and evidence package:\n" +
+        "  - agents/story-experience-reviewer.md\n" +
+        "  - agents/screen-accuracy-compliance-reviewer.md\n" +
+        "  - agents/audio-captions-sync-reviewer.md\n" +
+        "  - agents/technical-frame-integrity-reviewer.md\n" +
+        "Each output must conform to schemas/review-report.schema.json. If host capacity is lower than " +
+        "four, use fresh isolated waves; never collapse the domains.",
     );
-    return status;
+    return 2;
+  },
+
+  "validate-review"() {
+    const reportPath = flag("--report") ?? rest.find((arg) => !arg.startsWith("--"));
+    if (!reportPath) {
+      console.error("Usage: video-cli.mjs validate-review --report <review-report.json>");
+      return 1;
+    }
+    return runNode("validate-review-report.mjs", [reportPath]);
+  },
+
+  arbitrate() {
+    console.error(
+      'The "arbitrate" verb is dispatch guidance, not a release gate, and intentionally exits nonzero.\n' +
+      "After preflight and exactly four schema-valid reviews, dispatch agents/release-arbiter.md " +
+        "in a fresh read-only context. Validate its output with `validate-decision`.",
+    );
+    return 2;
+  },
+
+  "validate-decision"() {
+    const decisionPath = flag("--decision") ?? rest.find((arg) => !arg.startsWith("--"));
+    if (!decisionPath) {
+      console.error("Usage: video-cli.mjs validate-decision --decision <release-decision.json>");
+      return 1;
+    }
+    return runNode("validate-release-decision.mjs", [decisionPath]);
+  },
+
+  "validate-assignment"() {
+    const assignmentPath = flag("--assignment") ?? rest.find((arg) => !arg.startsWith("--"));
+    if (!assignmentPath) {
+      console.error("Usage: video-cli.mjs validate-assignment --assignment <remediation-assignment.json>");
+      return 1;
+    }
+    return runNode("validate-remediation-assignment.mjs", [assignmentPath]);
+  },
+
+  qa() {
+    const evidencePackage = flag("--evidence-package");
+    const preflightOut = flag("--preflight-out");
+    const status = evidencePackage && preflightOut
+      ? runNode("preflight.mjs", ["--evidence-package", evidencePackage, "--out", preflightOut])
+      : runNode("technical-checks.mjs", rest);
+    if (status !== 0) return status;
+    console.error(
+      "\nDeterministic checks passed, but QA is not complete. This orchestration verb intentionally " +
+        "exits nonzero until independent outputs are validated. Resolve PRODUCT_DEMO_STUDIO_ROOT and run four independent " +
+        "read-only reviewer passes from agents/:\n" +
+        "  - story-experience-reviewer.md\n" +
+        "  - screen-accuracy-compliance-reviewer.md\n" +
+        "  - audio-captions-sync-reviewer.md\n" +
+        "  - technical-frame-integrity-reviewer.md\n" +
+        "Validate every report, then dispatch release-arbiter.md in a fresh read-only context. " +
+        "See product-demo-studio-qa for the immutable evidence, remediation, rerender, and final-verifier loop.",
+    );
+    return 2;
   },
 
   revise() {
-    console.log(
-      "This verb is guidance, not automation -- applying a review-loop revision means editing the " +
+    console.error(
+      'The "revise" verb is guidance, not proof of remediation, and intentionally exits nonzero. ' +
+        "Applying a review-loop revision means editing the " +
         "actual composition, capture manifest, or claim ledger (product-demo-studio-remotion / " +
         "-capture / -render), then re-running `render-proxy` and `qa`. See product-demo-studio-qa's " +
         "\"apply, rerender, repeat\" step.",
     );
-    return 0;
+    return 2;
   },
 
   package(repoPath) {
     const outPath = flag("--out");
-    const withoutOut = (() => {
-      const out = [];
-      for (let i = 0; i < rest.length; i++) {
-        if (rest[i] === "--out") { i++; continue; }
-        out.push(rest[i]);
+    const decisionPath = flag("--decision");
+    const finalVerificationPath = flag("--final-verification");
+    const releaseEvidencePath = flag("--release-evidence");
+    const files = withoutRepoFlag(withoutNamedValueFlags(rest, new Set([
+      "--out",
+      "--decision",
+      "--final-verification",
+      "--release-evidence",
+    ]))).filter((a) => !a.startsWith("--"));
+    if (files.length === 0 || !outPath || !decisionPath || !finalVerificationPath || !releaseEvidencePath) {
+      console.error(
+        "Usage: video-cli.mjs package --repo <path> --out <bundle.json> " +
+          "--decision <release-decision.json> --final-verification <final-verification.json> " +
+          "--release-evidence <release-evidence.json> <approved-file...>",
+      );
+      return 1;
+    }
+    for (const requiredPath of [decisionPath, finalVerificationPath, releaseEvidencePath, ...files]) {
+      if (!existsSync(requiredPath)) {
+        console.error(`Required package input does not exist: ${requiredPath}`);
+        return 1;
       }
-      return out;
-    })();
-    const files = withoutRepoFlag(withoutOut).filter((a) => !a.startsWith("--"));
-    if (files.length === 0 || !outPath) {
-      console.error('Usage: video-cli.mjs package --repo <path> --out <bundle.json> <file...>');
+    }
+    for (const [script, scriptArgs, path] of [
+      ["validate-release-decision.mjs", [decisionPath], decisionPath],
+      ["validate-final-verification.mjs", [finalVerificationPath], finalVerificationPath],
+      ["check-evidence-gate.mjs", ["--manifest", releaseEvidencePath], releaseEvidencePath],
+    ]) {
+      const status = runNode(script, scriptArgs);
+      if (status !== 0) {
+        console.error(`Packaging blocked because ${script} rejected ${path}.`);
+        return status;
+      }
+    }
+    const decision = readJson(resolve(decisionPath));
+    if (decision.decision !== "PASS") {
+      console.error(`Packaging requires an arbiter PASS; received ${decision.decision ?? "<missing>"}.`);
       return 1;
     }
     const entries = files.map((file) => {
-      if (!existsSync(file)) {
-        console.error(`File not found, skipping: ${file}`);
-        return null;
-      }
-      return { path: file, sha256: createHash("sha256").update(readFileSync(file)).digest("hex") };
-    }).filter(Boolean);
-    writeFileSync(outPath, JSON.stringify({ generatedFrom: repoPath, files: entries }, null, 2));
+      const absolutePath = resolve(file);
+      const bytes = readFileSync(absolutePath);
+      return {
+        path: absolutePath,
+        bytes: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      };
+    });
+    writeFileSync(outPath, `${JSON.stringify({
+      schemaVersion: "1.0.0",
+      candidateId: decision.candidate?.candidateId ?? null,
+      generatedFrom: resolve(repoPath),
+      gates: {
+        releaseDecision: resolve(decisionPath),
+        finalVerification: resolve(finalVerificationPath),
+        releaseEvidence: resolve(releaseEvidencePath),
+      },
+      files: entries,
+    }, null, 2)}\n`);
     console.log(`Wrote deliverable checksum bundle: ${outPath} (${entries.length} file(s))`);
     return 0;
   },
 
   all(repoPath) {
-    console.log(
-      `The full pipeline for ${repoPath} is not a single mechanical command -- composing, ` +
+    console.error(
+      'The "all" verb is an orchestration checklist, not a release gate, and intentionally exits nonzero.\n' +
+        `The full pipeline for ${repoPath} is not a single mechanical command -- composing, ` +
         "assessing, narrating, and reviewing a video need real judgment at each stage. Run these in order, " +
         "reading each result before moving to the next:\n\n" +
         `  1. inventory     node video-cli.mjs inventory --repo ${repoPath}\n` +
@@ -246,14 +369,22 @@ const VERBS = {
         `  6. voice         node video-cli.mjs voice --script <path> --out <dir>\n` +
         `  7. capture       node video-cli.mjs capture --repo ${repoPath}\n` +
         "  8. (compose)     product-demo-studio-remotion skill\n" +
-        `  9. render-proxy  node video-cli.mjs render-proxy --repo ${repoPath}\n` +
-        `  10. qa            node video-cli.mjs qa --video <proxy.mp4> --out <qa-dir>\n` +
-        "  11. (revise, repeat 9-10; route late product UX failures to feedback)\n" +
-        `  12. render-final  node video-cli.mjs render-final --repo ${repoPath}\n` +
-        `  13. package       node video-cli.mjs package --repo ${repoPath} --out bundle.json <files...>\n` +
-        "  14. (evidence gate + optional Descript finish) product-demo-studio-render, product-demo-studio-descript",
+        `  9. render-proxy  node video-cli.mjs render-proxy --repo ${repoPath} (draft iteration only)\n` +
+        `  10. render-candidate node video-cli.mjs render-candidate --repo ${repoPath}\n` +
+        "      Freeze the candidate bytes. Every later media/source change creates a new candidate.\n" +
+        "  11. evidence-package build immutable evidence-package.json from that exact candidate\n" +
+        "  12. preflight     node video-cli.mjs preflight --evidence-package <package.json> --out <preflight.json>\n" +
+        "  13. review        dispatch four isolated reviewers; validate each report\n" +
+        "  14. arbitrate     dispatch a fresh release arbiter; validate its decision\n" +
+        "  15. remediate     if required, use least-privilege assignments and restart at step 9\n" +
+        "  16. final-verifier dispatch a fresh read-only verifier against the unchanged candidate\n" +
+        "  17. signed-human-evidence record the signed human attestation for those exact approved bytes\n" +
+        `  18. package       node video-cli.mjs package --repo ${repoPath} --out bundle.json ` +
+          "--decision <decision.json> --final-verification <final.json> " +
+          "--release-evidence <release-evidence.json> <approved-file...>\n" +
+        "No render or edit is allowed after verification or approval; any change restarts at render-candidate.",
     );
-    return 0;
+    return 2;
   },
 };
 
@@ -262,7 +393,10 @@ if (!verb || !VERBS[verb]) {
   process.exit(1);
 }
 
-const repoPath = ["readiness", "storyboard", "claims", "voice", "frames", "qa", "revise"].includes(verb)
+const repoPath = [
+  "readiness", "storyboard", "claims", "voice", "frames", "preflight", "review",
+  "validate-review", "arbitrate", "validate-decision", "validate-assignment", "qa", "revise",
+].includes(verb)
   ? flag("--repo")
   : requireRepo();
 process.exit(VERBS[verb](repoPath));

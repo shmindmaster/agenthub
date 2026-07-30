@@ -1,8 +1,6 @@
 ---
 name: maps-mapbox
 description: Make deterministic Remotion map animations with Mapbox GL JS and Turf. Use when the user chooses Mapbox for animated routes, flyovers, map markers, labels, camera movement, or Mapbox styles.
-metadata:
-  tags: map, map animation, mapbox, turf, geojson, route animation
 ---
 
 Use Mapbox GL JS for rendering maps in Remotion when the user wants Mapbox styles or higher-fidelity map visuals and has a Mapbox access token. Use Turf for geospatial operations such as great-circle routes, distances, slicing lines, and positions along routes.

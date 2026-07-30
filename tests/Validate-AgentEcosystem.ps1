@@ -263,6 +263,48 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
     }
 }
 
+$productVideoValidator = Join-Path $RegistryRoot `
+    'packages\handoff-plugins\plugins\product-demo-studio\scripts\validate-package.mjs'
+if (-not (Test-Path -LiteralPath $productVideoValidator -PathType Leaf)) {
+    Add-ValidationResult FAIL 'capability:product-demo-studio:package-contract' 'package validator missing'
+} else {
+    $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+    if ($null -eq $nodeCommand) {
+        Add-ValidationResult FAIL 'capability:product-demo-studio:package-contract' `
+            'Node.js is required to validate the canonical product-video package'
+    } else {
+        $productVideoOutput = @(& $nodeCommand.Source $productVideoValidator 2>&1)
+        if ($LASTEXITCODE -eq 0) {
+            Add-ValidationResult PASS 'capability:product-demo-studio:package-contract' `
+                'canonical agents, schemas, policy, and validators are coherent'
+        } else {
+            Add-ValidationResult FAIL 'capability:product-demo-studio:package-contract' `
+                (($productVideoOutput | ForEach-Object { "$_" }) -join '; ')
+        }
+    }
+}
+
+$elevenLabsValidator = Join-Path $RegistryRoot `
+    'packages\portfolio-plugins\use-elevenlabs\scripts\validate_package.py'
+if (-not (Test-Path -LiteralPath $elevenLabsValidator -PathType Leaf)) {
+    Add-ValidationResult FAIL 'capability:use-elevenlabs:package-contract' 'package validator missing'
+} else {
+    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $pythonCommand) {
+        Add-ValidationResult FAIL 'capability:use-elevenlabs:package-contract' `
+            'Python is required to validate the canonical ElevenLabs package'
+    } else {
+        $elevenLabsOutput = @(& $pythonCommand.Source $elevenLabsValidator 2>&1)
+        if ($LASTEXITCODE -eq 0) {
+            Add-ValidationResult PASS 'capability:use-elevenlabs:package-contract' `
+                'manifest identity, version, and canonical TTS adapter are coherent'
+        } else {
+            Add-ValidationResult FAIL 'capability:use-elevenlabs:package-contract' `
+                (($elevenLabsOutput | ForEach-Object { "$_" }) -join '; ')
+        }
+    }
+}
+
 if ($registryObjects.ContainsKey('mcps.json')) {
     $mcpRegistry = $registryObjects['mcps.json']
     $mcpServers = @($mcpRegistry.mcpServers)

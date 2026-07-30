@@ -1,8 +1,6 @@
 ---
 name: subtitles
 description: subtitles and caption rules
-metadata:
-  tags: subtitles, captions, remotion, json
 ---
 
 All captions must be processed in JSON. The captions must use the `Caption` type which is the following:

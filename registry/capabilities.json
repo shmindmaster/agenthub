@@ -103,8 +103,8 @@
       "owner": "portfolio",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/use-elevenlabs",
-      "contentHash": "EADDD5260AFCB40073279EA8659D6BF975A04716A11BB8121F1312372A12CD35",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-elevenlabs\\plugin.json",
+      "contentHash": "CE71B07074518833AB7404A29070808BAC68AD3EA389F947B7759DADCC97C865",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-plugins\\use-elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -146,7 +146,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-demo-studio",
-      "contentHash": "9CB9B781F375BACAB21534B51C3006D4FCADC2381090640898056C48794921CA",
+      "contentHash": "5AD20683CE0F5D1A24EF96A9D414E8C1BF5B33BE346524742409F255CD83F0F5",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [

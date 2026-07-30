@@ -8,8 +8,11 @@
 // Script file (JSON or this plugin's simple YAML-object-list shape) under a top-level `segments:`
 // key, each with { id, text, voice? }. See skills/product-demo-studio-narration/SKILL.md.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { readManifestList } from "./lib.mjs";
 
 const args = process.argv.slice(2);
@@ -18,6 +21,11 @@ const flag = (name) => {
   return i !== -1 ? args[i + 1] : undefined;
 };
 const force = args.includes("--force");
+const scriptsDir = dirname(fileURLToPath(import.meta.url));
+const elevenLabsOwnerCli = resolve(
+  scriptsDir,
+  "../../../../portfolio-plugins/use-elevenlabs/scripts/elevenlabs_cli.py",
+);
 
 const scriptPath = flag("--script");
 const outDir = flag("--out");
@@ -66,33 +74,46 @@ const PROVIDERS = {
             "set ELEVENLABS_VOICE_ID, or put \"voiceId\" in the --voice-profile.",
         );
       }
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-        method: "POST",
-        headers: {
-          "xi-api-key": apiKey,
-          "Content-Type": "application/json",
-          Accept: "audio/mpeg",
-        },
-        body: JSON.stringify({
-          text,
-          model_id: model,
-          voice_settings: {
-            stability: settings.stability,
-            similarity_boost: settings.similarity_boost,
-            style: settings.style,
-            speed: settings.speed,
-            use_speaker_boost: settings.use_speaker_boost,
-          },
-          apply_text_normalization: settings.apply_text_normalization,
-          // Continuity context so adjacent clips share prosody -- not concatenated into the audio.
-          ...(previousText ? { previous_text: previousText } : {}),
-          ...(nextText ? { next_text: nextText } : {}),
-        }),
-      });
-      if (!res.ok) {
-        throw new Error(`ElevenLabs TTS failed (${res.status}): ${await res.text()}`);
+      if (!existsSync(elevenLabsOwnerCli)) {
+        throw new Error(`Canonical use-elevenlabs CLI is missing: ${elevenLabsOwnerCli}`);
       }
-      return { buffer: Buffer.from(await res.arrayBuffer()), ext: "mp3", voice: voiceId };
+      const tempRoot = mkdtempSync(join(tmpdir(), "agenthub-elevenlabs-"));
+      const outputPath = join(tempRoot, "narration.mp3");
+      try {
+        const ownerArgs = [
+          elevenLabsOwnerCli,
+          "tts",
+          "--text", text,
+          "--output", outputPath,
+          "--voice-id", voiceId,
+          "--model-id", model,
+          "--stability", String(settings.stability),
+          "--similarity-boost", String(settings.similarity_boost),
+          "--style", String(settings.style),
+          "--speed", String(settings.speed),
+          settings.use_speaker_boost ? "--use-speaker-boost" : "--no-use-speaker-boost",
+          "--text-normalization", settings.apply_text_normalization,
+          ...(previousText ? ["--previous-text", previousText] : []),
+          ...(nextText ? ["--next-text", nextText] : []),
+        ];
+        const result = spawnSync(process.env.AGENTHUB_PYTHON ?? "python", ownerArgs, {
+          encoding: "utf8",
+          // The shared use-elevenlabs owner reads only its canonical variable. Map a caller's
+          // approved custom --api-key-env value into the child process without putting the secret
+          // on the command line or logging either value.
+          env: { ...process.env, ELEVENLABS_API_KEY: apiKey },
+          maxBuffer: 8 * 1024 * 1024,
+        });
+        if (result.status !== 0 || !existsSync(outputPath)) {
+          throw new Error(
+            `Canonical use-elevenlabs CLI failed (${result.status ?? "launch error"}): ` +
+              `${(result.stderr || result.error?.message || "no output").trim()}`,
+          );
+        }
+        return { buffer: readFileSync(outputPath), ext: "mp3", voice: voiceId };
+      } finally {
+        rmSync(tempRoot, { recursive: true, force: true });
+      }
     },
   },
   openai: {

@@ -146,7 +146,7 @@ data.
 ## The product-claim ledger
 
 Every spoken or visible claim in a video needs a source and a readiness state — this is what keeps
-narration honest and keeps `product-demo-studio-qa`'s product-truth reviewer from having to
+narration honest and keeps `product-demo-studio-qa`'s Screen, Accuracy, and Compliance reviewer from having to
 reverse-engineer what was meant. Maintain it as a structured file (wherever the repo's own media
 manifests live, e.g. `apps/videos/manifests/product-claims.yaml`; propose that path if none exists
 yet) with one entry per claim:
@@ -209,7 +209,7 @@ or via the unified dispatcher:
 
 ```bash
 node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/video-cli.mjs" render-proxy --repo <path-to-repo> [--id <video-id>]
-node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/video-cli.mjs" render-final --repo <path-to-repo> [--id <video-id>] [--format wide|vertical|square]
+node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/video-cli.mjs" render-candidate --repo <path-to-repo> [--id <video-id>] [--format wide|vertical|square]
 ```
 
 Both inspect the target repo's actual `package.json` scripts rather than assuming fixed names —
@@ -217,9 +217,10 @@ some repos have `render:all`/`render:priority`/`render:still`, others have bespo
 scripts. The wrapper finds and runs the closest match; it never invents a new script name in
 someone else's `package.json`.
 
-**Always render a proxy before a master.** Send every proxy through `product-demo-studio-qa`
-before investing in high-resolution or multi-format renders — timing, legibility, narration sync,
-caption position, cursor movement, and focus framing are all cheaper to fix before that point.
+**Always render a proxy before an immutable candidate.** Inspect the proxy before investing in
+high-resolution or multi-format renders. Then render the candidate exactly once, generate its
+evidence package, and run preflight, independent review, arbitration, and final verification.
+Never render or edit after evidence generation or approval; remediation starts a new candidate.
 
 ## Deliverables
 
@@ -237,7 +238,7 @@ craft, evidence, and human-review gates as its master.
 
 The render manifest links output files to source commit, capture/fixture versions, the story and
 claim manifests, render command, composition parameters, aspect ratio, duration, and the
-`product-demo-studio-qa` technical/visual QA results.
+`product-demo-studio-qa` four-domain review reports and Release Arbiter decision.
 
 ## Delivery package and manifest
 

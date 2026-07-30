@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/final-verification.schema.json",
+  "title": "Product Video Final Verification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "verificationId",
+    "candidate",
+    "verifier",
+    "preflight",
+    "reviewReports",
+    "arbiterDecision",
+    "checks",
+    "status",
+    "limitations",
+    "verifiedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "verificationId": {
+      "type": "string",
+      "pattern": "^PVV-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$"
+    },
+    "candidate": {
+      "$ref": "#/$defs/candidateReference"
+    },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contextId",
+        "readOnly",
+        "independent",
+        "executionReceipt"
+      ],
+      "properties": {
+        "contextId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "readOnly": {
+          "const": true
+        },
+        "independent": {
+          "const": true
+        },
+        "executionReceipt": {
+          "$ref": "#/$defs/executionReceiptReference"
+        }
+      }
+    },
+    "preflight": {
+      "$ref": "#/$defs/artifactReference"
+    },
+    "reviewReports": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "domain",
+          "artifactPath",
+          "sha256",
+          "bytes"
+        ],
+        "properties": {
+          "domain": {
+            "$ref": "#/$defs/reviewDomain"
+          },
+          "artifactPath": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "bytes": {
+            "$ref": "#/$defs/bytes"
+          }
+        }
+      }
+    },
+    "arbiterDecision": {
+      "$ref": "#/$defs/artifactReference"
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateIdentity",
+        "preflightIdentity",
+        "reviewIdentityAndIndependence",
+        "arbiterIdentity",
+        "rerunPolicy",
+        "thresholdsAndFindings",
+        "checksumsAndProvenance",
+        "playbackAndReproduction",
+        "deliveryContents"
+      ],
+      "properties": {
+        "candidateIdentity": {
+          "const": true
+        },
+        "preflightIdentity": {
+          "const": true
+        },
+        "reviewIdentityAndIndependence": {
+          "const": true
+        },
+        "arbiterIdentity": {
+          "const": true
+        },
+        "rerunPolicy": {
+          "const": true
+        },
+        "thresholdsAndFindings": {
+          "const": true
+        },
+        "checksumsAndProvenance": {
+          "const": true
+        },
+        "playbackAndReproduction": {
+          "const": true
+        },
+        "deliveryContents": {
+          "const": true
+        }
+      }
+    },
+    "status": {
+      "const": "PASS"
+    },
+    "limitations": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "verifiedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "reviewDomain": {
+      "enum": [
+        "story-experience",
+        "screen-accuracy-compliance",
+        "audio-captions-synchronization",
+        "technical-frame-integrity"
+      ]
+    },
+    "candidateReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateId",
+        "artifactPath",
+        "sha256",
+        "bytes",
+        "sourceRevision",
+        "renderProvenanceId"
+      ],
+      "properties": {
+        "candidateId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "artifactPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "sourceRevision": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "renderProvenanceId": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactPath",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "artifactPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "$ref": "#/$defs/bytes"
+        }
+      }
+    },
+    "executionReceiptReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt",
+        "signature"
+      ],
+      "properties": {
+        "receipt": {
+          "$ref": "#/$defs/artifactReference"
+        },
+        "signature": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "artifactPath",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "artifactPath": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "bytes": {
+              "const": 64
+            }
+          }
+        }
+      }
+    }
+  }
+}

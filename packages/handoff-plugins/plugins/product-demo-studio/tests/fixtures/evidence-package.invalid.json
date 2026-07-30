@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0.0",
+  "candidate": {
+    "candidateId": "synthetic-candidate-001",
+    "immutable": false,
+    "mediaArtifactId": "missing-video"
+  },
+  "provenance": {
+    "source": {
+      "repository": "https://example.invalid/synthetic/product.git",
+      "revision": "synthetic-revision-001",
+      "dirty": true
+    },
+    "build": {
+      "buildId": "",
+      "manifest": {
+        "artifactId": "build-manifest",
+        "artifactPath": "",
+        "sha256": "invalid"
+      }
+    },
+    "configuration": {
+      "manifest": {
+        "artifactId": "configuration-manifest",
+        "artifactPath": "",
+        "sha256": "invalid"
+      }
+    },
+    "render": {
+      "renderId": "",
+      "renderer": "",
+      "pipelineVersion": "",
+      "command": "",
+      "environmentManifest": {
+        "artifactId": "render-environment",
+        "artifactPath": "",
+        "sha256": "invalid"
+      },
+      "startedAt": "not-a-date",
+      "completedAt": "not-a-date"
+    }
+  },
+  "artifacts": [],
+  "reports": {},
+  "createdAt": "not-a-date"
+}

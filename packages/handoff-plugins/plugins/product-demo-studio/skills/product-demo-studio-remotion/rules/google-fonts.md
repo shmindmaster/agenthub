@@ -1,8 +1,6 @@
 ---
 name: fonts
 description: Loading Google Fonts and local fonts in Remotion
-metadata:
-  tags: fonts, google-fonts, typography, text
 ---
 
 # Using fonts in Remotion

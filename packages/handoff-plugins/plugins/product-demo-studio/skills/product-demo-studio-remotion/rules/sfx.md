@@ -1,8 +1,6 @@
 ---
 name: sfx
 description: Including sound effects
-metadata:
-  tags: sfx, sound, effect, audio
 ---
 
 To include a sound effect, use the `<Audio>` tag:

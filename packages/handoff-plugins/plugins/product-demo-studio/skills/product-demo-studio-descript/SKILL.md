@@ -38,16 +38,22 @@ core capture-to-render pipeline, keep the existing in-house flow and avoid unnec
 - **Filler-word / silence removal** — N/A for TTS, and destructive to narration↔video sync.
 
 The finishing niche is when a **human wants Descript's interactive editor** to hand-tweak wording,
-timing, and style by feel, or when quick post-render editorial changes are needed without
-re-rendering a full composition.
+timing, and style by feel. Any Descript edit changes candidate bytes and invalidates prior
+preflight, review, arbiter, final-verifier, and human-publication evidence. Descript never provides
+a shortcut around rerender/re-evidence.
 
 ## Gate check first
 
-Do not import anything into Descript that hasn't passed `product-demo-studio-render`'s evidence
-gate (`classification: approved`). Descript is an editorial-finishing tool, not a review tool —
-by the time footage reaches it, redaction and claim review are already done. This matches the
-portfolio's own standard: "Use Descript only for editorial finishing after technical media
-review."
+Do not import raw, private, unredacted, or claim-unchecked footage. Import only a working render
+that has passed the privacy/redaction and claim checks required for third-party processing. This
+is not the final publication evidence gate: if Descript changes anything, export/download the
+result as a **new immutable candidate**, regenerate the complete evidence package, rerun preflight,
+fresh affected-domain reviews plus mandatory technical/synchronization/accuracy/privacy/compliance
+reviews, obtain a new arbiter decision, and obtain a new human watch-through attestation for the
+exact final bytes.
+
+If the edited bytes cannot be exported locally for checksum and deterministic validation, return
+`PIPELINE_BLOCKED`; a Descript preview or share link cannot be treated as a release candidate.
 
 ## Which Descript tools are available
 
@@ -82,9 +88,10 @@ voiceover track"). Vague prompts waste AI credits on the wrong result.
 
 One concrete use pattern for this portfolio:
 
-1. **Repurpose a finished Remotion master into a shorter social cut** — import the approved
-   render, ask Underlord for a highlight reel or trimmed cut, instead of hand-authoring a second
-   Remotion composition for every social variant.
+1. **Repurpose a privacy/claim-cleared working render into a shorter social cut** — ask Underlord
+   for a highlight reel or trim. Treat the cut as a new candidate with its own source record,
+   checksums, captions/safe-area evidence, preflight, reviews, decision, and publication
+   attestation.
 
 Never send raw capture or pre-gate plates to Descript. If capture cleanup is needed before
 composition, use deterministic local editing in the capture/render pipeline, then pass the result
@@ -110,7 +117,9 @@ the user a local file exists when only a web link does.
 
 ## After publishing
 
-The signed share URL from `publish_project` is what goes into a Slack message, sales email, or
-review request — not a raw file path. Record it in the render's evidence manifest
-(`product-demo-studio-render`) so there's a durable link between the approved render and its
-published, reviewable form.
+`publish_project` is an external publication action and requires explicit user authorization.
+The signed share URL may be recorded only after the exact shared candidate has current machine
+`PASS` and named-human publication evidence. A review link for pre-release work must be explicitly
+classified as private review, still requires authorization, and must never be represented as an
+approved release. Record the returned URL and project/composition identifiers as external
+provenance without replacing the local byte checksum.

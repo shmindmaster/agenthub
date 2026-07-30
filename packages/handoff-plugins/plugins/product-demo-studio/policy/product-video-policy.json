@@ -1,0 +1,167 @@
+{
+  "schemaVersion": "1.0.0",
+  "capabilityId": "product-demo-studio",
+  "capabilityVersion": "1.0.0",
+  "canonicalOwner": "handoff",
+  "toolRouting": {
+    "productReadiness": "product-experience-engineering:prepare-product-for-demo",
+    "browserDiagnostics": "browser-toolkit",
+    "masterCapture": "repository-native-playwright",
+    "composition": "repository-native-pipeline",
+    "remotionGuidance": "remotion:remotion-best-practices",
+    "elevenLabsProvider": "use-elevenlabs",
+    "editorialFinish": "product-demo-studio-descript",
+    "github": "gh-cli",
+    "requirements": [
+      "notion:notion",
+      "linear:linear"
+    ]
+  },
+  "connectorPolicy": {
+    "readBeforeWrite": true,
+    "exactIdentifiersRequired": true,
+    "recordReturnedArtifacts": true,
+    "descriptOptional": true,
+    "duplicateDescriptConnectionAllowed": false,
+    "descriptEditCreatesNewCandidate": true,
+    "descriptPublishRequiresExplicitAuthorization": true,
+    "unchecksumableDescriptOutputDecision": "PIPELINE_BLOCKED",
+    "credentialsInAdaptersAllowed": false
+  },
+  "permissions": {
+    "executionEnforcement": {
+      "instructionOnlyIsolationIsSufficient": false,
+      "reviewerArbiterFinalVerifierRequireHostEnforcedReadOnlyIsolation": true,
+      "unsupportedHostDecision": "PIPELINE_BLOCKED",
+      "hostAdapterMustRecordEnforcementEvidence": true,
+      "executionReceiptsMustBeHostSigned": true,
+      "agentsMayAuthorExecutionReceipts": false,
+      "trustedHostRegistryEnvironmentVariable": "AGENTHUB_EXECUTION_HOST_TRUST_CONFIG"
+    },
+    "generation": {
+      "writeScope": "assigned-domain-only",
+      "mayApproveRelease": false
+    },
+    "preflight": {
+      "readOnlySourceAndMedia": true,
+      "writeScope": "preflight-report-only",
+      "mayApproveRelease": false
+    },
+    "reviewers": {
+      "isolated": true,
+      "readOnlySourceAndMedia": true,
+      "writeScope": "own-report-only",
+      "mayApproveRelease": false
+    },
+    "arbiter": {
+      "isolated": true,
+      "readOnlySourceAndMedia": true,
+      "writeScope": "decision-and-authorized-deduplicated-product-linear-defects-only",
+      "mayApproveExternalPublication": false
+    },
+    "remediation": {
+      "writeScope": "validated-assignment-files-only",
+      "mayApproveRelease": false,
+      "destructiveGitAllowed": false,
+      "forcePushAllowed": false,
+      "broadWorkspaceWritesAllowed": false,
+      "mayDeleteSourceEvidence": false
+    },
+    "finalVerifier": {
+      "isolated": true,
+      "readOnlySourceAndMedia": true,
+      "writeScope": "own-verification-report-only",
+      "mayApproveExternalPublication": false
+    }
+  },
+  "deterministicEvidence": {
+    "allowedGeneratorsByReportType": {
+      "mediaMetadata": [
+        "product-demo-studio-technical-checks"
+      ],
+      "framesAndContactSheets": [
+        "product-demo-studio-technical-checks"
+      ],
+      "sceneBoundaries": [
+        "product-demo-studio-technical-checks",
+        "repository-native-playwright"
+      ],
+      "frameIntegrity": [
+        "product-demo-studio-technical-checks"
+      ],
+      "audioQuality": [
+        "product-demo-studio-technical-checks"
+      ],
+      "asrWordTimestamps": [
+        "repository-native-asr"
+      ],
+      "captionTimingAndLayout": [
+        "repository-native-caption-validator"
+      ],
+      "ocrVisibleText": [
+        "repository-native-ocr"
+      ],
+      "motionAnalysis": [
+        "product-demo-studio-technical-checks"
+      ],
+      "browserPlayback": [
+        "repository-native-playwright"
+      ],
+      "browserConsole": [
+        "repository-native-playwright"
+      ],
+      "browserNetwork": [
+        "repository-native-playwright"
+      ],
+      "technicalDelivery": [
+        "product-demo-studio-technical-checks"
+      ],
+      "claimVerification": [
+        "repository-native-claim-validator"
+      ],
+      "truthSheetVerification": [
+        "repository-native-truth-sheet-validator"
+      ]
+    },
+    "unregisteredGeneratorDecision": "PIPELINE_BLOCKED",
+    "manualPassAllowed": false
+  },
+  "releasePolicy": {
+    "decisions": [
+      "PASS",
+      "REMEDIATE",
+      "PRODUCT_BLOCKED",
+      "PIPELINE_BLOCKED"
+    ],
+    "maximumBlockerFindings": 0,
+    "maximumCriticalFindings": 0,
+    "minimumStoryExperienceScore": 85,
+    "minimumAudioCaptionsSynchronizationScore": 95,
+    "completePassChecks": [
+      "accuracy",
+      "compliance",
+      "privacy",
+      "technicalIntegrity",
+      "browserPlayback",
+      "claims",
+      "checksums",
+      "provenance",
+      "captions",
+      "synchronization",
+      "visualIntegrity"
+    ],
+    "humanPublicationAttestationSeparate": true
+  },
+  "rerunPolicy": {
+    "newCandidateAfterRelevantChange": true,
+    "regenerateEvidence": true,
+    "freshReviewerContexts": true,
+    "alwaysRerun": [
+      "technical-frame-integrity",
+      "audio-captions-synchronization",
+      "screen-accuracy-compliance"
+    ],
+    "reusePreviousPassesAllowed": false,
+    "weakenThresholdsAllowed": false
+  }
+}

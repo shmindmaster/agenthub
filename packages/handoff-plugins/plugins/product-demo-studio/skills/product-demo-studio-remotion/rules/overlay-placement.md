@@ -53,7 +53,8 @@ once reframed to 9:16.
 
 ## Cross-check in QA
 
-`product-demo-studio-qa`'s visual reviewer checks the rendered frame against the same
+`product-demo-studio-qa`'s Screen, Accuracy, and Compliance reviewer checks occlusion/accuracy and
+its Story and Experience reviewer checks visual direction against the same
 `compute-overlay-placement.mjs` output for that scene — if the two disagree (the text moved from
 where the manifest said it was safe), that's a bug in the composition, not a false positive from
 the reviewer.

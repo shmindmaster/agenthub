@@ -1,8 +1,6 @@
 ---
 name: gif
 description: Displaying GIFs, APNG, AVIF and WebP in Remotion
-metadata:
-  tags: gif, animation, images, animated, apng, avif, webp
 ---
 
 # Using Animated images in Remotion

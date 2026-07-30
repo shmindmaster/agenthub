@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/deterministic-report.schema.json",
+  "title": "Product Video Deterministic Evidence Report",
+  "description": "Uniform fail-closed envelope for measurable evidence generated without reviewer judgment.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "candidateId",
+    "reportType",
+    "status",
+    "generator",
+    "inputs",
+    "checks",
+    "summary",
+    "generatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "candidateId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "reportType": {
+      "$ref": "#/$defs/reportType"
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "version",
+        "command"
+      ],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifactId",
+          "sha256"
+        ],
+        "properties": {
+          "artifactId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "passed",
+          "evidenceArtifactIds"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/checkId"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "evidenceArtifactIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "passed",
+        "failed"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "PASS"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "not": {
+              "contains": {
+                "properties": {
+                  "passed": {
+                    "const": false
+                  }
+                },
+                "required": [
+                  "passed"
+                ]
+              }
+            }
+          },
+          "summary": {
+            "properties": {
+              "failed": {
+                "const": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "FAIL"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "contains": {
+              "properties": {
+                "passed": {
+                  "const": false
+                }
+              },
+              "required": [
+                "passed"
+              ]
+            }
+          },
+          "summary": {
+            "properties": {
+              "failed": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "checkId": {
+      "enum": [
+        "artifact-completeness",
+        "script-narration-caption-parity",
+        "names-dates-numbers-claims",
+        "caption-overflow-obstruction-speed-safe-areas",
+        "audio-loudness",
+        "audio-clipping",
+        "audio-silence",
+        "frame-black",
+        "frame-frozen",
+        "frame-duplicate",
+        "frame-corruption",
+        "asset-completeness",
+        "browser-console-network",
+        "render-errors",
+        "output-specifications",
+        "checksums-provenance"
+      ]
+    },
+    "reportType": {
+      "enum": [
+        "mediaMetadata",
+        "framesAndContactSheets",
+        "sceneBoundaries",
+        "frameIntegrity",
+        "audioQuality",
+        "asrWordTimestamps",
+        "captionTimingAndLayout",
+        "ocrVisibleText",
+        "motionAnalysis",
+        "browserPlayback",
+        "browserConsole",
+        "browserNetwork",
+        "technicalDelivery",
+        "claimVerification",
+        "truthSheetVerification"
+      ]
+    }
+  }
+}

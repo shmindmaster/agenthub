@@ -1,7 +1,7 @@
 {
   "name": "product-demo-studio",
-  "version": "0.6.1",
-  "description": "Cross-agent product-demo and visual-asset studio: consume the validated Product Experience handoff, produce truthful media only when product/craft gates pass, and fail closed to Product-Readiness Feedback.",
+  "version": "1.0.0",
+  "description": "Canonical cross-agent product-video system: truthful generation, deterministic evidence/preflight, four independent reviews, release arbitration, remediation, and reproducible delivery.",
   "author": { "name": "Sarosh Hussain" },
   "keywords": [
     "remotion",

@@ -48,72 +48,63 @@ UI, product data, or a result the real product did not produce.
 
 Every video goes through the same stages, in order. Adapt each stage's *mechanics* to the target
 repository's real conventions; do not skip a stage, invent a competing video app, or jump straight
-to a final render.
+to a final render. The portable generation prompts are under `agents/`; product repositories keep
+their own product-specific pipeline and data boundaries.
 
-0. **Configure the run** — resolve `<OUTPUT_ROOT>`, an in-repo `<WORK_DIR>`, the seed/reset path,
-   brand tokens, approved voice profile, and optional issue tracker before production. Keep final
-   masters flat under `<OUTPUT_ROOT>/<PRODUCT>/`, cuts under `cuts/`, and all working/evidence files
-   inside `<WORK_DIR>`.
-1. **Reconcile and propose candidates** — inspect the repo's instructions, README, routes, package manifests,
-   git status, existing media/video work, tests, and seed/reset fixtures before changing anything.
-   Pick `sizzle-hook`, `guided-discovery-support`, `onboarding-enablement`, or `internal-handoff`,
-   and record whether audience framing is compliance-heavy or operational. Propose short candidates
-   with one persona, problem, viewer-unit outcome, guardrail, emotional target, and protected hero
-   moment. **Produce a
-   WIP ledger** recording what in-progress work was completed, preserved, or removed and why:
-   complete or merge work only when the request and repository policy authorize it; preserve
-   active/blocked/unexplained work, and remove obsolete/duplicated work only after proving nothing
-   unique is lost.
-2. **Consume the Product Experience handoff, then independently assess demo-worthiness** — before
-   capture, require `_product-experience/07-demo-readiness-handoff.md` and
-   `_product-experience/demo-readiness.json` from the canonical `prepare-product-for-demo` skill.
-   Product Experience Engineering owns product assessment and remediation; this plugin consumes
-   that evidence and owns media production. Validate the handoff against the target repository's
-   current revision and expected handoff path. Missing, stale, revision-mismatched, `REMEDIABLE`,
-   `DEFERRED`, or product-fix-required evidence stops capture and routes back to
-   `prepare-product-for-demo`. Never recreate or weaken that upstream assessment inside the video
-   plugin. Once the handoff clears, walk each candidate's real workflow again and score all eleven
-   rubric criteria, including whether a real in-product hero moment exists. This second gate catches
-   capture-specific defects; it does not blindly trust upstream. Write a normalized readiness sheet
-   and feedback under `<WORK_DIR>/feedback/` and run `validate-demo-readiness.mjs` with the current
-   revision. `PASS` and capture-only `CONDITIONAL` proceed; `FAIL` stops master production and
-   becomes fix-oriented product-readiness feedback. A short diagnostic capture is allowed when
-   evidence is needed to distinguish capture-fixable from product-fix-required.
-3. **Storyboard and narrate** — make one structured timed script the source of truth for capture,
-   narration, annotations, captions, and render timing. For every proceeding episode, define one cold open,
-   a shown three-to-five-second before state, exactly one hero moment, segment-level WIIFM, the
-   primary three-rung ladder (`feature` → `outcome` → `identity`) with a payoff at `outcome` or
-   `identity`, attention resets, no more than two simultaneous annotations, emotional target,
-   and designed end card.
-   Validate the normalized storyboard with `validate-storyboard.mjs`. Approve narration before
-   final capture; measured audio durations drive the recording plan. Use
-   `product-demo-studio-render` and `product-demo-studio-narration`.
-4. **Capture** — record real product states (screenshots and/or short recordings) through
-   deterministic browser automation, synthetic data only. Record selectors, bounding boxes,
-   protected regions, cursor paths, console/failed-request evidence, and reset results. See
-   `product-demo-studio-capture`. Use the Browser Quality Toolkit for live Chrome diagnostics and
-   repository-owned deterministic automation for master capture; those are complementary layers,
-   not competing capture systems.
-5. **Compose** — build a reusable Remotion composition: scenes, camera/zoom, cursor motion, focus
-   masks, callouts, captions, narration, and aspect-ratio-specific reframing. See
-   `product-demo-studio-remotion` for authoring knowledge and its `overlay-placement` rule for
-   text-vs-product occlusion.
-6. **Render and QA** — render proxies first, run correctness, technical, accessibility, craft, and
-   persuasion review, then revise. If editing cannot clear the craft gate because of product UX,
-   pull the episode and route it to feedback. Render finals only after acceptance, with captions,
-   transcripts, posters, checksums, and reproduction commands. See `product-demo-studio-render`
-   and `product-demo-studio-qa`.
-7. **Ship, report, measure, and editorial finish** — deliver only approved masters and explicitly requested
-   derivative cuts. Always deliver the Product-Readiness Feedback Report for failed candidates; if all fail, deliver zero
-   videos. The pipeline produces a complete, captioned, narrated MP4
-   with no mandatory external editor. When a user requests transcription cleanup, speaker
-   isolation, filler-word removal, editorial trim cuts, or alternate social clips, hand off to
-   `product-demo-studio-descript` for final-stage finishing. Captions that are already grounded in
-   known narration text should remain source-of-truth captions unless a user explicitly asks for
-   Descript-managed captions. Record completion/watch percentage, drop-off, CTA/reply, and the
-   demo-type-specific downstream outcome when distribution is in scope; use it to revise the timed
-   script. If Descript is used, it is always the *last* stage, never the first
-   — never import raw, unredacted, or unapproved footage into it.
+0. **Configure and discover** — resolve `<OUTPUT_ROOT>`, an in-repo `<WORK_DIR>`, the seed/reset
+   path, brand tokens, approved voice profile, authorized product context, and intended platform.
+   Inspect instructions, current commit/build, WIP, existing video infrastructure, source media,
+   scripts, CI, GitHub, and supplied Notion/Linear requirements. Reconcile documentation against
+   current behavior; newer documents are not automatically correct. Preserve active WIP.
+1. **Architect the episode** — use `agents/episode-architect.md`. Consume the current Product
+   Experience handoff, independently reassess capture readiness, and write the audience, problem,
+   outcome, emotional target, workflow, duration, platform, felt before-state, one protected hero
+   moment, visible payoff, trust/control moment, next step, truth sheet, and claim ledger. A missing,
+   stale, revision-mismatched, `REMEDIABLE`, `DEFERRED`, or product-fix-required handoff stops
+   production and yields precise Product-Readiness Feedback. Validate the normalized readiness
+   sheet with `validate-demo-readiness.mjs`.
+2. **Script and storyboard** — use `agents/script-storyboard-generator.md`. The timed source of
+   truth includes narration, actions, expected states/values, scene timing, pauses, holds,
+   annotations, cursor behavior, captions, sound, and validation assertions. Enforce a five-to-
+   eight-second hook, no login/generic introduction, one idea per beat, no feature tour, one
+   protected hero moment, purposeful pauses/result holds, mobile-readable framing, no long
+   inactive interval, and evidence-linked claims. Validate with `validate-storyboard.mjs` and
+   `validate-claims.mjs`.
+3. **Prepare and capture product state** — use `agents/capture-product-state-generator.md` and
+   `product-demo-studio-capture`. Verify synthetic seed data, roles, dates, and visible values;
+   establish a deterministic browser environment; validate the workflow once in a native browser
+   when needed; then encode repository-owned Playwright coverage. Record browser playback,
+   console/network/assertion, reset, redaction, selector, geometry, and capture evidence. Fail on a
+   broken, unstable, manually dependent, fabricated, unauthorized, or truth-sheet-inconsistent
+   workflow.
+4. **Generate narration and audio** — use `agents/narration-audio-generator.md` and
+   `product-demo-studio-narration`. Produce exact narration, pronunciation rules, word timestamps,
+   captions, loudness-normalized audio, ducking, disclosures, provider/voice provenance, and
+   checksums. Fail on wording, names, numbers, pronunciation, timing, clipping, artifacts, or
+   caption differences.
+5. **Compose and render** — use `agents/composition-render-generator.md`. Prefer the repository's
+   reproducible native pipeline. For Remotion, load current Remotion guidance before changes, use
+   frame-driven APIs and Remotion media components, keep inputs source-controlled, and validate
+   the final render rather than only Studio preview. Own framing, zooms, annotations, cursor,
+   captions, pacing, sound, platform variants, still-frame validation, and full provenance.
+6. **Preflight and evidence** — create a new immutable candidate and complete evidence package,
+   then use `agents/automated-preflight.md` and `scripts/preflight.mjs`. Deterministic failures
+   return to the responsible generator. Independent review cannot start until preflight passes.
+7. **Review and arbitrate** — use `product-demo-studio-qa` to run the four isolated read-only
+   reviewers, validate the shared finding schema, and run a separate read-only Release Arbiter.
+   Valid decisions are `PASS`, `REMEDIATE`, `PRODUCT_BLOCKED`, or `PIPELINE_BLOCKED`.
+8. **Remediate and repeat** — validated, least-privilege assignments route findings by independent
+   subsystem. Any relevant product/data/source/media/configuration/environment change requires a
+   new candidate, regenerated evidence, fresh affected-domain reviews, mandatory technical/sync/
+   accuracy/privacy/compliance reruns, and a new arbiter decision.
+9. **Verify, deliver, measure, and optionally finish** — after arbiter `PASS`, a fresh read-only
+   verifier rechecks the final bytes, reports, checksums, provenance, playback, and delivery
+   contents. Deliver only approved masters and requested cuts. Failed candidates always receive a
+   readiness report; zero videos is valid. External reuse still requires the named-human evidence
+   gate. Descript is optional third-party editorial finishing and must not duplicate an
+   already-connected session-level connector. Every edit creates a new candidate and forces new
+   evidence, reviews, arbiter/final verification, and human attestation; publishing requires
+   explicit authorization.
 
 ## The evidence-redaction rule (gates external reuse, not internal iteration)
 
@@ -158,6 +149,9 @@ for *your* target repo rather than assuming one of these):
 If the target repo already has one of these, **extend it in place** — do not introduce a fourth
 convention or migrate a working repo to a different one without being asked. Only use
 `scripts/scaffold-video-workspace.mjs` for a repo genuinely reporting no video infrastructure.
+Use [product-pipeline-compatibility.md](references/product-pipeline-compatibility.md) to map
+repository-native artifacts into the canonical evidence/review contracts without moving product
+code or media into AgentHub.
 `scripts/new-video-catalog-entry.mjs` only knows how to safely insert into the
 `content.ts`/`videos`/`ProductVideo` reference shape — it deliberately refuses (with specifics)
 rather than force-fitting a different repo's catalog, since guessing wrong there means silently
@@ -179,7 +173,9 @@ node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/video-cli.mjs" <verb> --repo <path-to-
 ```
 
 See `product-demo-studio-render` and `product-demo-studio-qa` for the verbs that matter most
-(`render-proxy`, `qa`, `render-final`); run `video-cli.mjs` with no verb for the full list.
+(`render-proxy`, `render-candidate`, `qa`, `package`); run `video-cli.mjs` with no verb for the
+full list. Candidate rendering precedes evidence generation; no render or edit is allowed after
+review, arbitration, final verification, or approval.
 
 ## What this skill set does NOT cover
 
@@ -211,23 +207,22 @@ Use this enum consistently in any catalog this plugin creates or extends:
 
 ## Completion criteria and final response
 
-Treat the work as complete only when: valuable WIP is completed/merged when authorized or explicitly
-preserved; every candidate has an evidence-backed `PASS`, `CONDITIONAL`, or `FAIL`; every proceeding
-storyboard passes the hero-moment, before-state, WIIFM, emotional-target, and cadence contract; every
-demo uses real production functionality on synthetic data; every visible value is verified against
-the truth sheet; every workflow succeeds on the verified deployment; narration is natural,
-segmented, correctly pronounced, and paced; audio/video/captions/actions are synchronized; craft,
-screen, data, audio, sync, technical, evidence, and named-human gates pass; every failed episode has
-buildable feedback and a shortest path to readiness; claims, provenance, manifests, and package
-integrity are verified; final videos and sources are organized in the product folder; and temporary
-artifacts are cleaned without losing active work. **Never claim completion without verified
-evidence. Zero approved videos plus complete feedback is a valid completed outcome.**
+Treat the work as complete only when valuable WIP is preserved or handled under repository policy;
+every episode has an evidence-backed readiness result; generation and preflight use current source,
+build, product behavior, truth, claims, and synthetic data; the four independent schema-valid
+reviews finish; the Release Arbiter returns `PASS`; no blocker/critical finding remains; Story and
+Experience is at least 85; Audio/Captions/Synchronization is at least 95; accuracy, claims, privacy,
+compliance, browser playback, technical integrity, checksums, and provenance pass completely; the
+render is reproducible; delivery contains only approved outputs; and a fresh final verifier
+confirms the same immutable candidate. An external-release claim additionally requires the
+named-human evidence/watch-through attestation. **Never claim completion without verified evidence.
+Zero approved videos plus complete feedback is a valid completed outcome.**
 
-When reporting back, lead with `videos delivered`, `feedback-only`, or `mixed`; cover WIP handled;
-candidate episodes and verdicts; deciding defects; demo-data and accuracy verification; voice and
-narration QA; craft/screen/audio/sync/technical results; final filenames and delivery-folder
-integrity; feedback path, severity counts, and shortest path to readiness; package location;
-merge/deployment/cleanup results; and remaining blockers, preserved work, or limitations.
+When reporting back, lead with `videos delivered`, `feedback-only`, or `mixed`; cover cleanup and
+migration, canonical locations, retained/merged/replaced/deleted items, supported integrations and
+parity, drift enforcement, candidate and arbiter decision, reviewer scores, defects remediated,
+validation commands/results, final video/evidence paths, commit/build/config/render provenance,
+authorized Linear changes, remaining limitations, and the exact reason for any blocked result.
 
 ## Safety boundaries
 

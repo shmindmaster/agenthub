@@ -1,8 +1,6 @@
 ---
 name: display-captions
 description: Displaying captions in Remotion with TikTok-style pages and word highlighting
-metadata:
-  tags: captions, subtitles, display, tiktok, highlight
 ---
 
 # Displaying captions in Remotion

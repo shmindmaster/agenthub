@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/review-report.schema.json",
+  "title": "Product Video Independent Review Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "reportId",
+    "status",
+    "candidate",
+    "reviewer",
+    "evidencePackage",
+    "summary"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "reportId": {
+      "type": "string",
+      "pattern": "^PVR-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$"
+    },
+    "status": {
+      "enum": [
+        "COMPLETE",
+        "MALFORMED_INPUT"
+      ]
+    },
+    "candidate": {
+      "$ref": "#/$defs/candidateReference"
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "contextId",
+        "readOnly",
+        "executionReceipt",
+        "startedAt",
+        "completedAt"
+      ],
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/reviewDomain"
+        },
+        "contextId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "readOnly": {
+          "const": true
+        },
+        "executionReceipt": {
+          "$ref": "#/$defs/executionReceiptReference"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "evidencePackage": {
+      "$ref": "#/$defs/artifactReference"
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/reviewCheck"
+      }
+    },
+    "domainPass": {
+      "type": "boolean"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "video-finding.schema.json"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "missingEvidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "reason": {
+      "$ref": "#/$defs/nonEmptyString"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "COMPLETE"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "score",
+          "checks",
+          "domainPass",
+          "findings"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "missingEvidence"
+              ]
+            },
+            {
+              "required": [
+                "reason"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "MALFORMED_INPUT"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "missingEvidence",
+          "reason"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "score"
+              ]
+            },
+            {
+              "required": [
+                "checks"
+              ]
+            },
+            {
+              "required": [
+                "domainPass"
+              ]
+            },
+            {
+              "required": [
+                "findings"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reviewDomain": {
+      "enum": [
+        "story-experience",
+        "screen-accuracy-compliance",
+        "audio-captions-synchronization",
+        "technical-frame-integrity"
+      ]
+    },
+    "candidateReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateId",
+        "artifactPath",
+        "sha256",
+        "sourceRevision",
+        "renderProvenanceId"
+      ],
+      "properties": {
+        "candidateId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "artifactPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sourceRevision": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "renderProvenanceId": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactPath",
+        "sha256"
+      ],
+      "properties": {
+        "artifactPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "executionReceiptReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt",
+        "signature"
+      ],
+      "properties": {
+        "receipt": {
+          "$ref": "#/$defs/executionReceiptArtifactReference"
+        },
+        "signature": {
+          "$ref": "#/$defs/executionReceiptSignatureReference"
+        }
+      }
+    },
+    "executionReceiptArtifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactPath",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "artifactPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "executionReceiptSignatureReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactPath",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "artifactPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "const": 64
+        }
+      }
+    },
+    "reviewCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "passed",
+        "evidenceArtifactIds"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "evidenceArtifactIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          }
+        }
+      }
+    }
+  }
+}

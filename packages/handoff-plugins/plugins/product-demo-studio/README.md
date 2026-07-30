@@ -1,7 +1,10 @@
 # product-demo-studio
 
-Current package release: **0.6.1**. The plugin now requires the validated, current Product
-Experience Engineering pre-video handoff and independently reruns its eleven-item capture gate.
+Current package release: **1.0.0**. AgentHub is the canonical owner of the versioned product-video
+workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
+metadata. Product repositories retain their product-specific capture/render implementations and
+map evidence into this shared contract. The reviewed mapping is documented in
+`skills/product-demo-studio/references/product-pipeline-compatibility.md`.
 The complete self-contained persuasion, craft, production,
 automation, and measurement standard is bundled at
 `skills/product-demo-studio/references/killer-demo-production-guide.md`; the adjacent compact
@@ -21,22 +24,63 @@ only the video-production deliverables that repo would own anyway.
 
 | Skill | Purpose |
 |---|---|
-| `product-demo-studio` | Router. Enforces Product Experience handoff → independent demo-worthiness gate → storyboard/narrate → capture → compose → render/QA → video-or-feedback, states the evidence-redaction rule, and reports existing video infra. Start here. |
+| `product-demo-studio` | Router. Enforces Product Experience handoff → episode/truth architecture → timed source → deterministic state/capture → narration/composition → evidence/preflight → four reviews/arbiter → remediation/final verification → video-or-feedback. Start here. |
 | `product-demo-studio-remotion` | Product-demo composition policy layered over the official Remotion mechanics owner when available; 43 bundled rules provide a fallback plus studio-specific overlay/evidence guidance. |
 | `product-demo-studio-capture` | Deterministic browser-automation capture conventions: fixed viewports, reduced motion, discover-first auth, seeded data only, capture manifests, redaction rules. |
 | `product-demo-studio-visual-assets` | Marketing/journey visual survey, non-product-UI asset generation, current model/voice verification, provenance, disclosure, and accessibility. |
 | `product-demo-studio-narration` | Provider-agnostic TTS narration: generation, segment-level regeneration, timing, narration style. |
 | `product-demo-studio-render` | Render orchestration, the video/scene catalog schema, the product-claim ledger, and the evidence gate that must pass before a render is "approved" for external use. |
-| `product-demo-studio-qa` | The proxy-review loop: deterministic technical checks plus five portable independent critic prompts (product-truth, story, visual, audio, technical). |
-| `product-demo-studio-descript` | When and how to use Descript's MCP tools for editorial finishing — after the evidence gate, never before. |
+| `product-demo-studio-qa` | Immutable evidence package, deterministic preflight, four independent schema-valid reviews, release arbitration, remediation/rerender, and fresh final verification. |
+| `product-demo-studio-descript` | Optional third-party editorial finishing. Any edit creates a new candidate and forces new evidence/review/attestation; publishing requires explicit authorization. |
 
 ## Agents
 
-Five read-only reviewer prompts ship for the QA proxy-review loop: `product-truth-reviewer`,
-`story-reviewer`, `visual-reviewer`, `audio-reviewer`, and `technical-reviewer`. Plugin-aware hosts
-may invoke them as `product-demo-studio:<name>`; skill-only hosts load the same Markdown prompts
-from the canonical root and create equivalent independent reviewer/subagent passes. See
-`product-demo-studio-qa`.
+Portable prompts under `agents/` define the same permissions and outputs on plugin-aware and
+skill-only hosts:
+
+- generation: Episode Architect, Script and Storyboard Generator, Capture and Product-State
+  Generator, Narration and Audio Generator, Composition and Render Generator, and Automated
+  Preflight;
+- independent review: Story and Experience; Screen, Accuracy, and Compliance; Audio, Captions, and
+  Synchronization; Technical and Frame Integrity;
+- decision/control: Release Arbiter, least-privilege Remediation Agent, and fresh Final Verifier.
+
+Plugin-aware hosts may invoke them as `product-demo-studio:<name>`. Skill-only hosts resolve the
+same prompts from the canonical package and create equivalent isolated contexts. The old five-role
+review split is replaced: product truth and visual accuracy now belong to Screen/Accuracy/
+Compliance, while visual storytelling belongs to Story/Experience. No review criterion was
+dropped.
+
+`policy/host-parity.json` binds every registered host to the same contracts. Capability exposure
+alone is not release eligibility: a live reviewer, arbiter, or final-verifier run must record
+host-native read-only enforcement. Prompt-only or broad-write contexts return
+`PIPELINE_BLOCKED`. Running `validate-host-parity.mjs` without arguments is deliberately a static
+source-inventory check and makes no live deployment or runtime-parity claim. A live claim requires
+`--live-deployment-report <path>` with exact canonical contract hashes plus per-host deployment,
+native-isolation, and smoke-test evidence.
+
+The host, not the agent, must emit an exact execution receipt and detached Ed25519 signature.
+`AGENTHUB_EXECUTION_HOST_TRUST_CONFIG` selects the operator-owned registry of enabled host keys,
+authorized roles, isolation mechanisms, and read-only tool classes. Agents cannot author or sign
+their own receipts. Missing trust configuration, an unknown or disabled host key, an unauthorized
+permission, or any receipt/signature mismatch fails closed and routes the candidate to
+`PIPELINE_BLOCKED`.
+
+## Contracts and release policy
+
+`schemas/` contains the strict, host-independent evidence-package, preflight, finding, review,
+remediation, and release-decision contracts. Review reports are accepted only after local
+validation. Release decisions are limited to `PASS`, `REMEDIATE`, `PRODUCT_BLOCKED`, and
+`PIPELINE_BLOCKED`.
+
+`PASS` requires zero blocker/critical findings; Story and Experience >= 85; Audio/Captions/
+Synchronization >= 95; and complete passes for accuracy, compliance, privacy, technical
+integrity, browser playback, claims, checksums, provenance, captions, synchronization, and visual
+integrity. Machine `PASS` remains separate from external publication approval. Publication requires
+a detached Ed25519 signature over the exact approval-receipt bytes; the receipt binds the candidate,
+arbiter, final verification, named-human watch-through, synthetic-data confirmation, classification,
+and redaction decision. `AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY` must reference the trusted
+Ed25519 public-key PEM. Missing, non-Ed25519, mismatched, or invalid keys fail closed.
 
 ## Scripts
 
@@ -44,8 +88,8 @@ All scripts are plain Node (`.mjs`, no build step, zero npm dependencies) under 
 invoked from the plugin against a target repo — never copied into one:
 
 - `video-cli.mjs` — single verb-based entry point for the whole pipeline (`inventory discover
-  readiness storyboard claims reset capture voice render-proxy frames qa revise render-final
-  package all`).
+  readiness storyboard claims reset capture voice render-proxy frames preflight review validate-
+  review arbitrate validate-decision validate-assignment qa revise render-candidate package all`).
 - `validate-demo-readiness.mjs` / `validate-storyboard.mjs` — fail-closed normalized contracts for
    video-vs-feedback classification and persuasion craft (cold open, before-state, one hero moment,
    all eleven worthiness criteria, three-rung WIIFM with compatible refined aliases, emotional
@@ -62,35 +106,46 @@ invoked from the plugin against a target repo — never copied into one:
 - `compute-overlay-placement.mjs` — resolves a safe on-screen-text region from capture-manifest
   geometry (focus rect, protected regions, cursor path), so headlines/callouts never occlude the
   product.
-- `technical-checks.mjs` — FFmpeg/ffprobe-backed technical QA: codec/resolution/fps/duration,
-  black-frame/freeze-frame/loudness/silence detection, and scene-boundary frame extraction +
-  contact sheet.
+- `technical-checks.mjs` — FFmpeg/ffprobe-backed technical QA against a versioned delivery spec:
+  codec/profile/resolution/fps/color/audio/fast-start, decode/corruption, exact duplicate,
+  black/freeze/loudness/clipping/silence, scene frames, contact sheet, and deterministic report
+  generation with tool/command/input provenance.
+- `preflight.mjs` — fail-closed evidence-package, checksum, provenance, and deterministic-report
+  gate before independent review.
+- `validate-review-report.mjs`, `validate-release-decision.mjs`, and
+  `validate-remediation-assignment.mjs` — zero-dependency validation of the shared machine-readable
+  contracts.
 - `validate-claims.mjs` / `validate-capture-manifest.mjs` — hand-rolled schema validators for the
   product-claim ledger and capture manifests.
-- `check-evidence-gate.mjs` — validates a release-evidence manifest before a render can be treated
-  as approved for external use.
+- `check-evidence-gate.mjs` — validates the release-evidence graph and verifies the detached
+  Ed25519 publication-approval signature before a render can be treated as approved for external
+  use. The manifest and receipt are separate immutable files; the raw signature is exactly 64 bytes.
 
 ## Design notes
 
-- No `commands/` or `hooks/` — this plugin ships skills, an `agents/` directory (the five QA
-  reviewers), and scripts.
+- No `commands/` or `hooks/` — this plugin ships skills, portable agent prompts, strict schemas,
+  zero-dependency validators, and scripts.
 - Fully self-contained and repo-agnostic: the only required input to repo-operating scripts is `--repo <path>`
   (or a manifest path). No script assumes a specific multi-repo workspace, portfolio registry, or
   identity provider; `repo-registry.mjs --root` is an optional convenience only.
 - Generic Remotion APIs and framework mechanics are owned by the current official
   `remotion-best-practices` capability when it is available. The bundled `rules/` are a
-  self-contained fallback plus Product Demo Studio integration policy, vendored from
-  [`remotion-dev/remotion`](https://github.com/remotion-dev/remotion/tree/main/packages/skills)
-  (39 files) plus 4 supplementary rules (`charts.md`, `can-decode.md`, `extract-frames.md`,
-  `overlay-placement.md`) — the first three from
+  self-contained fallback plus Product Demo Studio integration policy. `PROVENANCE.json` pins 38
+  normalized upstream files to `remotion:remotion-best-practices` 1.0.5 and
+  `validate-remotion-rules.mjs` rejects manual drift. `voiceover.md` is an explicit AgentHub
+  ownership override, plus 4 supplementary rules (`charts.md`, `can-decode.md`,
+  `extract-frames.md`, `overlay-placement.md`) — the first three from
   [`affaan-m/ECC`](https://github.com/affaan-m/ECC/tree/main/skills/remotion-video-creation),
   the last authored for this plugin's occlusion-avoidance workflow.
 - `.mcp.json` optionally bundles Descript's remote MCP server
   (`https://api.descript.com/v2/mcp`) so enabling this plugin offers a one-time OAuth connection
   to your own Descript Drive, without requiring the separate claude.ai connector setup. If a
   Descript connector is already connected at the session level, use those tools instead — don't
-  connect twice. Narration (ElevenLabs/OpenAI) is called directly from `generate-narration.mjs` via
-  plain HTTPS, not through an MCP server — set `ELEVENLABS_API_KEY` and/or `OPENAI_API_KEY`.
+  connect twice. Any edit invalidates the previous candidate; MCP-only output without locally
+  checksumable bytes is `PIPELINE_BLOCKED`, and publishing requires explicit authorization.
+  ElevenLabs narration is delegated to the canonical `use-elevenlabs` capability; Product
+  Demo Studio does not duplicate that provider API. OpenAI narration remains a local
+  provider adapter. Supply provider credentials only through environment-variable references.
 - This plugin does not scaffold anything into any product repo on its own. Invoke its skills and
   scripts explicitly, per repo, when you're ready to produce that repo's videos.
 - Fleet-distributed skill-only hosts resolve this directory from the `product-demo-studio`

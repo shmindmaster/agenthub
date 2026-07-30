@@ -1,7 +1,7 @@
 {
   "name": "product-demo-studio",
-  "version": "0.6.1",
-  "description": "Consume a validated Product Experience handoff, then produce truthful product demos and visual assets or fail closed to Product-Readiness Feedback.",
+  "version": "1.0.0",
+  "description": "Generate truthful product videos or readiness feedback through deterministic evidence, four independent reviews, release arbitration, remediation, and reproducible delivery.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -20,8 +20,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Product Demo Studio",
-    "shortDescription": "Produce killer demos or product-readiness feedback.",
-    "longDescription": "Consume Product Experience Engineering's current pre-video handoff, then plan, independently assess, capture, narrate, compose, render, and validate truthful product demos. Fail closed to fix-oriented Product-Readiness Feedback when the product or story cannot clear the demo-worthiness, persuasion, correctness, and evidence gates.",
+    "shortDescription": "Produce verified videos or readiness feedback.",
+    "longDescription": "Consume Product Experience Engineering's current pre-video handoff, then plan, assess, capture, narrate, compose, preflight, independently review, arbitrate, remediate, rerender, and verify truthful product videos. Fail closed to fix-oriented Product-Readiness Feedback when the product or pipeline cannot clear the persuasion, correctness, evidence, privacy, compliance, and reproducibility gates.",
     "developerName": "Sarosh Hussain",
     "category": "Productivity",
     "capabilities": [

@@ -1,0 +1,518 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/evidence-package.schema.json",
+  "title": "Immutable Product Video Evidence Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "candidate",
+    "provenance",
+    "artifacts",
+    "reports",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateId",
+        "immutable",
+        "mediaArtifactId"
+      ],
+      "properties": {
+        "candidateId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "immutable": {
+          "const": true
+        },
+        "mediaArtifactId": {
+          "$ref": "#/$defs/artifactId"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "build",
+        "configuration",
+        "render"
+      ],
+      "properties": {
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "revision",
+            "dirty"
+          ],
+          "properties": {
+            "repository": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "revision": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "dirty": {
+              "const": false
+            }
+          }
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "buildId",
+            "manifest"
+          ],
+          "properties": {
+            "buildId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "manifest": {
+              "$ref": "#/$defs/artifactReference"
+            }
+          }
+        },
+        "configuration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifest"
+          ],
+          "properties": {
+            "manifest": {
+              "$ref": "#/$defs/artifactReference"
+            }
+          }
+        },
+        "render": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "renderId",
+            "renderer",
+            "pipelineVersion",
+            "command",
+            "environmentManifest",
+            "startedAt",
+            "completedAt"
+          ],
+          "properties": {
+            "renderId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "renderer": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "pipelineVersion": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "command": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "environmentManifest": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "startedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "completedAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifactId",
+          "type",
+          "artifactPath",
+          "sha256",
+          "mediaType",
+          "bytes"
+        ],
+        "properties": {
+          "artifactId": {
+            "$ref": "#/$defs/artifactId"
+          },
+          "type": {
+            "enum": [
+              "video",
+              "audio",
+              "captions",
+              "frame",
+              "contact-sheet",
+              "manifest",
+              "report",
+              "transcript",
+              "log",
+              "truth-sheet",
+              "claim-ledger",
+              "other"
+            ]
+          },
+          "artifactPath": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "mediaType": {
+            "$ref": "#/$defs/nonEmptyString"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "reports": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mediaMetadata",
+        "framesAndContactSheets",
+        "sceneBoundaries",
+        "frameIntegrity",
+        "audioQuality",
+        "asrWordTimestamps",
+        "captionTimingAndLayout",
+        "ocrVisibleText",
+        "motionAnalysis",
+        "browserPlayback",
+        "browserConsole",
+        "browserNetwork",
+        "technicalDelivery",
+        "claimVerification",
+        "truthSheetVerification"
+      ],
+      "properties": {
+        "mediaMetadata": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "mediaMetadata"
+                }
+              }
+            }
+          ]
+        },
+        "framesAndContactSheets": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "framesAndContactSheets"
+                }
+              }
+            }
+          ]
+        },
+        "sceneBoundaries": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "sceneBoundaries"
+                }
+              }
+            }
+          ]
+        },
+        "frameIntegrity": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "frameIntegrity"
+                }
+              }
+            }
+          ]
+        },
+        "audioQuality": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "audioQuality"
+                }
+              }
+            }
+          ]
+        },
+        "asrWordTimestamps": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "asrWordTimestamps"
+                }
+              }
+            }
+          ]
+        },
+        "captionTimingAndLayout": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "captionTimingAndLayout"
+                }
+              }
+            }
+          ]
+        },
+        "ocrVisibleText": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "ocrVisibleText"
+                }
+              }
+            }
+          ]
+        },
+        "motionAnalysis": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "motionAnalysis"
+                }
+              }
+            }
+          ]
+        },
+        "browserPlayback": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "browserPlayback"
+                }
+              }
+            }
+          ]
+        },
+        "browserConsole": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "browserConsole"
+                }
+              }
+            }
+          ]
+        },
+        "browserNetwork": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "browserNetwork"
+                }
+              }
+            }
+          ]
+        },
+        "technicalDelivery": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "technicalDelivery"
+                }
+              }
+            }
+          ]
+        },
+        "claimVerification": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "claimVerification"
+                }
+              }
+            }
+          ]
+        },
+        "truthSheetVerification": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "truthSheetVerification"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "artifactPath",
+        "sha256"
+      ],
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/artifactId"
+        },
+        "artifactPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "deterministicReportReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "artifactPath",
+        "sha256",
+        "candidateId",
+        "reportType",
+        "status",
+        "generatedAt"
+      ],
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/artifactId"
+        },
+        "artifactPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "candidateId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "reportType": {
+          "enum": [
+            "mediaMetadata",
+            "framesAndContactSheets",
+            "sceneBoundaries",
+            "frameIntegrity",
+            "audioQuality",
+            "asrWordTimestamps",
+            "captionTimingAndLayout",
+            "ocrVisibleText",
+            "motionAnalysis",
+            "browserPlayback",
+            "browserConsole",
+            "browserNetwork",
+            "technicalDelivery",
+            "claimVerification",
+            "truthSheetVerification"
+          ]
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}
