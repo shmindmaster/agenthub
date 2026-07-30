@@ -19,6 +19,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'PathSafety.ps1')
+. (Join-Path $PSScriptRoot 'ManagedQuarantine.ps1')
 $UserProfile = Assert-AgentHubSafeWritePath -Path $UserProfile -Purpose 'the agent profile user directory'
 if ([string]::IsNullOrWhiteSpace($env:APPDATA)) {
   throw 'APPDATA is required before the agent profile can create host configuration files.'
@@ -93,6 +94,38 @@ function Get-DirectoryInventory([string]$Path, [string[]]$ExcludedRelativePaths 
         else { 'F|{0}|{1}' -f $relativePath, (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
       }
   )
+}
+
+function Get-ManagedQuarantineContentHash([string]$Path) {
+  $rootItem = Get-Item -LiteralPath $Path -Force
+  $hashBasis = if (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    @("L||$($rootItem.LinkType)|$(@($rootItem.Target) -join '|')")
+  } elseif (-not $rootItem.PSIsContainer) {
+    @("F||$($rootItem.Length)|$((Get-FileHash -LiteralPath $rootItem.FullName -Algorithm SHA256).Hash)")
+  } else {
+    $root = $rootItem.FullName.TrimEnd('\')
+    @(
+      Get-ChildItem -LiteralPath $root -Recurse -Force |
+        Sort-Object FullName |
+        ForEach-Object {
+          $relativePath = $_.FullName.Substring($root.Length).TrimStart('\').Replace('\', '/')
+          if (($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            "L|$relativePath|$($_.LinkType)|$(@($_.Target) -join '|')"
+          } elseif ($_.PSIsContainer) {
+            "D|$relativePath"
+          } else {
+            "F|$relativePath|$($_.Length)|$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+          }
+        }
+    )
+  }
+  $sha256 = [Security.Cryptography.SHA256]::Create()
+  try {
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($hashBasis -join "`n"))
+    return ([BitConverter]::ToString($sha256.ComputeHash($bytes))).Replace('-', '')
+  } finally {
+    $sha256.Dispose()
+  }
 }
 
 function Sync-QwenSubagents([string]$SourceRoot, [string]$DestinationRoot) {
@@ -337,37 +370,8 @@ $copilotPluginArgs = @($copilotPluginRoots | ForEach-Object {
   '--plugin-dir "' + ([string]$_).Replace('\','/') + '"'
 }) -join ' '
 
-$quarantineBatchId = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssfffZ') + '-' + ([guid]::NewGuid().ToString('N').Substring(0, 8))
-$quarantineBatchRoot = Join-Path $UserProfile ".agenthub\quarantine\$quarantineBatchId"
-$quarantineEntries = New-Object System.Collections.ArrayList
-
-function Save-QuarantineManifest {
-  if ($quarantineEntries.Count -eq 0) { return }
-  New-Item -ItemType Directory -Path $quarantineBatchRoot -Force | Out-Null
-  $manifest = @{
-    schemaVersion = 1
-    createdAtUtc = (Get-Date).ToUniversalTime().ToString('o')
-    sourceRegistry = $RegistryRoot
-    entries = @($quarantineEntries)
-  }
-  $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $quarantineBatchRoot 'manifest.json') -Encoding UTF8
-}
-
-function Move-ToManagedQuarantine([string]$Path, [string]$HostId, [string]$ArtifactKind, [string]$ArtifactName, [string]$Reason) {
-  $quarantinePath = Join-Path $quarantineBatchRoot "$HostId\$ArtifactKind\$ArtifactName"
-  New-Item -ItemType Directory -Path (Split-Path -Parent $quarantinePath) -Force | Out-Null
-  Move-Item -LiteralPath $Path -Destination $quarantinePath
-  [void]$quarantineEntries.Add(@{
-    hostId = $HostId
-    artifactKind = $ArtifactKind
-    artifactName = $ArtifactName
-    originalPath = $Path
-    quarantinePath = $quarantinePath
-    reason = $Reason
-  })
-  Save-QuarantineManifest
-  return $quarantinePath
-}
+$quarantineBatch = New-AgentHubQuarantineBatch -UserProfilePath $UserProfile
+$quarantineBatchRoot = $quarantineBatch.BatchRoot
 
 function Install-ManagedSkill([string]$HostId, [string]$TargetRoot, [string]$SkillName, [string]$SkillsSource, [string]$OwnerId) {
   $source = Join-Path $SkillsSource $SkillName
@@ -380,7 +384,10 @@ function Install-ManagedSkill([string]$HostId, [string]$TargetRoot, [string]$Ski
   try {
     Copy-DirectoryToStage $source $stage
     if (Test-Path -LiteralPath $destination -PathType Container) {
-      $backup = Move-ToManagedQuarantine $destination $HostId 'skills' $SkillName "Replaced by the current canonical $OwnerId sibling."
+      $backup = Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $destination `
+        -HostId $HostId -ArtifactKind 'skills' -ArtifactName $SkillName `
+        -Reason "Replaced by the current canonical $OwnerId sibling." `
+        -ContentHash (Get-ManagedQuarantineContentHash -Path $destination)
     }
     Move-Item -LiteralPath $stage -Destination $destination
   } catch {
@@ -528,9 +535,12 @@ function Ensure-QoderPlugins {
         Write-Warning "Preserving mismatched Qoder cache sibling: $($cachedVersion.FullName)"
         continue
       }
-      Move-ToManagedQuarantine $cachedVersion.FullName 'qoder' 'plugin-cache' `
-        "$($capability.id)-$($cachedVersion.Name)" `
-        "Superseded Qoder cache generation retired after the current native plugin was verified." | Out-Null
+      Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $cachedVersion.FullName `
+        -HostId 'qoder' -ArtifactKind 'plugin-cache' `
+        -ArtifactName "$($capability.id)-$($cachedVersion.Name)" `
+        -Reason "Superseded Qoder cache generation retired after the current native plugin was verified." `
+        -ContentHash (Get-ManagedQuarantineContentHash -Path $cachedVersion.FullName) |
+        Out-Null
     }
 
     $installed = $refreshed
@@ -558,8 +568,11 @@ function Ensure-LocalNativeAdapters {
           }
         }
         if (Test-Path -LiteralPath $adapterRoot -PathType Container) {
-          $backup = Move-ToManagedQuarantine $adapterRoot 'copilot' 'plugin-adapters' $capability.id `
-            "Replaced by the current canonical $($capability.id) Copilot adapter."
+          $backup = Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $adapterRoot `
+            -HostId 'copilot' -ArtifactKind 'plugin-adapters' `
+            -ArtifactName $capability.id `
+            -Reason "Replaced by the current canonical $($capability.id) Copilot adapter." `
+            -ContentHash (Get-ManagedQuarantineContentHash -Path $adapterRoot)
         }
         Move-Item -LiteralPath $stage -Destination $adapterRoot
       } catch {
@@ -616,8 +629,11 @@ function Retire-QoderNativePluginLooseSkills {
       if (-not (Test-DirectoryEquivalent $sourceSkill.FullName $loosePath)) {
         throw "Qoder has a divergent loose $($sourceSkill.Name) skill alongside the verified native $($capability.id) plugin: $loosePath"
       }
-      Move-ToManagedQuarantine $loosePath 'qoder' 'skills' $sourceSkill.Name `
-        "Current native $($capability.id) plugin is enabled; duplicate loose skill retired." | Out-Null
+      Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $loosePath `
+        -HostId 'qoder' -ArtifactKind 'skills' -ArtifactName $sourceSkill.Name `
+        -Reason "Current native $($capability.id) plugin is enabled; duplicate loose skill retired." `
+        -ContentHash (Get-ManagedQuarantineContentHash -Path $loosePath) |
+        Out-Null
     }
   }
 }
@@ -652,7 +668,11 @@ foreach ($capability in $managedSkillCapabilities) {
       foreach ($skillName in $capability.skillNames) {
         $loosePath = Join-Path $targetRoot $skillName
         if (Test-Path -LiteralPath $loosePath -PathType Container) {
-          Move-ToManagedQuarantine $loosePath $hostId 'skills' $skillName "Native $($capability.id) plugin v$($capability.version) is enabled; duplicate loose skill retired." | Out-Null
+          Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $loosePath `
+            -HostId $hostId -ArtifactKind 'skills' -ArtifactName $skillName `
+            -Reason "Native $($capability.id) plugin v$($capability.version) is enabled; duplicate loose skill retired." `
+            -ContentHash (Get-ManagedQuarantineContentHash -Path $loosePath) |
+            Out-Null
         }
       }
     } else {
@@ -674,8 +694,12 @@ foreach ($capability in @($caps.capabilities)) {
   if ($cursorMapping.Count -ne 1 -or [string]$cursorMapping[0].deploymentStatus -ne 'managed') { continue }
   $legacyPluginPath = Join-Path $cursorLocalPluginRoot ([string]$capability.id)
   if (Test-Path -LiteralPath $legacyPluginPath -PathType Container) {
-    Move-ToManagedQuarantine $legacyPluginPath 'cursor' 'plugins' ([string]$capability.id) `
-      "Registry maps this capability to managed loose skills; conflicting local plugin copy retired." | Out-Null
+    Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $legacyPluginPath `
+      -HostId 'cursor' -ArtifactKind 'plugins' `
+      -ArtifactName ([string]$capability.id) `
+      -Reason "Registry maps this capability to managed loose skills; conflicting local plugin copy retired." `
+      -ContentHash (Get-ManagedQuarantineContentHash -Path $legacyPluginPath) |
+      Out-Null
   }
 }
 
@@ -737,7 +761,11 @@ foreach ($artifactRoot in $legacyArtifactRoots) {
     $legacyPath = Join-Path $artifactRoot.path $retired.name
     if (Test-Path -LiteralPath $legacyPath -PathType Container) {
       if (Test-RetiredVideoArtifactSignature $legacyPath $artifactRoot.kind $retired.name) {
-        Move-ToManagedQuarantine $legacyPath $artifactRoot.hostId $artifactRoot.kind $retired.name $retired.reason | Out-Null
+        Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $legacyPath `
+          -HostId $artifactRoot.hostId -ArtifactKind $artifactRoot.kind `
+          -ArtifactName $retired.name -Reason $retired.reason `
+          -ContentHash (Get-ManagedQuarantineContentHash -Path $legacyPath) |
+          Out-Null
       } else {
         Write-Warning "Preserving exact-named artifact without the audited legacy signature: $legacyPath"
       }
@@ -827,7 +855,12 @@ if ($RetireLegacyVideoOwners) {
   foreach ($legacyOwner in $retiredLegacyOwners) {
     if (Test-Path -LiteralPath $legacyOwner.path -PathType Container) {
       if (Test-RetiredLegacySignature $legacyOwner) {
-        Move-ToManagedQuarantine $legacyOwner.path $legacyOwner.hostId $legacyOwner.kind $legacyOwner.name $legacyOwner.reason | Out-Null
+        Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $legacyOwner.path `
+          -HostId $legacyOwner.hostId -ArtifactKind $legacyOwner.kind `
+          -ArtifactName $legacyOwner.name -Reason $legacyOwner.reason `
+          -ContentHash (
+            Get-ManagedQuarantineContentHash -Path $legacyOwner.path
+          ) | Out-Null
       } elseif ($legacyOwner.signature -eq 'claude-cache-0.1' -and (Test-Path -LiteralPath (Join-Path $legacyOwner.path $videoPluginVersion) -PathType Container)) {
         # The canonical native Claude plugin now owns this cache root. Its
         # current version is expected and must not be treated as legacy noise.
@@ -913,7 +946,12 @@ foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-dem
           -not (Test-ExpectedSkillJunction -Path $destination -Source $skill.FullName) -and
           (Test-DirectoryEquivalent $skill.FullName $destination)
       ) {
-        Move-ToManagedQuarantine $destination $targetEntry.Key 'skills' $skill.Name "Removed an exact canonical $($cap.id) duplicate from a host without a loose-skill ownership mapping." | Out-Null
+        Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $destination `
+          -HostId $targetEntry.Key -ArtifactKind 'skills' `
+          -ArtifactName $skill.Name `
+          -Reason "Removed an exact canonical $($cap.id) duplicate from a host without a loose-skill ownership mapping." `
+          -ContentHash (Get-ManagedQuarantineContentHash -Path $destination) |
+          Out-Null
       }
     }
 
@@ -922,7 +960,12 @@ foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-dem
       $destination = Join-Path $target $retiredName
       if (!(Test-Path -LiteralPath $destination -PathType Container)) { continue }
       if ((Test-Path -LiteralPath $retiredSource -PathType Container) -and (Test-DirectoryEquivalent $retiredSource $destination)) {
-        Move-ToManagedQuarantine $destination $targetEntry.Key 'skills' $retiredName "Removed an exact canonical $($cap.id) skill name retired by the capability contract." | Out-Null
+        Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $destination `
+          -HostId $targetEntry.Key -ArtifactKind 'skills' `
+          -ArtifactName $retiredName `
+          -Reason "Removed an exact canonical $($cap.id) skill name retired by the capability contract." `
+          -ContentHash (Get-ManagedQuarantineContentHash -Path $destination) |
+          Out-Null
       } else {
         Write-Warning "Preserving non-canonical or ambiguous retired skill path: $destination"
       }
@@ -944,7 +987,11 @@ foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-dem
         } else {
           [string]$retiredSkill.reason
         }
-        Move-ToManagedQuarantine $destination $targetEntry.Key 'skills' $retiredName $reason | Out-Null
+        Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $destination `
+          -HostId $targetEntry.Key -ArtifactKind 'skills' `
+          -ArtifactName $retiredName -Reason $reason `
+          -ContentHash (Get-ManagedQuarantineContentHash -Path $destination) |
+          Out-Null
       } else {
         Write-Warning "Preserving non-canonical or ambiguous retired skill path: $destination"
       }
@@ -982,11 +1029,16 @@ foreach ($skillName in @($sharedManagedSkillOwners.Keys | Sort-Object)) {
   $sharedPath = Join-Path $sharedAgentSkillsRoot $skillName
   if (!(Test-Path -LiteralPath $sharedPath -PathType Container)) { continue }
   $ownerId = [string]$sharedManagedSkillOwners[$skillName]
-  Move-ToManagedQuarantine $sharedPath 'shared-agent-skills' 'skills' $skillName `
-    "Removed a shared Agent Skills shadow of the canonical $ownerId capability." | Out-Null
+  Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $sharedPath `
+    -HostId 'shared-agent-skills' -ArtifactKind 'skills' `
+    -ArtifactName $skillName `
+    -Reason "Removed a shared Agent Skills shadow of the canonical $ownerId capability." `
+    -ContentHash (Get-ManagedQuarantineContentHash -Path $sharedPath) |
+    Out-Null
 }
 
 if ($SkillDistributionOnly) {
+  Write-AgentHubQuarantineManifest -Batch $quarantineBatch | Out-Null
   Write-Host 'Canonical managed capabilities distributed; host configuration and MCP synchronization were not changed.' -ForegroundColor Green
   return
 }
@@ -1241,5 +1293,6 @@ elseif (-not $userPath.StartsWith($bin, [System.StringComparison]::OrdinalIgnore
 # formats and Qwen extension adapters from this same registry.
 & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Sync-AgentHub.ps1') -Apply -Validate -IncludeInactiveAgents -ScopeProfile global-default -RegistryRoot $RegistryRoot -UserProfile $UserProfile
 Retire-QoderNativePluginLooseSkills
+Write-AgentHubQuarantineManifest -Batch $quarantineBatch | Out-Null
 
 Write-Host 'Full-access agent profile applied. Restart open agent sessions and open a new terminal for launcher PATH changes.' -ForegroundColor Green
