@@ -35,7 +35,8 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 ## Provider holds
 
 - Obey `registry/fleet-profile.json` dispatch policy before invoking an agent host, CLI, cloud runner, or API.
-- Cursor IDE agents, Cursor Agent CLI, Cursor Cloud/Background Agents, and Cursor API sessions are currently retained but disabled because quota/spend headroom is exhausted. Do not invoke, probe, or route work to Cursor until the owner explicitly reauthorizes it, current availability is verified without launching a paid run, and one reviewed control-plane change sets `dispatchPolicy.cursor.enabled` and `dispatchPolicy.cursor-agent.enabled` to Boolean `true`, sets `providerHolds.cursor.active` to Boolean `false`, updates this hold, and synchronizes regenerated instructions.
+- Cursor IDE agents, Cursor Agent CLI, Cursor Cloud/Background Agents, and Cursor API sessions are **paused for the current quota window**, not retired. The account is funded and configured; its spend headroom for this billing period is simply used up, and the window is expected to reset in early August 2026. Treat this as "not right now," not "not this tool."
+- While the pause is in force, do not invoke, probe, or route work to Cursor. To lift it: confirm from billing/usage data (never a paid probe) that the window has actually reset, then make one reviewed control-plane change setting `dispatchPolicy.cursor.enabled` and `dispatchPolicy.cursor-agent.enabled` to Boolean `true`, setting `providerHolds.cursor.active` to Boolean `false`, updating this section, and synchronizing regenerated instructions.
 
 ## Handoff
 
