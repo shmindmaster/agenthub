@@ -325,6 +325,7 @@ function Add-SkillsFromRoot {
             hostId = $HostId
             skillId = Get-SkillId -SkillPath $fullPath
             hash = Get-SkillTreeHash -SkillPath $fullPath
+            fileHash = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256).Hash
             path = $fullPath
             root = Normalize-FullPath $Root
             sourceType = $SourceType
@@ -386,6 +387,7 @@ function Add-CopilotManifestSkills {
             hostId = 'copilot'
             skillId = Get-SkillId -SkillPath $candidate
             hash = Get-SkillTreeHash -SkillPath $candidate
+            fileHash = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash
             path = $candidate
             root = Normalize-FullPath $PluginRoot
             sourceType = 'plugin-manifest'
@@ -973,7 +975,7 @@ if ($null -ne $skillOwnershipRegistry) {
         foreach ($record in @($skillRecords.ToArray() | Where-Object {
             $_.skillId -eq $skillId
         })) {
-            $status = if ([string]$record.hash -in $observedHashes) {
+            $status = if ([string]$record.fileHash -in $observedHashes) {
                 'WARN'
             } else {
                 'FAIL'

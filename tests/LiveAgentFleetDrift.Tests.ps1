@@ -456,9 +456,7 @@ Describe 'Comprehensive live fleet drift inventory' {
         $railwayHash = Get-AgentHubRegistryHashBasisValue -Path (
             Split-Path -Parent $railwayTarget
         )
-        $pendingHash = Get-AgentHubRegistryHashBasisValue -Path (
-            Split-Path -Parent $codexPending
-        )
+        $pendingHash = (Get-FileHash -LiteralPath $codexPending -Algorithm SHA256).Hash
 
         Write-FixtureJson -Path (Join-Path $registryDir 'agents.json') -Value @{
             activeAgents=@(

@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "preservePendingHashBasis": "SKILL.md-file-sha256",
   "externalOwners": [
     {
       "skillId": "use-railway",
