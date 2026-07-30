@@ -554,6 +554,32 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.codex\skills\browser-debugging')) | Should -Be $false
     }
 
+    It 'resolves durable canonical registry paths through the selected checkout' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'registry-root-rebase'
+        )
+        $rebasedSource = Join-Path $fixture.RegistryRoot 'capabilities\framer'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $rebasedSource) -Force |
+            Out-Null
+        Copy-Item -LiteralPath $fixture.CanonicalFramerRoot `
+            -Destination $rebasedSource -Recurse
+        Set-Content -LiteralPath (
+            Join-Path $rebasedSource 'skills\framer\SKILL.md'
+        ) -Value 'canonical:rebased-framer' -Encoding UTF8
+
+        $capabilitiesPath = Join-Path $fixture.RegistryRoot 'registry\capabilities.json'
+        $registry = Get-Content -LiteralPath $capabilitiesPath -Raw | ConvertFrom-Json
+        @($registry.capabilities | Where-Object id -eq 'framer')[0].canonicalSource =
+            'C:/Repos/shmindmaster/agenthub/capabilities/framer'
+        $registry | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $capabilitiesPath -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        (Get-Content -LiteralPath (
+            Join-Path $fixture.UserProfile '.claude\skills\framer\SKILL.md'
+        ) -Raw).Trim() | Should -Be 'canonical:rebased-framer'
+    }
+
     It 'distributes all repository-owned portfolio engineering skills to each mapped loose-skill host' {
         $fixture = New-DistributionFixture -Root (
             Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'portfolio-engineering-ops'

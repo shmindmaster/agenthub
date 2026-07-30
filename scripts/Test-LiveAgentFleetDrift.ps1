@@ -29,6 +29,9 @@ if ([string]::IsNullOrWhiteSpace($CodexPluginStatePath)) {
 }
 
 $RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot)
+$canonicalRepositoryRoot = [System.IO.Path]::GetFullPath(
+    'C:\Repos\shmindmaster\agenthub'
+).TrimEnd('\')
 $UserProfilePath = [System.IO.Path]::GetFullPath($UserProfilePath)
 $AppDataPath = [System.IO.Path]::GetFullPath($AppDataPath)
 $LocalAppDataPath = [System.IO.Path]::GetFullPath($LocalAppDataPath)
@@ -204,6 +207,28 @@ function Get-SkillId {
         if ($name.Success) { return $name.Groups['name'].Value.Trim() }
     }
     return (Split-Path -Leaf (Split-Path -Parent $SkillPath))
+}
+
+function Resolve-RegistryOwnedPath {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
+    $fullPath = Normalize-FullPath $Path
+    if ($fullPath.Equals(
+        $canonicalRepositoryRoot,
+        [StringComparison]::OrdinalIgnoreCase
+    )) {
+        return $RegistryRoot
+    }
+    $canonicalPrefix = $canonicalRepositoryRoot + '\'
+    if ($fullPath.StartsWith(
+        $canonicalPrefix,
+        [StringComparison]::OrdinalIgnoreCase
+    )) {
+        return Join-Path $RegistryRoot $fullPath.Substring(
+            $canonicalPrefix.Length
+        )
+    }
+    return $fullPath
 }
 
 function Get-SkillTreeHash {
@@ -876,7 +901,7 @@ foreach ($plugin in @($pluginRoots.ToArray() | Where-Object exists)) {
 # Build the canonical skill owner index from actual AgentHub source packages.
 $canonicalSkillRecords = New-Object System.Collections.Generic.List[object]
 foreach ($capability in @($capabilityRegistry.capabilities)) {
-    $source = Normalize-FullPath ([string]$capability.canonicalSource)
+    $source = Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
     if (-not (Test-Path -LiteralPath $source -PathType Container)) { continue }
     foreach ($file in @(
         Get-ChildItem -LiteralPath $source -Filter 'SKILL.md' -File -Recurse -ErrorAction SilentlyContinue |

@@ -20,6 +20,10 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'PathSafety.ps1')
 . (Join-Path $PSScriptRoot 'ManagedQuarantine.ps1')
+$RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot).TrimEnd('\')
+$canonicalRepositoryRoot = [System.IO.Path]::GetFullPath(
+  'C:\Repos\shmindmaster\agenthub'
+).TrimEnd('\')
 $UserProfile = Assert-AgentHubSafeWritePath -Path $UserProfile -Purpose 'the agent profile user directory'
 if ([string]::IsNullOrWhiteSpace($env:APPDATA)) {
   throw 'APPDATA is required before the agent profile can create host configuration files.'
@@ -33,6 +37,19 @@ $mcps = Get-Content (Join-Path $RegistryRoot 'registry\mcps.json') -Raw | Conver
 $caps = Get-Content (Join-Path $RegistryRoot 'registry\capabilities.json') -Raw | ConvertFrom-Json
 $profile = Get-Content (Join-Path $RegistryRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
 . (Join-Path $PSScriptRoot 'AgentCtl.CursorReadiness.ps1')
+
+function Resolve-RegistryOwnedPath([string]$Path) {
+  if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
+  $fullPath = [System.IO.Path]::GetFullPath($Path)
+  if ($fullPath.Equals($canonicalRepositoryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    return $RegistryRoot
+  }
+  $canonicalPrefix = $canonicalRepositoryRoot + '\'
+  if ($fullPath.StartsWith($canonicalPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+    return Join-Path $RegistryRoot $fullPath.Substring($canonicalPrefix.Length)
+  }
+  return $fullPath
+}
 
 function To-Hash($value) {
   if ($null -eq $value) { return $null }
@@ -310,7 +327,7 @@ $retiredVideoArtifacts = @(
 
 $videoCapability = @($caps.capabilities | Where-Object { $_.id -eq 'product-demo-studio' })
 if ($videoCapability.Count -ne 1) { throw "Expected exactly one canonical product-demo-studio capability; found $($videoCapability.Count)." }
-$videoPluginRoot = [string]$videoCapability[0].canonicalSource
+$videoPluginRoot = Resolve-RegistryOwnedPath ([string]$videoCapability[0].canonicalSource)
 $videoSkillsSource = Join-Path $videoPluginRoot 'skills'
 if (!(Test-Path -LiteralPath $videoSkillsSource -PathType Container)) { throw "Canonical product-demo-studio skills are missing: $videoSkillsSource" }
 $videoManifestPath = Join-Path $videoPluginRoot '.codex-plugin\plugin.json'
@@ -343,7 +360,7 @@ $managedExperienceSkillNames = @(
 )
 $experienceCapability = @($caps.capabilities | Where-Object { $_.id -eq 'product-experience-engineering' })
 if ($experienceCapability.Count -ne 1) { throw "Expected exactly one canonical product-experience-engineering capability; found $($experienceCapability.Count)." }
-$experiencePluginRoot = [string]$experienceCapability[0].canonicalSource
+$experiencePluginRoot = Resolve-RegistryOwnedPath ([string]$experienceCapability[0].canonicalSource)
 $experienceSkillsSource = Join-Path $experiencePluginRoot 'skills'
 if (!(Test-Path -LiteralPath $experienceSkillsSource -PathType Container)) { throw "Canonical product-experience-engineering skills are missing: $experienceSkillsSource" }
 $experienceManifestPath = Join-Path $experiencePluginRoot '.codex-plugin\plugin.json'
@@ -478,7 +495,7 @@ function Ensure-QoderPlugins {
     $mapping = @($capability.hostMappings | Where-Object hostId -eq 'qoder' | Select-Object -First 1)
     if ($mapping.Count -ne 1 -or [string]$mapping[0].deploymentStatus -ne 'native-local-plugin') { continue }
 
-    $source = [string]$capability.canonicalSource
+    $source = Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
     $current = @($installed | Where-Object {
       $_.name -eq [string]$capability.id -and $_.scope -eq 'user' -and $_.enabled -eq $true
     })
@@ -621,7 +638,9 @@ function Retire-QoderNativePluginLooseSkills {
   foreach ($capability in @($caps.capabilities)) {
     $qoderMapping = @($capability.hostMappings | Where-Object hostId -eq 'qoder' | Select-Object -First 1)
     if ($qoderMapping.Count -ne 1 -or [string]$qoderMapping[0].deploymentStatus -ne 'native-local-plugin') { continue }
-    $sourceSkills = Join-Path ([string]$capability.canonicalSource) 'skills'
+    $sourceSkills = Join-Path (
+      Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
+    ) 'skills'
     if (!(Test-Path -LiteralPath $sourceSkills -PathType Container)) { continue }
     foreach ($sourceSkill in @(Get-ChildItem -LiteralPath $sourceSkills -Directory)) {
       $loosePath = Join-Path $qoderSkillRoot $sourceSkill.Name
@@ -806,7 +825,9 @@ $localAiCapabilities = @($caps.capabilities | Where-Object id -eq 'local-ai-stac
 if ($localAiCapabilities.Count -eq 1) {
   $localAiCapability = $localAiCapabilities[0]
   $localAiHostIds = @($localAiCapability.hostMappings | ForEach-Object { [string]$_.hostId })
-  $localAiSkill = Join-Path $localAiCapability.canonicalSource 'skills\local-ai-stack\SKILL.md'
+  $localAiSkill = Join-Path (
+    Resolve-RegistryOwnedPath ([string]$localAiCapability.canonicalSource)
+  ) 'skills\local-ai-stack\SKILL.md'
   if ($localAiHostIds.Count -eq 1 -and
       $localAiHostIds[0] -eq 'codex' -and
       (Test-Path -LiteralPath $localAiSkill -PathType Leaf)) {
@@ -886,7 +907,9 @@ function Test-ExpectedSkillJunction([string]$Path, [string]$Source) {
 
 foreach ($target in $skillTargets.Values | Select-Object -Unique) { New-Item -ItemType Directory -Path $target -Force | Out-Null }
 foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-demo-studio','product-experience-engineering') }) {
-  $sourceSkills = Join-Path $cap.canonicalSource 'skills'
+  $sourceSkills = Join-Path (
+    Resolve-RegistryOwnedPath ([string]$cap.canonicalSource)
+  ) 'skills'
   if (!(Test-Path -LiteralPath $sourceSkills)) { continue }
   $sourceSkillDirectories = @(Get-ChildItem -LiteralPath $sourceSkills -Directory)
   $managedSkillNames = if ($cap.PSObject.Properties.Name -contains 'managedSkillNames') {
@@ -1008,8 +1031,11 @@ foreach ($cap in $caps.capabilities | Where-Object { $_.id -notin @('product-dem
 # untouched.
 $sharedAgentSkillsRoot = Join-Path $UserProfile '.agents\skills'
 $sharedManagedSkillOwners = @{}
+$sharedRetiredSkillContracts = @{}
 foreach ($cap in @($caps.capabilities)) {
-  $sourceSkills = Join-Path ([string]$cap.canonicalSource) 'skills'
+  $sourceSkills = Join-Path (
+    Resolve-RegistryOwnedPath ([string]$cap.canonicalSource)
+  ) 'skills'
   if (!(Test-Path -LiteralPath $sourceSkills -PathType Container)) { continue }
   $sourceSkillDirectories = @(Get-ChildItem -LiteralPath $sourceSkills -Directory)
   $managedSkillNames = if ($cap.PSObject.Properties.Name -contains 'managedSkillNames') {
@@ -1024,6 +1050,20 @@ foreach ($cap in @($caps.capabilities)) {
     }
     $sharedManagedSkillOwners[$skillName] = [string]$cap.id
   }
+  if ($cap.PSObject.Properties.Name -contains 'retiredSkills') {
+    foreach ($retiredSkill in @($cap.retiredSkills)) {
+      $retiredName = [string]$retiredSkill.name
+      if ([string]::IsNullOrWhiteSpace($retiredName)) { continue }
+      if ($sharedRetiredSkillContracts.ContainsKey($retiredName)) {
+        throw "Retired skill $retiredName has multiple capability retirement contracts."
+      }
+      $sharedRetiredSkillContracts[$retiredName] = [pscustomobject]@{
+        capabilityId = [string]$cap.id
+        contentHash = ([string]$retiredSkill.contentHash).ToUpperInvariant()
+        reason = [string]$retiredSkill.reason
+      }
+    }
+  }
 }
 foreach ($skillName in @($sharedManagedSkillOwners.Keys | Sort-Object)) {
   $sharedPath = Join-Path $sharedAgentSkillsRoot $skillName
@@ -1033,6 +1073,31 @@ foreach ($skillName in @($sharedManagedSkillOwners.Keys | Sort-Object)) {
     -HostId 'shared-agent-skills' -ArtifactKind 'skills' `
     -ArtifactName $skillName `
     -Reason "Removed a shared Agent Skills shadow of the canonical $ownerId capability." `
+    -ContentHash (Get-ManagedQuarantineContentHash -Path $sharedPath) |
+    Out-Null
+}
+foreach ($skillName in @($sharedRetiredSkillContracts.Keys | Sort-Object)) {
+  $sharedPath = Join-Path $sharedAgentSkillsRoot $skillName
+  if (!(Test-Path -LiteralPath $sharedPath -PathType Container)) { continue }
+  $contract = $sharedRetiredSkillContracts[$skillName]
+  $entries = @(Get-ChildItem -LiteralPath $sharedPath -Recurse -Force)
+  $skillFile = Join-Path $sharedPath 'SKILL.md'
+  $isExactRetiredSkill = $entries.Count -eq 1 -and
+    (Test-Path -LiteralPath $skillFile -PathType Leaf) -and
+    (Get-FileHash -LiteralPath $skillFile -Algorithm SHA256).Hash -ceq
+      $contract.contentHash
+  if (-not $isExactRetiredSkill) {
+    Write-Warning "Preserving non-canonical or ambiguous shared retired skill path: $sharedPath"
+    continue
+  }
+  $reason = if ([string]::IsNullOrWhiteSpace($contract.reason)) {
+    "Removed an exact retired $($contract.capabilityId) skill generation."
+  } else {
+    $contract.reason
+  }
+  Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $sharedPath `
+    -HostId 'shared-agent-skills' -ArtifactKind 'skills' `
+    -ArtifactName $skillName -Reason $reason `
     -ContentHash (Get-ManagedQuarantineContentHash -Path $sharedPath) |
     Out-Null
 }

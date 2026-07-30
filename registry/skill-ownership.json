@@ -26,12 +26,12 @@
         { "hostId": "factory", "path": "${USERPROFILE}/.factory/skills/use-railway" },
         { "hostId": "gemini", "path": "${USERPROFILE}/.gemini/skills/use-railway" },
         { "hostId": "antigravity", "path": "${USERPROFILE}/.gemini/config/skills/use-railway" },
-        { "hostId": "grok", "path": "${USERPROFILE}/.grok/skills/use-railway" },
         { "hostId": "opencode", "path": "${USERPROFILE}/.config/opencode/skills/use-railway" },
         { "hostId": "windsurf", "path": "${USERPROFILE}/.codeium/windsurf/skills/use-railway" }
       ],
       "sharedShadowPaths": [
-        "${USERPROFILE}/.agents/skills/use-railway"
+        "${USERPROFILE}/.agents/skills/use-railway",
+        "${USERPROFILE}/.grok/skills/use-railway"
       ]
     }
   ],

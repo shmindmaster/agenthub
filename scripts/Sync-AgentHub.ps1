@@ -41,6 +41,10 @@ $ErrorActionPreference = 'Stop'
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
+$RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot).TrimEnd('\')
+$canonicalRepositoryRoot = [System.IO.Path]::GetFullPath(
+    'C:\Repos\shmindmaster\agenthub'
+).TrimEnd('\')
 $RegistryDir       = Join-Path $RegistryRoot 'registry'
 $effectiveLocalAppData = [System.IO.Path]::GetFullPath($env:LOCALAPPDATA)
 $invokingUserProfile = if ([string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
@@ -73,6 +77,19 @@ $McpsFile          = Join-Path $RegistryDir 'mcps.json'
 $CapabilitiesFile  = Join-Path $RegistryDir 'capabilities.json'
 $ConnectorsFile    = Join-Path $RegistryDir 'native-connectors.json'
 $GatewaysFile      = Join-Path $RegistryDir 'gateway-profiles.json'
+
+function Resolve-RegistryOwnedPath([string]$Path) {
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    if ($fullPath.Equals($canonicalRepositoryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        return $RegistryRoot
+    }
+    $canonicalPrefix = $canonicalRepositoryRoot + '\'
+    if ($fullPath.StartsWith($canonicalPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        return Join-Path $RegistryRoot $fullPath.Substring($canonicalPrefix.Length)
+    }
+    return $fullPath
+}
 
 New-Item -ItemType Directory -Path $StateDir -Force | Out-Null
 New-Item -ItemType Directory -Path $DriftDir -Force | Out-Null
@@ -297,7 +314,9 @@ function Sync-RepoContextSkill {
         return @{ status='skills-path-unavailable'; capability='repocontext' }
     }
 
-    $source = Join-Path ([string]$capability.canonicalSource) 'skills\repocontext\SKILL.md'
+    $source = Join-Path (
+        Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
+    ) 'skills\repocontext\SKILL.md'
     $destination = Join-Path ([string]$Agent.nativePaths.skillsDir) 'repocontext\SKILL.md'
     $result = Deploy-File -SourcePath $source -DestPath $destination -OwnerCapability 'repocontext' -WhatIf:$WhatIf
     $result.capability = 'repocontext'
@@ -604,7 +623,7 @@ function Get-PluginProvidedMcpKeysByHost {
         foreach ($cap in $CapabilitiesRegistry.capabilities) {
             if (-not $cap.hostMappings) { continue }
 
-            $sourceRoot = [string]$cap.canonicalSource
+            $sourceRoot = Resolve-RegistryOwnedPath ([string]$cap.canonicalSource)
             if (-not $sourceRoot) { continue }
 
             $mcpManifest = Join-Path $sourceRoot '.mcp.json'
@@ -1406,7 +1425,9 @@ function Sync-QwenCapabilityExtensions {
         })
         if ($mapping.Count -eq 0) { continue }
 
-        $sourceSkills = Join-Path ([string]$capability.canonicalSource) 'skills'
+        $sourceSkills = Join-Path (
+            Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
+        ) 'skills'
         if (-not (Test-Path -LiteralPath $sourceSkills)) { continue }
         $extensionName = 'agenthub-' + [string]$capability.id
         $expected += $extensionName
