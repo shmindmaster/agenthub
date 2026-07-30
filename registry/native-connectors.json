@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-29T23:15:00.000Z",
+  "generatedAt": "2026-07-30T20:57:02.979Z",
   "authority": {
     "capabilitiesRegistry": "registry/capabilities.json",
     "mcpRegistry": "registry/mcps.json",
@@ -9,6 +9,19 @@
       "C:/Users/SaroshHussain/.codex/plugins/cache"
     ],
     "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. On-demand-local MCPs are removed from every host configuration under every fleet-sync scope and may run only through their owning plugin or skill, or one reviewed shared gateway. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners."
+  },
+  "hostPrivateExtensionPolicy": {
+    "hosts": [
+      "claude",
+      "codex"
+    ],
+    "authority": "user-managed",
+    "fleetParityRequired": false,
+    "agentHubMayInstallOrRemove": false,
+    "agentHubMayCopyToOtherHosts": false,
+    "inventoryMode": "canonical-conflict-and-resource-observation-only",
+    "conflictPolicy": "A host-private extension is outside fleet parity unless it claims a canonical capability or MCP identity, creates a duplicate canonical registration in the same host, or violates a machine resource or safety boundary.",
+    "runtimePolicy": "Host-private child processes may be observed for aggregate resource evidence but are not AgentHub-managed MCP runtime drift and are never terminated by AgentHub."
   },
   "lifecyclePolicy": {
     "defaultHostConfiguration": "shared-remote-only",

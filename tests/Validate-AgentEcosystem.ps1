@@ -925,6 +925,19 @@ if ($registryObjects.ContainsKey('native-connectors.json') -and
         $onDemandLifecycleDifference.Count -ne 0) {
         $connectorProblems += 'mcp-lifecycle-policy'
     }
+    $privateExtensionHosts = @(
+        $connectorRegistry.hostPrivateExtensionPolicy.hosts | Sort-Object
+    )
+    if (@(Compare-Object -ReferenceObject @('claude', 'codex') `
+            -DifferenceObject $privateExtensionHosts).Count -ne 0 -or
+        [string]$connectorRegistry.hostPrivateExtensionPolicy.authority -ne 'user-managed' -or
+        [bool]$connectorRegistry.hostPrivateExtensionPolicy.fleetParityRequired -or
+        [bool]$connectorRegistry.hostPrivateExtensionPolicy.agentHubMayInstallOrRemove -or
+        [bool]$connectorRegistry.hostPrivateExtensionPolicy.agentHubMayCopyToOtherHosts -or
+        [string]$connectorRegistry.hostPrivateExtensionPolicy.inventoryMode -ne
+            'canonical-conflict-and-resource-observation-only') {
+        $connectorProblems += 'host-private-extension-boundary'
+    }
     if (@(Get-DuplicateValues $connectorHostIds).Count -gt 0) { $connectorProblems += 'duplicate-host-rows' }
     $connectorProblems += @($connectorHostIds | Where-Object { $_ -notin $knownHostIds } | ForEach-Object { "unknown-host:$_" })
     $connectorProblems += @($knownHostIds | Where-Object { $_ -notin $connectorHostIds } | ForEach-Object { "missing-host:$_" })

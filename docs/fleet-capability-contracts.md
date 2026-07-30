@@ -108,6 +108,14 @@ the installed CLI help; **D** = discovery required before emitting a format;
    fallback may remain for hosts without the bundle. See
    `docs/mcp-ownership-2026-07-24.md` for the current reconciliation.
 
+   Claude and Codex may also contain user-installed host-private plugins that
+   are intentionally outside AgentHub fleet parity. AgentHub does not install,
+   remove, copy, or normalize those extras. It checks them only when they
+   conflict with a canonical capability or MCP identity, duplicate a canonical
+   registration in the same host, or cross a machine resource or safety
+   boundary. Their child processes remain owned by the host and are never
+   terminated by AgentHub.
+
 3. **Roles compile independently from skills.** The common fleet roles are
    scout, implementer, reviewer, and verifier. They must be generated as
    Claude-style agents, OpenCode Markdown agents, Devin `AGENT.md` profiles,

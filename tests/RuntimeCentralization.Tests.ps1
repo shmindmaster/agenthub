@@ -121,6 +121,18 @@ Describe 'Runtime-centralization registry contracts' {
             Should -Be 'never-persist-on-demand-local-in-host-config'
         $connectors.lifecyclePolicy.localActivationOwnerPolicy |
             Should -Be 'plugin-skill-or-reviewed-shared-gateway'
+        @($connectors.hostPrivateExtensionPolicy.hosts | Sort-Object) |
+            Should -Be @('claude', 'codex')
+        $connectors.hostPrivateExtensionPolicy.authority |
+            Should -Be 'user-managed'
+        [bool]$connectors.hostPrivateExtensionPolicy.fleetParityRequired |
+            Should -BeFalse
+        [bool]$connectors.hostPrivateExtensionPolicy.agentHubMayInstallOrRemove |
+            Should -BeFalse
+        [bool]$connectors.hostPrivateExtensionPolicy.agentHubMayCopyToOtherHosts |
+            Should -BeFalse
+        $connectors.hostPrivateExtensionPolicy.inventoryMode |
+            Should -Be 'canonical-conflict-and-resource-observation-only'
 
         $liveProfileChecker = Get-Content -LiteralPath (
             Join-Path $repoRoot 'scripts\Test-FullAccessAgentProfile.ps1'
