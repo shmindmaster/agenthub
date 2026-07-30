@@ -231,7 +231,10 @@ function Add-CopilotManifestSkills {
     # are exposed, rather than every SKILL.md that happens to be in the cache.
     $manifestPath = Join-Path $PluginRoot 'generated\skill-manifest.json'
     if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
-        return $false
+        Add-DriftResult FAIL 'plugin' "copilot-manifest-missing:$SourceId" `
+            'Enabled Copilot plugin has no generated skill manifest; runtime skill exposure cannot be resolved' `
+            'copilot' @($PluginRoot, $manifestPath)
+        return $true
     }
     $manifest = Read-JsonFile -Path $manifestPath
     if ($null -eq $manifest) { return $true }

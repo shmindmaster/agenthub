@@ -198,6 +198,8 @@ Describe 'Comprehensive live fleet drift inventory' {
         $appData = Join-Path $profile 'AppData\Roaming'
         $localAppData = Join-Path $profile 'AppData\Local'
         $pluginRoot = Join-Path $profile '.copilot\installed-plugins\_direct\fixture-plugin'
+        $missingManifestPluginRoot = Join-Path $profile `
+            '.copilot\installed-plugins\_direct\missing-manifest-plugin'
         $executable = (Get-Command powershell.exe -ErrorAction Stop).Source
 
         Write-FixtureSkill -Path (Join-Path $pluginRoot 'skills\fixture-skill\SKILL.md') `
@@ -209,6 +211,12 @@ Describe 'Comprehensive live fleet drift inventory' {
                 'fixture-skill' = @{ bodyPath = 'skills/fixture-skill/SKILL.md' }
             }
         }
+        Write-FixtureSkill -Path (Join-Path $missingManifestPluginRoot `
+            'skills\missing-fixture-skill\SKILL.md') `
+            -Name 'missing-fixture-skill' -Body 'unselected output'
+        Write-FixtureSkill -Path (Join-Path $missingManifestPluginRoot `
+            'skills\missing-fixture-skill\upstream\SKILL.md') `
+            -Name 'missing-fixture-skill' -Body 'non-runtime build input'
         Write-FixtureJson -Path (Join-Path $registryDir 'agents.json') -Value @{
             activeAgents = @(
                 @{
@@ -234,11 +242,18 @@ Describe 'Comprehensive live fleet drift inventory' {
             })
         }
         Write-FixtureJson -Path (Join-Path $profile '.copilot\config.json') -Value @{
-            installedPlugins = @(@{
-                name='fixture-plugin'
-                enabled=$true
-                cache_path=$pluginRoot
-            })
+            installedPlugins = @(
+                @{
+                    name='fixture-plugin'
+                    enabled=$true
+                    cache_path=$pluginRoot
+                },
+                @{
+                    name='missing-manifest-plugin'
+                    enabled=$true
+                    cache_path=$missingManifestPluginRoot
+                }
+            )
         }
         Write-FixtureJson -Path (Join-Path $profile '.copilot\mcp-config.json') -Value @{ mcpServers = @{} }
 
@@ -265,6 +280,11 @@ Describe 'Comprehensive live fleet drift inventory' {
         })
         $inventoried.Count | Should -Be 1
         $inventoried[0].path | Should -Be (Join-Path $pluginRoot 'skills\fixture-skill\SKILL.md')
+        @($parsed.results.check) | Should -Contain `
+            'copilot-manifest-missing:missing-manifest-plugin'
+        @($parsed.inventory.skills | Where-Object {
+            $_.hostId -eq 'copilot' -and $_.skillId -eq 'missing-fixture-skill'
+        }).Count | Should -Be 0
     }
 
     It 'keeps normal agent runtimes distinct from local MCP workers' {
