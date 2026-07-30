@@ -8,6 +8,7 @@ param(
     [string]$ReposRoot = 'C:\Repos',
     [string]$WorktreeRoot = 'C:\wt',
     [string]$CodexPluginStatePath,
+    [string]$ProcessSnapshotPath,
     [switch]$SkipRepositoryScan,
     [string]$ReportPath,
     [switch]$Json
@@ -54,6 +55,7 @@ $mcpStates = New-Object System.Collections.Generic.List[object]
 $pluginStates = New-Object System.Collections.Generic.List[object]
 $worktreeStates = New-Object System.Collections.Generic.List[object]
 $processStates = New-Object System.Collections.Generic.List[object]
+$runtimeTrees = New-Object System.Collections.Generic.List[object]
 
 function Add-DriftResult {
     param(
@@ -378,6 +380,28 @@ function Get-JsonObjectPropertyNames {
     if ($null -eq $value) { return @() }
     return @($value.PSObject.Properties | ForEach-Object { [string]$_.Name } |
         Sort-Object -Unique)
+}
+
+function Get-TomlStringArray {
+    param(
+        [string]$Raw,
+        [string]$Section,
+        [string]$Property
+    )
+    $sectionMatch = [regex]::Match(
+        $Raw,
+        "(?ms)^\[$([regex]::Escape($Section))\]\s*(?<body>.*?)(?=^\[|\z)"
+    )
+    if (-not $sectionMatch.Success) { return @() }
+    $propertyMatch = [regex]::Match(
+        $sectionMatch.Groups['body'].Value,
+        "(?ms)^\s*$([regex]::Escape($Property))\s*=\s*\[(?<items>.*?)\]"
+    )
+    if (-not $propertyMatch.Success) { return @() }
+    return @([regex]::Matches(
+        $propertyMatch.Groups['items'].Value,
+        '"(?<value>[^"]+)"'
+    ) | ForEach-Object { $_.Groups['value'].Value })
 }
 
 function Get-McpIdsFromConfig {
@@ -718,10 +742,58 @@ if ($qoderSettings) {
 
 $grokRegistryPath = Join-Path $UserProfilePath '.grok\installed-plugins\registry.json'
 $grokRegistry = Read-JsonFile -Path $grokRegistryPath
+$grokConfigPath = Join-Path $UserProfilePath '.grok\config.toml'
+$grokConfigRaw = if (Test-Path -LiteralPath $grokConfigPath -PathType Leaf) {
+    Get-Content -LiteralPath $grokConfigPath -Raw -Encoding UTF8
+} else { '' }
+$grokEnabledPlugins = @(
+    Get-TomlStringArray -Raw $grokConfigRaw -Section 'plugins' -Property 'enabled'
+)
 if ($grokRegistry) {
     $repos = Get-PropertyValue -InputObject $grokRegistry -Name 'repos'
     foreach ($repo in @($repos.PSObject.Properties)) {
-        Add-PluginRoot 'grok' ([string]$repo.Name) ([string]$repo.Value.path) $grokRegistryPath
+        foreach ($plugin in @($repo.Value.plugins.PSObject.Properties)) {
+            $pluginName = [string]$plugin.Name
+            if ($pluginName -notin $grokEnabledPlugins) { continue }
+            $pluginPath = [string]$repo.Value.path
+            $subdir = [string](Get-PropertyValue $plugin.Value 'subdir' '')
+            if (-not [string]::IsNullOrWhiteSpace($subdir)) {
+                $pluginPath = Join-Path $pluginPath $subdir
+            }
+            Add-PluginRoot 'grok' $pluginName $pluginPath $grokConfigPath
+
+            $manifestPath = @(
+                (Join-Path $pluginPath '.claude-plugin\plugin.json'),
+                (Join-Path $pluginPath '.github\plugin\plugin.json')
+            ) | Where-Object {
+                Test-Path -LiteralPath $_ -PathType Leaf
+            } | Select-Object -First 1
+            if ([string]::IsNullOrWhiteSpace([string]$manifestPath)) {
+                continue
+            }
+            $manifest = Read-JsonFile -Path $manifestPath
+            $mcpServers = Get-PropertyValue $manifest 'mcpServers'
+            if ($null -eq $mcpServers) { continue }
+            $grokConnector = @($connectorRegistry.hosts | Where-Object {
+                $_.hostId -eq 'grok'
+            } | Select-Object -First 1)
+            $supportedMcpIds = if ($grokConnector.Count -eq 1) {
+                @(
+                    $grokConnector[0].exposures.'plugin-owned' +
+                    $grokConnector[0].exposures.'native-connector' +
+                    $grokConnector[0].exposures.'shared-gateway' +
+                    $grokConnector[0].exposures.'local-only'
+                )
+            } else { @() }
+            foreach ($mcpId in @($mcpServers.PSObject.Properties.Name)) {
+                if ($mcpId -notin $supportedMcpIds) {
+                    Add-DriftResult FAIL 'plugin' `
+                        "unsupported-enabled-local-plugin:grok:${pluginName}:${mcpId}" `
+                        'enabled Grok plugin owns a local MCP absent from Grok native-connector ownership' `
+                        'grok' @($grokConfigPath, $manifestPath)
+                }
+            }
+        }
     }
 }
 
@@ -1294,13 +1366,18 @@ foreach ($nativeRoot in $nativeWorktreeRoots) {
 # Runtime inventory distinguishes normal agent/Cowork/LSP processes from
 # actual local MCP workers. Normal autostart runtimes are not drift.
 try {
-    $candidateProcesses = @(
-        Get-CimInstance Win32_Process -ErrorAction Stop |
-            Where-Object {
-                $_.Name -match '^(node|node\.exe|python|python\.exe|pythonw\.exe|npx|npx\.cmd|uvx|uvx\.exe)$' -or
-                $_.CommandLine -match '(?i)claude|codex|qwen|opencode|gemini|hermes|copilot|antigravity|grok|warp|cline|qoder|cursor|devin|factory|windsurf'
-            }
-    )
+    $allProcesses = if (-not [string]::IsNullOrWhiteSpace($ProcessSnapshotPath)) {
+        @((Get-Content -LiteralPath $ProcessSnapshotPath -Raw -Encoding UTF8 |
+            ConvertFrom-Json -ErrorAction Stop).processes)
+    } else {
+        @(Get-CimInstance Win32_Process -ErrorAction Stop)
+    }
+    $candidateProcesses = @($allProcesses | Where-Object {
+        [int]$_.ProcessId -ne $PID -and (
+            $_.Name -match '^(node|node\.exe|python|python\.exe|pythonw\.exe|npx|npx\.cmd|uvx|uvx\.exe)$' -or
+            $_.CommandLine -match '(?i)claude|codex|qwen|opencode|gemini|hermes|copilot|antigravity|grok|warp|cline|qoder|cursor|devin|factory|windsurf'
+        )
+    })
     foreach ($process in $candidateProcesses) {
         $commandLine = [string]$process.CommandLine
         $classification = if ($commandLine -match '(?i)playwright-mcp|chrome-devtools-mcp|brave-search-mcp|context7-mcp|firecrawl-mcp|repocontext.+mcp') {
@@ -1318,10 +1395,100 @@ try {
             commandLine = Protect-ProcessCommandLine -CommandLine $commandLine
         })
     }
-    $localMcpWorkers = @($processStates.ToArray() | Where-Object classification -eq 'local-mcp-worker')
-    if ($localMcpWorkers.Count -gt 0) {
+    $processById = @{}
+    foreach ($process in $allProcesses) {
+        $processById[[int]$process.ProcessId] = $process
+    }
+    $mcpPattern = '(?i)playwright-mcp|chrome-devtools-mcp|brave-search-mcp|context7-mcp|firecrawl-mcp|repocontext.+mcp'
+    $mcpProcesses = @($allProcesses | Where-Object {
+        [int]$_.ProcessId -ne $PID -and
+        [string]$_.CommandLine -match $mcpPattern
+    })
+    $rootIds = New-Object System.Collections.Generic.HashSet[int]
+    foreach ($mcpProcess in $mcpProcesses) {
+        $highest = $mcpProcess
+        $ancestorId = [int]$mcpProcess.ParentProcessId
+        while ($processById.ContainsKey($ancestorId)) {
+            $ancestor = $processById[$ancestorId]
+            if ([string]$ancestor.CommandLine -match $mcpPattern) {
+                $highest = $ancestor
+            }
+            $ancestorId = [int]$ancestor.ParentProcessId
+        }
+        [void]$rootIds.Add([int]$highest.ProcessId)
+    }
+    foreach ($rootId in $rootIds) {
+        $root = $processById[$rootId]
+        $descendantIds = New-Object System.Collections.Generic.HashSet[int]
+        [void]$descendantIds.Add($rootId)
+        $changed = $true
+        while ($changed) {
+            $changed = $false
+            foreach ($process in $allProcesses) {
+                if ($descendantIds.Contains([int]$process.ParentProcessId) -and
+                    -not $descendantIds.Contains([int]$process.ProcessId)) {
+                    [void]$descendantIds.Add([int]$process.ProcessId)
+                    $changed = $true
+                }
+            }
+        }
+        $ownerHostId = ''
+        $ancestorId = [int]$root.ParentProcessId
+        while ($processById.ContainsKey($ancestorId)) {
+            $ancestor = $processById[$ancestorId]
+            foreach ($agent in $agents) {
+                $registeredExecutable = [string]$agent.executable
+                if ([string]::IsNullOrWhiteSpace($registeredExecutable)) {
+                    continue
+                }
+                $registeredName = [IO.Path]::GetFileName($registeredExecutable)
+                $actualExecutable = [string](
+                    Get-PropertyValue $ancestor 'ExecutablePath' ''
+                )
+                if (
+                    (-not [string]::IsNullOrWhiteSpace($actualExecutable) -and
+                        (Normalize-FullPath $actualExecutable).Equals(
+                            (Normalize-FullPath $registeredExecutable),
+                            [StringComparison]::OrdinalIgnoreCase
+                        )) -or
+                    ([string]$ancestor.Name).Equals(
+                        $registeredName,
+                        [StringComparison]::OrdinalIgnoreCase
+                    )
+                ) {
+                    $ownerHostId = [string]$agent.id
+                    break
+                }
+            }
+            if ($ownerHostId) { break }
+            $ancestorId = [int]$ancestor.ParentProcessId
+        }
+        $rootCommand = [string]$root.CommandLine
+        $mcpId = switch -Regex ($rootCommand) {
+            'chrome-devtools-mcp' { 'chrome-devtools'; break }
+            'playwright-mcp' { 'playwright'; break }
+            'brave-search-mcp' { 'brave-search'; break }
+            'context7-mcp' { 'context7'; break }
+            'firecrawl-mcp' { 'firecrawl'; break }
+            'repocontext.+mcp' { 'repocontext'; break }
+            default { 'unknown-local-mcp' }
+        }
+        $runtimeTrees.Add([pscustomobject]@{
+            rootProcessId = $rootId
+            ownerHostId = $ownerHostId
+            mcpId = $mcpId
+            processIds = @($descendantIds | Sort-Object)
+            processCount = $descendantIds.Count
+            commandLine = Protect-ProcessCommandLine -CommandLine $rootCommand
+        })
+    }
+    if ($runtimeTrees.Count -gt 0) {
+        $workerCount = [int]((
+            $runtimeTrees.ToArray() |
+                Measure-Object -Property processCount -Sum
+        ).Sum)
         Add-DriftResult WARN 'runtime' 'local-mcp-workers-running' `
-            "$($localMcpWorkers.Count) local MCP-like process(es) are running; ownership must be correlated before remediation"
+            "$($runtimeTrees.Count) logical local MCP runtime tree(s) own $workerCount process(es)"
     } else {
         Add-DriftResult PASS 'runtime' 'local-mcp-workers-running' `
             'no known local MCP worker process is running'
@@ -1355,6 +1522,7 @@ $inventory = [ordered]@{
     mcpConfigurations = @($mcpStates.ToArray())
     worktrees = @($worktreeStates.ToArray())
     processes = @($processStates.ToArray())
+    runtimeTrees = @($runtimeTrees.ToArray())
 }
 $output = [ordered]@{
     schemaVersion = 1

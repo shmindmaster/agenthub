@@ -755,6 +755,127 @@ Describe 'Comprehensive live fleet drift inventory' {
         (@($rows | Where-Object { $_.check -eq 'codex-remote-and-direct-duplicate:notion' }).status) | Should -Be 'WARN'
     }
 
+    It 'groups one local MCP process tree and rejects an unsupported enabled Grok plugin' {
+        $fixtureRoot = Join-Path $TestDrive 'runtime-tree-fixture'
+        $registryRoot = Join-Path $fixtureRoot 'agenthub'
+        $registryDir = Join-Path $registryRoot 'registry'
+        $profile = Join-Path $fixtureRoot 'profile'
+        $appData = Join-Path $profile 'AppData\Roaming'
+        $localAppData = Join-Path $profile 'AppData\Local'
+        $grokRoot = Join-Path $profile '.grok'
+        $pluginRoot = Join-Path $grokRoot 'installed-plugins\chrome-fixture'
+        $executable = (Get-Command powershell.exe -ErrorAction Stop).Source
+
+        Write-FixtureJson -Path (Join-Path $registryDir 'agents.json') -Value @{
+            activeAgents=@(@{
+                id='grok'; name='Grok'; version='fixture'; executable=$executable
+                status='active'
+                nativePaths=@{
+                    config=(Join-Path $grokRoot 'config.toml')
+                    pluginsDir=(Join-Path $grokRoot 'installed-plugins')
+                }
+            })
+            inactiveAgents=@()
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'capabilities.json') -Value @{
+            capabilities=@()
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'mcps.json') -Value @{
+            mcpServers=@(@{ id='chrome-devtools' })
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'native-connectors.json') -Value @{
+            lifecyclePolicy=@{ onDemandLocalMcpIds=@('chrome-devtools') }
+            hosts=@(@{
+                hostId='grok'
+                exposures=@{
+                    'plugin-owned'=@()
+                    'native-connector'=@()
+                    'shared-gateway'=@()
+                    'local-only'=@()
+                }
+            })
+        }
+        New-Item -ItemType Directory -Path $grokRoot -Force | Out-Null
+        @(
+            '[plugins]',
+            'enabled = ["chrome-devtools-mcp"]',
+            'disabled = []'
+        ) | Set-Content -LiteralPath (Join-Path $grokRoot 'config.toml') `
+            -Encoding UTF8
+        Write-FixtureJson -Path (
+            Join-Path $grokRoot 'installed-plugins\registry.json'
+        ) -Value @{
+            repos=@{
+                'chrome-fixture'=@{
+                    path=$pluginRoot
+                    plugins=@{
+                        'chrome-devtools-mcp'=@{ version='fixture' }
+                    }
+                }
+            }
+        }
+        Write-FixtureJson -Path (
+            Join-Path $pluginRoot '.claude-plugin\plugin.json'
+        ) -Value @{
+            name='chrome-devtools-mcp'
+            mcpServers=@{
+                'chrome-devtools'=@{
+                    command='npx'
+                    args=@('chrome-devtools-mcp@1.6.0')
+                }
+            }
+        }
+        $processSnapshot = Join-Path $fixtureRoot 'processes.json'
+        Write-FixtureJson -Path $processSnapshot -Value @{
+            processes=@(
+                @{
+                    ProcessId=50; ParentProcessId=1; Name='powershell.exe'
+                    ExecutablePath=$executable; CommandLine='grok.exe --yolo'
+                },
+                @{
+                    ProcessId=100; ParentProcessId=50; Name='node.exe'
+                    CommandLine='npx chrome-devtools-mcp@1.6.0'
+                },
+                @{
+                    ProcessId=101; ParentProcessId=100; Name='node.exe'
+                    CommandLine='chrome-devtools-mcp.js'
+                },
+                @{
+                    ProcessId=102; ParentProcessId=101; Name='node.exe'
+                    CommandLine='telemetry watchdog --parent-pid=101'
+                }
+            )
+        }
+
+        $report = Join-Path $fixtureRoot 'report.json'
+        $checkerOutput = @(& $powerShell -NoLogo -NoProfile -NonInteractive `
+            -File $checker `
+            -RegistryRoot $registryRoot `
+            -UserProfilePath $profile `
+            -AppDataPath $appData `
+            -LocalAppDataPath $localAppData `
+            -ReposRoot (Join-Path $fixtureRoot 'Repos') `
+            -WorktreeRoot (Join-Path $fixtureRoot 'wt') `
+            -ProcessSnapshotPath $processSnapshot `
+            -SkipRepositoryScan `
+            -ReportPath $report `
+            -Json 2>&1)
+        $LASTEXITCODE | Should -Be 1
+        if (-not (Test-Path -LiteralPath $report -PathType Leaf)) {
+            throw "Checker did not produce its report:`n$($checkerOutput -join [Environment]::NewLine)"
+        }
+        $parsed = Get-Content -LiteralPath $report -Raw -Encoding UTF8 |
+            ConvertFrom-Json
+        @($parsed.inventory.runtimeTrees).Count | Should -Be 1
+        $tree = @($parsed.inventory.runtimeTrees)[0]
+        $tree.rootProcessId | Should -Be 100
+        $tree.ownerHostId | Should -Be 'grok'
+        $tree.mcpId | Should -Be 'chrome-devtools'
+        @($tree.processIds) | Should -Be @(100, 101, 102)
+        @($parsed.results.check) | Should -Contain `
+            'unsupported-enabled-local-plugin:grok:chrome-devtools-mcp:chrome-devtools'
+    }
+
     It 'keeps normal agent runtimes distinct from local MCP workers' {
         $source = Get-Content -LiteralPath $checker -Raw -Encoding UTF8
         $source | Should -Match "'agent-runtime'"

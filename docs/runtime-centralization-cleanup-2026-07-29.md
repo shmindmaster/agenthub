@@ -40,7 +40,7 @@
 | `C:\.codex-plugin`, `C:\registry`, `C:\scripts`, `C:\skills`, `C:\product-demo-studio`, `C:\package.js` | Matching timestamps and fixture-shaped content identify an elevated Pester fixture whose test path escaped to the drive root | Fixture construction and path validation corrected; all removed |
 | `C:\.playwright-mcp` | A Codex/Playwright screenshot operation used `C:\` as its current directory | Removed; canonical `--output-dir` deployed under AgentHub runtime |
 | `C:\cache` | An earlier Pnpm invocation initialized an empty v11 metadata database at 16:42. Windows process-creation telemetry was not retained, so the exact invoking process is an inference rather than an audit fact. | The current Pnpm store and npm cache resolve to `D:\AI-Platform\cache\pnpm` and `D:\AI-Platform\cache\npm`. The recreated root cache was moved intact to `%LOCALAPPDATA%\AgentHub\quarantine\root-cleanup\cache-20260729-164221`; Pnpm, Qwen, and Qoder probes did not recreate it. |
-| `C:\tmp` | Codex Desktop `codex.exe` code-mode host created `/tmp/sessions/<session-id>` because its process inherited `TEMP` and `TMP` but no `TMPDIR` | User `TMPDIR` pinned to `%LOCALAPPDATA%\AgentHub\tmp`; the empty tree was moved intact to `%LOCALAPPDATA%\AgentHub\quarantine\root-cleanup\tmp-20260729-175945` after process-reference and content checks |
+| `C:\tmp` | Codex Desktop's host-owned sandbox runtime creates `/tmp/sessions/<session-id>` as `C:\tmp\sessions`; the original missing-`TMPDIR` attribution was disproved after restart | User and process `TMPDIR` are pinned below `%LOCALAPPDATA%\AgentHub`, but Codex Desktop 26.721.4979 still recreates the root. It remains an explicit platform blocker; see `docs/codex-node-repl-root-temp-blocker-2026-07-30.md`. |
 | `C:\Temp` | Mixed historical use; observed Claude/Cowork tooling and later Codex test output | Required evidence moved to AgentHub reports; root directory removed |
 | `C:\wt` | Historical manual worktree fallback | Retained and promoted to the explicitly approved canonical root |
 
@@ -197,3 +197,22 @@ enforces that path.
 2. Cursor remains retained-disabled under the provider hold. Qoder has no
    verified public global worktree hook, so AgentHub instructions and the
    stable helper remain its reviewed enforcement path.
+
+## 2026-07-30 runtime correction
+
+- Grok's enabled `chrome-devtools-mcp` plugin duplicated a local MCP outside
+  Grok's registered connector contract. It was disabled through
+  `grok plugin disable chrome-devtools-mcp`; the plugin is now recorded only
+  in Grok's disabled list.
+- The already-open Grok process cached the prior enabled state and respawned
+  its traced descendants after they were stopped. The persistent
+  configuration is corrected, but the current Grok session must be restarted
+  before the cached local MCP tree disappears. AgentHub did not terminate the
+  Grok parent or unrelated Node processes.
+- The live fleet scanner now groups launchers, workers, and watchdogs into one
+  logical local-MCP runtime tree, records its owning host, and rejects an
+  enabled plugin whose MCP is absent from that host's connector ownership.
+- `C:\tmp` was recreated despite correct process and user `TMPDIR` values.
+  The supported Codex surfaces expose no Desktop writable-workspace relocation
+  control. This is documented as a platform blocker rather than hidden by an
+  unsafe workaround.
