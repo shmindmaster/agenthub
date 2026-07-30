@@ -554,6 +554,11 @@ if (deterministicOut) {
     framesAndContactSheets: [
       ["asset-completeness", extractedFrames.length > 0 && report.checks.contactSheet?.status === "ok"],
     ],
+    // Evidence that every resolved scene/beat boundary (0s, each --scenes value, and the
+    // near-end timestamp) produced a distinct, non-duplicated representative frame.
+    sceneBoundaries: [
+      ["frame-duplicate", extractedFrames.length === timestamps.length && extractedFrames.length > 0],
+    ],
     frameIntegrity: [
       ["frame-black", materialBlack.length === 0],
       ["frame-frozen", materialFreeze.length === 0],
@@ -572,6 +577,18 @@ if (deterministicOut) {
       ["render-errors", report.checks.decodeIntegrity.status === "ok"],
       ["output-specifications", report.pass],
       ["checksums-provenance", Boolean(report.checks.checksum.sha256)],
+    ],
+    // Evidence from the freeze/duplicate/black-frame measurements above that no motion-pathology
+    // render error (frozen render, exact-duplicate stall, or black-frame dropout) reached mid-content.
+    motionAnalysis: [
+      [
+        "render-errors",
+        report.checks.freezeFrames.status === "ok" &&
+          report.checks.duplicateFrames.status === "ok" &&
+          report.checks.blackFrames.status === "ok" &&
+          materialFreeze.length === 0 &&
+          materialBlack.length === 0,
+      ],
     ],
   };
   for (const [reportType, rawChecks] of Object.entries(reportDefinitions)) {

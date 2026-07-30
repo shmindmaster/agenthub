@@ -752,8 +752,10 @@ function realMediaIntegration() {
     for (const reportType of [
       "mediaMetadata",
       "framesAndContactSheets",
+      "sceneBoundaries",
       "frameIntegrity",
       "audioQuality",
+      "motionAnalysis",
       "technicalDelivery",
     ]) {
       const report = loadJson(join(deterministicDir, `${reportType}.json`));
