@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "deliveryPolicy": {
+    "reviewSubdirectory": "Review",
+    "candidateDirectoryTemplate": "{candidateId}",
+    "classification": "review-only",
+    "immutableCandidateDirectories": true,
+    "overwriteAllowed": false,
+    "publicationPromotionRequiresSignedHumanApproval": true
+  },
+  "products": [
+    {
+      "productId": "gentlenext",
+      "repositoryRoot": "C:/Repos/shmindmaster/gentlenext",
+      "reviewRoot": "D:/OneDrive - MahumTech/Videos/GentleNext"
+    },
+    {
+      "productId": "lawli",
+      "repositoryRoot": "C:/Repos/shmindmaster/lawli",
+      "reviewRoot": "D:/OneDrive - MahumTech/Videos/Lawli"
+    },
+    {
+      "productId": "lexalign",
+      "repositoryRoot": "C:/Repos/shmindmaster/lexalign",
+      "reviewRoot": "D:/OneDrive - MahumTech/Videos/LexAlign"
+    },
+    {
+      "productId": "subops",
+      "repositoryRoot": "C:/Repos/shmindmaster/subops",
+      "reviewRoot": "D:/OneDrive - MahumTech/Videos/SubOps"
+    },
+    {
+      "productId": "warrantygains",
+      "repositoryRoot": "C:/Repos/shmindmaster/warrantygains",
+      "reviewRoot": "D:/OneDrive - MahumTech/Videos/WarrantyGains"
+    },
+    {
+      "productId": "abacare",
+      "repositoryRoot": "C:/Repos/shmindmaster/abacare",
+      "reviewRoot": "D:/OneDrive - MahumTech/Videos/ABACare"
+    },
+    {
+      "productId": "coledger",
+      "repositoryRoot": "C:/Repos/shmindmaster/coledger",
+      "reviewRoot": "D:/OneDrive - MahumTech/Videos/CoLedger"
+    }
+  ]
+}

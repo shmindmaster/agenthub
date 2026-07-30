@@ -492,7 +492,8 @@
         "mcp"
       ],
       "status": "inactive",
-      "notes": "Active path is .codeium/windsurf; legacy .windsurf is plans-only. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "installationExpectation": "not-installed",
+      "notes": "Dormant supported adapter: no Windsurf executable is expected on this machine. Active configuration path is .codeium/windsurf and legacy .windsurf is plans-only. Re-enable installation expectations and run a native smoke test before treating the host as available."
     }
   ]
 }

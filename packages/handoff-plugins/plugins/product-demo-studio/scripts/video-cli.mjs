@@ -6,7 +6,8 @@
 //
 // Verbs: inventory | discover | readiness | storyboard | claims | reset | capture | voice |
 //        render-proxy | frames | preflight | review | validate-review | arbitrate |
-//        validate-decision | validate-assignment | qa | revise | render-candidate | package | all
+//        validate-decision | validate-assignment | qa | revise | render-candidate |
+//        package-review | package | all
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -182,6 +183,10 @@ const VERBS = {
 
   "render-candidate"(repoPath) {
     return runNode("render-videos.mjs", ["--repo", repoPath, ...withoutRepoFlag(rest)]);
+  },
+
+  "package-review"(repoPath) {
+    return runNode("package-review.mjs", ["--repo", repoPath, ...withoutRepoFlag(rest)]);
   },
 
   "render-final"() {
@@ -378,8 +383,12 @@ const VERBS = {
         "  14. arbitrate     dispatch a fresh release arbiter; validate its decision\n" +
         "  15. remediate     if required, use least-privilege assignments and restart at step 9\n" +
         "  16. final-verifier dispatch the mandatory terminal independent reviewer/verifier in a fresh read-only context against the unchanged candidate\n" +
-        "  17. signed-human-evidence record the signed human attestation for those exact approved bytes\n" +
-        `  18. package       node video-cli.mjs package --repo ${repoPath} --out bundle.json ` +
+        `  17. package-review node video-cli.mjs package-review --repo ${repoPath} ` +
+          "--delivery-registry <AgentHub>/registry/product-video-delivery.json " +
+          "--decision <decision.json> --final-verification <final.json> [--artifact <review-file> ...]\n" +
+        "      This creates an immutable review-only package in the product's configured private OneDrive folder.\n" +
+        "  18. signed-human-evidence record the signed human attestation for those exact approved bytes\n" +
+        `  19. package       node video-cli.mjs package --repo ${repoPath} --out bundle.json ` +
           "--decision <decision.json> --final-verification <final.json> " +
           "--release-evidence <release-evidence.json> <approved-file...>\n" +
         "No render or edit is allowed after verification or approval; any change restarts at render-candidate.",

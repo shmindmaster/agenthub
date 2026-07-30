@@ -1,6 +1,13 @@
 {
   "schemaVersion": 1,
-  "preservePendingHashBasis": "SKILL.md-file-sha256",
+  "retiredUnownedHashBasis": "SKILL.md-file-sha256",
+  "retiredUnownedPolicy": {
+    "activeExposureAllowed": false,
+    "preserveExactEvidenceBeforeRemoval": true,
+    "recreationIsDrift": true,
+    "retiredAt": "2026-07-30",
+    "reason": "These prompts referenced unregistered services or conflicting workflow authority. Exact copies were preserved recoverably, then removed from active host skill roots so agents cannot advertise nonfunctional capabilities."
+  },
   "externalOwners": [
     {
       "skillId": "use-railway",
@@ -36,7 +43,7 @@
       ]
     }
   ],
-  "preservePendingEvidence": [
+  "retiredUnownedSkills": [
     {
       "skillId": "issue-to-pr",
       "observedHashes": [
@@ -49,7 +56,7 @@
       ],
       "blockerReason": "Cross-provider GitHub and Linear write authority, account selection, provenance, and synthetic-fixture contracts are not approved.",
       "personalDataBoundary": "Do not use client repositories, issues, trackers, identities, or data as the ownership control plane or fixture.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "analyze-legal-contradictions",
@@ -57,7 +64,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/analyze-legal-contradictions", "${USERPROFILE}/.copilot/skills/analyze-legal-contradictions"],
       "blockerReason": "Legal-service ownership, authentication, provenance, and a synthetic evidence fixture are missing.",
       "personalDataBoundary": "Do not ingest or expose client or personal legal evidence while ownership is unresolved.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "ask-local-knowledge",
@@ -65,7 +72,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/ask-local-knowledge", "${USERPROFILE}/.copilot/skills/ask-local-knowledge"],
       "blockerReason": "Knowledge-service owner, model and authentication contract, and non-client corpus fixture are missing.",
       "personalDataBoundary": "Do not promote indexed user or client documents into AgentHub.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "build-evidence-packet",
@@ -73,7 +80,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/build-evidence-packet", "${USERPROFILE}/.copilot/skills/build-evidence-packet"],
       "blockerReason": "Evidence-export authorization, retention, provenance, and synthetic export fixtures are missing.",
       "personalDataBoundary": "Do not copy private evidence or regulated data into AgentHub.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "build-legal-timeline",
@@ -81,7 +88,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/build-legal-timeline", "${USERPROFILE}/.copilot/skills/build-legal-timeline"],
       "blockerReason": "Legal search and citation service ownership, provenance, and synthetic fixtures are missing.",
       "personalDataBoundary": "Do not use private legal records as capability fixtures.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "check-knowledge-health",
@@ -89,7 +96,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/check-knowledge-health", "${USERPROFILE}/.copilot/skills/check-knowledge-health"],
       "blockerReason": "Canonical knowledge-service package and synthetic status contract are missing.",
       "personalDataBoundary": "Do not expose user corpus locations, indexes, or content.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "code-legal-issues",
@@ -97,7 +104,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/code-legal-issues", "${USERPROFILE}/.copilot/skills/code-legal-issues"],
       "blockerReason": "Legal-classification model ownership and review-state semantics are missing.",
       "personalDataBoundary": "Do not classify client matters through an unowned personal capability.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "export-knowledge-results",
@@ -105,7 +112,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/export-knowledge-results", "${USERPROFILE}/.copilot/skills/export-knowledge-results"],
       "blockerReason": "Knowledge-export authority, output handling, and synthetic fixtures are missing.",
       "personalDataBoundary": "Do not export personal or client corpus results while ownership is unresolved.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "ingest-legal-evidence",
@@ -113,7 +120,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/ingest-legal-evidence", "${USERPROFILE}/.copilot/skills/ingest-legal-evidence"],
       "blockerReason": "Legal intake authority, evidence retention, and service ownership are missing.",
       "personalDataBoundary": "Do not ingest original legal evidence into AgentHub or synthetic tests.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "operate-qdrant-index",
@@ -121,7 +128,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/operate-qdrant-index", "${USERPROFILE}/.copilot/skills/operate-qdrant-index"],
       "blockerReason": "Index maintenance ownership, collection isolation, and a non-production fixture are missing.",
       "personalDataBoundary": "Do not operate personal or client vector indexes through an unowned capability.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "promote-reusable-knowledge",
@@ -129,7 +136,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/promote-reusable-knowledge", "${USERPROFILE}/.copilot/skills/promote-reusable-knowledge"],
       "blockerReason": "Knowledge lifecycle policy, mutation authority, and a synthetic corpus fixture are missing.",
       "personalDataBoundary": "Do not promote client or personal documents into shared capability data.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "refresh-knowledge-corpus",
@@ -137,7 +144,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/refresh-knowledge-corpus", "${USERPROFILE}/.copilot/skills/refresh-knowledge-corpus"],
       "blockerReason": "Corpus refresh ownership, job semantics, and a synthetic fixture are missing.",
       "personalDataBoundary": "Do not refresh client or personal corpora through AgentHub tests.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "research-external-courts",
@@ -145,7 +152,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/research-external-courts", "${USERPROFILE}/.copilot/skills/research-external-courts"],
       "blockerReason": "CourtListener, Midpage, and Trellis connector ownership and authentication are unresolved.",
       "personalDataBoundary": "Do not combine private matter facts with external research connectors in fixtures.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "research-legal-authority",
@@ -153,7 +160,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/research-legal-authority", "${USERPROFILE}/.copilot/skills/research-legal-authority"],
       "blockerReason": "External legal research ownership, provenance, and authentication are unresolved.",
       "personalDataBoundary": "Do not use client matter data as an external-authority research fixture.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "review-knowledge-duplicates",
@@ -161,7 +168,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/review-knowledge-duplicates", "${USERPROFILE}/.copilot/skills/review-knowledge-duplicates"],
       "blockerReason": "Corpus canonicalization ownership and a synthetic duplicate queue are missing.",
       "personalDataBoundary": "Do not mutate personal or client corpus dispositions through AgentHub tests.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "review-legal-communications",
@@ -169,7 +176,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/review-legal-communications", "${USERPROFILE}/.copilot/skills/review-legal-communications"],
       "blockerReason": "Legal communication service ownership and evidence provenance are unresolved.",
       "personalDataBoundary": "Do not expose private communications or attachments.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "search-legal-evidence",
@@ -177,7 +184,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/search-legal-evidence", "${USERPROFILE}/.copilot/skills/search-legal-evidence"],
       "blockerReason": "Legal search service ownership, authentication, and synthetic corpus contracts are missing.",
       "personalDataBoundary": "Do not expose private evidence records or indexes.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "search-local-knowledge",
@@ -185,7 +192,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/search-local-knowledge", "${USERPROFILE}/.copilot/skills/search-local-knowledge"],
       "blockerReason": "Knowledge search service ownership and a non-client corpus fixture are missing.",
       "personalDataBoundary": "Do not expose local document metadata or content.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     },
     {
       "skillId": "verify-legal-citations",
@@ -193,7 +200,7 @@
       "paths": ["${USERPROFILE}/.agents/skills/verify-legal-citations", "${USERPROFILE}/.copilot/skills/verify-legal-citations"],
       "blockerReason": "External citation research ownership, provenance, and authentication are unresolved.",
       "personalDataBoundary": "Do not combine private legal facts with unowned external connectors.",
-      "status": "preserve-pending-evidence"
+      "status": "retired-unowned-evidence"
     }
   ]
 }

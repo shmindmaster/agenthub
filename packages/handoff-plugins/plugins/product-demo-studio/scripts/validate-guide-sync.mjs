@@ -25,8 +25,8 @@ const manifests = [
   JSON.parse(await readFile(new URL(".devin-plugin/plugin.json", root), "utf8")),
   JSON.parse(await readFile(new URL(".qoder-plugin/plugin.json", root), "utf8"))
 ];
-if (manifests.some(manifest => manifest.version !== "1.1.2")) {
-  failures.push("All host-native plugin manifests must be version 1.1.2.");
+if (manifests.some(manifest => manifest.version !== "1.2.0")) {
+  failures.push("All host-native plugin manifests must be version 1.2.0.");
 }
 const visualSkill = await readFile(new URL("skills/product-demo-studio-visual-assets/SKILL.md", root), "utf8");
 if (!visualSkill.includes("name: product-demo-studio-visual-assets")) {

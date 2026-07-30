@@ -431,7 +431,7 @@ Describe 'Comprehensive live fleet drift inventory' {
             Should -Not -Contain 'canonical-skill-content-drift:qoder:framer-code-components'
     }
 
-    It 'classifies vendor-owned and preserve-pending skills without treating them as unowned' {
+    It 'classifies vendor-owned and retired unowned skills without treating them as unowned' {
         $fixtureRoot = Join-Path $TestDrive 'external-skill-drift-fixture'
         $registryRoot = Join-Path $fixtureRoot 'agenthub'
         $registryDir = Join-Path $registryRoot 'registry'
@@ -503,11 +503,15 @@ Describe 'Comprehensive live fleet drift inventory' {
                     path='${USERPROFILE}/.codex/skills/use-railway'
                 })
             })
-            preservePendingEvidence=@(@{
+            retiredUnownedSkills=@(@{
                 skillId='issue-to-pr'
                 observedHashes=@($pendingHash)
+                paths=@(
+                    '${USERPROFILE}/.codex/skills/issue-to-pr',
+                    '${USERPROFILE}/.claude/skills/issue-to-pr'
+                )
                 blockerReason='fixture ownership is unresolved'
-                status='preserve-pending-evidence'
+                status='retired-unowned-evidence'
             })
         }
         Write-FixtureJson -Path (Join-Path $profile '.claude.json') -Value @{
@@ -538,15 +542,11 @@ Describe 'Comprehensive live fleet drift inventory' {
             $_.check -eq 'external-skill-current:codex:use-railway' -and
             $_.status -eq 'PASS'
         }).Count | Should -Be 1
-        @($parsed.results | Where-Object {
-            $_.check -eq 'preserve-pending-evidence:codex:issue-to-pr' -and
-            $_.status -eq 'WARN'
-        }).Count | Should -Be 1
-        $divergentPending = @($parsed.results | Where-Object {
-            $_.check -eq 'preserve-pending-evidence:claude:issue-to-pr'
+        $retiredActive = @($parsed.results | Where-Object {
+            $_.check -eq 'retired-unowned-skill-active:issue-to-pr'
         })
-        $divergentPending.status | Should -Be 'FAIL'
-        $divergentPending.detail | Should -Match 'preserve-pending-evidence'
+        $retiredActive.status | Should -Be 'FAIL'
+        $retiredActive.detail | Should -Match 'diverge from preserved evidence'
         @($parsed.results.check) |
             Should -Contain 'duplicate-skill-exposure:codex:use-railway'
         @($parsed.results.check | Where-Object {
@@ -762,6 +762,7 @@ Describe 'Comprehensive live fleet drift inventory' {
         $localAppData = Join-Path $profile 'AppData\Local'
         $grokRoot = Join-Path $profile '.grok'
         $pluginRoot = Join-Path $grokRoot 'installed-plugins\chrome-fixture'
+        $canonicalProductDemo = Join-Path $registryRoot 'packages\product-demo-studio'
         $executable = (Get-Command powershell.exe -ErrorAction Stop).Source
 
         Write-FixtureJson -Path (Join-Path $registryDir 'agents.json') -Value @{
@@ -776,8 +777,15 @@ Describe 'Comprehensive live fleet drift inventory' {
             inactiveAgents=@()
         }
         Write-FixtureJson -Path (Join-Path $registryDir 'capabilities.json') -Value @{
-            capabilities=@()
+            capabilities=@(@{
+                id='product-demo-studio'
+                canonicalSource=$canonicalProductDemo
+                hostMappings=@()
+            })
         }
+        Write-FixtureJson -Path (
+            Join-Path $canonicalProductDemo '.claude-plugin\plugin.json'
+        ) -Value @{ name='product-demo-studio'; version='2.0.0' }
         Write-FixtureJson -Path (Join-Path $registryDir 'mcps.json') -Value @{
             mcpServers=@(@{ id='chrome-devtools' })
         }
@@ -792,6 +800,22 @@ Describe 'Comprehensive live fleet drift inventory' {
                     'local-only'=@()
                 }
             })
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'runtime-policy.json') -Value @{
+            schemaVersion=1
+            sessionFreshness=@{
+                versionedCapabilities=@(@{
+                    capabilityId='product-demo-studio'
+                    manifestPaths=@('.claude-plugin/plugin.json')
+                })
+            }
+            resourceBudgets=@(@{
+                id='claude-runtime'
+                commandLinePattern='(?i)claude'
+                warningWorkingSetMb=1
+                warningProcessCount=10
+            })
+            enforcement=@{ autoTerminate=$false }
         }
         New-Item -ItemType Directory -Path $grokRoot -Force | Out-Null
         @(
@@ -841,6 +865,14 @@ Describe 'Comprehensive live fleet drift inventory' {
                 @{
                     ProcessId=102; ParentProcessId=101; Name='node.exe'
                     CommandLine='telemetry watchdog --parent-pid=101'
+                },
+                @{
+                    ProcessId=200; ParentProcessId=1; Name='node.exe'
+                    WorkingSetSize=4194304
+                    CommandLine=(
+                        Join-Path $profile `
+                            '.claude\plugins\cache\handoff\product-demo-studio\1.9.0\skills'
+                    )
                 }
             )
         }
@@ -872,6 +904,14 @@ Describe 'Comprehensive live fleet drift inventory' {
         @($tree.processIds) | Should -Be @(100, 101, 102)
         @($parsed.results.check) | Should -Contain `
             'unsupported-enabled-local-plugin:grok:chrome-devtools-mcp:chrome-devtools'
+        @($parsed.results | Where-Object {
+            $_.check -eq 'stale-loaded-capability:claude:product-demo-studio:200' -and
+            $_.status -eq 'WARN'
+        }).Count | Should -Be 1
+        @($parsed.results | Where-Object {
+            $_.check -eq 'resource-budget:claude-runtime' -and
+            $_.status -eq 'WARN'
+        }).Count | Should -Be 1
     }
 
     It 'keeps normal agent runtimes distinct from local MCP workers' {

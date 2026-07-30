@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "capabilityId": "product-demo-studio",
+  "mode": "on-demand",
+  "persistentProcessAllowed": false,
+  "maxConcurrentIndependentRoles": 4,
+  "roles": [
+    "story-experience-reviewer",
+    "screen-accuracy-compliance-reviewer",
+    "audio-captions-sync-reviewer",
+    "technical-frame-integrity-reviewer",
+    "release-arbiter",
+    "final-verifier"
+  ],
+  "trust": {
+    "registryEnvironmentVariable": "AGENTHUB_EXECUTION_HOST_TRUST_CONFIG",
+    "signerOwnership": "operator-or-host-only",
+    "agentsMayAuthorReceipts": false,
+    "agentsMaySignReceipts": false,
+    "privateKeyMaterialAllowedInAgentHub": false,
+    "privateKeyMaterialAllowedInAgentEnvironment": false,
+    "missingTrustDecision": "PIPELINE_BLOCKED"
+  },
+  "execution": {
+    "spawnOnlyWhenRoleIsDispatched": true,
+    "terminateAfterReceiptIsEmitted": true,
+    "sharedDaemonRequired": false,
+    "receiptSchema": "packages/handoff-plugins/plugins/product-demo-studio/schemas/execution-receipt.schema.json",
+    "trustSchema": "packages/handoff-plugins/plugins/product-demo-studio/schemas/execution-host-trust.schema.json",
+    "validator": "packages/handoff-plugins/plugins/product-demo-studio/scripts/validate-execution-receipt.mjs"
+  },
+  "activation": {
+    "status": "blocked-operator-trust-required",
+    "reason": "No operator-owned host trust registry is configured. AgentHub intentionally does not create, store, or grant agents access to the signing private key."
+  }
+}

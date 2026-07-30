@@ -41,11 +41,13 @@ must not copy into a repository-owned capability:
   verified 1.3.6 tree, distributes it only from a matching local vendor tree,
   rejects unknown divergence, and removes the shared `.agents` shadow only
   after every explicit host target verifies.
-- `issue-to-pr` and the legal/knowledge skills remain
-  `preserve-pending-evidence`. Exact observed copies are warnings, divergent
-  copies are failures, and neither state authorizes promotion into AgentHub.
-  Their provider, authentication, provenance, data-boundary, and synthetic
-  fixture contracts must be approved first.
+- `issue-to-pr` and the legal/knowledge skills are
+  `retired-unowned-evidence`. Their prompts referenced unavailable services or
+  conflicting workflow authority, so exact trees were preserved recoverably
+  outside active skill roots and all live exposures were removed. Recreation
+  is a fleet failure. Their provider, authentication, provenance,
+  data-boundary, and synthetic fixture contracts must be approved before any
+  future canonical replacement is activated.
 
 These classifications replace ambiguous `unowned-*` results; they do not
 suppress duplicate exposure or content-drift findings.

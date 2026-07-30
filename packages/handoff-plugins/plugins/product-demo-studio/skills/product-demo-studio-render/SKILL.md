@@ -248,41 +248,36 @@ their source script**; storyboards and timing maps; the demo truth sheets; the c
 capture and render manifests; QA reports and extracted frames; and checksums.
 
 The **package manifest** records: a synthetic-data disclosure; the voice + model profile used; the
-source and deployment commits; the QA status; and the human-approval status. Publish masters and
-the full package to the repo's (or portfolio's) designated video folder for the product. **Remove a
-stale, superseded master only after the new release package is confirmed complete and valid** —
-never delete the old one first.
+source and deployment commits; the QA status; and the human-approval status.
 
-## The evidence gate — required before external use, not before internal iteration
+After arbiter and mandatory final-verifier `PASS`, use `video-cli.mjs package-review` with the
+AgentHub `registry/product-video-delivery.json` mapping. It copies the exact final candidate and
+selected review artifacts into an immutable private `Review/<candidateId>` directory under the
+product's designated OneDrive folder. That package is `review-only`, pending human review, and
+explicitly not publication-approved. It never overwrites an existing candidate.
 
-A render is not "approved" just because it renders without error and passes technical QA. Before
-it may be copied into a final video/marketing folder, handed to `product-demo-studio-descript`, or
-uploaded anywhere external, run:
+Promote masters into the product folder root or another final/publication location only after the
+signed human evidence gate passes. **Remove a stale, superseded master only after the new release
+package is confirmed complete and valid** — never delete the old one first.
+
+## The evidence gate — required before publication use, not before internal iteration or private review
+
+A render is not "approved" just because it renders without error, passes technical QA, or is copied
+into its immutable private review package. Before it may be promoted into a final video/marketing
+folder, handed to `product-demo-studio-descript`, or uploaded anywhere external, run:
 
 ```bash
 node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/check-evidence-gate.mjs" --manifest <path-to-manifest.json>
 ```
 
-The manifest (schema and example shipped alongside the script) requires:
+The release-evidence manifest binds the candidate, arbiter decision, mandatory final verification,
+approval receipt, and raw detached Ed25519 signature. The receipt binds the named human reviewer,
+completed watch-through, synthetic-data confirmation, classification, and redaction decision to
+those exact bytes. `AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY` selects the trusted public key.
+Missing, malformed, unknown, mismatched, non-Ed25519, or invalid evidence fails closed.
 
-| Field | Required | Notes |
-|---|---|---|
-| `assetPath` | yes | path to the rendered file or capture being attested |
-| `classification` | yes | `approved \| needs-redaction \| rejected` — **a human judgment call, never auto-filled** |
-| `reviewedBy` | yes | a real person's name/handle — the script refuses a manifest without one |
-| `reviewedAt` | yes | ISO date |
-| `syntheticDataConfirmed` | yes | boolean — reviewer confirms no real customer/patient/financial data appears |
-| `watchThroughStatus` | for `approved` | `completed` only after a named human watched the master start-to-finish (captions on, then off, at delivery size). Never auto-filled. |
-| `redactionNotes` | no | what was redacted or why it's clean |
-
-The script also runs a **best-effort, warning-only** regex scan for emails, phone/SSN-like
-patterns, `$`-figures, and common secret/token shapes in the asset's accompanying text — a
-first-pass assist, not a substitute for the human review fields, and it cannot itself set
-`classification: approved`.
-
-Never write `classification: approved` on the user's behalf. If asked to "approve" a render, either
-ask the actual reviewer to attest it, or explicitly flag that you are not the appropriate reviewer
-for this gate.
+Never author, sign, or mark an approval receipt on the user's behalf. If asked to approve a render,
+ask the actual reviewer/operator to attest it or state that publication remains blocked.
 
 ## Optional: publishing an approved master externally
 

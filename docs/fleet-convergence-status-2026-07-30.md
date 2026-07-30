@@ -23,7 +23,7 @@ host.
   `capabilities/portfolio-engineering-ops`
 - Framer:
   `capabilities/framer`
-- External skill ownership and preserve-pending evidence:
+- External skill ownership and retired-unowned evidence:
   `registry/skill-ownership.json`
 - Fleet deployment and live drift detection:
   `scripts/Apply-FullAccessAgentProfile.ps1`,
@@ -102,10 +102,16 @@ Live counts: 81 pass, 77 warn, 0 fail.
    Earlier sessions proved that Codex Desktop can recreate it despite supported environment
    controls, and the app still has no verified writable-workspace temp-root setting. Evidence and
    the required vendor-side control are in `docs/codex-node-repl-root-temp-blocker-2026-07-30.md`.
-2. **Preserve-pending skills — 76 WARN exposures.** Nineteen unique legal/knowledge skill
-   contracts are byte-verified and deliberately preserved on four hosts. Promotion or deletion
-   is blocked until service ownership, authentication, provenance, and synthetic fixtures exist.
-3. **Retained inactive host — 1 WARN.** Windsurf is retained without a discovered executable.
+2. **Retired unowned skills — resolved.** Nineteen unique legal/knowledge/issue workflow skills
+   referenced unavailable services or conflicting authority. Thirty-eight exact source trees were
+   preserved recoverably under
+   `C:\Users\SaroshHussain\AppData\Local\AgentHub\quarantine\retired-unowned-skills\20260730-125557`
+   and removed from active host roots.
+   Recreation is now a fleet failure; future replacement requires an owned service, authentication,
+   provenance, and synthetic fixtures.
+3. **Dormant supported host — no drift.** Windsurf remains supported by a retained adapter, but
+   its executable is intentionally not installed or expected on this machine. Re-enabling it
+   requires a native install and smoke test.
    Its on-disk configuration is reconciled, but it cannot be runtime-smoked on this installation.
 4. **Live agent execution parity.** Source, deployment, permission, and static parity are
    verified. Cross-host prompt execution is not claimed: Cursor is held, inactive hosts cannot be

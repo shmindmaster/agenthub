@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.1.2",
+  "capabilityVersion": "1.2.0",
   "hostInventorySource": "registry/capabilities.json#product-demo-studio.hostMappings",
   "equivalentContract": {
     "canonicalPolicy": "policy/product-video-policy.json",
@@ -12,6 +12,8 @@
     "executionReceiptSchema": "schemas/execution-receipt.schema.json",
     "executionHostTrustSchema": "schemas/execution-host-trust.schema.json",
     "releaseEvidenceSchema": "schemas/release-evidence.schema.json",
+    "reviewDeliverySchema": "schemas/review-delivery.schema.json",
+    "interactiveDeepDiveSchema": "schemas/interactive-deep-dive.schema.json",
     "unsupportedIsolationDecision": "PIPELINE_BLOCKED"
   },
   "conditionallyEligibleReviewHosts": [

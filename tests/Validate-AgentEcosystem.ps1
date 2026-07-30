@@ -75,6 +75,9 @@ $requiredFiles = @(
     'registry\mcps.json',
     'registry\native-connectors.json',
     'registry\skill-ownership.json',
+    'registry\runtime-policy.json',
+    'registry\reviewer-execution-broker.json',
+    'registry\product-video-delivery.json',
     'registry\gateway-profiles.json',
     'registry\automation-gates.json',
     'registry\worktree-roots.json',
@@ -205,9 +208,9 @@ if ($registryObjects.ContainsKey('hosts.json')) {
 if ($registryObjects.ContainsKey('skill-ownership.json')) {
     $ownershipRegistry = $registryObjects['skill-ownership.json']
     $externalOwners = @($ownershipRegistry.externalOwners)
-    $pendingOwners = @($ownershipRegistry.preservePendingEvidence)
+    $retiredOwners = @($ownershipRegistry.retiredUnownedSkills)
     $ownershipProblems = New-Object System.Collections.Generic.List[string]
-    $allSkillIds = @($externalOwners.skillId) + @($pendingOwners.skillId)
+    $allSkillIds = @($externalOwners.skillId) + @($retiredOwners.skillId)
     $duplicateSkillIds = @(Get-DuplicateValues $allSkillIds)
     if ($duplicateSkillIds.Count -gt 0) {
         $ownershipProblems.Add(
@@ -302,25 +305,25 @@ if ($registryObjects.ContainsKey('skill-ownership.json')) {
         }
     }
 
-    foreach ($pendingOwner in $pendingOwners) {
-        if ([string]::IsNullOrWhiteSpace([string]$pendingOwner.blockerReason)) {
+    foreach ($retiredOwner in $retiredOwners) {
+        if ([string]::IsNullOrWhiteSpace([string]$retiredOwner.blockerReason)) {
             $ownershipProblems.Add(
-                "pending skill $($pendingOwner.skillId) has no blocker reason"
+                "retired unowned skill $($retiredOwner.skillId) has no blocker reason"
             )
         }
-        foreach ($hash in @($pendingOwner.observedHashes)) {
+        foreach ($hash in @($retiredOwner.observedHashes)) {
             if ([string]$hash -notmatch '^[A-Fa-f0-9]{64}$') {
                 $ownershipProblems.Add(
-                    "malformed hash for pending skill $($pendingOwner.skillId)"
+                    "malformed hash for retired skill $($retiredOwner.skillId)"
                 )
             }
         }
-        foreach ($template in @($pendingOwner.paths)) {
+        foreach ($template in @($retiredOwner.paths)) {
             try {
                 [void](Expand-ValidatedSkillOwnershipPath -Template ([string]$template))
             } catch {
                 $ownershipProblems.Add(
-                    "$($pendingOwner.skillId): $($_.Exception.Message)"
+                    "$($retiredOwner.skillId): $($_.Exception.Message)"
                 )
             }
         }
@@ -328,10 +331,81 @@ if ($registryObjects.ContainsKey('skill-ownership.json')) {
 
     if ($ownershipProblems.Count -eq 0) {
         Add-ValidationResult PASS 'registry:skill-ownership' `
-            "$($externalOwners.Count) external and $($pendingOwners.Count) preserve-pending skill contracts are valid"
+            "$($externalOwners.Count) external and $($retiredOwners.Count) retired-unowned skill contracts are valid"
     } else {
         Add-ValidationResult FAIL 'registry:skill-ownership' `
             (($ownershipProblems | Sort-Object -Unique) -join '; ')
+    }
+}
+
+if ($registryObjects.ContainsKey('runtime-policy.json')) {
+    $runtimePolicy = $registryObjects['runtime-policy.json']
+    $budgetIds = @($runtimePolicy.resourceBudgets.id)
+    $budgetDuplicates = @(Get-DuplicateValues $budgetIds)
+    if ($runtimePolicy.schemaVersion -eq 1 -and
+        $runtimePolicy.enforcement.autoTerminate -eq $false -and
+        @($runtimePolicy.sessionFreshness.versionedCapabilities).Count -gt 0 -and
+        $budgetIds.Count -gt 0 -and
+        $budgetDuplicates.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:runtime-policy' `
+            "$($budgetIds.Count) unique advisory resource budgets; auto-termination disabled"
+    } else {
+        Add-ValidationResult FAIL 'registry:runtime-policy' `
+            'runtime policy must define versioned session freshness and unique advisory budgets without auto-termination'
+    }
+}
+
+if ($registryObjects.ContainsKey('reviewer-execution-broker.json')) {
+    $broker = $registryObjects['reviewer-execution-broker.json']
+    if ($broker.schemaVersion -eq 1 -and
+        $broker.mode -eq 'on-demand' -and
+        $broker.persistentProcessAllowed -eq $false -and
+        $broker.trust.registryEnvironmentVariable -eq 'AGENTHUB_EXECUTION_HOST_TRUST_CONFIG' -and
+        $broker.trust.agentsMayAuthorReceipts -eq $false -and
+        $broker.trust.agentsMaySignReceipts -eq $false -and
+        $broker.trust.privateKeyMaterialAllowedInAgentHub -eq $false -and
+        $broker.trust.privateKeyMaterialAllowedInAgentEnvironment -eq $false -and
+        $broker.trust.missingTrustDecision -eq 'PIPELINE_BLOCKED' -and
+        $broker.execution.spawnOnlyWhenRoleIsDispatched -eq $true -and
+        $broker.execution.terminateAfterReceiptIsEmitted -eq $true -and
+        $broker.execution.sharedDaemonRequired -eq $false) {
+        Add-ValidationResult PASS 'registry:reviewer-execution-broker' `
+            'on-demand, fail-closed, operator-owned signing contract is valid'
+    } else {
+        Add-ValidationResult FAIL 'registry:reviewer-execution-broker' `
+            'broker must be on-demand and prohibit resident daemons, agent-authored receipts, and agent-readable signing keys'
+    }
+}
+
+if ($registryObjects.ContainsKey('product-video-delivery.json')) {
+    $delivery = $registryObjects['product-video-delivery.json']
+    $products = @($delivery.products)
+    $deliveryProblems = New-Object System.Collections.Generic.List[string]
+    foreach ($duplicate in @(Get-DuplicateValues @($products.productId))) {
+        $deliveryProblems.Add("duplicate productId $duplicate")
+    }
+    foreach ($duplicate in @(Get-DuplicateValues @($products.repositoryRoot))) {
+        $deliveryProblems.Add("duplicate repositoryRoot $duplicate")
+    }
+    foreach ($product in $products) {
+        if ([string]::IsNullOrWhiteSpace([string]$product.productId) -or
+            -not [IO.Path]::IsPathRooted(([string]$product.repositoryRoot).Replace('/', '\')) -or
+            -not [IO.Path]::IsPathRooted(([string]$product.reviewRoot).Replace('/', '\'))) {
+            $deliveryProblems.Add("invalid mapping for $($product.productId)")
+        }
+    }
+    if ($delivery.deliveryPolicy.classification -ne 'review-only' -or
+        $delivery.deliveryPolicy.immutableCandidateDirectories -ne $true -or
+        $delivery.deliveryPolicy.overwriteAllowed -ne $false -or
+        $delivery.deliveryPolicy.publicationPromotionRequiresSignedHumanApproval -ne $true) {
+        $deliveryProblems.Add('delivery policy does not separate immutable private review from publication')
+    }
+    if ($deliveryProblems.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:product-video-delivery' `
+            "$($products.Count) private review destinations are uniquely mapped"
+    } else {
+        Add-ValidationResult FAIL 'registry:product-video-delivery' `
+            (($deliveryProblems | Sort-Object -Unique) -join '; ')
     }
 }
 

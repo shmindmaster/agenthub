@@ -59,6 +59,9 @@ $pluginStates = New-Object System.Collections.Generic.List[object]
 $worktreeStates = New-Object System.Collections.Generic.List[object]
 $processStates = New-Object System.Collections.Generic.List[object]
 $runtimeTrees = New-Object System.Collections.Generic.List[object]
+$runtimeResourceGroups = New-Object System.Collections.Generic.List[object]
+$runtimeSessionStates = New-Object System.Collections.Generic.List[object]
+$reviewerBrokerState = $null
 
 function Add-DriftResult {
     param(
@@ -544,6 +547,8 @@ $capabilitiesPath = Join-Path $RegistryRoot 'registry\capabilities.json'
 $mcpsPath = Join-Path $RegistryRoot 'registry\mcps.json'
 $connectorsPath = Join-Path $RegistryRoot 'registry\native-connectors.json'
 $skillOwnershipPath = Join-Path $RegistryRoot 'registry\skill-ownership.json'
+$runtimePolicyPath = Join-Path $RegistryRoot 'registry\runtime-policy.json'
+$reviewerBrokerPath = Join-Path $RegistryRoot 'registry\reviewer-execution-broker.json'
 foreach ($requiredPath in @($agentsPath, $capabilitiesPath, $mcpsPath, $connectorsPath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required registry is missing: $requiredPath"
@@ -555,6 +560,8 @@ $capabilityRegistry = Read-JsonFile -Path $capabilitiesPath
 $mcpRegistry = Read-JsonFile -Path $mcpsPath
 $connectorRegistry = Read-JsonFile -Path $connectorsPath
 $skillOwnershipRegistry = Read-JsonFile -Path $skillOwnershipPath
+$runtimePolicy = Read-JsonFile -Path $runtimePolicyPath
+$reviewerBroker = Read-JsonFile -Path $reviewerBrokerPath
 $agents = @($agentRegistry.activeAgents) + @($agentRegistry.inactiveAgents)
 $agentById = @{}
 foreach ($agent in $agents) { $agentById[[string]$agent.id] = $agent }
@@ -631,6 +638,10 @@ foreach ($agent in $agents) {
         Add-DriftResult PASS 'installation' "agent-executable:$agentId" $resolvedExecutable $agentId @($resolvedExecutable)
     } elseif ([string]$agent.status -eq 'active') {
         Add-DriftResult FAIL 'installation' "agent-executable:$agentId" 'active agent executable is missing' $agentId @($executable)
+    } elseif ([string](Get-PropertyValue $agent 'installationExpectation' '') -eq 'not-installed') {
+        Add-DriftResult PASS 'installation' "agent-executable:$agentId" `
+            'dormant supported adapter is intentionally not installed on this machine' `
+            $agentId
     } else {
         Add-DriftResult WARN 'installation' "agent-executable:$agentId" 'inactive or retained agent executable is not resolved' $agentId @($executable)
     }
@@ -933,7 +944,7 @@ foreach ($record in @($canonicalSkillRecords.ToArray())) {
 }
 
 $externallyOwnedSkillIds = @()
-$pendingSkillIds = @()
+$retiredUnownedSkillIds = @()
 if ($null -ne $skillOwnershipRegistry) {
     foreach ($externalOwner in @($skillOwnershipRegistry.externalOwners)) {
         $skillId = [string]$externalOwner.skillId
@@ -970,28 +981,37 @@ if ($null -ne $skillOwnershipRegistry) {
         }
     }
 
-    foreach ($pending in @($skillOwnershipRegistry.preservePendingEvidence)) {
-        $skillId = [string]$pending.skillId
-        $pendingSkillIds += $skillId
-        $observedHashes = @($pending.observedHashes | ForEach-Object {
+    foreach ($retired in @($skillOwnershipRegistry.retiredUnownedSkills)) {
+        $skillId = [string]$retired.skillId
+        $retiredUnownedSkillIds += $skillId
+        $observedHashes = @($retired.observedHashes | ForEach-Object {
             ([string]$_).ToUpperInvariant()
         })
-        foreach ($record in @($skillRecords.ToArray() | Where-Object {
-            $_.skillId -eq $skillId
-        })) {
-            $status = if ([string]$record.fileHash -in $observedHashes) {
-                'WARN'
-            } else {
-                'FAIL'
+        $activePaths = New-Object System.Collections.Generic.List[string]
+        $divergentPaths = New-Object System.Collections.Generic.List[string]
+        foreach ($template in @($retired.paths)) {
+            $targetPath = Expand-SkillOwnershipPath -Template ([string]$template)
+            $skillPath = Join-Path $targetPath 'SKILL.md'
+            if (-not (Test-Path -LiteralPath $skillPath -PathType Leaf)) {
+                continue
             }
-            $detail = if ($status -eq 'WARN') {
-                "preserve-pending-evidence: exact observed copy retained while ownership is blocked; $($pending.blockerReason)"
-            } else {
-                "preserve-pending-evidence: deployed content diverges from every preserved evidence hash; $($pending.blockerReason)"
+            $activePaths.Add($skillPath)
+            $actualHash = (Get-FileHash -LiteralPath $skillPath -Algorithm SHA256).Hash
+            if ($actualHash -notin $observedHashes) {
+                $divergentPaths.Add($skillPath)
             }
-            Add-DriftResult $status 'skill' `
-                "preserve-pending-evidence:$($record.hostId):${skillId}" `
-                $detail $record.hostId @($record.path)
+        }
+        if ($activePaths.Count -eq 0) {
+            Add-DriftResult PASS 'skill' "retired-unowned-skill-absent:${skillId}" `
+                "retired skill is not exposed from any recorded host path; $($retired.blockerReason)"
+        } else {
+            $detail = if ($divergentPaths.Count -gt 0) {
+                "$($activePaths.Count) retired active copy/copies remain and $($divergentPaths.Count) diverge from preserved evidence; recreation or mutation is prohibited"
+            } else {
+                "$($activePaths.Count) exact retired active copy/copies remain; preserve evidence outside active skill roots, then remove them"
+            }
+            Add-DriftResult FAIL 'skill' "retired-unowned-skill-active:${skillId}" `
+                $detail '' @($activePaths.ToArray())
         }
     }
 }
@@ -1115,6 +1135,71 @@ if ($productDemoCapability.Count -eq 1) {
     }
 }
 
+# Independent review is release-eligible only when a host/operator-owned
+# execution broker can emit signed receipts. The broker is on-demand and must
+# never become another resident Node/Python daemon or expose a signing key to
+# an agent process.
+if ($null -ne $reviewerBroker) {
+    $trust = Get-PropertyValue $reviewerBroker 'trust' $null
+    $execution = Get-PropertyValue $reviewerBroker 'execution' $null
+    $trustVariable = [string](
+        Get-PropertyValue $trust 'registryEnvironmentVariable' ''
+    )
+    $contractValid =
+        [string]$reviewerBroker.mode -eq 'on-demand' -and
+        (Get-PropertyValue $reviewerBroker 'persistentProcessAllowed' $true) -eq $false -and
+        (Get-PropertyValue $trust 'agentsMayAuthorReceipts' $true) -eq $false -and
+        (Get-PropertyValue $trust 'agentsMaySignReceipts' $true) -eq $false -and
+        (Get-PropertyValue $trust 'privateKeyMaterialAllowedInAgentHub' $true) -eq $false -and
+        (Get-PropertyValue $trust 'privateKeyMaterialAllowedInAgentEnvironment' $true) -eq $false -and
+        [string](Get-PropertyValue $trust 'missingTrustDecision' '') -eq 'PIPELINE_BLOCKED' -and
+        (Get-PropertyValue $execution 'spawnOnlyWhenRoleIsDispatched' $false) -eq $true -and
+        (Get-PropertyValue $execution 'terminateAfterReceiptIsEmitted' $false) -eq $true -and
+        (Get-PropertyValue $execution 'sharedDaemonRequired' $true) -eq $false -and
+        $trustVariable -eq 'AGENTHUB_EXECUTION_HOST_TRUST_CONFIG'
+    if (-not $contractValid) {
+        Add-DriftResult FAIL 'role' 'reviewer-execution-broker:contract' `
+            'reviewer broker must be on-demand, fail closed, keep private keys outside agent access, and prohibit agent-authored signatures' `
+            '' @($reviewerBrokerPath)
+    } else {
+        Add-DriftResult PASS 'role' 'reviewer-execution-broker:contract' `
+            'on-demand broker contract prohibits resident daemons and agent-owned signing keys' `
+            '' @($reviewerBrokerPath)
+    }
+
+    $trustPath = [Environment]::GetEnvironmentVariable($trustVariable, 'Process')
+    if ([string]::IsNullOrWhiteSpace($trustPath)) {
+        $trustPath = [Environment]::GetEnvironmentVariable($trustVariable, 'User')
+    }
+    $trustAvailable = -not [string]::IsNullOrWhiteSpace($trustPath) -and
+        (Test-Path -LiteralPath $trustPath -PathType Leaf)
+    $reviewerBrokerState = [pscustomobject]@{
+        mode = [string]$reviewerBroker.mode
+        persistentProcessAllowed = [bool]$reviewerBroker.persistentProcessAllowed
+        trustEnvironmentVariable = $trustVariable
+        trustConfigured = $trustAvailable
+        releaseEligible = $contractValid -and $trustAvailable
+    }
+    if ($trustAvailable) {
+        $trustDocument = Read-JsonFile -Path $trustPath
+        if ($null -ne $trustDocument -and
+            [int](Get-PropertyValue $trustDocument 'schemaVersion' 0) -ge 1 -and
+            @((Get-PropertyValue $trustDocument 'hosts' @())).Count -gt 0) {
+            Add-DriftResult PASS 'role' 'reviewer-execution-broker:operator-trust' `
+                'operator-owned trust registry is configured; live receipts still require per-run signature validation' `
+                '' @($trustPath)
+        } else {
+            Add-DriftResult FAIL 'role' 'reviewer-execution-broker:operator-trust' `
+                'configured operator trust registry is malformed or has no enabled host inventory' `
+                '' @($trustPath)
+        }
+    } else {
+        Add-DriftResult WARN 'role' 'reviewer-execution-broker:operator-trust' `
+            'operator-owned trust registry is not configured; Product Demo Studio review, arbitration, final verification, and delivery correctly remain PIPELINE_BLOCKED' `
+            '' @($trustPath)
+    }
+}
+
 $retiredSkillIds = @('agent-fleet-ops', 'agent-capabilities')
 foreach ($capability in @($capabilityRegistry.capabilities)) {
     foreach ($retired in @((Get-PropertyValue $capability 'retiredSkills' @()))) {
@@ -1173,7 +1258,7 @@ $unownedLoose = @($skillRecords.ToArray() | Where-Object {
     $_.sourceType -eq 'loose' -and
     -not $canonicalBySkill.ContainsKey($_.skillId) -and
     $_.skillId -notin $externallyOwnedSkillIds -and
-    $_.skillId -notin $pendingSkillIds
+    $_.skillId -notin $retiredUnownedSkillIds
 })
 foreach ($group in @($unownedLoose | Group-Object skillId)) {
     $uniquePaths = @($group.Group.path | Sort-Object -Unique)
@@ -1530,6 +1615,7 @@ try {
     })
     foreach ($process in $candidateProcesses) {
         $commandLine = [string]$process.CommandLine
+        $workingSetBytes = [uint64](Get-PropertyValue $process 'WorkingSetSize' 0)
         $classification = if ($commandLine -match '(?i)playwright-mcp|chrome-devtools-mcp|brave-search-mcp|context7-mcp|firecrawl-mcp|repocontext.+mcp') {
             'local-mcp-worker'
         } elseif ($commandLine -match '(?i)cowork|language-server|typescript-language-server|pyright|node_repl|codex|claude|qwen|opencode|gemini|hermes|copilot|antigravity|grok|warp|cline|qoder') {
@@ -1542,8 +1628,122 @@ try {
             parentProcessId = [int]$process.ParentProcessId
             name = [string]$process.Name
             classification = $classification
+            workingSetMb = [math]::Round($workingSetBytes / 1MB, 1)
             commandLine = Protect-ProcessCommandLine -CommandLine $commandLine
         })
+    }
+
+    # Deployment freshness on disk does not prove that an already-running host
+    # loaded those bytes. Version-pinned plugin cache paths in process command
+    # lines provide deterministic restart-required evidence.
+    foreach ($freshnessRule in @(
+        Get-PropertyValue (
+            Get-PropertyValue $runtimePolicy 'sessionFreshness' $null
+        ) 'versionedCapabilities' @()
+    )) {
+        $capabilityId = [string](Get-PropertyValue $freshnessRule 'capabilityId' '')
+        $capability = @($capabilityRegistry.capabilities |
+            Where-Object id -eq $capabilityId)
+        if ($capability.Count -ne 1) { continue }
+        $source = Resolve-RegistryOwnedPath ([string]$capability[0].canonicalSource)
+        $canonicalVersion = ''
+        foreach ($manifestPath in @(
+            Get-PropertyValue $freshnessRule 'manifestPaths' @()
+        )) {
+            $manifest = Read-JsonFile -Path (Join-Path $source ([string]$manifestPath))
+            $version = [string](Get-PropertyValue $manifest 'version' '')
+            if (-not [string]::IsNullOrWhiteSpace($version)) {
+                $canonicalVersion = $version
+                break
+            }
+        }
+        if ([string]::IsNullOrWhiteSpace($canonicalVersion)) {
+            Add-DriftResult FAIL 'runtime' "runtime-version-unresolved:${capabilityId}" `
+                'canonical capability version could not be resolved from its registered manifests'
+            continue
+        }
+
+        $escapedCapabilityId = [regex]::Escape($capabilityId)
+        $versionPattern = "(?i)[\\/]$escapedCapabilityId[\\/](?<version>[0-9]+\.[0-9]+\.[0-9]+(?:[-+][^\\/\s`"]+)?)"
+        $matchingSessions = @()
+        foreach ($process in $candidateProcesses) {
+            $commandLine = [string]$process.CommandLine
+            $match = [regex]::Match($commandLine, $versionPattern)
+            if (-not $match.Success) { continue }
+            $loadedVersion = $match.Groups['version'].Value
+            $hostId = switch -Regex ($commandLine) {
+                '(?i)[\\/]\.claude[\\/]' { 'claude'; break }
+                '(?i)[\\/]\.codex[\\/]' { 'codex'; break }
+                '(?i)[\\/]\.qoder[\\/]' { 'qoder'; break }
+                '(?i)[\\/]\.grok[\\/]' { 'grok'; break }
+                default { 'unknown' }
+            }
+            $isCurrent = $loadedVersion -eq $canonicalVersion
+            $state = [pscustomobject]@{
+                capabilityId = $capabilityId
+                hostId = $hostId
+                processId = [int]$process.ProcessId
+                loadedVersion = $loadedVersion
+                canonicalVersion = $canonicalVersion
+                current = $isCurrent
+                restartRequired = -not $isCurrent
+            }
+            $runtimeSessionStates.Add($state)
+            $matchingSessions += $state
+        }
+        $staleSessions = @($matchingSessions | Where-Object { -not $_.current })
+        if ($staleSessions.Count -gt 0) {
+            foreach ($session in $staleSessions) {
+                Add-DriftResult WARN 'runtime' `
+                    "stale-loaded-capability:$($session.hostId):${capabilityId}:$($session.processId)" `
+                    "running session loaded $($session.loadedVersion), canonical is $canonicalVersion; restart that host before claiming runtime parity" `
+                    $session.hostId
+            }
+        } else {
+            Add-DriftResult PASS 'runtime' "stale-loaded-capability:${capabilityId}" `
+                "no running version-pinned session was found below canonical version $canonicalVersion"
+        }
+    }
+
+    # Resource budgets are intentionally advisory and aggregate evidence only.
+    # They never auto-terminate processes because ownership must be traced first.
+    foreach ($budget in @(Get-PropertyValue $runtimePolicy 'resourceBudgets' @())) {
+        $budgetId = [string](Get-PropertyValue $budget 'id' '')
+        $pattern = [string](Get-PropertyValue $budget 'commandLinePattern' '')
+        if ([string]::IsNullOrWhiteSpace($budgetId) -or
+            [string]::IsNullOrWhiteSpace($pattern)) {
+            continue
+        }
+        $members = @($allProcesses | Where-Object {
+            [int]$_.ProcessId -ne $PID -and
+            [string]$_.CommandLine -match $pattern
+        })
+        $workingSetMb = [math]::Round(((
+            $members | ForEach-Object {
+                [uint64](Get-PropertyValue $_ 'WorkingSetSize' 0)
+            } | Measure-Object -Sum
+        ).Sum) / 1MB, 1)
+        $warningWorkingSetMb = [double](
+            Get-PropertyValue $budget 'warningWorkingSetMb' 0
+        )
+        $warningProcessCount = [int](
+            Get-PropertyValue $budget 'warningProcessCount' 0
+        )
+        $overMemory = $warningWorkingSetMb -gt 0 -and
+            $workingSetMb -gt $warningWorkingSetMb
+        $overCount = $warningProcessCount -gt 0 -and
+            $members.Count -gt $warningProcessCount
+        $runtimeResourceGroups.Add([pscustomobject]@{
+            id = $budgetId
+            processCount = $members.Count
+            workingSetMb = $workingSetMb
+            warningProcessCount = $warningProcessCount
+            warningWorkingSetMb = $warningWorkingSetMb
+            overBudget = $overMemory -or $overCount
+        })
+        $status = if ($overMemory -or $overCount) { 'WARN' } else { 'PASS' }
+        Add-DriftResult $status 'runtime' "resource-budget:${budgetId}" `
+            "$($members.Count)/$warningProcessCount processes; $workingSetMb/$warningWorkingSetMb MB working set; observation only, auto-termination disabled"
     }
     $processById = @{}
     foreach ($process in $allProcesses) {
@@ -1673,6 +1873,9 @@ $inventory = [ordered]@{
     worktrees = @($worktreeStates.ToArray())
     processes = @($processStates.ToArray())
     runtimeTrees = @($runtimeTrees.ToArray())
+    runtimeSessions = @($runtimeSessionStates.ToArray())
+    runtimeResourceGroups = @($runtimeResourceGroups.ToArray())
+    reviewerExecutionBroker = $reviewerBrokerState
 }
 $output = [ordered]@{
     schemaVersion = 1

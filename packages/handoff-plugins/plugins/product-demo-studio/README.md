@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.1.2**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.2.0**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Product repositories retain their product-specific capture/render implementations and
 map evidence into this shared contract. The reviewed mapping is documented in
@@ -12,6 +12,9 @@ playbook maps it to the package's normalized JSON validators.
 The synchronized Visual Communication & Asset Generation Guide is bundled beside it and is owned
 by `product-demo-studio-visual-assets`; it supersedes stale narration/model tables and forbids
 generated product UI or fabricated results.
+Version 1.2 adds a validated interactive product deep-dive derivative and an immutable private
+review-delivery lane. Portfolio destinations remain AgentHub deployment configuration in
+`registry/product-video-delivery.json`; they are not hard-coded into this repo-agnostic plugin.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with
@@ -122,7 +125,16 @@ invoked from the plugin against a target repo — never copied into one:
 
 - `video-cli.mjs` — single verb-based entry point for the whole pipeline (`inventory discover
   readiness storyboard claims reset capture voice render-proxy frames preflight review validate-
-  review arbitrate validate-decision validate-assignment qa revise render-candidate package all`).
+  review arbitrate validate-decision validate-assignment qa revise render-candidate package-review
+  package all`).
+- `package-review.mjs` / `validate-review-delivery.mjs` — resolve an AgentHub-owned
+  product-to-OneDrive mapping, require arbiter and mandatory final-verifier `PASS`, and create a
+  non-overwriting `Review/<candidateId>` package marked `review-only` with pending human review.
+  This is not publication approval.
+- `validate-interactive-deep-dive.mjs` — validates role routing, deep-linkable operational scenes,
+  interactive proof/evidence, adjacent trust controls, contextual CTAs, instrumentation,
+  accessibility fallbacks, and synthetic sandbox safety without requiring fabricated metrics or
+  private chain-of-thought.
 - `validate-demo-readiness.mjs` / `validate-storyboard.mjs` — fail-closed normalized contracts for
    video-vs-feedback classification and persuasion craft (cold open, before-state, one hero moment,
    all eleven worthiness criteria, three-rung WIIFM with compatible refined aliases, emotional

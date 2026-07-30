@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.1.2",
+  "capabilityVersion": "1.2.0",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -27,6 +27,17 @@
     "descriptPublishRequiresExplicitAuthorization": true,
     "unchecksumableDescriptOutputDecision": "PIPELINE_BLOCKED",
     "credentialsInAdaptersAllowed": false
+  },
+  "reviewDeliveryPolicy": {
+    "agentHubRegistry": "registry/product-video-delivery.json",
+    "classification": "review-only",
+    "requiresArbiterPass": true,
+    "requiresFinalVerifierPass": true,
+    "immutableCandidateDirectory": true,
+    "overwriteAllowed": false,
+    "humanReviewStatus": "pending",
+    "publicationApproved": false,
+    "publicationPromotionRequiresSignedHumanApproval": true
   },
   "permissions": {
     "executionEnforcement": {

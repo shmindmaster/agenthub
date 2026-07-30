@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.1.2";
+const expectedVersion = "1.2.0";
 const failures = [];
 
 function readJson(relativePath) {
@@ -89,7 +89,9 @@ requireFiles("schemas", [
   "execution-host-trust.schema.json",
   "execution-receipt.schema.json",
   "final-verification.schema.json",
+  "interactive-deep-dive.schema.json",
   "preflight-report.schema.json",
+  "review-delivery.schema.json",
   "release-evidence.schema.json",
   "release-decision.schema.json",
   "remediation-assignment.schema.json",
@@ -99,14 +101,17 @@ requireFiles("schemas", [
 requireFiles("policy", [".gitattributes", "host-parity.json", "product-video-policy.json"], { exact: true });
 requireFiles("scripts", [
   "check-evidence-gate.mjs",
+  "package-review.mjs",
   "preflight.mjs",
   "validate-execution-receipt.mjs",
   "validate-host-parity.mjs",
   "validate-final-verification.mjs",
+  "validate-interactive-deep-dive.mjs",
   "validate-release-decision.mjs",
   "validate-remotion-rules.mjs",
   "validate-remediation-assignment.mjs",
   "validate-review-report.mjs",
+  "validate-review-delivery.mjs",
 ]);
 
 const policy = readJson("policy/product-video-policy.json");
@@ -139,6 +144,16 @@ if (policy.connectorPolicy?.descriptEditCreatesNewCandidate !== true ||
     policy.connectorPolicy?.unchecksumableDescriptOutputDecision !== "PIPELINE_BLOCKED") {
   failures.push("policy does not invalidate Descript edits or block unchecksumable outputs");
 }
+if (policy.reviewDeliveryPolicy?.agentHubRegistry !== "registry/product-video-delivery.json" ||
+    policy.reviewDeliveryPolicy?.classification !== "review-only" ||
+    policy.reviewDeliveryPolicy?.requiresArbiterPass !== true ||
+    policy.reviewDeliveryPolicy?.requiresFinalVerifierPass !== true ||
+    policy.reviewDeliveryPolicy?.immutableCandidateDirectory !== true ||
+    policy.reviewDeliveryPolicy?.overwriteAllowed !== false ||
+    policy.reviewDeliveryPolicy?.publicationApproved !== false ||
+    policy.reviewDeliveryPolicy?.publicationPromotionRequiresSignedHumanApproval !== true) {
+  failures.push("policy does not separate immutable private review delivery from human-approved publication");
+}
 if (policy.permissions?.finalVerifier?.mandatoryTerminalGate !== true ||
     policy.permissions?.finalVerifier?.runsAfterArbiterPass !== true ||
     policy.releasePolicy?.terminalIndependentReview?.required !== true ||
@@ -164,6 +179,8 @@ const requiredText = [
   ["skills/product-demo-studio-qa/SKILL.md", "schemas/video-finding.schema.json"],
   ["agents/final-verifier.md", "mandatory terminal independent reviewer and verifier"],
   ["skills/product-demo-studio-qa/SKILL.md", "mandatory final independent review and verification"],
+  ["skills/product-demo-studio/SKILL.md", "private review-delivery lane"],
+  ["skills/product-demo-studio/references/interactive-product-deep-dives.md", "Rejected absolutes"],
   ["skills/product-demo-studio/references/product-pipeline-compatibility.md", "Product-pipeline compatibility"],
   ["policy/product-video-policy.json", '"humanPublicationAttestationSeparate": true'],
 ];
@@ -246,6 +263,7 @@ for (const marker of [
   "review",
   "arbitrate",
   "final-verifier",
+  "package-review",
   "signed-human-evidence",
   "package",
 ]) {

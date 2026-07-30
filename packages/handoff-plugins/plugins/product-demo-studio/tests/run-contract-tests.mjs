@@ -167,6 +167,66 @@ function cli(scriptName, fixtureName, expectedCode) {
   }
 }
 
+function reviewDeliveryIntegration() {
+  const root = mkdtempSync(join(tmpdir(), "product-demo-review-delivery-"));
+  try {
+    const files = [
+      ["candidate.mp4", Buffer.from("synthetic candidate")],
+      ["decision.json", Buffer.from('{"decision":"PASS"}')],
+      ["final.json", Buffer.from('{"status":"PASS"}')],
+    ];
+    const records = [];
+    for (const [name, bytes] of files) {
+      writeFileSync(join(root, name), bytes);
+      records.push({
+        relativePath: name,
+        sha256: shaBytes(bytes),
+        bytes: bytes.length,
+      });
+    }
+    const manifestPath = join(root, "review-package.json");
+    writeFileSync(manifestPath, `${JSON.stringify({
+      schemaVersion: "1.0.0",
+      classification: "review-only",
+      candidate: {
+        candidateId: "synthetic-candidate-001",
+        artifact: records[0],
+      },
+      sourceRepository: "C:/Repos/synthetic/product",
+      delivery: {
+        productId: "synthetic-product",
+        reviewRoot: root,
+        packagePath: root,
+        immutable: true,
+      },
+      gates: {
+        arbiterDecision: records[1],
+        finalVerification: records[2],
+      },
+      humanReview: {
+        status: "pending",
+        publicationApproved: false,
+      },
+      files: records,
+      createdAt: "2026-07-30T12:00:00.000Z",
+    }, null, 2)}\n`);
+    let result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-review-delivery.mjs"),
+      manifestPath,
+    ], { encoding: "utf8" });
+    assert(result.status === 0, "private review delivery validator accepts an immutable review-only package");
+
+    writeFileSync(join(root, "candidate.mp4"), "mutated candidate");
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-review-delivery.mjs"),
+      manifestPath,
+    ], { encoding: "utf8" });
+    assert(result.status !== 0, "private review delivery validator rejects changed candidate bytes");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function sha(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
@@ -1846,18 +1906,23 @@ schemaFixture("evidence-package.schema.json", "evidence-package.pass.json", true
 schemaFixture("evidence-package.schema.json", "evidence-package.invalid.json", false);
 schemaFixture("preflight-report.schema.json", "preflight-report.pass.json", true);
 schemaFixture("preflight-report.schema.json", "preflight-report.invalid.json", false);
+schemaFixture("interactive-deep-dive.schema.json", "interactive-deep-dive.pass.json", true);
+schemaFixture("interactive-deep-dive.schema.json", "interactive-deep-dive.invalid.json", false);
 
 cli("validate-review-report.mjs", "review-report.invalid.json", 1);
 cli("validate-release-decision.mjs", "release-decision.invalid.json", 1);
 cli("validate-final-verification.mjs", "final-verification.invalid.json", 1);
 cli("validate-remediation-assignment.mjs", "remediation-assignment.pass.json", 0);
 cli("validate-remediation-assignment.mjs", "remediation-assignment.invalid.json", 1);
+cli("validate-interactive-deep-dive.mjs", "interactive-deep-dive.pass.json", 0);
+cli("validate-interactive-deep-dive.mjs", "interactive-deep-dive.invalid.json", 1);
 executionReceiptIntegration();
 preflightIntegration();
 realMediaIntegration();
 videoCliGateIntegration();
 releaseDecisionIntegration();
 publicationIntegration();
+reviewDeliveryIntegration();
 
 console.log(`\n${assertions} assertion(s): ${failures} failure(s).`);
 process.exit(failures === 0 ? 0 : 1);

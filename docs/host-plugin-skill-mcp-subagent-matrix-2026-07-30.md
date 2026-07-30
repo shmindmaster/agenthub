@@ -28,7 +28,7 @@ receipt and a live deployment report; static packaging never satisfies that gate
 | Amp | TypeScript/Bun plugin API plus skills | Standalone | Skill MCP starts with Amp but tools stay hidden until skill activation | Write-capable subagents; custom agent construction is experimental | Loose skills only. A full native policy adapter is not yet verified, so runtime parity remains blocked. |
 | Hermes | `plugin.yaml` plus Python plugin | Plugin and standalone | Plugin/global MCP | Delegation/subagents | Loose skills only. Hook errors are logged and execution continues, so hooks cannot be the fail-closed release boundary. |
 | Warp / Oz | No documented general plugin bundle; skills, MCP, profiles, environments, and orchestration are separate | Standalone | Configured MCP per Warp/Oz surface | Oz/cloud orchestration rather than portable custom-agent packages | Loose skills only. “Run until completion” can bypass profile deny lists, and native worktrees do not honor `C:\wt`; not release-eligible. |
-| Windsurf / Cascade | No documented general user plugin bundle | Standalone | Global MCP | Cascade parallel-agent surfaces, workflows, and worktrees | Retained inactive; no executable is installed. Loose configuration remains, but role isolation and approved worktree-root parity are unverified. |
+| Windsurf / Cascade | No documented general user plugin bundle | Standalone | Global MCP | Cascade parallel-agent surfaces, workflows, and worktrees | Dormant supported adapter; no executable is expected on this machine. Loose configuration remains for future reactivation, but runtime readiness is not claimed. |
 
 ## MCP process and memory behavior
 

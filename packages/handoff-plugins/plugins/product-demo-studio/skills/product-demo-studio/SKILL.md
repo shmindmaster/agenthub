@@ -3,8 +3,9 @@ name: product-demo-studio
 description: >
   Route autonomous, truthful product-video production and demo-readiness assessment in any
   repository: demo, training, trust, homepage-loop, sales, or marketing videos. Use when asked to
-  make, generate, plan, capture, narrate, render, critique, or inventory product videos, or to
-  decide whether a workflow is demo-worthy. Enforce two valid outcomes per episode: a persuasive,
+  make, generate, plan, capture, narrate, render, critique, or inventory product videos or a
+  role-routed interactive product deep-dive, or to decide whether a workflow is demo-worthy.
+  Enforce two valid outcomes per episode: a persuasive,
   fully gated video, or fix-oriented Product-Readiness Feedback with no mediocre video. Reuse existing video
   infrastructure and route Remotion, capture, narration, render, QA, and Descript work to the
   corresponding product-demo-studio subskills.
@@ -101,28 +102,65 @@ their own product-specific pipeline and data boundaries.
    arbiter `PASS`, dispatch `agents/final-verifier.md` as the mandatory terminal independent
    reviewer and verifier in a fresh read-only context. It rechecks the final bytes, reports,
    checksums, provenance, playback, and delivery contents. No candidate may be packaged,
-   delivered, or released without its schema-valid `PASS`. Deliver only approved masters and
-   requested cuts. Failed candidates always receive a
+   released without its schema-valid `PASS`. A machine-verified candidate may enter the private
+   review-delivery lane below; only human-approved masters and requested cuts may enter final or
+   publication folders. Failed candidates always receive a
    readiness report; zero videos is valid. External reuse still requires the named-human evidence
    gate. Descript is optional third-party editorial finishing and must not duplicate an
    already-connected session-level connector. Every edit creates a new candidate and forces new
    evidence, reviews, arbiter/final verification, and human attestation; publishing requires
    explicit authorization.
 
-## The evidence-redaction rule (gates external reuse, not internal iteration)
+## The private review-delivery lane
+
+After arbiter `PASS` and the mandatory final-verifier `PASS`, create the user's immutable review
+package with `video-cli.mjs package-review`. Resolve the target repository through the configured
+AgentHub `registry/product-video-delivery.json`; do not hard-code portfolio paths into this
+repo-agnostic plugin. The managed mappings place review candidates under the corresponding private
+OneDrive product folder at `Review/<candidateId>`.
+
+The package includes the exact candidate, decision, final verification, requested captions,
+transcript, contact sheet, and other review artifacts plus `review-package.json`. It is always
+`classification: review-only`, `humanReview.status: pending`, and
+`publicationApproved: false`. Candidate directories are immutable and never overwritten:
+
+```bash
+node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/video-cli.mjs" package-review \
+  --repo <path-to-repo> \
+  --delivery-registry <AgentHub-root>/registry/product-video-delivery.json \
+  --decision <release-decision.json> \
+  --final-verification <final-verification.json> \
+  --artifact <caption-or-review-artifact>
+```
+
+This lane exists so the named human can watch the final bytes. It does not authorize public use,
+promotion into the product folder root, Descript import, or publication. Those actions still
+require the separately signed human evidence gate.
+
+## Interactive product deep-dive derivative
+
+When the request is a role-routed interactive walkthrough rather than only a video, read
+[interactive-product-deep-dives.md](references/interactive-product-deep-dives.md) and produce a
+schema-valid `interactive-deep-dive.json`. Product Demo Studio owns its verified media, scene
+contract, claims, and evidence. Route page/frontend implementation to Product Experience
+Engineering or the target repository's native frontend owner. Do not create another standalone
+deep-dive runtime.
+
+## The evidence-redaction rule (gates publication reuse, not internal iteration or private review)
 
 Iterate freely inside the pipeline — captures, proxy renders, revisions, and QA loops all run
 without waiting for human sign-off. The gate applies only at the boundary, before an asset is:
 
-- copied into a repo's final video/marketing folders,
+- promoted from its immutable `Review/<candidateId>` package into a repo's final video/marketing
+  folder,
 - imported into Descript,
 - uploaded anywhere externally reachable, or
 - referenced in docs, sales material, training content, or a live site.
 
-Every such asset needs a release-evidence manifest — `classification` of
-`approved | needs-redaction | rejected` plus a named human reviewer — before it crosses that
-boundary. Use `scripts/check-evidence-gate.mjs` to enforce it. **Never mark something `approved`
-yourself** — that field is a human attestation, not something to fill in on the user's behalf.
+Every such asset needs the signed release-evidence graph and named-human watch-through attestation
+before it crosses that boundary. Use `scripts/check-evidence-gate.mjs` to verify the immutable
+receipt and detached Ed25519 signature. **Never author or sign an approval receipt yourself** —
+that is a human/operator trust action, not something to fill in on the user's behalf.
 
 ## Check what already exists before doing anything
 
