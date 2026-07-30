@@ -4,9 +4,10 @@
 
 AgentHub is the deployed source of truth for the registered agent fleet. Canonical capability,
 skill, plugin, MCP, worktree, quarantine, and deployment contracts are converged and regression
-tested. The current live configuration verdict is `PASS` with three explicit runtime/activation
+tested. The current live configuration verdict is `PASS` with four explicit runtime/activation
 warnings: 106 passes and 0 failures. The installed Product Demo Studio package is current at
-`1.2.0`; two already-running Claude sessions must restart to unload prior 1.1.x package bytes.
+`1.3.0`; three already-running Claude sessions must restart to unload prior 1.1.x/1.2.0 package
+bytes.
 Product Demo Studio review and release eligibility remains `PIPELINE_BLOCKED` until an
 operator-controlled host receipt signer proves release-grade read-only execution on a supported
 host.
@@ -44,8 +45,12 @@ host.
   OpenCode, and Codex receive generated host-native role adapters from the same 13 canonical
   agents. Other mapped hosts receive exact loose skills only when that is their documented
   surface. Product Experience Engineering follows its own registry-selected host adapters.
-- Product Demo Studio `1.2.0` was reinstalled from canonical AgentHub in Claude, Codex, Factory,
+- Product Demo Studio `1.3.0` was reinstalled from canonical AgentHub in Claude, Codex, Factory,
   Grok, and Qoder; the remaining mapped hosts received current generated adapters or exact skills.
+- Version `1.3.0` requires guided-screencast choreography and maximized useful screen space:
+  page-only/native-fullscreen capture, no extraneous browser or OS chrome, real product actions and
+  state transitions, visible click cues, at least 50% planned active-region coverage after
+  crop/push-in/recomposition, and result-before-spoken-result narration timing.
 - Private review delivery is registry-routed to immutable `Review/<candidateId>` packages under
   the approved product OneDrive roots. Packaging requires arbiter `PASS` plus mandatory final
   verifier `PASS`, stages and validates before atomic promotion, refuses overwrite, and records
@@ -91,19 +96,19 @@ Pre-move bundles, dirty patches, and the verified manifest are at:
 - Host readiness: 15 registered, 15 installed, 0 optional missing, 0 policy failures.
 - Full-access profile: passed for 10 shared-remote MCP contracts across 18 managed hosts.
 - External skill report: 11 current targets, 0 stale targets.
-- Product Demo Studio: 130 contract assertions passed; package and static parity passed for all
+- Product Demo Studio: 134 contract assertions passed; package and static parity passed for all
   18 registry mappings; Qoder reports 8 skills, 13 agents, and 1 plugin-owned MCP.
 - Independent review: no blocker or critical code finding remained after the final safety fixes.
 - Final live inventory: 22 agents, 65 plugins, 949 skills, 19 MCP configurations, 76 worktrees,
-  and 77 processes. No duplicate local MCP runtime tree or local MCP worker was found.
-- Advisory runtime budgets passed: Codex 2,587.1/4,096 MB, Claude 3,549.7/4,096 MB, language
-  servers 889.4/2,048 MB, and local MCP workers 0/1,536 MB. Auto-termination remains disabled.
+  and 74 processes. No duplicate local MCP runtime tree or local MCP worker was found.
+- Advisory runtime budgets passed: Codex 1,654.6/4,096 MB, Claude 2,675/4,096 MB, language
+  servers 944.3/2,048 MB, and local MCP workers 0/1,536 MB. Auto-termination remains disabled.
 
 Final live report:
 
-`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-convergence\live-product-demo-1.2.0-20260730.json`
+`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-convergence\live-product-demo-1.3.0-20260730.json`
 
-Live counts: 106 pass, 3 warn, 0 fail.
+Live counts: 106 pass, 4 warn, 0 fail.
 
 ## Product video review destinations
 
@@ -139,9 +144,9 @@ delivered only after the signed independent-review chain passes.
    requires a native install and smoke test.
    Its on-disk configuration is reconciled, but it cannot be runtime-smoked on this installation.
 4. **Running Claude session freshness.** Installed Claude bytes are current at Product Demo Studio
-   `1.2.0`, but PIDs 34008 and 38228 loaded 1.1.0 and 1.1.2 respectively. Restart Claude before
-   claiming live runtime parity. AgentHub does not terminate open agent sessions because that can
-   discard work.
+   `1.3.0`, but PIDs 34008, 38228, and 29780 loaded 1.1.0, 1.1.2, and 1.2.0 respectively. Restart
+   Claude before claiming live runtime parity. AgentHub does not terminate open agent sessions
+   because that can discard work.
 5. **Independent-review execution trust.** Source, deployment, permissions, and static parity are
    verified. Release-grade read-only enforcement is not: no operator-owned
    `AGENTHUB_EXECUTION_HOST_TRUST_CONFIG` is configured. The agent cannot create or access the
