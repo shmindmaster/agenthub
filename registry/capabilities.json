@@ -495,6 +495,13 @@
         "repo-onboard",
         "verify-and-commit"
       ],
+      "legacySkillTreeHashes": {
+        "docs-drift": ["558EDC3244298B0A3CE361EA43C5E6BA0D7B8605A7475DD6F2FB1CFC3F1E5AE1"],
+        "portfolio-audit": ["ABD5E214D400087F0780E5402A1FA682B3D6A51F75723D417FBC7BEB5CE8BC24"],
+        "release-readiness": ["C47539028BAAE85E38088B1CA2C44716124846C01AC0242899F273682B125766"],
+        "repo-onboard": ["C7ED85300834CE1DFA55209150560B133FB36B665D5DD07C0E5BDB4768765387"],
+        "verify-and-commit": ["DD71BF1E975AA45E953643CECD875451C4BC0992D0D0B97F71F516F9AFE3515F"]
+      },
       "contentHash": "EB692D5965D1797ED985A7DCEF9913010173FDCEB087BB6D902225D65DCEA657",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\portfolio-engineering-ops",
       "status": "active-canonical",
@@ -578,6 +585,10 @@
         "framer",
         "framer-code-components"
       ],
+      "legacySkillTreeHashes": {
+        "framer": ["F7373D238B81B6EA20EC1F3810E30D380FA980AC6339491BFFBA9DC482B2BE27"],
+        "framer-code-components": ["68A371E6D4A413A2F5004B3FB42738D1B3E1FF39964020B3438FDF835AA9C425"]
+      },
       "contentHash": "649F0991C94E13C678FF68F1330FAE5FF56A619BD9875EC6BF0BB185AA66B25C",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\framer",
       "status": "active-canonical",

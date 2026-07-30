@@ -381,6 +381,35 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
         }
         Add-ValidationResult PASS "capability:$($capability.id):source" 'canonical source present'
 
+        if ($capability.PSObject.Properties.Name -contains 'legacySkillTreeHashes') {
+            $managedSkillNames = @($capability.managedSkillNames | ForEach-Object {
+                [string]$_
+            })
+            $legacyHashProblems = @(
+                foreach ($property in @(
+                    $capability.legacySkillTreeHashes.PSObject.Properties
+                )) {
+                    if ([string]$property.Name -notin $managedSkillNames) {
+                        "unknown skill $($property.Name)"
+                    }
+                    foreach ($hash in @($property.Value)) {
+                        if ([string]$hash -notmatch '^[A-Fa-f0-9]{64}$') {
+                            "invalid hash for $($property.Name)"
+                        }
+                    }
+                }
+            )
+            if ($legacyHashProblems.Count -eq 0) {
+                Add-ValidationResult PASS `
+                    "capability:$($capability.id):legacy-skill-hashes" `
+                    'legacy shared-skill retirement hashes are valid'
+            } else {
+                Add-ValidationResult FAIL `
+                    "capability:$($capability.id):legacy-skill-hashes" `
+                    (($legacyHashProblems | Sort-Object -Unique) -join '; ')
+            }
+        }
+
         $hashBasis = Resolve-RegistryOwnedPath ([string]$capability.hashBasis)
         if (-not (Test-Path -LiteralPath $hashBasis)) {
             Add-ValidationResult FAIL "capability:$($capability.id):hash" 'hash-basis path missing'

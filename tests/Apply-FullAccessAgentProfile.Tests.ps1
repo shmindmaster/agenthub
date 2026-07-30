@@ -748,8 +748,8 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
         $unrelatedSkill = Join-Path $sharedRoot 'user-owned-skill'
         New-Item -ItemType Directory -Path $managedShadow -Force | Out-Null
         New-Item -ItemType Directory -Path $unrelatedSkill -Force | Out-Null
-        Set-Content -LiteralPath (Join-Path $managedShadow 'SKILL.md') `
-            -Value 'stale:shared-fixture-skill' -Encoding UTF8
+        Copy-Item -LiteralPath (Join-Path $canonicalSkill 'SKILL.md') `
+            -Destination (Join-Path $managedShadow 'SKILL.md')
         Set-Content -LiteralPath (Join-Path $unrelatedSkill 'SKILL.md') `
             -Value 'preserve:user-owned-skill' -Encoding UTF8
 
@@ -778,6 +778,21 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
         (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
         @(Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse).Count |
             Should -Be $manifests.Count
+    }
+
+    It 'preserves divergent shared skill content outside trusted generations' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'divergent-shared-skill'
+        )
+        $sharedPath = Join-Path $fixture.UserProfile '.agents\skills\docs-drift'
+        New-Item -ItemType Directory -Path $sharedPath -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $sharedPath 'SKILL.md') `
+            -Value 'user-owned divergent docs-drift' -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+
+        (Get-Content -LiteralPath (Join-Path $sharedPath 'SKILL.md') -Raw).Trim() |
+            Should -Be 'user-owned divergent docs-drift'
     }
 
     It 'exactly replaces canonical siblings everywhere, quarantines mapped conflicts, and is idempotent' {

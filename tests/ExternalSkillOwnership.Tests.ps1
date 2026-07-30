@@ -61,7 +61,8 @@ $Body
             [string]$RegistryRoot,
             [string]$Profile,
             [string]$Report,
-            [switch]$Apply
+            [switch]$Apply,
+            [int]$TestFailAfterTargetCount = 0
         )
         $arguments = @(
             '-NoLogo', '-NoProfile', '-NonInteractive',
@@ -74,6 +75,12 @@ $Body
             '-Json'
         )
         if ($Apply) { $arguments += '-Apply' }
+        if ($TestFailAfterTargetCount -gt 0) {
+            $arguments += @(
+                '-TestFailAfterTargetCount',
+                [string]$TestFailAfterTargetCount
+            )
+        }
         $output = @(& $script:powerShell @arguments 2>&1)
         return [pscustomobject]@{
             ExitCode = $LASTEXITCODE
@@ -204,5 +211,80 @@ Describe 'External skill ownership reconciliation' {
         (Get-AgentHubRegistryHashBasisValue -Path $shadow) | Should -Be $shadowBefore
         Test-Path -LiteralPath (Join-Path $profile '.agenthub\quarantine') |
             Should -BeFalse
+    }
+
+    It 'rejects a target path that traverses a junction outside the profile' {
+        $profile = Join-Path $TestDrive 'junction-profile'
+        $registryRoot = Join-Path $TestDrive 'junction-agenthub'
+        $source = Join-Path $profile '.claude\skills\use-railway'
+        $outside = Join-Path $TestDrive 'junction-outside'
+        $junction = Join-Path $profile '.codex'
+        Write-ExternalSkillTree -Path $source -Version 'current' -Body 'current'
+        New-Item -ItemType Directory -Path $outside -Force | Out-Null
+        New-Item -ItemType Directory -Path $profile -Force | Out-Null
+        New-Item -ItemType Junction -Path $junction -Target $outside | Out-Null
+        $currentHash = Get-AgentHubRegistryHashBasisValue -Path $source
+        Write-ExternalRegistryFixture `
+            -RegistryRoot $registryRoot `
+            -CurrentHash $currentHash `
+            -PreviousHash ('B' * 64) `
+            -SourceCandidates @('${USERPROFILE}/.claude/skills/use-railway') `
+            -Targets @(@{
+                hostId='codex'
+                path='${USERPROFILE}/.codex/skills/use-railway'
+            })
+
+        $result = Invoke-ExternalSyncFixture `
+            -RegistryRoot $registryRoot `
+            -Profile $profile `
+            -Report (Join-Path $TestDrive 'junction.json') `
+            -Apply
+
+        $result.ExitCode | Should -Be 1
+        Test-Path -LiteralPath (Join-Path $outside 'skills\use-railway') |
+            Should -BeFalse
+    }
+
+    It 'rolls back every changed target when a later deployment step fails' {
+        $profile = Join-Path $TestDrive 'rollback-profile'
+        $registryRoot = Join-Path $TestDrive 'rollback-agenthub'
+        $source = Join-Path $profile '.claude\skills\use-railway'
+        $codexTarget = Join-Path $profile '.codex\skills\use-railway'
+        $devinTarget = Join-Path $profile 'AppData\Roaming\devin\skills\use-railway'
+        Write-ExternalSkillTree -Path $source -Version 'current' -Body 'current'
+        Write-ExternalSkillTree -Path $codexTarget -Version 'previous' -Body 'previous'
+        Write-ExternalSkillTree -Path $devinTarget -Version 'previous' -Body 'previous'
+        $currentHash = Get-AgentHubRegistryHashBasisValue -Path $source
+        $previousHash = Get-AgentHubRegistryHashBasisValue -Path $codexTarget
+        Write-ExternalRegistryFixture `
+            -RegistryRoot $registryRoot `
+            -CurrentHash $currentHash `
+            -PreviousHash $previousHash `
+            -SourceCandidates @('${USERPROFILE}/.claude/skills/use-railway') `
+            -Targets @(
+                @{ hostId='codex'; path='${USERPROFILE}/.codex/skills/use-railway' },
+                @{ hostId='devin'; path='${APPDATA}/devin/skills/use-railway' }
+            )
+
+        $result = Invoke-ExternalSyncFixture `
+            -RegistryRoot $registryRoot `
+            -Profile $profile `
+            -Report (Join-Path $TestDrive 'rollback.json') `
+            -Apply `
+            -TestFailAfterTargetCount 1
+
+        $result.ExitCode | Should -Be 1
+        (Get-AgentHubRegistryHashBasisValue -Path $codexTarget) |
+            Should -Be $previousHash
+        (Get-AgentHubRegistryHashBasisValue -Path $devinTarget) |
+            Should -Be $previousHash
+        $manifest = Get-ChildItem -LiteralPath (
+            Join-Path $profile '.agenthub\quarantine'
+        ) -Filter manifest.json -File -Recurse | Select-Object -First 1
+        $manifest | Should -Not -BeNullOrEmpty
+        $manifestData = Get-Content -LiteralPath $manifest.FullName -Raw |
+            ConvertFrom-Json
+        @($manifestData.entries | Where-Object restoredToSource -eq $true).Count |
+            Should -Be 1
     }
 }

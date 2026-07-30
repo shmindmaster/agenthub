@@ -6,7 +6,10 @@ param(
     [string]$AppDataPath,
     [switch]$Apply,
     [string]$ReportPath,
-    [switch]$Json
+    [switch]$Json,
+    [Parameter(DontShow)]
+    [ValidateRange(0, 1000)]
+    [int]$TestFailAfterTargetCount = 0
 )
 
 if ([string]::IsNullOrWhiteSpace($RegistryRoot)) {
@@ -38,6 +41,9 @@ function Expand-AgentHubSkillPath {
     if (-not (Test-AgentHubPathWithinRoot -Path $fullPath -Root $UserProfilePath)) {
         throw "External skill path resolves outside the approved user profile: $fullPath"
     }
+    Assert-AgentHubQuarantinePhysicalContainment `
+        -Path $fullPath `
+        -Root $UserProfilePath | Out-Null
     return $fullPath
 }
 
@@ -52,13 +58,24 @@ function Get-AgentHubExternalTreeHash {
 function Copy-AgentHubExternalTreeToStage {
     param(
         [Parameter(Mandatory)][string]$Source,
-        [Parameter(Mandatory)][string]$Destination
+        [Parameter(Mandatory)][string]$Destination,
+        [Parameter(Mandatory)][string]$ContainmentRoot
     )
     $parent = Split-Path -Parent $Destination
+    Assert-AgentHubQuarantinePhysicalContainment `
+        -Path $Source -Root $ContainmentRoot | Out-Null
+    Assert-AgentHubQuarantinePhysicalContainment `
+        -Path $Destination -Root $ContainmentRoot | Out-Null
+    Assert-AgentHubQuarantinePhysicalContainment `
+        -Path $parent -Root $ContainmentRoot | Out-Null
     New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    Assert-AgentHubQuarantinePhysicalContainment `
+        -Path $parent -Root $ContainmentRoot | Out-Null
     $stage = Join-Path $parent (
         '.agenthub-stage-' + [guid]::NewGuid().ToString('N')
     )
+    Assert-AgentHubQuarantinePhysicalContainment `
+        -Path $stage -Root $ContainmentRoot | Out-Null
     try {
         Copy-Item -LiteralPath $Source -Destination $stage -Recurse
         return $stage
@@ -122,32 +139,119 @@ foreach ($owner in @($registry.externalOwners)) {
     if ($ownerFailed) { $failed = $true }
 
     if ($Apply -and -not $ownerFailed) {
-        foreach ($targetReport in $targetReports.ToArray()) {
-            if ($targetReport.state -eq 'current') { continue }
-            $stage = Copy-AgentHubExternalTreeToStage `
-                -Source $source -Destination $targetReport.path
-            try {
+        $deploymentPlans = New-Object System.Collections.Generic.List[object]
+        try {
+            foreach ($targetReport in $targetReports.ToArray()) {
+                if ($targetReport.state -eq 'current') { continue }
+                $stage = Copy-AgentHubExternalTreeToStage `
+                    -Source $source `
+                    -Destination $targetReport.path `
+                    -ContainmentRoot $UserProfilePath
+                $deploymentPlans.Add([pscustomobject]@{
+                    target = $targetReport
+                    stagePath = $stage
+                    backupPath = ''
+                    originalState = [string]$targetReport.state
+                    originalHash = [string]$targetReport.treeHash
+                    mutationStarted = $false
+                })
+            }
+        } catch {
+            foreach ($plan in $deploymentPlans.ToArray()) {
+                if ($plan.stagePath -and
+                    (Test-Path -LiteralPath $plan.stagePath)) {
+                    Remove-Item -LiteralPath $plan.stagePath -Recurse -Force
+                }
+            }
+            throw
+        }
+
+        $changedPlans = New-Object System.Collections.Generic.List[object]
+        $appliedTargetCount = 0
+        try {
+            foreach ($plan in $deploymentPlans.ToArray()) {
+                $targetReport = $plan.target
+                $plan.mutationStarted = $true
+                $changedPlans.Add($plan)
                 if ($targetReport.state -eq 'outdated-known') {
-                    Move-ToAgentHubQuarantine `
+                    $plan.backupPath = Move-ToAgentHubQuarantine `
                         -Batch $batch `
                         -Path $targetReport.path `
                         -HostId $targetReport.hostId `
                         -ArtifactKind 'skills' `
                         -ArtifactName ([string]$owner.skillId) `
                         -Reason "Replaced known outdated external skill with trusted $($owner.currentVersion)." `
-                        -ContentHash $targetReport.treeHash | Out-Null
+                        -ContentHash $targetReport.treeHash
                 }
-                Move-Item -LiteralPath $stage -Destination $targetReport.path
-                $stage = ''
+                Move-Item -LiteralPath $plan.stagePath -Destination $targetReport.path
+                $plan.stagePath = ''
                 $verifiedHash = Get-AgentHubExternalTreeHash -Path $targetReport.path
                 if ($verifiedHash -ne $currentHash) {
                     throw "External skill verification failed for $($targetReport.path)."
                 }
                 $targetReport.state = 'current'
                 $targetReport.treeHash = $verifiedHash
-            } finally {
-                if ($stage -and (Test-Path -LiteralPath $stage)) {
-                    Remove-Item -LiteralPath $stage -Recurse -Force
+                $appliedTargetCount++
+                if ($TestFailAfterTargetCount -gt 0 -and
+                    $appliedTargetCount -eq $TestFailAfterTargetCount) {
+                    throw "Injected external-skill deployment failure after $appliedTargetCount target(s)."
+                }
+            }
+        } catch {
+            $deploymentError = $_
+            $rollbackErrors = New-Object System.Collections.Generic.List[string]
+            foreach ($plan in @($changedPlans.ToArray())[
+                ($changedPlans.Count - 1)..0
+            ]) {
+                try {
+                    $targetPath = [string]$plan.target.path
+                    if (Test-Path -LiteralPath $targetPath) {
+                        $deployedHash = Get-AgentHubExternalTreeHash -Path $targetPath
+                        if ($deployedHash -ne $currentHash) {
+                            throw "Refusing rollback over unexpected content at $targetPath."
+                        }
+                        Assert-AgentHubQuarantinePhysicalContainment `
+                            -Path $targetPath -Root $UserProfilePath | Out-Null
+                        Remove-Item -LiteralPath $targetPath -Recurse -Force
+                    }
+                    if ($plan.backupPath) {
+                        if (-not (Test-Path -LiteralPath $plan.backupPath)) {
+                            throw "Rollback backup is missing: $($plan.backupPath)"
+                        }
+                        Move-Item -LiteralPath $plan.backupPath -Destination $targetPath
+                        foreach ($entry in @($batch.Entries)) {
+                            if ([string]$entry.sourcePath -eq $targetPath -and
+                                [string]$entry.quarantinePath -eq
+                                    [string]$plan.backupPath) {
+                                $entry['rolledBackAtUtc'] = (
+                                    Get-Date
+                                ).ToUniversalTime().ToString('o')
+                                $entry['restoredToSource'] = $true
+                            }
+                        }
+                    }
+                    $plan.target.state = $plan.originalState
+                    $plan.target.treeHash = $plan.originalHash
+                } catch {
+                    $rollbackErrors.Add($_.Exception.Message)
+                }
+            }
+            if (@($batch.Entries).Count -gt 0) {
+                Write-AgentHubQuarantineManifestSnapshot `
+                    -Batch $batch `
+                    -ValidatedBatch (
+                        Assert-AgentHubQuarantineBatch -Batch $batch
+                    ) | Out-Null
+            }
+            if ($rollbackErrors.Count -gt 0) {
+                throw "External skill deployment failed: $($deploymentError.Exception.Message) Rollback failed: $($rollbackErrors -join ' | ')"
+            }
+            throw $deploymentError
+        } finally {
+            foreach ($plan in $deploymentPlans.ToArray()) {
+                if ($plan.stagePath -and
+                    (Test-Path -LiteralPath $plan.stagePath)) {
+                    Remove-Item -LiteralPath $plan.stagePath -Recurse -Force
                 }
             }
         }

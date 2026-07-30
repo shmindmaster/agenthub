@@ -20,6 +20,7 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'PathSafety.ps1')
 . (Join-Path $PSScriptRoot 'ManagedQuarantine.ps1')
+. (Join-Path $PSScriptRoot 'RegistryContentHash.ps1')
 $RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot).TrimEnd('\')
 $canonicalRepositoryRoot = [System.IO.Path]::GetFullPath(
   'C:\Repos\shmindmaster\agenthub'
@@ -1045,10 +1046,26 @@ foreach ($cap in @($caps.capabilities)) {
   }
   foreach ($skillName in $managedSkillNames) {
     if ($sharedManagedSkillOwners.ContainsKey($skillName) -and
-        $sharedManagedSkillOwners[$skillName] -ne [string]$cap.id) {
-      throw "Managed skill $skillName has multiple capability owners: $($sharedManagedSkillOwners[$skillName]), $($cap.id)."
+        $sharedManagedSkillOwners[$skillName].capabilityId -ne [string]$cap.id) {
+      throw "Managed skill $skillName has multiple capability owners: $($sharedManagedSkillOwners[$skillName].capabilityId), $($cap.id)."
     }
-    $sharedManagedSkillOwners[$skillName] = [string]$cap.id
+    $legacyHashes = @()
+    if ($cap.PSObject.Properties.Name -contains 'legacySkillTreeHashes') {
+      $legacyProperty = $cap.legacySkillTreeHashes.PSObject.Properties[$skillName]
+      if ($null -ne $legacyProperty) {
+        $legacyHashes = @($legacyProperty.Value | ForEach-Object {
+          ([string]$_).ToUpperInvariant()
+        })
+      }
+    }
+    $sharedManagedSkillOwners[$skillName] = [pscustomobject]@{
+      capabilityId = [string]$cap.id
+      trustedTreeHashes = @(
+        Get-AgentHubRegistryHashBasisValue -Path (
+          Join-Path $sourceSkills $skillName
+        )
+      ) + $legacyHashes
+    }
   }
   if ($cap.PSObject.Properties.Name -contains 'retiredSkills') {
     foreach ($retiredSkill in @($cap.retiredSkills)) {
@@ -1068,7 +1085,13 @@ foreach ($cap in @($caps.capabilities)) {
 foreach ($skillName in @($sharedManagedSkillOwners.Keys | Sort-Object)) {
   $sharedPath = Join-Path $sharedAgentSkillsRoot $skillName
   if (!(Test-Path -LiteralPath $sharedPath -PathType Container)) { continue }
-  $ownerId = [string]$sharedManagedSkillOwners[$skillName]
+  $owner = $sharedManagedSkillOwners[$skillName]
+  $ownerId = [string]$owner.capabilityId
+  $sharedHash = Get-AgentHubRegistryHashBasisValue -Path $sharedPath
+  if ($sharedHash -notin @($owner.trustedTreeHashes)) {
+    Write-Warning "Preserving divergent shared skill content outside the trusted $ownerId generations: $sharedPath"
+    continue
+  }
   Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $sharedPath `
     -HostId 'shared-agent-skills' -ArtifactKind 'skills' `
     -ArtifactName $skillName `
