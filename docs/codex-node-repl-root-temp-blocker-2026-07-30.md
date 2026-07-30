@@ -12,8 +12,9 @@ disabling the sandbox.
 
 ## Current evidence
 
-- Codex Desktop package:
-  `OpenAI.Codex_26.721.4979.0_x64__2p2nqsd0c76g0`.
+- Codex Desktop package at the latest recurrence:
+  `OpenAI.Codex_26.721.11231.0_x64__2p2nqsd0c76g0`; the issue was first
+  confirmed on `26.721.4979`.
 - Codex CLI: `codex-cli 0.144.4`.
 - Host-owned runtime:
   `%LOCALAPPDATA%\OpenAI\Codex\runtimes\cua_node\f8d2abcb7481383b\bin\node_repl.exe`.
@@ -23,6 +24,11 @@ disabling the sandbox.
 - `C:\tmp` and `C:\tmp\sessions` were created at
   `2026-07-30T01:01:35Z`. The sessions directory was written as late as
   `2026-07-30T08:05:14Z` during this Codex Desktop run.
+- After the restart and upgrade, the current Codex Desktop session recreated
+  an empty `C:\tmp\sessions\<session-id>` tree at
+  `2026-07-30T21:00:51Z`. It was moved recoverably to AgentHub quarantine;
+  an upstream Chrome DevTools MCP smoke and the final live audit did not
+  recreate it.
 - Process and user `TMPDIR` both resolve below
   `%LOCALAPPDATA%\AgentHub`; process `TEMP` and `TMP` use the normal user
   temporary directory. The root path therefore is not caused by an

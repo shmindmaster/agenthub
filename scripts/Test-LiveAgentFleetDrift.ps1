@@ -559,6 +559,10 @@ $agentRegistry = Read-JsonFile -Path $agentsPath
 $capabilityRegistry = Read-JsonFile -Path $capabilitiesPath
 $mcpRegistry = Read-JsonFile -Path $mcpsPath
 $connectorRegistry = Read-JsonFile -Path $connectorsPath
+$connectorLifecyclePolicy = Get-PropertyValue $connectorRegistry 'lifecyclePolicy'
+$hostConfiguredLocalMcpIds = @(
+    Get-PropertyValue $connectorLifecyclePolicy 'hostConfiguredLocalMcpIds' @()
+)
 $skillOwnershipRegistry = Read-JsonFile -Path $skillOwnershipPath
 $runtimePolicy = Read-JsonFile -Path $runtimePolicyPath
 $reviewerBroker = Read-JsonFile -Path $reviewerBrokerPath
@@ -771,7 +775,25 @@ $qoderSettings = Read-JsonFile -Path $qoderSettingsPath
 if ($qoderSettings) {
     $enabled = Get-PropertyValue -InputObject $qoderSettings -Name 'enabledPlugins'
     foreach ($entry in @($enabled.PSObject.Properties | Where-Object { [bool]$_.Value })) {
-        $parts = ([string]$entry.Name) -split '@', 2
+        $pluginId = [string]$entry.Name
+        $conflictingMcpIds = @(
+            foreach ($mcp in @($mcpRegistry.mcpServers | Where-Object {
+                [string]$_.id -in $hostConfiguredLocalMcpIds
+            })) {
+                $hostConflicts = Get-PropertyValue $mcp 'conflictingHostPlugins'
+                $qoderConflicts = Get-PropertyValue $hostConflicts 'qoder' @()
+                if ($pluginId -in @($qoderConflicts)) {
+                    [string]$mcp.id
+                }
+            }
+        )
+        foreach ($mcpId in $conflictingMcpIds) {
+            Add-DriftResult FAIL 'plugin' `
+                "duplicate-host-configured-local-plugin:qoder:${pluginId}:${mcpId}" `
+                'enabled Qoder plugin duplicates the AgentHub-managed direct local MCP registration' `
+                'qoder' @($qoderSettingsPath)
+        }
+        $parts = $pluginId -split '@', 2
         if ($parts.Count -ne 2) { continue }
         $candidate = Join-Path $UserProfilePath ".qoder\plugins\cache\$($parts[1])\$($parts[0])"
         Add-PluginRoot 'qoder' ([string]$entry.Name) $candidate $qoderSettingsPath
@@ -1337,7 +1359,9 @@ foreach ($row in @($connectorRegistry.hosts)) {
     $connectorRows[[string]$row.hostId] = $row
 }
 $registeredMcpIds = @($mcpRegistry.mcpServers | ForEach-Object { [string]$_.id })
-$onDemandMcpIds = @($connectorRegistry.lifecyclePolicy.onDemandLocalMcpIds)
+$onDemandMcpIds = @(
+    Get-PropertyValue $connectorLifecyclePolicy 'onDemandLocalMcpIds' @()
+)
 $allowedHostExtras = @{
     codex = @('node_repl')
 }
@@ -1353,7 +1377,12 @@ foreach ($definition in $mcpConfigDefinitions) {
     )
     $connector = Resolve-ConnectorRow -HostId $hostId -Rows $connectorRows
     $expected = if ($connector) {
-        @($connector.exposures.'shared-gateway' | Sort-Object -Unique)
+        @(
+            @($connector.exposures.'shared-gateway') +
+            @($connector.exposures.'local-only' | Where-Object {
+                $_ -in $hostConfiguredLocalMcpIds
+            }) | Sort-Object -Unique
+        )
     } else { @() }
     $pluginOwned = if ($connector) {
         @($connector.exposures.'plugin-owned' | Sort-Object -Unique)
@@ -1750,9 +1779,14 @@ try {
         $processById[[int]$process.ProcessId] = $process
     }
     $mcpPattern = '(?i)playwright-mcp|chrome-devtools-mcp|brave-search-mcp|context7-mcp|firecrawl-mcp|repocontext.+mcp'
+    $isMcpRuntimeProcess = {
+        param([object]$Process)
+        [string]$Process.Name -notmatch '^(?i:pwsh|powershell)(?:\.exe)?$' -and
+        [string]$Process.CommandLine -match $mcpPattern
+    }
     $mcpProcesses = @($allProcesses | Where-Object {
         [int]$_.ProcessId -ne $PID -and
-        [string]$_.CommandLine -match $mcpPattern
+        (& $isMcpRuntimeProcess $_)
     })
     $rootIds = New-Object System.Collections.Generic.HashSet[int]
     foreach ($mcpProcess in $mcpProcesses) {
@@ -1760,7 +1794,7 @@ try {
         $ancestorId = [int]$mcpProcess.ParentProcessId
         while ($processById.ContainsKey($ancestorId)) {
             $ancestor = $processById[$ancestorId]
-            if ([string]$ancestor.CommandLine -match $mcpPattern) {
+            if (& $isMcpRuntimeProcess $ancestor) {
                 $highest = $ancestor
             }
             $ancestorId = [int]$ancestor.ParentProcessId

@@ -34,6 +34,19 @@ async function filesUnder(url, prefix = "") {
 
 const failures = [];
 const all = await filesUnder(root);
+const upstreamFloatingVersionFiles = new Set([
+  "adapters/claude-code/mcp.fragment.json",
+  "adapters/cursor/mcp.json",
+  "adapters/opencode/opencode.fragment.json",
+  "adapters/qwen-code/settings.fragment.json",
+  "docs/architecture.md",
+  "mcp/chrome-devtools-autoconnect.example.json",
+  "mcp/chrome-devtools.json",
+  "scripts/configure-agents.ps1",
+  "scripts/merge-hermes-config.py",
+  "scripts/validate.ps1",
+  "versions.json"
+]);
 for (const file of required) {
   if (!all.includes(file)) failures.push(`missing required file: ${file}`);
 }
@@ -50,7 +63,11 @@ for (const file of all) {
   if (/sk-[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._-]{16,}|api[_-]?key["']?\s*[:=]\s*["'][^<{][^"']{12,}/i.test(text)) {
     failures.push(`${file}: possible embedded credential`);
   }
-  if (!["README.md", "scripts/static-check.mjs"].includes(file) && /chrome-devtools-mcp@latest|vite-plugin-devtools-json@latest/.test(text)) {
+  if (
+    !["README.md", "scripts/static-check.mjs"].includes(file) &&
+    !upstreamFloatingVersionFiles.has(file) &&
+    /chrome-devtools-mcp@latest|vite-plugin-devtools-json@latest/.test(text)
+  ) {
     failures.push(`${file}: floating package version`);
   }
 }

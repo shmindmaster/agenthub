@@ -787,10 +787,19 @@ Describe 'Comprehensive live fleet drift inventory' {
             Join-Path $canonicalProductDemo '.claude-plugin\plugin.json'
         ) -Value @{ name='product-demo-studio'; version='2.0.0' }
         Write-FixtureJson -Path (Join-Path $registryDir 'mcps.json') -Value @{
-            mcpServers=@(@{ id='chrome-devtools' })
+            mcpServers=@(@{
+                id='chrome-devtools'
+                activationMode='host-configured-local'
+                conflictingHostPlugins=@{
+                    qoder=@('chrome-devtools-mcp@qoder-marketplace')
+                }
+            })
         }
         Write-FixtureJson -Path (Join-Path $registryDir 'native-connectors.json') -Value @{
-            lifecyclePolicy=@{ onDemandLocalMcpIds=@('chrome-devtools') }
+            lifecyclePolicy=@{
+                onDemandLocalMcpIds=@()
+                hostConfiguredLocalMcpIds=@('chrome-devtools')
+            }
             hosts=@(@{
                 hostId='grok'
                 exposures=@{
@@ -847,6 +856,15 @@ Describe 'Comprehensive live fleet drift inventory' {
                 }
             }
         }
+        Write-FixtureJson -Path (Join-Path $profile '.qoder\settings.json') -Value @{
+            enabledPlugins=@{
+                'chrome-devtools-mcp@qoder-marketplace'=$true
+            }
+            mcpServers=@{}
+        }
+        New-Item -ItemType Directory -Path (
+            Join-Path $profile '.qoder\plugins\cache\qoder-marketplace\chrome-devtools-mcp'
+        ) -Force | Out-Null
         $processSnapshot = Join-Path $fixtureRoot 'processes.json'
         Write-FixtureJson -Path $processSnapshot -Value @{
             processes=@(
@@ -865,6 +883,10 @@ Describe 'Comprehensive live fleet drift inventory' {
                 @{
                     ProcessId=102; ParentProcessId=101; Name='node.exe'
                     CommandLine='telemetry watchdog --parent-pid=101'
+                },
+                @{
+                    ProcessId=150; ParentProcessId=1; Name='pwsh.exe'
+                    CommandLine='pwsh -Command npx chrome-devtools-mcp@latest --version'
                 },
                 @{
                     ProcessId=200; ParentProcessId=1; Name='node.exe'
@@ -904,6 +926,8 @@ Describe 'Comprehensive live fleet drift inventory' {
         @($tree.processIds) | Should -Be @(100, 101, 102)
         @($parsed.results.check) | Should -Contain `
             'unsupported-enabled-local-plugin:grok:chrome-devtools-mcp:chrome-devtools'
+        @($parsed.results.check) | Should -Contain `
+            'duplicate-host-configured-local-plugin:qoder:chrome-devtools-mcp@qoder-marketplace:chrome-devtools'
         @($parsed.results | Where-Object {
             $_.check -eq 'stale-loaded-capability:claude:product-demo-studio:200' -and
             $_.status -eq 'WARN'

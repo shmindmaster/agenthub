@@ -5,7 +5,7 @@
 AgentHub is the deployed source of truth for the registered agent fleet. Canonical capability,
 skill, plugin, MCP, worktree, quarantine, and deployment contracts are converged and regression
 tested. The post-restart live configuration verdict is `PASS` with one explicit release-policy
-warning: 107 passes and 0 failures. Product Demo Studio is current at `1.3.1` in every detected
+warning: 107 passes, 1 warning, and 0 failures. Product Demo Studio is current at `1.3.1` in every detected
 version-pinned session. Product Experience Engineering is current at `1.1.1` on Claude, Codex,
 Cursor, and Qoder.
 Product Demo Studio review and release eligibility remains `PIPELINE_BLOCKED` until an
@@ -21,7 +21,7 @@ host.
 - Product experience:
   `packages/handoff-plugins/plugins/product-experience-engineering`
 - Browser execution:
-  `packages/portfolio-plugins/browser-toolkit`
+  `capabilities/browser-toolkit`
 - Portfolio engineering:
   `capabilities/portfolio-engineering-ops`
 - Framer:
@@ -37,10 +37,16 @@ host.
 
 - All 22 registered agent records are inventoried. Twenty-one executables are installed; Windsurf
   is the intentionally dormant retained adapter. Policy failures: 0.
-- The managed profile reconciles the host-appropriate ownership of 10 shared-remote MCP
-  contracts across 13 managed configuration hosts.
+- The managed profile reconciles 11 global MCP contracts across 13 managed profile hosts.
+  Chrome DevTools MCP is also rendered into all 18 supported host configurations, including the
+  retained inactive Windsurf adapter.
 - MCP configuration is host-native. Shared remote services such as Context7 do not launch a
-  local Node or Python worker per host. Local process-based servers remain on demand.
+  local Node or Python worker per host. Chrome DevTools follows the upstream README direct-local
+  configuration, so each concurrent host can own one stdio worker after activation. Other local
+  process-based servers remain on demand.
+- Browser Toolkit `0.2.0` uses `npx -y chrome-devtools-mcp@latest` on standard hosts, the
+  documented Windows `cmd /c` form for Codex, and Antigravity's documented built-in-browser URL.
+  Qoder's duplicate marketplace Chrome plugin is disabled; its unrelated plugins are preserved.
 - Product Demo Studio is native on Claude, Codex, Factory, Grok, Qoder, VS Code Insiders, and
   Copilot where the host supports that route. Qwen uses a native extension; Gemini, Antigravity,
   OpenCode, and Codex receive generated host-native role adapters from the same 13 canonical
@@ -67,16 +73,18 @@ host.
 - GitHub-hosted CI was retired. AgentHub has no build, release, or deploy artifact; repository
   validation is local and deterministic.
 - Cursor and Cursor Agent are active. The Cursor-specific MCP adapter replaces historical invalid
-  fields instead of merging them: the CLI confirms all eight intended shared registrations are
-  parsed. Context7, Exa, Firecrawl, and Tavily are ready; OAuth-backed servers await their normal
+  fields instead of merging them: the current config contains all nine registry-selected
+  registrations, including Chrome DevTools. Context7, Exa, Firecrawl, and Tavily are ready; OAuth-backed servers await their normal
   host authentication state, and Adobe reports a connection error without preventing
   any other MCP from loading.
 
 ## Root and worktree cleanup
 
-The obsolete drive-root artifacts are absent. The empty `C:\tmp\sessions` tree was moved
+The obsolete drive-root artifacts are absent. This Codex Desktop session recreated an empty
+`C:\tmp\sessions\<session-id>` tree despite the correct process and user `TMPDIR`; it was moved
 recoverably to
-`C:\Users\SaroshHussain\AppData\Local\AgentHub\quarantine\drive-root\20260730-102545\tmp`.
+`C:\Users\SaroshHussain\AppData\Local\AgentHub\quarantine\drive-root\20260730-171650\tmp`.
+The upstream package smoke and final live audit did not recreate it.
 `C:\wt` remains intentionally because it is the sole approved worktree root. Seven unique or
 dirty worktrees/repositories were preserved intact
 under:
@@ -99,27 +107,26 @@ Pre-move bundles, dirty patches, and the verified manifest are at:
 
 ## Verification
 
-- Full Pester suite: 162 passed, 0 failed, 0 skipped, including the Cursor schema-focused
-  regression test.
-- Repository validator: 121 passed, 4 warned, 0 failed.
+- Chrome/registry/profile focused Pester suite: 76 passed, 0 failed, 0 skipped. The final
+  live-drift regression rerun passed 9/9.
+- Repository ecosystem validator: 97 passed, 0 warned, 0 failed.
 - Host readiness: 22 registered surfaces; 21 executables plus the intentional dormant Windsurf
   adapter; 0 policy failures.
-- Full-access profile: passed for 10 shared-remote MCP contracts across 13 managed hosts.
+- Full-access profile: passed for 11 global MCP contracts across all 18 supported host
+  configurations.
 - External skill report: 11 current targets, 0 stale targets.
 - Product Demo Studio: 134 contract assertions passed; package and static parity passed for all
   18 registry mappings; Qoder reports 8 skills, 13 agents, and 1 plugin-owned MCP.
 - Independent review: no blocker or critical code finding remained after the final safety fixes.
-- Final live inventory: 22 agents, 67 plugins, 934 skills, 19 MCP configurations, 77 worktrees,
-  and 64 processes. No duplicate AgentHub-managed local MCP runtime tree or canonical local MCP
-  worker was found. Claude and Codex user-installed extra plugins are preserved as host-private
+- Final live inventory found 107 passing checks, 1 warning, and 0 failures. No duplicate
+  AgentHub-managed local MCP runtime tree or canonical local MCP worker was found. Claude and Codex user-installed extra plugins are preserved as host-private
   extensions and are intentionally outside fleet parity and cross-host deployment.
-- Advisory runtime budgets passed: Codex 2,141/4,096 MB, Claude 4,061.3/4,096 MB, language
-  servers 1,612.7/2,048 MB, and canonical local MCP workers 0/1,536 MB. Auto-termination remains
-  disabled.
+- All advisory runtime budgets passed and no known local MCP worker remained. Auto-termination
+  remains disabled.
 
 Final live report:
 
-`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-convergence\post-restart-extension-boundary-20260730-155627.json`
+`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-inventory\chrome-devtools-final.json`
 
 Live counts: 107 pass, 1 warn, 0 fail.
 

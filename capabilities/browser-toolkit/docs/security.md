@@ -6,13 +6,19 @@ requests/responses, and authenticated data available to that browser profile.
 
 Mitigations:
 
-- never connect to the normal Chrome instance on port 9222;
-- use the dedicated shared profile on 9333 or isolated profiles on 9341–9344;
+- use the server-launched Chrome profile and never point a standard adapter at
+  a normal personal Chrome profile;
+- Antigravity's upstream-documented 9222 route is allowed only for
+  Antigravity's built-in browser;
+- use the optional dedicated profile on 9333 or isolated profiles on
+  9341–9344 for controlled evidence capture;
 - use synthetic accounts/data and distinct server-side namespaces;
 - close unrelated tabs and disable notifications/sync;
 - keep CDP loopback-only and do not expose it through a firewall, tunnel, or
   container port;
-- disable MCP usage statistics, CrUX lookup, and redact network headers;
+- understand that the upstream standard configuration leaves usage statistics,
+  update checks, and CrUX lookup at their defaults; use the documented opt-out
+  flags or environment variables before sensitive diagnostics when required;
 - keep experimental flags off;
 - require `ask` or equivalent permission for browser actions;
 - sanitize screenshots, traces, logs, videos, captions, and manifests;

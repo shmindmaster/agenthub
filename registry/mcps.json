@@ -1,6 +1,6 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-07-29T15:45:00.000Z",
+  "generatedAt": "2026-07-30T22:19:10.4107485Z",
   "migrationAliases": {
     "repo-context": "repocontext",
     "shwiki": "repocontext",
@@ -206,31 +206,68 @@
     {
       "id": "chrome-devtools",
       "name": "Chrome DevTools",
-      "scope": "browser-quality-agents",
+      "scope": "global-default",
       "transport": "stdio",
-      "activationMode": "on-demand-local",
+      "activationMode": "host-configured-local",
       "command": "npx",
       "args": [
         "-y",
-        "chrome-devtools-mcp@1.6.0",
-        "--browser-url=http://127.0.0.1:9333",
-        "--no-usage-statistics",
-        "--no-performance-crux",
-        "--redact-network-headers"
+        "chrome-devtools-mcp@latest"
       ],
       "env": {},
-      "credentialPolicy": "dedicated-qa-browser-session",
+      "credentialPolicy": "host-launched-chrome-profile-no-sensitive-data",
       "owner": {
         "type": "capability",
         "id": "browser-toolkit"
       },
       "hosts": [
+        "amp",
+        "antigravity",
         "claude",
-        "qwen-code",
-        "opencode",
+        "cline",
+        "codex",
+        "copilot",
+        "cursor",
+        "devin",
+        "factory",
+        "gemini",
+        "grok",
         "hermes",
-        "qoder"
+        "opencode",
+        "qoder",
+        "qwen-code",
+        "vscode-insiders",
+        "warp",
+        "windsurf"
       ],
+      "hostConfigOverrides": {
+        "antigravity": {
+          "args": [
+            "-y",
+            "chrome-devtools-mcp@latest",
+            "--browser-url=http://127.0.0.1:9222"
+          ]
+        },
+        "codex": {
+          "command": "cmd",
+          "args": [
+            "/c",
+            "npx",
+            "-y",
+            "chrome-devtools-mcp@latest"
+          ],
+          "env": {
+            "SystemRoot": "C:\\Windows",
+            "PROGRAMFILES": "C:\\Program Files"
+          },
+          "startup_timeout_ms": 20000
+        }
+      },
+      "conflictingHostPlugins": {
+        "qoder": [
+          "chrome-devtools-mcp@qoder-marketplace"
+        ]
+      },
       "experimentalFlagsEnabled": []
     },
     {

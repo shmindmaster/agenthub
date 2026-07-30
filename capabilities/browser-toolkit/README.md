@@ -1,27 +1,34 @@
 # Browser Quality Toolkit
 
 This capability gives every registered host, including Cursor IDE and Cursor
-Agent, one shared browser-quality contract. Chrome DevTools MCP 1.6.0 is the
+Agent, one shared browser-quality contract. Chrome DevTools MCP `@latest`
+(currently 1.6.0) is the
 live browser, diagnostics, Lighthouse, and trace layer. Existing Playwright
 installations remain the deterministic regression layer when a repository
 already owns them; this toolkit neither installs nor removes Playwright.
 
-The canonical default is a visible Chrome window using an isolated QA profile
-and CDP on loopback port 9333. It exposes the profile's pages, DOM, accessibility
-tree, cookies, storage, request/response data, console output, and any
-authenticated application state to the connected agent. Never use a personal
-Chrome profile. Use synthetic accounts and data, close unrelated tabs, and
-sanitize screenshots, traces, logs, and reports.
+The canonical fleet deployment follows the upstream README's standard MCP
+configuration: `npx -y chrome-devtools-mcp@latest`. Each host persists its own
+native MCP entry, and the server starts Chrome only when a tool first requires
+it. The server exposes its Chrome profile's pages, DOM, accessibility tree,
+cookies, storage, request/response data, console output, and authenticated
+application state to that agent. Use synthetic accounts and data, close
+unrelated tabs, and sanitize screenshots, traces, logs, and reports.
+
+Codex uses the upstream Windows 11 `cmd /c npx` form with its documented
+environment and 20-second startup timeout. Antigravity uses the upstream
+`127.0.0.1:9222` connection to its built-in browser. Every other supported
+host uses the standard configuration rendered into its native schema.
 
 ## Concurrent agents
 
-The applied default is `Shared`: all enabled agents point to the same dedicated
-profile on port 9333. Only one interactive agent may own that browser at a time.
-Separate tabs do not isolate cookies, storage, application mutations, or test
-data and are acceptable only for coordinated read-only inspection.
+Chrome DevTools MCP is a local stdio server. Concurrent hosts can therefore
+start one Node worker each; the upstream README does not define a shared server
+transport. The server does not launch Chrome merely because an MCP client
+connects, but it may keep its local worker alive for that host session.
 
-For parallel interactive work, apply isolated routing and launch one profile per
-agent:
+The prior controlled QA routing remains available as an advanced, explicit
+diagnostic mode:
 
 ```powershell
 .\scripts\configure-agents.ps1 -Apply -BrowserMode Isolated
@@ -31,11 +38,11 @@ agent:
 .\scripts\launch-agent-chrome.ps1 -Agent hermes
 ```
 
-This assigns ports 9341–9344 and separate browser profiles. Use distinct
+This assigns ports 9341–9344 and separate browser profiles for those four
+adapters. Use distinct
 synthetic accounts, tenants, or seed namespaces too; browser isolation cannot
-prevent two agents from mutating the same server-side record. To return to
-single-session reuse, run `configure-agents.ps1 -Apply -BrowserMode Shared`.
-Never point the toolkit at the normal browser on port 9222.
+prevent two agents from mutating the same server-side record. Re-running the
+fleet synchronizer restores the upstream README configuration.
 
 ## Responsibility boundary
 
@@ -50,28 +57,27 @@ Never point the toolkit at the normal browser on port 9222.
 
 Playwright MCP is not added by this capability. Existing installations are
 preserved. No Windows-control MCP is installed. Chrome experimental screencast,
-vision, memory, WebMCP, extension, third-party, and DevTools flags are disabled.
+vision, memory, WebMCP, extension, third-party, and DevTools flags are not
+enabled by AgentHub.
 
 ## Install and configure
 
-Run PowerShell 7 from the repository:
+Deploy the registry-selected native configuration and skills from AgentHub:
 
 ```powershell
-cd C:\Repos\shmindmaster\agenthub\capabilities\browser-toolkit
-npm ci
-.\scripts\configure-agents.ps1
-.\scripts\configure-agents.ps1 -Apply
+cd C:\Repos\shmindmaster\agenthub
+pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Apply -Validate -IncludeInactiveAgents -ScopeProfile global-default
+pwsh -NoProfile -File .\scripts\Apply-FullAccessAgentProfile.ps1
 ```
 
-The first command after `npm ci` is a dry run. Applying creates timestamped
-backups under `%LOCALAPPDATA%\browser-toolkit\backups`, treats the existing
+The package-local `configure-agents.ps1` remains only for the advanced
+four-host QA routing described above. Applying it creates timestamped backups
+under `%LOCALAPPDATA%\browser-toolkit\backups`, treats the existing
 `QWEN_API_KEY` user variable as this toolkit's canonical secret name, and
 merges only toolkit-owned settings. Qwen Code, OpenCode, and Hermes reference
 that variable directly. It never prints a secret. Cursor's browser skills,
-native plugins, MCP registry, permissions, and launch policy are deployed by
-AgentHub's full-profile reconciler instead of this package-local script. This
-prevents a second Cursor-specific configuration owner or duplicate persistent
-browser server.
+MCP registry, permissions, and launch policy are deployed by AgentHub's
+full-profile reconciler instead of this package-local script.
 
 If `QWEN_API_KEY` does not exist, set it without
 putting it in shell history:

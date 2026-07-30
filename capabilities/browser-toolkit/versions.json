@@ -23,7 +23,8 @@
   },
   "experimentalChromeDevtoolsFlagsEnabled": [],
   "browserRouting": {
-    "appliedMode": "Shared",
+    "appliedMode": "Upstream",
+    "defaultCommand": "npx -y chrome-devtools-mcp@latest",
     "sharedPort": 9333,
     "isolatedPorts": {
       "claude": 9341,
@@ -31,10 +32,12 @@
       "opencode": 9343,
       "hermes": 9344
     },
-    "personalChromePortExcluded": 9222
+    "personalChromePortExcluded": 9222,
+    "advancedPortModesAreOptIn": true
   },
   "notes": [
     "Cursor was explicitly reauthorized on 2026-07-30. Version and configuration checks are non-paid; no model prompt is used as a health probe.",
+    "The fleet default follows the upstream README and lets each host launch Chrome DevTools MCP on first tool use. Shared and isolated debug-port modes remain explicit opt-ins.",
     "Playwright is intentionally not a dependency of this toolkit. Existing repository or host Playwright installations remain independent.",
     "The latest MCP SDK is pinned with an @hono/node-server 2.0.11 security override because the SDK's declared transitive range otherwise resolves Windows path-traversal and WebSocket-handshake advisories. The toolkit uses only the SDK stdio client and validates this override with npm audit and the live smoke.",
     "vite-plugin-devtools-json is recorded for conditional repository integration and is not installed by this toolkit."

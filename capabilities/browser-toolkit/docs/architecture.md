@@ -1,7 +1,7 @@
 # Architecture and agent comparison
 
-Chrome DevTools MCP is selected as the shared live-browser diagnostics layer
-because it can attach to a visible, authenticated, dedicated Chrome profile and
+Chrome DevTools MCP is selected as the fleet-wide live-browser diagnostics layer
+because it can launch or attach to a visible Chrome profile and
 provide DOM/accessibility, console, network, Lighthouse, and performance
 evidence. Chrome experimental features are off.
 
@@ -21,6 +21,8 @@ issues a current `DEMO-READY` handoff.
 | OpenCode | `@ai-sdk/anthropic`, stable Qwen default | `~/.config/opencode/opencode.json`, `mcp` local command array | `~/.config/opencode/skills` | DevTools MCP with `ask` permission | Native paths validated | Browser tools ask; use a dedicated browser agent | `opencode mcp list` |
 | Qwen Code | OpenAI-compatible models with canonical `QWEN_API_KEY` (`envKey` is configurable) | `~/.qwen/settings.json`, `mcpServers`, `mcp.allowed` array | Native extensions plus `~/.qwen/skills` | DevTools MCP; Computer Use only for native UI | Native driver is cross-platform but desktop exposure remains high risk | MCP allowlist; restart after Computer Use changes | `qwen --list-extensions`; interactive `/mcp` after token rotation |
 
-Applied browser mode is `Shared` on 9333, one interactive owner at a time.
-`Isolated` mode assigns Claude/Qwen/OpenCode/Hermes ports 9341–9344 and separate
-profiles. Port 9222 belongs to the normal browser and is excluded.
+The applied fleet mode is the upstream README's per-host
+`npx -y chrome-devtools-mcp@latest` configuration. Codex uses the documented
+Windows command wrapper, and Antigravity connects to its built-in browser on
+9222. The older `Shared` port 9333 and four-host `Isolated` ports 9341–9344
+remain optional controlled-diagnostics modes, not the fleet default.

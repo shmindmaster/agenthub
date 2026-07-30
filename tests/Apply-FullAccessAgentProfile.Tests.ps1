@@ -1188,4 +1188,11 @@ Describe 'Apply-FullAccessAgentProfile Qoder plugin convergence' {
         $finalSyncIndex | Should -BeGreaterThan -1
         $finalRetirementIndex | Should -BeGreaterThan $finalSyncIndex
     }
+
+    It 'disables only registry-declared plugins that conflict with direct MCP ownership' {
+        $script:applyProfileSource | Should -Match 'function Disable-QoderConflictingMcpPlugins'
+        $script:applyProfileSource | Should -Match 'plugins disable --scope user'
+        $script:applyProfileSource | Should -Match 'conflictingHostPlugins'
+        $script:applyProfileSource | Should -Match 'still reports conflicting MCP plugin'
+    }
 }

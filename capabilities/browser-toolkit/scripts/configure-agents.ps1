@@ -3,8 +3,8 @@ param(
     [switch]$Apply,
     [switch]$SkipTokenPlan,
     [switch]$SkipSkills,
-    [ValidateSet('Shared', 'Isolated')]
-    [string]$BrowserMode = 'Shared',
+    [ValidateSet('Upstream', 'Shared', 'Isolated')]
+    [string]$BrowserMode = 'Upstream',
     [string]$RollbackFrom
 )
 
@@ -131,14 +131,14 @@ function Remove-ToolkitQwenSchemaArtifact {
     $allowed = @($settings.mcp.allowed)
     if ('chrome-devtools' -notin $allowed) { $allowed += 'chrome-devtools' }
     $settings.mcp.allowed = [object[]]@($allowed | Select-Object -Unique)
-    $settings.mcpServers.'chrome-devtools'.args = [object[]]@(
+    $chromeArgs = @(
         '-y',
-        'chrome-devtools-mcp@1.6.0',
-        "--browser-url=http://127.0.0.1:$BrowserPort",
-        '--no-usage-statistics',
-        '--no-performance-crux',
-        '--redact-network-headers'
+        'chrome-devtools-mcp@latest'
     )
+    if ($BrowserPort -gt 0) {
+        $chromeArgs += "--browser-url=http://127.0.0.1:$BrowserPort"
+    }
+    $settings.mcpServers.'chrome-devtools'.args = [object[]]$chromeArgs
     $temporary = "$Target.browser-toolkit.normalize.tmp"
     $settings | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $temporary -Encoding utf8
     Move-Item -LiteralPath $temporary -Destination $Target -Force
@@ -153,14 +153,14 @@ function Normalize-ChromeMcpCommand {
     )
     if (-not $Apply -or -not (Test-Path -LiteralPath $Target)) { return }
     $settings = Get-Content -LiteralPath $Target -Raw | ConvertFrom-Json
-    $args = [object[]]@(
+    $args = @(
         '-y',
-        'chrome-devtools-mcp@1.6.0',
-        "--browser-url=http://127.0.0.1:$BrowserPort",
-        '--no-usage-statistics',
-        '--no-performance-crux',
-        '--redact-network-headers'
+        'chrome-devtools-mcp@latest'
     )
+    if ($BrowserPort -gt 0) {
+        $args += "--browser-url=http://127.0.0.1:$BrowserPort"
+    }
+    $args = [object[]]$args
     if ($AgentHost -eq 'Claude') {
         $settings.mcpServers.'chrome-devtools'.args = $args
     } else {
@@ -249,12 +249,19 @@ $browserPorts = if ($BrowserMode -eq 'Isolated') {
         opencode = 9343
         hermes = 9344
     }
-} else {
+} elseif ($BrowserMode -eq 'Shared') {
     @{
         claude = 9333
         qwen = 9333
         opencode = 9333
         hermes = 9333
+    }
+} else {
+    @{
+        claude = 0
+        qwen = 0
+        opencode = 0
+        hermes = 0
     }
 }
 
@@ -293,7 +300,9 @@ Normalize-ChromeMcpCommand $claudeMcp -AgentHost Claude -BrowserPort $browserPor
 if ($SkipTokenPlan) {
     $qwenMcpOnly = Join-Path $toolkitRoot 'mcp\chrome-devtools.json'
     Merge-JsonFile $qwenSettings $qwenMcpOnly $browserPorts.qwen
+    Remove-ToolkitQwenSchemaArtifact $qwenSettings $browserPorts.qwen
     Merge-JsonFile $openCodeSettings (Join-Path $toolkitRoot 'adapters\opencode\opencode.fragment.json') $browserPorts.opencode
+    Normalize-ChromeMcpCommand $openCodeSettings -AgentHost OpenCode -BrowserPort $browserPorts.opencode
 }
 
 Write-Host 'DEFER Cursor mutation to AgentHub full-profile reconciliation to preserve one configuration owner.'

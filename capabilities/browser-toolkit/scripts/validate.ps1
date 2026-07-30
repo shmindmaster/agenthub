@@ -59,9 +59,9 @@ try {
     }
 
     $configChecks = @(
-        @{ Name = 'Claude MCP'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.claude.json'); Pattern = 'chrome-devtools-mcp@1.6.0' },
-        @{ Name = 'Qwen settings'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.qwen\settings.json'); Pattern = 'chrome-devtools-mcp@1.6.0' },
-        @{ Name = 'OpenCode settings'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.config\opencode\opencode.json'); Pattern = 'chrome-devtools-mcp@1.6.0' }
+        @{ Name = 'Claude MCP'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.claude.json'); Pattern = 'chrome-devtools-mcp@latest' },
+        @{ Name = 'Qwen settings'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.qwen\settings.json'); Pattern = 'chrome-devtools-mcp@latest' },
+        @{ Name = 'OpenCode settings'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.config\opencode\opencode.json'); Pattern = 'chrome-devtools-mcp@latest' }
     )
     foreach ($check in $configChecks) {
         $ok = (Test-Path -LiteralPath $check.Path) -and (Select-String -LiteralPath $check.Path -SimpleMatch $check.Pattern -Quiet)

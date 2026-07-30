@@ -849,6 +849,7 @@ function Get-HostMcpEntries {
         [string]$HostId,
         [hashtable]$BaseEntries,
         [hashtable]$HostAllowlist,
+        [hashtable]$HostConfigOverrides,
         [hashtable]$PluginProvidedByHost,
         [object]$GatewayPlan
     )
@@ -859,7 +860,14 @@ function Get-HostMcpEntries {
         if ($HostAllowlist.ContainsKey($resolved) -and $HostId -notin $HostAllowlist[$resolved]) { continue }
         if ($PluginProvidedByHost.ContainsKey($HostId) -and $PluginProvidedByHost[$HostId].ContainsKey($resolved)) { continue }
         if ($GatewayPlan -and $resolved -in @($GatewayPlan.managedKeys)) { continue }
-        $filtered[$key] = $BaseEntries[$key]
+        $entry = ConvertTo-Hashtable $BaseEntries[$key]
+        if ($HostConfigOverrides.ContainsKey($HostId) -and
+            $HostConfigOverrides[$HostId].ContainsKey($resolved)) {
+            foreach ($override in $HostConfigOverrides[$HostId][$resolved].GetEnumerator()) {
+                $entry[$override.Key] = ConvertTo-Hashtable $override.Value
+            }
+        }
+        $filtered[$key] = $entry
     }
     if ($GatewayPlan) {
         $filtered[[string]$GatewayPlan.entryKey] = ConvertTo-Hashtable $GatewayPlan.entry
@@ -1071,6 +1079,9 @@ function Sync-HostMcp-Codex {
             $sectionLines += "command = `"$($entry.command)`""
             $argsStr = ($entry.args | ForEach-Object { '"' + (($_ -replace '\\','\\\\') -replace '"','\"') + '"' }) -join ', '
             $sectionLines += "args = [$argsStr]"
+            if ($entry.ContainsKey('startup_timeout_ms')) {
+                $sectionLines += "startup_timeout_ms = $([int]$entry.startup_timeout_ms)"
+            }
             if ($entry.env -and $entry.env.Count -gt 0) {
                 $sectionLines += "[mcp_servers.$key.env]"
                 foreach ($e in @($entry.env.GetEnumerator() | Sort-Object Key)) {
@@ -2048,11 +2059,11 @@ function Sync-HostMcp-OpenCode {
         if (-not ($existing -is [hashtable])) { $existing = ConvertTo-Hashtable $existing; $root.mcp[$key] = $existing }
 
         if ($target.type -eq 'local') {
-            foreach ($staleField in @('url','headers')) {
+            foreach ($staleField in @('url','headers','args','env','oauth')) {
                 if ($existing.ContainsKey($staleField)) { $existing.Remove($staleField) }
             }
         } elseif ($target.type -eq 'remote') {
-            foreach ($staleField in @('command','environment')) {
+            foreach ($staleField in @('command','args','env','environment')) {
                 if ($existing.ContainsKey($staleField)) { $existing.Remove($staleField) }
             }
         }
@@ -2253,9 +2264,9 @@ $onDemandLocalMcpKeys = @($mcpsReg.mcpServers | Where-Object {
     Resolve-McpAliasKey ([string]$_.id)
 } | Sort-Object -Unique)
 
-# Fleet synchronization persists configuration, so it must never emit a local
-# stdio launcher. Local MCPs are activated by their owning plugin/skill or a
-# reviewed shared gateway, not by any Sync-AgentHub scope (including `all`).
+# Fleet synchronization omits on-demand local launchers. A registry entry with
+# the distinct host-configured-local lifecycle is an explicit fleet exception
+# requested by the owner and is emitted through each reviewed native adapter.
 $candidateServers = @(Get-McpCandidatesForScope `
     -Servers $mcpsReg.mcpServers `
     -Scope $ScopeProfile `
@@ -2265,9 +2276,21 @@ $candidateServers = @(Get-McpCandidatesForScope `
 
 $allMcpEntries = @{}
 $mcpHostAllowlist = @{}
+$mcpHostConfigOverrides = @{}
 foreach ($mcp in $candidateServers) {
     $allMcpEntries[$mcp.id] = Get-CanonicalMcpEntry $mcp
     if ($mcp.PSObject.Properties.Match('hosts').Count -gt 0 -and $mcp.hosts) { $mcpHostAllowlist[$mcp.id] = @($mcp.hosts) }
+    $overridesProperty = $mcp.PSObject.Properties['hostConfigOverrides']
+    if ($overridesProperty -and $overridesProperty.Value) {
+        foreach ($hostOverride in $overridesProperty.Value.PSObject.Properties) {
+            $hostId = [string]$hostOverride.Name
+            if (-not $mcpHostConfigOverrides.ContainsKey($hostId)) {
+                $mcpHostConfigOverrides[$hostId] = @{}
+            }
+            $mcpHostConfigOverrides[$hostId][(Resolve-McpAliasKey ([string]$mcp.id))] =
+                ConvertTo-Hashtable $hostOverride.Value
+        }
+    }
 }
 
 $pluginProvidedByHost = Get-PluginProvidedMcpKeysByHost -CapabilitiesRegistry $capReg -McpRegistry $mcpsReg -ConnectorRegistry $connectorReg
@@ -2278,7 +2301,7 @@ if ($IncludeInactiveAgents) { $agentsToSync += @($agentsReg.inactiveAgents) }
 foreach ($agent in $agentsToSync) {
     $hostDrift = @{ host=$agent.id; mcp=@(); files=@(); status='ok' }
     $gatewayPlan = Get-GatewayPlanForHost -HostId $agent.id -GatewayRegistry $gatewayReg -ConnectorRegistry $connectorReg
-    $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan
+    $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -HostConfigOverrides $mcpHostConfigOverrides -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan
     $pluginOwnedKeys = if ($pluginProvidedByHost.ContainsKey($agent.id)) { @($pluginProvidedByHost[$agent.id].Keys) } else { @() }
     # Remove stale local registrations narrowly even without -Prune so an
     # older sync or a broad scope cannot recreate process-fanout entries.

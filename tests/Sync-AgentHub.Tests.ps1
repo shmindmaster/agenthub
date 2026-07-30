@@ -563,16 +563,19 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
         $claudeConfig = Join-Path $profile '.claude.json'
         $clineConfig = Join-Path $profile '.cline\data\settings\cline_mcp_settings.json'
         $codexConfig = Join-Path $profile '.codex\config.toml'
+        $openCodeConfig = Join-Path $profile '.config\opencode\opencode.json'
         New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry') -Force | Out-Null
         New-Item -ItemType Directory -Path (Split-Path -Parent $claudeConfig) -Force | Out-Null
         New-Item -ItemType Directory -Path (Split-Path -Parent $clineConfig) -Force | Out-Null
         New-Item -ItemType Directory -Path (Split-Path -Parent $codexConfig) -Force | Out-Null
+        New-Item -ItemType Directory -Path (Split-Path -Parent $openCodeConfig) -Force | Out-Null
 
         @{
             activeAgents = @(
                 @{ id = 'claude'; nativePaths = @{ mcpUser = $claudeConfig } },
                 @{ id = 'cline'; nativePaths = @{ mcp = $clineConfig } },
-                @{ id = 'codex'; nativePaths = @{ config = $codexConfig } }
+                @{ id = 'codex'; nativePaths = @{ config = $codexConfig } },
+                @{ id = 'opencode'; nativePaths = @{ config = $openCodeConfig } }
             )
             inactiveAgents = @()
         } | ConvertTo-Json -Depth 8 |
@@ -604,6 +607,27 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
                     command = 'pnpm'
                     args = @('mcp:serve')
                     credentialPolicy = 'none'
+                },
+                @{
+                    id = 'chrome-devtools'
+                    scope = 'global-default'
+                    transport = 'stdio'
+                    activationMode = 'host-configured-local'
+                    command = 'npx'
+                    args = @('-y', 'chrome-devtools-mcp@latest')
+                    credentialPolicy = 'none'
+                    hosts = @('claude', 'cline', 'codex', 'opencode')
+                    hostConfigOverrides = @{
+                        codex = @{
+                            command = 'cmd'
+                            args = @('/c', 'npx', '-y', 'chrome-devtools-mcp@latest')
+                            env = @{
+                                SystemRoot = 'C:\Windows'
+                                PROGRAMFILES = 'C:\Program Files'
+                            }
+                            startup_timeout_ms = 20000
+                        }
+                    }
                 }
             )
         } | ConvertTo-Json -Depth 8 |
@@ -624,6 +648,28 @@ Describe 'Sync-AgentHub default MCP lifecycle suppression' {
                 custom = @{ type = 'streamableHttp'; url = 'https://user-owned.example.test/mcp'; disabled = $false }
             }
         } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $clineConfig -Encoding UTF8
+        @{
+            mcp = @{
+                'chrome-devtools' = @{
+                    type = 'local'
+                    command = @('npx', '-y', 'chrome-devtools-mcp@1.6.0')
+                    args = @('-y', 'chrome-devtools-mcp@1.6.0')
+                    env = @{}
+                    environment = @{}
+                    enabled = $true
+                }
+                playwright = @{
+                    type = 'local'
+                    command = @('npx', '-y', '@playwright/mcp@latest')
+                    enabled = $true
+                }
+                custom = @{
+                    type = 'remote'
+                    url = 'https://user-owned.example.test/mcp'
+                    enabled = $true
+                }
+            }
+        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $openCodeConfig -Encoding UTF8
         @'
 [mcp_servers.repo-context]
 command = "pnpm"
@@ -644,20 +690,43 @@ enabled = true
 
             $claude = Get-Content -LiteralPath $claudeConfig -Raw | ConvertFrom-Json
             @($claude.mcpServers.PSObject.Properties.Name) | Should -Contain 'context7'
+            @($claude.mcpServers.PSObject.Properties.Name) | Should -Contain 'chrome-devtools'
             @($claude.mcpServers.PSObject.Properties.Name) | Should -Contain 'custom'
+            @($claude.mcpServers.'chrome-devtools'.args) |
+                Should -Be @('-y', 'chrome-devtools-mcp@latest')
             @($claude.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'playwright'
             @($claude.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'shwiki'
             @($claude.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'repocontext'
 
             $cline = Get-Content -LiteralPath $clineConfig -Raw | ConvertFrom-Json
             @($cline.mcpServers.PSObject.Properties.Name) | Should -Contain 'context7'
+            @($cline.mcpServers.PSObject.Properties.Name) | Should -Contain 'chrome-devtools'
             @($cline.mcpServers.PSObject.Properties.Name) | Should -Contain 'custom'
+            @($cline.mcpServers.'chrome-devtools'.args) |
+                Should -Be @('-y', 'chrome-devtools-mcp@latest')
             @($cline.mcpServers.PSObject.Properties.Name) | Should -Not -Contain 'playwright'
 
             $codex = Get-Content -LiteralPath $codexConfig -Raw
             $codex | Should -Not -Match '(?m)^\[mcp_servers\.repo-context\]\s*$'
             $codex | Should -Not -Match '(?m)^\[mcp_servers\.repocontext\]\s*$'
             $codex | Should -Match '(?m)^\[plugins\."user-owned@personal"\]\s*$'
+            $codex | Should -Match '(?m)^\[mcp_servers\.chrome-devtools\]\s*$'
+            $codex | Should -Match '(?m)^command = "cmd"\s*$'
+            $codex | Should -Match '(?m)^startup_timeout_ms = 20000\s*$'
+            $codex | Should -Match '(?m)^\[mcp_servers\.chrome-devtools\.env\]\s*$'
+            $codex | Should -Match '(?m)^SystemRoot = "C:\\Windows"\s*$'
+
+            $openCode = Get-Content -LiteralPath $openCodeConfig -Raw |
+                ConvertFrom-Json
+            @($openCode.mcp.PSObject.Properties.Name) | Should -Contain 'chrome-devtools'
+            @($openCode.mcp.'chrome-devtools'.command) |
+                Should -Be @('npx', '-y', 'chrome-devtools-mcp@latest')
+            @($openCode.mcp.'chrome-devtools'.PSObject.Properties.Name) |
+                Should -Not -Contain 'args'
+            @($openCode.mcp.'chrome-devtools'.PSObject.Properties.Name) |
+                Should -Not -Contain 'env'
+            @($openCode.mcp.PSObject.Properties.Name) | Should -Not -Contain 'playwright'
+            @($openCode.mcp.PSObject.Properties.Name) | Should -Contain 'custom'
 
             & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive `
                 -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
@@ -672,15 +741,25 @@ enabled = true
                 Should -Not -Contain 'playwright'
             @($claudeAfterAll.mcpServers.PSObject.Properties.Name) |
                 Should -Not -Contain 'shwiki'
+            @($claudeAfterAll.mcpServers.PSObject.Properties.Name) |
+                Should -Contain 'chrome-devtools'
 
             $clineAfterAll = Get-Content -LiteralPath $clineConfig -Raw |
                 ConvertFrom-Json
             @($clineAfterAll.mcpServers.PSObject.Properties.Name) |
                 Should -Not -Contain 'playwright'
+            @($clineAfterAll.mcpServers.PSObject.Properties.Name) |
+                Should -Contain 'chrome-devtools'
 
             $codexAfterAll = Get-Content -LiteralPath $codexConfig -Raw
             $codexAfterAll |
                 Should -Not -Match '(?m)^\[mcp_servers\.repo-context\]\s*$'
+            $openCodeAfterAll = Get-Content -LiteralPath $openCodeConfig -Raw |
+                ConvertFrom-Json
+            @($openCodeAfterAll.mcp.PSObject.Properties.Name) |
+                Should -Contain 'chrome-devtools'
+            @($openCodeAfterAll.mcp.PSObject.Properties.Name) |
+                Should -Not -Contain 'playwright'
         } finally {
             $env:LOCALAPPDATA = $previousLocalAppData
         }

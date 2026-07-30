@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-30T16:05:00-05:00",
+  "generatedAt": "2026-07-30T22:19:10.4107485Z",
   "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
   "surfaceAliases": [
     { "surfaceId": "cursor-agent", "inheritsHostId": "cursor" },
@@ -757,12 +757,64 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "094EF5CFA805F05BFB6A87C81F6471CE65E5C4A20B5C6AA9BA49A13AD625FCFD",
+      "contentHash": "B63007FE68C3D8E82962B66AD713F5704C9947F48D2BE9B58B62194E2EA1183F",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
         {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
           "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills-and-mcp"
         },
         {
@@ -770,24 +822,16 @@
           "deploymentStatus": "managed-native-skills-and-mcp"
         },
         {
-          "hostId": "opencode",
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-native-mcp"
+        },
+        {
+          "hostId": "warp",
           "deploymentStatus": "managed-loose-skills-and-mcp"
         },
         {
-          "hostId": "hermes",
-          "deploymentStatus": "managed-loose-skills-native-browser-plus-mcp"
-        },
-      {
-        "hostId": "cursor",
-        "deploymentStatus": "managed-loose-skills"
-      },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
         }
       ]
     }

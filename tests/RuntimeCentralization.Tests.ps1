@@ -91,25 +91,44 @@ Describe 'Runtime-centralization registry contracts' {
             'C:/Users/SaroshHussain/AppData/Local/AgentHub/runtime/playwright'
     }
 
-    It 'keeps the fleet-wide default remote-only and local MCP runtimes on demand' {
+    It 'keeps one explicit fleet-local README installation and all other local MCP runtimes on demand' {
         $globalDefaults = @($mcps.mcpServers | Where-Object scope -eq 'global-default')
         $onDemandLocal = @($mcps.mcpServers |
             Where-Object activationMode -eq 'on-demand-local')
+        $hostConfiguredLocal = @($mcps.mcpServers |
+            Where-Object activationMode -eq 'host-configured-local')
 
         $globalDefaults.Count | Should -BeGreaterThan 0
         @($globalDefaults | Where-Object {
-            $_.transport -ne 'http' -or $_.activationMode -ne 'shared-remote'
+            ($_.transport -ne 'http' -or $_.activationMode -ne 'shared-remote') -and
+            ($_.transport -ne 'stdio' -or $_.activationMode -ne 'host-configured-local')
         }) | Should -BeNullOrEmpty
 
         @($onDemandLocal.id | Sort-Object) | Should -Be @(
             'brave-search',
-            'chrome-devtools',
             'playwright',
             'repocontext'
         )
         @($onDemandLocal | Where-Object {
             $_.transport -ne 'stdio' -or $_.scope -eq 'global-default'
         }) | Should -BeNullOrEmpty
+        @($hostConfiguredLocal.id) | Should -Be @('chrome-devtools')
+        $chrome = $hostConfiguredLocal[0]
+        $chrome.args | Should -Be @('-y', 'chrome-devtools-mcp@latest')
+        @($chrome.hosts | Sort-Object) | Should -Be @(
+            'amp', 'antigravity', 'claude', 'cline', 'codex', 'copilot',
+            'cursor', 'devin', 'factory', 'gemini', 'grok', 'hermes',
+            'opencode', 'qoder', 'qwen-code', 'vscode-insiders', 'warp',
+            'windsurf'
+        )
+        @($chrome.conflictingHostPlugins.qoder) |
+            Should -Be @('chrome-devtools-mcp@qoder-marketplace')
+        $chrome.hostConfigOverrides.codex.command | Should -Be 'cmd'
+        $chrome.hostConfigOverrides.codex.args |
+            Should -Be @('/c', 'npx', '-y', 'chrome-devtools-mcp@latest')
+        $chrome.hostConfigOverrides.codex.startup_timeout_ms | Should -Be 20000
+        $chrome.hostConfigOverrides.antigravity.args |
+            Should -Contain '--browser-url=http://127.0.0.1:9222'
 
         $context7 = @($globalDefaults | Where-Object id -eq 'context7')
         $context7.Count | Should -Be 1
@@ -121,6 +140,10 @@ Describe 'Runtime-centralization registry contracts' {
             Should -Be 'never-persist-on-demand-local-in-host-config'
         $connectors.lifecyclePolicy.localActivationOwnerPolicy |
             Should -Be 'plugin-skill-or-reviewed-shared-gateway'
+        @($connectors.lifecyclePolicy.hostConfiguredLocalMcpIds) |
+            Should -Be @('chrome-devtools')
+        $connectors.lifecyclePolicy.hostConfiguredLocalFanoutPolicy |
+            Should -Be 'persist-only-explicit-user-requested-readme-installations'
         @($connectors.hostPrivateExtensionPolicy.hosts | Sort-Object) |
             Should -Be @('claude', 'codex')
         $connectors.hostPrivateExtensionPolicy.authority |
@@ -227,7 +250,8 @@ Describe 'Runtime-centralization registry contracts' {
         @($copilotRow.exposures.'shared-gateway') | Should -Contain 'descript'
         $qoderRow = Resolve-ConnectorRow -HostId 'qoder'
         @($qoderRow.exposures.'plugin-owned') | Should -Contain 'context7'
-        @($qoderRow.exposures.'plugin-owned') | Should -Contain 'chrome-devtools'
+        @($qoderRow.exposures.'plugin-owned') | Should -Not -Contain 'chrome-devtools'
+        @($qoderRow.exposures.'local-only') | Should -Contain 'chrome-devtools'
         @($qoderRow.exposures.'shared-gateway') | Should -Not -Contain 'context7'
 
         $cursorRow = Resolve-ConnectorRow -HostId 'cursor'

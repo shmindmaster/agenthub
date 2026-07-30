@@ -24,11 +24,7 @@
       "command": [
         "npx",
         "-y",
-        "chrome-devtools-mcp@1.6.0",
-        "--browser-url=http://127.0.0.1:9333",
-        "--no-usage-statistics",
-        "--no-performance-crux",
-        "--redact-network-headers"
+        "chrome-devtools-mcp@latest"
       ],
       "enabled": true
     }

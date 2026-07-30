@@ -829,7 +829,11 @@ if ($registryObjects.ContainsKey('mcps.json')) {
     $invalidLifecycles = @(
         foreach ($mcp in $mcpServers) {
             $activationMode = [string]$mcp.activationMode
-            if ($activationMode -notin @('shared-remote', 'on-demand-local')) {
+            if ($activationMode -notin @(
+                'shared-remote',
+                'on-demand-local',
+                'host-configured-local'
+            )) {
                 "$($mcp.id):invalid-activation-mode"
                 continue
             }
@@ -841,10 +845,14 @@ if ($registryObjects.ContainsKey('mcps.json')) {
                 ([string]$mcp.transport -ne 'stdio' -or [string]$mcp.scope -eq 'global-default')) {
                 "$($mcp.id):on-demand-local-must-be-non-global-stdio"
             }
+            if ($activationMode -eq 'host-configured-local' -and
+                ([string]$mcp.transport -ne 'stdio' -or [string]$mcp.scope -ne 'global-default')) {
+                "$($mcp.id):host-configured-local-must-be-global-stdio"
+            }
         }
     )
     if ($invalidLifecycles.Count -eq 0) {
-        Add-ValidationResult PASS 'registry:mcp-lifecycle' 'global defaults are shared HTTP services and local stdio servers are on-demand only'
+        Add-ValidationResult PASS 'registry:mcp-lifecycle' 'global defaults are shared HTTP services or explicit host-configured local servers; other local stdio servers remain on demand'
     } else {
         Add-ValidationResult FAIL 'registry:mcp-lifecycle' ($invalidLifecycles -join ', ')
     }
@@ -914,15 +922,21 @@ if ($registryObjects.ContainsKey('native-connectors.json') -and
     $knownMcpIds = @($registryObjects['mcps.json'].mcpServers.id)
     $connectorHostIds = @($connectorRegistry.hosts.hostId)
     $connectorProblems = @()
-    $expectedOnDemandLocal = @('brave-search', 'chrome-devtools', 'playwright', 'repocontext')
+    $expectedOnDemandLocal = @('brave-search', 'playwright', 'repocontext')
+    $expectedHostConfiguredLocal = @('chrome-devtools')
     $onDemandLifecycleDifference = @(Compare-Object `
         -ReferenceObject @($expectedOnDemandLocal | Sort-Object) `
         -DifferenceObject @($connectorRegistry.lifecyclePolicy.onDemandLocalMcpIds | Sort-Object))
-    if ([string]$connectorRegistry.lifecyclePolicy.defaultHostConfiguration -ne 'shared-remote-only' -or
+    $hostConfiguredLifecycleDifference = @(Compare-Object `
+        -ReferenceObject @($expectedHostConfiguredLocal | Sort-Object) `
+        -DifferenceObject @($connectorRegistry.lifecyclePolicy.hostConfiguredLocalMcpIds | Sort-Object))
+    if ([string]$connectorRegistry.lifecyclePolicy.defaultHostConfiguration -ne 'shared-remote-plus-explicit-local' -or
         [string]$connectorRegistry.lifecyclePolicy.sharedRemoteTransport -ne 'http' -or
         [string]$connectorRegistry.lifecyclePolicy.localFanoutPolicy -ne 'never-persist-on-demand-local-in-host-config' -or
+        [string]$connectorRegistry.lifecyclePolicy.hostConfiguredLocalFanoutPolicy -ne 'persist-only-explicit-user-requested-readme-installations' -or
         [string]$connectorRegistry.lifecyclePolicy.localActivationOwnerPolicy -ne 'plugin-skill-or-reviewed-shared-gateway' -or
-        $onDemandLifecycleDifference.Count -ne 0) {
+        $onDemandLifecycleDifference.Count -ne 0 -or
+        $hostConfiguredLifecycleDifference.Count -ne 0) {
         $connectorProblems += 'mcp-lifecycle-policy'
     }
     $privateExtensionHosts = @(

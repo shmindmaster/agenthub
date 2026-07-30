@@ -701,6 +701,58 @@ function Ensure-QoderPlugins {
   }
 }
 
+function Disable-QoderConflictingMcpPlugins {
+  $qoderCli = Join-Path $UserProfile '.qoder\bin\qodercli\qodercli.exe'
+  if (!(Test-Path -LiteralPath $qoderCli -PathType Leaf)) {
+    throw "Qoder CLI is missing: $qoderCli"
+  }
+  $conflicts = @(
+    foreach ($mcp in @($mcps.mcpServers)) {
+      $hostConflicts = $mcp.PSObject.Properties['conflictingHostPlugins']
+      if ($null -eq $hostConflicts) { continue }
+      $qoderConflicts = $hostConflicts.Value.PSObject.Properties['qoder']
+      if ($null -eq $qoderConflicts) { continue }
+      foreach ($pluginId in @($qoderConflicts.Value)) {
+        [string]$pluginId
+      }
+    }
+  ) | Sort-Object -Unique
+  if ($conflicts.Count -eq 0) { return }
+
+  $installed = @()
+  try {
+    $installed = @((& $qoderCli plugins list --json 2>$null | ConvertFrom-Json))
+  } catch {
+    throw "Qoder plugin inventory failed while checking conflicting MCP owners: $($_.Exception.Message)"
+  }
+  foreach ($pluginId in $conflicts) {
+    $enabled = @($installed | Where-Object {
+      ([string]$_.id -eq $pluginId -or [string]$_.source -eq $pluginId) -and
+      $_.enabled -eq $true
+    })
+    if ($enabled.Count -eq 0) { continue }
+    & $qoderCli plugins disable --scope user $pluginId | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+      throw "Qoder could not disable conflicting MCP plugin $pluginId."
+    }
+  }
+
+  $refreshed = @()
+  try {
+    $refreshed = @((& $qoderCli plugins list --json 2>$null | ConvertFrom-Json))
+  } catch {
+    throw "Qoder plugin verification failed after conflict reconciliation: $($_.Exception.Message)"
+  }
+  foreach ($pluginId in $conflicts) {
+    if (@($refreshed | Where-Object {
+      ([string]$_.id -eq $pluginId -or [string]$_.source -eq $pluginId) -and
+      $_.enabled -eq $true
+    }).Count -gt 0) {
+      throw "Qoder still reports conflicting MCP plugin $pluginId as enabled."
+    }
+  }
+}
+
 function Ensure-LocalNativeAdapters {
   # Copilot CLI can load a local plugin directly. VS Code Insiders automatically
   # supports the same plugin format and exposes an official local-location map.
@@ -869,6 +921,7 @@ Ensure-LocalNativeAdapters
 Ensure-CursorNativePlugins
 if (-not $SkillDistributionOnly) {
   Ensure-QoderPlugins
+  Disable-QoderConflictingMcpPlugins
   Retire-QoderNativePluginLooseSkills
 }
 $nativePluginStates = @{}
