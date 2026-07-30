@@ -426,6 +426,250 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
     }
 }
 
+# ---------------------------------------------------------------------------
+# Deployment freshness. Package-style capabilities (plugin, plugin+mcp) are
+# distributed to host-native runtimes as byte copies, sometimes pinned to a
+# version-named cache directory (e.g. Claude's
+# .claude\plugins\cache\<owner>\<id>\<version>). A canonical content change
+# without a version bump never re-triggers those installs, so a deployed copy
+# can go silently stale while every canonical/registry check above stays
+# green. This section compares deployed bytes against canonical bytes (same
+# normalization as Get-AgentHubStableFileHash) for every capability+host
+# deployment that actually exists on this machine, and separately flags a
+# version-pinned cache directory whose name no longer matches the canonical
+# version. A host with no discoverable deployment for a capability is
+# skipped, not failed: most registered hosts are not installed on every
+# machine. Cursor and Qwen-code are deliberately excluded: Cursor is a
+# provider hold that must not be probed by an automated gate, and Qwen-code's
+# extension junction only mirrors a skills+agents subset (not the full
+# package), so a whole-tree comparison would misreport it as missing files.
+# Copilot and VS Code Insiders are excluded for now: their local plugin
+# manifests were not verified against a real installation on this machine.
+# ---------------------------------------------------------------------------
+$deploymentExclusionPattern = '\\(?:node_modules|\.git|\.venv|venv|__pycache__|dist|build|\.next|\.in_use)\\'
+
+function Get-AgentHubDeployedTreeInventory {
+    param([Parameter(Mandatory)][string]$Root)
+    $rootFull = (Get-Item -LiteralPath $Root).FullName.TrimEnd('\')
+    $inventory = @{}
+    foreach ($file in Get-ChildItem -LiteralPath $rootFull -Recurse -File -Force |
+        Where-Object { $_.FullName -notmatch $deploymentExclusionPattern }) {
+        $relativePath = $file.FullName.Substring($rootFull.Length).TrimStart('\').Replace('\', '/')
+        $inventory[$relativePath] = Get-AgentHubStableFileHash -Path $file.FullName
+    }
+    return $inventory
+}
+
+function Test-AgentHubDeployedCapabilityFreshness {
+    param(
+        [string]$CapabilityId,
+        [string]$HostId,
+        [string]$DeployedPath,
+        [hashtable]$CanonicalInventory,
+        [string]$ExpectedVersion
+    )
+    if ([string]::IsNullOrWhiteSpace($DeployedPath) -or
+        -not (Test-Path -LiteralPath $DeployedPath -PathType Container)) {
+        Add-ValidationResult FAIL "deployment-freshness:${CapabilityId}:${HostId}" `
+            "registered deployment root is missing: $DeployedPath"
+        return
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedVersion)) {
+        $segmentName = Split-Path -Leaf $DeployedPath
+        if ($segmentName -match '^\d+\.\d+\.\d+$') {
+            if ($segmentName -ne $ExpectedVersion) {
+                Add-ValidationResult FAIL "deployment-freshness:${CapabilityId}:${HostId}:version-pin" `
+                    "deployed cache directory is pinned to version $segmentName but canonical version is ${ExpectedVersion}: $DeployedPath"
+            } else {
+                Add-ValidationResult PASS "deployment-freshness:${CapabilityId}:${HostId}:version-pin" `
+                    "deployed cache directory version $segmentName matches canonical: $DeployedPath"
+            }
+        }
+    }
+
+    $deployedInventory = Get-AgentHubDeployedTreeInventory -Root $DeployedPath
+    $problems = New-Object System.Collections.Generic.List[string]
+    foreach ($relativePath in $CanonicalInventory.Keys) {
+        if (-not $deployedInventory.ContainsKey($relativePath)) {
+            $problems.Add("missing:$relativePath")
+        } elseif ($deployedInventory[$relativePath] -ne $CanonicalInventory[$relativePath]) {
+            $problems.Add("stale:$relativePath")
+        }
+    }
+    foreach ($relativePath in $deployedInventory.Keys) {
+        if (-not $CanonicalInventory.ContainsKey($relativePath)) {
+            $problems.Add("extra:$relativePath")
+        }
+    }
+    if ($problems.Count -eq 0) {
+        Add-ValidationResult PASS "deployment-freshness:${CapabilityId}:${HostId}" `
+            "deployed bytes at $DeployedPath match canonical"
+    } else {
+        $sample = ($problems | Sort-Object | Select-Object -First 8) -join ', '
+        Add-ValidationResult FAIL "deployment-freshness:${CapabilityId}:${HostId}" `
+            "$DeployedPath drifted from canonical ($($problems.Count) file(s)): $sample"
+    }
+}
+
+function Get-AgentHubTomlPluginSectionEnabled {
+    param([string]$Raw, [string]$PluginId)
+    $match = [regex]::Match(
+        $Raw,
+        "(?ms)^\[plugins\.`"$([regex]::Escape($PluginId))`"\]\s*\r?\n(?<body>.*?)(?=^\[|\z)"
+    )
+    if (-not $match.Success) { return $false }
+    return [bool][regex]::IsMatch($match.Groups['body'].Value, '(?m)^\s*enabled\s*=\s*true\s*$')
+}
+
+function Get-AgentHubTomlStringArray {
+    param([string]$Raw, [string]$Section, [string]$Property)
+    $sectionMatch = [regex]::Match(
+        $Raw,
+        "(?ms)^\[$([regex]::Escape($Section))\]\s*(?<body>.*?)(?=^\[|\z)"
+    )
+    if (-not $sectionMatch.Success) { return @() }
+    $propertyMatch = [regex]::Match(
+        $sectionMatch.Groups['body'].Value,
+        "(?ms)^\s*$([regex]::Escape($Property))\s*=\s*\[(?<items>.*?)\]"
+    )
+    if (-not $propertyMatch.Success) { return @() }
+    return @([regex]::Matches($propertyMatch.Groups['items'].Value, '"(?<value>[^"]+)"') |
+        ForEach-Object { $_.Groups['value'].Value })
+}
+
+if ($registryObjects.ContainsKey('capabilities.json')) {
+    $packageCapabilities = @($registryObjects['capabilities.json'].capabilities | Where-Object {
+        [string]$_.capabilityType -in @('plugin', 'plugin+mcp')
+    })
+
+    $claudeInstalledPluginsPath = Join-Path $UserProfilePath '.claude\plugins\installed_plugins.json'
+    $claudeInstalledPlugins = $null
+    if (Test-Path -LiteralPath $claudeInstalledPluginsPath -PathType Leaf) {
+        try {
+            $claudeInstalledPlugins = Get-Content -LiteralPath $claudeInstalledPluginsPath -Raw -Encoding UTF8 |
+                ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            Add-ValidationResult FAIL 'deployment-freshness:claude:installed-plugins' `
+                "invalid or unreadable JSON: $($_.Exception.Message)"
+        }
+    }
+
+    $codexConfigPath = Join-Path $UserProfilePath '.codex\config.toml'
+    $codexConfigRaw = if (Test-Path -LiteralPath $codexConfigPath -PathType Leaf) {
+        Get-Content -LiteralPath $codexConfigPath -Raw -Encoding UTF8
+    } else { $null }
+
+    $qoderSettingsPath = Join-Path $UserProfilePath '.qoder\settings.json'
+    $qoderSettings = $null
+    if (Test-Path -LiteralPath $qoderSettingsPath -PathType Leaf) {
+        try {
+            $qoderSettings = Get-Content -LiteralPath $qoderSettingsPath -Raw -Encoding UTF8 |
+                ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            Add-ValidationResult FAIL 'deployment-freshness:qoder:settings' `
+                "invalid or unreadable JSON: $($_.Exception.Message)"
+        }
+    }
+
+    $grokRegistryPath = Join-Path $UserProfilePath '.grok\installed-plugins\registry.json'
+    $grokConfigPath = Join-Path $UserProfilePath '.grok\config.toml'
+    $grokRegistry = $null
+    if (Test-Path -LiteralPath $grokRegistryPath -PathType Leaf) {
+        try {
+            $grokRegistry = Get-Content -LiteralPath $grokRegistryPath -Raw -Encoding UTF8 |
+                ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            Add-ValidationResult FAIL 'deployment-freshness:grok:registry' `
+                "invalid or unreadable JSON: $($_.Exception.Message)"
+        }
+    }
+    $grokConfigRaw = if (Test-Path -LiteralPath $grokConfigPath -PathType Leaf) {
+        Get-Content -LiteralPath $grokConfigPath -Raw -Encoding UTF8
+    } else { '' }
+    $grokEnabledPlugins = @(Get-AgentHubTomlStringArray -Raw $grokConfigRaw -Section 'plugins' -Property 'enabled')
+
+    foreach ($capability in $packageCapabilities) {
+        $canonicalSource = Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
+        if (-not (Test-Path -LiteralPath $canonicalSource -PathType Container)) { continue }
+        $capabilityId = [string]$capability.id
+        $owner = [string]$capability.owner
+        $pluginId = "$capabilityId@$owner"
+
+        $expectedVersion = $null
+        $claudeManifestPath = Join-Path $canonicalSource '.claude-plugin\plugin.json'
+        if (Test-Path -LiteralPath $claudeManifestPath -PathType Leaf) {
+            try {
+                $expectedVersion = [string](Get-Content -LiteralPath $claudeManifestPath -Raw -Encoding UTF8 |
+                    ConvertFrom-Json -ErrorAction Stop).version
+            } catch {
+                $expectedVersion = $null
+            }
+        }
+
+        $canonicalInventory = Get-AgentHubDeployedTreeInventory -Root $canonicalSource
+
+        # Claude: version-pinned marketplace cache resolved from the
+        # authoritative installed-plugins ledger (most recently installed entry).
+        if ($claudeInstalledPlugins -and $claudeInstalledPlugins.plugins) {
+            $entryProperty = $claudeInstalledPlugins.plugins.PSObject.Properties[$pluginId]
+            if ($entryProperty) {
+                $selected = @($entryProperty.Value | Sort-Object installedAt -Descending | Select-Object -First 1)
+                if ($selected.Count -eq 1) {
+                    Test-AgentHubDeployedCapabilityFreshness -CapabilityId $capabilityId -HostId 'claude' `
+                        -DeployedPath ([string]$selected[0].installPath) -CanonicalInventory $canonicalInventory `
+                        -ExpectedVersion $expectedVersion
+                }
+            }
+        }
+
+        # Codex: enabled plugin resolved to its version-pinned marketplace
+        # cache directory (most recently modified real version folder).
+        if ($codexConfigRaw -and (Get-AgentHubTomlPluginSectionEnabled -Raw $codexConfigRaw -PluginId $pluginId)) {
+            $codexCacheParent = Join-Path $UserProfilePath ".codex\plugins\cache\$owner\$capabilityId"
+            $codexVersionDir = @(
+                Get-ChildItem -LiteralPath $codexCacheParent -Directory -ErrorAction SilentlyContinue |
+                    Where-Object Name -notmatch '^latest$|^plugin-backup-' |
+                    Sort-Object LastWriteTimeUtc -Descending |
+                    Select-Object -First 1
+            )
+            if ($codexVersionDir.Count -eq 1) {
+                Test-AgentHubDeployedCapabilityFreshness -CapabilityId $capabilityId -HostId 'codex' `
+                    -DeployedPath $codexVersionDir[0].FullName -CanonicalInventory $canonicalInventory `
+                    -ExpectedVersion $expectedVersion
+            }
+        }
+
+        # Qoder: enabled plugin resolved to its (non-versioned) marketplace cache.
+        if ($qoderSettings -and $qoderSettings.enabledPlugins) {
+            $qoderEnabledProperty = $qoderSettings.enabledPlugins.PSObject.Properties[$pluginId]
+            if ($qoderEnabledProperty -and [bool]$qoderEnabledProperty.Value) {
+                $qoderCachePath = Join-Path $UserProfilePath ".qoder\plugins\cache\$owner\$capabilityId"
+                Test-AgentHubDeployedCapabilityFreshness -CapabilityId $capabilityId -HostId 'qoder' `
+                    -DeployedPath $qoderCachePath -CanonicalInventory $canonicalInventory `
+                    -ExpectedVersion $expectedVersion
+            }
+        }
+
+        # Grok: enabled plugin resolved to its hashed local install directory.
+        if ($grokRegistry -and $grokRegistry.repos -and $capabilityId -in $grokEnabledPlugins) {
+            $grokPluginPath = $null
+            foreach ($repo in @($grokRegistry.repos.PSObject.Properties)) {
+                $repoPluginProperty = $repo.Value.plugins.PSObject.Properties[$capabilityId]
+                if ($repoPluginProperty) {
+                    $grokPluginPath = [string]$repo.Value.path
+                    break
+                }
+            }
+            if (-not [string]::IsNullOrWhiteSpace($grokPluginPath)) {
+                Test-AgentHubDeployedCapabilityFreshness -CapabilityId $capabilityId -HostId 'grok' `
+                    -DeployedPath $grokPluginPath -CanonicalInventory $canonicalInventory `
+                    -ExpectedVersion $expectedVersion
+            }
+        }
+    }
+}
+
 $productVideoValidator = Join-Path $RegistryRoot `
     'packages\handoff-plugins\plugins\product-demo-studio\scripts\validate-package.mjs'
 if (-not (Test-Path -LiteralPath $productVideoValidator -PathType Leaf)) {

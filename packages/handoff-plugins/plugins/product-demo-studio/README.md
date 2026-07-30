@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.1.0**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.1.1**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Product repositories retain their product-specific capture/render implementations and
 map evidence into this shared contract. The reviewed mapping is documented in
@@ -19,6 +19,36 @@ composing, narrating, rendering, and QA'ing persuasive product demo / marketing 
 **any** repository, not a fixed portfolio. It never
 installs itself into a target repo; it operates against a repo path (`--repo <path>`) and produces
 only the video-production deliverables that repo would own anyway.
+
+## Updating this canonical package
+
+Any content change to this package requires a version bump — host installs are pinned by version
+directory, so a canonical edit without a bump silently never propagates to an already-installed
+host copy (see `tests/Validate-AgentEcosystem.ps1`'s `deployment-freshness:*` checks). Sequence:
+
+1. Edit the canonical source under this directory.
+2. Bump the version everywhere it is asserted: every `.claude-plugin/.codex-plugin/.cursor-plugin/
+   .devin-plugin/.qoder-plugin/plugin.json`, `policy/host-parity.json` and
+   `policy/product-video-policy.json` (`capabilityVersion`, not `schemaVersion`), this README's
+   release line, `scripts/validate-package.mjs` and `scripts/validate-guide-sync.mjs`
+   (`expectedVersion`), `scripts/validate-host-parity.mjs`, and
+   `skills/product-demo-studio/references/product-pipeline-compatibility.md`.
+3. Recompute and update the registry content hash:
+   ```powershell
+   cd C:\Repos\shmindmaster\agenthub
+   . .\scripts\RegistryContentHash.ps1
+   Get-AgentHubRegistryHashBasisValue -Path 'C:\Repos\shmindmaster\agenthub\packages\handoff-plugins\plugins\product-demo-studio'
+   ```
+   Paste the result into `registry/capabilities.json`'s `product-demo-studio.contentHash`.
+4. Run the package validators from this directory: `node scripts/validate-package.mjs`,
+   `node scripts/validate-host-parity.mjs`, `node scripts/validate-guide-sync.mjs`,
+   `node scripts/validate-remotion-rules.mjs`, and `node tests/run-contract-tests.mjs`.
+5. Run the ecosystem validator from the repository root:
+   `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Validate-AgentEcosystem.ps1`.
+   Its `deployment-freshness:*` checks will now correctly report every already-installed host
+   copy as stale until it is redeployed.
+6. Re-deploy the updated package into each host that has a live install (reinstall/update the
+   plugin in that host) — this is a separate step from the checks above, which only detect drift.
 
 ## Skills
 

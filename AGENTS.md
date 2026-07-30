@@ -8,6 +8,8 @@ Never copy credentials, tokens, evidence, indexes, or model data into an adapter
 
 Use official host documentation as the packaging authority. If a host has no verified public specification, record it as discovery-required rather than inventing a plugin format. Validate manifests, duplicate ownership, authentication prerequisites, and read-only health checks before declaring an integration ready.
 
+Host installs of package-style capabilities (plugins) are pinned by version directory, so any canonical content change without a matching version bump silently never propagates to an already-installed host copy. When changing a canonical capability: edit the canonical source, bump its version everywhere it is asserted (manifests, host-parity/policy files, package validators, README), recompute its `registry/capabilities.json` `contentHash` with `scripts/RegistryContentHash.ps1`'s `Get-AgentHubRegistryHashBasisValue`, run that package's own validators, then run `tests/Validate-AgentEcosystem.ps1` — its `deployment-freshness:*` checks compare deployed host bytes against canonical and will fail until each live host install is re-deployed. Package-specific commands live in that package's `README.md`.
+
 ## GitHub access
 
 Use the `gh` CLI rather than a GitHub MCP server. This machine has three GitHub

@@ -1,6 +1,6 @@
 {
   "name": "product-demo-studio",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Canonical cross-agent product-video system with deterministic evidence, isolated review, remediation, and fail-closed release arbitration.",
   "author": {
     "name": "Sarosh Hussain"
