@@ -868,13 +868,19 @@ Describe 'Worktree policy checker and local validation wiring' {
         @($parsed.results).Count | Should -BeGreaterThan 0
     }
 
-    It 'does not delegate configuration validation to a hosted workflow' {
+    It 'delegates configuration validation only to the self-hosted validation workflow' {
         $workflowRoot = Join-Path $repoRoot '.github\workflows'
-        @(
+        $workflowDefinitions = @(
             Get-ChildItem -LiteralPath $workflowRoot -File `
                 -ErrorAction SilentlyContinue |
                 Where-Object Extension -in @('.yml', '.yaml')
-        ) | Should -BeNullOrEmpty
+        )
+        $workflowDefinitions.Count | Should -Be 1
+        $workflowText = Get-Content -LiteralPath (Join-Path $workflowRoot 'validate.yml') -Raw -Encoding UTF8
+        $workflowText | Should -Match 'runs-on:\s*\[?\s*self-hosted'
+        $workflowText | Should -Not -Match 'runs-on:\s*windows-latest'
+        $workflowText | Should -Not -Match 'runs-on:\s*ubuntu-latest'
+        $workflowText | Should -Not -Match 'runs-on:\s*macos-latest'
     }
 
     It 'executes child script checks through the current PowerShell generation' {

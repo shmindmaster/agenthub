@@ -8,23 +8,27 @@ BeforeAll {
 }
 
 Describe 'AgentHub local-only validation policy' {
-    It 'has no GitHub Actions workflow definitions' {
+    It 'keeps a single self-hosted validation workflow definition' {
         $workflowDefinitions = @(
             Get-ChildItem -LiteralPath $script:workflowsRoot -File `
                 -ErrorAction SilentlyContinue |
                 Where-Object Extension -in @('.yml', '.yaml')
         )
-        $workflowDefinitions | Should -BeNullOrEmpty
+        $workflowDefinitions.Count | Should -Be 1
+        $workflowDefinitions[0].Name | Should -Be 'validate.yml'
+
+        $workflowText = Get-Content -LiteralPath (Join-Path $script:workflowsRoot 'validate.yml') -Raw -Encoding UTF8
+        $workflowText | Should -Match 'runs-on:\s*\[?\s*self-hosted'
     }
 
-    It 'declares that the repository has no CI build or deployment output' {
+    It 'declares validation runs on a self-hosted runner' {
         $script:readme | Should -Match (
             '(?s)## Validation policy.*' +
             'does not produce a build, package, release, or deployment artifact'
         )
         $script:readme | Should -Match (
             '(?s)## Validation policy.*' +
-            'GitHub Actions is intentionally not configured'
+            'GitHub Actions runs on .*self-hosted runner on DigitalOcean'
         )
     }
 

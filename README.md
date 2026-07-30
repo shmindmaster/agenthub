@@ -61,14 +61,25 @@ Run `powershell.exe -NoProfile -File .\scripts\Apply-FullAccessAgentProfile.ps1 
 
 ## Validation policy
 
-AgentHub is a configuration-management control plane. It does not produce a build, package, release, or deployment artifact, so GitHub Actions is intentionally not configured. Validate changes locally in both supported PowerShell engines:
+AgentHub is a configuration-management control plane. It does not produce a build, package, release, or deployment artifact, and GitHub Actions runs on a dedicated self-hosted runner on DigitalOcean (`.github/workflows/validate.yml`, runner labels: `self-hosted`, `linux`, `x64`, `copilot`) plus local commands.
+
+Validate changes locally in both supported PowerShell engines:
 
 ```powershell
 pwsh -NoProfile -File .\tests\Validate-AgentEcosystem.ps1
 powershell.exe -NoProfile -File .\tests\Validate-AgentEcosystem.ps1
 ```
 
-Add `-IncludeGlobalInstructions` before publishing changes that affect generated host policy. The validator uses no network calls and does not inspect or print secret values.
+Add `-IncludeGlobalInstructions` before publishing changes that affect generated host policy. That mode now runs the comprehensive live-fleet drift gate as well as the registry checks. It compares every registered agent with observed loose-skill, active-plugin, MCP-configuration, executable, reparse-point, runtime-process, and worktree surfaces. Normal agent runtimes, Claude Cowork, language servers, and host-owned support processes are inventoried but are not treated as drift.
+
+Run the live comparison directly when diagnosing a workstation:
+
+```powershell
+pwsh -NoProfile -File .\scripts\Test-LiveAgentFleetDrift.ps1 `
+  -ReportPath "$env:LOCALAPPDATA\AgentHub\reports\fleet-inventory\latest.json"
+```
+
+The live validator uses no network calls, never launches a coding-agent provider, does not mutate agent configuration or worktrees, and redacts credential-shaped command-line arguments in its optional report.
 
 Run `pwsh -File .\tests\Test-HostReadiness.ps1` to report locally installed host clients and required policy pointers without opening a browser, connecting to an MCP server, or reading credentials.
 

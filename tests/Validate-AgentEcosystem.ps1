@@ -49,7 +49,10 @@ $requiredFiles = @(
     'registry\mcps.json',
     'registry\native-connectors.json',
     'registry\gateway-profiles.json',
-    'registry\worktree-roots.json'
+    'registry\automation-gates.json',
+    'registry\worktree-roots.json',
+    'scripts\Test-AutomationGatePolicy.ps1',
+    'scripts\Test-LiveAgentFleetDrift.ps1'
 )
 
 foreach ($relativePath in $requiredFiles) {
@@ -115,13 +118,6 @@ if ($IncludeGlobalInstructions) {
     } else {
         Add-ValidationResult FAIL 'global:agent-temp-root' 'TMPDIR must resolve to the AgentHub user runtime before agents restart'
     }
-
-    $retiredAgentFleetOpsPath = Join-Path $UserProfilePath '.agents\skills\agent-fleet-ops'
-    if (Test-Path -LiteralPath $retiredAgentFleetOpsPath) {
-        Add-ValidationResult FAIL 'retired-skill:agent-fleet-ops' 'retired user skill remains installed; remove it only through an explicit cleanup task'
-    } else {
-        Add-ValidationResult PASS 'retired-skill:agent-fleet-ops' 'absent'
-    }
 }
 
 $registryObjects = @{}
@@ -135,6 +131,27 @@ if (Test-Path -LiteralPath $registryDir -PathType Container) {
             Add-ValidationResult FAIL "json:$($file.Name)" 'invalid JSON'
         }
     }
+}
+
+$automationGateCheckerPath = Join-Path $RegistryRoot 'scripts\Test-AutomationGatePolicy.ps1'
+if (Test-Path -LiteralPath $automationGateCheckerPath -PathType Leaf) {
+    try {
+        $automationGateOutput = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -File $automationGateCheckerPath -RegistryRoot $RegistryRoot -Json
+        if ($LASTEXITCODE -ne 0) {
+            throw "checker exited with code $LASTEXITCODE"
+        }
+        $automationGateResult = $automationGateOutput | ConvertFrom-Json -ErrorAction Stop
+        if ([int]$automationGateResult.summary.fail -eq 0) {
+            Add-ValidationResult PASS 'registry:automation-gates' "policy passed $($automationGateResult.summary.pass) checks"
+        } else {
+            Add-ValidationResult FAIL 'registry:automation-gates' "policy reported $($automationGateResult.summary.fail) failures"
+        }
+    } catch {
+        Add-ValidationResult FAIL 'registry:automation-gates' $_.Exception.Message
+    }
+} else {
+    Add-ValidationResult FAIL 'registry:automation-gates' 'checker is missing'
 }
 
 if ($registryObjects.ContainsKey('agents.json')) {
@@ -536,6 +553,32 @@ if ($LASTEXITCODE -eq 0 -and $originUrl) {
 }
 
 if ($IncludeGlobalInstructions) {
+    $liveFleetCheckerPath = Join-Path $RegistryRoot 'scripts\Test-LiveAgentFleetDrift.ps1'
+    if (Test-Path -LiteralPath $liveFleetCheckerPath -PathType Leaf) {
+        try {
+            $liveFleetOutput = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+                -ExecutionPolicy Bypass -File $liveFleetCheckerPath `
+                -RegistryRoot $RegistryRoot -UserProfilePath $UserProfilePath -Json
+            $liveFleetExitCode = $LASTEXITCODE
+            $liveFleet = (@($liveFleetOutput) -join [Environment]::NewLine) |
+                ConvertFrom-Json -ErrorAction Stop
+            Add-ValidationResult PASS 'global:live-fleet-inventory' `
+                "inventoried $($liveFleet.inventory.agents.Count) agents, $($liveFleet.inventory.discoveryRoots.Count) discovery roots, $($liveFleet.inventory.plugins.Count) plugins, $($liveFleet.inventory.skills.Count) skills, $($liveFleet.inventory.mcpConfigurations.Count) MCP configs, and $($liveFleet.inventory.worktrees.Count) worktrees"
+            foreach ($finding in @($liveFleet.results | Where-Object status -ne 'PASS')) {
+                Add-ValidationResult ([string]$finding.status) `
+                    "live:$([string]$finding.check)" ([string]$finding.detail)
+            }
+            if ($liveFleetExitCode -ne 0 -and [int]$liveFleet.summary.fail -eq 0) {
+                Add-ValidationResult FAIL 'global:live-fleet-inventory-exit' `
+                    "checker exited with code $liveFleetExitCode without a structured failure"
+            }
+        } catch {
+            Add-ValidationResult FAIL 'global:live-fleet-inventory' $_.Exception.Message
+        }
+    } else {
+        Add-ValidationResult FAIL 'global:live-fleet-inventory' 'checker is missing'
+    }
+
     # Deployed global instructions must reference the durable canonical
     # checkout, even when validation is running from an isolated worktree.
     $policyPath = Join-Path $canonicalRepositoryRoot 'docs\worktree-management-policy.md'

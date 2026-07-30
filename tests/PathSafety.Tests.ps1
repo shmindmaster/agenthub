@@ -57,14 +57,18 @@ Describe 'AgentHub root-path validation' {
     BeforeAll {
         $validationScript = Join-Path $PSScriptRoot 'Validate-AgentEcosystem.ps1'
         $script:validationSource = Get-Content -LiteralPath $validationScript -Raw -Encoding UTF8
+        $liveDriftScript = Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\Test-LiveAgentFleetDrift.ps1'
+        $script:liveDriftSource = Get-Content -LiteralPath $liveDriftScript -Raw -Encoding UTF8
         $script:policySource = Get-Content -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\worktree-management-policy.md') -Raw -Encoding UTF8
     }
 
     It 'reports leaked root fixtures and the retired agent-fleet-ops user skill' {
         $script:validationSource | Should -Match 'forbidden-root:'
         $script:validationSource | Should -Match 'C:\\canonical-product-demo-studio'
-        $script:validationSource | Should -Match "retired-skill:agent-fleet-ops"
-        $script:validationSource | Should -Match '\.agents\\skills\\agent-fleet-ops'
+        $script:validationSource | Should -Match 'Test-LiveAgentFleetDrift\.ps1'
+        $script:liveDriftSource | Should -Match "'agent-fleet-ops'"
+        $script:liveDriftSource | Should -Match 'retired-skill:\$retiredId'
+        $script:liveDriftSource | Should -Match 'discoveryRoots'
         $script:validationSource | Should -Match 'global:agent-temp-root'
     }
 
