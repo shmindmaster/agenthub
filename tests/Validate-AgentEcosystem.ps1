@@ -20,6 +20,32 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $results = New-Object System.Collections.Generic.List[object]
 
+function Get-CurrentPowerShellHostExecutable {
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    try {
+        $currentExecutable = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+        if (-not [string]::IsNullOrWhiteSpace($currentExecutable)) {
+            $candidates.Add($currentExecutable)
+        }
+    } catch {
+        # Fall back to the executable installed beside this PowerShell runtime.
+    }
+    foreach ($executableName in @('pwsh.exe', 'pwsh', 'powershell.exe')) {
+        $candidate = Join-Path $PSHOME $executableName
+        if (-not $candidates.Contains($candidate)) {
+            $candidates.Add($candidate)
+        }
+    }
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return [System.IO.Path]::GetFullPath($candidate)
+        }
+    }
+    throw "Cannot resolve the current PowerShell host executable from process $PID or PSHOME '$PSHOME'."
+}
+
+$powerShellHostExecutable = Get-CurrentPowerShellHostExecutable
+
 function Add-ValidationResult {
     param(
         [ValidateSet('PASS', 'WARN', 'FAIL')][string]$Status,
@@ -136,7 +162,7 @@ if (Test-Path -LiteralPath $registryDir -PathType Container) {
 $automationGateCheckerPath = Join-Path $RegistryRoot 'scripts\Test-AutomationGatePolicy.ps1'
 if (Test-Path -LiteralPath $automationGateCheckerPath -PathType Leaf) {
     try {
-        $automationGateOutput = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+        $automationGateOutput = & $powerShellHostExecutable -NoLogo -NoProfile -NonInteractive `
             -File $automationGateCheckerPath -RegistryRoot $RegistryRoot -Json
         if ($LASTEXITCODE -ne 0) {
             throw "checker exited with code $LASTEXITCODE"
@@ -556,7 +582,7 @@ if ($IncludeGlobalInstructions) {
     $liveFleetCheckerPath = Join-Path $RegistryRoot 'scripts\Test-LiveAgentFleetDrift.ps1'
     if (Test-Path -LiteralPath $liveFleetCheckerPath -PathType Leaf) {
         try {
-            $liveFleetOutput = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            $liveFleetOutput = & $powerShellHostExecutable -NoLogo -NoProfile -NonInteractive `
                 -ExecutionPolicy Bypass -File $liveFleetCheckerPath `
                 -RegistryRoot $RegistryRoot -UserProfilePath $UserProfilePath -Json
             $liveFleetExitCode = $LASTEXITCODE

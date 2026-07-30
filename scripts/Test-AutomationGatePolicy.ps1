@@ -24,6 +24,61 @@ function Add-Result {
     $results.Add([pscustomobject]@{ name = $Name; passed = $Passed; detail = $Detail })
 }
 
+function Get-AccountableExternalActionCategory {
+    param([string]$Action)
+
+    if ([string]::IsNullOrWhiteSpace($Action)) { return $null }
+    $rules = @(
+        @{
+            Category = 'payment or financial record'
+            Pattern = '\b(?:payments?|money\s+movement|financial\s+(?:attestation|statement(?:\s+of\s+record)?)|paid\s+(?:pilot|commitment)|payer\s+or\s+provider\s+transaction)\b'
+        },
+        @{
+            Category = 'credential, account, or sensitive-access authority'
+            Pattern = '\b(?:credentials?(?:\s+provisioning|\s+creation)?|provision(?:ing)?\s+(?:a\s+)?(?:production\s+)?credentials?|oauth(?:\s+or\s+credential)?\s+creation|provider\s+activation|account\s+creation|authority|authorization|permission|approval|consent)\b'
+        },
+        @{
+            Category = 'filing, submission, or formal representation'
+            Pattern = '\b(?:regulatory\s+filings?|filings?|submit(?:ting)?|submissions?|representation)\b'
+        },
+        @{
+            Category = 'production or deployment mutation'
+            Pattern = '\b(?:(?:mutat(?:e|ion)|chang(?:e|ing)|writ(?:e|ing)|execut(?:e|ion)|publish(?:ing)?|deploy(?:ing|ment)?|rollout)\w*\s+(?:a\s+)?(?:production|live|deployment)|(?:production|live|deployment)\s+(?:mutat(?:e|ion)|chang(?:e|ing)|writ(?:e|ing)|execut(?:e|ion)|publish(?:ing)?|deploy(?:ing|ment)?|rollout))\b'
+        },
+        @{
+            Category = 'binding contract, promise, or external commitment'
+            Pattern = '\b(?:binding|commitments?|promises?|agreements?|dealer\s+engagement)\b'
+        },
+        @{
+            Category = 'regulated or professional judgment'
+            Pattern = '\b(?:(?:legal|compliance)\s+(?:judgment|strategy|conclusion)|care[- ]delivery\s+action|cross[- ]boundary\s+operational\s+decisions?|security\s+exploit\s+triage)\b'
+        }
+    )
+    foreach ($rule in $rules) {
+        if ($Action -match "(?i)$($rule.Pattern)") {
+            return [string]$rule.Category
+        }
+    }
+    return $null
+}
+
+function Test-IsProcessTheaterGate {
+    param([string]$Statement)
+
+    if ([string]::IsNullOrWhiteSpace($Statement)) { return $false }
+    if ($Statement -match '(?i)^\s*no\b' -or
+        $Statement -match '(?i)\b(?:must|should|need|is|are)\s+not\b' -or
+        $Statement -match '(?i)\bnot\s+(?:mandatory|required|a\s+prerequisite)\b') {
+        return $false
+    }
+    $gateSubject = '(?:(?:customer\s+)?interviews?|workshops?|human\s+(?:reviews?|approvals?)|discretionary\s+(?:reviews?|approvals?))'
+    $requirement = '(?:await|mandatory|required?|requires?|prerequisites?|quotas?|minimum|at\s+least|two|counts?)'
+    return (
+        $Statement -match "(?i)\b$requirement\b(?:\s+\w+){0,5}\s+\b$gateSubject\b" -or
+        $Statement -match "(?i)\b$gateSubject\b(?:\s+\w+){0,5}\s+\b$requirement\b"
+    )
+}
+
 try {
     $policy = Get-Content -LiteralPath $policyPath -Raw -Encoding UTF8 | ConvertFrom-Json
     Add-Result -Name 'valid JSON policy' -Passed $true -Detail $policyPath
@@ -58,10 +113,51 @@ if ($null -ne $policy) {
         ) -Detail ([string]$project.defaultDecisionClass)
     }
 
-    $policyText = $policy | ConvertTo-Json -Depth 20
+    $misclassifiedActions = @(
+        foreach ($project in @($policy.portfolio)) {
+            foreach ($action in @($project.automate)) {
+                $category = Get-AccountableExternalActionCategory -Action ([string]$action)
+                if ($category) {
+                    "$($project.id): $action [$category]"
+                }
+            }
+        }
+    )
+    Add-Result -Name 'accountable actions excluded from automate' `
+        -Passed ($misclassifiedActions.Count -eq 0) `
+        -Detail $(if ($misclassifiedActions.Count -eq 0) {
+            'all automate entries are machine-safe or evidence-only'
+        } else {
+            $misclassifiedActions -join '; '
+        })
+
+    $policyStatements = @(
+        [string]$policy.policy
+        [string]$policy.purpose
+        foreach ($className in $expectedClasses) {
+            $class = $policy.decisionClasses.$className
+            [string]$class.defaultAction
+            @($class.requiredEvidence)
+            @($class.useFor)
+        }
+        foreach ($project in @($policy.portfolio)) {
+            @($project.automate)
+            @($project.retain)
+            [string]$project.defaultDecisionClass
+        }
+        @($policy.guardrails)
+    )
+    $processTheaterGates = @(
+        $policyStatements |
+            Where-Object { Test-IsProcessTheaterGate -Statement ([string]$_) }
+    )
     Add-Result -Name 'no process-theater gate' -Passed (
-        $policyText -notmatch '(?i)await human review|mandatory interview|mandatory workshop|discretionary approval count'
-    ) -Detail 'legacy discretionary gate phrases are absent'
+        $processTheaterGates.Count -eq 0
+    ) -Detail $(if ($processTheaterGates.Count -eq 0) {
+        'discretionary interview, workshop, review, and approval requirements are absent'
+    } else {
+        $processTheaterGates -join '; '
+    })
     Add-Result -Name 'guardrails' -Passed (@($policy.guardrails).Count -ge 5) -Detail "count=$(@($policy.guardrails).Count)"
 }
 
