@@ -38,6 +38,11 @@ $global:canonicalPortfolioEngineeringSkills = @(
     'verify-and-commit'
 )
 
+$global:canonicalFramerSkills = @(
+    'framer',
+    'framer-code-components'
+)
+
 $global:canonicalPortfolioEngineeringHosts = @(
     'amp',
     'antigravity',
@@ -66,6 +71,7 @@ function global:New-DistributionFixture {
     $canonicalExperienceRoot = Join-Path $Root 'canonical-product-experience-engineering'
     $canonicalBrowserRoot = Join-Path $Root 'canonical-browser-toolkit'
     $canonicalPortfolioEngineeringRoot = Join-Path $Root 'canonical-portfolio-engineering-ops'
+    $canonicalFramerRoot = Join-Path $Root 'canonical-framer'
     $fakeProfile = Join-Path $Root 'profile'
     $fakeAppData = Join-Path $fakeProfile 'AppData\Roaming'
     $fakeLocalAppData = Join-Path $fakeProfile 'AppData\Local'
@@ -105,6 +111,16 @@ function global:New-DistributionFixture {
         New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Value "canonical:$name" -Encoding UTF8
     }
+    $framerSkillRoot = Join-Path $canonicalFramerRoot 'skills\framer'
+    New-Item -ItemType Directory -Path (Join-Path $framerSkillRoot 'projects\__template__') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $framerSkillRoot 'SKILL.md') -Value 'canonical:framer' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $framerSkillRoot 'start-conversation.md') -Value 'canonical:start-conversation' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $framerSkillRoot 'projects\__template__\index.template.md') -Value 'canonical:index-template' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $framerSkillRoot 'projects\__template__\project-inventory.template.md') -Value 'canonical:inventory-template' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $framerSkillRoot 'projects\__template__\recipes.md') -Value 'canonical:recipes' -Encoding UTF8
+    $framerCodeComponentsRoot = Join-Path $canonicalFramerRoot 'skills\framer-code-components'
+    New-Item -ItemType Directory -Path $framerCodeComponentsRoot -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $framerCodeComponentsRoot 'SKILL.md') -Value 'canonical:framer-code-components' -Encoding UTF8
     $experienceReferences = Join-Path $canonicalExperienceRoot 'skills\engineer-product-experience\references'
     New-Item -ItemType Directory -Path $experienceReferences -Force | Out-Null
     Set-Content -LiteralPath (Join-Path $experienceReferences 'surface-coverage.md') -Value 'coverage:complete' -Encoding UTF8
@@ -154,6 +170,11 @@ function global:New-DistributionFixture {
             @{ hostId = 'claude'; deploymentStatus = 'managed-loose-skills' },
             @{ hostId = 'codex'; deploymentStatus = 'managed-loose-skills' },
             @{ hostId = 'cline'; deploymentStatus = 'managed-loose-skills' }
+        ) },
+        @{ id = 'framer'; canonicalSource = $canonicalFramerRoot; managedSkillNames = $global:canonicalFramerSkills; hostMappings = @(
+            @{ hostId = 'claude'; deploymentStatus = 'managed-loose-skills' },
+            @{ hostId = 'codex'; deploymentStatus = 'managed-loose-skills' },
+            @{ hostId = 'cline'; deploymentStatus = 'managed-loose-skills' }
         ) }
     ) } |
         ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
@@ -173,6 +194,7 @@ function global:New-DistributionFixture {
         CanonicalExperienceRoot = $canonicalExperienceRoot
         CanonicalBrowserRoot = $canonicalBrowserRoot
         CanonicalPortfolioEngineeringRoot = $canonicalPortfolioEngineeringRoot
+        CanonicalFramerRoot = $canonicalFramerRoot
         UserProfile = $fakeProfile
         AppData = $fakeAppData
         LocalAppData = $fakeLocalAppData
@@ -411,6 +433,54 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
         }).Count | Should -Be 1
     }
 
+    It 'deploys the merged UI completion gate and quarantines exact ui-verify copies' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'merged-ui-verification'
+        )
+        $browserDebugging = Join-Path (
+            $fixture.CanonicalBrowserRoot
+        ) 'skills\browser-debugging\SKILL.md'
+        Add-Content -LiteralPath $browserDebugging `
+            -Value "`nNever claim a UI change works without rendering the changed flow." `
+            -Encoding UTF8
+
+        $capabilitiesPath = Join-Path $fixture.RegistryRoot 'registry\capabilities.json'
+        $capabilities = Get-Content -LiteralPath $capabilitiesPath -Raw | ConvertFrom-Json
+        $browserCapability = $capabilities.capabilities | Where-Object id -eq 'browser-toolkit'
+        $browserCapability | Add-Member -NotePropertyName retiredSkills -NotePropertyValue @(
+            @{
+                name = 'ui-verify'
+                contentHash = '19E15F4745FD39172A67534369B12469897014EE84B45EC2A5998C5EBEE6AD9C'
+                reason = 'Merged into browser-debugging; exact loose copies are superseded.'
+            }
+        )
+        $capabilities | ConvertTo-Json -Depth 10 |
+            Set-Content -LiteralPath $capabilitiesPath -Encoding UTF8
+
+        $legacyUiVerifyPath = Join-Path $fixture.UserProfile '.claude\skills\ui-verify'
+        New-Item -ItemType Directory -Path $legacyUiVerifyPath -Force | Out-Null
+        [IO.File]::WriteAllBytes(
+            (Join-Path $legacyUiVerifyPath 'SKILL.md'),
+            [Convert]::FromBase64String(
+                'LS0tCm5hbWU6IHVpLXZlcmlmeQpkZXNjcmlwdGlvbjogU3RhcnQgdGhlIHJlbGV2YW50IGFwcCwgdmVyaWZ5IHByaW1hcnkgZmxvd3MgaW4gdGhlIGJyb3dzZXIgKENocm9tZSBwYW5lIG9yIERlc2t0b3AgYnJvd3NlciksIGluc3BlY3QgY29uc29sZS9uZXR3b3JrIGVycm9ycywgY2FwdHVyZSBzY3JlZW5zaG90cywgYW5kIHJ1biBQbGF5d3JpZ2h0IHdoZXJlIGF2YWlsYWJsZS4gVXNlIGFmdGVyIGFueSBVSS1hZmZlY3RpbmcgY2hhbmdlLCBiZWZvcmUgY2xhaW1pbmcgaXQgd29ya3MuCi0tLQoKIyBVSSB2ZXJpZmljYXRpb24KCk5ldmVyIGNsYWltIGEgVUkgY2hhbmdlIHdvcmtzIHdpdGhvdXQgYWN0dWFsbHkgcmVuZGVyaW5nIGl0LiBUeXBlLWNoZWNraW5nCmFuZCB1bml0IHRlc3RzIHZlcmlmeSBjb2RlIGNvcnJlY3RuZXNzLCBub3QgZmVhdHVyZSBjb3JyZWN0bmVzcy4KCjEuIFN0YXJ0IHRoZSBhcHAgdmlhIGl0cyBvd24gZGV2LXNlcnZlciBjb21tYW5kIChjaGVjayBBR0VOVFMubWQvUkVBRE1FIOKAlAogICBuZXZlciBndWVzcyB0aGUgcG9ydCBvciBzdGFydCBjb21tYW5kKS4KMi4gT3BlbiBpdCBpbiB0aGUgQnJvd3NlciBwYW5lIChgcHJldmlld19zdGFydGApLCByZWxvYWQgaWYgSE1SIGlzbid0CiAgIGFjdGl2ZS4KMy4gQ2hlY2sgYHJlYWRfY29uc29sZV9tZXNzYWdlc2AgYW5kIGByZWFkX25ldHdvcmtfcmVxdWVzdHNgIGZvciBlcnJvcnMg4oCUCiAgIGJlZm9yZSBhbmQgYWZ0ZXIgZXhlcmNpc2luZyB0aGUgY2hhbmdlZCBmbG93Lgo0LiBFeGVyY2lzZSB0aGUgYWN0dWFsIGdvbGRlbiBwYXRoIHRoZSBjaGFuZ2UgYWZmZWN0cywgcGx1cyBhdCBsZWFzdCBvbmUKICAgZWRnZSBjYXNlLiBVc2UgYHJlYWRfcGFnZWAvYGNvbXB1dGVyYC9gZm9ybV9pbnB1dGAgdG8gaW50ZXJhY3QsIG5vdCBqdXN0CiAgIGEgc2NyZWVuc2hvdC4KNS4gSWYgdGhlIHJlcG8gaGFzIFBsYXl3cmlnaHQgY29uZmlndXJlZCwgcnVuIGl0cyBmb2N1c2VkIHZpc3VhbC9lMmUKICAgc3VpdGUg4oCUIGNoZWNrIHRoZSByZWFsIGNvbmZpZyBmaWxlIG5hbWUgZmlyc3QgKHNvbWUgcmVwb3MgaW4gdGhpcwogICBwb3J0Zm9saW8gdXNlIGEgbm9uLWRlZmF1bHQgUGxheXdyaWdodCBjb25maWc7IHJ1bm5pbmcgYWdhaW5zdCB0aGUKICAgd3Jvbmcgb25lIHByb2R1Y2VzIGJhc2VVUkwtdHlwZSBmYWlsdXJlcyB0aGF0IGxvb2sgbGlrZSByZWFsIGJ1Z3MgYnV0CiAgIGFyZSBvcGVyYXRvciBlcnJvcikuCjYuIENhcHR1cmUgYSBzY3JlZW5zaG90IG9mIHRoZSB3b3JraW5nIHJlc3VsdCBhcyBldmlkZW5jZSwgYW5kIGNoZWNrIGZvcgogICByZXNwb25zaXZlL2RhcmstbW9kZSByZWdyZXNzaW9ucyBvbmx5IGlmIHRoZSBjaGFuZ2UgcGxhdXNpYmx5IGFmZmVjdHMKICAgdGhlbS4KCklmIHRoZSBhcHAgY2FuJ3QgYmUgc3RhcnRlZCBvciB2ZXJpZmllZCBpbiB0aGlzIGVudmlyb25tZW50LCBzYXkgc28KZXhwbGljaXRseSByYXRoZXIgdGhhbiBjbGFpbWluZyBzdWNjZXNzIG9uIHRoZSBzdHJlbmd0aCBvZiB0aGUgY29kZSBkaWZmCmFsb25lLgo='
+            )
+        )
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+        Test-Path -LiteralPath $legacyUiVerifyPath | Should -BeFalse
+        $deployedBrowserDebugging = Get-Content -LiteralPath (
+            Join-Path $fixture.UserProfile '.claude\skills\browser-debugging\SKILL.md'
+        ) -Raw
+        $deployedBrowserDebugging | Should -Match 'Never claim a UI change works'
+
+        $quarantineRoot = Join-Path $fixture.UserProfile '.agenthub\quarantine'
+        $manifest = Get-Content -LiteralPath (
+            Get-ChildItem -LiteralPath $quarantineRoot -Filter manifest.json -File -Recurse |
+                Select-Object -First 1 -ExpandProperty FullName
+        ) -Raw | ConvertFrom-Json
+        @($manifest.entries.artifactName) | Should -Contain 'ui-verify'
+    }
+
     It 'deploys Qwen native-skill mappings and replaces their stale junctions' {
         $fixture = New-DistributionFixture -Root (
             Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'qwen-managed-native-skills'
@@ -505,6 +575,73 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
                     Should -Be ([Convert]::ToBase64String([IO.File]::ReadAllBytes($canonicalSkill)))
             }
         }
+    }
+
+    It 'replaces the complete atomic Framer tree and keeps its companion a separate skill ID' {
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'framer-full-tree'
+        )
+        $staleFramer = Join-Path $fixture.UserProfile '.claude\skills\framer'
+        New-Item -ItemType Directory -Path (Join-Path $staleFramer 'projects\__template__') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $staleFramer 'SKILL.md') -Value 'stale:framer' -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $staleFramer 'projects\__template__\index.template.md') -Value 'stale:index' -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $staleFramer 'projects\__template__\project-inventory.template.md') -Value 'stale:inventory' -Encoding UTF8
+
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+
+        foreach ($relativePath in @(
+            'SKILL.md',
+            'start-conversation.md',
+            'projects\__template__\index.template.md',
+            'projects\__template__\project-inventory.template.md',
+            'projects\__template__\recipes.md'
+        )) {
+            $canonicalFile = Join-Path $fixture.CanonicalFramerRoot "skills\framer\$relativePath"
+            $deployedFile = Join-Path $staleFramer $relativePath
+            Test-Path -LiteralPath $deployedFile -PathType Leaf | Should -BeTrue
+            [Convert]::ToBase64String([IO.File]::ReadAllBytes($deployedFile)) |
+                Should -Be ([Convert]::ToBase64String([IO.File]::ReadAllBytes($canonicalFile)))
+        }
+        (Get-Content -LiteralPath (
+            Join-Path $fixture.UserProfile '.claude\skills\framer-code-components\SKILL.md'
+        ) -Raw).Trim() | Should -Be 'canonical:framer-code-components'
+        (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\framer\framer-code-components')) |
+            Should -BeFalse
+    }
+
+    It 'enforces the exact production Framer capability and portable resource contract' {
+        $repoRoot = Split-Path -Parent $PSScriptRoot
+        . (Join-Path $repoRoot 'scripts\RegistryContentHash.ps1')
+        $repositoryRegistry = Get-Content -LiteralPath (
+            Join-Path $repoRoot 'registry\capabilities.json'
+        ) -Raw | ConvertFrom-Json
+        $framerCapabilities = @($repositoryRegistry.capabilities | Where-Object { $_.id -eq 'framer' })
+
+        $framerCapabilities.Count | Should -Be 1
+        $capability = $framerCapabilities[0]
+        $capability.owner | Should -Be 'portfolio'
+        $capability.capabilityType | Should -Be 'skills'
+        $capability.status | Should -Be 'active-canonical'
+        (@($capability.managedSkillNames) -join "`n") | Should -Be ($global:canonicalFramerSkills -join "`n")
+        (@($capability.hostMappings.hostId) -join "`n") |
+            Should -Be ($global:canonicalPortfolioEngineeringHosts -join "`n")
+        @($capability.hostMappings | Where-Object {
+            $_.deploymentStatus -ne 'managed-loose-skills'
+        }).Count | Should -Be 0
+        $capability.canonicalSource | Should -Be 'C:/Repos/shmindmaster/agenthub/capabilities/framer'
+        $capability.hashBasis | Should -Be 'C:\Repos\shmindmaster\agenthub\capabilities\framer'
+        $canonicalRoot = Join-Path $repoRoot 'capabilities\framer'
+        $capability.contentHash | Should -Be (Get-AgentHubRegistryHashBasisValue -Path $canonicalRoot)
+
+        $framerSkill = Get-Content -LiteralPath (Join-Path $canonicalRoot 'skills\framer\SKILL.md') -Raw
+        $framerSkill | Should -Not -Match ([regex]::Escape('C:\Users\SaroshHussain\.agents\skills\framer'))
+        $framerSkill | Should -Match 'projects/SafeProjectId/index\.md'
+        $framerSkill | Should -Match 'start-conversation\.md'
+        $framerSkill | Should -Match "host's normal skill-resource loader"
+        $framerSkill | Should -Match ([regex]::Escape("Bash(npx @framer/agent:*)"))
+        $framerSkill | Should -Match ([regex]::Escape('Temp\framer/*'))
+        @(Get-ChildItem -LiteralPath (Join-Path $canonicalRoot 'skills\framer') -File -Recurse).Count | Should -Be 5
+        (Get-Content -LiteralPath (Join-Path $canonicalRoot 'skills\framer-code-components\SKILL.md')).Count | Should -Be 2526
     }
 
     It 'enforces the exact production portfolio engineering capability and portable skill contract' {

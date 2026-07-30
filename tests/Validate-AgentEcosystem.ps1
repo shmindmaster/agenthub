@@ -74,6 +74,7 @@ $requiredFiles = @(
     'registry\hosts.json',
     'registry\mcps.json',
     'registry\native-connectors.json',
+    'registry\skill-ownership.json',
     'registry\gateway-profiles.json',
     'registry\automation-gates.json',
     'registry\worktree-roots.json',
@@ -198,6 +199,139 @@ if ($registryObjects.ContainsKey('hosts.json')) {
         Add-ValidationResult PASS 'registry:host-ids' "$($hostIds.Count) unique packaging host IDs"
     } else {
         Add-ValidationResult FAIL 'registry:host-ids' "duplicate IDs: $($duplicates -join ', ')"
+    }
+}
+
+if ($registryObjects.ContainsKey('skill-ownership.json')) {
+    $ownershipRegistry = $registryObjects['skill-ownership.json']
+    $externalOwners = @($ownershipRegistry.externalOwners)
+    $pendingOwners = @($ownershipRegistry.preservePendingEvidence)
+    $ownershipProblems = New-Object System.Collections.Generic.List[string]
+    $allSkillIds = @($externalOwners.skillId) + @($pendingOwners.skillId)
+    $duplicateSkillIds = @(Get-DuplicateValues $allSkillIds)
+    if ($duplicateSkillIds.Count -gt 0) {
+        $ownershipProblems.Add(
+            "duplicate skill IDs: $($duplicateSkillIds -join ', ')"
+        )
+    }
+
+    $knownAgents = @()
+    if ($registryObjects.ContainsKey('agents.json')) {
+        $knownAgents = @($registryObjects['agents.json'].activeAgents) +
+            @($registryObjects['agents.json'].inactiveAgents)
+    }
+    $knownAgentIds = @($knownAgents.id)
+    $allowedPlaceholders = @('${USERPROFILE}', '${APPDATA}')
+    $appDataPath = Join-Path $UserProfilePath 'AppData\Roaming'
+
+    function Expand-ValidatedSkillOwnershipPath {
+        param([string]$Template)
+        $placeholders = @([regex]::Matches($Template, '\$\{[^}]+\}') |
+            ForEach-Object Value | Sort-Object -Unique)
+        $unsupported = @($placeholders | Where-Object {
+            $_ -notin $allowedPlaceholders
+        })
+        if ($unsupported.Count -gt 0) {
+            throw "unsupported placeholder(s): $($unsupported -join ', ')"
+        }
+        return [IO.Path]::GetFullPath(
+            $Template.Replace('${USERPROFILE}', $UserProfilePath).
+                Replace('${APPDATA}', $appDataPath).
+                Replace('/', '\')
+        ).TrimEnd('\')
+    }
+
+    foreach ($externalOwner in $externalOwners) {
+        foreach ($hash in @(
+            $externalOwner.skillHash,
+            $externalOwner.treeHash
+        ) + @($externalOwner.previousTreeHashes)) {
+            if ([string]$hash -notmatch '^[A-Fa-f0-9]{64}$') {
+                $ownershipProblems.Add(
+                    "malformed hash for external skill $($externalOwner.skillId)"
+                )
+            }
+        }
+        foreach ($template in @($externalOwner.sourceCandidates) +
+            @($externalOwner.sharedShadowPaths)) {
+            try {
+                [void](Expand-ValidatedSkillOwnershipPath -Template ([string]$template))
+            } catch {
+                $ownershipProblems.Add(
+                    "$($externalOwner.skillId): $($_.Exception.Message)"
+                )
+            }
+        }
+        foreach ($target in @($externalOwner.targets)) {
+            $hostId = [string]$target.hostId
+            if ($hostId -notin $knownAgentIds) {
+                $ownershipProblems.Add(
+                    "unknown target host $hostId for $($externalOwner.skillId)"
+                )
+                continue
+            }
+            try {
+                $targetPath = Expand-ValidatedSkillOwnershipPath `
+                    -Template ([string]$target.path)
+                $agent = @($knownAgents | Where-Object id -eq $hostId |
+                    Select-Object -First 1)
+                $registeredSkillRoot = [string]$agent[0].nativePaths.skillsDir
+                if ([string]::IsNullOrWhiteSpace($registeredSkillRoot)) {
+                    throw "host $hostId has no registered skillsDir"
+                }
+                $registeredSkillRoot = [IO.Path]::GetFullPath(
+                    $registeredSkillRoot
+                ).TrimEnd('\')
+                if (-not (
+                    $targetPath.Equals(
+                        $registeredSkillRoot,
+                        [StringComparison]::OrdinalIgnoreCase
+                    ) -or
+                    $targetPath.StartsWith(
+                        $registeredSkillRoot + '\',
+                        [StringComparison]::OrdinalIgnoreCase
+                    )
+                )) {
+                    throw "target is outside registered skillsDir for $hostId"
+                }
+            } catch {
+                $ownershipProblems.Add(
+                    "$($externalOwner.skillId): $($_.Exception.Message)"
+                )
+            }
+        }
+    }
+
+    foreach ($pendingOwner in $pendingOwners) {
+        if ([string]::IsNullOrWhiteSpace([string]$pendingOwner.blockerReason)) {
+            $ownershipProblems.Add(
+                "pending skill $($pendingOwner.skillId) has no blocker reason"
+            )
+        }
+        foreach ($hash in @($pendingOwner.observedHashes)) {
+            if ([string]$hash -notmatch '^[A-Fa-f0-9]{64}$') {
+                $ownershipProblems.Add(
+                    "malformed hash for pending skill $($pendingOwner.skillId)"
+                )
+            }
+        }
+        foreach ($template in @($pendingOwner.paths)) {
+            try {
+                [void](Expand-ValidatedSkillOwnershipPath -Template ([string]$template))
+            } catch {
+                $ownershipProblems.Add(
+                    "$($pendingOwner.skillId): $($_.Exception.Message)"
+                )
+            }
+        }
+    }
+
+    if ($ownershipProblems.Count -eq 0) {
+        Add-ValidationResult PASS 'registry:skill-ownership' `
+            "$($externalOwners.Count) external and $($pendingOwners.Count) preserve-pending skill contracts are valid"
+    } else {
+        Add-ValidationResult FAIL 'registry:skill-ownership' `
+            (($ownershipProblems | Sort-Object -Unique) -join '; ')
     }
 }
 

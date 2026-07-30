@@ -213,7 +213,9 @@ Describe 'Comprehensive live fleet drift inventory' {
         $executable = (Get-Command powershell.exe -ErrorAction Stop).Source
 
         Write-FixtureSkill -Path $canonicalSkill -Name 'docs-drift' -Body 'canonical body'
-        $canonicalHash = Get-AgentHubStableFileHash -Path $canonicalSkill
+        $canonicalHash = Get-AgentHubRegistryHashBasisValue -Path (
+            Split-Path -Parent $canonicalSkill
+        )
         foreach ($mappedSkill in @($claudeSkill, $codexSkill, $qoderSkill)) {
             Copy-Item -LiteralPath $canonicalSkill -Destination (
                 New-Item -ItemType Directory -Path (Split-Path -Parent $mappedSkill) -Force
@@ -320,6 +322,258 @@ Describe 'Comprehensive live fleet drift inventory' {
         @($mutated.results.check) | Should -Contain 'canonical-skill-content-drift:qoder:docs-drift'
         @($mutated.results.check) | Should -Not -Contain 'canonical-skill-content-drift:claude:docs-drift'
         @($mutated.results.check) | Should -Not -Contain 'canonical-skill-content-drift:codex:docs-drift'
+    }
+
+    It 'owns both Framer skill IDs atomically and detects missing companion resources' {
+        $fixtureRoot = Join-Path $TestDrive 'framer-tree-drift-fixture'
+        $registryRoot = Join-Path $fixtureRoot 'agenthub'
+        $registryDir = Join-Path $registryRoot 'registry'
+        $profile = Join-Path $fixtureRoot 'profile'
+        $appData = Join-Path $profile 'AppData\Roaming'
+        $localAppData = Join-Path $profile 'AppData\Local'
+        $canonicalRoot = Join-Path $registryRoot 'capabilities\framer'
+        $canonicalFramer = Join-Path $canonicalRoot 'skills\framer'
+        $canonicalComponents = Join-Path $canonicalRoot 'skills\framer-code-components'
+        $qoderSkillsRoot = Join-Path $profile '.qoder\skills'
+        $qoderFramer = Join-Path $qoderSkillsRoot 'framer'
+        $executable = (Get-Command powershell.exe -ErrorAction Stop).Source
+
+        Write-FixtureSkill -Path (Join-Path $canonicalFramer 'SKILL.md') `
+            -Name 'framer' -Body 'canonical Framer body'
+        New-Item -ItemType Directory -Path (
+            Join-Path $canonicalFramer 'projects\__template__'
+        ) -Force | Out-Null
+        Set-Content -LiteralPath (
+            Join-Path $canonicalFramer 'projects\__template__\recipes.md'
+        ) -Value 'canonical recipes' -Encoding UTF8
+        Write-FixtureSkill -Path (Join-Path $canonicalComponents 'SKILL.md') `
+            -Name 'framer-code-components' -Body 'canonical component body'
+        New-Item -ItemType Directory -Path $qoderSkillsRoot -Force | Out-Null
+        Copy-Item -LiteralPath $canonicalFramer -Destination $qoderSkillsRoot -Recurse
+        Copy-Item -LiteralPath $canonicalComponents -Destination $qoderSkillsRoot -Recurse
+
+        Write-FixtureJson -Path (Join-Path $registryDir 'agents.json') -Value @{
+            activeAgents = @(@{
+                id='qoder'; name='Qoder'; version='fixture'; executable=$executable
+                status='active'; nativePaths=@{ skillsDir=$qoderSkillsRoot }
+            })
+            inactiveAgents = @()
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'capabilities.json') -Value @{
+            capabilities = @(@{
+                id='framer'
+                canonicalSource=$canonicalRoot
+                managedSkillNames=@('framer','framer-code-components')
+                hostMappings=@(
+                    @{ hostId='qoder'; deploymentStatus='managed-loose-skills' }
+                )
+            })
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'mcps.json') -Value @{
+            mcpServers=@()
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'native-connectors.json') -Value @{
+            lifecyclePolicy=@{ onDemandLocalMcpIds=@() }
+            hosts=@(@{
+                hostId='qoder'
+                exposures=@{
+                    'plugin-owned'=@(); 'native-connector'=@()
+                    'shared-gateway'=@(); 'local-only'=@()
+                }
+            })
+        }
+        Write-FixtureJson -Path (Join-Path $profile '.qoder\settings.json') -Value @{
+            enabledPlugins=@{ '_fixture-disabled@local'=$false }
+            mcpServers=@{}
+        }
+
+        $baselineReport = Join-Path $fixtureRoot 'baseline-report.json'
+        & $powerShell -NoLogo -NoProfile -NonInteractive -File $checker `
+            -RegistryRoot $registryRoot `
+            -UserProfilePath $profile `
+            -AppDataPath $appData `
+            -LocalAppDataPath $localAppData `
+            -ReposRoot (Join-Path $fixtureRoot 'Repos') `
+            -WorktreeRoot (Join-Path $fixtureRoot 'wt') `
+            -SkipRepositoryScan `
+            -ReportPath $baselineReport `
+            -Json 2>&1 | Out-Null
+        $baseline = Get-Content -LiteralPath $baselineReport -Raw -Encoding UTF8 |
+            ConvertFrom-Json
+        @($baseline.inventory.canonicalSkills | Where-Object {
+            $_.capabilityId -eq 'framer' -and
+            $_.skillId -in @('framer','framer-code-components')
+        }).Count | Should -Be 2
+        @($baseline.results.check) |
+            Should -Not -Contain 'canonical-skill-content-drift:qoder:framer'
+        @($baseline.results.check) |
+            Should -Not -Contain 'canonical-skill-content-drift:qoder:framer-code-components'
+
+        Remove-Item -LiteralPath (
+            Join-Path $qoderFramer 'projects\__template__\recipes.md'
+        )
+        $mutatedReport = Join-Path $fixtureRoot 'mutated-report.json'
+        & $powerShell -NoLogo -NoProfile -NonInteractive -File $checker `
+            -RegistryRoot $registryRoot `
+            -UserProfilePath $profile `
+            -AppDataPath $appData `
+            -LocalAppDataPath $localAppData `
+            -ReposRoot (Join-Path $fixtureRoot 'Repos') `
+            -WorktreeRoot (Join-Path $fixtureRoot 'wt') `
+            -SkipRepositoryScan `
+            -ReportPath $mutatedReport `
+            -Json 2>&1 | Out-Null
+        $mutated = Get-Content -LiteralPath $mutatedReport -Raw -Encoding UTF8 |
+            ConvertFrom-Json
+        @($mutated.results.check) |
+            Should -Contain 'canonical-skill-content-drift:qoder:framer'
+        @($mutated.results.check) |
+            Should -Not -Contain 'canonical-skill-content-drift:qoder:framer-code-components'
+    }
+
+    It 'classifies vendor-owned and preserve-pending skills without treating them as unowned' {
+        $fixtureRoot = Join-Path $TestDrive 'external-skill-drift-fixture'
+        $registryRoot = Join-Path $fixtureRoot 'agenthub'
+        $registryDir = Join-Path $registryRoot 'registry'
+        $profile = Join-Path $fixtureRoot 'profile'
+        $appData = Join-Path $profile 'AppData\Roaming'
+        $localAppData = Join-Path $profile 'AppData\Local'
+        $codexSkills = Join-Path $profile '.codex\skills'
+        $claudeSkills = Join-Path $profile '.claude\skills'
+        $sharedSkills = Join-Path $profile '.agents\skills'
+        $railwayTarget = Join-Path $codexSkills 'use-railway\SKILL.md'
+        $railwayShadow = Join-Path $sharedSkills 'use-railway\SKILL.md'
+        $codexPending = Join-Path $codexSkills 'issue-to-pr\SKILL.md'
+        $claudePending = Join-Path $claudeSkills 'issue-to-pr\SKILL.md'
+        $executable = (Get-Command powershell.exe -ErrorAction Stop).Source
+
+        Write-FixtureSkill -Path $railwayTarget -Name 'use-railway' -Body 'trusted vendor tree'
+        Copy-Item -LiteralPath $railwayTarget -Destination (
+            New-Item -ItemType Directory -Path (Split-Path -Parent $railwayShadow) -Force
+        ).FullName
+        Write-FixtureSkill -Path $codexPending -Name 'issue-to-pr' -Body 'preserved evidence'
+        Write-FixtureSkill -Path $claudePending -Name 'issue-to-pr' -Body 'unknown divergence'
+        $railwayHash = Get-AgentHubRegistryHashBasisValue -Path (
+            Split-Path -Parent $railwayTarget
+        )
+        $pendingHash = Get-AgentHubRegistryHashBasisValue -Path (
+            Split-Path -Parent $codexPending
+        )
+
+        Write-FixtureJson -Path (Join-Path $registryDir 'agents.json') -Value @{
+            activeAgents=@(
+                @{
+                    id='codex'; name='Codex'; version='fixture'; executable=$executable
+                    status='active'
+                    nativePaths=@{ skillsDir=$codexSkills; sharedSkillsDir=$sharedSkills }
+                },
+                @{
+                    id='claude'; name='Claude'; version='fixture'; executable=$executable
+                    status='active'; nativePaths=@{ skillsDir=$claudeSkills }
+                },
+                @{
+                    id='gemini'; name='Gemini'; version='fixture'; executable=$executable
+                    status='inactive'; nativePaths=@{ sharedSkillsDir=$sharedSkills }
+                },
+                @{
+                    id='cline'; name='Cline'; version='fixture'; executable=$executable
+                    status='inactive'; nativePaths=@{ sharedSkillsDir=$sharedSkills }
+                }
+            )
+            inactiveAgents=@()
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'capabilities.json') -Value @{
+            capabilities=@()
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'mcps.json') -Value @{
+            mcpServers=@()
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'native-connectors.json') -Value @{
+            lifecyclePolicy=@{ onDemandLocalMcpIds=@() }
+            hosts=@(
+                @{ hostId='codex'; exposures=@{ 'plugin-owned'=@(); 'native-connector'=@(); 'shared-gateway'=@(); 'local-only'=@() } },
+                @{ hostId='claude'; exposures=@{ 'plugin-owned'=@(); 'native-connector'=@(); 'shared-gateway'=@(); 'local-only'=@() } }
+            )
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'skill-ownership.json') -Value @{
+            schemaVersion=1
+            externalOwners=@(@{
+                skillId='use-railway'; owner='railway'; currentVersion='fixture'
+                treeHash=$railwayHash
+                targets=@(@{
+                    hostId='codex'
+                    path='${USERPROFILE}/.codex/skills/use-railway'
+                })
+            })
+            preservePendingEvidence=@(@{
+                skillId='issue-to-pr'
+                observedHashes=@($pendingHash)
+                blockerReason='fixture ownership is unresolved'
+                status='preserve-pending-evidence'
+            })
+        }
+        Write-FixtureJson -Path (Join-Path $profile '.claude.json') -Value @{
+            mcpServers=@{}
+        }
+        $codexConfig = Join-Path $profile '.codex\config.toml'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $codexConfig) -Force |
+            Out-Null
+        Set-Content -LiteralPath $codexConfig -Value '' -Encoding UTF8
+
+        $report = Join-Path $fixtureRoot 'report.json'
+        $checkerOutput = @(& $powerShell -NoLogo -NoProfile -NonInteractive -File $checker `
+            -RegistryRoot $registryRoot `
+            -UserProfilePath $profile `
+            -AppDataPath $appData `
+            -LocalAppDataPath $localAppData `
+            -ReposRoot (Join-Path $fixtureRoot 'Repos') `
+            -WorktreeRoot (Join-Path $fixtureRoot 'wt') `
+            -SkipRepositoryScan `
+            -ReportPath $report `
+            -Json 2>&1)
+        if (-not (Test-Path -LiteralPath $report -PathType Leaf)) {
+            throw "Checker did not produce its report:`n$($checkerOutput -join [Environment]::NewLine)"
+        }
+        $parsed = Get-Content -LiteralPath $report -Raw -Encoding UTF8 |
+            ConvertFrom-Json
+        @($parsed.results | Where-Object {
+            $_.check -eq 'external-skill-current:codex:use-railway' -and
+            $_.status -eq 'PASS'
+        }).Count | Should -Be 1
+        @($parsed.results | Where-Object {
+            $_.check -eq 'preserve-pending-evidence:codex:issue-to-pr' -and
+            $_.status -eq 'WARN'
+        }).Count | Should -Be 1
+        $divergentPending = @($parsed.results | Where-Object {
+            $_.check -eq 'preserve-pending-evidence:claude:issue-to-pr'
+        })
+        $divergentPending.status | Should -Be 'FAIL'
+        $divergentPending.detail | Should -Match 'preserve-pending-evidence'
+        @($parsed.results.check) |
+            Should -Contain 'duplicate-skill-exposure:codex:use-railway'
+        @($parsed.results.check | Where-Object {
+            $_ -like 'unowned-*:use-railway' -or $_ -like 'unowned-*:issue-to-pr'
+        }).Count | Should -Be 0
+
+        Write-FixtureSkill -Path $railwayTarget -Name 'use-railway' -Body 'known old tree'
+        $mutatedReport = Join-Path $fixtureRoot 'mutated-report.json'
+        $checkerOutput = @(& $powerShell -NoLogo -NoProfile -NonInteractive -File $checker `
+            -RegistryRoot $registryRoot `
+            -UserProfilePath $profile `
+            -AppDataPath $appData `
+            -LocalAppDataPath $localAppData `
+            -ReposRoot (Join-Path $fixtureRoot 'Repos') `
+            -WorktreeRoot (Join-Path $fixtureRoot 'wt') `
+            -SkipRepositoryScan `
+            -ReportPath $mutatedReport `
+            -Json 2>&1)
+        if (-not (Test-Path -LiteralPath $mutatedReport -PathType Leaf)) {
+            throw "Checker did not produce its mutated report:`n$($checkerOutput -join [Environment]::NewLine)"
+        }
+        $mutated = Get-Content -LiteralPath $mutatedReport -Raw -Encoding UTF8 |
+            ConvertFrom-Json
+        @($mutated.results.check) |
+            Should -Contain 'external-skill-content-drift:codex:use-railway'
     }
 
     It 'uses Copilot manifest-selected skill bodies instead of nested build inputs' {

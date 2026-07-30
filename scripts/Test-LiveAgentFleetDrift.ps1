@@ -204,6 +204,21 @@ function Get-SkillId {
     return (Split-Path -Leaf (Split-Path -Parent $SkillPath))
 }
 
+function Get-SkillTreeHash {
+    param([string]$SkillPath)
+    return Get-AgentHubRegistryHashBasisValue -Path (Split-Path -Parent $SkillPath)
+}
+
+function Expand-SkillOwnershipPath {
+    param([string]$Template)
+    $expanded = $Template.Replace('${USERPROFILE}', $UserProfilePath).
+        Replace('${APPDATA}', $AppDataPath)
+    if ($expanded -match '\$\{') {
+        throw "Unsupported skill ownership path placeholder: $Template"
+    }
+    return Normalize-FullPath ($expanded.Replace('/', '\'))
+}
+
 function Add-DiscoveryRoot {
     param(
         [string]$HostId,
@@ -282,7 +297,7 @@ function Add-SkillsFromRoot {
         $script:skillRecords.Add([pscustomobject]@{
             hostId = $HostId
             skillId = Get-SkillId -SkillPath $fullPath
-            hash = Get-AgentHubStableFileHash -Path $fullPath
+            hash = Get-SkillTreeHash -SkillPath $fullPath
             path = $fullPath
             root = Normalize-FullPath $Root
             sourceType = $SourceType
@@ -343,7 +358,7 @@ function Add-CopilotManifestSkills {
         $script:skillRecords.Add([pscustomobject]@{
             hostId = 'copilot'
             skillId = Get-SkillId -SkillPath $candidate
-            hash = Get-AgentHubStableFileHash -Path $candidate
+            hash = Get-SkillTreeHash -SkillPath $candidate
             path = $candidate
             root = Normalize-FullPath $PluginRoot
             sourceType = 'plugin-manifest'
@@ -477,6 +492,7 @@ $agentsPath = Join-Path $RegistryRoot 'registry\agents.json'
 $capabilitiesPath = Join-Path $RegistryRoot 'registry\capabilities.json'
 $mcpsPath = Join-Path $RegistryRoot 'registry\mcps.json'
 $connectorsPath = Join-Path $RegistryRoot 'registry\native-connectors.json'
+$skillOwnershipPath = Join-Path $RegistryRoot 'registry\skill-ownership.json'
 foreach ($requiredPath in @($agentsPath, $capabilitiesPath, $mcpsPath, $connectorsPath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required registry is missing: $requiredPath"
@@ -487,6 +503,7 @@ $agentRegistry = Read-JsonFile -Path $agentsPath
 $capabilityRegistry = Read-JsonFile -Path $capabilitiesPath
 $mcpRegistry = Read-JsonFile -Path $mcpsPath
 $connectorRegistry = Read-JsonFile -Path $connectorsPath
+$skillOwnershipRegistry = Read-JsonFile -Path $skillOwnershipPath
 $agents = @($agentRegistry.activeAgents) + @($agentRegistry.inactiveAgents)
 $agentById = @{}
 foreach ($agent in $agents) { $agentById[[string]$agent.id] = $agent }
@@ -798,7 +815,7 @@ foreach ($capability in @($capabilityRegistry.capabilities)) {
         $canonicalSkillRecords.Add([pscustomobject]@{
             capabilityId = [string]$capability.id
             skillId = Get-SkillId -SkillPath $file.FullName
-            hash = Get-AgentHubStableFileHash -Path $file.FullName
+            hash = Get-SkillTreeHash -SkillPath $file.FullName
             path = Normalize-FullPath $file.FullName
             hostIds = @($capability.hostMappings.hostId)
         })
@@ -810,6 +827,70 @@ foreach ($record in @($canonicalSkillRecords.ToArray())) {
         $canonicalBySkill[$record.skillId] = @()
     }
     $canonicalBySkill[$record.skillId] += $record
+}
+
+$externallyOwnedSkillIds = @()
+$pendingSkillIds = @()
+if ($null -ne $skillOwnershipRegistry) {
+    foreach ($externalOwner in @($skillOwnershipRegistry.externalOwners)) {
+        $skillId = [string]$externalOwner.skillId
+        $externallyOwnedSkillIds += $skillId
+        $currentHash = ([string]$externalOwner.treeHash).ToUpperInvariant()
+        foreach ($target in @($externalOwner.targets)) {
+            $hostId = [string]$target.hostId
+            $targetPath = Expand-SkillOwnershipPath -Template ([string]$target.path)
+            $matches = @($skillRecords.ToArray() | Where-Object {
+                $_.hostId -eq $hostId -and
+                $_.skillId -eq $skillId -and
+                (Normalize-FullPath (Split-Path -Parent $_.path)).Equals(
+                    $targetPath,
+                    [StringComparison]::OrdinalIgnoreCase
+                )
+            })
+            if ($matches.Count -eq 0) {
+                Add-DriftResult FAIL 'skill' "external-skill-missing:${hostId}:${skillId}" `
+                    "vendor-owned skill target is missing; expected trusted tree hash $currentHash" `
+                    $hostId @($targetPath)
+                continue
+            }
+            foreach ($match in $matches) {
+                if ([string]$match.hash -eq $currentHash) {
+                    Add-DriftResult PASS 'skill' "external-skill-current:${hostId}:${skillId}" `
+                        "vendor-owned skill matches $($externalOwner.owner) version $($externalOwner.currentVersion)" `
+                        $hostId @($match.path)
+                } else {
+                    Add-DriftResult FAIL 'skill' "external-skill-content-drift:${hostId}:${skillId}" `
+                        "vendor-owned skill does not match trusted tree hash $currentHash" `
+                        $hostId @($match.path)
+                }
+            }
+        }
+    }
+
+    foreach ($pending in @($skillOwnershipRegistry.preservePendingEvidence)) {
+        $skillId = [string]$pending.skillId
+        $pendingSkillIds += $skillId
+        $observedHashes = @($pending.observedHashes | ForEach-Object {
+            ([string]$_).ToUpperInvariant()
+        })
+        foreach ($record in @($skillRecords.ToArray() | Where-Object {
+            $_.skillId -eq $skillId
+        })) {
+            $status = if ([string]$record.hash -in $observedHashes) {
+                'WARN'
+            } else {
+                'FAIL'
+            }
+            $detail = if ($status -eq 'WARN') {
+                "preserve-pending-evidence: exact observed copy retained while ownership is blocked; $($pending.blockerReason)"
+            } else {
+                "preserve-pending-evidence: deployed content diverges from every preserved evidence hash; $($pending.blockerReason)"
+            }
+            Add-DriftResult $status 'skill' `
+                "preserve-pending-evidence:$($record.hostId):${skillId}" `
+                $detail $record.hostId @($record.path)
+        }
+    }
 }
 
 $retiredSkillIds = @('agent-fleet-ops', 'agent-capabilities')
@@ -867,7 +948,10 @@ foreach ($record in @($skillRecords.ToArray())) {
 }
 
 $unownedLoose = @($skillRecords.ToArray() | Where-Object {
-    $_.sourceType -eq 'loose' -and -not $canonicalBySkill.ContainsKey($_.skillId)
+    $_.sourceType -eq 'loose' -and
+    -not $canonicalBySkill.ContainsKey($_.skillId) -and
+    $_.skillId -notin $externallyOwnedSkillIds -and
+    $_.skillId -notin $pendingSkillIds
 })
 foreach ($group in @($unownedLoose | Group-Object skillId)) {
     $uniquePaths = @($group.Group.path | Sort-Object -Unique)

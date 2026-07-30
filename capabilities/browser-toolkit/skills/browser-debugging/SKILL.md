@@ -35,3 +35,23 @@ description: Reproduce and diagnose browser defects through a dedicated Chrome s
 
 Do not enable experimental Chrome DevTools MCP flags without explicit
 authorization, a written reason/risk, and a non-experimental fallback.
+
+## UI change completion gate
+
+Never claim a UI change works without rendering the changed flow.
+
+1. Read the repository's current instructions and native startup scripts.
+   Never guess the command or port.
+2. Capture console and network state before exercising the change, render the
+   affected flow, then check both again afterward.
+3. Exercise the golden path and one relevant edge case through real
+   interactions rather than relying on a static screenshot.
+4. When the repository has Playwright coverage, use its actual focused
+   configuration and command; do not assume the default config filename.
+5. Capture a screenshot of the verified result.
+6. If the application cannot be rendered in the available environment, report
+   the exact environment blocker and do not substitute type-checking, unit
+   tests, or source inspection for browser evidence.
+
+This completion gate does not replace the separate browser-evidence skill or
+Product Demo Studio's capture and release decisions.

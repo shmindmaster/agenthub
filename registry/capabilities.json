@@ -570,6 +570,89 @@
       ]
     },
     {
+      "id": "framer",
+      "owner": "portfolio",
+      "capabilityType": "skills",
+      "canonicalSource": "C:/Repos/shmindmaster/agenthub/capabilities/framer",
+      "managedSkillNames": [
+        "framer",
+        "framer-code-components"
+      ],
+      "contentHash": "649F0991C94E13C678FF68F1330FAE5FF56A619BD9875EC6BF0BB185AA66B25C",
+      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\framer",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ]
+    },
+    {
       "id": "firecrawl-ops",
       "owner": "portfolio",
       "capabilityType": "skills-only-plugin",
@@ -615,7 +698,14 @@
         "browser-audit",
         "product-demo"
       ],
-      "contentHash": "A0A40C7E3C8AC19204A37567EFD18C2BFABE8C58877F5ABAF6B356643CCCBAED",
+      "retiredSkills": [
+        {
+          "name": "ui-verify",
+          "contentHash": "19E15F4745FD39172A67534369B12469897014EE84B45EC2A5998C5EBEE6AD9C",
+          "reason": "Merged into browser-debugging; exact loose copies are superseded."
+        }
+      ],
+      "contentHash": "0BFEF269A59D59BD596F3F3DA3CD67D1C15047B73427600F2E338867AAC72762",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [

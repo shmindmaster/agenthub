@@ -1,6 +1,8 @@
 $global:AgentHubRepoRoot = Split-Path -Parent $PSScriptRoot
 $global:AgentHubValidateScript = Join-Path $PSScriptRoot 'Validate-AgentEcosystem.ps1'
 $global:AgentHubReadinessScript = Join-Path $PSScriptRoot 'Test-HostReadiness.ps1'
+$global:AgentHubExternalSkillTest = Join-Path $PSScriptRoot 'ExternalSkillOwnership.Tests.ps1'
+$global:AgentHubExternalSkillSync = Join-Path $global:AgentHubRepoRoot 'scripts\Sync-ExternalSkills.ps1'
 $global:AgentHubAdvertisedPowerShell = (Get-Command powershell.exe -ErrorAction Stop).Source
 
 function global:Invoke-AdvertisedCommand {
@@ -20,6 +22,13 @@ Describe 'Advertised offline validation commands' {
 
     It 'ships Test-HostReadiness.ps1 at the README path' {
         (Test-Path -LiteralPath $global:AgentHubReadinessScript -PathType Leaf) | Should -Be $true
+    }
+
+    It 'ships the external skill ownership reconciler and its behavioral tests' {
+        Test-Path -LiteralPath $global:AgentHubExternalSkillSync -PathType Leaf |
+            Should -BeTrue
+        Test-Path -LiteralPath $global:AgentHubExternalSkillTest -PathType Leaf |
+            Should -BeTrue
     }
 
     It 'validates the checked-in ecosystem without network access' {

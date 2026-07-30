@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "externalOwners": [
+    {
+      "skillId": "use-railway",
+      "owner": "railway",
+      "ownershipType": "vendor-installed-local-skill",
+      "currentVersion": "1.3.6",
+      "skillHash": "0D70B4DAF9D8657EF2432EEAE88E9E2A46F433E7A4C668F26A3A4052815337A3",
+      "treeHash": "F6B1450F21EC24940ED10511AEA55628EE4C635C888DF126B54E13EDFE59E53E",
+      "previousTreeHashes": [
+        "8664DE4CFA28A1244045961174E2296C36DD44AC0A60B6C542C29E46D49E7E05",
+        "F2228477490AED1A5EE5E9F466512F330A48D7ED580A54B1BDED70E326484A15"
+      ],
+      "sourceCandidates": [
+        "${USERPROFILE}/.claude/skills/use-railway",
+        "${USERPROFILE}/.codex/skills/use-railway"
+      ],
+      "targets": [
+        { "hostId": "claude", "path": "${USERPROFILE}/.claude/skills/use-railway" },
+        { "hostId": "cline", "path": "${USERPROFILE}/.cline/skills/use-railway" },
+        { "hostId": "codex", "path": "${USERPROFILE}/.codex/skills/use-railway" },
+        { "hostId": "copilot", "path": "${USERPROFILE}/.copilot/skills/use-railway" },
+        { "hostId": "cursor", "path": "${USERPROFILE}/.cursor/skills/use-railway" },
+        { "hostId": "devin", "path": "${APPDATA}/devin/skills/use-railway" },
+        { "hostId": "factory", "path": "${USERPROFILE}/.factory/skills/use-railway" },
+        { "hostId": "gemini", "path": "${USERPROFILE}/.gemini/skills/use-railway" },
+        { "hostId": "antigravity", "path": "${USERPROFILE}/.gemini/config/skills/use-railway" },
+        { "hostId": "grok", "path": "${USERPROFILE}/.grok/skills/use-railway" },
+        { "hostId": "opencode", "path": "${USERPROFILE}/.config/opencode/skills/use-railway" },
+        { "hostId": "windsurf", "path": "${USERPROFILE}/.codeium/windsurf/skills/use-railway" }
+      ],
+      "sharedShadowPaths": [
+        "${USERPROFILE}/.agents/skills/use-railway"
+      ]
+    }
+  ],
+  "preservePendingEvidence": [
+    {
+      "skillId": "issue-to-pr",
+      "observedHashes": [
+        "B85C5B3DD19BB2A530F0D92E469DC0AFAE19C300F5A37BA6B09BD1F0999D064D",
+        "D7FFB424279540979F6F8C7C53A45A50E9B88ED5C69F0DF61B6D73BE2567D940"
+      ],
+      "paths": [
+        "${USERPROFILE}/.agents/skills/issue-to-pr",
+        "${USERPROFILE}/.claude/skills/issue-to-pr"
+      ],
+      "blockerReason": "Cross-provider GitHub and Linear write authority, account selection, provenance, and synthetic-fixture contracts are not approved.",
+      "personalDataBoundary": "Do not use client repositories, issues, trackers, identities, or data as the ownership control plane or fixture.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "analyze-legal-contradictions",
+      "observedHashes": ["4493C05FD2FA92AC1C7D3E9AD200567D1BE7136B18C87E314FB96CD8EF3E84E2"],
+      "paths": ["${USERPROFILE}/.agents/skills/analyze-legal-contradictions", "${USERPROFILE}/.copilot/skills/analyze-legal-contradictions"],
+      "blockerReason": "Legal-service ownership, authentication, provenance, and a synthetic evidence fixture are missing.",
+      "personalDataBoundary": "Do not ingest or expose client or personal legal evidence while ownership is unresolved.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "ask-local-knowledge",
+      "observedHashes": ["747130E14F8FA2A7303E901F63190865D9432EC1603365D4D45B1381F9A6C64B"],
+      "paths": ["${USERPROFILE}/.agents/skills/ask-local-knowledge", "${USERPROFILE}/.copilot/skills/ask-local-knowledge"],
+      "blockerReason": "Knowledge-service owner, model and authentication contract, and non-client corpus fixture are missing.",
+      "personalDataBoundary": "Do not promote indexed user or client documents into AgentHub.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "build-evidence-packet",
+      "observedHashes": ["546DACFF6ECBA09EFE8AA5BF3875CF8D5D958145E620A7AD4F943BFC182158DD"],
+      "paths": ["${USERPROFILE}/.agents/skills/build-evidence-packet", "${USERPROFILE}/.copilot/skills/build-evidence-packet"],
+      "blockerReason": "Evidence-export authorization, retention, provenance, and synthetic export fixtures are missing.",
+      "personalDataBoundary": "Do not copy private evidence or regulated data into AgentHub.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "build-legal-timeline",
+      "observedHashes": ["6923CA09972888FCF4BC13890BD73D2AB5994BFC622528F995210B4AA95453FC"],
+      "paths": ["${USERPROFILE}/.agents/skills/build-legal-timeline", "${USERPROFILE}/.copilot/skills/build-legal-timeline"],
+      "blockerReason": "Legal search and citation service ownership, provenance, and synthetic fixtures are missing.",
+      "personalDataBoundary": "Do not use private legal records as capability fixtures.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "check-knowledge-health",
+      "observedHashes": ["32110A0B083B1EACD19D4DC1D1F79F2B33EACDB022F36DD2F82E0FA50AB7B8F4"],
+      "paths": ["${USERPROFILE}/.agents/skills/check-knowledge-health", "${USERPROFILE}/.copilot/skills/check-knowledge-health"],
+      "blockerReason": "Canonical knowledge-service package and synthetic status contract are missing.",
+      "personalDataBoundary": "Do not expose user corpus locations, indexes, or content.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "code-legal-issues",
+      "observedHashes": ["5C92207AFCACA32957D543A6EE7FD9AAF4AAD9570E6D0EC8D3C91FF8BFFA9C92"],
+      "paths": ["${USERPROFILE}/.agents/skills/code-legal-issues", "${USERPROFILE}/.copilot/skills/code-legal-issues"],
+      "blockerReason": "Legal-classification model ownership and review-state semantics are missing.",
+      "personalDataBoundary": "Do not classify client matters through an unowned personal capability.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "export-knowledge-results",
+      "observedHashes": ["92986E87BD3F21CC84DC16FC07CDB26B5FD3A26C38327B58562834F7226EE6E3"],
+      "paths": ["${USERPROFILE}/.agents/skills/export-knowledge-results", "${USERPROFILE}/.copilot/skills/export-knowledge-results"],
+      "blockerReason": "Knowledge-export authority, output handling, and synthetic fixtures are missing.",
+      "personalDataBoundary": "Do not export personal or client corpus results while ownership is unresolved.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "ingest-legal-evidence",
+      "observedHashes": ["0A17DE3AF1C09AD3CA936AE834F608C5BADCFE06B692D9231C6EEBD70EEB20F9"],
+      "paths": ["${USERPROFILE}/.agents/skills/ingest-legal-evidence", "${USERPROFILE}/.copilot/skills/ingest-legal-evidence"],
+      "blockerReason": "Legal intake authority, evidence retention, and service ownership are missing.",
+      "personalDataBoundary": "Do not ingest original legal evidence into AgentHub or synthetic tests.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "operate-qdrant-index",
+      "observedHashes": ["171CCDD06F693089B7D9A85DB65A3AE28A318587126482913AECC3C07A59448E"],
+      "paths": ["${USERPROFILE}/.agents/skills/operate-qdrant-index", "${USERPROFILE}/.copilot/skills/operate-qdrant-index"],
+      "blockerReason": "Index maintenance ownership, collection isolation, and a non-production fixture are missing.",
+      "personalDataBoundary": "Do not operate personal or client vector indexes through an unowned capability.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "promote-reusable-knowledge",
+      "observedHashes": ["270F512A26F451213A213F95F3B3DC1031692AA26F715AA34B7BC7AA7042D34C"],
+      "paths": ["${USERPROFILE}/.agents/skills/promote-reusable-knowledge", "${USERPROFILE}/.copilot/skills/promote-reusable-knowledge"],
+      "blockerReason": "Knowledge lifecycle policy, mutation authority, and a synthetic corpus fixture are missing.",
+      "personalDataBoundary": "Do not promote client or personal documents into shared capability data.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "refresh-knowledge-corpus",
+      "observedHashes": ["33AA5A118ADE79A452BE5939E14DF4B6A04A077DAADE404A20A91A4DCF914D3A"],
+      "paths": ["${USERPROFILE}/.agents/skills/refresh-knowledge-corpus", "${USERPROFILE}/.copilot/skills/refresh-knowledge-corpus"],
+      "blockerReason": "Corpus refresh ownership, job semantics, and a synthetic fixture are missing.",
+      "personalDataBoundary": "Do not refresh client or personal corpora through AgentHub tests.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "research-external-courts",
+      "observedHashes": ["D48D0369A630F86227766E2D7F8BA516287E33F83509053CA4D07B25F0156177"],
+      "paths": ["${USERPROFILE}/.agents/skills/research-external-courts", "${USERPROFILE}/.copilot/skills/research-external-courts"],
+      "blockerReason": "CourtListener, Midpage, and Trellis connector ownership and authentication are unresolved.",
+      "personalDataBoundary": "Do not combine private matter facts with external research connectors in fixtures.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "research-legal-authority",
+      "observedHashes": ["8C79DFB0EFC4D23842707FF4AD0ABB014767C614D632F0238F364DE493F0E89B"],
+      "paths": ["${USERPROFILE}/.agents/skills/research-legal-authority", "${USERPROFILE}/.copilot/skills/research-legal-authority"],
+      "blockerReason": "External legal research ownership, provenance, and authentication are unresolved.",
+      "personalDataBoundary": "Do not use client matter data as an external-authority research fixture.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "review-knowledge-duplicates",
+      "observedHashes": ["65D8D28508D749105A47EC236A950A66A200ACD8B342B8B0523FE417A06344B0"],
+      "paths": ["${USERPROFILE}/.agents/skills/review-knowledge-duplicates", "${USERPROFILE}/.copilot/skills/review-knowledge-duplicates"],
+      "blockerReason": "Corpus canonicalization ownership and a synthetic duplicate queue are missing.",
+      "personalDataBoundary": "Do not mutate personal or client corpus dispositions through AgentHub tests.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "review-legal-communications",
+      "observedHashes": ["6E711A7E14CC2C9001468D1257F5ED29A0F8473938DBC064E33301BA3B2E759F"],
+      "paths": ["${USERPROFILE}/.agents/skills/review-legal-communications", "${USERPROFILE}/.copilot/skills/review-legal-communications"],
+      "blockerReason": "Legal communication service ownership and evidence provenance are unresolved.",
+      "personalDataBoundary": "Do not expose private communications or attachments.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "search-legal-evidence",
+      "observedHashes": ["003B673390A84EB6DEE723293E2909A1EAC87E876E0F2B9D2E605619C02F75A1"],
+      "paths": ["${USERPROFILE}/.agents/skills/search-legal-evidence", "${USERPROFILE}/.copilot/skills/search-legal-evidence"],
+      "blockerReason": "Legal search service ownership, authentication, and synthetic corpus contracts are missing.",
+      "personalDataBoundary": "Do not expose private evidence records or indexes.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "search-local-knowledge",
+      "observedHashes": ["C04811D627D35ED30C8B677D1C1449AEA8B7AB6CF32C99EECD8625F287C8385F"],
+      "paths": ["${USERPROFILE}/.agents/skills/search-local-knowledge", "${USERPROFILE}/.copilot/skills/search-local-knowledge"],
+      "blockerReason": "Knowledge search service ownership and a non-client corpus fixture are missing.",
+      "personalDataBoundary": "Do not expose local document metadata or content.",
+      "status": "preserve-pending-evidence"
+    },
+    {
+      "skillId": "verify-legal-citations",
+      "observedHashes": ["5285D053A1BC1FC7DFE6F17D9EBEBEE6FCB6CBABCDBBA3DDE91B4F4340D26B45"],
+      "paths": ["${USERPROFILE}/.agents/skills/verify-legal-citations", "${USERPROFILE}/.copilot/skills/verify-legal-citations"],
+      "blockerReason": "External citation research ownership, provenance, and authentication are unresolved.",
+      "personalDataBoundary": "Do not combine private legal facts with unowned external connectors.",
+      "status": "preserve-pending-evidence"
+    }
+  ]
+}

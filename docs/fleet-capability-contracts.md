@@ -30,6 +30,25 @@ translates those sources into a documented host-native format.
 | Capability | Owner | Canonical source | Managed skills | Exposure contract |
 | --- | --- | --- | --- | --- |
 | `portfolio-engineering-ops` | `portfolio` | `capabilities/portfolio-engineering-ops` | `docs-drift`, `portfolio-audit`, `release-readiness`, `repo-onboard`, `verify-and-commit` | `managed-loose-skills` for all 17 registered loose-skill hosts. Cursor's mapping records its retained-disabled configuration only and does not authorize invocation or dispatch. |
+| `framer` | `portfolio` | `capabilities/framer` | `framer`, `framer-code-components` | Atomic `managed-loose-skills` distribution for all 17 registered loose-skill hosts. The CLI skill and code-component companion deploy together; resource files are part of drift parity. Cursor remains retained-disabled. |
+
+## External and evidence-pending skill ownership
+
+`registry/skill-ownership.json` governs skills that AgentHub must classify but
+must not copy into a repository-owned capability:
+
+- `use-railway` remains vendor-owned by Railway. AgentHub pins the complete
+  verified 1.3.6 tree, distributes it only from a matching local vendor tree,
+  rejects unknown divergence, and removes the shared `.agents` shadow only
+  after every explicit host target verifies.
+- `issue-to-pr` and the legal/knowledge skills remain
+  `preserve-pending-evidence`. Exact observed copies are warnings, divergent
+  copies are failures, and neither state authorizes promotion into AgentHub.
+  Their provider, authentication, provenance, data-boundary, and synthetic
+  fixture contracts must be approved first.
+
+These classifications replace ambiguous `unowned-*` results; they do not
+suppress duplicate exposure or content-drift findings.
 
 ## Autonomy meanings
 
