@@ -12,8 +12,8 @@ on:
 jobs:
   copilot-setup-steps:
     # Copilot agent sessions will run on a self-hosted Ubuntu x64 runner
-    # registered with the custom label "copilot".
-    runs-on: [self-hosted, linux, x64, copilot]
+    # registered with the custom labels "copilot" and repo-specific runner label.
+    runs-on: [self-hosted, Linux, X64, copilot, sh-runner-agenthub]
     timeout-minutes: 59
 
     permissions:
