@@ -513,8 +513,8 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
 # version-pinned cache directory whose name no longer matches the canonical
 # version. A host with no discoverable deployment for a capability is
 # skipped, not failed: most registered hosts are not installed on every
-# machine. Cursor and Qwen-code are deliberately excluded: Cursor is a
-# provider hold that must not be probed by an automated gate, and Qwen-code's
+# machine. Cursor and Qwen-code are deliberately excluded from paid model
+# prompts: Cursor uses non-paid version/config/plugin/MCP checks, and Qwen-code's
 # extension junction only mirrors a skills+agents subset (not the full
 # package), so a whole-tree comparison would misreport it as missing files.
 # Copilot and VS Code Insiders are excluded for now: their local plugin

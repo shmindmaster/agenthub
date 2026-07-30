@@ -7,7 +7,7 @@ skill, plugin, MCP, worktree, quarantine, and deployment contracts are converged
 tested. The current live configuration verdict is `PASS` with four explicit runtime/activation
 warnings: 106 passes and 0 failures. The installed Product Demo Studio package is current at
 `1.3.0`; three already-running Claude sessions must restart to unload prior 1.1.x/1.2.0 package
-bytes.
+bytes. Product Experience Engineering is current at `1.1.1` on Claude, Codex, Cursor, and Qoder.
 Product Demo Studio review and release eligibility remains `PIPELINE_BLOCKED` until an
 operator-controlled host receipt signer proves release-grade read-only execution on a supported
 host.
@@ -35,9 +35,10 @@ host.
 
 ## Deployment and deduplication
 
-- All 15 registered hosts are installed; policy failures: 0.
+- All 22 registered agent records are inventoried. Twenty-one executables are installed; Windsurf
+  is the intentionally dormant retained adapter. Policy failures: 0.
 - The managed profile reconciles the host-appropriate ownership of 10 shared-remote MCP
-  contracts across 18 managed hosts.
+  contracts across 13 managed configuration hosts.
 - MCP configuration is host-native. Shared remote services such as Context7 do not launch a
   local Node or Python worker per host. Local process-based servers remain on demand.
 - Product Demo Studio is native on Claude, Codex, Factory, Grok, Qoder, VS Code Insiders, and
@@ -47,6 +48,9 @@ host.
   surface. Product Experience Engineering follows its own registry-selected host adapters.
 - Product Demo Studio `1.3.0` was reinstalled from canonical AgentHub in Claude, Codex, Factory,
   Grok, and Qoder; the remaining mapped hosts received current generated adapters or exact skills.
+- Product Experience Engineering `1.1.1` has matching Claude, Codex, and Cursor manifests. Its
+  Cursor local-plugin junction is verified against the canonical source, and the profile fails
+  closed if a future Cursor-native package is missing or version-mismatches that manifest.
 - Version `1.3.0` requires guided-screencast choreography and maximized useful screen space:
   page-only/native-fullscreen capture, no extraneous browser or OS chrome, real product actions and
   state transitions, visible click cues, at least 50% planned active-region coverage after
@@ -62,7 +66,11 @@ host.
   is preserved and cannot be removed by name alone.
 - GitHub-hosted CI was retired. AgentHub has no build, release, or deploy artifact; repository
   validation is local and deterministic.
-- Cursor was not launched or probed. Its provider hold and fail-closed launch shims remain active.
+- Cursor and Cursor Agent are active. The Cursor-specific MCP adapter replaces historical invalid
+  fields instead of merging them: the CLI confirms all eight intended shared registrations are
+  parsed. Context7, Exa, Firecrawl, and Tavily are ready; OAuth-backed servers await their normal
+  host authentication state, and Adobe reports a connection error without preventing
+  any other MCP from loading.
 
 ## Root and worktree cleanup
 
@@ -91,22 +99,24 @@ Pre-move bundles, dirty patches, and the verified manifest are at:
 
 ## Verification
 
-- Full Pester suite: 161 passed, 0 failed, 0 skipped.
-- Repository validator: 97 passed, 0 warned, 0 failed.
-- Host readiness: 15 registered, 15 installed, 0 optional missing, 0 policy failures.
-- Full-access profile: passed for 10 shared-remote MCP contracts across 18 managed hosts.
+- Full Pester suite: 162 passed, 0 failed, 0 skipped, including the Cursor schema-focused
+  regression test.
+- Repository validator: 121 passed, 4 warned, 0 failed.
+- Host readiness: 22 registered surfaces; 21 executables plus the intentional dormant Windsurf
+  adapter; 0 policy failures.
+- Full-access profile: passed for 10 shared-remote MCP contracts across 13 managed hosts.
 - External skill report: 11 current targets, 0 stale targets.
 - Product Demo Studio: 134 contract assertions passed; package and static parity passed for all
   18 registry mappings; Qoder reports 8 skills, 13 agents, and 1 plugin-owned MCP.
 - Independent review: no blocker or critical code finding remained after the final safety fixes.
-- Final live inventory: 22 agents, 65 plugins, 949 skills, 19 MCP configurations, 76 worktrees,
-  and 74 processes. No duplicate local MCP runtime tree or local MCP worker was found.
+- Final live inventory: 22 agents, 67 plugins, 934 skills, 19 MCP configurations, 76 worktrees,
+  and 76 processes. No duplicate local MCP runtime tree or local MCP worker was found.
 - Advisory runtime budgets passed: Codex 1,654.6/4,096 MB, Claude 2,675/4,096 MB, language
   servers 944.3/2,048 MB, and local MCP workers 0/1,536 MB. Auto-termination remains disabled.
 
 Final live report:
 
-`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-convergence\live-product-demo-1.3.0-20260730.json`
+`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-convergence\live-cursor-parity-final-20260730-150345.json`
 
 Live counts: 106 pass, 4 warn, 0 fail.
 
@@ -151,4 +161,4 @@ delivered only after the signed independent-review chain passes.
    verified. Release-grade read-only enforcement is not: no operator-owned
    `AGENTHUB_EXECUTION_HOST_TRUST_CONFIG` is configured. The agent cannot create or access the
    signing private key, so review, arbitration, final verification, and review delivery correctly
-   remain `PIPELINE_BLOCKED`. Cursor also remains held and inactive hosts are not runtime-smoked.
+   remain `PIPELINE_BLOCKED`. The dormant Windsurf adapter is not runtime-smoked.

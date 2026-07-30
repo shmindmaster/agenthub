@@ -57,15 +57,26 @@ Two real drift channels were open and are now closed or visible.
    flags a version-pinned cache directory whose name no longer matches the canonical version.
    Absent hosts are skipped rather than failed. Commit `25230cc`.
 
-Current state: `pass=83 warn=0 fail=5`. All five failures are genuine, correctly detected stale
+Initial post-commit state: `pass=83 warn=0 fail=5`. All five failures were genuine, correctly detected stale
 deployments of `product-demo-studio` — Claude and Codex caches still pinned to `1.1.0`, and Grok's
 hash-named install tree content-drifted. `product-experience-engineering` passes on the same hosts,
 which is the green control proving the gate discriminates rather than always failing.
 
-Coverage limits, deliberate: Copilot and VS Code Insiders are not covered because their local
-plugin-cache conventions could not be verified against a real install on this machine; Qwen-code is
-excluded because its junction mirrors only a skills-and-agents subset; Cursor is excluded under the
-standing provider hold and must not be probed.
+Coverage limits, deliberate at this snapshot: Copilot and VS Code Insiders are not covered because
+their local plugin-cache conventions could not be verified against a real install on this machine;
+Qwen-code is excluded because its junction mirrors only a skills-and-agents subset; Cursor was
+excluded under the then-active provider hold and was not probed.
+
+## Later same-day convergence
+
+The stale Product Demo Studio installs were upgraded through their official host flows to `1.3.1`.
+Product Experience Engineering was advanced to `1.1.1` with a matching native Cursor manifest.
+Cursor was reauthorized by the owner and its global MCP adapter was corrected to emit the strict
+Cursor remote schema; `cursor-agent mcp list` now parses all eight intended shared registrations.
+The current ecosystem validation result is `pass=121 warn=4 fail=0`; the warnings are three
+already-running Claude processes with older package bytes and the deliberately absent,
+operator-owned execution-receipt trust configuration. See
+`fleet-convergence-status-2026-07-30.md` for the current inventory and restart requirement.
 
 ## Canonical update process
 

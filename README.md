@@ -27,16 +27,13 @@ Use the central utility from this repository:
 
 `inventory`, `evaluate`, `validate`, `drift`, and `cleanup` are side-effect-free by default. Add `-WriteReport` only when a persisted local report is needed. `generate` and `sync` are the explicit configuration-writing commands; `sync` remains a dry run unless `-Apply` is supplied. `cleanup` never removes an agent or configuration. Exact candidates require a separately authorized and validated maintenance action.
 
-Cursor is currently a retained-but-disabled surface. Do not route work to its
-IDE agent, local CLI, Cloud/Background Agents, or API until the owner explicitly
-reauthorizes it after quota is restored. Re-enabling requires one reviewed change
-that sets both Cursor dispatch flags to Boolean `true`, sets
-`providerHolds.cursor.active` to Boolean `false`, and updates the provider hold in
-`standards/global-agent-policy.md`, followed by `generate`, `sync -Apply`, and
-validation. Changing the registry flag alone is intentionally insufficient.
-Persistent Cursor API environment variables are removed while the hold is in
-force. Long-lived processes can retain an inherited process-scoped copy until
-they are restarted; validation reports only the remaining scope, never values.
+Cursor IDE, Cursor Agent CLI, Cloud/Background Agents, and API dispatch are
+active following explicit owner reauthorization on 2026-07-30. Both strict
+Boolean dispatch flags are `true` and the separate provider hold is `false`.
+Cursor receives the same canonical capability, MCP-ownership, worktree, review,
+and drift contracts as the other supported hosts. Availability checks must use
+read-only account or local configuration evidence rather than consuming a paid
+agent run merely as a probe.
 
 ## Operating model
 

@@ -1,11 +1,10 @@
 # Browser Quality Toolkit
 
-This capability gives Hermes Agent, Claude Code, OpenCode, Qwen Code, and an
-offline Cursor adapter one shared browser-quality contract. Chrome DevTools MCP
-1.6.0 is the live browser, diagnostics, Lighthouse, and trace layer. Existing
-Playwright installations remain the deterministic regression layer when a
-repository already owns them; this toolkit neither installs nor removes
-Playwright.
+This capability gives every registered host, including Cursor IDE and Cursor
+Agent, one shared browser-quality contract. Chrome DevTools MCP 1.6.0 is the
+live browser, diagnostics, Lighthouse, and trace layer. Existing Playwright
+installations remain the deterministic regression layer when a repository
+already owns them; this toolkit neither installs nor removes Playwright.
 
 The canonical default is a visible Chrome window using an isolated QA profile
 and CDP on loopback port 9333. It exposes the profile's pages, DOM, accessibility
@@ -68,8 +67,11 @@ The first command after `npm ci` is a dry run. Applying creates timestamped
 backups under `%LOCALAPPDATA%\browser-toolkit\backups`, treats the existing
 `QWEN_API_KEY` user variable as this toolkit's canonical secret name, and
 merges only toolkit-owned settings. Qwen Code, OpenCode, and Hermes reference
-that variable directly. It never prints a secret. Cursor remains
-unmodified while its provider hold is active.
+that variable directly. It never prints a secret. Cursor's browser skills,
+native plugins, MCP registry, permissions, and launch policy are deployed by
+AgentHub's full-profile reconciler instead of this package-local script. This
+prevents a second Cursor-specific configuration owner or duplicate persistent
+browser server.
 
 If `QWEN_API_KEY` does not exist, set it without
 putting it in shell history:
@@ -102,8 +104,9 @@ the ignored `reports/browser-toolkit` directory.
 
 The smoke fixture is not a substitute for validating an agent UI. Token-plan
 response checks require a valid subscription and an interactive invocation of
-each agent. Cursor must remain blocked until its documented reauthorization
-gate is completed.
+each agent. Cursor was explicitly reauthorized on 2026-07-30. Its configuration
+and plugin discovery may be verified without a paid model prompt; model-response
+validation occurs only during authorized real work.
 
 ## Agent model endpoints
 

@@ -1,6 +1,6 @@
 {
   "name": "use-prompt-os",
-  "version": "0.1.0",
-  "description": "Dormant Cursor adapter for optional supporting Notion Prompt OS assets; Cursor dispatch is owner-disabled and this package must not be invoked while the provider hold is active.",
+  "version": "0.2.0",
+  "description": "Cursor adapter for optional supporting Notion Prompt OS assets after repository policy, Linear/GitHub delivery state, runtime evidence, and Shwiki context are established.",
   "author": { "name": "Sarosh Hussain" }
 }

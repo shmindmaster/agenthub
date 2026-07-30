@@ -197,7 +197,7 @@ Describe 'Runtime-centralization registry contracts' {
             @($classified | Sort-Object) | Should -Be @($expected | Sort-Object)
 
             if ($hostRecord.id -in @('cursor', 'cursor-agent')) {
-                [bool]$effective.providerHeld | Should -BeTrue
+                [bool]$effective.providerHeld | Should -BeFalse
             }
         }
 
@@ -217,6 +217,10 @@ Describe 'Runtime-centralization registry contracts' {
         @($qoderRow.exposures.'plugin-owned') | Should -Contain 'context7'
         @($qoderRow.exposures.'plugin-owned') | Should -Contain 'chrome-devtools'
         @($qoderRow.exposures.'shared-gateway') | Should -Not -Contain 'context7'
+
+        $cursorRow = Resolve-ConnectorRow -HostId 'cursor'
+        @($cursorRow.exposures.'plugin-owned') | Should -Contain 'descript'
+        @($cursorRow.exposures.'shared-gateway') | Should -Not -Contain 'descript'
 
         $claudeRow = Resolve-ConnectorRow -HostId 'claude'
         @($claudeRow.exposures.'plugin-owned') | Should -Contain 'github'

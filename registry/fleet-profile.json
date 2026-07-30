@@ -76,29 +76,26 @@
   },
   "dispatchPolicy": {
     "cursor": {
-      "enabled": false,
+      "enabled": true,
       "scope": "ide-agent, local-cli, cloud-background-agent, api",
-      "reason": "Paused on 2026-07-22: quota/spend headroom for the billing period is used up. This is a spend pause awaiting the next quota window, not a decision to stop using Cursor. Owner expects the window to reset in early August 2026.",
-      "reenableRequires": "Confirm the quota window has actually reset (billing/usage read, no paid probe), then flip this flag with owner sign-off"
+      "reason": "Owner explicitly reauthorized all Cursor surfaces on 2026-07-30. Normal dispatch is enabled; health checks must remain read-only and must not consume a paid agent run."
     },
     "cursor-agent": {
-      "enabled": false,
+      "enabled": true,
       "scope": "local-cli",
-      "reason": "Shares the paused Cursor account and its quota window",
-      "reenableRequires": "Lifts together with dispatchPolicy.cursor"
+      "reason": "Owner explicitly reauthorized Cursor Agent together with the IDE, cloud, and API surfaces on 2026-07-30."
     }
   },
   "providerHolds": {
     "cursor": {
-      "active": true,
-      "reason": "Spend pause: quota/spend headroom for the billing period is used up. Expected to lift when the quota window resets in early August 2026.",
-      "reenableRequires": "One reviewed change must set both dispatch flags to Boolean true, set this hold to Boolean false, update standards/global-agent-policy.md, regenerate and sync instructions, and confirm the reset from billing/usage data rather than a paid probe"
+      "active": false,
+      "reason": "Cleared by explicit owner reauthorization on 2026-07-30. The locally authenticated subscription is active; no paid probe was used to clear the hold."
     }
   },
   "notes": [
     "OAuth consent and provider login pages remain provider-controlled and cannot be pre-approved by a host configuration.",
     "The cagent folder is retained as state only because no cagent executable or documented user configuration is installed.",
     "The .windsurf folder is plans-only; the active Windsurf configuration is .codeium/windsurf.",
-    "Cursor surfaces remain installed and configured; dispatch is paused for the current quota window and is expected to resume once it resets."
+    "Cursor IDE, Cursor Agent CLI, Cloud/Background Agents, and API dispatch are active and participate in the same AgentHub capability-parity policy as the rest of the fleet."
   ]
 }

@@ -177,13 +177,21 @@
               "hostId": "claude",
               "state": "poc-pending"
             },
-            {
-              "hostId": "vscode-insiders",
-              "state": "poc-pending"
-            },
-            {
-              "hostId": "amp",
-              "state": "poc-pending"
+        {
+          "hostId": "vscode-insiders",
+          "state": "poc-pending"
+        },
+        {
+          "hostId": "cursor",
+          "state": "poc-pending"
+        },
+        {
+          "hostId": "cursor-agent",
+          "state": "poc-pending"
+        },
+        {
+          "hostId": "amp",
+          "state": "poc-pending"
             },
             {
               "hostId": "factory",

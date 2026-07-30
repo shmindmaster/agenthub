@@ -29,8 +29,8 @@ translates those sources into a documented host-native format.
 
 | Capability | Owner | Canonical source | Managed skills | Exposure contract |
 | --- | --- | --- | --- | --- |
-| `portfolio-engineering-ops` | `portfolio` | `capabilities/portfolio-engineering-ops` | `docs-drift`, `portfolio-audit`, `release-readiness`, `repo-onboard`, `verify-and-commit` | `managed-loose-skills` for all 17 registered loose-skill hosts. Cursor's mapping records its retained-disabled configuration only and does not authorize invocation or dispatch. |
-| `framer` | `portfolio` | `capabilities/framer` | `framer`, `framer-code-components` | Atomic `managed-loose-skills` distribution for all 17 registered loose-skill hosts. The CLI skill and code-component companion deploy together; resource files are part of drift parity. Cursor remains retained-disabled. |
+| `portfolio-engineering-ops` | `portfolio` | `capabilities/portfolio-engineering-ops` | `docs-drift`, `portfolio-audit`, `release-readiness`, `repo-onboard`, `verify-and-commit` | `managed-loose-skills` for all 17 registered loose-skill hosts, including active Cursor IDE and Cursor Agent exposure. |
+| `framer` | `portfolio` | `capabilities/framer` | `framer`, `framer-code-components` | Atomic `managed-loose-skills` distribution for all 17 registered loose-skill hosts. The CLI skill and code-component companion deploy together; resource files are part of drift parity. |
 
 ## External and evidence-pending skill ownership
 
@@ -89,7 +89,7 @@ the installed CLI help; **D** = discovery required before emitting a format;
 | Factory Droid | V | V | V | V | V / D | D | D | `droid exec --auto high`; unsafe skip is only for isolated sandboxes | Retained inactive; never make unsafe skip the desktop default |
 | Sourcegraph Amp | V | D | V | V | V / D | D | D | Commands are normally non-interactive; headless availability is plan-dependent | Retained inactive; MCP first, plugin only for Amp-native behavior |
 | Windsurf / Cascade | D | D | V (observed) | D | V / D | D | D | D | D | Retained inactive; preserve current files and complete official-schema discovery first |
-| Cursor / Cursor Agent | V | V | V | V | V / D | D | D | D | Vendor supports unattended modes, but dispatch is owner-held | Retained-disabled: no invocation, probing, or configuration activation |
+| Cursor / Cursor Agent | V | V | V | V | V / D | D | D | D | `--yolo --sandbox disabled --approve-mcps`; worktrees remain AgentHub-controlled under `C:\wt` | Active; native local product plugins plus centrally managed skills, agents, MCP, rules, and launchers |
 
 ## Design decisions
 
@@ -195,8 +195,9 @@ The rollout deliberately does **not** enable the following globally:
    overlays (LSP, repository rules, project MCP) outside user-global state.
 6. Add no global hook or cross-host memory synchronization. Implement each
    only after an explicit, separately reviewed capability request.
-7. Leave Cursor disabled. Treat Windsurf and any other unverified
-   surface as discovery work rather than creating speculative files.
+7. Keep Cursor active through the reviewed fleet profile and native adapters.
+   Treat Windsurf and any other unverified surface as discovery work rather
+   than creating speculative files.
 
 ## Validation gates
 
@@ -211,7 +212,8 @@ launching a paid cloud run or revealing credentials:
   their documented locations;
 - the selected repo-autonomous mode is present exactly as recorded;
 - discovery-required hosts remain untouched; and
-- Cursor's provider hold remains fail-closed.
+- Cursor's active state has exact Boolean dispatch flags, no stale hold rule,
+  current native plugin bytes, and non-paid CLI/config/MCP discovery evidence.
 
 ## Primary references
 

@@ -535,6 +535,15 @@ function Get-NativePluginState([string]$HostId, [string]$CapabilityId, [string]$
     $path = Join-Path $UserProfile ".codex\plugins\cache\handoff\$CapabilityId\$PluginVersion"
     return @{ installed=$true; current=(Test-DirectoryEquivalent $PluginRoot $path); path=$path }
   }
+  if ($HostId -eq 'cursor') {
+    $path = Join-Path $UserProfile ".cursor\plugins\local\$CapabilityId"
+    if (!(Test-Path -LiteralPath $path -PathType Container)) {
+      return @{ installed=$false; current=$false; path=$path }
+    }
+    $current = $expectsNativePlugin -and
+      (Test-DirectoryEquivalent $PluginRoot $path)
+    return @{ installed=$true; current=$current; path=$path }
+  }
   if ($HostId -eq 'copilot') {
     $wrapper = Join-Path $UserProfile 'bin\copilot.cmd'
     if (!(Test-Path -LiteralPath $wrapper -PathType Leaf)) { return @{ installed=$false; current=$false; path=$null } }
@@ -776,6 +785,62 @@ function Ensure-LocalNativeAdapters {
   }
 }
 
+function Ensure-CursorNativePlugins {
+  $cursorPluginRoot = Join-Path $UserProfile '.cursor\plugins\local'
+  New-Item -ItemType Directory -Path $cursorPluginRoot -Force | Out-Null
+  foreach ($capability in $managedSkillCapabilities) {
+    $registration = $caps.capabilities |
+      Where-Object id -eq $capability.id |
+      Select-Object -First 1
+    $mapping = @($registration.hostMappings |
+      Where-Object hostId -eq 'cursor' |
+      Select-Object -First 1)
+    if ($mapping.Count -ne 1 -or
+        [string]$mapping[0].deploymentStatus -ne 'native-local-plugin') {
+      continue
+    }
+
+    $cursorManifestPath = Join-Path $capability.pluginRoot '.cursor-plugin\plugin.json'
+    if (-not (Test-Path -LiteralPath $cursorManifestPath -PathType Leaf)) {
+      throw "Cursor maps $($capability.id) as a native local plugin, but its canonical Cursor manifest is missing: $cursorManifestPath"
+    }
+    $cursorManifest = Get-Content -LiteralPath $cursorManifestPath -Raw | ConvertFrom-Json
+    if ([string]$cursorManifest.name -ne [string]$capability.id -or
+        [string]$cursorManifest.version -ne [string]$capability.version) {
+      throw "Cursor manifest for $($capability.id) must match canonical package name and version $($capability.version): $cursorManifestPath"
+    }
+
+    $destination = Join-Path $cursorPluginRoot $capability.id
+    $isExpectedJunction = $false
+    if (Test-Path -LiteralPath $destination -PathType Container) {
+      $item = Get-Item -LiteralPath $destination -Force
+      if ($item.LinkType -eq 'Junction') {
+        $target = [IO.Path]::GetFullPath([string]$item.Target)
+        $expected = [IO.Path]::GetFullPath([string]$capability.pluginRoot)
+        $isExpectedJunction = $target.Equals(
+          $expected,
+          [StringComparison]::OrdinalIgnoreCase
+        )
+      }
+    }
+    if ($isExpectedJunction) { continue }
+
+    if (Test-Path -LiteralPath $destination) {
+      Move-ToAgentHubQuarantine -Batch $quarantineBatch -Path $destination `
+        -HostId 'cursor' -ArtifactKind 'plugins' `
+        -ArtifactName $capability.id `
+        -Reason "Replaced by the current canonical Cursor native plugin junction." `
+        -ContentHash (Get-ManagedQuarantineContentHash -Path $destination) |
+        Out-Null
+    }
+    New-Item -ItemType Junction -Path $destination `
+      -Target $capability.pluginRoot | Out-Null
+    if (-not (Test-DirectoryEquivalent $capability.pluginRoot $destination)) {
+      throw "Cursor native plugin $($capability.id) is not equivalent after deployment: $destination"
+    }
+  }
+}
+
 function Retire-QoderNativePluginLooseSkills {
   $qoderSkillRoot = Join-Path $UserProfile '.qoder\skills'
   foreach ($capability in @($caps.capabilities)) {
@@ -801,13 +866,14 @@ function Retire-QoderNativePluginLooseSkills {
 }
 
 Ensure-LocalNativeAdapters
+Ensure-CursorNativePlugins
 if (-not $SkillDistributionOnly) {
   Ensure-QoderPlugins
   Retire-QoderNativePluginLooseSkills
 }
 $nativePluginStates = @{}
 foreach ($capability in $managedSkillCapabilities) {
-  foreach ($hostId in @('claude','codex','copilot','factory','grok')) {
+  foreach ($hostId in @('claude','codex','cursor','copilot','factory','grok')) {
     $stateForHost = Get-NativePluginState $hostId $capability.id $capability.pluginRoot $capability.version
     if ($stateForHost.installed -and -not $stateForHost.current) {
       throw "$hostId has an enabled but stale $($capability.id) plugin at $($stateForHost.path). Reinstall v$($capability.version) before distribution to avoid duplicate generations."
@@ -833,7 +899,7 @@ foreach ($capability in $managedSkillCapabilities) {
       ''
     }
     if ($hostDeploymentStatus -match 'native' -and
-        $hostId -notin @('claude','codex','copilot','factory','grok')) {
+        $hostId -notin @('claude','codex','cursor','copilot','factory','grok')) {
       continue
     }
     $nativeState = $nativePluginStates["$($capability.id)::$hostId"]
@@ -859,8 +925,8 @@ foreach ($capability in $managedSkillCapabilities) {
 # Cursor discovers both ~/.cursor/skills and ~/.cursor/plugins/local. Capabilities
 # mapped as managed loose skills must not retain an older local plugin copy,
 # otherwise Cursor sees two owners (and can select stale instructions). Cursor
-# remains provider-held; this only reconciles its on-disk discovery paths and
-# does not launch or probe the host.
+# is active; this reconciles its on-disk discovery paths without a paid model
+# prompt.
 $cursorLocalPluginRoot = Join-Path $UserProfile '.cursor\plugins\local'
 foreach ($capability in @($caps.capabilities)) {
   $cursorMapping = @($capability.hostMappings | Where-Object hostId -eq 'cursor' | Select-Object -First 1)
@@ -1425,11 +1491,20 @@ Set-TomlBoolean -Path "$UserProfile\.grok\config.toml" -Section 'ui' -Key 'yolo'
 
 $cursorPath = "$UserProfile\.cursor\cli-config.json"
 $cursor = Read-JsonHash $cursorPath
+$cursorHoldRulePath = "$UserProfile\.cursor\rules\00-provider-hold.mdc"
 if (Test-CursorDispatchEnabled $profile) {
   $cursor['approvalMode'] = 'unrestricted'
   $cursor['permissions'] = @{ allow=@('Shell(*)','Read(**)','Write(**)'); deny=@() }
   $cursor['sandbox'] = @{ mode='disabled'; networkAccess='full' }
   $cursor['autoAcceptWebSearch'] = $true
+  if (Test-Path -LiteralPath $cursorHoldRulePath -PathType Leaf) {
+    $actualHoldRule = (Get-Content -LiteralPath $cursorHoldRulePath -Raw).Replace("`r`n", "`n").TrimEnd("`r", "`n")
+    $expectedHoldRule = (Get-CursorProviderHoldRuleContent).Replace("`r`n", "`n").TrimEnd("`r", "`n")
+    if ($actualHoldRule -cne $expectedHoldRule) {
+      throw "Refusing to remove divergent Cursor rule during reauthorization: $cursorHoldRulePath"
+    }
+    Remove-Item -LiteralPath $cursorHoldRulePath -Force
+  }
 } else {
   $cursor['approvalMode'] = 'allowlist'
   $cursor['permissions'] = @{ allow=@('Read(**)'); deny=@('Shell(*)','Write(**)') }
@@ -1437,7 +1512,6 @@ if (Test-CursorDispatchEnabled $profile) {
   $cursor['autoAcceptWebSearch'] = $false
   [Environment]::SetEnvironmentVariable('CURSOR_API_KEY', $null, 'User')
   [Environment]::SetEnvironmentVariable('CURSOR_ADMIN_API_KEY', $null, 'User')
-  $cursorHoldRulePath = "$UserProfile\.cursor\rules\00-provider-hold.mdc"
   New-Item -ItemType Directory -Path (Split-Path -Parent $cursorHoldRulePath) -Force | Out-Null
   Set-Content -LiteralPath $cursorHoldRulePath -Value (Get-CursorProviderHoldRuleContent) -Encoding UTF8 -NoNewline
 }

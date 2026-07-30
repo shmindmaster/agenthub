@@ -28,11 +28,11 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Use official host formats. Record unsupported or undocumented packaging as discovery-required instead of inventing a format.
 - Specialized roles and capabilities remain specialized; shared roles define coordination semantics, not feature ownership.
 
-## Provider holds
+## Provider availability
 
 - Obey `registry/fleet-profile.json` dispatch policy before invoking an agent host, CLI, cloud runner, or API.
-- Cursor IDE agents, Cursor Agent CLI, Cursor Cloud/Background Agents, and Cursor API sessions are **paused for the current quota window**, not retired. The account is funded and configured; its spend headroom for this billing period is simply used up, and the window is expected to reset in early August 2026. Treat this as "not right now," not "not this tool."
-- While the pause is in force, do not invoke, probe, or route work to Cursor. To lift it: confirm from billing/usage data (never a paid probe) that the window has actually reset, then make one reviewed control-plane change setting `dispatchPolicy.cursor.enabled` and `dispatchPolicy.cursor-agent.enabled` to Boolean `true`, setting `providerHolds.cursor.active` to Boolean `false`, updating this section, and synchronizing regenerated instructions.
+- Cursor IDE agents, Cursor Agent CLI, Cursor Cloud/Background Agents, and Cursor API sessions are active following explicit owner reauthorization on 2026-07-30.
+- Give Cursor the same canonical capabilities, MCP ownership, worktree policy, review requirements, and drift enforcement as every other supported host. Use read-only account or local configuration checks for health evidence; do not consume a paid agent run merely to probe availability.
 
 ## Handoff
 

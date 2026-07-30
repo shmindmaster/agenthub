@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.3.0**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.3.1**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Product repositories retain their product-specific capture/render implementations and
 map evidence into this shared contract. The reviewed mapping is documented in
@@ -18,6 +18,9 @@ review-delivery lane. Portfolio destinations remain AgentHub deployment configur
 Version 1.3 makes screen-space utilization and guided-screencast choreography mechanically
 required: clean page/fullscreen capture, at least 50% planned active-region coverage, real
 pointer/control/state transitions, visible click cues, and result-before-spoken-result timing.
+Version 1.3.1 activates the same native plugin package in Cursor after owner reauthorization;
+Cursor now receives the package's skills, agents, and MCP ownership instead of a loose-skills-only
+fallback.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with

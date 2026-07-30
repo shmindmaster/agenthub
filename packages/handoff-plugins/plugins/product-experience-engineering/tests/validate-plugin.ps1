@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $pluginRoot = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $pluginRoot '.codex-plugin\plugin.json'
 $claudeManifestPath = Join-Path $pluginRoot '.claude-plugin\plugin.json'
+$cursorManifestPath = Join-Path $pluginRoot '.cursor-plugin\plugin.json'
 $expectedSkills = @(
     'engineer-product-experience',
     'discover-application',
@@ -41,12 +42,16 @@ function Assert-True([bool]$Condition, [string]$Message) {
 
 Assert-True (Test-Path -LiteralPath $manifestPath) 'Missing plugin manifest.'
 Assert-True (Test-Path -LiteralPath $claudeManifestPath) 'Missing Claude plugin manifest.'
+Assert-True (Test-Path -LiteralPath $cursorManifestPath) 'Missing Cursor plugin manifest.'
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
+$cursorManifest = Get-Content -LiteralPath $cursorManifestPath -Raw | ConvertFrom-Json
 Assert-True ($manifest.name -eq 'product-experience-engineering') 'Unexpected plugin name.'
-Assert-True ($manifest.version -eq '1.1.0') 'Codex plugin version must be 1.1.0.'
+Assert-True ($manifest.version -eq '1.1.1') 'Codex plugin version must be 1.1.1.'
 Assert-True ($claudeManifest.name -eq $manifest.name) 'Claude plugin name must match Codex.'
 Assert-True ($claudeManifest.version -eq $manifest.version) 'Claude plugin version must match Codex.'
+Assert-True ($cursorManifest.name -eq $manifest.name) 'Cursor plugin name must match Codex.'
+Assert-True ($cursorManifest.version -eq $manifest.version) 'Cursor plugin version must match Codex.'
 Assert-True ($manifest.version -match '^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$') 'Version is not semantic.'
 Assert-True ($manifest.author.name -eq 'MahumTech') 'Author must be MahumTech.'
 Assert-True ($manifest.interface.displayName -eq 'Product Experience Engineering') 'Incorrect display name.'

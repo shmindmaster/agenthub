@@ -45,7 +45,13 @@ try {
         $version = Command-Version $agent.Command $agent.Args
         Add-Result $agent.Name $(if ($version) { 'Verified' } else { 'Not verified' }) $(if ($version) { $version } else { 'command not found' })
     }
-    Add-Result 'Cursor' 'Blocked' 'Provider hold active; no invocation or activation performed.'
+    $cursorVendor = Join-Path $env:LOCALAPPDATA 'cursor-agent\cursor-agent.cmd'
+    $cursorVersion = if (Test-Path -LiteralPath $cursorVendor) {
+        [string](& $cursorVendor --version 2>&1 | Select-Object -First 1)
+    } else {
+        Command-Version 'cursor-agent' @('--version')
+    }
+    Add-Result 'Cursor' $(if ($cursorVersion) { 'Verified' } else { 'Not verified' }) $(if ($cursorVersion) { "$cursorVersion; non-paid version check" } else { 'command not found' })
 
     foreach ($variable in @('QWEN_API_KEY', 'ANTHROPIC_AUTH_TOKEN')) {
         $present = -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($variable, 'User'))
@@ -106,7 +112,7 @@ try {
         Add-Result 'Chrome DevTools MCP browser smoke' 'Not verified' 'Run validate.ps1 -RunBrowserSmoke with dedicated QA Chrome.'
     }
 
-    Add-Result 'Agent model responses' 'Blocked' 'Credential rotation required before network validation; Cursor also remains provider-held.'
+    Add-Result 'Agent model responses' 'Not verified' 'Network model prompts are not used as automated health probes; validate during authorized real work.'
     Add-Result 'Playwright regression' 'Partially verified' 'Existing installations preserved; not installed or owned by this toolkit.'
     Add-Result 'Product demo' 'Not verified' 'No real product was placed in scope; fail-closed readiness workflow only.'
 

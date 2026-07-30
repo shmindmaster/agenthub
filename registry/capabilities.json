@@ -146,7 +146,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-demo-studio",
-      "contentHash": "D65D547025AA471A8956519347FB83D5ACB5A85B7071F674A547E2913A92CDFD",
+      "contentHash": "B54AB0CF4E712035B7D8E46AC4D1C20DCE03B467790D056355A6D66837E1F484",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -162,9 +162,15 @@
           "components": ["plugin-skills", "plugin-mcp", "managed-native-agents"],
           "reviewIsolation": "sandbox-mode-read-only-plus-external-signed-receipt-required"
         },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills"
+      {
+        "hostId": "cursor",
+        "deploymentStatus": "native-local-plugin",
+        "components": [
+          "skills",
+          "agents",
+          "mcp"
+        ],
+        "reviewIsolation": "readonly-agent-tools-plus-external-signed-receipt-required"
         },
         {
           "hostId": "vscode-insiders",
@@ -260,7 +266,7 @@
       "owner": "handoff",
       "capabilityType": "plugin",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-experience-engineering",
-      "contentHash": "D44C7C612C0313E18740904C460395E6C8B96A66FDBCC82D44A707CAE79B8907",
+      "contentHash": "49CF4AA9FC55A63EFEA8B7D1701277A9749AA61AA201A51D7C86E95B81FB82C5",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
@@ -272,9 +278,13 @@
           "hostId": "codex",
           "deploymentStatus": "native-plugin-installed"
         },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills"
+      {
+        "hostId": "cursor",
+        "deploymentStatus": "native-local-plugin",
+        "components": [
+          "skills",
+          "agents"
+        ]
         },
         {
           "hostId": "vscode-insiders",
@@ -747,7 +757,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "0BFEF269A59D59BD596F3F3DA3CD67D1C15047B73427600F2E338867AAC72762",
+      "contentHash": "094EF5CFA805F05BFB6A87C81F6471CE65E5C4A20B5C6AA9BA49A13AD625FCFD",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
@@ -767,10 +777,10 @@
           "hostId": "hermes",
           "deploymentStatus": "managed-loose-skills-native-browser-plus-mcp"
         },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "offline-adapter-provider-held"
-        },
+      {
+        "hostId": "cursor",
+        "deploymentStatus": "managed-loose-skills"
+      },
         {
           "hostId": "cline",
           "deploymentStatus": "managed-loose-skills"

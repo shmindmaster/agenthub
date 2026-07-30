@@ -29,20 +29,21 @@ Describe 'agentctl read-only commands' {
     ($script:scriptText -match "Add-Check 'WARN' 'cursor-background-launch'") | Should -Be $true
   }
 
-  It 'keeps Cursor dispatch disabled until the owner explicitly re-enables it' {
+  It 'enables Cursor only through the compound owner-controlled dispatch gate' {
     $fleetProfile = Get-Content -LiteralPath (Join-Path $script:repoRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
-    $fleetProfile.dispatchPolicy.cursor.enabled | Should -Be $false
-    $fleetProfile.dispatchPolicy.'cursor-agent'.enabled | Should -Be $false
-    $fleetProfile.providerHolds.cursor.active | Should -Be $true
+    $fleetProfile.dispatchPolicy.cursor.enabled | Should -Be $true
+    $fleetProfile.dispatchPolicy.'cursor-agent'.enabled | Should -Be $true
+    $fleetProfile.providerHolds.cursor.active | Should -Be $false
     ($script:scriptText -match 'disabled by owner policy; no API request attempted') | Should -Be $true
     ($script:scriptText -match 'cursor-credential-residue') | Should -Be $true
     ($script:scriptText -match 'value was not read') | Should -Be $true
     ($script:scriptText -match 'cursor-hold-wrapper') | Should -Be $true
     ($script:scriptText -match 'launcher can bypass the owner hold') | Should -Be $true
     . (Join-Path $script:repoRoot 'scripts\AgentCtl.CursorReadiness.ps1')
-    (Test-CursorDispatchEnabled $fleetProfile) | Should -Be $false
-    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface agent -Shell cmd) | Should -Be (Get-CursorBlockedLauncherContent -Shell cmd)
-    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface ide -Shell posix) | Should -Be (Get-CursorBlockedLauncherContent -Shell posix)
+    (Test-CursorDispatchEnabled $fleetProfile) | Should -Be $true
+    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface agent -Shell cmd) | Should -Match '--yolo'
+    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface agent -Shell cmd) | Should -Match '--approve-mcps'
+    (Get-CursorLauncherContent -FleetProfile $fleetProfile -Surface ide -Shell posix) | Should -Match 'cursor\.cmd'
   }
 
   It 'generates deterministically and drift does not mutate synthetic output' {

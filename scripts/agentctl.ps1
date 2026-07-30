@@ -457,8 +457,13 @@ function Invoke-Validation {
     else { Add-Check 'FAIL' "managed-instruction:$($row.id)" 'generated and native files differ' }
   }
 
+  $modelProfiles = Read-Json (Join-Path $RegistryRoot 'profiles\model-profiles.json')
+  $codexModel = [string](@($modelProfiles.profiles | Where-Object id -eq 'codex-frontier' | Select-Object -First 1).model)
+  if ([string]::IsNullOrWhiteSpace($codexModel) -or $codexModel -notmatch '^[A-Za-z0-9._-]+$') {
+    throw 'profiles/model-profiles.json must declare a safe codex-frontier model identifier.'
+  }
   $modelChecks = @(
-    @{ id = 'codex'; path = 'C:\Users\SaroshHussain\.codex\config.toml'; pattern = '(?m)^model\s*=\s*"gpt-5\.6-terra"\s*$' },
+    @{ id = 'codex'; path = 'C:\Users\SaroshHussain\.codex\config.toml'; pattern = '(?m)^model\s*=\s*"' + [regex]::Escape($codexModel) + '"\s*$' },
     @{ id = 'qwen-code'; path = 'C:\Users\SaroshHussain\.qwen\settings.json'; json = 'qwen' },
     @{ id = 'opencode'; path = 'C:\Users\SaroshHussain\.config\opencode\opencode.json'; json = 'opencode' },
     @{ id = 'gemini'; path = 'C:\Users\SaroshHussain\.gemini\settings.json'; json = 'gemini' }

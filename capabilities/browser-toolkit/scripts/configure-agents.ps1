@@ -296,7 +296,7 @@ if ($SkipTokenPlan) {
     Merge-JsonFile $openCodeSettings (Join-Path $toolkitRoot 'adapters\opencode\opencode.fragment.json') $browserPorts.opencode
 }
 
-Write-Host 'SKIP Cursor activation: portfolio provider hold is active.'
+Write-Host 'DEFER Cursor mutation to AgentHub full-profile reconciliation to preserve one configuration owner.'
 
 $hermes = Get-Command hermes -ErrorAction SilentlyContinue
 if ($hermes) {
@@ -340,6 +340,8 @@ if ($Apply) {
     New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
     $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath (Join-Path $backupRoot 'manifest.json') -Encoding utf8
     Write-Host "Configuration complete. Backup manifest: $(Join-Path $backupRoot 'manifest.json')"
+    Write-Host 'Cursor is reconciled by AgentHub full-profile deployment; no duplicate Cursor MCP configuration was written.'
 } else {
     Write-Host 'Dry run complete. No files, variables, or links were changed.'
+    Write-Host 'Cursor is reconciled by AgentHub full-profile deployment; this package does not independently mutate it.'
 }

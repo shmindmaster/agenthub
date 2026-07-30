@@ -1608,6 +1608,7 @@ function Sync-HostMcp-ConvertedJsonFile {
         [scriptblock]$Converter,
         [string]$JsonProperty = 'mcpServers',
         [string[]]$SuppressedKeys = @(),
+        [switch]$ReplaceExistingEntries,
         [switch]$WhatIf,
         [switch]$Prune
     )
@@ -1631,6 +1632,14 @@ function Sync-HostMcp-ConvertedJsonFile {
         if (-not ($canonical -is [hashtable])) { $canonical = ConvertTo-Hashtable $canonical }
         $target = & $Converter $canonical
         if (-not $servers.ContainsKey($targetKey)) {
+            $servers[$targetKey] = $target
+            continue
+        }
+        if ($ReplaceExistingEntries) {
+            # Some host parsers reject an otherwise-valid configuration when
+            # a managed entry retains an unknown historical field. For these
+            # strict schemas, canonical ownership means replacing the whole
+            # managed entry rather than preserving vendor-invalid residue.
             $servers[$targetKey] = $target
             continue
         }
@@ -1741,6 +1750,33 @@ function ConvertTo-WarpMcpEntry {
         $entry.args = @($CanonicalEntry.args)
         if ($CanonicalEntry.ContainsKey('env')) {
             $entry.env = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.env -Style braced
+        }
+    }
+    return $entry
+}
+
+function ConvertTo-CursorMcpEntry {
+    param([hashtable]$CanonicalEntry)
+
+    # Cursor Agent validates every entry in ~/.cursor/mcp.json as one schema.
+    # A single unsupported field makes its parser discard the entire file. Its
+    # remote transport accepts url and headers (with optional structured OAuth),
+    # but not a generic string `auth` field or an `env` map. Keep secrets as
+    # unresolved references and emit only Cursor-supported fields.
+    $entry = @{}
+    if ($CanonicalEntry.type -eq 'http') {
+        $entry.url = $CanonicalEntry.url
+        if ($CanonicalEntry.ContainsKey('headers')) {
+            $entry.headers = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.headers -Style braced
+        }
+    } elseif ($CanonicalEntry.type -eq 'stdio') {
+        $entry.command = $CanonicalEntry.command
+        $entry.args = @($CanonicalEntry.args)
+        if ($CanonicalEntry.ContainsKey('env')) {
+            $entry.env = Convert-McpStringMapEnvironmentReferences -Map $CanonicalEntry.env -Style braced
+        }
+        if ($CanonicalEntry.ContainsKey('cwd')) {
+            $entry.cwd = $CanonicalEntry.cwd
         }
     }
     return $entry
@@ -2272,7 +2308,7 @@ foreach ($agent in $agentsToSync) {
             $hostDrift.mcp += $r
         }
         'cursor' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
+            $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-CursorMcpEntry} -SuppressedKeys $suppressedKeys -ReplaceExistingEntries -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'vscode-insiders' {

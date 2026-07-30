@@ -84,8 +84,10 @@ function global:New-DistributionFixture {
     New-Item -ItemType Directory -Path $fakeAppData -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalRoot '.codex-plugin') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalRoot '.claude-plugin') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $canonicalRoot '.cursor-plugin') -Force | Out-Null
     '{"name":"product-demo-studio","version":"0.4.0"}' | Set-Content -LiteralPath (Join-Path $canonicalRoot '.codex-plugin\plugin.json') -Encoding UTF8
     '{"name":"product-demo-studio","version":"0.4.0"}' | Set-Content -LiteralPath (Join-Path $canonicalRoot '.claude-plugin\plugin.json') -Encoding UTF8
+    '{"name":"product-demo-studio","version":"0.4.0"}' | Set-Content -LiteralPath (Join-Path $canonicalRoot '.cursor-plugin\plugin.json') -Encoding UTF8
     Set-Content -LiteralPath (Join-Path $canonicalBrowserRoot 'skills\browser-debugging\SKILL.md') -Value 'canonical:browser-debugging' -Encoding UTF8
 
     foreach ($name in $global:canonicalVideoSkills) {
@@ -97,10 +99,13 @@ function global:New-DistributionFixture {
     New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot 'skills') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot '.codex-plugin') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot '.claude-plugin') -Force | Out-Null
-    '{"name":"product-experience-engineering","version":"1.1.0"}' |
+    New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot '.cursor-plugin') -Force | Out-Null
+    '{"name":"product-experience-engineering","version":"1.1.1"}' |
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.codex-plugin\plugin.json') -Encoding UTF8
-    '{"name":"product-experience-engineering","version":"1.1.0"}' |
+    '{"name":"product-experience-engineering","version":"1.1.1"}' |
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.claude-plugin\plugin.json') -Encoding UTF8
+    '{"name":"product-experience-engineering","version":"1.1.1"}' |
+        Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.cursor-plugin\plugin.json') -Encoding UTF8
     foreach ($name in $global:canonicalExperienceSkills) {
         $skillRoot = Join-Path $canonicalExperienceRoot "skills\$name"
         New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
@@ -156,11 +161,13 @@ function global:New-DistributionFixture {
         @{ id = 'product-demo-studio'; canonicalSource = $canonicalRoot; hostMappings = @(
             @{ hostId = 'claude'; deploymentStatus = 'managed-loose-skills' },
             @{ hostId = 'codex'; deploymentStatus = 'native-plugin-installed' },
+            @{ hostId = 'cursor'; deploymentStatus = 'native-local-plugin' },
             @{ hostId = 'copilot'; deploymentStatus = 'native-local-plugin-skills-only' }
         ) },
         @{ id = 'product-experience-engineering'; canonicalSource = $canonicalExperienceRoot; hostMappings = @(
             @{ hostId = 'claude'; deploymentStatus = 'native-plugin-installed' },
             @{ hostId = 'codex'; deploymentStatus = 'native-plugin-installed' },
+            @{ hostId = 'cursor'; deploymentStatus = 'native-local-plugin' },
             @{ hostId = 'copilot'; deploymentStatus = 'native-local-plugin' }
         ) },
         @{ id = 'browser-toolkit'; canonicalSource = $canonicalBrowserRoot; managedSkillNames = @('browser-debugging'); hostMappings = @(
@@ -800,7 +807,6 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
         $skillTargets = @{
             claude = Join-Path $fixture.UserProfile '.claude\skills'
             codex = Join-Path $fixture.UserProfile '.codex\skills'
-            cursor = Join-Path $fixture.UserProfile '.cursor\skills'
             opencode = Join-Path $fixture.UserProfile '.config\opencode\skills'
             factory = Join-Path $fixture.UserProfile '.factory\skills'
             devin = Join-Path $fixture.AppData 'devin\skills'
@@ -838,6 +844,17 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
             }
             (Get-Content -LiteralPath (Join-Path $target 'product-demo-studio\references\portfolio-standard.md') -Raw).Trim() | Should -Be 'version:2'
             (Get-Content -LiteralPath (Join-Path $target 'product-demo-studio-remotion\rules\video-layout.md') -Raw).Trim() | Should -Be 'safe-area:80'
+        }
+        $cursorPlugin = Join-Path $fixture.UserProfile '.cursor\plugins\local\product-demo-studio'
+        $cursorPluginItem = Get-Item -LiteralPath $cursorPlugin -Force
+        $cursorPluginItem.LinkType | Should -Be 'Junction'
+        [IO.Path]::GetFullPath([string]$cursorPluginItem.Target) |
+            Should -Be ([IO.Path]::GetFullPath($fixture.CanonicalRoot))
+        foreach ($name in $global:canonicalVideoSkills) {
+            Test-Path -LiteralPath (Join-Path $fixture.UserProfile ".cursor\skills\$name") |
+                Should -BeFalse
+            (Get-Content -LiteralPath (Join-Path $cursorPlugin "skills\$name\SKILL.md") -Raw).Trim() |
+                Should -Be "canonical:$name"
         }
         (Test-Path -LiteralPath (Join-Path $staleManaged 'references\retired-v1.md')) | Should -Be $false
         (Test-Path -LiteralPath $mappedConflict) | Should -Be $false
@@ -1019,7 +1036,6 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
         $looseSkillTargets = @(
             (Join-Path $fixture.UserProfile '.claude\skills'),
             (Join-Path $fixture.UserProfile '.codex\skills'),
-            (Join-Path $fixture.UserProfile '.cursor\skills'),
             (Join-Path $fixture.UserProfile '.config\opencode\skills'),
             (Join-Path $fixture.UserProfile '.factory\skills'),
             (Join-Path $fixture.AppData 'devin\skills'),
@@ -1049,6 +1065,16 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
         (Test-Path -LiteralPath (Join-Path $staleManaged 'references\retired-personal.md')) | Should -Be $false
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.copilot\skills\engineer-product-experience')) | Should -Be $false
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.qwen\skills\engineer-product-experience')) | Should -Be $false
+        $cursorExperiencePlugin = Join-Path $fixture.UserProfile `
+            '.cursor\plugins\local\product-experience-engineering'
+        $cursorExperienceItem = Get-Item -LiteralPath $cursorExperiencePlugin -Force
+        $cursorExperienceItem.LinkType | Should -Be 'Junction'
+        [IO.Path]::GetFullPath([string]$cursorExperienceItem.Target) |
+            Should -Be ([IO.Path]::GetFullPath($fixture.CanonicalExperienceRoot))
+        foreach ($name in $global:canonicalExperienceSkills) {
+            Test-Path -LiteralPath (Join-Path $fixture.UserProfile ".cursor\skills\$name") |
+                Should -BeFalse
+        }
 
         $copilotWrapper = Get-Content -LiteralPath (Join-Path $fixture.UserProfile 'bin\copilot.cmd') -Raw
         $copilotAdapterRoot = Join-Path $fixture.LocalAppData `
@@ -1077,7 +1103,7 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
                 'product-experience-engineering@handoff' = @(@{
                     scope = 'user'
                     installPath = $fixture.CanonicalExperienceRoot
-                    version = '1.1.0'
+                    version = '1.1.1'
                 })
             }
         } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $claudeInstalledPath -Encoding UTF8
@@ -1092,7 +1118,7 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
         New-Item -ItemType Directory -Path (Split-Path -Parent $codexConfig) -Force | Out-Null
         "[plugins.`"product-experience-engineering@handoff`"]`nenabled = true" |
             Set-Content -LiteralPath $codexConfig -Encoding UTF8
-        $codexCache = Join-Path $fixture.UserProfile '.codex\plugins\cache\handoff\product-experience-engineering\1.1.0'
+        $codexCache = Join-Path $fixture.UserProfile '.codex\plugins\cache\handoff\product-experience-engineering\1.1.1'
         New-Item -ItemType Directory -Path (Split-Path -Parent $codexCache) -Force | Out-Null
         Copy-Item -LiteralPath $fixture.CanonicalExperienceRoot -Destination $codexCache -Recurse
         New-Item -ItemType Directory -Path (Join-Path $codexCache '.in_use') -Force | Out-Null

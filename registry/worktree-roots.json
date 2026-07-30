@@ -59,14 +59,14 @@
     {
       "hostId": "cursor",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "retained-provider-held-controller-sync-required",
-      "providerHeld": true
+      "deploymentState": "controller-sync-required",
+      "providerHeld": false
     },
     {
       "hostId": "cursor-agent",
       "mechanism": "agenthub-helper-plus-generated-policy",
-      "deploymentState": "retained-provider-held-controller-sync-required",
-      "providerHeld": true,
+      "deploymentState": "controller-sync-required",
+      "providerHeld": false,
       "inheritsHostId": "cursor"
     },
     {

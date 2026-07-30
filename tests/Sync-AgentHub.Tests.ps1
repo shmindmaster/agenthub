@@ -96,6 +96,65 @@ source = '\\?\C:\wt\agenthub\runtime-centralization\packages\portfolio-plugins'
     }
 }
 
+Describe 'Sync-AgentHub Cursor MCP schema adaptation' {
+    It 'replaces invalid legacy fields on managed Cursor remote entries without changing user entries' {
+        $fixture = Join-Path $TestDrive 'cursor-mcp-schema'
+        $registryRoot = Join-Path $fixture 'registry-root'
+        $profile = Join-Path $fixture 'profile'
+        $runtime = Join-Path $fixture 'runtime'
+        $config = Join-Path $profile '.cursor\mcp.json'
+        New-Item -ItemType Directory -Path (Join-Path $registryRoot 'registry'), (Split-Path -Parent $config), $runtime -Force | Out-Null
+
+        @{ activeAgents = @(@{
+            id = 'cursor'
+            nativePaths = @{ mcp = $config }
+        }); inactiveAgents = @() } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\agents.json') -Encoding UTF8
+        @{ mcpServers = @(
+            @{ id = 'context7'; scope = 'global-default'; transport = 'http'; url = 'https://mcp.context7.com/mcp'; headers = @{ Authorization = 'Bearer ${env:CONTEXT7_API_KEY}' }; credentialPolicy = 'provider-managed' },
+            @{ id = 'exa'; scope = 'global-default'; transport = 'http'; url = 'https://mcp.exa.ai/mcp'; env = @{ EXA_API_KEY = '${env:EXA_API_KEY}' }; credentialPolicy = 'provider-managed' },
+            @{ id = 'notion'; scope = 'global-default'; transport = 'http'; url = 'https://mcp.notion.com/mcp'; credentialPolicy = 'oauth' }
+        ) } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
+        @{ capabilities = @() } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
+        @{ hosts = @(@{
+            hostId = 'cursor'
+            providerHeld = $false
+            exposures = @{
+                'plugin-owned' = @()
+                'native-connector' = @()
+                'shared-gateway' = @('context7', 'exa', 'notion')
+                'local-only' = @()
+            }
+        }) } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $registryRoot 'registry\native-connectors.json') -Encoding UTF8
+        @{ mcpServers = @{
+            context7 = @{ type = 'http'; url = 'https://mcp.context7.com/mcp'; env = @{ CONTEXT7_API_KEY = '${env:CONTEXT7_API_KEY}' }; auth = 'oauth'; unexpected = 'legacy' }
+            exa = @{ type = 'http'; url = 'https://mcp.exa.ai/mcp'; env = @{ EXA_API_KEY = '${env:EXA_API_KEY}' } }
+            notion = @{ type = 'http'; url = 'https://mcp.notion.com/mcp'; auth = 'oauth' }
+            custom = @{ url = 'https://custom.example.test/mcp'; customFlag = $true }
+        } } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $config -Encoding UTF8
+
+        $previousLocalAppData = $env:LOCALAPPDATA
+        try {
+            $env:LOCALAPPDATA = $runtime
+            & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
+                -Apply -Validate -RegistryRoot $registryRoot -UserProfile $profile | Out-Host
+            $LASTEXITCODE | Should -Be 0
+        } finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+        }
+
+        $result = Get-Content -LiteralPath $config -Raw | ConvertFrom-Json
+        @($result.mcpServers.context7.PSObject.Properties.Name | Sort-Object) | Should -Be @('headers', 'url')
+        $result.mcpServers.context7.headers.Authorization | Should -Be 'Bearer ${CONTEXT7_API_KEY}'
+        @($result.mcpServers.exa.PSObject.Properties.Name) | Should -Be @('url')
+        @($result.mcpServers.notion.PSObject.Properties.Name) | Should -Be @('url')
+        $result.mcpServers.custom.customFlag | Should -BeTrue
+    }
+}
+
 Describe 'Sync-AgentHub Qwen JSON compatibility' {
     It 'writes Qwen settings as UTF-8 without a BOM and preserves unrelated settings' {
         $fixture = Join-Path $TestDrive 'qwen-bom-compatibility'

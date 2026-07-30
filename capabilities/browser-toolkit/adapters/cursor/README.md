@@ -1,23 +1,21 @@
-# Cursor offline adapter — provider held
+# Cursor adapter — active
 
-This directory is implementation-ready but must not be copied into Cursor,
-loaded, invoked, or smoke-tested while the portfolio Cursor provider hold is
-active. Reauthorization requires the documented reviewed control-plane changes;
-a single local setting is insufficient.
+Cursor IDE and Cursor Agent were explicitly reauthorized on 2026-07-30. AgentHub
+deploys the shared browser skills, native product plugins, MCP registry,
+permissions, and launch policy. This adapter documents the optional
+repository-local browser contract; it is not an independent configuration
+authority and must not create a duplicate persistent MCP process.
 
-After reauthorization:
-
-1. Confirm QwenCloud Token Plan Team Edition and Cursor Pro+.
-2. Configure the OpenAI-compatible provider manually in Cursor Settings >
+1. If QwenCloud is used, confirm the applicable plan and configure its
+   OpenAI-compatible provider manually in Cursor Settings >
    Models with a supported plan and matching base URL:
    - Token Plan Team Edition: `https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1`
    - Coding Plan: `https://coding-intl.dashscope.aliyuncs.com/v1`
-   (user input `...dashscope.alryuncs...` appears to contain a typo; the official
-   docs value is `aliyuncs`.)
-3. Copy `mcp.json` to the project `.cursor/mcp.json` and
-   `browser-quality.mdc` to `.cursor/rules/`.
-4. Install/junction shared Agent Skills using current Cursor skill paths.
-5. Verify MCP discovery and the controlled browser smoke without exposing a
+2. Prefer the AgentHub-managed global MCP registry and browser skills. Use this
+   repository-local `mcp.json` only when the repository needs an isolated
+   browser endpoint that cannot be expressed by the global contract.
+3. Use `browser-quality.mdc` only as a repository-scoped narrowing rule.
+4. Verify plugin and MCP discovery plus the controlled browser smoke without a
    personal Chrome profile.
 
 Cursor provider credentials are UI-managed and intentionally absent from this

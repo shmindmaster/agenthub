@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "resolvedOn": "2026-07-23",
+  "resolvedOn": "2026-07-30",
   "host": {
     "os": "Windows 11",
     "chrome": "150.0.7871.186",
@@ -11,7 +11,7 @@
   "agents": {
     "hermes": "2026.7.20",
     "claudeCode": "2.1.218",
-    "cursor": "3.12.17",
+    "cursor": "3.13.25",
     "openCode": "1.18.4",
     "qwenCode": "0.20.1"
   },
@@ -34,7 +34,7 @@
     "personalChromePortExcluded": 9222
   },
   "notes": [
-    "Cursor version was read from installed file metadata; Cursor was not invoked because the provider hold is active.",
+    "Cursor was explicitly reauthorized on 2026-07-30. Version and configuration checks are non-paid; no model prompt is used as a health probe.",
     "Playwright is intentionally not a dependency of this toolkit. Existing repository or host Playwright installations remain independent.",
     "The latest MCP SDK is pinned with an @hono/node-server 2.0.11 security override because the SDK's declared transitive range otherwise resolves Windows path-traversal and WebSocket-handshake advisories. The toolkit uses only the SDK stdio client and validates this override with npm audit and the live smoke.",
     "vite-plugin-devtools-json is recorded for conditional repository integration and is not installed by this toolkit."

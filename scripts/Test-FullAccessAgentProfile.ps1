@@ -77,6 +77,20 @@ foreach ($hostId in $mcpPaths.Keys | Sort-Object) {
   Assert-Profile ($configRaw -notmatch 'exaApiKey=|fc-[a-z0-9]{20,}|pendoah\.app\.n8n') "$hostId has no stale embedded-provider endpoint"
 }
 
+$cursorMcpEntries = Read-ServerSet "$UserProfile\.cursor\mcp.json" 'mcpServers'
+$cursorUnsupportedFields = @()
+if ($cursorMcpEntries) {
+  foreach ($property in $cursorMcpEntries.PSObject.Properties) {
+    $entry = $property.Value
+    if ($entry.url) {
+      $unsupported = @($entry.PSObject.Properties.Name | Where-Object { $_ -notin @('url', 'headers', 'auth', 'tls') })
+      if ($entry.auth -is [string]) { $unsupported += 'auth:string' }
+      if ($unsupported.Count -gt 0) { $cursorUnsupportedFields += "$($property.Name):$($unsupported -join ',')" }
+    }
+  }
+}
+Assert-Profile ($cursorUnsupportedFields.Count -eq 0) 'Cursor MCP entries use only its supported remote schema fields'
+
 $codexConfigPath = "$UserProfile\.codex\config.toml"
 $codexRaw = if (Test-Path -LiteralPath $codexConfigPath) { Get-Content -LiteralPath $codexConfigPath -Raw } else { '' }
 foreach ($pluginOwnedKey in @($pluginOwnedByHost['codex'].Keys)) {
@@ -145,6 +159,7 @@ $cursorIdeLauncher = Get-Content "$UserProfile\bin\cursor.cmd" -Raw -ErrorAction
 $cursorIdePosixLauncher = Get-Content "$UserProfile\bin\cursor" -Raw -ErrorAction SilentlyContinue
 if (Test-CursorDispatchEnabled $fleetProfile) {
   Assert-Profile (($cursor.approvalMode -eq 'unrestricted' -or $cursorYoloLauncher -match '--yolo') -and $cursorPosixLauncher -match '--yolo' -and $cursor.sandbox.mode -eq 'disabled') 'Cursor defaults to yolo and is unsandboxed'
+  Assert-Profile (-not (Test-Path "$UserProfile\.cursor\rules\00-provider-hold.mdc")) 'Cursor provider-hold rule is absent while dispatch is active'
 } else {
   $normalize = { param([string]$Value) $Value.Replace("`r`n", "`n").TrimEnd("`r", "`n") }
   $expectedCmd = & $normalize (Get-CursorBlockedLauncherContent -Shell cmd)

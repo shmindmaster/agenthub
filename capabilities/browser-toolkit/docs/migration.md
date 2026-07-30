@@ -11,7 +11,8 @@
 4. Run `npm ci` in the toolkit. `npm audit --audit-level=moderate` must pass.
 5. Run `configure-agents.ps1` dry, review the targets, then run
    `configure-agents.ps1 -Apply -BrowserMode Shared` or `Isolated`.
-6. Restart agent processes. Keep Cursor staged only while its hold is active.
+6. Restart agent processes. Reconcile Cursor through AgentHub's full-profile
+   deployment so native plugins and global skills have a single owner.
 7. Launch the applicable QA profile and run `validate.ps1 -RunBrowserSmoke`.
 8. Run one interactive model response per enabled agent only with a valid,
    unexposed token. Verify the configured model name in the response metadata.

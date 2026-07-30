@@ -1,10 +1,15 @@
-# Verification report — 2026-07-23
+# Historical verification report — 2026-07-23
+
+This is the immutable 2026-07-23 evidence snapshot. Cursor was reauthorized on
+2026-07-30 and its current deployment is validated by the fleet convergence
+report, not by rewriting the historical results below.
 
 ## Outcome
 
-The canonical toolkit and four enabled adapters are configured in `Shared` mode
-on dedicated QA Chrome port 9333. Cursor is staged but not activated because its
-provider hold remains active. No product demo was produced because no real
+The canonical toolkit and four then-enabled adapters were configured in
+`Shared` mode on dedicated QA Chrome port 9333. Cursor was staged but not
+activated under the control-plane decision in force at that time. No product
+demo was produced because no real
 product repository/workflow was placed in scope; the correct outcome is
 readiness infrastructure only.
 
@@ -28,7 +33,7 @@ readiness infrastructure only.
 | Claude model response through QwenCloud | Verified | `claude -p ...` returned the exact expected result using the required `ANTHROPIC_AUTH_TOKEN` alias synchronized from `QWEN_API_KEY` |
 | OpenCode model response through QwenCloud | Verified | `opencode run --model qwen-token-plan/qwen3.7-max ...` returned the exact expected result |
 | Hermes model response through QwenCloud | Verified | `hermes -z ...` returned the exact expected result |
-| Cursor adapter | Blocked | provider hold; no Cursor invocation, activation, or provider mutation |
+| Cursor adapter | Historically blocked | no Cursor invocation, activation, or provider mutation occurred in this 2026-07-23 run |
 | Product Demo Studio 0.6.1 | Verified | guide hash validator and `claude plugin validate`; Claude cache updated, prior disabled state preserved |
 | Product Experience Engineering 1.1.0 | Verified | complete plugin test suite; Claude cache updated, prior disabled state preserved |
 | Qwen native extension propagation | Verified | junction inventory contains new/updated skills |

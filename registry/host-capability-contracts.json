@@ -245,10 +245,10 @@
     },
     {
       "hostId": "cursor",
-      "state": "retained-disabled",
+      "state": "configured",
       "officialSources": ["https://cursor.com/docs/"],
       "surfaces": { "rules": "verified", "skills": "verified", "plugins": "verified", "mcp": "verified", "subagents": "verified", "acp": "discovery-required", "lsp": "discovery-required", "hooks": "discovery-required", "memory": "discovery-required" },
-      "autonomy": { "profile": "disabled", "reason": "Provider hold is fail-closed until the owner completes reauthorization." }
+      "autonomy": { "profile": "repo-autonomous", "flags": ["--yolo", "--sandbox", "disabled", "--approve-mcps"], "worktreePolicy": "AgentHub C:\\wt helper only" }
     }
   ]
 }

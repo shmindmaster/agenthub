@@ -49,15 +49,15 @@ const eligible = new Set(parity.conditionallyEligibleReviewHosts ?? []);
 for (const host of eligible) {
   if (!expectedHosts.includes(host)) failures.push(`conditionally eligible host ${host} is not mapped`);
 }
-if (parity.capabilityVersion !== "1.3.0" ||
+if (parity.capabilityVersion !== "1.3.1" ||
     parity.equivalentContract?.unsupportedIsolationDecision !== "PIPELINE_BLOCKED" ||
     parity.executionRule?.liveRunMustRecordNativeReadOnlyEnforcement !== true ||
     parity.executionRule?.promptOnlyOrBroadWriteContextMayRelease !== false ||
-    parity.executionRule?.cursorDispatchAllowed !== false ||
+    parity.executionRule?.cursorDispatchAllowed !== true ||
     parity.validationScope?.defaultMode !== "STATIC_INVENTORY_ONLY" ||
     parity.validationScope?.staticValidationMayClaimLiveParity !== false ||
     parity.validationScope?.liveParityRequiresDeploymentReport !== true) {
-  failures.push("host parity policy does not fail closed, distinguish static/live evidence, or preserve the Cursor hold");
+  failures.push("host parity policy does not fail closed, distinguish static/live evidence, or enable reauthorized Cursor dispatch");
 }
 
 const contractPaths = [
@@ -146,8 +146,8 @@ if (liveDeploymentReportPath) {
           failures.push(`${hostId}: ${label}.evidence must contain at least one evidence reference`);
         }
       }
-      if (hostId === "cursor" && row.dispatchAttempted !== false) {
-        failures.push("cursor: live report must prove dispatch was not attempted while the provider hold is active");
+      if (hostId === "cursor" && row.dispatchAttempted !== true) {
+        failures.push("cursor: live report must prove a native smoke dispatch after owner reauthorization");
       }
     }
   }

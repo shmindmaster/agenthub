@@ -847,11 +847,11 @@ if ($vscodeSettings) {
     }
 }
 
-# Provider-held Cursor surfaces are inventoried without invoking Cursor.
+# Cursor native local plugins are inventoried without invoking a paid agent run.
 $cursorLocalPlugins = Join-Path $UserProfilePath '.cursor\plugins\local'
 if (Test-Path -LiteralPath $cursorLocalPlugins -PathType Container) {
     foreach ($plugin in Get-ChildItem -LiteralPath $cursorLocalPlugins -Directory -ErrorAction SilentlyContinue) {
-        Add-PluginRoot 'cursor' $plugin.Name $plugin.FullName $cursorLocalPlugins 'retained-disabled'
+        Add-PluginRoot 'cursor' $plugin.Name $plugin.FullName $cursorLocalPlugins 'installed-observed'
     }
 }
 
