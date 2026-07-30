@@ -3,6 +3,7 @@
 BeforeAll {
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:checker = Join-Path $repoRoot 'scripts\Test-LiveAgentFleetDrift.ps1'
+    . (Join-Path $repoRoot 'scripts\RegistryContentHash.ps1')
     $script:powerShell = if ($PSVersionTable.PSVersion.Major -lt 6) {
         (Get-Command powershell.exe -ErrorAction Stop).Source
     } else {
@@ -188,6 +189,116 @@ Describe 'Comprehensive live fleet drift inventory' {
             'canonical-skill-content-drift:qoder:fixture-skill'
         @($parsed.results.check) | Should -Contain `
             'required-plugin-source-missing:devin:deleted-plugin-source'
+    }
+
+    It 'treats mapped canonical portfolio copies as owned and flags only divergent mapped content' {
+        $repositoryRegistry = Get-Content -LiteralPath (
+            Join-Path $repoRoot 'registry\capabilities.json'
+        ) -Raw | ConvertFrom-Json
+        @($repositoryRegistry.capabilities | Where-Object {
+            $_.id -eq 'portfolio-engineering-ops'
+        }).Count | Should -Be 1
+
+        $fixtureRoot = Join-Path $TestDrive 'portfolio-ownership-fixture'
+        $registryRoot = Join-Path $fixtureRoot 'agenthub'
+        $registryDir = Join-Path $registryRoot 'registry'
+        $profile = Join-Path $fixtureRoot 'profile'
+        $appData = Join-Path $profile 'AppData\Roaming'
+        $localAppData = Join-Path $profile 'AppData\Local'
+        $canonicalRoot = Join-Path $registryRoot 'capabilities\portfolio-engineering-ops'
+        $canonicalSkill = Join-Path $canonicalRoot 'skills\docs-drift\SKILL.md'
+        $claudeSkill = Join-Path $profile '.claude\skills\docs-drift\SKILL.md'
+        $codexSkill = Join-Path $profile '.codex\skills\docs-drift\SKILL.md'
+        $qoderSkill = Join-Path $profile '.qoder\skills\docs-drift\SKILL.md'
+        $executable = (Get-Command powershell.exe -ErrorAction Stop).Source
+
+        Write-FixtureSkill -Path $canonicalSkill -Name 'docs-drift' -Body 'canonical body'
+        $canonicalHash = Get-AgentHubStableFileHash -Path $canonicalSkill
+        Copy-Item -LiteralPath $canonicalSkill -Destination (
+            New-Item -ItemType Directory -Path (Split-Path -Parent $claudeSkill) -Force
+        ).FullName
+        Copy-Item -LiteralPath $canonicalSkill -Destination (
+            New-Item -ItemType Directory -Path (Split-Path -Parent $codexSkill) -Force
+        ).FullName
+        Write-FixtureSkill -Path $qoderSkill -Name 'docs-drift' -Body 'divergent body'
+
+        Write-FixtureJson -Path (Join-Path $registryDir 'agents.json') -Value @{
+            activeAgents = @(
+                @{
+                    id='claude'; name='Claude'; version='fixture'; executable=$executable
+                    status='active'; nativePaths=@{ skillsDir=(Split-Path -Parent (Split-Path -Parent $claudeSkill)) }
+                },
+                @{
+                    id='codex'; name='Codex'; version='fixture'; executable=$executable
+                    status='active'; nativePaths=@{ skillsDir=(Split-Path -Parent (Split-Path -Parent $codexSkill)) }
+                },
+                @{
+                    id='qoder'; name='Qoder'; version='fixture'; executable=$executable
+                    status='active'; nativePaths=@{ skillsDir=(Split-Path -Parent (Split-Path -Parent $qoderSkill)) }
+                }
+            )
+            inactiveAgents = @()
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'capabilities.json') -Value @{
+            capabilities = @(
+                @{
+                    id='portfolio-engineering-ops'
+                    canonicalSource=$canonicalRoot
+                    managedSkillNames=@('docs-drift')
+                    hostMappings=@(
+                        @{ hostId='claude'; deploymentStatus='managed-loose-skills' },
+                        @{ hostId='codex'; deploymentStatus='managed-loose-skills' },
+                        @{ hostId='qoder'; deploymentStatus='managed-loose-skills' }
+                    )
+                }
+            )
+        }
+        Write-FixtureJson -Path (Join-Path $registryDir 'mcps.json') -Value @{ mcpServers=@() }
+        Write-FixtureJson -Path (Join-Path $registryDir 'native-connectors.json') -Value @{
+            lifecyclePolicy=@{ onDemandLocalMcpIds=@() }
+            hosts=@(
+                @{ hostId='claude'; exposures=@{ 'plugin-owned'=@(); 'native-connector'=@(); 'shared-gateway'=@(); 'local-only'=@() } },
+                @{ hostId='codex'; exposures=@{ 'plugin-owned'=@(); 'native-connector'=@(); 'shared-gateway'=@(); 'local-only'=@() } },
+                @{ hostId='qoder'; exposures=@{ 'plugin-owned'=@(); 'native-connector'=@(); 'shared-gateway'=@(); 'local-only'=@() } }
+            )
+        }
+        Write-FixtureJson -Path (Join-Path $profile '.claude.json') -Value @{ mcpServers=@{} }
+        $codexConfig = Join-Path $profile '.codex\config.toml'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $codexConfig) -Force | Out-Null
+        Set-Content -LiteralPath $codexConfig -Value '' -Encoding UTF8
+        Write-FixtureJson -Path (Join-Path $profile '.qoder\settings.json') -Value @{
+            enabledPlugins=@{ '_fixture-disabled@local'=$false }
+            mcpServers=@{}
+        }
+
+        $report = Join-Path $fixtureRoot 'report.json'
+        $checkerOutput = @(& $powerShell -NoLogo -NoProfile -NonInteractive -File $checker `
+            -RegistryRoot $registryRoot `
+            -UserProfilePath $profile `
+            -AppDataPath $appData `
+            -LocalAppDataPath $localAppData `
+            -ReposRoot (Join-Path $fixtureRoot 'Repos') `
+            -WorktreeRoot (Join-Path $fixtureRoot 'wt') `
+            -SkipRepositoryScan `
+            -ReportPath $report `
+            -Json 2>&1)
+
+        $LASTEXITCODE | Should -Be 1
+        if (-not (Test-Path -LiteralPath $report -PathType Leaf)) {
+            throw "Checker did not produce its report:`n$($checkerOutput -join [Environment]::NewLine)"
+        }
+        $parsed = Get-Content -LiteralPath $report -Raw -Encoding UTF8 | ConvertFrom-Json
+        @($parsed.inventory.skills | Where-Object {
+            $_.hostId -in @('claude','codex') -and
+            $_.skillId -eq 'docs-drift' -and
+            $_.hash -eq $canonicalHash
+        }).Count | Should -Be 2
+        @($parsed.results.check | Where-Object {
+            $_ -like 'unowned-*:docs-drift'
+        }).Count | Should -Be 0
+        @($parsed.results.check) | Should -Not -Contain 'canonical-skill-content-drift:claude:docs-drift'
+        @($parsed.results.check) | Should -Not -Contain 'canonical-skill-content-drift:codex:docs-drift'
+        @($parsed.results.check) | Should -Contain 'canonical-skill-content-drift:qoder:docs-drift'
     }
 
     It 'uses Copilot manifest-selected skill bodies instead of nested build inputs' {

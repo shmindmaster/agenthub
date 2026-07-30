@@ -30,6 +30,14 @@ $global:canonicalExperienceSkills = @(
     'validate-product-experience'
 )
 
+$global:canonicalPortfolioEngineeringSkills = @(
+    'docs-drift',
+    'portfolio-audit',
+    'release-readiness',
+    'repo-onboard',
+    'verify-and-commit'
+)
+
 function global:New-DistributionFixture {
     param([string]$Root)
 
@@ -37,6 +45,7 @@ function global:New-DistributionFixture {
     $canonicalRoot = Join-Path $Root 'canonical-product-demo-studio'
     $canonicalExperienceRoot = Join-Path $Root 'canonical-product-experience-engineering'
     $canonicalBrowserRoot = Join-Path $Root 'canonical-browser-toolkit'
+    $canonicalPortfolioEngineeringRoot = Join-Path $Root 'canonical-portfolio-engineering-ops'
     $fakeProfile = Join-Path $Root 'profile'
     $fakeAppData = Join-Path $fakeProfile 'AppData\Roaming'
     $fakeLocalAppData = Join-Path $fakeProfile 'AppData\Local'
@@ -68,6 +77,11 @@ function global:New-DistributionFixture {
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.claude-plugin\plugin.json') -Encoding UTF8
     foreach ($name in $global:canonicalExperienceSkills) {
         $skillRoot = Join-Path $canonicalExperienceRoot "skills\$name"
+        New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Value "canonical:$name" -Encoding UTF8
+    }
+    foreach ($name in $global:canonicalPortfolioEngineeringSkills) {
+        $skillRoot = Join-Path $canonicalPortfolioEngineeringRoot "skills\$name"
         New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Value "canonical:$name" -Encoding UTF8
     }
@@ -115,6 +129,11 @@ function global:New-DistributionFixture {
         ) },
         @{ id = 'browser-toolkit'; canonicalSource = $canonicalBrowserRoot; managedSkillNames = @('browser-debugging'); hostMappings = @(
             @{ hostId = 'claude'; deploymentStatus = 'managed-loose-skills-and-mcp' }
+        ) },
+        @{ id = 'portfolio-engineering-ops'; canonicalSource = $canonicalPortfolioEngineeringRoot; managedSkillNames = $global:canonicalPortfolioEngineeringSkills; hostMappings = @(
+            @{ hostId = 'claude'; deploymentStatus = 'managed-loose-skills' },
+            @{ hostId = 'codex'; deploymentStatus = 'managed-loose-skills' },
+            @{ hostId = 'cline'; deploymentStatus = 'managed-loose-skills' }
         ) }
     ) } |
         ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
@@ -133,6 +152,7 @@ function global:New-DistributionFixture {
         CanonicalRoot = $canonicalRoot
         CanonicalExperienceRoot = $canonicalExperienceRoot
         CanonicalBrowserRoot = $canonicalBrowserRoot
+        CanonicalPortfolioEngineeringRoot = $canonicalPortfolioEngineeringRoot
         UserProfile = $fakeProfile
         AppData = $fakeAppData
         LocalAppData = $fakeLocalAppData
@@ -442,6 +462,31 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
         (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.claude\skills\browser-debugging')) | Should -Be $true
         (Test-Path -LiteralPath (Join-Path $fixture.UserProfile '.codex\skills\browser-debugging')) | Should -Be $false
+    }
+
+    It 'distributes all repository-owned portfolio engineering skills to each mapped loose-skill host' {
+        $repositoryRegistry = Get-Content -LiteralPath (
+            Join-Path (Split-Path -Parent $PSScriptRoot) 'registry\capabilities.json'
+        ) -Raw | ConvertFrom-Json
+        @($repositoryRegistry.capabilities | Where-Object {
+            $_.id -eq 'portfolio-engineering-ops'
+        }).Count | Should -Be 1
+
+        $fixture = New-DistributionFixture -Root (
+            Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'portfolio-engineering-ops'
+        )
+        (Invoke-DistributionOnly -Fixture $fixture) | Should -Be 0
+
+        $mappedRoots = @(
+            (Join-Path $fixture.UserProfile '.claude\skills'),
+            (Join-Path $fixture.UserProfile '.codex\skills'),
+            (Join-Path $fixture.UserProfile '.cline\skills')
+        )
+        foreach ($hostRoot in $mappedRoots) {
+            foreach ($skillId in $global:canonicalPortfolioEngineeringSkills) {
+                Test-Path (Join-Path $hostRoot "$skillId\SKILL.md") | Should -BeTrue
+            }
+        }
     }
 
     It 'quarantines shared Agent Skills shadows after deploying each mapped host copy' {

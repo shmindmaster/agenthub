@@ -25,6 +25,12 @@ translates those sources into a documented host-native format.
 | Cross-session context | host-local memory policy | Keep memory project-scoped, opt-in, and free of secrets or private evidence. |
 | Unattended execution | `profiles/host-autonomy-mappings.json` | Record the exact vendor-supported setting or flag; do not invent a universal `yolo` field. |
 
+## Canonical skill capability owners
+
+| Capability | Owner | Canonical source | Managed skills | Exposure contract |
+| --- | --- | --- | --- | --- |
+| `portfolio-engineering-ops` | `portfolio` | `capabilities/portfolio-engineering-ops` | `docs-drift`, `portfolio-audit`, `release-readiness`, `repo-onboard`, `verify-and-commit` | `managed-loose-skills` for all 17 registered loose-skill hosts. Cursor's mapping records its retained-disabled configuration only and does not authorize invocation or dispatch. |
+
 ## Autonomy meanings
 
 `repo-autonomous` means that the host can work in the checked-out repository,
