@@ -4,8 +4,10 @@
 
 AgentHub is the deployed source of truth for the registered agent fleet. Canonical capability,
 skill, plugin, MCP, worktree, quarantine, and deployment contracts are converged and regression
-tested. The current live configuration verdict is `PASS`: 81 passes, 77 classified warnings, and
-0 failures. Product Demo Studio release eligibility remains `PIPELINE_BLOCKED` until an
+tested. The current live configuration verdict is `PASS` with three explicit runtime/activation
+warnings: 106 passes and 0 failures. The installed Product Demo Studio package is current at
+`1.2.0`; two already-running Claude sessions must restart to unload prior 1.1.x package bytes.
+Product Demo Studio review and release eligibility remains `PIPELINE_BLOCKED` until an
 operator-controlled host receipt signer proves release-grade read-only execution on a supported
 host.
 
@@ -42,7 +44,12 @@ host.
   OpenCode, and Codex receive generated host-native role adapters from the same 13 canonical
   agents. Other mapped hosts receive exact loose skills only when that is their documented
   surface. Product Experience Engineering follows its own registry-selected host adapters.
-- The stale Product Demo Studio Codex cache was reinstalled from canonical AgentHub.
+- Product Demo Studio `1.2.0` was reinstalled from canonical AgentHub in Claude, Codex, Factory,
+  Grok, and Qoder; the remaining mapped hosts received current generated adapters or exact skills.
+- Private review delivery is registry-routed to immutable `Review/<candidateId>` packages under
+  the approved product OneDrive roots. Packaging requires arbiter `PASS` plus mandatory final
+  verifier `PASS`, stages and validates before atomic promotion, refuses overwrite, and records
+  the package as review-only with publication approval still pending.
 - Stale VS Code Insiders plugin locations pointing to an AgentHub worktree are now removed
   automatically. The live scanner reports zero duplicate canonical skill exposures.
 - The trusted external `use-railway` tree is current on all 11 mapped loose-skill hosts.
@@ -80,21 +87,39 @@ Pre-move bundles, dirty patches, and the verified manifest are at:
 ## Verification
 
 - Full Pester suite: 161 passed, 0 failed, 0 skipped.
-- Repository validator: 79 passed, 0 warned, 0 failed.
+- Repository validator: 97 passed, 0 warned, 0 failed.
 - Host readiness: 15 registered, 15 installed, 0 optional missing, 0 policy failures.
 - Full-access profile: passed for 10 shared-remote MCP contracts across 18 managed hosts.
 - External skill report: 11 current targets, 0 stale targets.
-- Product Demo Studio: 122 contract assertions passed; package and static parity passed for all
+- Product Demo Studio: 130 contract assertions passed; package and static parity passed for all
   18 registry mappings; Qoder reports 8 skills, 13 agents, and 1 plugin-owned MCP.
 - Independent review: no blocker or critical code finding remained after the final safety fixes.
-- Final live inventory: 22 agents, 64 plugins, 1,015 skills, 19 MCP configurations, and 72
-  processes. No duplicate local MCP runtime tree or process warning was found.
+- Final live inventory: 22 agents, 65 plugins, 949 skills, 19 MCP configurations, 76 worktrees,
+  and 77 processes. No duplicate local MCP runtime tree or local MCP worker was found.
+- Advisory runtime budgets passed: Codex 2,587.1/4,096 MB, Claude 3,549.7/4,096 MB, language
+  servers 889.4/2,048 MB, and local MCP workers 0/1,536 MB. Auto-termination remains disabled.
 
 Final live report:
 
-`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-convergence\live-final-20260730.json`
+`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-convergence\live-product-demo-1.2.0-20260730.json`
 
-Live counts: 81 pass, 77 warn, 0 fail.
+Live counts: 106 pass, 3 warn, 0 fail.
+
+## Product video review destinations
+
+The machine-level delivery registry is `registry/product-video-delivery.json`. It maps repository
+identity, rather than caller-supplied product names, to these existing private review roots:
+
+- `D:\OneDrive - MahumTech\Videos\GentleNext`
+- `D:\OneDrive - MahumTech\Videos\Lawli`
+- `D:\OneDrive - MahumTech\Videos\LexAlign`
+- `D:\OneDrive - MahumTech\Videos\SubOps`
+- `D:\OneDrive - MahumTech\Videos\WarrantyGains`
+- `D:\OneDrive - MahumTech\Videos\ABACare`
+- `D:\OneDrive - MahumTech\Videos\CoLedger`
+
+No review candidate was fabricated during fleet validation. The first real candidate will be
+delivered only after the signed independent-review chain passes.
 
 ## Remaining holds
 
@@ -113,7 +138,12 @@ Live counts: 81 pass, 77 warn, 0 fail.
    its executable is intentionally not installed or expected on this machine. Re-enabling it
    requires a native install and smoke test.
    Its on-disk configuration is reconciled, but it cannot be runtime-smoked on this installation.
-4. **Live agent execution parity.** Source, deployment, permission, and static parity are
-   verified. Cross-host prompt execution is not claimed: Cursor is held, inactive hosts cannot be
-   smoked, and release-grade native read-only enforcement requires a signed live deployment
-   report.
+4. **Running Claude session freshness.** Installed Claude bytes are current at Product Demo Studio
+   `1.2.0`, but PIDs 34008 and 38228 loaded 1.1.0 and 1.1.2 respectively. Restart Claude before
+   claiming live runtime parity. AgentHub does not terminate open agent sessions because that can
+   discard work.
+5. **Independent-review execution trust.** Source, deployment, permissions, and static parity are
+   verified. Release-grade read-only enforcement is not: no operator-owned
+   `AGENTHUB_EXECUTION_HOST_TRUST_CONFIG` is configured. The agent cannot create or access the
+   signing private key, so review, arbitration, final verification, and review delivery correctly
+   remain `PIPELINE_BLOCKED`. Cursor also remains held and inactive hosts are not runtime-smoked.
