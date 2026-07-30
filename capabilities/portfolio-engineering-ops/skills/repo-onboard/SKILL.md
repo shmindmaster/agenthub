@@ -5,12 +5,16 @@ description: Analyze an unfamiliar repository (stack, package manager, apps, val
 
 # Onboarding an unfamiliar repo
 
-Delegate the discovery pass to the `explorer` subagent: package
+If the executing host supports delegated workers and AgentHub maps a
+read-only exploration role for that host in `registry/role-mappings.json`,
+delegate the discovery pass to that mapped role. Otherwise, execute the same
+discovery pass directly. The worker must read the repository's current
+artifacts for this task and may not assume prior session context: package
 manifests/lockfiles (stack + package manager), app/package boundaries in a
 monorepo, `package.json` scripts or Makefile targets for the real
 lint/test/build commands, Dockerfile/deployment config, `.env.example` for
-required env vars, README, applicable repository instructions, docs, and
-the executing host's managed configuration.
+required env vars, README, applicable repository instructions, docs, and the
+executing host's managed configuration.
 
 ## Minimal config to propose
 

@@ -38,6 +38,26 @@ $global:canonicalPortfolioEngineeringSkills = @(
     'verify-and-commit'
 )
 
+$global:canonicalPortfolioEngineeringHosts = @(
+    'amp',
+    'antigravity',
+    'claude',
+    'cline',
+    'codex',
+    'copilot',
+    'cursor',
+    'devin',
+    'factory',
+    'gemini',
+    'grok',
+    'hermes',
+    'opencode',
+    'qoder',
+    'qwen-code',
+    'warp',
+    'windsurf'
+)
+
 function global:New-DistributionFixture {
     param([string]$Root)
 
@@ -465,13 +485,6 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
     }
 
     It 'distributes all repository-owned portfolio engineering skills to each mapped loose-skill host' {
-        $repositoryRegistry = Get-Content -LiteralPath (
-            Join-Path (Split-Path -Parent $PSScriptRoot) 'registry\capabilities.json'
-        ) -Raw | ConvertFrom-Json
-        @($repositoryRegistry.capabilities | Where-Object {
-            $_.id -eq 'portfolio-engineering-ops'
-        }).Count | Should -Be 1
-
         $fixture = New-DistributionFixture -Root (
             Join-Path $env:AGENTHUB_PROFILE_TEST_DIRECTORY 'portfolio-engineering-ops'
         )
@@ -484,8 +497,61 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
         )
         foreach ($hostRoot in $mappedRoots) {
             foreach ($skillId in $global:canonicalPortfolioEngineeringSkills) {
-                Test-Path (Join-Path $hostRoot "$skillId\SKILL.md") | Should -BeTrue
+                $canonicalSkill = Join-Path $fixture.CanonicalPortfolioEngineeringRoot `
+                    "skills\$skillId\SKILL.md"
+                $deployedSkill = Join-Path $hostRoot "$skillId\SKILL.md"
+                Test-Path -LiteralPath $deployedSkill -PathType Leaf | Should -BeTrue
+                [Convert]::ToBase64String([IO.File]::ReadAllBytes($deployedSkill)) |
+                    Should -Be ([Convert]::ToBase64String([IO.File]::ReadAllBytes($canonicalSkill)))
             }
+        }
+    }
+
+    It 'enforces the exact production portfolio engineering capability and portable skill contract' {
+        $repoRoot = Split-Path -Parent $PSScriptRoot
+        . (Join-Path $repoRoot 'scripts\RegistryContentHash.ps1')
+        $repositoryRegistry = Get-Content -LiteralPath (
+            Join-Path $repoRoot 'registry\capabilities.json'
+        ) -Raw | ConvertFrom-Json
+        $portfolioCapabilities = @($repositoryRegistry.capabilities | Where-Object {
+            $_.id -eq 'portfolio-engineering-ops'
+        })
+
+        $portfolioCapabilities.Count | Should -Be 1
+        $capability = $portfolioCapabilities[0]
+        $capability.owner | Should -Be 'portfolio'
+        $capability.capabilityType | Should -Be 'skills'
+        $capability.status | Should -Be 'active-canonical'
+        @($capability.managedSkillNames).Count | Should -Be $global:canonicalPortfolioEngineeringSkills.Count
+        (@($capability.managedSkillNames) -join "`n") |
+            Should -Be ($global:canonicalPortfolioEngineeringSkills -join "`n")
+
+        $expectedMappings = @($global:canonicalPortfolioEngineeringHosts | ForEach-Object {
+            '{0}:managed-loose-skills' -f $_
+        })
+        $actualMappings = @($capability.hostMappings | ForEach-Object {
+            "$($_.hostId):$($_.deploymentStatus)"
+        })
+        $actualMappings.Count | Should -Be $expectedMappings.Count
+        ($actualMappings -join "`n") | Should -Be ($expectedMappings -join "`n")
+
+        $capability.canonicalSource |
+            Should -Be 'C:/Repos/shmindmaster/agenthub/capabilities/portfolio-engineering-ops'
+        $capability.hashBasis |
+            Should -Be 'C:\Repos\shmindmaster\agenthub\capabilities\portfolio-engineering-ops'
+        $canonicalRoot = Join-Path $repoRoot 'capabilities\portfolio-engineering-ops'
+        $capability.contentHash | Should -Be (
+            Get-AgentHubRegistryHashBasisValue -Path $canonicalRoot
+        )
+
+        foreach ($skillId in $global:canonicalPortfolioEngineeringSkills) {
+            $body = Get-Content -LiteralPath (
+                Join-Path $canonicalRoot "skills\$skillId\SKILL.md"
+            ) -Raw
+            foreach ($forbiddenRoleId in @('docs-auditor', 'explorer', 'test-runner')) {
+                $body | Should -Not -Match ([regex]::Escape($forbiddenRoleId))
+            }
+            $body | Should -Not -Match '(?i)\bstanding memory\b'
         }
     }
 

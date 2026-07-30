@@ -214,13 +214,13 @@ Describe 'Comprehensive live fleet drift inventory' {
 
         Write-FixtureSkill -Path $canonicalSkill -Name 'docs-drift' -Body 'canonical body'
         $canonicalHash = Get-AgentHubStableFileHash -Path $canonicalSkill
-        Copy-Item -LiteralPath $canonicalSkill -Destination (
-            New-Item -ItemType Directory -Path (Split-Path -Parent $claudeSkill) -Force
-        ).FullName
-        Copy-Item -LiteralPath $canonicalSkill -Destination (
-            New-Item -ItemType Directory -Path (Split-Path -Parent $codexSkill) -Force
-        ).FullName
-        Write-FixtureSkill -Path $qoderSkill -Name 'docs-drift' -Body 'divergent body'
+        foreach ($mappedSkill in @($claudeSkill, $codexSkill, $qoderSkill)) {
+            Copy-Item -LiteralPath $canonicalSkill -Destination (
+                New-Item -ItemType Directory -Path (Split-Path -Parent $mappedSkill) -Force
+            ).FullName
+            [Convert]::ToBase64String([IO.File]::ReadAllBytes($mappedSkill)) |
+                Should -Be ([Convert]::ToBase64String([IO.File]::ReadAllBytes($canonicalSkill)))
+        }
 
         Write-FixtureJson -Path (Join-Path $registryDir 'agents.json') -Value @{
             activeAgents = @(
@@ -271,7 +271,7 @@ Describe 'Comprehensive live fleet drift inventory' {
             mcpServers=@{}
         }
 
-        $report = Join-Path $fixtureRoot 'report.json'
+        $report = Join-Path $fixtureRoot 'baseline-report.json'
         $checkerOutput = @(& $powerShell -NoLogo -NoProfile -NonInteractive -File $checker `
             -RegistryRoot $registryRoot `
             -UserProfilePath $profile `
@@ -283,22 +283,43 @@ Describe 'Comprehensive live fleet drift inventory' {
             -ReportPath $report `
             -Json 2>&1)
 
-        $LASTEXITCODE | Should -Be 1
         if (-not (Test-Path -LiteralPath $report -PathType Leaf)) {
             throw "Checker did not produce its report:`n$($checkerOutput -join [Environment]::NewLine)"
         }
         $parsed = Get-Content -LiteralPath $report -Raw -Encoding UTF8 | ConvertFrom-Json
         @($parsed.inventory.skills | Where-Object {
-            $_.hostId -in @('claude','codex') -and
+            $_.hostId -in @('claude','codex','qoder') -and
             $_.skillId -eq 'docs-drift' -and
             $_.hash -eq $canonicalHash
-        }).Count | Should -Be 2
+        }).Count | Should -Be 3
         @($parsed.results.check | Where-Object {
             $_ -like 'unowned-*:docs-drift'
         }).Count | Should -Be 0
         @($parsed.results.check) | Should -Not -Contain 'canonical-skill-content-drift:claude:docs-drift'
         @($parsed.results.check) | Should -Not -Contain 'canonical-skill-content-drift:codex:docs-drift'
-        @($parsed.results.check) | Should -Contain 'canonical-skill-content-drift:qoder:docs-drift'
+        @($parsed.results.check) | Should -Not -Contain 'canonical-skill-content-drift:qoder:docs-drift'
+
+        Write-FixtureSkill -Path $qoderSkill -Name 'docs-drift' -Body 'mutated body'
+        $mutatedReport = Join-Path $fixtureRoot 'mutated-report.json'
+        $checkerOutput = @(& $powerShell -NoLogo -NoProfile -NonInteractive -File $checker `
+            -RegistryRoot $registryRoot `
+            -UserProfilePath $profile `
+            -AppDataPath $appData `
+            -LocalAppDataPath $localAppData `
+            -ReposRoot (Join-Path $fixtureRoot 'Repos') `
+            -WorktreeRoot (Join-Path $fixtureRoot 'wt') `
+            -SkipRepositoryScan `
+            -ReportPath $mutatedReport `
+            -Json 2>&1)
+
+        $LASTEXITCODE | Should -Be 1
+        if (-not (Test-Path -LiteralPath $mutatedReport -PathType Leaf)) {
+            throw "Checker did not produce its report:`n$($checkerOutput -join [Environment]::NewLine)"
+        }
+        $mutated = Get-Content -LiteralPath $mutatedReport -Raw -Encoding UTF8 | ConvertFrom-Json
+        @($mutated.results.check) | Should -Contain 'canonical-skill-content-drift:qoder:docs-drift'
+        @($mutated.results.check) | Should -Not -Contain 'canonical-skill-content-drift:claude:docs-drift'
+        @($mutated.results.check) | Should -Not -Contain 'canonical-skill-content-drift:codex:docs-drift'
     }
 
     It 'uses Copilot manifest-selected skill bodies instead of nested build inputs' {

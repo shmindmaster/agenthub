@@ -5,9 +5,13 @@ description: Compare a repo's documentation (README, applicable repository instr
 
 # Docs-drift audit
 
-Delegate the comparison pass to the `docs-auditor` subagent — it has a
-standing memory of drift patterns already found in this portfolio, so
-reuse it rather than starting cold each time.
+If the executing host supports delegated workers and AgentHub maps a
+read-only documentation-audit role for that host in
+`registry/role-mappings.json`, delegate the comparison pass to that mapped
+role. Otherwise, execute the same evidence workflow directly. Every worker
+must read the current repository instructions, code, manifests, infrastructure
+configuration, and relevant evidence for this task; do not assume prior
+session context or hidden model memory.
 
 Code and current deployment configuration win over documentation when they
 disagree. For each claim checked: cite the actual code/config that confirms

@@ -16,8 +16,13 @@ registry gap rather than silently dropping it or guessing a replacement.
 
 ## For one repo
 
-Delegate to the `explorer` subagent (keeps file reads out of the main
-context) with this checklist:
+If the executing host supports delegated workers and AgentHub maps a
+read-only exploration role for that host in `registry/role-mappings.json`,
+delegate this checklist to that mapped role. Otherwise, execute the same
+checklist directly. A delegated worker must read the current repository
+artifacts and evidence for this audit; it must not assume context from an
+earlier session or another worker.
+
 1. `git status --short`, `git branch --show-current`, `git rev-list
    --left-right --count origin/main...HEAD` — dirty tree, stale branch,
    unpushed/unpulled commits.
@@ -34,11 +39,14 @@ context) with this checklist:
 
 ## For "the whole portfolio"
 
-Dispatch one `explorer` subagent per registered repo in parallel (this is
-genuinely separable, independent work — the right case for parallel
-dispatch, not a single sequential pass). Collect each repo's checklist
-result, then synthesize one compact table: repo | git state | open PRs |
-executing-host config state | doc-drift flags | recommended next action.
+When the executing host supports independent delegated workers and has the
+AgentHub-mapped read-only exploration role, dispatch one mapped worker per
+registered repo in parallel, within the host's supported concurrency limits.
+Each worker must perform the full current-artifact checklist above for its
+assigned repo. Otherwise, execute the same per-repo checks directly. Collect
+each repo's checklist result, then synthesize one compact table: repo | git
+state | open PRs | executing-host config state | doc-drift flags |
+recommended next action.
 
 ## What NOT to do
 

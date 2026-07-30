@@ -12,8 +12,12 @@ disable-model-invocation: true
    (touched routes/contracts/DB behavior → broader checks; a single
    isolated file → focused check only). Use this repo's own commands from
    applicable repository instructions and package manifests — never invent
-   one. Delegate the actual run to `test-runner` to keep full logs out of
-   this session.
+   one. If the executing host supports delegated workers and AgentHub maps a
+   test-verification role for that host in `registry/role-mappings.json`,
+   delegate the run to that mapped role; otherwise run it directly. The
+   worker must read the current instructions, manifests, diff, and requested
+   validation scope before running anything and may not assume prior session
+   context.
 3. Secret/artifact check before staging: no `.env`, credential files, keys,
    or generated build output (`dist/`, `.next/`, coverage, node_modules) —
    these should already be gitignored; if `git status` shows one anyway,
