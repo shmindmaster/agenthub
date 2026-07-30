@@ -49,7 +49,9 @@ $requiredFiles = @(
     'registry\mcps.json',
     'registry\native-connectors.json',
     'registry\gateway-profiles.json',
-    'registry\worktree-roots.json'
+    'registry\automation-gates.json',
+    'registry\worktree-roots.json',
+    'scripts\Test-AutomationGatePolicy.ps1'
 )
 
 foreach ($relativePath in $requiredFiles) {
@@ -135,6 +137,27 @@ if (Test-Path -LiteralPath $registryDir -PathType Container) {
             Add-ValidationResult FAIL "json:$($file.Name)" 'invalid JSON'
         }
     }
+}
+
+$automationGateCheckerPath = Join-Path $RegistryRoot 'scripts\Test-AutomationGatePolicy.ps1'
+if (Test-Path -LiteralPath $automationGateCheckerPath -PathType Leaf) {
+    try {
+        $automationGateOutput = & powershell.exe -NoLogo -NoProfile -NonInteractive `
+            -File $automationGateCheckerPath -RegistryRoot $RegistryRoot -Json
+        if ($LASTEXITCODE -ne 0) {
+            throw "checker exited with code $LASTEXITCODE"
+        }
+        $automationGateResult = $automationGateOutput | ConvertFrom-Json -ErrorAction Stop
+        if ([int]$automationGateResult.summary.fail -eq 0) {
+            Add-ValidationResult PASS 'registry:automation-gates' "policy passed $($automationGateResult.summary.pass) checks"
+        } else {
+            Add-ValidationResult FAIL 'registry:automation-gates' "policy reported $($automationGateResult.summary.fail) failures"
+        }
+    } catch {
+        Add-ValidationResult FAIL 'registry:automation-gates' $_.Exception.Message
+    }
+} else {
+    Add-ValidationResult FAIL 'registry:automation-gates' 'checker is missing'
 }
 
 if ($registryObjects.ContainsKey('agents.json')) {
