@@ -899,6 +899,7 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
             'chat.pluginLocations' = @{
                 'C:/Repos/agent-capabilities/packages/portfolio-plugins/clerk' = $true
                 'C:/Repos/agenthub/packages/handoff-plugins/plugins/product-demo-studio' = $true
+                'C:/wt/agenthub/fleet-convergence/packages/handoff-plugins/plugins/product-demo-studio' = $true
                 'D:/user-owned/plugin' = $true
             }
         } | ConvertTo-Json -Depth 8 |
@@ -912,6 +913,8 @@ Canonical copy: `C:\Repos\creative-lab\skills\local-ai-stack\SKILL.md` (committe
             'C:/Repos/agent-capabilities/packages/portfolio-plugins/clerk'
         $locationNames | Should -Not -Contain `
             'C:/Repos/agenthub/packages/handoff-plugins/plugins/product-demo-studio'
+        $locationNames | Should -Not -Contain `
+            'C:/wt/agenthub/fleet-convergence/packages/handoff-plugins/plugins/product-demo-studio'
         $settings.'chat.pluginLocations'.'D:/user-owned/plugin' | Should -BeTrue
         $settings.'chat.pluginLocations'.$($fixture.CanonicalRoot.Replace('\','/')) |
             Should -BeTrue

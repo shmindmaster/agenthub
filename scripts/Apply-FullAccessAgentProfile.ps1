@@ -615,8 +615,23 @@ function Ensure-LocalNativeAdapters {
   $locationsChanged = $false
   foreach ($existingLocation in @($locations.Keys)) {
     $portableExistingLocation = ([string]$existingLocation).Replace('\','/')
-    if ($portableExistingLocation.StartsWith('C:/Repos/agent-capabilities/', [StringComparison]::OrdinalIgnoreCase) -or
-        $portableExistingLocation.StartsWith('C:/Repos/agenthub/', [StringComparison]::OrdinalIgnoreCase)) {
+    $isRetiredAgentHubLocation =
+      $portableExistingLocation.StartsWith('C:/Repos/agent-capabilities/', [StringComparison]::OrdinalIgnoreCase) -or
+      $portableExistingLocation.StartsWith('C:/Repos/agenthub/', [StringComparison]::OrdinalIgnoreCase)
+    $isStaleAgentHubWorktreeLocation = $false
+    if ($portableExistingLocation.StartsWith('C:/wt/agenthub/', [StringComparison]::OrdinalIgnoreCase)) {
+      foreach ($capability in $managedSkillCapabilities) {
+        $managedPluginSuffix = "/packages/handoff-plugins/plugins/$($capability.id)"
+        if ($portableExistingLocation.TrimEnd('/').EndsWith(
+            $managedPluginSuffix,
+            [StringComparison]::OrdinalIgnoreCase
+          )) {
+          $isStaleAgentHubWorktreeLocation = $true
+          break
+        }
+      }
+    }
+    if ($isRetiredAgentHubLocation -or $isStaleAgentHubWorktreeLocation) {
       $locations.Remove($existingLocation)
       $locationsChanged = $true
     }
