@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.2.0",
+  "capabilityVersion": "1.3.0",
   "hostInventorySource": "registry/capabilities.json#product-demo-studio.hostMappings",
   "equivalentContract": {
     "canonicalPolicy": "policy/product-video-policy.json",

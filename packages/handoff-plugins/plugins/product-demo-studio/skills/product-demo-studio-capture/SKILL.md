@@ -98,13 +98,39 @@ state.
 Assert on console errors and failed requests during capture — a capture run that silently hit a JS
 error or a 500 is not usable footage even if the screenshot looks fine.
 
+## Maximize useful screen space
+
+Default to a clean page-only Playwright capture. If native browser recording is required, use
+fullscreen/presentation mode and remove the address bar, tabs, bookmarks, download shelves, OS
+taskbar, notifications, unrelated windows, and empty desktop. Browser or OS chrome may appear only
+when it is material evidence and the beat is explicitly classified `intentional-context`.
+
+- Use the product's real collapse/hide controls for irrelevant sidebars, filters, help panels, or
+  navigation. Never inject CSS or mutate the DOM solely to make the product look cleaner.
+- Preserve enough product context that the viewer understands location and cause/effect, but do not
+  spend pixels on navigation that is irrelevant to the current beat.
+- Plan the delivered frame—not merely the raw viewport. After the declared crop, push-in, or
+  recomposition, the active product region must occupy at least half of the usable frame and pass a
+  legibility check at the smallest requested output.
+- Keep captions, callouts, and the parked cursor outside the active and protected regions. If a
+  wide screen cannot remain legible in a vertical or square cut, recompose it around the active
+  control/result; do not mechanically shrink the whole desktop.
+- Treat app/browser zoom as product state. Prefer 100% browser zoom and composition-level
+  reframing. If a legitimate in-product density or zoom control is needed, record it in the
+  manifest and verify that it does not misrepresent normal use.
+
+Every manifest declares `captureSurface.mode`, `extraneousChrome`, `irrelevantNavigation`,
+`plannedTreatment`, `plannedActiveRegionCoverage`, and `deliveryLegibility`. The validator rejects
+coverage below `0.5` and any non-passing delivery legibility result.
+
 ## Capture manifest
 
 For every captured beat, record: scenario ID, product version/source commit, fixture/seed version,
 environment, **deployment identity and its verification state** (the exact deployment you captured,
 confirmed at capture time — not assumed), persona/workspace, route, viewport, device scale factor,
 locale/timezone, timestamp, action, target selector, focus bounding box, secondary protected
-regions, cursor start/destination, screenshot and/or video path, console errors, failed requests,
+regions, capture-surface/screen-space treatment, cursor start/destination/park points and duration,
+visible click cue, action/result/narration offsets, screenshot and/or video path, console errors, failed requests,
 **missed visual targets** (an expected element/text that didn't appear), reset result, readiness
 state, and an **explicit pass/fail verdict** for the beat. Obtain focus rectangles from the browser
 (`getBoundingClientRect()` or Playwright's `boundingBox()`) rather than guessing camera coordinates
@@ -120,7 +146,31 @@ a wrong deployment, or a `fail` verdict means the beat is re-captured, not compo
   "route": "/example/workflow",
   "focus": { "x": 1180, "y": 240, "width": 520, "height": 420 },
   "protectedRegions": [{ "x": 900, "y": 160, "width": 850, "height": 700 }],
-  "cursor": { "from": [1450, 780], "to": [1520, 430] },
+  "captureSurface": {
+    "mode": "page-only",
+    "extraneousChrome": "none",
+    "irrelevantNavigation": "collapsed",
+    "plannedTreatment": "push-in",
+    "plannedActiveRegionCoverage": 0.68,
+    "deliveryLegibility": "pass"
+  },
+  "interaction": {
+    "kind": "click",
+    "target": "button[data-demo='review-exception']",
+    "cursor": {
+      "from": [1450, 780],
+      "to": [1520, 430],
+      "park": [1760, 930],
+      "durationMs": 700
+    },
+    "cue": "visual",
+    "narrationSync": {
+      "cursorLeadSeconds": 0.35,
+      "actionAtSeconds": 1.1,
+      "resultVisibleAtSeconds": 1.8,
+      "spokenResultAtSeconds": 2.0
+    }
+  },
   "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 2 }
 }
 ```
@@ -170,8 +220,18 @@ reasoning/human-control moment truthful.
 - Hold the shown before-state for roughly three to five seconds.
 - Capture the single hero reveal with enough clean lead-in and tail for pre-silence, push-in, one
   restrained cue, and a readable result hold.
-- Keep spatial continuity. Move the cursor deliberately, give clicks a visible cue, and park it away
-  from content when idle.
+- Keep spatial continuity. The final product interaction must feel like a skilled person is actually
+  using it: ease the cursor from a known location, hover briefly when useful, click/type/scroll on
+  the real control, show the resulting state change, then park away from content. No jitter,
+  unexplained teleporting, meaningless circles, or cursor motion over a static state.
+- Record actual Playwright actions for interactive beats. A programmatically rendered pointer is
+  acceptable only when it reproduces the manifest's real action path and exact state transition;
+  it must not imply a click or result that the capture evidence does not contain.
+- Give clicks a visible cue; use at most one restrained audio cue at the protected hero moment.
+  Keep cursor movement roughly 200–2,500 ms and let it lead the action by no more than 1.5 seconds.
+- Align to narration explicitly: the cursor leads the eye, the action happens, the result becomes
+  visible, and the spoken result follows. Do not make narration announce a state that has not yet
+  appeared.
 - Record enough handles for speed ramps and attention resets, but never speed or cut away a product
   wait whose missing feedback is itself a product-fix-required defect.
 

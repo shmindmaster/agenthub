@@ -66,7 +66,10 @@ their own product-specific pipeline and data boundaries.
    sheet with `validate-demo-readiness.mjs`.
 2. **Script and storyboard** — use `agents/script-storyboard-generator.md`. The timed source of
    truth includes narration, actions, expected states/values, scene timing, pauses, holds,
-   annotations, cursor behavior, captions, sound, and validation assertions. Enforce a five-to-
+   annotations, explicit cursor/click/typing/scroll choreography, screen-space/framing treatment,
+   captions, sound, and validation assertions. Each meaningful product beat must read as a real
+   guided screencast: the pointer leads the eye, the real action occurs, the state changes, and
+   only then does narration name the result. Enforce a five-to-
    eight-second hook, no login/generic introduction, one idea per beat, no feature tour, one
    protected hero moment, purposeful pauses/result holds, mobile-readable framing, no long
    inactive interval, and evidence-linked claims. Validate with `validate-storyboard.mjs` and
@@ -75,7 +78,11 @@ their own product-specific pipeline and data boundaries.
    `product-demo-studio-capture`. Verify synthetic seed data, roles, dates, and visible values;
    establish a deterministic browser environment; validate the workflow once in a native browser
    when needed; then encode repository-owned Playwright coverage. Record browser playback,
-   console/network/assertion, reset, redaction, selector, geometry, and capture evidence. Fail on a
+   console/network/assertion, reset, redaction, selector, geometry, screen-space utilization,
+   pointer/action/narration synchronization, and capture evidence. Prefer page-only capture or
+   native-browser fullscreen, remove extraneous browser/OS chrome, collapse irrelevant navigation
+   through real product controls, and plan a crop/push-in/recomposition whenever the active region
+   would occupy less than half of the delivered frame. Fail on a
    broken, unstable, manually dependent, fabricated, unauthorized, or truth-sheet-inconsistent
    workflow.
 4. **Generate narration and audio** — use `agents/narration-audio-generator.md` and
@@ -88,6 +95,8 @@ their own product-specific pipeline and data boundaries.
    frame-driven APIs and Remotion media components, keep inputs source-controlled, and validate
    the final render rather than only Studio preview. Own framing, zooms, annotations, cursor,
    captions, pacing, sound, platform variants, still-frame validation, and full provenance.
+   Interactive workflow beats must remain continuous screencast motion, not a slideshow of
+   disconnected screenshots or a decorative cursor moving over a state that never changed.
 6. **Preflight and evidence** — create a new immutable candidate and complete evidence package,
    then use `agents/automated-preflight.md` and `scripts/preflight.mjs`. Deterministic failures
    return to the responsible generator. Independent review cannot start until preflight passes.

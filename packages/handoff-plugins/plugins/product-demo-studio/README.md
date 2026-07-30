@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.2.0**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.3.0**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Product repositories retain their product-specific capture/render implementations and
 map evidence into this shared contract. The reviewed mapping is documented in
@@ -15,6 +15,9 @@ generated product UI or fabricated results.
 Version 1.2 adds a validated interactive product deep-dive derivative and an immutable private
 review-delivery lane. Portfolio destinations remain AgentHub deployment configuration in
 `registry/product-video-delivery.json`; they are not hard-coded into this repo-agnostic plugin.
+Version 1.3 makes screen-space utilization and guided-screencast choreography mechanically
+required: clean page/fullscreen capture, at least 50% planned active-region coverage, real
+pointer/control/state transitions, visible click cues, and result-before-spoken-result timing.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with
@@ -138,7 +141,8 @@ invoked from the plugin against a target repo — never copied into one:
 - `validate-demo-readiness.mjs` / `validate-storyboard.mjs` — fail-closed normalized contracts for
    video-vs-feedback classification and persuasion craft (cold open, before-state, one hero moment,
    all eleven worthiness criteria, three-rung WIIFM with compatible refined aliases, emotional
-   target, annotation limits, cadence, and end card).
+   target, annotation limits, cadence, end card, explicit interaction choreography, and delivery
+   framing).
 - `repo-registry.mjs` — reports whether a target repo (`--repo <path>`, the default/primary mode)
   or a workspace of sibling repos (`--root <path>`, optional convenience) already has video
   infrastructure, and its actual shape.
@@ -161,7 +165,8 @@ invoked from the plugin against a target repo — never copied into one:
   `validate-remediation-assignment.mjs` — zero-dependency validation of the shared machine-readable
   contracts.
 - `validate-claims.mjs` / `validate-capture-manifest.mjs` — hand-rolled schema validators for the
-  product-claim ledger and capture manifests.
+  product-claim ledger and capture manifests, including screen-space utilization,
+  cursor/action/click choreography, and narration synchronization.
 - `check-evidence-gate.mjs` — validates the release-evidence graph and verifies the detached
   Ed25519 publication-approval signature before a render can be treated as approved for external
   use. The manifest and receipt are separate immutable files; the raw signature is exactly 64 bytes.

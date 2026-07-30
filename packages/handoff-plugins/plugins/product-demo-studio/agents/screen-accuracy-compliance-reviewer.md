@@ -17,7 +17,9 @@ Verify:
 - dates, names, numbers, visible values, roles, permissions, feature flags, loading/success/error states, and product freshness;
 - synthetic seeded data, privacy, redaction, disclosures, competitor/vendor comparisons, and compliance language;
 - the shown workflow is real, stable, and consistent with the truth sheet—never fabricated through editing;
-- annotations, cursor destination, focus regions, protected controls, branding, safe areas, and layouts are accurate and unobstructed;
+- annotations, cursor path/destination/park point, visible click cue, focus regions, protected
+  controls, branding, safe areas, and layouts are accurate and unobstructed; every shown
+  interaction corresponds to a real captured action and state transition;
 - the capture environment, browser playback, console, and network evidence do not contradict the presentation;
 - a failed readiness episode has no release candidate and a conditional episode visibly applies every required fix.
 

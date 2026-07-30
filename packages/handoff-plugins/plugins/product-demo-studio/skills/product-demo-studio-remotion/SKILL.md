@@ -204,6 +204,14 @@ validation.
   readable hold. Do not create a second competing reveal.
 - Build complex screens progressively, preserve spatial continuity, and treat the cursor as an
   actor: gesture, hesitate, trace, click, then park.
+- Compose interactive product beats as continuous guided screencasts. The pointer path, real
+  control action, visible state transition, annotation, and narration must use the storyboard and
+  capture-manifest offsets. Reject decorative cursor motion, unexplained teleporting, click cues
+  without a corresponding state change, and narration that names a result before it appears.
+- Maximize useful UI: remove extraneous browser/OS chrome at capture, collapse irrelevant
+  navigation through real product controls, and crop/push-in/recompose so the active region
+  occupies at least half of the usable delivered frame. Preserve enough surrounding product
+  context to keep the interaction truthful.
 - Use real time for meaningful interaction, speed-ramp bounded boring steps, and return to real time
   for payoff. Change pace, sound, zoom, text, or framing about every 10–15 seconds without becoming
   frenetic.

@@ -186,6 +186,11 @@ recording plan — not the other way around. When aligning audio and video:
 
 - The screen state must appear *before* the narration describes it; don't announce an action
   substantially before it happens.
+- Treat each interactive beat as a guided screencast sequence: pointer lead → real action →
+  visible state change → spoken result. Use the capture manifest's measured
+  `interaction.narrationSync` offsets; do not align by intuition after rendering.
+- Narration may lead the viewer's eye toward the target, but it may not claim the result before
+  `resultVisibleAtSeconds`. A click label is not the story—the resulting outcome is.
 - Give each action enough time to complete, and keep an important result on screen long enough to
   read after its narration ends. Pause narration during dense reading or a complex transition.
 - Don't accelerate cursor movement or a workflow just to fit the audio, and don't stretch or compress

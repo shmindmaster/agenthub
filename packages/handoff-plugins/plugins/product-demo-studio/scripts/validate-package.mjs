@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.2.0";
+const expectedVersion = "1.3.0";
 const failures = [];
 
 function readJson(relativePath) {
@@ -103,6 +103,8 @@ requireFiles("scripts", [
   "check-evidence-gate.mjs",
   "package-review.mjs",
   "preflight.mjs",
+  "storyboard.example.json",
+  "validate-capture-manifest.mjs",
   "validate-execution-receipt.mjs",
   "validate-host-parity.mjs",
   "validate-final-verification.mjs",
@@ -112,6 +114,7 @@ requireFiles("scripts", [
   "validate-remediation-assignment.mjs",
   "validate-review-report.mjs",
   "validate-review-delivery.mjs",
+  "validate-storyboard.mjs",
 ]);
 
 const policy = readJson("policy/product-video-policy.json");
@@ -154,6 +157,15 @@ if (policy.reviewDeliveryPolicy?.agentHubRegistry !== "registry/product-video-de
     policy.reviewDeliveryPolicy?.publicationPromotionRequiresSignedHumanApproval !== true) {
   failures.push("policy does not separate immutable private review delivery from human-approved publication");
 }
+if (policy.captureQualityPolicy?.guidedScreencastRequired !== true ||
+    policy.captureQualityPolicy?.pageOnlyOrNativeFullscreenPreferred !== true ||
+    policy.captureQualityPolicy?.extraneousBrowserOrOsChromeAllowedOnlyAsEvidence !== true ||
+    policy.captureQualityPolicy?.minimumPlannedActiveRegionCoverage !== 0.5 ||
+    policy.captureQualityPolicy?.realProductActionAndStateTransitionRequired !== true ||
+    policy.captureQualityPolicy?.visibleClickCueRequired !== true ||
+    policy.captureQualityPolicy?.resultVisibleBeforeSpokenResult !== true) {
+  failures.push("policy does not enforce screen-space utilization and guided-screencast choreography");
+}
 if (policy.permissions?.finalVerifier?.mandatoryTerminalGate !== true ||
     policy.permissions?.finalVerifier?.runsAfterArbiterPass !== true ||
     policy.releasePolicy?.terminalIndependentReview?.required !== true ||
@@ -180,6 +192,10 @@ const requiredText = [
   ["agents/final-verifier.md", "mandatory terminal independent reviewer and verifier"],
   ["skills/product-demo-studio-qa/SKILL.md", "mandatory final independent review and verification"],
   ["skills/product-demo-studio/SKILL.md", "private review-delivery lane"],
+  ["skills/product-demo-studio-capture/SKILL.md", "plannedActiveRegionCoverage"],
+  ["skills/product-demo-studio-narration/SKILL.md", "pointer lead → real action"],
+  ["skills/product-demo-studio-remotion/SKILL.md", "continuous guided screencasts"],
+  ["agents/script-storyboard-generator.md", "structured `interaction` contract"],
   ["skills/product-demo-studio/references/interactive-product-deep-dives.md", "Rejected absolutes"],
   ["skills/product-demo-studio/references/product-pipeline-compatibility.md", "Product-pipeline compatibility"],
   ["policy/product-video-policy.json", '"humanPublicationAttestationSeparate": true'],

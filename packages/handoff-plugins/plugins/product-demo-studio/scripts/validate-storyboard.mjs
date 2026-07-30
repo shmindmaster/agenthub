@@ -33,6 +33,27 @@ const DEMO_TYPES = new Set([
   "onboarding-enablement",
   "internal-handoff",
 ]);
+const INTERACTION_KINDS = new Set([
+  "none",
+  "move",
+  "hover",
+  "click",
+  "double-click",
+  "type",
+  "scroll",
+  "drag",
+  "select",
+  "keyboard",
+]);
+const CLICK_CUES = new Set(["none", "visual", "visual-and-audio"]);
+const CAPTURE_SURFACES = new Set([
+  "page-only",
+  "native-browser-fullscreen",
+  "mobile-device-frame",
+  "intentional-context",
+]);
+const NAVIGATION_STATES = new Set(["hidden", "collapsed", "required-context"]);
+const DELIVERY_TREATMENTS = new Set(["native-full-frame", "crop", "push-in", "recompose"]);
 let errors = 0;
 let warnings = 0;
 
@@ -94,6 +115,8 @@ for (const [episodeIndex, episode] of episodes.entries()) {
       "expectedAudioDurationSeconds",
       "timelineStartSeconds",
       "eyeDirectionTreatment",
+      "interaction",
+      "framing",
       "annotations",
       "protectedRegions",
       "pacePatternChange",
@@ -117,6 +140,49 @@ for (const [episodeIndex, episode] of episodes.entries()) {
     }
     if (typeof segment.intentionalSilence !== "boolean") {
       fail(`${segmentLabel}: intentionalSilence must be true or false.`);
+    }
+    const interaction = segment.interaction;
+    if (!interaction || typeof interaction !== "object" || Array.isArray(interaction)) {
+      fail(`${segmentLabel}: interaction must be an object.`);
+    } else {
+      for (const field of ["kind", "target", "cursorBehavior", "timing", "clickCue"]) {
+        if (!present(interaction[field])) fail(`${segmentLabel}: interaction missing "${field}".`);
+      }
+      if (interaction.kind && !INTERACTION_KINDS.has(interaction.kind)) {
+        fail(`${segmentLabel}: interaction.kind is not a supported screencast action.`);
+      }
+      if (interaction.clickCue && !CLICK_CUES.has(interaction.clickCue)) {
+        fail(`${segmentLabel}: interaction.clickCue must be none, visual, or visual-and-audio.`);
+      }
+      if (["click", "double-click"].includes(interaction.kind) && interaction.clickCue === "none") {
+        fail(`${segmentLabel}: click interactions need a visible click cue.`);
+      }
+      if (interaction.kind === "none" && interaction.clickCue !== "none") {
+        fail(`${segmentLabel}: a non-interactive hold cannot declare a click cue.`);
+      }
+    }
+    const framing = segment.framing;
+    if (!framing || typeof framing !== "object" || Array.isArray(framing)) {
+      fail(`${segmentLabel}: framing must be an object.`);
+    } else {
+      for (const field of [
+        "surface",
+        "activeRegion",
+        "irrelevantNavigation",
+        "deliveryTreatment",
+        "legibilityCheck",
+      ]) {
+        if (!present(framing[field])) fail(`${segmentLabel}: framing missing "${field}".`);
+      }
+      if (framing.surface && !CAPTURE_SURFACES.has(framing.surface)) {
+        fail(`${segmentLabel}: framing.surface is not a supported capture surface.`);
+      }
+      if (framing.irrelevantNavigation && !NAVIGATION_STATES.has(framing.irrelevantNavigation)) {
+        fail(`${segmentLabel}: framing.irrelevantNavigation is invalid.`);
+      }
+      if (framing.deliveryTreatment && !DELIVERY_TREATMENTS.has(framing.deliveryTreatment)) {
+        fail(`${segmentLabel}: framing.deliveryTreatment is invalid.`);
+      }
     }
     for (const claimId of segment.visibleClaimIds ?? []) {
       if (!episode.claimIds?.includes(claimId)) fail(`${segmentLabel}: visible claim "${claimId}" is undeclared.`);

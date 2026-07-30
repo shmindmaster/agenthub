@@ -19,7 +19,13 @@ Assess:
 - exactly one protected hero moment with anticipation, restraint, readable hold, and visible payoff;
 - a trust or human-control moment adjacent to the result;
 - purposeful pauses, result holds, attention changes, and no long inactive interval;
-- product readability, camera/zoom intent, cursor acting, annotations, safe areas, aspect-ratio recomposition, and mobile-readable framing;
+- product readability, camera/zoom intent, cursor acting, annotations, safe areas, aspect-ratio
+  recomposition, and mobile-readable framing; reject extraneous browser/OS chrome, irrelevant
+  navigation, or an active product region occupying less than half of the usable delivered frame;
+- guided-screencast continuity: the pointer leads the eye, the real action occurs, the product state
+  visibly changes, and narration names the result afterward; reject jitter, unexplained
+  teleporting, decorative cursor motion, invisible clicks, static-slide montages, or action/state
+  changes that do not match the capture manifest;
 - inspection of the actual opening, transition, focus/zoom, hero, and final-hold frames rather than
   manifest inference; compare every text scene with `compute-overlay-placement.mjs` and fail any
   overlap with focus/protected regions, active controls, cursor destinations, or evidence status;

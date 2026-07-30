@@ -40,6 +40,20 @@
       "ladderRung": "outcome",
       "timelineStartSeconds": 0,
       "eyeDirectionTreatment": "slow push across the dense batch",
+      "interaction": {
+        "kind": "move",
+        "target": "batch-table",
+        "cursorBehavior": "Trace the dense batch once, then park below the protected exception row.",
+        "timing": "Cursor enters 0.3 seconds before narration and stops before the final phrase.",
+        "clickCue": "none"
+      },
+      "framing": {
+        "surface": "page-only",
+        "activeRegion": "The batch table fills the usable frame.",
+        "irrelevantNavigation": "collapsed",
+        "deliveryTreatment": "push-in",
+        "legibilityCheck": "Synthetic row labels remain readable at final delivery size."
+      },
       "annotations": [{ "type": "zoom", "target": "batch-table", "scale": 1.3 }],
       "protectedRegions": ["exception-row"],
       "pacePatternChange": "cold-open tension hold",
@@ -66,6 +80,20 @@
       "ladderRung": "identity",
       "timelineStartSeconds": 8,
       "eyeDirectionTreatment": "restrained push-in on isolated exception",
+      "interaction": {
+        "kind": "click",
+        "target": "exception-filter",
+        "cursorBehavior": "Move deliberately to the filter, click once, then park outside the evidence panel.",
+        "timing": "Cursor leads by 0.35 seconds; the exception is visible before 'there it is'.",
+        "clickCue": "visual-and-audio"
+      },
+      "framing": {
+        "surface": "page-only",
+        "activeRegion": "The exception card and evidence panel dominate the frame.",
+        "irrelevantNavigation": "hidden",
+        "deliveryTreatment": "push-in",
+        "legibilityCheck": "The mismatch and its evidence remain readable on the smallest requested output."
+      },
       "annotations": [
         { "type": "spotlight", "target": "exception-card" },
         { "type": "zoom", "target": "evidence-panel", "scale": 1.6 }
@@ -95,6 +123,20 @@
       "ladderRung": "outcome",
       "timelineStartSeconds": 18,
       "eyeDirectionTreatment": "spotlight the approval control, then reveal end card",
+      "interaction": {
+        "kind": "click",
+        "target": "approval-control",
+        "cursorBehavior": "Move to the confirmation control, click once, then park below the end-card copy.",
+        "timing": "The pointer leads the click; the confirmed state appears before 'You make the call'.",
+        "clickCue": "visual"
+      },
+      "framing": {
+        "surface": "page-only",
+        "activeRegion": "The confirmation control and result occupy the central usable frame.",
+        "irrelevantNavigation": "hidden",
+        "deliveryTreatment": "recompose",
+        "legibilityCheck": "Control state and next step remain readable in every aspect-ratio variant."
+      },
       "annotations": [{ "type": "spotlight", "target": "approval-control" }],
       "protectedRegions": ["approval-control", "end-card-copy"],
       "pacePatternChange": "settle into concise close",

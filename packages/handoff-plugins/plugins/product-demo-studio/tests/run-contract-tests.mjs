@@ -167,6 +167,97 @@ function cli(scriptName, fixtureName, expectedCode) {
   }
 }
 
+function screencastChoreographyIntegration() {
+  const root = mkdtempSync(join(tmpdir(), "product-demo-screencast-contract-"));
+  try {
+    const storyboard = loadJson(join(pluginDir, "scripts", "storyboard.example.json"));
+    const storyboardPath = join(root, "storyboard.json");
+    writeFileSync(storyboardPath, `${JSON.stringify(storyboard, null, 2)}\n`);
+    let result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-storyboard.mjs"),
+      storyboardPath,
+    ], { encoding: "utf8" });
+    assert(
+      result.status === 0,
+      "storyboard validator accepts explicit interaction and screen-space choreography",
+    );
+
+    const invalidStoryboard = JSON.parse(JSON.stringify(storyboard));
+    delete invalidStoryboard.segments[0].interaction;
+    delete invalidStoryboard.segments[1].framing;
+    const invalidStoryboardPath = join(root, "storyboard.invalid.json");
+    writeFileSync(invalidStoryboardPath, `${JSON.stringify(invalidStoryboard, null, 2)}\n`);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-storyboard.mjs"),
+      invalidStoryboardPath,
+    ], { encoding: "utf8" });
+    assert(
+      result.status !== 0,
+      "storyboard validator rejects missing interaction or screen-space choreography",
+    );
+
+    const capture = {
+      scenario: "synthetic-guided-screencast",
+      beat: "review-exception",
+      route: "/synthetic/review",
+      viewport: { width: 1920, height: 1080, deviceScaleFactor: 2 },
+      focus: { x: 900, y: 160, width: 850, height: 700 },
+      protectedRegions: [{ x: 1180, y: 240, width: 520, height: 420 }],
+      captureSurface: {
+        mode: "page-only",
+        extraneousChrome: "none",
+        irrelevantNavigation: "collapsed",
+        plannedTreatment: "push-in",
+        plannedActiveRegionCoverage: 0.68,
+        deliveryLegibility: "pass",
+      },
+      interaction: {
+        kind: "click",
+        target: "button[data-demo='review-exception']",
+        cursor: {
+          from: [1450, 780],
+          to: [1520, 430],
+          park: [1760, 930],
+          durationMs: 700,
+        },
+        cue: "visual",
+        narrationSync: {
+          cursorLeadSeconds: 0.35,
+          actionAtSeconds: 1.1,
+          resultVisibleAtSeconds: 1.8,
+          spokenResultAtSeconds: 2.0,
+        },
+      },
+    };
+    const capturePath = join(root, "capture.json");
+    writeFileSync(capturePath, `${JSON.stringify(capture, null, 2)}\n`);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-capture-manifest.mjs"),
+      capturePath,
+    ], { encoding: "utf8" });
+    assert(
+      result.status === 0,
+      "capture validator accepts page-only framing and action-before-spoken-result timing",
+    );
+
+    capture.captureSurface.plannedActiveRegionCoverage = 0.3;
+    capture.interaction.cue = "none";
+    capture.interaction.narrationSync.spokenResultAtSeconds = 1.2;
+    const invalidCapturePath = join(root, "capture.invalid.json");
+    writeFileSync(invalidCapturePath, `${JSON.stringify(capture, null, 2)}\n`);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-capture-manifest.mjs"),
+      invalidCapturePath,
+    ], { encoding: "utf8" });
+    assert(
+      result.status !== 0,
+      "capture validator rejects wasted screen space, invisible clicks, and premature narration",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function reviewDeliveryIntegration() {
   const root = mkdtempSync(join(tmpdir(), "product-demo-review-delivery-"));
   try {
@@ -1916,6 +2007,7 @@ cli("validate-remediation-assignment.mjs", "remediation-assignment.pass.json", 0
 cli("validate-remediation-assignment.mjs", "remediation-assignment.invalid.json", 1);
 cli("validate-interactive-deep-dive.mjs", "interactive-deep-dive.pass.json", 0);
 cli("validate-interactive-deep-dive.mjs", "interactive-deep-dive.invalid.json", 1);
+screencastChoreographyIntegration();
 executionReceiptIntegration();
 preflightIntegration();
 realMediaIntegration();

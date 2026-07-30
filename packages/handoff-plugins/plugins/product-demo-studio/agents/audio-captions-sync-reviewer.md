@@ -15,7 +15,8 @@ Verify:
 - viewer-centered copy, concrete viewer units, WIIFM, and no unsupported hype or vendor-centered
   feature narration;
 - natural delivery, emotional intent, pacing, pauses, hero-moment silence, result holds, and no rushed or dead stretches;
-- narration/action/annotation synchronization at word and scene boundaries;
+- narration/action/annotation synchronization at word and scene boundaries, including the
+  manifest sequence pointer lead → real action → visible result → spoken result;
 - captions match the approved narration, are timed to speech, readable at delivery size, within reading-speed limits, inside safe areas, and never obstruct product state;
 - captions remain accurate after edits and accessibility requirements are met;
 - integrated loudness, true peak, clipping, artifacts, gaps, music balance, and ducking;
