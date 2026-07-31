@@ -1568,8 +1568,24 @@ try {
     } else {
         @(Get-CimInstance Win32_Process -ErrorAction Stop)
     }
+    # The checker can see its invoking PowerShell parent. Its command line
+    # contains the literal MCP detection pattern, which is evidence about the
+    # checker, not a running MCP. Exclude this process chain from live scans.
+    $scannerProcessIds = New-Object System.Collections.Generic.HashSet[int]
+    [void]$scannerProcessIds.Add([int]$PID)
+    if ([string]::IsNullOrWhiteSpace($ProcessSnapshotPath)) {
+        $liveProcessById = @{}
+        foreach ($process in $allProcesses) {
+            $liveProcessById[[int]$process.ProcessId] = $process
+        }
+        $ancestorId = [int]$PID
+        while ($liveProcessById.ContainsKey($ancestorId)) {
+            [void]$scannerProcessIds.Add($ancestorId)
+            $ancestorId = [int]$liveProcessById[$ancestorId].ParentProcessId
+        }
+    }
     $candidateProcesses = @($allProcesses | Where-Object {
-        [int]$_.ProcessId -ne $PID -and (
+        -not $scannerProcessIds.Contains([int]$_.ProcessId) -and (
             $_.Name -match '^(node|node\.exe|python|python\.exe|pythonw\.exe|npx|npx\.cmd|uvx|uvx\.exe)$' -or
             $_.CommandLine -match '(?i)claude|codex|qwen|opencode|gemini|hermes|copilot|antigravity|grok|warp|cline|qoder|cursor|devin|factory|windsurf'
         )
@@ -1676,7 +1692,7 @@ try {
             continue
         }
         $members = @($allProcesses | Where-Object {
-            [int]$_.ProcessId -ne $PID -and
+            -not $scannerProcessIds.Contains([int]$_.ProcessId) -and
             [string]$_.CommandLine -match $pattern
         })
         $workingSetMb = [math]::Round(((
@@ -1717,7 +1733,7 @@ try {
         [string]$Process.CommandLine -match $mcpPattern
     }
     $mcpProcesses = @($allProcesses | Where-Object {
-        [int]$_.ProcessId -ne $PID -and
+        -not $scannerProcessIds.Contains([int]$_.ProcessId) -and
         (& $isMcpRuntimeProcess $_)
     })
     $rootIds = New-Object System.Collections.Generic.HashSet[int]

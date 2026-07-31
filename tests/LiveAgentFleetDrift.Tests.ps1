@@ -944,6 +944,8 @@ Describe 'Comprehensive live fleet drift inventory' {
         $source | Should -Match "'local-mcp-worker'"
         $source | Should -Match 'Normal autostart runtimes are not drift'
         $source | Should -Match 'Protect-ProcessCommandLine'
+        $source | Should -Match 'scannerProcessIds'
+        $source | Should -Match 'Exclude this process chain from live scans'
         $source | Should -Match 'forbidden-root-recreated:'
         $source | Should -Match "'C:\\tmp'"
     }
