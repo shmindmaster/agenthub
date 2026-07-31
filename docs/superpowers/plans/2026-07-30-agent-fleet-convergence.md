@@ -1,5 +1,8 @@
 # Agent Fleet Convergence Implementation Plan
 
+> Superseded CI note (2026-07-31): AgentHub now defines zero GitHub Actions workflows. Task 1's
+> one-workflow target is non-operative; run the documented local PowerShell validators instead.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Converge the live coding-agent fleet onto explicit AgentHub ownership, remove verified duplication, preserve and relocate unique work, correct local runtime drift, and produce a fresh evidence-backed final status.
@@ -19,7 +22,7 @@
 - Dirty, untracked, unpushed, unreachable, or uniquely committed work is protected. Migration is permitted; deletion is not.
 - `C:\wt\RepositoryName\TaskSlug` is the only permitted user-created worktree
   layout.
-- Do not add or run a GitHub Actions workflow. `validate.yml` remains the sole self-hosted validation definition, but it is not dispatched by this work.
+- Do not add or run a GitHub Actions workflow. AgentHub defines zero workflow files and validates locally.
 - Do not create a pull request. After review, fast-forward the verified commits into `main` and push `main`.
 - Implementation tasks run sequentially. Parallel agents may perform read-only investigation or independent review only.
 - Every code behavior change follows red-green-refactor. Tests must exercise behavior, not grep source text.
@@ -37,7 +40,7 @@
 
 **Interfaces:**
 - Consumes: approved worktree root `C:\wt`, current `main`, existing local-only workflow assertions.
-- Produces: isolated branch `worktree-fleet-convergence` at `C:\wt\agenthub\fleet-convergence`, with `validate.yml` as the sole workflow definition.
+- Produces: isolated branch `worktree-fleet-convergence` at `C:\wt\agenthub\fleet-convergence`, with zero GitHub Actions workflow definitions.
 
 - [ ] **Step 1: Verify the current checkout and create the approved worktree**
 
@@ -64,11 +67,12 @@ Run from the new worktree:
 Invoke-Pester -Path .\tests\NoHostedCi.Tests.ps1 -Output Detailed
 ```
 
-Expected: FAIL because two YAML workflow definitions exist and the test requires exactly one named `validate.yml`.
+Historical expected result only. Current policy requires zero workflow definitions and this test now passes locally.
 
 - [ ] **Step 3: Remove only the redundant workflow**
 
-Delete `.github/workflows/copilot-setup-steps.yml` with `apply_patch`. Do not change `validate.yml`, `validate-repository.ps1`, runner labels, or workflow permissions.
+Superseded: remove obsolete workflow definitions and validate locally; do not recreate
+`validate.yml` or `validate-repository.ps1`.
 
 - [ ] **Step 4: Verify the workflow invariant locally**
 

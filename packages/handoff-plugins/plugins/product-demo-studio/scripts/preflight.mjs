@@ -33,7 +33,6 @@ const CHECKS = [
   ["frame-duplicate", "export-pipeline"],
   ["frame-corruption", "export-pipeline"],
   ["asset-completeness", "infrastructure-assets"],
-  ["human-script-approval", "story-script"],
   ["storyboard-craft-contract", "story-script"],
   ["capture-manifest-craft-contract", "capture-playwright"],
   ["beat-timing-deltas", "capture-playwright"],
@@ -59,7 +58,6 @@ const REPORT_TYPES = [
   "technicalDelivery",
   "claimVerification",
   "truthSheetVerification",
-  "scriptApprovalVerification",
   "craftContractValidation",
 ];
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -392,71 +390,6 @@ if (!object(evidencePackage.reports)) {
         ]);
       }
     }
-    if (reportType === "scriptApprovalVerification") {
-      const inputArtifacts = [...reportInputIds].map((id) => artifacts.get(id)).filter(Boolean);
-      for (const requiredType of ["script-approval", "signature", "script", "truth-sheet", "claim-ledger", "storyboard"]) {
-        if (inputArtifacts.filter((artifact) => artifact.type === requiredType).length !== 1) {
-          fail("human-script-approval", `script approval verification must bind exactly one ${requiredType} artifact.`, [reference.artifactId]);
-        }
-      }
-      const receiptArtifact = inputArtifacts.find((artifact) => artifact.type === "script-approval");
-      const signatureArtifact = oneArtifactOfType(inputArtifacts, "signature");
-      const scriptArtifact = oneArtifactOfType(inputArtifacts, "script");
-      const truthSheetArtifact = oneArtifactOfType(inputArtifacts, "truth-sheet");
-      const claimLedgerArtifact = oneArtifactOfType(inputArtifacts, "claim-ledger");
-      const storyboardArtifact = oneArtifactOfType(inputArtifacts, "storyboard");
-      if (receiptArtifact) {
-        try {
-          const receipt = JSON.parse(readFileSync(artifactPath(receiptArtifact.artifactPath), "utf8"));
-          const approvedAt = Date.parse(receipt.approvedAt);
-          const finalCaptureStartedAt = Date.parse(provenance?.capture?.startedAt);
-          const receiptDir = dirname(artifactPath(receiptArtifact.artifactPath));
-          const compareApprovedArtifact = (approvedReference, catalogArtifact, label) => {
-            if (!object(approvedReference) || !catalogArtifact) return;
-            const approvedPath = isAbsolute(approvedReference.artifactPath)
-              ? resolve(approvedReference.artifactPath)
-              : resolve(receiptDir, approvedReference.artifactPath);
-            const catalogPath = artifactPath(catalogArtifact.artifactPath);
-            if (approvedPath.toLowerCase() !== catalogPath.toLowerCase() ||
-                approvedReference.sha256 !== catalogArtifact.sha256) {
-              fail(
-                "human-script-approval",
-                `signed approval ${label} does not match the evidence-package catalog path/checksum.`,
-                [receiptArtifact.artifactId, catalogArtifact.artifactId],
-              );
-            }
-          };
-          compareApprovedArtifact(receipt.artifacts?.script, scriptArtifact, "script");
-          compareApprovedArtifact(receipt.artifacts?.truthSheet, truthSheetArtifact, "truth sheet");
-          compareApprovedArtifact(receipt.artifacts?.claimLedger, claimLedgerArtifact, "claim ledger");
-          compareApprovedArtifact(receipt.finalCaptureInput, storyboardArtifact, "final-capture input");
-          if (receipt.decision !== "APPROVED" || !Number.isFinite(approvedAt)) {
-            fail("human-script-approval", "script approval receipt lacks an APPROVED decision and valid approval time.", [receiptArtifact.artifactId]);
-          } else if (Number.isFinite(finalCaptureStartedAt) && approvedAt > finalCaptureStartedAt) {
-            fail("human-script-approval", "named-human script approval occurred after final capture started.", [receiptArtifact.artifactId]);
-          }
-          if (signatureArtifact && scriptArtifact && truthSheetArtifact && claimLedgerArtifact && storyboardArtifact) {
-            runCanonicalValidator("validate-script-approval.mjs", [
-              "--receipt", artifactPath(receiptArtifact.artifactPath),
-              "--signature", artifactPath(signatureArtifact.artifactPath),
-              "--candidate-id", candidateId,
-              "--episode-id", receipt.episodeId,
-              "--receipt-artifact-id", receiptArtifact.artifactId,
-              "--signature-artifact-id", signatureArtifact.artifactId,
-              "--script-artifact-id", scriptArtifact.artifactId,
-              "--truth-sheet-artifact-id", truthSheetArtifact.artifactId,
-              "--claim-ledger-artifact-id", claimLedgerArtifact.artifactId,
-              "--final-capture-input-artifact-id", storyboardArtifact.artifactId,
-            ], ["human-script-approval"], [
-              reference.artifactId, receiptArtifact.artifactId, signatureArtifact.artifactId,
-              scriptArtifact.artifactId, truthSheetArtifact.artifactId, claimLedgerArtifact.artifactId, storyboardArtifact.artifactId,
-            ]);
-          }
-        } catch (error) {
-          fail("human-script-approval", `script approval receipt is invalid JSON: ${error.message}`, [receiptArtifact.artifactId]);
-        }
-      }
-    }
     if (!Array.isArray(report.checks) || report.checks.length === 0 || !object(report.summary)) {
       fail("artifact-completeness", `reports.${reportType} has no deterministic checks/summary.`, [reference.artifactId]);
       continue;
@@ -502,12 +435,6 @@ if (!object(evidencePackage.reports)) {
           fail(check.id, `craft contract check must cite its checksum-bound ${requiredType ?? "canonical"} input.`, [reference.artifactId]);
         }
       }
-      if (reportType === "scriptApprovalVerification" &&
-          (check.id !== "human-script-approval" ||
-           !["script-approval", "signature", "script", "truth-sheet", "claim-ledger", "storyboard"]
-             .every((type) => check.evidenceArtifactIds.some((id) => artifacts.get(id)?.type === type)))) {
-        fail("human-script-approval", "script approval check must cite its receipt, signature, script, truth-sheet, and claim-ledger inputs.", [reference.artifactId]);
-      }
       aggregate.get(check.id).push({ passed: check.passed, reportType, evidenceIds });
       if (check.passed) passed += 1;
       else failed += 1;
@@ -520,10 +447,6 @@ if (!object(evidencePackage.reports)) {
         (seen.size !== 3 || !seen.has("storyboard-craft-contract") ||
          !seen.has("capture-manifest-craft-contract") || !seen.has("beat-timing-deltas"))) {
       fail("artifact-completeness", "craft contract validation must contain exactly storyboard, capture-manifest, and beat-timing checks.", [reference.artifactId]);
-    }
-    if (reportType === "scriptApprovalVerification" &&
-        (seen.size !== 1 || !seen.has("human-script-approval"))) {
-      fail("artifact-completeness", "script approval verification must contain exactly the human-script-approval check.", [reference.artifactId]);
     }
     if (reportType === "craftContractValidation") {
       if (!Array.isArray(report.measurements) || report.measurements.length === 0) {

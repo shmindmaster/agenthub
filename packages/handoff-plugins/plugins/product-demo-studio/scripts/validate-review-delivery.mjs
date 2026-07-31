@@ -70,7 +70,7 @@ try {
 
 const rootKeys = [
   "schemaVersion", "classification", "candidate", "sourceRepository", "delivery",
-  "gates", "humanReview", "files", "createdAt",
+  "gates", "files", "createdAt",
 ];
 if (exactObject(manifest, "$", rootKeys)) {
   if (manifest.schemaVersion !== "1.0.0") fail("$.schemaVersion", 'must equal "1.0.0".');
@@ -91,12 +91,6 @@ if (exactObject(manifest, "$", rootKeys)) {
     const expectedPackagePath = stagingTarget ? resolve(stagingTarget) : dirname(manifestPath);
     if (resolve(manifest.delivery.packagePath) !== expectedPackagePath) {
       fail("$.delivery.packagePath", "must resolve to the final package directory.");
-    }
-  }
-  if (exactObject(manifest.humanReview, "$.humanReview", ["status", "publicationApproved"])) {
-    if (manifest.humanReview.status !== "pending") fail("$.humanReview.status", 'must equal "pending".');
-    if (manifest.humanReview.publicationApproved !== false) {
-      fail("$.humanReview.publicationApproved", "must be false.");
     }
   }
   if (exactObject(manifest.gates, "$.gates", ["arbiterDecision", "finalVerification"])) {

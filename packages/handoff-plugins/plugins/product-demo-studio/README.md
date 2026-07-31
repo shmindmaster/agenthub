@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.5.0**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.5.2**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Product repositories retain their product-specific capture/render implementations and
 map evidence into this shared contract. The reviewed mapping is documented in
@@ -27,14 +27,18 @@ with no crop upscaling, honest dead-time/text-entry treatment, annotation readin
 DOM-interactive derivative strategy.
 Version 1.5 makes those craft contracts fail closed in deterministic preflight, derives delivery
 pixel density from real geometry, requires beat timing evidence, and adds canonical-rubric isolation,
-symmetric pass/fail evidence, calibration, two-attempt remediation limits, tightening-only vertical
-overlays, permanent human script/final-watch gates, and capability-detected GPU-first media work
-with checksum-bound acceleration provenance and deterministic CPU fallback. Preflight reruns the
-canonical script-approval and craft validators against their checksum-bound inputs, binds approval
-ordering to immutable final-capture start provenance, and rejects acceleration selections that do
-not match functional probes. Reviewer calibration receipts bind both fixture input and derived
+symmetric pass/fail evidence, calibration, tightening-only vertical overlays, and capability-
+detected GPU-first media work with checksum-bound acceleration provenance and deterministic CPU
+fallback. Version 1.5's fixed retry and human checkpoints are superseded by 1.5.2. Preflight reruns
+the canonical craft validators against their checksum-bound inputs and rejects acceleration
+selections that do not match functional probes. Reviewer calibration receipts bind both fixture input and derived
 result-payload hashes, while remediation families use fingerprints derived from stable accepted-
 finding category/routing identity instead of IDs, mutable review wording, or caller-selected labels.
+Version 1.5.2 removes cryptographic signing, trust registries, the reviewer broker, and intermediate
+human approval gates. It keeps operational read-only execution receipts, makes acceptance and
+refinement autonomous through the terminal independent verifier, and reuses the existing
+`D:\AI-Platform` CUDA runtime on demand without installing or starting another service. The first
+human touchpoint is the final presentation.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with
@@ -82,9 +86,9 @@ host copy (see `tests/Validate-AgentEcosystem.ps1`'s `deployment-freshness:*` ch
 | `product-demo-studio-capture` | Deterministic browser-automation capture conventions: fixed viewports, reduced motion, discover-first auth, seeded data only, capture manifests, redaction rules. |
 | `product-demo-studio-visual-assets` | Marketing/journey visual survey, non-product-UI asset generation, current model/voice verification, provenance, disclosure, and accessibility. |
 | `product-demo-studio-narration` | Provider-agnostic TTS narration: generation, segment-level regeneration, timing, narration style. |
-| `product-demo-studio-render` | Render orchestration, the video/scene catalog schema, the product-claim ledger, and the evidence gate that must pass before a render is "approved" for external use. |
+| `product-demo-studio-render` | Render orchestration, the video/scene catalog schema, the product-claim ledger, and the automated evidence gate that must pass before a render is accepted. |
 | `product-demo-studio-qa` | Immutable evidence package, deterministic preflight, four independent schema-valid reviews, release arbitration, remediation/rerender, and mandatory final independent review and verification. |
-| `product-demo-studio-descript` | Optional third-party editorial finishing. Any edit creates a new candidate and forces new evidence/review/attestation; publishing requires explicit authorization. |
+| `product-demo-studio-descript` | Optional third-party editorial finishing. Any edit creates a new candidate and forces new evidence/review/final verification; publishing requires explicit task authority. |
 
 ## Agents
 
@@ -113,12 +117,11 @@ source-inventory check and makes no live deployment or runtime-parity claim. A l
 `--live-deployment-report <path>` with exact canonical contract hashes plus per-host deployment,
 native-isolation, and smoke-test evidence.
 
-The host, not the agent, must emit an exact execution receipt and detached Ed25519 signature.
-`AGENTHUB_EXECUTION_HOST_TRUST_CONFIG` selects the operator-owned registry of enabled host keys,
-authorized roles, isolation mechanisms, and read-only tool classes. Agents cannot author or sign
-their own receipts. Missing trust configuration, an unknown or disabled host key, an unauthorized
-permission, or any receipt/signature mismatch fails closed and routes the candidate to
-`PIPELINE_BLOCKED`.
+Each isolated role records one small execution receipt containing the role, context, candidate,
+host-native read-only mechanism, tool classes, and timestamps. It is an operational trace, not a
+security attestation; enforcement comes from launching the host's native restricted role/context.
+No signing service, key registry, broker, or resident process is required. A host without that
+restricted context routes the candidate to `PIPELINE_BLOCKED`.
 
 ## Contracts and release policy
 
@@ -132,11 +135,11 @@ Synchronization >= 95; and complete passes for accuracy, compliance, privacy, te
 integrity, browser playback, claims, checksums, provenance, captions, synchronization, and visual
 integrity. After arbiter `PASS`, the mandatory terminal independent reviewer/verifier must return a
 schema-valid `PASS` for the exact unchanged candidate before packaging, delivery, or release.
-Machine `PASS` remains separate from external publication approval. Publication requires
-a detached Ed25519 signature over the exact approval-receipt bytes; the receipt binds the candidate,
-arbiter, final verification, named-human watch-through, synthetic-data confirmation, classification,
-and redaction decision. `AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY` must reference the trusted
-Ed25519 public-key PEM. Missing, non-Ed25519, mismatched, or invalid keys fail closed.
+Acceptance is automated. The pipeline iterates through remediation and fresh candidates until the
+arbiter and terminal independent verifier both return schema-valid `PASS`, or it produces an
+evidence-backed product/pipeline blocker. The first human touchpoint is presentation of that final
+candidate or blocker report. Public publishing is a separate consequential action outside this
+automated acceptance contract.
 
 ## Scripts
 
@@ -149,8 +152,7 @@ invoked from the plugin against a target repo — never copied into one:
   package all`).
 - `package-review.mjs` / `validate-review-delivery.mjs` — resolve an AgentHub-owned
   product-to-OneDrive mapping, require arbiter and mandatory final-verifier `PASS`, and create a
-  non-overwriting `Review/<candidateId>` package marked `review-only` with pending human review.
-  This is not publication approval.
+  non-overwriting `Review/<candidateId>` package marked `review-only` for final presentation.
 - `validate-interactive-deep-dive.mjs` — validates role routing, deep-linkable operational scenes,
   interactive proof/evidence, adjacent trust controls, contextual CTAs, instrumentation,
   accessibility fallbacks, and synthetic sandbox safety without requiring fabricated metrics or
@@ -178,13 +180,11 @@ invoked from the plugin against a target repo — never copied into one:
   generation with tool/command/input provenance.
 - `validate-craft-contracts.mjs` / `preflight.mjs` — checksum-bound storyboard/capture validation,
   complete episode/segment coverage, ffprobe-measured raw-capture geometry, fail-closed evidence-
-  package timing/provenance, canonical validator reruns, capture-start approval ordering, and
+  package timing/provenance, canonical validator reruns, and
   deterministic-report gates before review.
 - `validate-reviewer-calibration.mjs` — derives known-bad and clean-pass calibration outcomes from
-  criterion-level reviewer outputs and evidence, then verifies trusted signed receipts that bind
+  criterion-level reviewer outputs and evidence, then verifies execution receipts that bind
   the exact fixture-input and derived result-payload hashes.
-- `validate-script-approval.mjs` — verifies the named human's detached signature over the exact
-  candidate/episode, final-capture input, script, truth sheet, and claim ledger.
 - `detect-media-acceleration.mjs` — functionally probes NVENC and a local CUDA inference runtime,
   selects compatible GPU-first media paths, and emits checksumable fallback provenance; preflight
   rejects any selected encoder/device that did not pass those probes.
@@ -194,9 +194,8 @@ invoked from the plugin against a target repo — never copied into one:
 - `validate-claims.mjs` / `validate-capture-manifest.mjs` — hand-rolled schema validators for the
   product-claim ledger and capture manifests, including screen-space utilization,
   cursor/action/click choreography, and narration synchronization.
-- `check-evidence-gate.mjs` — validates the release-evidence graph and verifies the detached
-  Ed25519 publication-approval signature before a render can be treated as approved for external
-  use. The manifest and receipt are separate immutable files; the raw signature is exactly 64 bytes.
+- `check-evidence-gate.mjs` — validates the exact candidate, PASS arbiter decision, and PASS final
+  verification hashes before a render can be treated as accepted.
 
 ## Design notes
 

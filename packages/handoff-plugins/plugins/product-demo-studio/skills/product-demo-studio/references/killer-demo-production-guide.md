@@ -266,7 +266,7 @@ Example presets by audience (starting points to audition, not fixed assignments)
 
 Record the resolved `instructions` and `speed` per segment in the episode manifest — delivery is part of the reproducible config.
 
-**ASR / transcription (the Audio QA gate depends on it).** The speech endpoint returns audio only. Word-level timestamps — needed to compare final narration against the approved script and to build caption files — come from a transcription model (e.g. current `gpt-4o-mini-transcribe`). Don't hand-align captions or QA when timestamps are available.
+**ASR / transcription (the Audio QA gate depends on it).** The speech endpoint returns audio only. Word-level timestamps — needed to compare final narration against the validated script and to build caption files — come from a transcription model (e.g. current `gpt-4o-mini-transcribe`). Don't hand-align captions or QA when timestamps are available.
 
 **Caching.** Cache audio by a hash of provider, model, voice, input, instructions, speed, format, and pronunciation map; reuse exact hits; never duplicate a successful request across API keys. (Because `instructions` is in the hash, changing delivery correctly busts the cache.)
 
@@ -306,7 +306,7 @@ Per-episode verdict: **PASS** (no product-fix-required defects), **CONDITIONAL**
 
 **4. Storyboard.** One narration segment = one visible beat. Per segment: ID, on-screen action, expected state, spoken text, pronunciation notes, emphasis, pauses, expected audio duration, timeline position, and a one-line WIIFM. Encode the craft/persuasion beats: cold-open and hook placement, where the before-state is shown, the hero moment's exact placement and staging, hold-for-result moments, dead-time cuts, speed-ramp points, kinetic-type callouts, and the eye-direction cue (≤2 at once, progressive, removed when done). Enforce a **pattern-interrupt cadence:** no stretch longer than ~15s without a change in pace, visual, or sound.
 
-**5. Narration.** Write and approve narration (Part 4) *before* final capture; drive the recording plan from measured durations. Screen state appears before it's described; lead the eye for actions, lag it for results; never speed the workflow just to fit audio — fix the script first.
+**5. Narration.** Write and automatically validate narration (Part 4) *before* final capture; drive the recording plan from measured durations. Screen state appears before it's described; lead the eye for actions, lag it for results; never speed the workflow just to fit audio — fix the script first.
 
 **6. Capture.** Drive the take from repository-owned Playwright coverage so it can be regenerated
 when UI changes. Use fresh synthetic seeded data, a dedicated demo identity, clean profile,
@@ -360,7 +360,7 @@ If a master can't clear this even after re-edit: if the cause is capture/edit, r
 ## 5.4 Correctness / QA gates
 
 - **Screen QA:** data accuracy, readability, layout defects, cursor placement, correct role/permissions, no stray loading/error states, no sensitive info, branding consistency, no unsupported claims.
-- **Audio QA:** pacing, pauses, emphasis, pronunciation, voice consistency, no monotony/clipping/noise/silence-dropouts, consistent volume, music ducking. Transcribe the final narration and compare to the approved script with **word-level timestamps** (flag missing/added words, wrong names/numbers, drift).
+- **Audio QA:** pacing, pauses, emphasis, pronunciation, voice consistency, no monotony/clipping/noise/silence-dropouts, consistent volume, music ducking. Transcribe the final narration and compare to the validated script with **word-level timestamps** (flag missing/added words, wrong names/numbers, drift).
 - **Sync QA:** each segment matches its beat; actions and speech in correct order; pauses align with transitions/reading; results stay visible after their narration; burned captions align with final audio.
 - **Technical QA (fail closed):** valid checksum; expected codec/resolution/frame rate; valid audio stream; black-frame, freeze, silence-dropout, and clipping detection; representative frames extracted; complete manifests.
 - **Compliance QA (fail closed):** if the narration is synthetic, the master carries a **clear AI-voice disclosure** (on-screen credit, end-card line, or description note) — this is a provider policy requirement, not a preference, and a site-wide AI disclaimer elsewhere does not satisfy it. Also verify: no real customer/patient/personal data visible; no third-party logos or trademarks the product isn't licensed to show; any generated imagery disclosed where a viewer would assume photography.
@@ -396,7 +396,7 @@ The whole process above can run as a code-driven pipeline that also emits **hund
 
 ## 6.1 The six stages
 
-1. **Script as source of truth** — the structured, timed script (Part 4.6). An LLM can draft the script, the capture code, and the composition from a feature description + a walkthrough; a human reviews the script. This is the real "automate with code" leverage.
+1. **Script as source of truth** — the structured, timed script (Part 4.6). An LLM can draft the script, capture code, and composition from a feature description + walkthrough; deterministic checks and an isolated reviewer validate the script without an intermediate human gate. This is the real "automate with code" leverage.
 2. **Deterministic capture** — drive the *real* app with **Playwright** (the 2026 default; Puppeteer if Chrome-only) against a **seeded demo environment** so runs are identical. Record via Playwright video / CDP screencast; trace-to-video tools can hide login/setup noise. Capture clean and un-annotated.
 3. **Voice synthesis** — TTS from the narration field (Part 4.7), requesting **word-level timestamps** for sync + captions.
 4. **Composite & edit** — **Remotion** (React, data-driven, version-controlled; renders through headless Chromium so any web styling reproduces) assembles capture + zoom/pan + annotations + captions + audio, parameterized by the script. Motion Canvas / Revideo are generator-style alternatives.
@@ -405,7 +405,7 @@ The whole process above can run as a code-driven pipeline that also emits **hund
 
 ## 6.2 Tools (mid-2026)
 
-Capture: **Playwright** (+ seeded env). Composite/render: **Remotion** (on serverless for batch). Voice: per Part 4.7 (ElevenLabs v3 / OpenAI / Chirp 3 HD / Cartesia / Hume / open-source). Script + codegen: an LLM generating script, capture, and composition, human-reviewed.
+Capture: **Playwright** (+ seeded env). Composite/render: **Remotion** (on serverless for batch). Voice: per Part 4.7 (ElevenLabs v3 / OpenAI / Chirp 3 HD / Cartesia / Hume / open-source). Script + codegen: an LLM generating script, capture, and composition, independently machine-reviewed.
 
 ## 6.3 Personalization at scale
 
@@ -415,9 +415,9 @@ Because stages 1 and 4 are data-driven, one template emits N variants — each w
 
 One clean capture → a family: **90s sales cut** → **30s social cut** (hero + payoff) → **10–15s teaser** (hero only) → **silent GIF loop** (the single most satisfying beat) → **vertical 9:16, captions always on**. Cut-downs re-use the approved master's capture and audio — no new claims, no new capture — so integrity and provenance carry through. Localization is nearly free with TTS.
 
-## 6.5 Keep humans in the loop
+## 6.5 Automate intermediate acceptance
 
-Even fully automated, keep two gates: a **review of the script** before rendering, and a **final QA watch** before send. Consider a real human voice for flagship heroes and TTS for the scaled long tail.
+Do not add human checkpoints during generation, review, or remediation. Use deterministic validation plus isolated reviewers, rerender and re-review until every acceptance criterion passes or evidence proves a genuine blocker, then present the final result to the human. Consider a real human voice for flagship heroes and TTS for the scaled long tail.
 
 ---
 
@@ -434,7 +434,7 @@ Track per demo: **completion rate / average watch %**, **drop-off timestamps** (
 - **Capture:** Playwright + seeded env → video/trace
 - **Voice:** a premium voice for heroes, a cheaper API voice for scaled variants, an open-source model where data can't leave your infra
 - **Composite/render:** Remotion, on serverless for batch personalization
-- **Script/codegen:** LLM-generated script + capture + composition, human-reviewed
+- **Script/codegen:** LLM-generated script + capture + composition, independently machine-reviewed
 - **Distribute:** analytics-enabled host with per-prospect pages
 
 **First move:** don't start with the flagship. Build the capture → voice → render loop end-to-end on the cheapest format (an internal walkthrough or onboarding chapter), then point the same machine at personalized demos.
@@ -461,7 +461,7 @@ cold open; 2) run the Demo-Worthiness Assessment against the live product, class
 capture-fixable or product-fix-required, and verdict each episode PASS/CONDITIONAL/FAIL —
 produce only PASS/CONDITIONAL, route FAIL to the feedback report, and if all FAIL ship zero
 videos; 3) truth sheet + accuracy verification; 4) storyboard with one-beat-per-segment and the
-encoded craft/persuasion cues; 5) write and approve narration before capture; 6) capture clean,
+encoded craft/persuasion cues; 5) write and automatically validate narration before capture; 6) capture clean,
 deterministic, un-annotated takes with a capture manifest; 7) render with burned captions and
 sound design; 8) pass the Craft & Persuasion gate (5.3) and the correctness/QA gates (5.4); then
 deliver per 5.5 and record provenance per 5.6. Do not claim completion without verified evidence,

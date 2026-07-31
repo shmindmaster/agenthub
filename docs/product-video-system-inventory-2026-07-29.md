@@ -81,9 +81,10 @@ arbiter reviewing an actual product candidate.
 - The Verigence operating-model mirror still describes older SH-1707–1713 tooling while current
   SH-2061 is demand-gated.
 
-The Produce Demo Video prompt must be superseded by the deployed AgentHub 1.0 workflow. The
-replacement should describe automatic preflight/review/arbitration as one orchestrated capability,
-not a manual approval ceremony, while preserving the separate human external-publication gate.
+The Produce Demo Video prompt is superseded by the current AgentHub Product Demo Studio workflow.
+The replacement describes automatic preflight, independent review, remediation, arbitration, and
+terminal verification as one orchestrated capability with no intermediate human approval record.
+The first human touchpoint is final presentation.
 
 ## CI, deployment, and release evidence
 
@@ -93,20 +94,18 @@ not a manual approval ceremony, while preserving the separate human external-pub
 - Capture against a deployed product was observed in ABACare, Lawli, SubOps, and Verigence; this
   does not prove video publication or production approval.
 - AgentHub validation is configuration validation, not a build/release pipeline. Product Demo
-  Studio contract/version checks belong in the existing repository-native validator and approved
-  self-hosted validation path; no hosted Actions workflow is added by this consolidation.
-- The redundant `copilot-setup-steps.yml` workflow was removed. The sole remaining workflow is
-  repository validation on the existing self-hosted DigitalOcean runner; this consolidation did
-  not dispatch it.
+  Studio contract/version checks run through the local repository-native validators.
+- AgentHub defines no GitHub Actions workflows. The retired DigitalOcean runner is not part of the
+  validation path.
 
-## Canonical 1.0 migration
+## Canonical migration
 
-- Product Demo Studio manifests are versioned `1.0.0`; its full package tree is the registry hash
+- Product Demo Studio manifests are versioned `1.5.2`; its full package tree is the registry hash
   basis.
 - Thirteen canonical prompts replace the overlapping five-reviewer split with five generation/
   preflight roles, four isolated reviewers, an arbiter, remediation, and a fresh final verifier.
 - Evidence, delivery-spec, deterministic-report, preflight, finding, review, remediation,
-  decision, final-verification, execution-receipt, host-trust, and release-evidence schemas are
+  decision, final-verification, execution-receipt, and release-evidence schemas are
   fail-closed and versioned.
 - Real FFmpeg media tests prove codec/resolution/fps/color/audio/fast-start/decode/duplicate/frame/
   loudness checks and checksum-bound deterministic output; forged paths, policy drift, malformed
@@ -120,8 +119,8 @@ not a manual approval ceremony, while preserving the separate human external-pub
   bytes.
 - Eighteen registered host mappings reference one source contract. This is static inventory, not
   proof of deployment or runtime parity. An orchestration-capable host may attempt review only
-  when a live smoke report proves the deployed contract hash and the host emits a trusted,
-  signed read-only execution receipt. Every unverified, broad-write, or prompt-only context fails
+  when a live smoke report proves the deployed contract hash and the host records a read-only
+  execution receipt. Every unverified, broad-write, or prompt-only context fails
   closed.
 
 ## Snapshot revisions

@@ -58,7 +58,7 @@ checksums, and provenance are present. A test that references a missing fixture 
 
 ### Use one narration-aware output timeline
 
-Generate and approve narration before final capture; measured clip and word durations drive the
+Generate and automatically validate narration before final capture; measured clip and word durations drive the
 shot plan. Do not synthesize inside the recorded browser session or speed-ramp provider latency.
 After cuts or acceleration, emit one source-to-output time map and place narration, word-level
 captions, actions, camera cues, and evidence boundaries through that same map. Reject overlap,

@@ -270,14 +270,11 @@ function validateArtifactReference(value, path) {
 }
 
 function validateExecutionReceipt(reference, path, expected) {
-  if (!exactObject(reference, path, ["receipt", "signature"])) return undefined;
-  const load = (artifactReference, label, { signature = false } = {}) => {
+  if (!exactObject(reference, path, ["receipt"])) return undefined;
+  const load = (artifactReference, label) => {
     if (!exactObject(artifactReference, label, ["artifactPath", "sha256", "bytes"])) return undefined;
     if (!Number.isInteger(artifactReference.bytes) || artifactReference.bytes < 1) {
       fail(`${label}.bytes`, "must be a positive integer.");
-    }
-    if (signature && artifactReference.bytes !== 64) {
-      fail(`${label}.bytes`, "must equal 64 for a raw Ed25519 signature.");
     }
     const artifact = readArtifact(
       artifactReference.artifactPath,
@@ -288,20 +285,15 @@ function validateExecutionReceipt(reference, path, expected) {
     if (artifact.size !== artifactReference.bytes) {
       fail(`${label}.bytes`, `does not match "${artifact.absolutePath}" (actual ${artifact.size}).`);
     }
-    if (signature && artifact.size !== 64) {
-      fail(label, "must contain exactly 64 raw Ed25519 signature bytes.");
-    }
     return artifact;
   };
   const artifact = load(reference.receipt, `${path}.receipt`);
-  const signature = load(reference.signature, `${path}.signature`, { signature: true });
-  if (!artifact || !signature) return undefined;
+  if (!artifact) return undefined;
   const receipt = parseJsonArtifact(artifact, `${path}.receipt`);
   if (!receipt) return undefined;
   const validation = spawnSync(process.execPath, [
     executionReceiptValidatorPath,
     artifact.absolutePath,
-    signature.absolutePath,
   ], {
     encoding: "utf8",
   });
@@ -443,8 +435,8 @@ try {
 const canonicalPolicySha = digest(canonicalPolicyBytes);
 const canonicalPreflightCheckIds = new Set(canonicalPreflightSchema?.$defs?.checkId?.enum ?? []);
 const canonicalPreflightSubsystems = new Set(canonicalPreflightSchema?.$defs?.subsystem?.enum ?? []);
-if (canonicalPreflightCheckIds.size !== 20) {
-  console.error(`[error] ${canonicalPreflightSchemaPath}: must define exactly 20 unique preflight check IDs.`);
+if (canonicalPreflightCheckIds.size !== 19) {
+  console.error(`[error] ${canonicalPreflightSchemaPath}: must define exactly 19 unique preflight check IDs.`);
   process.exit(1);
 }
 if (canonicalPreflightSubsystems.size === 0) {
@@ -723,8 +715,8 @@ if (exactObject(decision, "$", commonRequired, optional)) {
     ])) {
       // exactObject records the missing or malformed plan.
     } else {
-      if (!Number.isInteger(decision.remediationPlan.attempt) || decision.remediationPlan.attempt < 1 || decision.remediationPlan.attempt > 2) {
-        fail("$.remediationPlan.attempt", "must be automated remediation attempt 1 or 2; a third automated attempt is forbidden.");
+      if (!Number.isInteger(decision.remediationPlan.attempt) || decision.remediationPlan.attempt < 1) {
+        fail("$.remediationPlan.attempt", "must be a positive sequential automated remediation attempt.");
       }
       sha(decision.remediationPlan.findingFamilyFingerprint, "$.remediationPlan.findingFamilyFingerprint");
       const expectedHistoryLength = Number.isInteger(decision.remediationPlan.attempt)

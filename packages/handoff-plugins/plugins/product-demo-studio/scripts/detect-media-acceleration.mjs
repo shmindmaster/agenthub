@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Detect compatible local media acceleration and emit a checksumable render-provenance manifest.
 // Usage: node detect-media-acceleration.mjs --out <media-acceleration.json>
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 
@@ -34,21 +34,41 @@ const usableNvencEncoders = nvidiaAvailable ? nvencEncoders.filter((encoder) => 
   ], { encoding: "utf8" });
   return probe.status === 0;
 }) : [];
-const inferenceProbe = spawnSync("python", [
-  "-c",
-  "import json, torch; print(json.dumps({'engine':'pytorch','available':True,'cudaUsable':bool(torch.cuda.is_available()),'detail':('torch '+torch.__version__+' cuda '+str(torch.version.cuda))}))",
-], { encoding: "utf8" });
 let inference = {
   engine: null,
   available: false,
   cudaUsable: false,
   detail: "No supported local CUDA inference runtime was functionally probed.",
 };
-if (inferenceProbe.status === 0) {
+const sharedRegistryPath = "D:\\AI-Platform\\media\\registry.json";
+const inferenceRuntimes = [];
+if (process.env.AGENTHUB_LOCAL_AI_PYTHON) inferenceRuntimes.push(process.env.AGENTHUB_LOCAL_AI_PYTHON);
+if (existsSync(sharedRegistryPath)) {
   try {
-    inference = JSON.parse(inferenceProbe.stdout.trim().split(/\r?\n/).at(-1));
+    const registry = JSON.parse(readFileSync(sharedRegistryPath, "utf8"));
+    for (const capability of registry.capabilities ?? []) {
+      if (capability.status === "enabled" && typeof capability.runtime === "string") {
+        inferenceRuntimes.push(capability.runtime);
+      }
+    }
   } catch {
-    inference.detail = "The local inference probe returned malformed output.";
+    inference.detail = `Shared runtime registry could not be parsed: ${sharedRegistryPath}`;
+  }
+}
+inferenceRuntimes.push("python");
+for (const runtime of [...new Set(inferenceRuntimes)]) {
+  if (runtime !== "python" && !existsSync(runtime)) continue;
+  const probe = spawnSync(runtime, [
+    "-c",
+    "import json, torch; ok=bool(torch.cuda.is_available()); print(json.dumps({'engine':'pytorch','available':True,'cudaUsable':ok,'detail':('shared runtime '+torch.__version__+' cuda '+str(torch.version.cuda))}))",
+  ], { encoding: "utf8" });
+  if (probe.status !== 0) continue;
+  try {
+    const result = JSON.parse(probe.stdout.trim().split(/\r?\n/).at(-1));
+    inference = { ...result, detail: `${result.detail}; executable=${runtime}` };
+    if (inference.cudaUsable) break;
+  } catch {
+    inference.detail = `The local inference probe returned malformed output from ${runtime}.`;
   }
 }
 const gpuVideoAvailable = usableNvencEncoders.length > 0;

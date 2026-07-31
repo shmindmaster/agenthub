@@ -41,7 +41,7 @@ evidence.
    and include the required clear synthetic-voice disclosure in every public/customer-facing
    master and derivative.
 7. Record prompts, seeds where supported, source files, transforms, licenses, disclosures,
-   checksums, and a named human release decision.
+   checksums, and the automated acceptance decision.
 8. Validate the asset in its real page/video context at representative responsive sizes,
    light/dark mode, zoom, reduced motion, and with assistive text alternatives.
 
@@ -106,7 +106,7 @@ evidence. Generative expand on product UI is a trust failure.
 2. Output matches brand tokens (ABACare: ultraviolet primary, intelligence cyan, calm care tone) or
    an explicit approved campaign look.
 3. No invented metrics, fake UI chrome, or AI fantasy hero loops on public product pages.
-4. Manifest / provenance records model or app path, disclosure if required, and human release.
+4. Manifest / provenance records model or app path, disclosure if required, and automated acceptance.
 
 ## Full media stack map (website · marketing · demos · social)
 
@@ -161,5 +161,5 @@ Integrity (unchanged):
 2. Recapture honest product stills and demo plates.
 3. Optional: OpenAI/Adobe non-product brand imagery + grade.
 4. Narrate (ElevenLabs or OpenAI TTS) → Remotion master.
-5. Optional: Descript social cut / share link after approval.
+5. Optional: Descript social cut / share link after automated acceptance and explicit publication authority.
 6. Canva/Adobe for channel collateral only.

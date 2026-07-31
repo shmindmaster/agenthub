@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-// Fail-closed publication gate. Approval is accepted only from a detached
-// Ed25519 signature over an immutable receipt bound to the exact candidate,
-// PASS arbiter decision, and PASS mandatory terminal independent final-verification report.
+// Automated release-evidence gate. It binds the exact candidate to a PASS arbiter
+// decision and a PASS mandatory terminal independent final-verification report.
 //
 // Usage: node check-evidence-gate.mjs --manifest <path> [--text <path>]
-import { createHash, createPublicKey, verify as verifySignature } from "node:crypto";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -31,7 +30,7 @@ for (let index = 0; index < args.length; index += 2) {
 const manifestArg = flag("--manifest");
 if (!argumentsValid || !manifestArg) {
   console.error("Usage: node check-evidence-gate.mjs --manifest <path> [--text <path>]");
-  console.error("Approval requires a durable manifest; inline approval flags are not supported.");
+  console.error("Acceptance requires a durable evidence manifest; inline pass flags are not supported.");
   process.exit(1);
 }
 
@@ -40,8 +39,6 @@ const manifestDir = dirname(manifestPath);
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const SHA256 = /^[a-f0-9]{64}$/;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const RECEIPT_ID = /^PVA-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
-const PLACEHOLDER_NAMES = new Set(["", "todo", "tbd", "reviewer", "changeme", "xxx", "agent", "ai"]);
 const errors = [];
 
 function fail(path, message) {
@@ -150,130 +147,6 @@ function validateFile(reference, label, containingPath, parseAsJson = false) {
   };
 }
 
-function loadTrustedPublicationKey() {
-  const configuredPath = process.env.AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY;
-  if (!configuredPath || configuredPath.trim().length === 0) {
-    fail(
-      "AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY",
-      "must reference the trusted Ed25519 public key PEM used for publication approval.",
-    );
-    return null;
-  }
-  const absolute = resolve(configuredPath);
-  if (!existsSync(absolute)) {
-    fail("AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY", `does not reference a file: ${absolute}`);
-    return null;
-  }
-  try {
-    if (!statSync(absolute).isFile()) {
-      fail("AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY", `does not reference a file: ${absolute}`);
-      return null;
-    }
-  } catch (error) {
-    fail("AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY", `cannot be inspected: ${error.message}`);
-    return null;
-  }
-  let pem;
-  try {
-    pem = readFileSync(absolute);
-  } catch (error) {
-    fail("AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY", `cannot be read: ${error.message}`);
-    return null;
-  }
-  const pemText = pem.toString("utf8");
-  if (!pemText.includes("-----BEGIN PUBLIC KEY-----") || pemText.includes("PRIVATE KEY")) {
-    fail(
-      "AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY",
-      "must contain a public-key-only PEM; private-key material is forbidden.",
-    );
-    return null;
-  }
-  try {
-    const key = createPublicKey(pem);
-    if (key.asymmetricKeyType !== "ed25519") {
-      fail(
-        "AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY",
-        `must contain an Ed25519 public key, found ${key.asymmetricKeyType ?? "unknown"}.`,
-      );
-      return null;
-    }
-    const fingerprint = digest(key.export({ type: "spki", format: "der" }));
-    return { absolute, key, fingerprint };
-  } catch (error) {
-    fail("AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY", `is not a valid public key: ${error.message}`);
-    return null;
-  }
-}
-
-function validateApprovalReceipt(receipt, manifest) {
-  const path = "$.approvalReceipt.document";
-  const required = [
-    "schemaVersion",
-    "receiptId",
-    "signatureAlgorithm",
-    "approverPublicKeySha256",
-    "candidateId",
-    "candidateSha256",
-    "candidateBytes",
-    "arbiterDecisionSha256",
-    "finalVerificationSha256",
-    "reviewerIdentity",
-    "reviewedAt",
-    "classification",
-    "watchThroughStatus",
-    "syntheticDataConfirmed",
-    "redactionNotes",
-  ];
-  if (!exactObject(receipt, path, required)) return;
-  if (receipt.schemaVersion !== "1.0.0") fail(`${path}.schemaVersion`, 'must equal "1.0.0".');
-  if (typeof receipt.receiptId !== "string" || !RECEIPT_ID.test(receipt.receiptId)) {
-    fail(`${path}.receiptId`, "must be a canonical PVA approval-receipt identifier.");
-  }
-  if (receipt.signatureAlgorithm !== "Ed25519") {
-    fail(`${path}.signatureAlgorithm`, 'must equal "Ed25519".');
-  }
-  if (typeof receipt.approverPublicKeySha256 !== "string" ||
-      !SHA256.test(receipt.approverPublicKeySha256)) {
-    fail(`${path}.approverPublicKeySha256`, "must be a lowercase SHA-256 digest.");
-  }
-  if (receipt.candidateId !== manifest.candidateId) {
-    fail(`${path}.candidateId`, "must match manifest candidateId.");
-  }
-  if (receipt.candidateSha256 !== manifest.sha256) {
-    fail(`${path}.candidateSha256`, "must match the exact publication asset digest.");
-  }
-  if (receipt.candidateBytes !== manifest.bytes) {
-    fail(`${path}.candidateBytes`, "must match the exact publication asset byte count.");
-  }
-  if (receipt.arbiterDecisionSha256 !== manifest.arbiterDecision?.sha256) {
-    fail(`${path}.arbiterDecisionSha256`, "must match the exact PASS arbiter decision digest.");
-  }
-  if (receipt.finalVerificationSha256 !== manifest.finalVerification?.sha256) {
-    fail(`${path}.finalVerificationSha256`, "must match the exact PASS final-verification digest.");
-  }
-  if (!nonEmpty(receipt.reviewerIdentity, `${path}.reviewerIdentity`) ||
-      PLACEHOLDER_NAMES.has(receipt.reviewerIdentity.toLowerCase().trim())) {
-    fail(`${path}.reviewerIdentity`, "must identify the human publication approver.");
-  }
-  if (typeof receipt.reviewedAt !== "string" ||
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(receipt.reviewedAt) ||
-      !Number.isFinite(Date.parse(receipt.reviewedAt))) {
-    fail(`${path}.reviewedAt`, "must be a valid RFC 3339 date-time with timezone.");
-  }
-  if (receipt.classification !== "approved") {
-    fail(`${path}.classification`, 'must equal "approved" for publication.');
-  }
-  if (receipt.watchThroughStatus !== "completed") {
-    fail(`${path}.watchThroughStatus`, "must record the human watch-through as completed.");
-  }
-  if (receipt.syntheticDataConfirmed !== true) {
-    fail(`${path}.syntheticDataConfirmed`, "must be true for publication.");
-  }
-  if (typeof receipt.redactionNotes !== "string") {
-    fail(`${path}.redactionNotes`, "must be a string.");
-  }
-}
-
 function invokeValidator(scriptName, artifactPath, label) {
   const result = spawnSync(process.execPath, [resolve(scriptDir, scriptName), artifactPath], {
     encoding: "utf8",
@@ -301,11 +174,9 @@ if (manifest) {
     "bytes",
     "arbiterDecision",
     "finalVerification",
-    "approvalReceipt",
-    "approvalSignature",
   ];
   if (exactObject(manifest, "$", required)) {
-    if (manifest.schemaVersion !== "2.0.0") fail("$.schemaVersion", 'must equal "2.0.0".');
+    if (manifest.schemaVersion !== "3.0.0") fail("$.schemaVersion", 'must equal "3.0.0".');
     if (typeof manifest.candidateId !== "string" || !SAFE_ID.test(manifest.candidateId)) {
       fail("$.candidateId", "must be a safe candidate identifier.");
     }
@@ -368,51 +239,6 @@ if (manifest) {
           canonicalPath(manifestDir, manifest.arbiterDecision.artifactPath)
       )) {
         fail("$.finalVerification.arbiterDecision", "must bind the exact arbiter decision in this manifest.");
-      }
-    }
-
-    const approvalReceipt = validateFile(
-      manifest.approvalReceipt,
-      "$.approvalReceipt",
-      manifestPath,
-      true,
-    );
-    const approvalSignature = validateFile(
-      manifest.approvalSignature,
-      "$.approvalSignature",
-      manifestPath,
-    );
-    if (approvalReceipt?.data) validateApprovalReceipt(approvalReceipt.data, manifest);
-
-    const trustedKey = loadTrustedPublicationKey();
-    if (trustedKey && approvalReceipt?.data) {
-      if (approvalReceipt.data.approverPublicKeySha256 !== trustedKey.fingerprint) {
-        fail(
-          "$.approvalReceipt.document.approverPublicKeySha256",
-          `does not match the trusted public key fingerprint ${trustedKey.fingerprint}.`,
-        );
-      }
-    }
-    if (approvalSignature?.bytes && approvalSignature.bytes.length !== 64) {
-      fail("$.approvalSignature.bytes", "an Ed25519 detached signature must contain exactly 64 raw bytes.");
-    }
-    if (trustedKey && approvalReceipt?.bytes && approvalSignature?.bytes?.length === 64) {
-      let signatureValid = false;
-      try {
-        signatureValid = verifySignature(
-          null,
-          approvalReceipt.bytes,
-          trustedKey.key,
-          approvalSignature.bytes,
-        );
-      } catch (error) {
-        fail("$.approvalSignature", `could not be verified: ${error.message}`);
-      }
-      if (!signatureValid) {
-        fail(
-          "$.approvalSignature",
-          "is not a valid Ed25519 signature over the exact approval-receipt bytes from the trusted key.",
-        );
       }
     }
 

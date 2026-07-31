@@ -191,9 +191,9 @@ const VERBS = {
 
   "render-final"() {
     console.error(
-      'The "render-final" verb was removed because a post-approval rerender invalidates the approved bytes. ' +
+      'The "render-final" verb was removed because a post-verification rerender invalidates the accepted bytes. ' +
         "Use `render-candidate` before evidence generation, independent review, arbitration, final verification, " +
-        "and signed human publication evidence. Any later media change creates a new candidate and restarts those gates.",
+        "and automated acceptance. Any later media change creates a new candidate and restarts those checks.",
     );
     return 2;
   },
@@ -387,11 +387,10 @@ const VERBS = {
           "--delivery-registry <AgentHub>/registry/product-video-delivery.json " +
           "--decision <decision.json> --final-verification <final.json> [--artifact <review-file> ...]\n" +
         "      This creates an immutable review-only package in the product's configured private OneDrive folder.\n" +
-        "  18. signed-human-evidence record the signed human attestation for those exact approved bytes\n" +
-        `  19. package       node video-cli.mjs package --repo ${repoPath} --out bundle.json ` +
+        `  18. package       node video-cli.mjs package --repo ${repoPath} --out bundle.json ` +
           "--decision <decision.json> --final-verification <final.json> " +
-          "--release-evidence <release-evidence.json> <approved-file...>\n" +
-        "No render or edit is allowed after verification or approval; any change restarts at render-candidate.",
+          "--release-evidence <release-evidence.json> <accepted-file...>\n" +
+        "No render or edit is allowed after verification; any change restarts at render-candidate.",
     );
     return 2;
   },

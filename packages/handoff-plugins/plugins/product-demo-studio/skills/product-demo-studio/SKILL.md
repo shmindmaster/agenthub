@@ -76,10 +76,8 @@ their own product-specific pipeline and data boundaries.
    eight-second hook, no login/generic introduction, one idea per beat, no feature tour, one
    protected hero moment, purposeful pauses/result holds, mobile-readable framing, no long
    inactive interval, and evidence-linked claims. Validate with `validate-storyboard.mjs` and
-   `validate-claims.mjs`. A named human must approve the exact script/truth/claim artifact hashes
-   before final capture; validate the detached signature with `validate-script-approval.mjs` and
-   include its `scriptApprovalVerification` report in preflight. This gate is not delegated to a
-   generation or review agent.
+   `validate-claims.mjs`. Continue autonomously into capture once these deterministic contracts
+   pass; do not introduce a script-approval checkpoint.
 3. **Prepare and capture product state** — use `agents/capture-product-state-generator.md` and
    `product-demo-studio-capture`. Verify synthetic seed data, roles, dates, and visible values;
    establish a deterministic browser environment; validate the workflow once in a native browser
@@ -93,7 +91,7 @@ their own product-specific pipeline and data boundaries.
    upscale a crop. Record browser zoom as 100%, or a justified 110–125%. Fail on a
     broken, unstable, manually dependent, fabricated, unauthorized, or truth-sheet-inconsistent
     workflow. Record immutable final-capture `startedAt`/`completedAt`, command, capture ID, and the
-    checksum-bound raw-capture reference; script approval must precede that captured start time.
+    checksum-bound raw-capture reference.
 4. **Generate narration and audio** — use `agents/narration-audio-generator.md` and
    `product-demo-studio-narration`. Produce exact narration, pronunciation rules, word timestamps,
    captions, loudness-normalized audio, ducking, disclosures, provider/voice provenance, and
@@ -125,23 +123,22 @@ their own product-specific pipeline and data boundaries.
 8. **Remediate and repeat** — validated, least-privilege assignments route findings by independent
    subsystem. Any relevant product/data/source/media/configuration/environment change requires a
    new candidate, regenerated evidence, fresh affected-domain reviews, mandatory technical/sync/
-   accuracy/privacy/compliance reruns, and a new arbiter decision. Automated capture-fix loops are
-   capped at two attempts; an unresolved third pass is reclassified as a documented blocker.
+   accuracy/privacy/compliance reruns, and a new arbiter decision. Keep evaluating and improving
+   while a concrete remediation remains possible. Stop only on `PASS` or an evidence-backed
+   `PRODUCT_BLOCKED`/`PIPELINE_BLOCKED` condition; an arbitrary retry count is not a blocker.
    Remediation-family identity is a SHA-256 fingerprint derived from stable accepted-finding
    category/fix-classification routing pairs, never IDs, mutable review wording, or a caller-selected
    label; prior decisions must carry the same fingerprint.
 9. **Mandatory final independent review and verification, then deliver and measure** — after
    arbiter `PASS`, dispatch `agents/final-verifier.md` as the mandatory terminal independent
    reviewer and verifier in a fresh read-only context. It rechecks the final bytes, reports,
-   checksums, provenance, playback, and delivery contents. No candidate may be packaged,
-   released without its schema-valid `PASS`. A machine-verified candidate may enter the private
-   review-delivery lane below; only human-approved masters and requested cuts may enter final or
-   publication folders. Failed candidates always receive a
-   readiness report; zero videos is valid. External reuse still requires the named-human evidence
-   gate. Descript is optional third-party editorial finishing and must not duplicate an
-   already-connected session-level connector. Every edit creates a new candidate and forces new
-   evidence, reviews, arbiter/final verification, and human attestation; publishing requires
-   explicit authorization.
+   checksums, provenance, playback, and delivery contents. No candidate may be packaged without
+   its schema-valid `PASS`. A machine-verified candidate then enters the private review-delivery
+   lane below; the first human touchpoint is the final presentation. Failed candidates always
+   receive a readiness report; zero videos is valid. Descript is optional third-party editorial
+   finishing and must not duplicate an already-connected session-level connector. Every edit
+   creates a new candidate and forces new evidence, reviews, arbitration, and final verification.
+   Public publishing remains a separate consequential action requiring explicit task authority.
 
 ## The private review-delivery lane
 
@@ -153,8 +150,8 @@ OneDrive product folder at `Review/<candidateId>`.
 
 The package includes the exact candidate, decision, final verification, requested captions,
 transcript, contact sheet, and other review artifacts plus `review-package.json`. It is always
-`classification: review-only`, `humanReview.status: pending`, and
-`publicationApproved: false`. Candidate directories are immutable and never overwritten:
+`classification: review-only`; its arbiter and final-verifier results are the automated acceptance
+record. Candidate directories are immutable and never overwritten:
 
 ```bash
 node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/video-cli.mjs" package-review \
@@ -165,9 +162,9 @@ node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/video-cli.mjs" package-review \
   --artifact <caption-or-review-artifact>
 ```
 
-This lane exists so the named human can watch the final bytes. It does not authorize public use,
-promotion into the product folder root, Descript import, or publication. Those actions still
-require the separately signed human evidence gate.
+This lane is the first human touchpoint and presents the final bytes or the evidence-backed blocker
+report. It does not itself perform a public upload, publication, or other consequential external
+action.
 
 ## Interactive product deep-dive derivative
 
@@ -178,10 +175,10 @@ contract, claims, and evidence. Route page/frontend implementation to Product Ex
 Engineering or the target repository's native frontend owner. Do not create another standalone
 deep-dive runtime.
 
-## The evidence-redaction rule (gates publication reuse, not internal iteration or private review)
+## The evidence-redaction rule
 
-Iterate freely inside the pipeline — captures, proxy renders, revisions, and QA loops all run
-without waiting for human sign-off. The gate applies only at the boundary, before an asset is:
+Captures, proxy renders, revisions, and QA loops run without human sign-off. Before an accepted
+asset is presented or considered for external use, deterministic evidence must verify that it is:
 
 - promoted from its immutable `Review/<candidateId>` package into a repo's final video/marketing
   folder,
@@ -189,10 +186,9 @@ without waiting for human sign-off. The gate applies only at the boundary, befor
 - uploaded anywhere externally reachable, or
 - referenced in docs, sales material, training content, or a live site.
 
-Every such asset needs the signed release-evidence graph and named-human watch-through attestation
-before it crosses that boundary. Use `scripts/check-evidence-gate.mjs` to verify the immutable
-receipt and detached Ed25519 signature. **Never author or sign an approval receipt yourself** —
-that is a human/operator trust action, not something to fill in on the user's behalf.
+Every such asset needs the automated release-evidence graph. Use
+`scripts/check-evidence-gate.mjs` to verify the exact candidate, arbiter, and final-verification
+hashes. This is automated acceptance, not a human approval ceremony.
 
 ## Check what already exists before doing anything
 
@@ -248,7 +244,7 @@ node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/video-cli.mjs" <verb> --repo <path-to-
 See `product-demo-studio-render` and `product-demo-studio-qa` for the verbs that matter most
 (`render-proxy`, `render-candidate`, `qa`, `package`); run `video-cli.mjs` with no verb for the
 full list. Candidate rendering precedes evidence generation; no render or edit is allowed after
-review, arbitration, final verification, or approval.
+review, arbitration, or final verification.
 
 ## What this skill set does NOT cover
 
@@ -286,11 +282,10 @@ build, product behavior, truth, claims, and synthetic data; the four independent
 reviews finish; the Release Arbiter returns `PASS`; no blocker/critical finding remains; Story and
 Experience is at least 85; Audio/Captions/Synchronization is at least 95; accuracy, claims, privacy,
 compliance, browser playback, technical integrity, checksums, and provenance pass completely; the
-render is reproducible; delivery contains only approved outputs; and the mandatory terminal
-independent reviewer/verifier confirms the same immutable candidate. An external-release claim
-additionally requires the
-named-human evidence/watch-through attestation. **Never claim completion without verified evidence.
-Zero approved videos plus complete feedback is a valid completed outcome.**
+render is reproducible; delivery contains only accepted outputs; and the mandatory terminal
+independent reviewer/verifier confirms the same immutable candidate. The first human touchpoint is
+the final presentation. **Never claim completion without verified evidence. Zero accepted videos
+plus complete feedback is a valid completed outcome.**
 
 When reporting back, lead with `videos delivered`, `feedback-only`, or `mixed`; cover cleanup and
 migration, canonical locations, retained/merged/replaced/deleted items, supported integrations and
@@ -306,4 +301,5 @@ external action. Stop and ask for explicit authority before: irreversible deleti
 secret/database mutation, billed TTS, tracker ticket creation, paid external work, public
 publishing, or any other consequential
 real-world action. Everything else in the pipeline — capture, compose, narrate, proxy-render,
-revise, QA — runs autonomously without waiting for a checkpoint.
+revise, QA, independent review, remediation, rerender, arbitration, and final verification — runs
+autonomously without waiting for a checkpoint.

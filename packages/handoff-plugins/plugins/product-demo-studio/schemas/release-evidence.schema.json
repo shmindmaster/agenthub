@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agenthub.local/schemas/product-video/release-evidence.schema.json",
-  "title": "Product Video Signed Publication Evidence",
+  "title": "Product Video Automated Release Evidence",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,13 +11,11 @@
     "sha256",
     "bytes",
     "arbiterDecision",
-    "finalVerification",
-    "approvalReceipt",
-    "approvalSignature"
+    "finalVerification"
   ],
   "properties": {
     "schemaVersion": {
-      "const": "2.0.0"
+      "const": "3.0.0"
     },
     "candidateId": {
       "type": "string",
@@ -36,12 +34,6 @@
       "$ref": "#/$defs/artifactReference"
     },
     "finalVerification": {
-      "$ref": "#/$defs/artifactReference"
-    },
-    "approvalReceipt": {
-      "$ref": "#/$defs/artifactReference"
-    },
-    "approvalSignature": {
       "$ref": "#/$defs/artifactReference"
     }
   },

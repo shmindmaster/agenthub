@@ -251,15 +251,11 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "receipt",
-        "signature"
+        "receipt"
       ],
       "properties": {
         "receipt": {
           "$ref": "#/$defs/executionReceiptArtifactReference"
-        },
-        "signature": {
-          "$ref": "#/$defs/executionReceiptSignatureReference"
         }
       }
     },
@@ -281,26 +277,6 @@
         "bytes": {
           "type": "integer",
           "minimum": 1
-        }
-      }
-    },
-    "executionReceiptSignatureReference": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "artifactPath",
-        "sha256",
-        "bytes"
-      ],
-      "properties": {
-        "artifactPath": {
-          "$ref": "#/$defs/nonEmptyString"
-        },
-        "sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "bytes": {
-          "const": 64
         }
       }
     },
@@ -506,15 +482,13 @@
       "properties": {
         "attempt": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 2
+          "minimum": 1
         },
         "findingFamilyFingerprint": {
           "$ref": "#/$defs/sha256"
         },
         "priorDecisions": {
           "type": "array",
-          "maxItems": 1,
           "items": {
             "$ref": "#/$defs/artifactReference"
           }

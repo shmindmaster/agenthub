@@ -146,7 +146,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-demo-studio",
-      "contentHash": "D322881E134331E8E50CABF79F9B88B4473B78EE097C4841534BF406C9CD3DA8",
+      "contentHash": "F713088E6A2F1113C6C84980361D00CD37AAA88CCE7189E73D4F29BD9FD3C22D",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -154,13 +154,13 @@
           "hostId": "claude",
           "deploymentStatus": "native-plugin-installed",
           "components": ["skills", "agents", "mcp"],
-          "reviewIsolation": "shell-free-role-tools-plus-external-signed-receipt-required"
+          "reviewIsolation": "shell-free-role-tools-plus-read-only-receipt-required"
         },
         {
           "hostId": "codex",
           "deploymentStatus": "native-plugin-installed",
           "components": ["plugin-skills", "plugin-mcp", "managed-native-agents"],
-          "reviewIsolation": "sandbox-mode-read-only-plus-external-signed-receipt-required"
+          "reviewIsolation": "sandbox-mode-read-only-plus-receipt-required"
         },
       {
         "hostId": "cursor",
@@ -170,13 +170,13 @@
           "agents",
           "mcp"
         ],
-        "reviewIsolation": "readonly-agent-tools-plus-external-signed-receipt-required"
+        "reviewIsolation": "readonly-agent-tools-plus-receipt-required"
         },
         {
           "hostId": "vscode-insiders",
           "deploymentStatus": "native-local-plugin",
           "components": ["skills", "agents", "mcp"],
-          "reviewIsolation": "tool-limited-only-external-signed-receipt-required"
+          "reviewIsolation": "tool-limited-only-read-only-receipt-required"
         },
         {
           "hostId": "qwen-code",
@@ -190,7 +190,7 @@
           "deploymentStatus": "managed-loose-skills",
           "roleAdapter": "managed-native-markdown-agents",
           "mcpOwnership": "shared-registry",
-          "reviewIsolation": "edit-bash-task-denied-plus-external-signed-receipt-required"
+          "reviewIsolation": "edit-bash-task-denied-plus-read-only-receipt-required"
         },
         {
           "hostId": "amp",
@@ -217,7 +217,7 @@
           "deploymentStatus": "managed-loose-skills",
           "roleAdapter": "managed-preview-extension-agents",
           "mcpOwnership": "shared-registry",
-          "reviewIsolation": "explicit-read-tools-plus-external-signed-receipt-required"
+          "reviewIsolation": "explicit-read-tools-plus-read-only-receipt-required"
         },
         {
           "hostId": "copilot",
@@ -231,7 +231,7 @@
           "deploymentStatus": "managed-loose-skills",
           "roleAdapter": "managed-cli-native-plugin-agents",
           "mcpOwnership": "shared-registry",
-          "reviewIsolation": "command-policy-off-plus-external-signed-receipt-required"
+          "reviewIsolation": "command-policy-off-plus-read-only-receipt-required"
         },
         {
           "hostId": "hermes",
@@ -257,7 +257,7 @@
           "hostId": "qoder",
           "deploymentStatus": "native-local-plugin",
           "components": ["skills", "agents", "mcp"],
-          "reviewIsolation": "tool-limited-plus-external-signed-receipt-required"
+          "reviewIsolation": "tool-limited-plus-read-only-receipt-required"
         }
       ]
     },

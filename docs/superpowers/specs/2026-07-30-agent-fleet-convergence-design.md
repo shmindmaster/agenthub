@@ -38,7 +38,7 @@ The work may not:
 - Delete dirty or unique work, unreachable commits, evidence, authentication state, credentials, or unclassified content.
 - Invent unsupported host plugin formats or modify undocumented host behavior merely to silence the scanner.
 - Kill similarly named Node or Python processes without proving their complete owner process tree.
-- Add GitHub Actions workflows or run the repository workflow.
+- Add GitHub Actions workflows. Run the documented repository-native validators locally.
 - Create a worktree outside `C:\wt`.
 
 ## Architecture

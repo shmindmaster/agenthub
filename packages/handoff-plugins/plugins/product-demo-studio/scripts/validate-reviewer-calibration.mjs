@@ -110,8 +110,8 @@ function calibrationResultPayload(report) {
 }
 
 function validateExecutionReceipt(reference, path, report, reportDir, expectedHashes) {
-  if (!exactObject(reference, path, ["receipt", "signature"])) return;
-  const load = (value, artifactPath, signature = false) => {
+  if (!exactObject(reference, path, ["receipt"])) return;
+  const load = (value, artifactPath) => {
     if (!exactObject(value, artifactPath, ["artifactPath", "sha256", "bytes"])) return undefined;
     const materialized = artifactReference(
       { artifactPath: value.artifactPath, sha256: value.sha256 },
@@ -122,19 +122,16 @@ function validateExecutionReceipt(reference, path, report, reportDir, expectedHa
     if (materialized && value.bytes !== statSync(materialized.absolutePath).size) {
       fail(`${artifactPath}.bytes`, "does not match the referenced file.");
     }
-    if (signature && value.bytes !== 64) fail(`${artifactPath}.bytes`, "must equal 64 for raw Ed25519.");
     return materialized;
   };
   const receipt = load(reference.receipt, `${path}.receipt`);
-  const signature = load(reference.signature, `${path}.signature`, true);
-  if (!receipt || !signature) return;
+  if (!receipt) return;
   const validation = spawnSync(process.execPath, [
     executionReceiptValidatorPath,
     receipt.absolutePath,
-    signature.absolutePath,
   ], { encoding: "utf8" });
   if (validation.status !== 0) {
-    fail(path, `fails canonical signature validation: ${(validation.stderr || validation.stdout).trim()}`);
+    fail(path, `fails canonical receipt validation: ${(validation.stderr || validation.stdout).trim()}`);
     return;
   }
   try {
@@ -151,7 +148,7 @@ function validateExecutionReceipt(reference, path, report, reportDir, expectedHa
       if (document[field] !== value) fail(`${path}.${field}`, `receipt must equal ${JSON.stringify(value)}.`);
     }
     for (const [field, value] of Object.entries(expectedHashes)) {
-      if (document[field] !== value) fail(`${path}.${field}`, `signed receipt must bind ${field} to ${value}.`);
+      if (document[field] !== value) fail(`${path}.${field}`, `receipt must bind ${field} to ${value}.`);
     }
   } catch (error) {
     fail(`${path}.receipt`, `contains invalid JSON: ${error.message}`);

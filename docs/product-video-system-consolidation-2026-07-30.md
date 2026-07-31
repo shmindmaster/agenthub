@@ -73,10 +73,9 @@ The stale Product Demo Studio installs were upgraded through their official host
 Product Experience Engineering was advanced to `1.1.1` with a matching native Cursor manifest.
 Cursor was reauthorized by the owner and its global MCP adapter was corrected to emit the strict
 Cursor remote schema; `cursor-agent mcp list` now parses all eight intended shared registrations.
-The current ecosystem validation result is `pass=121 warn=4 fail=0`; the warnings are three
-already-running Claude processes with older package bytes and the deliberately absent,
-operator-owned execution-receipt trust configuration. See
-`fleet-convergence-status-2026-07-30.md` for the current inventory and restart requirement.
+That same-day ecosystem validation result was `pass=121 warn=4 fail=0`; three warnings were
+already-running Claude processes with older package bytes and one was the now-retired signing
+configuration. See `fleet-convergence-status-2026-07-30.md` for the later inventory.
 
 ## Canonical update process
 
@@ -91,31 +90,26 @@ native plugin rather than writing into a host's plugin cache. Reinstalling is th
 "approval gates, claim ledgers, or separate review ceremonies" — the direct inverse of the deployed
 release contract, and the last competing video workflow in the portfolio. It is superseded by
 version 6.0.0, which carries no competing workflow body: it routes to this capability, states the
-sequencing, roles, evidence contract, and release policy, and records that the only human gate is
-external publication. Properties were corrected to match reality (`Approval Gates: Lead`,
-`Requires Approval: yes`, `Validation Status: Both`, content hash recomputed).
+sequencing, roles, evidence contract, and release policy. Product Demo Studio 1.5.2 later
+superseded its human-gate wording with automated acceptance and final-presentation-only human
+involvement; the canonical package is authoritative.
 
 ## Linear
 
 * `SH-1899` and `SH-2064` described the SubOps pipeline in terms of a `studio/**` tree deleted from
   `main` by `3b227fdc`. Both descriptions now name the real capture, render, gate, and evidence
   paths, and record what was delivered on this date.
-* `SH-2430` opened for the one genuine blocker below.
+* `SH-2430` tracked the now-retired signing blocker below.
 * `SH-2057` remains open for a CoLedger video system removed by `ef27d210`. It is another product's
   backlog and was not touched here; close or re-scope it during an authorized CoLedger task.
 
-## Open blocker
+## Retired signing blocker
 
-The canonical reviewer, arbiter, and final-verifier roles require host-enforced read-only isolation
-**and a host-signed execution receipt**. `AGENTHUB_EXECUTION_HOST_TRUST_CONFIG` is unset and no trust
-registry or key material exists anywhere in AgentHub. Every reviewer body therefore returns
-`MALFORMED_INPUT` and the run routes to `PIPELINE_BLOCKED`. This is correct fail-closed behavior.
+As of Product Demo Studio 1.5.2, the signing configuration described above is retired. Reviewer,
+arbiter, and final-verifier roles use host-native restricted contexts and record plain operational
+receipts. Receipt text is not a security attestation. No broker, trust registry, key material,
+resident process, or intermediate human approval is required.
 
-It cannot be resolved by an agent: `agentsMayAuthorExecutionReceipts` is false, and an agent that
-generated the key pair, wrote the trust registry, and signed its own receipts would satisfy the file
-format while destroying the property the gate exists to provide. Provisioning is operator work —
-see `SH-2430`.
-
-Until then, product repositories clear internal delivery through their own automated gates. SubOps'
-`pnpm qa:review-demo-video` (51 deterministic checks) is the designated example and is currently
+Product repositories continue to clear internal delivery through their own automated checks. At
+this historical snapshot, SubOps' `pnpm qa:review-demo-video` ran 51 deterministic checks and was
 PASS at revision `f05d5b24`.

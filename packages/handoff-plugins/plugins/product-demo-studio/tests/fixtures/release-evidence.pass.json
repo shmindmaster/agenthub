@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "candidateId": "synthetic-candidate-001",
   "assetPath": "publication/candidate.mp4",
   "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -13,15 +13,5 @@
     "artifactPath": "publication/final-verification.json",
     "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
     "bytes": 100
-  },
-  "approvalReceipt": {
-    "artifactPath": "publication/signed-publication-approval.json",
-    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-    "bytes": 100
-  },
-  "approvalSignature": {
-    "artifactPath": "publication/signed-publication-approval.ed25519",
-    "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-    "bytes": 64
   }
 }

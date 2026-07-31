@@ -46,8 +46,8 @@
     },
     "checks": {
       "type": "array",
-      "minItems": 20,
-      "maxItems": 20,
+      "minItems": 19,
+      "maxItems": 19,
       "items": {
         "$ref": "#/$defs/preflightCheck"
       },
@@ -57,18 +57,6 @@
             "properties": {
               "id": {
                 "const": "artifact-completeness"
-              }
-            },
-            "required": [
-              "id"
-            ]
-          }
-        },
-        {
-          "contains": {
-            "properties": {
-              "id": {
-                "const": "human-script-approval"
               }
             },
             "required": [
@@ -310,17 +298,17 @@
       ],
       "properties": {
         "total": {
-          "const": 20
+          "const": 19
         },
         "passed": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 20
+          "maximum": 19
         },
         "failed": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 20
+          "maximum": 19
         }
       }
     },
@@ -357,7 +345,7 @@
           "summary": {
             "properties": {
               "passed": {
-                "const": 20
+                "const": 19
               },
               "failed": {
                 "const": 0
@@ -442,7 +430,6 @@
         "frame-duplicate",
         "frame-corruption",
         "asset-completeness",
-        "human-script-approval",
         "storyboard-craft-contract",
         "capture-manifest-craft-contract",
         "beat-timing-deltas",

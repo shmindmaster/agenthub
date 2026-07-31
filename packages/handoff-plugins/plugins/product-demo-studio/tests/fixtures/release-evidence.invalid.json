@@ -14,11 +14,6 @@
     "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
     "bytes": 0
   },
-  "approvalReceipt": {
-    "artifactPath": "",
-    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-    "bytes": 0
-  },
   "classification": "approved",
   "reviewedBy": "reviewer"
 }

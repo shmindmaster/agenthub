@@ -6,7 +6,8 @@
     "classification": "review-only",
     "immutableCandidateDirectories": true,
     "overwriteAllowed": false,
-    "publicationPromotionRequiresSignedHumanApproval": true
+    "firstHumanTouchpoint": "final-presentation",
+    "automatedAcceptanceRequired": true
   },
   "products": [
     {

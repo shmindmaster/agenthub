@@ -154,16 +154,13 @@ function dateTime(value, path) {
 }
 
 function validateExecutionReceipt(reference, path, expected) {
-  if (!exactObject(reference, path, ["receipt", "signature"])) return;
-  const load = (artifactReference, label, { signature = false } = {}) => {
+  if (!exactObject(reference, path, ["receipt"])) return;
+  const load = (artifactReference, label) => {
     if (!exactObject(artifactReference, label, ["artifactPath", "sha256", "bytes"])) return undefined;
     nonEmpty(artifactReference.artifactPath, `${label}.artifactPath`);
     sha(artifactReference.sha256, `${label}.sha256`);
     if (!Number.isInteger(artifactReference.bytes) || artifactReference.bytes < 1) {
       fail(`${label}.bytes`, "must be a positive integer.");
-    }
-    if (signature && artifactReference.bytes !== 64) {
-      fail(`${label}.bytes`, "must equal 64 for a raw Ed25519 signature.");
     }
     if (typeof artifactReference.artifactPath !== "string" ||
         artifactReference.artifactPath.trim().length === 0) return undefined;
@@ -190,15 +187,11 @@ function validateExecutionReceipt(reference, path, expected) {
     if (artifactReference.sha256 !== actualSha) {
       fail(`${label}.sha256`, `does not match the file (actual ${actualSha}).`);
     }
-    if (signature && bytes.length !== 64) {
-      fail(label, "must contain exactly 64 raw Ed25519 signature bytes.");
-    }
     return { absolutePath, bytes };
   };
 
   const receiptArtifact = load(reference.receipt, `${path}.receipt`);
-  const signatureArtifact = load(reference.signature, `${path}.signature`, { signature: true });
-  if (!receiptArtifact || !signatureArtifact) return;
+  if (!receiptArtifact) return;
   let receipt;
   try {
     receipt = JSON.parse(receiptArtifact.bytes.toString("utf8"));
@@ -209,7 +202,6 @@ function validateExecutionReceipt(reference, path, expected) {
   const validation = spawnSync(process.execPath, [
     executionReceiptValidatorPath,
     receiptArtifact.absolutePath,
-    signatureArtifact.absolutePath,
   ], {
     encoding: "utf8",
   });

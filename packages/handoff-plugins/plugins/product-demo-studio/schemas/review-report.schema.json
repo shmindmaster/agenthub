@@ -283,15 +283,11 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "receipt",
-        "signature"
+        "receipt"
       ],
       "properties": {
         "receipt": {
           "$ref": "#/$defs/executionReceiptArtifactReference"
-        },
-        "signature": {
-          "$ref": "#/$defs/executionReceiptSignatureReference"
         }
       }
     },
@@ -313,26 +309,6 @@
         "bytes": {
           "type": "integer",
           "minimum": 1
-        }
-      }
-    },
-    "executionReceiptSignatureReference": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "artifactPath",
-        "sha256",
-        "bytes"
-      ],
-      "properties": {
-        "artifactPath": {
-          "$ref": "#/$defs/nonEmptyString"
-        },
-        "sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "bytes": {
-          "const": 64
         }
       }
     },

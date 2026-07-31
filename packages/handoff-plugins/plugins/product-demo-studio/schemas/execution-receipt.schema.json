@@ -12,7 +12,6 @@
     "contextId",
     "candidateId",
     "hostId",
-    "hostKeyId",
     "mechanism",
     "readOnly",
     "writeTools",
@@ -49,9 +48,6 @@
       "$ref": "#/$defs/safeId"
     },
     "hostId": {
-      "$ref": "#/$defs/safeId"
-    },
-    "hostKeyId": {
       "$ref": "#/$defs/safeId"
     },
     "mechanism": {

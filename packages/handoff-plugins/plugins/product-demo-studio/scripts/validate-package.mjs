@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.5.0";
+const expectedVersion = "1.5.2";
 const failures = [];
 
 function readJson(relativePath) {
@@ -87,7 +87,6 @@ requireFiles("schemas", [
   "delivery-spec.schema.json",
   "deterministic-report.schema.json",
   "evidence-package.schema.json",
-  "execution-host-trust.schema.json",
   "execution-receipt.schema.json",
   "final-verification.schema.json",
   "interactive-deep-dive.schema.json",
@@ -99,7 +98,6 @@ requireFiles("schemas", [
   "remediation-assignment.schema.json",
   "reviewer-calibration.schema.json",
   "review-report.schema.json",
-  "script-approval.schema.json",
   "video-finding.schema.json",
 ]);
 requireFiles("policy", [".gitattributes", "host-parity.json", "product-video-policy.json"], { exact: true });
@@ -120,7 +118,6 @@ requireFiles("scripts", [
   "validate-remediation-assignment.mjs",
   "validate-reviewer-calibration.mjs",
   "validate-review-report.mjs",
-  "validate-script-approval.mjs",
   "validate-review-delivery.mjs",
   "validate-storyboard.mjs",
 ]);
@@ -145,10 +142,10 @@ if (JSON.stringify(policy.releasePolicy?.completePassChecks) !== JSON.stringify(
 }
 if (policy.permissions?.executionEnforcement?.instructionOnlyIsolationIsSufficient !== false ||
     policy.permissions?.executionEnforcement?.unsupportedHostDecision !== "PIPELINE_BLOCKED" ||
-    policy.permissions?.executionEnforcement?.executionReceiptsMustBeHostSigned !== true ||
-    policy.permissions?.executionEnforcement?.agentsMayAuthorExecutionReceipts !== false ||
-    policy.permissions?.executionEnforcement?.trustedHostRegistryEnvironmentVariable !==
-      "AGENTHUB_EXECUTION_HOST_TRUST_CONFIG") {
+    policy.permissions?.executionEnforcement?.hostNativeReadOnlyRoleRequired !== true ||
+    policy.permissions?.executionEnforcement?.executionReceiptsRecordDeclaredContext !== true ||
+    policy.permissions?.executionEnforcement?.executionReceiptIsSecurityAttestation !== false ||
+    policy.permissions?.executionEnforcement?.agentsMayAuthorExecutionReceipts !== true) {
   failures.push("policy does not fail closed when host-enforced read-only isolation is unavailable");
 }
 if (policy.connectorPolicy?.descriptEditCreatesNewCandidate !== true ||
@@ -161,9 +158,9 @@ if (policy.reviewDeliveryPolicy?.agentHubRegistry !== "registry/product-video-de
     policy.reviewDeliveryPolicy?.requiresFinalVerifierPass !== true ||
     policy.reviewDeliveryPolicy?.immutableCandidateDirectory !== true ||
     policy.reviewDeliveryPolicy?.overwriteAllowed !== false ||
-    policy.reviewDeliveryPolicy?.publicationApproved !== false ||
-    policy.reviewDeliveryPolicy?.publicationPromotionRequiresSignedHumanApproval !== true) {
-  failures.push("policy does not separate immutable private review delivery from human-approved publication");
+    policy.reviewDeliveryPolicy?.firstHumanTouchpoint !== "final-presentation" ||
+    policy.reviewDeliveryPolicy?.automatedAcceptanceRequired !== true) {
+  failures.push("policy does not enforce immutable automated acceptance before final presentation");
 }
 if (policy.captureQualityPolicy?.guidedScreencastRequired !== true ||
     policy.captureQualityPolicy?.pageOnlyOrNativeFullscreenPreferred !== true ||
@@ -212,17 +209,19 @@ if (policy.reviewIndependencePolicy?.generatorMayReviewOwnOutput !== false ||
     policy.reviewIndependencePolicy?.rubricAndOverlayContentHashesRequired !== true ||
     policy.reviewIndependencePolicy?.evidenceRequiredForPassAndFail !== true ||
     policy.reviewIndependencePolicy?.unevidencedCriterionDecision !== "PIPELINE_BLOCKED" ||
-    policy.humanGatePolicy?.scriptApprovalRequiredBeforeFinalCapture !== true ||
-    policy.humanGatePolicy?.finalFullWatchRequiredBeforePublication !== true ||
-    policy.remediationCyclePolicy?.maximumAutomatedCaptureFixAttempts !== 2 ||
-    policy.remediationCyclePolicy?.thirdAttemptAllowed !== false ||
+    policy.autonomyPolicy?.humanInteractionBeforeFinalPresentationAllowed !== false ||
+    policy.autonomyPolicy?.acceptanceIsAutomated !== true ||
+    policy.autonomyPolicy?.continuousEvaluationAndRemediationRequired !== true ||
+    policy.autonomyPolicy?.terminalHumanTouchpoint !== "final-presentation" ||
+    policy.remediationCyclePolicy?.fixedAttemptLimit !== false ||
+    policy.remediationCyclePolicy?.continueUntilPassOrEvidenceBackedBlocker !== true ||
     policy.verticalRubricOverlayPolicy?.mayRemoveBaseCriteria !== false ||
     policy.verticalRubricOverlayPolicy?.mayWeakenBaseThresholds !== false ||
     policy.calibrationPolicy?.knownBadAndCleanPassRequired !== true ||
     policy.calibrationPolicy?.missingOrFailedCalibrationDecision !== "PIPELINE_BLOCKED" ||
     policy.seededRuntimePolicy?.liveSeededEnvironmentRequiredForWorthinessAssessment !== true ||
     policy.narrationTimingPolicy?.shortestStreamTruncationAllowed !== false) {
-  failures.push("policy does not enforce reviewer independence, calibration, human gates, loop caps, seeded-runtime evidence, and narration timing");
+  failures.push("policy does not enforce reviewer independence, calibration, autonomous refinement, seeded-runtime evidence, and narration timing");
 }
 if (policy.permissions?.finalVerifier?.mandatoryTerminalGate !== true ||
     policy.permissions?.finalVerifier?.runsAfterArbiterPass !== true ||
@@ -247,7 +246,7 @@ const requiredText = [
   ["README.md", "four independent"],
   ["README.md", "GPU-first media work"],
   ["skills/product-demo-studio/SKILL.md", "Release Arbiter"],
-  ["skills/product-demo-studio/SKILL.md", "validate-script-approval.mjs"],
+  ["skills/product-demo-studio/SKILL.md", "first human touchpoint is the final presentation"],
   ["skills/product-demo-studio/SKILL.md", "detect-media-acceleration.mjs"],
   ["skills/product-demo-studio-qa/SKILL.md", "schemas/video-finding.schema.json"],
   ["agents/final-verifier.md", "mandatory terminal independent reviewer and verifier"],
@@ -266,7 +265,7 @@ const requiredText = [
   ["skills/product-demo-studio/references/reviewer-calibration.md", "known-bad fixture passes"],
   ["scripts/validate-reviewer-calibration.mjs", "derived verdict"],
   ["skills/product-demo-studio/references/product-pipeline-compatibility.md", "Product-pipeline compatibility"],
-  ["policy/product-video-policy.json", '"humanPublicationAttestationSeparate": true'],
+  ["policy/product-video-policy.json", '"terminalHumanTouchpoint": "final-presentation"'],
 ];
 for (const [relativePath, marker] of requiredText) {
   const fullPath = join(root, relativePath);
@@ -348,7 +347,6 @@ for (const marker of [
   "arbitrate",
   "final-verifier",
   "package-review",
-  "signed-human-evidence",
   "package",
 ]) {
   const markerIndex = orchestrationOutput.indexOf(marker, previousMarkerIndex + 1);
@@ -358,14 +356,14 @@ for (const marker of [
   }
   previousMarkerIndex = markerIndex;
 }
-if (!orchestrationOutput.includes("No render or edit is allowed after verification or approval")) {
-  failures.push("video-cli orchestration does not explicitly prohibit post-approval rerendering");
+if (!orchestrationOutput.includes("No render or edit is allowed after verification")) {
+  failures.push("video-cli orchestration does not explicitly prohibit post-verification rerendering");
 }
 const deprecatedFinalRender = spawnSync(process.execPath, [videoCliPath, "render-final", "--repo", root], {
   encoding: "utf8",
 });
 if (deprecatedFinalRender.status !== 2 ||
-    !`${deprecatedFinalRender.stdout}\n${deprecatedFinalRender.stderr}`.includes("post-approval rerender")) {
+    !`${deprecatedFinalRender.stdout}\n${deprecatedFinalRender.stderr}`.includes("post-verification rerender")) {
   failures.push('video-cli "render-final" does not fail closed with migration guidance');
 }
 

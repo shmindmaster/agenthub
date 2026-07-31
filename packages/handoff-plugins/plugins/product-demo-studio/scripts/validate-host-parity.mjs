@@ -13,6 +13,7 @@ const flag = (name) => {
 const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(pluginRoot, "..", "..", "..", "..");
 const parityPath = join(pluginRoot, "policy", "host-parity.json");
+const productPolicyPath = join(pluginRoot, "policy", "product-video-policy.json");
 const registryPath = join(repositoryRoot, "registry", "capabilities.json");
 const liveDeploymentReportPath = flag("--live-deployment-report");
 const failures = [];
@@ -36,6 +37,7 @@ if (!existsSync(parityPath)) {
 }
 
 const parity = readJson(parityPath, "host parity policy");
+const productPolicy = readJson(productPolicyPath, "product video policy");
 const registry = readJson(registryPath, "AgentHub capability registry");
 const capability = registry.capabilities?.find((entry) => entry.id === "product-demo-studio");
 if (!capability) failures.push("canonical capability registration is missing");
@@ -49,7 +51,7 @@ const eligible = new Set(parity.conditionallyEligibleReviewHosts ?? []);
 for (const host of eligible) {
   if (!expectedHosts.includes(host)) failures.push(`conditionally eligible host ${host} is not mapped`);
 }
-if (parity.capabilityVersion !== "1.5.0" ||
+if (parity.capabilityVersion !== "1.5.2" ||
     parity.equivalentContract?.unsupportedIsolationDecision !== "PIPELINE_BLOCKED" ||
     parity.executionRule?.liveRunMustRecordNativeReadOnlyEnforcement !== true ||
     parity.executionRule?.promptOnlyOrBroadWriteContextMayRelease !== false ||
@@ -59,6 +61,11 @@ if (parity.capabilityVersion !== "1.5.0" ||
     parity.validationScope?.liveParityRequiresDeploymentReport !== true) {
   failures.push("host parity policy does not fail closed, distinguish static/live evidence, or enable reauthorized Cursor dispatch");
 }
+if (parity.executionRule?.agentAuthoredExecutionReceiptAllowed !==
+      productPolicy.permissions?.executionEnforcement?.agentsMayAuthorExecutionReceipts ||
+    productPolicy.permissions?.executionEnforcement?.executionReceiptIsSecurityAttestation !== false) {
+  failures.push("host parity and canonical policy disagree on operational execution-receipt semantics");
+}
 
 const contractPaths = [
   parity.equivalentContract?.canonicalPolicy,
@@ -66,12 +73,10 @@ const contractPaths = [
   parity.equivalentContract?.reviewSchema,
   parity.equivalentContract?.reviewerCalibrationSchema,
   parity.equivalentContract?.calibrationReviewResultSchema,
-  parity.equivalentContract?.scriptApprovalSchema,
   parity.equivalentContract?.mediaAccelerationSchema,
     parity.equivalentContract?.decisionSchema,
     parity.equivalentContract?.finalVerificationSchema,
     parity.equivalentContract?.executionReceiptSchema,
-    parity.equivalentContract?.executionHostTrustSchema,
     parity.equivalentContract?.releaseEvidenceSchema,
     parity.equivalentContract?.reviewDeliverySchema,
     parity.equivalentContract?.interactiveDeepDiveSchema,

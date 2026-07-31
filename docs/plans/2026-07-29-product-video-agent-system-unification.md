@@ -1,5 +1,10 @@
 # Product-video agent-system unification
 
+> Superseded contract note (2026-07-31): Product Demo Studio 1.5.2 replaced the signing design,
+> fixed retry cap, and intermediate human checkpoints below with host-native role isolation, plain
+> operational receipts, automated acceptance, continuous remediation, and final-presentation-only
+> human involvement. The current package policy and validators are authoritative.
+
 Date: 2026-07-29
 Classification: personal capability work
 Canonical owner: `handoff/product-demo-studio`
@@ -46,10 +51,9 @@ The package version introduces:
 4. A read-only Release Arbiter that validates, deduplicates, resolves, scores, routes, and decides.
 5. A least-privilege remediation-assignment contract.
 6. A fresh read-only final-verifier contract.
-7. Host-signed Ed25519 execution receipts backed by an operator-owned trust registry; agents
-   cannot manufacture their own isolation evidence.
-8. Detached Ed25519 human publication approval bound to the exact candidate, arbiter decision,
-   and final-verification bytes.
+7. Host-native isolated role execution recorded in a plain operational receipt; the receipt is not
+   a security attestation and requires no key, registry, broker, or resident service.
+8. Automated acceptance bound to the exact candidate, arbiter decision, and final-verification bytes.
 9. Product-pipeline compatibility mappings without shared product code or data.
 10. Versioned manifests, local validation, deployment regeneration, and live parity checks.
 
@@ -68,10 +72,9 @@ Machine arbitration may return only `PASS`, `REMEDIATE`, `PRODUCT_BLOCKED`, or `
   checksums, provenance, captions, synchronization, and visual integrity;
 - valid evidence and reproduction commands for the immutable candidate.
 
-The machine decision never fabricates the separate human publication attestation. External
-publication requires a detached signature from the configured trusted approver key over a receipt
-that binds the named reviewer, completed watch-through, classification, synthetic-data
-confirmation, and exact candidate/arbiter/final-verification bytes.
+The pipeline continues autonomously through validation, independent review, remediation, rerender,
+arbitration, and terminal verification until `PASS` or an evidence-backed blocker. The first human
+touchpoint is the final presentation. Public publishing remains a separate consequential action.
 
 ## Validation and deployment
 
@@ -85,6 +88,5 @@ confirmation, and exact candidate/arbiter/final-verification bytes.
 - Capability exposure is not reviewer eligibility. A reviewer, arbiter, or final-verifier run
   without host-native read-only enforcement is `PIPELINE_BLOCKED`; prompt text cannot substitute
   for an enforcement boundary.
-- The host must sign the exact reviewer/arbiter/final-verifier execution receipt with a trusted,
-  authorized Ed25519 key. Missing trust configuration or any identity, permission, checksum, or
-  signature mismatch fails closed.
+- The host must provide its native restricted role/context. Each role records a plain operational
+  receipt; missing or writable contexts fail closed, and no signing infrastructure is required.

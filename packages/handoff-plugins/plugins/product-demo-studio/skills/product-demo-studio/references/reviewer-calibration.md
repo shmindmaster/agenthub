@@ -20,7 +20,7 @@ the intended result.
 | `clean-pass` | pass | every applicable criterion |
 
 The clean fixture is mandatory: a reviewer that rejects everything is as broken as one that passes
-everything. Add a new fixture whenever a defect reaches the human final-watch gate.
+everything. Add a new fixture whenever a defect reaches the final presentation.
 
 ## Execution and provenance
 
@@ -32,11 +32,11 @@ rubric text through the handoff.
 
 Record the plugin version, rubric and overlay hashes, reviewer/model identifiers, and one immutable
 reviewer result per fixture. Each result carries criterion-level outcomes, materialized evidence
-citations, and a trusted host-signed read-only execution receipt. The validator derives the observed
+citations, and a read-only execution receipt used only as an operational trace. The validator derives the observed
 verdict from those criterion results; a hand-authored `observedVerdict` is invalid. Any missing
 evidence or receipt is `BLOCKED`, not `PASS`.
 
-The signed execution receipt must include `inputArtifactSha256` for the fixture input and
+The execution receipt must include `inputArtifactSha256` for the fixture input and
 `resultPayloadSha256` for the canonical result payload (all review-result fields except the receipt
 reference). The validator recomputes both. A valid host receipt cannot be detached from its fixture
 or reused to legitimize changed criterion results.

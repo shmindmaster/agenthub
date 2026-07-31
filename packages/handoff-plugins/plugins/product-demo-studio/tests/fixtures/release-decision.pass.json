@@ -17,11 +17,6 @@
         "artifactPath": "execution-receipt.arbiter-pass.json",
         "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "bytes": 1
-      },
-      "signature": {
-        "artifactPath": "execution-receipt.arbiter-pass.ed25519",
-        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "bytes": 64
       }
     }
   },

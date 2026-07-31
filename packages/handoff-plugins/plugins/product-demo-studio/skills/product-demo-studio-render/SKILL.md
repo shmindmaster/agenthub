@@ -3,7 +3,7 @@ name: product-demo-studio-render
 description: >
   Plan and render reproducible, persuasive product-video deliverables; validate normalized
   readiness/storyboards; maintain truth sheets and product-claim ledgers; package evidence; and
-  enforce human release review. Use for candidate episode plans, demo-worthiness verdicts,
+  enforce automated acceptance. Use for candidate episode plans, demo-worthiness verdicts,
   storyboards, formats, catalogs, proxy/final renders, derivative cuts, manifests, checksums, or UX
   feedback routing. Render only PASS/CONDITIONAL episodes and never ship a craft-gate failure.
 ---
@@ -234,7 +234,7 @@ master.
 When requested, derive a focused family from the approved hero capture: roughly 90-second sales
 master, 30-second social cut, 10–15-second teaser, silent GIF/loop, and 9:16 vertical cut with
 captions. Do not create every variant by default, and do not let a derivative bypass the same truth,
-craft, evidence, and human-review gates as its master.
+craft, evidence, and independent-review checks as its master.
 
 The render manifest links output files to source commit, capture/fixture versions, the story and
 claim manifests, render command, composition parameters, aspect ratio, duration, and the
@@ -248,40 +248,32 @@ their source script**; storyboards and timing maps; the demo truth sheets; the c
 capture and render manifests; QA reports and extracted frames; and checksums.
 
 The **package manifest** records: a synthetic-data disclosure; the voice + model profile used; the
-source and deployment commits; the QA status; and the human-approval status.
+source and deployment commits; and the automated QA/acceptance status.
 
 After arbiter and mandatory final-verifier `PASS`, use `video-cli.mjs package-review` with the
 AgentHub `registry/product-video-delivery.json` mapping. It copies the exact final candidate and
 selected review artifacts into an immutable private `Review/<candidateId>` directory under the
-product's designated OneDrive folder. That package is `review-only`, pending human review, and
-explicitly not publication-approved. It never overwrites an existing candidate.
+product's designated OneDrive folder. That package is `review-only` and is the first human
+touchpoint: final presentation. It never overwrites an existing candidate.
 
-Promote masters into the product folder root or another final/publication location only after the
-signed human evidence gate passes. **Remove a stale, superseded master only after the new release
+**Remove a stale, superseded master only after the new release
 package is confirmed complete and valid** — never delete the old one first.
 
-## The evidence gate — required before publication use, not before internal iteration or private review
+## The automated evidence gate
 
-A render is not "approved" just because it renders without error, passes technical QA, or is copied
-into its immutable private review package. Before it may be promoted into a final video/marketing
-folder, handed to `product-demo-studio-descript`, or uploaded anywhere external, run:
+A render is not accepted just because it renders without error. Before final presentation, run:
 
 ```bash
 node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/check-evidence-gate.mjs" --manifest <path-to-manifest.json>
 ```
 
-The release-evidence manifest binds the candidate, arbiter decision, mandatory final verification,
-approval receipt, and raw detached Ed25519 signature. The receipt binds the named human reviewer,
-completed watch-through, synthetic-data confirmation, classification, and redaction decision to
-those exact bytes. `AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY` selects the trusted public key.
-Missing, malformed, unknown, mismatched, non-Ed25519, or invalid evidence fails closed.
+The release-evidence manifest binds the candidate, arbiter decision, and mandatory final
+verification to those exact bytes. Missing, malformed, mismatched, or invalid evidence fails
+closed. This is automated acceptance; it does not add a human approval checkpoint.
 
-Never author, sign, or mark an approval receipt on the user's behalf. If asked to approve a render,
-ask the actual reviewer/operator to attest it or state that publication remains blocked.
+## Optional: publishing an accepted master externally
 
-## Optional: publishing an approved master externally
-
-Once a render is `approved`, publishing it (e.g. to the repo's own object storage bucket, so the
+Once a render is accepted, publishing it (e.g. to the repo's own object storage bucket, so the
 live app or marketing site can reference it) is guidance-only — no script in this plugin performs
 an upload automatically, and it is never a required step before a render counts as approved. Follow
 the target repo's own storage/publishing convention for this step.

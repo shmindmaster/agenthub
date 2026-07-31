@@ -7,7 +7,6 @@
   "contextId": "isolated-review-context-002",
   "candidateId": "synthetic-candidate-001",
   "hostId": "codex-test-fixture",
-  "hostKeyId": "fixture-key-001",
   "mechanism": "os-filesystem-read-only-sandbox",
   "readOnly": true,
   "writeTools": [],

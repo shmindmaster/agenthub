@@ -26,8 +26,7 @@ uses unauthorized real data, or contradicts the truth sheet. Never conceal a pro
 through capture or editing.
 
 For the immutable final-capture run, record `captureId`, exact command, `startedAt`, `completedAt`,
-and the checksum-bound raw-capture artifact in evidence-package provenance. Verify the named-human
-script approval predates `startedAt`; render start is not an acceptable substitute for this gate.
+and the checksum-bound raw-capture artifact in evidence-package provenance.
 
 For pointer beats, capture 400–600ms eased-deceleration motion, 250ms click settle, 500ms post-click
 hold, 1.5–2× pointer scale, and interaction-specific feedback (300–400ms radial click pulse,

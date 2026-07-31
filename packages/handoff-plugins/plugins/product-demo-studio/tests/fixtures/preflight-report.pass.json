@@ -22,7 +22,6 @@
     {"id": "frame-duplicate", "subsystem": "export-pipeline", "passed": true, "evidenceArtifactIds": ["frame-report"]},
     {"id": "frame-corruption", "subsystem": "export-pipeline", "passed": true, "evidenceArtifactIds": ["frame-report"]},
     {"id": "asset-completeness", "subsystem": "infrastructure-assets", "passed": true, "evidenceArtifactIds": ["asset-report"]},
-    {"id": "human-script-approval", "subsystem": "story-script", "passed": true, "evidenceArtifactIds": ["script-approval", "approved-script", "approved-truth-sheet", "approved-claim-ledger"]},
     {"id": "storyboard-craft-contract", "subsystem": "story-script", "passed": true, "evidenceArtifactIds": ["storyboard", "craft-contract-report"]},
     {"id": "capture-manifest-craft-contract", "subsystem": "capture-playwright", "passed": true, "evidenceArtifactIds": ["capture-manifest", "craft-contract-report"]},
     {"id": "beat-timing-deltas", "subsystem": "capture-playwright", "passed": true, "evidenceArtifactIds": ["motion-report"]},
@@ -33,8 +32,8 @@
   ],
   "failures": [],
   "summary": {
-    "total": 20,
-    "passed": 20,
+    "total": 19,
+    "passed": 19,
     "failed": 0
   },
   "status": "PASS",

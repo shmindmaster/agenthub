@@ -37,9 +37,9 @@ core capture-to-render pipeline, keep the existing in-house flow and avoid unnec
 - **Audio cleanup (Studio Sound)** — marginal on already-clean TTS.
 - **Filler-word / silence removal** — N/A for TTS, and destructive to narration↔video sync.
 
-The finishing niche is when a **human wants Descript's interactive editor** to hand-tweak wording,
+The finishing niche is when the final presenter wants Descript's interactive editor to hand-tweak wording,
 timing, and style by feel. Any Descript edit changes candidate bytes and invalidates prior
-preflight, review, arbiter, final-verifier, and human-publication evidence. Descript never provides
+preflight, review, arbiter, final-verifier, and automated release evidence. Descript never provides
 a shortcut around rerender/re-evidence.
 
 ## Gate check first
@@ -49,7 +49,7 @@ that has passed the privacy/redaction and claim checks required for third-party 
 is not the final publication evidence gate: if Descript changes anything, export/download the
 result as a **new immutable candidate**, regenerate the complete evidence package, rerun preflight,
 fresh affected-domain reviews plus mandatory technical/synchronization/accuracy/privacy/compliance
-reviews, obtain a new arbiter decision, and obtain a new human watch-through attestation for the
+reviews, obtain a new arbiter decision, and obtain a new terminal final-verifier `PASS` for the
 exact final bytes.
 
 If the edited bytes cannot be exported locally for checksum and deterministic validation, return
@@ -90,12 +90,11 @@ One concrete use pattern for this portfolio:
 
 1. **Repurpose a privacy/claim-cleared working render into a shorter social cut** — ask Underlord
    for a highlight reel or trim. Treat the cut as a new candidate with its own source record,
-   checksums, captions/safe-area evidence, preflight, reviews, decision, and publication
-   attestation.
+   checksums, captions/safe-area evidence, preflight, reviews, decision, and release evidence.
 
 Never send raw capture or pre-gate plates to Descript. If capture cleanup is needed before
 composition, use deterministic local editing in the capture/render pipeline, then pass the result
-through the normal evidence and approval gates.
+through the normal automated evidence and acceptance gates.
 
 ## Export is a signed web link, not a local file
 
@@ -118,8 +117,8 @@ the user a local file exists when only a web link does.
 ## After publishing
 
 `publish_project` is an external publication action and requires explicit user authorization.
-The signed share URL may be recorded only after the exact shared candidate has current machine
-`PASS` and named-human publication evidence. A review link for pre-release work must be explicitly
+The signed share URL may be recorded only after the exact shared candidate has current automated
+`PASS`. A review link for pre-release work must be explicitly
 classified as private review, still requires authorization, and must never be represented as an
 approved release. Record the returned URL and project/composition identifiers as external
 provenance without replacing the local byte checksum.

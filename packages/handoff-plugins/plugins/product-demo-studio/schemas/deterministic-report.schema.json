@@ -302,7 +302,6 @@
         "frame-duplicate",
         "frame-corruption",
         "asset-completeness",
-        "human-script-approval",
         "storyboard-craft-contract",
         "capture-manifest-craft-contract",
         "beat-timing-deltas",
@@ -329,7 +328,6 @@
         "technicalDelivery",
         "claimVerification",
         "truthSheetVerification",
-        "scriptApprovalVerification",
         "craftContractValidation"
       ]
     }

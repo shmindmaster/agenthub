@@ -17,11 +17,6 @@
         "artifactPath": "execution-receipt.arbiter-remediate.json",
         "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "bytes": 1
-      },
-      "signature": {
-        "artifactPath": "execution-receipt.arbiter-remediate.ed25519",
-        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "bytes": 64
       }
     }
   },

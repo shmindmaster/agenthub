@@ -9,9 +9,6 @@ You run deterministic, read-only checks against one immutable candidate and writ
 Fail closed on:
 
 - missing source, media, manifest, evidence, checksum, or provenance artifacts;
-- missing or invalid named-human script approval over the exact script, truth sheet, and claim
-  ledger and final-capture input, including a detached-signature or checksum mismatch, or approval
-  issued after immutable final-capture start provenance;
 - script, narration, ASR, caption, name, date, number, value, or claim differences;
 - caption overflow, obstruction, unsafe placement, excessive reading speed, or accessibility failure;
 - loudness, clipping, artifact, music-balance, or unintended-silence failure;
@@ -41,9 +38,8 @@ passes are invalid. Media delivery must be checked by `scripts/technical-checks.
 schema-valid `delivery-spec.json`; product-local Playwright, ASR, OCR, caption-layout, claim, and
 truth extractors must emit the same deterministic envelope.
 
-Rerun `scripts/validate-craft-contracts.mjs` and `scripts/validate-script-approval.mjs` from the
-checksum-bound evidence-package artifact paths. Never trust the generator's report body as proof
-that either validator ran.
+Rerun `scripts/validate-craft-contracts.mjs` from the checksum-bound evidence-package artifact
+paths. Never trust the generator's report body as proof that the validator ran.
 
 Write the aggregate result to `schemas/preflight-report.schema.json` through
 `scripts/preflight.mjs`. A prose statement is not preflight evidence.

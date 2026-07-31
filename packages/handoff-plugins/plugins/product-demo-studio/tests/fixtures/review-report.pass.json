@@ -18,11 +18,6 @@
         "artifactPath": "execution-receipt.review-story-pass.json",
         "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "bytes": 1
-      },
-      "signature": {
-        "artifactPath": "execution-receipt.review-story-pass.ed25519",
-        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "bytes": 64
       }
     },
     "startedAt": "2026-07-29T15:00:00.000Z",

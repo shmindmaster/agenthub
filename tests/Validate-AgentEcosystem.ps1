@@ -76,7 +76,6 @@ $requiredFiles = @(
     'registry\native-connectors.json',
     'registry\skill-ownership.json',
     'registry\runtime-policy.json',
-    'registry\reviewer-execution-broker.json',
     'registry\product-video-delivery.json',
     'registry\gateway-profiles.json',
     'registry\automation-gates.json',
@@ -355,28 +354,6 @@ if ($registryObjects.ContainsKey('runtime-policy.json')) {
     }
 }
 
-if ($registryObjects.ContainsKey('reviewer-execution-broker.json')) {
-    $broker = $registryObjects['reviewer-execution-broker.json']
-    if ($broker.schemaVersion -eq 1 -and
-        $broker.mode -eq 'on-demand' -and
-        $broker.persistentProcessAllowed -eq $false -and
-        $broker.trust.registryEnvironmentVariable -eq 'AGENTHUB_EXECUTION_HOST_TRUST_CONFIG' -and
-        $broker.trust.agentsMayAuthorReceipts -eq $false -and
-        $broker.trust.agentsMaySignReceipts -eq $false -and
-        $broker.trust.privateKeyMaterialAllowedInAgentHub -eq $false -and
-        $broker.trust.privateKeyMaterialAllowedInAgentEnvironment -eq $false -and
-        $broker.trust.missingTrustDecision -eq 'PIPELINE_BLOCKED' -and
-        $broker.execution.spawnOnlyWhenRoleIsDispatched -eq $true -and
-        $broker.execution.terminateAfterReceiptIsEmitted -eq $true -and
-        $broker.execution.sharedDaemonRequired -eq $false) {
-        Add-ValidationResult PASS 'registry:reviewer-execution-broker' `
-            'on-demand, fail-closed, operator-owned signing contract is valid'
-    } else {
-        Add-ValidationResult FAIL 'registry:reviewer-execution-broker' `
-            'broker must be on-demand and prohibit resident daemons, agent-authored receipts, and agent-readable signing keys'
-    }
-}
-
 if ($registryObjects.ContainsKey('product-video-delivery.json')) {
     $delivery = $registryObjects['product-video-delivery.json']
     $products = @($delivery.products)
@@ -397,8 +374,9 @@ if ($registryObjects.ContainsKey('product-video-delivery.json')) {
     if ($delivery.deliveryPolicy.classification -ne 'review-only' -or
         $delivery.deliveryPolicy.immutableCandidateDirectories -ne $true -or
         $delivery.deliveryPolicy.overwriteAllowed -ne $false -or
-        $delivery.deliveryPolicy.publicationPromotionRequiresSignedHumanApproval -ne $true) {
-        $deliveryProblems.Add('delivery policy does not separate immutable private review from publication')
+        $delivery.deliveryPolicy.firstHumanTouchpoint -ne 'final-presentation' -or
+        $delivery.deliveryPolicy.automatedAcceptanceRequired -ne $true) {
+        $deliveryProblems.Add('delivery policy does not require automated acceptance before final presentation')
     }
     if ($deliveryProblems.Count -eq 0) {
         Add-ValidationResult PASS 'registry:product-video-delivery' `

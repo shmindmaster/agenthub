@@ -7,6 +7,10 @@ this file maps it onto the plugin's normalized validators. Preserve a target rep
 catalog and manifest shapes; when they differ, export equivalent normalized JSON rather than
 forcing a migration.
 
+For orchestration, `policy/product-video-policy.json` is authoritative: the guide's historical
+human script/final-watch checkpoints are replaced by automated validation, independent review,
+iterative remediation, and terminal verification. The first human touchpoint is final presentation.
+
 Before production, configure the output root, in-repo working directory, seed/reset environment,
 brand tokens, approved voice profile, and optional issue tracker. Pick the demo type
 (`sizzle-hook`, `guided-discovery-support`, `onboarding-enablement`, or `internal-handoff`) and
@@ -17,7 +21,7 @@ record whether the audience needs compliance-heavy trust framing or operational 
 Every candidate episode ends in exactly one of these outcomes:
 
 1. **Killer video** — a `PASS` or `CONDITIONAL` episode clears product truth, craft, technical,
-   accessibility, provenance, and human-review gates. Deliver the approved master and requested
+   accessibility, provenance, and independent-review checks. Deliver the accepted master and requested
    derivatives.
 2. **Product-readiness feedback** — a `FAIL` episode has one or more product-fix-required defects.
    Do not produce or deliver a mediocre master. Write a reproducible, buildable report instead.
@@ -177,11 +181,11 @@ master, 30-second social cut, 10–15-second teaser, silent GIF/loop, vertical 9
 captions, and a deliberate thumbnail/first frame. Recompose rather than crop. Do not multiply
 deliverables by default when the episode or request needs only one format.
 
-## Timed script, provider preflight, and human gates
+## Timed script and provider preflight
 
 The structured timed script is the source of truth for capture, narration, annotations, captions,
-and render timing. Approve that script before final capture and run a final human QA watch before
-external delivery. Before any billed narration run, resolve the current speech and transcription
+and render timing. Validate it automatically before final capture, then run the independent review,
+remediation, and terminal verification loop before final presentation. Before any billed narration run, resolve the current speech and transcription
 models against provider model/deprecation information, verify credentials without generating,
 recheck price and quota, verify the approved voice still exists, estimate cost from measured
 duration, and record provider/model/voice/instructions/speed/formats in the episode manifest. Never

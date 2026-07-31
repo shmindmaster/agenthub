@@ -202,8 +202,6 @@
               "truth-sheet",
               "claim-ledger",
               "script",
-              "script-approval",
-              "signature",
               "storyboard",
               "capture-manifest",
               "capture-evidence",
@@ -246,7 +244,6 @@
         "technicalDelivery",
         "claimVerification",
         "truthSheetVerification",
-        "scriptApprovalVerification",
         "craftContractValidation"
       ],
       "properties": {
@@ -473,20 +470,6 @@
               }
             }
           ]
-        },
-        "scriptApprovalVerification": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/deterministicReportReference"
-            },
-            {
-              "properties": {
-                "reportType": {
-                  "const": "scriptApprovalVerification"
-                }
-              }
-            }
-          ]
         }
       }
     },
@@ -572,7 +555,6 @@
             "technicalDelivery",
             "claimVerification",
             "truthSheetVerification",
-            "scriptApprovalVerification",
             "craftContractValidation"
           ]
         },

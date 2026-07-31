@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.5.0",
+  "capabilityVersion": "1.5.2",
   "hostInventorySource": "registry/capabilities.json#product-demo-studio.hostMappings",
   "equivalentContract": {
     "canonicalPolicy": "policy/product-video-policy.json",
@@ -9,12 +9,10 @@
     "reviewSchema": "schemas/review-report.schema.json",
     "reviewerCalibrationSchema": "schemas/reviewer-calibration.schema.json",
     "calibrationReviewResultSchema": "schemas/calibration-review-result.schema.json",
-    "scriptApprovalSchema": "schemas/script-approval.schema.json",
     "mediaAccelerationSchema": "schemas/media-acceleration.schema.json",
     "decisionSchema": "schemas/release-decision.schema.json",
     "finalVerificationSchema": "schemas/final-verification.schema.json",
     "executionReceiptSchema": "schemas/execution-receipt.schema.json",
-    "executionHostTrustSchema": "schemas/execution-host-trust.schema.json",
     "releaseEvidenceSchema": "schemas/release-evidence.schema.json",
     "reviewDeliverySchema": "schemas/review-delivery.schema.json",
     "interactiveDeepDiveSchema": "schemas/interactive-deep-dive.schema.json",
@@ -54,8 +52,8 @@
   "executionRule": {
     "capabilityExposureIsReleaseEligibility": false,
     "liveRunMustRecordNativeReadOnlyEnforcement": true,
-    "liveRunMustProvideTrustedSignedExecutionReceipt": true,
-    "agentAuthoredExecutionReceiptAllowed": false,
+    "liveRunMustProvideReadOnlyExecutionReceipt": true,
+    "agentAuthoredExecutionReceiptAllowed": true,
     "promptOnlyOrBroadWriteContextMayRelease": false,
     "missingOrFailedEnforcementDecision": "PIPELINE_BLOCKED",
     "cursorDispatchAllowed": true

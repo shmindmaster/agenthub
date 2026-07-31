@@ -149,7 +149,7 @@ video calls for a different voice, across a repo's whole catalog.
 
 ## Voice quality profile
 
-Use the repo's auditioned, human-approved profile as the source of truth. The bundled ElevenLabs
+Use the repo's established, validated profile as the source of truth. The bundled ElevenLabs
 values below are a reproducible legacy starting preset for repos already using that provider, not
 a current provider recommendation. Verify the model and voice live, audition at least three current
 candidates when no profile exists, and never switch a catalog's provider or voice silently.
@@ -169,8 +169,8 @@ Presets (in `--preset`): **natural-warm** `0.42 / 0.75 / 0.92 / 0.00` · **expre
 
 Before committing a voice for a catalog, render a small A/B set on a representative 10–20 second
 segment containing the product name, an acronym, a number/date, the result, and the guardrail.
-Audition at least three suitable current built-in candidates when the repo has no approved profile,
-keep the scoring/decision record, and require named human voice approval before the first master.
+Audition at least three suitable current built-in candidates when the repo has no established
+profile, keep the scoring/decision record, and select the highest-scoring candidate automatically.
 An existing repo voice profile is the source-of-truth candidate to verify, not permission to replace
 or clone it. If quota blocks the audition, record `BLOCKED_ON_QUOTA` rather than choosing from a
 label or one short clip. Generate narration in short
@@ -181,10 +181,10 @@ don't need here (the script never sets it).
 
 ## Timing: narrate first, then capture to the measured durations
 
-Narration is approved *before* final capture, and its measured per-segment durations drive the
+Narration is automatically validated *before* final capture, and its measured per-segment durations drive the
 recording plan — not the other way around. When aligning audio and video:
 
-- Synthesize and cache approved narration outside the recorded browser session. Provider/API
+- Synthesize and cache validated narration outside the recorded browser session. Provider/API
   latency is pipeline time, never a product wait to capture and speed-ramp.
 
 - The screen state must appear *before* the narration describes it; don't announce an action

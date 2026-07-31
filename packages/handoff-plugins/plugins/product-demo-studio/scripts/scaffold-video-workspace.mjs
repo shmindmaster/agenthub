@@ -407,7 +407,7 @@ Fill this in before capturing or scripting any video for ${productName}:
   logos, anything not yet publicly announced)?
 - What claims are NOT yet substantiated (compliance status, accuracy numbers, customer counts)
   and must not appear in captions, voiceover, or on-screen copy?
-- Who is the human reviewer responsible for the evidence-redaction gate for this product?
+- Which deterministic redaction and claim checks must pass before final presentation?
 `,
 );
 
@@ -442,11 +442,11 @@ sense that final packaged outputs live here -- the actual Remotion source lives 
 - \`07_Sales_Outreach/\` - design-partner and investor-oriented cuts.
 - \`09_Final_Reports/\` - final QA reports, redaction logs, release notes.
 
-## Before any output here counts as approved
+## Before any output here counts as accepted
 
 Every asset needs a release-evidence manifest (see product-demo-studio-render's SKILL.md and
-check-evidence-gate.mjs) with a human-attested \`classification\` before it moves from a scratch
-render into one of the folders above.
+check-evidence-gate.mjs) that binds the exact candidate, PASS arbiter decision, and PASS terminal
+verification before it moves from a scratch render into one of the folders above.
 `,
 );
 

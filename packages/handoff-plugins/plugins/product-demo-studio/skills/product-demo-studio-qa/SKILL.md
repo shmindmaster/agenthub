@@ -19,18 +19,14 @@ independent reviewer/verifier are fresh,
 isolated, and read-only; each writes only its own report. Remediation agents write only the files
 named in a validated assignment and cannot approve their work.
 
-The executing host or AgentHub adapter must enforce that read-only isolation and record the
-enforcement evidence. Prompt instructions and plugin-wide tool declarations are not a security
-boundary. If the host cannot prove isolation from write-capable tools, stop with
+The executing host or AgentHub adapter must use its native read-only role/context and record that
+configuration in the execution receipt. Prompt instructions and plugin-wide tool declarations are
+not a security boundary. If the host cannot provide a read-only context, stop with
 `PIPELINE_BLOCKED`.
 
-Machine `PASS` does not fabricate external-publication approval. Before any asset crosses the
-external reuse boundary, a named human must complete a start-to-finish watch-through with captions
-on and off, confirm synthetic data and redaction, and sign the exact publication-approval receipt
-with the trusted Ed25519 private key outside the agent runtime. `check-evidence-gate.mjs` verifies
-the raw detached signature against the public-key-only PEM named by
-`AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY`. Agents must never create, copy, or request the private
-key, and an editable name/classification in the release manifest is never approval.
+Acceptance is automated. Keep generating, checking, independently reviewing, remediating, and
+rerendering until the candidate passes or evidence proves a genuine blocker. The first human
+touchpoint is the final presentation of that result.
 
 ## Immutable candidate and evidence package
 
@@ -48,31 +44,17 @@ Give every stage one immutable `candidateId`. The evidence package must conform 
 Use deterministic tools for measurable facts and reviewers only for judgment. Missing or stale
 evidence is a pipeline failure, not permission to infer a pass.
 
-## Signed publication approval
+## Automated release evidence
 
-`schemas/release-evidence.schema.json` describes the unsigned evidence graph. It references the
-candidate, arbiter decision, final verification, approval receipt, and detached signature by exact
-path, SHA-256, and byte count. The separately signed receipt is strict JSON with exactly:
+`schemas/release-evidence.schema.json` describes the evidence graph. It references the candidate,
+arbiter decision, and final verification by exact path, SHA-256, and byte count.
 
-- `schemaVersion: "1.0.0"` and a unique `PVA-...-001` `receiptId`;
-- `signatureAlgorithm: "Ed25519"` and `approverPublicKeySha256`, calculated from the trusted
-  public key's DER SPKI bytes;
-- `candidateId`, `candidateSha256`, and `candidateBytes`;
-- `arbiterDecisionSha256` and `finalVerificationSha256`;
-- `reviewerIdentity`, RFC 3339 `reviewedAt`, `classification: "approved"`,
-  `watchThroughStatus: "completed"`, `syntheticDataConfirmed: true`, and `redactionNotes`.
-
-Sign the exact receipt file bytes in the human-controlled approval system and store the raw
-64-byte Ed25519 signature as a separate artifact. Then run:
+Then run:
 
 ```bash
-AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY=/trusted/path/publication-approver.pem \
-  node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/check-evidence-gate.mjs" \
+node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/check-evidence-gate.mjs" \
   --manifest <release-evidence.json>
 ```
-
-The public key environment variable is a trust decision supplied by the operator. A manifest,
-receipt, or agent cannot select its own trusted key.
 
 ## Stage 1 — deterministic preflight
 
@@ -105,11 +87,9 @@ loudness, clipping, artifact, ducking, or unintended-silence failures; black/fro
 corrupt frames; missing/invalid storyboard or capture craft contracts; incomplete episode/segment
 coverage; missing per-beat timing deltas; unprobed or unbound raw-capture geometry; browser,
 console, network, capture, asset, font, decode, or render errors; invalid output
-specifications; incomplete/mismatched checksums and provenance; script approval after immutable
-final-capture start; or GPU selections that do not match functional encode/inference probes.
-Preflight reruns `validate-craft-contracts.mjs` and `validate-script-approval.mjs` from the bound
-artifact paths and requires every signed receipt path/hash to equal the corresponding evidence-
-package catalog artifact; a generator-authored PASS report cannot substitute for those checks.
+specifications; incomplete/mismatched checksums and provenance; or GPU selections that do not
+match functional encode/inference probes. Preflight reruns `validate-craft-contracts.mjs` from the
+bound artifact paths; a generator-authored PASS report cannot substitute for that check.
 
 Route failures to the responsible generator. Do not dispatch reviewers until preflight passes.
 
@@ -142,15 +122,16 @@ calibration record, and model ID, with `generatorReasoningReceived:false` and
 `priorReviewsReceived:false`. `validate-review-report.mjs` checks their bytes, domain/model/overlay
 binding, and the seven-day maximum age at review start.
 Calibration execution receipts additionally bind the exact fixture-input hash and the canonical
-derived result-payload hash, so a legitimate signed context receipt cannot be reused with a forged
+derived result-payload hash, so a legitimate context receipt cannot be reused with a forged
 calibration result.
 
 If the host cannot enforce those contexts as read-only, do not simulate isolation with prompt
 text. Record the missing enforcement evidence and return `PIPELINE_BLOCKED`.
-The host must emit and sign the exact execution receipt. Validate its detached Ed25519 signature
-against the operator-owned registry selected by `AGENTHUB_EXECUTION_HOST_TRUST_CONFIG`. An agent
-may consume this receipt but may never author or sign it. Unknown or disabled keys, unauthorized
-roles/mechanisms/tools, missing trust configuration, or receipt/signature drift fail closed.
+The isolated role records the execution receipt as an operational trace, not a security
+attestation. Validate its role, context, candidate, declared native read-only mechanism, tool
+classes, and timestamps. Enforcement comes from launching the host's restricted role/context;
+receipt text alone cannot create isolation. No broker, key registry, signature, or resident
+process is required.
 
 Each report must conform to `schemas/review-report.schema.json`. Every finding must conform to
 `schemas/video-finding.schema.json` and contain:
@@ -222,11 +203,9 @@ node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/validate-remediation-assignment.mjs" \
 The remediation agent reproduces, finds root cause, improves automated coverage where feasible,
 implements the smallest coherent fix, runs targeted validation, and reports exact changed files,
 commands, results, and evidence. It cannot approve its work or conceal a product defect in editing.
-Cap automated capture-fix remediation at two attempts for a finding family. The arbiter must derive
-the attempt from checksum-bound prior REMEDIATE decisions for the same family, not trust a declared
-counter. If the second new
-candidate still fails, stop the loop and route an evidence-backed `PRODUCT_BLOCKED` or
-`PIPELINE_BLOCKED` decision; do not tune the generator against the reviewer indefinitely.
+Continue while a concrete remediation can make material progress. Stop only when the immutable
+candidate passes or evidence proves a genuine `PRODUCT_BLOCKED` or `PIPELINE_BLOCKED` condition;
+an arbitrary retry count is not a blocker.
 
 ## Stage 5 — rerender and fresh review
 
@@ -250,11 +229,9 @@ reviewer and verifier in a fresh read-only context. A candidate cannot be packag
 released without this role's schema-valid `PASS` report for the exact unchanged candidate. It
 independently checks candidate/report identities, changed-source invalidation, thresholds,
 checksums, provenance, playback, reproduction, and delivery-folder contents. Only after this final
-report returns `PASS` may the human approver create and sign a receipt that binds the candidate
-SHA-256/bytes, arbiter SHA-256, final-verification SHA-256, reviewer identity/time, `approved`
-classification, completed watch-through, synthetic-data confirmation, redaction notes, and trusted
-public-key fingerprint. The gate verifies the receipt and its raw 64-byte Ed25519 signature;
-missing or untrusted keys, modified receipts, and stale signatures fail.
+report returns `PASS` does automated acceptance complete and the final presentation package become
+eligible for delivery. The evidence gate rejects missing, malformed, or stale candidate, arbiter,
+or final-verification records.
 
 ## Quality bar
 

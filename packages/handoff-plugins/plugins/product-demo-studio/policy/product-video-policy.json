@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.5.0",
+  "capabilityVersion": "1.5.2",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -35,9 +35,8 @@
     "requiresFinalVerifierPass": true,
     "immutableCandidateDirectory": true,
     "overwriteAllowed": false,
-    "humanReviewStatus": "pending",
-    "publicationApproved": false,
-    "publicationPromotionRequiresSignedHumanApproval": true
+    "firstHumanTouchpoint": "final-presentation",
+    "automatedAcceptanceRequired": true
   },
   "captureQualityPolicy": {
     "guidedScreencastRequired": true,
@@ -90,15 +89,16 @@
     "unevidencedCriterionDecision": "PIPELINE_BLOCKED",
     "reviewerMayEditCandidateOrSource": false
   },
-  "humanGatePolicy": {
-    "scriptApprovalRequiredBeforeFinalCapture": true,
-    "finalFullWatchRequiredBeforePublication": true,
-    "publicationApprovalMayBeAutomated": false
+  "autonomyPolicy": {
+    "humanInteractionBeforeFinalPresentationAllowed": false,
+    "acceptanceIsAutomated": true,
+    "continuousEvaluationAndRemediationRequired": true,
+    "terminalHumanTouchpoint": "final-presentation"
   },
   "remediationCyclePolicy": {
-    "maximumAutomatedCaptureFixAttempts": 2,
-    "thirdAttemptAllowed": false,
-    "unresolvedAfterLimitDecision": "PRODUCT_BLOCKED_OR_PIPELINE_BLOCKED"
+    "fixedAttemptLimit": false,
+    "continueUntilPassOrEvidenceBackedBlocker": true,
+    "stopOnNoMaterialProgressAllowed": false
   },
   "verticalRubricOverlayPolicy": {
     "baseRubricImmutablePerCandidate": true,
@@ -122,7 +122,7 @@
     "repositoryInspectionAloneIsSufficient": false
   },
   "narrationTimingPolicy": {
-    "approvedNarrationGeneratedBeforeFinalCapture": true,
+    "validatedNarrationGeneratedBeforeFinalCapture": true,
     "providerLatencyExcludedFromRecordedTimeline": true,
     "wordTimestampsRequired": true,
     "singleSourceToOutputTimingMapRequired": true,
@@ -134,10 +134,10 @@
       "instructionOnlyIsolationIsSufficient": false,
       "reviewerArbiterFinalVerifierRequireHostEnforcedReadOnlyIsolation": true,
       "unsupportedHostDecision": "PIPELINE_BLOCKED",
-      "hostAdapterMustRecordEnforcementEvidence": true,
-      "executionReceiptsMustBeHostSigned": true,
-      "agentsMayAuthorExecutionReceipts": false,
-      "trustedHostRegistryEnvironmentVariable": "AGENTHUB_EXECUTION_HOST_TRUST_CONFIG"
+      "hostNativeReadOnlyRoleRequired": true,
+      "executionReceiptsRecordDeclaredContext": true,
+      "executionReceiptIsSecurityAttestation": false,
+      "agentsMayAuthorExecutionReceipts": true
     },
     "generation": {
       "writeScope": "assigned-domain-only",
@@ -225,9 +225,6 @@
       "truthSheetVerification": [
         "repository-native-truth-sheet-validator"
       ],
-      "scriptApprovalVerification": [
-        "product-demo-studio-script-approval-validator"
-      ],
       "craftContractValidation": [
         "product-demo-studio-craft-contract-validator"
       ]
@@ -267,8 +264,7 @@
       "mustBindExactFinalCandidate": true,
       "publicationPackagingRequiresPass": true,
       "failureDecision": "PIPELINE_BLOCKED"
-    },
-    "humanPublicationAttestationSeparate": true
+    }
   },
   "rerunPolicy": {
     "newCandidateAfterRelevantChange": true,

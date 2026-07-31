@@ -198,26 +198,16 @@ function invokeValidator(scriptName, artifactPath, label) {
 }
 
 function validateExecutionReceipt(reference, label, expected) {
-  if (!exactObject(reference, label, ["receipt", "signature"])) return null;
+  if (!exactObject(reference, label, ["receipt"])) return null;
   const loaded = validateReference(reference.receipt, `${label}.receipt`, inputPath);
-  const signature = validateReference(
-    reference.signature,
-    `${label}.signature`,
-    inputPath,
-    false,
-  );
-  if (reference.signature?.bytes !== 64) {
-    fail(`${label}.signature.bytes`, "must equal 64 for a raw Ed25519 signature.");
-  }
-  if (!loaded?.data || !signature) return null;
+  if (!loaded?.data) return null;
   const result = spawnSync(process.execPath, [
     resolve(scriptDir, "validate-execution-receipt.mjs"),
     loaded.absolute,
-    signature.absolute,
   ], { encoding: "utf8" });
   if (result.status !== 0) {
     const detail = `${result.stderr ?? ""}\n${result.stdout ?? ""}`.trim().split(/\r?\n/)[0];
-    fail(label, `semantic validator rejected the signed receipt${detail ? `: ${detail}` : "."}`);
+    fail(label, `semantic validator rejected the execution receipt${detail ? `: ${detail}` : "."}`);
     return null;
   }
   for (const [field, value] of Object.entries(expected)) {

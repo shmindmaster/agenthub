@@ -11,7 +11,6 @@
     "sourceRepository",
     "delivery",
     "gates",
-    "humanReview",
     "files",
     "createdAt"
   ],
@@ -69,19 +68,6 @@
         },
         "finalVerification": {
           "$ref": "#/$defs/file"
-        }
-      }
-    },
-    "humanReview": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["status", "publicationApproved"],
-      "properties": {
-        "status": {
-          "const": "pending"
-        },
-        "publicationApproved": {
-          "const": false
         }
       }
     },

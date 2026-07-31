@@ -98,8 +98,9 @@ if (!existsSync(mapping.reviewRoot) || !statSync(mapping.reviewRoot).isDirectory
 if (registry.deliveryPolicy?.classification !== "review-only" ||
     registry.deliveryPolicy?.immutableCandidateDirectories !== true ||
     registry.deliveryPolicy?.overwriteAllowed !== false ||
-    registry.deliveryPolicy?.publicationPromotionRequiresSignedHumanApproval !== true) {
-  stop("Delivery registry does not enforce immutable review-only packages and separate human publication approval.");
+    registry.deliveryPolicy?.firstHumanTouchpoint !== "final-presentation" ||
+    registry.deliveryPolicy?.automatedAcceptanceRequired !== true) {
+  stop("Delivery registry does not enforce immutable packages, automated acceptance, and final-presentation-only human involvement.");
 }
 
 const decisionPath = resolve(decisionArg);
@@ -175,10 +176,6 @@ try {
     gates: {
       arbiterDecision: recordByName.get(basename(decisionPath)),
       finalVerification: recordByName.get(basename(finalPath)),
-    },
-    humanReview: {
-      status: "pending",
-      publicationApproved: false,
     },
     files: records,
     createdAt: new Date().toISOString(),

@@ -61,7 +61,6 @@ $processStates = New-Object System.Collections.Generic.List[object]
 $runtimeTrees = New-Object System.Collections.Generic.List[object]
 $runtimeResourceGroups = New-Object System.Collections.Generic.List[object]
 $runtimeSessionStates = New-Object System.Collections.Generic.List[object]
-$reviewerBrokerState = $null
 
 function Add-DriftResult {
     param(
@@ -548,7 +547,6 @@ $mcpsPath = Join-Path $RegistryRoot 'registry\mcps.json'
 $connectorsPath = Join-Path $RegistryRoot 'registry\native-connectors.json'
 $skillOwnershipPath = Join-Path $RegistryRoot 'registry\skill-ownership.json'
 $runtimePolicyPath = Join-Path $RegistryRoot 'registry\runtime-policy.json'
-$reviewerBrokerPath = Join-Path $RegistryRoot 'registry\reviewer-execution-broker.json'
 foreach ($requiredPath in @($agentsPath, $capabilitiesPath, $mcpsPath, $connectorsPath)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required registry is missing: $requiredPath"
@@ -565,7 +563,6 @@ $hostConfiguredLocalMcpIds = @(
 )
 $skillOwnershipRegistry = Read-JsonFile -Path $skillOwnershipPath
 $runtimePolicy = Read-JsonFile -Path $runtimePolicyPath
-$reviewerBroker = Read-JsonFile -Path $reviewerBrokerPath
 $agents = @($agentRegistry.activeAgents) + @($agentRegistry.inactiveAgents)
 $agentById = @{}
 foreach ($agent in $agents) { $agentById[[string]$agent.id] = $agent }
@@ -1154,71 +1151,6 @@ if ($productDemoCapability.Count -eq 1) {
                 "Qwen Product Demo Studio agent extension is missing its agents declaration or $($qwenMissing.Count) roles" `
                 'qwen-code' @($qwenManifestPath, $qwenAgentsRoot)
         }
-    }
-}
-
-# Independent review is release-eligible only when a host/operator-owned
-# execution broker can emit signed receipts. The broker is on-demand and must
-# never become another resident Node/Python daemon or expose a signing key to
-# an agent process.
-if ($null -ne $reviewerBroker) {
-    $trust = Get-PropertyValue $reviewerBroker 'trust' $null
-    $execution = Get-PropertyValue $reviewerBroker 'execution' $null
-    $trustVariable = [string](
-        Get-PropertyValue $trust 'registryEnvironmentVariable' ''
-    )
-    $contractValid =
-        [string]$reviewerBroker.mode -eq 'on-demand' -and
-        (Get-PropertyValue $reviewerBroker 'persistentProcessAllowed' $true) -eq $false -and
-        (Get-PropertyValue $trust 'agentsMayAuthorReceipts' $true) -eq $false -and
-        (Get-PropertyValue $trust 'agentsMaySignReceipts' $true) -eq $false -and
-        (Get-PropertyValue $trust 'privateKeyMaterialAllowedInAgentHub' $true) -eq $false -and
-        (Get-PropertyValue $trust 'privateKeyMaterialAllowedInAgentEnvironment' $true) -eq $false -and
-        [string](Get-PropertyValue $trust 'missingTrustDecision' '') -eq 'PIPELINE_BLOCKED' -and
-        (Get-PropertyValue $execution 'spawnOnlyWhenRoleIsDispatched' $false) -eq $true -and
-        (Get-PropertyValue $execution 'terminateAfterReceiptIsEmitted' $false) -eq $true -and
-        (Get-PropertyValue $execution 'sharedDaemonRequired' $true) -eq $false -and
-        $trustVariable -eq 'AGENTHUB_EXECUTION_HOST_TRUST_CONFIG'
-    if (-not $contractValid) {
-        Add-DriftResult FAIL 'role' 'reviewer-execution-broker:contract' `
-            'reviewer broker must be on-demand, fail closed, keep private keys outside agent access, and prohibit agent-authored signatures' `
-            '' @($reviewerBrokerPath)
-    } else {
-        Add-DriftResult PASS 'role' 'reviewer-execution-broker:contract' `
-            'on-demand broker contract prohibits resident daemons and agent-owned signing keys' `
-            '' @($reviewerBrokerPath)
-    }
-
-    $trustPath = [Environment]::GetEnvironmentVariable($trustVariable, 'Process')
-    if ([string]::IsNullOrWhiteSpace($trustPath)) {
-        $trustPath = [Environment]::GetEnvironmentVariable($trustVariable, 'User')
-    }
-    $trustAvailable = -not [string]::IsNullOrWhiteSpace($trustPath) -and
-        (Test-Path -LiteralPath $trustPath -PathType Leaf)
-    $reviewerBrokerState = [pscustomobject]@{
-        mode = [string]$reviewerBroker.mode
-        persistentProcessAllowed = [bool]$reviewerBroker.persistentProcessAllowed
-        trustEnvironmentVariable = $trustVariable
-        trustConfigured = $trustAvailable
-        releaseEligible = $contractValid -and $trustAvailable
-    }
-    if ($trustAvailable) {
-        $trustDocument = Read-JsonFile -Path $trustPath
-        if ($null -ne $trustDocument -and
-            [int](Get-PropertyValue $trustDocument 'schemaVersion' 0) -ge 1 -and
-            @((Get-PropertyValue $trustDocument 'hosts' @())).Count -gt 0) {
-            Add-DriftResult PASS 'role' 'reviewer-execution-broker:operator-trust' `
-                'operator-owned trust registry is configured; live receipts still require per-run signature validation' `
-                '' @($trustPath)
-        } else {
-            Add-DriftResult FAIL 'role' 'reviewer-execution-broker:operator-trust' `
-                'configured operator trust registry is malformed or has no enabled host inventory' `
-                '' @($trustPath)
-        }
-    } else {
-        Add-DriftResult WARN 'role' 'reviewer-execution-broker:operator-trust' `
-            'operator-owned trust registry is not configured; Product Demo Studio review, arbitration, final verification, and delivery correctly remain PIPELINE_BLOCKED' `
-            '' @($trustPath)
     }
 }
 
@@ -1909,7 +1841,6 @@ $inventory = [ordered]@{
     runtimeTrees = @($runtimeTrees.ToArray())
     runtimeSessions = @($runtimeSessionStates.ToArray())
     runtimeResourceGroups = @($runtimeResourceGroups.ToArray())
-    reviewerExecutionBroker = $reviewerBrokerState
 }
 $output = [ordered]@{
     schemaVersion = 1

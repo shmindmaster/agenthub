@@ -5,13 +5,13 @@
 AgentHub is the deployed source of truth for the registered agent fleet. Canonical capability,
 skill, plugin, MCP, worktree, quarantine, and deployment contracts are converged and regression
 tested. The current live configuration verdict is `PASS`: 106 passes, 2 warnings, and 0 failures.
-The warnings are the intentional Product Demo Studio operator-trust gate and two observed active
-Chrome DevTools runtime trees while agent sessions are open. Product Demo Studio is current at `1.3.1` in every detected
-version-pinned session. Product Experience Engineering is current at `1.1.2` on Claude, Codex,
-Cursor, and Qoder.
-Product Demo Studio review and release eligibility remains `PIPELINE_BLOCKED` until an
-operator-controlled host receipt signer proves release-grade read-only execution on a supported
-host.
+The two warnings were observed active Chrome DevTools runtime trees while agent sessions were open.
+The Product Demo Studio version recorded by this snapshot was `1.3.1`; the current canonical
+contract is `1.5.2` and its live deployment is verified separately. Product Experience Engineering
+was current at `1.1.2` on Claude, Codex, Cursor, and Qoder.
+Product Demo Studio now uses automated acceptance, iterative remediation, and a mandatory terminal
+independent verifier. Native read-only roles record plain operational receipts; no signer, trust
+registry, key, broker, resident service, or intermediate human approval is required.
 
 ## Canonical ownership
 
@@ -53,8 +53,8 @@ host.
   OpenCode, and Codex receive generated host-native role adapters from the same 13 canonical
   agents. Other mapped hosts receive exact loose skills only when that is their documented
   surface. Product Experience Engineering follows its own registry-selected host adapters.
-- Product Demo Studio `1.3.1` was reinstalled from canonical AgentHub in Claude, Codex, Factory,
-  Grok, and Qoder; the remaining mapped hosts received current generated adapters or exact skills.
+- Product Demo Studio `1.3.1` was the version deployed at this snapshot; later versions are tracked
+  by the package manifests and fresh live-fleet validation rather than this historical count.
 - Product Experience Engineering `1.1.2` has matching Claude, Codex, and Cursor manifests. Its
   Cursor local-plugin junction is verified against the canonical source, and the profile fails
   closed if a future Cursor-native package is missing or version-mismatches that manifest.
@@ -145,7 +145,7 @@ identity, rather than caller-supplied product names, to these existing private r
 - `D:\OneDrive - MahumTech\Videos\CoLedger`
 
 No review candidate was fabricated during fleet validation. The first real candidate will be
-delivered only after the signed independent-review chain passes.
+delivered only after the validated independent-review chain passes.
 
 ## Remaining holds
 
@@ -164,8 +164,8 @@ delivered only after the signed independent-review chain passes.
    its executable is intentionally not installed or expected on this machine. Re-enabling it
    requires a native install and smoke test.
    Its on-disk configuration is reconciled, but it cannot be runtime-smoked on this installation.
-4. **Independent-review execution trust.** Source, deployment, permissions, and static parity are
-   verified. Release-grade read-only enforcement is not: no operator-owned
-   `AGENTHUB_EXECUTION_HOST_TRUST_CONFIG` is configured. The agent cannot create or access the
-   signing private key, so review, arbitration, final verification, and review delivery correctly
-   remain `PIPELINE_BLOCKED`. The dormant Windsurf adapter is not runtime-smoked.
+4. **Independent-review execution evidence.** Reviewer, arbiter, and final-verifier work uses the
+   host's native restricted role/context and records a plain operational receipt. Missing or
+   writable contexts route `PIPELINE_BLOCKED`; receipt text is not a security attestation. No
+   trust configuration, signing key, broker, or resident process is required. The dormant
+   Windsurf adapter is not runtime-smoked.

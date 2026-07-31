@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createHash, generateKeyPairSync, sign } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
   mkdtempSync,
   mkdirSync,
@@ -519,10 +519,6 @@ function reviewDeliveryIntegration() {
         arbiterDecision: records[1],
         finalVerification: records[2],
       },
-      humanReview: {
-        status: "pending",
-        publicationApproved: false,
-      },
       files: records,
       createdAt: "2026-07-30T12:00:00.000Z",
     }, null, 2)}\n`);
@@ -551,26 +547,9 @@ function shaBytes(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function createExecutionTrust(root) {
-  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-  const publicKeyPath = join(root, "synthetic-execution-host.pem");
-  const trustPath = join(root, "execution-host-trust.json");
-  writeFileSync(publicKeyPath, publicKey.export({ type: "spki", format: "pem" }), "utf8");
-  writeJson(trustPath, {
-    schemaVersion: "1.0.0",
-    hosts: [{
-      hostId: "synthetic-contract-host",
-      keyId: "synthetic-contract-key",
-      enabled: true,
-      publicKeyPath: "synthetic-execution-host.pem",
-      publicKeySha256: shaBytes(publicKey.export({ type: "spki", format: "der" })),
-      allowedRoles: ["reviewer", "arbiter", "final-verifier"],
-      allowedMechanisms: ["container-read-only-mount"],
-      allowedReadOnlyTools: ["filesystem-read", "media-inspect", "checksum"],
-    }],
-  });
+function createExecutionRecords(root) {
   let sequence = 0;
-  const signedReceipt = ({
+  const recordReceipt = ({
     baseDir = root,
     role,
     domain,
@@ -585,7 +564,6 @@ function createExecutionTrust(root) {
     sequence += 1;
     const slug = `${role}-${String(sequence).padStart(3, "0")}`;
     const receiptPath = join(baseDir, `execution-receipt-${slug}.json`);
-    const signaturePath = join(baseDir, `execution-receipt-${slug}.ed25519`);
     const receipt = {
       schemaVersion: "1.0.0",
       receiptId: `PVE-${role.replaceAll("-", "").toUpperCase()}-${String(sequence).padStart(3, "0")}`,
@@ -595,7 +573,6 @@ function createExecutionTrust(root) {
       contextId,
       candidateId,
       hostId: "synthetic-contract-host",
-      hostKeyId: "synthetic-contract-key",
       mechanism: "container-read-only-mount",
       readOnly: true,
       writeTools: [],
@@ -607,7 +584,6 @@ function createExecutionTrust(root) {
       ...(resultPayloadSha256 ? { resultPayloadSha256 } : {}),
     };
     writeJson(receiptPath, receipt);
-    writeFileSync(signaturePath, sign(null, readFileSync(receiptPath), privateKey));
     const reference = (path) => ({
       artifactPath: path.replaceAll("\\", "/").split("/").at(-1),
       sha256: sha(path),
@@ -615,18 +591,11 @@ function createExecutionTrust(root) {
     });
     return {
       receipt: reference(receiptPath),
-      signature: reference(signaturePath),
     };
   };
   return {
-    environment: {
-      ...process.env,
-      AGENTHUB_EXECUTION_HOST_TRUST_CONFIG: trustPath,
-    },
-    privateKey,
-    publicKey,
-    signedReceipt,
-    trustPath,
+    environment: { ...process.env },
+    recordReceipt,
   };
 }
 
@@ -634,7 +603,7 @@ function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-function createReviewIntegrity(root, reviewDomain, executionTrust) {
+function createReviewIntegrity(root, reviewDomain, executionRecords) {
   const modelId = "synthetic-independent-reviewer-v1";
   const canonicalRubricPath = join(
     pluginDir,
@@ -686,7 +655,7 @@ function createReviewIntegrity(root, reviewDomain, executionTrust) {
     };
     writeJson(reportPath, {
       ...reportPayload,
-      executionReceipt: executionTrust.signedReceipt({
+      executionReceipt: executionRecords.recordReceipt({
         role: "reviewer",
         domain: reviewDomain,
         contextId,
@@ -707,7 +676,7 @@ function createReviewIntegrity(root, reviewDomain, executionTrust) {
   writeJson(calibrationPath, {
     schemaVersion: "1.0.0",
     status: "PASS",
-    pluginVersion: "1.5.0",
+    pluginVersion: "1.5.2",
     reviewDomain,
     modelId,
     canonicalRubric,
@@ -729,12 +698,12 @@ function createReviewIntegrity(root, reviewDomain, executionTrust) {
 function reviewerCalibrationIntegration() {
   const root = mkdtempSync(join(tmpdir(), "product-demo-reviewer-calibration-"));
   try {
-    const executionTrust = createExecutionTrust(root);
-    const integrity = createReviewIntegrity(root, "story-experience", executionTrust);
+    const executionRecords = createExecutionRecords(root);
+    const integrity = createReviewIntegrity(root, "story-experience", executionRecords);
     let result = spawnSync(process.execPath, [
       join(pluginDir, "scripts", "validate-reviewer-calibration.mjs"),
       integrity.calibrationRecord.artifactPath,
-    ], { encoding: "utf8", env: executionTrust.environment });
+    ], { encoding: "utf8", env: executionRecords.environment });
     assert(result.status === 0, "reviewer calibration validator accepts all known-bad rejections and the clean pass");
 
     const calibration = loadJson(integrity.calibrationRecord.artifactPath);
@@ -748,74 +717,8 @@ function reviewerCalibrationIntegration() {
     result = spawnSync(process.execPath, [
       join(pluginDir, "scripts", "validate-reviewer-calibration.mjs"),
       integrity.calibrationRecord.artifactPath,
-    ], { encoding: "utf8", env: executionTrust.environment });
+    ], { encoding: "utf8", env: executionRecords.environment });
     assert(result.status !== 0, "reviewer calibration validator rejects a known-bad fixture that passes");
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
-function scriptApprovalIntegration() {
-  const root = mkdtempSync(join(tmpdir(), "product-demo-script-approval-"));
-  try {
-    const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-    const publicKeyPath = join(root, "script-approver.pem");
-    const scriptPath = join(root, "script.json");
-    const truthSheetPath = join(root, "truth-sheet.json");
-    const claimLedgerPath = join(root, "claim-ledger.json");
-    const finalCaptureInputPath = join(root, "storyboard.json");
-    const receiptPath = join(root, "script-approval.json");
-    const signaturePath = join(root, "script-approval.ed25519");
-    const reportPath = join(root, "script-approval-report.json");
-    writeFileSync(publicKeyPath, publicKey.export({ type: "spki", format: "pem" }), "utf8");
-    writeJson(scriptPath, { beats: [{ id: "hero", narration: "The verified result is now visible." }] });
-    writeJson(truthSheetPath, { facts: [{ id: "fact-1", verified: true }] });
-    writeJson(claimLedgerPath, { claims: [{ id: "claim-1", evidence: "fact-1" }] });
-    writeJson(finalCaptureInputPath, { episodeId: "approval-exception", approvedForFinalCapture: true });
-    writeJson(receiptPath, {
-      schemaVersion: "1.0.0",
-      receiptId: "PVS-SYNTHETIC-SCRIPT-001",
-      decision: "APPROVED",
-      candidateId: "synthetic-candidate-001",
-      episodeId: "approval-exception",
-      approver: { name: "Synthetic Contract Owner", method: "detached-ed25519" },
-      approverPublicKeySha256: shaBytes(publicKey.export({ type: "spki", format: "der" })),
-      approvedAt: "2026-07-29T14:50:00.000Z",
-      finalCaptureInput: { artifactPath: finalCaptureInputPath, sha256: sha(finalCaptureInputPath) },
-      artifacts: {
-        script: { artifactPath: scriptPath, sha256: sha(scriptPath) },
-        truthSheet: { artifactPath: truthSheetPath, sha256: sha(truthSheetPath) },
-        claimLedger: { artifactPath: claimLedgerPath, sha256: sha(claimLedgerPath) },
-      },
-    });
-    writeFileSync(signaturePath, sign(null, readFileSync(receiptPath), privateKey));
-    const validator = join(pluginDir, "scripts", "validate-script-approval.mjs");
-    const command = [
-      validator,
-      "--receipt", receiptPath,
-      "--signature", signaturePath,
-      "--out", reportPath,
-      "--candidate-id", "synthetic-candidate-001",
-      "--episode-id", "approval-exception",
-      "--receipt-artifact-id", "script-approval",
-      "--signature-artifact-id", "script-approval-signature",
-      "--script-artifact-id", "approved-script",
-      "--truth-sheet-artifact-id", "approved-truth-sheet",
-      "--claim-ledger-artifact-id", "approved-claim-ledger",
-      "--final-capture-input-artifact-id", "storyboard",
-    ];
-    const environment = { ...process.env, AGENTHUB_SCRIPT_APPROVER_PUBLIC_KEY: publicKeyPath };
-    let result = spawnSync(process.execPath, command, { encoding: "utf8", env: environment });
-    assert(result.status === 0, "script approval validator accepts a named human signature over exact script/truth/claim bytes");
-    const report = loadJson(reportPath);
-    const reportSchema = loadSchema(join(schemaDir, "deterministic-report.schema.json"));
-    const schemaErrors = [];
-    validate(reportSchema, report, "$", join(schemaDir, "deterministic-report.schema.json"), reportSchema, schemaErrors);
-    assert(schemaErrors.length === 0, "script approval validator emits a canonical deterministic report");
-
-    writeJson(scriptPath, { beats: [{ id: "hero", narration: "Tampered after approval." }] });
-    result = spawnSync(process.execPath, command, { encoding: "utf8", env: environment });
-    assert(result.status !== 0, "script approval validator rejects script bytes changed after human approval");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -957,35 +860,11 @@ function buildCanonicalCraftArtifacts(root, candidateId, storyboard, addArtifact
   return { captureManifest, captureEvidence, rawCapture };
 }
 
-function buildSignedScriptApproval(root, candidateId, episodeId, storyboardArtifact, addArtifact) {
-  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-  const publicKeyPath = join(root, "script-approver.pem");
-  writeFileSync(publicKeyPath, publicKey.export({ type: "spki", format: "pem" }), "utf8");
-  const script = addArtifact("approved-script", "script", "script.json", "application/json", { candidateId, approved: true });
-  const truthSheet = addArtifact("approved-truth-sheet", "truth-sheet", "truth-sheet.json", "application/json", { candidateId, approved: true });
-  const claimLedger = addArtifact("approved-claim-ledger", "claim-ledger", "claim-ledger.json", "application/json", { candidateId, approved: true });
-  const reference = (artifact) => ({ artifactPath: join(root, artifact.artifactPath), sha256: artifact.sha256 });
-  const receiptPath = join(root, "script-approval.json");
-  writeJson(receiptPath, {
-    schemaVersion: "1.0.0",
-    receiptId: "PVS-SYNTHETIC-SCRIPT-001",
-    decision: "APPROVED",
-    candidateId,
-    episodeId,
-    approver: { name: "Synthetic Contract Owner", method: "detached-ed25519" },
-    approverPublicKeySha256: shaBytes(publicKey.export({ type: "spki", format: "der" })),
-    approvedAt: "2026-07-29T21:50:00.000Z",
-    finalCaptureInput: reference(storyboardArtifact),
-    artifacts: { script: reference(script), truthSheet: reference(truthSheet), claimLedger: reference(claimLedger) },
-  });
-  const signaturePath = join(root, "script-approval.ed25519");
-  writeFileSync(signaturePath, sign(null, readFileSync(receiptPath), privateKey));
-  const receipt = addArtifact("script-approval", "script-approval", "script-approval.json", "application/json", null, { existing: true });
-  const signature = addArtifact("script-approval-signature", "signature", "script-approval.ed25519", "application/octet-stream", null, { existing: true });
-  return {
-    artifacts: { receipt, signature, script, truthSheet, claimLedger },
-    environment: { ...process.env, AGENTHUB_SCRIPT_APPROVER_PUBLIC_KEY: publicKeyPath },
-  };
+function buildScriptArtifacts(candidateId, addArtifact) {
+  const script = addArtifact("script", "script", "script.json", "application/json", { candidateId });
+  const truthSheet = addArtifact("truth-sheet", "truth-sheet", "truth-sheet.json", "application/json", { candidateId });
+  const claimLedger = addArtifact("claim-ledger", "claim-ledger", "claim-ledger.json", "application/json", { candidateId });
+  return { script, truthSheet, claimLedger };
 }
 
 function buildPassingEvidence(root, candidateId) {
@@ -1031,12 +910,7 @@ function buildPassingEvidence(root, candidateId) {
   const captureManifestArtifact = craftArtifacts.captureManifest;
   const captureEvidenceArtifact = craftArtifacts.captureEvidence;
   const rawCaptureArtifact = craftArtifacts.rawCapture;
-  const approval = buildSignedScriptApproval(root, candidateId, storyboardDocument.episodeId, storyboardArtifact, addArtifact);
-  const scriptApprovalArtifact = approval.artifacts.receipt;
-  const scriptApprovalSignatureArtifact = approval.artifacts.signature;
-  const scriptArtifact = approval.artifacts.script;
-  const truthSheetArtifact = approval.artifacts.truthSheet;
-  const claimLedgerArtifact = approval.artifacts.claimLedger;
+  buildScriptArtifacts(candidateId, addArtifact);
   const reportChecks = {
     mediaMetadata: ["artifact-completeness", "output-specifications"],
     framesAndContactSheets: ["asset-completeness"],
@@ -1053,7 +927,6 @@ function buildPassingEvidence(root, candidateId) {
     technicalDelivery: ["checksums-provenance", "output-specifications"],
     claimVerification: ["names-dates-numbers-claims"],
     truthSheetVerification: ["names-dates-numbers-claims"],
-    scriptApprovalVerification: ["human-script-approval"],
     craftContractValidation: ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas"],
   };
   const reportGenerators = {
@@ -1072,7 +945,6 @@ function buildPassingEvidence(root, candidateId) {
     technicalDelivery: "product-demo-studio-technical-checks",
     claimVerification: "repository-native-claim-validator",
     truthSheetVerification: "repository-native-truth-sheet-validator",
-    scriptApprovalVerification: "product-demo-studio-script-approval-validator",
     craftContractValidation: "product-demo-studio-craft-contract-validator",
   };
   const reports = {};
@@ -1089,17 +961,12 @@ function buildPassingEvidence(root, candidateId) {
       },
       inputs: (reportType === "craftContractValidation"
         ? [storyboardArtifact, captureManifestArtifact, captureEvidenceArtifact, rawCaptureArtifact]
-        : reportType === "scriptApprovalVerification"
-          ? [scriptApprovalArtifact, scriptApprovalSignatureArtifact, scriptArtifact, truthSheetArtifact, claimLedgerArtifact, storyboardArtifact]
-          : [media]
+        : [media]
       ).map((artifact) => ({ artifactId: artifact.artifactId, sha256: artifact.sha256 })),
       checks: checkIds.map((id) => ({
         id,
         passed: true,
-        evidenceArtifactIds: reportType === "scriptApprovalVerification"
-          ? [scriptApprovalArtifact, scriptApprovalSignatureArtifact, scriptArtifact, truthSheetArtifact, claimLedgerArtifact, storyboardArtifact]
-            .map((artifact) => artifact.artifactId)
-          : reportType === "craftContractValidation"
+        evidenceArtifactIds: reportType === "craftContractValidation"
           ? [id === "storyboard-craft-contract"
             ? storyboardArtifact.artifactId
             : id === "capture-manifest-craft-contract"
@@ -1187,7 +1054,7 @@ function buildPassingEvidence(root, candidateId) {
     join(pluginDir, "scripts", "preflight.mjs"),
     "--evidence-package", evidencePath,
     "--out", preflightPath,
-  ], { encoding: "utf8", env: approval.environment });
+  ], { encoding: "utf8", env: process.env });
   if (result.status !== 0) {
     throw new Error(`Canonical fixture preflight failed: ${result.stderr || result.stdout}`);
   }
@@ -1195,7 +1062,7 @@ function buildPassingEvidence(root, candidateId) {
     candidatePath,
     evidencePath,
     preflightPath,
-    environment: approval.environment,
+    environment: { ...process.env },
     candidate: {
       candidateId,
       artifactPath: "candidate.mp4",
@@ -1210,8 +1077,8 @@ function buildPassingEvidence(root, candidateId) {
 function executionReceiptIntegration() {
   const root = mkdtempSync(join(tmpdir(), "product-demo-studio-execution-receipt-"));
   try {
-    const trust = createExecutionTrust(root);
-    const bundle = trust.signedReceipt({
+    const records = createExecutionRecords(root);
+    const bundle = records.recordReceipt({
       role: "reviewer",
       domain: "story-experience",
       contextId: "isolated-receipt-context",
@@ -1220,60 +1087,29 @@ function executionReceiptIntegration() {
       completedAt: "2026-07-29T20:05:00.000Z",
     });
     const receiptPath = join(root, bundle.receipt.artifactPath);
-    const signaturePath = join(root, bundle.signature.artifactPath);
     const validator = join(pluginDir, "scripts", "validate-execution-receipt.mjs");
-    const run = (receipt = receiptPath, signature = signaturePath, environment = trust.environment) =>
-      spawnSync(process.execPath, [validator, receipt, signature], {
-        encoding: "utf8",
-        env: environment,
-      });
+    const run = (receipt = receiptPath) =>
+      spawnSync(process.execPath, [validator, receipt], { encoding: "utf8" });
 
-    assert(run().status === 0, "execution receipt accepts an exact signature from an authorized host key");
-
-    const missingTrustEnvironment = { ...process.env };
-    delete missingTrustEnvironment.AGENTHUB_EXECUTION_HOST_TRUST_CONFIG;
-    assert(run(receiptPath, signaturePath, missingTrustEnvironment).status === 1,
-      "execution receipt fails closed without the operator-owned host trust registry");
+    assert(run().status === 0, "execution receipt accepts a valid read-only host record");
 
     const originalReceipt = readFileSync(receiptPath);
-    const originalSignature = readFileSync(signaturePath);
-    const originalTrust = readFileSync(trust.trustPath);
     const receiptDocument = JSON.parse(originalReceipt.toString("utf8"));
-    const rewriteSignedReceipt = (changes) => {
+    const rewriteReceipt = (changes) => {
       writeJson(receiptPath, { ...receiptDocument, ...changes });
-      writeFileSync(signaturePath, sign(null, readFileSync(receiptPath), trust.privateKey));
     };
 
-    rewriteSignedReceipt({ hostKeyId: "unknown-host-key" });
-    assert(run().status === 1, "execution receipt rejects an unknown host key");
+    rewriteReceipt({ readOnly: false });
+    assert(run().status === 1, "execution receipt rejects a writable reviewer context");
 
-    rewriteSignedReceipt({ mechanism: "os-filesystem-read-only-sandbox" });
-    assert(run().status === 1, "execution receipt rejects a mechanism not authorized for the host key");
+    rewriteReceipt({ writeTools: ["filesystem-write"] });
+    assert(run().status === 1, "execution receipt rejects write tools");
 
-    rewriteSignedReceipt({ permittedReadOnlyTools: ["filesystem-read", "github-read"] });
-    assert(run().status === 1, "execution receipt rejects a read tool not authorized for the host key");
+    rewriteReceipt({ mechanism: "prompt-only" });
+    assert(run().status === 1, "execution receipt rejects unsupported isolation mechanisms");
 
-    writeFileSync(receiptPath, originalReceipt);
-    writeFileSync(signaturePath, originalSignature);
-    const disabledTrust = JSON.parse(originalTrust.toString("utf8"));
-    disabledTrust.hosts[0].enabled = false;
-    writeJson(trust.trustPath, disabledTrust);
-    assert(run().status === 1, "execution receipt rejects a disabled host key");
-
-    const badFingerprintTrust = JSON.parse(originalTrust.toString("utf8"));
-    badFingerprintTrust.hosts[0].publicKeySha256 = "0".repeat(64);
-    writeJson(trust.trustPath, badFingerprintTrust);
-    assert(run().status === 1, "execution receipt rejects a trusted-key fingerprint mismatch");
-
-    writeFileSync(trust.trustPath, originalTrust);
-    writeFileSync(receiptPath, Buffer.concat([originalReceipt, Buffer.from("\n")]));
-    assert(run().status === 1, "execution receipt rejects receipt-byte tampering after signing");
-
-    writeFileSync(receiptPath, originalReceipt);
-    const tamperedSignature = Buffer.from(originalSignature);
-    tamperedSignature[0] ^= 0xff;
-    writeFileSync(signaturePath, tamperedSignature);
-    assert(run().status === 1, "execution receipt rejects detached-signature tampering");
+    rewriteReceipt({ permittedReadOnlyTools: ["filesystem-read", "shell"] });
+    assert(run().status === 1, "execution receipt rejects non-read-only tool classes");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -1324,12 +1160,7 @@ function preflightIntegration() {
     const captureManifestArtifact = craftArtifacts.captureManifest;
     const captureEvidenceArtifact = craftArtifacts.captureEvidence;
     const rawCaptureArtifact = craftArtifacts.rawCapture;
-    const approval = buildSignedScriptApproval(root, candidateId, storyboardDocument.episodeId, storyboardArtifact, addArtifact);
-    const scriptApprovalArtifact = approval.artifacts.receipt;
-    const scriptApprovalSignatureArtifact = approval.artifacts.signature;
-    const scriptArtifact = approval.artifacts.script;
-    const truthSheetArtifact = approval.artifacts.truthSheet;
-    const claimLedgerArtifact = approval.artifacts.claimLedger;
+    buildScriptArtifacts(candidateId, addArtifact);
     const reportChecks = {
       mediaMetadata: ["artifact-completeness", "output-specifications"],
       framesAndContactSheets: ["asset-completeness"],
@@ -1346,7 +1177,6 @@ function preflightIntegration() {
       technicalDelivery: ["checksums-provenance", "output-specifications"],
       claimVerification: ["names-dates-numbers-claims"],
       truthSheetVerification: ["names-dates-numbers-claims"],
-      scriptApprovalVerification: ["human-script-approval"],
       craftContractValidation: ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas"],
     };
     const reportGenerators = {
@@ -1365,7 +1195,6 @@ function preflightIntegration() {
       technicalDelivery: "product-demo-studio-technical-checks",
       claimVerification: "repository-native-claim-validator",
       truthSheetVerification: "repository-native-truth-sheet-validator",
-      scriptApprovalVerification: "product-demo-studio-script-approval-validator",
       craftContractValidation: "product-demo-studio-craft-contract-validator",
     };
     const reports = {};
@@ -1382,17 +1211,12 @@ function preflightIntegration() {
         },
         inputs: (reportType === "craftContractValidation"
           ? [storyboardArtifact, captureManifestArtifact, captureEvidenceArtifact, rawCaptureArtifact]
-          : reportType === "scriptApprovalVerification"
-            ? [scriptApprovalArtifact, scriptApprovalSignatureArtifact, scriptArtifact, truthSheetArtifact, claimLedgerArtifact, storyboardArtifact]
-            : [media]
+          : [media]
         ).map((artifact) => ({ artifactId: artifact.artifactId, sha256: artifact.sha256 })),
         checks: checkIds.map((id) => ({
           id,
           passed: true,
-          evidenceArtifactIds: reportType === "scriptApprovalVerification"
-            ? [scriptApprovalArtifact, scriptApprovalSignatureArtifact, scriptArtifact, truthSheetArtifact, claimLedgerArtifact, storyboardArtifact]
-              .map((artifact) => artifact.artifactId)
-            : reportType === "craftContractValidation"
+          evidenceArtifactIds: reportType === "craftContractValidation"
             ? [id === "storyboard-craft-contract"
               ? storyboardArtifact.artifactId
               : id === "capture-manifest-craft-contract"
@@ -1480,7 +1304,7 @@ function preflightIntegration() {
       join(pluginDir, "scripts", "preflight.mjs"),
       "--evidence-package", evidencePath,
       "--out", preflightPath,
-    ], { encoding: "utf8", env: approval.environment });
+    ], { encoding: "utf8", env: process.env });
     assert(result.status === 0, "preflight accepts a complete immutable synthetic evidence package");
     if (result.status !== 0) {
       console.error(result.stdout);
@@ -1516,45 +1340,10 @@ function preflightIntegration() {
     writeJson(evidencePath, forgedCraftEvidence);
     result = spawnSync(process.execPath, [
       join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
-    ], { encoding: "utf8", env: approval.environment });
+    ], { encoding: "utf8", env: process.env });
     assert(result.status === 1, "preflight reruns the canonical craft validator and rejects a forged PASS report");
     writeFileSync(captureManifestPath, originalCaptureManifest);
     writeFileSync(craftReportPath, originalCraftReport);
-    writeJson(evidencePath, evidencePackage);
-
-    const postCaptureApproval = structuredClone(evidencePackage);
-    postCaptureApproval.provenance.capture.startedAt = "2026-07-29T21:40:00.000Z";
-    postCaptureApproval.provenance.capture.completedAt = "2026-07-29T21:49:00.000Z";
-    writeJson(evidencePath, postCaptureApproval);
-    result = spawnSync(process.execPath, [
-      join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
-    ], { encoding: "utf8", env: approval.environment });
-    assert(result.status === 1, "preflight rejects human script approval issued after immutable final capture started");
-    writeJson(evidencePath, evidencePackage);
-
-    const approvedScriptPath = join(root, scriptArtifact.artifactPath);
-    const scriptApprovalReportPath = join(root, reports.scriptApprovalVerification.artifactPath);
-    const originalApprovedScript = readFileSync(approvedScriptPath);
-    const originalScriptApprovalReport = readFileSync(scriptApprovalReportPath);
-    writeJson(approvedScriptPath, { candidateId, approved: false, substitutedAfterApproval: true });
-    const substitutedApprovalEvidence = structuredClone(evidencePackage);
-    const substitutedScriptArtifact = substitutedApprovalEvidence.artifacts.find((artifact) => artifact.artifactId === scriptArtifact.artifactId);
-    substitutedScriptArtifact.sha256 = sha(approvedScriptPath);
-    substitutedScriptArtifact.bytes = statSync(approvedScriptPath).size;
-    const substitutedApprovalReport = loadJson(scriptApprovalReportPath);
-    substitutedApprovalReport.inputs.find((input) => input.artifactId === scriptArtifact.artifactId).sha256 = substitutedScriptArtifact.sha256;
-    writeJson(scriptApprovalReportPath, substitutedApprovalReport);
-    const substitutedApprovalReportArtifact = substitutedApprovalEvidence.artifacts.find((artifact) => artifact.artifactId === reports.scriptApprovalVerification.artifactId);
-    substitutedApprovalReportArtifact.sha256 = sha(scriptApprovalReportPath);
-    substitutedApprovalReportArtifact.bytes = statSync(scriptApprovalReportPath).size;
-    substitutedApprovalEvidence.reports.scriptApprovalVerification.sha256 = substitutedApprovalReportArtifact.sha256;
-    writeJson(evidencePath, substitutedApprovalEvidence);
-    result = spawnSync(process.execPath, [
-      join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
-    ], { encoding: "utf8", env: approval.environment });
-    assert(result.status === 1, "preflight rejects catalog script bytes that differ from the signed approval receipt");
-    writeFileSync(approvedScriptPath, originalApprovedScript);
-    writeFileSync(scriptApprovalReportPath, originalScriptApprovalReport);
     writeJson(evidencePath, evidencePackage);
 
     const accelerationPath = join(root, acceleration.artifactPath);
@@ -1574,7 +1363,7 @@ function preflightIntegration() {
     writeJson(evidencePath, inconsistentAccelerationEvidence);
     result = spawnSync(process.execPath, [
       join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
-    ], { encoding: "utf8", env: approval.environment });
+    ], { encoding: "utf8", env: process.env });
     assert(result.status === 1, "preflight rejects GPU-preferred mode when the selected execution paths are CPU-only");
     writeFileSync(accelerationPath, originalAcceleration);
     writeJson(evidencePath, evidencePackage);
@@ -1586,19 +1375,8 @@ function preflightIntegration() {
       join(pluginDir, "scripts", "preflight.mjs"),
       "--evidence-package", evidencePath,
       "--out", preflightPath,
-    ], { encoding: "utf8", env: approval.environment });
+    ], { encoding: "utf8", env: process.env });
     assert(result.status === 1, "preflight fails closed when craft-contract validation is absent");
-    writeJson(evidencePath, evidencePackage);
-
-    const missingScriptApproval = structuredClone(evidencePackage);
-    delete missingScriptApproval.reports.scriptApprovalVerification;
-    writeJson(evidencePath, missingScriptApproval);
-    result = spawnSync(process.execPath, [
-      join(pluginDir, "scripts", "preflight.mjs"),
-      "--evidence-package", evidencePath,
-      "--out", preflightPath,
-    ], { encoding: "utf8", env: approval.environment });
-    assert(result.status === 1, "preflight fails closed when named-human script approval is absent");
     writeJson(evidencePath, evidencePackage);
 
     const asrPath = join(root, "asrWordTimestamps.json");
@@ -1616,7 +1394,7 @@ function preflightIntegration() {
       join(pluginDir, "scripts", "preflight.mjs"),
       "--evidence-package", evidencePath,
       "--out", preflightPath,
-    ], { encoding: "utf8", env: approval.environment });
+    ], { encoding: "utf8", env: process.env });
     assert(result.status === 1, "preflight rejects an unregistered deterministic-report generator even when hashes match");
     writeFileSync(asrPath, originalAsr);
     writeJson(evidencePath, evidencePackage);
@@ -1626,7 +1404,7 @@ function preflightIntegration() {
       join(pluginDir, "scripts", "preflight.mjs"),
       "--evidence-package", evidencePath,
       "--out", preflightPath,
-    ], { encoding: "utf8", env: approval.environment });
+    ], { encoding: "utf8", env: process.env });
     assert(result.status === 1, "preflight rejects checksum and byte-count drift");
     const failed = loadJson(preflightPath);
     assert(failed.status === "FAIL" && failed.readyForIndependentReview === false,
@@ -1780,7 +1558,7 @@ function releaseDecisionIntegration() {
     mkdirSync(policyDir, { recursive: true });
     mkdirSync(reviewsDir, { recursive: true });
     mkdirSync(remediationDir, { recursive: true });
-    const executionTrust = createExecutionTrust(root);
+    const executionRecords = createExecutionRecords(root);
 
     const canonicalPolicyPath = join(pluginDir, "policy", "product-video-policy.json");
     const policyPath = join(policyDir, "product-video-policy.json");
@@ -1891,7 +1669,7 @@ function releaseDecisionIntegration() {
             domain,
             contextId: `isolated-${slug}-context`,
             readOnly: true,
-            executionReceipt: executionTrust.signedReceipt({
+            executionReceipt: executionRecords.recordReceipt({
               baseDir: reviewsDir,
               role: "reviewer",
               domain,
@@ -1903,7 +1681,7 @@ function releaseDecisionIntegration() {
             startedAt: "2026-07-29T22:01:00.000Z",
             completedAt: "2026-07-29T22:02:00.000Z",
           },
-          reviewIntegrity: createReviewIntegrity(root, domain, executionTrust),
+          reviewIntegrity: createReviewIntegrity(root, domain, executionRecords),
           evidencePackage: evidenceReference,
           summary: `Synthetic ${domain} independent review.`,
         };
@@ -1970,7 +1748,7 @@ function releaseDecisionIntegration() {
       arbiter: {
         contextId: "isolated-arbiter-context",
         readOnly: true,
-        executionReceipt: executionTrust.signedReceipt({
+        executionReceipt: executionRecords.recordReceipt({
           role: "arbiter",
           contextId: "isolated-arbiter-context",
           candidateId: candidate.candidateId,
@@ -1998,7 +1776,7 @@ function releaseDecisionIntegration() {
       writeJson(decisionPath, value);
       return spawnSync(process.execPath, [join(pluginDir, "scripts", "validate-release-decision.mjs"), decisionPath], {
         encoding: "utf8",
-        env: { ...executionTrust.environment, ...passingEvidence.environment },
+        env: { ...executionRecords.environment, ...passingEvidence.environment },
       });
     };
 
@@ -2067,7 +1845,7 @@ function releaseDecisionIntegration() {
     const thirdAutomatedAttempt = structuredClone(remediate);
     thirdAutomatedAttempt.remediationPlan.attempt = 3;
     result = run(thirdAutomatedAttempt);
-    assert(result.status === 1, "release validator rejects a third automated remediation attempt");
+    assert(result.status === 1, "release validator rejects attempt three without two immutable prior decision records");
     const relabeledSecondAttempt = structuredClone(remediate);
     relabeledSecondAttempt.remediationPlan.attempt = 2;
     result = run(relabeledSecondAttempt);
@@ -2146,7 +1924,7 @@ function releaseDecisionIntegration() {
       arbiter: {
         contextId: "isolated-blocker-arbiter",
         readOnly: true,
-        executionReceipt: executionTrust.signedReceipt({
+        executionReceipt: executionRecords.recordReceipt({
           role: "arbiter",
           contextId: "isolated-blocker-arbiter",
           candidateId: "NO-CANDIDATE",
@@ -2209,7 +1987,7 @@ function releaseDecisionIntegration() {
       concreteFix: "Restore the immutable candidate artifact.",
       validationCommand: "node scripts/preflight.mjs --evidence-package evidence-package.json --out preflight.json",
     }];
-    failedPreflight.summary = { total: 20, passed: 19, failed: 1 };
+    failedPreflight.summary = { total: 19, passed: 18, failed: 1 };
     failedPreflight.status = "FAIL";
     failedPreflight.readyForIndependentReview = false;
     writeJson(failedPreflightPath, failedPreflight);
@@ -2219,7 +1997,7 @@ function releaseDecisionIntegration() {
       arbiter: {
         contextId: "isolated-pipeline-blocker-arbiter",
         readOnly: true,
-        executionReceipt: executionTrust.signedReceipt({
+        executionReceipt: executionRecords.recordReceipt({
           role: "arbiter",
           contextId: "isolated-pipeline-blocker-arbiter",
           candidateId: "NO-CANDIDATE",
@@ -2306,8 +2084,8 @@ function publicationIntegration() {
   });
 
   try {
-    const executionTrust = createExecutionTrust(root);
-    executionEnvironment = executionTrust.environment;
+    const executionRecords = createExecutionRecords(root);
+    executionEnvironment = executionRecords.environment;
     const candidateId = "synthetic-publication-candidate-001";
     const passingEvidence = buildPassingEvidence(root, candidateId);
     executionEnvironment = { ...executionEnvironment, ...passingEvidence.environment };
@@ -2363,7 +2141,7 @@ function publicationIntegration() {
           domain,
           contextId: `isolated-${domain}-context-${contextSequence++}`,
           readOnly: true,
-          executionReceipt: executionTrust.signedReceipt({
+          executionReceipt: executionRecords.recordReceipt({
             role: "reviewer",
             domain,
             contextId: `isolated-${domain}-context-${contextSequence - 1}`,
@@ -2374,7 +2152,7 @@ function publicationIntegration() {
           startedAt: "2026-07-29T15:00:00.000Z",
           completedAt: "2026-07-29T15:05:00.000Z",
         },
-        reviewIntegrity: createReviewIntegrity(root, domain, executionTrust),
+        reviewIntegrity: createReviewIntegrity(root, domain, executionRecords),
         evidencePackage: {
           artifactPath: "evidence-package.json",
           sha256: sha(evidencePackagePath),
@@ -2420,20 +2198,14 @@ function publicationIntegration() {
       calibrationReferenceTamper,
       "review validator rejects reviewer-calibration checksum tampering",
     );
-    const signatureReferenceTamper = structuredClone(storyReport);
-    signatureReferenceTamper.reviewer.executionReceipt.signature.bytes = 63;
-    runInvalidReview(
-      signatureReferenceTamper,
-      "review validator rejects execution-signature reference byte-count tampering",
-    );
     const wrongContext = structuredClone(storyReport);
     wrongContext.reviewer.contextId = "different-review-context";
-    runInvalidReview(wrongContext, "review validator rejects a signed receipt for a different context");
+    runInvalidReview(wrongContext, "review validator rejects a receipt for a different context");
     const wrongCandidate = structuredClone(storyReport);
     wrongCandidate.candidate.candidateId = "different-candidate";
-    runInvalidReview(wrongCandidate, "review validator rejects a signed receipt for a different candidate");
+    runInvalidReview(wrongCandidate, "review validator rejects a receipt for a different candidate");
     const wrongDomain = structuredClone(storyReport);
-    wrongDomain.reviewer.executionReceipt = executionTrust.signedReceipt({
+    wrongDomain.reviewer.executionReceipt = executionRecords.recordReceipt({
       role: "reviewer",
       domain: "screen-accuracy-compliance",
       contextId: storyReport.reviewer.contextId,
@@ -2441,22 +2213,22 @@ function publicationIntegration() {
       startedAt: "2026-07-29T15:00:00.000Z",
       completedAt: "2026-07-29T15:05:00.000Z",
     });
-    runInvalidReview(wrongDomain, "review validator rejects a signed receipt for a different review domain");
+    runInvalidReview(wrongDomain, "review validator rejects a receipt for a different review domain");
     const wrongRole = structuredClone(storyReport);
-    wrongRole.reviewer.executionReceipt = executionTrust.signedReceipt({
+    wrongRole.reviewer.executionReceipt = executionRecords.recordReceipt({
       role: "arbiter",
       contextId: storyReport.reviewer.contextId,
       candidateId,
       startedAt: "2026-07-29T15:00:00.000Z",
       completedAt: "2026-07-29T15:05:00.000Z",
     });
-    runInvalidReview(wrongRole, "review validator rejects a signed receipt for a different execution role");
+    runInvalidReview(wrongRole, "review validator rejects a receipt for a different execution role");
 
     const decision = loadJson(join(fixtureDir, "release-decision.pass.json"));
     const policyPath = join(pluginDir, "policy", "product-video-policy.json");
     decision.candidate = candidateWithBytes;
     decision.arbiter.contextId = "isolated-publication-arbiter-context";
-    decision.arbiter.executionReceipt = executionTrust.signedReceipt({
+    decision.arbiter.executionReceipt = executionRecords.recordReceipt({
       role: "arbiter",
       contextId: "isolated-publication-arbiter-context",
       candidateId,
@@ -2501,7 +2273,7 @@ function publicationIntegration() {
         contextId: "isolated-publication-final-verifier-context",
         readOnly: true,
         independent: true,
-        executionReceipt: executionTrust.signedReceipt({
+        executionReceipt: executionRecords.recordReceipt({
           role: "final-verifier",
           contextId: "isolated-publication-final-verifier-context",
           candidateId,
@@ -2540,104 +2312,23 @@ function publicationIntegration() {
       "final verifier accepts exact candidate, preflight, four reviews, and PASS arbiter bytes",
     );
 
-    const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-    const publicKeyPath = join(root, "trusted-publication-approver.pem");
-    writeFileSync(
-      publicKeyPath,
-      publicKey.export({ type: "spki", format: "pem" }),
-      "utf8",
-    );
-    const publicKeyFingerprint = shaBytes(publicKey.export({ type: "spki", format: "der" }));
-    const approvalReceiptPath = join(root, "signed-publication-approval.json");
-    const approvalSignaturePath = join(root, "signed-publication-approval.ed25519");
-    const approvalReceipt = {
-      schemaVersion: "1.0.0",
-      receiptId: "PVA-PUBLICATION-001",
-      signatureAlgorithm: "Ed25519",
-      approverPublicKeySha256: publicKeyFingerprint,
-      candidateId,
-      candidateSha256: candidate.sha256,
-      candidateBytes: statSync(candidatePath).size,
-      arbiterDecisionSha256: sha(decisionPath),
-      finalVerificationSha256: sha(finalPath),
-      reviewerIdentity: "Synthetic Human Approver",
-      reviewedAt: "2026-07-29T15:20:00.000Z",
-      classification: "approved",
-      watchThroughStatus: "completed",
-      syntheticDataConfirmed: true,
-      redactionNotes: "Synthetic fixture contains no personal or customer data.",
-    };
-    writeJson(approvalReceiptPath, approvalReceipt);
-    writeFileSync(
-      approvalSignaturePath,
-      sign(null, readFileSync(approvalReceiptPath), privateKey),
-    );
     const releaseEvidence = {
-      schemaVersion: "2.0.0",
+      schemaVersion: "3.0.0",
       candidateId,
       assetPath: "candidate.mp4",
       sha256: candidate.sha256,
       bytes: statSync(candidatePath).size,
       arbiterDecision: ref("release-decision.json"),
       finalVerification: ref("final-verification.json"),
-      approvalReceipt: ref("signed-publication-approval.json"),
-      approvalSignature: ref("signed-publication-approval.ed25519"),
     };
     const releasePath = join(root, "release-evidence.json");
     writeJson(releasePath, releaseEvidence);
-    const publicationEnvironment = {
-      ...executionEnvironment,
-      AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY: publicKeyPath,
-    };
-    const unsignedEnvironment = { ...executionEnvironment };
-    delete unsignedEnvironment.AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY;
-    expectCode(
-      "check-evidence-gate.mjs",
-      ["--manifest", releasePath],
-      1,
-      "publication gate fails closed when no trusted approver public key is configured",
-      { env: unsignedEnvironment },
-    );
+    const publicationEnvironment = { ...executionEnvironment };
     expectCode(
       "check-evidence-gate.mjs",
       ["--manifest", releasePath],
       0,
-      "publication gate accepts a trusted detached signature bound to the exact PASS chain",
-      { env: publicationEnvironment },
-    );
-    const { publicKey: unrelatedPublicKey } = generateKeyPairSync("ed25519");
-    const unrelatedPublicKeyPath = join(root, "unrelated-publication-approver.pem");
-    writeFileSync(
-      unrelatedPublicKeyPath,
-      unrelatedPublicKey.export({ type: "spki", format: "pem" }),
-      "utf8",
-    );
-    expectCode(
-      "check-evidence-gate.mjs",
-      ["--manifest", releasePath],
-      1,
-      "publication gate rejects a signature when a different trusted approver key is configured",
-      {
-        env: {
-          ...executionEnvironment,
-          AGENTHUB_PUBLICATION_APPROVER_PUBLIC_KEY: unrelatedPublicKeyPath,
-        },
-      },
-    );
-    const staleReceiptPath = join(root, "stale-publication-approval.json");
-    writeJson(staleReceiptPath, {
-      ...approvalReceipt,
-      redactionNotes: "The receipt bytes changed after signing.",
-    });
-    const staleSignatureRelease = structuredClone(releaseEvidence);
-    staleSignatureRelease.approvalReceipt = ref("stale-publication-approval.json");
-    const staleSignatureReleasePath = join(root, "release-evidence-stale-signature.json");
-    writeJson(staleSignatureReleasePath, staleSignatureRelease);
-    expectCode(
-      "check-evidence-gate.mjs",
-      ["--manifest", staleSignatureReleasePath],
-      1,
-      "publication gate rejects a stale signature after approval-receipt byte changes",
+      "automated release gate accepts the exact candidate and PASS review chain",
       { env: publicationEnvironment },
     );
     expectCode(
@@ -2664,7 +2355,7 @@ function publicationIntegration() {
       "--release-evidence", releasePath,
       candidatePath,
     ], { encoding: "utf8", env: publicationEnvironment });
-    assert(packageResult.status === 0, "video-cli package accepts only a validated, signed PASS publication chain");
+    assert(packageResult.status === 0, "video-cli package accepts only a validated PASS publication chain");
     if (packageResult.status !== 0) {
       console.error(packageResult.stdout);
       console.error(packageResult.stderr);
@@ -2769,27 +2460,6 @@ function publicationIntegration() {
       { env: publicationEnvironment },
     );
 
-    const originalReceipt = readFileSync(approvalReceiptPath);
-    const placeholderReceipt = structuredClone(approvalReceipt);
-    placeholderReceipt.reviewerIdentity = "reviewer";
-    writeJson(approvalReceiptPath, placeholderReceipt);
-    writeFileSync(
-      approvalSignaturePath,
-      sign(null, readFileSync(approvalReceiptPath), privateKey),
-    );
-    const nonHumanRelease = structuredClone(releaseEvidence);
-    nonHumanRelease.approvalReceipt = ref("signed-publication-approval.json");
-    nonHumanRelease.approvalSignature = ref("signed-publication-approval.ed25519");
-    const nonHumanReleasePath = join(root, "release-evidence-placeholder-human.json");
-    writeJson(nonHumanReleasePath, nonHumanRelease);
-    expectCode(
-      "check-evidence-gate.mjs",
-      ["--manifest", nonHumanReleasePath],
-      1,
-      "publication gate rejects a correctly signed placeholder approver identity",
-      { env: publicationEnvironment },
-    );
-    writeFileSync(approvalReceiptPath, originalReceipt);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -2798,11 +2468,9 @@ function publicationIntegration() {
 for (const schemaName of [
   "calibration-review-result.schema.json",
   "execution-receipt.schema.json",
-  "execution-host-trust.schema.json",
   "video-finding.schema.json",
   "reviewer-calibration.schema.json",
   "review-report.schema.json",
-  "script-approval.schema.json",
   "release-decision.schema.json",
   "final-verification.schema.json",
   "release-evidence.schema.json",
@@ -2824,11 +2492,23 @@ schemaFixture("review-report.schema.json", "review-report.malformed-input.json",
 schemaFixture("review-report.schema.json", "review-report.invalid.json", false);
 schemaFixture("reviewer-calibration.schema.json", "reviewer-calibration.pass.json", true);
 schemaFixture("reviewer-calibration.schema.json", "reviewer-calibration.invalid.json", false);
-schemaFixture("script-approval.schema.json", "script-approval.pass.json", true);
-schemaFixture("script-approval.schema.json", "script-approval.invalid.json", false);
 schemaFixture("release-decision.schema.json", "release-decision.pass.json", true);
 schemaFixture("release-decision.schema.json", "release-decision.remediate.json", true);
 schemaFixture("release-decision.schema.json", "release-decision.invalid.json", false);
+{
+  const schemaPath = join(schemaDir, "release-decision.schema.json");
+  const schema = loadSchema(schemaPath);
+  const thirdAttempt = loadJson(join(fixtureDir, "release-decision.remediate.json"));
+  thirdAttempt.remediationPlan.attempt = 3;
+  thirdAttempt.remediationPlan.priorDecisions = [
+    { artifactPath: "decisions/remediate-001.json", sha256: "1".repeat(64) },
+    { artifactPath: "decisions/remediate-002.json", sha256: "2".repeat(64) },
+  ];
+  const errors = [];
+  validate(schema, thirdAttempt, "$", schemaPath, schema, errors);
+  if (errors.length) console.error(errors.join("\n"));
+  assert(errors.length === 0, "release-decision schema permits attempt three with complete prior-decision lineage");
+}
 schemaFixture("final-verification.schema.json", "final-verification.pass.json", true);
 schemaFixture("final-verification.schema.json", "final-verification.invalid.json", false);
 schemaFixture("release-evidence.schema.json", "release-evidence.pass.json", true);
@@ -2856,7 +2536,6 @@ cli("validate-interactive-deep-dive.mjs", "interactive-deep-dive.pass.json", 0);
 cli("validate-interactive-deep-dive.mjs", "interactive-deep-dive.invalid.json", 1);
 screencastChoreographyIntegration();
 reviewerCalibrationIntegration();
-scriptApprovalIntegration();
 mediaAccelerationIntegration();
 executionReceiptIntegration();
 preflightIntegration();
