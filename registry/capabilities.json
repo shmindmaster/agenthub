@@ -146,7 +146,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-demo-studio",
-      "contentHash": "F713088E6A2F1113C6C84980361D00CD37AAA88CCE7189E73D4F29BD9FD3C22D",
+      "contentHash": "D7C4EC928DEEF30A9238862C34B01798D6D381C56E70389B9360F19F11C1D854",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -757,7 +757,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "B63007FE68C3D8E82962B66AD713F5704C9947F48D2BE9B58B62194E2EA1183F",
+      "contentHash": "7E49E15805CA7051CD491046FAC7AA76DA61607A0C2B0B807ED7785E40D58C70",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [

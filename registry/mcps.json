@@ -206,9 +206,9 @@
     {
       "id": "chrome-devtools",
       "name": "Chrome DevTools",
-      "scope": "global-default",
+      "scope": "on-demand-desktop",
       "transport": "stdio",
-      "activationMode": "host-configured-local",
+      "activationMode": "on-demand-local",
       "command": "npx",
       "args": [
         "-y",
@@ -247,20 +247,6 @@
             "chrome-devtools-mcp@latest",
             "--browser-url=http://127.0.0.1:9222"
           ]
-        },
-        "codex": {
-          "command": "cmd",
-          "args": [
-            "/c",
-            "npx",
-            "-y",
-            "chrome-devtools-mcp@latest"
-          ],
-          "env": {
-            "SystemRoot": "C:\\Windows",
-            "PROGRAMFILES": "C:\\Program Files"
-          },
-          "startup_timeout_ms": 20000
         }
       },
       "conflictingHostPlugins": {

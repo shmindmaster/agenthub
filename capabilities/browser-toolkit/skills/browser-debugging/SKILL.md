@@ -7,7 +7,7 @@ description: Reproduce and diagnose browser defects through a dedicated Chrome s
 
 ## Tool choice
 
-- Use Chrome DevTools MCP for the developer's real, visible QA Chrome state,
+- Prefer the host-native Chrome/browser plugin when it provides the required diagnostics. Otherwise launch Chrome DevTools MCP only through this task-scoped skill path; never add it to global host configuration. Use it for the developer's real, visible QA Chrome state,
   network/response inspection, console/runtime errors, Lighthouse, and
   performance traces.
 - Use Hermes native browser for quick ordinary browsing when DevTools depth is
@@ -15,6 +15,11 @@ description: Reproduce and diagnose browser defects through a dedicated Chrome s
 - Use repository-owned Playwright when a repeatable regression already exists
   or should be added under repository policy.
 - Use Qwen Code Computer Use only for required native UI outside browser APIs.
+- On a host without native dynamic MCP tools, launch the dedicated QA Chrome
+  profile, then run the canonical
+  `capabilities/browser-toolkit/scripts/run-chrome-devtools-task.mjs` with one
+  JSON plan. It launches and closes one MCP worker for that plan; do not add a
+  host configuration entry.
 
 ## Procedure
 
@@ -35,6 +40,7 @@ description: Reproduce and diagnose browser defects through a dedicated Chrome s
 
 Do not enable experimental Chrome DevTools MCP flags without explicit
 authorization, a written reason/risk, and a non-experimental fallback.
+Do not leave a Chrome DevTools MCP worker running after the task-scoped diagnostic session ends.
 
 ## UI change completion gate
 

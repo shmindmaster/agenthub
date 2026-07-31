@@ -676,7 +676,7 @@ function createReviewIntegrity(root, reviewDomain, executionRecords) {
   writeJson(calibrationPath, {
     schemaVersion: "1.0.0",
     status: "PASS",
-    pluginVersion: "1.5.2",
+    pluginVersion: "1.5.3",
     reviewDomain,
     modelId,
     canonicalRubric,

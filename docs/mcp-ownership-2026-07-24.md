@@ -33,7 +33,7 @@ profiles that a single endpoint cannot isolate concurrently.
 | `adobe-for-creativity` | MCP registry | Codex plugin, gateway candidate elsewhere |
 | `canva` | MCP registry | Codex native connector, gateway candidate elsewhere |
 | `descript` | Product Demo Studio capability | Claude and Codex plugins, gateway candidate elsewhere |
-| `chrome-devtools` | Browser Toolkit capability | README-native direct MCP registration on every supported host; Codex and Antigravity use the upstream Windows/embedded-browser variants |
+| `chrome-devtools` | Browser Toolkit capability | On-demand through the browser skills or host-native browser capability; never persisted in fleet host configuration |
 | `repocontext` | RepoContext capability | On-demand through the skill/local profile until its remote contract is production-ready |
 | `playwright`, `brave-search` | MCP registry | On-demand local; never fleet-wide persistent |
 
@@ -42,9 +42,8 @@ profiles that a single endpoint cannot isolate concurrently.
 - `registry/mcps.json` records the single service/capability owner.
 - `registry/native-connectors.json` records the effective host exposure:
   `plugin-owned`, `native-connector`, `shared-gateway`, or `local-only`.
-- Fleet synchronization emits shared remotes plus the explicit
-  `host-configured-local` allowlist. Every other MCP with
-  `activationMode: on-demand-local` must be suppressed from every host config,
+- Fleet synchronization emits shared remotes only. Every MCP with
+  `activationMode: on-demand-local`, including Chrome DevTools, must be suppressed from every host config,
   including stale registrations left by an older sync.
 - Do not emit a direct MCP registration when a plugin/native connector owns the
   surface. Once a gateway profile is validated and explicitly enabled, replace

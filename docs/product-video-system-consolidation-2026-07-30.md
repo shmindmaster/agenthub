@@ -77,6 +77,13 @@ That same-day ecosystem validation result was `pass=121 warn=4 fail=0`; three wa
 already-running Claude processes with older package bytes and one was the now-retired signing
 configuration. See `fleet-convergence-status-2026-07-30.md` for the later inventory.
 
+## 2026-07-31 refresh
+
+Product Demo Studio `1.5.3` is current across canonical and installed native copies. Its automated
+acceptance loop has no intermediate human approval or fixed retry cap and ends with the mandatory
+independent final verifier. The final fleet inventory passed 106 checks with zero warnings or
+failures and no resident local MCP runtime trees.
+
 ## Canonical update process
 
 Edit canonical source, bump the capability version, recompute the registry hash, run the package
@@ -90,7 +97,7 @@ native plugin rather than writing into a host's plugin cache. Reinstalling is th
 "approval gates, claim ledgers, or separate review ceremonies" — the direct inverse of the deployed
 release contract, and the last competing video workflow in the portfolio. It is superseded by
 version 6.0.0, which carries no competing workflow body: it routes to this capability, states the
-sequencing, roles, evidence contract, and release policy. Product Demo Studio 1.5.2 later
+sequencing, roles, evidence contract, and release policy. Product Demo Studio 1.5.3 later
 superseded its human-gate wording with automated acceptance and final-presentation-only human
 involvement; the canonical package is authoritative.
 
@@ -105,7 +112,7 @@ involvement; the canonical package is authoritative.
 
 ## Retired signing blocker
 
-As of Product Demo Studio 1.5.2, the signing configuration described above is retired. Reviewer,
+As of Product Demo Studio 1.5.3, the signing configuration described above is retired. Reviewer,
 arbiter, and final-verifier roles use host-native restricted contexts and record plain operational
 receipts. Receipt text is not a security attestation. No broker, trust registry, key material,
 resident process, or intermediate human approval is required.

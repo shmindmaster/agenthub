@@ -17,6 +17,8 @@ const required = [
   "scripts/validate-concurrency.ps1",
   "scripts/validate.ps1",
   "scripts/mcp-smoke.mjs",
+  "scripts/run-chrome-devtools-task.mjs",
+  "fixtures/task-plan.example.json",
   "fixtures/browser-smoke/index.html"
 ];
 
@@ -70,6 +72,18 @@ for (const file of all) {
   ) {
     failures.push(`${file}: floating package version`);
   }
+}
+
+const configureAgents = await readFile(new URL("scripts/configure-agents.ps1", root), "utf8");
+if (!/\[string\]\$BrowserMode = 'TaskScoped'/.test(configureAgents)) {
+  failures.push("configure-agents.ps1: TaskScoped must be the default browser mode");
+}
+if (!/Remove-BrowserMcpRegistration/.test(configureAgents)) {
+  failures.push("configure-agents.ps1: task-scoped mode must remove persistent Chrome registrations");
+}
+const mergeHermes = await readFile(new URL("scripts/merge-hermes-config.py", root), "utf8");
+if (!/--enable-chrome/.test(mergeHermes) || !/mcp_servers\.pop\("chrome-devtools", None\)/.test(mergeHermes)) {
+  failures.push("merge-hermes-config.py: Chrome must be opt-in and removed by default");
 }
 
 if (failures.length) {

@@ -8,7 +8,7 @@
       "C:/Users/SaroshHussain/.claude/plugins/installed_plugins.json",
       "C:/Users/SaroshHussain/.codex/plugins/cache"
     ],
-    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. Chrome DevTools is the explicit host-configured-local exception requested for all supported hosts. Every on-demand-local MCP is removed from host configuration under every fleet-sync scope and may run only through its owning plugin or skill, or one reviewed shared gateway. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners."
+    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. Every on-demand-local MCP, including Chrome DevTools, is removed from host configuration under every fleet-sync scope and may run only through its owning plugin or skill, a host-native browser capability, or one reviewed shared gateway. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners."
   },
   "hostPrivateExtensionPolicy": {
     "hosts": [
@@ -24,18 +24,17 @@
     "runtimePolicy": "Host-private child processes may be observed for aggregate resource evidence but are not AgentHub-managed MCP runtime drift and are never terminated by AgentHub."
   },
   "lifecyclePolicy": {
-    "defaultHostConfiguration": "shared-remote-plus-explicit-local",
+    "defaultHostConfiguration": "shared-remote-only-persisted",
     "sharedRemoteTransport": "http",
     "onDemandLocalMcpIds": [
       "brave-search",
+      "chrome-devtools",
       "playwright",
       "repocontext"
     ],
-    "hostConfiguredLocalMcpIds": [
-      "chrome-devtools"
-    ],
+    "hostConfiguredLocalMcpIds": [],
     "localFanoutPolicy": "never-persist-on-demand-local-in-host-config",
-    "hostConfiguredLocalFanoutPolicy": "persist-only-explicit-user-requested-readme-installations",
+    "hostConfiguredLocalFanoutPolicy": "no-current-exceptions",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider"
   },

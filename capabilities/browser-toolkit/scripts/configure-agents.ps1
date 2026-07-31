@@ -3,8 +3,8 @@ param(
     [switch]$Apply,
     [switch]$SkipTokenPlan,
     [switch]$SkipSkills,
-    [ValidateSet('Upstream', 'Shared', 'Isolated')]
-    [string]$BrowserMode = 'Upstream',
+    [ValidateSet('TaskScoped', 'Shared', 'Isolated')]
+    [string]$BrowserMode = 'TaskScoped',
     [string]$RollbackFrom
 )
 
@@ -176,6 +176,34 @@ function Normalize-ChromeMcpCommand {
     Move-Item -LiteralPath $temporary -Destination $Target -Force
 }
 
+function Remove-BrowserMcpRegistration {
+    param(
+        [string]$Target,
+        [ValidateSet('Claude', 'Qwen', 'OpenCode')]
+        [string]$AgentHost
+    )
+    if (-not $Apply -or -not (Test-Path -LiteralPath $Target)) { return }
+    $settings = Get-Content -LiteralPath $Target -Raw | ConvertFrom-Json
+    if ($AgentHost -eq 'Claude' -or $AgentHost -eq 'Qwen') {
+        if ($settings.mcpServers) {
+            $settings.mcpServers.PSObject.Properties.Remove('chrome-devtools')
+        }
+        if ($AgentHost -eq 'Qwen' -and $settings.mcp -and $settings.mcp.allowed) {
+            $settings.mcp.allowed = [object[]]@($settings.mcp.allowed | Where-Object { $_ -ne 'chrome-devtools' })
+        }
+    } else {
+        if ($settings.mcp) {
+            $settings.mcp.PSObject.Properties.Remove('chrome-devtools')
+        }
+        if ($settings.permission) {
+            $settings.permission.PSObject.Properties.Remove('chrome-devtools_*')
+        }
+    }
+    $temporary = "$Target.browser-toolkit.task-scoped.tmp"
+    $settings | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $temporary -Encoding utf8
+    Move-Item -LiteralPath $temporary -Destination $Target -Force
+}
+
 function Add-SkillJunction {
     param([string]$TargetRoot, [string]$SkillSource)
     $name = Split-Path -Leaf $SkillSource
@@ -264,6 +292,7 @@ $browserPorts = if ($BrowserMode -eq 'Isolated') {
         hermes = 0
     }
 }
+$persistChrome = $BrowserMode -ne 'TaskScoped'
 
 $claudeSettings = Join-Path $homePath '.claude\settings.json'
 $claudeMcp = Join-Path $homePath '.claude.json'
@@ -305,6 +334,12 @@ if ($SkipTokenPlan) {
     Normalize-ChromeMcpCommand $openCodeSettings -AgentHost OpenCode -BrowserPort $browserPorts.opencode
 }
 
+if (-not $persistChrome) {
+    Remove-BrowserMcpRegistration $claudeMcp -AgentHost Claude
+    Remove-BrowserMcpRegistration $qwenSettings -AgentHost Qwen
+    Remove-BrowserMcpRegistration $openCodeSettings -AgentHost OpenCode
+}
+
 Write-Host 'DEFER Cursor mutation to AgentHub full-profile reconciliation to preserve one configuration owner.'
 
 $hermes = Get-Command hermes -ErrorAction SilentlyContinue
@@ -321,7 +356,9 @@ if ($hermes) {
         if (-not (Test-Path -LiteralPath $hermesPython)) {
             throw "Hermes Python runtime was not found: $hermesPython"
         }
-        & $hermesPython (Join-Path $PSScriptRoot 'merge-hermes-config.py') --config $hermesConfig --port $browserPorts.hermes
+        $hermesArgs = @((Join-Path $PSScriptRoot 'merge-hermes-config.py'), '--config', $hermesConfig, '--port', $browserPorts.hermes)
+        if ($persistChrome) { $hermesArgs += '--enable-chrome' }
+        & $hermesPython @hermesArgs
         if ($LASTEXITCODE -ne 0) { throw 'Hermes configuration merge failed.' }
     }
 } else {

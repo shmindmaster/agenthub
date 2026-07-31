@@ -14,6 +14,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--port", type=int, default=0)
+    parser.add_argument("--enable-chrome", action="store_true")
     args = parser.parse_args()
     path = Path(args.config).expanduser().resolve()
     yaml = YAML()
@@ -47,17 +48,20 @@ def main() -> None:
     config["custom_providers"] = providers
 
     mcp_servers = config.setdefault("mcp_servers", {})
-    chrome_args = [
-        "-y",
-        "chrome-devtools-mcp@latest",
-    ]
-    if args.port > 0:
-        chrome_args.append(f"--browser-url=http://127.0.0.1:{args.port}")
-    mcp_servers["chrome-devtools"] = {
-        "command": "npx",
-        "args": chrome_args,
-        "enabled": True,
-    }
+    if args.enable_chrome:
+        chrome_args = [
+            "-y",
+            "chrome-devtools-mcp@latest",
+        ]
+        if args.port > 0:
+            chrome_args.append(f"--browser-url=http://127.0.0.1:{args.port}")
+        mcp_servers["chrome-devtools"] = {
+            "command": "npx",
+            "args": chrome_args,
+            "enabled": True,
+        }
+    else:
+        mcp_servers.pop("chrome-devtools", None)
 
     handle, temporary_name = tempfile.mkstemp(
         prefix=f"{path.name}.",

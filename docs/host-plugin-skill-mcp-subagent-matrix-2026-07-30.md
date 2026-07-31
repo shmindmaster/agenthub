@@ -41,10 +41,10 @@ Their runtime processes contribute only to aggregate resource observations.
   per agent. Each host opens its own client connection to the same hosted service.
 - A canonical local stdio MCP command is a child process owned by the host/session that launched it.
   Seven concurrently open hosts can therefore create seven local workers. AgentHub suppresses
-  ordinary globally persisted on-demand local MCPs. Chrome DevTools MCP is the explicit
-  user-requested exception: it is configured directly on every supported host using the upstream
-  README form, with documented Codex-on-Windows and Antigravity variants. The server launches
-  Chrome only when a tool first requires it, but the host may start its local stdio worker sooner.
+  ordinary globally persisted on-demand local MCPs, including Chrome DevTools MCP. Browser work
+  uses host-native tooling when available or launches the upstream Chrome command for one task;
+  the owning skill closes that exact worker afterward. Antigravity may use its documented built-in
+  browser URL without turning Chrome DevTools into a fleet-wide persistent registration.
 - Claude and Codex host-private plugins may start additional host-owned workers. AgentHub does
   not classify those workers as canonical fleet duplication, deploy them elsewhere, or terminate
   them; only canonical identity conflicts and aggregate resource limits remain in scope.

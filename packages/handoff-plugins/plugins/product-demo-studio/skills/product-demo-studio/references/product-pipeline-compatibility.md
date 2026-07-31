@@ -1,6 +1,6 @@
 # Product-pipeline compatibility
 
-Version: 1.5.2
+Version: 1.5.3
 Owner: AgentHub `handoff/product-demo-studio`
 
 This matrix maps known repository-native product-video pipelines to the canonical Product Demo
@@ -34,8 +34,8 @@ It must:
 - read source artifacts without moving or duplicating them;
 - preserve original checksums and record the transformation version;
 - fail on unknown required fields, stale candidate IDs, missing evidence, or unverifiable paths;
-- never auto-attest privacy, compliance, synthetic-data confirmation, human watch-through, or
-  external publication approval;
+- never fabricate privacy, compliance, or synthetic-data evidence, and never self-authorize
+  external publication;
 - never make the product build depend on AgentHub at runtime.
 
 The canonical schemas are the cross-host contract. Product repositories remain the authority for

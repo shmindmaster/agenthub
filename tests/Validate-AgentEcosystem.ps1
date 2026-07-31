@@ -884,7 +884,7 @@ if ($registryObjects.ContainsKey('mcps.json')) {
         }
     )
     if ($invalidLifecycles.Count -eq 0) {
-        Add-ValidationResult PASS 'registry:mcp-lifecycle' 'global defaults are shared HTTP services or explicit host-configured local servers; other local stdio servers remain on demand'
+        Add-ValidationResult PASS 'registry:mcp-lifecycle' 'global defaults are shared HTTP services; local stdio servers remain on demand'
     } else {
         Add-ValidationResult FAIL 'registry:mcp-lifecycle' ($invalidLifecycles -join ', ')
     }
@@ -954,18 +954,18 @@ if ($registryObjects.ContainsKey('native-connectors.json') -and
     $knownMcpIds = @($registryObjects['mcps.json'].mcpServers.id)
     $connectorHostIds = @($connectorRegistry.hosts.hostId)
     $connectorProblems = @()
-    $expectedOnDemandLocal = @('brave-search', 'playwright', 'repocontext')
-    $expectedHostConfiguredLocal = @('chrome-devtools')
+    $expectedOnDemandLocal = @('brave-search', 'chrome-devtools', 'playwright', 'repocontext')
+    $expectedHostConfiguredLocal = @()
     $onDemandLifecycleDifference = @(Compare-Object `
         -ReferenceObject @($expectedOnDemandLocal | Sort-Object) `
         -DifferenceObject @($connectorRegistry.lifecyclePolicy.onDemandLocalMcpIds | Sort-Object))
     $hostConfiguredLifecycleDifference = @(Compare-Object `
         -ReferenceObject @($expectedHostConfiguredLocal | Sort-Object) `
         -DifferenceObject @($connectorRegistry.lifecyclePolicy.hostConfiguredLocalMcpIds | Sort-Object))
-    if ([string]$connectorRegistry.lifecyclePolicy.defaultHostConfiguration -ne 'shared-remote-plus-explicit-local' -or
+    if ([string]$connectorRegistry.lifecyclePolicy.defaultHostConfiguration -ne 'shared-remote-only-persisted' -or
         [string]$connectorRegistry.lifecyclePolicy.sharedRemoteTransport -ne 'http' -or
         [string]$connectorRegistry.lifecyclePolicy.localFanoutPolicy -ne 'never-persist-on-demand-local-in-host-config' -or
-        [string]$connectorRegistry.lifecyclePolicy.hostConfiguredLocalFanoutPolicy -ne 'persist-only-explicit-user-requested-readme-installations' -or
+        [string]$connectorRegistry.lifecyclePolicy.hostConfiguredLocalFanoutPolicy -ne 'no-current-exceptions' -or
         [string]$connectorRegistry.lifecyclePolicy.localActivationOwnerPolicy -ne 'plugin-skill-or-reviewed-shared-gateway' -or
         $onDemandLifecycleDifference.Count -ne 0 -or
         $hostConfiguredLifecycleDifference.Count -ne 0) {

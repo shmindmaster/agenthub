@@ -1,6 +1,6 @@
 # Product-video agent-system unification
 
-> Superseded contract note (2026-07-31): Product Demo Studio 1.5.2 replaced the signing design,
+> Superseded contract note (2026-07-31): Product Demo Studio 1.5.3 replaced the signing design,
 > fixed retry cap, and intermediate human checkpoints below with host-native role isolation, plain
 > operational receipts, automated acceptance, continuous remediation, and final-presentation-only
 > human involvement. The current package policy and validators are authoritative.

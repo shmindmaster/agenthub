@@ -100,7 +100,7 @@ The first human touchpoint is final presentation.
 
 ## Canonical migration
 
-- Product Demo Studio manifests are versioned `1.5.2`; its full package tree is the registry hash
+- Product Demo Studio manifests are versioned `1.5.3`; its full package tree is the registry hash
   basis.
 - Thirteen canonical prompts replace the overlapping five-reviewer split with five generation/
   preflight roles, four isolated reviewers, an arbiter, remediation, and a fresh final verifier.

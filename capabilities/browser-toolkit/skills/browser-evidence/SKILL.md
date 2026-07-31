@@ -16,6 +16,10 @@ Route product decisions to `product-experience-engineering` and demo/media decis
 2. Confirm the connected browser is a dedicated QA profile. Never connect to the normal personal
    Chrome instance. Shared mode permits one interactive agent; parallel agents require isolated
    profiles/ports and distinct server-side seed namespaces.
+   Use a host-native browser capability when available; otherwise activate Chrome DevTools MCP only
+   for this task through the owning skill. On hosts without dynamic MCP tools, use the canonical
+   `capabilities/browser-toolkit/scripts/run-chrome-devtools-task.mjs` JSON-plan runner. Never
+   persist it in global host configuration.
 3. Take a page/accessibility snapshot before interaction.
 4. Exercise the authorized workflow naturally with accessible names and visible text.
 5. Record loading, empty, partial/stale, success, failure, recovery, and permission states requested

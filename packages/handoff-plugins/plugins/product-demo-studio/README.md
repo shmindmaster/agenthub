@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.5.2**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.5.3**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Product repositories retain their product-specific capture/render implementations and
 map evidence into this shared contract. The reviewed mapping is documented in
@@ -29,16 +29,17 @@ Version 1.5 makes those craft contracts fail closed in deterministic preflight, 
 pixel density from real geometry, requires beat timing evidence, and adds canonical-rubric isolation,
 symmetric pass/fail evidence, calibration, tightening-only vertical overlays, and capability-
 detected GPU-first media work with checksum-bound acceleration provenance and deterministic CPU
-fallback. Version 1.5's fixed retry and human checkpoints are superseded by 1.5.2. Preflight reruns
+fallback. Version 1.5's fixed retry and human checkpoints are superseded by 1.5.3. Preflight reruns
 the canonical craft validators against their checksum-bound inputs and rejects acceleration
 selections that do not match functional probes. Reviewer calibration receipts bind both fixture input and derived
 result-payload hashes, while remediation families use fingerprints derived from stable accepted-
 finding category/routing identity instead of IDs, mutable review wording, or caller-selected labels.
-Version 1.5.2 removes cryptographic signing, trust registries, the reviewer broker, and intermediate
+Version 1.5.3 removes cryptographic signing, trust registries, the reviewer broker, intermediate
 human approval gates. It keeps operational read-only execution receipts, makes acceptance and
 refinement autonomous through the terminal independent verifier, and reuses the existing
 `D:\AI-Platform` CUDA runtime on demand without installing or starting another service. The first
-human touchpoint is the final presentation.
+human touchpoint is the final presentation. It also removes the last stale compatibility wording
+that could be misread as an intermediate approval requirement.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with

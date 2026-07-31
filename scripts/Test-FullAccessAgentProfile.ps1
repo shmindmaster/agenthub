@@ -91,24 +91,7 @@ foreach ($hostId in $mcpPaths.Keys | Sort-Object) {
   $chromeEntry = if ($chromeServers) {
     $chromeServers.PSObject.Properties['chrome-devtools'].Value
   } else { $null }
-  if ($hostId -eq 'opencode') {
-    Assert-Profile (
-      $chromeEntry.type -eq 'local' -and
-      (@($chromeEntry.command) -join '|') -eq 'npx|-y|chrome-devtools-mcp@latest' -and
-      $null -eq $chromeEntry.PSObject.Properties['args'] -and
-      $null -eq $chromeEntry.PSObject.Properties['env']
-    ) "$hostId uses the strict upstream Chrome DevTools MCP command array"
-  } else {
-    $expectedChromeArgs = if ($hostId -eq 'antigravity') {
-      @('-y', 'chrome-devtools-mcp@latest', '--browser-url=http://127.0.0.1:9222')
-    } else {
-      @('-y', 'chrome-devtools-mcp@latest')
-    }
-    Assert-Profile (
-      $chromeEntry.command -eq 'npx' -and
-      (@($chromeEntry.args) -join '|') -eq ($expectedChromeArgs -join '|')
-    ) "$hostId uses the upstream Chrome DevTools MCP command"
-  }
+  Assert-Profile ($null -eq $chromeEntry) "$hostId keeps Chrome DevTools task-scoped"
   $configRaw = Get-Content -LiteralPath $path -Raw -ErrorAction SilentlyContinue
   Assert-Profile ($configRaw -notmatch 'exaApiKey=|fc-[a-z0-9]{20,}|pendoah\.app\.n8n') "$hostId has no stale embedded-provider endpoint"
 }
@@ -129,10 +112,7 @@ Assert-Profile ($cursorUnsupportedFields.Count -eq 0) 'Cursor MCP entries use on
 
 $codexConfigPath = "$UserProfile\.codex\config.toml"
 $codexRaw = if (Test-Path -LiteralPath $codexConfigPath) { Get-Content -LiteralPath $codexConfigPath -Raw } else { '' }
-Assert-Profile (
-  $codexRaw -match '(?ms)^\[mcp_servers\.chrome-devtools\]\s*command\s*=\s*"cmd"\s*args\s*=\s*\["/c",\s*"npx",\s*"-y",\s*"chrome-devtools-mcp@latest"\]\s*startup_timeout_ms\s*=\s*20000\s*$' -and
-  $codexRaw -match '(?ms)^\[mcp_servers\.chrome-devtools\.env\]\s*PROGRAMFILES\s*=\s*"C:\\\\Program Files"\s*SystemRoot\s*=\s*"C:\\\\Windows"\s*$'
-) 'codex uses the upstream Windows Chrome DevTools MCP command, environment, and timeout'
+Assert-Profile ($codexRaw -notmatch '(?m)^\[mcp_servers\.chrome-devtools\]') 'codex keeps Chrome DevTools task-scoped'
 foreach ($pluginOwnedKey in @($pluginOwnedByHost['codex'].Keys)) {
   $escapedKey = [regex]::Escape([string]$pluginOwnedKey)
   Assert-Profile ($codexRaw -notmatch "(?m)^\[mcp_servers\.$escapedKey\]") "codex omits plugin-owned MCP: $pluginOwnedKey"
@@ -185,12 +165,8 @@ $factory = Get-Content "$UserProfile\.factory\settings.json" -Raw | ConvertFrom-
 $copilot = Get-Content "$UserProfile\.copilot\settings.json" -Raw | ConvertFrom-Json
 $grokToml = Get-Content "$UserProfile\.grok\config.toml" -Raw -ErrorAction SilentlyContinue
 $hermesYaml = Get-Content "$env:LOCALAPPDATA\hermes\config.yaml" -Raw -ErrorAction SilentlyContinue
-Assert-Profile (
-  $grokToml -match '(?ms)^\[mcp_servers\.chrome-devtools\]\s*command\s*=\s*"npx"\s*args\s*=\s*\["-y",\s*"chrome-devtools-mcp@latest"\]\s*$'
-) 'Grok uses the upstream Chrome DevTools MCP command'
-Assert-Profile (
-  $hermesYaml -match '(?ms)^  chrome-devtools:\s*\r?\n\s+command:\s*"npx"\s*\r?\n\s+args:\s*\["-y",\s*"chrome-devtools-mcp@latest"\]\s*\r?\n'
-) 'Hermes uses the upstream Chrome DevTools MCP command'
+Assert-Profile ($grokToml -notmatch '(?m)^\[mcp_servers\.chrome-devtools\]') 'Grok keeps Chrome DevTools task-scoped'
+Assert-Profile ($hermesYaml -notmatch '(?m)^  chrome-devtools:\s*$') 'Hermes keeps Chrome DevTools task-scoped'
 Assert-Profile ($claude.permissions.defaultMode -eq 'bypassPermissions') 'Claude Code default is bypassPermissions'
 Assert-Profile ($qwen.tools.approvalMode -eq 'yolo') 'Qwen Code default is yolo'
 Assert-Profile ($qwen.memory.enableManagedAutoMemory -eq $true -and $qwen.memory.enableManagedAutoDream -eq $true) 'Qwen Code managed memory and background consolidation are enabled'
@@ -233,16 +209,16 @@ Assert-Profile ($grokToml -match '(?m)^yolo\s*=\s*true\s*$' -and $grokToml -matc
  $qoderMcp = Read-ServerSet "$UserProfile\.qoder\settings.json" 'mcpServers'
  Assert-Profile (
    $clineMcp.PSObject.Properties['context7'].Value.type -eq 'streamableHttp' -and
-   $clineMcp.PSObject.Properties['chrome-devtools'].Value.command -eq 'npx' -and
+   $null -eq $clineMcp.PSObject.Properties['chrome-devtools'] -and
    $null -eq $clineMcp.PSObject.Properties['playwright']
- ) 'Cline uses native streamableHttp, exposes Chrome DevTools, and keeps Playwright on demand'
+  ) 'Cline uses native streamableHttp and keeps local browser MCPs on demand'
  Assert-Profile ($clineMcp.PSObject.Properties['context7'].Value.autoApprove.Count -eq 0 -and ($clineMcp | ConvertTo-Json -Depth 30 -Compress) -notmatch '"auth"\s*:') 'Cline MCP keeps per-server auto-approval empty and no auth marker'
  Assert-Profile (
-   $null -eq $qoderMcp.PSObject.Properties['context7'] -and
-   $qoderMcp.PSObject.Properties['chrome-devtools'].Value.command -eq 'npx' -and
+    $null -eq $qoderMcp.PSObject.Properties['context7'] -and
+    $null -eq $qoderMcp.PSObject.Properties['chrome-devtools'] -and
    $null -eq $qoderMcp.PSObject.Properties['playwright'] -and
    ($qoderMcp | ConvertTo-Json -Depth 30 -Compress) -notmatch '"auth"\s*:'
- ) 'Qoder defers Context7 to its plugin, exposes Chrome DevTools, keeps Playwright on demand, and omits the unsupported auth marker'
+  ) 'Qoder defers Context7 to its plugin, keeps local browser MCPs on demand, and omits the unsupported auth marker'
  Assert-Profile ((Test-Path "$UserProfile\.qoder\agents\scout.md") -and ((Get-Content "$UserProfile\.qoder\agents\scout.md" -Raw) -match '(?m)^name:\s*scout\s*$')) 'Qoder native scout agent is present'
  Assert-Profile ((Get-Content "$UserProfile\bin\cline.cmd" -Raw) -match '--auto-approve true' -and (Get-Content "$UserProfile\bin\cline.cmd" -Raw) -match 'auth config plugin') 'Cline launcher applies auto-approve only outside administrative commands'
  Assert-Profile ((Get-Content "$UserProfile\bin\qodercli.cmd" -Raw) -match '--dangerously-skip-permissions' -and (Get-Content "$UserProfile\bin\qodercli.cmd" -Raw) -match 'login mcp plugins') 'Qoder launcher applies bypass permissions only outside administrative commands'

@@ -7,25 +7,40 @@ live browser, diagnostics, Lighthouse, and trace layer. Existing Playwright
 installations remain the deterministic regression layer when a repository
 already owns them; this toolkit neither installs nor removes Playwright.
 
-The canonical fleet deployment follows the upstream README's standard MCP
-configuration: `npx -y chrome-devtools-mcp@latest`. Each host persists its own
-native MCP entry, and the server starts Chrome only when a tool first requires
-it. The server exposes its Chrome profile's pages, DOM, accessibility tree,
+The canonical fleet deployment keeps the upstream README command
+`npx -y chrome-devtools-mcp@latest` as a task-scoped launcher. It does not
+persist that local stdio server in any host's global MCP configuration. The
+owning browser skills prefer a host-native Chrome/browser capability when one
+exists and otherwise launch the upstream server only when deep diagnostics are
+requested. The server exposes its Chrome profile's pages, DOM, accessibility tree,
 cookies, storage, request/response data, console output, and authenticated
 application state to that agent. Use synthetic accounts and data, close
 unrelated tabs, and sanitize screenshots, traces, logs, and reports.
 
-Codex uses the upstream Windows 11 `cmd /c npx` form with its documented
-environment and 20-second startup timeout. Antigravity uses the upstream
-`127.0.0.1:9222` connection to its built-in browser. Every other supported
-host uses the standard configuration rendered into its native schema.
+Codex uses its installed native Chrome/browser plugin for ordinary agent work,
+so read-only subagents do not each inherit a local MCP worker. Antigravity may
+use the upstream `127.0.0.1:9222` connection to its built-in browser when the
+task-scoped launcher is selected.
 
 ## Concurrent agents
 
-Chrome DevTools MCP is a local stdio server. Concurrent hosts can therefore
-start one Node worker each; the upstream README does not define a shared server
-transport. The server does not launch Chrome merely because an MCP client
-connects, but it may keep its local worker alive for that host session.
+Chrome DevTools MCP is a local stdio server and the upstream README does not
+define a shared server transport. Persisting it globally causes every host or
+subagent session to launch a separate Node worker, so AgentHub removes those
+registrations. A task that actually needs DevTools depth may own one temporary
+worker and must close it when the diagnostic session ends.
+
+Hosts without a native dynamic MCP surface use the toolkit's task runner. It
+starts one pinned MCP worker, executes a JSON tool plan against the dedicated QA
+Chrome instance, writes redacted evidence, and closes the worker:
+
+```powershell
+node .\scripts\run-chrome-devtools-task.mjs --plan .\fixtures\task-plan.example.json --output <evidence-directory>
+```
+
+Plans may capture a regular-expression group from one step and reference it as
+`{{name}}` in later tool arguments, allowing snapshot-derived element UIDs to
+drive clicks and fills without persisting a server.
 
 The prior controlled QA routing remains available as an advanced, explicit
 diagnostic mode:
@@ -62,7 +77,8 @@ enabled by AgentHub.
 
 ## Install and configure
 
-Deploy the registry-selected native configuration and skills from AgentHub:
+Deploy the registry-selected native configuration and skills from AgentHub.
+This also removes stale persistent Chrome DevTools MCP entries:
 
 ```powershell
 cd C:\Repos\shmindmaster\agenthub
@@ -78,6 +94,10 @@ merges only toolkit-owned settings. Qwen Code, OpenCode, and Hermes reference
 that variable directly. It never prints a secret. Cursor's browser skills,
 MCP registry, permissions, and launch policy are deployed by AgentHub's
 full-profile reconciler instead of this package-local script.
+
+Its default `TaskScoped` mode removes any stale Chrome DevTools registration.
+Only the explicit `Shared` and `Isolated` modes persist a temporary four-host
+QA registration; rerun the fleet synchronizer after that diagnostic session.
 
 If `QWEN_API_KEY` does not exist, set it without
 putting it in shell history:

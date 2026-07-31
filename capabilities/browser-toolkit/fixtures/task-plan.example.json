@@ -1,0 +1,29 @@
+{
+  "browserUrl": "http://127.0.0.1:9333",
+  "steps": [
+    {
+      "id": "open-page",
+      "tool": "navigate_page",
+      "arguments": {
+        "type": "url",
+        "url": "http://127.0.0.1:41731"
+      }
+    },
+    {
+      "id": "capture-page",
+      "tool": "take_snapshot",
+      "arguments": {
+        "verbose": true
+      },
+      "saveAs": "accessibility-snapshot.txt"
+    },
+    {
+      "id": "console",
+      "tool": "list_console_messages",
+      "arguments": {
+        "includePreservedMessages": true
+      },
+      "saveAs": "console.txt"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "@shmindmaster/browser-toolkit",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "private": true,
   "description": "README-native Chrome DevTools MCP deployment and shared browser quality skills for coding agents.",
   "type": "module",

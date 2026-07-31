@@ -4,10 +4,9 @@
 
 AgentHub is the deployed source of truth for the registered agent fleet. Canonical capability,
 skill, plugin, MCP, worktree, quarantine, and deployment contracts are converged and regression
-tested. The current live configuration verdict is `PASS`: 106 passes, 2 warnings, and 0 failures.
-The two warnings were observed active Chrome DevTools runtime trees while agent sessions were open.
-The Product Demo Studio version recorded by this snapshot was `1.3.1`; the current canonical
-contract is `1.5.2` and its live deployment is verified separately. Product Experience Engineering
+tested. The 2026-07-31 live configuration verdict is `PASS`: 106 passes, 0 warnings, and 0 failures,
+with zero local MCP runtime trees after task-scoped cleanup.
+The current Product Demo Studio contract and live native installations are `1.5.3`. Product Experience Engineering
 was current at `1.1.2` on Claude, Codex, Cursor, and Qoder.
 Product Demo Studio now uses automated acceptance, iterative remediation, and a mandatory terminal
 independent verifier. Native read-only roles record plain operational receipts; no signer, trust
@@ -38,34 +37,33 @@ registry, key, broker, resident service, or intermediate human approval is requi
 
 - All 22 registered agent records are inventoried. Twenty-one executables are installed; Windsurf
   is the intentionally dormant retained adapter. Policy failures: 0.
-- The managed profile reconciles 11 global MCP contracts across 13 managed profile hosts.
-  Chrome DevTools MCP is also rendered into all 18 supported host configurations, including the
-  retained inactive Windsurf adapter.
+- The managed profile reconciles shared remote MCP contracts across managed profile hosts.
+  Chrome DevTools MCP is task-scoped and removed from all persisted host configurations.
 - MCP configuration is host-native. Shared remote services such as Context7 do not launch a
-  local Node or Python worker per host. Chrome DevTools follows the upstream README direct-local
-  configuration, so each concurrent host can own one stdio worker after activation. Other local
-  process-based servers remain on demand.
-- Browser Toolkit `0.2.0` uses `npx -y chrome-devtools-mcp@latest` on standard hosts, the
-  documented Windows `cmd /c` form for Codex, and Antigravity's documented built-in-browser URL.
+  local Node or Python worker per host. All local process-based servers, including Chrome DevTools,
+  remain on demand and are owned only for the active diagnostic task.
+- Browser Toolkit `0.2.2` prefers host-native browser tooling and retains
+  `npx -y chrome-devtools-mcp@latest` only as a task-scoped fallback; Antigravity may use its documented built-in-browser URL.
   Qoder's duplicate marketplace Chrome plugin is disabled; its unrelated plugins are preserved.
 - Product Demo Studio is native on Claude, Codex, Factory, Grok, Qoder, VS Code Insiders, and
   Copilot where the host supports that route. Qwen uses a native extension; Gemini, Antigravity,
   OpenCode, and Codex receive generated host-native role adapters from the same 13 canonical
   agents. Other mapped hosts receive exact loose skills only when that is their documented
   surface. Product Experience Engineering follows its own registry-selected host adapters.
-- Product Demo Studio `1.3.1` was the version deployed at this snapshot; later versions are tracked
-  by the package manifests and fresh live-fleet validation rather than this historical count.
+- Product Demo Studio `1.5.3` is deployed to the current native host installations; package and
+  ecosystem validators compare deployed bytes to canonical source.
 - Product Experience Engineering `1.1.2` has matching Claude, Codex, and Cursor manifests. Its
   Cursor local-plugin junction is verified against the canonical source, and the profile fails
   closed if a future Cursor-native package is missing or version-mismatches that manifest.
-- Version `1.3.1` requires guided-screencast choreography and maximized useful screen space:
+- Version `1.5.3` requires guided-screencast choreography and maximized useful screen space:
   page-only/native-fullscreen capture, no extraneous browser or OS chrome, real product actions and
   state transitions, visible click cues, at least 50% planned active-region coverage after
   crop/push-in/recomposition, and result-before-spoken-result narration timing.
 - Private review delivery is registry-routed to immutable `Review/<candidateId>` packages under
   the approved product OneDrive roots. Packaging requires arbiter `PASS` plus mandatory final
   verifier `PASS`, stages and validates before atomic promotion, refuses overwrite, and records
-  the package as review-only with publication approval still pending.
+  the package as review-only. External publication is a separate consequential action and occurs
+  only when the task explicitly authorizes it; it is not an intermediate production approval gate.
 - Stale VS Code Insiders plugin locations pointing to an AgentHub worktree are now removed
   automatically. The live scanner reports zero duplicate canonical skill exposures.
 - The trusted external `use-railway` tree is current on all 11 mapped loose-skill hosts.
@@ -74,8 +72,8 @@ registry, key, broker, resident service, or intermediate human approval is requi
 - GitHub-hosted CI was retired. AgentHub has no build, release, or deploy artifact; repository
   validation is local and deterministic.
 - Cursor and Cursor Agent are active. The Cursor-specific MCP adapter replaces historical invalid
-  fields instead of merging them: the current config contains all nine registry-selected
-  registrations, including Chrome DevTools. Context7, Exa, Firecrawl, and Tavily are ready; OAuth-backed servers await their normal
+  fields instead of merging them: the current config persists only registry-selected shared remote
+  registrations. Chrome DevTools remains task-scoped. Context7, Exa, Firecrawl, and Tavily are ready; OAuth-backed servers await their normal
   host authentication state, and Adobe reports a connection error without preventing
   any other MCP from loading.
 
@@ -113,17 +111,17 @@ Pre-move bundles, dirty patches, and the verified manifest are at:
 - Repository ecosystem validator: 97 passed, 0 warned, 0 failed.
 - Host readiness: 22 registered surfaces; 21 executables plus the intentional dormant Windsurf
   adapter; 0 policy failures.
-- Full-access profile: passed for 11 global MCP contracts across all 18 supported host
+- Full-access profile: passed for 10 shared remote MCP contracts across all 18 supported host
   configurations.
 - External skill report: 11 current targets, 0 stale targets.
-- Product Demo Studio: 134 contract assertions passed; package and static parity passed for all
+- Product Demo Studio: 168 contract assertions passed; package and static parity passed for all
   18 registry mappings; Qoder reports 8 skills, 13 agents, and 1 plugin-owned MCP.
 - Independent review: no blocker or critical code finding remained after the final safety fixes.
-- Final live inventory found 106 passing checks, 2 warnings, and 0 failures. No duplicate
-  configured MCP ownership failure was found. Two active Chrome DevTools runtime trees are
-  observed while agent sessions are open. Claude and Codex user-installed extra plugins are preserved as host-private
+- Final live inventory found 106 passing checks, 0 warnings, and 0 failures. No duplicate
+  configured MCP ownership or local MCP runtime tree remained. Claude and Codex user-installed extra plugins are preserved as host-private
   extensions and are intentionally outside fleet parity and cross-host deployment.
-- All advisory runtime budgets passed. Auto-termination remains disabled.
+- All advisory runtime budgets passed. Automatic broad process termination remains disabled;
+  task-scoped launchers own and close only their exact process trees.
 
 Final live report:
 

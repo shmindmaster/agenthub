@@ -59,17 +59,17 @@ try {
     }
 
     $configChecks = @(
-        @{ Name = 'Claude MCP'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.claude.json'); Pattern = 'chrome-devtools-mcp@latest' },
-        @{ Name = 'Qwen settings'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.qwen\settings.json'); Pattern = 'chrome-devtools-mcp@latest' },
-        @{ Name = 'OpenCode settings'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.config\opencode\opencode.json'); Pattern = 'chrome-devtools-mcp@latest' }
+        @{ Name = 'Claude task-scoped browser policy'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.claude.json'); Pattern = 'chrome-devtools-mcp@latest' },
+        @{ Name = 'Qwen task-scoped browser policy'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.qwen\settings.json'); Pattern = 'chrome-devtools-mcp@latest' },
+        @{ Name = 'OpenCode task-scoped browser policy'; Path = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.config\opencode\opencode.json'); Pattern = 'chrome-devtools-mcp@latest' }
     )
     foreach ($check in $configChecks) {
-        $ok = (Test-Path -LiteralPath $check.Path) -and (Select-String -LiteralPath $check.Path -SimpleMatch $check.Pattern -Quiet)
+        $ok = (Test-Path -LiteralPath $check.Path) -and -not (Select-String -LiteralPath $check.Path -SimpleMatch $check.Pattern -Quiet)
         Add-Result $check.Name $(if ($ok) { 'Verified' } else { 'Not verified' }) $check.Path
     }
 
     $hermesMcp = & hermes mcp list 2>&1 | Out-String
-    Add-Result 'Hermes MCP discovery' $(if ($hermesMcp -match 'chrome-devtools') { 'Verified' } else { 'Not verified' }) 'hermes mcp list'
+    Add-Result 'Hermes task-scoped browser policy' $(if ($hermesMcp -notmatch 'chrome-devtools') { 'Verified' } else { 'Not verified' }) 'hermes mcp list'
 
     if ($RunBrowserSmoke) {
         try {
