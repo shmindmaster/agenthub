@@ -18,7 +18,9 @@ const required = [
   "scripts/validate.ps1",
   "scripts/mcp-smoke.mjs",
   "scripts/run-chrome-devtools-task.mjs",
+  "scripts/redact-sensitive-text.mjs",
   "fixtures/task-plan.example.json",
+  "tests/redaction.test.mjs",
   "fixtures/browser-smoke/index.html"
 ];
 

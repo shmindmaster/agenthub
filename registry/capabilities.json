@@ -757,7 +757,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "7E49E15805CA7051CD491046FAC7AA76DA61607A0C2B0B807ED7785E40D58C70",
+      "contentHash": "0B276592EB3B8597EC680CA2A747C728D3F6F2879E6CC5B2DC967E26AD5912EC",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\capabilities\\browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { redactSensitiveText } from "./redact-sensitive-text.mjs";
 
 const browserUrl = process.env.BROWSER_TOOLKIT_CDP_URL || "http://127.0.0.1:9333";
 const targetUrl = process.env.BROWSER_TOOLKIT_BASE_URL || "http://127.0.0.1:41731";
@@ -44,9 +45,7 @@ async function call(name, args = {}) {
   return result;
 }
 function safeText(value) {
-  return value
-    .replace(/(authorization|cookie|set-cookie|x-api-key)(["']?\s*[:=]\s*)[^\s,;]+/gi, "$1$2<redacted>")
-    .replace(/Bearer\s+[A-Za-z0-9._~-]+/gi, "Bearer <redacted>");
+  return redactSensitiveText(value);
 }
 
 try {

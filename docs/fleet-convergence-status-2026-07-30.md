@@ -42,7 +42,7 @@ registry, key, broker, resident service, or intermediate human approval is requi
 - MCP configuration is host-native. Shared remote services such as Context7 do not launch a
   local Node or Python worker per host. All local process-based servers, including Chrome DevTools,
   remain on demand and are owned only for the active diagnostic task.
-- Browser Toolkit `0.2.2` prefers host-native browser tooling and retains
+- Browser Toolkit `0.2.3` prefers host-native browser tooling and retains
   `npx -y chrome-devtools-mcp@latest` only as a task-scoped fallback; Antigravity may use its documented built-in-browser URL.
   Qoder's duplicate marketplace Chrome plugin is disabled; its unrelated plugins are preserved.
 - Product Demo Studio is native on Claude, Codex, Factory, Grok, Qoder, VS Code Insiders, and

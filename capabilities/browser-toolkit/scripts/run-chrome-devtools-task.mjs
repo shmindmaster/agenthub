@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { redactSensitiveText } from "./redact-sensitive-text.mjs";
 
 function option(name) {
   const index = process.argv.indexOf(name);
@@ -29,18 +30,12 @@ const transport = new StdioClientTransport({
   ],
   stderr: "pipe"
 });
-const client = new Client({ name: "browser-toolkit-task", version: "0.2.2" });
+const client = new Client({ name: "browser-toolkit-task", version: "0.2.3" });
 const variables = {};
 const report = { browserUrl, startedAt: new Date().toISOString(), status: "running", steps: [] };
 
 function textFrom(result) {
   return (result.content || []).filter(item => item.type === "text").map(item => item.text).join("\n");
-}
-
-function redact(value) {
-  return value
-    .replace(/(authorization|cookie|set-cookie|x-api-key)(["']?\s*[:=]\s*)[^\s,;]+/gi, "$1$2<redacted>")
-    .replace(/Bearer\s+[A-Za-z0-9._~-]+/gi, "Bearer <redacted>");
 }
 
 function substitute(value) {
@@ -73,7 +68,7 @@ try {
     }
     const args = substitute(step.arguments || {});
     const result = await client.callTool({ name: step.tool, arguments: args });
-    const output = redact(textFrom(result));
+    const output = redactSensitiveText(textFrom(result));
     if (result.isError) throw new Error(`Step ${index + 1} (${step.tool}) failed: ${output}`);
     for (const capture of step.captures || []) {
       const match = output.match(new RegExp(capture.pattern, capture.flags || "m"));
@@ -90,7 +85,7 @@ try {
   report.status = "passed";
 } catch (error) {
   report.status = "failed";
-  report.error = redact(error instanceof Error ? error.message : String(error));
+  report.error = redactSensitiveText(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 } finally {
   report.completedAt = new Date().toISOString();
