@@ -60,7 +60,7 @@ Run `powershell.exe -NoProfile -File .\scripts\Apply-FullAccessAgentProfile.ps1 
 
 ## Validation policy
 
-AgentHub is a configuration-management control plane. It does not produce a build, package, release, or deployment artifact, and GitHub Actions runs on a dedicated self-hosted runner on DigitalOcean (`.github/workflows/validate.yml`, runner labels: `self-hosted`, `linux`, `x64`, `copilot`) plus local commands.
+AgentHub is a configuration-management control plane. It does not produce a build, package, release, or deployment artifact, and GitHub Actions runs on GitHub-hosted `ubuntu-latest` runners (`.github/workflows/validate.yml`) plus local commands. The dedicated DigitalOcean droplet that used to host these runners is retired.
 
 Validate changes locally in both supported PowerShell engines:
 
