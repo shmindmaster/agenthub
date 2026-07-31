@@ -940,6 +940,8 @@ Describe 'Comprehensive live fleet drift inventory' {
 
     It 'keeps normal agent runtimes distinct from local MCP workers' {
         $source = Get-Content -LiteralPath $checker -Raw -Encoding UTF8
+        $source | Should -Match '\[string\]\$ReposRoot = ''C:\\Repos\\shmindmaster'''
+        $source | Should -Match 'must not cross into sibling client roots'
         $source | Should -Match "'agent-runtime'"
         $source | Should -Match "'local-mcp-worker'"
         $source | Should -Match 'Normal autostart runtimes are not drift'

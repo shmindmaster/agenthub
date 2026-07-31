@@ -5,7 +5,9 @@ param(
     [string]$UserProfilePath = $env:USERPROFILE,
     [string]$AppDataPath,
     [string]$LocalAppDataPath,
-    [string]$ReposRoot = 'C:\Repos',
+    # Personal fleet inventory must not cross into sibling client roots.
+    # An explicitly authorized client scan may provide its own -ReposRoot.
+    [string]$ReposRoot = 'C:\Repos\shmindmaster',
     [string]$WorktreeRoot = 'C:\wt',
     [string]$CodexPluginStatePath,
     [string]$ProcessSnapshotPath,

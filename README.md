@@ -78,7 +78,7 @@ pwsh -NoProfile -File .\scripts\Test-LiveAgentFleetDrift.ps1 `
   -ReportPath "$env:LOCALAPPDATA\AgentHub\reports\fleet-inventory\latest.json"
 ```
 
-The live validator uses no network calls, never launches a coding-agent provider, does not mutate agent configuration or worktrees, and redacts credential-shaped command-line arguments in its optional report.
+The live validator uses no network calls, never launches a coding-agent provider, does not mutate agent configuration or worktrees, and redacts credential-shaped command-line arguments in its optional report. Its default repository scope is the personal `C:\Repos\shmindmaster` portfolio; a different `-ReposRoot` is reserved for separately authorized work.
 
 Run `pwsh -File .\tests\Test-HostReadiness.ps1` to report locally installed host clients and required policy pointers without opening a browser, connecting to an MCP server, or reading credentials.
 
