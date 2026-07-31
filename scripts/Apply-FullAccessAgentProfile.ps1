@@ -484,7 +484,11 @@ function Install-ManagedSkill([string]$HostId, [string]$TargetRoot, [string]$Ski
 }
 
 function Get-NativePluginState([string]$HostId, [string]$CapabilityId, [string]$PluginRoot, [string]$PluginVersion) {
-  $marketplaceKey = "$CapabilityId@handoff"
+  $marketplaceKey = if ($HostId -eq 'codex') {
+    "$CapabilityId@agenthub"
+  } else {
+    "$CapabilityId@handoff"
+  }
   $capability = $caps.capabilities | Where-Object id -eq $CapabilityId | Select-Object -First 1
   $mapping = @($capability.hostMappings | Where-Object hostId -eq $HostId | Select-Object -First 1)
   $deploymentStatus = if ($mapping.Count -eq 1) { [string]$mapping[0].deploymentStatus } else { '' }
@@ -532,7 +536,7 @@ function Get-NativePluginState([string]$HostId, [string]$CapabilityId, [string]$
       throw "Codex has enabled $marketplaceKey, but the registry maps $CapabilityId as '$deploymentStatus'. Disable the plugin before deploying loose skills."
     }
     if (-not $enabled) { return @{ installed=$false; current=$false; path=$null } }
-    $path = Join-Path $UserProfile ".codex\plugins\cache\handoff\$CapabilityId\$PluginVersion"
+    $path = Join-Path $UserProfile ".codex\plugins\cache\agenthub\$CapabilityId\$PluginVersion"
     return @{ installed=$true; current=(Test-DirectoryEquivalent $PluginRoot $path); path=$path }
   }
   if ($HostId -eq 'cursor') {

@@ -314,7 +314,7 @@
         "id": "product-demo-studio"
       },
       "pluginOwnersByHost": {
-        "codex": "product-demo-studio@handoff"
+        "codex": "product-demo-studio@agenthub"
       },
       "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and human attestation; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit user authorization and current machine plus named-human evidence for the exact shared bytes. Claude uses its native account connector while retaining canonical Product Demo Studio loose skills; Codex and reviewed native plugin adapters use the plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509"
     }

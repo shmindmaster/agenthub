@@ -100,11 +100,11 @@ function global:New-DistributionFixture {
     New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot '.codex-plugin') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot '.claude-plugin') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $canonicalExperienceRoot '.cursor-plugin') -Force | Out-Null
-    '{"name":"product-experience-engineering","version":"1.1.1"}' |
+    '{"name":"product-experience-engineering","version":"1.1.2"}' |
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.codex-plugin\plugin.json') -Encoding UTF8
-    '{"name":"product-experience-engineering","version":"1.1.1"}' |
+    '{"name":"product-experience-engineering","version":"1.1.2"}' |
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.claude-plugin\plugin.json') -Encoding UTF8
-    '{"name":"product-experience-engineering","version":"1.1.1"}' |
+    '{"name":"product-experience-engineering","version":"1.1.2"}' |
         Set-Content -LiteralPath (Join-Path $canonicalExperienceRoot '.cursor-plugin\plugin.json') -Encoding UTF8
     foreach ($name in $global:canonicalExperienceSkills) {
         $skillRoot = Join-Path $canonicalExperienceRoot "skills\$name"
@@ -1103,7 +1103,7 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
                 'product-experience-engineering@handoff' = @(@{
                     scope = 'user'
                     installPath = $fixture.CanonicalExperienceRoot
-                    version = '1.1.1'
+                    version = '1.1.2'
                 })
             }
         } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $claudeInstalledPath -Encoding UTF8
@@ -1116,9 +1116,9 @@ Describe 'Apply-FullAccessAgentProfile managed product experience distribution' 
 
         $codexConfig = Join-Path $fixture.UserProfile '.codex\config.toml'
         New-Item -ItemType Directory -Path (Split-Path -Parent $codexConfig) -Force | Out-Null
-        "[plugins.`"product-experience-engineering@handoff`"]`nenabled = true" |
+        "[plugins.`"product-experience-engineering@agenthub`"]`nenabled = true" |
             Set-Content -LiteralPath $codexConfig -Encoding UTF8
-        $codexCache = Join-Path $fixture.UserProfile '.codex\plugins\cache\handoff\product-experience-engineering\1.1.1'
+        $codexCache = Join-Path $fixture.UserProfile '.codex\plugins\cache\agenthub\product-experience-engineering\1.1.2'
         New-Item -ItemType Directory -Path (Split-Path -Parent $codexCache) -Force | Out-Null
         Copy-Item -LiteralPath $fixture.CanonicalExperienceRoot -Destination $codexCache -Recurse
         New-Item -ItemType Directory -Path (Join-Path $codexCache '.in_use') -Force | Out-Null

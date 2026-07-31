@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-30T22:19:10.4107485Z",
+  "generatedAt": "2026-07-31T00:50:49.1480587Z",
   "authority": {
     "capabilitiesRegistry": "registry/capabilities.json",
     "mcpRegistry": "registry/mcps.json",
@@ -39,11 +39,19 @@
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider"
   },
+  "managedMarketplaces": [
+    {
+      "hostId": "codex",
+      "name": "agenthub",
+      "sourcePath": "C:/Repos/shmindmaster/agenthub",
+      "manifestPath": ".agents/plugins/marketplace.json"
+    }
+  ],
   "bundledServerSuppressions": [],
   "skillsOnlyPlugins": [
     {
       "hostId": "codex",
-      "pluginId": "firecrawl-ops@portfolio",
+      "pluginId": "firecrawl-ops@agenthub",
       "version": "0.1.0+codex.20260729172634",
       "mcpId": "firecrawl",
       "sourcePath": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops",

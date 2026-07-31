@@ -744,6 +744,60 @@ if ($registryObjects.ContainsKey('capabilities.json')) {
     }
 }
 
+$codexMarketplacePath = Join-Path $RegistryRoot '.agents\plugins\marketplace.json'
+if (-not (Test-Path -LiteralPath $codexMarketplacePath -PathType Leaf)) {
+    Add-ValidationResult FAIL 'marketplace:codex:agenthub' 'canonical AgentHub marketplace is missing'
+} else {
+    try {
+        $codexMarketplace = Get-Content -LiteralPath $codexMarketplacePath -Raw -Encoding UTF8 |
+            ConvertFrom-Json -ErrorAction Stop
+        $expectedPluginNames = @(
+            'product-demo-studio',
+            'product-experience-engineering',
+            'use-prompt-os',
+            'use-campaign-production',
+            'use-digitalocean',
+            'use-elevenlabs',
+            'clerk',
+            'firecrawl-ops'
+        )
+        $actualPluginNames = @($codexMarketplace.plugins | ForEach-Object { [string]$_.name })
+        $marketplaceProblems = @()
+        if ([string]$codexMarketplace.name -ne 'agenthub') {
+            $marketplaceProblems += 'internal-name'
+        }
+        if ([string]$codexMarketplace.interface.displayName -ne 'AgentHub') {
+            $marketplaceProblems += 'display-name'
+        }
+        if (($expectedPluginNames -join '|') -cne ($actualPluginNames -join '|')) {
+            $marketplaceProblems += 'plugin-set-or-order'
+        }
+        if (@($actualPluginNames | Group-Object | Where-Object Count -gt 1).Count -ne 0) {
+            $marketplaceProblems += 'duplicate-plugin'
+        }
+        foreach ($entry in @($codexMarketplace.plugins)) {
+            if ([string]$entry.source.source -ne 'local' -or
+                [string]::IsNullOrWhiteSpace([string]$entry.source.path)) {
+                $marketplaceProblems += "$($entry.name):source-contract"
+                continue
+            }
+            $sourcePath = [IO.Path]::GetFullPath(
+                (Join-Path $RegistryRoot ([string]$entry.source.path))
+            )
+            if (-not (Test-Path -LiteralPath $sourcePath -PathType Container)) {
+                $marketplaceProblems += "$($entry.name):missing-source"
+            }
+        }
+        if ($marketplaceProblems.Count -eq 0) {
+            Add-ValidationResult PASS 'marketplace:codex:agenthub' 'one AgentHub catalog exposes all eight canonical plugin packages'
+        } else {
+            Add-ValidationResult FAIL 'marketplace:codex:agenthub' ($marketplaceProblems -join ', ')
+        }
+    } catch {
+        Add-ValidationResult FAIL 'marketplace:codex:agenthub' "invalid marketplace JSON: $($_.Exception.Message)"
+    }
+}
+
 $productVideoValidator = Join-Path $RegistryRoot `
     'packages\handoff-plugins\plugins\product-demo-studio\scripts\validate-package.mjs'
 if (-not (Test-Path -LiteralPath $productVideoValidator -PathType Leaf)) {
@@ -968,7 +1022,7 @@ if ($registryObjects.ContainsKey('native-connectors.json') -and
         if (@(Get-DuplicateValues $classified).Count -gt 0) { $connectorProblems += "$($row.hostId):duplicate-exposure" }
     }
     $codexFirecrawlSkillsOnly = @($connectorRegistry.skillsOnlyPlugins | Where-Object {
-        $_.hostId -eq 'codex' -and $_.pluginId -eq 'firecrawl-ops@portfolio' -and
+        $_.hostId -eq 'codex' -and $_.pluginId -eq 'firecrawl-ops@agenthub' -and
         $_.mcpId -eq 'firecrawl' -and
         $_.installedState -eq 'skills-only-no-mcp-manifest' -and
         $_.mcpOwner -eq 'registry/mcps.json' -and
@@ -977,9 +1031,17 @@ if ($registryObjects.ContainsKey('native-connectors.json') -and
         $_.deploymentState -eq 'live-verified' -and
         $_.mutationPolicy -eq 'do-not-add-bundled-mcp-without-owner-reassignment'
     })
+    $codexAgentHubMarketplace = @($connectorRegistry.managedMarketplaces | Where-Object {
+        $_.hostId -eq 'codex' -and
+        $_.name -eq 'agenthub' -and
+        $_.sourcePath -eq 'C:/Repos/shmindmaster/agenthub' -and
+        $_.manifestPath -eq '.agents/plugins/marketplace.json'
+    })
     $codexConnector = @($connectorRegistry.hosts | Where-Object hostId -eq 'codex')
     if (@($connectorRegistry.bundledServerSuppressions).Count -ne 0 -or
-        $codexFirecrawlSkillsOnly.Count -ne 1 -or $codexConnector.Count -ne 1 -or
+        $codexFirecrawlSkillsOnly.Count -ne 1 -or
+        $codexAgentHubMarketplace.Count -ne 1 -or
+        $codexConnector.Count -ne 1 -or
         'firecrawl' -notin @($codexConnector[0].exposures.'shared-gateway') -or
         'firecrawl' -in @($codexConnector[0].exposures.'plugin-owned')) {
         $connectorProblems += 'codex-firecrawl-skills-only-contract'
@@ -1183,20 +1245,21 @@ if ($IncludeGlobalInstructions) {
     } else {
         Add-ValidationResult FAIL 'global:codex:retention' 'expected worktree-keep-count = 5'
     }
-    $portfolioSection = [regex]::Match(
+    $agentHubSection = [regex]::Match(
         $codexRaw,
-        '(?ms)^\[marketplaces\.portfolio\]\s*$.*?(?=^\[|\z)'
+        '(?ms)^\[marketplaces\.agenthub\]\s*$.*?(?=^\[|\z)'
     ).Value
-    $portfolioSource = [regex]::Match(
-        $portfolioSection,
+    $agentHubSource = [regex]::Match(
+        $agentHubSection,
         "(?m)^source\s*=\s*['`"](?<value>[^'`"]+)['`"]\s*$"
     )
-    $expectedPortfolioSource = '\\?\C:\Repos\shmindmaster\agenthub\packages\portfolio-plugins'
-    if ($portfolioSource.Success -and
-        $portfolioSource.Groups['value'].Value -ceq $expectedPortfolioSource) {
-        Add-ValidationResult PASS 'global:codex:portfolio-marketplace' 'canonical AgentHub repository referenced'
+    $expectedAgentHubSource = '\\?\C:\Repos\shmindmaster\agenthub'
+    if ($agentHubSource.Success -and
+        $agentHubSource.Groups['value'].Value -ceq $expectedAgentHubSource -and
+        $codexRaw -notmatch '(?m)^\[marketplaces\.(handoff|portfolio)\]\s*$') {
+        Add-ValidationResult PASS 'global:codex:agenthub-marketplace' 'one canonical AgentHub marketplace referenced'
     } else {
-        Add-ValidationResult FAIL 'global:codex:portfolio-marketplace' 'canonical AgentHub portfolio marketplace reference missing'
+        Add-ValidationResult FAIL 'global:codex:agenthub-marketplace' 'canonical AgentHub marketplace missing or a legacy AgentHub catalog remains'
     }
 
     $claudeSettingsPath = Join-Path $UserProfilePath '.claude\settings.json'

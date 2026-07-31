@@ -4,9 +4,10 @@
 
 AgentHub is the deployed source of truth for the registered agent fleet. Canonical capability,
 skill, plugin, MCP, worktree, quarantine, and deployment contracts are converged and regression
-tested. The post-restart live configuration verdict is `PASS` with one explicit release-policy
-warning: 107 passes, 1 warning, and 0 failures. Product Demo Studio is current at `1.3.1` in every detected
-version-pinned session. Product Experience Engineering is current at `1.1.1` on Claude, Codex,
+tested. The current live configuration verdict is `PASS`: 106 passes, 2 warnings, and 0 failures.
+The warnings are the intentional Product Demo Studio operator-trust gate and two observed active
+Chrome DevTools runtime trees while agent sessions are open. Product Demo Studio is current at `1.3.1` in every detected
+version-pinned session. Product Experience Engineering is current at `1.1.2` on Claude, Codex,
 Cursor, and Qoder.
 Product Demo Studio review and release eligibility remains `PIPELINE_BLOCKED` until an
 operator-controlled host receipt signer proves release-grade read-only execution on a supported
@@ -54,7 +55,7 @@ host.
   surface. Product Experience Engineering follows its own registry-selected host adapters.
 - Product Demo Studio `1.3.1` was reinstalled from canonical AgentHub in Claude, Codex, Factory,
   Grok, and Qoder; the remaining mapped hosts received current generated adapters or exact skills.
-- Product Experience Engineering `1.1.1` has matching Claude, Codex, and Cursor manifests. Its
+- Product Experience Engineering `1.1.2` has matching Claude, Codex, and Cursor manifests. Its
   Cursor local-plugin junction is verified against the canonical source, and the profile fails
   closed if a future Cursor-native package is missing or version-mismatches that manifest.
 - Version `1.3.1` requires guided-screencast choreography and maximized useful screen space:
@@ -118,17 +119,17 @@ Pre-move bundles, dirty patches, and the verified manifest are at:
 - Product Demo Studio: 134 contract assertions passed; package and static parity passed for all
   18 registry mappings; Qoder reports 8 skills, 13 agents, and 1 plugin-owned MCP.
 - Independent review: no blocker or critical code finding remained after the final safety fixes.
-- Final live inventory found 107 passing checks, 1 warning, and 0 failures. No duplicate
-  AgentHub-managed local MCP runtime tree or canonical local MCP worker was found. Claude and Codex user-installed extra plugins are preserved as host-private
+- Final live inventory found 106 passing checks, 2 warnings, and 0 failures. No duplicate
+  configured MCP ownership failure was found. Two active Chrome DevTools runtime trees are
+  observed while agent sessions are open. Claude and Codex user-installed extra plugins are preserved as host-private
   extensions and are intentionally outside fleet parity and cross-host deployment.
-- All advisory runtime budgets passed and no known local MCP worker remained. Auto-termination
-  remains disabled.
+- All advisory runtime budgets passed. Auto-termination remains disabled.
 
 Final live report:
 
-`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-inventory\chrome-devtools-final.json`
+`C:\Users\SaroshHussain\AppData\Local\AgentHub\reports\fleet-inventory\agenthub-marketplace-final-20260730.json`
 
-Live counts: 107 pass, 1 warn, 0 fail.
+Live counts: 106 pass, 2 warn, 0 fail.
 
 ## Product video review destinations
 

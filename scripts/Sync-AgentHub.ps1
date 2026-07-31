@@ -971,30 +971,25 @@ function Set-CodexManagedMarketplaceSources {
     )
 
     if (-not $ConnectorRegistry -or
-        -not $ConnectorRegistry.PSObject.Properties['skillsOnlyPlugins']) {
+        -not $ConnectorRegistry.PSObject.Properties['managedMarketplaces']) {
         return $Toml
     }
 
-    $portfolioRows = @($ConnectorRegistry.skillsOnlyPlugins | Where-Object {
+    $agentHubRows = @($ConnectorRegistry.managedMarketplaces | Where-Object {
         $_.hostId -eq 'codex' -and
-        [string]$_.pluginId -match '@portfolio$' -and
-        -not [string]::IsNullOrWhiteSpace([string]$_.installedSourcePath)
+        [string]$_.name -eq 'agenthub' -and
+        -not [string]::IsNullOrWhiteSpace([string]$_.sourcePath)
     })
-    if ($portfolioRows.Count -eq 0) { return $Toml }
-
-    $sourceRoots = @($portfolioRows | ForEach-Object {
-        $pluginSource = [System.IO.Path]::GetFullPath(
-            ([string]$_.installedSourcePath).Replace('/', '\')
-        )
-        Split-Path -Parent $pluginSource
-    } | Sort-Object -Unique)
-    if ($sourceRoots.Count -ne 1) {
-        throw "Codex portfolio plugins resolve to multiple marketplace roots: $($sourceRoots -join ', ')"
+    if ($agentHubRows.Count -eq 0) { return $Toml }
+    if ($agentHubRows.Count -ne 1) {
+        throw "Expected one managed Codex AgentHub marketplace; found $($agentHubRows.Count)."
     }
 
-    $expectedSource = '\\?\' + $sourceRoots[0]
+    $expectedSource = '\\?\' + [IO.Path]::GetFullPath(
+        ([string]$agentHubRows[0].sourcePath).Replace('/', '\')
+    ).TrimEnd('\')
     $sourceLine = "source = '$expectedSource'"
-    $sectionPattern = '(?ms)^\[marketplaces\.portfolio\]\s*$.*?(?=^\[|\z)'
+    $sectionPattern = '(?ms)^\[marketplaces\.agenthub\]\s*$.*?(?=^\[|\z)'
     if ($Toml -match $sectionPattern) {
         $section = $Matches[0]
         if ($section -match '(?m)^source\s*=') {
@@ -1003,7 +998,7 @@ function Set-CodexManagedMarketplaceSources {
             $newSection = $section.TrimEnd() + [Environment]::NewLine +
                 $sourceLine + [Environment]::NewLine
         }
-        return [regex]::Replace(
+        $Toml = [regex]::Replace(
             $Toml,
             $sectionPattern,
             [System.Text.RegularExpressions.MatchEvaluator]{
@@ -1012,9 +1007,15 @@ function Set-CodexManagedMarketplaceSources {
             },
             1
         )
+        foreach ($legacyName in @('handoff', 'portfolio')) {
+            $legacyPattern = '(?ms)^\[marketplaces\.' +
+                [regex]::Escape($legacyName) + '\]\s*$.*?(?=^\[|\z)'
+            $Toml = [regex]::Replace($Toml, $legacyPattern, '')
+        }
+        return $Toml
     }
 
-    throw 'Codex portfolio marketplace is missing while the connector registry records an installed portfolio plugin. Restore it through Codex plugin management before synchronizing.'
+    throw 'Codex AgentHub marketplace is missing while the connector registry records an installed AgentHub plugin. Restore it through Codex plugin management before synchronizing.'
 }
 
 function ConvertTo-HostEnvironmentReference {
@@ -1085,7 +1086,8 @@ function Sync-HostMcp-Codex {
             if ($entry.env -and $entry.env.Count -gt 0) {
                 $sectionLines += "[mcp_servers.$key.env]"
                 foreach ($e in @($entry.env.GetEnumerator() | Sort-Object Key)) {
-                    $sectionLines += "$($e.Key) = `"$($e.Value)`""
+                    $escapedValue = ([string]$e.Value).Replace('\', '\\').Replace('"', '\"')
+                    $sectionLines += "$($e.Key) = `"$escapedValue`""
                 }
             }
         }

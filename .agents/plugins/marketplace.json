@@ -1,0 +1,104 @@
+{
+  "name": "agenthub",
+  "interface": {
+    "displayName": "AgentHub"
+  },
+  "plugins": [
+    {
+      "name": "product-demo-studio",
+      "source": {
+        "source": "local",
+        "path": "./packages/handoff-plugins/plugins/product-demo-studio"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "product-experience-engineering",
+      "source": {
+        "source": "local",
+        "path": "./packages/handoff-plugins/plugins/product-experience-engineering"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "use-prompt-os",
+      "source": {
+        "source": "local",
+        "path": "./packages/portfolio-plugins/use-prompt-os"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "use-campaign-production",
+      "source": {
+        "source": "local",
+        "path": "./packages/portfolio-plugins/use-campaign-production"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "use-digitalocean",
+      "source": {
+        "source": "local",
+        "path": "./packages/portfolio-plugins/use-digitalocean"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "use-elevenlabs",
+      "source": {
+        "source": "local",
+        "path": "./packages/portfolio-plugins/use-elevenlabs"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "clerk",
+      "source": {
+        "source": "local",
+        "path": "./packages/portfolio-plugins/clerk"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "firecrawl-ops",
+      "source": {
+        "source": "local",
+        "path": "./packages/portfolio-plugins/firecrawl-ops"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

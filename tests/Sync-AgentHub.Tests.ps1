@@ -30,9 +30,15 @@ Describe 'Sync-AgentHub Codex TOML preservation' {
         } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\mcps.json') -Encoding UTF8
         @{ capabilities = @() } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $registryRoot 'registry\capabilities.json') -Encoding UTF8
         @{
+            managedMarketplaces = @(@{
+                hostId = 'codex'
+                name = 'agenthub'
+                sourcePath = 'C:/Repos/shmindmaster/agenthub'
+                manifestPath = '.agents/plugins/marketplace.json'
+            })
             skillsOnlyPlugins = @(@{
                 hostId = 'codex'
-                pluginId = 'firecrawl-ops@portfolio'
+                pluginId = 'firecrawl-ops@agenthub'
                 installedSourcePath = 'C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops'
             })
             hosts = @()
@@ -57,16 +63,24 @@ Describe 'Sync-AgentHub Codex TOML preservation' {
 command = "old"
 args = ["old"]
 
-[plugins."product-demo-studio@handoff"]
+[plugins."product-demo-studio@agenthub"]
 enabled = true
 
 [plugins."sample-plugin@personal".settings.runtime]
 mode = "skills-only"
 
-[marketplaces.portfolio]
+[marketplaces.agenthub]
 last_updated = "2026-07-29T17:35:22Z"
 source_type = "local"
-source = '\\?\C:\wt\agenthub\runtime-centralization\packages\portfolio-plugins'
+source = '\\?\C:\wt\agenthub\runtime-centralization'
+
+[marketplaces.handoff]
+source_type = "local"
+source = '\\?\C:\Repos\shmindmaster\agenthub\packages\handoff-plugins'
+
+[marketplaces.portfolio]
+source_type = "local"
+source = '\\?\C:\Repos\shmindmaster\agenthub\packages\portfolio-plugins'
 '@ | Set-Content -LiteralPath $config -Encoding UTF8
 
         & $global:AgentHubSyncPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $global:AgentHubSyncScriptPath `
@@ -74,7 +88,7 @@ source = '\\?\C:\wt\agenthub\runtime-centralization\packages\portfolio-plugins'
         $LASTEXITCODE | Should -Be 0
 
         $result = Get-Content -LiteralPath $config -Raw
-        $result | Should -Match '(?m)^\[plugins\."product-demo-studio@handoff"\]\s*$'
+        $result | Should -Match '(?m)^\[plugins\."product-demo-studio@agenthub"\]\s*$'
         $result | Should -Match 'enabled\s*=\s*true'
         $result | Should -Match '(?m)^\[plugins\."sample-plugin@personal"\.settings\.runtime\]\s*$'
         $result | Should -Match '(?ms)^\[plugins\."sample-plugin@personal"\.settings\.runtime\]\s*\r?\nmode\s*=\s*"skills-only"'
@@ -84,11 +98,12 @@ source = '\\?\C:\wt\agenthub\runtime-centralization\packages\portfolio-plugins'
         $result | Should -Match 'bearer_token_env_var\s*=\s*"REPOCONTEXT_MCP_TOKEN"'
         $result | Should -Not -Match 'command\s*='
         $result | Should -Match ([regex]::Escape(
-            "source = '\\?\C:\Repos\shmindmaster\agenthub\packages\portfolio-plugins'"
+            "source = '\\?\C:\Repos\shmindmaster\agenthub'"
         ))
         $result | Should -Not -Match ([regex]::Escape(
-            'C:\wt\agenthub\runtime-centralization\packages\portfolio-plugins'
+            'C:\wt\agenthub\runtime-centralization'
         ))
+        $result | Should -Not -Match '(?m)^\[marketplaces\.(handoff|portfolio)\]\s*$'
         Test-Path -LiteralPath $statePath -PathType Leaf | Should -BeTrue
         $managedState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
         @($managedState.managedFiles.PSObject.Properties.Name) |
@@ -714,7 +729,8 @@ enabled = true
             $codex | Should -Match '(?m)^command = "cmd"\s*$'
             $codex | Should -Match '(?m)^startup_timeout_ms = 20000\s*$'
             $codex | Should -Match '(?m)^\[mcp_servers\.chrome-devtools\.env\]\s*$'
-            $codex | Should -Match '(?m)^SystemRoot = "C:\\Windows"\s*$'
+            $codex | Should -Match '(?m)^PROGRAMFILES = "C:\\\\Program Files"\s*$'
+            $codex | Should -Match '(?m)^SystemRoot = "C:\\\\Windows"\s*$'
 
             $openCode = Get-Content -LiteralPath $openCodeConfig -Raw |
                 ConvertFrom-Json

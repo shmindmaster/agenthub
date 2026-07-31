@@ -47,7 +47,7 @@ $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
 $cursorManifest = Get-Content -LiteralPath $cursorManifestPath -Raw | ConvertFrom-Json
 Assert-True ($manifest.name -eq 'product-experience-engineering') 'Unexpected plugin name.'
-Assert-True ($manifest.version -eq '1.1.1') 'Codex plugin version must be 1.1.1.'
+Assert-True ($manifest.version -eq '1.1.2') 'Codex plugin version must be 1.1.2.'
 Assert-True ($claudeManifest.name -eq $manifest.name) 'Claude plugin name must match Codex.'
 Assert-True ($claudeManifest.version -eq $manifest.version) 'Claude plugin version must match Codex.'
 Assert-True ($cursorManifest.name -eq $manifest.name) 'Cursor plugin name must match Codex.'
@@ -125,11 +125,13 @@ $hooks = Get-Content -LiteralPath $hooksPath -Raw | ConvertFrom-Json
 Assert-True (@($hooks.hooks.PSObject.Properties).Count -eq 0) 'Product Experience Engineering must not activate lifecycle hooks.'
 
 $handoffRoot = Split-Path -Parent (Split-Path -Parent $pluginRoot)
-$marketplacePath = Join-Path $handoffRoot '.agents\plugins\marketplace.json'
+$agentHubRoot = [IO.Path]::GetFullPath((Join-Path $handoffRoot '..\..'))
+$marketplacePath = Join-Path $agentHubRoot '.agents\plugins\marketplace.json'
 $marketplace = Get-Content -LiteralPath $marketplacePath -Raw | ConvertFrom-Json
 $entry = @($marketplace.plugins | Where-Object name -eq 'product-experience-engineering')
-Assert-True ($entry.Count -eq 1) 'Handoff marketplace entry is missing or duplicated.'
-Assert-True ($entry[0].source.path -eq './plugins/product-experience-engineering') 'Marketplace source path is incorrect.'
+Assert-True ($marketplace.name -eq 'agenthub') 'Canonical marketplace name must be agenthub.'
+Assert-True ($entry.Count -eq 1) 'AgentHub marketplace entry is missing or duplicated.'
+Assert-True ($entry[0].source.path -eq './packages/handoff-plugins/plugins/product-experience-engineering') 'Marketplace source path is incorrect.'
 Assert-True ($entry[0].category -eq 'Developer Tools') 'Marketplace category is incorrect.'
 
 'PASS: plugin structure, metadata, references, assets, and inactive hooks are valid.'

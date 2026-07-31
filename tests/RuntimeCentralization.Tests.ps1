@@ -177,7 +177,7 @@ Describe 'Runtime-centralization registry contracts' {
             Should -Be @('local-only', 'native-connector', 'plugin-owned', 'provider-held', 'shared-gateway')
         @($connectors.bundledServerSuppressions).Count | Should -Be 0
         $firecrawlSkillsOnly = @($connectors.skillsOnlyPlugins |
-            Where-Object { $_.hostId -eq 'codex' -and $_.pluginId -eq 'firecrawl-ops@portfolio' -and $_.mcpId -eq 'firecrawl' })
+            Where-Object { $_.hostId -eq 'codex' -and $_.pluginId -eq 'firecrawl-ops@agenthub' -and $_.mcpId -eq 'firecrawl' })
         $firecrawlSkillsOnly.Count | Should -Be 1
         $firecrawlSkillsOnly[0].installedState | Should -Be 'skills-only-no-mcp-manifest'
         $firecrawlSkillsOnly[0].mcpOwner | Should -Be 'registry/mcps.json'

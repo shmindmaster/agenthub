@@ -22,7 +22,7 @@
 - Firecrawl service ownership remains in `registry/mcps.json`. Its 41-file
   skill package is now the AgentHub-owned
   `packages/portfolio-plugins/firecrawl-ops`, installed in Codex as
-  `firecrawl-ops@portfolio`. Neither the source nor installed cache contains
+  `firecrawl-ops@agenthub`. Neither the source nor installed cache contains
   `.mcp.json`.
 - The retired `agent-fleet-ops` user skill, personal Firecrawl plugin
   registration, personal marketplace file, old editable Firecrawl source,
@@ -192,7 +192,7 @@ marketplace now points at the canonical repository, and fleet synchronization
 enforces that path.
 
 1. Restart Codex Desktop before relying on the newly named
-   `firecrawl-ops@portfolio` skill package in a fresh task. No current process
+   `firecrawl-ops@agenthub` skill package in a fresh task. No current process
    depends on the retired bundled Firecrawl runtime.
 2. Cursor remains retained-disabled under the provider hold. Qoder has no
    verified public global worktree hook, so AgentHub instructions and the

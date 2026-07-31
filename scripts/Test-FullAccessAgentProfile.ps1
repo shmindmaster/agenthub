@@ -131,25 +131,26 @@ $codexConfigPath = "$UserProfile\.codex\config.toml"
 $codexRaw = if (Test-Path -LiteralPath $codexConfigPath) { Get-Content -LiteralPath $codexConfigPath -Raw } else { '' }
 Assert-Profile (
   $codexRaw -match '(?ms)^\[mcp_servers\.chrome-devtools\]\s*command\s*=\s*"cmd"\s*args\s*=\s*\["/c",\s*"npx",\s*"-y",\s*"chrome-devtools-mcp@latest"\]\s*startup_timeout_ms\s*=\s*20000\s*$' -and
-  $codexRaw -match '(?ms)^\[mcp_servers\.chrome-devtools\.env\]\s*PROGRAMFILES\s*=\s*"C:\\Program Files"\s*SystemRoot\s*=\s*"C:\\Windows"\s*$'
+  $codexRaw -match '(?ms)^\[mcp_servers\.chrome-devtools\.env\]\s*PROGRAMFILES\s*=\s*"C:\\\\Program Files"\s*SystemRoot\s*=\s*"C:\\\\Windows"\s*$'
 ) 'codex uses the upstream Windows Chrome DevTools MCP command, environment, and timeout'
 foreach ($pluginOwnedKey in @($pluginOwnedByHost['codex'].Keys)) {
   $escapedKey = [regex]::Escape([string]$pluginOwnedKey)
   Assert-Profile ($codexRaw -notmatch "(?m)^\[mcp_servers\.$escapedKey\]") "codex omits plugin-owned MCP: $pluginOwnedKey"
 }
-$portfolioSection = [regex]::Match(
+$agentHubSection = [regex]::Match(
   $codexRaw,
-  '(?ms)^\[marketplaces\.portfolio\]\s*$.*?(?=^\[|\z)'
+  '(?ms)^\[marketplaces\.agenthub\]\s*$.*?(?=^\[|\z)'
 ).Value
-$portfolioSource = [regex]::Match(
-  $portfolioSection,
+$agentHubSource = [regex]::Match(
+  $agentHubSection,
   "(?m)^source\s*=\s*['`"](?<value>[^'`"]+)['`"]\s*$"
 )
-$expectedPortfolioSource = '\\?\C:\Repos\shmindmaster\agenthub\packages\portfolio-plugins'
+$expectedAgentHubSource = '\\?\C:\Repos\shmindmaster\agenthub'
 Assert-Profile (
-  $portfolioSource.Success -and
-  $portfolioSource.Groups['value'].Value -ceq $expectedPortfolioSource
-) 'Codex portfolio marketplace uses the canonical AgentHub repository'
+  $agentHubSource.Success -and
+  $agentHubSource.Groups['value'].Value -ceq $expectedAgentHubSource -and
+  $codexRaw -notmatch '(?m)^\[marketplaces\.(handoff|portfolio)\]\s*$'
+) 'Codex uses one canonical AgentHub marketplace without legacy AgentHub catalogs'
 $retiredShwikiSkillPaths = @(
   "$UserProfile\.agents\skills\shwiki-context",
   "$UserProfile\.claude\skills\shwiki-context",
