@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.3.1",
+  "capabilityVersion": "1.5.0",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -44,9 +44,90 @@
     "pageOnlyOrNativeFullscreenPreferred": true,
     "extraneousBrowserOrOsChromeAllowedOnlyAsEvidence": true,
     "minimumPlannedActiveRegionCoverage": 0.5,
+    "minimumCaptureDeviceScaleFactor": 2,
+    "minimumEffectiveDeliveryPixelDensity": 1,
+    "pointerMoveMilliseconds": { "minimum": 400, "maximum": 600 },
+    "clickSettleMilliseconds": 250,
+    "clickHoldMilliseconds": 500,
+    "clickPulseMilliseconds": { "minimum": 300, "maximum": 400 },
+    "clickPulseBrandColorRequired": true,
+    "clickPulseSemiTransparent": true,
+    "smallDeliveryCursorScale": { "minimum": 1.5, "maximum": 2 },
+    "zoomTransitionMilliseconds": { "minimum": 300, "maximum": 500 },
+    "maximumZoomChangesPerBeat": 1,
+    "uiCameraDriftAllowed": false,
+    "boundedWaitSpeedMultiplier": { "minimum": 4, "maximum": 8 },
+    "textEntrySpeedMultiplier": { "minimum": 3, "maximum": 4 },
+    "annotationWordsPerSecond": 2.5,
+    "annotationReadingBufferSeconds": 0.5,
+    "truthfulLatencyTreatmentRequired": true,
     "realProductActionAndStateTransitionRequired": true,
     "visibleClickCueRequired": true,
     "resultVisibleBeforeSpokenResult": true
+  },
+  "hardwareAccelerationPolicy": {
+    "capabilityDetectionRequired": true,
+    "compatibleGpuPreferred": true,
+    "preferredDomains": [
+      "video-encoding",
+      "asr",
+      "ocr",
+      "local-media-inference",
+      "gpu-composition-effects"
+    ],
+    "agentReasoningRequiresLocalGpu": false,
+    "cpuFallbackAllowed": true,
+    "cpuFallbackReasonRequired": true,
+    "outputEquivalenceValidationRequired": true,
+    "accelerationManifestRequiredInRenderProvenance": true
+  },
+  "reviewIndependencePolicy": {
+    "generatorMayReviewOwnOutput": false,
+    "generatorReasoningPassedToReviewer": false,
+    "reviewerLoadsCanonicalRubricDirectly": true,
+    "rubricAndOverlayContentHashesRequired": true,
+    "evidenceRequiredForPassAndFail": true,
+    "unevidencedCriterionDecision": "PIPELINE_BLOCKED",
+    "reviewerMayEditCandidateOrSource": false
+  },
+  "humanGatePolicy": {
+    "scriptApprovalRequiredBeforeFinalCapture": true,
+    "finalFullWatchRequiredBeforePublication": true,
+    "publicationApprovalMayBeAutomated": false
+  },
+  "remediationCyclePolicy": {
+    "maximumAutomatedCaptureFixAttempts": 2,
+    "thirdAttemptAllowed": false,
+    "unresolvedAfterLimitDecision": "PRODUCT_BLOCKED_OR_PIPELINE_BLOCKED"
+  },
+  "verticalRubricOverlayPolicy": {
+    "baseRubricImmutablePerCandidate": true,
+    "overlayContentHashRequired": true,
+    "mayAddCriteria": true,
+    "mayTightenSeverityOrThresholds": true,
+    "mayRemoveBaseCriteria": false,
+    "mayWeakenBaseThresholds": false
+  },
+  "calibrationPolicy": {
+    "fixtureCatalog": "skills/product-demo-studio/references/reviewer-calibration.md",
+    "knownBadAndCleanPassRequired": true,
+    "requiredAfterRubricAgentModelOrInputContractChange": true,
+    "maximumAgeDays": 7,
+    "missingOrFailedCalibrationDecision": "PIPELINE_BLOCKED",
+    "passedKnownBadInvalidatesVerdictsSinceLastSuccess": true
+  },
+  "seededRuntimePolicy": {
+    "liveSeededEnvironmentRequiredForWorthinessAssessment": true,
+    "resetOrReseedEvidenceRequired": true,
+    "repositoryInspectionAloneIsSufficient": false
+  },
+  "narrationTimingPolicy": {
+    "approvedNarrationGeneratedBeforeFinalCapture": true,
+    "providerLatencyExcludedFromRecordedTimeline": true,
+    "wordTimestampsRequired": true,
+    "singleSourceToOutputTimingMapRequired": true,
+    "shortestStreamTruncationAllowed": false,
+    "offlineTimingProxyMayShip": false
   },
   "permissions": {
     "executionEnforcement": {
@@ -143,6 +224,12 @@
       ],
       "truthSheetVerification": [
         "repository-native-truth-sheet-validator"
+      ],
+      "scriptApprovalVerification": [
+        "product-demo-studio-script-approval-validator"
+      ],
+      "craftContractValidation": [
+        "product-demo-studio-craft-contract-validator"
       ]
     },
     "unregisteredGeneratorDecision": "PIPELINE_BLOCKED",

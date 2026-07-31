@@ -2,7 +2,9 @@
 // Fail-closed deterministic gate for one immutable Product Demo Studio evidence package.
 // Usage: node preflight.mjs --evidence-package <package.json> --out <preflight-report.json>
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,6 +33,10 @@ const CHECKS = [
   ["frame-duplicate", "export-pipeline"],
   ["frame-corruption", "export-pipeline"],
   ["asset-completeness", "infrastructure-assets"],
+  ["human-script-approval", "story-script"],
+  ["storyboard-craft-contract", "story-script"],
+  ["capture-manifest-craft-contract", "capture-playwright"],
+  ["beat-timing-deltas", "capture-playwright"],
   ["browser-console-network", "capture-playwright"],
   ["render-errors", "remotion-composition"],
   ["output-specifications", "export-pipeline"],
@@ -53,6 +59,8 @@ const REPORT_TYPES = [
   "technicalDelivery",
   "claimVerification",
   "truthSheetVerification",
+  "scriptApprovalVerification",
+  "craftContractValidation",
 ];
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const canonicalPolicy = JSON.parse(
@@ -92,6 +100,26 @@ function hashFile(path) {
 
 function artifactPath(value) {
   return isAbsolute(value) ? resolve(value) : resolve(packageDir, value);
+}
+
+function runCanonicalValidator(scriptName, validatorArgs, checkIds, evidenceIds) {
+  const validationDir = mkdtempSync(resolve(tmpdir(), "product-demo-preflight-"));
+  const outputPath = resolve(validationDir, "canonical-report.json");
+  const result = spawnSync(process.execPath, [resolve(scriptDir, scriptName), ...validatorArgs, "--out", outputPath], {
+    encoding: "utf8",
+    env: process.env,
+  });
+  rmSync(validationDir, { recursive: true, force: true });
+  if (result.status === 0) return;
+  const detail = (result.stderr || result.stdout || `validator exited ${result.status}`).trim();
+  for (const checkId of checkIds) {
+    fail(checkId, `canonical ${scriptName} rerun failed: ${detail}`, evidenceIds);
+  }
+}
+
+function oneArtifactOfType(inputArtifacts, type) {
+  const matches = inputArtifacts.filter((artifact) => artifact.type === type);
+  return matches.length === 1 ? matches[0] : null;
 }
 
 let evidencePackage = {};
@@ -182,8 +210,8 @@ if (!mediaArtifact || mediaArtifact.type !== "video") {
 
 const provenance = evidencePackage.provenance;
 if (!object(provenance) || !object(provenance.source) || !object(provenance.build) ||
-    !object(provenance.configuration) || !object(provenance.render)) {
-  fail("checksums-provenance", "source/build/configuration/render provenance is incomplete.");
+    !object(provenance.configuration) || !object(provenance.capture) || !object(provenance.render)) {
+  fail("checksums-provenance", "source/build/configuration/capture/render provenance is incomplete.");
 } else {
   if (!nonEmpty(provenance.source.repository) || !nonEmpty(provenance.source.revision) ||
       provenance.source.dirty !== false) {
@@ -191,7 +219,66 @@ if (!object(provenance) || !object(provenance.source) || !object(provenance.buil
   }
   validateReference(provenance.build.manifest, "provenance.build.manifest", "checksums-provenance");
   validateReference(provenance.configuration.manifest, "provenance.configuration.manifest", "checksums-provenance");
+  const rawCaptureArtifact = validateReference(
+    provenance.capture.rawCapture,
+    "provenance.capture.rawCapture",
+    "checksums-provenance",
+  );
+  if (rawCaptureArtifact?.type !== "raw-capture") {
+    fail("checksums-provenance", "provenance.capture.rawCapture must reference a raw-capture artifact.", [rawCaptureArtifact?.artifactId]);
+  }
+  for (const field of ["captureId", "command", "startedAt", "completedAt"]) {
+    if (!nonEmpty(provenance.capture[field])) fail("checksums-provenance", `provenance.capture.${field} is required.`);
+  }
+  const captureStartedAt = Date.parse(provenance.capture.startedAt);
+  const captureCompletedAt = Date.parse(provenance.capture.completedAt);
+  if (!Number.isFinite(captureStartedAt) || !Number.isFinite(captureCompletedAt) || captureCompletedAt < captureStartedAt) {
+    fail("checksums-provenance", "capture provenance must contain an ordered start/completion interval.");
+  }
   validateReference(provenance.render.environmentManifest, "provenance.render.environmentManifest", "checksums-provenance");
+  const accelerationArtifact = validateReference(
+    provenance.render.accelerationManifest,
+    "provenance.render.accelerationManifest",
+    "checksums-provenance",
+  );
+  if (accelerationArtifact) {
+    try {
+      const acceleration = JSON.parse(readFileSync(artifactPath(accelerationArtifact.artifactPath), "utf8"));
+      if (!object(acceleration) || !["gpu-preferred", "cpu-fallback"].includes(acceleration.mode) ||
+          !object(acceleration.selection) || !nonEmpty(acceleration.selection.videoEncoder) ||
+          !["cuda", "cpu"].includes(acceleration.selection.mediaInferenceDevice)) {
+        fail("checksums-provenance", "render acceleration manifest is malformed.", [accelerationArtifact.artifactId]);
+      } else {
+        const usableNvenc = Array.isArray(acceleration.ffmpeg?.usableNvencEncoders)
+          ? acceleration.ffmpeg.usableNvencEncoders
+          : [];
+        const cudaUsable = acceleration.inference?.cudaUsable === true;
+        const selectedNvenc = usableNvenc.includes(acceleration.selection.videoEncoder);
+        const selectedCuda = acceleration.selection.mediaInferenceDevice === "cuda" && cudaUsable;
+        const expectedMode = selectedNvenc || selectedCuda ? "gpu-preferred" : "cpu-fallback";
+        if (acceleration.mode !== expectedMode) {
+          fail("checksums-provenance", `acceleration mode must be derived from the selected, functionally probed paths as ${expectedMode}.`, [accelerationArtifact.artifactId]);
+        }
+        if (acceleration.selection.videoEncoder !== "libx264" && !selectedNvenc) {
+          fail("checksums-provenance", "selected video encoder must be libx264 or an NVENC encoder that passed the recorded functional probe.", [accelerationArtifact.artifactId]);
+        }
+        if (acceleration.selection.mediaInferenceDevice === "cuda" && !cudaUsable) {
+          fail("checksums-provenance", "selected CUDA inference device did not pass the recorded functional probe.", [accelerationArtifact.artifactId]);
+        }
+        if (acceleration.mode === "gpu-preferred" && acceleration.nvidia?.available !== true) {
+          fail("checksums-provenance", "GPU-preferred render provenance does not prove a compatible GPU was detected.", [accelerationArtifact.artifactId]);
+        }
+      }
+      if (acceleration.mode === "cpu-fallback" && !nonEmpty(acceleration.fallbackReason)) {
+        fail("checksums-provenance", "CPU fallback requires a recorded capability or compatibility reason.", [accelerationArtifact.artifactId]);
+      } else if ((acceleration.selection.videoEncoder === "libx264" ||
+                  acceleration.selection.mediaInferenceDevice === "cpu") && !nonEmpty(acceleration.fallbackReason)) {
+        fail("checksums-provenance", "Any partial CPU media fallback requires a recorded functional-probe reason.", [accelerationArtifact.artifactId]);
+      }
+    } catch (error) {
+      fail("checksums-provenance", `render acceleration manifest is invalid JSON: ${error.message}`, [accelerationArtifact.artifactId]);
+    }
+  }
   for (const field of ["renderId", "renderer", "pipelineVersion", "command", "startedAt", "completedAt"]) {
     if (!nonEmpty(provenance.render[field])) fail("checksums-provenance", `provenance.render.${field} is required.`);
   }
@@ -268,6 +355,108 @@ if (!object(evidencePackage.reports)) {
         }
       }
     }
+    if (reportType === "craftContractValidation") {
+      const inputArtifacts = [...reportInputIds].map((id) => artifacts.get(id)).filter(Boolean);
+      if (inputArtifacts.filter((artifact) => artifact.type === "storyboard").length !== 1) {
+        fail("storyboard-craft-contract", "craft contract validation must bind exactly one storyboard artifact.", [reference.artifactId]);
+      }
+      if (inputArtifacts.filter((artifact) => artifact.type === "capture-manifest").length !== 1) {
+        fail("capture-manifest-craft-contract", "craft contract validation must bind exactly one capture-manifest artifact.", [reference.artifactId]);
+      }
+      if (inputArtifacts.filter((artifact) => artifact.type === "capture-evidence").length !== 1) {
+        fail("beat-timing-deltas", "craft contract validation must bind exactly one raw capture-evidence artifact.", [reference.artifactId]);
+      }
+      if (inputArtifacts.filter((artifact) => artifact.type === "raw-capture").length !== 1) {
+        fail("capture-manifest-craft-contract", "craft contract validation must bind exactly one probed raw-capture artifact.", [reference.artifactId]);
+      }
+      const storyboard = oneArtifactOfType(inputArtifacts, "storyboard");
+      const captureManifest = oneArtifactOfType(inputArtifacts, "capture-manifest");
+      const captureEvidence = oneArtifactOfType(inputArtifacts, "capture-evidence");
+      const rawCapture = oneArtifactOfType(inputArtifacts, "raw-capture");
+      if (storyboard && captureManifest && captureEvidence && rawCapture) {
+        if (rawCapture.artifactId !== provenance?.capture?.rawCapture?.artifactId) {
+          fail("capture-manifest-craft-contract", "craft validation raw capture does not match immutable capture provenance.", [rawCapture.artifactId]);
+        }
+        runCanonicalValidator("validate-craft-contracts.mjs", [
+          "--candidate-id", candidateId,
+          "--storyboard", artifactPath(storyboard.artifactPath),
+          "--storyboard-artifact-id", storyboard.artifactId,
+          "--capture-manifest", artifactPath(captureManifest.artifactPath),
+          "--capture-artifact-id", captureManifest.artifactId,
+          "--capture-evidence", artifactPath(captureEvidence.artifactPath),
+          "--capture-evidence-artifact-id", captureEvidence.artifactId,
+          "--raw-capture", artifactPath(rawCapture.artifactPath),
+          "--raw-capture-artifact-id", rawCapture.artifactId,
+        ], ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas"], [
+          reference.artifactId, storyboard.artifactId, captureManifest.artifactId, captureEvidence.artifactId, rawCapture.artifactId,
+        ]);
+      }
+    }
+    if (reportType === "scriptApprovalVerification") {
+      const inputArtifacts = [...reportInputIds].map((id) => artifacts.get(id)).filter(Boolean);
+      for (const requiredType of ["script-approval", "signature", "script", "truth-sheet", "claim-ledger", "storyboard"]) {
+        if (inputArtifacts.filter((artifact) => artifact.type === requiredType).length !== 1) {
+          fail("human-script-approval", `script approval verification must bind exactly one ${requiredType} artifact.`, [reference.artifactId]);
+        }
+      }
+      const receiptArtifact = inputArtifacts.find((artifact) => artifact.type === "script-approval");
+      const signatureArtifact = oneArtifactOfType(inputArtifacts, "signature");
+      const scriptArtifact = oneArtifactOfType(inputArtifacts, "script");
+      const truthSheetArtifact = oneArtifactOfType(inputArtifacts, "truth-sheet");
+      const claimLedgerArtifact = oneArtifactOfType(inputArtifacts, "claim-ledger");
+      const storyboardArtifact = oneArtifactOfType(inputArtifacts, "storyboard");
+      if (receiptArtifact) {
+        try {
+          const receipt = JSON.parse(readFileSync(artifactPath(receiptArtifact.artifactPath), "utf8"));
+          const approvedAt = Date.parse(receipt.approvedAt);
+          const finalCaptureStartedAt = Date.parse(provenance?.capture?.startedAt);
+          const receiptDir = dirname(artifactPath(receiptArtifact.artifactPath));
+          const compareApprovedArtifact = (approvedReference, catalogArtifact, label) => {
+            if (!object(approvedReference) || !catalogArtifact) return;
+            const approvedPath = isAbsolute(approvedReference.artifactPath)
+              ? resolve(approvedReference.artifactPath)
+              : resolve(receiptDir, approvedReference.artifactPath);
+            const catalogPath = artifactPath(catalogArtifact.artifactPath);
+            if (approvedPath.toLowerCase() !== catalogPath.toLowerCase() ||
+                approvedReference.sha256 !== catalogArtifact.sha256) {
+              fail(
+                "human-script-approval",
+                `signed approval ${label} does not match the evidence-package catalog path/checksum.`,
+                [receiptArtifact.artifactId, catalogArtifact.artifactId],
+              );
+            }
+          };
+          compareApprovedArtifact(receipt.artifacts?.script, scriptArtifact, "script");
+          compareApprovedArtifact(receipt.artifacts?.truthSheet, truthSheetArtifact, "truth sheet");
+          compareApprovedArtifact(receipt.artifacts?.claimLedger, claimLedgerArtifact, "claim ledger");
+          compareApprovedArtifact(receipt.finalCaptureInput, storyboardArtifact, "final-capture input");
+          if (receipt.decision !== "APPROVED" || !Number.isFinite(approvedAt)) {
+            fail("human-script-approval", "script approval receipt lacks an APPROVED decision and valid approval time.", [receiptArtifact.artifactId]);
+          } else if (Number.isFinite(finalCaptureStartedAt) && approvedAt > finalCaptureStartedAt) {
+            fail("human-script-approval", "named-human script approval occurred after final capture started.", [receiptArtifact.artifactId]);
+          }
+          if (signatureArtifact && scriptArtifact && truthSheetArtifact && claimLedgerArtifact && storyboardArtifact) {
+            runCanonicalValidator("validate-script-approval.mjs", [
+              "--receipt", artifactPath(receiptArtifact.artifactPath),
+              "--signature", artifactPath(signatureArtifact.artifactPath),
+              "--candidate-id", candidateId,
+              "--episode-id", receipt.episodeId,
+              "--receipt-artifact-id", receiptArtifact.artifactId,
+              "--signature-artifact-id", signatureArtifact.artifactId,
+              "--script-artifact-id", scriptArtifact.artifactId,
+              "--truth-sheet-artifact-id", truthSheetArtifact.artifactId,
+              "--claim-ledger-artifact-id", claimLedgerArtifact.artifactId,
+              "--final-capture-input-artifact-id", storyboardArtifact.artifactId,
+            ], ["human-script-approval"], [
+              reference.artifactId, receiptArtifact.artifactId, signatureArtifact.artifactId,
+              scriptArtifact.artifactId, truthSheetArtifact.artifactId, claimLedgerArtifact.artifactId, storyboardArtifact.artifactId,
+            ]);
+          }
+        } catch (error) {
+          fail("human-script-approval", `script approval receipt is invalid JSON: ${error.message}`, [receiptArtifact.artifactId]);
+        }
+      }
+    }
     if (!Array.isArray(report.checks) || report.checks.length === 0 || !object(report.summary)) {
       fail("artifact-completeness", `reports.${reportType} has no deterministic checks/summary.`, [reference.artifactId]);
       continue;
@@ -301,6 +490,24 @@ if (!object(evidencePackage.reports)) {
           }
         }
       }
+      if (reportType === "craftContractValidation") {
+        const requiredType = check.id === "storyboard-craft-contract"
+          ? "storyboard"
+          : check.id === "capture-manifest-craft-contract"
+            ? "capture-manifest"
+            : check.id === "beat-timing-deltas"
+              ? "capture-evidence"
+              : null;
+        if (!requiredType || !check.evidenceArtifactIds.some((id) => artifacts.get(id)?.type === requiredType)) {
+          fail(check.id, `craft contract check must cite its checksum-bound ${requiredType ?? "canonical"} input.`, [reference.artifactId]);
+        }
+      }
+      if (reportType === "scriptApprovalVerification" &&
+          (check.id !== "human-script-approval" ||
+           !["script-approval", "signature", "script", "truth-sheet", "claim-ledger", "storyboard"]
+             .every((type) => check.evidenceArtifactIds.some((id) => artifacts.get(id)?.type === type)))) {
+        fail("human-script-approval", "script approval check must cite its receipt, signature, script, truth-sheet, and claim-ledger inputs.", [reference.artifactId]);
+      }
       aggregate.get(check.id).push({ passed: check.passed, reportType, evidenceIds });
       if (check.passed) passed += 1;
       else failed += 1;
@@ -308,6 +515,37 @@ if (!object(evidencePackage.reports)) {
     if (report.summary.total !== report.checks.length || report.summary.passed !== passed ||
         report.summary.failed !== failed || (report.status === "PASS") !== (failed === 0)) {
       fail("artifact-completeness", `reports.${reportType} status/summary does not match its checks.`, [reference.artifactId]);
+    }
+    if (reportType === "craftContractValidation" &&
+        (seen.size !== 3 || !seen.has("storyboard-craft-contract") ||
+         !seen.has("capture-manifest-craft-contract") || !seen.has("beat-timing-deltas"))) {
+      fail("artifact-completeness", "craft contract validation must contain exactly storyboard, capture-manifest, and beat-timing checks.", [reference.artifactId]);
+    }
+    if (reportType === "scriptApprovalVerification" &&
+        (seen.size !== 1 || !seen.has("human-script-approval"))) {
+      fail("artifact-completeness", "script approval verification must contain exactly the human-script-approval check.", [reference.artifactId]);
+    }
+    if (reportType === "craftContractValidation") {
+      if (!Array.isArray(report.measurements) || report.measurements.length === 0) {
+        fail("beat-timing-deltas", "craft contract validation has no per-beat timing measurements.", [reference.artifactId]);
+      } else {
+        for (const measurement of report.measurements) {
+          if (!object(measurement) || !SAFE_ID.test(measurement.beatId ?? "") ||
+              !["cursorLeadSeconds", "actionToResultSeconds", "resultToSpokenSeconds", "resultHoldToCutSeconds"]
+                .every((field) => Number.isFinite(measurement[field]) && measurement[field] >= 0) ||
+              !Array.isArray(measurement.evidenceArtifactIds) ||
+              !measurement.evidenceArtifactIds.some((id) => artifacts.get(id)?.type === "capture-evidence")) {
+            fail("beat-timing-deltas", "craft contract validation contains malformed or unbound timing measurements.", [reference.artifactId]);
+          }
+        }
+      }
+      if (!object(report.sourceGeometry) || !Number.isInteger(report.sourceGeometry.width) ||
+          !Number.isInteger(report.sourceGeometry.height) || report.sourceGeometry.width < 1 ||
+          report.sourceGeometry.height < 1 || report.sourceGeometry.probe !== "ffprobe" ||
+          artifacts.get(report.sourceGeometry.rawCaptureArtifactId)?.type !== "raw-capture" ||
+          !reportInputIds.has(report.sourceGeometry.rawCaptureArtifactId)) {
+        fail("capture-manifest-craft-contract", "craft contract validation lacks ffprobe-derived geometry bound to its raw-capture input.", [reference.artifactId]);
+      }
     }
   }
 }

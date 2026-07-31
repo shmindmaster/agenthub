@@ -52,6 +52,17 @@ const INTERACTION_KINDS = new Set([
   "keyboard",
 ]);
 const CLICK_CUES = new Set(["none", "visual", "visual-and-audio"]);
+const FEEDBACK_TYPES = new Set([
+  "none",
+  "radial-pulse",
+  "drag-held",
+  "drag-trail",
+  "native-hover",
+  "keystroke-overlay",
+]);
+const POINTER_KINDS = new Set(["move", "hover", "click", "double-click", "drag", "select"]);
+const PACE_ACTIVITIES = new Set(["meaningful-action", "bounded-wait", "text-entry", "result-hold"]);
+const PACE_TREATMENTS = new Set(["real-time", "speed-ramp", "cut", "chunked-entry"]);
 
 let errorCount = 0;
 
@@ -63,10 +74,14 @@ manifests.forEach((manifest, index) => {
   };
 
   if (!manifest.scenario && !manifest.beat) fail('missing "scenario" or "beat" identifier.');
+  if (typeof manifest.storyboardSegmentId !== "string" || manifest.storyboardSegmentId.trim() === "") {
+    fail('missing "storyboardSegmentId" alignment identifier.');
+  }
   if (!manifest.route) fail('missing "route".');
 
-  if (!manifest.viewport || typeof manifest.viewport.width !== "number" || typeof manifest.viewport.height !== "number") {
-    fail('missing or invalid "viewport" ({ width, height }).');
+  if (!manifest.viewport || typeof manifest.viewport.width !== "number" || typeof manifest.viewport.height !== "number" ||
+      !Number.isFinite(manifest.viewport.deviceScaleFactor) || manifest.viewport.deviceScaleFactor < 2) {
+    fail('missing or invalid "viewport" ({ width, height, deviceScaleFactor >= 2 }).');
   }
 
   const surface = manifest.captureSurface;
@@ -80,6 +95,11 @@ manifests.forEach((manifest, index) => {
       "plannedTreatment",
       "plannedActiveRegionCoverage",
       "deliveryLegibility",
+      "deliveryFrame",
+      "deliveredCrop",
+      "sourceFrame",
+      "smallDelivery",
+      "browserZoomPercent",
     ]) {
       if (surface[field] === undefined || surface[field] === null || surface[field] === "") {
         fail(`captureSurface missing "${field}".`);
@@ -108,6 +128,48 @@ manifests.forEach((manifest, index) => {
     if (surface.deliveryLegibility !== "pass") {
       fail('"captureSurface.deliveryLegibility" must be "pass" at final delivery size.');
     }
+    if (!surface.deliveryFrame || !Number.isFinite(surface.deliveryFrame.width) || surface.deliveryFrame.width <= 0 ||
+        !Number.isFinite(surface.deliveryFrame.height) || surface.deliveryFrame.height <= 0) {
+      fail('"captureSurface.deliveryFrame" must declare positive delivery width and height.');
+    }
+    if (!surface.sourceFrame || !Number.isFinite(surface.sourceFrame.width) || surface.sourceFrame.width <= 0 ||
+        !Number.isFinite(surface.sourceFrame.height) || surface.sourceFrame.height <= 0) {
+      fail('"captureSurface.sourceFrame" must declare positive raw-capture pixel dimensions.');
+    } else if (manifest.viewport && (
+      surface.sourceFrame.width !== manifest.viewport.width * manifest.viewport.deviceScaleFactor ||
+      surface.sourceFrame.height !== manifest.viewport.height * manifest.viewport.deviceScaleFactor
+    )) {
+      fail('"captureSurface.sourceFrame" must equal viewport dimensions multiplied by deviceScaleFactor.');
+    }
+    if (!isRect(surface.deliveredCrop)) {
+      fail('"captureSurface.deliveredCrop" must be a valid source-CSS-pixel crop rectangle.');
+    } else if (manifest.viewport && (
+      surface.deliveredCrop.x < 0 || surface.deliveredCrop.y < 0 ||
+      surface.deliveredCrop.x + surface.deliveredCrop.width > manifest.viewport.width ||
+      surface.deliveredCrop.y + surface.deliveredCrop.height > manifest.viewport.height
+    )) {
+      fail('"captureSurface.deliveredCrop" must stay within the declared viewport.');
+    } else if (surface.deliveryFrame && surface.sourceFrame && manifest.viewport) {
+      const horizontalDensity = surface.deliveredCrop.width / manifest.viewport.width * surface.sourceFrame.width / surface.deliveryFrame.width;
+      const verticalDensity = surface.deliveredCrop.height / manifest.viewport.height * surface.sourceFrame.height / surface.deliveryFrame.height;
+      const effectiveDensity = Math.min(horizontalDensity, verticalDensity);
+      if (!Number.isFinite(effectiveDensity) || effectiveDensity < 1) {
+        fail('the derived effective delivery pixel density must be at least 1 after crop/recomposition (no upscaling).');
+      }
+    }
+    if (typeof surface.smallDelivery !== "boolean") {
+      fail('"captureSurface.smallDelivery" must explicitly declare whether mobile/embedded cursor enlargement applies.');
+    }
+    if (surface.browserZoomPercent !== 100 && !(
+      typeof surface.browserZoomPercent === "number" &&
+      surface.browserZoomPercent >= 110 && surface.browserZoomPercent <= 125
+    )) {
+      fail('"captureSurface.browserZoomPercent" must be 100, or between 110 and 125 with a rationale.');
+    }
+    if (surface.browserZoomPercent !== 100 &&
+        (typeof surface.browserZoomRationale !== "string" || surface.browserZoomRationale.trim() === "")) {
+      fail('non-default browser zoom requires "captureSurface.browserZoomRationale".');
+    }
   }
 
   if (manifest.focus !== undefined && !isRect(manifest.focus)) {
@@ -128,7 +190,7 @@ manifests.forEach((manifest, index) => {
   if (!interaction || typeof interaction !== "object" || Array.isArray(interaction)) {
     fail('missing "interaction" screencast choreography.');
   } else {
-    for (const field of ["kind", "target", "cursor", "cue", "narrationSync"]) {
+    for (const field of ["kind", "target", "cursor", "cue", "feedback", "keystrokeOverlay", "pacing", "narrationSync"]) {
       if (interaction[field] === undefined || interaction[field] === null || interaction[field] === "") {
         fail(`interaction missing "${field}".`);
       }
@@ -153,13 +215,93 @@ manifests.forEach((manifest, index) => {
       fail('"interaction.cursor" must be an object.');
     } else {
       if (!isPoint(cursor.park)) fail('"interaction.cursor.park" must be a [x, y] point.');
-      if (interaction.kind !== "none") {
+      if (POINTER_KINDS.has(interaction.kind)) {
         if (!isPoint(cursor.from)) fail('"interaction.cursor.from" must be a [x, y] point.');
         if (!isPoint(cursor.to)) fail('"interaction.cursor.to" must be a [x, y] point.');
-        if (!Number.isFinite(cursor.durationMs) || cursor.durationMs < 200 || cursor.durationMs > 2500) {
-          fail('"interaction.cursor.durationMs" must be between 200 and 2500.');
+        if (!Number.isFinite(cursor.durationMs) || cursor.durationMs < 400 || cursor.durationMs > 600) {
+          fail('"interaction.cursor.durationMs" must be between 400 and 600 for deliberate pointer movement.');
+        }
+        if (cursor.easing !== "eased-deceleration") {
+          fail('"interaction.cursor.easing" must be "eased-deceleration".');
+        }
+        const minimumCursorScale = surface?.smallDelivery === true ? 1.5 : 1;
+        if (!Number.isFinite(cursor.scale) || cursor.scale < minimumCursorScale || cursor.scale > 2) {
+          fail(`"interaction.cursor.scale" must be between ${minimumCursorScale} and 2 for this delivery context.`);
         }
       }
+      if (["click", "double-click"].includes(interaction.kind)) {
+        if (!Number.isFinite(cursor.settleBeforeActionMs) || cursor.settleBeforeActionMs < 250) {
+          fail('clicks require "interaction.cursor.settleBeforeActionMs" of at least 250.');
+        }
+        if (!Number.isFinite(cursor.holdAfterActionMs) || cursor.holdAfterActionMs < 500) {
+          fail('clicks require "interaction.cursor.holdAfterActionMs" of at least 500.');
+        }
+      }
+    }
+    const feedback = interaction.feedback;
+    if (!feedback || typeof feedback !== "object" || Array.isArray(feedback)) {
+      fail('"interaction.feedback" must be an object.');
+    } else {
+      if (!FEEDBACK_TYPES.has(feedback.type)) fail('"interaction.feedback.type" is invalid.');
+      if (["click", "double-click"].includes(interaction.kind) &&
+          (feedback.type !== "radial-pulse" || !Number.isFinite(feedback.durationMs) ||
+           feedback.durationMs < 300 || feedback.durationMs > 400)) {
+        fail("click feedback must be a 300-400ms radial-pulse.");
+      }
+      if (["click", "double-click"].includes(interaction.kind) &&
+          (typeof feedback.brandColor !== "string" || feedback.brandColor.trim() === "" ||
+           !Number.isFinite(feedback.opacity) || feedback.opacity <= 0 || feedback.opacity >= 1)) {
+        fail("click feedback requires a brand color and semi-transparent opacity.");
+      }
+      if (interaction.kind === "move" && feedback.type !== "none") {
+        fail("pointer moves cannot display interaction feedback.");
+      }
+      if (interaction.kind === "hover" && feedback.type !== "native-hover") {
+        fail("hover must use the product's native hover state without an overlay.");
+      }
+      if (interaction.kind === "drag" && !["drag-held", "drag-trail"].includes(feedback.type)) {
+        fail("drag must use drag-held or drag-trail feedback.");
+      }
+      if (interaction.kind === "none" && feedback.type !== "none") {
+        fail("non-interactive holds cannot declare interaction feedback.");
+      }
+    }
+    if (typeof interaction.keystrokeOverlay !== "boolean") {
+      fail('"interaction.keystrokeOverlay" must be true or false.');
+    }
+    if (interaction.kind === "keyboard" &&
+        (interaction.keystrokeOverlay !== true || feedback?.type !== "keystroke-overlay")) {
+      fail("shortcut-driven keyboard actions require a keystroke overlay.");
+    }
+    if (interaction.kind !== "keyboard" && interaction.keystrokeOverlay !== false) {
+      fail("keystrokeOverlay is reserved for shortcut-driven keyboard actions.");
+    }
+    const pacing = interaction.pacing;
+    if (!pacing || typeof pacing !== "object" || Array.isArray(pacing)) {
+      fail('"interaction.pacing" must be an object.');
+    } else {
+      for (const field of ["activity", "treatment", "multiplier", "truthTreatment"]) {
+        if (pacing[field] === undefined || pacing[field] === null || pacing[field] === "") {
+          fail(`interaction.pacing missing "${field}".`);
+        }
+      }
+      if (!PACE_ACTIVITIES.has(pacing.activity)) fail('"interaction.pacing.activity" is invalid.');
+      if (!PACE_TREATMENTS.has(pacing.treatment)) fail('"interaction.pacing.treatment" is invalid.');
+      if (!Number.isFinite(pacing.multiplier) || pacing.multiplier < 0) {
+        fail('"interaction.pacing.multiplier" must be a non-negative number.');
+      }
+      if (["meaningful-action", "result-hold"].includes(pacing.activity) &&
+          (pacing.treatment !== "real-time" || pacing.multiplier !== 1)) {
+        fail("meaningful actions and result holds must remain real-time.");
+      }
+      if (pacing.activity === "bounded-wait" && !(
+        pacing.treatment === "cut" ||
+        (pacing.treatment === "speed-ramp" && pacing.multiplier >= 4 && pacing.multiplier <= 8)
+      )) fail("bounded waits must be cut or speed-ramped between 4x and 8x.");
+      if (pacing.activity === "text-entry" && !(
+        pacing.treatment === "chunked-entry" ||
+        (pacing.treatment === "speed-ramp" && pacing.multiplier >= 3 && pacing.multiplier <= 4)
+      )) fail("text entry must be chunked or speed-ramped between 3x and 4x.");
     }
     const sync = interaction.narrationSync;
     if (!sync || typeof sync !== "object" || Array.isArray(sync)) {

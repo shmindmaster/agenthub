@@ -69,6 +69,9 @@
   },
   "decision": "REMEDIATE",
   "remediationPlan": {
+    "attempt": 1,
+    "findingFamilyFingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+    "priorDecisions": [],
     "findingIds": ["PVF-AUDIO-SYNC-001"],
     "assignmentPaths": ["remediation/audio-sync-001.json"]
   },

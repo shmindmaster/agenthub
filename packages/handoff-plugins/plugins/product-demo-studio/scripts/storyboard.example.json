@@ -45,16 +45,47 @@
         "target": "batch-table",
         "cursorBehavior": "Trace the dense batch once, then park below the protected exception row.",
         "timing": "Cursor enters 0.3 seconds before narration and stops before the final phrase.",
-        "clickCue": "none"
+        "clickCue": "none",
+        "narrationSync": {
+          "cursorLeadSeconds": 0.3,
+          "actionAtSeconds": 0.8,
+          "resultVisibleAtSeconds": 1.2,
+          "spokenResultAtSeconds": 1.5
+        },
+        "craft": {
+          "cursorMotion": "eased-deceleration",
+          "cursorMoveMs": 500,
+          "settleBeforeActionMs": 0,
+          "holdAfterActionMs": 500,
+          "cursorScale": 1.75,
+          "feedbackType": "none",
+          "feedbackDurationMs": 0,
+          "keystrokeOverlay": false
+        }
       },
       "framing": {
         "surface": "page-only",
         "activeRegion": "The batch table fills the usable frame.",
         "irrelevantNavigation": "collapsed",
         "deliveryTreatment": "push-in",
-        "legibilityCheck": "Synthetic row labels remain readable at final delivery size."
+        "legibilityCheck": "Synthetic row labels remain readable at final delivery size.",
+        "smallDelivery": true,
+        "zoom": {
+          "mode": "snap-to-region",
+          "transitionMs": 400,
+          "changesInBeat": 1,
+          "holdThroughAction": true,
+          "pullBack": false,
+          "drift": false
+        }
       },
       "annotations": [{ "type": "zoom", "target": "batch-table", "scale": 1.3 }],
+      "pacing": {
+        "activity": "meaningful-action",
+        "treatment": "real-time",
+        "multiplier": 1,
+        "truthTreatment": "The product interaction remains real-time."
+      },
       "protectedRegions": ["exception-row"],
       "pacePatternChange": "cold-open tension hold",
       "resultHoldSeconds": 0,
@@ -85,19 +116,52 @@
         "target": "exception-filter",
         "cursorBehavior": "Move deliberately to the filter, click once, then park outside the evidence panel.",
         "timing": "Cursor leads by 0.35 seconds; the exception is visible before 'there it is'.",
-        "clickCue": "visual-and-audio"
+        "clickCue": "visual-and-audio",
+        "narrationSync": {
+          "cursorLeadSeconds": 0.35,
+          "actionAtSeconds": 1.1,
+          "resultVisibleAtSeconds": 1.8,
+          "spokenResultAtSeconds": 2.0
+        },
+        "craft": {
+          "cursorMotion": "eased-deceleration",
+          "cursorMoveMs": 500,
+          "settleBeforeActionMs": 250,
+          "holdAfterActionMs": 500,
+          "cursorScale": 1.75,
+          "feedbackType": "radial-pulse",
+          "feedbackDurationMs": 350,
+          "feedbackColor": "#4F46E5",
+          "feedbackOpacity": 0.35,
+          "keystrokeOverlay": false
+        }
       },
       "framing": {
         "surface": "page-only",
         "activeRegion": "The exception card and evidence panel dominate the frame.",
         "irrelevantNavigation": "hidden",
         "deliveryTreatment": "push-in",
-        "legibilityCheck": "The mismatch and its evidence remain readable on the smallest requested output."
+        "legibilityCheck": "The mismatch and its evidence remain readable on the smallest requested output.",
+        "smallDelivery": true,
+        "zoom": {
+          "mode": "snap-to-region",
+          "transitionMs": 400,
+          "changesInBeat": 1,
+          "holdThroughAction": true,
+          "pullBack": true,
+          "drift": false
+        }
       },
       "annotations": [
-        { "type": "spotlight", "target": "exception-card" },
+        { "type": "callout", "target": "exception-card", "text": "Exact mismatch found", "holdSeconds": 2 },
         { "type": "zoom", "target": "evidence-panel", "scale": 1.6 }
       ],
+      "pacing": {
+        "activity": "meaningful-action",
+        "treatment": "real-time",
+        "multiplier": 1,
+        "truthTreatment": "The hero action and result remain real-time."
+      },
       "protectedRegions": ["exception-card", "evidence-panel"],
       "pacePatternChange": "snap from complexity to still reveal",
       "resultHoldSeconds": 2,
@@ -128,16 +192,49 @@
         "target": "approval-control",
         "cursorBehavior": "Move to the confirmation control, click once, then park below the end-card copy.",
         "timing": "The pointer leads the click; the confirmed state appears before 'You make the call'.",
-        "clickCue": "visual"
+        "clickCue": "visual",
+        "narrationSync": {
+          "cursorLeadSeconds": 0.3,
+          "actionAtSeconds": 0.9,
+          "resultVisibleAtSeconds": 1.3,
+          "spokenResultAtSeconds": 1.5
+        },
+        "craft": {
+          "cursorMotion": "eased-deceleration",
+          "cursorMoveMs": 500,
+          "settleBeforeActionMs": 250,
+          "holdAfterActionMs": 500,
+          "cursorScale": 1.75,
+          "feedbackType": "radial-pulse",
+          "feedbackDurationMs": 350,
+          "feedbackColor": "#4F46E5",
+          "feedbackOpacity": 0.35,
+          "keystrokeOverlay": false
+        }
       },
       "framing": {
         "surface": "page-only",
         "activeRegion": "The confirmation control and result occupy the central usable frame.",
         "irrelevantNavigation": "hidden",
         "deliveryTreatment": "recompose",
-        "legibilityCheck": "Control state and next step remain readable in every aspect-ratio variant."
+        "legibilityCheck": "Control state and next step remain readable in every aspect-ratio variant.",
+        "smallDelivery": true,
+        "zoom": {
+          "mode": "none",
+          "transitionMs": 0,
+          "changesInBeat": 0,
+          "holdThroughAction": true,
+          "pullBack": false,
+          "drift": false
+        }
       },
       "annotations": [{ "type": "spotlight", "target": "approval-control" }],
+      "pacing": {
+        "activity": "meaningful-action",
+        "treatment": "real-time",
+        "multiplier": 1,
+        "truthTreatment": "The confirmation remains real-time and visibly causal."
+      },
       "protectedRegions": ["approval-control", "end-card-copy"],
       "pacePatternChange": "settle into concise close",
       "resultHoldSeconds": 1.5,

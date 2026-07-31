@@ -46,6 +46,18 @@ const INTERACTION_KINDS = new Set([
   "keyboard",
 ]);
 const CLICK_CUES = new Set(["none", "visual", "visual-and-audio"]);
+const FEEDBACK_TYPES = new Set([
+  "none",
+  "radial-pulse",
+  "drag-held",
+  "drag-trail",
+  "native-hover",
+  "keystroke-overlay",
+]);
+const POINTER_KINDS = new Set(["move", "hover", "click", "double-click", "drag", "select"]);
+const ZOOM_MODES = new Set(["none", "snap-to-region", "recompose"]);
+const PACE_ACTIVITIES = new Set(["meaningful-action", "bounded-wait", "text-entry", "result-hold"]);
+const PACE_TREATMENTS = new Set(["real-time", "speed-ramp", "cut", "chunked-entry"]);
 const CAPTURE_SURFACES = new Set([
   "page-only",
   "native-browser-fullscreen",
@@ -145,7 +157,7 @@ for (const [episodeIndex, episode] of episodes.entries()) {
     if (!interaction || typeof interaction !== "object" || Array.isArray(interaction)) {
       fail(`${segmentLabel}: interaction must be an object.`);
     } else {
-      for (const field of ["kind", "target", "cursorBehavior", "timing", "clickCue"]) {
+      for (const field of ["kind", "target", "cursorBehavior", "timing", "clickCue", "craft", "narrationSync"]) {
         if (!present(interaction[field])) fail(`${segmentLabel}: interaction missing "${field}".`);
       }
       if (interaction.kind && !INTERACTION_KINDS.has(interaction.kind)) {
@@ -160,6 +172,92 @@ for (const [episodeIndex, episode] of episodes.entries()) {
       if (interaction.kind === "none" && interaction.clickCue !== "none") {
         fail(`${segmentLabel}: a non-interactive hold cannot declare a click cue.`);
       }
+      const narrationSync = interaction.narrationSync;
+      if (!narrationSync || typeof narrationSync !== "object" || Array.isArray(narrationSync)) {
+        fail(`${segmentLabel}: interaction.narrationSync must be an object.`);
+      } else {
+        for (const field of ["cursorLeadSeconds", "actionAtSeconds", "resultVisibleAtSeconds", "spokenResultAtSeconds"]) {
+          if (!Number.isFinite(narrationSync[field]) || narrationSync[field] < 0) {
+            fail(`${segmentLabel}: interaction.narrationSync.${field} must be a non-negative number.`);
+          }
+        }
+        if (narrationSync.cursorLeadSeconds > 1.5) {
+          fail(`${segmentLabel}: interaction.narrationSync.cursorLeadSeconds must not exceed 1.5 seconds.`);
+        }
+        if (narrationSync.resultVisibleAtSeconds < narrationSync.actionAtSeconds) {
+          fail(`${segmentLabel}: the result cannot be visible before the action.`);
+        }
+        if (narrationSync.spokenResultAtSeconds < narrationSync.resultVisibleAtSeconds) {
+          fail(`${segmentLabel}: narration cannot describe the result before it is visible.`);
+        }
+      }
+      const craft = interaction.craft;
+      if (!craft || typeof craft !== "object" || Array.isArray(craft)) {
+        fail(`${segmentLabel}: interaction.craft must be an object.`);
+      } else {
+        for (const field of [
+          "cursorMotion",
+          "cursorMoveMs",
+          "settleBeforeActionMs",
+          "holdAfterActionMs",
+          "cursorScale",
+          "feedbackType",
+          "feedbackDurationMs",
+          "keystrokeOverlay",
+        ]) {
+          if (!present(craft[field])) fail(`${segmentLabel}: interaction.craft missing "${field}".`);
+        }
+        if (!FEEDBACK_TYPES.has(craft.feedbackType)) {
+          fail(`${segmentLabel}: interaction.craft.feedbackType is invalid.`);
+        }
+        if (typeof craft.keystrokeOverlay !== "boolean") {
+          fail(`${segmentLabel}: interaction.craft.keystrokeOverlay must be true or false.`);
+        }
+        if (POINTER_KINDS.has(interaction.kind)) {
+          if (craft.cursorMotion !== "eased-deceleration") {
+            fail(`${segmentLabel}: pointer motion must use eased-deceleration.`);
+          }
+          if (!Number.isFinite(craft.cursorMoveMs) || craft.cursorMoveMs < 400 || craft.cursorMoveMs > 600) {
+            fail(`${segmentLabel}: pointer cursorMoveMs must be between 400 and 600.`);
+          }
+        }
+        if (["click", "double-click"].includes(interaction.kind)) {
+          if (!Number.isFinite(craft.settleBeforeActionMs) || craft.settleBeforeActionMs < 250) {
+            fail(`${segmentLabel}: clicks require at least 250ms settle before the action.`);
+          }
+          if (!Number.isFinite(craft.holdAfterActionMs) || craft.holdAfterActionMs < 500) {
+            fail(`${segmentLabel}: clicks require at least 500ms hold after the action.`);
+          }
+          if (craft.feedbackType !== "radial-pulse" ||
+              !Number.isFinite(craft.feedbackDurationMs) ||
+              craft.feedbackDurationMs < 300 || craft.feedbackDurationMs > 400) {
+            fail(`${segmentLabel}: clicks require a 300-400ms radial-pulse feedback cue.`);
+          }
+          if (typeof craft.feedbackColor !== "string" || craft.feedbackColor.trim() === "" ||
+              !Number.isFinite(craft.feedbackOpacity) || craft.feedbackOpacity <= 0 || craft.feedbackOpacity >= 1) {
+            fail(`${segmentLabel}: click feedback requires a brand color and semi-transparent opacity.`);
+          }
+        }
+        if (interaction.kind === "move" && craft.feedbackType !== "none") {
+          fail(`${segmentLabel}: pointer moves cannot display interaction feedback.`);
+        }
+        if (interaction.kind === "hover" && craft.feedbackType !== "native-hover") {
+          fail(`${segmentLabel}: hover must use the product's native hover state without an overlay.`);
+        }
+        if (interaction.kind === "drag" && !["drag-held", "drag-trail"].includes(craft.feedbackType)) {
+          fail(`${segmentLabel}: drag must use drag-held or drag-trail feedback.`);
+        }
+        if (interaction.kind === "none" && craft.feedbackType !== "none") {
+          fail(`${segmentLabel}: a non-interactive hold cannot declare interaction feedback.`);
+        }
+        if (interaction.kind === "keyboard" &&
+            (craft.feedbackType !== "keystroke-overlay" || craft.keystrokeOverlay !== true)) {
+          fail(`${segmentLabel}: shortcut-driven keyboard actions require a keystroke overlay.`);
+        }
+        if (interaction.kind !== "keyboard" && craft.keystrokeOverlay !== false) {
+          fail(`${segmentLabel}: keystrokeOverlay is reserved for shortcut-driven keyboard actions.`);
+        }
+      }
     }
     const framing = segment.framing;
     if (!framing || typeof framing !== "object" || Array.isArray(framing)) {
@@ -171,6 +269,7 @@ for (const [episodeIndex, episode] of episodes.entries()) {
         "irrelevantNavigation",
         "deliveryTreatment",
         "legibilityCheck",
+        "smallDelivery",
       ]) {
         if (!present(framing[field])) fail(`${segmentLabel}: framing missing "${field}".`);
       }
@@ -182,6 +281,90 @@ for (const [episodeIndex, episode] of episodes.entries()) {
       }
       if (framing.deliveryTreatment && !DELIVERY_TREATMENTS.has(framing.deliveryTreatment)) {
         fail(`${segmentLabel}: framing.deliveryTreatment is invalid.`);
+      }
+      if (typeof framing.smallDelivery !== "boolean") {
+        fail(`${segmentLabel}: framing.smallDelivery must be true or false.`);
+      }
+      if (POINTER_KINDS.has(interaction?.kind)) {
+        const minimumCursorScale = framing.smallDelivery === true ? 1.5 : 1;
+        if (!Number.isFinite(interaction.craft?.cursorScale) ||
+            interaction.craft.cursorScale < minimumCursorScale || interaction.craft.cursorScale > 2) {
+          fail(`${segmentLabel}: pointer cursorScale must be between ${minimumCursorScale} and 2 for this delivery context.`);
+        }
+      }
+      const zoom = framing.zoom;
+      if (!zoom || typeof zoom !== "object" || Array.isArray(zoom)) {
+        fail(`${segmentLabel}: framing.zoom must be an object.`);
+      } else {
+        for (const field of ["mode", "transitionMs", "changesInBeat", "holdThroughAction", "pullBack", "drift"]) {
+          if (!present(zoom[field])) fail(`${segmentLabel}: framing.zoom missing "${field}".`);
+        }
+        if (!ZOOM_MODES.has(zoom.mode)) fail(`${segmentLabel}: framing.zoom.mode is invalid.`);
+        if (!Number.isFinite(zoom.transitionMs) || zoom.transitionMs < 0) {
+          fail(`${segmentLabel}: framing.zoom.transitionMs must be a non-negative number.`);
+        }
+        if (!Number.isInteger(zoom.changesInBeat) || zoom.changesInBeat < 0 || zoom.changesInBeat > 1) {
+          fail(`${segmentLabel}: framing.zoom.changesInBeat must be 0 or 1.`);
+        }
+        if (zoom.drift !== false) fail(`${segmentLabel}: framing zoom may not drift during UI interaction.`);
+        if (typeof zoom.holdThroughAction !== "boolean" || typeof zoom.pullBack !== "boolean") {
+          fail(`${segmentLabel}: framing.zoom holdThroughAction and pullBack must be booleans.`);
+        }
+        if (zoom.mode === "snap-to-region") {
+          if (!Number.isFinite(zoom.transitionMs) || zoom.transitionMs < 300 || zoom.transitionMs > 500) {
+            fail(`${segmentLabel}: snap-to-region transitionMs must be between 300 and 500.`);
+          }
+          if (zoom.changesInBeat !== 1 || zoom.holdThroughAction !== true) {
+            fail(`${segmentLabel}: snap-to-region must be the beat's single zoom change and hold through the action.`);
+          }
+        }
+        if (zoom.mode === "none" && (zoom.transitionMs !== 0 || zoom.changesInBeat !== 0)) {
+          fail(`${segmentLabel}: framing.zoom mode none requires zero transition and zero changes.`);
+        }
+        if (zoom.mode === "recompose" &&
+            (zoom.transitionMs !== 0 || zoom.changesInBeat !== 0 || zoom.holdThroughAction !== true || zoom.pullBack !== false)) {
+          fail(`${segmentLabel}: recompose is a static variant framing decision and requires zero transition/changes, holdThroughAction=true, and pullBack=false.`);
+        }
+      }
+    }
+    const pacing = segment.pacing;
+    if (!pacing || typeof pacing !== "object" || Array.isArray(pacing)) {
+      fail(`${segmentLabel}: pacing must be an object.`);
+    } else {
+      for (const field of ["activity", "treatment", "multiplier", "truthTreatment"]) {
+        if (!present(pacing[field])) fail(`${segmentLabel}: pacing missing "${field}".`);
+      }
+      if (!PACE_ACTIVITIES.has(pacing.activity)) fail(`${segmentLabel}: pacing.activity is invalid.`);
+      if (!PACE_TREATMENTS.has(pacing.treatment)) fail(`${segmentLabel}: pacing.treatment is invalid.`);
+      if (!Number.isFinite(pacing.multiplier) || pacing.multiplier < 0) {
+        fail(`${segmentLabel}: pacing.multiplier must be a non-negative number.`);
+      }
+      if (["meaningful-action", "result-hold"].includes(pacing.activity) &&
+          (pacing.treatment !== "real-time" || pacing.multiplier !== 1)) {
+        fail(`${segmentLabel}: meaningful actions and result holds must remain real-time.`);
+      }
+      if (pacing.activity === "bounded-wait" && !(
+        pacing.treatment === "cut" ||
+        (pacing.treatment === "speed-ramp" && pacing.multiplier >= 4 && pacing.multiplier <= 8)
+      )) {
+        fail(`${segmentLabel}: bounded waits must be cut or speed-ramped between 4x and 8x.`);
+      }
+      if (pacing.activity === "text-entry" && !(
+        pacing.treatment === "chunked-entry" ||
+        (pacing.treatment === "speed-ramp" && pacing.multiplier >= 3 && pacing.multiplier <= 4)
+      )) {
+        fail(`${segmentLabel}: text entry must be chunked or speed-ramped between 3x and 4x.`);
+      }
+    }
+    if (Array.isArray(segment.annotations)) {
+      for (const [annotationIndex, annotation] of segment.annotations.entries()) {
+        if (present(annotation?.text)) {
+          const words = annotation.text.trim().split(/\s+/).length;
+          const minimumHold = words / 2.5 + 0.5;
+          if (!Number.isFinite(annotation.holdSeconds) || annotation.holdSeconds < minimumHold) {
+            fail(`${segmentLabel}: annotations[${annotationIndex}].holdSeconds must be at least ${minimumHold.toFixed(2)} seconds for its text.`);
+          }
+        }
       }
     }
     for (const claimId of segment.visibleClaimIds ?? []) {

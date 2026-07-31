@@ -153,6 +153,7 @@ function schemaFixture(schemaName, fixtureName, expectedValid) {
   const fixture = loadJson(join(fixtureDir, fixtureName));
   const errors = [];
   validate(schema, fixture, "$", schemaPath, schema, errors);
+  if ((errors.length === 0) !== expectedValid) console.error(errors.join("\n"));
   assert((errors.length === 0) === expectedValid, `${fixtureName} ${expectedValid ? "passes" : "fails"} ${schemaName}${errors.length ? ` (${errors.length} error(s))` : ""}`);
 }
 
@@ -182,23 +183,42 @@ function screencastChoreographyIntegration() {
       "storyboard validator accepts explicit interaction and screen-space choreography",
     );
 
-    const invalidStoryboard = JSON.parse(JSON.stringify(storyboard));
-    delete invalidStoryboard.segments[0].interaction;
-    delete invalidStoryboard.segments[1].framing;
-    const invalidStoryboardPath = join(root, "storyboard.invalid.json");
-    writeFileSync(invalidStoryboardPath, `${JSON.stringify(invalidStoryboard, null, 2)}\n`);
-    result = spawnSync(process.execPath, [
-      join(pluginDir, "scripts", "validate-storyboard.mjs"),
-      invalidStoryboardPath,
-    ], { encoding: "utf8" });
-    assert(
-      result.status !== 0,
-      "storyboard validator rejects missing interaction or screen-space choreography",
-    );
+    const storyboardRejects = (name, mutate, message) => {
+      const candidate = structuredClone(storyboard);
+      mutate(candidate);
+      const path = join(root, `storyboard.${name}.json`);
+      writeJson(path, candidate);
+      const validation = spawnSync(process.execPath, [
+        join(pluginDir, "scripts", "validate-storyboard.mjs"), path,
+      ], { encoding: "utf8" });
+      assert(validation.status !== 0, message);
+    };
+    storyboardRejects("missing-interaction", (value) => delete value.segments[0].interaction,
+      "storyboard validator rejects a missing interaction contract");
+    storyboardRejects("missing-framing", (value) => delete value.segments[1].framing,
+      "storyboard validator rejects a missing framing contract");
+    storyboardRejects("real-time-text", (value) => {
+      value.segments[2].pacing = {
+        activity: "text-entry", treatment: "real-time", multiplier: 1, truthTreatment: "Raw typing",
+      };
+    }, "storyboard validator rejects real-time text entry");
+    storyboardRejects("none-feedback", (value) => {
+      value.segments[0].interaction.kind = "none";
+      value.segments[0].interaction.target = "none";
+      value.segments[0].interaction.clickCue = "none";
+      value.segments[0].interaction.craft.feedbackType = "radial-pulse";
+    }, "storyboard validator rejects feedback on a non-interactive hold");
+    storyboardRejects("invalid-recompose", (value) => {
+      value.segments[2].framing.zoom = {
+        mode: "recompose", transitionMs: -1, changesInBeat: 1,
+        holdThroughAction: false, pullBack: true, drift: false,
+      };
+    }, "storyboard validator rejects contradictory recompose zoom values");
 
     const capture = {
-      scenario: "synthetic-guided-screencast",
-      beat: "review-exception",
+      scenario: "approval-exception",
+      beat: "reveal",
+      storyboardSegmentId: "reveal",
       route: "/synthetic/review",
       viewport: { width: 1920, height: 1080, deviceScaleFactor: 2 },
       focus: { x: 900, y: 160, width: 850, height: 700 },
@@ -210,17 +230,39 @@ function screencastChoreographyIntegration() {
         plannedTreatment: "push-in",
         plannedActiveRegionCoverage: 0.68,
         deliveryLegibility: "pass",
+        deliveryFrame: { width: 1920, height: 1080 },
+        deliveredCrop: { x: 760, y: 180, width: 1050, height: 591 },
+        sourceFrame: { width: 3840, height: 2160 },
+        smallDelivery: true,
+        browserZoomPercent: 100,
       },
       interaction: {
         kind: "click",
-        target: "button[data-demo='review-exception']",
+        target: "exception-filter",
         cursor: {
           from: [1450, 780],
           to: [1520, 430],
           park: [1760, 930],
-          durationMs: 700,
+          durationMs: 500,
+          easing: "eased-deceleration",
+          scale: 1.75,
+          settleBeforeActionMs: 250,
+          holdAfterActionMs: 500,
         },
         cue: "visual",
+        feedback: {
+          type: "radial-pulse",
+          durationMs: 350,
+          brandColor: "#4F46E5",
+          opacity: 0.35,
+        },
+        keystrokeOverlay: false,
+        pacing: {
+          activity: "meaningful-action",
+          treatment: "real-time",
+          multiplier: 1,
+          truthTreatment: "The product interaction remains real-time.",
+        },
         narrationSync: {
           cursorLeadSeconds: 0.35,
           actionAtSeconds: 1.1,
@@ -240,19 +282,202 @@ function screencastChoreographyIntegration() {
       "capture validator accepts page-only framing and action-before-spoken-result timing",
     );
 
-    capture.captureSurface.plannedActiveRegionCoverage = 0.3;
-    capture.interaction.cue = "none";
-    capture.interaction.narrationSync.spokenResultAtSeconds = 1.2;
-    const invalidCapturePath = join(root, "capture.invalid.json");
-    writeFileSync(invalidCapturePath, `${JSON.stringify(capture, null, 2)}\n`);
+    const hoverCapture = JSON.parse(JSON.stringify(capture));
+    hoverCapture.beat = "hover-native-state";
+    hoverCapture.interaction.kind = "hover";
+    hoverCapture.interaction.cue = "none";
+    hoverCapture.interaction.feedback = { type: "native-hover", durationMs: 0 };
+    const hoverCapturePath = join(root, "capture.hover.json");
+    writeFileSync(hoverCapturePath, `${JSON.stringify(hoverCapture, null, 2)}\n`);
     result = spawnSync(process.execPath, [
       join(pluginDir, "scripts", "validate-capture-manifest.mjs"),
-      invalidCapturePath,
+      hoverCapturePath,
     ], { encoding: "utf8" });
-    assert(
-      result.status !== 0,
-      "capture validator rejects wasted screen space, invisible clicks, and premature narration",
-    );
+    assert(result.status === 0, "capture validator accepts native hover feedback without an overlay");
+
+    hoverCapture.interaction.feedback = { type: "radial-pulse", durationMs: 350 };
+    const invalidHoverCapturePath = join(root, "capture.hover.invalid.json");
+    writeFileSync(invalidHoverCapturePath, `${JSON.stringify(hoverCapture, null, 2)}\n`);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-capture-manifest.mjs"),
+      invalidHoverCapturePath,
+    ], { encoding: "utf8" });
+    assert(result.status !== 0, "capture validator rejects overlay feedback on hover");
+
+    const keyboardCapture = JSON.parse(JSON.stringify(capture));
+    keyboardCapture.beat = "shortcut-driven-state";
+    keyboardCapture.interaction.kind = "keyboard";
+    keyboardCapture.interaction.cue = "none";
+    keyboardCapture.interaction.cursor = { park: [1760, 930] };
+    keyboardCapture.interaction.feedback = { type: "keystroke-overlay", durationMs: 700 };
+    keyboardCapture.interaction.keystrokeOverlay = true;
+    const keyboardCapturePath = join(root, "capture.keyboard.json");
+    writeFileSync(keyboardCapturePath, `${JSON.stringify(keyboardCapture, null, 2)}\n`);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-capture-manifest.mjs"),
+      keyboardCapturePath,
+    ], { encoding: "utf8" });
+    assert(result.status === 0, "capture validator accepts a shortcut with a keystroke overlay");
+
+    keyboardCapture.interaction.keystrokeOverlay = false;
+    const invalidKeyboardCapturePath = join(root, "capture.keyboard.invalid.json");
+    writeFileSync(invalidKeyboardCapturePath, `${JSON.stringify(keyboardCapture, null, 2)}\n`);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-capture-manifest.mjs"),
+      invalidKeyboardCapturePath,
+    ], { encoding: "utf8" });
+    assert(result.status !== 0, "capture validator rejects a shortcut without a keystroke overlay");
+
+    const captureRejects = (name, mutate, message) => {
+      const candidate = structuredClone(capture);
+      mutate(candidate);
+      const path = join(root, `capture.${name}.json`);
+      writeJson(path, candidate);
+      const validation = spawnSync(process.execPath, [
+        join(pluginDir, "scripts", "validate-capture-manifest.mjs"), path,
+      ], { encoding: "utf8" });
+      assert(validation.status !== 0, message);
+    };
+    captureRejects("coverage", (value) => value.captureSurface.plannedActiveRegionCoverage = 0.3,
+      "capture validator rejects wasted screen space");
+    captureRejects("pixel-density", (value) => value.captureSurface.deliveredCrop.width = 400,
+      "capture validator derives and rejects insufficient effective delivery pixel density");
+    captureRejects("browser-zoom", (value) => value.captureSurface.browserZoomPercent = 90,
+      "capture validator rejects unsupported browser zoom values");
+    captureRejects("click-cue", (value) => value.interaction.cue = "none",
+      "capture validator rejects a missing click cue");
+    captureRejects("feedback-duration", (value) => value.interaction.feedback.durationMs = 700,
+      "capture validator rejects an invalid click-feedback duration");
+    captureRejects("cursor-duration", (value) => value.interaction.cursor.durationMs = 900,
+      "capture validator rejects an invalid pointer movement duration");
+    captureRejects("bounded-wait", (value) => value.interaction.pacing = {
+      activity: "bounded-wait", treatment: "speed-ramp", multiplier: 2, truthTreatment: "Accelerated wait",
+    }, "capture validator rejects weak wait acceleration");
+    captureRejects("premature-narration", (value) => value.interaction.narrationSync.spokenResultAtSeconds = 1.2,
+      "capture validator rejects narration before the visible result");
+
+    const desktopCapture = structuredClone(capture);
+    desktopCapture.beat = "desktop-delivery";
+    desktopCapture.captureSurface.smallDelivery = false;
+    desktopCapture.interaction.cursor.scale = 1;
+    const desktopCapturePath = join(root, "capture.desktop.json");
+    writeJson(desktopCapturePath, desktopCapture);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-capture-manifest.mjs"), desktopCapturePath,
+    ], { encoding: "utf8" });
+    assert(result.status === 0, "capture validator permits a native-size cursor for desktop delivery");
+
+    const craftCaptures = storyboard.segments.map((segment) => {
+      const value = structuredClone(capture);
+      value.beat = segment.id;
+      value.storyboardSegmentId = segment.id;
+      value.captureSurface.irrelevantNavigation = segment.framing.irrelevantNavigation;
+      value.captureSurface.plannedTreatment = segment.framing.deliveryTreatment;
+      value.captureSurface.smallDelivery = segment.framing.smallDelivery;
+      value.interaction.kind = segment.interaction.kind;
+      value.interaction.target = segment.interaction.target;
+      value.interaction.cue = segment.interaction.clickCue === "none" ? "none" : "visual";
+      value.interaction.cursor = {
+        from: [1450, 780],
+        to: [1520, 430],
+        park: [1760, 930],
+        durationMs: segment.interaction.craft.cursorMoveMs,
+        easing: segment.interaction.craft.cursorMotion,
+        scale: segment.interaction.craft.cursorScale,
+        settleBeforeActionMs: segment.interaction.craft.settleBeforeActionMs,
+        holdAfterActionMs: segment.interaction.craft.holdAfterActionMs,
+      };
+      value.interaction.feedback = {
+        type: segment.interaction.craft.feedbackType,
+        durationMs: segment.interaction.craft.feedbackDurationMs,
+        ...(segment.interaction.craft.feedbackColor ? { brandColor: segment.interaction.craft.feedbackColor } : {}),
+        ...(segment.interaction.craft.feedbackOpacity !== undefined ? { opacity: segment.interaction.craft.feedbackOpacity } : {}),
+      };
+      value.interaction.keystrokeOverlay = segment.interaction.craft.keystrokeOverlay;
+      value.interaction.pacing = segment.pacing;
+      value.interaction.narrationSync = segment.interaction.narrationSync;
+      return value;
+    });
+    const craftCapturePath = join(root, "captures.json");
+    writeJson(craftCapturePath, craftCaptures);
+    const captureEvidencePath = join(root, "capture-evidence.json");
+    writeJson(captureEvidencePath, {
+      candidateId: "synthetic-guided-screencast",
+      sourceFrame: { width: 3840, height: 2160 },
+      beats: storyboard.segments.map((segment) => ({
+        episodeId: storyboard.episodeId,
+        storyboardSegmentId: segment.id,
+        ...segment.interaction.narrationSync,
+        cutAtSeconds: segment.interaction.narrationSync.resultVisibleAtSeconds + 1.4,
+      })),
+    });
+    const rawCapturePath = join(root, "raw-capture.png");
+    result = spawnSync("ffmpeg", [
+      "-v", "error", "-f", "lavfi", "-i", "color=c=black:size=3840x2160",
+      "-frames:v", "1", "-y", rawCapturePath,
+    ], { encoding: "utf8" });
+    if (result.status !== 0) throw new Error(`could not create raw capture fixture: ${result.stderr}`);
+    const craftReportPath = join(root, "craft-contract-validation.json");
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
+      "--candidate-id", "synthetic-guided-screencast",
+      "--storyboard", storyboardPath,
+      "--storyboard-artifact-id", "storyboard",
+      "--capture-manifest", craftCapturePath,
+      "--capture-artifact-id", "capture-manifest",
+      "--capture-evidence", captureEvidencePath,
+      "--capture-evidence-artifact-id", "capture-evidence",
+      "--raw-capture", rawCapturePath,
+      "--raw-capture-artifact-id", "raw-capture",
+      "--out", craftReportPath,
+    ], { encoding: "utf8" });
+    assert(result.status === 0, "craft-contract reporter accepts and binds valid storyboard/capture inputs");
+    const craftReport = loadJson(craftReportPath);
+    const deterministicSchemaPath = join(schemaDir, "deterministic-report.schema.json");
+    const deterministicSchema = loadSchema(deterministicSchemaPath);
+    const craftErrors = [];
+    validate(deterministicSchema, craftReport, "$", deterministicSchemaPath, deterministicSchema, craftErrors);
+    assert(craftErrors.length === 0, "craft-contract report conforms to deterministic-report.schema.json");
+    assert(craftReport.measurements.length === storyboard.segments.length && craftReport.measurements[0].resultHoldToCutSeconds > 1,
+      "craft-contract report emits evidence-bound per-beat result-hold timing");
+    assert(craftReport.sourceGeometry.width === 3840 && craftReport.sourceGeometry.height === 2160,
+      "craft-contract report probes and binds raw capture geometry");
+
+    const partialCapturePath = join(root, "captures.partial.json");
+    writeJson(partialCapturePath, craftCaptures.slice(1));
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
+      "--candidate-id", "synthetic-guided-screencast",
+      "--storyboard", storyboardPath,
+      "--storyboard-artifact-id", "storyboard",
+      "--capture-manifest", partialCapturePath,
+      "--capture-artifact-id", "capture-manifest",
+      "--capture-evidence", captureEvidencePath,
+      "--capture-evidence-artifact-id", "capture-evidence",
+      "--raw-capture", rawCapturePath,
+      "--raw-capture-artifact-id", "raw-capture",
+      "--out", join(root, "craft-contract-validation.partial.json"),
+    ], { encoding: "utf8" });
+    assert(result.status === 1, "craft-contract reporter rejects partial storyboard capture coverage");
+
+    const mismatchedEvidence = loadJson(captureEvidencePath);
+    mismatchedEvidence.beats[0].actionAtSeconds = 1.2;
+    const mismatchedEvidencePath = join(root, "capture-evidence.mismatched.json");
+    writeJson(mismatchedEvidencePath, mismatchedEvidence);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
+      "--candidate-id", "synthetic-guided-screencast",
+      "--storyboard", storyboardPath,
+      "--storyboard-artifact-id", "storyboard",
+      "--capture-manifest", craftCapturePath,
+      "--capture-artifact-id", "capture-manifest",
+      "--capture-evidence", mismatchedEvidencePath,
+      "--capture-evidence-artifact-id", "capture-evidence",
+      "--raw-capture", rawCapturePath,
+      "--raw-capture-artifact-id", "raw-capture",
+      "--out", join(root, "craft-contract-validation.mismatched.json"),
+    ], { encoding: "utf8" });
+    assert(result.status === 1, "craft-contract reporter rejects timing drift across storyboard, manifest, and capture evidence");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -354,6 +579,8 @@ function createExecutionTrust(root) {
     startedAt,
     completedAt,
     issuedAt = completedAt,
+    inputArtifactSha256,
+    resultPayloadSha256,
   }) => {
     sequence += 1;
     const slug = `${role}-${String(sequence).padStart(3, "0")}`;
@@ -376,6 +603,8 @@ function createExecutionTrust(root) {
       startedAt,
       completedAt,
       issuedAt,
+      ...(inputArtifactSha256 ? { inputArtifactSha256 } : {}),
+      ...(resultPayloadSha256 ? { resultPayloadSha256 } : {}),
     };
     writeJson(receiptPath, receipt);
     writeFileSync(signaturePath, sign(null, readFileSync(receiptPath), privateKey));
@@ -405,6 +634,216 @@ function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function createReviewIntegrity(root, reviewDomain, executionTrust) {
+  const modelId = "synthetic-independent-reviewer-v1";
+  const canonicalRubricPath = join(
+    pluginDir,
+    "skills",
+    "product-demo-studio",
+    "references",
+    "killer-demo-playbook.md",
+  );
+  const canonicalRubric = {
+    artifactPath: canonicalRubricPath,
+    sha256: sha(canonicalRubricPath),
+  };
+  const expected = new Map([
+    ["buried-hero", "FAIL"],
+    ["feature-rung", "FAIL"],
+    ["no-hold", "FAIL"],
+    ["dead-wait", "FAIL"],
+    ["three-heroes", "FAIL"],
+    ["clean-pass", "PASS"],
+  ]);
+  const fixtures = [...expected].map(([id, verdict]) => {
+    const evidencePath = join(root, `calibration-evidence-${reviewDomain}-${id}.json`);
+    writeJson(evidencePath, {
+      fixtureId: id,
+      reviewDomain,
+      expectedVerdict: verdict,
+      synthetic: true,
+    });
+    const candidateId = `calibration-${reviewDomain.replaceAll("-", "")}-${id}`;
+    const contextId = `calibration-${reviewDomain}-${id}-context`;
+    const reportPath = join(root, `calibration-review-${reviewDomain}-${id}.json`);
+    const passed = verdict === "PASS";
+    const checks = [{
+      id: id === "clean-pass" ? "clean-control" : `detect-${id}`,
+      passed,
+      evidence: [{ artifactPath: evidencePath, sha256: sha(evidencePath) }],
+    }];
+    const reportPayload = {
+      schemaVersion: "1.0.0",
+      fixtureId: id,
+      candidateId,
+      reviewDomain,
+      modelId,
+      contextId,
+      startedAt: "2026-07-29T14:50:00.000Z",
+      completedAt: "2026-07-29T14:51:00.000Z",
+      checks,
+      verdict,
+    };
+    writeJson(reportPath, {
+      ...reportPayload,
+      executionReceipt: executionTrust.signedReceipt({
+        role: "reviewer",
+        domain: reviewDomain,
+        contextId,
+        candidateId,
+        startedAt: "2026-07-29T14:50:00.000Z",
+        completedAt: "2026-07-29T14:51:00.000Z",
+        inputArtifactSha256: sha(evidencePath),
+        resultPayloadSha256: shaBytes(Buffer.from(JSON.stringify(reportPayload))),
+      }),
+    });
+    return {
+      id,
+      expectedVerdict: verdict,
+      reviewReport: { artifactPath: reportPath, sha256: sha(reportPath) },
+    };
+  });
+  const calibrationPath = join(root, `reviewer-calibration-${reviewDomain}.json`);
+  writeJson(calibrationPath, {
+    schemaVersion: "1.0.0",
+    status: "PASS",
+    pluginVersion: "1.5.0",
+    reviewDomain,
+    modelId,
+    canonicalRubric,
+    verticalOverlay: null,
+    inputContractVersion: "review-report.schema/1.0.0",
+    completedAt: "2026-07-29T14:55:00.000Z",
+    fixtures,
+  });
+  return {
+    canonicalRubric,
+    verticalOverlay: null,
+    calibrationRecord: { artifactPath: calibrationPath, sha256: sha(calibrationPath) },
+    modelId,
+    generatorReasoningReceived: false,
+    priorReviewsReceived: false,
+  };
+}
+
+function reviewerCalibrationIntegration() {
+  const root = mkdtempSync(join(tmpdir(), "product-demo-reviewer-calibration-"));
+  try {
+    const executionTrust = createExecutionTrust(root);
+    const integrity = createReviewIntegrity(root, "story-experience", executionTrust);
+    let result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-reviewer-calibration.mjs"),
+      integrity.calibrationRecord.artifactPath,
+    ], { encoding: "utf8", env: executionTrust.environment });
+    assert(result.status === 0, "reviewer calibration validator accepts all known-bad rejections and the clean pass");
+
+    const calibration = loadJson(integrity.calibrationRecord.artifactPath);
+    const buried = calibration.fixtures.find((fixture) => fixture.id === "buried-hero");
+    const buriedReport = loadJson(buried.reviewReport.artifactPath);
+    buriedReport.checks[0].passed = true;
+    buriedReport.verdict = "PASS";
+    writeJson(buried.reviewReport.artifactPath, buriedReport);
+    buried.reviewReport.sha256 = sha(buried.reviewReport.artifactPath);
+    writeJson(integrity.calibrationRecord.artifactPath, calibration);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-reviewer-calibration.mjs"),
+      integrity.calibrationRecord.artifactPath,
+    ], { encoding: "utf8", env: executionTrust.environment });
+    assert(result.status !== 0, "reviewer calibration validator rejects a known-bad fixture that passes");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function scriptApprovalIntegration() {
+  const root = mkdtempSync(join(tmpdir(), "product-demo-script-approval-"));
+  try {
+    const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+    const publicKeyPath = join(root, "script-approver.pem");
+    const scriptPath = join(root, "script.json");
+    const truthSheetPath = join(root, "truth-sheet.json");
+    const claimLedgerPath = join(root, "claim-ledger.json");
+    const finalCaptureInputPath = join(root, "storyboard.json");
+    const receiptPath = join(root, "script-approval.json");
+    const signaturePath = join(root, "script-approval.ed25519");
+    const reportPath = join(root, "script-approval-report.json");
+    writeFileSync(publicKeyPath, publicKey.export({ type: "spki", format: "pem" }), "utf8");
+    writeJson(scriptPath, { beats: [{ id: "hero", narration: "The verified result is now visible." }] });
+    writeJson(truthSheetPath, { facts: [{ id: "fact-1", verified: true }] });
+    writeJson(claimLedgerPath, { claims: [{ id: "claim-1", evidence: "fact-1" }] });
+    writeJson(finalCaptureInputPath, { episodeId: "approval-exception", approvedForFinalCapture: true });
+    writeJson(receiptPath, {
+      schemaVersion: "1.0.0",
+      receiptId: "PVS-SYNTHETIC-SCRIPT-001",
+      decision: "APPROVED",
+      candidateId: "synthetic-candidate-001",
+      episodeId: "approval-exception",
+      approver: { name: "Synthetic Contract Owner", method: "detached-ed25519" },
+      approverPublicKeySha256: shaBytes(publicKey.export({ type: "spki", format: "der" })),
+      approvedAt: "2026-07-29T14:50:00.000Z",
+      finalCaptureInput: { artifactPath: finalCaptureInputPath, sha256: sha(finalCaptureInputPath) },
+      artifacts: {
+        script: { artifactPath: scriptPath, sha256: sha(scriptPath) },
+        truthSheet: { artifactPath: truthSheetPath, sha256: sha(truthSheetPath) },
+        claimLedger: { artifactPath: claimLedgerPath, sha256: sha(claimLedgerPath) },
+      },
+    });
+    writeFileSync(signaturePath, sign(null, readFileSync(receiptPath), privateKey));
+    const validator = join(pluginDir, "scripts", "validate-script-approval.mjs");
+    const command = [
+      validator,
+      "--receipt", receiptPath,
+      "--signature", signaturePath,
+      "--out", reportPath,
+      "--candidate-id", "synthetic-candidate-001",
+      "--episode-id", "approval-exception",
+      "--receipt-artifact-id", "script-approval",
+      "--signature-artifact-id", "script-approval-signature",
+      "--script-artifact-id", "approved-script",
+      "--truth-sheet-artifact-id", "approved-truth-sheet",
+      "--claim-ledger-artifact-id", "approved-claim-ledger",
+      "--final-capture-input-artifact-id", "storyboard",
+    ];
+    const environment = { ...process.env, AGENTHUB_SCRIPT_APPROVER_PUBLIC_KEY: publicKeyPath };
+    let result = spawnSync(process.execPath, command, { encoding: "utf8", env: environment });
+    assert(result.status === 0, "script approval validator accepts a named human signature over exact script/truth/claim bytes");
+    const report = loadJson(reportPath);
+    const reportSchema = loadSchema(join(schemaDir, "deterministic-report.schema.json"));
+    const schemaErrors = [];
+    validate(reportSchema, report, "$", join(schemaDir, "deterministic-report.schema.json"), reportSchema, schemaErrors);
+    assert(schemaErrors.length === 0, "script approval validator emits a canonical deterministic report");
+
+    writeJson(scriptPath, { beats: [{ id: "hero", narration: "Tampered after approval." }] });
+    result = spawnSync(process.execPath, command, { encoding: "utf8", env: environment });
+    assert(result.status !== 0, "script approval validator rejects script bytes changed after human approval");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function mediaAccelerationIntegration() {
+  const root = mkdtempSync(join(tmpdir(), "product-demo-media-acceleration-"));
+  try {
+    const manifestPath = join(root, "media-acceleration.json");
+    const result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "detect-media-acceleration.mjs"),
+      "--out", manifestPath,
+    ], { encoding: "utf8" });
+    assert(result.status === 0, "media acceleration detector emits a deterministic GPU-or-CPU selection manifest");
+    const manifest = loadJson(manifestPath);
+    const schema = loadSchema(join(schemaDir, "media-acceleration.schema.json"));
+    const errors = [];
+    validate(schema, manifest, "$", join(schemaDir, "media-acceleration.schema.json"), schema, errors);
+    assert(errors.length === 0, "media acceleration manifest conforms to the canonical schema");
+    assert(
+      manifest.mode !== "gpu-preferred" || manifest.nvidia.available === true,
+      "GPU-preferred mode is emitted only when a compatible NVIDIA device is detected",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function generateRealCandidate(videoPath) {
   const result = spawnSync("ffmpeg", [
     "-v", "error",
@@ -430,6 +869,123 @@ function generateRealCandidate(videoPath) {
   if (result.status !== 0) {
     throw new Error(`FFmpeg could not generate the real candidate: ${result.stderr || result.stdout}`);
   }
+}
+
+function buildCanonicalCraftArtifacts(root, candidateId, storyboard, addArtifact) {
+  const baseCapture = {
+    scenario: "approval-exception",
+    beat: "reveal",
+    storyboardSegmentId: "reveal",
+    route: "/synthetic/review",
+    viewport: { width: 1920, height: 1080, deviceScaleFactor: 2 },
+    focus: { x: 900, y: 160, width: 850, height: 700 },
+    protectedRegions: [{ x: 1180, y: 240, width: 520, height: 420 }],
+    captureSurface: {
+      mode: "page-only",
+      extraneousChrome: "none",
+      irrelevantNavigation: "collapsed",
+      plannedTreatment: "push-in",
+      plannedActiveRegionCoverage: 0.68,
+      deliveryLegibility: "pass",
+      deliveryFrame: { width: 1920, height: 1080 },
+      deliveredCrop: { x: 760, y: 180, width: 1050, height: 591 },
+      sourceFrame: { width: 3840, height: 2160 },
+      smallDelivery: true,
+      browserZoomPercent: 100,
+    },
+    interaction: {
+      kind: "click",
+      target: "exception-filter",
+      cursor: {
+        from: [1450, 780], to: [1520, 430], park: [1760, 930],
+        durationMs: 500, easing: "eased-deceleration", scale: 1.75,
+        settleBeforeActionMs: 250, holdAfterActionMs: 500,
+      },
+      cue: "visual",
+      feedback: { type: "radial-pulse", durationMs: 350, brandColor: "#4F46E5", opacity: 0.35 },
+      keystrokeOverlay: false,
+      pacing: { activity: "meaningful-action", treatment: "real-time", multiplier: 1, truthTreatment: "The product interaction remains real-time." },
+      narrationSync: { cursorLeadSeconds: 0.35, actionAtSeconds: 1.1, resultVisibleAtSeconds: 1.8, spokenResultAtSeconds: 2.0 },
+    },
+  };
+  const captures = storyboard.segments.map((segment) => {
+    const value = structuredClone(baseCapture);
+    value.beat = segment.id;
+    value.storyboardSegmentId = segment.id;
+    value.captureSurface.irrelevantNavigation = segment.framing.irrelevantNavigation;
+    value.captureSurface.plannedTreatment = segment.framing.deliveryTreatment;
+    value.captureSurface.smallDelivery = segment.framing.smallDelivery;
+    value.interaction.kind = segment.interaction.kind;
+    value.interaction.target = segment.interaction.target;
+    value.interaction.cue = segment.interaction.clickCue === "none" ? "none" : "visual";
+    value.interaction.cursor = {
+      from: [1450, 780], to: [1520, 430], park: [1760, 930],
+      durationMs: segment.interaction.craft.cursorMoveMs,
+      easing: segment.interaction.craft.cursorMotion,
+      scale: segment.interaction.craft.cursorScale,
+      settleBeforeActionMs: segment.interaction.craft.settleBeforeActionMs,
+      holdAfterActionMs: segment.interaction.craft.holdAfterActionMs,
+    };
+    value.interaction.feedback = {
+      type: segment.interaction.craft.feedbackType,
+      durationMs: segment.interaction.craft.feedbackDurationMs,
+      ...(segment.interaction.craft.feedbackColor ? { brandColor: segment.interaction.craft.feedbackColor } : {}),
+      ...(segment.interaction.craft.feedbackOpacity !== undefined ? { opacity: segment.interaction.craft.feedbackOpacity } : {}),
+    };
+    value.interaction.keystrokeOverlay = segment.interaction.craft.keystrokeOverlay;
+    value.interaction.pacing = segment.pacing;
+    value.interaction.narrationSync = segment.interaction.narrationSync;
+    return value;
+  });
+  const captureManifest = addArtifact("capture-manifest", "capture-manifest", "capture-manifest.json", "application/json", captures);
+  const captureEvidence = addArtifact("capture-evidence", "capture-evidence", "capture-evidence.json", "application/json", {
+    candidateId,
+    sourceFrame: { width: 3840, height: 2160 },
+    beats: storyboard.segments.map((segment) => ({
+      episodeId: storyboard.episodeId,
+      storyboardSegmentId: segment.id,
+      ...segment.interaction.narrationSync,
+      cutAtSeconds: segment.interaction.narrationSync.resultVisibleAtSeconds + 1.4,
+    })),
+  });
+  const rawCapturePath = join(root, "raw-capture.png");
+  const rawResult = spawnSync("ffmpeg", [
+    "-v", "error", "-f", "lavfi", "-i", "color=c=black:size=3840x2160", "-frames:v", "1", "-y", rawCapturePath,
+  ], { encoding: "utf8" });
+  if (rawResult.status !== 0) throw new Error(`could not create raw capture fixture: ${rawResult.stderr || rawResult.stdout}`);
+  const rawCapture = addArtifact("raw-capture", "raw-capture", "raw-capture.png", "image/png", null, { existing: true });
+  return { captureManifest, captureEvidence, rawCapture };
+}
+
+function buildSignedScriptApproval(root, candidateId, episodeId, storyboardArtifact, addArtifact) {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const publicKeyPath = join(root, "script-approver.pem");
+  writeFileSync(publicKeyPath, publicKey.export({ type: "spki", format: "pem" }), "utf8");
+  const script = addArtifact("approved-script", "script", "script.json", "application/json", { candidateId, approved: true });
+  const truthSheet = addArtifact("approved-truth-sheet", "truth-sheet", "truth-sheet.json", "application/json", { candidateId, approved: true });
+  const claimLedger = addArtifact("approved-claim-ledger", "claim-ledger", "claim-ledger.json", "application/json", { candidateId, approved: true });
+  const reference = (artifact) => ({ artifactPath: join(root, artifact.artifactPath), sha256: artifact.sha256 });
+  const receiptPath = join(root, "script-approval.json");
+  writeJson(receiptPath, {
+    schemaVersion: "1.0.0",
+    receiptId: "PVS-SYNTHETIC-SCRIPT-001",
+    decision: "APPROVED",
+    candidateId,
+    episodeId,
+    approver: { name: "Synthetic Contract Owner", method: "detached-ed25519" },
+    approverPublicKeySha256: shaBytes(publicKey.export({ type: "spki", format: "der" })),
+    approvedAt: "2026-07-29T21:50:00.000Z",
+    finalCaptureInput: reference(storyboardArtifact),
+    artifacts: { script: reference(script), truthSheet: reference(truthSheet), claimLedger: reference(claimLedger) },
+  });
+  const signaturePath = join(root, "script-approval.ed25519");
+  writeFileSync(signaturePath, sign(null, readFileSync(receiptPath), privateKey));
+  const receipt = addArtifact("script-approval", "script-approval", "script-approval.json", "application/json", null, { existing: true });
+  const signature = addArtifact("script-approval-signature", "signature", "script-approval.ed25519", "application/octet-stream", null, { existing: true });
+  return {
+    artifacts: { receipt, signature, script, truthSheet, claimLedger },
+    environment: { ...process.env, AGENTHUB_SCRIPT_APPROVER_PUBLIC_KEY: publicKeyPath },
+  };
 }
 
 function buildPassingEvidence(root, candidateId) {
@@ -459,6 +1015,28 @@ function buildPassingEvidence(root, candidateId) {
   const build = addArtifact("build-manifest", "manifest", "build.json", "application/json", { synthetic: true });
   const config = addArtifact("configuration-manifest", "manifest", "configuration.json", "application/json", { locale: "en-US" });
   const environment = addArtifact("environment-manifest", "manifest", "environment.json", "application/json", { runtime: "synthetic" });
+  const acceleration = addArtifact("acceleration-manifest", "manifest", "media-acceleration.json", "application/json", {
+    schemaVersion: "1.0.0",
+    detectedAt: "2026-07-29T21:58:00.000Z",
+    mode: "cpu-fallback",
+    nvidia: { available: false, name: null, driverVersion: null, cudaVersion: null, memoryMiB: null },
+    ffmpeg: { available: true, nvencEncoders: [], usableNvencEncoders: [] },
+    inference: { engine: null, available: false, cudaUsable: false, detail: "Synthetic CPU fixture." },
+    selection: { videoEncoder: "libx264", mediaInferenceDevice: "cpu" },
+    fallbackReason: "Synthetic portable contract fixture intentionally exercises deterministic CPU fallback.",
+  });
+  const storyboardDocument = loadJson(join(pluginDir, "scripts", "storyboard.example.json"));
+  const storyboardArtifact = addArtifact("storyboard", "storyboard", "storyboard.json", "application/json", storyboardDocument);
+  const craftArtifacts = buildCanonicalCraftArtifacts(root, candidateId, storyboardDocument, addArtifact);
+  const captureManifestArtifact = craftArtifacts.captureManifest;
+  const captureEvidenceArtifact = craftArtifacts.captureEvidence;
+  const rawCaptureArtifact = craftArtifacts.rawCapture;
+  const approval = buildSignedScriptApproval(root, candidateId, storyboardDocument.episodeId, storyboardArtifact, addArtifact);
+  const scriptApprovalArtifact = approval.artifacts.receipt;
+  const scriptApprovalSignatureArtifact = approval.artifacts.signature;
+  const scriptArtifact = approval.artifacts.script;
+  const truthSheetArtifact = approval.artifacts.truthSheet;
+  const claimLedgerArtifact = approval.artifacts.claimLedger;
   const reportChecks = {
     mediaMetadata: ["artifact-completeness", "output-specifications"],
     framesAndContactSheets: ["asset-completeness"],
@@ -475,6 +1053,8 @@ function buildPassingEvidence(root, candidateId) {
     technicalDelivery: ["checksums-provenance", "output-specifications"],
     claimVerification: ["names-dates-numbers-claims"],
     truthSheetVerification: ["names-dates-numbers-claims"],
+    scriptApprovalVerification: ["human-script-approval"],
+    craftContractValidation: ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas"],
   };
   const reportGenerators = {
     mediaMetadata: "product-demo-studio-technical-checks",
@@ -492,6 +1072,8 @@ function buildPassingEvidence(root, candidateId) {
     technicalDelivery: "product-demo-studio-technical-checks",
     claimVerification: "repository-native-claim-validator",
     truthSheetVerification: "repository-native-truth-sheet-validator",
+    scriptApprovalVerification: "product-demo-studio-script-approval-validator",
+    craftContractValidation: "product-demo-studio-craft-contract-validator",
   };
   const reports = {};
   for (const [reportType, checkIds] of Object.entries(reportChecks)) {
@@ -505,8 +1087,42 @@ function buildPassingEvidence(root, candidateId) {
         version: "1.0.0",
         command: `synthetic-fixture ${reportType} --input ${media.sha256}`,
       },
-      inputs: [{ artifactId: media.artifactId, sha256: media.sha256 }],
-      checks: checkIds.map((id) => ({ id, passed: true, evidenceArtifactIds: [media.artifactId] })),
+      inputs: (reportType === "craftContractValidation"
+        ? [storyboardArtifact, captureManifestArtifact, captureEvidenceArtifact, rawCaptureArtifact]
+        : reportType === "scriptApprovalVerification"
+          ? [scriptApprovalArtifact, scriptApprovalSignatureArtifact, scriptArtifact, truthSheetArtifact, claimLedgerArtifact, storyboardArtifact]
+          : [media]
+      ).map((artifact) => ({ artifactId: artifact.artifactId, sha256: artifact.sha256 })),
+      checks: checkIds.map((id) => ({
+        id,
+        passed: true,
+        evidenceArtifactIds: reportType === "scriptApprovalVerification"
+          ? [scriptApprovalArtifact, scriptApprovalSignatureArtifact, scriptArtifact, truthSheetArtifact, claimLedgerArtifact, storyboardArtifact]
+            .map((artifact) => artifact.artifactId)
+          : reportType === "craftContractValidation"
+          ? [id === "storyboard-craft-contract"
+            ? storyboardArtifact.artifactId
+            : id === "capture-manifest-craft-contract"
+              ? captureManifestArtifact.artifactId
+              : captureEvidenceArtifact.artifactId]
+          : [media.artifactId],
+      })),
+      ...(reportType === "craftContractValidation" ? {
+        measurements: [{
+          beatId: "reveal",
+          cursorLeadSeconds: 0.35,
+          actionToResultSeconds: 0.7,
+          resultToSpokenSeconds: 0.2,
+          resultHoldToCutSeconds: 1.4,
+          evidenceArtifactIds: [captureEvidenceArtifact.artifactId],
+        }],
+        sourceGeometry: {
+          width: 3840,
+          height: 2160,
+          rawCaptureArtifactId: rawCaptureArtifact.artifactId,
+          probe: "ffprobe",
+        },
+      } : {}),
       summary: { total: checkIds.length, passed: checkIds.length, failed: 0 },
       generatedAt,
     };
@@ -534,6 +1150,13 @@ function buildPassingEvidence(root, candidateId) {
       source: { repository: "https://example.invalid/synthetic.git", revision: "0123456789abcdef", dirty: false },
       build: { buildId: "synthetic-build", manifest: { artifactId: build.artifactId, artifactPath: build.artifactPath, sha256: build.sha256 } },
       configuration: { manifest: { artifactId: config.artifactId, artifactPath: config.artifactPath, sha256: config.sha256 } },
+      capture: {
+        captureId: "synthetic-capture-001",
+        command: "playwright synthetic-final-capture",
+        rawCapture: { artifactId: rawCaptureArtifact.artifactId, artifactPath: rawCaptureArtifact.artifactPath, sha256: rawCaptureArtifact.sha256 },
+        startedAt: "2026-07-29T21:55:00.000Z",
+        completedAt: "2026-07-29T21:58:00.000Z",
+      },
       render: {
         renderId: "synthetic-render-001",
         renderer: "ffmpeg-synthetic-fixture",
@@ -543,6 +1166,11 @@ function buildPassingEvidence(root, candidateId) {
           artifactId: environment.artifactId,
           artifactPath: environment.artifactPath,
           sha256: environment.sha256,
+        },
+        accelerationManifest: {
+          artifactId: acceleration.artifactId,
+          artifactPath: acceleration.artifactPath,
+          sha256: acceleration.sha256,
         },
         startedAt: "2026-07-29T21:59:00.000Z",
         completedAt: generatedAt,
@@ -559,7 +1187,7 @@ function buildPassingEvidence(root, candidateId) {
     join(pluginDir, "scripts", "preflight.mjs"),
     "--evidence-package", evidencePath,
     "--out", preflightPath,
-  ], { encoding: "utf8" });
+  ], { encoding: "utf8", env: approval.environment });
   if (result.status !== 0) {
     throw new Error(`Canonical fixture preflight failed: ${result.stderr || result.stdout}`);
   }
@@ -567,6 +1195,7 @@ function buildPassingEvidence(root, candidateId) {
     candidatePath,
     evidencePath,
     preflightPath,
+    environment: approval.environment,
     candidate: {
       candidateId,
       artifactPath: "candidate.mp4",
@@ -657,10 +1286,12 @@ function preflightIntegration() {
     const generatedAt = "2026-07-29T22:00:00.000Z";
     const candidateId = "synthetic-system-fixture-v1";
     const artifacts = [];
-    const addArtifact = (artifactId, type, name, mediaType, content) => {
+    const addArtifact = (artifactId, type, name, mediaType, content, { existing = false } = {}) => {
       const path = join(root, name);
-      if (typeof content === "string") writeFileSync(path, content, "utf8");
-      else writeJson(path, content);
+      if (!existing) {
+        if (typeof content === "string") writeFileSync(path, content, "utf8");
+        else writeJson(path, content);
+      }
       const artifact = {
         artifactId,
         type,
@@ -677,6 +1308,28 @@ function preflightIntegration() {
     const build = addArtifact("build-manifest", "manifest", "build.json", "application/json", { synthetic: true });
     const config = addArtifact("configuration-manifest", "manifest", "configuration.json", "application/json", { locale: "en-US" });
     const environment = addArtifact("environment-manifest", "manifest", "environment.json", "application/json", { runtime: "synthetic" });
+    const acceleration = addArtifact("acceleration-manifest", "manifest", "media-acceleration.json", "application/json", {
+      schemaVersion: "1.0.0",
+      detectedAt: "2026-07-29T21:58:00.000Z",
+      mode: "cpu-fallback",
+      nvidia: { available: false, name: null, driverVersion: null, cudaVersion: null, memoryMiB: null },
+      ffmpeg: { available: true, nvencEncoders: [], usableNvencEncoders: [] },
+      inference: { engine: null, available: false, cudaUsable: false, detail: "Synthetic CPU fixture." },
+      selection: { videoEncoder: "libx264", mediaInferenceDevice: "cpu" },
+      fallbackReason: "Synthetic portable contract fixture intentionally exercises deterministic CPU fallback.",
+    });
+    const storyboardDocument = loadJson(join(pluginDir, "scripts", "storyboard.example.json"));
+    const storyboardArtifact = addArtifact("storyboard", "storyboard", "storyboard.json", "application/json", storyboardDocument);
+    const craftArtifacts = buildCanonicalCraftArtifacts(root, candidateId, storyboardDocument, addArtifact);
+    const captureManifestArtifact = craftArtifacts.captureManifest;
+    const captureEvidenceArtifact = craftArtifacts.captureEvidence;
+    const rawCaptureArtifact = craftArtifacts.rawCapture;
+    const approval = buildSignedScriptApproval(root, candidateId, storyboardDocument.episodeId, storyboardArtifact, addArtifact);
+    const scriptApprovalArtifact = approval.artifacts.receipt;
+    const scriptApprovalSignatureArtifact = approval.artifacts.signature;
+    const scriptArtifact = approval.artifacts.script;
+    const truthSheetArtifact = approval.artifacts.truthSheet;
+    const claimLedgerArtifact = approval.artifacts.claimLedger;
     const reportChecks = {
       mediaMetadata: ["artifact-completeness", "output-specifications"],
       framesAndContactSheets: ["asset-completeness"],
@@ -693,6 +1346,8 @@ function preflightIntegration() {
       technicalDelivery: ["checksums-provenance", "output-specifications"],
       claimVerification: ["names-dates-numbers-claims"],
       truthSheetVerification: ["names-dates-numbers-claims"],
+      scriptApprovalVerification: ["human-script-approval"],
+      craftContractValidation: ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas"],
     };
     const reportGenerators = {
       mediaMetadata: "product-demo-studio-technical-checks",
@@ -710,6 +1365,8 @@ function preflightIntegration() {
       technicalDelivery: "product-demo-studio-technical-checks",
       claimVerification: "repository-native-claim-validator",
       truthSheetVerification: "repository-native-truth-sheet-validator",
+      scriptApprovalVerification: "product-demo-studio-script-approval-validator",
+      craftContractValidation: "product-demo-studio-craft-contract-validator",
     };
     const reports = {};
     for (const [reportType, checkIds] of Object.entries(reportChecks)) {
@@ -723,13 +1380,42 @@ function preflightIntegration() {
           version: "1.0.0",
           command: `node synthetic-${reportType}-extractor.mjs`,
         },
-        inputs: [
-          {
-            artifactId: media.artifactId,
-            sha256: media.sha256,
+        inputs: (reportType === "craftContractValidation"
+          ? [storyboardArtifact, captureManifestArtifact, captureEvidenceArtifact, rawCaptureArtifact]
+          : reportType === "scriptApprovalVerification"
+            ? [scriptApprovalArtifact, scriptApprovalSignatureArtifact, scriptArtifact, truthSheetArtifact, claimLedgerArtifact, storyboardArtifact]
+            : [media]
+        ).map((artifact) => ({ artifactId: artifact.artifactId, sha256: artifact.sha256 })),
+        checks: checkIds.map((id) => ({
+          id,
+          passed: true,
+          evidenceArtifactIds: reportType === "scriptApprovalVerification"
+            ? [scriptApprovalArtifact, scriptApprovalSignatureArtifact, scriptArtifact, truthSheetArtifact, claimLedgerArtifact, storyboardArtifact]
+              .map((artifact) => artifact.artifactId)
+            : reportType === "craftContractValidation"
+            ? [id === "storyboard-craft-contract"
+              ? storyboardArtifact.artifactId
+              : id === "capture-manifest-craft-contract"
+                ? captureManifestArtifact.artifactId
+                : captureEvidenceArtifact.artifactId]
+            : [media.artifactId],
+        })),
+        ...(reportType === "craftContractValidation" ? {
+          measurements: [{
+            beatId: "reveal",
+            cursorLeadSeconds: 0.35,
+            actionToResultSeconds: 0.7,
+            resultToSpokenSeconds: 0.2,
+            resultHoldToCutSeconds: 1.4,
+            evidenceArtifactIds: [captureEvidenceArtifact.artifactId],
+          }],
+          sourceGeometry: {
+            width: 3840,
+            height: 2160,
+            rawCaptureArtifactId: rawCaptureArtifact.artifactId,
+            probe: "ffprobe",
           },
-        ],
-        checks: checkIds.map((id) => ({ id, passed: true, evidenceArtifactIds: ["media"] })),
+        } : {}),
         summary: { total: checkIds.length, passed: checkIds.length, failed: 0 },
         generatedAt,
       };
@@ -757,6 +1443,13 @@ function preflightIntegration() {
         source: { repository: "https://example.invalid/synthetic.git", revision: "0123456789abcdef", dirty: false },
         build: { buildId: "synthetic-build", manifest: { artifactId: build.artifactId, artifactPath: build.artifactPath, sha256: build.sha256 } },
         configuration: { manifest: { artifactId: config.artifactId, artifactPath: config.artifactPath, sha256: config.sha256 } },
+        capture: {
+          captureId: "synthetic-capture-001",
+          command: "playwright synthetic-final-capture",
+          rawCapture: { artifactId: rawCaptureArtifact.artifactId, artifactPath: rawCaptureArtifact.artifactPath, sha256: rawCaptureArtifact.sha256 },
+          startedAt: "2026-07-29T21:55:00.000Z",
+          completedAt: "2026-07-29T21:58:00.000Z",
+        },
         render: {
           renderId: "synthetic-render",
           renderer: "fixture",
@@ -766,6 +1459,11 @@ function preflightIntegration() {
             artifactId: environment.artifactId,
             artifactPath: environment.artifactPath,
             sha256: environment.sha256,
+          },
+          accelerationManifest: {
+            artifactId: acceleration.artifactId,
+            artifactPath: acceleration.artifactPath,
+            sha256: acceleration.sha256,
           },
           startedAt: "2026-07-29T21:59:00.000Z",
           completedAt: generatedAt,
@@ -782,7 +1480,7 @@ function preflightIntegration() {
       join(pluginDir, "scripts", "preflight.mjs"),
       "--evidence-package", evidencePath,
       "--out", preflightPath,
-    ], { encoding: "utf8" });
+    ], { encoding: "utf8", env: approval.environment });
     assert(result.status === 0, "preflight accepts a complete immutable synthetic evidence package");
     if (result.status !== 0) {
       console.error(result.stdout);
@@ -796,6 +1494,112 @@ function preflightIntegration() {
     const validationErrors = [];
     validate(schema, preflight, "$", schemaPath, schema, validationErrors);
     assert(validationErrors.length === 0, "generated preflight report conforms to preflight-report.schema.json");
+
+    const captureManifestPath = join(root, captureManifestArtifact.artifactPath);
+    const craftReportPath = join(root, reports.craftContractValidation.artifactPath);
+    const originalCaptureManifest = readFileSync(captureManifestPath);
+    const originalCraftReport = readFileSync(craftReportPath);
+    const partialCapture = loadJson(captureManifestPath);
+    partialCapture.pop();
+    writeJson(captureManifestPath, partialCapture);
+    const forgedCraftEvidence = structuredClone(evidencePackage);
+    const forgedCaptureArtifact = forgedCraftEvidence.artifacts.find((artifact) => artifact.artifactId === captureManifestArtifact.artifactId);
+    forgedCaptureArtifact.sha256 = sha(captureManifestPath);
+    forgedCaptureArtifact.bytes = statSync(captureManifestPath).size;
+    const forgedCraftReport = loadJson(craftReportPath);
+    forgedCraftReport.inputs.find((input) => input.artifactId === captureManifestArtifact.artifactId).sha256 = forgedCaptureArtifact.sha256;
+    writeJson(craftReportPath, forgedCraftReport);
+    const forgedCraftReportArtifact = forgedCraftEvidence.artifacts.find((artifact) => artifact.artifactId === reports.craftContractValidation.artifactId);
+    forgedCraftReportArtifact.sha256 = sha(craftReportPath);
+    forgedCraftReportArtifact.bytes = statSync(craftReportPath).size;
+    forgedCraftEvidence.reports.craftContractValidation.sha256 = forgedCraftReportArtifact.sha256;
+    writeJson(evidencePath, forgedCraftEvidence);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
+    ], { encoding: "utf8", env: approval.environment });
+    assert(result.status === 1, "preflight reruns the canonical craft validator and rejects a forged PASS report");
+    writeFileSync(captureManifestPath, originalCaptureManifest);
+    writeFileSync(craftReportPath, originalCraftReport);
+    writeJson(evidencePath, evidencePackage);
+
+    const postCaptureApproval = structuredClone(evidencePackage);
+    postCaptureApproval.provenance.capture.startedAt = "2026-07-29T21:40:00.000Z";
+    postCaptureApproval.provenance.capture.completedAt = "2026-07-29T21:49:00.000Z";
+    writeJson(evidencePath, postCaptureApproval);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
+    ], { encoding: "utf8", env: approval.environment });
+    assert(result.status === 1, "preflight rejects human script approval issued after immutable final capture started");
+    writeJson(evidencePath, evidencePackage);
+
+    const approvedScriptPath = join(root, scriptArtifact.artifactPath);
+    const scriptApprovalReportPath = join(root, reports.scriptApprovalVerification.artifactPath);
+    const originalApprovedScript = readFileSync(approvedScriptPath);
+    const originalScriptApprovalReport = readFileSync(scriptApprovalReportPath);
+    writeJson(approvedScriptPath, { candidateId, approved: false, substitutedAfterApproval: true });
+    const substitutedApprovalEvidence = structuredClone(evidencePackage);
+    const substitutedScriptArtifact = substitutedApprovalEvidence.artifacts.find((artifact) => artifact.artifactId === scriptArtifact.artifactId);
+    substitutedScriptArtifact.sha256 = sha(approvedScriptPath);
+    substitutedScriptArtifact.bytes = statSync(approvedScriptPath).size;
+    const substitutedApprovalReport = loadJson(scriptApprovalReportPath);
+    substitutedApprovalReport.inputs.find((input) => input.artifactId === scriptArtifact.artifactId).sha256 = substitutedScriptArtifact.sha256;
+    writeJson(scriptApprovalReportPath, substitutedApprovalReport);
+    const substitutedApprovalReportArtifact = substitutedApprovalEvidence.artifacts.find((artifact) => artifact.artifactId === reports.scriptApprovalVerification.artifactId);
+    substitutedApprovalReportArtifact.sha256 = sha(scriptApprovalReportPath);
+    substitutedApprovalReportArtifact.bytes = statSync(scriptApprovalReportPath).size;
+    substitutedApprovalEvidence.reports.scriptApprovalVerification.sha256 = substitutedApprovalReportArtifact.sha256;
+    writeJson(evidencePath, substitutedApprovalEvidence);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
+    ], { encoding: "utf8", env: approval.environment });
+    assert(result.status === 1, "preflight rejects catalog script bytes that differ from the signed approval receipt");
+    writeFileSync(approvedScriptPath, originalApprovedScript);
+    writeFileSync(scriptApprovalReportPath, originalScriptApprovalReport);
+    writeJson(evidencePath, evidencePackage);
+
+    const accelerationPath = join(root, acceleration.artifactPath);
+    const originalAcceleration = readFileSync(accelerationPath);
+    const inconsistentAcceleration = loadJson(accelerationPath);
+    inconsistentAcceleration.mode = "gpu-preferred";
+    inconsistentAcceleration.nvidia.available = true;
+    inconsistentAcceleration.ffmpeg.nvencEncoders = ["h264_nvenc"];
+    inconsistentAcceleration.ffmpeg.usableNvencEncoders = ["h264_nvenc"];
+    inconsistentAcceleration.selection.videoEncoder = "libx264";
+    writeJson(accelerationPath, inconsistentAcceleration);
+    const inconsistentAccelerationEvidence = structuredClone(evidencePackage);
+    const inconsistentAccelerationArtifact = inconsistentAccelerationEvidence.artifacts.find((artifact) => artifact.artifactId === acceleration.artifactId);
+    inconsistentAccelerationArtifact.sha256 = sha(accelerationPath);
+    inconsistentAccelerationArtifact.bytes = statSync(accelerationPath).size;
+    inconsistentAccelerationEvidence.provenance.render.accelerationManifest.sha256 = inconsistentAccelerationArtifact.sha256;
+    writeJson(evidencePath, inconsistentAccelerationEvidence);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
+    ], { encoding: "utf8", env: approval.environment });
+    assert(result.status === 1, "preflight rejects GPU-preferred mode when the selected execution paths are CPU-only");
+    writeFileSync(accelerationPath, originalAcceleration);
+    writeJson(evidencePath, evidencePackage);
+
+    const missingCraftEvidence = structuredClone(evidencePackage);
+    delete missingCraftEvidence.reports.craftContractValidation;
+    writeJson(evidencePath, missingCraftEvidence);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "preflight.mjs"),
+      "--evidence-package", evidencePath,
+      "--out", preflightPath,
+    ], { encoding: "utf8", env: approval.environment });
+    assert(result.status === 1, "preflight fails closed when craft-contract validation is absent");
+    writeJson(evidencePath, evidencePackage);
+
+    const missingScriptApproval = structuredClone(evidencePackage);
+    delete missingScriptApproval.reports.scriptApprovalVerification;
+    writeJson(evidencePath, missingScriptApproval);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "preflight.mjs"),
+      "--evidence-package", evidencePath,
+      "--out", preflightPath,
+    ], { encoding: "utf8", env: approval.environment });
+    assert(result.status === 1, "preflight fails closed when named-human script approval is absent");
+    writeJson(evidencePath, evidencePackage);
 
     const asrPath = join(root, "asrWordTimestamps.json");
     const originalAsr = readFileSync(asrPath);
@@ -812,7 +1616,7 @@ function preflightIntegration() {
       join(pluginDir, "scripts", "preflight.mjs"),
       "--evidence-package", evidencePath,
       "--out", preflightPath,
-    ], { encoding: "utf8" });
+    ], { encoding: "utf8", env: approval.environment });
     assert(result.status === 1, "preflight rejects an unregistered deterministic-report generator even when hashes match");
     writeFileSync(asrPath, originalAsr);
     writeJson(evidencePath, evidencePackage);
@@ -822,7 +1626,7 @@ function preflightIntegration() {
       join(pluginDir, "scripts", "preflight.mjs"),
       "--evidence-package", evidencePath,
       "--out", preflightPath,
-    ], { encoding: "utf8" });
+    ], { encoding: "utf8", env: approval.environment });
     assert(result.status === 1, "preflight rejects checksum and byte-count drift");
     const failed = loadJson(preflightPath);
     assert(failed.status === "FAIL" && failed.readyForIndependentReview === false,
@@ -1099,6 +1903,7 @@ function releaseDecisionIntegration() {
             startedAt: "2026-07-29T22:01:00.000Z",
             completedAt: "2026-07-29T22:02:00.000Z",
           },
+          reviewIntegrity: createReviewIntegrity(root, domain, executionTrust),
           evidencePackage: evidenceReference,
           summary: `Synthetic ${domain} independent review.`,
         };
@@ -1193,7 +1998,7 @@ function releaseDecisionIntegration() {
       writeJson(decisionPath, value);
       return spawnSync(process.execPath, [join(pluginDir, "scripts", "validate-release-decision.mjs"), decisionPath], {
         encoding: "utf8",
-        env: executionTrust.environment,
+        env: { ...executionTrust.environment, ...passingEvidence.environment },
       });
     };
 
@@ -1238,6 +2043,12 @@ function releaseDecisionIntegration() {
     }];
     remediate.decision = "REMEDIATE";
     remediate.remediationPlan = {
+      attempt: 1,
+      findingFamilyFingerprint: shaBytes(Buffer.from(JSON.stringify([{
+        category: "audio-captions-synchronization",
+        fixClassification: "narration-audio",
+      }]))),
+      priorDecisions: [],
       findingIds: ["PVF-AUDIO-SYNC-001"],
       assignmentPaths: ["remediation/audio-sync.json"],
     };
@@ -1248,6 +2059,19 @@ function releaseDecisionIntegration() {
       console.error(result.stdout);
       console.error(result.stderr);
     }
+    const relabeledFamily = structuredClone(remediate);
+    relabeledFamily.remediationPlan.findingFamilyFingerprint = "0".repeat(64);
+    result = run(relabeledFamily);
+    assert(result.status === 1, "release validator rejects a caller-renamed remediation family fingerprint");
+
+    const thirdAutomatedAttempt = structuredClone(remediate);
+    thirdAutomatedAttempt.remediationPlan.attempt = 3;
+    result = run(thirdAutomatedAttempt);
+    assert(result.status === 1, "release validator rejects a third automated remediation attempt");
+    const relabeledSecondAttempt = structuredClone(remediate);
+    relabeledSecondAttempt.remediationPlan.attempt = 2;
+    result = run(relabeledSecondAttempt);
+    assert(result.status === 1, "release validator rejects attempt two without an immutable prior decision lineage");
 
     const missingDisposition = structuredClone(remediate);
     missingDisposition.findingDispositions = [];
@@ -1385,7 +2209,7 @@ function releaseDecisionIntegration() {
       concreteFix: "Restore the immutable candidate artifact.",
       validationCommand: "node scripts/preflight.mjs --evidence-package evidence-package.json --out preflight.json",
     }];
-    failedPreflight.summary = { total: 16, passed: 15, failed: 1 };
+    failedPreflight.summary = { total: 20, passed: 19, failed: 1 };
     failedPreflight.status = "FAIL";
     failedPreflight.readyForIndependentReview = false;
     writeJson(failedPreflightPath, failedPreflight);
@@ -1486,6 +2310,7 @@ function publicationIntegration() {
     executionEnvironment = executionTrust.environment;
     const candidateId = "synthetic-publication-candidate-001";
     const passingEvidence = buildPassingEvidence(root, candidateId);
+    executionEnvironment = { ...executionEnvironment, ...passingEvidence.environment };
     const {
       candidatePath,
       evidencePath: evidencePackagePath,
@@ -1549,6 +2374,7 @@ function publicationIntegration() {
           startedAt: "2026-07-29T15:00:00.000Z",
           completedAt: "2026-07-29T15:05:00.000Z",
         },
+        reviewIntegrity: createReviewIntegrity(root, domain, executionTrust),
         evidencePackage: {
           artifactPath: "evidence-package.json",
           sha256: sha(evidencePackagePath),
@@ -1581,6 +2407,18 @@ function publicationIntegration() {
     runInvalidReview(
       receiptReferenceTamper,
       "review validator rejects execution-receipt reference checksum tampering",
+    );
+    const generatorReasoningLeak = structuredClone(storyReport);
+    generatorReasoningLeak.reviewIntegrity.generatorReasoningReceived = true;
+    runInvalidReview(
+      generatorReasoningLeak,
+      "review validator rejects generator reasoning in an independent reviewer context",
+    );
+    const calibrationReferenceTamper = structuredClone(storyReport);
+    calibrationReferenceTamper.reviewIntegrity.calibrationRecord.sha256 = "0".repeat(64);
+    runInvalidReview(
+      calibrationReferenceTamper,
+      "review validator rejects reviewer-calibration checksum tampering",
     );
     const signatureReferenceTamper = structuredClone(storyReport);
     signatureReferenceTamper.reviewer.executionReceipt.signature.bytes = 63;
@@ -1958,15 +2796,19 @@ function publicationIntegration() {
 }
 
 for (const schemaName of [
+  "calibration-review-result.schema.json",
   "execution-receipt.schema.json",
   "execution-host-trust.schema.json",
   "video-finding.schema.json",
+  "reviewer-calibration.schema.json",
   "review-report.schema.json",
+  "script-approval.schema.json",
   "release-decision.schema.json",
   "final-verification.schema.json",
   "release-evidence.schema.json",
   "remediation-assignment.schema.json",
   "delivery-spec.schema.json",
+  "media-acceleration.schema.json",
   "deterministic-report.schema.json",
   "evidence-package.schema.json",
   "preflight-report.schema.json",
@@ -1980,6 +2822,10 @@ schemaFixture("review-report.schema.json", "review-report.pass.json", true);
 schemaFixture("review-report.schema.json", "review-report.finding.json", true);
 schemaFixture("review-report.schema.json", "review-report.malformed-input.json", true);
 schemaFixture("review-report.schema.json", "review-report.invalid.json", false);
+schemaFixture("reviewer-calibration.schema.json", "reviewer-calibration.pass.json", true);
+schemaFixture("reviewer-calibration.schema.json", "reviewer-calibration.invalid.json", false);
+schemaFixture("script-approval.schema.json", "script-approval.pass.json", true);
+schemaFixture("script-approval.schema.json", "script-approval.invalid.json", false);
 schemaFixture("release-decision.schema.json", "release-decision.pass.json", true);
 schemaFixture("release-decision.schema.json", "release-decision.remediate.json", true);
 schemaFixture("release-decision.schema.json", "release-decision.invalid.json", false);
@@ -2001,6 +2847,7 @@ schemaFixture("interactive-deep-dive.schema.json", "interactive-deep-dive.pass.j
 schemaFixture("interactive-deep-dive.schema.json", "interactive-deep-dive.invalid.json", false);
 
 cli("validate-review-report.mjs", "review-report.invalid.json", 1);
+cli("validate-reviewer-calibration.mjs", "reviewer-calibration.invalid.json", 1);
 cli("validate-release-decision.mjs", "release-decision.invalid.json", 1);
 cli("validate-final-verification.mjs", "final-verification.invalid.json", 1);
 cli("validate-remediation-assignment.mjs", "remediation-assignment.pass.json", 0);
@@ -2008,6 +2855,9 @@ cli("validate-remediation-assignment.mjs", "remediation-assignment.invalid.json"
 cli("validate-interactive-deep-dive.mjs", "interactive-deep-dive.pass.json", 0);
 cli("validate-interactive-deep-dive.mjs", "interactive-deep-dive.invalid.json", 1);
 screencastChoreographyIntegration();
+reviewerCalibrationIntegration();
+scriptApprovalIntegration();
+mediaAccelerationIntegration();
 executionReceiptIntegration();
 preflightIntegration();
 realMediaIntegration();

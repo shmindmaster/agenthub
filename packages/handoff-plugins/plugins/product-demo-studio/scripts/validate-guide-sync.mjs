@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const expected = new Map([
-  ["skills/product-demo-studio/references/killer-demo-production-guide.md", "DB66F309E10523E3408C684E5D0CF7F1AF0F6A3CBEE2AF4F477ACD6B3175717A"],
+  ["skills/product-demo-studio/references/killer-demo-production-guide.md", "D78B68DDE35BDA0076BFF8DFF803AD4DA5D02CA88F29AB3B4C200EF7C4AF6853"],
   ["skills/product-demo-studio/references/Visual-Asset-Guide.md", "10FF70EB3006572BB1151919ED97A73CE8E4528B3DF19627C83D4BEF8FDAD159"]
 ]);
 const failures = [];
@@ -25,8 +25,8 @@ const manifests = [
   JSON.parse(await readFile(new URL(".devin-plugin/plugin.json", root), "utf8")),
   JSON.parse(await readFile(new URL(".qoder-plugin/plugin.json", root), "utf8"))
 ];
-if (manifests.some(manifest => manifest.version !== "1.3.1")) {
-  failures.push("All host-native plugin manifests must be version 1.3.1.");
+if (manifests.some(manifest => manifest.version !== "1.5.0")) {
+  failures.push("All host-native plugin manifests must be version 1.5.0.");
 }
 const visualSkill = await readFile(new URL("skills/product-demo-studio-visual-assets/SKILL.md", root), "utf8");
 if (!visualSkill.includes("name: product-demo-studio-visual-assets")) {

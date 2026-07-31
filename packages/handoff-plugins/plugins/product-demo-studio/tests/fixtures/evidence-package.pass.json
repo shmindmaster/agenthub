@@ -26,6 +26,17 @@
         "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
       }
     },
+    "capture": {
+      "captureId": "synthetic-capture-001",
+      "command": "playwright synthetic-final-capture",
+      "rawCapture": {
+        "artifactId": "raw-capture",
+        "artifactPath": "source/raw-capture.png",
+        "sha256": "1414141414141414141414141414141414141414141414141414141414141414"
+      },
+      "startedAt": "2026-07-29T14:52:00.000Z",
+      "completedAt": "2026-07-29T14:54:00.000Z"
+    },
     "render": {
       "renderId": "synthetic-render-001",
       "renderer": "synthetic-frame-renderer",
@@ -36,6 +47,11 @@
         "artifactPath": "manifests/render-environment.json",
         "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
       },
+      "accelerationManifest": {
+        "artifactId": "acceleration-manifest",
+        "artifactPath": "manifests/media-acceleration.json",
+        "sha256": "1313131313131313131313131313131313131313131313131313131313131313"
+      },
       "startedAt": "2026-07-29T14:55:00.000Z",
       "completedAt": "2026-07-29T14:58:00.000Z"
     }
@@ -45,6 +61,7 @@
     {"artifactId": "build-manifest", "type": "manifest", "artifactPath": "manifests/build.json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "mediaType": "application/json", "bytes": 128},
     {"artifactId": "configuration-manifest", "type": "manifest", "artifactPath": "manifests/configuration.json", "sha256": "2222222222222222222222222222222222222222222222222222222222222222", "mediaType": "application/json", "bytes": 128},
     {"artifactId": "render-environment", "type": "manifest", "artifactPath": "manifests/render-environment.json", "sha256": "3333333333333333333333333333333333333333333333333333333333333333", "mediaType": "application/json", "bytes": 128},
+    {"artifactId": "acceleration-manifest", "type": "manifest", "artifactPath": "manifests/media-acceleration.json", "sha256": "1313131313131313131313131313131313131313131313131313131313131313", "mediaType": "application/json", "bytes": 128},
     {"artifactId": "report-media-metadata", "type": "report", "artifactPath": "reports/media-metadata.json", "sha256": "4444444444444444444444444444444444444444444444444444444444444444", "mediaType": "application/json", "bytes": 128},
     {"artifactId": "report-frames-contact-sheets", "type": "report", "artifactPath": "reports/frames-contact-sheets.json", "sha256": "5555555555555555555555555555555555555555555555555555555555555555", "mediaType": "application/json", "bytes": 128},
     {"artifactId": "report-scene-boundaries", "type": "report", "artifactPath": "reports/scene-boundaries.json", "sha256": "6666666666666666666666666666666666666666666666666666666666666666", "mediaType": "application/json", "bytes": 128},
@@ -59,7 +76,12 @@
     {"artifactId": "report-browser-network", "type": "report", "artifactPath": "reports/browser-network.json", "sha256": "abababababababababababababababababababababababababababababababab", "mediaType": "application/json", "bytes": 128},
     {"artifactId": "report-technical-delivery", "type": "report", "artifactPath": "reports/technical-delivery.json", "sha256": "bcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbc", "mediaType": "application/json", "bytes": 128},
     {"artifactId": "report-claim-verification", "type": "report", "artifactPath": "reports/claim-verification.json", "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd", "mediaType": "application/json", "bytes": 128},
-    {"artifactId": "report-truth-sheet", "type": "report", "artifactPath": "reports/truth-sheet.json", "sha256": "dededededededededededededededededededededededededededededededede", "mediaType": "application/json", "bytes": 128}
+    {"artifactId": "report-truth-sheet", "type": "report", "artifactPath": "reports/truth-sheet.json", "sha256": "dededededededededededededededededededededededededededededededede", "mediaType": "application/json", "bytes": 128},
+    {"artifactId": "storyboard", "type": "storyboard", "artifactPath": "source/storyboard.json", "sha256": "1212121212121212121212121212121212121212121212121212121212121212", "mediaType": "application/json", "bytes": 128},
+    {"artifactId": "capture-manifest", "type": "capture-manifest", "artifactPath": "source/capture-manifest.json", "sha256": "3434343434343434343434343434343434343434343434343434343434343434", "mediaType": "application/json", "bytes": 128},
+    {"artifactId": "raw-capture", "type": "raw-capture", "artifactPath": "source/raw-capture.png", "sha256": "1414141414141414141414141414141414141414141414141414141414141414", "mediaType": "image/png", "bytes": 128},
+    {"artifactId": "report-craft-contract", "type": "report", "artifactPath": "reports/craft-contract.json", "sha256": "5656565656565656565656565656565656565656565656565656565656565656", "mediaType": "application/json", "bytes": 128},
+    {"artifactId": "report-script-approval", "type": "report", "artifactPath": "reports/script-approval.json", "sha256": "7878787878787878787878787878787878787878787878787878787878787878", "mediaType": "application/json", "bytes": 128}
   ],
   "reports": {
     "mediaMetadata": {"artifactId": "report-media-metadata", "artifactPath": "reports/media-metadata.json", "sha256": "4444444444444444444444444444444444444444444444444444444444444444", "candidateId": "synthetic-candidate-001", "reportType": "mediaMetadata", "status": "PASS", "generatedAt": "2026-07-29T14:59:00.000Z"},
@@ -76,7 +98,9 @@
     "browserNetwork": {"artifactId": "report-browser-network", "artifactPath": "reports/browser-network.json", "sha256": "abababababababababababababababababababababababababababababababab", "candidateId": "synthetic-candidate-001", "reportType": "browserNetwork", "status": "PASS", "generatedAt": "2026-07-29T14:59:00.000Z"},
     "technicalDelivery": {"artifactId": "report-technical-delivery", "artifactPath": "reports/technical-delivery.json", "sha256": "bcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbc", "candidateId": "synthetic-candidate-001", "reportType": "technicalDelivery", "status": "PASS", "generatedAt": "2026-07-29T14:59:00.000Z"},
     "claimVerification": {"artifactId": "report-claim-verification", "artifactPath": "reports/claim-verification.json", "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd", "candidateId": "synthetic-candidate-001", "reportType": "claimVerification", "status": "PASS", "generatedAt": "2026-07-29T14:59:00.000Z"},
-    "truthSheetVerification": {"artifactId": "report-truth-sheet", "artifactPath": "reports/truth-sheet.json", "sha256": "dededededededededededededededededededededededededededededededede", "candidateId": "synthetic-candidate-001", "reportType": "truthSheetVerification", "status": "PASS", "generatedAt": "2026-07-29T14:59:00.000Z"}
+    "truthSheetVerification": {"artifactId": "report-truth-sheet", "artifactPath": "reports/truth-sheet.json", "sha256": "dededededededededededededededededededededededededededededededede", "candidateId": "synthetic-candidate-001", "reportType": "truthSheetVerification", "status": "PASS", "generatedAt": "2026-07-29T14:59:00.000Z"},
+    "craftContractValidation": {"artifactId": "report-craft-contract", "artifactPath": "reports/craft-contract.json", "sha256": "5656565656565656565656565656565656565656565656565656565656565656", "candidateId": "synthetic-candidate-001", "reportType": "craftContractValidation", "status": "PASS", "generatedAt": "2026-07-29T14:59:00.000Z"},
+    "scriptApprovalVerification": {"artifactId": "report-script-approval", "artifactPath": "reports/script-approval.json", "sha256": "7878787878787878787878787878787878787878787878787878787878787878", "candidateId": "synthetic-candidate-001", "reportType": "scriptApprovalVerification", "status": "PASS", "generatedAt": "2026-07-29T14:59:00.000Z"}
   },
   "createdAt": "2026-07-29T14:59:30.000Z"
 }

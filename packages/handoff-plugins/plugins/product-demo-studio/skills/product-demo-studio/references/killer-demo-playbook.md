@@ -105,9 +105,17 @@ Segment fields:
 - Stage the hero moment with a beat of near-silence, a restrained push-in, at most one sound cue,
   and a readable hold. Do not give the episode a second competing reveal.
 - Let the cursor act intentionally: gesture, hesitate, trace, click, then park away from content.
+- Default deliberate pointer moves to 400–600ms with deceleration into the target. Settle at least
+  250ms before a click and hold at least 500ms after it. Use a 300–400ms restrained radial pulse
+  for clicks, a held state/trail for drags, native product feedback for hovers, and a reproducible
+  keystroke overlay for shortcut-driven changes. Scale the pointer 1.5–2× for mobile/embedded cuts;
+  never use a persistent follow-the-pointer spotlight.
 - Build dense screens progressively and preserve spatial continuity.
-- Use speed ramps as punctuation: real time for meaningful interaction, faster through boring but
-  bounded middle steps, real time again for payoff.
+- Snap to an active region over 300–500ms, hold through the action, and pull back only when context
+  is useful. Allow at most one zoom change per beat and no continuous drift over UI.
+- Use speed ramps as punctuation: real time for meaningful interaction, 4–8× or a truthful cut for
+  bounded waits, 3–4× or chunked entry for text, and real time again for payoff. Never edit away a
+  latency, feedback, or product defect that the viewer needs to understand.
 - Use kinetic type for at most the one number that expresses the transformation.
 - Seed a coherent synthetic mini-story with specific, believable values. Label synthetic claims
   and verify every visible value against the truth sheet.
@@ -135,6 +143,7 @@ Fail closed after full-playback and representative-frame review unless all are t
 - the before-state is shown, and the payoff reaches the outcome or identity WIIFM rung;
 - every segment has one WIIFM and one idea;
 - no uncut dead time remains, and attention changes at least about every 10–15 seconds;
+- text annotations remain visible for at least `word count / 2.5 + 0.5 seconds`;
 - results land in deliberate near-silence;
 - voice is conversational, varied, correctly pronounced, and not wall-to-wall;
 - final frames are stable, legible at delivery size, and free of occlusion;

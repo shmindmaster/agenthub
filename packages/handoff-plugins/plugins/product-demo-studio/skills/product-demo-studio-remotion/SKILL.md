@@ -208,16 +208,28 @@ validation.
   control action, visible state transition, annotation, and narration must use the storyboard and
   capture-manifest offsets. Reject decorative cursor motion, unexplained teleporting, click cues
   without a corresponding state change, and narration that names a result before it appears.
+- Render deliberate pointer moves over 400–600ms with deceleration into the target. Settle at least
+  250ms before clicks and hold at least 500ms after; use a restrained 300–400ms radial pulse for a
+  click, held/trail feedback for a drag, the native product state for hover, and a reproducible
+  keystroke overlay for shortcuts. Scale the cursor 1.5–2× for small delivery and never add a
+  persistent follow-the-pointer spotlight.
 - Maximize useful UI: remove extraneous browser/OS chrome at capture, collapse irrelevant
   navigation through real product controls, and crop/push-in/recompose so the active region
   occupies at least half of the usable delivered frame. Preserve enough surrounding product
   context to keep the interaction truthful.
 - Use real time for meaningful interaction, speed-ramp bounded boring steps, and return to real time
-  for payoff. Change pace, sound, zoom, text, or framing about every 10–15 seconds without becoming
-  frenetic.
+  for payoff. Bounded waits may be cut or accelerated 4–8× only with the declared truthful latency
+  treatment; text entry must be chunked or accelerated 3–4×. Snap to an active region over
+  300–500ms, hold through the action, permit at most one zoom change per beat, and prohibit camera
+  drift over UI. Hold text annotations for at least `word count / 2.5 + 0.5 seconds`. Change pace,
+  sound, zoom, text, or framing about every 10–15 seconds without becoming frenetic.
 - Use kinetic type only for the one verified number that expresses the transformation.
 - Recompose vertical and square variants around the active region; captions stay primary for muted
   social viewing. Design the thumbnail/first frame and the final outcome/next-step card.
+- When ingesting repository-native event logs or CDP frames, follow
+  [repository-native-capture-compositor-patterns.md](../product-demo-studio/references/repository-native-capture-compositor-patterns.md):
+  variable-rate source frames require monotonic timestamps and deterministic resampling, nearby
+  in-frame actions may extend one hold rather than pump the camera, and unlogged edits are invalid.
 
 ## Generated imagery never invents product truth
 

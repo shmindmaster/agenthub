@@ -5,6 +5,27 @@ not for every product video. Product Demo Studio owns the truthful media, claim 
 contract, and immutable review package. Product Experience Engineering or the target repository's
 frontend owner implements the page in that repository's native stack.
 
+## Choose the lightest useful interactive form
+
+Rank the options by the audience's need, repository ownership, maintenance cost, and privacy risk:
+
+1. A verified DOM-backed click-through when self-paced exploration and per-step analytics matter.
+2. A short video hero with the verified interactive proof below it when persuasion and depth are
+   both required.
+3. An in-product guided tour in an isolated synthetic sandbox when product fidelity justifies its
+   higher maintenance cost.
+4. A chaptered video when deterministic navigation is enough and an interactive runtime adds no
+   material value.
+
+These are delivery strategies, not mandated vendors or new AgentHub runtimes. Reuse an existing
+repository-native implementation before adding a dependency.
+
+DOM record/replay systems such as rrweb may be evaluated as an implementation substrate, but are
+never an automatic dependency. The target repository must own the implementation, pin and review
+the dependency, record capture/replay provenance, use synthetic data, filter secrets and personal
+content, define consent/retention, block external side effects, and validate replay against current
+product behavior. Cross-origin, private, regulated, or credential-bearing sessions are ineligible.
+
 ## What is worth preserving
 
 - Route two to four meaningful personas through one operational narrative. Reuse shared scenes;

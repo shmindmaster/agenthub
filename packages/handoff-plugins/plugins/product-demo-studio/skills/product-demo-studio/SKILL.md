@@ -69,22 +69,31 @@ their own product-specific pipeline and data boundaries.
    annotations, explicit cursor/click/typing/scroll choreography, screen-space/framing treatment,
    captions, sound, and validation assertions. Each meaningful product beat must read as a real
    guided screencast: the pointer leads the eye, the real action occurs, the state changes, and
-   only then does narration name the result. Enforce a five-to-
+   only then does narration name the result. Encode the mechanical craft contract: 400–600ms
+   eased pointer moves, click settle/hold and radial-pulse feedback, interaction-specific drag/
+   hover/shortcut cues, one 300–500ms snap-to-region change per beat, truthful wait/text-entry
+   treatment, and annotation reading time. Enforce a five-to-
    eight-second hook, no login/generic introduction, one idea per beat, no feature tour, one
    protected hero moment, purposeful pauses/result holds, mobile-readable framing, no long
    inactive interval, and evidence-linked claims. Validate with `validate-storyboard.mjs` and
-   `validate-claims.mjs`.
+   `validate-claims.mjs`. A named human must approve the exact script/truth/claim artifact hashes
+   before final capture; validate the detached signature with `validate-script-approval.mjs` and
+   include its `scriptApprovalVerification` report in preflight. This gate is not delegated to a
+   generation or review agent.
 3. **Prepare and capture product state** — use `agents/capture-product-state-generator.md` and
    `product-demo-studio-capture`. Verify synthetic seed data, roles, dates, and visible values;
    establish a deterministic browser environment; validate the workflow once in a native browser
    when needed; then encode repository-owned Playwright coverage. Record browser playback,
    console/network/assertion, reset, redaction, selector, geometry, screen-space utilization,
-   pointer/action/narration synchronization, and capture evidence. Prefer page-only capture or
+    pointer/action/narration synchronization, and capture evidence. Prefer page-only capture or
    native-browser fullscreen, remove extraneous browser/OS chrome, collapse irrelevant navigation
    through real product controls, and plan a crop/push-in/recomposition whenever the active region
-   would occupy less than half of the delivered frame. Fail on a
-   broken, unstable, manually dependent, fabricated, unauthorized, or truth-sheet-inconsistent
-   workflow.
+   would occupy less than half of the delivered frame. Capture with device scale factor >=2 and
+   derive effective delivery density from viewport, delivered crop, and delivery dimensions; never
+   upscale a crop. Record browser zoom as 100%, or a justified 110–125%. Fail on a
+    broken, unstable, manually dependent, fabricated, unauthorized, or truth-sheet-inconsistent
+    workflow. Record immutable final-capture `startedAt`/`completedAt`, command, capture ID, and the
+    checksum-bound raw-capture reference; script approval must precede that captured start time.
 4. **Generate narration and audio** — use `agents/narration-audio-generator.md` and
    `product-demo-studio-narration`. Produce exact narration, pronunciation rules, word timestamps,
    captions, loudness-normalized audio, ducking, disclosures, provider/voice provenance, and
@@ -94,19 +103,33 @@ their own product-specific pipeline and data boundaries.
    reproducible native pipeline. For Remotion, load current Remotion guidance before changes, use
    frame-driven APIs and Remotion media components, keep inputs source-controlled, and validate
    the final render rather than only Studio preview. Own framing, zooms, annotations, cursor,
-   captions, pacing, sound, platform variants, still-frame validation, and full provenance.
+   captions, pacing, sound, platform variants, still-frame validation, and full provenance. Run
+   `detect-media-acceleration.mjs` before media work. Prefer a compatible GPU for encoding, ASR,
+   OCR, local media inference, and GPU composition effects; record the selected device, driver,
+   encoder, and inference device in the acceleration manifest. CPU fallback is allowed only with
+   a recorded compatibility reason and equivalent output validation. A GPU path is eligible only
+   after its encoder or CUDA inference runtime passes a functional probe; detection alone is not
+   sufficient. Local GPU availability does
+   not change the coding agent's provider runtime or reasoning model.
    Interactive workflow beats must remain continuous screencast motion, not a slideshow of
    disconnected screenshots or a decorative cursor moving over a state that never changed.
 6. **Preflight and evidence** — create a new immutable candidate and complete evidence package,
+   including checksum-bound storyboard/capture contract validation and per-beat timing deltas,
    then use `agents/automated-preflight.md` and `scripts/preflight.mjs`. Deterministic failures
    return to the responsible generator. Independent review cannot start until preflight passes.
 7. **Review and arbitrate** — use `product-demo-studio-qa` to run the four isolated read-only
    reviewers, validate the shared finding schema, and run a separate read-only Release Arbiter.
-   Valid decisions are `PASS`, `REMEDIATE`, `PRODUCT_BLOCKED`, or `PIPELINE_BLOCKED`.
+   Reviewers load the canonical rubric and tightening-only vertical overlay directly, never receive
+   generator reasoning or self-assessment, and cite evidence for every pass and fail. Valid decisions
+   are `PASS`, `REMEDIATE`, `PRODUCT_BLOCKED`, or `PIPELINE_BLOCKED`.
 8. **Remediate and repeat** — validated, least-privilege assignments route findings by independent
    subsystem. Any relevant product/data/source/media/configuration/environment change requires a
    new candidate, regenerated evidence, fresh affected-domain reviews, mandatory technical/sync/
-   accuracy/privacy/compliance reruns, and a new arbiter decision.
+   accuracy/privacy/compliance reruns, and a new arbiter decision. Automated capture-fix loops are
+   capped at two attempts; an unresolved third pass is reclassified as a documented blocker.
+   Remediation-family identity is a SHA-256 fingerprint derived from stable accepted-finding
+   category/fix-classification routing pairs, never IDs, mutable review wording, or a caller-selected
+   label; prior decisions must carry the same fingerprint.
 9. **Mandatory final independent review and verification, then deliver and measure** — after
    arbiter `PASS`, dispatch `agents/final-verifier.md` as the mandatory terminal independent
    reviewer and verifier in a fresh read-only context. It rechecks the final bytes, reports,

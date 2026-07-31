@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/script-approval.schema.json",
+  "title": "Product Video Human Script Approval",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "decision",
+    "candidateId",
+    "episodeId",
+    "approver",
+    "approverPublicKeySha256",
+    "approvedAt",
+    "finalCaptureInput",
+    "artifacts"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "receiptId": { "type": "string", "pattern": "^PVS-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$" },
+    "decision": { "const": "APPROVED" },
+    "candidateId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "episodeId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "approver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "method"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "method": { "const": "detached-ed25519" }
+      }
+    },
+    "approverPublicKeySha256": { "$ref": "#/$defs/sha256" },
+    "approvedAt": { "type": "string", "format": "date-time" },
+    "finalCaptureInput": { "$ref": "#/$defs/artifactReference" },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["script", "truthSheet", "claimLedger"],
+      "properties": {
+        "script": { "$ref": "#/$defs/artifactReference" },
+        "truthSheet": { "$ref": "#/$defs/artifactReference" },
+        "claimLedger": { "$ref": "#/$defs/artifactReference" }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactPath", "sha256"],
+      "properties": {
+        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

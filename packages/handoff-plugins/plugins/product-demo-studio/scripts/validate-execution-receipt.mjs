@@ -296,7 +296,7 @@ const required = [
   "completedAt",
   "issuedAt",
 ];
-if (receipt && exactObject(receipt, "$", required, ["domain"])) {
+if (receipt && exactObject(receipt, "$", required, ["domain", "inputArtifactSha256", "resultPayloadSha256"])) {
   if (receipt.schemaVersion !== "1.0.0") fail("$.schemaVersion", 'must equal "1.0.0".');
   if (typeof receipt.receiptId !== "string" || !RECEIPT_ID.test(receipt.receiptId)) {
     fail("$.receiptId", "must be a canonical PVE execution-receipt identifier.");
@@ -310,6 +310,11 @@ if (receipt && exactObject(receipt, "$", required, ["domain"])) {
   }
   for (const field of ["contextId", "candidateId", "hostId", "hostKeyId"]) {
     safeId(receipt[field], `$.${field}`);
+  }
+  for (const field of ["inputArtifactSha256", "resultPayloadSha256"]) {
+    if (Object.hasOwn(receipt, field) && (typeof receipt[field] !== "string" || !SHA256.test(receipt[field]))) {
+      fail(`$.${field}`, "must be a lowercase SHA-256 digest.");
+    }
   }
   if (!MECHANISMS.has(receipt.mechanism)) {
     fail("$.mechanism", "must identify a supported host-enforced read-only mechanism.");

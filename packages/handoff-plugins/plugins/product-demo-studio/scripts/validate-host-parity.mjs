@@ -49,7 +49,7 @@ const eligible = new Set(parity.conditionallyEligibleReviewHosts ?? []);
 for (const host of eligible) {
   if (!expectedHosts.includes(host)) failures.push(`conditionally eligible host ${host} is not mapped`);
 }
-if (parity.capabilityVersion !== "1.3.1" ||
+if (parity.capabilityVersion !== "1.5.0" ||
     parity.equivalentContract?.unsupportedIsolationDecision !== "PIPELINE_BLOCKED" ||
     parity.executionRule?.liveRunMustRecordNativeReadOnlyEnforcement !== true ||
     parity.executionRule?.promptOnlyOrBroadWriteContextMayRelease !== false ||
@@ -64,6 +64,10 @@ const contractPaths = [
   parity.equivalentContract?.canonicalPolicy,
   parity.equivalentContract?.findingSchema,
   parity.equivalentContract?.reviewSchema,
+  parity.equivalentContract?.reviewerCalibrationSchema,
+  parity.equivalentContract?.calibrationReviewResultSchema,
+  parity.equivalentContract?.scriptApprovalSchema,
+  parity.equivalentContract?.mediaAccelerationSchema,
     parity.equivalentContract?.decisionSchema,
     parity.equivalentContract?.finalVerificationSchema,
     parity.equivalentContract?.executionReceiptSchema,

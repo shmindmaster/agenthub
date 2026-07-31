@@ -15,6 +15,8 @@ if (!inputArg || process.argv.length !== 3) {
 const inputPath = resolve(inputArg);
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const executionReceiptValidatorPath = resolve(scriptDir, "validate-execution-receipt.mjs");
+const reviewerCalibrationValidatorPath = resolve(scriptDir, "validate-reviewer-calibration.mjs");
+const productPolicy = JSON.parse(readFileSync(resolve(scriptDir, "..", "policy", "product-video-policy.json"), "utf8"));
 
 const DOMAINS = new Set([
   "story-experience",
@@ -235,6 +237,86 @@ function artifactReference(value, path, withDescription = false) {
   sha(value.sha256, `${path}.sha256`);
 }
 
+function materializedArtifactReference(value, path) {
+  if (!exactObject(value, path, ["artifactPath", "sha256"])) return undefined;
+  nonEmpty(value.artifactPath, `${path}.artifactPath`);
+  sha(value.sha256, `${path}.sha256`);
+  if (typeof value.artifactPath !== "string" || value.artifactPath.trim().length === 0) return undefined;
+  const absolutePath = resolve(dirname(inputPath), value.artifactPath);
+  if (!existsSync(absolutePath) || !statSync(absolutePath).isFile()) {
+    fail(`${path}.artifactPath`, `does not reference an existing file (${absolutePath}).`);
+    return undefined;
+  }
+  const bytes = readFileSync(absolutePath);
+  const actualSha = createHash("sha256").update(bytes).digest("hex");
+  if (value.sha256 !== actualSha) fail(`${path}.sha256`, `does not match the file (actual ${actualSha}).`);
+  return { absolutePath, bytes, sha256: actualSha };
+}
+
+function validateReviewIntegrity(value, path, reviewer) {
+  if (!exactObject(value, path, [
+    "canonicalRubric",
+    "verticalOverlay",
+    "calibrationRecord",
+    "modelId",
+    "generatorReasoningReceived",
+    "priorReviewsReceived",
+  ])) return;
+  const rubric = materializedArtifactReference(value.canonicalRubric, `${path}.canonicalRubric`);
+  const overlay = value.verticalOverlay === null
+    ? null
+    : materializedArtifactReference(value.verticalOverlay, `${path}.verticalOverlay`);
+  const calibrationArtifact = materializedArtifactReference(value.calibrationRecord, `${path}.calibrationRecord`);
+  nonEmpty(value.modelId, `${path}.modelId`);
+  if (value.generatorReasoningReceived !== false) {
+    fail(`${path}.generatorReasoningReceived`, "must be false; generators may not pass reasoning or self-assessment to reviewers.");
+  }
+  if (value.priorReviewsReceived !== false) {
+    fail(`${path}.priorReviewsReceived`, "must be false; isolated reviewers may not receive sibling review reports.");
+  }
+  if (!calibrationArtifact) return;
+
+  const validation = spawnSync(process.execPath, [reviewerCalibrationValidatorPath, calibrationArtifact.absolutePath], {
+    encoding: "utf8",
+  });
+  if (validation.status !== 0) {
+    fail(`${path}.calibrationRecord`, `fails canonical validation: ${(validation.stderr || validation.stdout).trim()}`);
+    return;
+  }
+  let calibration;
+  try {
+    calibration = JSON.parse(calibrationArtifact.bytes.toString("utf8"));
+  } catch (error) {
+    fail(`${path}.calibrationRecord.artifactPath`, `must contain valid JSON: ${error.message}`);
+    return;
+  }
+  if (calibration.reviewDomain !== reviewer?.domain) {
+    fail(`${path}.calibrationRecord`, `review domain ${JSON.stringify(calibration.reviewDomain)} must equal ${JSON.stringify(reviewer?.domain)}.`);
+  }
+  if (calibration.modelId !== value.modelId) {
+    fail(`${path}.modelId`, `must equal calibrated model ${JSON.stringify(calibration.modelId)}.`);
+  }
+  if (rubric && calibration.canonicalRubric?.sha256 !== rubric.sha256) {
+    fail(`${path}.canonicalRubric.sha256`, "must equal the canonical rubric hash in the calibration record.");
+  }
+  const calibratedOverlaySha = calibration.verticalOverlay?.sha256 ?? null;
+  const reviewOverlaySha = overlay?.sha256 ?? null;
+  if (calibratedOverlaySha !== reviewOverlaySha) {
+    fail(`${path}.verticalOverlay`, "must match the exact vertical-overlay hash used for calibration.");
+  }
+  const calibratedAt = Date.parse(calibration.completedAt);
+  const reviewStartedAt = Date.parse(reviewer?.startedAt);
+  if (Number.isFinite(calibratedAt) && Number.isFinite(reviewStartedAt)) {
+    if (calibratedAt > reviewStartedAt) fail(`${path}.calibrationRecord`, "must be completed before review starts.");
+    const maximumAgeDays = productPolicy.calibrationPolicy?.maximumAgeDays;
+    if (!Number.isInteger(maximumAgeDays) || maximumAgeDays < 1) {
+      fail(`${path}.calibrationRecord`, "canonical policy does not define a valid calibration maximum age.");
+    } else if (reviewStartedAt - calibratedAt > maximumAgeDays * 24 * 60 * 60 * 1000) {
+      fail(`${path}.calibrationRecord`, `is older than the canonical ${maximumAgeDays}-day limit at review start.`);
+    }
+  }
+}
+
 function validateCandidate(value, path) {
   if (!exactObject(value, path, ["candidateId", "artifactPath", "sha256", "sourceRevision", "renderProvenanceId"])) return;
   matches(value.candidateId, SAFE_ID, `${path}.candidateId`, "a safe candidate identifier");
@@ -331,6 +413,7 @@ const rootRequired = [
   "status",
   "candidate",
   "reviewer",
+  "reviewIntegrity",
   "evidencePackage",
   "summary",
 ];
@@ -371,6 +454,7 @@ if (exactObject(report, "$", rootRequired, rootOptional)) {
       completedAt: report.reviewer.completedAt,
     });
   }
+  validateReviewIntegrity(report.reviewIntegrity, "$.reviewIntegrity", report.reviewer);
   artifactReference(report.evidencePackage, "$.evidencePackage");
   nonEmpty(report.summary, "$.summary");
 

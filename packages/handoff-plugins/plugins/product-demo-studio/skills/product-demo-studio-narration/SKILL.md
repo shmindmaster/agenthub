@@ -184,6 +184,9 @@ don't need here (the script never sets it).
 Narration is approved *before* final capture, and its measured per-segment durations drive the
 recording plan — not the other way around. When aligning audio and video:
 
+- Synthesize and cache approved narration outside the recorded browser session. Provider/API
+  latency is pipeline time, never a product wait to capture and speed-ramp.
+
 - The screen state must appear *before* the narration describes it; don't announce an action
   substantially before it happens.
 - Treat each interactive beat as a guided screencast sequence: pointer lead → real action →
@@ -198,6 +201,17 @@ recording plan — not the other way around. When aligning audio and video:
 - Mux from the measured per-segment timeline offsets, never by eyeballing. See
   `product-demo-studio-render` for the pre-mux checks and `product-demo-studio-remotion`'s
   `calculateMetadata` for sizing scenes from real audio duration.
+- When any wait, text entry, or cut remaps source time, emit one monotonic source-to-output time map
+  and use it for narration, word timestamps, captions, actions, zooms, and evidence boundaries.
+  Reject overlapping or out-of-order mapped intervals; never let audio and video perform separate
+  time-remapping math.
+- Preserve the storyboard's declared final video duration during mux. Do not use a shortest-stream
+  shortcut that can truncate the closing hold or end card, and validate the muxed final bytes.
+
+An offline silence or synthetic-tone timing proxy may exercise a no-network smoke test, but it is
+not narration evidence and can never pass Audio/Captions/Synchronization or release. A release
+candidate requires the approved voice, word timestamps, captions, pronunciation map, loudness/
+clipping evidence, and exact current audio checksums.
 
 ## Wiring generated audio into the composition
 

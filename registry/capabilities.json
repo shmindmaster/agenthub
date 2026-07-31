@@ -146,7 +146,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp",
       "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/handoff-plugins/plugins/product-demo-studio",
-      "contentHash": "B54AB0CF4E712035B7D8E46AC4D1C20DCE03B467790D056355A6D66837E1F484",
+      "contentHash": "D322881E134331E8E50CABF79F9B88B4473B78EE097C4841534BF406C9CD3DA8",
       "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\handoff-plugins\\plugins\\product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [

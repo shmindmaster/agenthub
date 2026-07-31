@@ -28,6 +28,20 @@
     "startedAt": "2026-07-29T15:00:00.000Z",
     "completedAt": "2026-07-29T15:00:01.000Z"
   },
+  "reviewIntegrity": {
+    "canonicalRubric": {
+      "artifactPath": "skills/product-demo-studio/references/killer-demo-playbook.md",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "verticalOverlay": null,
+    "calibrationRecord": {
+      "artifactPath": "evidence/reviewer-calibration.json",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    "modelId": "synthetic-reviewer-model",
+    "generatorReasoningReceived": false,
+    "priorReviewsReceived": false
+  },
   "evidencePackage": {
     "artifactPath": "evidence/evidence-package.json",
     "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

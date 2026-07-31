@@ -26,6 +26,11 @@ For an Episode Architect/readiness block before a candidate exists, write an evi
 evidence-backed early `PIPELINE_BLOCKED` decision. Do not fabricate a candidate or four reviews
 for either path. Any `MALFORMED_INPUT` reviewer state forces `PIPELINE_BLOCKED`.
 
+Require a current successful reviewer-calibration record bound to the installed plugin, rubric,
+vertical-overlay, model, and evidence-contract hashes. Confirm reviewers loaded canonical policy
+directly and did not receive generator reasoning or prior reviews. Missing/stale calibration or an
+unevidenced pass forces `PIPELINE_BLOCKED`.
+
 Load `policy/product-video-policy.json` as the single threshold authority and bind the decision to
 its exact path, version, and SHA-256. Do not duplicate policy constants.
 
@@ -45,5 +50,15 @@ Return exactly one decision:
 - `PIPELINE_BLOCKED` when required tooling, evidence, environment, or reproducibility is unavailable.
 
 Route each retained finding to the smallest coherent subsystem. Produce a least-privilege remediation plan whose assignments conform to `schemas/remediation-assignment.schema.json`. Create or update Linear only for deduplicated product-level defects, never for personal AgentHub capability work or ordinary video edits.
+
+Never authorize more than two automated capture-fix attempts for the same finding family; after the
+second failed new candidate, reclassify the unresolved condition as `PRODUCT_BLOCKED` or
+`PIPELINE_BLOCKED` from evidence. For `REMEDIATE`, set `remediationPlan.attempt` to 1 or 2; a third
+automated attempt is schema-invalid. Bind the finding-family fingerprint and every preceding validated
+REMEDIATE decision; attempt 2 without the prior immutable candidate/decision lineage is invalid.
+The family value is not a label: compute `findingFamilyFingerprint` as the canonical validator does
+from the sorted unique accepted-finding category/fix-classification routing pairs. Finding IDs and
+expected/observed wording are deliberately excluded because they can change after rerender. A
+caller-selected or renamed family value is invalid.
 
 Write one JSON document conforming to `schemas/release-decision.schema.json`. Do not sign the separate human external-publication attestation.

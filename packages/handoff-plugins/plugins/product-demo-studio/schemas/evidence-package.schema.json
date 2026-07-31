@@ -44,6 +44,7 @@
         "source",
         "build",
         "configuration",
+        "capture",
         "render"
       ],
       "properties": {
@@ -95,6 +96,36 @@
             }
           }
         },
+        "capture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "captureId",
+            "command",
+            "rawCapture",
+            "startedAt",
+            "completedAt"
+          ],
+          "properties": {
+            "captureId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "command": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "rawCapture": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "startedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "completedAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
         "render": {
           "type": "object",
           "additionalProperties": false,
@@ -104,6 +135,7 @@
             "pipelineVersion",
             "command",
             "environmentManifest",
+            "accelerationManifest",
             "startedAt",
             "completedAt"
           ],
@@ -121,6 +153,9 @@
               "$ref": "#/$defs/nonEmptyString"
             },
             "environmentManifest": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "accelerationManifest": {
               "$ref": "#/$defs/artifactReference"
             },
             "startedAt": {
@@ -166,6 +201,13 @@
               "log",
               "truth-sheet",
               "claim-ledger",
+              "script",
+              "script-approval",
+              "signature",
+              "storyboard",
+              "capture-manifest",
+              "capture-evidence",
+              "raw-capture",
               "other"
             ]
           },
@@ -203,7 +245,9 @@
         "browserNetwork",
         "technicalDelivery",
         "claimVerification",
-        "truthSheetVerification"
+        "truthSheetVerification",
+        "scriptApprovalVerification",
+        "craftContractValidation"
       ],
       "properties": {
         "mediaMetadata": {
@@ -415,6 +459,34 @@
               }
             }
           ]
+        },
+        "craftContractValidation": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "craftContractValidation"
+                }
+              }
+            }
+          ]
+        },
+        "scriptApprovalVerification": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/deterministicReportReference"
+            },
+            {
+              "properties": {
+                "reportType": {
+                  "const": "scriptApprovalVerification"
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -499,7 +571,9 @@
             "browserNetwork",
             "technicalDelivery",
             "claimVerification",
-            "truthSheetVerification"
+            "truthSheetVerification",
+            "scriptApprovalVerification",
+            "craftContractValidation"
           ]
         },
         "status": {

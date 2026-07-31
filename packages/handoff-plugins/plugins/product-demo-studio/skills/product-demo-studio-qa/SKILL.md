@@ -87,6 +87,14 @@ node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/technical-checks.mjs" \
   --artifact-id <media-artifact-id> \
   --deterministic-out <evidence-dir>/deterministic
 
+node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/validate-craft-contracts.mjs" \
+  --candidate-id <candidate-id> \
+  --storyboard <storyboard.json> --storyboard-artifact-id <storyboard-artifact-id> \
+  --capture-manifest <capture-manifest.json> --capture-artifact-id <capture-manifest-artifact-id> \
+  --capture-evidence <playwright-capture-evidence.json> --capture-evidence-artifact-id <capture-evidence-artifact-id> \
+  --raw-capture <raw-capture.mp4> --raw-capture-artifact-id <raw-capture-artifact-id> \
+  --out <evidence-dir>/deterministic/craft-contract-validation.json
+
 node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/preflight.mjs" \
   --evidence-package <evidence-package.json> --out <preflight-report.json>
 ```
@@ -94,8 +102,14 @@ node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/preflight.mjs" \
 Preflight fails on missing artifacts; script/narration/ASR/caption or claim differences; wrong
 names, dates, numbers, values, or states; caption overflow/obstruction/speed/safe-area failures;
 loudness, clipping, artifact, ducking, or unintended-silence failures; black/frozen/duplicate/
-corrupt frames; browser, console, network, capture, asset, font, decode, or render errors; invalid
-output specifications; or incomplete/mismatched checksums and provenance.
+corrupt frames; missing/invalid storyboard or capture craft contracts; incomplete episode/segment
+coverage; missing per-beat timing deltas; unprobed or unbound raw-capture geometry; browser,
+console, network, capture, asset, font, decode, or render errors; invalid output
+specifications; incomplete/mismatched checksums and provenance; script approval after immutable
+final-capture start; or GPU selections that do not match functional encode/inference probes.
+Preflight reruns `validate-craft-contracts.mjs` and `validate-script-approval.mjs` from the bound
+artifact paths and requires every signed receipt path/hash to equal the corresponding evidence-
+package catalog artifact; a generator-authored PASS report cannot substitute for those checks.
 
 Route failures to the responsible generator. Do not dispatch reviewers until preflight passes.
 
@@ -114,6 +128,22 @@ Use packaged agents when the host supports enforceable read-only contexts. Other
 independent read-only subagent contexts from these files. If host capacity is lower than four, use fresh isolated waves;
 never collapse domains into one opinion or let one reviewer read another review before writing its
 own.
+
+Before accepting production verdicts, require a successful, current calibration under
+`../product-demo-studio/references/reviewer-calibration.md`. Each reviewer loads the canonical rubric and any vertical
+overlay directly from the installed plugin and records their hashes. Pass only artifact paths and
+evidence references into the review context—never generator reasoning, intent, self-assessment, or
+handoff-supplied rubric text. Every criterion, including a pass, needs direct evidence; missing
+evidence is `MALFORMED_INPUT`/`PIPELINE_BLOCKED`, never an inferred pass.
+
+Validate the calibration record with `scripts/validate-reviewer-calibration.mjs`. Every review
+report must include `reviewIntegrity` references to the exact canonical rubric, optional overlay,
+calibration record, and model ID, with `generatorReasoningReceived:false` and
+`priorReviewsReceived:false`. `validate-review-report.mjs` checks their bytes, domain/model/overlay
+binding, and the seven-day maximum age at review start.
+Calibration execution receipts additionally bind the exact fixture-input hash and the canonical
+derived result-payload hash, so a legitimate signed context receipt cannot be reused with a forged
+calibration result.
 
 If the host cannot enforce those contexts as read-only, do not simulate isolation with prompt
 text. Record the missing enforcement evidence and return `PIPELINE_BLOCKED`.
@@ -192,6 +222,11 @@ node "${PRODUCT_DEMO_STUDIO_ROOT}/scripts/validate-remediation-assignment.mjs" \
 The remediation agent reproduces, finds root cause, improves automated coverage where feasible,
 implements the smallest coherent fix, runs targeted validation, and reports exact changed files,
 commands, results, and evidence. It cannot approve its work or conceal a product defect in editing.
+Cap automated capture-fix remediation at two attempts for a finding family. The arbiter must derive
+the attempt from checksum-bound prior REMEDIATE decisions for the same family, not trust a declared
+counter. If the second new
+candidate still fails, stop the loop and route an evidence-backed `PRODUCT_BLOCKED` or
+`PIPELINE_BLOCKED` decision; do not tune the generator against the reviewer indefinitely.
 
 ## Stage 5 — rerender and fresh review
 

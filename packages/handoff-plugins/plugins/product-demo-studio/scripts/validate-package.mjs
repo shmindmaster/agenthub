@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.3.1";
+const expectedVersion = "1.5.0";
 const failures = [];
 
 function readJson(relativePath) {
@@ -83,6 +83,7 @@ for (const name of readOnlyAgents) {
 }
 
 requireFiles("schemas", [
+  "calibration-review-result.schema.json",
   "delivery-spec.schema.json",
   "deterministic-report.schema.json",
   "evidence-package.schema.json",
@@ -90,21 +91,26 @@ requireFiles("schemas", [
   "execution-receipt.schema.json",
   "final-verification.schema.json",
   "interactive-deep-dive.schema.json",
+  "media-acceleration.schema.json",
   "preflight-report.schema.json",
   "review-delivery.schema.json",
   "release-evidence.schema.json",
   "release-decision.schema.json",
   "remediation-assignment.schema.json",
+  "reviewer-calibration.schema.json",
   "review-report.schema.json",
+  "script-approval.schema.json",
   "video-finding.schema.json",
 ]);
 requireFiles("policy", [".gitattributes", "host-parity.json", "product-video-policy.json"], { exact: true });
 requireFiles("scripts", [
   "check-evidence-gate.mjs",
+  "detect-media-acceleration.mjs",
   "package-review.mjs",
   "preflight.mjs",
   "storyboard.example.json",
   "validate-capture-manifest.mjs",
+  "validate-craft-contracts.mjs",
   "validate-execution-receipt.mjs",
   "validate-host-parity.mjs",
   "validate-final-verification.mjs",
@@ -112,7 +118,9 @@ requireFiles("scripts", [
   "validate-release-decision.mjs",
   "validate-remotion-rules.mjs",
   "validate-remediation-assignment.mjs",
+  "validate-reviewer-calibration.mjs",
   "validate-review-report.mjs",
+  "validate-script-approval.mjs",
   "validate-review-delivery.mjs",
   "validate-storyboard.mjs",
 ]);
@@ -161,10 +169,60 @@ if (policy.captureQualityPolicy?.guidedScreencastRequired !== true ||
     policy.captureQualityPolicy?.pageOnlyOrNativeFullscreenPreferred !== true ||
     policy.captureQualityPolicy?.extraneousBrowserOrOsChromeAllowedOnlyAsEvidence !== true ||
     policy.captureQualityPolicy?.minimumPlannedActiveRegionCoverage !== 0.5 ||
+    policy.captureQualityPolicy?.minimumCaptureDeviceScaleFactor !== 2 ||
+    policy.captureQualityPolicy?.minimumEffectiveDeliveryPixelDensity !== 1 ||
+    policy.captureQualityPolicy?.pointerMoveMilliseconds?.minimum !== 400 ||
+    policy.captureQualityPolicy?.pointerMoveMilliseconds?.maximum !== 600 ||
+    policy.captureQualityPolicy?.clickSettleMilliseconds !== 250 ||
+    policy.captureQualityPolicy?.clickHoldMilliseconds !== 500 ||
+    policy.captureQualityPolicy?.clickPulseMilliseconds?.minimum !== 300 ||
+    policy.captureQualityPolicy?.clickPulseMilliseconds?.maximum !== 400 ||
+    policy.captureQualityPolicy?.clickPulseBrandColorRequired !== true ||
+    policy.captureQualityPolicy?.clickPulseSemiTransparent !== true ||
+    policy.captureQualityPolicy?.smallDeliveryCursorScale?.minimum !== 1.5 ||
+    policy.captureQualityPolicy?.smallDeliveryCursorScale?.maximum !== 2 ||
+    policy.captureQualityPolicy?.zoomTransitionMilliseconds?.minimum !== 300 ||
+    policy.captureQualityPolicy?.zoomTransitionMilliseconds?.maximum !== 500 ||
+    policy.captureQualityPolicy?.maximumZoomChangesPerBeat !== 1 ||
+    policy.captureQualityPolicy?.uiCameraDriftAllowed !== false ||
+    policy.captureQualityPolicy?.boundedWaitSpeedMultiplier?.minimum !== 4 ||
+    policy.captureQualityPolicy?.boundedWaitSpeedMultiplier?.maximum !== 8 ||
+    policy.captureQualityPolicy?.textEntrySpeedMultiplier?.minimum !== 3 ||
+    policy.captureQualityPolicy?.textEntrySpeedMultiplier?.maximum !== 4 ||
+    policy.captureQualityPolicy?.annotationWordsPerSecond !== 2.5 ||
+    policy.captureQualityPolicy?.annotationReadingBufferSeconds !== 0.5 ||
+    policy.captureQualityPolicy?.truthfulLatencyTreatmentRequired !== true ||
     policy.captureQualityPolicy?.realProductActionAndStateTransitionRequired !== true ||
     policy.captureQualityPolicy?.visibleClickCueRequired !== true ||
     policy.captureQualityPolicy?.resultVisibleBeforeSpokenResult !== true) {
   failures.push("policy does not enforce screen-space utilization and guided-screencast choreography");
+}
+if (policy.hardwareAccelerationPolicy?.capabilityDetectionRequired !== true ||
+    policy.hardwareAccelerationPolicy?.compatibleGpuPreferred !== true ||
+    policy.hardwareAccelerationPolicy?.agentReasoningRequiresLocalGpu !== false ||
+    policy.hardwareAccelerationPolicy?.cpuFallbackAllowed !== true ||
+    policy.hardwareAccelerationPolicy?.cpuFallbackReasonRequired !== true ||
+    policy.hardwareAccelerationPolicy?.outputEquivalenceValidationRequired !== true ||
+    policy.hardwareAccelerationPolicy?.accelerationManifestRequiredInRenderProvenance !== true) {
+  failures.push("policy does not prefer compatible media acceleration with deterministic, documented CPU fallback");
+}
+if (policy.reviewIndependencePolicy?.generatorMayReviewOwnOutput !== false ||
+    policy.reviewIndependencePolicy?.generatorReasoningPassedToReviewer !== false ||
+    policy.reviewIndependencePolicy?.reviewerLoadsCanonicalRubricDirectly !== true ||
+    policy.reviewIndependencePolicy?.rubricAndOverlayContentHashesRequired !== true ||
+    policy.reviewIndependencePolicy?.evidenceRequiredForPassAndFail !== true ||
+    policy.reviewIndependencePolicy?.unevidencedCriterionDecision !== "PIPELINE_BLOCKED" ||
+    policy.humanGatePolicy?.scriptApprovalRequiredBeforeFinalCapture !== true ||
+    policy.humanGatePolicy?.finalFullWatchRequiredBeforePublication !== true ||
+    policy.remediationCyclePolicy?.maximumAutomatedCaptureFixAttempts !== 2 ||
+    policy.remediationCyclePolicy?.thirdAttemptAllowed !== false ||
+    policy.verticalRubricOverlayPolicy?.mayRemoveBaseCriteria !== false ||
+    policy.verticalRubricOverlayPolicy?.mayWeakenBaseThresholds !== false ||
+    policy.calibrationPolicy?.knownBadAndCleanPassRequired !== true ||
+    policy.calibrationPolicy?.missingOrFailedCalibrationDecision !== "PIPELINE_BLOCKED" ||
+    policy.seededRuntimePolicy?.liveSeededEnvironmentRequiredForWorthinessAssessment !== true ||
+    policy.narrationTimingPolicy?.shortestStreamTruncationAllowed !== false) {
+  failures.push("policy does not enforce reviewer independence, calibration, human gates, loop caps, seeded-runtime evidence, and narration timing");
 }
 if (policy.permissions?.finalVerifier?.mandatoryTerminalGate !== true ||
     policy.permissions?.finalVerifier?.runsAfterArbiterPass !== true ||
@@ -187,16 +245,26 @@ if (hostParityPolicy.validationScope?.defaultMode !== "STATIC_INVENTORY_ONLY" ||
 
 const requiredText = [
   ["README.md", "four independent"],
+  ["README.md", "GPU-first media work"],
   ["skills/product-demo-studio/SKILL.md", "Release Arbiter"],
+  ["skills/product-demo-studio/SKILL.md", "validate-script-approval.mjs"],
+  ["skills/product-demo-studio/SKILL.md", "detect-media-acceleration.mjs"],
   ["skills/product-demo-studio-qa/SKILL.md", "schemas/video-finding.schema.json"],
   ["agents/final-verifier.md", "mandatory terminal independent reviewer and verifier"],
   ["skills/product-demo-studio-qa/SKILL.md", "mandatory final independent review and verification"],
   ["skills/product-demo-studio/SKILL.md", "private review-delivery lane"],
   ["skills/product-demo-studio-capture/SKILL.md", "plannedActiveRegionCoverage"],
+  ["skills/product-demo-studio-capture/SKILL.md", "deliveredCrop"],
   ["skills/product-demo-studio-narration/SKILL.md", "pointer lead → real action"],
   ["skills/product-demo-studio-remotion/SKILL.md", "continuous guided screencasts"],
+  ["skills/product-demo-studio-remotion/SKILL.md", "word count / 2.5 + 0.5 seconds"],
   ["agents/script-storyboard-generator.md", "structured `interaction` contract"],
   ["skills/product-demo-studio/references/interactive-product-deep-dives.md", "Rejected absolutes"],
+  ["skills/product-demo-studio/references/interactive-product-deep-dives.md", "DOM record/replay systems such as rrweb"],
+  ["skills/product-demo-studio/references/repository-native-capture-compositor-patterns.md", "Treat CDP screencast frames as variable-rate"],
+  ["skills/product-demo-studio/references/repository-native-capture-compositor-patterns.md", "A compositor smoke pass is not release"],
+  ["skills/product-demo-studio/references/reviewer-calibration.md", "known-bad fixture passes"],
+  ["scripts/validate-reviewer-calibration.mjs", "derived verdict"],
   ["skills/product-demo-studio/references/product-pipeline-compatibility.md", "Product-pipeline compatibility"],
   ["policy/product-video-policy.json", '"humanPublicationAttestationSeparate": true'],
 ];

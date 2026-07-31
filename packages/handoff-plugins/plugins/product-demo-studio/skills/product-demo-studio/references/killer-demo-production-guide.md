@@ -33,7 +33,7 @@ Correctness answers *is it true?* Craft answers *is the product good enough toda
 
 | Type | Job | Length | Automate? |
 |---|---|---|---|
-| **Sizzle / hook** (top of funnel) | Earn 30 more seconds; sell the *outcome* | 45–90s | Fully — where personalized variants pay off |
+| **Sizzle / hook** (top of funnel) | Earn 30 more seconds; sell the *outcome* | 60–90s | Fully — where personalized variants pay off |
 | **Guided / discovery-support** | After a call, show *their* workflow solved | 2–4 min | Semi — templated capture, tailored narration |
 | **Onboarding / enablement** | Get a user to first value | Chapters of 1–3 min | Fully — high volume, low variance |
 | **Internal / handoff** | Spec, bug repro, feature walkthrough | As needed | Fully — cheapest win; build the pipeline here first |
@@ -98,21 +98,31 @@ Flat is forgettable. Decide, before scripting, **the one feeling the viewer shou
 
 The real OS cursor is the enemy — it jitters, it's tiny, it moves nervously. Synthesize it.
 
-- **Eased motion,** ~400–800ms per deliberate move, with a slight overshoot-and-settle on arrival. Linear reads robotic.
-- **Rest before you click** — pause ~200–300ms on target so the eye catches up.
-- **Enlarge it** to 150–200%; add a **click cue** (ripple ring + quiet click sound). This one change reads as polish.
+- **Eased motion,** ~400–600ms per deliberate move, decelerating into the target. Linear movement,
+  jitter, unexplained teleporting, and decorative wandering fail the craft gate.
+- **Settle before and hold after a click** — pause at least ~250ms on target, perform the real
+  action, then hold at least ~500ms so cause and result both register.
+- **Enlarge it** to 150–200% for mobile or embedded delivery. A click uses a restrained,
+  semi-transparent brand-color radial pulse for ~300–400ms. Do not use a persistent yellow
+  follow-the-pointer spotlight.
+- **Differentiate interaction evidence:** click = radial pulse; drag = held state or short trail;
+  hover = the product's native hover state with no extra overlay; shortcut-driven action = a
+  reproducible keystroke overlay.
 - **One move per idea;** never drift while narrating something stationary. **Hide it** during full-screen explanations and result reveals.
 - **The cursor is an actor** — it can hover to indicate, hesitate to show a decision, trace a path (this flows into that).
 
 ## 3.2 Directing attention (in order of power)
 
-1. **Auto-zoom to the region of action** — push to 1.3–2×, ease it, pull back for context. Biggest single lift for focus and legibility.
+1. **Snap to the region of action** — reframe over ~300–500ms, hold through the action, then pull
+   back when context is needed. Use at most one zoom change per beat. Do not drift over UI like a
+   Ken Burns treatment.
 2. **Spotlight / dim** — 40–60% dark overlay everywhere except a cut-out.
 3. **Animated bounding box** — rounded, brand accent, 2–3px, stroke drawing on, faint glow. Reveal synced to the narration beat; **remove it the instant you're done.**
 4. **Callout + leader line** — ≤4 words, for naming not explaining.
 5. **Motion arrows / underlines** — to trace a path the eye should follow.
 
-Hard rules: **≤2 annotations at once**, and **reveal progressively.**
+Hard rules: **≤2 annotations at once**, **reveal progressively**, and hold text for at least
+`word count / 2.5 + 0.5 seconds`.
 
 ## 3.3 On-screen storytelling
 
@@ -125,7 +135,12 @@ Hard rules: **≤2 annotations at once**, and **reveal progressively.**
 
 ## 3.4 Framing
 
-Don't demo at 1:1 desktop — start slightly zoomed so text reads on a phone. Keep the action in the upper-center hot zone. Zoom in for detail, out for orientation.
+Capture at a device scale factor of at least 2. Derive effective delivery density from the actual
+viewport, delivered crop, and delivery dimensions; every delivered crop must retain at least 1×
+pixel density so it is never upscaled. Keep the
+action in the upper-center hot zone and validate at the smallest delivery size. Prefer 100% browser
+zoom plus composition-level reframing; a fixed 110–125% browser profile is acceptable only when
+documented, deterministic, and representative of normal product use.
 
 ## 3.5 Pacing and pauses
 
@@ -133,7 +148,9 @@ The unit is **setup → action → result → let it land → next.**
 
 - **Let the result land** — hold 0.5–1.5s of near-silence after a payoff. The most common mistake is barreling past the exact moment you wanted felt.
 - **Pause before the payoff too.**
-- **Kill dead time ruthlessly** — speed loading/waits 2–4× or cut them, *unless the wait is the point*.
+- **Kill dead time ruthlessly** — cut bounded loading/waits or speed-ramp them 4–8×; render text
+  entry as a chunk or at 3–4×. Preserve honest latency context, and never hide missing feedback or
+  a product defect by editing.
 - **Match motion to voice** — if the voice explains, the screen is still; if the screen acts, the voice steps back.
 
 ---
@@ -291,7 +308,16 @@ Per-episode verdict: **PASS** (no product-fix-required defects), **CONDITIONAL**
 
 **5. Narration.** Write and approve narration (Part 4) *before* final capture; drive the recording plan from measured durations. Screen state appears before it's described; lead the eye for actions, lag it for results; never speed the workflow just to fit audio — fix the script first.
 
-**6. Capture.** Fresh seeded data, clean profile, deterministic locale/timezone, fixed resolution/scaling/zoom, hidden notifications/personal accounts/unrelated tabs. Execute the storyboard's craft beats (synthesized cursor, enlarged cursor + click cue, declared zoom/spotlight/speed-ramp cues, progressive screen build). Never let generated imagery invent product UI/text/numbers. Capture **clean and un-annotated** — zoom/spotlight/boxes/captions are added at render, driven by the script, so everything stays re-renderable. Each take produces a capture manifest (identity, timeline, environment, console/page errors, failed requests, pass/fail). Any material fault blocks rendering.
+**6. Capture.** Drive the take from repository-owned Playwright coverage so it can be regenerated
+when UI changes. Use fresh synthetic seeded data, a dedicated demo identity, clean profile,
+deterministic locale/timezone, fixed resolution/scaling/zoom, hidden notifications/personal
+accounts/bookmarks/unrelated tabs, and a shot list with exact controls before recording. Record in
+bounded takes rather than one long session. Execute the storyboard's craft beats (synthesized
+cursor, enlarged cursor + interaction-specific feedback, declared snap-to-region/speed treatment,
+progressive screen build). Never let generated imagery invent product UI/text/numbers. Capture
+**clean and un-annotated** — zoom/dim/boxes/captions are added at render, driven by the script, so
+everything stays re-renderable. Each take produces a capture manifest (identity, timeline,
+environment, console/page errors, failed requests, pass/fail). Any material fault blocks rendering.
 
 **7. Render.** Assemble capture + zoom/pan + annotations + captions + audio from the script. Burn captions into the master; also produce SRT/VTT/transcript for QA/accessibility (kept in the working folder). Add sound design where the storyboard calls for it.
 

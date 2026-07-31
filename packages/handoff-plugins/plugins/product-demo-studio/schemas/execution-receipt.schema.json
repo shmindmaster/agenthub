@@ -88,6 +88,12 @@
     "issuedAt": {
       "type": "string",
       "format": "date-time"
+    },
+    "inputArtifactSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "resultPayloadSha256": {
+      "$ref": "#/$defs/sha256"
     }
   },
   "allOf": [
@@ -125,6 +131,10 @@
     "safeId": {
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     },
     "reviewDomain": {
       "enum": [

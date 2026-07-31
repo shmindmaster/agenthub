@@ -111,17 +111,22 @@ when it is material evidence and the beat is explicitly classified `intentional-
   spend pixels on navigation that is irrelevant to the current beat.
 - Plan the delivered frame—not merely the raw viewport. After the declared crop, push-in, or
   recomposition, the active product region must occupy at least half of the usable frame and pass a
-  legibility check at the smallest requested output.
+  legibility check at the smallest requested output. Capture with device scale factor at least 2,
+  then derive effective delivery density from the viewport, delivered crop, and delivery dimensions;
+  it must remain at least 1 so the compositor never upscales the crop.
 - Keep captions, callouts, and the parked cursor outside the active and protected regions. If a
   wide screen cannot remain legible in a vertical or square cut, recompose it around the active
   control/result; do not mechanically shrink the whole desktop.
 - Treat app/browser zoom as product state. Prefer 100% browser zoom and composition-level
-  reframing. If a legitimate in-product density or zoom control is needed, record it in the
-  manifest and verify that it does not misrepresent normal use.
+  reframing. A fixed 110–125% browser profile may be used for direct desktop capture only when the
+  manifest explains why it remains representative and deterministic. Record any other legitimate
+  in-product density or zoom control and verify that it does not misrepresent normal use.
 
 Every manifest declares `captureSurface.mode`, `extraneousChrome`, `irrelevantNavigation`,
-`plannedTreatment`, `plannedActiveRegionCoverage`, and `deliveryLegibility`. The validator rejects
-coverage below `0.5` and any non-passing delivery legibility result.
+`plannedTreatment`, `plannedActiveRegionCoverage`, `deliveryLegibility`, `deliveryFrame`,
+`deliveredCrop`, `smallDelivery`, and `browserZoomPercent`. The validator rejects coverage below
+`0.5`, capture device scale factor below `2`, derived effective density below `1`, browser zoom other
+than 100% or a justified 110–125%, and any non-passing delivery legibility result.
 
 ## Capture manifest
 
@@ -143,7 +148,9 @@ a wrong deployment, or a `fail` verdict means the beat is re-captured, not compo
 {
   "scenario": "workflow-example",
   "beat": "review-result",
+  "storyboardSegmentId": "review-result",
   "route": "/example/workflow",
+  "viewport": { "width": 1920, "height": 1080, "deviceScaleFactor": 2 },
   "focus": { "x": 1180, "y": 240, "width": 520, "height": 420 },
   "protectedRegions": [{ "x": 900, "y": 160, "width": 850, "height": 700 }],
   "captureSurface": {
@@ -152,7 +159,12 @@ a wrong deployment, or a `fail` verdict means the beat is re-captured, not compo
     "irrelevantNavigation": "collapsed",
     "plannedTreatment": "push-in",
     "plannedActiveRegionCoverage": 0.68,
-    "deliveryLegibility": "pass"
+    "deliveryLegibility": "pass",
+    "deliveryFrame": { "width": 1920, "height": 1080 },
+    "deliveredCrop": { "x": 760, "y": 180, "width": 1050, "height": 591 },
+    "sourceFrame": { "width": 3840, "height": 2160 },
+    "smallDelivery": true,
+    "browserZoomPercent": 100
   },
   "interaction": {
     "kind": "click",
@@ -161,9 +173,26 @@ a wrong deployment, or a `fail` verdict means the beat is re-captured, not compo
       "from": [1450, 780],
       "to": [1520, 430],
       "park": [1760, 930],
-      "durationMs": 700
+      "durationMs": 500,
+      "easing": "eased-deceleration",
+      "scale": 1.75,
+      "settleBeforeActionMs": 250,
+      "holdAfterActionMs": 500
     },
     "cue": "visual",
+    "feedback": {
+      "type": "radial-pulse",
+      "durationMs": 350,
+      "brandColor": "#4F46E5",
+      "opacity": 0.35
+    },
+    "keystrokeOverlay": false,
+    "pacing": {
+      "activity": "meaningful-action",
+      "treatment": "real-time",
+      "multiplier": 1,
+      "truthTreatment": "The product interaction remains real-time."
+    },
     "narrationSync": {
       "cursorLeadSeconds": 0.35,
       "actionAtSeconds": 1.1,
@@ -228,12 +257,19 @@ reasoning/human-control moment truthful.
   acceptable only when it reproduces the manifest's real action path and exact state transition;
   it must not imply a click or result that the capture evidence does not contain.
 - Give clicks a visible cue; use at most one restrained audio cue at the protected hero moment.
-  Keep cursor movement roughly 200–2,500 ms and let it lead the action by no more than 1.5 seconds.
+  Default deliberate pointer movement to 400–600ms with deceleration into the target, scale the
+  rendered cursor 1.5–2× for mobile/embedded delivery, settle at least 250ms before a click, and
+  hold at least 500ms after it. Use a restrained 300–400ms semi-transparent brand-color radial
+  pulse for clicks, held/trail feedback for drags, native product feedback for hovers, and a
+  reproducible keystroke overlay for shortcuts. Never use a persistent follow-the-pointer
+  spotlight. Let the pointer lead the action by no more than 1.5 seconds.
 - Align to narration explicitly: the cursor leads the eye, the action happens, the result becomes
   visible, and the spoken result follows. Do not make narration announce a state that has not yet
   appeared.
-- Record enough handles for speed ramps and attention resets, but never speed or cut away a product
-  wait whose missing feedback is itself a product-fix-required defect.
+- Record enough handles for speed ramps and attention resets. Cut or speed-ramp only bounded waits
+  at 4–8× and render text entry at 3–4× or as a chunk, exactly as declared by the storyboard. Record
+  the truthful latency treatment; never speed or cut away a wait whose missing feedback is itself
+  a product-fix-required defect.
 
 ## Manifest shapes are repo-specific — discover, don't force
 
@@ -248,6 +284,11 @@ migration between them without being asked. Two patterns seen in practice:
 
 A repo with no existing convention: prefer pattern 2 — it composes better with a real E2E suite and
 CI, and keeps mutating captures opt-in by default.
+
+When implementing or reviewing a repository-native capture/compositor driver, read
+[repository-native-capture-compositor-patterns.md](../product-demo-studio/references/repository-native-capture-compositor-patterns.md).
+Use its timestamped event-log, dual-pointer, variable-rate CDP, tagged-wait, zoom-merge, and offline
+smoke-test seams without copying a second generic runtime into AgentHub or the product repository.
 
 ## Output location
 

@@ -107,6 +107,58 @@
         }
       }
     },
+    "measurements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "beatId",
+          "cursorLeadSeconds",
+          "actionToResultSeconds",
+          "resultToSpokenSeconds",
+          "resultHoldToCutSeconds",
+          "evidenceArtifactIds"
+        ],
+        "properties": {
+          "beatId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "cursorLeadSeconds": { "type": "number", "minimum": 0 },
+          "actionToResultSeconds": { "type": "number", "minimum": 0 },
+          "resultToSpokenSeconds": { "type": "number", "minimum": 0 },
+          "resultHoldToCutSeconds": { "type": "number", "minimum": 0 },
+          "evidenceArtifactIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+            }
+          }
+        }
+      }
+    },
+    "sourceGeometry": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "height", "rawCaptureArtifactId", "probe"],
+          "properties": {
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 },
+            "rawCaptureArtifactId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+            },
+            "probe": { "const": "ffprobe" }
+          }
+        }
+      ]
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,
@@ -136,6 +188,31 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "reportType": { "const": "craftContractValidation" }
+        },
+        "required": ["reportType"]
+      },
+      "then": {
+        "required": ["measurements", "sourceGeometry"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "reportType": { "const": "craftContractValidation" },
+          "status": { "const": "PASS" }
+        },
+        "required": ["reportType", "status"]
+      },
+      "then": {
+        "properties": {
+          "sourceGeometry": { "type": "object" }
+        }
+      }
+    },
     {
       "if": {
         "properties": {
@@ -225,6 +302,10 @@
         "frame-duplicate",
         "frame-corruption",
         "asset-completeness",
+        "human-script-approval",
+        "storyboard-craft-contract",
+        "capture-manifest-craft-contract",
+        "beat-timing-deltas",
         "browser-console-network",
         "render-errors",
         "output-specifications",
@@ -247,7 +328,9 @@
         "browserNetwork",
         "technicalDelivery",
         "claimVerification",
-        "truthSheetVerification"
+        "truthSheetVerification",
+        "scriptApprovalVerification",
+        "craftContractValidation"
       ]
     }
   }

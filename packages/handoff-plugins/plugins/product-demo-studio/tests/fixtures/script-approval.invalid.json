@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "receiptId": "bad",
+  "decision": "REJECTED",
+  "candidateId": "bad id",
+  "episodeId": "bad id",
+  "approver": {
+    "name": "",
+    "method": "checkbox"
+  },
+  "approverPublicKeySha256": "invalid",
+  "approvedAt": "not-a-date",
+  "finalCaptureInput": { "artifactPath": "", "sha256": "invalid" },
+  "artifacts": {}
+}

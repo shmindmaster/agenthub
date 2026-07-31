@@ -351,7 +351,10 @@ function validatePreflightDocument(report, path, expectedCheckIds, expectedSubsy
   }
   const checkIds = new Set();
   let passedChecks = 0;
-  if (!Array.isArray(report.checks) || report.checks.length !== 16) fail(`${path}.checks`, "must contain exactly 16 checks.");
+  const expectedCheckCount = expectedCheckIds.size;
+  if (!Array.isArray(report.checks) || report.checks.length !== expectedCheckCount) {
+    fail(`${path}.checks`, `must contain exactly ${expectedCheckCount} checks.`);
+  }
   else report.checks.forEach((check, index) => {
     const checkPath = `${path}.checks[${index}]`;
     if (!exactObject(check, checkPath, ["id", "subsystem", "passed", "evidenceArtifactIds"]) ||
@@ -398,14 +401,14 @@ function validatePreflightDocument(report, path, expectedCheckIds, expectedSubsy
   if (!object(report.summary)) fail(`${path}.summary`, "must be an object.");
   else {
     exactObject(report.summary, `${path}.summary`, ["total", "passed", "failed"]);
-    if (report.summary.total !== 16) fail(`${path}.summary.total`, "must equal 16.");
+    if (report.summary.total !== expectedCheckCount) fail(`${path}.summary.total`, `must equal ${expectedCheckCount}.`);
     if (report.summary.passed !== passedChecks) fail(`${path}.summary.passed`, `must equal derived passed count ${passedChecks}.`);
-    const failedChecks = 16 - passedChecks;
+    const failedChecks = expectedCheckCount - passedChecks;
     if (report.summary.failed !== failedChecks) fail(`${path}.summary.failed`, `must equal derived failed count ${failedChecks}.`);
   }
   if (report.status !== "PASS" && report.status !== "FAIL") fail(`${path}.status`, "must be PASS or FAIL.");
   if (report.status === "PASS") {
-    if (passedChecks !== 16 || report.failures?.length !== 0 || report.readyForIndependentReview !== true) {
+    if (passedChecks !== expectedCheckCount || report.failures?.length !== 0 || report.readyForIndependentReview !== true) {
       fail(path, "PASS requires all checks passed, no failures, and readyForIndependentReview=true.");
     }
   } else if (report.readyForIndependentReview !== false) {
@@ -440,8 +443,8 @@ try {
 const canonicalPolicySha = digest(canonicalPolicyBytes);
 const canonicalPreflightCheckIds = new Set(canonicalPreflightSchema?.$defs?.checkId?.enum ?? []);
 const canonicalPreflightSubsystems = new Set(canonicalPreflightSchema?.$defs?.subsystem?.enum ?? []);
-if (canonicalPreflightCheckIds.size !== 16) {
-  console.error(`[error] ${canonicalPreflightSchemaPath}: must define exactly 16 unique preflight check IDs.`);
+if (canonicalPreflightCheckIds.size !== 20) {
+  console.error(`[error] ${canonicalPreflightSchemaPath}: must define exactly 20 unique preflight check IDs.`);
   process.exit(1);
 }
 if (canonicalPreflightSubsystems.size === 0) {
@@ -715,9 +718,44 @@ if (exactObject(decision, "$", commonRequired, optional)) {
     [...dispositions].filter(([, item]) => item.disposition === "accepted").map(([id]) => id),
   );
   if (decision.decision === "REMEDIATE") {
-    if (!exactObject(decision.remediationPlan, "$.remediationPlan", ["findingIds", "assignmentPaths"])) {
+    if (!exactObject(decision.remediationPlan, "$.remediationPlan", [
+      "attempt", "findingFamilyFingerprint", "priorDecisions", "findingIds", "assignmentPaths",
+    ])) {
       // exactObject records the missing or malformed plan.
     } else {
+      if (!Number.isInteger(decision.remediationPlan.attempt) || decision.remediationPlan.attempt < 1 || decision.remediationPlan.attempt > 2) {
+        fail("$.remediationPlan.attempt", "must be automated remediation attempt 1 or 2; a third automated attempt is forbidden.");
+      }
+      sha(decision.remediationPlan.findingFamilyFingerprint, "$.remediationPlan.findingFamilyFingerprint");
+      const expectedHistoryLength = Number.isInteger(decision.remediationPlan.attempt)
+        ? decision.remediationPlan.attempt - 1
+        : 0;
+      if (!Array.isArray(decision.remediationPlan.priorDecisions) ||
+          decision.remediationPlan.priorDecisions.length !== expectedHistoryLength) {
+        fail("$.remediationPlan.priorDecisions", `must contain exactly ${expectedHistoryLength} immutable prior decision(s) for attempt ${decision.remediationPlan.attempt}.`);
+      } else {
+        for (const [index, reference] of decision.remediationPlan.priorDecisions.entries()) {
+          const artifact = validateArtifactReference(reference, `$.remediationPlan.priorDecisions[${index}]`);
+          const prior = parseJsonArtifact(artifact, `$.remediationPlan.priorDecisions[${index}].document`);
+          if (!prior) continue;
+          const validation = spawnSync(process.execPath, [fileURLToPath(import.meta.url), artifact.absolutePath], { encoding: "utf8" });
+          if (validation.status !== 0) {
+            fail(`$.remediationPlan.priorDecisions[${index}]`, `prior decision fails canonical validation: ${(validation.stderr || validation.stdout).trim()}`);
+            continue;
+          }
+          if (prior.decision !== "REMEDIATE" || prior.remediationPlan?.attempt !== index + 1 ||
+              prior.remediationPlan?.findingFamilyFingerprint !== decision.remediationPlan.findingFamilyFingerprint) {
+            fail(`$.remediationPlan.priorDecisions[${index}]`, "must be the preceding REMEDIATE decision for the same finding family and sequential attempt.");
+          }
+          if (prior.candidate?.candidateId === decision.candidate?.candidateId) {
+            fail(`$.remediationPlan.priorDecisions[${index}]`, "must reference a prior immutable candidate, not the current candidate.");
+          }
+          if (Number.isFinite(Date.parse(prior.decidedAt)) && Number.isFinite(Date.parse(decision.decidedAt)) &&
+              Date.parse(prior.decidedAt) >= Date.parse(decision.decidedAt)) {
+            fail(`$.remediationPlan.priorDecisions[${index}]`, "must precede the current decision time.");
+          }
+        }
+      }
       const planIds = uniqueStrings(decision.remediationPlan.findingIds, "$.remediationPlan.findingIds", {
         minItems: 1,
         pattern: FINDING_ID,
@@ -727,6 +765,21 @@ if (exactObject(decision, "$", commonRequired, optional)) {
       });
       for (const id of planIds) if (!acceptedFindingIds.has(id)) fail("$.remediationPlan.findingIds", `"${id}" is not an accepted finding.`);
       for (const id of acceptedFindingIds) if (!planIds.has(id)) fail("$.remediationPlan.findingIds", `missing accepted finding "${id}".`);
+      const familyBasis = [...new Map([...planIds].sort().map((id) => {
+        const finding = allFindings.get(id);
+        const routing = finding ? {
+          category: finding.category,
+          fixClassification: finding.fixClassification,
+        } : { category: "unknown", fixClassification: "unknown" };
+        return [`${routing.category}\u0000${routing.fixClassification}`, routing];
+      })).values()].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+      const derivedFamilyFingerprint = digest(Buffer.from(JSON.stringify(familyBasis)));
+      if (decision.remediationPlan.findingFamilyFingerprint !== derivedFamilyFingerprint) {
+        fail(
+          "$.remediationPlan.findingFamilyFingerprint",
+          `must be derived from stable accepted-finding category/routing lineage (${derivedFamilyFingerprint}), not IDs or mutable review wording.`,
+        );
+      }
       for (const assignmentPath of assignmentPaths) {
         const absolutePath = resolveDecisionPath(assignmentPath, "$.remediationPlan.assignmentPaths");
         if (absolutePath && (!existsSync(absolutePath) || !statSync(absolutePath).isFile())) {

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "receiptId": "PVS-SYNTHETIC-SCRIPT-001",
+  "decision": "APPROVED",
+  "candidateId": "synthetic-candidate-001",
+  "episodeId": "approval-exception",
+  "approver": {
+    "name": "Synthetic Contract Owner",
+    "method": "detached-ed25519"
+  },
+  "approverPublicKeySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "approvedAt": "2026-07-29T14:50:00.000Z",
+  "finalCaptureInput": {
+    "artifactPath": "storyboard.json",
+    "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "artifacts": {
+    "script": { "artifactPath": "script.json", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+    "truthSheet": { "artifactPath": "truth-sheet.json", "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" },
+    "claimLedger": { "artifactPath": "claim-ledger.json", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" }
+  }
+}

@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.3.1**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.5.0**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Product repositories retain their product-specific capture/render implementations and
 map evidence into this shared contract. The reviewed mapping is documented in
@@ -21,6 +21,20 @@ pointer/control/state transitions, visible click cues, and result-before-spoken-
 Version 1.3.1 activates the same native plugin package in Cursor after owner reauthorization;
 Cursor now receives the package's skills, agents, and MCP ownership instead of a loose-skills-only
 fallback.
+Version 1.4 makes professional screencast craft enforceable: decelerating cursor paths, click
+settle/hold and interaction-specific feedback, one no-drift snap zoom per beat, 2× capture scale
+with no crop upscaling, honest dead-time/text-entry treatment, annotation reading time, and a privacy-safe optional
+DOM-interactive derivative strategy.
+Version 1.5 makes those craft contracts fail closed in deterministic preflight, derives delivery
+pixel density from real geometry, requires beat timing evidence, and adds canonical-rubric isolation,
+symmetric pass/fail evidence, calibration, two-attempt remediation limits, tightening-only vertical
+overlays, permanent human script/final-watch gates, and capability-detected GPU-first media work
+with checksum-bound acceleration provenance and deterministic CPU fallback. Preflight reruns the
+canonical script-approval and craft validators against their checksum-bound inputs, binds approval
+ordering to immutable final-capture start provenance, and rejects acceleration selections that do
+not match functional probes. Reviewer calibration receipts bind both fixture input and derived
+result-payload hashes, while remediation families use fingerprints derived from stable accepted-
+finding category/routing identity instead of IDs, mutable review wording, or caller-selected labels.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with
@@ -162,8 +176,18 @@ invoked from the plugin against a target repo — never copied into one:
   codec/profile/resolution/fps/color/audio/fast-start, decode/corruption, exact duplicate,
   black/freeze/loudness/clipping/silence, scene frames, contact sheet, and deterministic report
   generation with tool/command/input provenance.
-- `preflight.mjs` — fail-closed evidence-package, checksum, provenance, and deterministic-report
-  gate before independent review.
+- `validate-craft-contracts.mjs` / `preflight.mjs` — checksum-bound storyboard/capture validation,
+  complete episode/segment coverage, ffprobe-measured raw-capture geometry, fail-closed evidence-
+  package timing/provenance, canonical validator reruns, capture-start approval ordering, and
+  deterministic-report gates before review.
+- `validate-reviewer-calibration.mjs` — derives known-bad and clean-pass calibration outcomes from
+  criterion-level reviewer outputs and evidence, then verifies trusted signed receipts that bind
+  the exact fixture-input and derived result-payload hashes.
+- `validate-script-approval.mjs` — verifies the named human's detached signature over the exact
+  candidate/episode, final-capture input, script, truth sheet, and claim ledger.
+- `detect-media-acceleration.mjs` — functionally probes NVENC and a local CUDA inference runtime,
+  selects compatible GPU-first media paths, and emits checksumable fallback provenance; preflight
+  rejects any selected encoder/device that did not pass those probes.
 - `validate-review-report.mjs`, `validate-release-decision.mjs`, and
   `validate-remediation-assignment.mjs` — zero-dependency validation of the shared machine-readable
   contracts.

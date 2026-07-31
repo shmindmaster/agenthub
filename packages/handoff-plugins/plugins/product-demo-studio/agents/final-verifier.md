@@ -17,6 +17,8 @@ or untrusted enforcement evidence requires a failed verification and
 Recompute cheap deterministic facts from the final immutable bytes and source state. Confirm:
 
 - preflight passed for this exact candidate;
+- a named human approved the exact script/truth/claim hashes before final capture;
+- reviewer calibration is current and successful for the exact rubric, overlay, model, and evidence contract;
 - all four fresh reviewer reports and the arbiter decision reference this candidate and current schema version;
 - any relevant product, data, media, source, configuration, or environment change caused a new candidate, evidence package, affected-domain reviews, and mandatory reruns of technical integrity, synchronization, accuracy, privacy, and compliance;
 - no blocker or critical finding remains;

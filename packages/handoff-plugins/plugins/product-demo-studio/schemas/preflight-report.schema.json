@@ -46,8 +46,8 @@
     },
     "checks": {
       "type": "array",
-      "minItems": 16,
-      "maxItems": 16,
+      "minItems": 20,
+      "maxItems": 20,
       "items": {
         "$ref": "#/$defs/preflightCheck"
       },
@@ -57,6 +57,18 @@
             "properties": {
               "id": {
                 "const": "artifact-completeness"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
+                "const": "human-script-approval"
               }
             },
             "required": [
@@ -200,6 +212,42 @@
           "contains": {
             "properties": {
               "id": {
+                "const": "storyboard-craft-contract"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
+                "const": "capture-manifest-craft-contract"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
+                "const": "beat-timing-deltas"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
                 "const": "browser-console-network"
               }
             },
@@ -262,17 +310,17 @@
       ],
       "properties": {
         "total": {
-          "const": 16
+          "const": 20
         },
         "passed": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 16
+          "maximum": 20
         },
         "failed": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 16
+          "maximum": 20
         }
       }
     },
@@ -309,7 +357,7 @@
           "summary": {
             "properties": {
               "passed": {
-                "const": 16
+                "const": 20
               },
               "failed": {
                 "const": 0
@@ -394,6 +442,10 @@
         "frame-duplicate",
         "frame-corruption",
         "asset-completeness",
+        "human-script-approval",
+        "storyboard-craft-contract",
+        "capture-manifest-craft-contract",
+        "beat-timing-deltas",
         "browser-console-network",
         "render-errors",
         "output-specifications",
