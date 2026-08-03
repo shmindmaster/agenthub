@@ -55,7 +55,7 @@ $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
 $cursorManifest = Get-Content -LiteralPath $cursorManifestPath -Raw | ConvertFrom-Json
 Assert-True ($manifest.name -eq 'product-experience-engineering') 'Unexpected plugin name.'
-Assert-True ($manifest.version -eq '1.3.0') 'Codex plugin version must be 1.3.0.'
+Assert-True ($manifest.version -eq '1.4.0') 'Codex plugin version must be 1.4.0.'
 Assert-True ($claudeManifest.name -eq $manifest.name) 'Claude plugin name must match Codex.'
 Assert-True ($claudeManifest.version -eq $manifest.version) 'Claude plugin version must match Codex.'
 Assert-True ($cursorManifest.name -eq $manifest.name) 'Cursor plugin name must match Codex.'
@@ -90,6 +90,19 @@ foreach ($agentName in $expectedAgents) {
     Assert-True (Test-Path -LiteralPath $agentPath) "Missing shared subagent: $agentName"
     $agentText = Get-Content -LiteralPath $agentPath -Raw
     Assert-True ($agentText -match '(?m)^description: .+$') "Subagent description is missing: $agentName"
+
+    # The deleted host-adapter generator comma-split `tools:` naively, so a YAML
+    # flow sequence (`tools: [Read, Grep]`) silently produced broken tokens.
+    # Reject that dialect here so it cannot re-enter this package.
+    $toolsMatch = [regex]::Match($agentText, '(?m)^tools:\s*(.+)$')
+    Assert-True $toolsMatch.Success "Subagent is missing a tools: declaration: $agentName"
+    $toolsValue = $toolsMatch.Groups[1].Value.Trim()
+    Assert-True (-not $toolsValue.StartsWith('[')) "Subagent tools: must use the scalar comma-separated form, not a YAML flow sequence: $agentName"
+
+    # A missing `readonly` key is how a read-only agent loses its sandbox
+    # restriction downstream (Codex `sandbox_mode = "read-only"`). Require it
+    # declared explicitly rather than inferred.
+    Assert-True ($agentText -match '(?m)^readonly:\s*(true|false)\s*$') "Subagent must declare readonly: true or readonly: false explicitly: $agentName"
 }
 $actualAgents = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot 'agents') -File | Select-Object -ExpandProperty Name | Sort-Object)
 Assert-True (($actualAgents -join '|') -eq (($expectedAgents | Sort-Object) -join '|')) 'Shared subagent set does not match the four-role contract.'
