@@ -55,7 +55,7 @@ $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
 $cursorManifest = Get-Content -LiteralPath $cursorManifestPath -Raw | ConvertFrom-Json
 Assert-True ($manifest.name -eq 'product-experience-engineering') 'Unexpected plugin name.'
-Assert-True ($manifest.version -eq '1.2.0') 'Codex plugin version must be 1.2.0.'
+Assert-True ($manifest.version -eq '1.3.0') 'Codex plugin version must be 1.3.0.'
 Assert-True ($claudeManifest.name -eq $manifest.name) 'Claude plugin name must match Codex.'
 Assert-True ($claudeManifest.version -eq $manifest.version) 'Claude plugin version must match Codex.'
 Assert-True ($cursorManifest.name -eq $manifest.name) 'Cursor plugin name must match Codex.'
@@ -65,6 +65,22 @@ Assert-True ($manifest.author.name -eq 'MahumTech') 'Author must be MahumTech.'
 Assert-True ($manifest.interface.displayName -eq 'Product Experience Engineering') 'Incorrect display name.'
 Assert-True ($manifest.interface.capabilities.Count -ge 3) 'Capabilities metadata is incomplete.'
 Assert-True ($manifest.interface.defaultPrompt.Count -eq 3) 'Exactly three starter prompts are required.'
+
+# A manifest that names `skills` opts out of convention-based discovery, so every
+# other content directory it ships must be named too. Codex silently loaded the
+# skills and none of the subagents while `agents` was missing here.
+foreach ($manifestPair in @(
+    @{ Path = $manifestPath;       Manifest = $manifest },
+    @{ Path = $claudeManifestPath; Manifest = $claudeManifest },
+    @{ Path = $cursorManifestPath; Manifest = $cursorManifest }
+)) {
+    $declared = $manifestPair.Manifest.PSObject.Properties.Name
+    if ($declared -notcontains 'skills') { continue }
+    Assert-True ($declared -contains 'agents') (
+        "$($manifestPair.Path) declares 'skills' but not 'agents'; " +
+        'the shipped subagents will not be discovered.'
+    )
+}
 
 $portableManifest = Get-Content -LiteralPath $portableManifestPath -Raw | ConvertFrom-Json
 Assert-True ($portableManifest.name -eq $manifest.name) 'Portable plugin name must match Codex.'
