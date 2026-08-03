@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "note": "Structured per-host subagent generation rules for scripts/Sync-Subagents.ps1. Scoped to exactly the 4 hosts the deleted scripts/Sync-ProductDemoStudioHostAdapters.ps1 (git show fc1bda6) served -- codex, opencode, gemini, antigravity. registry/plugin-formats.json's 'subagents' field is a prose-only, plugin-bundle-scoped note (per its own fieldNotes) and is insufficient to generate from; it also marks codex and antigravity 'unverified' for that DIFFERENT concept (agents/*.md bundled inside a Claude-style plugin package). This file instead documents the separate, independently-verified 'managed native agents' mechanism (a standalone per-host agents directory/extension, outside any plugin bundle) that the deleted generator actually used and that 26 real deployed files (13 Codex .toml + 13 OpenCode .md, confirmed 2026-08-03) prove works. See task-5-report.md for the full discrepancy discussion. Do not extend this file to a 5th host without first researching and verifying that host's real mechanism -- do not invent a format (AGENTS.md).",
+  "destinationTemplatePlaceholders": {
+    "{userProfile}": "the effective -UserProfile parameter value (already resolved; never a registry-baked absolute path -- this generator never reads or rebases an absolute destination path from registry/agents.json, which sidesteps the whole class of hazard documented in task-2-report.md's 'Safety incident')",
+    "{capabilityId}": "the capability's id from registry/capabilities.json (e.g. product-demo-studio)"
+  },
+  "hosts": [
+    {
+      "id": "codex",
+      "format": "codex-toml",
+      "extension": "toml",
+      "destinationTemplate": "{userProfile}\\.codex\\agents",
+      "hostRootMarkerTemplate": "{userProfile}\\.codex",
+      "manifestKind": "none",
+      "readOnlyMechanism": "sandbox-mode",
+      "toolMap": null,
+      "verifiedAgainst": "13 real ~/.codex/agents/product-demo-studio-*.toml files, generated 2026-07-31 by the deleted generator (commit fc1bda6); destinationTemplate matches registry/agents.json codex.nativePaths.agentsDir exactly."
+    },
+    {
+      "id": "opencode",
+      "format": "opencode-md",
+      "extension": "md",
+      "destinationTemplate": "{userProfile}\\.config\\opencode\\agents",
+      "hostRootMarkerTemplate": "{userProfile}\\.config\\opencode",
+      "manifestKind": "none",
+      "readOnlyMechanism": "permission-block",
+      "toolMap": null,
+      "verifiedAgainst": "13 real ~/.config/opencode/agents/product-demo-studio-*.md files, generated 2026-07-31; destinationTemplate matches registry/agents.json opencode.nativePaths.agentsDir exactly."
+    },
+    {
+      "id": "gemini",
+      "format": "gemini-md",
+      "extension": "md",
+      "destinationTemplate": "{userProfile}\\.gemini\\extensions\\agenthub-{capabilityId}\\agents",
+      "hostRootMarkerTemplate": "{userProfile}\\.gemini",
+      "manifestKind": "gemini-extension",
+      "manifestDestinationTemplate": "{userProfile}\\.gemini\\extensions\\agenthub-{capabilityId}",
+      "manifestFileName": "gemini-extension.json",
+      "readOnlyMechanism": "tool-narrowing-only",
+      "toolMap": {
+        "Read": "read_file",
+        "Grep": "grep_search",
+        "Glob": "glob",
+        "Bash": "run_shell_command",
+        "Edit": "replace",
+        "Write": "write_file"
+      },
+      "verifiedAgainst": "13 real ~/.gemini/extensions/agenthub-product-demo-studio/agents/product-demo-studio-*.md files + gemini-extension.json, generated 2026-07-31, confirmed present 2026-08-03 (the task brief stated no baseline exists here; real machine evidence disagrees -- see task-5-report.md). destinationTemplate does NOT match registry/agents.json gemini.nativePaths.agentsDir (~/.gemini/agents, unused by this mechanism) -- documented discrepancy, not corrected here (out of this task's scope)."
+    },
+    {
+      "id": "antigravity",
+      "format": "antigravity-md",
+      "extension": "md",
+      "destinationTemplate": "{userProfile}\\.gemini\\antigravity-cli\\plugins\\{capabilityId}\\agents",
+      "hostRootMarkerTemplate": "{userProfile}\\.gemini\\antigravity-cli",
+      "manifestKind": "antigravity-plugin",
+      "manifestDestinationTemplate": "{userProfile}\\.gemini\\antigravity-cli\\plugins\\{capabilityId}",
+      "manifestFileName": "plugin.json",
+      "readOnlyMechanism": "command-execution-policy",
+      "toolMap": {
+        "Read": "view_file",
+        "Grep": "grep_search",
+        "Glob": "find_by_name",
+        "Bash": "run_command",
+        "Edit": "replace_file_content",
+        "Write": "write_to_file"
+      },
+      "verifiedAgainst": "13 real ~/.gemini/antigravity-cli/plugins/product-demo-studio/agents/product-demo-studio-*.md files + plugin.json, generated 2026-07-31, confirmed present 2026-08-03 (the task brief stated no baseline exists here; real machine evidence disagrees -- see task-5-report.md). destinationTemplate does NOT match registry/agents.json antigravity.nativePaths.agentsDir (~/.gemini/config/agents, unused by this mechanism) -- documented discrepancy, not corrected here (out of this task's scope)."
+    }
+  ]
+}
