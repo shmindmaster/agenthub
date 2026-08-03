@@ -10,9 +10,15 @@
     Reads registry/agents.json for each host's instructionHeader,
     instructionFormat, and destination (a single file, or -- for hosts that
     declare instructionsDestinationKind = 'directory' -- a directory a file
-    must be written inside). Renders <header> + blank + <!-- agenthub:managed
-    --> + blank + <canonical body> (Hermes is a documented exception -- see
-    "Hermes" below), stages the rendered bytes under
+    must be written inside). By default renders <header> + blank +
+    <!-- agenthub:managed --> + blank + <canonical body>. A host whose real
+    deployed layout differs (currently only Hermes: an identity preamble
+    before the policy, and the managed marker at the end of the file
+    instead of after the header) instead declares
+    nativePaths.instructionBodyTemplate in the registry -- a template
+    containing a {{globalPolicy}} placeholder that fully owns the layout,
+    including marker placement, so there is no per-host code branch for
+    this. Stages the rendered bytes under
     %LOCALAPPDATA%\AgentHub\runtime\instructions\<hostId>\ (or the
     -UserProfile-relative equivalent under test), and either reports drift
     (-Audit, the default) or writes the destination (-Apply).
@@ -142,26 +148,31 @@ function Write-Utf8NoBomLf {
 # task-2-report.md for the full discussion.
 $CursorRulesFileName = 'agenthub-global-policy.mdc'
 
-# Hermes' currently-deployed file (C:\Users\SaroshHussain\AppData\Local\
-# hermes\SOUL.md, read during this task) uses a persona-preamble layout, not
-# the standard header/marker/body layout every other host uses: the header
-# is followed by a persona paragraph, then the canonical body, and the
-# <!-- agenthub:managed --> marker sits at the very END of the file (line 45
-# of 45), not right after the header. Per this task's dispatch: "if the
-# byte layout you measure from the deployed files disagrees with the
-# brief's render contract, the deployed files win." This text is
-# transcribed verbatim from that real file because no registry field
-# captures it -- it is not invented. See task-2-report.md for the
-# byte-level `od -c` evidence.
-$HermesPersonaPreamble = 'You are Hermes Agent, an intelligent AI assistant created by Nous Research. Be helpful, knowledgeable, direct, targeted, and efficient. Admit uncertainty when appropriate and prioritize genuine usefulness.'
+# The token a host's registry-declared instructionBodyTemplate uses to mark
+# where the canonical policy body is substituted in. See Hermes below for
+# why this exists.
+$GlobalPolicyPlaceholder = '{{globalPolicy}}'
 
 function Get-RenderedInstructionContent {
     param(
         [Parameter(Mandatory)][string]$HostId,
-        [Parameter(Mandatory)][string]$Header
+        [Parameter(Mandatory)][string]$Header,
+        [string]$BodyTemplate
     )
-    if ($HostId -eq 'hermes') {
-        return "$Header`n`n$HermesPersonaPreamble`n`n$PolicyBody`n$Marker`n"
+    if (-not [string]::IsNullOrWhiteSpace($BodyTemplate)) {
+        # A host with an instructionBodyTemplate (currently only Hermes) has
+        # a real deployed layout that is NOT the generic header/blank/
+        # marker/blank/body contract -- it can carry a preamble BEFORE the
+        # policy and/or place the managed marker somewhere other than right
+        # after the header. The template fully owns that layout, including
+        # marker placement, so there is no per-host special case in this
+        # function: any host with a template gets exactly one substitution
+        # of the canonical body into the placeholder, nothing more.
+        $occurrences = ([regex]::Matches($BodyTemplate, [regex]::Escape($GlobalPolicyPlaceholder))).Count
+        if ($occurrences -ne 1) {
+            throw "Host '$HostId' declares nativePaths.instructionBodyTemplate but it contains $occurrences occurrences of '$GlobalPolicyPlaceholder' (expected exactly 1). Refusing to guess which one is the real insertion point."
+        }
+        return $BodyTemplate.Replace($GlobalPolicyPlaceholder, $PolicyBody)
     }
     return "$Header`n`n$Marker`n`n$PolicyBody"
 }
@@ -178,8 +189,18 @@ $agentsReg = Get-Content -LiteralPath $AgentsFile -Raw -Encoding UTF8 | ConvertF
 # self-rebasing. Every destination path/dir must have that recorded prefix
 # swapped for the effective -UserProfile before it is read, compared, or
 # written -- otherwise -Apply against a synthetic test profile would still
-# write the real, live user profile regardless of -UserProfile. (This was
-# caught during this task's own testing: see task-2-report.md.)
+# write the real, live user profile regardless of -UserProfile.
+#
+# This is not a hypothetical: before this function existed, exactly that
+# happened during this task's own development -- a test run passed a
+# synthetic -UserProfile, correctly staged its preview under that profile's
+# %LOCALAPPDATA%, and then -Apply wrote 12 real, live host files anyway,
+# because the destination path itself was still the registry's absolute,
+# real-profile path. Caught, reverted, and root-caused; see
+# task-2-report.md, "Safety incident." Do not remove or weaken this
+# rebase without re-reading that section.
+# tests/Test-SyncInstructions.ps1's "Behavior 0" is the permanent regression
+# guard for exactly this; it must stay passing.
 $registryUserProfile = if ($agentsReg.PSObject.Properties['userProfile'] -and
     -not [string]::IsNullOrWhiteSpace([string]$agentsReg.userProfile)) {
     [System.IO.Path]::GetFullPath([string]$agentsReg.userProfile).TrimEnd('\')
@@ -269,6 +290,20 @@ function Resolve-HostTarget {
         $headerSource = 'derived-fallback'
     }
 
+    # A host whose real deployed layout is not the generic header/marker/
+    # body contract (currently only Hermes: identity preamble before the
+    # policy, managed marker at the end of the file) declares
+    # nativePaths.instructionBodyTemplate. This is read generically here --
+    # nothing in this function or the renderer checks $hostId against a
+    # literal host name; marker placement and any preamble live entirely in
+    # the registry data.
+    $bodyTemplate = if ($paths.PSObject.Properties['instructionBodyTemplate'] -and
+        -not [string]::IsNullOrWhiteSpace([string]$paths.instructionBodyTemplate)) {
+        [string]$paths.instructionBodyTemplate
+    } else {
+        $null
+    }
+
     return [pscustomobject]@{
         HostId            = $hostId
         Kind              = 'destination'
@@ -278,6 +313,7 @@ function Resolve-HostTarget {
         Header            = $header
         HeaderSource      = $headerSource
         IsDirectoryTarget = [bool]$isDirectoryTarget
+        BodyTemplate      = $bodyTemplate
     }
 }
 
@@ -300,7 +336,7 @@ foreach ($agent in $allHosts) {
     }
 
     $workSetCount++
-    $expectedContent = Get-RenderedInstructionContent -HostId $target.HostId -Header $target.Header
+    $expectedContent = Get-RenderedInstructionContent -HostId $target.HostId -Header $target.Header -BodyTemplate $target.BodyTemplate
 
     # Stage the rendered bytes for inspection regardless of mode. Always
     # under %LOCALAPPDATA%\AgentHub\runtime\instructions\<hostId>\ (or its

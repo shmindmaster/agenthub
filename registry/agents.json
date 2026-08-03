@@ -182,6 +182,8 @@
         "instructions": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\SOUL.md",
         "instructionHeader": "# Hermes Agent",
         "instructionFormat": "markdown",
+        "instructionBodyTemplate": "# Hermes Agent\n\nYou are Hermes Agent, an intelligent AI assistant created by Nous Research. Be helpful, knowledgeable, direct, targeted, and efficient. Admit uncertainty when appropriate and prioritize genuine usefulness.\n\n{{globalPolicy}}\n<!-- agenthub:managed -->\n",
+        "instructionBodyTemplateSource": "preamble recovered verbatim from `git show fc1bda6:templates/HERMES-SOUL.md` (header, blank, persona paragraph, blank, {{globalPolicy}} placeholder); the trailing `<!-- agenthub:managed -->` marker line was appended by Task 2 (not present in the recovered template, which predates the marker convention) to encode marker placement in data instead of special-casing it in the renderer, per the fix-round-1 coordinator instruction.",
         "skillsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\skills",
         "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\hooks",
         "pluginsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\plugins",
