@@ -42,9 +42,6 @@ $ErrorActionPreference = 'Stop'
 # Paths
 # ---------------------------------------------------------------------------
 $RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot).TrimEnd('\')
-$canonicalRepositoryRoot = [System.IO.Path]::GetFullPath(
-    'C:\Repos\shmindmaster\agenthub'
-).TrimEnd('\')
 $RegistryDir       = Join-Path $RegistryRoot 'registry'
 $effectiveLocalAppData = [System.IO.Path]::GetFullPath($env:LOCALAPPDATA)
 $invokingUserProfile = if ([string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
@@ -78,17 +75,21 @@ $CapabilitiesFile  = Join-Path $RegistryDir 'capabilities.json'
 $ConnectorsFile    = Join-Path $RegistryDir 'native-connectors.json'
 $GatewaysFile      = Join-Path $RegistryDir 'gateway-profiles.json'
 
+# registry/capabilities.json now stores canonicalSource/hashBasis as
+# repo-relative paths (e.g. "packages/clerk"), not paths hardcoded to one
+# checkout. This resolves such a value against the repository root this
+# process is actually running from. It used to also rewrite paths hardcoded
+# to the historical C:\Repos\shmindmaster\agenthub checkout onto whatever
+# root was actually running -- that rewrite is now dead for registry data,
+# since Validate-AgentHub.ps1 rejects an absolute canonicalSource/hashBasis
+# outright. If one somehow still arrives absolute here, that means the
+# validator guard was bypassed; fail loudly instead of silently rewriting it.
 function Resolve-RegistryOwnedPath([string]$Path) {
     if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
-    $fullPath = [System.IO.Path]::GetFullPath($Path)
-    if ($fullPath.Equals($canonicalRepositoryRoot, [StringComparison]::OrdinalIgnoreCase)) {
-        return $RegistryRoot
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        throw "Resolve-RegistryOwnedPath received an absolute/UNC path ('$Path'). Registry-owned paths (canonicalSource/hashBasis) must be repository-relative; fix registry/capabilities.json instead of resolving around it."
     }
-    $canonicalPrefix = $canonicalRepositoryRoot + '\'
-    if ($fullPath.StartsWith($canonicalPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-        return Join-Path $RegistryRoot $fullPath.Substring($canonicalPrefix.Length)
-    }
-    return $fullPath
+    return [System.IO.Path]::GetFullPath((Join-Path $RegistryRoot $Path))
 }
 
 New-Item -ItemType Directory -Path $StateDir -Force | Out-Null

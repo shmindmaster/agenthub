@@ -88,11 +88,44 @@ foreach ($packageName in @('product-demo-studio','product-experience-engineering
   }
 }
 
+# Registry-owned paths (canonicalSource, hashBasis) must be repository-relative
+# so the same registry.json is correct in every worktree/clone. This resolves
+# a relative value against $root and rejects it outright -- rather than
+# silently rewriting it -- if it is absolute, UNC, or escapes the repository
+# root via '..'. A capability whose path arrives absolute after this guard is
+# a real regression, not something to paper over.
+function Test-RegistryRelativePath {
+  param(
+    [string]$Value,
+    [string]$Root,
+    [string]$FieldName,
+    [string]$CapabilityId
+  )
+  if ([string]::IsNullOrWhiteSpace($Value)) {
+    Fail "$FieldName is missing: $CapabilityId"
+    return $null
+  }
+  if ([IO.Path]::IsPathRooted($Value)) {
+    Fail "$FieldName must be repository-relative, not absolute or UNC: $CapabilityId ($Value)"
+    return $null
+  }
+  $resolved = [IO.Path]::GetFullPath((Join-Path $Root $Value))
+  $rootPrefix = $Root.TrimEnd('\') + '\'
+  if (-not ($resolved.Equals($Root, [StringComparison]::OrdinalIgnoreCase) -or
+      $resolved.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase))) {
+    Fail "$FieldName escapes the repository root: $CapabilityId ($Value)"
+    return $null
+  }
+  return $resolved
+}
+
 foreach ($capability in $capabilities.capabilities) {
   $expectedRoot = [IO.Path]::GetFullPath((Join-Path $pluginRoot $capability.id))
   if (-not (Test-Path -LiteralPath $expectedRoot)) { Fail "registered capability missing: $($capability.id)"; continue }
-  if ([IO.Path]::GetFullPath($capability.canonicalSource) -ne $expectedRoot) { Fail "canonicalSource mismatch: $($capability.id)" }
-  if ([IO.Path]::GetFullPath($capability.hashBasis) -ne $expectedRoot) { Fail "hashBasis must cover the complete package: $($capability.id)" }
+  $resolvedSource = Test-RegistryRelativePath -Value ([string]$capability.canonicalSource) -Root $root -FieldName 'canonicalSource' -CapabilityId $capability.id
+  if ($resolvedSource -and $resolvedSource -ne $expectedRoot) { Fail "canonicalSource mismatch: $($capability.id)" }
+  $resolvedHashBasis = Test-RegistryRelativePath -Value ([string]$capability.hashBasis) -Root $root -FieldName 'hashBasis' -CapabilityId $capability.id
+  if ($resolvedHashBasis -and $resolvedHashBasis -ne $expectedRoot) { Fail "hashBasis must cover the complete package: $($capability.id)" }
   $actualHash = Get-AgentHubRegistryHashBasisValue -Path $expectedRoot
   if ($actualHash -ne $capability.contentHash) { Fail "contentHash drift: $($capability.id)" }
 }

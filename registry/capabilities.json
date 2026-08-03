@@ -16,9 +16,9 @@
       "id": "clerk",
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/clerk",
+      "canonicalSource": "packages/clerk",
       "contentHash": "241212C8B180B284808A10ABF3BBD65991D15657AFDC6BC64D3EDB80C845A787",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\clerk",
+      "hashBasis": "packages/clerk",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -59,9 +59,9 @@
       "id": "digitalocean",
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/digitalocean",
+      "canonicalSource": "packages/digitalocean",
       "contentHash": "2B3C193798F51CE3676061982AEB073FA909909E10CA976CDD8F8F4475D6A2DC",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\digitalocean",
+      "hashBasis": "packages/digitalocean",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -102,9 +102,9 @@
       "id": "elevenlabs",
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin+cli",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/elevenlabs",
+      "canonicalSource": "packages/elevenlabs",
       "contentHash": "06332D0080DA13F02586A4E4F498096EC5C815FC5906D7339B8252CEE06485C9",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\elevenlabs",
+      "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -145,9 +145,9 @@
       "id": "product-demo-studio",
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/product-demo-studio",
+      "canonicalSource": "packages/product-demo-studio",
       "contentHash": "28DE51E853C89B1944AA0269B7B6AFB2B8129C5203D3B540DA8EBC92B3E3F491",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\product-demo-studio",
+      "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -264,9 +264,9 @@
       "id": "product-experience-engineering",
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/product-experience-engineering",
+      "canonicalSource": "packages/product-experience-engineering",
       "contentHash": "39256C9B1EB29FA956C806C36E55BF6968FCBCD787CA42632F04EA7AE13F573F",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\product-experience-engineering",
+      "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -351,12 +351,12 @@
       "id": "campaign-production",
       "owner": "portfolio",
       "capabilityType": "skills",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/campaign-production",
+      "canonicalSource": "packages/campaign-production",
       "managedSkillNames": [
         "portfolio-campaign-production"
       ],
       "contentHash": "D617A921F5121595DAB12D9276C4280996E7E9F1355E75414E6A43B7014684CB",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\campaign-production",
+      "hashBasis": "packages/campaign-production",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -397,12 +397,12 @@
       "id": "prompt-os",
       "owner": "portfolio",
       "capabilityType": "skills",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/prompt-os",
+      "canonicalSource": "packages/prompt-os",
       "managedSkillNames": [
         "portfolio-prompt-os"
       ],
       "contentHash": "E45F57A3DF26450535EE7A0F18D2855D78A4675EAF68EADD719906144A7E4BD9",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\prompt-os",
+      "hashBasis": "packages/prompt-os",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -443,7 +443,7 @@
       "id": "portfolio-engineering",
       "owner": "portfolio",
       "capabilityType": "skills",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/portfolio-engineering",
+      "canonicalSource": "packages/portfolio-engineering",
       "managedSkillNames": [
         "docs-drift",
         "portfolio-audit",
@@ -459,7 +459,7 @@
         "verify-and-commit": ["DD71BF1E975AA45E953643CECD875451C4BC0992D0D0B97F71F516F9AFE3515F"]
       },
       "contentHash": "ABF022A052CF55DAA4EFB4D890D8E9051EB3E850C89E87B46FF73C3AFE551DE0",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\portfolio-engineering",
+      "hashBasis": "packages/portfolio-engineering",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -536,7 +536,7 @@
       "id": "framer",
       "owner": "portfolio",
       "capabilityType": "skills",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/framer",
+      "canonicalSource": "packages/framer",
       "managedSkillNames": [
         "framer",
         "framer-code-components"
@@ -546,7 +546,7 @@
         "framer-code-components": ["68A371E6D4A413A2F5004B3FB42738D1B3E1FF39964020B3438FDF835AA9C425"]
       },
       "contentHash": "B87161BD85B377BFA41B371D7CA8C58E0F9C515B200A98C0E9EBD4F243C08F77",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\framer",
+      "hashBasis": "packages/framer",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -623,9 +623,9 @@
       "id": "firecrawl",
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/firecrawl",
+      "canonicalSource": "packages/firecrawl",
       "contentHash": "1B2D9F3630DC861DECC8A9C8F8F8EC9566AF6F235B4185BCD6A807D5A8D95C54",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\firecrawl",
+      "hashBasis": "packages/firecrawl",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -638,12 +638,12 @@
       "id": "local-ai",
       "owner": "personal-infrastructure",
       "capabilityType": "skills+cli",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/local-ai",
+      "canonicalSource": "packages/local-ai",
       "managedSkillNames": [
         "local-ai-stack"
       ],
       "contentHash": "C9355238EFCA53A6864A64EF6FCCC3699BD55D3E652ABE50AA59E049758031C8",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\local-ai",
+      "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappings": [
         {
@@ -656,7 +656,7 @@
       "id": "browser-toolkit",
       "owner": "browser-quality",
       "capabilityType": "plugin+mcp+skills",
-      "canonicalSource": "C:/Repos/shmindmaster/agenthub/packages/browser-toolkit",
+      "canonicalSource": "packages/browser-toolkit",
       "managedSkillNames": [
         "browser-debugging",
         "browser-evidence",
@@ -674,7 +674,7 @@
         }
       ],
       "contentHash": "01BF2ADFA182A6E803D8D44CE196D2E2663FE1075BD403F9485DB292A1ECE49C",
-      "hashBasis": "C:\\Repos\\shmindmaster\\agenthub\\packages\\browser-toolkit",
+      "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
         {

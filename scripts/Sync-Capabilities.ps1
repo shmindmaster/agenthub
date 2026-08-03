@@ -50,7 +50,10 @@ $rows = [Collections.Generic.List[object]]::new()
 $failures = [Collections.Generic.List[string]]::new()
 
 foreach ($capability in $capabilities.capabilities) {
-  $sourceRoot = [IO.Path]::GetFullPath([string]$capability.canonicalSource)
+  # canonicalSource is repo-relative (e.g. "packages/clerk"); resolve it
+  # against the repository root this script is actually running from, not
+  # the process's current working directory.
+  $sourceRoot = [IO.Path]::GetFullPath((Join-Path $root ([string]$capability.canonicalSource)))
   $skillsRoot = Join-Path $sourceRoot 'skills'
   $skills = if (Test-Path -LiteralPath $skillsRoot) { @(Get-ChildItem -LiteralPath $skillsRoot -Directory) } else { @() }
   foreach ($mapping in $capability.hostMappings) {
