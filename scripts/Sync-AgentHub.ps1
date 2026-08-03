@@ -1,7 +1,9 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Central synchronization engine for the C:\Repos\shmindmaster\agenthub registry.
+    Central synchronization engine for the AgentHub registry. Self-derives its
+    registry root from this script's own on-disk location unless -RegistryRoot
+    is passed explicitly.
 
 .DESCRIPTION
     Reads the central registry and deploys real files / native configuration
@@ -32,8 +34,8 @@ param(
     [string]$ScopeProfile = 'global-default',
     [switch]$IncludeDeprecated,
     [switch]$IncludeInactiveAgents,
-    [string]$RegistryRoot = "C:\Repos\shmindmaster\agenthub",
-    [string]$UserProfile = "C:\Users\SaroshHussain"
+    [string]$RegistryRoot,
+    [string]$UserProfile = $env:USERPROFILE
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,6 +43,14 @@ $ErrorActionPreference = 'Stop'
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
+# Self-derive from this script's own on-disk location -- same idiom as
+# Validate-AgentHub.ps1 and Sync-Capabilities.ps1. Without this, running from
+# a worktree (the normal development path per repository policy) with no
+# explicit -RegistryRoot would silently read whatever tree the hardcoded
+# default pointed at instead of the tree this invocation actually belongs to.
+if ([string]::IsNullOrWhiteSpace($RegistryRoot)) {
+    $RegistryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+}
 $RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot).TrimEnd('\')
 $RegistryDir       = Join-Path $RegistryRoot 'registry'
 $effectiveLocalAppData = [System.IO.Path]::GetFullPath($env:LOCALAPPDATA)
@@ -122,6 +132,21 @@ $gatewayReg   = Read-JsonFile $GatewaysFile
 
 if (-not $agentsReg) { throw "Missing $AgentsFile" }
 if (-not $mcpsReg)   { throw "Missing $McpsFile" }
+if (-not $capReg)    { throw "Missing $CapabilitiesFile" }
+
+# An empty or wrong -RegistryRoot must never be reported as a successful,
+# zero-drift run. A directory can pass the file-existence checks above (an
+# agents.json/capabilities.json can exist but be empty, or -RegistryRoot can
+# point at some other tree entirely) and still not be this registry. Refuse
+# to proceed rather than silently completing against an empty work set.
+$activeAgentCount = @($agentsReg.activeAgents).Count
+if ($activeAgentCount -eq 0) {
+    throw "Registry root '$RegistryRoot' resolved to zero active agents in $AgentsFile. Refusing to report success against what looks like an empty or wrong registry tree; pass -RegistryRoot explicitly if this is intentional."
+}
+$capabilityCount = @($capReg.capabilities).Count
+if ($capabilityCount -eq 0) {
+    throw "Registry root '$RegistryRoot' resolved to zero capabilities in $CapabilitiesFile. Refusing to report success against what looks like an empty or wrong registry tree; pass -RegistryRoot explicitly if this is intentional."
+}
 
 $script:mcpMigrationAliases = @{
     'github-shmindmaster' = 'github'

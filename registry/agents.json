@@ -357,6 +357,7 @@
         "instructionsDestinationKind": "directory",
         "instructionHeader": null,
         "instructionFormat": "mdc",
+        "instructionFormatVerification": "documentation-not-read",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.cursor\\plugins",
         "extensionsDir": "C:\\Users\\SaroshHussain\\.cursor\\extensions"
       },
