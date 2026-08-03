@@ -11,6 +11,8 @@
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.claude\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.claude\\CLAUDE.md",
+        "instructionHeader": "# Claude Code Global Instructions",
+        "instructionFormat": "markdown",
         "rulesDir": "C:\\Users\\SaroshHussain\\.claude\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.claude\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.claude\\agents",
@@ -51,6 +53,8 @@
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.codex\\config.toml",
         "instructions": "C:\\Users\\SaroshHussain\\.codex\\AGENTS.md",
+        "instructionHeader": "# Shared Codex Guidance",
+        "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.codex\\skills",
         "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.codex\\agents",
@@ -74,6 +78,8 @@
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.qwen\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.qwen\\QWEN.md",
+        "instructionHeader": "# Qwen Code Global Instructions",
+        "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.qwen\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.qwen\\agents",
         "extensionsDir": "C:\\Users\\SaroshHussain\\.qwen\\extensions"
@@ -99,6 +105,8 @@
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
         "instructions": "C:\\Users\\SaroshHussain\\.config\\opencode\\AGENTS.md",
+        "instructionHeader": "# OpenCode Global Instructions",
+        "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\plugins",
@@ -125,6 +133,8 @@
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
         "instructions": "C:\\Users\\SaroshHussain\\.config\\opencode\\AGENTS.md",
+        "instructionHeader": "# OpenCode Global Instructions",
+        "instructionFormat": "markdown",
         "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode"
       },
       "supportedCapabilities": [
@@ -143,6 +153,8 @@
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.gemini\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.gemini\\GEMINI.md",
+        "instructionHeader": "# Gemini CLI and Antigravity Global Instructions",
+        "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\agents",
         "extensionsDir": "C:\\Users\\SaroshHussain\\.gemini\\extensions",
@@ -168,6 +180,8 @@
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\config.yaml",
         "instructions": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\SOUL.md",
+        "instructionHeader": "# Hermes Agent",
+        "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\skills",
         "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\hooks",
         "pluginsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\plugins",
@@ -194,6 +208,8 @@
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.copilot\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.copilot\\copilot-instructions.md",
+        "instructionHeader": null,
+        "instructionFormat": "markdown",
         "mcp": "C:\\Users\\SaroshHussain\\.copilot\\mcp-config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.copilot\\skills",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.copilot\\installed-plugins"
@@ -221,7 +237,9 @@
         "cliPluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\plugins",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\agents",
-        "pluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\plugins"
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\plugins",
+        "instructions": null,
+        "verification": "documentation-not-read"
       },
       "supportedCapabilities": [
         "rules",
@@ -240,7 +258,9 @@
       "version": "2.4.3",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\antigravity\\Antigravity.exe",
       "nativePaths": {
-        "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity"
+        "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity",
+        "instructions": null,
+        "verification": "documentation-not-read"
       },
       "supportedCapabilities": ["skills", "mcp"],
       "status": "active",
@@ -254,7 +274,9 @@
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Antigravity IDE\\Antigravity IDE.exe",
       "nativePaths": {
         "configHome": "C:\\Users\\SaroshHussain\\.antigravity-ide",
-        "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity IDE\\User\\settings.json"
+        "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity IDE\\User\\settings.json",
+        "instructions": null,
+        "verification": "documentation-not-read"
       },
       "supportedCapabilities": ["rules", "skills", "mcp", "extensions"],
       "status": "active",
@@ -269,6 +291,8 @@
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.grok\\config.toml",
         "instructions": "C:\\Users\\SaroshHussain\\.grok\\AGENTS.md",
+        "instructionHeader": "# Grok CLI Global Instructions",
+        "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.grok\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.grok\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.grok\\installed-plugins",
@@ -286,7 +310,9 @@
         "mcp": "C:\\Users\\SaroshHussain\\.warp\\.mcp.json",
         "worktreeTabConfig": "C:\\Users\\SaroshHussain\\.warp\\tab_configs\\agenthub_worktree.toml",
         "skillsDir": "C:\\Users\\SaroshHussain\\.warp\\skills",
-        "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp"
+        "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp",
+        "instructions": null,
+        "verification": "documentation-not-read"
       },
       "supportedCapabilities": ["rules", "skills", "mcp", "cloud-agents", "orchestration", "profiles", "worktrees"],
       "status": "active"
@@ -301,6 +327,8 @@
         "config": "C:\\Users\\SaroshHussain\\.cline\\data\\settings",
         "mcp": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\cline_mcp_settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules\\00-agenthub.md",
+        "instructionHeader": "# Cline CLI Global Rules",
+        "instructionFormat": "markdown",
         "desktopInstructions": "C:\\Users\\SaroshHussain\\Documents\\Cline\\Rules\\00-agenthub.md",
         "rulesDir": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.cline\\skills",
@@ -325,6 +353,10 @@
         "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
         "rulesDir": "C:\\Users\\SaroshHussain\\.cursor\\rules",
+        "instructions": null,
+        "instructionsDestinationKind": "directory",
+        "instructionHeader": null,
+        "instructionFormat": "mdc",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.cursor\\plugins",
         "extensionsDir": "C:\\Users\\SaroshHussain\\.cursor\\extensions"
       },
@@ -347,7 +379,9 @@
         "vendorExecutable": "C:\\Users\\SaroshHussain\\AppData\\Local\\cursor-agent\\cursor-agent.cmd",
         "config": "C:\\Users\\SaroshHussain\\.cursor\\cli-config.json",
         "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
-        "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills"
+        "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills",
+        "instructions": null,
+        "verification": "documentation-not-read"
       },
       "supportedCapabilities": [
         "rules",
@@ -372,7 +406,9 @@
         "skillsDir": "C:\\Users\\SaroshHussain\\.qoder\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.qoder\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.qoder\\plugins",
-        "canvasDir": "C:\\Users\\SaroshHussain\\.qoder\\canvas"
+        "canvasDir": "C:\\Users\\SaroshHussain\\.qoder\\canvas",
+        "instructions": null,
+        "verification": "documentation-not-read"
       },
       "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "connectors", "computer-use", "acp", "canvas", "qoderwork", "headless"],
       "status": "active",
@@ -388,6 +424,8 @@
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.config\\amp\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.config\\amp\\AGENTS.md",
+        "instructionHeader": "# Amp Global Instructions",
+        "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\skills",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\plugins"
       },
@@ -412,7 +450,9 @@
         "skillsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\skills",
         "pluginsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\cli\\plugins",
         "agentsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\agents",
-        "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\hooks"
+        "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\hooks",
+        "instructions": null,
+        "verification": "documentation-not-read"
       },
       "supportedCapabilities": [
         "rules",
@@ -435,6 +475,8 @@
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.factory\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.factory\\AGENTS.md",
+        "instructionHeader": "# Factory Droid Global Instructions",
+        "instructionFormat": "markdown",
         "mcp": "C:\\Users\\SaroshHussain\\.factory\\mcp.json",
         "rulesDir": "C:\\Users\\SaroshHussain\\.factory\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.factory\\skills",
@@ -459,7 +501,9 @@
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\bin\\code-insiders.cmd",
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\mcp.json",
-        "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\settings.json"
+        "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\settings.json",
+        "instructions": null,
+        "verification": "documentation-not-read"
       },
       "supportedCapabilities": [
         "rules",
@@ -481,7 +525,10 @@
         "skillsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\skills",
         "settings": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\user_settings.pb",
         "hooksDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\hooks",
-        "workflowsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\workflows"
+        "workflowsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\workflows",
+        "instructions": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\memories\\global_rules.md",
+        "instructionHeader": null,
+        "instructionFormat": "markdown"
       },
       "supportedCapabilities": [
         "rules",
