@@ -134,6 +134,35 @@ if (@($agents.activeAgents).Count -eq 0) { Fail 'agents registry has no active a
 if (@($mcps.mcpServers).Count -eq 0) { Fail 'MCP registry is empty' }
 if (@($delivery.products).Count -ne 7) { Fail 'product video delivery registry must contain seven products' }
 
+# Autonomy/permission model (registry/fleet-profile.json.autonomyProfiles): a host
+# marked 'interactive' must never be dispatched unattended, so this data must not
+# be able to silently rot -- every hostId must be real, every defaultProfile must
+# be a known value (an unrecognized value defaulting to permissive is exactly the
+# failure mode this guards against), and every active host must be covered or
+# explicitly exempted with a reason.
+$fleetProfile = Read-Json (Join-Path $root 'registry\fleet-profile.json')
+$registeredHostIds = @(@($agents.activeAgents | ForEach-Object id) + @($agents.inactiveAgents | ForEach-Object id))
+$knownDefaultProfiles = @($fleetProfile.autonomyProfiles.knownDefaultProfiles)
+if ($knownDefaultProfiles.Count -eq 0) { Fail 'autonomyProfiles.knownDefaultProfiles is missing or empty' }
+$autonomyProfiles = @($fleetProfile.autonomyProfiles.profiles)
+if ($autonomyProfiles.Count -eq 0) { Fail 'autonomyProfiles.profiles is missing or empty' }
+$coveredHostIds = [Collections.Generic.HashSet[string]]::new()
+foreach ($autonomyProfile in $autonomyProfiles) {
+  $hostId = [string]$autonomyProfile.hostId
+  if ($hostId -notin $registeredHostIds) { Fail "autonomy profile hostId does not resolve to a registered host: $hostId" }
+  if (([string]$autonomyProfile.defaultProfile) -notin $knownDefaultProfiles) {
+    Fail "autonomy profile defaultProfile is not a known value: $hostId ($($autonomyProfile.defaultProfile))"
+  }
+  [void]$coveredHostIds.Add($hostId)
+}
+$exemptHostIds = @(@($fleetProfile.autonomyProfiles.exemptions) | ForEach-Object hostId)
+foreach ($activeAgent in @($agents.activeAgents)) {
+  $activeHostId = [string]$activeAgent.id
+  if ($coveredHostIds.Contains($activeHostId)) { continue }
+  if ($activeHostId -in $exemptHostIds) { continue }
+  Fail "active host has no autonomy profile and no exemption: $activeHostId"
+}
+
 $stale = @(rg -l --hidden --glob '!node_modules/**' --glob '!tests/validate.ps1' `
   'packages/(handoff-plugins/plugins|portfolio-plugins)|agenthub[/\\]capabilities[/\\]|agenthub[/\\](docs|reports|state|generated)[/\\]' `
   $root 2>$null)

@@ -31,6 +31,49 @@
     "cline": ["--auto-approve", "true"],
     "qoder": ["--dangerously-skip-permissions"]
   },
+  "autonomyProfiles": {
+    "schemaVersion": 1,
+    "purpose": "Per-host permission model recovered from the deleted profiles/host-autonomy-mappings.json (git show fc1bda6:profiles/host-autonomy-mappings.json; AGENTS.md:20 forbids recreating profiles/, so the data lives here instead). A host whose defaultProfile is 'interactive' must never be dispatched unattended.",
+    "knownDefaultProfiles": ["repo-autonomous", "interactive"],
+    "flagsOwnedByLaunchDefaults": "When a profile below carries launchDefaultsKey, that key's array in the sibling launchDefaults object (directly, or via aliases[] for a non-hostId key like agy) is the single authoritative source for that host's CLI flags. This section intentionally does not restate those flags, so there is exactly one place that can be wrong about them.",
+    "aliases": [
+      {
+        "launchDefaultsKey": "agy",
+        "hostId": "antigravity",
+        "evidence": "registry/agents.json activeAgents[antigravity].executable resolves to ...WinGet\\Links\\agy.exe, and launchDefaults.agy (['--dangerously-skip-permissions']) is byte-identical to the deleted host-autonomy-mappings.json antigravity.native.flags. Treated as established, not merely flagged.",
+        "note": "The launchDefaults key itself is left as 'agy' -- renaming it is out of scope for this task; registry/fleet-profile.json's separately-reported absolute-path pinning is likewise left as-is here."
+      }
+    ],
+    "profiles": [
+      { "hostId": "codex", "defaultProfile": "repo-autonomous", "native": { "approval_policy": "never", "sandbox_mode": "danger-full-access" } },
+      { "hostId": "claude", "defaultProfile": "repo-autonomous", "native": { "permissionMode": "bypassPermissions" } },
+      { "hostId": "cursor-agent", "defaultProfile": "repo-autonomous", "native": { "flags": ["--yolo", "--sandbox", "disabled", "--approve-mcps"] } },
+      { "hostId": "qwen-code", "defaultProfile": "repo-autonomous", "native": { "approvalMode": "yolo", "permissions": "allow-all", "managedAutoMemory": true, "managedAutoDream": true, "subagents": ["scout", "implementer", "reviewer", "verifier"], "headless": { "promptFlag": "--prompt", "structuredOutput": ["json", "stream-json"] }, "lsp": { "flag": "--experimental-lsp", "projectConfig": ".lsp.json" }, "hooks": "default-enabled; no global command hook" } },
+      { "hostId": "opencode", "defaultProfile": "repo-autonomous", "native": { "permission": "allow", "acpCommand": ["acp"] }, "note": "registry/host-capability-contracts.json (deleted, fc1bda6) additionally listed a '--auto' flag not present here. Retained host-autonomy-mappings.json's value as the source of record; flagged for owner review since opencode is active." },
+      { "hostId": "gemini", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "gemini", "native": { "acpFlags": ["--acp"], "sandbox": false } },
+      { "hostId": "copilot", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "copilot", "native": { "acpFlags": ["--acp"], "stayInAutopilot": true }, "note": "Current launchDefaults.copilot carries an extra flag, '--allow-all-mcp-server-instructions', that the deleted host-autonomy-mappings.json native.flags did not have. Per task-3 reconciliation rule the current value wins; it is live via launchDefaults and intentionally not restated here." },
+      { "hostId": "antigravity", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "agy", "native": { "settings": { "permissions": "wildcard-policy-supported" } }, "note": "See aliases[] above -- this host's launch flags live under launchDefaults.agy, not launchDefaults.antigravity." },
+      { "hostId": "devin", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "devin", "native": {} },
+      { "hostId": "grok", "defaultProfile": "repo-autonomous", "native": { "permission_mode": "always-approve", "yolo": true } },
+      { "hostId": "cursor", "defaultProfile": "interactive", "native": { "surface": "ide" }, "note": "Cross-source conflict: host-autonomy-mappings.json (deleted) said 'interactive'; registry/host-capability-contracts.json (deleted, state: configured) said 'repo-autonomous' with a worktreePolicy constraint of 'AgentHub C:\\wt helper only'. Retained the conservative 'interactive' value here. Flagged for owner review -- fleet-profile.json.dispatchPolicy.cursor already reauthorizes Cursor surfaces (2026-07-30), so the owner may want repo-autonomous instead; that reauthorization governs whether Cursor may be dispatched at all, not what its default autonomy should be, so this task did not treat it as resolving the conflict." },
+      { "hostId": "opencode-desktop", "defaultProfile": "interactive", "native": { "surface": "desktop" } },
+      { "hostId": "antigravity-desktop", "defaultProfile": "interactive", "native": { "surface": "desktop" } },
+      { "hostId": "antigravity-ide", "defaultProfile": "interactive", "native": { "surface": "ide" } },
+      { "hostId": "factory", "defaultProfile": "repo-autonomous", "native": { "surface": "desktop-and-cli", "interactionMode": "auto", "autonomyLevel": "high" }, "note": "registry/host-capability-contracts.json (deleted, fc1bda6) described this host's autonomy differently: flags ['exec','--auto','high'] plus unsafeOnlyInIsolatedSandbox: true. Retained host-autonomy-mappings.json's value; factory is currently inactive in registry/agents.json, so this is lower risk." },
+      { "hostId": "amp", "defaultProfile": "interactive", "native": { "surface": "cli", "headlessConstraint": "paid-tier-required" } },
+      { "hostId": "windsurf", "defaultProfile": "interactive", "native": { "surface": "configured-only", "reason": "Do not emit settings without a current official Windows schema." } },
+      { "hostId": "hermes", "defaultProfile": "interactive", "native": { "surface": "cli", "acpCommand": ["acp"], "reason": "No verified universal bypass contract in the managed Windows installation." } },
+      { "hostId": "warp", "defaultProfile": "interactive", "native": { "surface": "desktop-and-cloud-cli", "implementation": "UI permission profile and per-task controls" } },
+      { "hostId": "cline", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "cline", "native": { "equivalent": "--yolo", "acpFlags": ["--acp", "--auto-approve", "true"], "administrativeCommandsExcluded": ["auth", "config", "plugin", "skill", "connect", "mcp", "doctor", "history", "hook", "schedule", "hub", "dashboard", "update", "kanban"] } },
+      { "hostId": "qoder", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "qoder", "native": { "permissionMode": "bypass_permissions", "tools": "default", "acpFlags": ["--acp"], "administrativeCommandsExcluded": ["login", "mcp", "plugins", "skills", "hooks", "agents", "update", "status", "feedback", "rollback"] } }
+    ],
+    "exemptions": [],
+    "notes": [
+      "All 21 hosts from the deleted profiles/host-autonomy-mappings.json (fc1bda6) resolve against registry/agents.json; none were dropped.",
+      "registry/host-capability-contracts.json (also deleted at fc1bda6) additionally covered vscode-insiders' autonomy, but vscode-insiders was never in host-autonomy-mappings.json's 21-host list and is inactive in registry/agents.json; it is out of scope for this recovery and is not represented in profiles above.",
+      "registry/fleet-profile.json also pins an absolute path elsewhere in this file (canonicalPolicy: 'C:/Repos/shmindmaster/agenthub/AGENTS.md') -- observed, not fixed here; queued as separate work per two other task reports."
+    ]
+  },
   "hostSettings": {
     "qwen-code": {
       "requiredModelGeneration": {
