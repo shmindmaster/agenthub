@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1,
-  "id": "repo-autonomous",
-  "description": "Autonomous implementation inside one assigned repository or worktree.",
-  "allow": ["read", "edit", "repository-dependency-install", "test", "commit", "push", "pull-request-update"],
-  "denyUnlessExplicit": ["unrelated-machine-change", "merge", "deploy", "credential-change", "production-access"]
-}

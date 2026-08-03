@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "1.0.0",
+  "set": "worthiness",
+  "note": "Worthiness calibration fixtures are running applications, not rendered masters. The assessment walks a live product, so a video fixture cannot exercise it. Serve with scripts/serve-worthiness-fixtures.mjs.",
+  "criterionVocabulary": [
+    "single-clear-outcome",
+    "fast-to-value",
+    "clean-believable-states",
+    "visual-stability",
+    "legibility",
+    "bounded-feedback-rich-waits",
+    "discoverable-primary-action",
+    "deterministic-resettable",
+    "visible-guardrail",
+    "hero-moment-exists",
+    "polish-baseline"
+  ],
+  "servePort": 8977,
+  "treeSha256": "c341d2b83ff93f062c90b7c611dc8bd4942d97b4dba68378feae5abfd9e6a78c",
+  "fixtures": [
+    {
+      "id": "clean-pass",
+      "urlPath": "/clean-pass/",
+      "expectedVerdict": "PASS",
+      "plantedDefect": "None. Determinate progress, ~1.9s wait, legible result, visible human-approval guardrail.",
+      "measured": "result at 1896ms with a determinate progress bar",
+      "mustTrip": [],
+      "app": {
+        "artifactPath": "fixtures/worthiness/apps/clean-pass/index.html",
+        "sha256": "c2488a697c11c9f6df67816766eccc74185e8e0b982cf0acdcacdff8c985f4f0"
+      },
+      "expectedReadiness": {
+        "artifactPath": "fixtures/worthiness/clean-pass.expected-readiness.json",
+        "sha256": "958a840e53cb21245e228241d2aa93e249d6ace3a21163ebe6cdce868f7cf18d"
+      }
+    },
+    {
+      "id": "dead-wait",
+      "urlPath": "/dead-wait/",
+      "expectedVerdict": "FAIL",
+      "plantedDefect": "Identical to clean-pass with every progress affordance removed.",
+      "measured": "result at 6398ms with no visible feedback",
+      "mustTrip": [
+        {
+          "criterion": "bounded-feedback-rich-waits",
+          "classification": "product-fix-required",
+          "severity": "blocks",
+          "finding": "6.4s elapses after Reconcile with no spinner, progress indicator, or state change.",
+          "suggestedFix": "Add a determinate progress indicator to the Reconcile action."
+        }
+      ],
+      "app": {
+        "artifactPath": "fixtures/worthiness/apps/dead-wait/index.html",
+        "sha256": "6cbaea9bf8669a01721701872c3a4aa47d64cdee85194ead5792c24b2bed8b06"
+      },
+      "expectedReadiness": {
+        "artifactPath": "fixtures/worthiness/dead-wait.expected-readiness.json",
+        "sha256": "238ab00e64935059f732b8fe429a25f0df9a2bc5697365f04806786df3a8e4af"
+      }
+    },
+    {
+      "id": "illegible",
+      "urlPath": "/illegible/",
+      "expectedVerdict": "CONDITIONAL",
+      "plantedDefect": "Results at 9px in a 12-column grid; key figure 10px, low contrast.",
+      "measured": "result at 847ms; body text 9px, headline 10px",
+      "mustTrip": [
+        {
+          "criterion": "legibility",
+          "classification": "capture-fixable",
+          "severity": "degrades",
+          "finding": "Results render at 9px across 12 columns; the headline figure is 10px at low contrast.",
+          "suggestedFix": "Punch in to 2.0x on the results region at capture. No product change required."
+        }
+      ],
+      "app": {
+        "artifactPath": "fixtures/worthiness/apps/illegible/index.html",
+        "sha256": "424ca7f7e19ddd060d100be3fdefaff83bde2e2464150ff5789ce83421dad88c"
+      },
+      "expectedReadiness": {
+        "artifactPath": "fixtures/worthiness/illegible.expected-readiness.json",
+        "sha256": "d823e14bebe006ff10d23a64f8c06e9a4ca34e059e4e60b5d000d58eebc34b11"
+      }
+    },
+    {
+      "id": "unstable",
+      "urlPath": "/unstable/",
+      "expectedVerdict": "FAIL",
+      "plantedDefect": "Post-load banner injection shifts content; results table overflows and clips.",
+      "measured": "layout shift at 900ms; table width 1500px inside a 940px container",
+      "mustTrip": [
+        {
+          "criterion": "visual-stability",
+          "classification": "product-fix-required",
+          "severity": "blocks",
+          "finding": "A banner injects 900ms after load and shifts all content down. The results table overflows its card and clips the final column.",
+          "suggestedFix": "Reserve layout space for the freeze banner before first paint; constrain the results table to its container with horizontal scroll."
+        }
+      ],
+      "app": {
+        "artifactPath": "fixtures/worthiness/apps/unstable/index.html",
+        "sha256": "8878b26613ea67f68b5887fc1039f929b25d0b962b22e74839da0250ae93e6f9"
+      },
+      "expectedReadiness": {
+        "artifactPath": "fixtures/worthiness/unstable.expected-readiness.json",
+        "sha256": "98f9f478dd87f73fb5fc7f23a39f11e817f117be828efabd48684803148d9537"
+      }
+    },
+    {
+      "id": "no-hero",
+      "urlPath": "/no-hero/",
+      "expectedVerdict": "FAIL",
+      "plantedDefect": "Nothing is broken. There is simply nothing worth filming.",
+      "measured": "result at 67ms; no state change a viewer would find surprising",
+      "mustTrip": [
+        {
+          "criterion": "hero-moment-exists",
+          "classification": "product-fix-required",
+          "severity": "blocks",
+          "finding": "The flow is clean, fast, legible, stable and has a visible guardrail. It contains no reveal worth building a video around — saving a form is the product working as specified.",
+          "suggestedFix": "This workflow is not demo-worthy. Select a different flow, or add a capability to this one that produces a result a viewer would not expect."
+        }
+      ],
+      "app": {
+        "artifactPath": "fixtures/worthiness/apps/no-hero/index.html",
+        "sha256": "084a8536bb1b516c7827e7a1a95aeaf6dcc16b62e764763610616c6aa70c67d5"
+      },
+      "expectedReadiness": {
+        "artifactPath": "fixtures/worthiness/no-hero.expected-readiness.json",
+        "sha256": "97799afe49ae837c016fb6a8e072795d426b4ad73d71a0c1a988f454aa416687"
+      }
+    }
+  ]
+}

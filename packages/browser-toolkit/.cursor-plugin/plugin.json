@@ -1,0 +1,8 @@
+{
+  "name": "browser-toolkit",
+  "version": "1.0.0",
+  "description": "Interactive visual browser testing and Chrome DevTools diagnostics with Playwright CLI guidance.",
+  "author": {
+    "name": "Sarosh Hussain"
+  }
+}

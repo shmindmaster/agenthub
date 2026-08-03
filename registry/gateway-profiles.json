@@ -129,25 +129,7 @@
           "toolExecutionState": "not-run-no-quota-spend"
         },
         {
-          "mcpId": "tavily",
-          "dockerReference": null,
-          "mappingType": "unresolved",
-          "proofState": "discovery-required"
-        },
-        {
           "mcpId": "exa",
-          "dockerReference": null,
-          "mappingType": "unresolved",
-          "proofState": "discovery-required"
-        },
-        {
-          "mcpId": "adobe-for-creativity",
-          "dockerReference": null,
-          "mappingType": "unresolved",
-          "proofState": "discovery-required"
-        },
-        {
-          "mcpId": "canva",
           "dockerReference": null,
           "mappingType": "unresolved",
           "proofState": "discovery-required"
@@ -165,8 +147,7 @@
           "activationState": "poc-pending",
           "mcpServerIds": [
             "exa",
-            "firecrawl",
-            "tavily"
+            "firecrawl"
           ],
           "hostMappings": [
             {
@@ -177,21 +158,21 @@
               "hostId": "claude",
               "state": "poc-pending"
             },
-        {
-          "hostId": "vscode-insiders",
-          "state": "poc-pending"
-        },
-        {
-          "hostId": "cursor",
-          "state": "poc-pending"
-        },
-        {
-          "hostId": "cursor-agent",
-          "state": "poc-pending"
-        },
-        {
-          "hostId": "amp",
-          "state": "poc-pending"
+            {
+              "hostId": "vscode-insiders",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "cursor",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "cursor-agent",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "amp",
+              "state": "poc-pending"
             },
             {
               "hostId": "factory",

@@ -69,7 +69,7 @@ if ($invokingUserProfile -and
 }
 $RuntimeDir        = Join-Path $effectiveLocalAppData 'AgentHub'
 $StateDir          = Join-Path $RuntimeDir 'sync'
-$DriftDir          = Join-Path $StateDir 'drift-reports'
+$DriftPath         = Join-Path $StateDir 'latest-drift.json'
 $StateFile         = Join-Path $StateDir 'sync-state.json'
 
 $AgentsFile        = Join-Path $RegistryDir 'agents.json'
@@ -92,7 +92,6 @@ function Resolve-RegistryOwnedPath([string]$Path) {
 }
 
 New-Item -ItemType Directory -Path $StateDir -Force | Out-Null
-New-Item -ItemType Directory -Path $DriftDir -Force | Out-Null
 
 # ---------------------------------------------------------------------------
 # Load registry
@@ -127,13 +126,6 @@ $script:mcpMigrationAliases = @{
     'github-shmindmaster' = 'github'
     'github-sh-pendoah' = 'github'
     'github-sarosh-pendoah' = 'github'
-    'repo-context' = 'repocontext'
-    'shwiki' = 'repocontext'
-    'shwiki-context' = 'repocontext'
-    'shwiki-context-remote' = 'repocontext'
-    'sh-knowledge' = 'repocontext'
-    'knowledge' = 'repocontext'
-    'legal' = 'repocontext'
 }
 if ($mcpsReg.PSObject.Properties['migrationAliases'] -and $mcpsReg.migrationAliases) {
     foreach ($alias in $mcpsReg.migrationAliases.PSObject.Properties) {
@@ -288,40 +280,6 @@ function Deploy-File {
     Copy-Item -LiteralPath $SourcePath -Destination $DestPath -Force
     $script:state.managedFiles[$DestPath] = @{ capability=$OwnerCapability; hash=$sourceHash }
     return @{ status = 'updated'; hash = $sourceHash }
-}
-
-function Sync-RepoContextSkill {
-    param(
-        [pscustomobject]$Agent,
-        [object]$CapabilitiesRegistry,
-        [switch]$WhatIf
-    )
-
-    if ($Agent.id -eq 'qwen-code') {
-        return @{ status='extension-managed'; capability='repocontext' }
-    }
-    if (-not $CapabilitiesRegistry -or -not $CapabilitiesRegistry.capabilities) {
-        return @{ status='registry-missing'; capability='repocontext' }
-    }
-
-    $capability = $CapabilitiesRegistry.capabilities | Where-Object id -eq 'repocontext' | Select-Object -First 1
-    if (-not $capability) { return @{ status='capability-missing'; capability='repocontext' } }
-    $mapping = $capability.hostMappings | Where-Object hostId -eq $Agent.id | Select-Object -First 1
-    if (-not $mapping -or $mapping.deploymentStatus -ne 'managed') {
-        return @{ status='not-mapped'; capability='repocontext' }
-    }
-    if (-not $Agent.nativePaths -or $Agent.nativePaths.PSObject.Properties.Match('skillsDir').Count -eq 0) {
-        return @{ status='skills-path-unavailable'; capability='repocontext' }
-    }
-
-    $source = Join-Path (
-        Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
-    ) 'skills\repocontext\SKILL.md'
-    $destination = Join-Path ([string]$Agent.nativePaths.skillsDir) 'repocontext\SKILL.md'
-    $result = Deploy-File -SourcePath $source -DestPath $destination -OwnerCapability 'repocontext' -WhatIf:$WhatIf
-    $result.capability = 'repocontext'
-    $result.path = $destination
-    return $result
 }
 
 # ---------------------------------------------------------------------------
@@ -1108,17 +1066,6 @@ function Sync-HostMcp-Codex {
             $keep[(Resolve-McpAliasKey $k)] = $true
         }
 
-        # Fold retired portfolio-context aliases into the canonical name.
-        foreach ($legacyKey in @('repo-context', 'shwiki', 'shwiki-context', 'shwiki-context-remote', 'sh-knowledge')) {
-            if ($newToml -notmatch "(?m)^\[mcp_servers\.$([regex]::Escape($legacyKey))\]") { continue }
-            if ($newToml -match '(?m)^\[mcp_servers\.repocontext\]') {
-                $newToml = [regex]::Replace($newToml, (Get-CodexMcpSectionPattern $legacyKey), '')
-            } else {
-                $escapedLegacyKey = [regex]::Escape($legacyKey)
-                $newToml = $newToml -replace "(?m)^\[mcp_servers\.$escapedLegacyKey\]$", '[mcp_servers.repocontext]'
-            }
-        }
-
         # Remove non-canonical top-level mcp_servers sections.
         $topLevelMatches = [regex]::Matches($newToml, '(?m)^\[mcp_servers\.([^\].]+)\]$')
         $topLevelKeys = @()
@@ -1183,6 +1130,10 @@ function Sync-HostMcp-Grok {
         }
         $lines = [System.Collections.Generic.List[string]]::new()
         $null = $lines.Add("[mcp_servers.$name]")
+        if ($mcp.ContainsKey('enabled')) {
+            $enabled = if ([bool]$mcp.enabled) { 'true' } else { 'false' }
+            $null = $lines.Add("enabled = $enabled")
+        }
         if ($mcp.type -eq 'http') {
             $url = ConvertTo-HostEnvironmentReference -Value $mcp.url -TargetHost 'grok'
             $null = $lines.Add("url = `"$url`"")
@@ -1212,7 +1163,7 @@ function Sync-HostMcp-Grok {
     }
 
     if ($Prune) {
-        foreach ($name in @('context7', 'firecrawl', 'tavily', 'exa', 'linear', 'notion', 'repocontext', 'brave-search', 'playwright')) {
+        foreach ($name in @('context7', 'firecrawl', 'tavily', 'exa', 'linear', 'notion', 'brave-search', 'playwright')) {
             $sectionPattern = Get-CodexMcpSectionPattern -Key $name
             $existing = [regex]::Replace($existing, $sectionPattern, '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
         }
@@ -1533,6 +1484,25 @@ function Sync-QwenCapabilityExtensions {
         }
         if (-not $userItem) {
             New-Item -ItemType Junction -Path $userLink -Target $adapterPath | Out-Null
+        }
+    }
+
+    if ($Prune -and -not $WhatIf) {
+        foreach ($userPath in @(Get-ChildItem -LiteralPath $extensionsRoot -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like 'agenthub-*' -and $_.Name -notin $expected })) {
+            if (-not ($userPath.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+                throw "Refusing to prune non-junction Qwen extension path: $($userPath.FullName)"
+            }
+            Remove-Item -LiteralPath $userPath.FullName -Force
+        }
+        foreach ($adapterPath in @(Get-ChildItem -LiteralPath $adapterRoot -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like 'agenthub-*' -and $_.Name -notin $expected })) {
+            $resolvedAdapter = [IO.Path]::GetFullPath($adapterPath.FullName)
+            $resolvedRoot = [IO.Path]::GetFullPath($adapterRoot).TrimEnd('\') + '\'
+            if (-not $resolvedAdapter.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Refusing to prune Qwen adapter outside managed runtime: $resolvedAdapter"
+            }
+            Remove-Item -LiteralPath $resolvedAdapter -Recurse -Force
         }
     }
     $status = if ($WhatIf) { 'unchanged' } else { 'updated' }
@@ -2391,7 +2361,6 @@ foreach ($agent in $agentsToSync) {
         }
     }
 
-    $hostDrift.files += Sync-RepoContextSkill -Agent $agent -CapabilitiesRegistry $capReg -WhatIf:$whatIfMode
 
     $driftReport.hosts += $hostDrift
 }
@@ -2433,13 +2402,12 @@ if ($Validate -or $Apply -or $Audit) {
 # ---------------------------------------------------------------------------
 if ($Apply) { Save-State }
 
-$driftPath = Join-Path $DriftDir ("drift-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
-$driftReport | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $driftPath -Encoding UTF8 -NoNewline
+$driftReport | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $DriftPath -Encoding UTF8 -NoNewline
 
 Write-Host ""
 Write-Host "=== Sync complete ==="
 Write-Host "Mode: $(if($Audit){'Audit'}elseif($Apply){'Apply'}elseif($Validate){'Validate'}else{'Audit(default)'})"
-Write-Host "Drift report: $driftPath"
+Write-Host "Drift report: $DriftPath"
 if ($validationErrors.Count -gt 0) {
     Write-Host "Validation errors: $($validationErrors.Count)" -ForegroundColor Red
     $validationErrors | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }

@@ -1,0 +1,52 @@
+{
+  "fixtureId": "clean-pass",
+  "fps": 30,
+  "durationSeconds": 17,
+  "beats": [
+    {
+      "index": 0,
+      "beat": "cold-open + before-state",
+      "startsAt": 0,
+      "endsAt": 4.5,
+      "durationMs": 4500,
+      "isHero": false,
+      "narration": "Every month, 127 lines get matched by hand."
+    },
+    {
+      "index": 1,
+      "beat": "action",
+      "startsAt": 4.5,
+      "endsAt": 7,
+      "durationMs": 2500,
+      "isHero": false,
+      "narration": "One action."
+    },
+    {
+      "index": 2,
+      "beat": "hero reveal",
+      "startsAt": 7,
+      "endsAt": 11,
+      "durationMs": 4000,
+      "isHero": true,
+      "narration": "Done. Every line, every invoice."
+    },
+    {
+      "index": 3,
+      "beat": "guardrail",
+      "startsAt": 11,
+      "endsAt": 14,
+      "durationMs": 3000,
+      "isHero": false,
+      "narration": "Nothing posts until you say so."
+    },
+    {
+      "index": 4,
+      "beat": "close",
+      "startsAt": 14,
+      "endsAt": 17,
+      "durationMs": 3000,
+      "isHero": false,
+      "narration": "Close the month in an afternoon."
+    }
+  ]
+}

@@ -1,15 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "full-access-unattended",
-  "intent": "User-authorized local coding-agent profile. All configured host tools, local files, network access, and registered MCP tools are available without host permission prompts.",
-  "mcpScope": "global-default",
-  "skillSource": "C:/Repos/shmindmaster/agenthub",
-  "canonicalPolicy": "C:/Repos/shmindmaster/agenthub/standards/global-agent-policy.md",
-  "autonomyProfiles": [
-    "interactive",
-    "repo-autonomous",
-    "machine-maintenance"
-  ],
+  "intent": "User-authorized local coding-agent profile with repository policy, registered MCPs, and managed capabilities available without routine permission prompts.",
+  "canonicalPolicy": "C:/Repos/shmindmaster/agenthub/AGENTS.md",
   "managedHosts": [
     "claude",
     "codex",
@@ -28,30 +21,6 @@
     "warp",
     "cline",
     "qoder",
-    "vscode-insiders"
-  ],
-  "retainedSurfaces": [
-    "claude",
-    "codex",
-    "cursor",
-    "cursor-agent",
-    "qwen-code",
-    "opencode",
-    "opencode-desktop",
-    "gemini",
-    "antigravity",
-    "antigravity-desktop",
-    "antigravity-ide",
-    "copilot",
-    "hermes",
-    "amp",
-    "devin",
-    "factory",
-    "grok",
-    "warp",
-    "cline",
-    "qoder",
-    "windsurf",
     "vscode-insiders"
   ],
   "launchDefaults": {
@@ -78,24 +47,11 @@
     "cursor": {
       "enabled": true,
       "scope": "ide-agent, local-cli, cloud-background-agent, api",
-      "reason": "Owner explicitly reauthorized all Cursor surfaces on 2026-07-30. Normal dispatch is enabled; health checks must remain read-only and must not consume a paid agent run."
-    },
-    "cursor-agent": {
-      "enabled": true,
-      "scope": "local-cli",
-      "reason": "Owner explicitly reauthorized Cursor Agent together with the IDE, cloud, and API surfaces on 2026-07-30."
-    }
-  },
-  "providerHolds": {
-    "cursor": {
-      "active": false,
-      "reason": "Cleared by explicit owner reauthorization on 2026-07-30. The locally authenticated subscription is active; no paid probe was used to clear the hold."
+      "reason": "Owner explicitly reauthorized all Cursor surfaces on 2026-07-30. Health checks remain read-only and must not consume a paid run."
     }
   },
   "notes": [
-    "OAuth consent and provider login pages remain provider-controlled and cannot be pre-approved by a host configuration.",
-    "The cagent folder is retained as state only because no cagent executable or documented user configuration is installed.",
-    "The .windsurf folder is plans-only; the active Windsurf configuration is .codeium/windsurf.",
-    "Cursor IDE, Cursor Agent CLI, Cloud/Background Agents, and API dispatch are active and participate in the same AgentHub capability-parity policy as the rest of the fleet."
+    "OAuth consent and provider login remain provider-controlled.",
+    "Active and inactive installation evidence is maintained only in registry/agents.json."
   ]
 }

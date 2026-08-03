@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1,
-  "id": "interactive",
-  "description": "Human-confirmed destructive and external actions.",
-  "allow": ["read", "propose", "edit-with-confirmation"],
-  "confirm": ["delete", "install", "push", "merge", "deploy", "external-message", "credential-change", "production-access"]
-}

@@ -1,0 +1,4 @@
+{
+  "name": "digitalocean",
+  "description": "Operate DigitalOcean App Platform, Droplets, DNS, data services, Spaces, and incidents."
+}

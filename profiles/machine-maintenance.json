@@ -1,8 +1,0 @@
-{
-  "schemaVersion": 1,
-  "id": "machine-maintenance",
-  "description": "Explicit machine-wide agent installation and configuration maintenance.",
-  "allow": ["inventory", "validate", "generate", "sync-managed-files", "report-cleanup-candidates"],
-  "confirmOrRequireExplicitTask": ["uninstall", "recursive-delete", "path-change", "wsl-unregister"],
-  "cleanupDefault": "report-only"
-}

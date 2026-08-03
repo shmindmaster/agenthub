@@ -1,0 +1,13 @@
+{
+  "fixtureId": "feature-rung",
+  "expectedVerdict": "FAIL",
+  "plantedDefect": "Same visuals as clean-pass. Payoff lands on the feature rung, not outcome or identity.",
+  "mustTrip": [
+    {
+      "criterion": "wiifm-rung",
+      "classification": "capture-fixable",
+      "severity": "degrades"
+    }
+  ],
+  "mustNotTrip": "any criterion not listed in mustTrip"
+}

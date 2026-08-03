@@ -1,0 +1,41 @@
+{
+  "fixtureId": "dead-wait",
+  "note": "stateChangeToCutMs is the hold on each beat. Hero beats under 1000ms fail results-land.",
+  "beats": [
+    {
+      "index": 0,
+      "beat": "cold-open",
+      "isHero": false,
+      "stateChangeToCutMs": 4000
+    },
+    {
+      "index": 1,
+      "beat": "frozen wait, no state change",
+      "isHero": false,
+      "stateChangeToCutMs": 6500
+    },
+    {
+      "index": 2,
+      "beat": "hero reveal",
+      "isHero": true,
+      "stateChangeToCutMs": 3500
+    },
+    {
+      "index": 3,
+      "beat": "guardrail",
+      "isHero": false,
+      "stateChangeToCutMs": 2500
+    },
+    {
+      "index": 4,
+      "beat": "close",
+      "isHero": false,
+      "stateChangeToCutMs": 2500
+    }
+  ],
+  "heroCount": 1,
+  "heroPositionRatio": [
+    0.553
+  ],
+  "longestStaticStretchMs": 6500
+}

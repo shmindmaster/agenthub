@@ -1,15 +1,7 @@
 {
   "schemaVersion": 5,
   "generatedAt": "2026-07-30T22:19:10.4107485Z",
-  "migrationAliases": {
-    "repo-context": "repocontext",
-    "shwiki": "repocontext",
-    "shwiki-context": "repocontext",
-    "shwiki-context-remote": "repocontext",
-    "sh-knowledge": "repocontext",
-    "knowledge": "repocontext",
-    "legal": "repocontext"
-  },
+  "migrationAliases": {},
   "mcpServers": [
     {
       "id": "github",
@@ -97,46 +89,6 @@
       }
     },
     {
-      "id": "playwright",
-      "name": "Playwright",
-      "scope": "on-demand-desktop",
-      "transport": "stdio",
-      "activationMode": "on-demand-local",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@playwright/mcp@latest",
-        "--isolated",
-        "--output-dir",
-        "C:/Users/SaroshHussain/AppData/Local/AgentHub/runtime/playwright"
-      ],
-      "env": {},
-      "credentialPolicy": "none",
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      }
-    },
-    {
-      "id": "repocontext",
-      "name": "RepoContext",
-      "scope": "on-demand-desktop",
-      "transport": "stdio",
-      "activationMode": "on-demand-local",
-      "command": "pnpm",
-      "args": [
-        "--dir",
-        "C:/Repos/shmindmaster/repocontext",
-        "mcp:serve"
-      ],
-      "env": {},
-      "credentialPolicy": "none",
-      "owner": {
-        "type": "capability",
-        "id": "repocontext"
-      }
-    },
-    {
       "id": "firecrawl",
       "name": "Firecrawl Research",
       "scope": "global-default",
@@ -150,22 +102,6 @@
       "owner": {
         "type": "registry",
         "id": "mcp-registry"
-      }
-    },
-    {
-      "id": "tavily",
-      "name": "Tavily Research",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://mcp.tavily.com/mcp/",
-      "credentialPolicy": "environment-bearer-token",
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "headers": {
-        "Authorization": "Bearer ${env:TAVILY_API_KEY}"
       }
     },
     {
@@ -212,10 +148,15 @@
       "command": "npx",
       "args": [
         "-y",
-        "chrome-devtools-mcp@latest"
+        "chrome-devtools-mcp@1.6.0",
+        "--isolated",
+        "--no-usage-statistics",
+        "--no-performance-crux"
       ],
-      "env": {},
-      "credentialPolicy": "host-launched-chrome-profile-no-sensitive-data",
+      "env": {
+        "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "true"
+      },
+      "credentialPolicy": "isolated-temporary-qa-profile-no-sensitive-data",
       "owner": {
         "type": "capability",
         "id": "browser-toolkit"
@@ -240,52 +181,12 @@
         "warp",
         "windsurf"
       ],
-      "hostConfigOverrides": {
-        "antigravity": {
-          "args": [
-            "-y",
-            "chrome-devtools-mcp@latest",
-            "--browser-url=http://127.0.0.1:9222"
-          ]
-        }
-      },
       "conflictingHostPlugins": {
         "qoder": [
           "chrome-devtools-mcp@qoder-marketplace"
         ]
       },
       "experimentalFlagsEnabled": []
-    },
-    {
-      "id": "adobe-for-creativity",
-      "name": "Adobe for creativity",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://adobe-creativity.adobe.io/mcp",
-      "credentialPolicy": "oauth",
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "pluginOwnersByHost": {
-        "codex": "adobe-for-creativity@claude-plugins-official"
-      },
-      "notes": "Remote Creative Cloud MCP (Photoshop/Lightroom/Illustrator/Firefly/Premiere/Express/InDesign/Stock). Prefer for post-production of real assets; never for fabricating product UI. Host OAuth required; guest mode has reduced tools. Official docs: https://developer.adobe.com/adobe-for-creativity/"
-    },
-    {
-      "id": "canva",
-      "name": "Canva",
-      "scope": "global-default",
-      "transport": "http",
-      "activationMode": "shared-remote",
-      "url": "https://mcp.canva.com/mcp",
-      "credentialPolicy": "oauth",
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      },
-      "notes": "Remote Canva design MCP for templates, brand kits (Enterprise), exports, social/marketing collateral. Not for fabricating product UI. Docs: https://www.canva.dev/docs/mcp/"
     },
     {
       "id": "descript",

@@ -1,0 +1,167 @@
+{
+  "schemaVersion": "1.0.0",
+  "capabilityId": "product-demo-studio",
+  "capabilityVersion": "1.7.0",
+  "note": "One entry per host in policy/host-parity.json#mappedHosts. A host either ships a manifest, reads the Claude layout natively, or carries a documented reason it cannot. validate-host-manifests.mjs fails when a mapped host has none of the three. Formats and translation rules are recorded with the documentation URL they were read from; nothing here is inferred from another host's behaviour.",
+  "verificationVocabulary": {
+    "format-verified": "Manifest path and field set read from the host's own current documentation.",
+    "format-unverified": "Manifest shipped but the host's documentation was not read. Treat as a proposal.",
+    "auto-detected": "Host reads the .claude-plugin/ layout natively. No manifest shipped. The translation rule and its source are recorded.",
+    "not-applicable": "The host has no plugin-manifest concept. Shipping one would be fabrication.",
+    "documentation-not-read": "No manifest shipped. The host's plugin format has not been established."
+  },
+  "loadTestStatus": "Neither the Antigravity manifest nor any auto-detection path has been load-tested on its host. Static presence is not parity - policy/host-parity.json#validationScope already says so.",
+  "hosts": [
+    {
+      "hostId": "claude",
+      "manifestPath": ".claude-plugin/plugin.json",
+      "format": "claude-code",
+      "verification": "format-verified",
+      "source": "https://code.claude.com/docs/en/plugin-marketplaces",
+      "notes": "Canonical manifest. agents/, commands/, skills/, .mcp.json load natively."
+    },
+    {
+      "hostId": "factory",
+      "manifestPath": null,
+      "format": "claude-code (auto-translated)",
+      "verification": "auto-detected",
+      "source": "https://docs.factory.ai/harness/plugins",
+      "notes": ".claude-plugin/ -> .factory-plugin/, agents/ -> droids/, .mcp.json -> mcp.json, applied when Droid copies the plugin into its cache. The source repository is not mutated."
+    },
+    {
+      "hostId": "copilot",
+      "manifestPath": null,
+      "format": "claude-code (auto-translated)",
+      "verification": "auto-detected",
+      "source": "https://code.visualstudio.com/docs/agent-customization/agent-plugins",
+      "notes": "The plugin format is shared between VS Code, GitHub Copilot CLI, and Claude Code; a single plugin repository is documented as working across all three.",
+      "openQuestion": "Copilot CLI's own reading of .claude-plugin/ was not verified against GitHub's documentation directly."
+    },
+    {
+      "hostId": "vscode-insiders",
+      "manifestPath": null,
+      "format": "claude-code (auto-translated)",
+      "verification": "auto-detected",
+      "source": "https://code.visualstudio.com/docs/agent-customization/agent-plugins",
+      "notes": "VS Code resolves plugin.json in order: .plugin/plugin.json, plugin.json, .github/plugin/plugin.json, .claude-plugin/plugin.json. The Claude manifest is the documented fourth fallback.",
+      "openQuestion": "The root plugin.json shipped for Antigravity now takes precedence over .claude-plugin/ in VS Code. It declares the same name and version, and VS Code's own documentation states the plugin format is shared across VS Code, Copilot CLI, and Claude Code. Not load-tested."
+    },
+    {
+      "hostId": "antigravity",
+      "manifestPath": "plugin.json",
+      "format": "antigravity",
+      "verification": "format-unverified",
+      "source": "https://antigravity.google/docs/plugins",
+      "notes": "Antigravity's own docs call plugin.json at the plugin root a required marker file, which is why it is shipped. Counter-evidence: obra/superpowers documents a working `agy plugin install` with no root plugin.json and no .factory-plugin/ \u2014 its commit adding Antigravity CLI support states agy imports bundled skills and runs the SessionStart hook natively, with no scaffold or generated context file needed, verified on agy 1.0.3. That is the CLI; an open issue reports an IDE install not activating, so CLI and IDE may differ. The file is harmless if unnecessary. Keep it until both surfaces are tested.",
+      "openQuestion": "Install on Antigravity CLI and IDE with and without the root plugin.json. If both work without it, delete the file and mark antigravity auto-detected. This file also takes precedence over .claude-plugin/ in VS Code's resolution order; same name and version, format documented as shared, not load-tested."
+    },
+    {
+      "hostId": "qwen-code",
+      "manifestPath": null,
+      "format": "claude-code (auto-translated)",
+      "verification": "auto-detected",
+      "source": "https://qwenlm.github.io/qwen-code-docs/en/users/extension/introduction/",
+      "notes": "Claude plugins are converted on install: claude-plugin.json to qwen-extension.json, agent configurations to Qwen subagents, skill configurations to Qwen skills, with tool mappings handled automatically.",
+      "openQuestion": "Conversion is documented under marketplace installation. Whether it applies to a local-path install was not established. If `qwen extensions install /path/to/plugin` does not convert, ship qwen-extension.json for that route."
+    },
+    {
+      "hostId": "codex",
+      "manifestPath": ".codex-plugin/plugin.json",
+      "format": "codex",
+      "verification": "format-unverified",
+      "source": null,
+      "notes": "Pre-existing manifest, carried forward unchanged. Its format was not verified against Codex documentation during this pass."
+    },
+    {
+      "hostId": "cursor",
+      "manifestPath": ".cursor-plugin/plugin.json",
+      "format": "cursor",
+      "verification": "format-unverified",
+      "source": null,
+      "notes": "Pre-existing manifest, carried forward unchanged."
+    },
+    {
+      "hostId": "devin",
+      "manifestPath": null,
+      "format": null,
+      "verification": "documentation-not-read",
+      "source": null,
+      "notes": "The previously shipped .devin-plugin/plugin.json was format-unverified and was removed when the capability moved to packages/product-demo-studio. registry/capabilities.json maps devin to managed-loose-skills, so no plugin manifest is required for the deployed path.",
+      "openQuestion": "Read Devin's plugin documentation and either restore a verified manifest or record not-applicable."
+    },
+    {
+      "hostId": "qoder",
+      "manifestPath": ".qoder-plugin/plugin.json",
+      "format": "qoder",
+      "verification": "format-unverified",
+      "source": null,
+      "notes": "Pre-existing manifest, carried forward unchanged."
+    },
+    {
+      "hostId": "opencode",
+      "manifestPath": null,
+      "format": null,
+      "verification": "not-applicable",
+      "source": "https://opencode.ai/docs/plugins/",
+      "notes": "OpenCode plugins are JavaScript or TypeScript modules that export hook functions for events such as tool.execute.before. There is no plugin manifest and no packaging format for skills, agents, and commands. Shipping an .opencode-plugin/plugin.json would be fabrication. OpenCode consumes skills, agents, and commands through its own configuration surfaces instead.",
+      "openQuestion": "Establish how OpenCode should consume this capability: its Agent Skills surface, its agents and commands configuration, or an MCP server. Read https://opencode.ai/docs/skills/ before deciding."
+    },
+    {
+      "hostId": "amp",
+      "manifestPath": null,
+      "format": null,
+      "verification": "documentation-not-read",
+      "source": null,
+      "openQuestion": "Read the host's plugin documentation and either add a manifest or record not-applicable."
+    },
+    {
+      "hostId": "cline",
+      "manifestPath": null,
+      "format": null,
+      "verification": "documentation-not-read",
+      "source": null,
+      "openQuestion": "Read the host's plugin documentation and either add a manifest or record not-applicable."
+    },
+    {
+      "hostId": "gemini",
+      "manifestPath": null,
+      "format": null,
+      "verification": "documentation-not-read",
+      "source": null,
+      "openQuestion": "Gemini CLI extensions use gemini-extension.json, which Qwen Code documents converting from. The format was not read directly, so no manifest is shipped."
+    },
+    {
+      "hostId": "grok",
+      "manifestPath": null,
+      "format": null,
+      "verification": "documentation-not-read",
+      "source": null,
+      "openQuestion": "Read the host's plugin documentation and either add a manifest or record not-applicable."
+    },
+    {
+      "hostId": "hermes",
+      "manifestPath": null,
+      "format": null,
+      "verification": "documentation-not-read",
+      "source": null,
+      "openQuestion": "Read the host's plugin documentation and either add a manifest or record not-applicable."
+    },
+    {
+      "hostId": "warp",
+      "manifestPath": null,
+      "format": null,
+      "verification": "documentation-not-read",
+      "source": null,
+      "openQuestion": "Read the host's plugin documentation and either add a manifest or record not-applicable."
+    },
+    {
+      "hostId": "windsurf",
+      "manifestPath": null,
+      "format": null,
+      "verification": "documentation-not-read",
+      "source": null,
+      "openQuestion": "Read the host's plugin documentation and either add a manifest or record not-applicable."
+    }
+  ],
+  "autoDetectionRisk": "Auto-detected hosts depend on a compatibility shim this capability does not own. If a host changes or drops its Claude translation, the capability stops loading there with no local signal. That is an accepted trade for not maintaining five parallel manifests. Re-read each translation rule when a host's plugin documentation changes."
+}

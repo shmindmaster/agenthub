@@ -1,0 +1,33 @@
+# Copy to `product-demo-studio.config.yaml` in the target product repository.
+#
+# The plugin carries no product-specific values. This file is the only place a
+# product name appears, which is what lets one plugin serve every product you
+# point it at. Nothing here is inferred — the run stops rather than guessing.
+
+product: <name>                 # free text; no fixed vocabulary, no per-product plugin files
+
+environment:
+  url: [TK: seeded demo environment URL]
+  reset: [TK: reset-and-reseed command or endpoint — required for `deterministic-resettable`]
+
+work_dir: .demo/                # working package: scripts, manifests, evidence, verdicts
+output_root: [TK: delivery destination for final masters]
+tracker: [TK: issue tracker project for product-fix-required items]
+
+brand:
+  accent: "#RRGGBB"             # annotation and click-cue color
+  logo: assets/logo.svg
+  music_bed: assets/bed.mp3     # optional
+
+voice:
+  provider: [TK: openai | elevenlabs | other — see the narration skill]
+  profile: [TK: auditioned voice id + instruction preset]
+
+gates:
+  recut_attempts: 2             # generator/verifier ping-pong cap
+  calibration_cadence: weekly
+
+# Optional. The canonical rubric is the same for every product; leave this unset
+# unless a product genuinely needs a criterion the base rubric lacks. An overlay
+# may only ADD criteria or TIGHTEN thresholds — never remove or weaken one.
+# rubric_overlay: .demo/rubric-overlay.md

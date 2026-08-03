@@ -1,0 +1,4 @@
+{
+  "name": "clerk",
+  "description": "Clerk authentication setup, application patterns, organizations, webhooks, API, CLI, and testing."
+}

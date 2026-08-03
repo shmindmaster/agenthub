@@ -1,0 +1,6 @@
+{
+  "name": "clerk",
+  "version": "0.2.0",
+  "description": "Clerk authentication: setup, Next.js patterns, custom UI, orgs, webhooks, backend API, CLI, and testing.",
+  "author": { "name": "Sarosh Hussain" }
+}

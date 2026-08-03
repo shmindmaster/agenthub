@@ -9,6 +9,13 @@
     "firstHumanTouchpoint": "final-presentation",
     "automatedAcceptanceRequired": true
   },
+  "workspacePolicy": {
+    "environmentOverride": "AGENTHUB_PRODUCT_VIDEO_WORK_ROOT",
+    "defaultRoot": "%LOCALAPPDATA%/AgentHub/product-demo-studio",
+    "targetRepositoriesReadOnlyByDefault": true,
+    "generatedRepositoryFoldersAllowed": false,
+    "acceptedOutputsDestination": "product.reviewRoot"
+  },
   "products": [
     {
       "productId": "gentlenext",

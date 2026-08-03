@@ -1,19 +1,30 @@
-# Agentic Plugin Ecosystem
+# AgentHub
 
-Before substantive work, read `docs/cross-agent-operating-charter.md` and `docs/cross-agent-memory-seed.md`. Classify the task before acting. Personal capability work must never use a client repository, tracker, documentation system, communication system, identity, dataset, or deployment as its control plane or test fixture; split mixed personal/client work into separate tasks.
+AgentHub is the personal source of truth for cross-agent skill, plugin, MCP, and policy parity.
 
-Treat plugins, agent plugins, extensions, agents, constructors, MCP servers, and CLI integrations as one ecosystem with host-native adapters. Before adding or changing a capability, identify its single owner, prefer MCP/API reuse over duplicated logic, and check every registered host for an appropriate exposure path.
+## Boundary
 
-Never copy credentials, tokens, evidence, indexes, or model data into an adapter. Use environment-variable references and user-mediated OAuth.
+- Personal capability work stays in personal systems and uses synthetic fixtures.
+- Never copy credentials, authentication state, customer data, private evidence, reports, session state, generated media, or runtime caches into this repository.
+- Read a target repository's `AGENTS.md` before touching it. Preserve unrelated work.
+- Ask before production changes, external communication, credential changes, or destructive work unless the user explicitly authorized it.
 
-Use official host documentation as the packaging authority. If a host has no verified public specification, record it as discovery-required rather than inventing a plugin format. Validate manifests, duplicate ownership, authentication prerequisites, and read-only health checks before declaring an integration ready.
+## Canonical layout
 
-Host installs of package-style capabilities (plugins) are pinned by version directory, so any canonical content change without a matching version bump silently never propagates to an already-installed host copy. When changing a canonical capability: edit the canonical source, bump its version everywhere it is asserted (manifests, host-parity/policy files, package validators, README), recompute its `registry/capabilities.json` `contentHash` with `scripts/RegistryContentHash.ps1`'s `Get-AgentHubRegistryHashBasisValue`, run that package's own validators, then run `tests/Validate-AgentEcosystem.ps1` — its `deployment-freshness:*` checks compare deployed host bytes against canonical and will fail until each live host install is re-deployed. Package-specific commands live in that package's `README.md`.
+- Every capability lives under `packages/<name>`; the registry declares whether it is a plugin or skill pack.
+- `.agents/plugins/marketplace.json` is the canonical local catalog; `.claude-plugin/marketplace.json` is the small compatibility projection used by Claude-format consumers.
+- `registry/agents.json`, `registry/capabilities.json`, and `registry/mcps.json` are the parity contract.
+- Runtime output belongs under `%LOCALAPPDATA%\AgentHub`.
+- Finished product videos belong at the OneDrive paths in `registry/product-video-delivery.json`.
 
-## GitHub access
+Do not reintroduce `adapters`, `capabilities`, `docs`, `generated`, `profiles`, `reports`, `roles`, `standards`, `state`, `templates`, nested plugin roots, or dated audit documents.
 
-Use the `gh` CLI rather than a GitHub MCP server. This machine has three GitHub
-accounts: `shmindmaster`, `sh-pendoah`, and `sarosh-pendoah`. Before any
-repository operation, run `gh auth status`; when the intended account is not
-active, use `gh auth switch --user <account>`. State which account is active
-when it materially affects the operation.
+## Change contract
+
+Before changing a capability, identify its single registry owner. Update canonical package content and every applicable host manifest, bump package versions, recompute the registry content hash with `scripts/RegistryContentHash.ps1`, and run `scripts/Validate-AgentHub.ps1` plus the package's own validator.
+
+Use official host formats. A host without verified packaging support receives supported loose skills/MCP configuration; do not invent a plugin format. Keep implemented, validated, deployed, and production-verified states distinct.
+
+## GitHub
+
+Use `gh`, verify the active account first, and use `shmindmaster` for this repository.

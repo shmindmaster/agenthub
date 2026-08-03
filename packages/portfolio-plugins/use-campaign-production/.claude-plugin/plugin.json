@@ -1,8 +1,0 @@
-{
-  "name": "use-campaign-production",
-  "version": "0.1.0",
-  "description": "Orchestrate portfolio creative campaign production across product launches, social packs, sales collateral, presentations, event kits, brand variants, and customer stories. Routes work to the canonical creative tool adapters (Canva, Adobe, Descript, Remotion, Playwright) and records runs in the Notion Prompt OS.",
-  "author": { "name": "Sarosh Hussain" },
-  "keywords": ["campaign", "creative", "canva", "adobe", "descript", "remotion", "playwright", "marketing", "content", "media", "brand"],
-  "homepage": "https://shwiki.shtrial.com/"
-}

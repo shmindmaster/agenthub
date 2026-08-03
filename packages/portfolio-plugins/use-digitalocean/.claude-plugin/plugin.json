@@ -1,8 +1,0 @@
-{
-  "name": "use-digitalocean",
-  "version": "0.1.0",
-  "description": "Operate the SH DigitalOcean portfolio across App Platform, Droplets, DNS, managed databases, Spaces, inference, and incidents. Uses the authenticated doctl CLI first, with direct DigitalOcean API calls as fallback.",
-  "author": { "name": "Sarosh Hussain" },
-  "keywords": ["digitalocean", "app-platform", "droplets", "dns", "postgres", "spaces", "doctl", "infra"],
-  "homepage": "https://www.digitalocean.com/"
-}

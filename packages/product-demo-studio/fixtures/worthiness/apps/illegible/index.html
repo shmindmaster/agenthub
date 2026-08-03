@@ -1,0 +1,60 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Northwind Ledger</title><style>
+*{box-sizing:border-box} body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+margin:0;background:#f4f6f9;color:#12161c}
+header{background:#fff;border-bottom:1px solid #e2e6ec;padding:16px 32px;display:flex;
+justify-content:space-between;align-items:center}
+header b{font-size:17px} .who{color:#5b6472;font-size:13px}
+main{max-width:940px;margin:0 auto;padding:36px 32px}
+h1{font-size:26px;margin:0 0 6px} .sub{color:#5b6472;margin:0 0 28px}
+.card{background:#fff;border:1px solid #e2e6ec;border-radius:12px;padding:26px;margin-bottom:20px}
+button{padding:12px 22px;border:0;border-radius:9px;background:#2563eb;color:#fff;
+font-size:15px;font-weight:600;cursor:pointer}
+button:disabled{background:#9db5e8;cursor:default}
+button.ghost{background:#fff;color:#2563eb;border:1px solid #c7d6f5}
+table{border-collapse:collapse;width:100%} th,td{text-align:left;padding:9px 12px;
+border-bottom:1px solid #eef1f5} th{color:#5b6472;font-weight:600;font-size:13px}
+.hero{font-size:44px;font-weight:700;letter-spacing:-1px;margin:8px 0}
+.ok{color:#067a5b} .muted{color:#5b6472}
+.guard{background:#fff8e6;border:1px solid #f0dca8;border-radius:9px;padding:16px;
+display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px}
+.bar{height:8px;background:#e6ebf2;border-radius:99px;overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;background:#2563eb;width:0;transition:width .18s linear}
+.hidden{display:none}
+
+/* PLANTED DEFECT: results rendered at 9px in a 12-column dense grid;
+   the number that matters is 10px and low-contrast. */
+#result table{font-size:9px} #result th,#result td{padding:2px 4px}
+#result .hero{font-size:10px;color:#9aa3ae;font-weight:400;letter-spacing:0}
+</style></head><body>
+<header><b>Northwind Ledger</b><span class="who">Dana Whitfield · Controller</span></header>
+<main>
+<h1>December close</h1><p class="sub">5 open invoices · 127 ledger lines unmatched</p>
+<div class="card">
+  <table><thead><tr><th>Invoice</th><th>Customer</th><th>Amount</th><th>Due</th></tr></thead>
+  <tbody><tr class=""><td>INV-4471</td><td>Kestrel Freight</td><td>$12,400.00</td><td>Dec 02</td></tr>
+<tr class=""><td>INV-4472</td><td>Alder Medical</td><td>$3,180.55</td><td>Dec 03</td></tr>
+<tr class=""><td>INV-4478</td><td>Vance Auto Group</td><td>$27,905.00</td><td>Dec 05</td></tr>
+<tr class=""><td>INV-4482</td><td>Bright Harbor Legal</td><td>$8,740.20</td><td>Dec 09</td></tr>
+<tr class=""><td>INV-4490</td><td>Kestrel Freight</td><td>$1,290.00</td><td>Dec 14</td></tr></tbody></table>
+  <p style="margin:22px 0 0"><button id="go">Reconcile December</button></p>
+  <div class="bar hidden" id="bar"><i></i></div>
+</div>
+<div class="card hidden" id="result">
+  <p class="muted" style="margin:0">Reconciliation complete</p>
+  <div class="hero ok" id="headline">127 of 127 lines matched</div>
+  <table><thead><tr><th>C1</th><th>C2</th><th>C3</th><th>C4</th><th>C5</th><th>C6</th><th>C7</th><th>C8</th><th>C9</th><th>C10</th><th>C11</th><th>C12</th></tr></thead><tbody><tr><td>0</td><td>11</td><td>22</td><td>33</td><td>44</td><td>55</td><td>66</td><td>77</td><td>88</td><td>99</td><td>110</td><td>121</td></tr><tr><td>37</td><td>48</td><td>59</td><td>70</td><td>81</td><td>92</td><td>103</td><td>114</td><td>125</td><td>136</td><td>147</td><td>158</td></tr><tr><td>74</td><td>85</td><td>96</td><td>107</td><td>118</td><td>129</td><td>140</td><td>151</td><td>162</td><td>173</td><td>184</td><td>195</td></tr><tr><td>111</td><td>122</td><td>133</td><td>144</td><td>155</td><td>166</td><td>177</td><td>188</td><td>199</td><td>210</td><td>221</td><td>232</td></tr><tr><td>148</td><td>159</td><td>170</td><td>181</td><td>192</td><td>203</td><td>214</td><td>225</td><td>236</td><td>247</td><td>258</td><td>269</td></tr><tr><td>185</td><td>196</td><td>207</td><td>218</td><td>229</td><td>240</td><td>251</td><td>262</td><td>273</td><td>284</td><td>295</td><td>306</td></tr><tr><td>222</td><td>233</td><td>244</td><td>255</td><td>266</td><td>277</td><td>288</td><td>299</td><td>310</td><td>321</td><td>332</td><td>343</td></tr><tr><td>259</td><td>270</td><td>281</td><td>292</td><td>303</td><td>314</td><td>325</td><td>336</td><td>347</td><td>358</td><td>369</td><td>380</td></tr><tr><td>296</td><td>307</td><td>318</td><td>329</td><td>340</td><td>351</td><td>362</td><td>373</td><td>384</td><td>395</td><td>406</td><td>417</td></tr><tr><td>333</td><td>344</td><td>355</td><td>366</td><td>377</td><td>388</td><td>399</td><td>410</td><td>421</td><td>432</td><td>443</td><td>454</td></tr><tr><td>370</td><td>381</td><td>392</td><td>403</td><td>414</td><td>425</td><td>436</td><td>447</td><td>458</td><td>469</td><td>480</td><td>491</td></tr><tr><td>407</td><td>418</td><td>429</td><td>440</td><td>451</td><td>462</td><td>473</td><td>484</td><td>495</td><td>506</td><td>517</td><td>528</td></tr><tr><td>444</td><td>455</td><td>466</td><td>477</td><td>488</td><td>499</td><td>510</td><td>521</td><td>532</td><td>543</td><td>554</td><td>565</td></tr><tr><td>481</td><td>492</td><td>503</td><td>514</td><td>525</td><td>536</td><td>547</td><td>558</td><td>569</td><td>580</td><td>591</td><td>602</td></tr></tbody></table>
+  <div class="guard">
+    <span><b>Nothing is posted yet.</b> Dana reviews and approves before anything hits the ledger.</span>
+    <button class="ghost">Review &amp; approve</button>
+  </div>
+</div>
+</main>
+<script>
+const go=document.getElementById('go'),bar=document.getElementById('bar'),
+ result=document.getElementById('result');
+go.onclick=()=>{go.disabled=true;bar.classList.remove('hidden');
+let p=0;const t=setInterval(()=>{p+=20;bar.firstElementChild.style.width=Math.min(p,100)+'%';
+if(p>=100){clearInterval(t);bar.classList.add('hidden');result.classList.remove('hidden');}},140);};
+</script></body></html>

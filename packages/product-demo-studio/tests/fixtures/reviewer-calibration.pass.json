@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "pluginVersion": "1.7.0",
+  "reviewDomain": "story-experience",
+  "modelId": "synthetic-independent-reviewer-v1",
+  "canonicalRubric": {
+    "artifactPath": "skills/product-demo-studio/references/killer-demo-playbook.md",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "verticalOverlay": null,
+  "inputContractVersion": "review-report.schema/1.0.0",
+  "completedAt": "2026-07-29T14:55:00.000Z",
+  "fixtures": [
+    { "id": "buried-hero", "expectedVerdict": "FAIL", "reviewReport": { "artifactPath": "calibration/buried-hero-review.json", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" } },
+    { "id": "feature-rung", "expectedVerdict": "FAIL", "reviewReport": { "artifactPath": "calibration/feature-rung-review.json", "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" } },
+    { "id": "no-hold", "expectedVerdict": "FAIL", "reviewReport": { "artifactPath": "calibration/no-hold-review.json", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" } },
+    { "id": "dead-wait", "expectedVerdict": "FAIL", "reviewReport": { "artifactPath": "calibration/dead-wait-review.json", "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+    { "id": "three-heroes", "expectedVerdict": "FAIL", "reviewReport": { "artifactPath": "calibration/three-heroes-review.json", "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" } },
+    { "id": "clean-pass", "expectedVerdict": "PASS", "reviewReport": { "artifactPath": "calibration/clean-pass-review.json", "sha256": "9999999999999999999999999999999999999999999999999999999999999999" } }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "clerk",
+  "version": "0.2.0",
+  "description": "Clerk authentication capability: setup, Next.js patterns, custom UI, organizations, webhooks, backend API, CLI, and testing. Routes to the official Clerk documentation; resolves Clerk keys from the environment at call time.",
+  "author": { "name": "Sarosh Hussain" },
+  "keywords": ["clerk", "auth", "authentication", "nextjs", "webhooks", "organizations", "sso"],
+  "homepage": "https://clerk.com/",
+  "license": "MIT"
+}

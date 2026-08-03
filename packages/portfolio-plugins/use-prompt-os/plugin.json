@@ -1,7 +1,0 @@
-{
-  "name": "use-prompt-os",
-  "version": "0.2.0",
-  "description": "Optional supporting access to Notion Prompt OS assets after repository policy, Linear/GitHub delivery state, runtime evidence, and Shwiki context are established.",
-  "author": { "name": "Sarosh Hussain" },
-  "skills": "skills"
-}

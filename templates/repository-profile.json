@@ -1,8 +1,0 @@
-{
-  "schemaVersion": 1,
-  "repositoryName": "synthetic-example",
-  "issueSystem": "none",
-  "verificationCommand": "replace-with-repository-command",
-  "deploymentPolicy": "explicit-authorization-required",
-  "repositoryConstraints": "Add short repository-specific constraints here."
-}

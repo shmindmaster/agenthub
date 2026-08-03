@@ -10,12 +10,9 @@ backups/
 Thumbs.db
 desktop.ini
 __pycache__/
-
-# Host-specific runtime reports and live cross-agent coordination.
-reports/*
-!reports/README.md
-state/cross-agent/*
-!state/cross-agent/README.md
-
-# Local bootstrap/snapshot evidence is retained outside version control.
-state/bootstrap/
+*.mp4
+*.webm
+*.wav
+*.srt
+test-results/
+playwright-report/

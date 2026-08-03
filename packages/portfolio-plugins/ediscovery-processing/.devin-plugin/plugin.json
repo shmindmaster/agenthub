@@ -1,7 +1,0 @@
-{
-  "name": "ediscovery-processing",
-  "version": "0.1.0",
-  "description": "Ingest, search, and analyze local legal evidence (PST, email, chat, court and SharePoint/OneDrive exports) with chain-of-custody. Routes to the shared local legal MCP core. Evidence originals on G:\\ stay immutable and read-only; derived indexes live under D:\\LocalAI\\KnowledgeSystem. Local-only: never route privileged evidence to a cloud model.",
-  "author": { "name": "Sarosh Hussain" },
-  "keywords": ["ediscovery", "legal", "pst", "evidence", "discovery", "chain-of-custody", "ingestion", "mcp"]
-}

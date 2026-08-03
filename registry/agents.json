@@ -431,7 +431,7 @@
       "id": "factory",
       "name": "Factory Droid",
       "version": "0.183.0",
-      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.140.0\\resources\\bin\\droid.exe",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.142.0\\resources\\bin\\droid.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.factory\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.factory\\AGENTS.md",

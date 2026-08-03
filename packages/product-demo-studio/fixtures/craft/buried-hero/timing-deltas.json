@@ -1,0 +1,47 @@
+{
+  "fixtureId": "buried-hero",
+  "note": "stateChangeToCutMs is the hold on each beat. Hero beats under 1000ms fail results-land.",
+  "beats": [
+    {
+      "index": 0,
+      "beat": "cold-open",
+      "isHero": false,
+      "stateChangeToCutMs": 3000
+    },
+    {
+      "index": 1,
+      "beat": "action",
+      "isHero": false,
+      "stateChangeToCutMs": 2000
+    },
+    {
+      "index": 2,
+      "beat": "hero reveal, buried",
+      "isHero": true,
+      "stateChangeToCutMs": 1200
+    },
+    {
+      "index": 3,
+      "beat": "feature beat",
+      "isHero": false,
+      "stateChangeToCutMs": 4000
+    },
+    {
+      "index": 4,
+      "beat": "feature beat",
+      "isHero": false,
+      "stateChangeToCutMs": 3500
+    },
+    {
+      "index": 5,
+      "beat": "close",
+      "isHero": false,
+      "stateChangeToCutMs": 3000
+    }
+  ],
+  "heroCount": 1,
+  "heroPositionRatio": [
+    0.299
+  ],
+  "longestStaticStretchMs": 4000
+}

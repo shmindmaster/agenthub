@@ -1,0 +1,36 @@
+{
+  "name": "clerk",
+  "version": "0.2.0",
+  "description": "Clerk authentication setup, application patterns, organizations, webhooks, Backend API, CLI, and testing.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "homepage": "https://clerk.com/",
+  "keywords": [
+    "clerk",
+    "authentication",
+    "nextjs",
+    "organizations",
+    "webhooks",
+    "testing"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Clerk Authentication",
+    "shortDescription": "Build and operate Clerk authentication safely.",
+    "longDescription": "Use official Clerk patterns for setup, Next.js integration, custom UI, organizations, Backend API and CLI operations, verified webhooks, and repeatable authentication testing.",
+    "developerName": "Sarosh Hussain",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Set up Clerk correctly in this application.",
+      "Debug this Clerk authentication workflow.",
+      "Review this Clerk organization or webhook implementation."
+    ]
+  }
+}

@@ -1,7 +1,0 @@
-{
-  "name": "use-campaign-production",
-  "version": "0.1.0",
-  "description": "Orchestrate portfolio creative campaign production — product launches, social packs, sales collateral, presentations, event kits, brand variants, and customer stories — by routing to the canonical creative tool adapters (Canva, Adobe, Descript, Remotion, Playwright) and logging runs to the Notion Prompt OS.",
-  "author": { "name": "Sarosh Hussain" },
-  "skills": "skills"
-}

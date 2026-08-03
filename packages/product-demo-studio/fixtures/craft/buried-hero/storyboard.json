@@ -1,0 +1,61 @@
+{
+  "fixtureId": "buried-hero",
+  "fps": 30,
+  "durationSeconds": 16.7,
+  "beats": [
+    {
+      "index": 0,
+      "beat": "cold-open",
+      "startsAt": 0,
+      "endsAt": 3,
+      "durationMs": 3000,
+      "isHero": false,
+      "narration": "Every month, 127 lines get matched by hand."
+    },
+    {
+      "index": 1,
+      "beat": "action",
+      "startsAt": 3,
+      "endsAt": 5,
+      "durationMs": 2000,
+      "isHero": false,
+      "narration": "One action."
+    },
+    {
+      "index": 2,
+      "beat": "hero reveal, buried",
+      "startsAt": 5,
+      "endsAt": 6.2,
+      "durationMs": 1200,
+      "isHero": true,
+      "narration": "Done. Every line, every invoice."
+    },
+    {
+      "index": 3,
+      "beat": "feature beat",
+      "startsAt": 6.2,
+      "endsAt": 10.2,
+      "durationMs": 4000,
+      "isHero": false,
+      "narration": "There is also an approval step."
+    },
+    {
+      "index": 4,
+      "beat": "feature beat",
+      "startsAt": 10.2,
+      "endsAt": 13.7,
+      "durationMs": 3500,
+      "isHero": false,
+      "narration": "And a full processing log."
+    },
+    {
+      "index": 5,
+      "beat": "close",
+      "startsAt": 13.7,
+      "endsAt": 16.7,
+      "durationMs": 3000,
+      "isHero": false,
+      "narration": "Close the month in an afternoon."
+    }
+  ]
+}

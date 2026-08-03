@@ -28,9 +28,7 @@
     "sharedRemoteTransport": "http",
     "onDemandLocalMcpIds": [
       "brave-search",
-      "chrome-devtools",
-      "playwright",
-      "repocontext"
+      "chrome-devtools"
     ],
     "hostConfiguredLocalMcpIds": [],
     "localFanoutPolicy": "never-persist-on-demand-local-in-host-config",
@@ -50,11 +48,11 @@
   "skillsOnlyPlugins": [
     {
       "hostId": "codex",
-      "pluginId": "firecrawl-ops@agenthub",
-      "version": "0.1.0+codex.20260729172634",
+      "pluginId": "firecrawl@agenthub",
+      "version": "1.0.0",
       "mcpId": "firecrawl",
-      "sourcePath": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops",
-      "installedSourcePath": "C:/Repos/shmindmaster/agenthub/packages/portfolio-plugins/firecrawl-ops",
+      "sourcePath": "C:/Repos/shmindmaster/agenthub/packages/firecrawl",
+      "installedSourcePath": "C:/Repos/shmindmaster/agenthub/packages/firecrawl",
       "deploymentState": "live-verified",
       "installedState": "skills-only-no-mcp-manifest",
       "mcpOwner": "registry/mcps.json",
@@ -74,32 +72,28 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
-          "adobe-for-creativity",
+          "chrome-devtools",
           "descript",
           "linear",
           "notion"
         ],
         "native-connector": [
-          "canva",
           "github"
         ],
         "shared-gateway": [
           "context7",
           "exa",
-          "firecrawl",
-          "tavily"
+          "firecrawl"
         ],
         "local-only": [
-          "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "brave-search"
         ]
       },
       "evidence": [
-        "Installed Codex plugin MCP manifests own Adobe, Descript, Linear, and Notion.",
+        "Installed Codex plugin MCP manifests own Chrome DevTools, Descript, Linear, and Notion.",
         "The installed Firecrawl plugin is skills-only and contains no MCP manifest; registry/mcps.json retains the Firecrawl service contract.",
-        "Installed Codex app connectors own Canva and GitHub."
+        "Installed Codex app connectors own GitHub.",
+        "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03 and are no longer registered on any host."
       ]
     },
     {
@@ -107,31 +101,27 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
+          "chrome-devtools",
           "github",
           "notion"
         ],
         "native-connector": [
-          "canva",
           "descript"
         ],
         "shared-gateway": [
-          "adobe-for-creativity",
           "context7",
           "exa",
           "firecrawl",
-          "linear",
-          "tavily"
+          "linear"
         ],
         "local-only": [
-          "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "brave-search"
         ]
       },
       "evidence": [
-        "Claude installed_plugins.json and package manifests own GitHub and Notion.",
-        "Claude account connectors own Canva and Descript; Product Demo Studio deploys canonical loose skills on Claude so its bundled Descript MCP is not loaded twice."
+        "Claude installed_plugins.json and package manifests own Chrome DevTools, GitHub, and Notion.",
+        "Claude account connectors own Descript; Product Demo Studio suppresses its bundled Descript MCP on Claude so the connector is not loaded twice.",
+        "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03. Any residual Adobe or Canva tools in a Claude session come from claude.ai account connectors, which are not managed by this registry and must be removed in claude.ai connector settings."
       ]
     },
     {
@@ -143,20 +133,15 @@
         ],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "exa",
           "firecrawl",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -165,24 +150,19 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
+          "chrome-devtools",
           "descript"
         ],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "exa",
           "firecrawl",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
-          "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "brave-search"
         ]
       }
     },
@@ -197,21 +177,16 @@
         "plugin-owned": [],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -224,20 +199,15 @@
         ],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "exa",
           "firecrawl",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -250,21 +220,16 @@
         ],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "exa",
           "firecrawl",
           "github",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -275,22 +240,17 @@
         "plugin-owned": [],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "github",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -305,22 +265,17 @@
         "plugin-owned": [],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "github",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -331,22 +286,17 @@
         "plugin-owned": [],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "github",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -359,21 +309,16 @@
         ],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -384,22 +329,17 @@
         "plugin-owned": [],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "github",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -420,21 +360,16 @@
         ],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "exa",
           "firecrawl",
           "github",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -445,22 +380,17 @@
         "plugin-owned": [],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "github",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -471,22 +401,17 @@
         "plugin-owned": [],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "github",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -495,25 +420,20 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
+          "chrome-devtools",
           "context7",
           "descript"
         ],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "exa",
           "firecrawl",
           "github",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
-          "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "brave-search"
         ]
       }
     },
@@ -524,21 +444,16 @@
         "plugin-owned": [],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     },
@@ -549,21 +464,16 @@
         "plugin-owned": [],
         "native-connector": [],
         "shared-gateway": [
-          "adobe-for-creativity",
-          "canva",
           "context7",
           "descript",
           "exa",
           "firecrawl",
           "linear",
-          "notion",
-          "tavily"
+          "notion"
         ],
         "local-only": [
           "brave-search",
-          "chrome-devtools",
-          "playwright",
-          "repocontext"
+          "chrome-devtools"
         ]
       }
     }

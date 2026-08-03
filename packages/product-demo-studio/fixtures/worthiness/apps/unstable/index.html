@@ -1,0 +1,63 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Northwind Ledger</title><style>
+*{box-sizing:border-box} body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+margin:0;background:#f4f6f9;color:#12161c}
+header{background:#fff;border-bottom:1px solid #e2e6ec;padding:16px 32px;display:flex;
+justify-content:space-between;align-items:center}
+header b{font-size:17px} .who{color:#5b6472;font-size:13px}
+main{max-width:940px;margin:0 auto;padding:36px 32px}
+h1{font-size:26px;margin:0 0 6px} .sub{color:#5b6472;margin:0 0 28px}
+.card{background:#fff;border:1px solid #e2e6ec;border-radius:12px;padding:26px;margin-bottom:20px}
+button{padding:12px 22px;border:0;border-radius:9px;background:#2563eb;color:#fff;
+font-size:15px;font-weight:600;cursor:pointer}
+button:disabled{background:#9db5e8;cursor:default}
+button.ghost{background:#fff;color:#2563eb;border:1px solid #c7d6f5}
+table{border-collapse:collapse;width:100%} th,td{text-align:left;padding:9px 12px;
+border-bottom:1px solid #eef1f5} th{color:#5b6472;font-weight:600;font-size:13px}
+.hero{font-size:44px;font-weight:700;letter-spacing:-1px;margin:8px 0}
+.ok{color:#067a5b} .muted{color:#5b6472}
+.guard{background:#fff8e6;border:1px solid #f0dca8;border-radius:9px;padding:16px;
+display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px}
+.bar{height:8px;background:#e6ebf2;border-radius:99px;overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;background:#2563eb;width:0;transition:width .18s linear}
+.hidden{display:none}
+
+/* PLANTED DEFECT: banner injected 900ms after load shifts all content down;
+   the results table overflows its card and clips the total column. */
+#result table{width:1500px} #result .card,#result{overflow:hidden}
+#banner{background:#e8f0ff;border-bottom:1px solid #c7d6f5;padding:22px 32px}
+</style></head><body>
+<header><b>Northwind Ledger</b><span class="who">Dana Whitfield · Controller</span></header>
+<div id="slot"></div><main>
+<h1>December close</h1><p class="sub">5 open invoices · 127 ledger lines unmatched</p>
+<div class="card">
+  <table><thead><tr><th>Invoice</th><th>Customer</th><th>Amount</th><th>Due</th></tr></thead>
+  <tbody><tr class=""><td>INV-4471</td><td>Kestrel Freight</td><td>$12,400.00</td><td>Dec 02</td></tr>
+<tr class=""><td>INV-4472</td><td>Alder Medical</td><td>$3,180.55</td><td>Dec 03</td></tr>
+<tr class=""><td>INV-4478</td><td>Vance Auto Group</td><td>$27,905.00</td><td>Dec 05</td></tr>
+<tr class=""><td>INV-4482</td><td>Bright Harbor Legal</td><td>$8,740.20</td><td>Dec 09</td></tr>
+<tr class=""><td>INV-4490</td><td>Kestrel Freight</td><td>$1,290.00</td><td>Dec 14</td></tr></tbody></table>
+  <p style="margin:22px 0 0"><button id="go">Reconcile December</button></p>
+  <div class="bar hidden" id="bar"><i></i></div>
+</div>
+<div class="card hidden" id="result">
+  <p class="muted" style="margin:0">Reconciliation complete</p>
+  <div class="hero ok" id="headline">127 of 127 lines matched</div>
+  <table><thead><tr><th>Ledger column 1</th><th>Ledger column 2</th><th>Ledger column 3</th><th>Ledger column 4</th><th>Ledger column 5</th><th>Ledger column 6</th><th>Ledger column 7</th><th>Ledger column 8</th><th>Ledger column 9</th><th>Ledger column 10</th></tr></thead><tbody><tr><td>0.00</td><td>17.00</td><td>34.00</td><td>51.00</td><td>68.00</td><td>85.00</td><td>102.00</td><td>119.00</td><td>136.00</td><td>153.00</td></tr><tr><td>53.00</td><td>70.00</td><td>87.00</td><td>104.00</td><td>121.00</td><td>138.00</td><td>155.00</td><td>172.00</td><td>189.00</td><td>206.00</td></tr><tr><td>106.00</td><td>123.00</td><td>140.00</td><td>157.00</td><td>174.00</td><td>191.00</td><td>208.00</td><td>225.00</td><td>242.00</td><td>259.00</td></tr><tr><td>159.00</td><td>176.00</td><td>193.00</td><td>210.00</td><td>227.00</td><td>244.00</td><td>261.00</td><td>278.00</td><td>295.00</td><td>312.00</td></tr><tr><td>212.00</td><td>229.00</td><td>246.00</td><td>263.00</td><td>280.00</td><td>297.00</td><td>314.00</td><td>331.00</td><td>348.00</td><td>365.00</td></tr><tr><td>265.00</td><td>282.00</td><td>299.00</td><td>316.00</td><td>333.00</td><td>350.00</td><td>367.00</td><td>384.00</td><td>401.00</td><td>418.00</td></tr></tbody></table>
+  <div class="guard">
+    <span><b>Nothing is posted yet.</b> Dana reviews and approves before anything hits the ledger.</span>
+    <button class="ghost">Review &amp; approve</button>
+  </div>
+</div>
+</main>
+<script>
+// PLANTED DEFECT: banner injected 900ms after load shifts all content down.
+setTimeout(()=>{document.getElementById('slot').innerHTML=
+'<div id="banner"><b>Year-end freeze begins Dec 28.</b> Close all periods before the cutoff.</div>';},900);
+const go=document.getElementById('go'),bar=document.getElementById('bar'),
+ result=document.getElementById('result');
+go.onclick=()=>{go.disabled=true;bar.classList.remove('hidden');
+let p=0;const t=setInterval(()=>{p+=20;bar.firstElementChild.style.width=Math.min(p,100)+'%';
+if(p>=100){clearInterval(t);bar.classList.add('hidden');result.classList.remove('hidden');}},140);};
+</script></body></html>

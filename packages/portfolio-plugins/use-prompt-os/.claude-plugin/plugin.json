@@ -1,8 +1,0 @@
-{
-  "name": "use-prompt-os",
-  "version": "0.1.0",
-  "description": "Optional supporting access to Notion Prompt OS assets after repository policy, Linear/GitHub delivery state, runtime evidence, and Shwiki context are established.",
-  "author": { "name": "Sarosh Hussain" },
-  "keywords": ["prompt-os", "notion", "router", "workflow", "portfolio", "orchestration", "agent-ready"],
-  "homepage": "https://shwiki.shtrial.com/"
-}
