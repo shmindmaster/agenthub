@@ -320,6 +320,8 @@
         "mcp": "C:\\Users\\SaroshHussain\\.warp\\.mcp.json",
         "worktreeTabConfig": "C:\\Users\\SaroshHussain\\.warp\\tab_configs\\agenthub_worktree.toml",
         "skillsDir": "C:\\Users\\SaroshHussain\\.warp\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Added 2026-08-04 against docs.warp.dev/agent-platform/capabilities/skills (subject confirmed: skills, not the rules or MCP page). Warp documents a root-scope skill search that mirrors its project scope and names ~/.agents/skills first as the recommended directory, alongside ~/.warp/skills, ~/.claude/skills, ~/.codex/skills, ~/.cursor/skills, ~/.gemini/skills, ~/.copilot/skills, ~/.factory/skills, ~/.github/skills and ~/.opencode/skills. Warp is therefore the one host that already reads the other hosts' directories, so its private copy under ~/.warp/skills was redundant with skills it could already see. skillsDir is retained because it remains a documented Warp-native location; sharedSkillsDir records where AgentHub deploys.",
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp",
         "instructions": null,
         "verification": "documented-no-global-file",

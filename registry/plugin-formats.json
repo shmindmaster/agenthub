@@ -191,12 +191,15 @@
       "id": "warp",
       "mode": "loose-skills-and-mcp",
       "manifest": null,
-      "globalSkillsDir": "~/.warp/skills",
+      "globalSkillsDir": "~/.agents/skills",
+      "alsoScannedSkillsDirs": ["~/.warp/skills", "~/.claude/skills", "~/.codex/skills", "~/.cursor/skills", "~/.gemini/skills", "~/.copilot/skills", "~/.factory/skills", "~/.github/skills", "~/.opencode/skills"],
       "subagents": "skills-as-agents",
       "mcpPath": "~/.warp/.mcp.json",
       "mcpKey": "mcpServers",
       "documentation": "https://docs.warp.dev/agent-platform/capabilities/skills/",
-      "verifiedAgainst": "https://docs.warp.dev/agent-platform/capabilities/skills/"
+      "verifiedAgainst": "https://docs.warp.dev/agent-platform/capabilities/skills/",
+      "correctedAt": "2026-08-04",
+      "correctionNote": "globalSkillsDir was ~/.warp/skills. That path is real and still documented, but recording it alone understated what the same page says: Warp mirrors its multi-tool project search at root scope and names ~/.agents/skills first as recommended. Warp is the only host in this fleet that reads other hosts' skill directories, so a private ~/.warp/skills copy duplicated skills Warp could already see via ~/.claude/skills and the rest. alsoScannedSkillsDirs records the full documented set so a future reader does not have to re-derive it."
     },
     {
       "id": "windsurf",

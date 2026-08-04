@@ -5,6 +5,7 @@ param(
   [switch]$Apply,
   [switch]$Prune,
   [switch]$AdoptExisting,
+  [switch]$IncludeInactiveAgents,
   [string]$RepositoryRoot,
   [string]$UserProfile = $env:USERPROFILE
 )
@@ -45,14 +46,36 @@ $runtimeRoot = if ($profileIsOverridden) {
 $statePath = Join-Path $runtimeRoot 'managed-skills.json'
 $capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw | ConvertFrom-Json
 $agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw | ConvertFrom-Json
-$agents = @($agentsDocument.activeAgents) + @($agentsDocument.inactiveAgents)
+
+# Inactive hosts are retained as inventory, not as deployment targets. A host
+# the fleet profile never dispatches to still costs one full skill copy per
+# mapping: 33 of the registry's capability->host mappings point at amp, devin,
+# factory, vscode-insiders and windsurf. Skipping them by default matches the
+# -IncludeInactiveAgents switch Sync-AgentHub.ps1 already exposes for MCP, so
+# the fleet has one convention rather than two. The mappings stay in
+# capabilities.json: this narrows what is deployed, not what is recorded.
+#
+# SEQUENCING HAZARD: narrowing the host set drops those destinations out of
+# $desired, and a plain -Apply rewrites the state file to exactly $desired.
+# Prune compares $prior against $desired and so must run in the SAME -Apply
+# that first narrows the set -- once a plain -Apply has rewritten the state,
+# the already-deployed copies are orphaned beyond the reach of any later
+# -Prune, because prune only ever iterates destinations the state still claims.
+$allAgents = @($agentsDocument.activeAgents) + @($agentsDocument.inactiveAgents)
+$agents = if ($IncludeInactiveAgents) { $allAgents } else { @($agentsDocument.activeAgents) }
 
 # A registry that declares nothing is a wrong or empty tree, not a clean run.
 if (@($capabilities.capabilities).Count -eq 0) {
   throw "Registry '$(Join-Path $root 'registry\capabilities.json')' declares zero capabilities. Refusing to report success against what looks like an empty or wrong registry tree."
 }
-if ($agents.Count -eq 0) {
+if ($allAgents.Count -eq 0) {
   throw "Registry '$(Join-Path $root 'registry\agents.json')' declares zero agents. Refusing to report success against what looks like an empty or wrong registry tree."
+}
+# Every host being inactive is a configuration error, not a reason to deploy
+# nothing quietly. Without this the run would reach the zero-rows guard and
+# report a confusing 'empty work set' instead of naming the real cause.
+if ($agents.Count -eq 0) {
+  throw "Registry '$(Join-Path $root 'registry\agents.json')' declares no ACTIVE agents; every host is inactive. Refusing to deploy nothing quietly. Pass -IncludeInactiveAgents if that is genuinely intended."
 }
 
 function Get-TreeHash([string]$Path) {
