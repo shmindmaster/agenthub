@@ -163,13 +163,16 @@ foreach ($activeAgent in @($agents.activeAgents)) {
   Fail "active host has no autonomy profile and no exemption: $activeHostId"
 }
 
-# registry/subagent-formats.json is the authority for where subagents actually
-# go. agents.json's nativePaths.agentsDir is read by humans and by other
-# tooling, and for gemini and antigravity it drifted into naming directories
-# that do not exist and that nothing writes to -- the same shape of stale
-# registry fact that nearly caused 31 live windsurf skills to be deleted.
-# Require the two to agree: the destination template must sit under the
-# declared agentsDir.
+# registry/subagent-formats.json is the authority for where AgentHub's own
+# capability-bundled subagents are written. It is deliberately NOT compared
+# against agents.json's nativePaths.agentsDir: those are two different
+# documented mechanisms. agentsDir records a host's native user-level agent
+# directory (gemini: ~/.gemini/agents; antigravity: ~/.gemini/config/agents),
+# while this registry records extension/plugin-bundled agents. An earlier
+# version of this rule required them to agree, which forced two correct,
+# separately-documented values to be rewritten into one wrong one. What is
+# worth enforcing is that every host receiving subagents is real and has a
+# destination at all.
 $subagentFormatsFile = Join-Path $root 'registry\subagent-formats.json'
 if (-not (Test-Path -LiteralPath $subagentFormatsFile)) {
   Fail "missing registry file: $subagentFormatsFile"
@@ -179,32 +182,12 @@ if (-not (Test-Path -LiteralPath $subagentFormatsFile)) {
   if ($subagentHosts.Count -eq 0) { Fail 'subagent-formats.json declares zero hosts' }
   foreach ($subagentHost in $subagentHosts) {
     $subagentHostId = [string]$subagentHost.id
-    $agent = @($agents.activeAgents) | Where-Object { [string]$_.id -eq $subagentHostId } | Select-Object -First 1
-    if (-not $agent) {
-      Fail "subagent-formats.json targets a host that is not an active agent: $subagentHostId"
+    if ($subagentHostId -notin $registeredHostIds) {
+      Fail "subagent-formats.json targets a host that is not registered: $subagentHostId"
       continue
     }
-    $declaredAgentsDir = [string]$agent.nativePaths.agentsDir
-    if ([string]::IsNullOrWhiteSpace($declaredAgentsDir)) {
-      Fail "host '$subagentHostId' receives subagents but declares no nativePaths.agentsDir"
-      continue
-    }
-    $template = [string]$subagentHost.destinationTemplate
-    if ([string]::IsNullOrWhiteSpace($template)) {
+    if ([string]::IsNullOrWhiteSpace([string]$subagentHost.destinationTemplate)) {
       Fail "subagent-formats.json host '$subagentHostId' declares no destinationTemplate"
-      continue
-    }
-    # agents.json bakes absolute paths against the invoking profile, so
-    # expand the template the same way to compare like with like.
-    $expanded = $template.Replace('{userProfile}', ([IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('')))
-    # Equal is fine (codex/opencode write straight into agentsDir); nested is
-    # fine (gemini/antigravity nest a per-capability directory beneath it).
-    # Anything else means the two registries disagree about where files go.
-    $declaredRoot = $declaredAgentsDir.TrimEnd('\')
-    if (-not ($expanded.TrimEnd('\').Equals($declaredRoot, [StringComparison]::OrdinalIgnoreCase) -or
-        $expanded.StartsWith($declaredRoot + '\', [StringComparison]::OrdinalIgnoreCase))) {
-      Fail ("subagent destination disagrees with agents.json for '$subagentHostId': " +
-        "subagent-formats.json resolves to '$expanded' but nativePaths.agentsDir is '$declaredAgentsDir'")
     }
   }
 }

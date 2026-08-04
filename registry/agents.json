@@ -156,8 +156,8 @@
         "instructionHeader": "# Gemini CLI and Antigravity Global Instructions",
         "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\skills",
-        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\extensions",
-        "agentsDirNote": "Corrected 2026-08-04. Was C:\\Users\\SaroshHussain\\.gemini\\agents, which does not exist and which nothing writes to. The verified destination is per-capability: <agentsDir>\\agenthub-<capabilityId>\\agents, per registry/subagent-formats.json, which is the authority for subagent destinations. 17 subagents are deployed there today.",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\agents",
+        "agentsDirNote": "Reverted 2026-08-04, same day it was wrongly changed. An earlier edit replaced this with ~/.gemini/extensions on the mistaken basis that a directory absent from disk must be wrong. Gemini CLI documents ~/.gemini/agents as the user-level subagent directory, alongside project-level .gemini/agents. AgentHub's own subagents ship as extension bundles under ~/.gemini/extensions per registry/subagent-formats.json, which is a separate mechanism; this field records the host-native user-level directory and the two need not agree.",
         "extensionsDir": "C:\\Users\\SaroshHussain\\.gemini\\extensions",
         "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills"
       },
@@ -239,11 +239,13 @@
         "cliSkillsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\skills",
         "cliPluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\plugins",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\skills",
-        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\plugins",
-        "agentsDirNote": "Corrected 2026-08-04. Was C:\\Users\\SaroshHussain\\.gemini\\config\\agents, which does not exist and which nothing writes to. The verified destination is per-capability: <agentsDir>\\<capabilityId>\\agents, per registry/subagent-formats.json, which is the authority for subagent destinations. 17 subagents are deployed there today.",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\agents",
+        "agentsDirNote": "Reverted 2026-08-04, same day it was wrongly changed. An earlier edit replaced this with the antigravity-cli plugins path because this directory does not exist on disk and nothing writes to it. That reasoning was wrong -- absence on disk is not absence from the documentation, which is the same mistake that recorded windsurf's skills directory as null. antigravity.google/docs/subagents documents two separate discovery mechanisms: Global Customizations at ~/.gemini/config/agents/<name>.md (this field) and plugin-bundled agents at plugins/<plugin>/agents (registry/subagent-formats.json). Both are valid and they are not required to agree.",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\plugins",
         "instructions": null,
-        "verification": "documentation-not-read"
+        "instructionsOwnedBy": "gemini",
+        "verification": "documented-shared-destination",
+        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today."
       },
       "supportedCapabilities": [
         "rules",
@@ -264,7 +266,9 @@
       "nativePaths": {
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity",
         "instructions": null,
-        "verification": "documentation-not-read"
+        "instructionsOwnedBy": "gemini",
+        "verification": "documented-shared-destination",
+        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today."
       },
       "supportedCapabilities": ["skills", "mcp"],
       "status": "active",
@@ -280,7 +284,9 @@
         "configHome": "C:\\Users\\SaroshHussain\\.antigravity-ide",
         "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity IDE\\User\\settings.json",
         "instructions": null,
-        "verification": "documentation-not-read"
+        "instructionsOwnedBy": "gemini",
+        "verification": "documented-shared-destination",
+        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today."
       },
       "supportedCapabilities": ["rules", "skills", "mcp", "extensions"],
       "status": "active",
