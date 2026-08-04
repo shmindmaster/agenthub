@@ -642,7 +642,7 @@
       "managedSkillNames": [
         "local-ai-stack"
       ],
-      "contentHash": "C9355238EFCA53A6864A64EF6FCCC3699BD55D3E652ABE50AA59E049758031C8",
+      "contentHash": "AA63E1A01BEE9D7F19D91D48D402A2ECD8F0661CFD954ABB1AB8DA5AF367DFDD",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappings": [

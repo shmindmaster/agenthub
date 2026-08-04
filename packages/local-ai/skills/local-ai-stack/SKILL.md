@@ -137,6 +137,15 @@ Treat these as separate storage behaviors:
 
 Do not use Open WebUI native attachments as long-term retrieval source material.
 
+To check the attachment path itself, upload `fixtures/openwebui-native-attachment.md`
+from this package to a chat and ask for its verification phrase. A correct stack
+answers `ORCHID-RIVER-7429` from the attachment. A pass covers extraction,
+embedding, retrieval, and answering on the attachment route only — it is not
+retrieval acceptance for the persistent corpus, which goes through `reindex` and
+the Qdrant index/alias contract above. Keep the fixture out of every persistent
+knowledge root: indexing it would put the needle in the haystack and leave a
+check that can no longer fail.
+
 ## GPU scheduling and deterministic operation
 
 - The stack policy is serialized GPU scheduling (`policy.gpu_heavy_jobs = serialized`).
