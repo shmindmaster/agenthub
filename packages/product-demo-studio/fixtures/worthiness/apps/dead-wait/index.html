@@ -47,7 +47,6 @@ display:flex;justify-content:space-between;align-items:center;gap:16px;margin-to
 </div>
 </main>
 <script>
-// PLANTED DEFECT: 6.2s with no feedback of any kind on the core action.
 const go=document.getElementById('go'),result=document.getElementById('result');
 go.onclick=()=>{go.disabled=true;setTimeout(()=>{result.classList.remove('hidden');},6200);};
 </script></body></html>

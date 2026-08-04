@@ -89,13 +89,20 @@ const FIXTURES = {
         classification: "capture-fixable",
         severity: "degrades",
         evidence: "frame:results-grid-9px",
-        finding: "Results render at 9px across 12 columns; the headline figure is 10px at low contrast.",
+        finding: "Results render at 9px across a twelve-column breakdown; the headline figure is 14px against the app's 44px norm.",
         fix: "Punch in to 2.0x on the results region at capture. No product change required.",
       },
     },
-    planted: "Results at 9px in a 12-column grid; key figure 10px, low contrast.",
+    // Absolute scale only, deliberately. Two things a punch-in cannot fix must stay out
+    // of this fixture or it contradicts its own capture-fixable classification:
+    //   - contrast, which a punch-in scales type past but never improves;
+    //   - type hierarchy, which is scale-invariant — a payoff figure set below its own
+    //     body text stays demoted at every magnification.
+    // So contrast is adequate throughout and the payoff figure remains the dominant
+    // element inside the result panel. What is left is genuinely recoverable at capture.
+    planted: "Results at 9px in a twelve-column breakdown; key figure 14px. Contrast is adequate and in-panel hierarchy is intact.",
     captureFixes: ["Punch in to 2.0x on the results region for the payoff beat."],
-    measured: "result at 847ms; body text 9px, headline 10px",
+    measured: "result at 847ms; body text 9px, headline 14px against a 44px app norm",
   },
 
   unstable: {
