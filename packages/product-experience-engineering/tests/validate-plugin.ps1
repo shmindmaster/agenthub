@@ -55,7 +55,13 @@ $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
 $cursorManifest = Get-Content -LiteralPath $cursorManifestPath -Raw | ConvertFrom-Json
 Assert-True ($manifest.name -eq 'product-experience-engineering') 'Unexpected plugin name.'
-Assert-True ($manifest.version -eq '1.4.0') 'Codex plugin version must be 1.4.0.'
+# Assert the manifests AGREE, not that they equal a literal. A pinned version
+# has to be hand-edited on every bump, and the edit that forgets it fails the
+# suite for a reason unrelated to what changed -- which is exactly what happened
+# when the Claude manifest was bumped to fix its agents field. What actually
+# matters is that the per-host manifests never drift apart from each other.
+Assert-True (-not [string]::IsNullOrWhiteSpace([string]$manifest.version)) 'Codex plugin declares no version.'
+Assert-True ($manifest.version -match '^\d+\.\d+\.\d+$') "Codex plugin version must be semver, found '$($manifest.version)'."
 Assert-True ($claudeManifest.name -eq $manifest.name) 'Claude plugin name must match Codex.'
 Assert-True ($claudeManifest.version -eq $manifest.version) 'Claude plugin version must match Codex.'
 Assert-True ($cursorManifest.name -eq $manifest.name) 'Cursor plugin name must match Codex.'

@@ -62,6 +62,44 @@ foreach ($entry in $marketplace.plugins) {
     if (-not (Test-Path -LiteralPath $manifestPath)) { Fail "installable package missing $manifest`: $($entry.name)"; continue }
     $metadata = Read-Json $manifestPath
     if ($metadata -and $metadata.name -ne $entry.name) { Fail "manifest name mismatch in $manifestPath" }
+
+    # Component-field TYPES, not just presence. Claude Code validates plugin.json
+    # against a schema and refuses to load the whole plugin on a type mismatch --
+    # with no signal here, because a wrong type is still valid JSON and still has
+    # the right name.
+    #
+    # product-experience-engineering shipped `"agents": "./agents/"` (a directory
+    # string) and was rejected with `agents: Invalid input`, so all four of its
+    # subagents were unavailable, while this validator reported PASS and counted
+    # it among the installable plugins. Found only by running `claude plugin
+    # list` by hand. Parity that is never checked against what the host will
+    # actually accept is not parity.
+    #
+    # Per the plugin reference: directory-valued fields take a path string,
+    # file-list fields take an ARRAY of individual file paths.
+    if ($metadata) {
+      $directoryFields = @('skills', 'hooks', 'mcpServers', 'outputStyles', 'lspServers')
+      $fileListFields  = @('agents', 'commands')
+      foreach ($field in $directoryFields) {
+        if (-not $metadata.PSObject.Properties[$field]) { continue }
+        if ($metadata.$field -isnot [string]) {
+          Fail "$manifestPath field '$field' must be a path string, found $($metadata.$field.GetType().Name). Claude Code rejects the entire plugin on a schema mismatch."
+        }
+      }
+      foreach ($field in $fileListFields) {
+        if (-not $metadata.PSObject.Properties[$field]) { continue }
+        if ($metadata.$field -is [string]) {
+          Fail "$manifestPath field '$field' is a string ('$($metadata.$field)'), but the plugin schema requires an array of individual file paths (e.g. [`"./agents/reviewer.agent.md`"]). Claude Code rejects the entire plugin with '$field`: Invalid input', so every component it ships becomes unavailable."
+          continue
+        }
+        foreach ($item in @($metadata.$field)) {
+          $itemPath = Join-Path $entryRoot ([string]$item)
+          if (-not (Test-Path -LiteralPath $itemPath)) {
+            Fail "$manifestPath field '$field' references a file that does not exist: $item"
+          }
+        }
+      }
+    }
   }
 }
 
