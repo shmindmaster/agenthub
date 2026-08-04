@@ -107,6 +107,12 @@ pull ad-hoc models, or copy weights outside `policy.single_model_root`.
   plane.
 - **Video/music**: `ai.ps1 motif` and `ai.ps1 music`.
 
+Resolve which media capabilities exist by reading `capabilities` in
+`$LocalAiRegistry` at runtime. Do not assume the set named here is complete —
+it is a description of route *kinds*, not an inventory, and the inventory
+grows. As of the last check the stack declared fourteen capabilities across
+retrieval, provider, voice, STT, image, video and music.
+
 ## Exact knowledge and legal scope contract
 
 Do not infer scope from user folders or natural language. Resolve scope from
@@ -167,9 +173,54 @@ The validator checks:
 
 - single control-plane contract,
 - explicit `registry.json` policy and scope fields,
-- declared service set,
+- every service the registry itself marks `required: true` — derived, not a
+  list frozen in the validator, so services may be added or retired without
+  editing it,
+- the retrieval spine (`retrieval.text`, `retrieval.reranker`), because the RAG
+  route above cannot resolve without it,
+- the *shape* of every declared capability — not its membership,
 - knowledge/legal stable aliases,
 - and no accidental reintroduction of unsupported stack roots.
+
+It deliberately does not check which image, voice, STT, video, music, or
+provider capabilities exist. That inventory is open. See below.
+
+## Adopting newer models and capabilities
+
+The declared inventory is a snapshot, not a ceiling. Researching and adopting
+newer or alternative open-source models is expected work, not an exception —
+prefer investigating a current option over settling for whatever is already
+installed. Nothing in this skill or its validator should be read as a closed
+list of what the stack may run.
+
+What an adoption has to satisfy is the contract, not a whitelist. Add the
+capability to `capabilities` in `$LocalAiRegistry` with the same shape the
+existing entries use:
+
+- `id`, `category`, `status` on every entry;
+- for anything `status: enabled`, a `verification` and either an `entrypoint`
+  or `required_files`, so presence can actually be confirmed rather than
+  assumed;
+- `model_identity` with `revision` and a `fingerprint` where the weights have
+  an upstream identity worth pinning;
+- `minimum_vram_gib` where the capability competes for the GPU.
+
+Then the standing policy still applies, and these are the real constraints:
+
+- weights land under `policy.single_model_root`; output under
+  `policy.single_artifact_root`;
+- `policy.gpu_heavy_jobs = serialized` — a new heavy model does not get to run
+  concurrently with another;
+- `policy.external_data_transmission = explicit-approval-required` covers
+  evaluating a hosted or remote model, and covers uploading local corpus
+  material to one;
+- `policy.single_vector_engine` stays Qdrant; a new embedding model means a new
+  versioned collection promoted through the alias contract, not a second
+  retrieval engine.
+
+Retire a capability by removing or disabling its registry entry. Because the
+validator derives from the registry rather than a pinned list, both adopting
+and retiring are registry edits — neither requires changing this skill.
 
 ## Guardrails
 
