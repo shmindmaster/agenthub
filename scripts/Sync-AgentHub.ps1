@@ -113,6 +113,23 @@ function Read-JsonFile {
     return Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
 }
 
+# The audit path and the apply path must derive their verdict from the SAME
+# comparison. They used to disagree on the same no-op: audit compared content
+# and correctly said 'unchanged', while apply skipped the comparison entirely
+# and returned 'updated' whenever it wrote the file. Measured on the live fleet,
+# that meant a run which changed nothing announced 22 updated hosts -- and since
+# latest-drift.json and the console summary are the fleet's evidence surface, a
+# genuine single-host change was indistinguishable from routine noise.
+#
+# Sync-Instructions.ps1 and Sync-Subagents.ps1 already reported this correctly
+# (updated=0 alongside current=N on a no-op); these two helpers give the MCP
+# path one place where "did it change" becomes a word. Each writer computes
+# $changed once, above the -WhatIf branch, and both paths name it through here.
+# Reusing the comparison rather than adding a second one is the point: two
+# comparisons are what allowed the verdicts to drift apart.
+function Resolve-McpAuditStatus { param([bool]$Changed) if ($Changed) { 'drift' } else { 'unchanged' } }
+function Resolve-McpWriteStatus { param([bool]$Changed) if ($Changed) { 'updated' } else { 'unchanged' } }
+
 function Write-Utf8NoBom {
     param(
         [string]$Path,
@@ -982,19 +999,17 @@ function Sync-HostMcp-Claude {
     }
 
     $stableNewJson = Get-StableJsonString $json
-    if ($WhatIf) {
-        $stableExistingJson = if (Test-Path $path) {
-            Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
-        } else {
-            Get-StableJsonString @{ mcpServers = @{} }
-        }
-        $status = if ($stableExistingJson -ne $stableNewJson) { 'drift' } else { 'unchanged' }
-        return @{ status=$status; path=$path }
+    $stableExistingJson = if (Test-Path $path) {
+        Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
+    } else {
+        Get-StableJsonString @{ mcpServers = @{} }
     }
+    $changed = $stableExistingJson -ne $stableNewJson
+    if ($WhatIf) { return @{ status=(Resolve-McpAuditStatus $changed); path=$path } }
 
     Write-Utf8NoBom -Path $path -Content $stableNewJson
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status='updated'; path=$path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
 function Get-CodexMcpSectionPattern {
@@ -1172,14 +1187,12 @@ function Sync-HostMcp-Codex {
         -Toml $newToml `
         -ConnectorRegistry $connectorReg
 
-    if ($WhatIf) {
-        $status = if ($toml -ne $newToml) { 'drift' } else { 'unchanged' }
-        return @{ status=$status; path=$path }
-    }
+    $changed = $toml -ne $newToml
+    if ($WhatIf) { return @{ status=(Resolve-McpAuditStatus $changed); path=$path } }
 
     [System.IO.File]::WriteAllText($path, $newToml, [System.Text.UTF8Encoding]::new($false))
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status='updated'; path=$path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
 function Sync-HostMcp-Grok {
@@ -1256,13 +1269,11 @@ function Sync-HostMcp-Grok {
     $updated = $existing.TrimEnd()
     if ($updated) { $updated += "`n`n" }
     $updated += ($blocks -join "`n`n") + "`n"
-    if ($WhatIf) {
-        $status = if ($original.TrimEnd() -eq $updated.TrimEnd()) { 'unchanged' } else { 'drift' }
-        return @{ status = $status; path = $path }
-    }
+    $changed = $original.TrimEnd() -ne $updated.TrimEnd()
+    if ($WhatIf) { return @{ status = (Resolve-McpAuditStatus $changed); path = $path } }
     Write-Utf8NoBom -Path $path -Content $updated
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status='updated'; path=$path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
 function Sync-HostMcp-Hermes {
@@ -1352,13 +1363,11 @@ function Sync-HostMcp-Hermes {
     else {
         $updated = $mcpBlock + $(if ($existing) { "`n$existing" } else { '' })
     }
-    if ($WhatIf) {
-        $status = if ($original.TrimEnd() -eq $updated.TrimEnd()) { 'unchanged' } else { 'drift' }
-        return @{ status = $status; path = $path }
-    }
+    $changed = $original.TrimEnd() -ne $updated.TrimEnd()
+    if ($WhatIf) { return @{ status = (Resolve-McpAuditStatus $changed); path = $path } }
     Write-Utf8NoBom -Path $path -Content $updated
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status='updated'; path=$path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
 function ConvertTo-QwenMcpEntry {
@@ -1451,15 +1460,13 @@ function Sync-HostMcp-Qwen {
     }
 
     $stableNewJson = Get-StableJsonString $json
-    if ($WhatIf) {
-        $stableExistingJson = if (Test-Path -LiteralPath $path) { Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json) } else { Get-StableJsonString @{} }
-        $status = if ($stableExistingJson -ne $stableNewJson) { 'drift' } else { 'unchanged' }
-        return @{ status=$status; path=$path }
-    }
+    $stableExistingJson = if (Test-Path -LiteralPath $path) { Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json) } else { Get-StableJsonString @{} }
+    $changed = $stableExistingJson -ne $stableNewJson
+    if ($WhatIf) { return @{ status=(Resolve-McpAuditStatus $changed); path=$path } }
 
     Write-Utf8NoBom -Path $path -Content $stableNewJson
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status='updated'; path=$path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
 function Sync-QwenCapabilityExtensions {
@@ -1474,6 +1481,14 @@ function Sync-QwenCapabilityExtensions {
     if (-not $extensionsRoot) { return @{ status='unsupported-path'; note='Qwen extensions path missing' } }
 
     $adapterRoot = Join-Path $RuntimeDir 'runtime\qwen-code\extensions'
+    # Same reporting defect the MCP writers had, in the files channel: this
+    # returned 'updated' on every apply regardless of whether a junction was
+    # actually created or removed. The audit path here is already correct -- it
+    # returns 'drift' early (see the -WhatIf branch below) when any extension is
+    # not ready -- so the apply path just has to name the same fact.
+    # $adapterReady -and $userReady IS that fact; it is the exact condition the
+    # audit branch tests.
+    $changed = $false
     $expected = @()
     foreach ($capability in @($CapabilitiesRegistry.capabilities)) {
         $mapping = @($capability.hostMappings | Where-Object {
@@ -1533,6 +1548,7 @@ function Sync-QwenCapabilityExtensions {
             if (-not ($adapterReady -and $userReady)) { return @{ status='drift'; path=$extensionsRoot } }
             continue
         }
+        if (-not ($adapterReady -and $userReady)) { $changed = $true }
 
         if (-not (Test-Path -LiteralPath $adapterPath)) { New-Item -ItemType Directory -Path $adapterPath -Force | Out-Null }
         $manifestJson | Set-Content -LiteralPath $manifestPath -Encoding UTF8 -NoNewline
@@ -1578,6 +1594,7 @@ function Sync-QwenCapabilityExtensions {
                 throw "Refusing to prune non-junction Qwen extension path: $($userPath.FullName)"
             }
             Remove-Item -LiteralPath $userPath.FullName -Force
+            $changed = $true
         }
         foreach ($adapterPath in @(Get-ChildItem -LiteralPath $adapterRoot -Directory -Force -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like 'agenthub-*' -and $_.Name -notin $expected })) {
@@ -1587,9 +1604,12 @@ function Sync-QwenCapabilityExtensions {
                 throw "Refusing to prune Qwen adapter outside managed runtime: $resolvedAdapter"
             }
             Remove-Item -LiteralPath $resolvedAdapter -Recurse -Force
+            $changed = $true
         }
     }
-    $status = if ($WhatIf) { 'unchanged' } else { 'updated' }
+    # Reaching here under -WhatIf means every extension was ready, because the
+    # not-ready case returned 'drift' above.
+    $status = if ($WhatIf) { 'unchanged' } else { Resolve-McpWriteStatus $changed }
     return @{ status=$status; path=$extensionsRoot; count=$expected.Count }
 }
 
@@ -1618,21 +1638,19 @@ function Sync-HostMcp-JsonFile {
     $json[$JsonProperty] = Merge-McpServers -Target $json[$JsonProperty] -Additions $McpEntries -PruneUnknown:$Prune
 
     $stableNewJson = Get-StableJsonString $json
-    if ($WhatIf) {
-        $stableExistingJson = if (Test-Path $Path) {
-            Get-StableJsonString (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
-        } else {
-            Get-StableJsonString @{}
-        }
-        $status = if ($stableExistingJson -ne $stableNewJson) { 'drift' } else { 'unchanged' }
-        return @{ status=$status; path=$Path }
+    $stableExistingJson = if (Test-Path $Path) {
+        Get-StableJsonString (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
+    } else {
+        Get-StableJsonString @{}
     }
+    $changed = $stableExistingJson -ne $stableNewJson
+    if ($WhatIf) { return @{ status=(Resolve-McpAuditStatus $changed); path=$Path } }
 
     $destDir = Split-Path $Path -Parent
     if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
     Write-Utf8NoBom -Path $Path -Content $stableNewJson
     $script:state.managedFiles[$Path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $Path) }
-    return @{ status='updated'; path=$Path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$Path }
 }
 
 function Convert-McpEnvironmentReference {
@@ -1728,20 +1746,19 @@ function Sync-HostMcp-ConvertedJsonFile {
 
     $root[$JsonProperty] = $servers
     $stableNewJson = Get-StableJsonString $root
-    if ($WhatIf) {
-        $stableExistingJson = if (Test-Path -LiteralPath $Path) {
-            Get-StableJsonString (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
-        } else {
-            Get-StableJsonString @{}
-        }
-        return @{ status = if ($stableExistingJson -eq $stableNewJson) { 'unchanged' } else { 'drift' }; path = $Path }
+    $stableExistingJson = if (Test-Path -LiteralPath $Path) {
+        Get-StableJsonString (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
+    } else {
+        Get-StableJsonString @{}
     }
+    $changed = $stableExistingJson -ne $stableNewJson
+    if ($WhatIf) { return @{ status = (Resolve-McpAuditStatus $changed); path = $Path } }
 
     $destDir = Split-Path $Path -Parent
     if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
     Write-Utf8NoBom -Path $Path -Content $stableNewJson
     $script:state.managedFiles[$Path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $Path) }
-    return @{ status='updated'; path=$Path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$Path }
 }
 
 function ConvertTo-GeminiMcpEntry {
@@ -1946,18 +1963,17 @@ function Sync-HostMcp-Cline {
 
     $root.mcpServers = $servers
     $stableNewJson = Get-StableJsonString $root
-    if ($WhatIf) {
-        $stableExistingJson = if (Test-Path -LiteralPath $path) {
-            Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
-        } else { Get-StableJsonString @{} }
-        return @{ status = if ($stableExistingJson -eq $stableNewJson) { 'unchanged' } else { 'drift' }; path = $path }
-    }
+    $stableExistingJson = if (Test-Path -LiteralPath $path) {
+        Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
+    } else { Get-StableJsonString @{} }
+    $changed = $stableExistingJson -ne $stableNewJson
+    if ($WhatIf) { return @{ status = (Resolve-McpAuditStatus $changed); path = $path } }
 
     $destDir = Split-Path $path -Parent
     if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
     Write-Utf8NoBom -Path $path -Content $stableNewJson
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status='updated'; path=$path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
 function ConvertTo-QoderMcpEntry {
@@ -2152,15 +2168,13 @@ function Sync-HostMcp-OpenCode {
     }
 
     $stableNewJson = Get-StableJsonString $root
-    if ($WhatIf) {
-        $stableExistingJson = Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
-        $status = if ($stableExistingJson -ne $stableNewJson) { 'drift' } else { 'unchanged' }
-        return @{ status=$status; path=$path }
-    }
+    $stableExistingJson = Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
+    $changed = $stableExistingJson -ne $stableNewJson
+    if ($WhatIf) { return @{ status=(Resolve-McpAuditStatus $changed); path=$path } }
 
     Write-Utf8NoBom -Path $path -Content $stableNewJson
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status='updated'; path=$path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
 # ---------------------------------------------------------------------------
@@ -2295,18 +2309,16 @@ function Sync-HostMcp-Windsurf {
 
     $root.mcpServers = $servers
     $stableNewJson = Get-StableJsonString $root
-    if ($WhatIf) {
-        $stableExistingJson = if (Test-Path $path) {
-            Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
-        } else { Get-StableJsonString @{} }
-        $status = if ($stableExistingJson -ne $stableNewJson) { 'drift' } else { 'unchanged' }
-        return @{ status=$status; path=$path }
-    }
+    $stableExistingJson = if (Test-Path $path) {
+        Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
+    } else { Get-StableJsonString @{} }
+    $changed = $stableExistingJson -ne $stableNewJson
+    if ($WhatIf) { return @{ status=(Resolve-McpAuditStatus $changed); path=$path } }
     $destDir = Split-Path $path -Parent
     if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
     Write-Utf8NoBom -Path $path -Content $stableNewJson
     $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status='updated'; path=$path }
+    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
 # ---------------------------------------------------------------------------
