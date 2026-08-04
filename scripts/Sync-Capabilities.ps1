@@ -15,11 +15,45 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 }
 if (-not $Apply) { $Audit = $true }
 $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
-$runtimeRoot = Join-Path $env:LOCALAPPDATA 'AgentHub\sync'
+
+# -UserProfile has to actually move where this script writes, or it is a
+# safety promise the script does not keep. Registry skillsDir values are
+# absolute and baked against the real profile, so rebase both them and the
+# runtime state directory whenever an override is supplied. A prior task in
+# this effort shipped a live-fleet write on exactly this gap.
+if ([string]::IsNullOrWhiteSpace($UserProfile)) {
+  throw "Could not resolve a user profile directory. Pass -UserProfile explicitly."
+}
+$UserProfile = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+$realProfile = if ([string]::IsNullOrWhiteSpace($env:USERPROFILE)) { $null } else { [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\') }
+$profileIsOverridden = $realProfile -and ($UserProfile -ne $realProfile)
+
+function Resolve-UnderUserProfile([string]$Path) {
+  if (-not $profileIsOverridden -or [string]::IsNullOrWhiteSpace($Path)) { return $Path }
+  $full = [IO.Path]::GetFullPath($Path)
+  if ($full.StartsWith($realProfile + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    return Join-Path $UserProfile $full.Substring($realProfile.Length + 1)
+  }
+  return $full
+}
+
+$runtimeRoot = if ($profileIsOverridden) {
+  Join-Path $UserProfile 'AppData\Local\AgentHub\sync'
+} else {
+  Join-Path $env:LOCALAPPDATA 'AgentHub\sync'
+}
 $statePath = Join-Path $runtimeRoot 'managed-skills.json'
 $capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw | ConvertFrom-Json
 $agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw | ConvertFrom-Json
 $agents = @($agentsDocument.activeAgents) + @($agentsDocument.inactiveAgents)
+
+# A registry that declares nothing is a wrong or empty tree, not a clean run.
+if (@($capabilities.capabilities).Count -eq 0) {
+  throw "Registry '$(Join-Path $root 'registry\capabilities.json')' declares zero capabilities. Refusing to report success against what looks like an empty or wrong registry tree."
+}
+if ($agents.Count -eq 0) {
+  throw "Registry '$(Join-Path $root 'registry\agents.json')' declares zero agents. Refusing to report success against what looks like an empty or wrong registry tree."
+}
 
 function Get-TreeHash([string]$Path) {
   $sha = [Security.Cryptography.SHA256]::Create()
@@ -64,7 +98,7 @@ foreach ($capability in $capabilities.capabilities) {
       $rows.Add([pscustomobject]@{ capability=$capability.id; host=$agent.id; mode='native-plugin'; status='host-managed' })
       continue
     }
-    $skillsDir = [string]$agent.nativePaths.skillsDir
+    $skillsDir = Resolve-UnderUserProfile ([string]$agent.nativePaths.skillsDir)
     if ([string]::IsNullOrWhiteSpace($skillsDir) -or $skills.Count -eq 0) { continue }
     foreach ($skill in $skills) {
       $destination = Join-Path $skillsDir $skill.Name
@@ -90,6 +124,7 @@ foreach ($capability in $capabilities.capabilities) {
   }
 }
 
+$pruned = 0
 if ($Apply -and $Prune) {
   foreach ($destination in @($prior.managed.Keys)) {
     if ($desired.ContainsKey($destination) -or -not (Test-Path -LiteralPath $destination)) { continue }
@@ -99,6 +134,7 @@ if ($Apply -and $Prune) {
       continue
     }
     Remove-Item -LiteralPath $destination -Recurse -Force
+    $pruned++
   }
 }
 
@@ -114,5 +150,13 @@ if ($Apply) {
 }
 
 if ($VerbosePreference -eq 'Continue') { $rows | Sort-Object capability,host,skill | Format-Table -AutoSize }
+
+# Zero evaluated rows means no (capability, host) pair was even considered.
+# That is a broken configuration, not parity. A prune-only run is the one
+# legitimate way to do real work with no rows, so it does not trip this.
+if ($rows.Count -eq 0 -and $pruned -eq 0) {
+  throw "Zero (capability, host) rows were evaluated at all. Refusing to report success against an empty work set."
+}
+
 $counts = $rows | Group-Object status | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Count)" }
-Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); apply=$Apply."
+Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; apply=$Apply."

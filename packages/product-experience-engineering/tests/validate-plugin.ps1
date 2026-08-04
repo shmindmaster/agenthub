@@ -136,7 +136,15 @@ foreach ($reference in $expectedPluginReferences) {
 }
 
 $guidePath = Join-Path $pluginRoot 'references\product-experience-audit-remediation-guide.md'
-$guideHash = (Get-FileHash -LiteralPath $guidePath -Algorithm SHA256).Hash
+# Hash the newline-normalized bytes, not the raw file. Get-FileHash here made
+# the verdict depend on git's core.autocrlf: identical content passed in an LF
+# checkout and failed in a CRLF worktree. The constant below is unchanged --
+# the normalized digest already equals the LF-file digest.
+$guideSha = [Security.Cryptography.SHA256]::Create()
+try {
+    $guideText = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($guidePath)).Replace("`r`n", "`n")
+    $guideHash = ([BitConverter]::ToString($guideSha.ComputeHash([Text.Encoding]::UTF8.GetBytes($guideText)))).Replace('-', '')
+} finally { $guideSha.Dispose() }
 Assert-True ($guideHash -eq 'D4B11030FED14700F0F8921F447481892F91ACDE4070E03967A0F743AC527C34') 'Canonical pre-video guide is incomplete or differs from the reviewed source.'
 
 $artifactContractPath = Join-Path $pluginRoot 'references\artifact-contracts.md'

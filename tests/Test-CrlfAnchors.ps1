@@ -123,10 +123,10 @@ function Get-QuotedLiteralAfterMarker {
 # regex anchor). Confirmed: the same file passes cleanly end-to-end in the
 # LF main checkout (C:\Repos\shmindmaster\agenthub) but fails on this
 # separate hash check in this CRLF worktree even after L122/L124 are fixed.
-# That is a second, distinct checkout-dependent defect in the same family
-# the brief describes, but it is not one of the nine regex anchors and is
-# out of this task's scope ("the nine regex fixes in their three files, and
-# nothing else... report it -- do not fix it"); see task-6-report.md. ---
+# That second defect is now fixed too: the guide hash is taken over
+# newline-normalized bytes. The constant itself did not change -- the
+# normalized digest already equalled the LF-file digest -- so the validator
+# now runs clean end to end in both checkouts. ---
 function Test-PackageValidatorNoLongerFailsOnCrlfRegexAnchorChecks {
     $allArgs = @('-NoProfile', '-File', $validatePluginScript)
     $previousEap = $ErrorActionPreference
@@ -142,8 +142,11 @@ function Test-PackageValidatorNoLongerFailsOnCrlfRegexAnchorChecks {
     if ($output -match 'Skill must define standalone execution behavior') {
         return @{ Passed = $false; Detail = "the L124 standalone-execution CRLF anchor bug is still present. Output: $output" }
     }
-    if ($output -notmatch 'Canonical pre-video guide') {
-        return @{ Passed = $false; Detail = "expected execution to proceed past L122/L124 to the separate, already-reported, out-of-scope guide-hash check. Output: $output" }
+    if ($output -match 'Canonical pre-video guide') {
+        return @{ Passed = $false; Detail = "the guide-hash check is still comparing raw bytes, so it still depends on the checkout's line endings. Output: $output" }
+    }
+    if ($output -notmatch 'plugin structure, metadata, references, assets, and inactive hooks are valid') {
+        return @{ Passed = $false; Detail = "expected the package validator to run clean end to end in this CRLF worktree. Output: $output" }
     }
     return @{ Passed = $true; Detail = $null }
 }
@@ -325,7 +328,7 @@ function Test-AlreadyTolerantAnchorsStayTolerant {
 }
 
 $r1 = Test-PackageValidatorNoLongerFailsOnCrlfRegexAnchorChecks
-Report 'the real, CRLF-checked-out package validator no longer fails on the L122/L124 regex-anchor checks' $r1.Passed $r1.Detail
+Report 'the real, CRLF-checked-out package validator runs clean end to end' $r1.Passed $r1.Detail
 
 $r2 = Test-ValidatePluginToolsCaptureExcludesTrailingCr
 Report 'validate-plugin.ps1 tools: capture excludes a trailing CR under CRLF' $r2.Passed $r2.Detail

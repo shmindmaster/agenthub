@@ -15,21 +15,17 @@ follows). Same self-checking idiom: each Test-* function returns a result,
 the runner prints one PASS/FAIL line per behavior, accumulates failures,
 and exits 1 if any behavior did not hold, 0 otherwise.
 
-SAFETY NOTE (discovered while building this file, reported not fixed --
-see task-6 report): scripts/Sync-Capabilities.ps1 declares a -UserProfile
-parameter but never references it anywhere in its body. Its runtime state
-file (managed-skills.json, which -Apply reads AND writes, and whose guard
-logic this file exists to test) is instead always resolved from
-$env:LOCALAPPDATA directly. A caller who passes -UserProfile <synthetic>
-expecting isolation, the way every other Sync-*.ps1 script in this repo
-supports, would still read/write the REAL, LIVE managed-skills.json state
-for the invoking user. To keep every -Apply invocation below fully
-isolated from the real machine regardless of this defect, Invoke-
-SyncCapabilities below ALSO overrides the child process's LOCALAPPDATA
-environment variable to a synthetic scratch path for the duration of the
-call (restored immediately after). This is a workaround for a real,
-separately-reported bug, not evidence that -UserProfile works correctly
-here.
+SAFETY NOTE: scripts/Sync-Capabilities.ps1 originally declared a
+-UserProfile parameter but never referenced it -- its runtime state file
+(managed-skills.json, which -Apply reads AND writes, and whose guard logic
+this file exists to test) was always resolved from $env:LOCALAPPDATA, so a
+caller passing -UserProfile <synthetic> expecting isolation would still
+read and write the REAL, LIVE state. That is now fixed: the script rebases
+both its runtime root and every registry-baked skillsDir under an
+overridden -UserProfile. Invoke-SyncCapabilities below nonetheless ALSO
+overrides the child process's LOCALAPPDATA for the duration of the call
+(restored immediately after) -- belt and braces, so a future regression in
+that rebasing cannot reach the real machine through this test file.
 
 Every -Apply invocation below targets a synthetic -RepositoryRoot with a
 synthetic-agent skillsDir AND a synthetic-LOCALAPPDATA runtime-state
@@ -48,7 +44,11 @@ $syncScript = Join-Path $repoRoot 'scripts\Sync-Capabilities.ps1'
 $hostExe = (Get-Process -Id $PID).Path
 
 $failures = [Collections.Generic.List[string]]::new()
+# Derived, not hardcoded: a count typed by hand drifts the moment a behavior
+# is added, and the runner parses these totals.
+$reported = 0
 function Report([string]$Name, [bool]$Passed, [string]$Detail) {
+    $script:reported++
     if ($Passed) {
         Write-Host "PASS: $Name" -ForegroundColor Green
     } else {
@@ -83,6 +83,23 @@ function Invoke-SyncCapabilities {
 # controlled here, never a real host path), and registry/capabilities.json
 # with one capability whose canonicalSource resolves to a real skills/
 # directory under the fixture root.
+# Mirrors the -UserProfile rebasing in scripts/Sync-Capabilities.ps1. The
+# fixture's synthetic skillsDir lives under $env:TEMP, which on Windows is
+# itself under the real profile, so the script legitimately rebases it. The
+# fixture has to resolve destinations the same way or it asserts against a
+# path nothing was ever written to.
+function Get-EffectiveDestination {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$UserProfile)
+    $full = [IO.Path]::GetFullPath($Path)
+    $realProfile = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
+    $effective = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+    if ($effective -eq $realProfile) { return $full }
+    if ($full.StartsWith($realProfile + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        return Join-Path $effective $full.Substring($realProfile.Length + 1)
+    }
+    return $full
+}
+
 function New-SyncCapabilitiesFixture {
     param(
         [Parameter(Mandatory)][string]$CapabilityId,
@@ -94,6 +111,7 @@ function New-SyncCapabilitiesFixture {
     $registryDir = Join-Path $root 'registry'
     New-Item -ItemType Directory -Path $registryDir -Force | Out-Null
     $skillsDir = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-synccaps-dest-" + [guid]::NewGuid())
+    $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-synccaps-profile-" + [guid]::NewGuid())
 
     $agents = @{
         activeAgents = @(
@@ -111,10 +129,10 @@ function New-SyncCapabilitiesFixture {
 
     return [pscustomobject]@{
         Root         = $root
-        SkillsDir    = $skillsDir
-        Destination  = Join-Path $skillsDir $SkillName
+        SkillsDir    = Get-EffectiveDestination -Path $skillsDir -UserProfile $userProfile
+        Destination  = Get-EffectiveDestination -Path (Join-Path $skillsDir $SkillName) -UserProfile $userProfile
         LocalAppData = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-synccaps-lad-" + [guid]::NewGuid())
-        UserProfile  = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-synccaps-profile-" + [guid]::NewGuid())
+        UserProfile  = $userProfile
         RegistryDir  = $registryDir
     }
 }
@@ -315,17 +333,11 @@ function Test-SecondApplyIsIdempotent {
     }
 }
 
-# --- Behavior 6 (DISCOVERED BUG, reported not fixed -- see task-6 report):
-# a registry with zero capabilities and zero agents ("empty work set") is
-# expected to fail loudly per this project's global constraint ("never
-# print success on an empty work set" -- see AGENTS.md-adjacent policy and
-# task-6-brief.md coverage-gap priority 2). scripts/Sync-Capabilities.ps1
-# instead prints "PASS: capability parity 0 host mappings checked..." and
-# exits 0. This assertion encodes the CORRECT, required contract and is
-# therefore expected to FAIL against the current script -- it is left in
-# the suite, failing, as the honest record of a real defect this task was
-# asked to find and report, not fix (out of scope: only tests/ and the
-# nine CRLF regex fixes in their three named files may change). ---
+# --- Behavior 6: a registry with zero capabilities and zero agents ("empty
+# work set") must fail loudly, per this project's defining constraint. This
+# assertion was written RED -- the script printed
+# "PASS: capability parity 0 host mappings checked..." and exited 0 -- and
+# the guard was added afterwards to make it pass. ---
 function Test-EmptyWorkSetFailsLoudly {
     $root = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-synccaps-empty-root-" + [guid]::NewGuid())
     $registryDir = Join-Path $root 'registry'
@@ -339,16 +351,47 @@ function Test-EmptyWorkSetFailsLoudly {
     try {
         $result = Invoke-SyncCapabilities -ExtraArgs @('-Audit', '-RepositoryRoot', $root, '-UserProfile', $userProfile) -LocalAppData $localAppData
         if ($result.ExitCode -eq 0) {
-            return @{ Passed = $false; Detail = "KNOWN BUG (reported, not fixed): exit code was 0 (reported success) against a registry with zero capabilities and zero agents. Output: $($result.Output)" }
+            return @{ Passed = $false; Detail = "exit code was 0 (reported success) against a registry with zero capabilities and zero agents. Output: $($result.Output)" }
         }
         if ($result.Output -match 'PASS: capability parity') {
-            return @{ Passed = $false; Detail = "KNOWN BUG (reported, not fixed): script printed its PASS success line against an empty work set. Output: $($result.Output)" }
+            return @{ Passed = $false; Detail = "script printed its PASS success line against an empty work set. Output: $($result.Output)" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $localAppData -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# --- Behavior 7: -UserProfile must actually move where the script writes.
+# The parameter existed but was never referenced, so a caller passing a
+# synthetic profile for isolation still wrote to the real registry-declared
+# skillsDir and the real %LOCALAPPDATA% state. That is the exact shape of
+# the live-fleet write incident recorded earlier in this effort. ---
+function Test-UserProfileRebasesDestinations {
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-rebase-cap' -HostId 'zz-rebase-host' -SkillName 'sample-skill' -SkillContent 'canonical content v1'
+    # The path the registry literally declares, before any rebasing.
+    $declared = ([string]((Get-Content -LiteralPath (Join-Path $fixture.RegistryDir 'agents.json') -Raw | ConvertFrom-Json).activeAgents[0].nativePaths.skillsDir))
+    try {
+        $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($result.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "-Apply exit code was $($result.ExitCode). Output: $($result.Output)" }
+        }
+        if (-not (Test-Path -LiteralPath $fixture.Destination)) {
+            return @{ Passed = $false; Detail = "skill was not deployed to the rebased destination $($fixture.Destination). Output: $($result.Output)" }
+        }
+        if ($declared -ne $fixture.SkillsDir -and (Test-Path -LiteralPath $declared)) {
+            return @{ Passed = $false; Detail = "-UserProfile did not rebase: the script wrote to the registry-declared path $declared instead of under the supplied profile." }
+        }
+        $rebasedState = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        if (-not (Test-Path -LiteralPath $rebasedState)) {
+            return @{ Passed = $false; Detail = "runtime state was not written under the supplied -UserProfile (expected $rebasedState)." }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $fixture
+        Remove-Item -LiteralPath $declared -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -368,11 +411,14 @@ $r5 = Test-SecondApplyIsIdempotent
 Report 'second consecutive -Apply against the same fixture makes no further byte changes and reports current' $r5.Passed $r5.Detail
 
 $r6 = Test-EmptyWorkSetFailsLoudly
-Report 'zero capabilities and zero agents fails loudly instead of reporting success (KNOWN BUG, see task-6 report)' $r6.Passed $r6.Detail
+Report 'zero capabilities and zero agents fails loudly instead of reporting success' $r6.Passed $r6.Detail
+
+$r7 = Test-UserProfileRebasesDestinations
+Report '-UserProfile rebases both the skill destinations and the runtime state directory' $r7.Passed $r7.Detail
 
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed, $(6 - $failures.Count) passed" -ForegroundColor Red
+    Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: 6 passed, 0 failed' -ForegroundColor Green
+Write-Host "RESULT: $reported passed, 0 failed" -ForegroundColor Green
 exit 0
