@@ -121,10 +121,59 @@ function Write-Utf8NoBom {
     # Windows PowerShell 5.1's `Set-Content -Encoding UTF8` writes a BOM.
     # Qwen Code feeds settings.json directly to JSON.parse(), which rejects
     # that leading character.
+    # The parent directory always exists on the live fleet, so this was latent
+    # there -- but it fails against a fresh profile, which is exactly the
+    # isolated target -UserProfile exists to make testable.
+    $parent = Split-Path -Parent $Path
+    if ($parent -and -not (Test-Path -LiteralPath $parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
     [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
 }
 
+# registry/agents.json stores every nativePaths value as an absolute path baked
+# against the invoking user's profile. Without this, passing -UserProfile moved
+# only the runtime/state directory (above) while every host destination still
+# pointed at the real, live fleet -- so a "safely isolated" -Apply wrote to real
+# host config. That has now happened twice in this repo's history under two
+# different scripts, so the rewrite happens once here, at load, rather than at
+# each of the ~20 nativePaths read sites where one omission reintroduces it.
+function ConvertTo-ProfileRebasedPaths {
+    param([Parameter(Mandatory)]$Node)
+    if ($null -eq $Node) { return }
+    foreach ($property in @($Node.PSObject.Properties)) {
+        $value = $property.Value
+        if ($value -is [string]) {
+            if ([string]::IsNullOrWhiteSpace($value)) { continue }
+            # nativePaths is not purely paths: hermes stores an instruction
+            # body template and a prose provenance note there. Only rewrite
+            # values that are actually rooted paths.
+            if ($value.Length -lt 3 -or $value[1] -ne ':' -or $value[2] -ne '\') { continue }
+            # A path already under the target profile is already isolated --
+            # rebasing it again would bury it one profile deeper. This matters
+            # because a scratch profile normally lives under %TEMP%, which is
+            # itself under the invoking profile, so both prefixes match.
+            if ($value.StartsWith($targetUserProfile + '\', [StringComparison]::OrdinalIgnoreCase)) { continue }
+            if ($value.StartsWith($invokingUserProfile + '\', [StringComparison]::OrdinalIgnoreCase)) {
+                $property.Value = Join-Path $targetUserProfile $value.Substring($invokingUserProfile.Length + 1)
+            }
+        } elseif ($value -is [Management.Automation.PSCustomObject]) {
+            ConvertTo-ProfileRebasedPaths -Node $value
+        } elseif ($value -is [Collections.IEnumerable]) {
+            foreach ($element in $value) {
+                if ($element -is [Management.Automation.PSCustomObject]) { ConvertTo-ProfileRebasedPaths -Node $element }
+            }
+        }
+    }
+}
+
 $agentsReg = Read-JsonFile $AgentsFile
+if ($agentsReg -and $invokingUserProfile -and
+    -not $targetUserProfile.Equals($invokingUserProfile, [StringComparison]::OrdinalIgnoreCase)) {
+    foreach ($agent in @(@($agentsReg.activeAgents) + @($agentsReg.inactiveAgents))) {
+        if ($agent -and $agent.nativePaths) { ConvertTo-ProfileRebasedPaths -Node $agent.nativePaths }
+    }
+}
 $mcpsReg   = Read-JsonFile $McpsFile
 $capReg    = Read-JsonFile $CapabilitiesFile
 $connectorReg = Read-JsonFile $ConnectorsFile

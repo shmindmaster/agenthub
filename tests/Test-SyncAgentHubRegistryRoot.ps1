@@ -142,6 +142,74 @@ function Test-UserProfileOverrideRedirectsRuntimeState {
     }
 }
 
+# --- Behavior 4: -UserProfile must rebase the HOST DESTINATIONS too, not just
+# the runtime state directory. registry/agents.json stores every nativePaths
+# value as an absolute path baked against the real profile, so before this was
+# fixed a caller passing a synthetic profile for isolation still had every
+# host destination pointing at the real, live fleet -- and an -Apply intended
+# to be isolated wrote real host configuration. That happened twice in this
+# repo's history, under two different scripts. This asserts it cannot recur:
+# the audit's own drift report must name no path under the real profile.
+# -Audit only; nothing is written by this test. ---
+function Test-UserProfileRebasesHostDestinations {
+    $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-syncah-hostdest-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $userProfile -Force | Out-Null
+    $realProfile = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
+    try {
+        $result = Invoke-SyncAgentHub -ExtraArgs @('-UserProfile', $userProfile)
+        if ($result.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "-Audit exit code was $($result.ExitCode). Output: $($result.Output)" }
+        }
+        $driftPath = Join-Path $userProfile 'AppData\Local\AgentHub\sync\latest-drift.json'
+        if (-not (Test-Path -LiteralPath $driftPath)) {
+            return @{ Passed = $false; Detail = "no drift report was written under the supplied profile (expected $driftPath)." }
+        }
+        $drift = Get-Content -LiteralPath $driftPath -Raw | ConvertFrom-Json
+        $paths = @()
+        foreach ($hostEntry in @($drift.hosts)) {
+            foreach ($entry in @($hostEntry.mcp) + @($hostEntry.files)) {
+                if ($entry -and $entry.path) { $paths += [string]$entry.path }
+            }
+        }
+        if ($paths.Count -eq 0) {
+            return @{ Passed = $false; Detail = 'the drift report named zero destination paths, so this assertion checked nothing.' }
+        }
+        # Compare against the registry's own declared destinations rather than
+        # a "under the real profile" prefix test: the scratch profile itself
+        # lives under %TEMP%, which is under the real profile, so a prefix test
+        # flags correctly-rebased paths.
+        $declared = @{}
+        $agentsDoc = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($agent in @(@($agentsDoc.activeAgents) + @($agentsDoc.inactiveAgents))) {
+            if (-not $agent.nativePaths) { continue }
+            foreach ($property in @($agent.nativePaths.PSObject.Properties)) {
+                $candidate = $property.Value
+                # nativePaths also carries non-path values (hermes stores an
+                # instruction template and a prose note there), so filter to
+                # rooted paths rather than calling GetFullPath on everything --
+                # .NET Framework throws "Illegal characters in path" on the rest.
+                if ($candidate -is [string] -and $candidate.Length -ge 3 -and $candidate[1] -eq ':' -and $candidate[2] -eq '\') {
+                    $declared[$candidate.TrimEnd('\')] = $true
+                }
+            }
+        }
+        if ($declared.Count -eq 0) {
+            return @{ Passed = $false; Detail = 'registry/agents.json declared zero nativePaths, so this assertion checked nothing.' }
+        }
+        $leaked = @($paths | Where-Object { $declared.ContainsKey($_.TrimEnd('\')) })
+        if ($leaked.Count -gt 0) {
+            return @{ Passed = $false; Detail = "-UserProfile did not rebase host destinations; $($leaked.Count) still point at the registry's real declared paths, e.g. $($leaked[0])" }
+        }
+        $rebased = @($paths | Where-Object { $_.StartsWith($userProfile + '\', [StringComparison]::OrdinalIgnoreCase) })
+        if ($rebased.Count -eq 0) {
+            return @{ Passed = $false; Detail = "no destination path landed under the supplied -UserProfile, so nothing was actually rebased. Paths: $($paths -join '; ')" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $r1 = Test-EmptyRegistryRootFailsLoudly
 Report 'empty/wrong registry root fails loudly instead of reporting success' $r1.Passed $r1.Detail
 
@@ -151,9 +219,12 @@ Report 'no -RegistryRoot self-derives from the running script location' $r2.Pass
 $r3 = Test-UserProfileOverrideRedirectsRuntimeState
 Report '-UserProfile override still redirects runtime state to the specified path' $r3.Passed $r3.Detail
 
+$r4 = Test-UserProfileRebasesHostDestinations
+Report '-UserProfile rebases host destinations, not just the runtime state directory' $r4.Passed $r4.Detail
+
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed, $(3 - $failures.Count) passed" -ForegroundColor Red
+    Write-Host "RESULT: $($failures.Count) failed, $(4 - $failures.Count) passed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: 3 passed, 0 failed' -ForegroundColor Green
+Write-Host 'RESULT: 4 passed, 0 failed' -ForegroundColor Green
 exit 0
