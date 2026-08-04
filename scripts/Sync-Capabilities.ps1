@@ -16,6 +16,10 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 }
 if (-not $Apply) { $Audit = $true }
 $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
+# Dot-sourced for Get-AgentHubStableFileHash (see Get-TreeHash below).
+# RegistryContentHash.ps1 defines functions only -- no top-level side effects
+# -- which is why scripts/Validate-AgentHub.ps1 loads it the same way.
+. (Join-Path $PSScriptRoot 'RegistryContentHash.ps1')
 
 # -UserProfile has to actually move where this script writes, or it is a
 # safety promise the script does not keep. Registry skillsDir values are
@@ -47,13 +51,23 @@ $statePath = Join-Path $runtimeRoot 'managed-skills.json'
 $capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw | ConvertFrom-Json
 $agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw | ConvertFrom-Json
 
-# Inactive hosts are retained as inventory, not as deployment targets. A host
-# the fleet profile never dispatches to still costs one full skill copy per
-# mapping: 33 of the registry's capability->host mappings point at amp, devin,
-# factory, vscode-insiders and windsurf. Skipping them by default matches the
-# -IncludeInactiveAgents switch Sync-AgentHub.ps1 already exposes for MCP, so
+# Inactive hosts are retained as inventory, not as deployment targets, matching
+# the -IncludeInactiveAgents switch Sync-AgentHub.ps1 already exposes for MCP so
 # the fleet has one convention rather than two. The mappings stay in
 # capabilities.json: this narrows what is deployed, not what is recorded.
+#
+# registry/agents.json currently declares NO inactive hosts, so this filter is
+# inert. It did not start that way, and the history is the point. amp, devin,
+# factory, vscode-insiders and windsurf were labelled inactive; wiring skill
+# deployment to that label withheld 129 deployments and pruned 158 directories
+# from hosts that were in fact in daily use. The label was stale, and it had
+# been harmless right up until something depended on it.
+#
+# So: before making this filter matter again, confirm the label against reality
+# rather than against the registry. A host being absent from disk, or a config
+# directory looking untouched, is not evidence -- this repository has now
+# recorded three separate globalSkillsDir errors built on exactly that
+# inference.
 #
 # SEQUENCING HAZARD: narrowing the host set drops those destinations out of
 # $desired, and a plain -Apply rewrites the state file to exactly $desired.
@@ -78,7 +92,51 @@ if ($agents.Count -eq 0) {
   throw "Registry '$(Join-Path $root 'registry\agents.json')' declares no ACTIVE agents; every host is inactive. Refusing to deploy nothing quietly. Pass -IncludeInactiveAgents if that is genuinely intended."
 }
 
+# Skills are deployed by Copy-Item, verbatim, so the deployed bytes carry
+# whatever line endings the deploying checkout had. Hashing those bytes raw
+# made this script's verdict a function of git's core.autocrlf: one checkout
+# reported current=370/drift=0 while a second checkout at the IDENTICAL commit
+# reported current=6/drift=364, and a cross-checkout -Apply then rewrote every
+# "drifted" destination, so the two checkouts ping-ponged the whole fleet's
+# line endings between them.
+#
+# Get-AgentHubStableFileHash (scripts/RegistryContentHash.ps1) already solves
+# exactly this for the registry content hash: it normalizes known text
+# extensions to LF before hashing and passes everything else through byte-for-
+# byte. Reusing it keeps one implementation of this rule rather than a third
+# variant.
+#
+# The copy stays verbatim on purpose. This hash answers "is this the same
+# content", which is the only question any caller below asks; it no longer
+# implies "these are the same bytes". Normalizing on the WRITE path
+# instead would mean classifying text-vs-binary for every file a skill ever
+# ships -- a far larger blast radius than the defect -- and would not converge
+# the already-deployed CRLF copies anyway, since a normalized hash reports
+# them current.
 function Get-TreeHash([string]$Path) {
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try {
+    $lines = Get-ChildItem -LiteralPath $Path -Recurse -File -Force |
+      Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|dist|coverage)[\\/]' } |
+      Sort-Object FullName |
+      ForEach-Object {
+        $relative = $_.FullName.Substring($Path.TrimEnd('\').Length + 1).Replace('\','/')
+        "${relative}:$(Get-AgentHubStableFileHash -Path $_.FullName)"
+      }
+    $bytes = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
+    ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-','')
+  } finally { $sha.Dispose() }
+}
+
+# The schemaVersion 1 hash format, kept solely to READ state files written
+# before Get-TreeHash started normalizing. Every managed-skills.json already on
+# disk holds digests in this format, and the two guards below compare a stored
+# digest against a freshly computed one -- so reading an old file with the new
+# function makes both guards fire on destinations nobody touched. Roughly half
+# the files in a real deployment contain CRLF, which is how many would falsely
+# refuse. This is self-retiring: the next -Apply rewrites the state at
+# $StateSchemaVersion and nothing reaches this function again.
+function Get-TreeHashLegacy([string]$Path) {
   $sha = [Security.Cryptography.SHA256]::Create()
   try {
     $lines = Get-ChildItem -LiteralPath $Path -Recurse -File -Force |
@@ -93,8 +151,15 @@ function Get-TreeHash([string]$Path) {
   } finally { $sha.Dispose() }
 }
 
+# Bumped from 1 when Get-TreeHash switched to newline-normalized hashing. A
+# state file with no schemaVersion at all reads as 0, which is treated as
+# legacy -- the safe direction, since it preserves the guards rather than
+# disarming them.
+$StateSchemaVersion = 2
+$priorSchemaVersion = 0
 $prior = if (Test-Path -LiteralPath $statePath) {
   $stateDocument = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+  $priorSchemaVersion = [int]$stateDocument.schemaVersion
   $managed = @{}
   foreach ($property in @($stateDocument.managed.PSObject.Properties)) {
     $managed[$property.Name] = $property.Value
@@ -102,6 +167,7 @@ $prior = if (Test-Path -LiteralPath $statePath) {
   @{ managed = $managed }
 } else { @{ managed = @{} } }
 if (-not $prior.ContainsKey('managed')) { $prior.managed = @{} }
+$priorHashesAreLegacy = $priorSchemaVersion -lt $StateSchemaVersion
 $desired = @{}
 $rows = [Collections.Generic.List[object]]::new()
 $failures = [Collections.Generic.List[string]]::new()
@@ -154,8 +220,14 @@ foreach ($capability in $capabilities.capabilities) {
         $failures.Add("refusing to replace unowned skill: $destination")
         continue
       }
+      # Compare a stored digest in the format it was stored in, not the format
+      # this run computes. Only recomputed when a stored digest is actually
+      # about to be read.
+      $recordedComparableHash = if ($currentHash -and $priorHashesAreLegacy -and $prior.managed.ContainsKey($destination)) {
+        Get-TreeHashLegacy $destination
+      } else { $currentHash }
       if ($currentHash -and $prior.managed.ContainsKey($destination) -and
-          $prior.managed[$destination].hash -ne $currentHash -and -not $AdoptExisting) {
+          $prior.managed[$destination].hash -ne $recordedComparableHash -and -not $AdoptExisting) {
         $failures.Add("refusing to replace user-modified managed skill: $destination")
         continue
       }
@@ -170,7 +242,8 @@ $pruned = 0
 if ($Apply -and $Prune) {
   foreach ($destination in @($prior.managed.Keys)) {
     if ($desired.ContainsKey($destination) -or -not (Test-Path -LiteralPath $destination)) { continue }
-    $currentHash = Get-TreeHash $destination
+    # Same stored-format rule as the replace guard above.
+    $currentHash = if ($priorHashesAreLegacy) { Get-TreeHashLegacy $destination } else { Get-TreeHash $destination }
     if ($currentHash -ne $prior.managed[$destination].hash) {
       $failures.Add("refusing to prune modified managed skill: $destination")
       continue
@@ -187,7 +260,7 @@ if ($failures.Count -gt 0) {
 
 if ($Apply) {
   New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
-  @{ schemaVersion=1; updatedAt=(Get-Date).ToUniversalTime().ToString('o'); managed=$desired } |
+  @{ schemaVersion=$StateSchemaVersion; updatedAt=(Get-Date).ToUniversalTime().ToString('o'); managed=$desired } |
     ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 

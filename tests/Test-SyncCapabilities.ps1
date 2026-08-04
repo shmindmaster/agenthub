@@ -395,6 +395,170 @@ function Test-UserProfileRebasesDestinations {
     }
 }
 
+# ---------------------------------------------------------------------------
+# Behaviors 8 and 9 cover the managed-skills.json schemaVersion 1 -> 2
+# migration. Get-TreeHash used to hash raw file bytes; it now normalizes text
+# files to LF first (see tests/Test-RenderLineEndingIndependence.ps1 for why).
+# Every managed-skills.json already on disk holds hashes in the OLD format.
+# Those stored hashes are read by exactly two guards -- the user-modified guard
+# and the prune guard -- and comparing an old-format stored hash against a
+# new-format live hash makes both fire on destinations nobody touched.
+# ---------------------------------------------------------------------------
+
+# The schemaVersion 1 tree-hash format, frozen here deliberately. This is not a
+# stand-in that could drift from the implementation: it is the format already
+# written into every managed-skills.json in existence, so it cannot change.
+# scripts/Sync-Capabilities.ps1 keeps its own copy in order to READ those
+# files; this one exists so a fixture can WRITE one.
+function Get-LegacyTreeHash([string]$Path) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $lines = Get-ChildItem -LiteralPath $Path -Recurse -File -Force |
+            Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|dist|coverage)[\\/]' } |
+            Sort-Object FullName |
+            ForEach-Object {
+                $relative = $_.FullName.Substring($Path.TrimEnd('\').Length + 1).Replace('\','/')
+                "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+            }
+        $bytes = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
+        ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-','')
+    } finally { $sha.Dispose() }
+}
+
+$legacyStateSkillV1 = "---`r`nname: sample-skill`r`n---`r`n`r`nFirst line.`r`nSecond line.`r`n"
+$legacyStateSkillV2 = "---`r`nname: sample-skill`r`n---`r`n`r`nFirst line.`r`nSecond line, revised in the repository.`r`n"
+
+# Deploys $legacyStateSkillV1, then rewrites the runtime state into the
+# schemaVersion 1 shape a real machine already carries: same destination, same
+# capability/skill, but the hash recorded in the OLD raw format. Returns the
+# fixture plus the deployed skill file path.
+function Initialize-LegacyStateFixture {
+    param([Parameter(Mandatory)][string]$CapabilityId, [Parameter(Mandatory)][string]$HostId)
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId $CapabilityId -HostId $HostId -SkillName 'sample-skill' -SkillContent 'placeholder'
+    $sourceFile = Join-Path $fixture.Root "packages\$CapabilityId\skills\sample-skill\SKILL.md"
+    [IO.File]::WriteAllText($sourceFile, $legacyStateSkillV1, [Text.UTF8Encoding]::new($false))
+
+    $apply = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+    $skillFile = Join-Path $fixture.Destination 'SKILL.md'
+    $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+    $setupError = if ($apply.ExitCode -ne 0) {
+        "seed -Apply exit code was $($apply.ExitCode). Output: $($apply.Output)"
+    } elseif (-not (Test-Path -LiteralPath $skillFile)) {
+        "seed -Apply did not deploy the fixture skill. Output: $($apply.Output)"
+    } elseif ([IO.File]::ReadAllText($skillFile) -notmatch "`r`n") {
+        # Anti-vacuous guard: the legacy raw hash and the normalized hash only
+        # differ when the deployed bytes actually contain CRLF. Without that,
+        # both behaviors below would hold no matter what the script does.
+        'the deployed fixture does not contain CRLF, so the legacy and normalized hashes would coincide and these assertions would prove nothing.'
+    } elseif (-not (Test-Path -LiteralPath $statePath)) {
+        "seed -Apply did not write runtime state to $statePath."
+    } else { $null }
+
+    if (-not $setupError) {
+        $legacyState = @{
+            schemaVersion = 1
+            updatedAt     = '2026-01-01T00:00:00.0000000Z'
+            managed       = @{
+                $fixture.Destination = @{
+                    capability = $CapabilityId
+                    skill      = 'sample-skill'
+                    hash       = Get-LegacyTreeHash $fixture.Destination
+                }
+            }
+        }
+        ($legacyState | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $statePath -Encoding UTF8
+    }
+    return [pscustomobject]@{ Fixture = $fixture; SourceFile = $sourceFile; SkillFile = $skillFile; SetupError = $setupError }
+}
+
+# --- Behavior 8: a destination recorded in a schemaVersion 1 state, never
+# touched by anyone, whose SOURCE has since changed in the repository, must be
+# updated normally. It must NOT be mistaken for a user modification just
+# because its stored hash predates the hash-format change. Roughly half the
+# files in a real deployment contain CRLF, so without this the first -Apply
+# after the change refuses on about half the fleet. ---
+function Test-LegacyStateDoesNotFalselyRefuseUntouchedDestination {
+    $seed = Initialize-LegacyStateFixture -CapabilityId 'zz-legacyok-cap' -HostId 'zz-legacyok-host'
+    try {
+        if ($seed.SetupError) { return @{ Passed = $false; Detail = $seed.SetupError } }
+        [IO.File]::WriteAllText($seed.SourceFile, $legacyStateSkillV2, [Text.UTF8Encoding]::new($false))
+
+        $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $seed.Fixture.Root, '-UserProfile', $seed.Fixture.UserProfile) -LocalAppData $seed.Fixture.LocalAppData
+        if ($result.Output -match [regex]::Escape('refusing to replace user-modified managed skill')) {
+            return @{ Passed = $false; Detail = "refused an untouched destination as user-modified because its stored hash was in the schemaVersion 1 format. Output: $($result.Output)" }
+        }
+        if ($result.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "-Apply exit code was $($result.ExitCode). Output: $($result.Output)" }
+        }
+        $deployed = [IO.File]::ReadAllText($seed.SkillFile)
+        if ($deployed -ne $legacyStateSkillV2) {
+            return @{ Passed = $false; Detail = "the updated source was not deployed. Deployed content: [$deployed]" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $seed.Fixture
+    }
+}
+
+# --- Behavior 9 (regression guard companion to Behavior 8): a destination
+# recorded in a schemaVersion 1 state that WAS hand-modified after deployment
+# must still be refused. This proves Behavior 8 was satisfied by comparing the
+# stored hash in its own format -- not by the cheaper fix of skipping the guard
+# whenever the state is old, which would silently disarm the one check standing
+# between a user's edits and Remove-Item -Recurse -Force. ---
+function Test-LegacyStateStillRefusesModifiedDestination {
+    $seed = Initialize-LegacyStateFixture -CapabilityId 'zz-legacymod-cap' -HostId 'zz-legacymod-host'
+    try {
+        if ($seed.SetupError) { return @{ Passed = $false; Detail = $seed.SetupError } }
+        $handEdited = "hand-edited by the user after deployment`r`n"
+        [IO.File]::WriteAllText($seed.SkillFile, $handEdited, [Text.UTF8Encoding]::new($false))
+        [IO.File]::WriteAllText($seed.SourceFile, $legacyStateSkillV2, [Text.UTF8Encoding]::new($false))
+
+        $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $seed.Fixture.Root, '-UserProfile', $seed.Fixture.UserProfile) -LocalAppData $seed.Fixture.LocalAppData
+        if ($result.ExitCode -eq 0) {
+            return @{ Passed = $false; Detail = "exit code was 0 (reported success) with a hand-modified destination recorded in a schemaVersion 1 state. Output: $($result.Output)" }
+        }
+        if ($result.Output -notmatch [regex]::Escape('refusing to replace user-modified managed skill')) {
+            return @{ Passed = $false; Detail = "expected 'refusing to replace user-modified managed skill' in the output. Output: $($result.Output)" }
+        }
+        $stillThere = [IO.File]::ReadAllText($seed.SkillFile)
+        if ($stillThere -ne $handEdited) {
+            return @{ Passed = $false; Detail = "the hand-edited destination was overwritten. Content: [$stillThere]" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $seed.Fixture
+    }
+}
+
+# --- Behavior 10: the prune guard reads the same stored hashes and so needs
+# the same format rule. An unmodified stale destination recorded in a
+# schemaVersion 1 state must still be pruned; comparing its raw stored digest
+# against a normalized live one would refuse instead, leaving stale skills on
+# the host forever. Companion to Behavior 4, which proves the same thing for a
+# current-format state. ---
+function Test-LegacyStatePrunesUnmodifiedStaleDestination {
+    $seed = Initialize-LegacyStateFixture -CapabilityId 'zz-legacyprune-cap' -HostId 'zz-legacyprune-host'
+    try {
+        if ($seed.SetupError) { return @{ Passed = $false; Detail = $seed.SetupError } }
+        Set-SyncCapabilitiesFixtureCapabilities -RegistryDir $seed.Fixture.RegistryDir -CapabilityId 'zz-legacyprune-cap' -HostId 'zz-legacyprune-host' -DropHostMapping
+
+        $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-Prune', '-RepositoryRoot', $seed.Fixture.Root, '-UserProfile', $seed.Fixture.UserProfile) -LocalAppData $seed.Fixture.LocalAppData
+        if ($result.Output -match [regex]::Escape('refusing to prune modified managed skill')) {
+            return @{ Passed = $false; Detail = "refused to prune an untouched destination because its stored hash was in the schemaVersion 1 format. Output: $($result.Output)" }
+        }
+        if ($result.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "-Apply -Prune exit code was $($result.ExitCode). Output: $($result.Output)" }
+        }
+        if (Test-Path -LiteralPath $seed.Fixture.Destination) {
+            return @{ Passed = $false; Detail = "the unmodified stale managed skill was NOT pruned. Output: $($result.Output)" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $seed.Fixture
+    }
+}
+
 $r1 = Test-RefusesToReplaceUnownedSkill
 Report 'refuses to replace an unowned pre-existing skill destination and exits non-zero' $r1.Passed $r1.Detail
 
@@ -415,6 +579,15 @@ Report 'zero capabilities and zero agents fails loudly instead of reporting succ
 
 $r7 = Test-UserProfileRebasesDestinations
 Report '-UserProfile rebases both the skill destinations and the runtime state directory' $r7.Passed $r7.Detail
+
+$r8 = Test-LegacyStateDoesNotFalselyRefuseUntouchedDestination
+Report 'a schemaVersion 1 state does not falsely refuse an untouched destination as user-modified' $r8.Passed $r8.Detail
+
+$r9 = Test-LegacyStateStillRefusesModifiedDestination
+Report 'a schemaVersion 1 state still refuses a genuinely hand-modified destination' $r9.Passed $r9.Detail
+
+$r10 = Test-LegacyStatePrunesUnmodifiedStaleDestination
+Report 'a schemaVersion 1 state still prunes an unmodified stale destination' $r10.Passed $r10.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
