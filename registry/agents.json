@@ -334,14 +334,13 @@
         "desktopInstructions": "C:\\Users\\SaroshHussain\\Documents\\Cline\\Rules\\00-agenthub.md",
         "rulesDir": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.cline\\skills",
-        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.cline\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.cline\\plugins",
         "hooksDir": "C:\\Users\\SaroshHussain\\.cline\\hooks"
       },
       "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "connectors", "acp", "kanban", "headless"],
       "status": "active",
-      "notes": "Cline 3.0.47. Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; desktop rules use Documents/Cline/Rules. Shared skills are also discovered from ~/.agents/skills."
+      "notes": "Cline 3.0.47. Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; desktop rules use Documents/Cline/Rules. sharedSkillsDir (~/.agents/skills) was removed 2026-08-04 (task 7b re-verification): Cline's own documentation (docs.cline.bot/customization/skills, docs.cline.bot/features/skills, and a full-text search of docs.cline.bot/llms-full.txt for 'agents/skills'/'agentskills'/'interoperab' -- zero matches) documents only '.cline/skills/' (workspace) and '~/.cline/skills/' (global) as skill locations. Deploying only to ~/.agents/skills would have made Cline's skills unreachable by Cline itself. Contrast with codex (learn.chatgpt.com/docs/build-skills: USER tier is $HOME/.agents/skills) and gemini (geminicli.com/docs/cli/skills: '~/.gemini/skills/' or the '~/.agents/skills/' alias, same precedence tier), both of which keep sharedSkillsDir because their own documentation confirms it."
     },
     {
       "id": "cursor",
