@@ -316,7 +316,8 @@
         "skillsDir": "C:\\Users\\SaroshHussain\\.warp\\skills",
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\warp",
         "instructions": null,
-        "verification": "documentation-not-read"
+        "verification": "documented-no-global-file",
+        "instructionsNote": "Researched 2026-08-04 against docs.warp.dev/agent-platform/capabilities/rules (subject confirmed: rules). Warp Global Rules are GUI-only -- Warp Drive, Command Palette, Settings > Agents > Knowledge -- with no documented on-disk path. Warp's file-based AGENTS.md and WARP.md rules are project-scoped, which this global-scope sync does not cover. Documented absence of a global FILE, not a failure to find the docs."
       },
       "supportedCapabilities": ["rules", "skills", "mcp", "cloud-agents", "orchestration", "profiles", "worktrees"],
       "status": "active"
@@ -385,7 +386,8 @@
         "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
         "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills",
         "instructions": null,
-        "verification": "documentation-not-read"
+        "verification": "documented-no-global-file",
+        "instructionsNote": "Researched 2026-08-04 against cursor.com/docs/rules, cursor.com/docs/cli/using and cursor.com/docs/cli/reference/configuration (subjects confirmed: rules, CLI usage, CLI configuration). Cursor User Rules are global but live in GUI state under Customize > Rules with no documented file path, and the CLI reads AGENTS.md/CLAUDE.md only at the project root. The exhaustive cli-config.json key list contains no instructions field. This is a documented absence of a global FILE, not a failure to find the docs, so instructions stays null by design rather than pending discovery."
       },
       "supportedCapabilities": [
         "rules",
@@ -411,8 +413,11 @@
         "agentsDir": "C:\\Users\\SaroshHussain\\.qoder\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.qoder\\plugins",
         "canvasDir": "C:\\Users\\SaroshHussain\\.qoder\\canvas",
-        "instructions": null,
-        "verification": "documentation-not-read"
+        "instructions": "C:\\Users\\SaroshHussain\\.qoder\\AGENTS.md",
+        "instructionHeader": "# Qoder Global Instructions",
+        "instructionFormat": "markdown",
+        "verification": "documented-feature-inferred-windows-path",
+        "instructionsNote": "Added 2026-08-04 from docs.qoder.com/cli/using-cli, Memory section (subject confirmed: memory and context files, not MCP or plugins). Qoder CLI documents a three-tier hierarchy whose user level is ~/.qoder/AGENTS.md, explicitly applying to all projects. The Windows form is inferred from this host's existing configHome, which already resolves ~/.qoder to that directory and demonstrably exists. Distinct from .qoder/rules, which is project-scoped only. HTML-comment survival is not vendor-documented; the agenthub:managed marker is standard Markdown and inert in prompt context."
       },
       "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "connectors", "computer-use", "acp", "canvas", "qoderwork", "headless"],
       "status": "active",
@@ -456,7 +461,8 @@
         "agentsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\agents",
         "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\hooks",
         "instructions": null,
-        "verification": "documentation-not-read"
+        "verification": "documented-feature-inferred-windows-path",
+        "instructionsNote": "Researched 2026-08-04 against docs.devin.ai/cli/extensibility/rules (subject confirmed: Rules and AGENTS.md). Devin CLI loads a global AGENTS.md at the start of every session; the docs state ~/.config/devin/AGENTS.md for Linux and macOS and do not spell out the Windows form. AppData/Roaming/devin/AGENTS.md is inferred from that page plus docs.devin.ai/cli/extensibility/configuration, which places config.json in that directory on Windows. The separate Devin cloud Knowledge feature is an account setting, not a local file. Host is inactive, so nothing is deployed; promote to a real destination only after confirming the Windows path."
       },
       "supportedCapabilities": [
         "rules",
@@ -507,7 +513,8 @@
         "mcp": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\mcp.json",
         "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\settings.json",
         "instructions": null,
-        "verification": "documentation-not-read"
+        "verification": "documented-feature-undocumented-path",
+        "instructionsNote": "Researched 2026-08-04 against code.visualstudio.com/docs/copilot/customization/custom-instructions (subject confirmed: Copilot custom instructions). A user-profile instructions scope exists and is file-based, but neither that page nor the prompt-files page states an absolute path -- they say only 'your user data'. No prompts directory and no *.instructions.md exists under AppData/Roaming/Code - Insiders/User on this machine. Path is discovery-required: create one through the UI and observe where it lands. Host is inactive, so nothing is deployed regardless."
       },
       "supportedCapabilities": [
         "rules",
