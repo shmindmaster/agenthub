@@ -210,6 +210,40 @@ function Test-UserProfileRebasesHostDestinations {
     }
 }
 
+# --- Behavior 5: an absolute nativePaths value in a shape the rebasing does
+# not handle (UNC, or drive-letter with forward slashes) must fail loudly.
+# Such a value would otherwise fall past the drive-letter test, stay
+# unrebased, and be written to literally under an isolated -Apply -- the same
+# leak Behavior 4 covers, arriving through a different door. Nothing in the
+# registry has that shape today, which is exactly why it needs a test. ---
+function Test-UnrebasablePathShapeFailsLoudly {
+    $fixtureRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-unc-shape-root-" + [guid]::NewGuid())
+    $registryDir = Join-Path $fixtureRoot 'registry'
+    $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-unc-shape-profile-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $registryDir -Force | Out-Null
+    $agents = @{
+        activeAgents = @(
+            @{ id = 'codex'; name = 'Fixture Codex'; status = 'active'; nativePaths = @{ config = '\\fileserver\agents\codex\config.toml' } }
+        )
+        inactiveAgents = @()
+    }
+    ($agents | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath (Join-Path $registryDir 'agents.json') -Encoding UTF8 -NoNewline
+    Set-Content -LiteralPath (Join-Path $registryDir 'mcps.json') -Value '{ "mcpServers": [] }' -Encoding UTF8 -NoNewline
+    try {
+        $result = Invoke-SyncAgentHub -ExtraArgs @('-RegistryRoot', $fixtureRoot, '-UserProfile', $userProfile)
+        if ($result.ExitCode -eq 0) {
+            return @{ Passed = $false; Detail = "exit code was 0 against a UNC nativePaths value that cannot be rebased. Output: $($result.Output)" }
+        }
+        if ($result.Output -notmatch 'rebasing does not support') {
+            return @{ Passed = $false; Detail = "failed, but not with the unrebasable-shape message -- it may have failed for an unrelated reason, which would make this assertion vacuous. Output: $($result.Output)" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $r1 = Test-EmptyRegistryRootFailsLoudly
 Report 'empty/wrong registry root fails loudly instead of reporting success' $r1.Passed $r1.Detail
 
@@ -222,9 +256,12 @@ Report '-UserProfile override still redirects runtime state to the specified pat
 $r4 = Test-UserProfileRebasesHostDestinations
 Report '-UserProfile rebases host destinations, not just the runtime state directory' $r4.Passed $r4.Detail
 
+$r5 = Test-UnrebasablePathShapeFailsLoudly
+Report 'an absolute nativePaths shape the rebasing cannot handle fails loudly' $r5.Passed $r5.Detail
+
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed, $(4 - $failures.Count) passed" -ForegroundColor Red
+    Write-Host "RESULT: $($failures.Count) failed, $(5 - $failures.Count) passed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: 4 passed, 0 failed' -ForegroundColor Green
+Write-Host 'RESULT: 5 passed, 0 failed' -ForegroundColor Green
 exit 0

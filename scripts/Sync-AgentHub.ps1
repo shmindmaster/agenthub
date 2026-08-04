@@ -148,6 +148,15 @@ function ConvertTo-ProfileRebasedPaths {
             # nativePaths is not purely paths: hermes stores an instruction
             # body template and a prose provenance note there. Only rewrite
             # values that are actually rooted paths.
+            #
+            # A UNC or forward-slash absolute path would fall through the
+            # drive-letter test below and be left unrebased -- which, under an
+            # isolated -Apply, means writing to that literal location. Nothing
+            # in the registry has that shape today, so refuse loudly rather
+            # than let a future entry silently leak.
+            if ($value -match '^(\\\\|[A-Za-z]:/)') {
+                throw "registry/agents.json nativePaths value '$value' is an absolute path in a shape -UserProfile rebasing does not support (UNC or forward-slash). Refusing to run rather than write to it unrebased."
+            }
             if ($value.Length -lt 3 -or $value[1] -ne ':' -or $value[2] -ne '\') { continue }
             # A path already under the target profile is already isolated --
             # rebasing it again would bury it one profile deeper. This matters
