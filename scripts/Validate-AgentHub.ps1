@@ -132,6 +132,69 @@ foreach ($capability in $capabilities.capabilities) {
 
 if (@($agents.activeAgents).Count -eq 0) { Fail 'agents registry has no active agents' }
 if (@($mcps.mcpServers).Count -eq 0) { Fail 'MCP registry is empty' }
+
+# MCP protocol revision and activation policy (registry/mcps.json).
+#
+# The 2026-07-28 revision made the core protocol stateless -- sessions and the
+# initialize handshake are gone -- so `transport: "http"` no longer says whether
+# two endpoints are wire-compatible. A 2025-11-25 server and a 2026-07-28 server
+# are both "http". Without a recorded revision the registry cannot notice that a
+# server migrated, nor that one is stuck on a deprecated mechanism.
+#
+# `revision: null` is a legitimate state: three endpoints refuse protocol
+# negotiation before an interactive OAuth grant. What must never be legitimate is
+# a null with no explanation, because that is indistinguishable from an entry
+# nobody checked.
+$knownRevisions = @($mcps.knownProtocolRevisions)
+if ($knownRevisions.Count -eq 0) { Fail 'mcps.json declares no knownProtocolRevisions to validate against' }
+$preferenceOrder = @($mcps.activationPolicy.preferenceOrder)
+if ($preferenceOrder.Count -eq 0) { Fail 'mcps.json declares no activationPolicy.preferenceOrder' }
+$verifiedRevisionCount = 0
+foreach ($mcpServer in @($mcps.mcpServers)) {
+  $serverId = [string]$mcpServer.id
+  $protocol = $mcpServer.protocol
+  if (-not $protocol) { Fail "MCP server '$serverId' declares no protocol block"; continue }
+
+  # A verification claim with no date rots invisibly; that is the whole failure
+  # mode this block guards against.
+  $verifiedOn = [string]$protocol.verifiedOn
+  if ($verifiedOn -notmatch '^\d{4}-\d{2}-\d{2}$') {
+    Fail "MCP server '$serverId' has no dated protocol.verifiedOn (found '$verifiedOn')"
+  }
+  if ([string]::IsNullOrWhiteSpace([string]$protocol.verification)) {
+    Fail "MCP server '$serverId' records no protocol.verification evidence"
+  }
+
+  $revision = [string]$protocol.revision
+  if ([string]::IsNullOrWhiteSpace($revision)) {
+    # Null is allowed only as a recorded finding, never as an unfilled field.
+    if ([string]$protocol.verification -notmatch 'cannot be established|401') {
+      Fail "MCP server '$serverId' has a null protocol.revision whose verification does not explain why it could not be established"
+    }
+  } elseif ($revision -notin $knownRevisions) {
+    Fail "MCP server '$serverId' declares protocol.revision '$revision', which is not in knownProtocolRevisions"
+  } else {
+    $verifiedRevisionCount++
+  }
+
+  if (([string]$mcpServer.activationMode) -notin $preferenceOrder) {
+    Fail "MCP server '$serverId' has activationMode '$($mcpServer.activationMode)', which is not a value declared in activationPolicy.preferenceOrder"
+  }
+
+  # A local server is the thing that multiplies into one process per host, so it
+  # has to state how it is instanced. Remote servers spawn nothing and are exempt.
+  if (([string]$mcpServer.transport) -eq 'stdio') {
+    if ([string]::IsNullOrWhiteSpace([string]$mcpServer.localProcessPolicy.instancing)) {
+      Fail "local (stdio) MCP server '$serverId' declares no localProcessPolicy.instancing"
+    }
+  }
+}
+# Anti-vacuous guard: if every entry were an unverifiable null, each one would
+# pass its own check and the registry would claim a protocol contract it never
+# established. At least one revision has to be a real, probed value.
+if ($verifiedRevisionCount -eq 0) {
+  Fail 'no MCP server has a verified protocol.revision; the registry records a protocol contract that was never established against any server'
+}
 if (@($delivery.products).Count -ne 7) { Fail 'product video delivery registry must contain seven products' }
 
 # Autonomy/permission model (registry/fleet-profile.json.autonomyProfiles): a host
