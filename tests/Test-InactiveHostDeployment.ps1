@@ -285,6 +285,36 @@ function Test-RealRegistryKeepsWarpOnSharedSkillsDir {
     return @{ Passed = $true; Detail = $null }
 }
 
+# --- Behavior 6: any host marked inactive in the REAL registry must carry a
+# dated justification. This exists because of a specific incident: amp, devin,
+# factory, vscode-insiders and windsurf sat labelled inactive with no recorded
+# reason, the label was stale, and wiring skill deployment to it withheld 129
+# deployments and pruned 158 directories from hosts in daily use. An unlabelled
+# "inactive" is a claim about the world that nothing in this repository can
+# check, so the cheapest available guard is to require the claim be written
+# down and dated. A registry with no inactive hosts passes trivially and
+# correctly -- there is nothing to justify. ---
+function Test-InactiveHostsCarryAJustification {
+    $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw | ConvertFrom-Json
+    if (-not $agents.PSObject.Properties['inactiveAgents']) {
+        return @{ Passed = $false; Detail = "registry/agents.json has no inactiveAgents property at all; the schema changed and this assertion no longer checks what it claims to." }
+    }
+    $inactive = @($agents.inactiveAgents)
+    $unjustified = [Collections.Generic.List[string]]::new()
+    foreach ($agent in $inactive) {
+        $notes = [string]$agent.notes
+        # A justification has to say something and say WHEN, because the failure
+        # mode is a label that was true once and quietly stopped being true.
+        if ([string]::IsNullOrWhiteSpace($notes) -or $notes -notmatch '\b20\d{2}-\d{2}-\d{2}\b') {
+            $unjustified.Add([string]$agent.id)
+        }
+    }
+    if ($unjustified.Count -gt 0) {
+        return @{ Passed = $false; Detail = "host(s) marked inactive with no dated justification in notes: $($unjustified -join ', '). An inactive label gates deployment; it must record why and when, or it becomes a stale claim nothing can audit." }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r1 = Test-DefaultRunSkipsInactiveButDeploysActive
 Report 'a default run skips hosts in inactiveAgents while still deploying to active hosts' $r1.Passed $r1.Detail
 
@@ -296,6 +326,9 @@ Report 'a registry with zero active hosts fails naming that cause and the remedy
 
 $r4 = Test-RealRegistryKeepsWarpOnSharedSkillsDir
 Report 'the real registry keeps warp on the documented shared ~/.agents/skills directory' $r4.Passed $r4.Detail
+
+$r5 = Test-InactiveHostsCarryAJustification
+Report 'every host marked inactive in the real registry carries a dated justification' $r5.Passed $r5.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

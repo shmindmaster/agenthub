@@ -48,21 +48,31 @@
       "manifest": null,
       "documentation": "https://docs.factory.ai/harness/plugins",
       "globalSkillsDir": "~/.factory/skills",
+      "alsoScannedSkillsDirs": ["~/.agents/skills", "~/.agent/skills"],
       "subagents": "droids/*.md",
       "mcpPath": "~/.factory/mcp.json",
       "mcpKey": "mcpServers",
-      "verifiedAgainst": "https://docs.factory.ai/harness/plugins"
+      "verifiedAgainst": "https://docs.factory.ai/harness/plugins",
+      "skillsVerifiedAgainst": "https://docs.factory.ai/harness/skills",
+      "mcpVerifiedAgainst": "https://docs.factory.ai/cli/configuration/mcp",
+      "skillsNote": "Re-verified 2026-08-04 against the skills page rather than the plugins page it was originally recorded from, because that substitution is what produced three wrong globalSkillsDir values elsewhere in this registry. It holds here: ~/.factory/skills is the documented 'Personal' scope for workflows available across projects. Factory additionally reads ~/.agents/skills and ~/.agent/skills as compatibility scopes, so it could share the fleet's shared directory; left as a private copy because per-host duplication is intended."
     },
     {
       "id": "vscode-insiders",
       "mode": "auto-detects-claude-package",
       "manifest": null,
-      "documentation": "https://code.visualstudio.com/docs/agent-customization/agent-plugins",
-      "globalSkillsDir": null,
+      "documentation": "https://code.visualstudio.com/docs/agent-customization/agent-skills",
+      "globalSkillsDir": "~/.copilot/skills",
+      "alsoScannedSkillsDirs": ["~/.claude/skills"],
+      "skillsLocationsSetting": "chat.agentSkillsLocations",
       "subagents": "via plugin",
       "mcpPath": "%APPDATA%/Code - Insiders/User/mcp.json",
       "mcpKey": "servers",
-      "verifiedAgainst": "https://code.visualstudio.com/docs/agent-customization/agent-plugins"
+      "verifiedAgainst": "https://code.visualstudio.com/docs/agent-customization/agent-skills",
+      "correctedAt": "2026-08-04",
+      "correctionNote": "globalSkillsDir was null, verified against the agent-PLUGINS page, which does not cover skill discovery. This is the third occurrence of that exact mistake in this registry -- windsurf (verified against its MCP page) and codex (verified against its plugins page) were the first two -- so the pattern is the finding: recording a null from a page that was never about skills turns absence of evidence into evidence of absence. code.visualstudio.com/docs/agent-customization/agent-skills documents workspace .github/skills and .claude/skills plus user-home ~/.copilot/skills and ~/.claude/skills, with chat.agentSkillsLocations for custom paths. CONSEQUENCE, deliberately not acted on: both documented user-scope directories are already populated by the copilot and claude hosts, so VS Code can already see those skills; nativePaths.skillsDir for vscode-insiders is intentionally left unset, because setting it would collapse onto ~/.copilot/skills and push this host's capability set into copilot's directory. That is a deployment decision, not a documentation fix.",
+      "mcpVerifiedAgainst": "https://code.visualstudio.com/docs/copilot/customization/mcp-servers",
+      "mcpNote": "Re-verified 2026-08-04: VS Code's top-level MCP key is \"servers\", NOT \"mcpServers\" as every other JSON-file host in this fleet uses. Sync-AgentHub.ps1 already passes -JsonProperty 'servers' for this host."
     },
     {
       "id": "qwen-code",

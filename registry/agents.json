@@ -369,7 +369,8 @@
         "instructionsDestinationKind": "directory",
         "instructionHeader": null,
         "instructionFormat": "mdc",
-        "instructionFormatVerification": "documentation-not-read",
+        "instructionFormatVerification": "documented-2026-08-04",
+        "instructionFormatNote": "Verified 2026-08-04 against cursor.com/docs/rules (subject confirmed: rules). The .mdc extension is required, not stylistic: the page states a plain .md file in .cursor/rules is ignored because it carries no frontmatter to specify description, globs and alwaysApply. Those three fields are the documented frontmatter schema. Scope caveat that this field does not by itself convey: .mdc applies to PROJECT rules under .cursor/rules. Cursor's global User Rules are GUI-only under Customize > Rules with no documented on-disk path, which is why nativePaths.instructions here is null and nothing global is deployed -- the same documented-absence this repository already recorded for cursor-agent.",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.cursor\\plugins",
         "extensionsDir": "C:\\Users\\SaroshHussain\\.cursor\\extensions"
       },
@@ -430,9 +431,7 @@
       "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "connectors", "computer-use", "acp", "canvas", "qoderwork", "headless"],
       "status": "active",
       "notes": "Qoder CLI 1.1.5. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
-    }
-  ],
-  "inactiveAgents": [
+    },
     {
       "id": "amp",
       "name": "Sourcegraph Amp",
@@ -440,10 +439,14 @@
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\amp.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.config\\amp\\settings.json",
+        "mcp": "C:\\Users\\SaroshHussain\\.config\\amp\\settings.json",
+        "mcpKey": "amp.mcpServers",
+        "mcpNote": "Verified 2026-08-04 against ampcode.com/manual (subject confirmed: configuration and MCP). Amp has no separate MCP file: servers live inside settings.json under the flat dotted key \"amp.mcpServers\", which is what Sync-AgentHub.ps1 already writes. Windows settings path is documented as %USERPROFILE%\\.config\\amp\\settings.json, matching this entry. Confirmed on disk: the live settings.json carries amp.mcpServers alongside amp.permissions and amp.dangerouslyAllowAll.",
         "instructions": "C:\\Users\\SaroshHussain\\.config\\amp\\AGENTS.md",
         "instructionHeader": "# Amp Global Instructions",
         "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\skills",
+        "skillsDirNote": "Verified 2026-08-04 against ampcode.com/manual skills section. Amp's documented precedence is ~/.config/agents/skills, ~/.agents/skills, ~/.config/amp/skills, then project and .claude scopes. This entry is the third tier and is genuinely read, so the deployment here is reachable. Amp also reads the shared ~/.agents/skills at HIGHER precedence, so it could be collapsed onto sharedSkillsDir like codex, gemini and warp; left as a private copy deliberately, because per-host duplication is intended.",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\plugins"
       },
       "supportedCapabilities": [
@@ -454,8 +457,8 @@
         "hooks",
         "mcp"
       ],
-      "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "status": "active",
+      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes."
     },
     {
       "id": "devin",
@@ -470,7 +473,9 @@
         "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\hooks",
         "instructions": null,
         "verification": "documented-feature-inferred-windows-path",
-        "instructionsNote": "Researched 2026-08-04 against docs.devin.ai/cli/extensibility/rules (subject confirmed: Rules and AGENTS.md). Devin CLI loads a global AGENTS.md at the start of every session; the docs state ~/.config/devin/AGENTS.md for Linux and macOS and do not spell out the Windows form. AppData/Roaming/devin/AGENTS.md is inferred from that page plus docs.devin.ai/cli/extensibility/configuration, which places config.json in that directory on Windows. The separate Devin cloud Knowledge feature is an account setting, not a local file. Host is inactive, so nothing is deployed; promote to a real destination only after confirming the Windows path."
+        "instructionsNote": "Researched 2026-08-04 against docs.devin.ai/cli/extensibility/rules and re-checked the same day against docs.devin.ai/cli/extensibility/configuration (subjects confirmed: Rules/AGENTS.md and CLI configuration). Devin CLI loads a global AGENTS.md at the start of every session. The configuration page states the user config file is %APPDATA%\\devin\\config.json on Windows -- matching nativePaths.config here -- and instructs the reader to place AGENTS.md 'in this directory', i.e. the same user config directory, giving ~/.config/devin/AGENTS.md on Unix. The Windows form therefore derives from a documented directory rather than a guess, but the vendor never writes the Windows path literally, so this stays unresolved rather than being promoted to a deployment target. The separate Devin cloud Knowledge feature is an account setting, not a local file.",
+        "mcpKey": "mcpServers",
+        "mcpNote": "Verified 2026-08-04. docs.devin.ai/cli/extensibility/mcp documents only PROJECT scope (.devin/mcp_config.json and .devin/mcp_config.local.json, key mcpServers) and says nothing about user-level MCP -- which nearly became a false finding that Sync-AgentHub.ps1 writes MCP where Devin does not read it. Checking the live file settled it: %APPDATA%\\devin\\config.json already carries an mcpServers object with six Devin-owned entries (context7, descript, exa, firecrawl, linear, notion) that AgentHub never wrote. The global key is real and the vendor page is merely incomplete. Sync-AgentHub.ps1's ProtectKeys behavior exists to keep those host-owned entries from being pruned."
       },
       "supportedCapabilities": [
         "rules",
@@ -482,14 +487,15 @@
         "acp",
         "mcp"
       ],
-      "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "status": "active",
+      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes."
     },
     {
       "id": "factory",
       "name": "Factory Droid",
       "version": "0.183.0",
-      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.142.0\\resources\\bin\\droid.exe",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.144.0\\resources\\bin\\droid.exe",
+      "executableNote": "Corrected 2026-08-04: the recorded path still pointed at app-0.142.0, which no longer exists. Factory version-stamps its application directory, so this path goes stale on every upgrade and should be re-resolved rather than trusted. MCP config verified the same day against docs.factory.ai/cli/configuration/mcp: ~/.factory/mcp.json with top-level key mcpServers, matching this entry and Sync-AgentHub.ps1.",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.factory\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.factory\\AGENTS.md",
@@ -509,8 +515,8 @@
         "plugins",
         "hooks"
       ],
-      "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch."
+      "status": "active",
+      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes."
     },
     {
       "id": "vscode-insiders",
@@ -531,8 +537,8 @@
         "mcp",
         "plugins"
       ],
-      "status": "inactive",
-      "notes": "Retained as inactive inventory. MCP configuration can be refreshed explicitly with Sync-AgentHub.ps1 -IncludeInactiveAgents; this does not enable provider dispatch. Product Demo Studio remains registered as a native local plugin through chat.pluginLocations."
+      "status": "active",
+      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes. Product Demo Studio remains registered as a native local plugin through chat.pluginLocations."
     },
     {
       "id": "windsurf",
@@ -558,9 +564,10 @@
         "parallel-agents",
         "mcp"
       ],
-      "status": "inactive",
-      "installationExpectation": "not-installed",
-      "notes": "Dormant supported adapter: no Windsurf executable is expected on this machine. Active configuration path is .codeium/windsurf and legacy .windsurf is plans-only. Re-enable installation expectations and run a native smoke test before treating the host as available."
+      "status": "active",
+      "installationExpectation": "in-use-executable-not-located",
+      "notes": "Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%\\Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch."
     }
-  ]
+  ],
+  "inactiveAgents": []
 }
