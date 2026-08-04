@@ -156,7 +156,8 @@
         "instructionHeader": "# Gemini CLI and Antigravity Global Instructions",
         "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\skills",
-        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\agents",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\extensions",
+        "agentsDirNote": "Corrected 2026-08-04. Was C:\\Users\\SaroshHussain\\.gemini\\agents, which does not exist and which nothing writes to. The verified destination is per-capability: <agentsDir>\\agenthub-<capabilityId>\\agents, per registry/subagent-formats.json, which is the authority for subagent destinations. 17 subagents are deployed there today.",
         "extensionsDir": "C:\\Users\\SaroshHussain\\.gemini\\extensions",
         "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills"
       },
@@ -238,7 +239,8 @@
         "cliSkillsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\skills",
         "cliPluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\plugins",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\skills",
-        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\agents",
+        "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\plugins",
+        "agentsDirNote": "Corrected 2026-08-04. Was C:\\Users\\SaroshHussain\\.gemini\\config\\agents, which does not exist and which nothing writes to. The verified destination is per-capability: <agentsDir>\\<capabilityId>\\agents, per registry/subagent-formats.json, which is the authority for subagent destinations. 17 subagents are deployed there today.",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\plugins",
         "instructions": null,
         "verification": "documentation-not-read"
