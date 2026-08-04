@@ -37,6 +37,7 @@ $hostExe = (Get-Process -Id $PID).Path
 
 $failures = [Collections.Generic.List[string]]::new()
 function Report([string]$Name, [bool]$Passed, [string]$Detail) {
+    $script:reported++
     if ($Passed) {
         Write-Host "PASS: $Name" -ForegroundColor Green
     } else {

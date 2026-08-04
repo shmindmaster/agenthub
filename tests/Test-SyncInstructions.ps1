@@ -26,7 +26,9 @@ $syncScript = Join-Path $repoRoot 'scripts\Sync-Instructions.ps1'
 $hostExe = (Get-Process -Id $PID).Path
 
 $failures = [Collections.Generic.List[string]]::new()
+$reported = 0
 function Report([string]$Name, [bool]$Passed, [string]$Detail) {
+    $script:reported++
     if ($Passed) {
         Write-Host "PASS: $Name" -ForegroundColor Green
     } else {
@@ -314,8 +316,126 @@ function Test-EmptyWorkSetFailsLoudly {
     }
 }
 
+# --- Behavior 5: instructions reach inactive hosts too.
+#
+# Sync-Capabilities skips inactive hosts by default; this script deliberately
+# does not. Pinning that here so the difference cannot be quietly "fixed" into
+# consistency: a host somebody launches despite an inactive label must still get
+# current policy, and a skipped host would report success while running stale.
+#
+# Both hosts are asserted, against a single -Apply. That is what makes this a
+# real test of coverage rather than of a blanket write -- an implementation that
+# wrote to neither host would fail on the active assertion, and one that wrote
+# only to active hosts fails on the inactive one. ---
+function Test-InstructionsReachInactiveHostsToo {
+    $fixtureRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-inactive-instr-root-" + [guid]::NewGuid())
+    $registryDir = Join-Path $fixtureRoot 'registry'
+    $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-inactive-instr-profile-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $registryDir -Force | Out-Null
+
+    # Registry destinations are absolute under the REAL profile and get rebased
+    # onto -UserProfile, so these resolve into the synthetic profile on -Apply.
+    $activePath   = Join-Path $env:USERPROFILE '.agenthub-fixture-active\AGENTS.md'
+    $inactivePath = Join-Path $env:USERPROFILE '.agenthub-fixture-dormant\AGENTS.md'
+    $stubAgents = @{
+        # Required: without it the rebase has no base to strip and every path
+        # would resolve to the REAL profile. The script now refuses outright in
+        # that state (see Behavior 6), which is how this omission was caught.
+        userProfile    = $env:USERPROFILE
+        activeAgents = @(
+            @{ id = 'zz-instr-active'; name = 'Fixture Active'; status = 'active'
+               nativePaths = @{ instructions = $activePath } }
+        )
+        inactiveAgents = @(
+            @{ id = 'zz-instr-dormant'; name = 'Fixture Dormant'; status = 'inactive'
+               nativePaths = @{ instructions = $inactivePath } }
+        )
+    }
+    ($stubAgents | ConvertTo-Json -Depth 10) |
+        Set-Content -LiteralPath (Join-Path $registryDir 'agents.json') -Encoding UTF8 -NoNewline
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'global-agent-policy.md') -Destination (Join-Path $fixtureRoot 'global-agent-policy.md')
+
+    try {
+        $result = Invoke-SyncInstructions -ExtraArgs @('-Apply', '-RepositoryRoot', $fixtureRoot, '-UserProfile', $userProfile)
+        if ($result.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "-Apply exited $($result.ExitCode). Output: $($result.Output)" }
+        }
+
+        $rebase = { param($p) $p -replace [regex]::Escape($env:USERPROFILE), $userProfile }
+        $activeDest   = & $rebase $activePath
+        $inactiveDest = & $rebase $inactivePath
+
+        if (-not (Test-Path -LiteralPath $activeDest)) {
+            return @{ Passed = $false; Detail = "the ACTIVE fixture host received no instructions file at $activeDest -- this run wrote nothing, so the inactive-host assertion below would have passed vacuously. Output: $($result.Output)" }
+        }
+        if (-not (Test-Path -LiteralPath $inactiveDest)) {
+            return @{ Passed = $false; Detail = "a host listed in inactiveAgents received no instructions file at $inactiveDest. Sync-Instructions covers every host on purpose: an inactive label is human-maintained and has been stale before, and a host somebody launches anyway must not run on stale policy while the sync reports success. If narrowing this was intentional, the comment in scripts\Sync-Instructions.ps1 above `$allHosts must change with it." }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $r0 = Test-DestinationPathsAreRebasedUnderUserProfileOverride
 Report 'destination paths are rebased under an overridden -UserProfile, never left pointing at the real profile' $r0.Passed $r0.Detail
+
+# --- Behavior 6: an unhonourable -UserProfile redirect is refused, not silently
+# downgraded to writing the real profile.
+#
+# The rebase in Behavior 0 strips a recorded `userProfile` prefix off each
+# absolute destination. If the registry records no `userProfile`, there is
+# nothing to strip and every path is returned verbatim -- meaning the real,
+# live profile. Harmless when -UserProfile was never overridden; catastrophic
+# when it was, because the caller believes they are running against a synthetic
+# profile. This fired for real while writing Behavior 5: a fixture registry
+# omitted `userProfile` and -Apply wrote two files into the live profile.
+#
+# The assertion is deliberately two-sided -- non-zero exit AND nothing on disk
+# -- because "it errored" and "it errored before writing" are different
+# guarantees, and only the second one is worth anything here. ---
+function Test-UnhonourableUserProfileRedirectIsRefused {
+    $fixtureRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-noprofile-root-" + [guid]::NewGuid())
+    $registryDir = Join-Path $fixtureRoot 'registry'
+    $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-noprofile-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $registryDir -Force | Out-Null
+
+    $canary = Join-Path $env:USERPROFILE ('.agenthub-canary-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '\AGENTS.md')
+    $canaryDir = Split-Path $canary -Parent
+    # NOTE: no `userProfile` property -- that omission is the point of the test.
+    $stubAgents = @{
+        activeAgents = @(
+            @{ id = 'zz-canary'; name = 'Canary'; status = 'active'
+               nativePaths = @{ instructions = $canary } }
+        )
+        inactiveAgents = @()
+    }
+    ($stubAgents | ConvertTo-Json -Depth 10) |
+        Set-Content -LiteralPath (Join-Path $registryDir 'agents.json') -Encoding UTF8 -NoNewline
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'global-agent-policy.md') -Destination (Join-Path $fixtureRoot 'global-agent-policy.md')
+
+    try {
+        $result = Invoke-SyncInstructions -ExtraArgs @('-Apply', '-RepositoryRoot', $fixtureRoot, '-UserProfile', $userProfile)
+        if (Test-Path -LiteralPath $canaryDir) {
+            return @{ Passed = $false; Detail = "-Apply wrote into the REAL user profile at $canaryDir despite -UserProfile being redirected to '$userProfile'. The registry recorded no 'userProfile', so the rebase silently returned real paths. This is the live-profile write incident this suite exists to prevent." }
+        }
+        if ($result.ExitCode -eq 0) {
+            return @{ Passed = $false; Detail = "-Apply exited 0 with a -UserProfile redirect the registry could not honour. It must refuse. Output: $($result.Output)" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-Item -LiteralPath $canaryDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+$r5 = Test-InstructionsReachInactiveHostsToo
+Report 'instructions reach inactive hosts too (deliberate asymmetry with Sync-Capabilities)' $r5.Passed $r5.Detail
+
+$r6 = Test-UnhonourableUserProfileRedirectIsRefused
+Report 'a -UserProfile redirect the registry cannot honour is refused, never downgraded to writing the real profile' $r6.Passed $r6.Detail
 
 $r1 = Test-RenderContractProducesExactBytes
 Report 'render contract produces exact bytes: header, blank, marker, blank, canonical body' $r1.Passed $r1.Detail
@@ -336,8 +456,8 @@ $r4 = Test-EmptyWorkSetFailsLoudly
 Report 'zero real destinations in the work set fails loudly instead of reporting success' $r4.Passed $r4.Detail
 
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed, $(7 - $failures.Count) passed" -ForegroundColor Red
+    Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: 7 passed, 0 failed' -ForegroundColor Green
+Write-Host "RESULT: $reported passed, 0 failed" -ForegroundColor Green
 exit 0

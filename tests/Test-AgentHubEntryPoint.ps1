@@ -25,7 +25,9 @@ $entryScript = Join-Path $repoRoot 'scripts\AgentHub.ps1'
 $hostExe = (Get-Process -Id $PID).Path
 
 $failures = [Collections.Generic.List[string]]::new()
+$reported = 0
 function Report([string]$Name, [bool]$Passed, [string]$Detail) {
+    $script:reported++
     if ($Passed) {
         Write-Host "PASS: $Name" -ForegroundColor Green
     } else {
@@ -322,8 +324,8 @@ $r7 = Test-ApplyRefusedWhenValidateFails
 Report "'sync -Apply' refuses to run any delegated script when 'validate' would fail" $r7.Passed $r7.Detail
 
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed, $(7 - $failures.Count) passed" -ForegroundColor Red
+    Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: 7 passed, 0 failed' -ForegroundColor Green
+Write-Host "RESULT: $reported passed, 0 failed" -ForegroundColor Green
 exit 0

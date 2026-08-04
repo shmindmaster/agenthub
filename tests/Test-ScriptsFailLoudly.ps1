@@ -57,7 +57,9 @@ $scriptsDir = Join-Path $repoRoot 'scripts'
 $hostExe = (Get-Process -Id $PID).Path
 
 $failures = [Collections.Generic.List[string]]::new()
+$reported = 0
 function Report([string]$Name, [bool]$Passed, [string]$Detail) {
+    $script:reported++
     if ($Passed) {
         Write-Host "PASS: $Name" -ForegroundColor Green
     } else {
@@ -203,8 +205,8 @@ $r3 = Test-ValidateAgentHubEmptyRegistryFailsLoudly
 Report 'Validate-AgentHub.ps1 against a well-formed but entirely empty registry fails loudly, never prints PASS:' $r3.Passed $r3.Detail
 
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed, $(4 - $failures.Count) passed" -ForegroundColor Red
+    Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: 4 passed, 0 failed' -ForegroundColor Green
+Write-Host "RESULT: $reported passed, 0 failed" -ForegroundColor Green
 exit 0

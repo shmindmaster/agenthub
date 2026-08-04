@@ -230,6 +230,43 @@ function ConvertTo-EffectiveUserPath {
     return $Path
 }
 
+# The rebase above is a no-op when the registry records no userProfile -- every
+# path is returned unchanged. That is correct when -UserProfile was not
+# overridden, because unchanged already means the invoking profile. It is
+# catastrophic when it WAS overridden: the caller asked for a synthetic profile,
+# every destination silently resolves to the real one, and -Apply writes live
+# host files while reporting success against what looks like a test run. That is
+# the same safety incident described above, reached through a different door,
+# and it was found exactly that way -- a fixture registry omitting `userProfile`
+# wrote two files into the real profile before this guard existed.
+#
+# Refuse instead. A redirect that cannot be honoured must fail, not degrade
+# into writing the thing it was redirecting away from.
+if ($invokingUserProfile -and
+    -not $UserProfile.Equals($invokingUserProfile, [StringComparison]::OrdinalIgnoreCase) -and
+    -not $registryUserProfile) {
+    throw ("-UserProfile was redirected to '$UserProfile', but $AgentsFile records no 'userProfile' " +
+           "to rebase its absolute destination paths from. Every destination would resolve to the real " +
+           "profile '$invokingUserProfile' and -Apply would write live host files. Refusing. Add a " +
+           "'userProfile' property to the registry document, or run without -UserProfile.")
+}
+
+# Instructions go to EVERY host, active or inactive. This differs from
+# Sync-Capabilities, which skips inactive hosts by default, and the asymmetry is
+# deliberate -- do not "fix" it into consistency.
+#
+# The two have opposite failure modes. Skills are bulk file copies, so deploying
+# them to a host nobody uses wastes real space, and an over-broad prune based on
+# a stale 'inactive' label once removed 158 directories. Instructions are one
+# small policy file per host, and the cost of writing one unnecessarily is
+# nothing. The cost of NOT writing one is that a host somebody actually launches
+# runs on stale policy -- silently, because a skipped host reports success.
+#
+# 'inactive' is a human-maintained label, and this repository has already been
+# burned once by treating a stale one as authoritative. Instructions therefore
+# fail safe in the direction of over-delivery: correct policy everywhere beats
+# current policy only where a label happens to be accurate.
+# Pinned by Test-SyncInstructions.ps1 'instructions reach inactive hosts too'.
 $allHosts = @()
 if ($agentsReg.PSObject.Properties['activeAgents'] -and $agentsReg.activeAgents) {
     $allHosts += @($agentsReg.activeAgents)

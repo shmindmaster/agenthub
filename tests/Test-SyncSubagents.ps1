@@ -29,7 +29,9 @@ $syncScript = Join-Path $repoRoot 'scripts\Sync-Subagents.ps1'
 $hostExe = (Get-Process -Id $PID).Path
 
 $failures = [Collections.Generic.List[string]]::new()
+$reported = 0
 function Report([string]$Name, [bool]$Passed, [string]$Detail) {
+    $script:reported++
     if ($Passed) {
         Write-Host "PASS: $Name" -ForegroundColor Green
     } else {
@@ -385,8 +387,8 @@ $r9 = Test-EmptyWorkSetFailsLoudly
 Report 'zero eligible capabilities fails loudly instead of reporting success' $r9.Passed $r9.Detail
 
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed, $(9 - $failures.Count) passed" -ForegroundColor Red
+    Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: 9 passed, 0 failed' -ForegroundColor Green
+Write-Host "RESULT: $reported passed, 0 failed" -ForegroundColor Green
 exit 0
