@@ -645,9 +645,38 @@
       "contentHash": "AA63E1A01BEE9D7F19D91D48D402A2ECD8F0661CFD954ABB1AB8DA5AF367DFDD",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
+      "hostMappingsNote": "Widened 2026-08-04 from codex-only to the same eight-host tier clerk, digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. firecrawl is also single-mapped and that one IS deliberate -- its deploymentStatus is native-plugin-installed, meaning Codex installs it natively rather than AgentHub deploying it.",
       "hostMappings": [
         {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
           "hostId": "codex",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skill"
         }
       ]
