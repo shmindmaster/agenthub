@@ -199,7 +199,11 @@ function Get-EligibleCapabilities {
 # ---------------------------------------------------------------------------
 function Read-CanonicalAgent {
     param([string]$Path)
-    $content = [System.IO.File]::ReadAllText($Path)
+    # Normalize to LF before parsing, so generated host files do not carry
+    # whatever line endings this checkout happened to have. Without it the same
+    # commit deployed from a CRLF worktree and audited from an LF checkout
+    # reports drift on most files while each checkout reports itself clean.
+    $content = [System.IO.File]::ReadAllText($Path).Replace("`r`n", "`n")
     $match = [regex]::Match(
         $content,
         '\A---\r?\n(?<frontmatter>.*?)\r?\n---\r?\n(?<body>[\s\S]*)\z',

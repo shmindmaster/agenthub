@@ -120,7 +120,12 @@ if (-not (Test-Path -LiteralPath $PolicyFile)) {
 }
 
 $Marker = '<!-- agenthub:managed -->'
-$PolicyBody = [System.IO.File]::ReadAllText($PolicyFile)
+# Normalize to LF. Without this the deployed bytes carry whatever line endings
+# the checkout happened to have, so the same commit deployed from a CRLF
+# worktree and audited from an LF checkout reports drift on every host while
+# each checkout reports itself clean. LF is the canonical form: it is what git
+# stores and what the content hasher normalizes to before hashing.
+$PolicyBody = [System.IO.File]::ReadAllText($PolicyFile).Replace("`r`n", "`n")
 if ([string]::IsNullOrWhiteSpace($PolicyBody)) {
     throw "Canonical policy document is empty: $PolicyFile"
 }

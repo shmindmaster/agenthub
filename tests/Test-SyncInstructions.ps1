@@ -118,7 +118,12 @@ function Test-RenderContractProducesExactBytes {
         }
 
         $expected = "# Claude Code Global Instructions`n`n<!-- agenthub:managed -->`n`n" +
-            [IO.File]::ReadAllText((Join-Path $repoRoot 'global-agent-policy.md'))
+            # The renderer normalizes the policy body to LF so the deployed
+            # bytes do not depend on this checkout's line endings. The expected
+            # value has to be normalized the same way or this assertion passes
+            # in an LF checkout and fails in a CRLF worktree -- the very defect
+            # the normalization removed.
+            [IO.File]::ReadAllText((Join-Path $repoRoot 'global-agent-policy.md')).Replace("`r`n", "`n")
         $actual = [IO.File]::ReadAllText($claudeDest)
         if ($actual -cne $expected) {
             return @{ Passed = $false; Detail = "rendered bytes did not match the render contract exactly. First 200 chars expected=[$($expected.Substring(0,[Math]::Min(200,$expected.Length)))] actual=[$($actual.Substring(0,[Math]::Min(200,$actual.Length)))]" }
@@ -158,7 +163,7 @@ function Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd {
             return @{ Passed = $false; Detail = "expected Hermes file was not written: $hermesDest. Output: $($apply.Output)" }
         }
 
-        $policyBody = [IO.File]::ReadAllText((Join-Path $repoRoot 'global-agent-policy.md'))
+        $policyBody = [IO.File]::ReadAllText((Join-Path $repoRoot 'global-agent-policy.md')).Replace("`r`n", "`n")
         $expectedPersona = 'You are Hermes Agent, an intelligent AI assistant created by Nous Research. Be helpful, knowledgeable, direct, targeted, and efficient. Admit uncertainty when appropriate and prioritize genuine usefulness.'
         $expected = "# Hermes Agent`n`n$expectedPersona`n`n$policyBody`n<!-- agenthub:managed -->`n"
         $actual = [IO.File]::ReadAllText($hermesDest)
