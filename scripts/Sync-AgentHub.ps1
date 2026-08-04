@@ -977,7 +977,7 @@ function Set-CodexManagedMarketplaceSources {
     if ($Toml -match $sectionPattern) {
         $section = $Matches[0]
         if ($section -match '(?m)^source\s*=') {
-            $newSection = $section -replace '(?m)^source\s*=.*$', $sourceLine
+            $newSection = $section -replace '(?m)^source\s*=[^\r\n]*(?=\r?$)', $sourceLine
         } else {
             $newSection = $section.TrimEnd() + [Environment]::NewLine +
                 $sourceLine + [Environment]::NewLine
@@ -1093,7 +1093,7 @@ function Sync-HostMcp-Codex {
         }
 
         # Remove non-canonical top-level mcp_servers sections.
-        $topLevelMatches = [regex]::Matches($newToml, '(?m)^\[mcp_servers\.([^\].]+)\]$')
+        $topLevelMatches = [regex]::Matches($newToml, '(?m)^\[mcp_servers\.([^\].]+)\]\r?$')
         $topLevelKeys = @()
         foreach ($m in $topLevelMatches) { $topLevelKeys += $m.Groups[1].Value }
         $topLevelKeys = $topLevelKeys | Sort-Object -Unique

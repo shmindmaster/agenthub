@@ -94,7 +94,7 @@ foreach ($agentName in $expectedAgents) {
     # The deleted host-adapter generator comma-split `tools:` naively, so a YAML
     # flow sequence (`tools: [Read, Grep]`) silently produced broken tokens.
     # Reject that dialect here so it cannot re-enter this package.
-    $toolsMatch = [regex]::Match($agentText, '(?m)^tools:\s*(.+)$')
+    $toolsMatch = [regex]::Match($agentText, '(?m)^tools:\s*([^\r\n]+)\r?$')
     Assert-True $toolsMatch.Success "Subagent is missing a tools: declaration: $agentName"
     $toolsValue = $toolsMatch.Groups[1].Value.Trim()
     Assert-True (-not $toolsValue.StartsWith('[')) "Subagent tools: must use the scalar comma-separated form, not a YAML flow sequence: $agentName"
@@ -119,9 +119,9 @@ foreach ($skillName in $expectedSkills) {
     Assert-True (Test-Path -LiteralPath (Join-Path $skillRoot 'SKILL.md')) "Missing SKILL.md for $skillName."
     Assert-True (Test-Path -LiteralPath (Join-Path $skillRoot 'agents\openai.yaml')) "Missing agents/openai.yaml for $skillName."
     $skillText = Get-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Raw
-    Assert-True ($skillText -match "(?m)^name: $([regex]::Escape($skillName))$") "Skill name mismatch for $skillName."
+    Assert-True ($skillText -match "(?m)^name: $([regex]::Escape($skillName))\r?$") "Skill name mismatch for $skillName."
     Assert-True ($skillText -match '(?m)^description: Use when ') "Skill description must start with 'Use when' for $skillName."
-    Assert-True ($skillText -match '(?m)^## Standalone execution$') "Skill must define standalone execution behavior: $skillName."
+    Assert-True ($skillText -match '(?m)^## Standalone execution\r?$') "Skill must define standalone execution behavior: $skillName."
     Assert-True ($skillText -match '\.\./\.\./references/artifact-contracts\.md') "Skill must link to the generated-artifact contract: $skillName."
     $agentText = Get-Content -LiteralPath (Join-Path $skillRoot 'agents\openai.yaml') -Raw
     $skillInvocation = [regex]::Escape('$' + $skillName)

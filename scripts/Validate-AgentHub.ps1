@@ -43,8 +43,8 @@ foreach ($packageName in $packageNames) {
     $skillPath = Join-Path $skill.FullName 'SKILL.md'
     if (-not (Test-Path -LiteralPath $skillPath)) { Fail "skill missing SKILL.md: $($skill.FullName)"; continue }
     $skillText = Get-Content -LiteralPath $skillPath -Raw
-    $skillName = [regex]::Match($skillText, '(?m)^name:\s*([^\n]+)$').Groups[1].Value.Trim().Trim('"')
-    $description = [regex]::Match($skillText, '(?m)^description:\s*([^\n]+)$').Groups[1].Value.Trim().Trim('"')
+    $skillName = [regex]::Match($skillText, '(?m)^name:\s*([^\r\n]+)\r?$').Groups[1].Value.Trim().Trim('"')
+    $description = [regex]::Match($skillText, '(?m)^description:\s*([^\r\n]+)\r?$').Groups[1].Value.Trim().Trim('"')
     if ($skillName -ne $skill.Name) { Fail "skill frontmatter name mismatch: $skillPath" }
     if (-not $description.StartsWith('Use when')) { Fail "skill description must start with 'Use when': $skillPath" }
     if ($description.Length -gt 500) { Fail "skill description exceeds 500 characters: $skillPath" }
