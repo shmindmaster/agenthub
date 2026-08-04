@@ -22,12 +22,14 @@
       "id": "codex",
       "mode": "native-codex-package",
       "manifest": ".codex-plugin/plugin.json",
-      "globalSkillsDir": "~/.codex/skills",
+      "globalSkillsDir": "~/.agents/skills",
       "subagents": "unverified",
       "mcpPath": "~/.codex/config.toml",
       "mcpKey": "[mcp_servers.<id>]",
-      "documentation": "https://developers.openai.com/codex/plugins",
-      "verifiedAgainst": "https://developers.openai.com/codex/plugins"
+      "documentation": "https://learn.chatgpt.com/docs/build-skills",
+      "verifiedAgainst": "https://learn.chatgpt.com/docs/build-skills",
+      "correctedAt": "2026-08-04",
+      "correctionNote": "globalSkillsDir was recorded as ~/.codex/skills from the plugins page, which does not cover skill discovery. Codex's skills documentation lists REPO ($CWD/.agents/skills, $CWD/../.agents/skills, $REPO_ROOT/.agents/skills), USER ($HOME/.agents/skills), ADMIN (/etc/codex/skills) and bundled SYSTEM skills, and names no ~/.codex/skills tier. ~/.codex/config.toml remains correct for MCP and for [[skills.config]] entries."
     },
     {
       "id": "cursor",
@@ -200,12 +202,14 @@
       "id": "windsurf",
       "mode": "loose-skills-and-mcp",
       "manifest": null,
-      "globalSkillsDir": null,
+      "globalSkillsDir": "~/.codeium/windsurf/skills",
       "subagents": "unverified",
       "mcpPath": "~/.codeium/windsurf/mcp_config.json",
       "mcpKey": "mcpServers",
-      "documentation": "https://docs.windsurf.com/windsurf/cascade/mcp",
-      "verifiedAgainst": "https://docs.windsurf.com/windsurf/cascade/mcp"
+      "documentation": "https://docs.windsurf.com/windsurf/cascade/skills",
+      "verifiedAgainst": "https://docs.windsurf.com/windsurf/cascade/skills",
+      "correctedAt": "2026-08-04",
+      "correctionNote": "globalSkillsDir was recorded as null because the earlier research verified windsurf against its MCP page, which says nothing about skills; absence of evidence on an unrelated page became evidence of absence. Windsurf's own skills page documents three scopes -- Workspace .windsurf/skills/, Global ~/.codeium/windsurf/skills/, and System (Enterprise) -- so the ~31 skills deployed at that path are reachable, not inert. This reversed a planned prune of them."
     }
   ],
   "researchedAt": "2026-08-03",
