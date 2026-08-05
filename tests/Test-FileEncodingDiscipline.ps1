@@ -35,21 +35,52 @@ UTF-8 with no BOM, so EVERY non-ASCII character differs. Behavior 5 covers
 scripts/ for both; see its comment.
 
 WHAT THIS SCANNER CAN AND CANNOT SEE
-It parses each .ps1 with the real PowerShell parser
+This block is meant to be exactly true of the code below. Anything listed
+as covered is exercised against a synthetic fixture, so the claim is
+proven rather than asserted; anything not covered is named here.
+
+SCOPE: every .ps1 the repository TRACKS, enumerated by `git ls-files`
+(Behavior 2). It was formerly a hand-written list of three directories,
+which missed a shipped validator carrying two live defects.
+
+It parses each file with the real PowerShell parser
 ([Management.Automation.Language.Parser]::ParseInput) and walks CommandAst
-nodes, rather than matching text. That is what makes it immune, by
-construction rather than by pattern cleverness, to all four ways a text
-scanner gets defeated here (all four are exercised against a synthetic
-fixture in Behavior 4, so this claim is proven, not asserted):
+nodes rather than matching text. That is what makes it immune, by
+construction rather than by pattern cleverness, to the four ways a text
+scanner gets defeated here (Behavior 4):
   - a `#` comment mentioning Get-Content -- comments are not AST commands
   - a here-string containing Get-Content -- string bodies are not commands
   - a backtick line continuation splitting a call -- the parser joins it
   - a literal `.` in a path token (registry\fleet-profile.json) -- there
     is no regex whose dot could over-match
-It also resolves abbreviated parameter names (`-Enc UTF8` counts, because
-PowerShell itself accepts it) and the alias forms gc/cat/type.
+and to two more that are about name and parameter binding (Behavior 4a):
+  - a module-qualified call,
+    `Microsoft.PowerShell.Management\Get-Content` -- GetCommandName()
+    returns the name as written, so the qualifier is stripped before
+    matching
+  - an abbreviation too short to be unambiguous. `-Enc UTF8` counts,
+    because PowerShell binds it. `-E UTF8` does NOT count: measured, 5.1
+    binds `-E` to another E-parameter and returns the same mojibake as no
+    flag at all, so it is a violation, not compliance. Likewise `-A` is
+    treated as -AsByteStream only where unambiguous -- on Out-File the
+    only A-parameter is -Append.
+It also resolves the alias forms gc/cat/type.
+
+Two other file-reading constructs are NOT scanned, and the reason is that
+they do not have this defect. Measured, both shells, BOM-less UTF-8 file
+holding "cafe/naive/em-dash" (char codes):
+    Get-Content -Raw   5.1 -> 195,169,...   7 -> 233,239,8212   DIVERGES
+    Select-String -Path 5.1 -> 233,239,8212 7 -> 233,239,8212   agrees
+    switch -File        5.1 -> 233,239,8212 7 -> 233,239,8212   agrees
+Both decode UTF-8 in Windows PowerShell 5.1 as well as in 7. Flagging them
+would report non-defects. (`switch -File` is additionally a
+SwitchStatementAst, not a CommandAst, so it would need a separate walk.)
+If either is ever found to diverge on some other input, that measurement
+belongs here and the walk belongs below.
 
 It CANNOT see, and does not claim to:
+  - an UNTRACKED .ps1. Discovery is `git ls-files`, so a new script is
+    covered once it is added, not while it sits untracked in a worktree.
   - commands built as text and run through Invoke-Expression or a
     scriptblock created from a string (this repo has none in scope)
   - reads inside non-.ps1 files -- packages/product-demo-studio's .mjs
@@ -132,11 +163,51 @@ function Get-CommandAstList {
     ))
 }
 
+# PowerShell binds an abbreviated parameter name only when it is
+# UNAMBIGUOUS -- and when it is ambiguous it does not reliably error, it
+# silently binds something else. Measured on a BOM-less UTF-8 file
+# ("cafe/naive/em-dash", char codes shown):
+#
+#   -Encoding UTF8   5.1 -> 233,239,8212   correct
+#   -Enc UTF8        5.1 -> 233,239,8212   correct
+#   -E UTF8          5.1 -> 195,169,...    MOJIBAKE, same as no flag at all
+#
+# `-E` is NOT `-Encoding`. Get-Content's E-parameters are Encoding,
+# ErrorAction, ErrorVariable and Exclude, and 5.1 binds `-E` to one of the
+# others while pwsh 7 binds it to Encoding -- so `-E UTF8` is itself a
+# shell-divergent read. The scanner used to accept it as compliant, which
+# is this file's own defect class living inside this file.
+#
+# The same trap exists on the byte-read exemption: `-A` is unambiguous on
+# Get-Content/Set-Content/Add-Content (AsByteStream is their only
+# A-parameter in pwsh 7) but on Out-File the only A-parameter is APPEND,
+# and Out-File has no -AsByteStream at all. So `Out-File -FilePath $p -A`
+# is an unencoded TEXT write, and exempting it as a byte write would hide
+# the worse of the two write defects.
+#
+# An abbreviation therefore counts only when it matches the target
+# parameter and matches NO rival parameter. The rival list is the union
+# across every cmdlet this scanner handles, so an abbreviation ambiguous
+# on any of them is rejected on all of them. That deliberately over-flags
+# `Get-Content -A` (genuinely unambiguous there); over-flagging is the
+# safe direction and under-flagging is the defect.
+$script:EncodingRivalParameters = @('ErrorAction', 'ErrorVariable', 'Exclude')
+$script:AsByteStreamRivalParameters = @('Append')
+
+function Test-IsUnambiguousParameterName {
+    param([string]$Name, [string]$Target, [string[]]$Rival)
+    if ([string]::IsNullOrEmpty($Name)) { return $false }
+    if (-not $Target.StartsWith($Name, [StringComparison]::OrdinalIgnoreCase)) { return $false }
+    foreach ($other in @($Rival)) {
+        if ($other.StartsWith($Name, [StringComparison]::OrdinalIgnoreCase)) { return $false }
+    }
+    return $true
+}
+
 # Returns the argument text of -Encoding on this command, or $null when the
 # parameter is absent. Handles both `-Encoding UTF8` (value is the following
-# element) and `-Encoding:UTF8` (value is attached to the parameter). Accepts
-# any unambiguous abbreviation of the parameter name, because PowerShell
-# binds `-Enc UTF8` just as happily as the full name.
+# element) and `-Encoding:UTF8` (value is attached to the parameter). An
+# ambiguous abbreviation is treated as ABSENT, not as compliant -- see above.
 function Get-EncodingArgument {
     param($CommandAst)
     $elements = @($CommandAst.CommandElements)
@@ -144,8 +215,7 @@ function Get-EncodingArgument {
         $element = $elements[$i]
         if ($element -isnot [System.Management.Automation.Language.CommandParameterAst]) { continue }
         $name = [string]$element.ParameterName
-        if ($name.Length -eq 0) { continue }
-        if (-not 'Encoding'.StartsWith($name, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        if (-not (Test-IsUnambiguousParameterName -Name $name -Target 'Encoding' -Rival $script:EncodingRivalParameters)) { continue }
         if ($null -ne $element.Argument) { return [string]$element.Argument.Extent.Text }
         if ($i + 1 -lt $elements.Count) { return [string]$elements[$i + 1].Extent.Text }
         return ''
@@ -161,15 +231,28 @@ function Test-IsUtf8EncodingArgument {
 }
 
 function Test-CommandHasSwitch {
-    param($CommandAst, [string]$SwitchName)
+    param($CommandAst, [string]$SwitchName, [string[]]$Rival)
     foreach ($element in @($CommandAst.CommandElements)) {
         if ($element -isnot [System.Management.Automation.Language.CommandParameterAst]) { continue }
-        $name = [string]$element.ParameterName
-        if ($name.Length -gt 0 -and $SwitchName.StartsWith($name, [StringComparison]::OrdinalIgnoreCase)) {
+        if (Test-IsUnambiguousParameterName -Name ([string]$element.ParameterName) -Target $SwitchName -Rival $Rival) {
             return $true
         }
     }
     return $false
+}
+
+# GetCommandName() returns the name AS WRITTEN, so a module-qualified call
+# comes back as `Microsoft.PowerShell.Management\Get-Content` and matches
+# no entry in the name lists. Qualification changes nothing about the
+# decoding, so the qualifier is stripped before matching. (`.\build.ps1`
+# also contains a backslash, but no script path matches a cmdlet name, so
+# stripping is harmless there.)
+function Get-UnqualifiedCommandName {
+    param([string]$Name)
+    if ([string]::IsNullOrEmpty($Name)) { return $Name }
+    $index = $Name.LastIndexOf('\')
+    if ($index -lt 0) { return $Name }
+    return $Name.Substring($index + 1)
 }
 
 function New-EncodingViolation {
@@ -192,11 +275,11 @@ function Get-UnencodedFileRead {
     $violations = [Collections.Generic.List[string]]::new()
     foreach ($file in @($Path)) {
         foreach ($command in (Get-CommandAstList -Path $file)) {
-            $name = [string]$command.GetCommandName()
+            $name = Get-UnqualifiedCommandName -Name ([string]$command.GetCommandName())
             if ([string]::IsNullOrEmpty($name)) { continue }
             if (@($script:ReadCommandNames | Where-Object { $_ -eq $name }).Count -eq 0) { continue }
             # A byte-stream read never decodes text, so no code page applies.
-            if (Test-CommandHasSwitch -CommandAst $command -SwitchName 'AsByteStream') { continue }
+            if (Test-CommandHasSwitch -CommandAst $command -SwitchName 'AsByteStream' -Rival $script:AsByteStreamRivalParameters) { continue }
             $encoding = Get-EncodingArgument -CommandAst $command
             if (Test-IsUtf8EncodingArgument -Value $encoding) { continue }
             $violations.Add((New-EncodingViolation -Path $file -CommandAst $command -RootForRelativePath $RootForRelativePath))
@@ -231,11 +314,11 @@ function Get-ShellDivergentWrite {
     $violations = [Collections.Generic.List[string]]::new()
     foreach ($file in @($Path)) {
         foreach ($command in (Get-CommandAstList -Path $file)) {
-            $name = [string]$command.GetCommandName()
+            $name = Get-UnqualifiedCommandName -Name ([string]$command.GetCommandName())
             if ([string]::IsNullOrEmpty($name)) { continue }
             if (@($script:WriteCommandNames | Where-Object { $_ -eq $name }).Count -eq 0) { continue }
             # A byte-stream write never encodes text, so no code page applies.
-            if (Test-CommandHasSwitch -CommandAst $command -SwitchName 'AsByteStream') { continue }
+            if (Test-CommandHasSwitch -CommandAst $command -SwitchName 'AsByteStream' -Rival $script:AsByteStreamRivalParameters) { continue }
             $encoding = Get-EncodingArgument -CommandAst $command
             $reason = $null
             if ($null -eq $encoding) {
@@ -439,9 +522,10 @@ function Test-NoUnencodedReadInScope {
     return @{ Passed = $true; Detail = $null }
 }
 
-# --- Behavior 4: the four documented evasions. A text scanner would report
-# 3 false positives and miss the 1 real violation on this fixture; the AST
-# walk must report exactly the real one. ---
+# --- Behavior 4: the four documented text-scanner evasions. A text
+# scanner would report 3 false positives and miss the 1 real violation on
+# this fixture; the AST walk must report exactly the real one. The two
+# name/parameter-binding evasions are Behavior 4a. ---
 function Test-DetectorIsNotFooledByCommentsHereStringsOrContinuations {
     $dir = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-encoding-evasion-" + [guid]::NewGuid())
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
@@ -467,6 +551,42 @@ function Test-DetectorIsNotFooledByCommentsHereStringsOrContinuations {
         }
         if ($violations[0] -notlike 'Evasions.ps1:6:*') {
             return @{ Passed = $false; Detail = "expected the violation to name line 6 (the backtick-continued read), got '$($violations[0])'" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# --- Behavior 4a: two evasions the AST walk had to be taught, both
+# measured rather than assumed. A module-qualified command name, and an
+# ABBREVIATION SHORT ENOUGH TO BE AMBIGUOUS -- which PowerShell does not
+# reject, it silently binds elsewhere. Neither exists in the tree today;
+# both are proven against a fixture so the header's claims are earned. ---
+function Test-DetectorResolvesQualifiedNamesAndRejectsAmbiguousAbbreviations {
+    $dir = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-encoding-abbrev-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    try {
+        $lines = @(
+            '$a = Microsoft.PowerShell.Management\Get-Content -LiteralPath $p -Raw'  # 1 FLAG: qualified
+            '$b = Get-Content -LiteralPath $p -Raw -E UTF8'                          # 2 FLAG: -E is not -Encoding
+            '$c = Get-Content -LiteralPath $p -Raw -Enc UTF8'                        # 3 clear: -Enc is unambiguous
+            'Out-File -FilePath $p -A'                                               # 4 FLAG: -A is -Append here
+            'Set-Content -LiteralPath $p -Value ''x'' -As'                           # 5 clear: -As is AsByteStream
+        )
+        $fixture = Join-Path $dir 'Abbrev.ps1'
+        [IO.File]::WriteAllText($fixture, (($lines -join "`r`n") + "`r`n"), [Text.UTF8Encoding]::new($false))
+
+        $reads = @(Get-UnencodedFileRead -Path @($fixture) -RootForRelativePath $dir)
+        $readLines = @($reads | ForEach-Object { ($_ -split ':')[1] }) -join ','
+        if ($readLines -ne '1,2') {
+            return @{ Passed = $false; Detail = "expected the read detector to flag lines 1 (module-qualified Get-Content) and 2 (``-E UTF8``, which Windows PowerShell 5.1 binds to -Exclude and NOT -Encoding, returning mojibake) and to clear line 3 (``-Enc UTF8``); it flagged [$readLines]: $($reads -join ' | ')" }
+        }
+
+        $writes = @(Get-ShellDivergentWrite -Path @($fixture) -RootForRelativePath $dir)
+        $writeLines = @($writes | ForEach-Object { ($_ -split ':')[1] }) -join ','
+        if ($writeLines -ne '4') {
+            return @{ Passed = $false; Detail = "expected the write detector to flag line 4 only (``Out-File -A`` is -Append, NOT -AsByteStream -- Out-File has no -AsByteStream at all, so this is an unencoded text write) and to clear line 5 (``-As`` unambiguously means -AsByteStream); it flagged [$writeLines]: $($writes -join ' | ')" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
@@ -661,6 +781,9 @@ Report 'no tracked .ps1 in the repository reads a file without explicit UTF-8 de
 
 $r4 = Test-DetectorIsNotFooledByCommentsHereStringsOrContinuations
 Report 'the detector is not fooled by comments, here-strings, dotted path tokens, or line continuations' $r4.Passed $r4.Detail
+
+$r4a = Test-DetectorResolvesQualifiedNamesAndRejectsAmbiguousAbbreviations
+Report 'the detector resolves module-qualified command names and refuses an ambiguous abbreviation (-E is not -Encoding; -A on Out-File is -Append)' $r4a.Passed $r4a.Detail
 
 $r5a = Test-WriteDetectorDistinguishesNoEncodingFromUtf8
 Report 'the write detector flags both a no-Encoding write and an -Encoding UTF8 write, clears byte writes, and explains the two differently' $r5a.Passed $r5a.Detail
