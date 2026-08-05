@@ -7,9 +7,10 @@ description: Use when a coding agent should visually inspect and interact with a
 
 ## Capability required
 
-This skill requires `browser.isolated` -- "a first-party browser the agent drives
-itself, with its own profile; suits localhost and public pages; carries no signed-in
-session" (`registry/fleet-profile.json`, `hostSurfaces.capabilityMeanings`).
+This skill requires `browser.isolated`, defined in `registry/fleet-profile.json`
+under `hostSurfaces.capabilityMeanings` as: "A first-party browser the agent drives
+itself, with its own profile. Suits localhost and public pages; carries no signed-in
+session."
 
 ## Resolve a provider before choosing the lane
 
@@ -58,7 +59,13 @@ Existing automated tests do not replace interactive rendered verification.
    state. Never invent inaccessible states.
 7. Record exact evidence and close the named Playwright session when finished.
 
-Every provider above uses a temporary isolated Chrome profile. Connecting to an
-already-running Chrome profile is a different capability, requires explicit
-authorization and Chrome remote debugging, and is never the default; never attach to
-ordinary personal browsing.
+`chrome-devtools` is launched with `--isolated` into a temporary profile
+(`registry/mcps.json`), and a surface recorded as providing `browser.isolated`
+carries no signed-in session by that capability's own definition. The Playwright CLI
+lane is neither: it is not a surface provider and this repository records nothing
+about how it handles profiles, so do not assume it is isolated -- establish it.
+
+Connecting to an already-running personal Chrome profile is `browser.authenticated`,
+a different capability this skill does not request and must not obtain by other
+means. It requires explicit authorization and Chrome remote debugging. Never attach
+to ordinary personal browsing.

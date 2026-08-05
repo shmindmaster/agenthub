@@ -10,11 +10,13 @@ Experience Engineering; demo and release decisions remain with Product Demo Stud
 
 ## Capability required
 
-This skill requires `browser.isolated` -- "a first-party browser the agent drives
-itself, with its own profile; suits localhost and public pages; carries no signed-in
-session" (`registry/fleet-profile.json`, `hostSurfaces.capabilityMeanings`). Isolation
-is the point here, not an implementation detail: evidence must not carry personal
-Chrome state, unrelated tabs, credentials, or customer data.
+This skill requires `browser.isolated`, defined in `registry/fleet-profile.json`
+under `hostSurfaces.capabilityMeanings` as: "A first-party browser the agent drives
+itself, with its own profile. Suits localhost and public pages; carries no signed-in
+session."
+
+Isolation is the point here, not an implementation detail: evidence must not carry
+personal Chrome state, unrelated tabs, credentials, or customer data.
 
 ## Resolve a provider before capturing
 

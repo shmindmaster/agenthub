@@ -45,10 +45,18 @@ $knownCapabilities = @($fleet.hostSurfaces.knownCapabilities)
 # `browser.isolatd` still is one.
 $capabilityNamespaces = @($knownCapabilities | ForEach-Object { ($_ -split '\.')[0] } | Select-Object -Unique)
 
-# A skill "names" a capability by writing it as an inline-code token, which is
-# the same form the registry uses. Reading it back out of the rendered SKILL.md
-# means the test checks what a host actually ships, not a parallel declaration
-# that could drift from the prose.
+# A skill "requires" a capability by writing it as an inline-code token -- the
+# same form the registry uses -- inside its "## Capability required" section.
+# Reading it back out of the rendered SKILL.md means the test checks what a host
+# actually ships, not a parallel declaration that could drift from the prose.
+#
+# Extraction is scoped to that one section, not the whole file, so a capability
+# can be named elsewhere WITHOUT being requested: a skill must be able to say
+# "browser.authenticated is a different capability this skill must not obtain"
+# without the test reading that prohibition as a requirement and then failing
+# because nothing provides it.
+$capabilitySectionHeading = 'Capability required'
+
 function Get-SkillCapabilityDeclarations {
     $declarations = [Collections.Generic.List[object]]::new()
     if (-not (Test-Path -LiteralPath $skillsRoot -PathType Container)) { return $declarations }
@@ -56,16 +64,37 @@ function Get-SkillCapabilityDeclarations {
         $skillFile = Join-Path $skillDirectory.FullName 'SKILL.md'
         if (-not (Test-Path -LiteralPath $skillFile -PathType Leaf)) { continue }
         $text = [IO.File]::ReadAllText($skillFile)
-        $tokens = @([regex]::Matches($text, '`([a-z][a-z0-9]*\.[a-z][a-z0-9.]*)`') | ForEach-Object { $_.Groups[1].Value })
+        # `\r?\n` throughout: this repository is checked out CRLF in worktrees and
+        # LF in the main checkout, and a section boundary that only matches LF
+        # would silently extract nothing in one of them.
+        $sectionMatch = [regex]::Match(
+            $text,
+            ('(?s)^##\s+' + [regex]::Escape($capabilitySectionHeading) + '\s*\r?\n(.*?)(?=\r?\n##\s|\z)'),
+            [Text.RegularExpressions.RegexOptions]::Multiline)
+        $section = if ($sectionMatch.Success) { $sectionMatch.Groups[1].Value } else { '' }
+        $tokens = @([regex]::Matches($section, '`([a-z][a-z0-9]*\.[a-z][a-z0-9.]*)`') | ForEach-Object { $_.Groups[1].Value })
         $capabilities = @($tokens | Where-Object { ($_ -split '\.')[0] -in $capabilityNamespaces } | Select-Object -Unique)
         $declarations.Add([pscustomobject]@{
             Skill        = $skillDirectory.Name
             Path         = $skillFile
             Text         = $text
+            HasSection   = $sectionMatch.Success
             Capabilities = $capabilities
         })
     }
     return $declarations
+}
+
+# The count of capabilities actually extracted -- NOT the count of skills.
+#
+# Behaviors 2-4 iterate over capabilities, so three skills that declare nothing
+# leave them iterating over an empty set while three SKILL.md files sit on disk.
+# Guarding on "zero skills" does not catch that: it was reproduced by emptying
+# hostSurfaces.knownCapabilities, where behaviors 3 and 4 printed PASS while
+# checking nothing and only behaviors 1 and 2 held the run down.
+function Get-DeclaredCapabilityCount {
+    param($Declarations)
+    return @($Declarations | ForEach-Object { $_.Capabilities } | Where-Object { $_ }).Count
 }
 
 # --- Behavior 1 (anti-vacuity): the browser-toolkit skills exist and every one
@@ -82,9 +111,13 @@ function Test-EverySkillDeclaresACapability {
     if ($declarations.Count -eq 0) {
         return @{ Passed = $false; Detail = "found zero SKILL.md files under $skillsRoot." }
     }
+    $missingSection = @($declarations | Where-Object { -not $_.HasSection } | ForEach-Object { $_.Skill })
+    if ($missingSection.Count -gt 0) {
+        return @{ Passed = $false; Detail = "these skills have no '## $capabilitySectionHeading' section, so there is nowhere for them to state what they need: $($missingSection -join ', ')" }
+    }
     $silent = @($declarations | Where-Object { $_.Capabilities.Count -eq 0 } | ForEach-Object { $_.Skill })
     if ($silent.Count -gt 0) {
-        return @{ Passed = $false; Detail = "these skills name no capability from hostSurfaces, so nothing about them can be routed or checked: $($silent -join ', ')" }
+        return @{ Passed = $false; Detail = "these skills name no capability from hostSurfaces in their '## $capabilitySectionHeading' section, so nothing about them can be routed or checked: $($silent -join ', ')" }
     }
     return @{ Passed = $true; Detail = $null }
 }
@@ -98,8 +131,13 @@ function Test-DeclaredCapabilitiesAreKnown {
     if ($knownCapabilities.Count -eq 0) {
         return @{ Passed = $false; Detail = 'fleet-profile.json declares no hostSurfaces.knownCapabilities, so any name a skill invented would validate.' }
     }
+    $declarations = Get-SkillCapabilityDeclarations
+    $capabilityCount = Get-DeclaredCapabilityCount -Declarations $declarations
+    if ($capabilityCount -eq 0) {
+        return @{ Passed = $false; Detail = "the skills declare zero capabilities between them ($($declarations.Count) SKILL.md file(s) read), so this check would validate an empty set; see behavior 1." }
+    }
     $bad = [Collections.Generic.List[string]]::new()
-    foreach ($declaration in Get-SkillCapabilityDeclarations) {
+    foreach ($declaration in $declarations) {
         foreach ($capability in $declaration.Capabilities) {
             if ($capability -notin $knownCapabilities) {
                 $bad.Add("$($declaration.Skill) names '$capability', which is not in hostSurfaces.knownCapabilities ($($knownCapabilities -join ', '))")
@@ -140,8 +178,9 @@ function Test-DeclaredCapabilitiesHaveAProvider {
         return @{ Passed = $false; Detail = 'nothing in the fleet provides any capability -- no surface records one true and no MCP server declares providesCapabilities.' }
     }
     $declarations = Get-SkillCapabilityDeclarations
-    if ($declarations.Count -eq 0) {
-        return @{ Passed = $false; Detail = 'no skills found; see behavior 1.' }
+    $capabilityCount = Get-DeclaredCapabilityCount -Declarations $declarations
+    if ($capabilityCount -eq 0) {
+        return @{ Passed = $false; Detail = "the skills declare zero capabilities between them ($($declarations.Count) SKILL.md file(s) read), so this check would confirm provider coverage of nothing; see behavior 1." }
     }
     $bad = [Collections.Generic.List[string]]::new()
     foreach ($declaration in $declarations) {
@@ -150,6 +189,57 @@ function Test-DeclaredCapabilitiesHaveAProvider {
                 $bad.Add("$($declaration.Skill) requires '$capability', which no surface records true and no MCP server declares in providesCapabilities")
             }
         }
+    }
+    if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
+    return @{ Passed = $true; Detail = $null }
+}
+
+# --- Behavior 5: a capability meaning a skill quotes must be the registry's own
+# words, character for character.
+#
+# The skills present the meaning of browser.isolated as a quotation from
+# fleet-profile.json. A near-quote -- relettered, repunctuated, "close enough" --
+# is where drift starts: it reads as evidence while no longer being the text it
+# cites, and nothing then notices when the registry's wording moves. So every
+# double-quoted passage inside a "Capability required" section must equal a
+# capabilityMeanings value exactly. Paraphrase is fine; paraphrase wearing
+# quotation marks is not. ---
+function Test-QuotedCapabilityMeaningsAreVerbatim {
+    $meanings = @{}
+    foreach ($property in @($fleet.hostSurfaces.capabilityMeanings.PSObject.Properties)) {
+        $meanings[$property.Name] = [string]$property.Value
+    }
+    if ($meanings.Count -eq 0) {
+        return @{ Passed = $false; Detail = 'fleet-profile.json declares no hostSurfaces.capabilityMeanings, so any quotation would have nothing to be checked against.' }
+    }
+    $declarations = Get-SkillCapabilityDeclarations
+    $bad = [Collections.Generic.List[string]]::new()
+    $quotedCount = 0
+    foreach ($declaration in $declarations) {
+        $sectionMatch = [regex]::Match(
+            $declaration.Text,
+            ('(?s)^##\s+' + [regex]::Escape($capabilitySectionHeading) + '\s*\r?\n(.*?)(?=\r?\n##\s|\z)'),
+            [Text.RegularExpressions.RegexOptions]::Multiline)
+        if (-not $sectionMatch.Success) { continue }
+        # Line wrapping in Markdown is presentation, not content: collapse it
+        # before comparing, so a quotation is judged on its words rather than on
+        # where the author's editor broke the line.
+        $section = [regex]::Replace($sectionMatch.Groups[1].Value, '\s+', ' ')
+        foreach ($quote in @([regex]::Matches($section, '"([^"]+)"'))) {
+            $quotedCount++
+            $quotedText = $quote.Groups[1].Value.Trim()
+            # -ceq, not -contains: PowerShell's containment operators are
+            # case-INSENSITIVE, so "a first-party browser..." compared clean
+            # against the registry's "A first-party browser...". Relettering is
+            # precisely one of the near-quote defects this behavior exists to
+            # catch, and the first version of it did not.
+            if (@($meanings.Values | Where-Object { $_ -ceq $quotedText }).Count -eq 0) {
+                $bad.Add("$($declaration.Skill) quotes `"$quotedText`", which is not verbatim any hostSurfaces.capabilityMeanings value")
+            }
+        }
+    }
+    if ($quotedCount -eq 0) {
+        return @{ Passed = $false; Detail = 'no skill quotes a capability meaning at all, so this check compared nothing. Either a skill stopped citing the registry definition it routes on, or the section heading moved.' }
     }
     if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
     return @{ Passed = $true; Detail = $null }
@@ -165,8 +255,9 @@ function Test-DeclaredCapabilitiesHaveAProvider {
 # so deleting or renaming the server in registry/mcps.json breaks this too. ---
 function Test-EachSkillNamesAFallbackThatCoversIt {
     $declarations = Get-SkillCapabilityDeclarations
-    if ($declarations.Count -eq 0) {
-        return @{ Passed = $false; Detail = 'no skills found; see behavior 1.' }
+    $capabilityCount = Get-DeclaredCapabilityCount -Declarations $declarations
+    if ($capabilityCount -eq 0) {
+        return @{ Passed = $false; Detail = "the skills declare zero capabilities between them ($($declarations.Count) SKILL.md file(s) read), so every fallback would trivially cover everything asked of it; see behavior 1." }
     }
     $serverIds = @($mcps.mcpServers | ForEach-Object { [string]$_.id } | Where-Object { $_ })
     if ($serverIds.Count -eq 0) {
@@ -205,6 +296,9 @@ Report 'every capability a skill names is offered by at least one declared provi
 
 $r4 = Test-EachSkillNamesAFallbackThatCoversIt
 Report 'each skill names a registered fallback provider that declares the capability it needs' $r4.Passed $r4.Detail
+
+$r5 = Test-QuotedCapabilityMeaningsAreVerbatim
+Report 'every capability meaning a skill quotes is verbatim the registry definition' $r5.Passed $r5.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

@@ -7,9 +7,10 @@ description: Use when an authorized browser workflow has runtime errors, failed 
 
 ## Capability required
 
-This skill requires `browser.isolated` -- "a first-party browser the agent drives
-itself, with its own profile; suits localhost and public pages; carries no signed-in
-session" (`registry/fleet-profile.json`, `hostSurfaces.capabilityMeanings`).
+This skill requires `browser.isolated`, defined in `registry/fleet-profile.json`
+under `hostSurfaces.capabilityMeanings` as: "A first-party browser the agent drives
+itself, with its own profile. Suits localhost and public pages; carries no signed-in
+session."
 
 It also requires DevTools-protocol depth: performance traces, heap snapshots,
 Lighthouse, and raw console/network correlation. That depth is not a capability name

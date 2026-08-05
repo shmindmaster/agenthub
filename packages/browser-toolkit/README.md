@@ -4,9 +4,14 @@ One browser-quality plugin with one on-demand MCP server and three focused skill
 
 ## Architecture
 
-- Chrome DevTools MCP 1.6.0 owns interactive headed Chrome inspection, screenshots,
-  accessibility snapshots, console, network, Lighthouse, performance traces,
-  screencasts, and heap analysis.
+- The skills state the capability they need (`browser.isolated`) and resolve a
+  provider at use time: the active surface's own browser first, when
+  `registry/fleet-profile.json` -> `hostSurfaces` records that capability true for
+  the running surface.
+- Chrome DevTools MCP 1.6.0 is the declared fallback provider for that capability
+  (`registry/mcps.json` -> `providesCapabilities`). It is reached when the surface
+  records `false` or `null`, and for DevTools-protocol depth no surface offers:
+  Lighthouse, performance traces, screencasts, and heap analysis.
 - Playwright CLI 0.1.17 is invoked from the interactive-testing skill for compact
   multi-step actions, headed sessions, traces, screenshots, and recordings.
 - Playwright MCP is intentionally not included. It overlaps browser automation and
