@@ -39,7 +39,7 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 # 7. tests/Test-CapabilityRouting.ps1 already reads this same file that way;
 # matching it means the two suites cannot read the same bytes differently.
 $fleet  = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw | ConvertFrom-Json
+$agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 
 # @($null) | ForEach-Object id emits a phantom empty entry rather than
 # nothing, and @($null) has Count -eq 1, not 0. If the `id` key under
