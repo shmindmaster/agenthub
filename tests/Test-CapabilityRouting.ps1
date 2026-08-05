@@ -57,6 +57,80 @@ $capabilityNamespaces = @($knownCapabilities | ForEach-Object { ($_ -split '\.')
 # because nothing provides it.
 $capabilitySectionHeading = 'Capability required'
 
+# The resolution order lives in its own section, whose heading begins with this
+# prefix and then says what is being resolved for ("...before capturing",
+# "...before choosing the lane"). Behavior 4 reads the fallback out of THAT
+# section rather than out of the whole file, for the same reason capability
+# extraction is section-scoped: a server id can be named incidentally -- in a
+# closing paragraph about profile isolation, say -- and an unscoped search reads
+# that mention as a declared fallback. Reproduced before this scoping landed:
+# deleting the entire resolution section from browser-debugging, and separately
+# from interactive-browser-testing, left this file at 5 passed, 0 failed. Only
+# browser-evidence fired, and only because it happened to name the server
+# nowhere else.
+#
+# The granularity is the section, not the individual step: each of these
+# sections closes with a paragraph explaining why native comes first, and that
+# paragraph names the fallback too, so deleting only the numbered fallback step
+# would still leave the id inside the section. Section granularity is what makes
+# "the resolution order was removed" detectable; step granularity would mean
+# parsing the list, and is not claimed here.
+$resolutionSectionHeadingPrefix = 'Resolve a provider'
+
+# One extractor for both sections; $HeadingPattern is the regex for whatever
+# follows '## ' on the heading line, so the capability section can be matched
+# exactly while the resolution section is matched on its prefix. `\r?\n`
+# throughout: this repository is checked out CRLF in worktrees and LF in the
+# main checkout, and a section boundary that only matches LF would silently
+# extract nothing in one of them.
+$capabilityHeadingPattern = [regex]::Escape($capabilitySectionHeading) + '\s*'
+$resolutionHeadingPattern = [regex]::Escape($resolutionSectionHeadingPrefix) + '[^\r\n]*'
+function Get-MarkdownSection {
+    param([string]$Text, [string]$HeadingPattern)
+    $match = [regex]::Match(
+        $Text,
+        ('(?s)^##\s+' + $HeadingPattern + '\r?\n(.*?)(?=\r?\n##\s|\z)'),
+        [Text.RegularExpressions.RegexOptions]::Multiline)
+    if (-not $match.Success) { return $null }
+    return $match.Groups[1].Value
+}
+
+# Everything from the first heading AFTER the resolution section to the end of
+# the file: the steps a skill performs once a provider has been resolved.
+# Derived from where the resolution section ends rather than from a list of
+# workflow heading names, so renaming '## Workflow' to '## Procedure' -- the
+# three skills already use three different names -- cannot drop a skill out of
+# the check.
+function Get-PostResolutionText {
+    param([string]$Text)
+    $heading = [regex]::Match($Text, ('(?m)^##\s+' + $resolutionHeadingPattern))
+    if (-not $heading.Success) { return $null }
+    $rest = $Text.Substring($heading.Index + $heading.Length)
+    $next = [regex]::Match($rest, '(?m)^##\s')
+    if (-not $next.Success) { return '' }
+    return $rest.Substring($next.Index)
+}
+
+# The numbered steps within that text, continuation lines included. Prose
+# paragraphs around the list are deliberately NOT steps: browser-debugging's
+# closing paragraph forbids attaching to a personal Chrome profile, and
+# interactive-browser-testing's explains how `chrome-devtools` is launched --
+# both are true statements about specific providers, and neither is an
+# instruction about how to carry out a step.
+function Get-NumberedStepLines {
+    param([string]$Text)
+    $steps = [Collections.Generic.List[string]]::new()
+    if ([string]::IsNullOrEmpty($Text)) { return $steps }
+    $inStep = $false
+    foreach ($line in ($Text -split '\r?\n')) {
+        if ($line -match '^\s*\d+\.\s') { $inStep = $true; $steps.Add($line); continue }
+        if ([string]::IsNullOrWhiteSpace($line)) { $inStep = $false; continue }
+        if ($inStep -and $line -match '^\s+\S') { $steps.Add($line); continue }
+        $inStep = $false
+    }
+    return $steps
+}
+
 function Get-SkillCapabilityDeclarations {
     $declarations = [Collections.Generic.List[object]]::new()
     if (-not (Test-Path -LiteralPath $skillsRoot -PathType Container)) { return $declarations }
@@ -64,22 +138,21 @@ function Get-SkillCapabilityDeclarations {
         $skillFile = Join-Path $skillDirectory.FullName 'SKILL.md'
         if (-not (Test-Path -LiteralPath $skillFile -PathType Leaf)) { continue }
         $text = [IO.File]::ReadAllText($skillFile)
-        # `\r?\n` throughout: this repository is checked out CRLF in worktrees and
-        # LF in the main checkout, and a section boundary that only matches LF
-        # would silently extract nothing in one of them.
-        $sectionMatch = [regex]::Match(
-            $text,
-            ('(?s)^##\s+' + [regex]::Escape($capabilitySectionHeading) + '\s*\r?\n(.*?)(?=\r?\n##\s|\z)'),
-            [Text.RegularExpressions.RegexOptions]::Multiline)
-        $section = if ($sectionMatch.Success) { $sectionMatch.Groups[1].Value } else { '' }
+        $capabilitySection = Get-MarkdownSection -Text $text -HeadingPattern $capabilityHeadingPattern
+        $resolutionSection = Get-MarkdownSection -Text $text -HeadingPattern $resolutionHeadingPattern
+        $postResolutionText = Get-PostResolutionText -Text $text
+        $section = if ($null -ne $capabilitySection) { $capabilitySection } else { '' }
         $tokens = @([regex]::Matches($section, '`([a-z][a-z0-9]*\.[a-z][a-z0-9.]*)`') | ForEach-Object { $_.Groups[1].Value })
         $capabilities = @($tokens | Where-Object { ($_ -split '\.')[0] -in $capabilityNamespaces } | Select-Object -Unique)
         $declarations.Add([pscustomobject]@{
-            Skill        = $skillDirectory.Name
-            Path         = $skillFile
-            Text         = $text
-            HasSection   = $sectionMatch.Success
-            Capabilities = $capabilities
+            Skill              = $skillDirectory.Name
+            Path               = $skillFile
+            Text               = $text
+            HasSection         = ($null -ne $capabilitySection)
+            CapabilitySection  = $section
+            ResolutionSection  = $resolutionSection
+            PostResolutionText = $postResolutionText
+            Capabilities       = $capabilities
         })
     }
     return $declarations
@@ -219,15 +292,11 @@ function Test-QuotedCapabilityMeaningsAreVerbatim {
     $bad = [Collections.Generic.List[string]]::new()
     $uncited = [Collections.Generic.List[string]]::new()
     foreach ($declaration in $declarations) {
-        $sectionMatch = [regex]::Match(
-            $declaration.Text,
-            ('(?s)^##\s+' + [regex]::Escape($capabilitySectionHeading) + '\s*\r?\n(.*?)(?=\r?\n##\s|\z)'),
-            [Text.RegularExpressions.RegexOptions]::Multiline)
-        if (-not $sectionMatch.Success) { $uncited.Add("$($declaration.Skill) (no declaration section)"); continue }
+        if (-not $declaration.HasSection) { $uncited.Add("$($declaration.Skill) (no declaration section)"); continue }
         # Line wrapping in Markdown is presentation, not content: collapse it
         # before comparing, so a quotation is judged on its words rather than on
         # where the author's editor broke the line.
-        $section = [regex]::Replace($sectionMatch.Groups[1].Value, '\s+', ' ')
+        $section = [regex]::Replace($declaration.CapabilitySection, '\s+', ' ')
         # The meanings this particular skill is entitled to quote: quoting
         # computer.gui's definition inside a skill that routes on
         # browser.isolated is a citation of something it does not use.
@@ -266,7 +335,12 @@ function Test-QuotedCapabilityMeaningsAreVerbatim {
 # skill whose fallback provides none of its capabilities has a resolution order
 # that dead-ends on exactly the surfaces the order exists for (codex-cli and
 # codex-ide record no browser at all). The fallback is matched by registry id,
-# so deleting or renaming the server in registry/mcps.json breaks this too. ---
+# so deleting or renaming the server in registry/mcps.json breaks this too.
+#
+# Read out of the '## Resolve a provider ...' section, not the whole SKILL.md.
+# The routing this whole file exists to assert is the resolution order, and an
+# unscoped search let that order be deleted outright as long as the server id
+# survived anywhere else in the file. ---
 function Test-EachSkillNamesAFallbackThatCoversIt {
     $declarations = Get-SkillCapabilityDeclarations
     $capabilityCount = Get-DeclaredCapabilityCount -Declarations $declarations
@@ -279,9 +353,13 @@ function Test-EachSkillNamesAFallbackThatCoversIt {
     }
     $bad = [Collections.Generic.List[string]]::new()
     foreach ($declaration in $declarations) {
-        $namedServers = @($serverIds | Where-Object { $declaration.Text -match ('`' + [regex]::Escape($_) + '`') })
+        if ($null -eq $declaration.ResolutionSection) {
+            $bad.Add("$($declaration.Skill) has no '## $resolutionSectionHeadingPrefix ...' section, so it states no resolution order at all and there is nowhere for it to declare a fallback")
+            continue
+        }
+        $namedServers = @($serverIds | Where-Object { $declaration.ResolutionSection -match ('`' + [regex]::Escape($_) + '`') })
         if ($namedServers.Count -eq 0) {
-            $bad.Add("$($declaration.Skill) names no registered MCP server as its fallback provider")
+            $bad.Add("$($declaration.Skill) names no registered MCP server as its fallback provider in its '## $resolutionSectionHeadingPrefix ...' section")
             continue
         }
         $covered = @(
@@ -294,6 +372,85 @@ function Test-EachSkillNamesAFallbackThatCoversIt {
         if ($missing.Count -gt 0) {
             $bad.Add("$($declaration.Skill) falls back to $($namedServers -join '/'), which declares no providesCapabilities entry for: $($missing -join ', ')")
         }
+    }
+    if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
+    return @{ Passed = $true; Detail = $null }
+}
+
+# --- Behavior 6: the steps that run AFTER resolution work for whatever provider
+# was resolved.
+#
+# A resolution order at the top of the file means nothing if the steps below it
+# only make sense for one provider. Both defects this catches were real:
+# browser-debugging's workflow said "Use `list_pages`" -- a chrome-devtools tool
+# name, in steps that now also run on a natively resolved provider -- and
+# browser-evidence's said "the resolved provider's isolated headed Chrome
+# profile", when codex-desktop's surface records `browser.isolated` true and the
+# browser it drives is not Chrome. Either one silently converts the fallback
+# back into the only supported path, undoing the routing in the same file that
+# declares it.
+#
+# Two forms are forbidden, both scoped to the numbered steps:
+#   - a backticked snake_case identifier, which in this context is an MCP tool
+#     name and belongs to one server's API;
+#   - an engine or vendor browser name, which presumes what the resolved
+#     provider drives.
+# `chrome-devtools` itself is not caught by either (it is hyphenated, and it is
+# a registry id, not a tool name) -- naming the fallback in the resolution
+# section is the point. Matching is case-SENSITIVE and word-bounded on purpose:
+# 'edge' appears in "relevant edge state" in two of these skills, and a
+# case-insensitive search for the browser would have flagged it. ---
+$providerSpecificTerms = [ordered]@{
+    'Chrome'   = "presumes the resolved provider drives Chrome; codex-desktop records browser.isolated true and its built-in browser is not Chrome"
+    'Chromium' = 'same presumption, one layer down'
+    'Firefox'  = 'names an engine instead of the resolved provider'
+    'Edge'     = 'names an engine instead of the resolved provider'
+    'Safari'   = 'names an engine instead of the resolved provider'
+    'WebKit'   = 'names an engine instead of the resolved provider'
+}
+$mcpToolNamePattern = '`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`'
+function Find-ProviderSpecificSteps {
+    param($StepLines)
+    $found = [Collections.Generic.List[string]]::new()
+    foreach ($line in $StepLines) {
+        foreach ($term in $providerSpecificTerms.GetEnumerator()) {
+            if ([regex]::IsMatch($line, '\b' + [regex]::Escape([string]$term.Key) + '\b')) {
+                $found.Add("'$($term.Key)' -- $($term.Value)")
+            }
+        }
+        foreach ($tool in @([regex]::Matches($line, $mcpToolNamePattern))) {
+            $found.Add("``$($tool.Groups[1].Value)`` -- an MCP tool name belongs to one server's API, so the step only runs on that server")
+        }
+    }
+    return $found
+}
+function Test-PostResolutionStepsNameNoSpecificProvider {
+    $declarations = Get-SkillCapabilityDeclarations
+    if ($declarations.Count -eq 0) {
+        return @{ Passed = $false; Detail = 'no SKILL.md files were read, so this check inspected nothing; see behavior 1.' }
+    }
+    # Anti-vacuity for a negative check: prove the finder finds before trusting
+    # that it found nothing.
+    $control = @("1. Use ``list_pages`` in Chrome, then check the relevant edge state.")
+    $controlHits = @(Find-ProviderSpecificSteps -StepLines $control)
+    if ($controlHits.Count -ne 2) {
+        return @{ Passed = $false; Detail = "the provider-specific finder returned $($controlHits.Count) hit(s) [$($controlHits -join ' | ')] against a control step naming one tool and one browser (and one lowercase 'edge' it must ignore); it must return exactly those two, or a clean result against the real skills would mean nothing." }
+    }
+    $bad = [Collections.Generic.List[string]]::new()
+    $totalSteps = 0
+    foreach ($declaration in $declarations) {
+        if ($null -eq $declaration.PostResolutionText) {
+            $bad.Add("$($declaration.Skill) has no '## $resolutionSectionHeadingPrefix ...' section, so there is no post-resolution boundary to read its steps after")
+            continue
+        }
+        $stepLines = @(Get-NumberedStepLines -Text $declaration.PostResolutionText)
+        $totalSteps += $stepLines.Count
+        foreach ($hit in @(Find-ProviderSpecificSteps -StepLines $stepLines)) {
+            $bad.Add("$($declaration.Skill) states a step that names $hit")
+        }
+    }
+    if ($bad.Count -eq 0 -and $totalSteps -eq 0) {
+        return @{ Passed = $false; Detail = "the skills state zero numbered steps after their resolution sections, so this check inspected no steps at all. Either the workflows moved out of numbered lists or the post-resolution boundary stopped resolving." }
     }
     if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
     return @{ Passed = $true; Detail = $null }
@@ -313,6 +470,9 @@ Report 'each skill names a registered fallback provider that declares the capabi
 
 $r5 = Test-QuotedCapabilityMeaningsAreVerbatim
 Report 'every capability meaning a skill quotes is verbatim the registry definition' $r5.Passed $r5.Detail
+
+$r6 = Test-PostResolutionStepsNameNoSpecificProvider
+Report 'the numbered steps after resolution name no one provider''s tool or browser engine' $r6.Passed $r6.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

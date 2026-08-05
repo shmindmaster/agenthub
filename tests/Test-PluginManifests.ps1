@@ -75,60 +75,102 @@ function Test-EveryPluginPassesHostValidator {
 # --- Behavior 2: the check is not vacuous.
 #
 # Behavior 1 passing means little unless a genuinely broken manifest is
-# rejected. Mutate a real manifest into the exact shape that shipped broken,
-# confirm the validator fails it, and restore. Without this, a validator that
-# always exited 0 would look identical from the outside.
+# rejected. Mutate a manifest into the exact shape that shipped broken and
+# confirm the validator fails it. Without this, a validator that always exited 0
+# would look identical from the outside.
 #
-# This also captures the exact bytes read before the mutation and the exact
-# bytes present after the restore, and hands both to the caller. Behavior 3
-# depends on them explicitly (they travel in the returned hashtable) rather
-# than on being called after this function in file order. ---
+# The mutation happens on a COPY of the package in a temp directory, never on
+# the tracked file. `claude plugin validate` takes any directory path, so the
+# copy is as good a subject as the original -- and unlike the original, a run
+# killed mid-mutation leaves nothing behind but a temp directory. The earlier
+# version wrote the tracked manifest and restored it in a `finally`; a hard kill
+# bypasses `finally`, and the file it left broken is the one Claude Code then
+# refuses to load, in the user's live checkout.
+#
+# The copy is validated CLEAN first. Without that control the mutated copy's
+# rejection would be unattributable: a copy that fails validation for some
+# unrelated reason -- a missing referenced file, a path that did not survive the
+# copy -- would exit non-zero too, and this behavior would report a pass for a
+# rejection the mutation did not cause.
+#
+# The tracked manifest's bytes are read before and after regardless, and handed
+# to Behavior 3 along with the path actually written, so Behavior 3 depends on
+# them explicitly rather than on being called after this function in file
+# order. ---
+function New-EmptyResult([string]$Detail) {
+    return @{ Passed = $false; Detail = $Detail; MutatedPath = $null; TrackedManifest = $null; TrackedBytesBefore = $null; TrackedBytesAfter = $null }
+}
 function Test-HostValidatorRejectsABrokenManifest {
     $claude = Get-Command claude -ErrorAction SilentlyContinue
     if (-not $claude) {
-        return @{ Passed = $false; Detail = "the 'claude' CLI is not on PATH, so the anti-vacuity mutation could not be run."; Manifest = $null; PristineBytes = $null; RestoredBytes = $null }
+        return New-EmptyResult "the 'claude' CLI is not on PATH, so the anti-vacuity mutation could not be run."
     }
 
     $package = Get-PluginPackages | Where-Object { $_.Name -eq 'product-experience-engineering' } | Select-Object -First 1
     if (-not $package) {
-        return @{ Passed = $false; Detail = 'product-experience-engineering package not found; this mutation targets its agents array specifically.'; Manifest = $null; PristineBytes = $null; RestoredBytes = $null }
+        return New-EmptyResult 'product-experience-engineering package not found; this mutation targets its agents array specifically.'
     }
-    $manifest = Join-Path $package.FullName '.claude-plugin\plugin.json'
-    # Read and write through [IO.File] with an explicit BOM-free encoding, NOT
-    # Get-Content/Set-Content -Encoding UTF8. That parameter means UTF-8 WITHOUT
-    # a BOM in pwsh 7 and WITH one in Windows PowerShell 5.1, so the earlier
-    # version of this test restored a BOM under 5.1 that `claude plugin validate`
-    # then rejected with "Unrecognized token ''". The two shells alternated:
-    # 5.1 left the BOM, the next pwsh run failed on it and cleaned it up, and so
-    # on. A test that corrupts the artifact it validates, differently per shell,
-    # is the same defect class it was written to catch.
+    $trackedManifest = Join-Path $package.FullName '.claude-plugin\plugin.json'
+    $trackedBytesBefore = [IO.File]::ReadAllBytes($trackedManifest)
+
+    $scratchRoot = if ([string]::IsNullOrWhiteSpace($env:AGENTHUB_TEST_SCRATCH)) { [IO.Path]::GetTempPath() } else { $env:AGENTHUB_TEST_SCRATCH }
+    $workRoot = Join-Path $scratchRoot ("agenthub-plugin-mutation-" + [guid]::NewGuid().ToString('n'))
+    $copyRoot = Join-Path $workRoot $package.Name
+    $copyManifest = Join-Path $copyRoot '.claude-plugin\plugin.json'
+    # Write through [IO.File] with an explicit BOM-free encoding, NOT
+    # Set-Content -Encoding UTF8. That parameter means UTF-8 WITHOUT a BOM in
+    # pwsh 7 and WITH one in Windows PowerShell 5.1, and a BOM makes
+    # `claude plugin validate` fail with "Unrecognized token ''" -- which would
+    # be a rejection this mutation did not cause, in the one place a false pass
+    # is invisible.
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    $pristine = [IO.File]::ReadAllText($manifest)
-    $pristineBytes = [IO.File]::ReadAllBytes($manifest)
     $passed = $false
     $detail = $null
+    $mutatedPath = $null
 
     try {
-        # The exact defect that shipped: an array field written as a directory string.
-        $mutated = $pristine -replace '(?s)"agents"\s*:\s*\[.*?\]', '"agents": "./agents/"'
-        if ($mutated -eq $pristine) {
-            $detail = "could not mutate the agents array in $manifest -- the field shape changed, so this anti-vacuity check is no longer testing what it claims to."
+        $null = New-Item -ItemType Directory -Path $workRoot -Force
+        Copy-Item -LiteralPath $package.FullName -Destination $copyRoot -Recurse -Force
+        if (-not (Test-Path -LiteralPath $copyManifest -PathType Leaf)) {
+            $detail = "the copy of $($package.Name) under $workRoot has no .claude-plugin\plugin.json, so there was nothing to mutate."
         } else {
-            [IO.File]::WriteAllText($manifest, $mutated, $utf8NoBom)
-
-            $null = & claude plugin validate $package.FullName 2>&1
-            if ($LASTEXITCODE -eq 0) {
-                $detail = "'claude plugin validate' accepted a manifest with `"agents`" as a directory string -- the exact shape Claude Code rejects at load time. Behavior 1 therefore proves nothing."
+            $null = & claude plugin validate $copyRoot 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                $detail = "the UNMUTATED copy of $($package.Name) at $copyRoot was already rejected by 'claude plugin validate' (exit $LASTEXITCODE). The copy is not a faithful control, so a rejection after mutating it would prove nothing about the mutation."
             } else {
-                $passed = $true
+                $pristine = [IO.File]::ReadAllText($copyManifest)
+                # The exact defect that shipped: an array field written as a directory string.
+                $mutated = $pristine -replace '(?s)"agents"\s*:\s*\[.*?\]', '"agents": "./agents/"'
+                if ($mutated -eq $pristine) {
+                    $detail = "could not mutate the agents array in $copyManifest -- the field shape changed, so this anti-vacuity check is no longer testing what it claims to."
+                } else {
+                    [IO.File]::WriteAllText($copyManifest, $mutated, $utf8NoBom)
+                    $mutatedPath = $copyManifest
+
+                    $null = & claude plugin validate $copyRoot 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                        $detail = "'claude plugin validate' accepted a manifest with `"agents`" as a directory string -- the exact shape Claude Code rejects at load time. Behavior 1 therefore proves nothing."
+                    } else {
+                        $passed = $true
+                    }
+                }
             }
         }
     } finally {
-        [IO.File]::WriteAllText($manifest, $pristine, $utf8NoBom)
+        # Housekeeping only. Nothing tracked depends on this running: the only
+        # thing written was under $workRoot.
+        if (Test-Path -LiteralPath $workRoot) { Remove-Item -LiteralPath $workRoot -Recurse -Force -ErrorAction SilentlyContinue }
     }
 
-    $restoredBytes = [IO.File]::ReadAllBytes($manifest)
-    return @{ Passed = $passed; Detail = $detail; Manifest = $manifest; PristineBytes = $pristineBytes; RestoredBytes = $restoredBytes }
+    $trackedBytesAfter = [IO.File]::ReadAllBytes($trackedManifest)
+    return @{
+        Passed             = $passed
+        Detail             = $detail
+        MutatedPath        = $mutatedPath
+        TrackedManifest    = $trackedManifest
+        TrackedBytesBefore = $trackedBytesBefore
+        TrackedBytesAfter  = $trackedBytesAfter
+    }
 }
 
 function Test-BytesEqual([byte[]]$Left, [byte[]]$Right) {
@@ -143,45 +185,60 @@ function Test-HasUtf8Bom([byte[]]$Bytes) {
     return $Bytes.Length -ge 3 -and $Bytes[0] -eq 0xEF -and $Bytes[1] -eq 0xBB -and $Bytes[2] -eq 0xBF
 }
 
-# --- Behavior 3: this suite leaves the manifest exactly as it found it.
+# --- Behavior 3: this suite never writes to a tracked file.
 #
-# Behavior 2 edits a real tracked file. If its restore is imperfect in any way
-# -- a BOM, a line ending, a trailing newline -- the damage is committed by
-# whoever runs the suite next, and it presents as an unrelated failure later.
+# Behavior 2 used to mutate the REAL, TRACKED
+# packages/product-experience-engineering/.claude-plugin/plugin.json in whichever
+# checkout ran it, and rely on a `finally` to put it back. A hard-killed run --
+# Ctrl+C at the wrong instant, a killed shell, a crashed host -- bypasses
+# `finally` and leaves a manifest Claude Code then refuses to load, in the user's
+# live repository, with no failing test to say why. A test that can damage the
+# thing it validates is not a safe test at any restore fidelity, so the mutation
+# now happens on a copy outside the repository and this behavior checks BOTH
+# halves of that:
 #
-# This used to ask `git status --porcelain` about every plugin manifest in the
-# working tree. That is the wrong question: it asks whether ANYTHING is dirty,
-# not whether THIS mutation restored cleanly. A legitimate in-progress edit to
-# an unrelated manifest -- another agent's version bump, say -- made this
-# behavior fail and blame Behavior 2's restore for damage Behavior 2 never
-# caused. The right question is byte-for-byte: do the bytes captured before
-# Behavior 2 mutated the file match the bytes present after it restored the
-# file, using ReadAllBytes (not a text read, which can normalize away exactly
-# the BOM difference this guard exists to catch)? That question needs no git
-# call and is blind to everything else in the tree. ---
-function Test-SuiteLeavesManifestsUnmodified([hashtable]$MutationResult) {
-    if (-not $MutationResult.Manifest -or $null -eq $MutationResult.PristineBytes -or $null -eq $MutationResult.RestoredBytes) {
-        return @{ Passed = $false; Detail = 'Behavior 2 never reached the point of mutating a manifest (see its own failure above), so there are no captured before/after bytes to verify a restore of.' }
+#   - the path Behavior 2 actually wrote to is outside the repository root, so
+#     no `finally` is load-bearing for the tracked tree; and
+#   - the tracked manifest's bytes are identical before and after Behavior 2 ran,
+#     read with ReadAllBytes rather than as text, because a text read normalizes
+#     away exactly the BOM difference that a stray write would introduce
+#     (Set-Content -Encoding UTF8 writes a BOM in Windows PowerShell 5.1 and none
+#     in pwsh 7).
+#
+# The byte comparison is not redundant with the path check: the path check says
+# where Behavior 2 MEANT to write, and the byte check says what the tracked file
+# looks like regardless. Reproduced before this landed: with Behavior 2 still
+# mutating in place, the path half fails and names the tracked file. ---
+function Test-SuiteNeverWritesATrackedManifest([hashtable]$MutationResult) {
+    if (-not $MutationResult.MutatedPath -or -not $MutationResult.TrackedManifest -or
+        $null -eq $MutationResult.TrackedBytesBefore -or $null -eq $MutationResult.TrackedBytesAfter) {
+        return @{ Passed = $false; Detail = 'Behavior 2 never reached the point of mutating a manifest (see its own failure above), so there is no write location and no before/after bytes to check.' }
     }
 
-    $pristineBytes = $MutationResult.PristineBytes
-    $restoredBytes = $MutationResult.RestoredBytes
-    if (Test-BytesEqual $pristineBytes $restoredBytes) {
+    $mutatedPath = [IO.Path]::GetFullPath([string]$MutationResult.MutatedPath)
+    $repoPrefix = [IO.Path]::GetFullPath($repoRoot).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    if ($mutatedPath.StartsWith($repoPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        return @{ Passed = $false; Detail = "Behavior 2 mutated '$mutatedPath', which is inside the repository at '$repoRoot'. A run killed between the write and the restore leaves that file broken in the user's checkout -- and if it is the plugin manifest, Claude Code refuses to load the whole plugin. Mutate a copy outside the repository instead." }
+    }
+
+    $before = $MutationResult.TrackedBytesBefore
+    $after = $MutationResult.TrackedBytesAfter
+    if (Test-BytesEqual $before $after) {
         return @{ Passed = $true; Detail = $null }
     }
 
-    $pristineHasBom = Test-HasUtf8Bom $pristineBytes
-    $restoredHasBom = Test-HasUtf8Bom $restoredBytes
-    if ($pristineHasBom -ne $restoredHasBom) {
-        if ($restoredHasBom) {
-            $likelyCause = 'the restore added a UTF-8 BOM the original manifest did not have'
+    $beforeHasBom = Test-HasUtf8Bom $before
+    $afterHasBom = Test-HasUtf8Bom $after
+    if ($beforeHasBom -ne $afterHasBom) {
+        if ($afterHasBom) {
+            $likelyCause = 'a write added a UTF-8 BOM the tracked manifest did not have'
         } else {
-            $likelyCause = 'the restore dropped a UTF-8 BOM the original manifest had'
+            $likelyCause = 'a write dropped a UTF-8 BOM the tracked manifest had'
         }
     } else {
-        $likelyCause = "byte length differs ($($pristineBytes.Length) captured vs $($restoredBytes.Length) restored), or content differs at some offset without a BOM change"
+        $likelyCause = "byte length differs ($($before.Length) before vs $($after.Length) after), or content differs at some offset without a BOM change"
     }
-    return @{ Passed = $false; Detail = "the restore of $($MutationResult.Manifest) is not byte-identical to what Behavior 2 captured before mutating it -- $likelyCause. The likely cause is the write encoding: Set-Content -Encoding UTF8 (and similar) writes a BOM in Windows PowerShell 5.1 and none in pwsh 7, so a restore written under one shell can silently differ from what the other shell expects." }
+    return @{ Passed = $false; Detail = "the tracked manifest $($MutationResult.TrackedManifest) changed while this suite ran -- $likelyCause. Nothing in this suite may write to it." }
 }
 
 $r1 = Test-EveryPluginPassesHostValidator
@@ -190,8 +247,8 @@ Report 'every AgentHub plugin passes the host schema via claude plugin validate'
 $r2 = Test-HostValidatorRejectsABrokenManifest
 Report 'the host validator rejects a manifest broken the way one actually shipped' $r2.Passed $r2.Detail
 
-$r3 = Test-SuiteLeavesManifestsUnmodified $r2
-Report 'the suite restores every mutated manifest byte-identically' $r3.Passed $r3.Detail
+$r3 = Test-SuiteNeverWritesATrackedManifest $r2
+Report 'the suite mutates only a copy outside the repository and leaves the tracked manifest byte-identical' $r3.Passed $r3.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

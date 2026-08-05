@@ -2,9 +2,12 @@
 <#
 Behavior tests for the capability-routing section of global-agent-policy.md.
 
-That file is rendered byte-for-byte into all 22 hosts' instruction files by
-scripts/Sync-Instructions.ps1, so a sentence here is a sentence every agent
-surface reads. Two external proposals argued for native-first routing; their
+That file is rendered byte-for-byte into the instruction file of every
+registered host that has one, by scripts/Sync-Instructions.ps1, so a sentence
+here is a sentence those agent surfaces read. Not all 22: `Sync-Instructions.ps1
+-Audit` reported `total=22, workSet=15, skipped=7 (no destination)` on
+2026-08-04, so 15 files carry it and seven registered hosts have nowhere to
+render it to. Two external proposals argued for native-first routing; their
 durable principles are kept, and the factual claims they got wrong about this
 machine must never be reintroduced. These tests hold both ends: the principle
 is stated, and the wrong claims stay out.
@@ -41,6 +44,7 @@ $policyText = [IO.File]::ReadAllText($policyPath).Replace("`r`n", "`n")
 
 $fleet  = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$mcps   = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\mcps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 
 # The empty-string filter is not decoration, and it belongs on EVERY set derived
 # from the registry. Reading a missing property yields $null, and $null in a
@@ -161,8 +165,9 @@ function Test-SectionStatesTheRoutingPrinciple {
 # phrase below is a specific claim that was checked on this machine and did not
 # hold; the reason is carried with the phrase so a future author can see what
 # would have to change before the claim becomes sayable. Because
-# global-agent-policy.md reaches all 22 hosts, a product name written here is a
-# routing instruction 22 surfaces would follow into nothing. ---
+# global-agent-policy.md reaches every host with an instruction-file
+# destination, a product name written here is a routing instruction each of
+# those surfaces would follow into nothing. ---
 $unevidencedClaims = [ordered]@{
     'Claude in Chrome' = 'browser.authenticated is recorded false for claude-cli in registry/fleet-profile.json -- list_connected_browsers returned an empty array, so the product exists and the capability does not'
     'agent teams'      = 'Claude agent teams are experimental and inert unless CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, which is not set on this machine'
@@ -226,8 +231,8 @@ function Test-RoutingResolvesCapabilitiesInsteadOfNamingProducts {
 # earned by getting it wrong in this very bullet. `claude plugin --help` reports
 # two distinct commands: "disable [options] [plugin]  Disable an enabled plugin"
 # and "uninstall|remove [options] <plugin>  Uninstall an installed plugin". A
-# policy that says disable removes a plugin sends 22 instruction files an agent
-# that disables a plugin and reports it removed.
+# policy that says disable removes a plugin sends every rendered instruction
+# file an agent that disables a plugin and reports it removed.
 #
 # The two halves are scoped differently, on purpose, and the difference is the
 # whole point. The REQUIRED phrases are matched against the management bullet
@@ -246,7 +251,14 @@ function Test-RoutingResolvesCapabilitiesInsteadOfNamingProducts {
 $managementSurfaceAnchor = 'management surface'
 $managementSurfacePhrases = [ordered]@{
     'the authoritative manifest checker is named' = 'claude plugin validate'
-    'the non-interactive management command is named' = 'claude plugin disable'
+    # With its argument, because the argument is what the non-interactive claim
+    # rests on. `claude plugin disable --help` reports
+    # "Usage: claude plugin disable [options] [plugin]" -- SQUARE brackets, so
+    # the plugin argument is optional and a bare invocation does prompt. The
+    # bullet claimed the command runs "without an interactive dialog" full stop,
+    # which is true only when a plugin is named. Requiring the argument form
+    # keeps the claim and its condition in the same breath.
+    'the non-interactive management command is named, with the argument that makes it non-interactive' = 'claude plugin disable <plugin>'
     # Round 3: the anchor above only proves the words 'management surface' occur.
     # Replacing the instruction with its inversion -- "A management surface may be
     # assumed absent when none is obvious" -- keeps the anchor and used to pass,
@@ -342,7 +354,7 @@ function Test-ContinuousExecutionIsGatedOnTheAutonomyProfile {
         return @{ Passed = $false; Detail = 'registry/fleet-profile.json declares no autonomyProfiles.knownDefaultProfiles, so any profile name the policy invented would validate.' }
     }
     if ($gatedProfileName -notin $knownDefaultProfiles) {
-        return @{ Passed = $false; Detail = "the policy gates on the '$gatedProfileName' profile, which registry/fleet-profile.json no longer lists in autonomyProfiles.knownDefaultProfiles ($($knownDefaultProfiles -join ', ')). The policy and the registry have drifted apart: the sentence rendered into 22 instruction files names a profile nothing assigns." }
+        return @{ Passed = $false; Detail = "the policy gates on the '$gatedProfileName' profile, which registry/fleet-profile.json no longer lists in autonomyProfiles.knownDefaultProfiles ($($knownDefaultProfiles -join ', ')). The policy and the registry have drifted apart: the sentence rendered into the fleet's instruction files names a profile nothing assigns." }
     }
     if ($interactiveHostIds.Count -eq 0) {
         return @{ Passed = $false; Detail = "anti-vacuity: registry/fleet-profile.json marks zero hosts '$gatedProfileName', so the gate applies to no host and this behavior would be asserting nothing." }
@@ -364,20 +376,29 @@ function Test-ContinuousExecutionIsGatedOnTheAutonomyProfile {
     return @{ Passed = $true; Detail = $null }
 }
 
-# --- Behavior 5: if the policy names a host at all, the registry must agree
-# that host is gated.
+# --- Behavior 5: if the policy writes a host ID as an identifier, the registry
+# must agree that host is gated.
 #
 # The proposals named products and hosts inline. A hardcoded host list in a file
-# rendered to 22 instruction files goes stale the moment fleet-profile.json
-# changes, and stale here means a host is told it may run unattended when its
-# profile says otherwise. Naming no host passes; naming a host the registry does
-# not mark gated does not. ---
-function Get-UngatedHostsNamedIn {
+# rendered into the fleet's instruction files goes stale the moment
+# fleet-profile.json changes, and stale here means a host is told it may run
+# unattended when its profile says otherwise.
+#
+# The scope is BACKTICKED HOST IDS -- the identifier form the registry itself
+# uses -- and the label says so, because the section does name a host in prose:
+# "On Claude Code, `claude plugin validate` ...", and `claude` is not marked
+# interactive. That sentence is required content (the management-CLI bullet has
+# to say whose CLI it documents), so widening this guard to display names in
+# prose would forbid the thing Behavior 3 requires. The guard was already
+# id-scoped; what was wrong was the label claiming it covered every naming of a
+# host. An identifier is what a reader would copy into a config or a dispatch
+# list, and a stale copy of the gated-host list is what this exists to stop. ---
+function Get-UngatedHostIdsWrittenIn {
     param([string]$Text)
     $named = @([regex]::Matches($Text, '`([^`]+)`') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
     return @($named | Where-Object { $_ -in $registeredHostIds -and $_ -notin $interactiveHostIds })
 }
-function Test-NoHostIsNamedThatTheRegistryDoesNotGate {
+function Test-NoHostIdIsWrittenThatTheRegistryDoesNotGate {
     $section = Get-RoutingSection
     if ($null -eq $section) {
         return @{ Passed = $false; Detail = "global-agent-policy.md has no '$routingHeading' section." }
@@ -392,13 +413,13 @@ function Test-NoHostIsNamedThatTheRegistryDoesNotGate {
     $gatedControl = $interactiveHostIds[0]
     # @() at the call site because PowerShell unrolls a one-element result into
     # a bare string, and indexing a bare string yields its first character.
-    $controlHits = @(Get-UngatedHostsNamedIn -Text "control: ``$ungatedControl`` and ``$gatedControl``")
+    $controlHits = @(Get-UngatedHostIdsWrittenIn -Text "control: ``$ungatedControl`` and ``$gatedControl``")
     if ($controlHits.Count -ne 1 -or $controlHits[0] -ne $ungatedControl) {
-        return @{ Passed = $false; Detail = "the host-name finder returned [$($controlHits -join ', ')] for a control naming the ungated host '$ungatedControl' and the gated host '$gatedControl'; it must return exactly the ungated one, or a clean result against the real section means nothing." }
+        return @{ Passed = $false; Detail = "the host-id finder returned [$($controlHits -join ', ')] for a control writing the ungated host id '$ungatedControl' and the gated host id '$gatedControl'; it must return exactly the ungated one, or a clean result against the real section means nothing." }
     }
-    $found = @(Get-UngatedHostsNamedIn -Text $section)
+    $found = @(Get-UngatedHostIdsWrittenIn -Text $section)
     if ($found.Count -gt 0) {
-        return @{ Passed = $false; Detail = "the routing section names host(s) [$($found -join ', ')] that registry/fleet-profile.json does not mark '$gatedProfileName'. Either the registry changed under the policy, or the policy is carrying a hand-maintained host list that will go stale in 22 instruction files at once." }
+        return @{ Passed = $false; Detail = "the routing section writes host id(s) [$($found -join ', ')] as identifiers, and registry/fleet-profile.json does not mark them '$gatedProfileName'. Either the registry changed under the policy, or the policy is carrying a hand-maintained host list that will go stale in every rendered instruction file at once." }
     }
     return @{ Passed = $true; Detail = $null }
 }
@@ -445,6 +466,57 @@ function Test-EscalationGateIsNotRelaxed {
     return @{ Passed = $true; Detail = $null }
 }
 
+# --- Behavior 7: the preference order says which of two first-party providers
+# wins, and cites the registry rule that decides it.
+#
+# The two halves of this branch contradicted each other on the one decision it
+# exists to make. The ordering bullet ranked "first-party plugins, skills, and
+# MCP servers" ABOVE "a first-party browser" and closed "take the highest step
+# that can" -- while all three browser-toolkit skills resolve the opposite way,
+# the surface's own browser first and the `chrome-devtools` MCP server only as a
+# fallback. Neither artifact defined "first-party", so both readings were
+# defensible, and an agent on claude-cli or codex-desktop (both recording
+# `browser.isolated: true`) reading only the policy would start the npx server
+# the skills exist to avoid. The policy reaches all hosts; the skills reach only
+# hosts carrying browser-toolkit, so the policy is the half that had to move.
+#
+# The tiebreak is not a preference invented here: registry/mcps.json ->
+# activationPolicy prefers a shared remote endpoint over a local process, one
+# shared local process over per-host duplicates, and a capability-invoked start
+# over a session-start one. This behavior checks the policy states the tiebreak
+# AND that the registry still says what the policy cites it as saying, so the
+# two cannot drift apart silently. ---
+$preferenceOrderAnchor = 'Prefer, in this order'
+$activationTiebreakPhrases = [ordered]@{
+    'a capability the surface already provides outranks one that must be started' = 'already provides'
+    'the tiebreak names the registry rule that decides it'                        = 'activationPolicy'
+    'and the file that carries that rule'                                         = 'registry/mcps.json'
+}
+$sharedRemotePreference = 'shared-remote'
+$onDemandLocalPreference = 'on-demand-local'
+function Test-PreferenceOrderRanksSurfaceProvidedAboveLocallyStarted {
+    $section = Get-RoutingSection
+    if ($null -eq $section) {
+        return @{ Passed = $false; Detail = "global-agent-policy.md has no '$routingHeading' section." }
+    }
+    $activationPreference = @(@($mcps.activationPolicy.preferenceOrder) | Select-NonBlank)
+    if ($activationPreference.Count -eq 0) {
+        return @{ Passed = $false; Detail = 'anti-vacuity: registry/mcps.json declares no activationPolicy.preferenceOrder, so the policy would be citing a rule that no longer exists and this check would be comparing against nothing.' }
+    }
+    if ($activationPreference[0] -ne $sharedRemotePreference -or $onDemandLocalPreference -notin $activationPreference) {
+        return @{ Passed = $false; Detail = "registry/mcps.json activationPolicy.preferenceOrder is [$($activationPreference -join ', ')], which no longer prefers '$sharedRemotePreference' over '$onDemandLocalPreference'. The routing bullet tells every host that a locally started server is the fallback because of that rule; if the rule inverted, the sentence rendered into the fleet's instruction files is now false." }
+    }
+    $orderBullet = Get-SectionBullet -Anchor $preferenceOrderAnchor
+    if ($null -eq $orderBullet) {
+        return @{ Passed = $false; Detail = "the routing section has no single bullet anchored on '$preferenceOrderAnchor', so there is no ordering bullet to carry the tiebreak between a capability the surface provides and one a local server would provide." }
+    }
+    $missing = @(Find-MissingPhrases -Text $orderBullet -Phrases $activationTiebreakPhrases)
+    if ($missing.Count -gt 0) {
+        return @{ Passed = $false; Detail = "the ordering bullet does not resolve first-party surface against first-party server: $($missing -join '; '). Without it the bullet ranks MCP servers above a browser while packages/browser-toolkit's skills resolve the surface's own browser first, and a host reading only the policy starts a local process it does not need. Bullet as written: '$orderBullet'" }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r1 = Test-SectionStatesTheRoutingPrinciple
 Report 'the policy states the capability-routing principle and its preference order' $r1.Passed $r1.Detail
 
@@ -457,11 +529,14 @@ Report "the host's own management CLI is named as a first-party surface" $r3.Pas
 $r4 = Test-ContinuousExecutionIsGatedOnTheAutonomyProfile
 Report 'continuous execution is gated on the autonomy profile the registry actually declares' $r4.Passed $r4.Detail
 
-$r5 = Test-NoHostIsNamedThatTheRegistryDoesNotGate
-Report 'the routing section names no host the registry does not mark interactive' $r5.Passed $r5.Detail
+$r5 = Test-NoHostIdIsWrittenThatTheRegistryDoesNotGate
+Report 'the routing section writes no host ID as an identifier that the registry does not mark interactive' $r5.Passed $r5.Detail
 
 $r6 = Test-EscalationGateIsNotRelaxed
 Report 'the existing escalation gate survives verbatim and the routing section defers to it' $r6.Passed $r6.Detail
+
+$r7 = Test-PreferenceOrderRanksSurfaceProvidedAboveLocallyStarted
+Report 'the preference order ranks a capability the surface already provides above one a local server would start, as the skills do' $r7.Passed $r7.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

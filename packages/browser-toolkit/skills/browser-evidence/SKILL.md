@@ -43,8 +43,9 @@ natively must not start one it never uses.
 
 1. Record build SHA, environment, role, URL, synthetic dataset, locale, timezone,
    viewport, zoom, color scheme, and reduced-motion setting.
-2. Use the resolved provider's isolated headed Chrome profile. Do not expose normal
-   personal Chrome state, unrelated tabs, credentials, or customer data.
+2. Use the resolved provider's own isolated, headed profile, whatever browser it
+   drives. Do not expose personal browser state, unrelated tabs, credentials, or
+   customer data.
 3. Capture a structural snapshot and screenshot before interaction. Use the snapshot
    for element identity and the screenshot for visual-model inspection of hierarchy,
    clipping, overlap, density, focus, feedback, and responsive behavior.

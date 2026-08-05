@@ -44,8 +44,9 @@ natively must not start one it never uses.
 ## Workflow
 
 1. Record the build, URL, role, synthetic identity, viewport, and reproduction.
-2. Use `list_pages`, select the target page, wait for the expected state, then take
-   both a snapshot and screenshot. Refresh the snapshot after DOM changes.
+2. List the resolved provider's open pages, select the target page, wait for the
+   expected state, then take both a snapshot and screenshot. Refresh the snapshot
+   after DOM changes.
 3. Reproduce with natural clicks, typing, hover, focus, and keyboard navigation.
 4. Correlate visible state with console messages and network requests. Inspect only
    relevant request details and redact credentials, cookies, tokens, and private data.
