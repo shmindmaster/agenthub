@@ -8,7 +8,8 @@ registry/fleet-profile.json's hostSurfaces matrix was added with no consumer.
 A capability table that is declared, shape-validated (tests/Test-HostSurfaces.ps1)
 and never resolved by anything looks like capability awareness while changing no
 behavior. These tests assert the routing is real: every capability a skill names
-is vocabulary the matrix knows, and something actually provides it.
+is vocabulary the matrix knows, something actually provides it, and a surface --
+not only the fallback -- is among the things that do.
 
 Not a Pester suite: see tests/Test-RegistryContentHash.ps1 for why. Same
 accumulate-and-report idiom -- one PASS/FAIL line per behavior, exit 1 if any
@@ -221,6 +222,33 @@ function Test-DeclaredCapabilitiesAreKnown {
     return @{ Passed = $true; Detail = $null }
 }
 
+# The two kinds of provider, kept separate so a caller can ask about either one
+# alone. Behavior 3 merges them (does anything provide this at all?); behavior 7
+# needs them apart, because "a surface provides it" and "the fallback provides
+# it" are the two steps of the resolution order and conflating them is the gap
+# behavior 7 exists to close.
+function Add-SurfaceProviders {
+    param([hashtable]$Providers)
+    foreach ($surface in @($fleet.hostSurfaces.surfaces)) {
+        foreach ($property in @($surface.capabilities.PSObject.Properties)) {
+            if ($property.Value -is [bool] -and $property.Value) {
+                if (-not $Providers.ContainsKey($property.Name)) { $Providers[$property.Name] = [Collections.Generic.List[string]]::new() }
+                $Providers[$property.Name].Add("surface:$($surface.surfaceId)")
+            }
+        }
+    }
+}
+function Add-McpProviders {
+    param([hashtable]$Providers)
+    foreach ($server in @($mcps.mcpServers)) {
+        foreach ($capability in @($server.providesCapabilities)) {
+            if ([string]::IsNullOrWhiteSpace([string]$capability)) { continue }
+            if (-not $Providers.ContainsKey([string]$capability)) { $Providers[[string]$capability] = [Collections.Generic.List[string]]::new() }
+            $Providers[[string]$capability].Add("mcp:$($server.id)")
+        }
+    }
+}
+
 # --- Behavior 3: every capability a skill names has at least one real provider.
 #
 # A provider is a surface recording the capability `true`, or an MCP server
@@ -232,21 +260,8 @@ function Test-DeclaredCapabilitiesAreKnown {
 # on this machine (no connected browser), and null where nothing was probed. ---
 function Test-DeclaredCapabilitiesHaveAProvider {
     $providers = @{}
-    foreach ($surface in @($fleet.hostSurfaces.surfaces)) {
-        foreach ($property in @($surface.capabilities.PSObject.Properties)) {
-            if ($property.Value -is [bool] -and $property.Value) {
-                if (-not $providers.ContainsKey($property.Name)) { $providers[$property.Name] = [Collections.Generic.List[string]]::new() }
-                $providers[$property.Name].Add("surface:$($surface.surfaceId)")
-            }
-        }
-    }
-    foreach ($server in @($mcps.mcpServers)) {
-        foreach ($capability in @($server.providesCapabilities)) {
-            if ([string]::IsNullOrWhiteSpace([string]$capability)) { continue }
-            if (-not $providers.ContainsKey([string]$capability)) { $providers[[string]$capability] = [Collections.Generic.List[string]]::new() }
-            $providers[[string]$capability].Add("mcp:$($server.id)")
-        }
-    }
+    Add-SurfaceProviders -Providers $providers
+    Add-McpProviders -Providers $providers
     if ($providers.Count -eq 0) {
         return @{ Passed = $false; Detail = 'nothing in the fleet provides any capability -- no surface records one true and no MCP server declares providesCapabilities.' }
     }
@@ -456,6 +471,66 @@ function Test-PostResolutionStepsNameNoSpecificProvider {
     return @{ Passed = $true; Detail = $null }
 }
 
+# --- Behavior 7: every capability a skill declares is reachable NATIVELY --
+# recorded true on at least one hostSurfaces surface -- and not only through the
+# MCP fallback.
+#
+# Behavior 3 asks whether anything at all provides a declared capability, and
+# `chrome-devtools`' providesCapabilities answers yes on its own. So every
+# surface in the fleet could stop offering `browser.isolated` and behavior 3
+# would still pass: reproduced by flipping both `"browser.isolated": true`
+# entries to false, which left this file at 6 passed, 0 failed. That deletes
+# step 1 of the resolution order every skill documents -- the running surface's
+# own provider -- fleet-wide, and the routing degenerates into "always start the
+# local process", which is what registry/mcps.json's activationPolicy (remote
+# over local, capability-invoked over session-start) exists to avoid: a browser
+# process spawned per host costs CPU and memory on sessions that never use it.
+#
+# Deliberately NOT tied to a named surface. browser.authenticated is recorded
+# false for claude-cli on measured evidence (no connected browser), and a check
+# that demanded a particular host would fail on a true reading of the fleet. The
+# claim is that the capability is natively reachable SOMEWHERE.
+#
+# Per-capability, not fleet-wide: a capability that keeps its own surface
+# providers must not be named by a failure about a different one, and only
+# capabilities a skill actually declares are in scope -- a knownCapabilities
+# entry no skill routes on is vocabulary, not a live requirement. ---
+function Test-DeclaredCapabilitiesHaveASurfaceProvider {
+    $surfaceProviders = @{}
+    $mcpProviders = @{}
+    Add-SurfaceProviders -Providers $surfaceProviders
+    Add-McpProviders -Providers $mcpProviders
+    $declarations = Get-SkillCapabilityDeclarations
+    $capabilityCount = Get-DeclaredCapabilityCount -Declarations $declarations
+    if ($capabilityCount -eq 0) {
+        return @{ Passed = $false; Detail = "the skills declare zero capabilities between them ($($declarations.Count) SKILL.md file(s) read), so this check would confirm native reachability of nothing; see behavior 1." }
+    }
+    # Which skills asked for what, so a finding names the callers that lose the
+    # native path rather than just the capability in the abstract.
+    $declaredBy = [ordered]@{}
+    foreach ($declaration in $declarations) {
+        foreach ($capability in $declaration.Capabilities) {
+            if (-not $declaredBy.Contains($capability)) { $declaredBy[$capability] = [Collections.Generic.List[string]]::new() }
+            $declaredBy[$capability].Add($declaration.Skill)
+        }
+    }
+    $bad = [Collections.Generic.List[string]]::new()
+    foreach ($capability in @($declaredBy.Keys)) {
+        if ($surfaceProviders.ContainsKey($capability)) { continue }
+        $askers = "declared by $($declaredBy[$capability] -join ', ')"
+        # The two findings are different failures and must not share a message.
+        # "no provider" when the truth is "only the fallback" sends the reader
+        # looking for an unroutable requirement instead of a dead native path.
+        if ($mcpProviders.ContainsKey($capability)) {
+            $bad.Add("'$capability' ($askers) is recorded true on no surface in hostSurfaces -- only the MCP fallback(s) $($mcpProviders[$capability] -join ', ') still provide it, so step 1 of the documented resolution order (the running surface's own provider) is dead fleet-wide and every host would start the local process")
+        } else {
+            $bad.Add("'$capability' ($askers) is recorded true on no surface in hostSurfaces and no MCP server declares it either, so it has neither a native path nor a fallback; see behavior 3")
+        }
+    }
+    if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r1 = Test-EverySkillDeclaresACapability
 Report 'every browser-toolkit skill states the capability it requires' $r1.Passed $r1.Detail
 
@@ -473,6 +548,9 @@ Report 'every capability meaning a skill quotes is verbatim the registry definit
 
 $r6 = Test-PostResolutionStepsNameNoSpecificProvider
 Report 'the numbered steps after resolution name no backticked MCP tool name and no browser engine name' $r6.Passed $r6.Detail
+
+$r7 = Test-DeclaredCapabilitiesHaveASurfaceProvider
+Report 'every capability a skill names is recorded true on at least one surface, not served only by the MCP fallback' $r7.Passed $r7.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
