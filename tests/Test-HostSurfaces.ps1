@@ -35,9 +35,32 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 
 $fleet  = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
 $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw | ConvertFrom-Json
-$registeredHostIds = @(@($agents.activeAgents | ForEach-Object id) + @($agents.inactiveAgents | ForEach-Object id))
+
+# @($null) | ForEach-Object id emits a phantom empty entry rather than
+# nothing, and @($null) has Count -eq 1, not 0. If the `id` key under
+# activeAgents/inactiveAgents were ever missing or renamed, the naive
+# build below would silently yield a set of blanks instead of an empty
+# set. Filtering out blank/whitespace entries makes a missing key produce
+# a genuinely empty collection, so the anti-vacuity guard right after this
+# can actually detect that case instead of finding phantom "coverage".
+$rawHostIds = @($agents.activeAgents | ForEach-Object { [string]$_.id }) + @($agents.inactiveAgents | ForEach-Object { [string]$_.id })
+$registeredHostIds = @($rawHostIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
 function Get-Surfaces { @($fleet.hostSurfaces.surfaces) }
+
+# --- Guard (anti-vacuity for the host-id set itself): registeredHostIds
+# must be non-empty, or every "-notin $registeredHostIds" check below in
+# Behavior 1 passes over nothing -- a bogus or unregistered hostId in
+# fleet-profile.json would look identical to a genuinely registered one
+# because there would be no real ids left to fail the membership test
+# against. This is the guard the phantom-null shape above would otherwise
+# defeat. ---
+function Test-RegisteredHostIdSetIsNonEmpty {
+    if ($registeredHostIds.Count -eq 0) {
+        return @{ Passed = $false; Detail = 'registeredHostIds resolved to an empty set from agents.json activeAgents/inactiveAgents. An empty set here makes the unregistered-hostId membership check below vacuous: it would pass any hostId, real or bogus, because there is nothing left to fail against.' }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
 
 # --- Behavior 1: the table exists, is non-empty, and every surface names a
 # registered host. A surface pointing at a host that no longer exists routes
@@ -132,6 +155,9 @@ function Test-TableDistinguishesPresentFromAbsent {
     }
     return @{ Passed = $true; Detail = $null }
 }
+
+$r0 = Test-RegisteredHostIdSetIsNonEmpty
+Report 'the registered host-id set is non-empty' $r0.Passed $r0.Detail
 
 $r1 = Test-SurfacesResolveToRegisteredHosts
 Report 'every declared surface resolves to a registered host' $r1.Passed $r1.Detail
