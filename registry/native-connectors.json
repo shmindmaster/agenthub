@@ -103,22 +103,26 @@
       },
       {
         "id": "oauth-grant-revocation",
-        "action": "revoke OAuth grants at the provider",
+        "action": "revoke the OAuth grant for a connector the owner removed",
         "targets": [
-          "Linear",
-          "Notion",
-          "Descript"
+          "Figma"
         ],
-        "surface": "each provider's own account security settings",
+        "surface": "the provider's own account security / connected-applications page",
         "authorizedOn": "2026-08-04",
-        "authorization": "Follows from the owner's connector reduction: a disconnected connector whose grant is still live remains an outstanding authorization against the owner's account.",
+        "authorization": "Owner instruction, verbatim: 'remove Atlassian, Asana, Slack and Figma as well'. A removal whose grant is still live leaves an authorization standing against the owner's account, so the grant is part of what was asked for.",
+        "scopeCorrection": {
+          "correctedOn": "2026-08-05",
+          "was": "targets were Linear, Notion and Descript; authorization read 'Follows from the owner's connector reduction: a disconnected connector whose grant is still live remains an outstanding authorization against the owner's account.'",
+          "why": "That sentence is an inference, not an instruction, and every other entry in this file quotes the owner verbatim. The entry manufactured its own authorization and then sat beside genuinely authorized ones, where the difference is invisible. Worse, the inference was false on its facts: the owner never asked for Linear, Notion or Descript to be removed, and claude mcp list on 2026-08-05 shows Linear and Notion CONNECTED and in active use in the same session that was treating their revocation as unfinished work. Acting on this entry would have broken two working integrations to satisfy a completion condition.",
+          "lesson": "An ownerActionRequired entry is a claim that the owner wants something. Deriving one from a related request is how a to-do list grows items nobody asked for -- and an entry that cannot quote its instruction should not be able to look like one that can."
+        },
         "fleetSideStatus": "not-applicable",
-        "fleetSideEvidence": "These three remain in registry/mcps.json as intended; this entry is about grant hygiene, not deregistration. Their protocol.revision is null with recorded evidence, because all three answer 401 before protocol negotiation.",
+        "fleetSideEvidence": "Figma is not registered in registry/mcps.json and never was; it reached sessions through an account-level plugin bundle, per account-level-plugin-servers in this file. This entry is grant hygiene at the provider, not deregistration here.",
         "agentHubCanPerform": false,
-        "blockedBy": "Revocation is provider-side only. Deleting a cached token locally ends the local session and leaves the grant standing.",
+        "blockedBy": "No authenticated figma.com session exists on this machine, and entering the owner's credentials is prohibited.",
         "blockerVerifiedOn": "2026-08-05",
-        "blockerVerification": "OAuth grant revocation is defined by the provider's authorization server; no local file operation reaches it. Recorded as a property of the protocol rather than a probe result, because probing would mean authenticating as the owner.",
-        "ownerStep": "In each provider's account security or connected-applications page, revoke the Claude authorization.",
+        "blockerVerification": "Probed, not assumed. Navigated the in-app browser to figma.com/settings on 2026-08-05; it resolved to 'Login | Figma'. This replaces an earlier claim that the blocker was 'a property of the protocol rather than a probe result, because probing would mean authenticating as the owner' -- which was wrong twice over: loading a settings page is not authenticating, and the same reasoning had already produced eight refusals on the connector removals before the owner simply signed in and the work took four minutes.",
+        "ownerStep": "Sign in at figma.com, then Settings -> Security -> Authorized applications (or the connected-apps equivalent) and revoke the Claude authorization. If a session is signed in to the in-app browser, AgentHub can drive this the same way it removed the connector on claude.ai -- the missing piece is the session, not the capability.",
         "completedOn": null
       },
       {
@@ -189,7 +193,28 @@
         "ownerStep": "Decide per bundle in claude.ai settings, using bundleContents above -- a bundle is all-or-nothing. The three that matter for the owner's stated goal: engineering carries Atlassian but also Datadog and PagerDuty; marketing carries Figma but also six analytics and SEO servers; small-business carries Slack but also Stripe, QuickBooks, PayPal and four more. Dropping a bundle to remove one server removes every other server in it.",
         "completedOn": null
       }
-    ]
+    ],
+    "notActions": {
+      "recordedOn": "2026-08-05",
+      "rationale": "Things that were once listed as owner actions and should not have been. Kept so the same inference is not made again from the same starting facts.",
+      "entries": [
+        {
+          "targets": [
+            "Linear",
+            "Notion"
+          ],
+          "claimWas": "revoke OAuth grants at the provider",
+          "whyNot": "Never requested by the owner, and both are live: claude mcp list on 2026-08-05 reports Linear and Notion as Connected, and both are registered in registry/mcps.json as intended. Revoking would break working integrations to close an item nobody opened."
+        },
+        {
+          "targets": [
+            "Descript"
+          ],
+          "claimWas": "revoke OAuth grants at the provider",
+          "whyNot": "Never requested by the owner. It is registered in registry/mcps.json as intended and currently reports 'Needs authentication', so there may be no live grant to revoke at all -- but that is a reason to leave it alone, not a reason to act."
+        }
+      ]
+    }
   },
   "bundledServerSuppressions": [],
   "skillsOnlyPlugins": [

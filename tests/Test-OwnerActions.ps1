@@ -205,6 +205,59 @@ function Test-CompletionsAreDated {
     return @{ Passed = $true; Detail = $null }
 }
 
+# --- Behavior 7: an entry may not manufacture its own authorization.
+#
+# Every entry here is a claim that the OWNER wants something. The honest form
+# quotes them. The dishonest form derives the want from a related request and
+# reads identically -- same fields, same confidence, same position in the list.
+#
+# This is written from a live one. oauth-grant-revocation carried
+# authorization = "Follows from the owner's connector reduction: a
+# disconnected connector whose grant is still live remains an outstanding
+# authorization against the owner's account." Reasonable-sounding, and false
+# on its facts: the owner had never mentioned Linear, Notion or Descript, and
+# `claude mcp list` showed Linear and Notion CONNECTED and in use in the same
+# session that was treating their revocation as unfinished work. Acting on it
+# would have broken two working integrations to close an item nobody opened.
+#
+# So: a word like "follows", "implies" or "derived" in the authorization text
+# is the tell. It is not banned -- an entry may legitimately explain an
+# inference -- but it must then also carry the verbatim instruction it infers
+# FROM, so a reader can judge the leap instead of inheriting it.
+#
+# The first version of this check tested for a quote CHARACTER and passed
+# against the very entry that motivated it: "...against the owner's account"
+# supplied an apostrophe, and a possessive is not a quotation. Testing for a
+# paired span fails the same way -- two possessives bracket a sentence. So the
+# check is for this file's actual convention, the literal word "verbatim",
+# which cannot be produced by ordinary prose about an owner. A guard that
+# cannot fail is the defect this repository keeps finding in itself; this one
+# was, briefly, and the converse run is what caught it. ---
+$InferenceWords = @('follows from', 'implied', 'implies', 'inferred', 'derived from', 'consistent with', 'presumably')
+function Test-NoEntryInventsItsAuthorization {
+    $bad = [Collections.Generic.List[string]]::new()
+    $checked = 0
+    foreach ($action in Get-Actions) {
+        $id = [string]$action.id
+        $text = [string]$action.authorization
+        if ([string]::IsNullOrWhiteSpace($text)) { continue }
+        $checked++
+        $hit = @($InferenceWords | Where-Object { $text -match [regex]::Escape($_) })
+        if ($hit.Count -eq 0) { continue }
+        # An inference is allowed only when the instruction it rests on is
+        # reproduced in the same field, marked with this file's convention:
+        # "Owner instruction, verbatim: '...'".
+        if ($text -notmatch 'verbatim') {
+            $bad.Add("$id derives its authorization ('$($hit -join "', '")') without reproducing the instruction it derives from. Quote the owner and mark it verbatim, or drop the entry. An entry that cannot quote its instruction must not sit beside ones that can -- they look identical to a reader deciding what to act on")
+        }
+    }
+    if ($checked -eq 0) {
+        return @{ Passed = $false; Detail = 'no entry carries an authorization string at all, so this behavior scanned nothing. At least one entry here exists because the owner asked for it.' }
+    }
+    if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r1 = Test-BlockRecordsActions
 Report 'the ownerActionRequired block exists and records at least one action' $r1.Passed $r1.Detail
 
@@ -222,6 +275,9 @@ Report 'authorization date and quoted instruction are present together or not at
 
 $r6 = Test-CompletionsAreDated
 Report 'a completed action records an ISO date, not a truthy placeholder' $r6.Passed $r6.Detail
+
+$r7 = Test-NoEntryInventsItsAuthorization
+Report 'no entry derives an authorization without quoting what it derives from' $r7.Passed $r7.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
