@@ -1613,6 +1613,54 @@ function Sync-QwenCapabilityExtensions {
     return @{ status=$status; path=$extensionsRoot; count=$expected.Count }
 }
 
+# Qwen Code ships its MCP OAuth token storage inside content-hashed bundle
+# chunks; every npm update restores the upstream expired-token defect
+# (getCredentials returns null for expired tokens, so MCPOAuthProvider never
+# reaches the refresh branch) and Linear/Notion fall back to browser
+# re-authentication loops. scripts/Repair-QwenCodeMcpOAuth.js removes the
+# early-return again. Audit reports drift when the installed bundle needs the
+# patch; Apply runs the patch. A missing qwen-code install or node.exe is
+# 'unsupported-path', not drift: this guard protects an installation, it does
+# not create one.
+function Sync-QwenOAuthBundleGuard {
+    param([switch]$WhatIf)
+    $scriptPath = Join-Path $RegistryRoot 'scripts\Repair-QwenCodeMcpOAuth.js'
+    $chunksDir = Join-Path $env:APPDATA 'npm\node_modules\@qwen-code\qwen-code\chunks'
+    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
+        return @{ status='unsupported-path'; note='scripts/Repair-QwenCodeMcpOAuth.js missing' }
+    }
+    if (-not (Test-Path -LiteralPath $chunksDir -PathType Container)) {
+        return @{ status='unsupported-path'; note='qwen-code npm install not found' }
+    }
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        return @{ status='unsupported-path'; note='node not on PATH' }
+    }
+    # Windows PowerShell 5.1 turns a native child's stderr into terminating
+    # NativeCommandErrors under $ErrorActionPreference = 'Stop'; relax locally
+    # exactly like Invoke-DelegatedScript in AgentHub.ps1 does.
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $checkOutput = & node $scriptPath --check 2>&1 | Out-String
+        $code = $LASTEXITCODE
+        if ($code -eq 0) { return @{ status='unchanged'; path=$chunksDir } }
+        if ($code -ne 3) {
+            return @{ status='drift'; path=$chunksDir; note="Repair-QwenCodeMcpOAuth.js --check exited $code : $($checkOutput.Trim())" }
+        }
+        if ($WhatIf) {
+            return @{ status='drift'; path=$chunksDir; note='MCP OAuth refresh hotfix missing from qwen-code bundle' }
+        }
+        $patchOutput = & node $scriptPath 2>&1 | Out-String
+        $code = $LASTEXITCODE
+        if ($code -ne 0) {
+            throw "Repair-QwenCodeMcpOAuth.js failed (exit $code): $($patchOutput.Trim())"
+        }
+        return @{ status='updated'; path=$chunksDir }
+    } finally {
+        $ErrorActionPreference = $previousEap
+    }
+}
+
 function Sync-HostMcp-JsonFile {
     param(
         [string]$Path,
@@ -2414,6 +2462,7 @@ foreach ($agent in $agentsToSync) {
             $r = Sync-HostMcp-Qwen -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
             $hostDrift.files += Sync-QwenCapabilityExtensions -Agent $agent -CapabilitiesRegistry $capReg -WhatIf:$whatIfMode -Prune:$Prune
+            $hostDrift.files += Sync-QwenOAuthBundleGuard -WhatIf:$whatIfMode
         }
         'devin' {
             $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.config -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
