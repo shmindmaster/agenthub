@@ -227,29 +227,58 @@ function Get-ShellDivergentWrite {
 # Scan target discovery
 # ---------------------------------------------------------------------------
 
-# The three directories in scope. packages/*/tests is a wildcard, so it is
-# resolved rather than assumed. Every caller checks the returned count: a
-# scanner that finds no files and prints PASS is the exact defect this file
-# exists to close, so an empty result is a failure, never a pass.
+# git is the source of truth for "tracked". Windows PowerShell 5.1 turns a
+# native command's stderr into a TERMINATING error under
+# $ErrorActionPreference = 'Stop' even when the command succeeded, so the
+# preference is restored around the native call only -- same defect and
+# same guard as scripts/New-AgentHubWorktree.ps1's Invoke-AgentHubGit and
+# tests/Run-AllTests.ps1. $LASTEXITCODE still decides success.
+function Invoke-GitForScan {
+    param([string]$Root, [string[]]$Arguments)
+    $allArgs = @('-C', $Root) + @($Arguments)
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = @(& git @allArgs 2>&1 | ForEach-Object { [string]$_ })
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousEap
+    }
+    return [pscustomobject]@{ ExitCode = $exitCode; Output = $output }
+}
+
+# EVERY tracked .ps1 in the repository, derived from `git ls-files`.
+#
+# This used to be a hand-maintained directory list -- scripts/, tests/,
+# packages/*/tests/ -- which is the same blind-spot defect this file
+# exists to police, one level up: a guard whose reach is enumerated by
+# hand cannot see the directory nobody remembered to enumerate. It did not
+# see packages/local-ai/skills/local-ai-stack/validate-local-ai-stack.ps1,
+# a tracked, shipped validator that was carrying two live unencoded reads
+# the whole time the guard reported success. Deriving the list from git
+# means a new directory is covered the day it appears rather than the day
+# someone remembers it.
+#
+# `git ls-files` rather than `Get-ChildItem -Recurse`: untracked scratch,
+# ignored build output, and the host deployment junctions that point into
+# packages/ are not repository source and must not be walked. A non-zero
+# git exit, or a tracked path missing from disk, is a hard failure -- a
+# scanner that quietly resolves to nothing and prints PASS is the exact
+# defect this file exists to close, so it must never degrade to an empty
+# set silently. Every caller also checks the returned count.
 function Get-EncodingScanTarget {
     param([string]$Root)
-    $files = [Collections.Generic.List[string]]::new()
-    foreach ($relative in @('scripts', 'tests')) {
-        $dir = Join-Path $Root $relative
-        if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
-        foreach ($file in @(Get-ChildItem -LiteralPath $dir -File -Filter '*.ps1' | Sort-Object Name)) {
-            $files.Add($file.FullName)
-        }
+    $result = Invoke-GitForScan -Root $Root -Arguments @('ls-files', '--cached', '--', '*.ps1')
+    if ($result.ExitCode -ne 0) {
+        throw "git ls-files failed under '$Root' (exit $($result.ExitCode)): $(@($result.Output) -join ' | '). This scanner derives its file list from git, so it fails loudly rather than scanning nothing."
     }
-    $packagesDir = Join-Path $Root 'packages'
-    if (Test-Path -LiteralPath $packagesDir -PathType Container) {
-        foreach ($package in @(Get-ChildItem -LiteralPath $packagesDir -Directory | Sort-Object Name)) {
-            $testsDir = Join-Path $package.FullName 'tests'
-            if (-not (Test-Path -LiteralPath $testsDir -PathType Container)) { continue }
-            foreach ($file in @(Get-ChildItem -LiteralPath $testsDir -File -Filter '*.ps1' | Sort-Object Name)) {
-                $files.Add($file.FullName)
-            }
+    $files = [Collections.Generic.List[string]]::new()
+    foreach ($relative in @($result.Output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+        $full = [IO.Path]::GetFullPath((Join-Path $Root ($relative -replace '/', '\')))
+        if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
+            throw "git reports '$relative' as tracked under '$Root' but it is not on disk; refusing to scan a set that does not match the working tree."
         }
+        $files.Add($full)
     }
     return $files
 }
@@ -284,18 +313,20 @@ function Test-DetectorFlagsUnencodedRead {
     }
 }
 
-# --- Behavior 2: the scan target set is non-empty and really does reach all
-# three scoped locations. Without this, every sweep below could pass by
-# iterating nothing. ---
-function Test-ScanTargetSetIsProvenNonEmpty {
-    $targets = Get-EncodingScanTarget -Root $repoRoot
+# --- Behavior 2: the scan target set is non-empty and reaches every
+# tracked .ps1, including the shapes the old hand-maintained directory
+# list could not see. Without this, every sweep below could pass by
+# iterating nothing, or by iterating only the directories someone
+# remembered. ---
+function Test-ScanTargetSetCoversEveryTrackedScript {
+    $targets = @(Get-EncodingScanTarget -Root $repoRoot)
     if ($targets.Count -eq 0) {
-        return @{ Passed = $false; Detail = "scan target glob yielded ZERO .ps1 files under $repoRoot -- a scanner that iterates nothing and reports success is the defect this file exists to prevent" }
+        return @{ Passed = $false; Detail = "scan target discovery yielded ZERO .ps1 files under $repoRoot -- a scanner that iterates nothing and reports success is the defect this file exists to prevent" }
     }
     $expectations = [ordered]@{
-        'scripts\'                = 'scripts/'
-        '\tests\'                 = 'tests/ or packages/*/tests/'
-        'packages\'               = 'packages/*/tests/'
+        'scripts\'  = 'scripts/'
+        '\tests\'   = 'tests/ or packages/*/tests/'
+        'packages\' = 'packages/'
     }
     foreach ($fragment in $expectations.Keys) {
         $hits = @($targets | Where-Object { $_ -like "*$fragment*" })
@@ -303,22 +334,56 @@ function Test-ScanTargetSetIsProvenNonEmpty {
             return @{ Passed = $false; Detail = "scan target set reached no file matching '$fragment' ($($expectations[$fragment])); found $($targets.Count) file(s) overall" }
         }
     }
-    # Also prove the empty case is a failure and not a silent success.
-    $emptyRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-encoding-emptyroot-" + [guid]::NewGuid())
-    New-Item -ItemType Directory -Path $emptyRoot -Force | Out-Null
+
+    # The shape the old directory list could NOT reach: a tracked .ps1
+    # under packages/ that is not inside a tests/ directory. That is where
+    # validate-local-ai-stack.ps1 lives, and its two unencoded reads sat
+    # there unseen while this file reported success. Derived from the
+    # target set rather than naming that file, so it keeps holding as the
+    # tree changes -- but it does require such a file to exist, and says
+    # so loudly if one stops existing, because then this assertion would
+    # be proving nothing.
+    $packagesPrefix = [IO.Path]::GetFullPath((Join-Path $repoRoot 'packages')) + '\'
+    $outsideTests = @($targets | Where-Object {
+        $_.StartsWith($packagesPrefix, [StringComparison]::OrdinalIgnoreCase) -and $_ -notlike '*\tests\*'
+    })
+    if ($outsideTests.Count -eq 0) {
+        return @{ Passed = $false; Detail = "the scan target set contains no tracked .ps1 under packages/ outside a tests/ directory. Either discovery has regressed to the old scripts//tests//packages/*/tests/ directory list, or the repository no longer holds such a file -- in which case this assertion proves nothing and must be revisited rather than left green." }
+    }
+
+    # Proves discovery really consults git rather than carrying a
+    # directory list: a synthetic repository holding one tracked .ps1 at
+    # depth, one UNTRACKED .ps1, and one tracked non-.ps1 must yield
+    # exactly the tracked script at depth.
+    $dir = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-encoding-scanroot-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
     try {
-        $empty = Get-EncodingScanTarget -Root $emptyRoot
-        if ($empty.Count -ne 0) {
-            return @{ Passed = $false; Detail = "an empty root yielded $($empty.Count) scan target(s); the discovery function is not reflecting the tree it was pointed at" }
+        New-Item -ItemType Directory -Path (Join-Path $dir 'deep\nested\dir') -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $dir 'deep\nested\dir\Tracked.ps1'), "'x'`r`n", [Text.UTF8Encoding]::new($false))
+        [IO.File]::WriteAllText((Join-Path $dir 'Untracked.ps1'), "'x'`r`n", [Text.UTF8Encoding]::new($false))
+        [IO.File]::WriteAllText((Join-Path $dir 'notes.txt'), "x`r`n", [Text.UTF8Encoding]::new($false))
+        foreach ($step in @(
+            @('init', '-q', '-b', 'main', '.'),
+            @('add', 'deep/nested/dir/Tracked.ps1', 'notes.txt')
+        )) {
+            $setup = Invoke-GitForScan -Root $dir -Arguments $step
+            if ($setup.ExitCode -ne 0) {
+                return @{ Passed = $false; Detail = "synthetic repository setup 'git $($step -join ' ')' failed: $(@($setup.Output) -join ' | ')" }
+            }
+        }
+        $synthetic = @(Get-EncodingScanTarget -Root $dir)
+        $expected = [IO.Path]::GetFullPath((Join-Path $dir 'deep\nested\dir\Tracked.ps1'))
+        if ($synthetic.Count -ne 1 -or $synthetic[0] -cne $expected) {
+            return @{ Passed = $false; Detail = "against a synthetic repository holding one tracked .ps1 at depth, one untracked .ps1, and one tracked .txt, discovery returned $($synthetic.Count) target(s) [$($synthetic -join ', ')]; expected exactly [$expected]. It is not reflecting the tracked set it was pointed at." }
         }
     } finally {
-        Remove-Item -LiteralPath $emptyRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
     }
     return @{ Passed = $true; Detail = $null }
 }
 
-# --- Behavior 3: the live sweep. No .ps1 under scripts/, tests/, or
-# packages/*/tests/ reads a file without explicit UTF-8 decoding.
+# --- Behavior 3: the live sweep. No tracked .ps1 anywhere in the
+# repository reads a file without explicit UTF-8 decoding.
 #
 # ALLOWLIST: empty, deliberately. Every read in scope either needs UTF-8
 # decoding or is already a byte read, so there is nothing here that
@@ -331,9 +396,9 @@ $script:ReadAllowlist = @(
     # (empty -- see comment above)
 )
 function Test-NoUnencodedReadInScope {
-    $targets = Get-EncodingScanTarget -Root $repoRoot
+    $targets = @(Get-EncodingScanTarget -Root $repoRoot)
     if ($targets.Count -eq 0) {
-        return @{ Passed = $false; Detail = "scan target glob yielded ZERO .ps1 files under $repoRoot; refusing to report success on an empty sweep" }
+        return @{ Passed = $false; Detail = "scan target discovery yielded ZERO .ps1 files under $repoRoot; refusing to report success on an empty sweep" }
     }
     $violations = @(Get-UnencodedFileRead -Path $targets -RootForRelativePath $repoRoot)
     $unexpected = @($violations | Where-Object {
@@ -500,11 +565,11 @@ function Test-ValidateAgentHubSkillReadAgreesAcrossShells {
 $r1 = Test-DetectorFlagsUnencodedRead
 Report 'the detector flags an unencoded Get-Content and clears an -Encoding UTF8 one' $r1.Passed $r1.Detail
 
-$r2 = Test-ScanTargetSetIsProvenNonEmpty
-Report 'the scan target set is proven non-empty and reaches scripts/, tests/, and packages/*/tests/' $r2.Passed $r2.Detail
+$r2 = Test-ScanTargetSetCoversEveryTrackedScript
+Report 'the scan target set is proven non-empty and reaches every tracked .ps1, including packages/ paths outside a tests/ directory' $r2.Passed $r2.Detail
 
 $r3 = Test-NoUnencodedReadInScope
-Report 'no .ps1 in scope reads a file without explicit UTF-8 decoding' $r3.Passed $r3.Detail
+Report 'no tracked .ps1 in the repository reads a file without explicit UTF-8 decoding' $r3.Passed $r3.Detail
 
 $r4 = Test-DetectorIsNotFooledByCommentsHereStringsOrContinuations
 Report 'the detector is not fooled by comments, here-strings, dotted path tokens, or line continuations' $r4.Passed $r4.Detail

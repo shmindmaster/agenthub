@@ -31,7 +31,7 @@ if ($Failures.Count -gt 0) {
 }
 
 try {
-    $Registry = Get-Content -LiteralPath $RegistryPath -Raw | ConvertFrom-Json
+    $Registry = Get-Content -LiteralPath $RegistryPath -Raw -Encoding UTF8 | ConvertFrom-Json
 } catch {
     $Failures.Add("registry.json unreadable: $($_.Exception.Message)")
     $Result = [ordered]@{ passed = $false; failures = $Failures.ToArray() }
@@ -167,7 +167,7 @@ if ($Registry.storage.legal_evidence_policy -ne 'read-only') {
 }
 
 $forbiddenRoots = @('D:\AI-Platform', 'D:\ai-platform', 'D:\AIPlatform', 'D:\AI_PLAT')
-$jsonBlob = (Get-Content -LiteralPath $RegistryPath -Raw)
+$jsonBlob = (Get-Content -LiteralPath $RegistryPath -Raw -Encoding UTF8)
 foreach ($forbidden in $forbiddenRoots) {
     if ($Registry.root -like "*$forbidden*") {
         $Failures.Add("forbidden root value in registry.root: $forbidden")
