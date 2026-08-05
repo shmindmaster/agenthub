@@ -213,33 +213,47 @@ function Test-QuotedCapabilityMeaningsAreVerbatim {
         return @{ Passed = $false; Detail = 'fleet-profile.json declares no hostSurfaces.capabilityMeanings, so any quotation would have nothing to be checked against.' }
     }
     $declarations = Get-SkillCapabilityDeclarations
+    if ($declarations.Count -eq 0) {
+        return @{ Passed = $false; Detail = 'no SKILL.md files were read, so this check compared nothing; see behavior 1.' }
+    }
     $bad = [Collections.Generic.List[string]]::new()
-    $quotedCount = 0
+    $uncited = [Collections.Generic.List[string]]::new()
     foreach ($declaration in $declarations) {
         $sectionMatch = [regex]::Match(
             $declaration.Text,
             ('(?s)^##\s+' + [regex]::Escape($capabilitySectionHeading) + '\s*\r?\n(.*?)(?=\r?\n##\s|\z)'),
             [Text.RegularExpressions.RegexOptions]::Multiline)
-        if (-not $sectionMatch.Success) { continue }
+        if (-not $sectionMatch.Success) { $uncited.Add("$($declaration.Skill) (no declaration section)"); continue }
         # Line wrapping in Markdown is presentation, not content: collapse it
         # before comparing, so a quotation is judged on its words rather than on
         # where the author's editor broke the line.
         $section = [regex]::Replace($sectionMatch.Groups[1].Value, '\s+', ' ')
+        # The meanings this particular skill is entitled to quote: quoting
+        # computer.gui's definition inside a skill that routes on
+        # browser.isolated is a citation of something it does not use.
+        $ownMeanings = @($declaration.Capabilities | Where-Object { $meanings.ContainsKey($_) } | ForEach-Object { $meanings[$_] })
+        $skillQuoteCount = 0
         foreach ($quote in @([regex]::Matches($section, '"([^"]+)"'))) {
-            $quotedCount++
+            $skillQuoteCount++
             $quotedText = $quote.Groups[1].Value.Trim()
             # -ceq, not -contains: PowerShell's containment operators are
             # case-INSENSITIVE, so "a first-party browser..." compared clean
             # against the registry's "A first-party browser...". Relettering is
             # precisely one of the near-quote defects this behavior exists to
             # catch, and the first version of it did not.
-            if (@($meanings.Values | Where-Object { $_ -ceq $quotedText }).Count -eq 0) {
-                $bad.Add("$($declaration.Skill) quotes `"$quotedText`", which is not verbatim any hostSurfaces.capabilityMeanings value")
+            if (@($ownMeanings | Where-Object { $_ -ceq $quotedText }).Count -eq 0) {
+                $bad.Add("$($declaration.Skill) quotes `"$quotedText`", which is not verbatim the capabilityMeanings definition of any capability it declares")
             }
         }
+        # PER-SKILL, not global. A single surviving quotation anywhere in the
+        # package used to satisfy this check for the whole package, so two of
+        # three skills could quietly stop citing the definition they route on
+        # and the suite stayed green. Behavior 1 is no backstop here: it counts
+        # capability tokens, not citations.
+        if ($skillQuoteCount -eq 0) { $uncited.Add($declaration.Skill) }
     }
-    if ($quotedCount -eq 0) {
-        return @{ Passed = $false; Detail = 'no skill quotes a capability meaning at all, so this check compared nothing. Either a skill stopped citing the registry definition it routes on, or the section heading moved.' }
+    if ($uncited.Count -gt 0) {
+        $bad.Add("these skills cite no capability definition at all, so nothing about their stated meaning is checked: $($uncited -join ', ')")
     }
     if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
     return @{ Passed = $true; Detail = $null }
