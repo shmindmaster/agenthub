@@ -63,6 +63,11 @@
         "blockedBy": "No authenticated browser surface reaches claude.ai account settings from this machine, and entering credentials to obtain one is prohibited.",
         "blockerVerifiedOn": "2026-08-05",
         "blockerVerification": "Claude in Chrome list_connected_browsers returned an empty array on 2026-08-04 and again on 2026-08-05. The in-app browser carries no claude.ai session, and authenticating one would require entering the owner's credentials, which is prohibited regardless of authorization. Verified twice rather than assumed, because a capability limit asserted without testing was wrong once already in this work.",
+        "apiProbe": {
+          "attemptedOn": "2026-08-05",
+          "result": "inconclusive",
+          "detail": "Probed for a programmatic route before concluding this needs a browser at all. The connector-registry MCP exposes list_connectors and search_mcp_registry but no disconnect or remove operation, so there is no write path even in principle. Both reads returned empty -- including a registry SEARCH for 'atlassian' and 'slack', which cannot legitimately be empty. So the empty connector list is evidence the integration could not enumerate, NOT evidence that zero connectors are installed. Recorded so the next reader does not mistake this for a clean inventory, and does not repeat the probe believing it untried."
+        },
         "ownerStep": "claude.ai -> Settings -> Connectors -> select the connector -> Disconnect. Disconnecting also revokes nothing at the provider; see oauth-grant-revocation.",
         "completedOn": null
       },
@@ -95,7 +100,25 @@
         "blockedBy": "Same claude.ai account surface as claude-ai-connector-removals, and no local installation exists to remove.",
         "blockerVerifiedOn": "2026-08-05",
         "blockerVerification": "installed_plugins.json lists 15 plugins and contains none of these six; none has a directory under .claude/plugins/cache and none appears in known_marketplaces.json. There is nothing locally installed to remove, which is what makes this account-level rather than a fleet drift.",
-        "ownerStep": "Decide per bundle in claude.ai settings. Note that a bundle is all-or-nothing: the engineering bundle carries Datadog and PagerDuty alongside Atlassian, so removing it to drop Atlassian drops those too.",
+        "bundleContents": {
+          "recordedOn": "2026-08-05",
+          "source": "Observed in a Claude Code session on 2026-08-05: every server the host reported as awaiting authorization, grouped by the plugin namespace it was presented under.",
+          "caveat": "This lists the servers observed awaiting authorization, which is not necessarily everything a bundle carries -- an already-authorized server would not have appeared. Treat it as a floor, not an inventory.",
+          "bundles": {
+            "engineering": ["atlassian", "datadog", "pagerduty"],
+            "marketing": ["ahrefs", "amplitude", "amplitude-eu", "figma", "klaviyo", "similarweb", "supermetrics"],
+            "small-business": ["canva", "docusign", "hubspot", "paypal", "quickbooks", "slack", "square", "stripe"],
+            "design": ["intercom"],
+            "litigation-legal": ["Google Drive"],
+            "adobe-for-creativity": ["Adobe for creativity"]
+          },
+          "notAccountLevel": {
+            "sentry": "sentry@claude-plugins-official is installed locally; it is a normal plugin, not part of this decision.",
+            "product-demo-studio": "Installed locally from the agenthub marketplace; owns the Descript server by design.",
+            "exa": "A shared-remote server declared in registry/mcps.json with credentialPolicy provider-managed; fleet-managed, not account-level."
+          }
+        },
+        "ownerStep": "Decide per bundle in claude.ai settings, using bundleContents above -- a bundle is all-or-nothing. The three that matter for the owner's stated goal: engineering carries Atlassian but also Datadog and PagerDuty; marketing carries Figma but also six analytics and SEO servers; small-business carries Slack but also Stripe, QuickBooks, PayPal and four more. Dropping a bundle to remove one server removes every other server in it.",
         "completedOn": null
       }
     ]
