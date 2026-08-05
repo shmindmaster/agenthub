@@ -531,6 +531,141 @@ function Test-DeclaredCapabilitiesHaveASurfaceProvider {
     return @{ Passed = $true; Detail = $null }
 }
 
+# --- Behavior 8: inside each skill's resolution section, the step that resolves
+# the running surface's own provider comes BEFORE the step that starts the local
+# fallback process.
+#
+# Behavior 4 reads that section at SECTION granularity and says so (see the note
+# above $resolutionSectionHeadingPrefix): it asks whether a registered fallback
+# is named anywhere in the section, which is what makes "the resolution order was
+# deleted" detectable. It cannot see the order WITHIN the section. Reproduced by
+# exchanging steps 1 and 2 in all three skills so `chrome-devtools` became the
+# first step while each file's "Native first is not a quality judgement"
+# paragraph stayed in place -- every skill then contradicted itself and
+# Test-CapabilityRouting was 7 passed, 0 failed, with Test-RoutingPolicy,
+# Test-HostSurfaces and Test-SharedSkillsDeployment green alongside it.
+#
+# The order is the whole design: registry/mcps.json's activationPolicy prefers a
+# shared remote over a locally spawned process, requires one shared local process
+# rather than one per host, and requires that process to be started by the
+# capability that needs it rather than at session start. A skill that reaches for
+# the local server first spawns an `npx` browser process on a surface that
+# already had a browser.
+#
+# What is pinned is the RELATION between two steps, not their wording: the step
+# is identified by what it resolves against (the surface matrix in
+# fleet-profile.json / a locally-started server id in mcps.json), so these
+# paragraphs stay free to be reworded. ---
+
+# The two kinds of step, both identified from the registries rather than from a
+# sentence. `chrome-devtools` is not hardcoded: any server the registry marks as
+# a local process (activationMode on-demand-local, or a stdio command the fleet
+# spawns) counts, so adding a second local browser server keeps this honest.
+function Get-LocallyStartedServers {
+    return @(
+        $mcps.mcpServers |
+            Where-Object { [string]$_.activationMode -eq 'on-demand-local' -or [string]$_.transport -eq 'stdio' } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.id) }
+    )
+}
+# The surface-provided step is the one that resolves the running surface out of
+# the hostSurfaces matrix. Matched on the registry file and key it must consult,
+# not on "look up" or "first-party browser" -- and NOT on the bare word
+# "surface", which the fallback step also uses ("when the surface records
+# `false` or `null`").
+$surfaceLookupPattern = '`[^`]*(?:hostSurfaces|fleet-profile\.json)[^`]*`'
+
+# The numbered steps of a section as ordered units, one entry per step with its
+# continuation lines folded in. Deliberately NOT Get-NumberedStepLines, which
+# flattens every line into one flat list: behavior 6 asks "does any line say
+# Chrome" and does not care which step a line belongs to, while this behavior is
+# only about which step comes first. Sharing one helper would mean behavior 6's
+# flattening and this behavior's grouping constraining each other, and a change
+# made for one silently loosening the other.
+function Get-NumberedSteps {
+    param([string]$Text)
+    $steps = [Collections.Generic.List[object]]::new()
+    if ([string]::IsNullOrEmpty($Text)) { return $steps }
+    $current = $null
+    foreach ($line in ($Text -split '\r?\n')) {
+        $start = [regex]::Match($line, '^\s*(\d+)\.\s')
+        if ($start.Success) {
+            $current = [pscustomobject]@{ Number = [int]$start.Groups[1].Value; Text = $line }
+            $steps.Add($current)
+            continue
+        }
+        if ([string]::IsNullOrWhiteSpace($line)) { $current = $null; continue }
+        if ($null -ne $current -and $line -match '^\s+\S') { $current.Text = $current.Text + "`n" + $line; continue }
+        $current = $null
+    }
+    return $steps
+}
+
+function Test-SurfaceStepPrecedesLocalFallbackStep {
+    $localServers = @(Get-LocallyStartedServers)
+    if ($localServers.Count -eq 0) {
+        return @{ Passed = $false; Detail = 'registry/mcps.json marks no server as a locally started process (activationMode on-demand-local / a stdio command), so no step could be recognised as the local fallback and every skill would pass by having nothing to order.' }
+    }
+    $declarations = Get-SkillCapabilityDeclarations
+    if ($declarations.Count -eq 0) {
+        return @{ Passed = $false; Detail = 'no SKILL.md files were read, so no resolution order was inspected; see behavior 1.' }
+    }
+    $bad = [Collections.Generic.List[string]]::new()
+    # PER SKILL, not fleet-wide. An anti-vacuity guard keyed on a total across
+    # the three skills lets one skill's entire step list be deleted while the
+    # other two keep the total non-zero; every skill must state both steps and be
+    # judged on its own.
+    foreach ($declaration in $declarations) {
+        if ($null -eq $declaration.ResolutionSection) {
+            $bad.Add("$($declaration.Skill) has no '## $resolutionSectionHeadingPrefix ...' section, so it states no order for a surface-provided step and a locally started one to be in")
+            continue
+        }
+        $steps = @(Get-NumberedSteps -Text $declaration.ResolutionSection)
+        if ($steps.Count -eq 0) {
+            $bad.Add("$($declaration.Skill) states no numbered steps in its '## $resolutionSectionHeadingPrefix ...' section, so it documents no resolution order at all and this check would pass over nothing")
+            continue
+        }
+        # This skill's fallback is a local server that provides something the
+        # skill declares -- not any local server in the registry. `brave-search`
+        # is also an on-demand-local process and has nothing to do with browser
+        # routing; naming it in a step must not be read as this skill reaching
+        # for its fallback.
+        $localServerIds = @(
+            $localServers |
+                Where-Object { @(@($_.providesCapabilities) | Where-Object { $_ -in $declaration.Capabilities }).Count -gt 0 } |
+                ForEach-Object { [string]$_.id }
+        )
+        if ($localServerIds.Count -eq 0) {
+            $bad.Add("$($declaration.Skill) declares $($declaration.Capabilities -join ', '), which no locally started server in registry/mcps.json provides, so it has no local fallback step for a surface-provided step to precede; see behavior 4")
+            continue
+        }
+        $localServerPattern = '`(?:' + (($localServerIds | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')`'
+        $surfaceIndex  = -1
+        $fallbackIndex = -1
+        for ($i = 0; $i -lt $steps.Count; $i++) {
+            $namesLocalServer = [regex]::IsMatch($steps[$i].Text, $localServerPattern)
+            if ($fallbackIndex -lt 0 -and $namesLocalServer) { $fallbackIndex = $i }
+            if ($surfaceIndex -lt 0 -and -not $namesLocalServer -and [regex]::IsMatch($steps[$i].Text, $surfaceLookupPattern)) { $surfaceIndex = $i }
+        }
+        if ($surfaceIndex -lt 0) {
+            $bad.Add("$($declaration.Skill) states no step that resolves the running surface's own provider -- no numbered step in its '## $resolutionSectionHeadingPrefix ...' section consults the hostSurfaces matrix in fleet-profile.json -- so the order it documents starts at the fallback")
+            continue
+        }
+        if ($fallbackIndex -lt 0) {
+            $bad.Add("$($declaration.Skill) states no step that reaches the locally started fallback ($($localServerIds -join '/')) in its '## $resolutionSectionHeadingPrefix ...' section, so only half the documented order is present and there is no second step for the surface-provided one to precede")
+            continue
+        }
+        if ($fallbackIndex -lt $surfaceIndex) {
+            $fallbackStep = $steps[$fallbackIndex]
+            $surfaceStep  = $steps[$surfaceIndex]
+            $named = @($localServerIds | Where-Object { [regex]::IsMatch($fallbackStep.Text, '`' + [regex]::Escape($_) + '`') })
+            $bad.Add("$($declaration.Skill) puts the locally started fallback ($($named -join '/')) at step $($fallbackStep.Number), BEFORE the surface-provided step at step $($surfaceStep.Number), so the skill reaches for a spawned local process before checking the browser the running surface already has. That contradicts the rationale the same section carries -- registry/mcps.json activationPolicy prefers a shared remote over a locally spawned process, requires one shared local process rather than one per host, and requires it to be started by the capability that needs it -- and the fleet preference order in global-agent-policy.md")
+        }
+    }
+    if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r1 = Test-EverySkillDeclaresACapability
 Report 'every browser-toolkit skill states the capability it requires' $r1.Passed $r1.Detail
 
@@ -551,6 +686,9 @@ Report 'the numbered steps after resolution name no backticked MCP tool name and
 
 $r7 = Test-DeclaredCapabilitiesHaveASurfaceProvider
 Report 'every capability a skill names is recorded true on at least one surface, not served only by the MCP fallback' $r7.Passed $r7.Detail
+
+$r8 = Test-SurfaceStepPrecedesLocalFallbackStep
+Report 'each skill resolves the running surface own provider in a step before the step that starts the local fallback' $r8.Passed $r8.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
