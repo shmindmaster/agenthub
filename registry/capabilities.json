@@ -265,7 +265,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "8BAB342BE4D13069AE49A99954F1870AA894A9AD75C0F4B0C95776E5112A8417",
+      "contentHash": "D9984DBCCD08299614A5FF3DD285E98E8EF21FDFC985C5BC1A4553E6F67E7A06",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
