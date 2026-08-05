@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "note": "Structured per-host subagent generation rules for scripts/Sync-Subagents.ps1. Scoped to exactly the 4 hosts the deleted scripts/Sync-ProductDemoStudioHostAdapters.ps1 (git show fc1bda6) served -- codex, opencode, gemini, antigravity. registry/plugin-formats.json's 'subagents' field is a prose-only, plugin-bundle-scoped note (per its own fieldNotes) and is insufficient to generate from; it also marks codex and antigravity 'unverified' for that DIFFERENT concept (agents/*.md bundled inside a Claude-style plugin package). This file instead documents the separate, independently-verified 'managed native agents' mechanism (a standalone per-host agents directory/extension, outside any plugin bundle) that the deleted generator actually used and that 26 real deployed files (13 Codex .toml + 13 OpenCode .md, confirmed 2026-08-03) prove works. See task-5-report.md for the full discrepancy discussion. Do not extend this file to a 5th host without first researching and verifying that host's real mechanism -- do not invent a format (AGENTS.md).",
+  "toolMapNote": "A host with toolMap null (codex, opencode) performs no translation and passes every canonical tool through verbatim, so it drops nothing and needs nothing declared here. For every host that DOES translate, the pair toolMap/toolsNotEstablished must jointly account for each tool any canonical agents/*.agent.md requests: a tool is either mapped or declared under toolsNotEstablished with a reason that survives the session that discovered it. Silence is the one thing it may not be, and that much tests/Test-SubagentToolCoverage.ps1 enforces. toolMapVerifiedAgainst is a weaker thing and is described here precisely so nobody mistakes it for the stronger one: it cites the source for an INDIVIDUAL mapping, it exists only for the two entries added on 2026-08-05, and no test requires a mapping to carry one. The six original mappings per host predate it and rest on the host-level verifiedAgainst field instead -- 13 real deployed files per host, not a per-tool citation. What IS enforced is that every toolMapVerifiedAgainst key names a tool the toolMap actually maps and carries a non-empty citation, so the field cannot rot into a list of claims about mappings that no longer exist. Before tests/Test-SubagentToolCoverage.ps1 existed, an unmapped tool was simply dropped and mentioned in a console NOTE, so three product-experience-engineering roles deployed to gemini and antigravity with WebSearch and WebFetch stripped while the run still reported drift=0 -- a role missing the tools its own job description depends on, and a fleet reporting full parity over it. The asymmetry here is deliberate and matches registry/fleet-profile.json's hostSurfaces note: claiming a mapping costs a citation, and admitting one is not established costs a sentence, because the honest answer must never be the expensive one.",
   "destinationTemplatePlaceholders": {
     "{userProfile}": "the effective -UserProfile parameter value (already resolved; never a registry-baked absolute path -- this generator never reads or rebases an absolute destination path from registry/agents.json, which sidesteps the whole class of hazard documented in task-2-report.md's 'Safety incident')",
     "{capabilityId}": "the capability's id from registry/capabilities.json (e.g. product-demo-studio)"
@@ -44,7 +45,13 @@
         "Glob": "glob",
         "Bash": "run_shell_command",
         "Edit": "replace",
-        "Write": "write_file"
+        "Write": "write_file",
+        "WebSearch": "google_web_search",
+        "WebFetch": "web_fetch"
+      },
+      "toolMapVerifiedAgainst": {
+        "WebSearch": "https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/web-search.md -- official Gemini CLI docs, section heading 'Web search tool (google_web_search)'. Added 2026-08-05; before this, three product-experience-engineering roles deployed to gemini with WebSearch stripped.",
+        "WebFetch": "https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/web-fetch.md -- official Gemini CLI docs, section heading 'Web fetch tool (web_fetch)'. Added 2026-08-05."
       },
       "verifiedAgainst": "13 real ~/.gemini/extensions/agenthub-product-demo-studio/agents/product-demo-studio-*.md files + gemini-extension.json, generated 2026-07-31, confirmed present 2026-08-03 (the task brief stated no baseline exists here; real machine evidence disagrees -- see task-5-report.md). destinationTemplate does NOT match registry/agents.json gemini.nativePaths.agentsDir (~/.gemini/agents, unused by this mechanism) -- documented discrepancy, not corrected here (out of this task's scope)."
     },
@@ -65,6 +72,10 @@
         "Bash": "run_command",
         "Edit": "replace_file_content",
         "Write": "write_to_file"
+      },
+      "toolsNotEstablished": {
+        "WebSearch": "Not established for the IDE-side subagent tools: allow-list, which is the surface this generator writes to. https://ai.google.dev/gemini-api/docs/antigravity-agent documents google_search as a default tool of the Gemini-API 'Antigravity agent' and states it 'uses the same harness as the Antigravity IDE', but no antigravity.google/docs page enumerates that string as a literal IDE subagent tool name -- the only tools: frontmatter example published there lists view_file, grep_search, run_command and no web tool. antigravity.google/docs/permissions defines a read_url permission action, which is a permission-namespace identifier and not necessarily the tool-call name. Researched 2026-08-05. Writing google_search here on the strength of the harness claim would be inventing a host-native tool name, which AGENTS.md forbids and which would deploy a role calling a tool that may not exist. Resolve by reading a real Antigravity subagent definition that allow-lists a web tool.",
+        "WebFetch": "Not established, same surface and same evidence as WebSearch above: url_context is documented as a default tool of the Gemini-API 'Antigravity agent' at https://ai.google.dev/gemini-api/docs/antigravity-agent, not as an IDE subagent tools: entry. Researched 2026-08-05."
       },
       "verifiedAgainst": "13 real ~/.gemini/antigravity-cli/plugins/product-demo-studio/agents/product-demo-studio-*.md files + plugin.json, generated 2026-07-31, confirmed present 2026-08-03 (the task brief stated no baseline exists here; real machine evidence disagrees -- see task-5-report.md). destinationTemplate does NOT match registry/agents.json antigravity.nativePaths.agentsDir (~/.gemini/config/agents, unused by this mechanism) -- documented discrepancy, not corrected here (out of this task's scope)."
     }
