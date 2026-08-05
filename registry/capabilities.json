@@ -146,7 +146,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
       "canonicalSource": "packages/product-demo-studio",
-      "contentHash": "E8E2463F10CD6248D70C856D68BC60FE823736CEED91D4223AEAD96A128FC6F9",
+      "contentHash": "BB9631563B74ED9F293FF50E68D34DFC45808F00F6170D50EF139892CBB61A5D",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -642,6 +642,11 @@
       "managedSkillNames": [
         "local-ai-stack"
       ],
+      "rootPolicy": {
+        "environmentOverride": "LOCAL_AI_ROOT",
+        "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
+        "defaultRoot": "D:\\Local-AI"
+      },
       "contentHash": "BBF85DEC73B2B39F67F4EFDBDEF3455A90D67E797D64BEE399AA9E3992CB28DA",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",

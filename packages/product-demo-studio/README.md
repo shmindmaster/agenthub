@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.7.0**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.7.1**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
@@ -42,7 +42,7 @@ refinement autonomous through the terminal independent verifier, and reuses the 
 human touchpoint is the final presentation. It also removes the last stale compatibility wording
 that could be misread as an intermediate approval requirement.
 Version 1.6.2 removes the legacy runtime probe. Media acceleration now resolves the
-shared Local-AI registry from `AGENTHUB_LOCAL_AI_REGISTRY`, then `AGENTHUB_LOCAL_AI_ROOT`, with
+shared Local-AI registry from `LOCAL_AI_REGISTRY`, then `LOCAL_AI_ROOT`, with
 `D:\Local-AI` as the Windows capability default.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
@@ -193,8 +193,8 @@ invoked from the plugin with the target repo as product input — never copied i
 - `detect-media-acceleration.mjs` — functionally probes NVENC and a local CUDA inference runtime,
   selects compatible GPU-first media paths, and emits checksumable fallback provenance; preflight
   rejects any selected encoder/device that did not pass those probes. Local inference discovery
-  uses the shared Local-AI capability through `AGENTHUB_LOCAL_AI_REGISTRY` or
-  `AGENTHUB_LOCAL_AI_ROOT`; the Windows default is `D:\Local-AI`.
+  uses the shared Local-AI capability through `LOCAL_AI_REGISTRY` or
+  `LOCAL_AI_ROOT`; the Windows default is `D:\Local-AI`.
 - `validate-review-report.mjs`, `validate-release-decision.mjs`, and
   `validate-remediation-assignment.mjs` — zero-dependency validation of the shared machine-readable
   contracts.
