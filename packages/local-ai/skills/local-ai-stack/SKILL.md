@@ -64,6 +64,11 @@ authority required by the current task. Build a replacement collection without
 `--activate`; activate only after point parity, retrieval acceptance, and
 independent review pass.
 
+The retrieval service's local admin credentials are auto-provisioned on first
+`start retrieval` / `start core`: `ai.ps1` writes `secrets\retrieval-admin-secrets.json`
+under the resolved root with a restrictive ACL when it is absent. No manual
+environment variables are required for a local run.
+
 All media and synthesis routes are also under the same interface:
 
 ```powershell
@@ -99,6 +104,22 @@ pull ad-hoc models, or copy weights outside `policy.single_model_root`.
   personal/legal SQLite databases are migration inputs only, not retrieval
   engines.
 - **Index metadata contract**: `indexes` in `$LocalAiRegistry`.
+
+#### 2a) Direct corpus query (read-only helper)
+
+`query.py` at the stack root (with the `query.ps1` wrapper) is the direct,
+read-only path to the corpus: it resolves the declared retrieval model and the
+`knowledge` or `legal` stable alias from `$LocalAiRegistry`, embeds the query
+locally with the declared model, and searches Qdrant directly — no retrieval
+API layer required:
+
+```powershell
+& (Join-Path $LocalAiRoot 'query.ps1') --index knowledge --limit 5 --threshold 0.5 'your question'
+```
+
+It reads only; it never writes, indexes, or controls the stack. Keep write and
+index operations on `$LocalAiControl`. It is a convenience around the same
+collection/alias contract as the retrieval API, not a second source of truth.
 
 ### 3) Media routes
 
