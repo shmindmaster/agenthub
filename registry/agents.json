@@ -22,7 +22,9 @@
         "workflowsDir": "C:\\Users\\SaroshHussain\\.claude\\workflows",
         "memoryRoot": "C:\\Users\\SaroshHussain\\.claude\\projects",
         "sessionsDir": "C:\\Users\\SaroshHussain\\.claude\\projects",
-        "tasksDir": "C:\\Users\\SaroshHussain\\.claude\\tasks"
+        "tasksDir": "C:\\Users\\SaroshHussain\\.claude\\tasks",
+        "rulesDirNote": "Verified 2026-08-05 against code.claude.com/docs/en/claude-directory (global tree, id global-rules) and /en/memory. ~/.claude/rules is the documented user-level rules directory: files without paths: frontmatter load at session start, files with paths: load only when a matching file enters context. Path correct; absent only because no global rules are deployed. Setting CLAUDE_CONFIG_DIR relocates this, so an absence here is not proof of absence everywhere.",
+        "workflowsDirNote": "Verified 2026-08-05 against code.claude.com/docs/en/claude-directory (global tree, id global-workflows) and /en/workflows. ~/.claude/workflows holds personal dynamic workflow scripts available in every project; a project .claude/workflows/ entry of the same name takes precedence. Path correct; absent only because none are saved. CLAUDE_CONFIG_DIR relocates it, same caveat as rulesDir."
       },
       "supportedCapabilities": [
         "rules",
@@ -110,7 +112,8 @@
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\plugins",
-        "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode"
+        "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode",
+        "pluginsDirNote": "Verified 2026-08-05 against opencode.ai/docs/plugins. OpenCode loads plugins from ~/.config/opencode/plugins/ (global) and .opencode/plugins/ (project) automatically at startup. Sibling of the agents/ directory under the same root that already carries 13 deployed subagent files. Path correct; absent only because no plugin is installed."
       },
       "supportedCapabilities": [
         "rules",
@@ -189,7 +192,8 @@
         "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\hooks",
         "pluginsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\plugins",
         "memoriesDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\memories",
-        "sessionsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\sessions"
+        "sessionsDir": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\sessions",
+        "pluginsDirNote": "Verified 2026-08-05 against hermes-agent.nousresearch.com/docs/user-guide/features/plugins and .../windows-native. Hermes discovers plugins from three sources: bundled (<repo>/plugins/), project (.hermes/plugins/) and user (~/.hermes/plugins/). The Windows installer sets HERMES_HOME=%LOCALAPPDATA%\\hermes and ~/.hermes resolves to that root, so the user path on native Windows is %LOCALAPPDATA%\\hermes\\plugins. Derived from a documented env-var mapping rather than assumed from the sibling directory names, and HERMES_HOME is overridable, so this resolves correctly only for a default install. Path correct; absent only because no personal plugin is installed."
       },
       "supportedCapabilities": [
         "rules",
@@ -245,7 +249,8 @@
         "instructions": null,
         "instructionsOwnedBy": "gemini",
         "verification": "documented-shared-destination",
-        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today."
+        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today.",
+        "cliSkillsDirNote": "Verified 2026-08-05 against antigravity.google/docs/cli/plugins, which states directly that skills shared across all workstation workspaces go in ~/.gemini/antigravity-cli/skills/. Distinct from workspace .agents/skills/ and from the broader ~/.gemini/skills/ shared across all Antigravity tools rather than the CLI alone. Path correct; absent only because AgentHub deploys Antigravity capabilities as plugin bundles under ~/.gemini/antigravity-cli/plugins/ instead."
       },
       "supportedCapabilities": [
         "rules",
@@ -270,7 +275,10 @@
         "verification": "documented-shared-destination",
         "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today."
       },
-      "supportedCapabilities": ["skills", "mcp"],
+      "supportedCapabilities": [
+        "skills",
+        "mcp"
+      ],
       "status": "active",
       "surfaceType": "companion-desktop",
       "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry."
@@ -288,7 +296,12 @@
         "verification": "documented-shared-destination",
         "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today."
       },
-      "supportedCapabilities": ["rules", "skills", "mcp", "extensions"],
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "mcp",
+        "extensions"
+      ],
       "status": "active",
       "surfaceType": "companion-ide",
       "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry."
@@ -306,9 +319,20 @@
         "skillsDir": "C:\\Users\\SaroshHussain\\.grok\\skills",
         "agentsDir": "C:\\Users\\SaroshHussain\\.grok\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.grok\\installed-plugins",
-        "documentedPluginsDir": "C:\\Users\\SaroshHussain\\.grok\\plugins"
+        "documentedPluginsDir": "C:\\Users\\SaroshHussain\\.grok\\plugins",
+        "agentsDirNote": "Verified 2026-08-05 against xai-org/grok-build docs/user-guide/16-subagents.md. Grok CLI reads custom agent definitions as .md files from .grok/agents/ (project) and ~/.grok/agents/ (user). Created lazily on first use rather than scaffolded at install, so absence is consistent with documented-but-unused. AgentHub does not generate Grok subagents: registry/subagent-formats.json is scoped to four hosts and grok is not one of them.",
+        "documentedPluginsDirNote": "Verified 2026-08-05 against xai-org/grok-build docs/user-guide/09-plugins.md. ~/.grok/plugins/ is the documented user-scope plugin directory, automatically trusted, where project .grok/plugins/ requires --trust. This field records the DOCUMENTED location while pluginsDir records where this installation actually keeps them; the same research found no official basis for that second value. The two are deliberately kept as separate fields rather than reconciled, because collapsing them would destroy the evidence that they disagree."
       },
-      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "sandbox", "worktrees"],
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins",
+        "hooks",
+        "sandbox",
+        "worktrees"
+      ],
       "status": "active"
     },
     {
@@ -327,7 +351,15 @@
         "verification": "documented-no-global-file",
         "instructionsNote": "Researched 2026-08-04 against docs.warp.dev/agent-platform/capabilities/rules (subject confirmed: rules). Warp Global Rules are GUI-only -- Warp Drive, Command Palette, Settings > Agents > Knowledge -- with no documented on-disk path. Warp's file-based AGENTS.md and WARP.md rules are project-scoped, which this global-scope sync does not cover. Documented absence of a global FILE, not a failure to find the docs."
       },
-      "supportedCapabilities": ["rules", "skills", "mcp", "cloud-agents", "orchestration", "profiles", "worktrees"],
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "mcp",
+        "cloud-agents",
+        "orchestration",
+        "profiles",
+        "worktrees"
+      ],
       "status": "active"
     },
     {
@@ -345,11 +377,25 @@
         "desktopInstructions": "C:\\Users\\SaroshHussain\\Documents\\Cline\\Rules\\00-agenthub.md",
         "rulesDir": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.cline\\skills",
-        "agentsDir": "C:\\Users\\SaroshHussain\\.cline\\agents",
+        "agentsDir": null,
         "pluginsDir": "C:\\Users\\SaroshHussain\\.cline\\plugins",
-        "hooksDir": "C:\\Users\\SaroshHussain\\.cline\\hooks"
+        "hooksDir": "C:\\Users\\SaroshHussain\\.cline\\hooks",
+        "pluginsDirNote": "Verified 2026-08-05 against docs.cline.bot/customization/plugins and docs.cline.bot/getting-started/config. ~/.cline/plugins/ is the global plugin directory, with installs nested under plugins/_installed/{npm,git,remote,local}/ and project-scoped plugins in .cline/plugins/. Scope matters here: the plugins page states verbatim that the feature applies to Cline SDK, CLI and Kanban and NOT to the VSCode or JetBrains extensions -- and this registry entry is the CLI (executable cline.cmd), so the path is correct for the surface actually registered. Absent only because no plugin is installed.",
+        "hooksDirNote": "Verified 2026-08-05 against docs.cline.bot/getting-started/config, which lists ~/.cline/hooks/ as the global hooks directory for the SDK/CLI/Kanban surface this entry registers; hooks are implemented as a plugin capability (docs.cline.bot/sdk/plugins). Flagged conflict, recorded because it would otherwise be rediscovered as a bug: cline.bot/blog/cline-v3-36-hooks describes a DIFFERENT and older hooks system belonging to the VSCode extension, rooted at ~/Documents/Cline/Rules/Hooks/ with project .clinerules/hooks/, and states it is macOS and Linux only with no Windows support. Two systems share one feature name. If a VSCode Cline host is ever registered separately, it must not reuse this path.",
+        "agentsDirNote": "Set to null 2026-08-05: NOT ESTABLISHED, which is different from absent. Previously asserted ~/.cline/agents. Research found two conflations and no resolution. (a) The shipped subagents feature (docs.cline.bot/features/subagents) is a built-in automatic use_subagents tool with no user-authored file or directory at all -- toggled in Settings, never defined on disk. (b) The custom multi-agent 'Agent Teams' feature, which would need a directory, is documented inconsistently by Cline itself: docs.cline.bot/getting-started/config shows 'agents/  # Global agent definitions' under ~/.cline/, while docs.cline.bot/cli/cli-reference shows definitions in a project-level file .cline/agents.yaml with no global equivalent, and docs.cline.bot/cli/agent-teams documents only runtime team STATE at ~/.cline/data/teams/[team-name]/, never where definitions are authored. Two official pages disagree on whether a global path exists. Resolve by installing an Agent Team and observing where Cline writes, not by picking the page that reads more confidently."
       },
-      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "connectors", "acp", "kanban", "headless"],
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins",
+        "hooks",
+        "connectors",
+        "acp",
+        "kanban",
+        "headless"
+      ],
       "status": "active",
       "notes": "Cline 3.0.47. Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; desktop rules use Documents/Cline/Rules. sharedSkillsDir (~/.agents/skills) was removed 2026-08-04 (task 7b re-verification): Cline's own documentation (docs.cline.bot/customization/skills, docs.cline.bot/features/skills, and a full-text search of docs.cline.bot/llms-full.txt for 'agents/skills'/'agentskills'/'interoperab' -- zero matches) documents only '.cline/skills/' (workspace) and '~/.cline/skills/' (global) as skill locations. Deploying only to ~/.agents/skills would have made Cline's skills unreachable by Cline itself. Contrast with codex (learn.chatgpt.com/docs/build-skills: USER tier is $HOME/.agents/skills) and gemini (geminicli.com/docs/cli/skills: '~/.gemini/skills/' or the '~/.agents/skills/' alias, same precedence tier), both of which keep sharedSkillsDir because their own documentation confirms it."
     },
@@ -428,7 +474,20 @@
         "verification": "documented-feature-inferred-windows-path",
         "instructionsNote": "Added 2026-08-04 from docs.qoder.com/cli/using-cli, Memory section (subject confirmed: memory and context files, not MCP or plugins). Qoder CLI documents a three-tier hierarchy whose user level is ~/.qoder/AGENTS.md, explicitly applying to all projects. The Windows form is inferred from this host's existing configHome, which already resolves ~/.qoder to that directory and demonstrably exists. Distinct from .qoder/rules, which is project-scoped only. HTML-comment survival is not vendor-documented; the agenthub:managed marker is standard Markdown and inert in prompt context."
       },
-      "supportedCapabilities": ["rules", "skills", "subagents", "mcp", "plugins", "hooks", "connectors", "computer-use", "acp", "canvas", "qoderwork", "headless"],
+      "supportedCapabilities": [
+        "rules",
+        "skills",
+        "subagents",
+        "mcp",
+        "plugins",
+        "hooks",
+        "connectors",
+        "computer-use",
+        "acp",
+        "canvas",
+        "qoderwork",
+        "headless"
+      ],
       "status": "active",
       "notes": "Qoder CLI 1.1.5. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
     },
@@ -447,7 +506,8 @@
         "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\skills",
         "skillsDirNote": "Verified 2026-08-04 against ampcode.com/manual skills section. Amp's documented precedence is ~/.config/agents/skills, ~/.agents/skills, ~/.config/amp/skills, then project and .claude scopes. This entry is the third tier and is genuinely read, so the deployment here is reachable. Amp also reads the shared ~/.agents/skills at HIGHER precedence, so it could be collapsed onto sharedSkillsDir like codex, gemini and warp; left as a private copy deliberately, because per-host duplication is intended.",
-        "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\plugins"
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\plugins",
+        "pluginsDirNote": "Verified 2026-08-05 against ampcode.com/manual. Amp plugins are TypeScript files loaded from .amp/plugins/*.ts (project) and ~/.config/amp/plugins/*.ts (user). Distinct from the skills precedence chain recorded in sharedSkillsDir -- the manual separates them explicitly: plugins for custom tools and event-driven behavior, skills for written guidance. Path correct; absent only because no plugin is installed."
       },
       "supportedCapabilities": [
         "rules",
@@ -470,12 +530,14 @@
         "skillsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\skills",
         "pluginsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\cli\\plugins",
         "agentsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\agents",
-        "hooksDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\hooks",
+        "hooksDir": null,
         "instructions": null,
         "verification": "documented-feature-inferred-windows-path",
         "instructionsNote": "Researched 2026-08-04 against docs.devin.ai/cli/extensibility/rules and re-checked the same day against docs.devin.ai/cli/extensibility/configuration (subjects confirmed: Rules/AGENTS.md and CLI configuration). Devin CLI loads a global AGENTS.md at the start of every session. The configuration page states the user config file is %APPDATA%\\devin\\config.json on Windows -- matching nativePaths.config here -- and instructs the reader to place AGENTS.md 'in this directory', i.e. the same user config directory, giving ~/.config/devin/AGENTS.md on Unix. The Windows form therefore derives from a documented directory rather than a guess, but the vendor never writes the Windows path literally, so this stays unresolved rather than being promoted to a deployment target. The separate Devin cloud Knowledge feature is an account setting, not a local file.",
         "mcpKey": "mcpServers",
-        "mcpNote": "Verified 2026-08-04. docs.devin.ai/cli/extensibility/mcp documents only PROJECT scope (.devin/mcp_config.json and .devin/mcp_config.local.json, key mcpServers) and says nothing about user-level MCP -- which nearly became a false finding that Sync-AgentHub.ps1 writes MCP where Devin does not read it. Checking the live file settled it: %APPDATA%\\devin\\config.json already carries an mcpServers object with six Devin-owned entries (context7, descript, exa, firecrawl, linear, notion) that AgentHub never wrote. The global key is real and the vendor page is merely incomplete. Sync-AgentHub.ps1's ProtectKeys behavior exists to keep those host-owned entries from being pruned."
+        "mcpNote": "Verified 2026-08-04. docs.devin.ai/cli/extensibility/mcp documents only PROJECT scope (.devin/mcp_config.json and .devin/mcp_config.local.json, key mcpServers) and says nothing about user-level MCP -- which nearly became a false finding that Sync-AgentHub.ps1 writes MCP where Devin does not read it. Checking the live file settled it: %APPDATA%\\devin\\config.json already carries an mcpServers object with six Devin-owned entries (context7, descript, exa, firecrawl, linear, notion) that AgentHub never wrote. The global key is real and the vendor page is merely incomplete. Sync-AgentHub.ps1's ProtectKeys behavior exists to keep those host-owned entries from being pruned.",
+        "agentsDirNote": "Verified 2026-08-05 against docs.devin.ai/cli/subagents. Devin CLI reads subagent profiles from %APPDATA%\\devin\\agents on Windows (~/.config/devin/agents on macOS and Linux), each as agents/<name>/AGENT.md -- a directory per agent, not a flat file per agent. Path correct; absent only because AgentHub does not generate Devin subagents: registry/subagent-formats.json is scoped to four hosts and devin is not one of them.",
+        "hooksDirNote": "Set to null 2026-08-05; previously claimed a directory at %APPDATA%\\devin\\hooks that does not exist as a concept. docs.devin.ai/cli/extensibility/hooks/overview documents NO user-level hooks directory: project hooks are a single file .devin/hooks.v1.json, and user-level hooks are configured as a 'hooks' key nested inside %APPDATA%\\devin\\config.json itself. Left as an explicit null rather than deleted, so the next person to notice that every other host has a hooks directory finds the answer instead of re-adding the wrong path."
       },
       "supportedCapabilities": [
         "rules",
@@ -505,7 +567,8 @@
         "rulesDir": "C:\\Users\\SaroshHussain\\.factory\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.factory\\skills",
         "droidsDir": "C:\\Users\\SaroshHussain\\.factory\\droids",
-        "pluginsDir": "C:\\Users\\SaroshHussain\\.factory\\plugins"
+        "pluginsDir": "C:\\Users\\SaroshHussain\\.factory\\plugins",
+        "rulesDirNote": "Verified 2026-08-05 against docs.factory.ai/guides/power-user/rules-conventions. Factory separates ~/.factory/ (personal preferences across all projects) from project .factory/; ~/.factory/rules/ holds personal rule files such as style.md and tools.md, with project .factory/rules/ as the per-repo equivalent. Path correct; absent only because no personal rules are deployed."
       },
       "supportedCapabilities": [
         "rules",
@@ -549,11 +612,13 @@
         "mcp": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\mcp_config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\skills",
         "settings": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\user_settings.pb",
-        "hooksDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\hooks",
-        "workflowsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\workflows",
+        "hooksFile": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\hooks.json",
+        "workflowsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\global_workflows",
         "instructions": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\memories\\global_rules.md",
         "instructionHeader": null,
-        "instructionFormat": "markdown"
+        "instructionFormat": "markdown",
+        "hooksFileNote": "Corrected 2026-08-05. Previously recorded as a directory ~/.codeium/windsurf/hooks, which does not exist and never did. docs.windsurf.com/windsurf/cascade/hooks (redirecting to docs.devin.ai/desktop/cascade/hooks after the merger) documents global hooks as a single FILE, hooks.json, merged with workspace .windsurf/hooks.json and system-level C:\\ProgramData\\Windsurf\\hooks.json. The old value is exactly what this field's accountability rule exists to catch: a plausible directory name nobody had checked. Field renamed from hooksDir to hooksFile in the same change, because a field whose name says Dir while its value names a file is the identical quiet wrongness one layer along. Nothing consumes this field programmatically -- it is declarative, read only by the inventory sweep, which iterates fields generically.",
+        "workflowsDirNote": "Corrected 2026-08-05. Previously recorded as ~/.codeium/windsurf/workflows, which does not exist. docs.windsurf.com/windsurf/cascade/workflows documents the global directory as global_workflows/*.md, available in every workspace and not committed; the project-scoped equivalent is .windsurf/workflows/*.md. Both this and hooksDir were wrong in the same host entry, which is why an absent path is not evidence of an unused feature."
       },
       "supportedCapabilities": [
         "rules",
