@@ -89,6 +89,16 @@ function Get-SectionBullet {
     if ($matched.Count -ne 1) { return $null }
     return [string]$matched[0]
 }
+# Sentences, because some claims are true or false depending on which verb the
+# rest of the sentence is predicated of, and a bullet-level co-occurrence test
+# cannot tell those apart. Splitting on '.' and ';' is the granularity the policy
+# actually punctuates at.
+function Get-SectionSentences {
+    return @(Get-SectionBullets |
+        ForEach-Object { $_ -split '[.;]' } |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ })
+}
 
 function Find-MissingPhrases {
     param([string]$Text, $Phrases)
@@ -223,6 +233,35 @@ $managementSurfaceAnchor = 'management surface'
 $managementSurfacePhrases = [ordered]@{
     'the authoritative manifest checker is named' = 'claude plugin validate'
     'the non-interactive management command is named' = 'claude plugin disable'
+    # Round 3: the anchor above only proves the words 'management surface' occur.
+    # Replacing the instruction with its inversion -- "A management surface may be
+    # assumed absent when none is obvious" -- keeps the anchor and used to pass,
+    # while the failure message claimed the check verified the instruction. The
+    # instruction is now pinned, so the message and the check say the same thing.
+    'and it is the confirm-before-assuming instruction, not merely the words' = 'Confirm that a management surface is absent'
+}
+# The claim, not a token that happens to sit near it. This used to require the
+# literal 'claude plugin' to co-occur with 'remov', so "disabling a plugin
+# removes an installed plugin" -- the same false claim in plain English -- passed,
+# and so did "disabling a plugin uninstalls it", which carries no 'remov' at all.
+# Meanwhile a TRUE sentence naming the real removal command failed, so the section
+# could never document it.
+#
+# What is actually false is predicating removal of DISABLING. So: a sentence that
+# talks about disabling AND about removal is the violation, and a sentence that
+# talks about removal alone is fine -- which is exactly what
+# "`claude plugin uninstall|remove` removes an installed plugin" is.
+$disableLanguage = @('disabl')
+$removalLanguage = @('remov', 'uninstall')
+function Find-DisableRemovalConflations {
+    $bad = [Collections.Generic.List[string]]::new()
+    foreach ($sentence in Get-SectionSentences) {
+        $saysDisable = @($disableLanguage | Where-Object { $sentence.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
+        if ($saysDisable.Count -eq 0) { continue }
+        $saysRemoval = @($removalLanguage | Where-Object { $sentence.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
+        if ($saysRemoval.Count -gt 0) { $bad.Add($sentence) }
+    }
+    return $bad
 }
 function Test-SectionNamesTheHostsOwnManagementCli {
     $section = Get-RoutingSection
@@ -234,18 +273,17 @@ function Test-SectionNamesTheHostsOwnManagementCli {
     }
     $managementBullet = Get-SectionBullet -Anchor $managementSurfaceAnchor
     if ($null -eq $managementBullet) {
-        return @{ Passed = $false; Detail = "the routing section has no single bullet saying a '$managementSurfaceAnchor' must be confirmed absent before it is worked around. Assuming a first-party management surface does not exist is the recorded mistake this bullet exists to prevent." }
+        # Says only what it checked. The instruction itself is pinned by the
+        # phrase table below, not here.
+        return @{ Passed = $false; Detail = "the words '$managementSurfaceAnchor' do not appear in exactly one bullet of the routing section, so there is no single bullet to hold the confirm-before-assuming instruction. Assuming a first-party management surface does not exist is the recorded mistake that bullet exists to prevent." }
     }
     $missing = @(Find-MissingPhrases -Text $managementBullet -Phrases $managementSurfacePhrases)
     if ($missing.Count -gt 0) {
-        return @{ Passed = $false; Detail = "the management-CLI bullet does not name the host's own management CLI: $($missing -join '; '). Bullet as written: '$managementBullet'" }
+        return @{ Passed = $false; Detail = "the management-CLI bullet is incomplete: $($missing -join '; '). Bullet as written: '$managementBullet'" }
     }
-    $conflating = @(Get-SectionBullets | Where-Object {
-        $_.IndexOf('claude plugin', [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
-        $_.IndexOf('remov', [StringComparison]::OrdinalIgnoreCase) -ge 0
-    })
+    $conflating = @(Find-DisableRemovalConflations)
     if ($conflating.Count -gt 0) {
-        return @{ Passed = $false; Detail = "a bullet naming a plugin command describes it in terms of removal: '$($conflating[0])'. ``claude plugin disable`` disables an enabled plugin; ``claude plugin uninstall|remove`` uninstalls an installed one. Conflating them tells 22 hosts to disable a plugin and report it removed." }
+        return @{ Passed = $false; Detail = "a sentence in the routing section predicates removal of disabling: '$($conflating[0])'. Disabling and uninstalling are different commands, so say what each one does in its own sentence rather than in one clause. Stating what the removal command removes, without mentioning disabling in the same sentence, is fine and does not trip this." }
     }
     return @{ Passed = $true; Detail = $null }
 }
@@ -359,7 +397,18 @@ function Test-NoHostIsNamedThatTheRegistryDoesNotGate {
 # autonomous hosts, which is exactly the shape of edit that quietly reads as
 # permission to stop asking, so the line it must not override is pinned
 # verbatim and the section is required to say it does not widen it. ---
+#
+# Round 3, self-found rather than flagged: this checked only 'never widens',
+# anywhere in the section. Keeping that phrase while deleting the clause that
+# says the escalation check survives -- "...never widens it: that is all." --
+# left the deference gone and the suite green. The message named two things and
+# the check verified one of them. Both are pinned now, in the gate bullet where
+# they belong. ---
 $escalationLine = '- Ask before destructive, production-affecting, externally communicating, credential-changing, or scope-expanding operations unless the task explicitly authorizes them.'
+$deferencePhrases = [ordered]@{
+    'the gate is stated as a narrowing, not a licence'    = 'never widens'
+    'and the escalation check is stated to survive it'    = 'applies on every host'
+}
 function Test-EscalationGateIsNotRelaxed {
     if ($policyText.IndexOf($escalationLine, [StringComparison]::Ordinal) -lt 0) {
         return @{ Passed = $false; Detail = "global-agent-policy.md no longer contains the escalation line verbatim: '$escalationLine'. Continuous execution under the routing section must never be the reason this weakened." }
@@ -368,8 +417,16 @@ function Test-EscalationGateIsNotRelaxed {
     if ($null -eq $section) {
         return @{ Passed = $false; Detail = "global-agent-policy.md has no '$routingHeading' section." }
     }
-    if ($section.IndexOf('never widens', [StringComparison]::OrdinalIgnoreCase) -lt 0) {
-        return @{ Passed = $false; Detail = "the routing section does not state that the autonomy gate narrows autonomy and never widens it, so a reader could take 'continue without prompting' as overriding the escalation check." }
+    if ($deferencePhrases.Count -eq 0) {
+        return @{ Passed = $false; Detail = 'anti-vacuity: the required-phrase set is empty.' }
+    }
+    $gateBullet = Get-SectionBullet -Anchor $autonomyGateAnchor
+    if ($null -eq $gateBullet) {
+        return @{ Passed = $false; Detail = "the routing section has no single bullet anchored on '$autonomyGateAnchor', so nothing carries the statement that the gate does not override the escalation check." }
+    }
+    $missing = @(Find-MissingPhrases -Text $gateBullet -Phrases $deferencePhrases)
+    if ($missing.Count -gt 0) {
+        return @{ Passed = $false; Detail = "the autonomy-gate bullet does not defer to the escalation check: $($missing -join '; '). A reader could take 'continue without prompting' as overriding it. Bullet as written: '$gateBullet'" }
     }
     return @{ Passed = $true; Detail = $null }
 }
