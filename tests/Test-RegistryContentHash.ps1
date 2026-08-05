@@ -34,46 +34,71 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
     }
 }
 
+# --- Fixture: an isolated git work tree under scratch, never the checkout
+# running this suite.
+#
+# Behaviors 1 and 2 both need a real git-TRACKED file to mutate --
+# Get-AgentHubGitTrackedRelativeFiles enumerates via 'git ls-files', so a plain
+# file copy with no '.git' behind it would make 'git rev-parse --show-toplevel'
+# fail outright. Earlier versions of these behaviors mutated the checkout's own
+# tracked packages/framer/skills/framer/SKILL.md and relied on a `finally` to
+# restore it; a hard-killed run bypasses `finally` and leaves that file modified
+# in the user's live repository.
+#
+# 'git init' + 'git add' is enough for 'git ls-files' to report a file as
+# tracked -- no commit, and no user.name/user.email, required -- so a scratch
+# directory can become its own fully independent git work tree, and the real
+# repository's tracked files are never touched. ---
+function New-HashFixtureRepo {
+    $workRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-hash-fixture-" + [guid]::NewGuid().ToString('n'))
+    $packageDir = Join-Path $workRoot 'package'
+    $null = New-Item -ItemType Directory -Path $packageDir -Force
+    Set-Content -LiteralPath (Join-Path $workRoot '.gitignore') -Value '*.mp4' -Encoding UTF8 -NoNewline
+    $trackedFile = Join-Path $packageDir 'content.md'
+    Set-Content -LiteralPath $trackedFile -Value "fixture content for tests/Test-RegistryContentHash.ps1`n" -Encoding UTF8 -NoNewline
+
+    & git -C $workRoot init -q
+    if ($LASTEXITCODE -ne 0) { throw "git init failed for fixture at $workRoot" }
+    & git -C $workRoot add -A
+    if ($LASTEXITCODE -ne 0) { throw "git add failed for fixture at $workRoot" }
+
+    return [pscustomobject]@{ WorkRoot = $workRoot; PackageDir = $packageDir; TrackedFile = $trackedFile }
+}
+
 # --- Behavior 1: a gitignored file inside a package must never affect the hash. ---
 function Test-IgnoredFileDoesNotMoveHash {
-    $packageDir = Join-Path $repoRoot 'packages\framer'
-    $scratchFile = Join-Path $packageDir 'scratch.mp4'
-    if (Test-Path -LiteralPath $scratchFile) { Remove-Item -LiteralPath $scratchFile -Force }
-    $before = Get-AgentHubRegistryHashBasisValue -Path $packageDir
+    $fixture = New-HashFixtureRepo
     try {
-        Set-Content -LiteralPath $scratchFile -Value 'not a real video -- transient scratch content for task-0b test' -Encoding UTF8 -NoNewline
-        $statusLine = (& git -C $packageDir status --porcelain --ignored -- scratch.mp4) -join "`n"
+        $scratchFile = Join-Path $fixture.PackageDir 'scratch.mp4'
+        $before = Get-AgentHubRegistryHashBasisValue -Path $fixture.PackageDir
+        Set-Content -LiteralPath $scratchFile -Value 'not a real video -- transient scratch content for a hash-sensitivity test' -Encoding UTF8 -NoNewline
+        $statusLine = (& git -C $fixture.PackageDir status --porcelain --ignored -- scratch.mp4) -join "`n"
         if ($statusLine -notmatch '^!! ') {
-            throw "test setup invalid: 'packages/framer/scratch.mp4' was not recognized by git as ignored (status: '$statusLine'); .gitignore may have changed"
+            throw "test setup invalid: '$scratchFile' was not recognized by git as ignored (status: '$statusLine')."
         }
-        $after = Get-AgentHubRegistryHashBasisValue -Path $packageDir
+        $after = Get-AgentHubRegistryHashBasisValue -Path $fixture.PackageDir
         if ($before -ne $after) {
             return @{ Passed = $false; Detail = "hash moved: before=$before after=$after" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
-        Remove-Item -LiteralPath $scratchFile -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $fixture.WorkRoot) { Remove-Item -LiteralPath $fixture.WorkRoot -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 
 # --- Behavior 2 (regression guard, not new): a tracked file change must still move the hash. ---
 function Test-TrackedFileChangeMovesHash {
-    $packageDir = Join-Path $repoRoot 'packages\framer'
-    $trackedFile = Join-Path $packageDir 'skills\framer\SKILL.md'
-    if (-not (Test-Path -LiteralPath $trackedFile)) {
-        return @{ Passed = $false; Detail = "fixture file missing: $trackedFile" }
-    }
-    $originalBytes = [IO.File]::ReadAllBytes($trackedFile)
-    $before = Get-AgentHubRegistryHashBasisValue -Path $packageDir
+    $fixture = New-HashFixtureRepo
     try {
-        Add-Content -LiteralPath $trackedFile -Value "`n<!-- temp task-0b hash-sensitivity probe, reverted immediately -->" -Encoding UTF8
-        $after = Get-AgentHubRegistryHashBasisValue -Path $packageDir
+        $before = Get-AgentHubRegistryHashBasisValue -Path $fixture.PackageDir
+        Add-Content -LiteralPath $fixture.TrackedFile -Value "`n<!-- temp hash-sensitivity probe -->" -Encoding UTF8
+        $after = Get-AgentHubRegistryHashBasisValue -Path $fixture.PackageDir
         if ($before -eq $after) {
             return @{ Passed = $false; Detail = "hash did not move after editing a tracked file: $before" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
-        [IO.File]::WriteAllBytes($trackedFile, $originalBytes)
+        if (Test-Path -LiteralPath $fixture.WorkRoot) { Remove-Item -LiteralPath $fixture.WorkRoot -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -127,10 +152,19 @@ function Test-NonWorkTreePathFailsLoudly {
 }
 
 # --- Behavior 5: zero tracked files under an existing directory must fail loudly, not silently hash an empty set. ---
+#
+# The empty directory used to be created (and removed) directly inside the
+# checkout's own packages/framer. That is untracked content written to the
+# real repository tree for the length of this behavior -- harmless to git
+# status, but not to a process watching the repo for writes. It now lives
+# inside the same isolated fixture repo Behaviors 1 and 2 use, untracked
+# there too (nothing 'git add -A' saw when the fixture was built, since it
+# is created afterward), so the real repository tree is never touched at all. ---
 function Test-EmptyTrackedSetFailsLoudly {
-    $emptyDir = Join-Path $repoRoot 'packages\framer\.tmp-task0b-empty-hash-test'
-    New-Item -ItemType Directory -Path $emptyDir -Force | Out-Null
+    $fixture = New-HashFixtureRepo
     try {
+        $emptyDir = Join-Path $fixture.WorkRoot '.empty-hash-test'
+        New-Item -ItemType Directory -Path $emptyDir -Force | Out-Null
         $threw = $false
         try { Get-AgentHubRegistryHashBasisValue -Path $emptyDir | Out-Null } catch { $threw = $true }
         if (-not $threw) {
@@ -138,7 +172,7 @@ function Test-EmptyTrackedSetFailsLoudly {
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
-        Remove-Item -LiteralPath $emptyDir -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $fixture.WorkRoot) { Remove-Item -LiteralPath $fixture.WorkRoot -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 

@@ -472,7 +472,7 @@ $r5 = Test-QuotedCapabilityMeaningsAreVerbatim
 Report 'every capability meaning a skill quotes is verbatim the registry definition' $r5.Passed $r5.Detail
 
 $r6 = Test-PostResolutionStepsNameNoSpecificProvider
-Report 'the numbered steps after resolution name no one provider''s tool or browser engine' $r6.Passed $r6.Detail
+Report 'the numbered steps after resolution name no backticked MCP tool name and no browser engine name' $r6.Passed $r6.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
