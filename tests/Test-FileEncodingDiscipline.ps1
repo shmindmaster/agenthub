@@ -28,8 +28,11 @@ it). Verified empirically in BOTH shells before relying on it:
     BOM'd file -- it strips it (first char was U+006E, not U+FEFF, against
     a file whose first three bytes on disk were 239,187,191).
 
-WRITES ARE THE MIRROR IMAGE. `Set-Content -Encoding UTF8` writes a BOM in
-5.1 and no BOM in 7. Behavior 5 covers scripts/ for that; see its comment.
+WRITES ARE THE MIRROR IMAGE, in two shapes. `Set-Content -Encoding UTF8`
+writes a BOM in 5.1 and no BOM in 7 -- three bytes. A write specifying NO
+`-Encoding` at all is worse: 5.1 writes the ANSI code page and 7 writes
+UTF-8 with no BOM, so EVERY non-ASCII character differs. Behavior 5 covers
+scripts/ for both; see its comment.
 
 WHAT THIS SCANNER CAN AND CANNOT SEE
 It parses each .ps1 with the real PowerShell parser
@@ -202,9 +205,27 @@ function Get-UnencodedFileRead {
     return $violations
 }
 
-# Get-ShellDivergentWrite: same walk, for writes. `Set-Content -Encoding UTF8`
-# emits a BOM in 5.1 and none in 7 (measured: bytes 239,187,191,104,101,108,
-# 108,111 vs 104,101,108,108,111 for the same input).
+# Get-ShellDivergentWrite: same walk, for writes. TWO shapes diverge, and
+# they are not the same defect:
+#
+#   -Encoding UTF8  -- 5.1 emits a BOM, 7 does not (measured: bytes
+#                      239,187,191,104,101,108,108,111 vs
+#                      104,101,108,108,111 for the same input). Three
+#                      bytes, at the front, once per file.
+#   NO -Encoding    -- 5.1 writes the ANSI code page (Windows-1252 here),
+#                      7 writes UTF-8 with no BOM. EVERY non-ASCII
+#                      character in the file differs. This is the worse
+#                      of the two and was the one going unreported: the
+#                      previous form did `if ($null -eq $encoding)
+#                      { continue }`, so a write specifying no encoding at
+#                      all was treated as compliant.
+#
+# The two are reported with different explanations, appended after
+# ' --> ', because they want different fixes and a message that conflates
+# them cannot be acted on. The ' --> ' suffix sits after the snippet, so
+# the 'relative\path.ps1:LINE' allowlist key is unaffected.
+$script:WriteReasonNoEncoding = 'no -Encoding at all: 5.1 writes the ANSI code page, 7 writes UTF-8 without a BOM, so EVERY non-ASCII character differs between shells. Fix: [IO.File]::WriteAllText / Write-Utf8NoBom.'
+$script:WriteReasonUtf8Bom = 'writes -Encoding UTF8: 5.1 prepends a 3-byte BOM, 7 does not. Fix: [IO.File]::WriteAllText / Write-Utf8NoBom.'
 function Get-ShellDivergentWrite {
     param([string[]]$Path, [string]$RootForRelativePath)
     $violations = [Collections.Generic.List[string]]::new()
@@ -213,11 +234,18 @@ function Get-ShellDivergentWrite {
             $name = [string]$command.GetCommandName()
             if ([string]::IsNullOrEmpty($name)) { continue }
             if (@($script:WriteCommandNames | Where-Object { $_ -eq $name }).Count -eq 0) { continue }
+            # A byte-stream write never encodes text, so no code page applies.
+            if (Test-CommandHasSwitch -CommandAst $command -SwitchName 'AsByteStream') { continue }
             $encoding = Get-EncodingArgument -CommandAst $command
-            if ($null -eq $encoding) { continue }
-            $trimmed = $encoding.Trim().Trim("'", '"')
-            if ($trimmed -ne 'UTF8') { continue }
-            $violations.Add((New-EncodingViolation -Path $file -CommandAst $command -RootForRelativePath $RootForRelativePath))
+            $reason = $null
+            if ($null -eq $encoding) {
+                $reason = $script:WriteReasonNoEncoding
+            } else {
+                $trimmed = $encoding.Trim().Trim("'", '"')
+                if ($trimmed -eq 'UTF8') { $reason = $script:WriteReasonUtf8Bom }
+            }
+            if ($null -eq $reason) { continue }
+            $violations.Add((New-EncodingViolation -Path $file -CommandAst $command -RootForRelativePath $RootForRelativePath) + " --> $reason")
         }
     }
     return $violations
@@ -447,12 +475,20 @@ function Test-DetectorIsNotFooledByCommentsHereStringsOrContinuations {
 }
 
 # --- Behavior 5: no script in scripts/ writes a persistent file through
-# `Set-Content -Encoding UTF8`. Those scripts write REAL fleet artifacts --
-# host plugin manifests, the drift report, the sync state file -- so a BOM
-# that appears only under 5.1 is a real difference in a file that survives
-# the run. Sync-AgentHub.ps1 already carries the fix as Write-Utf8NoBom
-# ([IO.File]::WriteAllText with UTF8Encoding($false)); this makes using it
-# non-optional.
+# either divergent shape -- `Set-Content -Encoding UTF8` (BOM under 5.1
+# only) or a write specifying NO -Encoding at all (ANSI under 5.1, UTF-8
+# under 7, so every non-ASCII character differs). Those scripts write REAL
+# fleet artifacts -- host plugin manifests, the drift report, the sync
+# state file -- so either difference survives the run. Sync-AgentHub.ps1
+# already carries the fix as Write-Utf8NoBom ([IO.File]::WriteAllText with
+# UTF8Encoding($false)); this makes using it non-optional.
+#
+# STATED HONESTLY: scripts/ currently contains ZERO write-cmdlet calls of
+# any kind -- the only textual matches are three comments, which the AST
+# walk correctly ignores. So this sweep is preventive: it iterates a
+# proven non-empty set of files and finds no violations because there are
+# no such calls, not because it cannot see them. What proves the detector
+# can see them is Behavior 5a, against a fixture.
 #
 # SCOPE NOTE, stated honestly: tests/ and packages/*/tests/ still contain
 # ~55 `Set-Content -Encoding UTF8` calls and are NOT swept here. Every one
@@ -466,6 +502,58 @@ function Test-DetectorIsNotFooledByCommentsHereStringsOrContinuations {
 $script:WriteAllowlist = @(
     # (empty -- see comment above)
 )
+
+# --- Behavior 5a: the write detector itself, proven against a synthetic
+# fixture. It must flag BOTH divergent shapes and must not describe them
+# the same way, because they diverge for different reasons and want
+# different fixes -- and it must clear a byte write, which involves no
+# code page at all. ---
+function Test-WriteDetectorDistinguishesNoEncodingFromUtf8 {
+    $dir = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-encoding-writedetector-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    try {
+        $lines = @(
+            '''text'' | Set-Content -LiteralPath $q'                        # 1 no -Encoding
+            '''text'' | Set-Content -LiteralPath $q2 -Encoding UTF8'        # 2 BOM divergence
+            'Out-File -FilePath $q3'                                        # 3 no -Encoding
+            'Add-Content -LiteralPath $q4 -Value ''text'''                  # 4 no -Encoding
+            'Set-Content -LiteralPath $q5 -Value ''x'' -Encoding Byte'      # 5 clear
+            'Set-Content -LiteralPath $q6 -Value ''x'' -AsByteStream'       # 6 clear
+            '[IO.File]::WriteAllText($q7, ''x'')'                           # 7 clear
+        )
+        $fixture = Join-Path $dir 'Writes.ps1'
+        [IO.File]::WriteAllText($fixture, (($lines -join "`r`n") + "`r`n"), [Text.UTF8Encoding]::new($false))
+
+        $violations = @(Get-ShellDivergentWrite -Path @($fixture) -RootForRelativePath $dir)
+        $flaggedLines = @($violations | ForEach-Object { ($_ -split ':')[1] }) -join ','
+        if ($flaggedLines -ne '1,2,3,4') {
+            return @{ Passed = $false; Detail = "expected the detector to flag exactly lines 1,2,3,4 (three no-Encoding writes and one -Encoding UTF8 write) and to clear the byte writes and the .NET write; it flagged [$flaggedLines]: $($violations -join ' | ')" }
+        }
+
+        $noEncoding = @($violations | Where-Object { $_ -match 'no -Encoding at all' })
+        $utf8Bom = @($violations | Where-Object { $_ -match 'BOM' -and $_ -notmatch 'no -Encoding at all' })
+        if ($noEncoding.Count -ne 3) {
+            return @{ Passed = $false; Detail = "expected 3 violations reported as no-Encoding writes, got $($noEncoding.Count): $($violations -join ' | ')" }
+        }
+        if ($utf8Bom.Count -ne 1) {
+            return @{ Passed = $false; Detail = "expected 1 violation reported as an -Encoding UTF8 BOM divergence, got $($utf8Bom.Count): $($violations -join ' | ')" }
+        }
+        # The two shapes must not be described identically: a no-Encoding
+        # write diverges by every non-ASCII character, an -Encoding UTF8
+        # write by three BOM bytes, and they want different fixes.
+        $noEncodingReason = ($noEncoding[0] -split ' --> ', 2)[1]
+        $utf8BomReason = ($utf8Bom[0] -split ' --> ', 2)[1]
+        if ([string]::IsNullOrWhiteSpace($noEncodingReason) -or [string]::IsNullOrWhiteSpace($utf8BomReason)) {
+            return @{ Passed = $false; Detail = "one or both violations carried no ' --> reason' explanation: no-Encoding='$noEncodingReason', utf8='$utf8BomReason'" }
+        }
+        if ($noEncodingReason -ceq $utf8BomReason) {
+            return @{ Passed = $false; Detail = "both divergence shapes were reported with the identical explanation '$noEncodingReason'; they diverge for different reasons and want different fixes, so a reader cannot act on a message that conflates them" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
 function Test-NoShellDivergentWriteInScripts {
     $scriptsDir = Join-Path $repoRoot 'scripts'
     $targets = @(Get-ChildItem -LiteralPath $scriptsDir -File -Filter '*.ps1' | Sort-Object Name | ForEach-Object { $_.FullName })
@@ -573,6 +661,9 @@ Report 'no tracked .ps1 in the repository reads a file without explicit UTF-8 de
 
 $r4 = Test-DetectorIsNotFooledByCommentsHereStringsOrContinuations
 Report 'the detector is not fooled by comments, here-strings, dotted path tokens, or line continuations' $r4.Passed $r4.Detail
+
+$r5a = Test-WriteDetectorDistinguishesNoEncodingFromUtf8
+Report 'the write detector flags both a no-Encoding write and an -Encoding UTF8 write, clears byte writes, and explains the two differently' $r5a.Passed $r5a.Detail
 
 $r5 = Test-NoShellDivergentWriteInScripts
 Report 'no script in scripts/ writes a persistent file with shell-divergent Set-Content -Encoding UTF8' $r5.Passed $r5.Detail
