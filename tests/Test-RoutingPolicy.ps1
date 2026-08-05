@@ -42,17 +42,21 @@ $policyText = [IO.File]::ReadAllText($policyPath).Replace("`r`n", "`n")
 $fleet  = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 
-# The empty-string filter is not decoration: piping a missing property into
-# ForEach-Object emits one $null rather than nothing, so a renamed agents.json
-# key yields a two-element array of nulls and a Count-based emptiness guard
-# below would never notice.
-$registeredHostIds    = @(@($agents.activeAgents | ForEach-Object id) + @($agents.inactiveAgents | ForEach-Object id) |
-    Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
-$knownDefaultProfiles = @($fleet.autonomyProfiles.knownDefaultProfiles)
+# The empty-string filter is not decoration, and it belongs on EVERY set derived
+# from the registry. Reading a missing property yields $null, and $null in a
+# pipeline is one item rather than none -- so renaming `hostId` under
+# autonomyProfiles.profiles produced eight empty strings here, not eight host
+# ids, and every Count-based emptiness guard below stayed satisfied while the
+# derivation had silently become phantom. Review reproduced exactly that:
+# interactiveHostIds.Count=8 content=[,,,,,,,] with the suite green.
+function Select-NonBlank { param([Parameter(ValueFromPipeline = $true)]$Value) process { if (-not [string]::IsNullOrWhiteSpace([string]$Value)) { $Value } } }
+
+$registeredHostIds    = @(@($agents.activeAgents | ForEach-Object id) + @($agents.inactiveAgents | ForEach-Object id) | Select-NonBlank)
+$knownDefaultProfiles = @(@($fleet.autonomyProfiles.knownDefaultProfiles) | Select-NonBlank)
 # Derived, never transcribed: which hosts must ask is the registry's answer, and
 # a copy of that list in this file would be one more thing to keep in step.
 $interactiveHostIds   = @($fleet.autonomyProfiles.profiles |
-    Where-Object { [string]$_.defaultProfile -eq 'interactive' } | ForEach-Object { [string]$_.hostId })
+    Where-Object { [string]$_.defaultProfile -eq 'interactive' } | ForEach-Object { [string]$_.hostId } | Select-NonBlank)
 
 $routingHeading = '## Capability routing'
 
@@ -68,12 +72,28 @@ function Get-RoutingSection {
     return $rest
 }
 
+# A single bullet, not the whole section. Two bullets cite
+# registry/fleet-profile.json, so a section-scoped search for it is satisfied by
+# whichever bullet still carries it: delete the citation from the resolution
+# bullet and the assertion labelled "names the file that carries it" stays green
+# on the gate bullet's copy. Returning $null for zero OR more than one match also
+# catches an anchor that has been duplicated across bullets.
+function Get-SectionBullet {
+    param([string]$Anchor)
+    $section = Get-RoutingSection
+    if ($null -eq $section) { return $null }
+    $bullets = @($section -split "`n" | Where-Object { $_.TrimStart().StartsWith('- ') })
+    $matched = @($bullets | Where-Object { $_.IndexOf($Anchor, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
+    if ($matched.Count -ne 1) { return $null }
+    return [string]$matched[0]
+}
+
 function Find-MissingPhrases {
     param([string]$Text, $Phrases)
     $missing = [Collections.Generic.List[string]]::new()
     foreach ($entry in $Phrases.GetEnumerator()) {
         if ($Text.IndexOf([string]$entry.Value, [StringComparison]::OrdinalIgnoreCase) -lt 0) {
-            $missing.Add("$($entry.Key) (expected the section to contain '$($entry.Value)')")
+            $missing.Add("$($entry.Key) (expected the text to contain '$($entry.Value)')")
         }
     }
     return $missing
@@ -91,7 +111,7 @@ $principlePhrases = [ordered]@{
     'each host uses its strongest capability'    = 'strongest native capability'
     'no GUI emulation of what a tool does directly' = 'Never emulate'
     'no redundant integration to imitate another platform' = 'redundant integration'
-    'a stated preference order, not a fixed tier list' = 'Prefer, in order'
+    'a stated preference order, not a hard tier list' = 'Prefer, in this order'
 }
 function Test-SectionStatesTheRoutingPrinciple {
     $section = Get-RoutingSection
@@ -123,10 +143,11 @@ $unevidencedClaims = [ordered]@{
     'Computer Use'     = 'computer use is tier-limited here: browsers are read-only and terminals/IDEs reject typing, so it substitutes for neither a browser nor a shell'
     'macOS'            = 'this fleet runs on Windows 11; one source proposal routed to native macOS applications'
 }
+$capabilityResolutionAnchor = 'hostSurfaces'
 $capabilityResolutionPhrases = [ordered]@{
-    'resolution is against the registry surface matrix' = 'hostSurfaces'
-    'and names the file that carries it'                = 'registry/fleet-profile.json'
-    'null is not a licence to assume'                   = 'not established'
+    'it names the registry file that carries the matrix' = 'registry/fleet-profile.json'
+    'null is not a licence to assume'                    = 'not established'
+    'and false is a checked absence, not a gap'          = 'checked and absent'
 }
 function Find-UnevidencedClaims {
     param([string]$Text)
@@ -151,9 +172,13 @@ function Test-RoutingResolvesCapabilitiesInsteadOfNamingProducts {
     if ($unevidencedClaims.Count -eq 0 -or $controlHits.Count -ne $unevidencedClaims.Count) {
         return @{ Passed = $false; Detail = "the forbidden-claim matcher found $($controlHits.Count) of $($unevidencedClaims.Count) claims in a control string that contains all of them, so a clean result against the real section would mean nothing." }
     }
-    $missing = @(Find-MissingPhrases -Text $section -Phrases $capabilityResolutionPhrases)
+    $resolutionBullet = Get-SectionBullet -Anchor $capabilityResolutionAnchor
+    if ($null -eq $resolutionBullet) {
+        return @{ Passed = $false; Detail = "the routing section has no single bullet resolving a capability against '$capabilityResolutionAnchor'; routing by resolved capability is what stops the policy naming products that do not exist on the active surface." }
+    }
+    $missing = @(Find-MissingPhrases -Text $resolutionBullet -Phrases $capabilityResolutionPhrases)
     if ($missing.Count -gt 0) {
-        return @{ Passed = $false; Detail = "the routing section does not say how a capability is resolved: $($missing -join '; ')" }
+        return @{ Passed = $false; Detail = "the capability-resolution bullet does not say how a capability is resolved: $($missing -join '; ')" }
     }
     $found = @(Find-UnevidencedClaims -Text $section)
     if ($found.Count -gt 0) {
@@ -169,7 +194,16 @@ function Test-RoutingResolvesCapabilitiesInsteadOfNamingProducts {
 # and an interactive dialog was used instead, and a hand-written manifest
 # checker passed a manifest `claude plugin validate` rejects. Assuming a
 # first-party management surface is absent is a repeated, recorded mistake, so
-# it gets a line rather than a memory. ---
+# it gets a line rather than a memory.
+#
+# The forbidden 'remove' below is the second half of the same lesson, and it was
+# earned by getting it wrong in this very bullet. `claude plugin --help` reports
+# two distinct commands: "disable [options] [plugin]  Disable an enabled plugin"
+# and "uninstall|remove [options] <plugin>  Uninstall an installed plugin". A
+# bullet that says disable removes a plugin, in the one bullet whose whole
+# subject is not guessing at management surfaces, sends 22 instruction files an
+# agent that disables a plugin and reports it removed. ---
+$managementSurfaceAnchor = 'claude plugin validate'
 $managementSurfacePhrases = [ordered]@{
     'the authoritative manifest checker is named' = 'claude plugin validate'
     'the non-interactive management command is named' = 'claude plugin disable'
@@ -186,6 +220,13 @@ function Test-SectionNamesTheHostsOwnManagementCli {
     $missing = @(Find-MissingPhrases -Text $section -Phrases $managementSurfacePhrases)
     if ($missing.Count -gt 0) {
         return @{ Passed = $false; Detail = "the routing section does not cover the host's own management CLI: $($missing -join '; ')" }
+    }
+    $managementBullet = Get-SectionBullet -Anchor $managementSurfaceAnchor
+    if ($null -eq $managementBullet) {
+        return @{ Passed = $false; Detail = "no single bullet in the routing section names '$managementSurfaceAnchor'." }
+    }
+    if ($managementBullet.IndexOf('remov', [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        return @{ Passed = $false; Detail = "the management-CLI bullet describes a plugin command in terms of removal: '$managementBullet'. `claude plugin disable` disables an enabled plugin; `claude plugin uninstall|remove` uninstalls an installed one. Conflating them in this bullet tells 22 hosts to disable a plugin and report it removed." }
     }
     return @{ Passed = $true; Detail = $null }
 }
@@ -205,9 +246,19 @@ function Test-SectionNamesTheHostsOwnManagementCli {
 # the registry drifting apart: rename the profile in fleet-profile.json and the
 # knownDefaultProfiles check fires; move every host off it and the anti-vacuity
 # check fires, because a gate no host is subject to is a gate nothing tests. ---
+# Token presence alone is not a gate assertion. Review rewrote this bullet to say
+# continuous execution "is available on every host", that the autonomy profile
+# "records context only", and that on an `interactive` host you should "continue
+# as well" -- an exact inversion of the requirement, with every token this test
+# used to look for still in place, and the suite reported 6 passed, 0 failed. An
+# assertion that passes over an inverted gate is worse than no assertion, because
+# it certifies the inversion. The two phrases that carry the conditional are
+# pinned first, and the whole set is matched against the gate bullet alone. ---
 $gatedProfileName = 'interactive'
+$autonomyGateAnchor = 'Continuous execution'
 $autonomyGatePhrases = [ordered]@{
-    'continuous execution is named as the thing being gated' = 'Continuous execution'
+    'the permission is conditional, not a grant'             = 'applies only where'
+    'and it says what to do when the condition fails'        = 'ask instead'
     'the gate resolves against the registry autonomy table'  = 'autonomyProfiles'
     'and the file that carries it'                           = 'registry/fleet-profile.json'
 }
@@ -225,15 +276,19 @@ function Test-ContinuousExecutionIsGatedOnTheAutonomyProfile {
     if ($interactiveHostIds.Count -eq 0) {
         return @{ Passed = $false; Detail = "anti-vacuity: registry/fleet-profile.json marks zero hosts '$gatedProfileName', so the gate applies to no host and this behavior would be asserting nothing." }
     }
-    $missing = @(Find-MissingPhrases -Text $section -Phrases $autonomyGatePhrases)
+    $gateBullet = Get-SectionBullet -Anchor $autonomyGateAnchor
+    if ($null -eq $gateBullet) {
+        return @{ Passed = $false; Detail = "the routing section has no single bullet gating '$autonomyGateAnchor'. $($interactiveHostIds.Count) of the fleet's hosts are marked '$gatedProfileName' and must never be dispatched unattended; without this bullet their instruction files carry an unconditional licence to continue." }
+    }
+    $missing = @(Find-MissingPhrases -Text $gateBullet -Phrases $autonomyGatePhrases)
     if ($missing.Count -gt 0) {
-        return @{ Passed = $false; Detail = "the routing section does not gate continuous execution: $($missing -join '; ')" }
+        return @{ Passed = $false; Detail = "the autonomy-gate bullet does not gate continuous execution: $($missing -join '; '). Bullet as written: '$gateBullet'" }
     }
     # Backticked, not bare: 'interactive' also occurs in ordinary prose in this
     # section, so a bare substring search would stay green with the whole gate
     # sentence deleted.
-    if ($section.IndexOf(('`' + $gatedProfileName + '`'), [StringComparison]::Ordinal) -lt 0) {
-        return @{ Passed = $false; Detail = "the routing section never names the ``$gatedProfileName`` profile as an identifier, so it does not say which of the $($interactiveHostIds.Count) gated hosts must ask." }
+    if ($gateBullet.IndexOf(('`' + $gatedProfileName + '`'), [StringComparison]::Ordinal) -lt 0) {
+        return @{ Passed = $false; Detail = "the autonomy-gate bullet never names the ``$gatedProfileName`` profile as an identifier, so it does not say which of the $($interactiveHostIds.Count) gated hosts must ask." }
     }
     return @{ Passed = $true; Detail = $null }
 }
