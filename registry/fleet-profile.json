@@ -164,7 +164,7 @@
         "verification": "browser.isolated measured live: the in-app Browser pane opened and navigated. browser.authenticated measured FALSE: list_connected_browsers returned an empty array, so Claude in Chrome is not connected on this machine -- the product exists but the capability does not, which is exactly the distinction this table is for. computer.gui is available, with documented tier limits: browsers are read-only and terminals/IDEs reject typing, so it cannot substitute for either browser capability."
       }
     ],
-    "note": "null means not established, never 'assumed false'. A false must carry evidence in the same entry, the same rule registry/mcps.json applies to protocol revisions. Enforced by tests/Test-HostSurfaces.ps1."
+    "note": "null means not established, never 'assumed false'. Every true and every false must carry its own sentence under this surface's capabilityEvidence, keyed by the capability it backs -- one shared paragraph cannot answer for three capabilities, which is how a false about GUI control once rode on evidence that only discussed browsers. A null carries no writing cost at all: registry/mcps.json requires a null protocol revision to say why, and this table deliberately does not, because charging the honest value a cost that false does not pay is the incentive being inverted here. A capabilityNotEstablished entry is optional, is never read as evidence, and must name a capability this surface still records as null. Enforced by tests/Test-HostSurfaces.ps1."
   },
   "notes": [
     "OAuth consent and provider login remain provider-controlled.",

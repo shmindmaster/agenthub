@@ -307,6 +307,38 @@ function Test-NotEstablishedNotesAnnotateOnlyNulls {
     return @{ Passed = $true; Detail = $null }
 }
 
+# --- Behavior 7: the table's own note names every key the rule turns on.
+#
+# This behavior exists because the note already drifted once. 37caa2b moved the
+# evidence requirement from one paragraph per surface to one sentence per
+# capability and introduced capabilityEvidence; the note went on saying "A false
+# must carry evidence in the same entry" and named neither the new key nor the
+# fact that a true now costs a sentence too. An author reading the registry and
+# not the test would have written a legal-looking surface that the suite
+# rejects -- and the registry, not the author, would have been the thing that
+# lied.
+#
+# What is checked is only that the note NAMES the structural keys the rule turns
+# on. It is not a reading of the note's argument, which no test can do: a note
+# can name every key and still explain them wrongly. The claim is narrow on
+# purpose -- renaming or introducing a key without touching the note is the
+# drift that actually happened, and it is a rename that this catches. ---
+function Test-NoteNamesTheKeysTheRuleTurnsOn {
+    $note = [string]$fleet.hostSurfaces.note
+    if ([string]::IsNullOrWhiteSpace($note)) {
+        return @{ Passed = $false; Detail = 'hostSurfaces carries no note. The table describes an evidence rule that a reader has to reconstruct from tests/Test-HostSurfaces.ps1, and this check would otherwise pass over nothing.' }
+    }
+    # Each required token is a structural key or literal this file enforces
+    # somewhere above; a token that stops appearing in the note means the note
+    # stopped describing the rule the suite applies.
+    $required = @('null', 'false', 'capabilityEvidence', 'capabilityNotEstablished')
+    $missing = @($required | Where-Object { $note -notmatch [regex]::Escape($_) })
+    if ($missing.Count -gt 0) {
+        return @{ Passed = $false; Detail = "hostSurfaces.note never mentions $($missing -join ', '). The suite enforces a rule turning on those, so the note now describes a rule that is not the one being applied -- which is the failure this behavior was added after, not a hypothetical one." }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r0 = Test-RegisteredHostIdSetIsNonEmpty
 Report 'the registered host-id set is non-empty' $r0.Passed $r0.Detail
 
@@ -327,6 +359,9 @@ Report 'every capability value is a real boolean or a real null, not a lookalike
 
 $r6 = Test-NotEstablishedNotesAnnotateOnlyNulls
 Report 'every capabilityNotEstablished key names a capability that surface still records as null' $r6.Passed $r6.Detail
+
+$r7 = Test-NoteNamesTheKeysTheRuleTurnsOn
+Report "the table's own note names every key the rule turns on" $r7.Passed $r7.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
