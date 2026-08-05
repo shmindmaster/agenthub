@@ -365,8 +365,8 @@
     {
       "id": "cline",
       "name": "Cline CLI / ACP / Kanban",
-      "version": "3.0.47",
-      "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\cline.cmd",
+      "version": "3.0.50",
+      "executable": "C:\\Users\\SaroshHussain\\bin\\cline.cmd",
       "nativePaths": {
         "dataDir": "C:\\Users\\SaroshHussain\\.cline",
         "config": "C:\\Users\\SaroshHussain\\.cline\\data\\settings",
@@ -374,7 +374,7 @@
         "instructions": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules\\00-agenthub.md",
         "instructionHeader": "# Cline CLI Global Rules",
         "instructionFormat": "markdown",
-        "desktopInstructions": "C:\\Users\\SaroshHussain\\Documents\\Cline\\Rules\\00-agenthub.md",
+        "desktopInstructions": "C:\\Users\\SaroshHussain\\AppData\\Local\\AgentHub\\cline-documents\\Rules\\00-agenthub.md",
         "rulesDir": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.cline\\skills",
         "agentsDir": null,
@@ -382,7 +382,8 @@
         "hooksDir": "C:\\Users\\SaroshHussain\\.cline\\hooks",
         "pluginsDirNote": "Verified 2026-08-05 against docs.cline.bot/customization/plugins and docs.cline.bot/getting-started/config. ~/.cline/plugins/ is the global plugin directory, with installs nested under plugins/_installed/{npm,git,remote,local}/ and project-scoped plugins in .cline/plugins/. Scope matters here: the plugins page states verbatim that the feature applies to Cline SDK, CLI and Kanban and NOT to the VSCode or JetBrains extensions -- and this registry entry is the CLI (executable cline.cmd), so the path is correct for the surface actually registered. Absent only because no plugin is installed.",
         "hooksDirNote": "Verified 2026-08-05 against docs.cline.bot/getting-started/config, which lists ~/.cline/hooks/ as the global hooks directory for the SDK/CLI/Kanban surface this entry registers; hooks are implemented as a plugin capability (docs.cline.bot/sdk/plugins). Flagged conflict, recorded because it would otherwise be rediscovered as a bug: cline.bot/blog/cline-v3-36-hooks describes a DIFFERENT and older hooks system belonging to the VSCode extension, rooted at ~/Documents/Cline/Rules/Hooks/ with project .clinerules/hooks/, and states it is macOS and Linux only with no Windows support. Two systems share one feature name. If a VSCode Cline host is ever registered separately, it must not reuse this path.",
-        "agentsDirNote": "Set to null 2026-08-05: NOT ESTABLISHED, which is different from absent. Previously asserted ~/.cline/agents. Research found two conflations and no resolution. (a) The shipped subagents feature (docs.cline.bot/features/subagents) is a built-in automatic use_subagents tool with no user-authored file or directory at all -- toggled in Settings, never defined on disk. (b) The custom multi-agent 'Agent Teams' feature, which would need a directory, is documented inconsistently by Cline itself: docs.cline.bot/getting-started/config shows 'agents/  # Global agent definitions' under ~/.cline/, while docs.cline.bot/cli/cli-reference shows definitions in a project-level file .cline/agents.yaml with no global equivalent, and docs.cline.bot/cli/agent-teams documents only runtime team STATE at ~/.cline/data/teams/[team-name]/, never where definitions are authored. Two official pages disagree on whether a global path exists. Resolve by installing an Agent Team and observing where Cline writes, not by picking the page that reads more confidently."
+        "agentsDirNote": "Set to null 2026-08-05: NOT ESTABLISHED, which is different from absent. Previously asserted ~/.cline/agents. Research found two conflations and no resolution. (a) The shipped subagents feature (docs.cline.bot/features/subagents) is a built-in automatic use_subagents tool with no user-authored file or directory at all -- toggled in Settings, never defined on disk. (b) The custom multi-agent 'Agent Teams' feature, which would need a directory, is documented inconsistently by Cline itself: docs.cline.bot/getting-started/config shows 'agents/  # Global agent definitions' under ~/.cline/, while docs.cline.bot/cli/cli-reference shows definitions in a project-level file .cline/agents.yaml with no global equivalent, and docs.cline.bot/cli/agent-teams documents only runtime team STATE at ~/.cline/data/teams/[team-name]/, never where definitions are authored. Two official pages disagree on whether a global path exists. Resolve by installing an Agent Team and observing where Cline writes, not by picking the page that reads more confidently.",
+        "desktopInstructionsNote": "Documents/Cline is a legacy additional search path. On this machine Windows Known Folder Documents is redirected to OneDrive (D:\\OneDrive - MahumTech\\Documents). The old OneDrive Documents\\Cline tree (~135MB local MCP installs under MCP/context7-mcp and MCP/linear-mcp) was deleted 2026-08-05 so cloud sync drops it. desktopInstructions therefore points at %LOCALAPPDATA%\\AgentHub\\cline-documents\\Rules (outside OneDrive), not at the Known Folder. Primary rules remain ~/.cline/data/settings/rules."
       },
       "supportedCapabilities": [
         "rules",
@@ -397,7 +398,7 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Cline 3.0.47. Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; desktop rules use Documents/Cline/Rules. sharedSkillsDir (~/.agents/skills) was removed 2026-08-04 (task 7b re-verification): Cline's own documentation (docs.cline.bot/customization/skills, docs.cline.bot/features/skills, and a full-text search of docs.cline.bot/llms-full.txt for 'agents/skills'/'agentskills'/'interoperab' -- zero matches) documents only '.cline/skills/' (workspace) and '~/.cline/skills/' (global) as skill locations. Deploying only to ~/.agents/skills would have made Cline's skills unreachable by Cline itself. Contrast with codex (learn.chatgpt.com/docs/build-skills: USER tier is $HOME/.agents/skills) and gemini (geminicli.com/docs/cli/skills: '~/.gemini/skills/' or the '~/.agents/skills/' alias, same precedence tier), both of which keep sharedSkillsDir because their own documentation confirms it."
+      "notes": "Cline 3.0.50. Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; on-demand-local chrome-devtools/brave-search are intentionally not fleet-synced. VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). sharedSkillsDir (~/.agents/skills) stays omitted: Cline documents only .cline/skills and ~/.cline/skills (contrast codex/gemini which document ~/.agents/skills)."
     },
     {
       "id": "cursor",
