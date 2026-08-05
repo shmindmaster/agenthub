@@ -33,7 +33,12 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
     }
 }
 
-$fleet  = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw | ConvertFrom-Json
+# -Encoding UTF8 is not decoration: Windows PowerShell 5.1 decodes a BOM-less
+# file as the ANSI code page, so the first non-ASCII character to enter the
+# registry would reach ConvertFrom-Json as mojibake under 5.1 and intact under
+# 7. tests/Test-CapabilityRouting.ps1 already reads this same file that way;
+# matching it means the two suites cannot read the same bytes differently.
+$fleet  = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw | ConvertFrom-Json
 
 # @($null) | ForEach-Object id emits a phantom empty entry rather than
@@ -207,6 +212,101 @@ function Test-TableDistinguishesPresentFromAbsent {
     return @{ Passed = $true; Detail = $null }
 }
 
+# Renders a capability value for a failure message. ConvertTo-Json is used so a
+# JSON string "false" prints quoted and cannot be mistaken for a real false. The
+# .NET type name is deliberately not printed: ConvertFrom-Json yields Int32 for
+# a JSON number under 5.1 and Int64 under 7, so a message naming the type would
+# differ by shell for identical registry bytes.
+function Format-CapabilityValue([object]$Value) {
+    if ($null -eq $Value) { return 'null' }
+    return [string](ConvertTo-Json -InputObject $Value -Compress -Depth 3 -WarningAction SilentlyContinue)
+}
+
+# --- Behavior 5: a capability value is true, false, or null, and nothing else.
+#
+# Behavior 3 requires evidence only where the value `-is [bool]`, and Behavior 4
+# counts witnesses the same way. Neither establishes that a value IS a bool, and
+# nothing else did either. So `"browser.isolated": "false"` -- the JSON string --
+# with its capabilityEvidence entry deleted passed the whole suite: the string is
+# not a bool, so no evidence was demanded of it, and it is not null, so the
+# stray-evidence branch stayed quiet. The unevidenced absence claim survives; it
+# is just spelled differently. It is worse than that for a consumer, because
+# `if ($surface.capabilities.'browser.isolated')` reads the non-empty string
+# "false" as TRUE -- the table would then route work to a browser that the same
+# line was trying to say is absent.
+#
+# The permitted set is exhaustive on purpose. A number, a string, an array or a
+# nested object in this position is not a capability answer in any reading, and
+# guessing which of the three it meant is exactly the assumption this table
+# exists to forbid.
+#
+# Anti-vacuity: this iterates the same capability-value set that Behavior 4
+# already fails unless it holds at least one real true and one real false, so
+# the set is proven non-empty there rather than re-proven here. ---
+function Test-CapabilityValuesAreBooleanOrNull {
+    $bad = [Collections.Generic.List[string]]::new()
+    foreach ($surface in Get-Surfaces) {
+        $id = [string]$surface.surfaceId
+        foreach ($property in @($surface.capabilities.PSObject.Properties)) {
+            if ($null -eq $property.Value -or $property.Value -is [bool]) { continue }
+            $bad.Add("$id records $($property.Name) = $(Format-CapabilityValue $property.Value), which is not true, false or null; a capability answer has exactly those three values, and anything else is read by neither the evidence rule nor a consumer the way its author meant it")
+        }
+    }
+    if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
+    return @{ Passed = $true; Detail = $null }
+}
+
+# --- Behavior 6: a capabilityNotEstablished key must name a capability this
+# surface actually records as null.
+#
+# The note's TEXT stays unread here, and must. Reading it would hand a sentence
+# the evidentiary authority the design withholds from it -- the failure this
+# table was rebuilt around is a family matcher accepting `computer.gui: false`
+# on the strength of the word "Computer" appearing in a sentence saying that
+# capability was never probed. Keys are structure, so they can be checked
+# without anyone interpreting anything.
+#
+# What drifts without this: promote codex-cli's computer.gui back to false with
+# a fresh capabilityEvidence entry and leave the note saying Computer Use was
+# never probed from this surface, and the suite reports 5 passed while the
+# registry asserts both at once. The note outlives the null it explains, and it
+# is the more careful of the two claims that gets silently overruled.
+#
+# One direction only: a null is NOT required to carry a note. Requiring one
+# would put a writing cost on the honest value that `false` does not pay, which
+# is the incentive this table needs inverted, not reproduced.
+#
+# Anti-vacuity: the property name is read from data, so a rename in the registry
+# or a typo here would make this iterate nothing forever while still printing
+# PASS -- the shape of failure this repo keeps producing. So the union of note
+# keys across the table must be non-empty. That is a witness that the mechanism
+# is still reachable, not a demand that any particular null be annotated; if the
+# last note is one day legitimately deleted, delete this behavior with it rather
+# than write a note to satisfy it. ---
+function Test-NotEstablishedNotesAnnotateOnlyNulls {
+    $bad = [Collections.Generic.List[string]]::new()
+    $noteKeys = 0
+    foreach ($surface in Get-Surfaces) {
+        $id = [string]$surface.surfaceId
+        $notes = $surface.capabilityNotEstablished
+        if (-not $notes) { continue }
+        foreach ($note in @($notes.PSObject.Properties)) {
+            $noteKeys++
+            $declared = $surface.capabilities.PSObject.Properties[$note.Name]
+            if (-not $declared) {
+                $bad.Add("$id notes '$($note.Name)' under capabilityNotEstablished, a capability it does not declare under capabilities at all; the note explains the absence of something this surface never recorded")
+            } elseif ($null -ne $declared.Value) {
+                $bad.Add("$id notes '$($note.Name)' as not established while capabilities records $($note.Name) = $(Format-CapabilityValue $declared.Value); one of the two is stale and the table now asserts both. Delete the note when the value is promoted -- that is the cost of promoting it")
+            }
+        }
+    }
+    if ($noteKeys -eq 0) {
+        return @{ Passed = $false; Detail = 'no surface carries a single capabilityNotEstablished key, so this check iterated nothing and would report PASS against any note at all. Either the registry key was renamed and this behavior no longer reads it, or every note is gone and this behavior should be deleted rather than left as decoration.' }
+    }
+    if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r0 = Test-RegisteredHostIdSetIsNonEmpty
 Report 'the registered host-id set is non-empty' $r0.Passed $r0.Detail
 
@@ -221,6 +321,12 @@ Report 'every surface carries dated evidence and no capability is asserted bare'
 
 $r4 = Test-TableDistinguishesPresentFromAbsent
 Report 'the matrix records both an available and an unavailable capability' $r4.Passed $r4.Detail
+
+$r5 = Test-CapabilityValuesAreBooleanOrNull
+Report 'every capability value is a real boolean or a real null, not a lookalike' $r5.Passed $r5.Detail
+
+$r6 = Test-NotEstablishedNotesAnnotateOnlyNulls
+Report 'every capabilityNotEstablished key names a capability that surface still records as null' $r6.Passed $r6.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

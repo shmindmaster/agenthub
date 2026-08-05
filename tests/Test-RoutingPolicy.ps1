@@ -485,7 +485,15 @@ function Test-EscalationGateIsNotRelaxed {
 # shared local process over per-host duplicates, and a capability-invoked start
 # over a session-start one. This behavior checks the policy states the tiebreak
 # AND that the registry still says what the policy cites it as saying, so the
-# two cannot drift apart silently. ---
+# two cannot drift apart silently.
+#
+# Scope, because the label used to overstate it: this reads global-agent-policy.md
+# and registry/mcps.json and opens no SKILL.md, so it establishes nothing about
+# what the skills do. That the skills resolve the same way is true and IS
+# enforced -- by behavior 8 of tests/Test-CapabilityRouting.ps1, 'each skill
+# resolves the running surface own provider in a step before the step that
+# starts the local fallback'. Broadening this check to make the old wording true
+# would only duplicate that one. ---
 $preferenceOrderAnchor = 'Prefer, in this order'
 $activationTiebreakPhrases = [ordered]@{
     'a capability the surface already provides outranks one that must be started' = 'already provides'
@@ -536,7 +544,7 @@ $r6 = Test-EscalationGateIsNotRelaxed
 Report 'the existing escalation gate survives verbatim and the routing section defers to it' $r6.Passed $r6.Detail
 
 $r7 = Test-PreferenceOrderRanksSurfaceProvidedAboveLocallyStarted
-Report 'the preference order ranks a capability the surface already provides above one a local server would start, as the skills do' $r7.Passed $r7.Detail
+Report 'the policy ranks a capability the surface already provides above one a local server would start, and cites the registry rule that still says so' $r7.Passed $r7.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
