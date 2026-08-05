@@ -575,9 +575,15 @@ function Test-DeclaredCapabilitiesHaveASurfaceProvider {
 # established).
 #
 # So the role is data, not prose. Each numbered step of the resolution section
-# carries an HTML comment marker naming its role. HTML comments render as nothing
-# in every Markdown consumer, so an agent reads these skills exactly as before
-# while the order becomes checkable without reading a single sentence.
+# carries an HTML comment marker naming its role, and the order becomes checkable
+# without reading a single sentence.
+#
+# The markers are not invisible to the reader that matters. Sync-Capabilities
+# copies SKILL.md byte for byte -- which is exactly why adding them drifted 39
+# deployed mappings -- so an agent consuming the raw Markdown has the marker text
+# in its context. They render as nothing in a Markdown VIEWER, which is not the
+# consumer here. Kept terse for that reason, and worth remembering before adding
+# more of them.
 #
 # Re-proved against this mechanism, each in a throwaway copy of the tree: the step
 # swap above still FAILS (it now moves the markers with the steps), the
@@ -786,7 +792,7 @@ $r7 = Test-DeclaredCapabilitiesHaveASurfaceProvider
 Report 'every capability a skill names is recorded true on at least one surface, not served only by the MCP fallback' $r7.Passed $r7.Detail
 
 $r8 = Test-SurfaceStepPrecedesLocalFallbackStep
-Report 'each skill resolves the running surface own provider in a step before the step that starts the local fallback' $r8.Passed $r8.Detail
+Report 'each skill declares its surface-provided step before its local-fallback step' $r8.Passed $r8.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

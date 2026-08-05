@@ -702,7 +702,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "BD97BA34DF3F7996697BC0F3ABC0C4E5164C0E3953E89970BE4D0589BABD52E1",
+      "contentHash": "FAF6A843968F5531AE8A5CB7E0EB3CEDBCD5FEAF0B993222D846995E129D96A4",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [

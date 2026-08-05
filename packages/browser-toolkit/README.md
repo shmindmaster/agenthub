@@ -26,8 +26,9 @@ CrUX URL lookups are disabled.
 
 Each numbered step of a skill's `## Resolve a provider ...` section declares its role
 in the resolution order with an HTML comment on the step, so the order is machine-
-checkable without anyone reading the prose. HTML comments render as nothing, so the
-skills read to an agent exactly as they did before.
+checkable without anyone reading the prose. An HTML comment renders as nothing in a
+Markdown viewer, but that is not what reads these files: skills are deployed byte for
+byte and an agent sees the raw text, markers included. Keep them terse.
 
 | Marker | Meaning | Count per skill |
 | --- | --- | --- |
