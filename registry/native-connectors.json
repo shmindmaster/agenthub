@@ -44,6 +44,63 @@
       "manifestPath": ".agents/plugins/marketplace.json"
     }
   ],
+  "ownerActionRequired": {
+    "recordedOn": "2026-08-05",
+    "rationale": "An action the owner authorized that AgentHub cannot perform is state, not a footnote. Recorded here it survives the session that discovered it, carries the evidence for why the limit is real, and can be audited later; left in a chat transcript it is indistinguishable from work quietly skipped.",
+    "boundary": "This list is only for actions AgentHub genuinely cannot perform. It is not a queue, not a backlog, and not somewhere to defer work. tests/Test-OwnerActions.ps1 fails the build on any entry that claims AgentHub could perform the action and has not, so the cheapest way out of this file is to do the work rather than record it.",
+    "completionPolicy": "An entry stays after completion with completedOn set, because the record of what the owner had to do by hand is the useful part. Never delete an entry to mark it done.",
+    "actions": [
+      {
+        "id": "claude-ai-connector-removals",
+        "action": "disconnect account connectors",
+        "targets": ["Tavily", "Atlassian", "Asana", "Slack", "Figma"],
+        "surface": "claude.ai account connector settings",
+        "authorizedOn": "2026-08-04",
+        "authorization": "Owner instruction, verbatim: 'I feel comfortable getting rid of tavily as they have very low allowance and we have alternate liek exa, brave and firecrawl already?' and 'remove Atlassian, Asana, Slack and Figma as well'.",
+        "fleetSideStatus": "complete",
+        "fleetSideEvidence": "None of the five is registered in registry/mcps.json, which declares nine servers, and none appears in any host exposure list in this file. The fleet-side removal the owner asked for is done; what remains is outside the fleet.",
+        "agentHubCanPerform": false,
+        "blockedBy": "No authenticated browser surface reaches claude.ai account settings from this machine, and entering credentials to obtain one is prohibited.",
+        "blockerVerifiedOn": "2026-08-05",
+        "blockerVerification": "Claude in Chrome list_connected_browsers returned an empty array on 2026-08-04 and again on 2026-08-05. The in-app browser carries no claude.ai session, and authenticating one would require entering the owner's credentials, which is prohibited regardless of authorization. Verified twice rather than assumed, because a capability limit asserted without testing was wrong once already in this work.",
+        "ownerStep": "claude.ai -> Settings -> Connectors -> select the connector -> Disconnect. Disconnecting also revokes nothing at the provider; see oauth-grant-revocation.",
+        "completedOn": null
+      },
+      {
+        "id": "oauth-grant-revocation",
+        "action": "revoke OAuth grants at the provider",
+        "targets": ["Linear", "Notion", "Descript"],
+        "surface": "each provider's own account security settings",
+        "authorizedOn": "2026-08-04",
+        "authorization": "Follows from the owner's connector reduction: a disconnected connector whose grant is still live remains an outstanding authorization against the owner's account.",
+        "fleetSideStatus": "not-applicable",
+        "fleetSideEvidence": "These three remain in registry/mcps.json as intended; this entry is about grant hygiene, not deregistration. Their protocol.revision is null with recorded evidence, because all three answer 401 before protocol negotiation.",
+        "agentHubCanPerform": false,
+        "blockedBy": "Revocation is provider-side only. Deleting a cached token locally ends the local session and leaves the grant standing.",
+        "blockerVerifiedOn": "2026-08-05",
+        "blockerVerification": "OAuth grant revocation is defined by the provider's authorization server; no local file operation reaches it. Recorded as a property of the protocol rather than a probe result, because probing would mean authenticating as the owner.",
+        "ownerStep": "In each provider's account security or connected-applications page, revoke the Claude authorization.",
+        "completedOn": null
+      },
+      {
+        "id": "account-level-plugin-servers",
+        "action": "review claude.ai account-level plugins that inject MCP servers",
+        "targets": ["engineering", "marketing", "small-business", "design", "litigation-legal", "adobe-for-creativity"],
+        "surface": "claude.ai account settings",
+        "authorizedOn": null,
+        "authorization": null,
+        "fleetSideStatus": "out-of-scope",
+        "fleetSideEvidence": "These are not fleet capabilities and are not registered here. They are recorded because they present MCP servers -- including Atlassian, Slack, and Figma, three of the five the owner asked to remove -- into a Claude session through a path this registry does not manage, so a reader comparing the session's tool list against registry/mcps.json would otherwise find an unexplained surplus.",
+        "agentHubCanPerform": false,
+        "blockedBy": "Same claude.ai account surface as claude-ai-connector-removals, and no local installation exists to remove.",
+        "blockerVerifiedOn": "2026-08-05",
+        "blockerVerification": "installed_plugins.json lists 15 plugins and contains none of these six; none has a directory under .claude/plugins/cache and none appears in known_marketplaces.json. There is nothing locally installed to remove, which is what makes this account-level rather than a fleet drift.",
+        "ownerStep": "Decide per bundle in claude.ai settings. Note that a bundle is all-or-nothing: the engineering bundle carries Datadog and PagerDuty alongside Atlassian, so removing it to drop Atlassian drops those too.",
+        "completedOn": null
+      }
+    ]
+  },
+
   "bundledServerSuppressions": [],
   "skillsOnlyPlugins": [
     {
@@ -121,7 +178,8 @@
       "evidence": [
         "Claude installed_plugins.json and package manifests own Chrome DevTools, GitHub, and Notion.",
         "Claude account connectors own Descript; Product Demo Studio suppresses its bundled Descript MCP on Claude so the connector is not loaded twice.",
-        "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03. Any residual Adobe or Canva tools in a Claude session come from claude.ai account connectors, which are not managed by this registry and must be removed in claude.ai connector settings."
+        "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03. Any residual Adobe or Canva tools in a Claude session come from claude.ai account connectors, which are not managed by this registry and must be removed in claude.ai connector settings.",
+        "Measured 2026-08-05: C:/Users/SaroshHussain/.claude/plugins/installed_plugins.json lists 15 locally installed plugins, and none of engineering, marketing, small-business, design, litigation-legal, or adobe-for-creativity is among them; none has a directory under plugins/cache and none appears in known_marketplaces.json. Servers presented to a Claude session under those plugin names are therefore account-level, delivered by claude.ai rather than by any local installation this registry can reach. See ownerActionRequired."
       ]
     },
     {
