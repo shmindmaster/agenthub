@@ -91,11 +91,25 @@ function Get-SectionBullet {
 }
 # Sentences, because some claims are true or false depending on which verb the
 # rest of the sentence is predicated of, and a bullet-level co-occurrence test
-# cannot tell those apart. Splitting on '.' and ';' is the granularity the policy
-# actually punctuates at.
+# cannot tell those apart.
+#
+# A plain [.;] split is not sentence granularity, it is punctuation granularity,
+# and the difference is exploitable by ordinary prose. `registry/fleet-profile.json`
+# is the most-cited token in this section -- three bullets carry it -- so a
+# sentence merely mentioning it was cut in half, and a claim written across the
+# cut stopped co-occurring with itself:
+#
+#   "- On Claude Code, `claude plugin disable`, per registry/fleet-profile.json,
+#      removes an installed plugin."
+#
+# split into "...`claude plugin disable`, per registry/fleet-profile" and
+# "json, removes an installed plugin" -- disable in one half, removal in the
+# other, no violation found. "(since v2.1)" evades identically. A sentence-ending
+# period is one followed by whitespace or the end of the bullet; a period inside
+# a token is not, and that is the whole of the fix.
 function Get-SectionSentences {
     return @(Get-SectionBullets |
-        ForEach-Object { $_ -split '[.;]' } |
+        ForEach-Object { $_ -split '(?<=\S)\.(?=\s|$)|;' } |
         ForEach-Object { $_.Trim() } |
         Where-Object { $_ })
 }
