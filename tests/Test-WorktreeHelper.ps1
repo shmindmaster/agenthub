@@ -115,7 +115,9 @@ must not be able to add to that pile. Containment:
     throwaway synthetic repository, so it cannot reach a real one. It is
     verified removed anyway: an unverified cleanup claim is not evidence.
 
-If C:\wt is genuinely unavailable this FAILS, loudly, with the reason. It
+If C:\wt does not exist, this creates it -- that is a write to the live
+worktree root itself, and the only one this file makes outside its own
+fixture. If it cannot be created, this FAILS, loudly, with the reason. It
 never skips. tests/Test-PluginManifests.ps1 sets that precedent for an
 absent prerequisite, and a skip that reads as a pass is this repository's
 signature defect.
@@ -133,8 +135,16 @@ file follows). Same self-checking idiom: each Test-* function returns a
 result, the runner prints one PASS/FAIL line per behavior, accumulates
 failures, and exits 1 if any behavior did not hold, 0 otherwise.
 
-Outside C:\wt\agenthub-selftest-fixture, this file writes nothing beyond
-$env:AGENTHUB_TEST_SCRATCH.
+Every fixture path carries a per-run salt (PID + GUID), because this
+repository's workflow is parallel agents each running Run-AllTests, and a
+fixed fixture name makes two concurrent runs delete each other's tree
+mid-test. That salt would strand orphans under C:\wt if a run were killed,
+so each run first sweeps roots matching its own family prefix. The sweep
+enumerates only that prefix, and 'agenthub' does not carry it.
+
+Outside C:\wt\agenthub-selftest-fixture-<salt>, this file writes nothing
+beyond $env:AGENTHUB_TEST_SCRATCH and, if it is absent, the C:\wt
+directory itself.
 
 Run: pwsh -NoProfile -File tests/Test-WorktreeHelper.ps1
      powershell.exe -NoProfile -File tests/Test-WorktreeHelper.ps1
@@ -156,7 +166,16 @@ $helperScript = [IO.Path]::GetFullPath($HelperScript)
 # The only root the helper accepts, and the only place under it this file
 # is ever allowed to write or delete.
 $script:LiveWorktreeRoot = 'C:\wt'
-$script:FixtureRepositorySlug = 'agenthub-selftest-fixture'
+# The per-run salt is not cosmetic. Without it two concurrent runs -- which
+# this repository invites, since its whole workflow is parallel agents each
+# running Run-AllTests -- collide on one fixture path: the second run's
+# pre-clean deletes the first run's fixture mid-test, and the first fails with
+# "'...selftest-e2e-pwsh' already exists", a message that points at git rather
+# than at concurrency. Worse, the victim's cleanup verification then passes by
+# crediting the other run's deletion. Loud, never silent, but a false red that
+# costs an afternoon to read. The salt makes each run's fixture its own.
+$script:FixtureFamilyPrefix = 'agenthub-selftest-fixture-'
+$script:FixtureRepositorySlug = '{0}{1}-{2}' -f $script:FixtureFamilyPrefix, $PID, ([Guid]::NewGuid().ToString('N').Substring(0, 8))
 $script:FixtureRootPath = Join-Path $script:LiveWorktreeRoot $script:FixtureRepositorySlug
 
 # Filled by Behavior 3, re-measured by Behavior 4.
@@ -289,13 +308,53 @@ function Remove-TreeUnderLiveRoot {
     if (-not (Test-Path -LiteralPath $full)) { return $null }
     $reparse = @(Get-ReparsePointPath -Path $full)
     if ($reparse.Count -gt 0) {
-        return "refusing to recursively delete '$full': it contains reparse point(s)/junction(s) [$($reparse -join ', ')]. Seven junctions point into this repository's packages/ tree; a recursive delete that followed one would destroy tracked source. Remove the junction by hand and re-run."
+        return "refusing to recursively delete '$full': it contains reparse point(s)/junction(s) [$($reparse -join ', ')]. Junctions on this machine point into this repository's packages/ tree, and a recursive delete that followed one would destroy tracked source. Remove the junction by hand and re-run."
     }
     Remove-Item -LiteralPath $full -Recurse -Force -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $full) {
         return "removal of '$full' did not take effect: the path still exists afterwards."
     }
     return $null
+}
+
+# Clears fixture roots left by *earlier* runs of this file.
+#
+# Remove-TreeUnderLiveRoot is fenced to this run's own salted path, which is
+# what makes it safe -- and also what makes it unable to reach a fixture some
+# previous, killed run left behind. Without this sweep the salt would trade one
+# collision for an unbounded pile of orphans under C:\wt.
+#
+# The fence here is deliberately its own, and narrower than it looks: the
+# parent must be exactly the live root, and the directory name must begin with
+# the family prefix AND be strictly longer than it, so only a salted fixture
+# qualifies. 'agenthub' cannot match -- it does not carry the prefix -- and
+# neither can a human worktree, unless someone names one
+# 'agenthub-selftest-fixture-*', which is this file's own namespace. Each
+# candidate still goes through the reparse-point check before deletion.
+#
+# Nothing here enumerates C:\wt broadly: Get-ChildItem is filtered to the
+# family prefix at the source, so a bug in the loop body cannot reach a
+# sibling it never listed.
+function Remove-StaleFixtureFamilyRoots {
+    $findings = [Collections.Generic.List[string]]::new()
+    if (-not (Test-Path -LiteralPath $script:LiveWorktreeRoot -PathType Container)) { return $findings }
+    $stale = @(Get-ChildItem -LiteralPath $script:LiveWorktreeRoot -Directory -Filter "$($script:FixtureFamilyPrefix)*" -ErrorAction SilentlyContinue)
+    foreach ($candidate in $stale) {
+        $name = [string]$candidate.Name
+        if ($name.Length -le $script:FixtureFamilyPrefix.Length) { continue }
+        if (-not $name.StartsWith($script:FixtureFamilyPrefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        if ($candidate.FullName.TrimEnd('\').Equals($script:FixtureRootPath, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        $reparse = @(Get-ReparsePointPath -Path $candidate.FullName)
+        if ($reparse.Count -gt 0) {
+            $findings.Add("refusing to remove stale fixture '$($candidate.FullName)': it contains reparse point(s) [$($reparse -join ', ')]")
+            continue
+        }
+        Remove-Item -LiteralPath $candidate.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $candidate.FullName) {
+            $findings.Add("stale fixture '$($candidate.FullName)' could not be removed")
+        }
+    }
+    return $findings
 }
 
 # `git worktree list --porcelain` -> @{ <absolute worktree path> = <branch ref> }
@@ -453,8 +512,15 @@ function Test-MandatedInvocationCreatesWorktreeEndToEnd {
         }
     }
 
-    # Residue from a previously interrupted run, scoped to this file's own
-    # fixture path and nothing else in C:\wt.
+    # Residue from previously interrupted runs. Two sweeps, both scoped to this
+    # file's own namespace: the family sweep clears fixtures left by earlier
+    # runs (whose salted names this run's fence cannot reach), then the fenced
+    # delete clears this run's own path on the vanishing chance the salt
+    # collided. Neither touches anything else in C:\wt.
+    $staleFindings = @(Remove-StaleFixtureFamilyRoots)
+    if ($staleFindings.Count -gt 0) {
+        return @{ Passed = $false; Detail = "fixture roots from earlier runs could not be cleared, so C:\wt would accumulate orphans: $($staleFindings -join '; ')" }
+    }
     $preClean = Remove-TreeUnderLiveRoot -Path $script:FixtureRootPath
     if ($preClean) {
         return @{ Passed = $false; Detail = "residue from a previous interrupted run at '$($script:FixtureRootPath)' could not be cleared, so this run would build on an unknown state: $preClean" }
