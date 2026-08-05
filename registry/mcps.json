@@ -225,6 +225,10 @@
         "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "true"
       },
       "credentialPolicy": "isolated-temporary-qa-profile-no-sensitive-data",
+      "providesCapabilities": [
+        "browser.isolated"
+      ],
+      "providesCapabilitiesNote": "Names come from registry/fleet-profile.json hostSurfaces.knownCapabilities so the browser-toolkit skills can resolve this server as the declared fallback -- 'fallback provider' as data, not prose -- when the active surface records no native browser. browser.isolated only: the server is launched with --isolated into a temporary profile (see credentialPolicy above), so it never carries the user's signed-in session and cannot satisfy browser.authenticated, and it drives a browser rather than native desktop applications, so it cannot satisfy computer.gui.",
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-08-04",

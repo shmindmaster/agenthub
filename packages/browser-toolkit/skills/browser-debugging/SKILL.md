@@ -5,8 +5,40 @@ description: Use when an authorized browser workflow has runtime errors, failed 
 
 # Browser debugging
 
-Use Chrome DevTools MCP for deep inspection. Use Playwright CLI only when compact
-repeatable actions are more useful than live DevTools state.
+## Capability required
+
+This skill requires `browser.isolated` -- "a first-party browser the agent drives
+itself, with its own profile; suits localhost and public pages; carries no signed-in
+session" (`registry/fleet-profile.json`, `hostSurfaces.capabilityMeanings`).
+
+It also requires DevTools-protocol depth: performance traces, heap snapshots,
+Lighthouse, and raw console/network correlation. That depth is not a capability name
+in `hostSurfaces` because only one provider offers it, and a capability name nothing
+else resolves is vocabulary rather than routing. It is the actual justification for
+`chrome-devtools`, so this skill reaches the fallback more often than the other two.
+
+## Resolve a provider before choosing a tool
+
+1. Look up the running surface in `registry/fleet-profile.json`,
+   `hostSurfaces.surfaces`. If it records the required capability as `true`, drive its
+   own first-party browser for observation, reproduction, and accessibility work.
+   Nothing extra is started.
+2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
+   `registry/mcps.json` -- when the surface records `false` or `null`, or when the
+   step needs DevTools depth the surface cannot reach.
+3. Use Playwright CLI only when compact repeatable actions are more useful than live
+   DevTools state.
+
+`false` and `null` are different findings and neither is a provider: `false` means
+checked and absent, `null` means never established. Resolve, do not assume.
+
+Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
+requires a local server to be started by the capability that needs it rather than at
+session start, and to run as one shared process rather than one per host.
+`chrome-devtools` is the most widely declared local process in the fleet
+(`localProcessPolicy.declaredByHostCount`), and every host that spawns its own `npx`
+instance costs a separate browser-driving process, so a session that resolves
+natively must not start one it never uses.
 
 ## Workflow
 
@@ -28,4 +60,6 @@ repeatable actions are more useful than live DevTools state.
    and focused regression remain the deliverable.
 
 Do not enable experimental tool categories or connect to a personal Chrome profile
-without explicit authorization. Do not call type checks or unit tests browser proof.
+without explicit authorization. A signed-in browser profile is a separate capability
+this skill does not request and must not obtain by other means. Do not call type
+checks or unit tests browser proof.

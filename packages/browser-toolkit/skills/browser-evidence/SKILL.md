@@ -8,12 +8,41 @@ description: Use when an authorized workflow needs reproducible screenshots, acc
 This skill captures observed browser evidence. Product decisions remain with Product
 Experience Engineering; demo and release decisions remain with Product Demo Studio.
 
+## Capability required
+
+This skill requires `browser.isolated` -- "a first-party browser the agent drives
+itself, with its own profile; suits localhost and public pages; carries no signed-in
+session" (`registry/fleet-profile.json`, `hostSurfaces.capabilityMeanings`). Isolation
+is the point here, not an implementation detail: evidence must not carry personal
+Chrome state, unrelated tabs, credentials, or customer data.
+
+## Resolve a provider before capturing
+
+1. Look up the running surface in `registry/fleet-profile.json`,
+   `hostSurfaces.surfaces`. If it records the required capability as `true`, capture
+   with its own first-party browser and start nothing.
+2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
+   `registry/mcps.json` -- when the surface records `false` or `null`, or when the
+   evidence needed is a performance trace, heap comparison, or Lighthouse run.
+
+`false` and `null` are different findings and neither is a provider: `false` means
+checked and absent, `null` means never established. Record which provider produced
+each artifact, because a screenshot's meaning depends on the profile it came from.
+
+Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
+requires a local server to be started by the capability that needs it rather than at
+session start, and to run as one shared process rather than one per host.
+`chrome-devtools` is the most widely declared local process in the fleet
+(`localProcessPolicy.declaredByHostCount`), and every host that spawns its own `npx`
+instance costs a separate browser-driving process, so a session that resolves
+natively must not start one it never uses.
+
 ## Procedure
 
 1. Record build SHA, environment, role, URL, synthetic dataset, locale, timezone,
    viewport, zoom, color scheme, and reduced-motion setting.
-2. Use the plugin's isolated headed Chrome profile. Do not expose normal personal
-   Chrome state, unrelated tabs, credentials, or customer data.
+2. Use the resolved provider's isolated headed Chrome profile. Do not expose normal
+   personal Chrome state, unrelated tabs, credentials, or customer data.
 3. Capture a structural snapshot and screenshot before interaction. Use the snapshot
    for element identity and the screenshot for visual-model inspection of hierarchy,
    clipping, overlap, density, focus, feedback, and responsive behavior.
