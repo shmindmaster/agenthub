@@ -196,7 +196,7 @@ function Remove-ReportingFixture {
 function Get-ReportedMcpStatuses {
     param([Parameter(Mandatory)]$Fixture)
     if (-not (Test-Path -LiteralPath $Fixture.DriftPath)) { return $null }
-    $report = Get-Content -LiteralPath $Fixture.DriftPath -Raw | ConvertFrom-Json
+    $report = Get-Content -LiteralPath $Fixture.DriftPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $statuses = [Collections.Generic.List[string]]::new()
     foreach ($hostEntry in @($report.hosts)) {
         foreach ($mcpResult in @($hostEntry.mcp)) { $statuses.Add("$($hostEntry.host)=$($mcpResult.status)") }

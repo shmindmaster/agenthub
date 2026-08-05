@@ -48,8 +48,8 @@ $runtimeRoot = if ($profileIsOverridden) {
   Join-Path $env:LOCALAPPDATA 'AgentHub\sync'
 }
 $statePath = Join-Path $runtimeRoot 'managed-skills.json'
-$capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw | ConvertFrom-Json
-$agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw | ConvertFrom-Json
+$capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 
 # Inactive hosts are retained as inventory, not as deployment targets, matching
 # the -IncludeInactiveAgents switch Sync-AgentHub.ps1 already exposes for MCP so
@@ -158,7 +158,7 @@ function Get-TreeHashLegacy([string]$Path) {
 $StateSchemaVersion = 2
 $priorSchemaVersion = 0
 $prior = if (Test-Path -LiteralPath $statePath) {
-  $stateDocument = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+  $stateDocument = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
   $priorSchemaVersion = [int]$stateDocument.schemaVersion
   $managed = @{}
   foreach ($property in @($stateDocument.managed.PSObject.Properties)) {
@@ -260,8 +260,13 @@ if ($failures.Count -gt 0) {
 
 if ($Apply) {
   New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
-  @{ schemaVersion=$StateSchemaVersion; updatedAt=(Get-Date).ToUniversalTime().ToString('o'); managed=$desired } |
-    ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+  # Not Set-Content -Encoding UTF8: that writes a BOM under Windows PowerShell
+  # 5.1 and none under PowerShell 7, so the state file this run leaves behind
+  # would differ by shell. The trailing CRLF reproduces what Set-Content
+  # appended, keeping the emitted bytes identical to today's PowerShell 7 run.
+  $stateJson = @{ schemaVersion=$StateSchemaVersion; updatedAt=(Get-Date).ToUniversalTime().ToString('o'); managed=$desired } |
+    ConvertTo-Json -Depth 6
+  [IO.File]::WriteAllText($statePath, ($stateJson + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 }
 
 if ($VerbosePreference -eq 'Continue') { $rows | Sort-Object capability,host,skill | Format-Table -AutoSize }

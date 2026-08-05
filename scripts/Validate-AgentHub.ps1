@@ -42,7 +42,7 @@ foreach ($packageName in $packageNames) {
   foreach ($skill in $skills) {
     $skillPath = Join-Path $skill.FullName 'SKILL.md'
     if (-not (Test-Path -LiteralPath $skillPath)) { Fail "skill missing SKILL.md: $($skill.FullName)"; continue }
-    $skillText = Get-Content -LiteralPath $skillPath -Raw
+    $skillText = Get-Content -LiteralPath $skillPath -Raw -Encoding UTF8
     $skillName = [regex]::Match($skillText, '(?m)^name:\s*([^\r\n]+)\r?$').Groups[1].Value.Trim().Trim('"')
     $description = [regex]::Match($skillText, '(?m)^description:\s*([^\r\n]+)\r?$').Groups[1].Value.Trim().Trim('"')
     if ($skillName -ne $skill.Name) { Fail "skill frontmatter name mismatch: $skillPath" }

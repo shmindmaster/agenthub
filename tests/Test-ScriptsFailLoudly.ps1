@@ -80,7 +80,7 @@ function Get-ScriptsWithoutStopEap {
     param([string]$Directory)
     $violations = [Collections.Generic.List[string]]::new()
     foreach ($file in (Get-ChildItem -LiteralPath $Directory -File -Filter '*.ps1' | Sort-Object Name)) {
-        $text = Get-Content -LiteralPath $file.FullName -Raw
+        $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
         if ($text -notmatch '(?m)^\$ErrorActionPreference\s*=\s*[''"]Stop[''"]\s*\r?$') {
             $violations.Add($file.Name)
         }

@@ -372,7 +372,7 @@ function Test-EmptyWorkSetFailsLoudly {
 function Test-UserProfileRebasesDestinations {
     $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-rebase-cap' -HostId 'zz-rebase-host' -SkillName 'sample-skill' -SkillContent 'canonical content v1'
     # The path the registry literally declares, before any rebasing.
-    $declared = ([string]((Get-Content -LiteralPath (Join-Path $fixture.RegistryDir 'agents.json') -Raw | ConvertFrom-Json).activeAgents[0].nativePaths.skillsDir))
+    $declared = ([string]((Get-Content -LiteralPath (Join-Path $fixture.RegistryDir 'agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json).activeAgents[0].nativePaths.skillsDir))
     try {
         $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
         if ($result.ExitCode -ne 0) {

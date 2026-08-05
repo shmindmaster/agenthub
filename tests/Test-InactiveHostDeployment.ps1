@@ -196,7 +196,7 @@ function Test-DefaultRunSkipsInactiveButDeploysActive {
         }
 
         $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
-        $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+        $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
         $managedCount = @($state.managed.PSObject.Properties).Count
         if ($managedCount -ne 1) {
             return @{ Passed = $false; Detail = "expected exactly 1 managed entry (the active host only), got $managedCount." }
@@ -266,7 +266,7 @@ function Test-AllInactiveRegistryFailsNamingTheCause {
 # under ~/.warp/skills, which is the kind of quiet regression no fixture test
 # would notice. ---
 function Test-RealRegistryKeepsWarpOnSharedSkillsDir {
-    $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw | ConvertFrom-Json
+    $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $warp = @($agents.activeAgents) | Where-Object id -eq 'warp' | Select-Object -First 1
     if (-not $warp) {
         return @{ Passed = $false; Detail = "warp is not present in registry/agents.json activeAgents, so this assertion checked nothing." }
@@ -295,7 +295,7 @@ function Test-RealRegistryKeepsWarpOnSharedSkillsDir {
 # down and dated. A registry with no inactive hosts passes trivially and
 # correctly -- there is nothing to justify. ---
 function Test-InactiveHostsCarryAJustification {
-    $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw | ConvertFrom-Json
+    $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     if (-not $agents.PSObject.Properties['inactiveAgents']) {
         return @{ Passed = $false; Detail = "registry/agents.json has no inactiveAgents property at all; the schema changed and this assertion no longer checks what it claims to." }
     }

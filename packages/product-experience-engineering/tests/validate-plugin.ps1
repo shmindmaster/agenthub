@@ -51,9 +51,9 @@ Assert-True (Test-Path -LiteralPath $manifestPath) 'Missing plugin manifest.'
 Assert-True (Test-Path -LiteralPath $claudeManifestPath) 'Missing Claude plugin manifest.'
 Assert-True (Test-Path -LiteralPath $cursorManifestPath) 'Missing Cursor plugin manifest.'
 Assert-True (Test-Path -LiteralPath $portableManifestPath) 'Missing Copilot/Antigravity plugin manifest.'
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-$claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
-$cursorManifest = Get-Content -LiteralPath $cursorManifestPath -Raw | ConvertFrom-Json
+$manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$cursorManifest = Get-Content -LiteralPath $cursorManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 Assert-True ($manifest.name -eq 'product-experience-engineering') 'Unexpected plugin name.'
 # Assert the manifests AGREE, not that they equal a literal. A pinned version
 # has to be hand-edited on every bump, and the edit that forgets it fails the
@@ -88,13 +88,13 @@ foreach ($manifestPair in @(
     )
 }
 
-$portableManifest = Get-Content -LiteralPath $portableManifestPath -Raw | ConvertFrom-Json
+$portableManifest = Get-Content -LiteralPath $portableManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 Assert-True ($portableManifest.name -eq $manifest.name) 'Portable plugin name must match Codex.'
 Assert-True (@($portableManifest.PSObject.Properties.Name | Where-Object { $_ -notin @('name','description') }).Count -eq 0) 'Portable manifest must stay compatible with Antigravity schema.'
 foreach ($agentName in $expectedAgents) {
     $agentPath = Join-Path $pluginRoot "agents\$agentName"
     Assert-True (Test-Path -LiteralPath $agentPath) "Missing shared subagent: $agentName"
-    $agentText = Get-Content -LiteralPath $agentPath -Raw
+    $agentText = Get-Content -LiteralPath $agentPath -Raw -Encoding UTF8
     Assert-True ($agentText -match '(?m)^description: .+$') "Subagent description is missing: $agentName"
 
     # The deleted host-adapter generator comma-split `tools:` naively, so a YAML
@@ -124,12 +124,12 @@ foreach ($skillName in $expectedSkills) {
     $skillRoot = Join-Path $pluginRoot "skills\$skillName"
     Assert-True (Test-Path -LiteralPath (Join-Path $skillRoot 'SKILL.md')) "Missing SKILL.md for $skillName."
     Assert-True (Test-Path -LiteralPath (Join-Path $skillRoot 'agents\openai.yaml')) "Missing agents/openai.yaml for $skillName."
-    $skillText = Get-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Raw
+    $skillText = Get-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Raw -Encoding UTF8
     Assert-True ($skillText -match "(?m)^name: $([regex]::Escape($skillName))\r?$") "Skill name mismatch for $skillName."
     Assert-True ($skillText -match '(?m)^description: Use when ') "Skill description must start with 'Use when' for $skillName."
     Assert-True ($skillText -match '(?m)^## Standalone execution\r?$') "Skill must define standalone execution behavior: $skillName."
     Assert-True ($skillText -match '\.\./\.\./references/artifact-contracts\.md') "Skill must link to the generated-artifact contract: $skillName."
-    $agentText = Get-Content -LiteralPath (Join-Path $skillRoot 'agents\openai.yaml') -Raw
+    $agentText = Get-Content -LiteralPath (Join-Path $skillRoot 'agents\openai.yaml') -Raw -Encoding UTF8
     $skillInvocation = [regex]::Escape('$' + $skillName)
     Assert-True ($agentText -match "default_prompt: `"[^`"]*$skillInvocation\b") "Default prompt must mention the skill invocation for $skillName."
 }
@@ -154,7 +154,7 @@ try {
 Assert-True ($guideHash -eq 'D4B11030FED14700F0F8921F447481892F91ACDE4070E03967A0F743AC527C34') 'Canonical pre-video guide is incomplete or differs from the reviewed source.'
 
 $artifactContractPath = Join-Path $pluginRoot 'references\artifact-contracts.md'
-$artifactContract = Get-Content -LiteralPath $artifactContractPath -Raw
+$artifactContract = Get-Content -LiteralPath $artifactContractPath -Raw -Encoding UTF8
 Assert-True ($artifactContract -match 'Default: do not create or update `_product-experience/`') 'Artifact contract must default to no repository working-memory folder.'
 Assert-True ($artifactContract -match 'does not by itself authorize a plugin working-memory folder') 'Artifact contract must separate task authorization from artifact persistence.'
 
@@ -167,7 +167,7 @@ $allTextFiles = Get-ChildItem -LiteralPath $pluginRoot -Recurse -File |
     Where-Object { $_.Extension -in @('.md', '.json', '.yaml', '.yml', '.mjs', '.ps1', '.svg') }
 $forbidden = '(?i)AI[- ]Native[- ]Freight|gentlenext|lawli|lexalign|sabhi|shwiki|subops|verigence|warrantygains|abacare|coledger|documed|empowera'
 foreach ($file in $allTextFiles) {
-    $content = Get-Content -LiteralPath $file.FullName -Raw
+    $content = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
     if ($file.FullName -notlike '*\tests\*') {
         Assert-True ($content -notmatch '\[TODO:') "Unresolved scaffold TODO in $($file.FullName)."
         Assert-True ($content -notmatch $forbidden) "Repo-specific or freight content leaked into $($file.FullName)."
@@ -176,7 +176,7 @@ foreach ($file in $allTextFiles) {
 
 $markdownFiles = Get-ChildItem -LiteralPath $pluginRoot -Recurse -File -Filter '*.md'
 foreach ($file in $markdownFiles) {
-    $content = Get-Content -LiteralPath $file.FullName -Raw
+    $content = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
     foreach ($match in [regex]::Matches($content, '\[[^\]]+\]\(([^)]+)\)')) {
         $target = $match.Groups[1].Value.Trim().Trim('<', '>')
         if ($target -match '^(https?://|mailto:|#)') { continue }
@@ -189,18 +189,18 @@ foreach ($file in $markdownFiles) {
 
 foreach ($skillName in $expectedSkills) {
     $skillPath = Join-Path $pluginRoot "skills\$skillName\SKILL.md"
-    $skillText = Get-Content -LiteralPath $skillPath -Raw
+    $skillText = Get-Content -LiteralPath $skillPath -Raw -Encoding UTF8
     Assert-True ($skillText -notmatch '(?m)^\d+\. Write `_product-experience/') "Skill still unconditionally writes product-experience artifacts: $skillName"
 }
 
 $hooksPath = Join-Path $pluginRoot 'hooks\hooks.json'
 Assert-True (Test-Path -LiteralPath $hooksPath) 'Missing hooks declaration.'
-$hooks = Get-Content -LiteralPath $hooksPath -Raw | ConvertFrom-Json
+$hooks = Get-Content -LiteralPath $hooksPath -Raw -Encoding UTF8 | ConvertFrom-Json
 Assert-True (@($hooks.hooks.PSObject.Properties).Count -eq 0) 'Product Experience Engineering must not activate lifecycle hooks.'
 
 $agentHubRoot = Split-Path -Parent (Split-Path -Parent $pluginRoot)
 $marketplacePath = Join-Path $agentHubRoot '.agents\plugins\marketplace.json'
-$marketplace = Get-Content -LiteralPath $marketplacePath -Raw | ConvertFrom-Json
+$marketplace = Get-Content -LiteralPath $marketplacePath -Raw -Encoding UTF8 | ConvertFrom-Json
 $entry = @($marketplace.plugins | Where-Object name -eq 'product-experience-engineering')
 Assert-True ($marketplace.name -eq 'agenthub') 'Canonical marketplace name must be agenthub.'
 Assert-True ($entry.Count -eq 1) 'AgentHub marketplace entry is missing or duplicated.'

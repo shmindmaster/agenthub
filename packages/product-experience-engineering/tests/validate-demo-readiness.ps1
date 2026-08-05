@@ -31,7 +31,7 @@ function Assert-ExitCode {
 function Copy-Fixture {
     $path = [IO.Path]::GetTempFileName()
     $temporaryFiles.Add($path)
-    $document = Get-Content -LiteralPath $validFixture -Raw | ConvertFrom-Json
+    $document = Get-Content -LiteralPath $validFixture -Raw -Encoding UTF8 | ConvertFrom-Json
     return [pscustomobject]@{
         Path = $path
         Document = $document

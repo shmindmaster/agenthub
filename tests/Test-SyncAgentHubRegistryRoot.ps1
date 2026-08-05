@@ -166,7 +166,7 @@ function Test-UserProfileRebasesHostDestinations {
         if (-not (Test-Path -LiteralPath $driftPath)) {
             return @{ Passed = $false; Detail = "no drift report was written under the supplied profile (expected $driftPath)." }
         }
-        $drift = Get-Content -LiteralPath $driftPath -Raw | ConvertFrom-Json
+        $drift = Get-Content -LiteralPath $driftPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $paths = @()
         foreach ($hostEntry in @($drift.hosts)) {
             foreach ($entry in @($hostEntry.mcp) + @($hostEntry.files)) {

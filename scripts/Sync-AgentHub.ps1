@@ -1207,7 +1207,7 @@ function Sync-HostMcp-Grok {
     # Grok CLI uses TOML sections compatible with Codex's mcp_servers shape,
     # but environment interpolation is ${NAME}, not ${env:NAME}.
     $path = $Agent.nativePaths.config
-    $existing = if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { '' }
+    $existing = if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw -Encoding UTF8 } else { '' }
     $original = $existing
     $blocks = [System.Collections.Generic.List[string]]::new()
 
@@ -1290,7 +1290,7 @@ function Sync-HostMcp-Hermes {
     if (-not (Test-Path -LiteralPath $path)) {
         return @{ status='not-verified'; path=$path; reason='Hermes is absent; discovery skipped' }
     }
-    $existing = Get-Content -LiteralPath $path -Raw
+    $existing = Get-Content -LiteralPath $path -Raw -Encoding UTF8
     $original = $existing
     $lines = [System.Collections.Generic.List[string]]::new()
     $null = $lines.Add('mcp_servers:')
@@ -1551,7 +1551,7 @@ function Sync-QwenCapabilityExtensions {
         if (-not ($adapterReady -and $userReady)) { $changed = $true }
 
         if (-not (Test-Path -LiteralPath $adapterPath)) { New-Item -ItemType Directory -Path $adapterPath -Force | Out-Null }
-        $manifestJson | Set-Content -LiteralPath $manifestPath -Encoding UTF8 -NoNewline
+        Write-Utf8NoBom -Path $manifestPath -Content $manifestJson
         if ($skillsItem -and -not $skillsTarget) {
             throw "Refusing to replace non-junction Qwen adapter path: $skillsLink"
         }
@@ -2498,7 +2498,7 @@ if ($Validate -or $Apply -or $Audit) {
 # ---------------------------------------------------------------------------
 if ($Apply) { Save-State }
 
-$driftReport | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $DriftPath -Encoding UTF8 -NoNewline
+Write-Utf8NoBom -Path $DriftPath -Content ($driftReport | ConvertTo-Json -Depth 6)
 
 Write-Host ""
 Write-Host "=== Sync complete ==="

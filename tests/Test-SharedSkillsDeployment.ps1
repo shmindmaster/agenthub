@@ -212,7 +212,7 @@ function Test-SharedDirCollapsesToOneEntry {
         if (-not (Test-Path -LiteralPath $statePath)) {
             return @{ Passed = $false; Detail = "runtime state file was not written at $statePath." }
         }
-        $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+        $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
         $managedCount = @($state.managed.PSObject.Properties).Count
         if ($managedCount -ne 1) {
             return @{ Passed = $false; Detail = "expected exactly 1 managed entry (one collapsed shared destination), got $managedCount. This is the exact 'hosts overwrite each other instead of collapsing to one entry' failure mode the brief warns about." }
