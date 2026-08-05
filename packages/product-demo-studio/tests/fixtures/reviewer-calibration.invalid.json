@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "status": "PASS",
-  "pluginVersion": "1.7.0",
+  "pluginVersion": "1.7.1",
   "reviewDomain": "story-experience",
   "modelId": "",
   "canonicalRubric": {
