@@ -40,8 +40,8 @@ let inference = {
   cudaUsable: false,
   detail: "No supported local CUDA inference runtime was functionally probed.",
 };
-const configuredLocalAiRegistry = process.env.AGENTHUB_LOCAL_AI_REGISTRY;
-const configuredLocalAiRoot = process.env.AGENTHUB_LOCAL_AI_ROOT;
+const configuredLocalAiRegistry = process.env.LOCAL_AI_REGISTRY;
+const configuredLocalAiRoot = process.env.LOCAL_AI_ROOT;
 const defaultLocalAiRoot = process.platform === "win32" ? "D:\\Local-AI" : null;
 const localAiRoot = configuredLocalAiRoot ?? defaultLocalAiRoot;
 const sharedRegistryPath = configuredLocalAiRegistry

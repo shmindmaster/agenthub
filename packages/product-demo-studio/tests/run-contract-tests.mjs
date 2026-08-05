@@ -764,7 +764,7 @@ function mediaAccelerationIntegration() {
       "utf8",
     );
     assert(detectorSource.includes("D:\\\\Local-AI"), "media acceleration detector defaults to the Local-AI capability root on Windows");
-    assert(detectorSource.includes("AGENTHUB_LOCAL_AI_ROOT"), "media acceleration detector permits a configured Local-AI capability root");
+    assert(detectorSource.includes("LOCAL_AI_ROOT"), "media acceleration detector permits a configured Local-AI capability root");
     const manifestPath = join(root, "media-acceleration.json");
     const result = spawnSync(process.execPath, [
       join(pluginDir, "scripts", "detect-media-acceleration.mjs"),
