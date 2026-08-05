@@ -552,65 +552,151 @@ function Test-DeclaredCapabilitiesHaveASurfaceProvider {
 # the local server first spawns an `npx` browser process on a surface that
 # already had a browser.
 #
-# What is pinned is the RELATION between two steps, not their wording: the step
-# is identified by what it resolves against (the surface matrix in
-# fleet-profile.json / a locally-started server id in mcps.json), so these
-# paragraphs stay free to be reworded. ---
+# What is pinned is the RELATION between two steps, not their wording: each step
+# DECLARES its role in the resolution order, so these paragraphs stay free to be
+# reworded, to name any server, in any order of mention.
+#
+# The role used to be inferred from the prose -- the surface step was the first
+# step carrying a backticked `hostSurfaces`/`fleet-profile.json` token and not
+# naming the local server; the fallback step was the first naming it. Inference
+# was wrong in both directions and review demonstrated both:
+#   - a correctly ordered step 1 that forward-references the fallback ("look up
+#     `hostSurfaces`; if `false`, go to step 2 (`chrome-devtools`)") was
+#     disqualified from being the surface step, and a correct skill FAILED;
+#   - a step citing the registry for an unrelated reason ("confirm the capture is
+#     authorized; fleet inventory lives in `registry/fleet-profile.json`") WAS
+#     accepted as the surface step, so a file whose real surface lookup sat at
+#     step 3, below the fallback at step 2, scored 8 passed, 0 failed.
+# Tightening the wording match would only move the boundary: distinguishing a
+# step that DIRECTS use of the local server from one that MENTIONS it is
+# interpretation, and interpretation is what produced both defects (and, in
+# Sync-Capabilities, a family matcher that accepted `computer.gui: false` because
+# the word "Computer" appeared in a sentence saying the capability was never
+# established).
+#
+# So the role is data, not prose. Each numbered step of the resolution section
+# carries an HTML comment marker naming its role, and the order becomes checkable
+# without reading a single sentence.
+#
+# The markers are not invisible to the reader that matters. Sync-Capabilities
+# copies SKILL.md byte for byte -- which is exactly why adding them drifted 39
+# deployed mappings -- so an agent consuming the raw Markdown has the marker text
+# in its context. They render as nothing in a Markdown VIEWER, which is not the
+# consumer here. Kept terse for that reason, and worth remembering before adding
+# more of them.
+#
+# Re-proved against this mechanism, each in a throwaway copy of the tree: the step
+# swap above still FAILS (it now moves the markers with the steps), the
+# forward-referencing step 1 PASSES, the unrelated-citation ordering FAILS, and a
+# skill with its markers stripped FAILS rather than quietly passing.
+#
+# The marker is a DECLARATION and is trusted as one: a marker placed on the wrong
+# step is not detectable here, by construction, because detecting it would mean
+# re-deriving the role from the prose. What is still tied to the registry is the
+# section as a whole -- behavior 4 requires it to name a registered fallback
+# server that covers the skill's capabilities, and behavior 7 requires a surface
+# to provide them natively. ---
 
-# The two kinds of step, both identified from the registries rather than from a
-# sentence. `chrome-devtools` is not hardcoded: any server the registry marks as
-# a local process (activationMode on-demand-local, or a stdio command the fleet
-# spawns) counts, so adding a second local browser server keeps this honest.
-function Get-LocallyStartedServers {
-    return @(
-        $mcps.mcpServers |
-            Where-Object { [string]$_.activationMode -eq 'on-demand-local' -or [string]$_.transport -eq 'stdio' } |
-            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.id) }
-    )
+# The role vocabulary. Two roles are the resolution order itself and each skill
+# must declare exactly one of each; a step that is neither (the Playwright CLI
+# lane in two of these skills) declares `additional-lane`, which may appear any
+# number of times including none. Every numbered step must carry exactly one
+# marker: an OPTIONAL marker is a guard a new skill opts out of by doing nothing,
+# which is this repository's signature defect.
+$singletonStepRoles = [ordered]@{
+    'surface-provided' = "resolves the running surface's own provider"
+    'local-fallback'   = 'reaches the locally started fallback server'
 }
-# The surface-provided step is the one that resolves the running surface out of
-# the hostSurfaces matrix. Matched on the registry file and key it must consult,
-# not on "look up" or "first-party browser" -- and NOT on the bare word
-# "surface", which the fallback step also uses ("when the surface records
-# `false` or `null`").
-$surfaceLookupPattern = '`[^`]*(?:hostSurfaces|fleet-profile\.json)[^`]*`'
+$optionalStepRoles = [ordered]@{
+    'additional-lane'  = 'a further option that is neither of the two above'
+}
+$knownStepRoles = @($singletonStepRoles.Keys) + @($optionalStepRoles.Keys)
+# `([^\s>]+)` rather than the known roles alternated: a marker naming an unknown
+# role must be READ and reported by name, not silently fail to match and be
+# indistinguishable from a step nobody marked.
+$stepRoleMarkerPattern = '<!--\s*resolution-step:\s*([^\s>]+)\s*-->'
 
-# The numbered steps of a section as ordered units, one entry per step with its
-# continuation lines folded in. Deliberately NOT Get-NumberedStepLines, which
-# flattens every line into one flat list: behavior 6 asks "does any line say
-# Chrome" and does not care which step a line belongs to, while this behavior is
-# only about which step comes first. Sharing one helper would mean behavior 6's
-# flattening and this behavior's grouping constraining each other, and a change
-# made for one silently loosening the other.
-function Get-NumberedSteps {
+# Marker placements across a WHOLE SKILL.md: which numbered step of the
+# resolution section each marker sits on, and which markers sit somewhere else.
+# Whole-file, not section-scoped, because "this marker is on something that is
+# not a resolution step" is a finding -- a role claim in the closing paragraph or
+# on a workflow step below is exactly the silent mistake a section-scoped scan
+# would drop on the floor.
+#
+# Deliberately NOT Get-NumberedStepLines, which flattens every line of a section
+# into one list: behavior 6 asks "does any line say Chrome" and does not care
+# which step a line belongs to, while this behavior is only about which step is
+# which. Sharing one helper would mean behavior 6's flattening and this
+# behavior's grouping constraining each other, and a change made for one silently
+# loosening the other.
+function Get-StepRoleMarkerPlacements {
     param([string]$Text)
     $steps = [Collections.Generic.List[object]]::new()
-    if ([string]::IsNullOrEmpty($Text)) { return $steps }
+    $stray = [Collections.Generic.List[object]]::new()
+    $inResolutionSection = $false
     $current = $null
+    $lineNumber = 0
     foreach ($line in ($Text -split '\r?\n')) {
-        $start = [regex]::Match($line, '^\s*(\d+)\.\s')
-        if ($start.Success) {
-            $current = [pscustomobject]@{ Number = [int]$start.Groups[1].Value; Text = $line }
-            $steps.Add($current)
-            continue
+        $lineNumber++
+        if ($line -match '^##\s') {
+            $inResolutionSection = [regex]::IsMatch($line, '^##\s+' + $resolutionHeadingPattern + '$')
+            $current = $null
+        } elseif ($inResolutionSection) {
+            $start = [regex]::Match($line, '^\s*(\d+)\.\s')
+            if ($start.Success) {
+                $current = [pscustomobject]@{
+                    Number = [int]$start.Groups[1].Value
+                    Line   = $lineNumber
+                    Roles  = [Collections.Generic.List[string]]::new()
+                }
+                $steps.Add($current)
+            } elseif ([string]::IsNullOrWhiteSpace($line)) {
+                $current = $null
+            } elseif (-not ($null -ne $current -and $line -match '^\s+\S')) {
+                $current = $null
+            }
         }
-        if ([string]::IsNullOrWhiteSpace($line)) { $current = $null; continue }
-        if ($null -ne $current -and $line -match '^\s+\S') { $current.Text = $current.Text + "`n" + $line; continue }
-        $current = $null
+        foreach ($marker in @([regex]::Matches($line, $stepRoleMarkerPattern))) {
+            $role = $marker.Groups[1].Value
+            if ($inResolutionSection -and $null -ne $current) {
+                $current.Roles.Add($role)
+            } else {
+                $stray.Add([pscustomobject]@{ Role = $role; Line = $lineNumber })
+            }
+        }
     }
-    return $steps
+    return [pscustomobject]@{ Steps = $steps; Stray = $stray }
 }
 
 function Test-SurfaceStepPrecedesLocalFallbackStep {
-    $localServers = @(Get-LocallyStartedServers)
-    if ($localServers.Count -eq 0) {
-        return @{ Passed = $false; Detail = 'registry/mcps.json marks no server as a locally started process (activationMode on-demand-local / a stdio command), so no step could be recognised as the local fallback and every skill would pass by having nothing to order.' }
+    # Anti-vacuity for the parser: prove it attaches, ignores and strands the
+    # three placements it must tell apart, before any clean result against the
+    # real skills is worth anything.
+    $control = @'
+## Capability required
+
+Not a step. <!-- resolution-step: surface-provided -->
+
+## Resolve a provider in the control fixture
+
+1. Marked on the step line. <!-- resolution-step: surface-provided -->
+2. Marked on a continuation line.
+   <!-- resolution-step: local-fallback -->
+3. Left unmarked.
+
+Closing prose. <!-- resolution-step: additional-lane -->
+'@
+    $controlPlacements = Get-StepRoleMarkerPlacements -Text $control
+    $controlRoles = @($controlPlacements.Steps | ForEach-Object { '[' + ($_.Roles -join '+') + ']' }) -join ' '
+    if ($controlPlacements.Steps.Count -ne 3 -or $controlRoles -ne '[surface-provided] [local-fallback] []' -or $controlPlacements.Stray.Count -ne 2) {
+        return @{ Passed = $false; Detail = "the marker parser read the control fixture as $($controlPlacements.Steps.Count) step(s) $controlRoles with $($controlPlacements.Stray.Count) stray marker(s); it must read 3 steps [surface-provided] [local-fallback] [] with 2 stray, or it cannot tell a marked step from an unmarked one from a marker on something that is not a step." }
     }
     $declarations = Get-SkillCapabilityDeclarations
     if ($declarations.Count -eq 0) {
         return @{ Passed = $false; Detail = 'no SKILL.md files were read, so no resolution order was inspected; see behavior 1.' }
     }
     $bad = [Collections.Generic.List[string]]::new()
+    $totalSteps = 0
     # PER SKILL, not fleet-wide. An anti-vacuity guard keyed on a total across
     # the three skills lets one skill's entire step list be deleted while the
     # other two keep the total non-zero; every skill must state both steps and be
@@ -620,47 +706,65 @@ function Test-SurfaceStepPrecedesLocalFallbackStep {
             $bad.Add("$($declaration.Skill) has no '## $resolutionSectionHeadingPrefix ...' section, so it states no order for a surface-provided step and a locally started one to be in")
             continue
         }
-        $steps = @(Get-NumberedSteps -Text $declaration.ResolutionSection)
+        # Findings about a marker name the FILE and a line, not just the skill:
+        # a marker is a thing an author has to go and look at, and repo-relative
+        # so the message is the same string in every checkout and worktree.
+        $relativePath = $declaration.Path.Substring($repoRoot.Length).TrimStart('\', '/')
+        $placements = Get-StepRoleMarkerPlacements -Text $declaration.Text
+        $steps = @($placements.Steps)
         if ($steps.Count -eq 0) {
             $bad.Add("$($declaration.Skill) states no numbered steps in its '## $resolutionSectionHeadingPrefix ...' section, so it documents no resolution order at all and this check would pass over nothing")
             continue
         }
-        # This skill's fallback is a local server that provides something the
-        # skill declares -- not any local server in the registry. `brave-search`
-        # is also an on-demand-local process and has nothing to do with browser
-        # routing; naming it in a step must not be read as this skill reaching
-        # for its fallback.
-        $localServerIds = @(
-            $localServers |
-                Where-Object { @(@($_.providesCapabilities) | Where-Object { $_ -in $declaration.Capabilities }).Count -gt 0 } |
-                ForEach-Object { [string]$_.id }
-        )
-        if ($localServerIds.Count -eq 0) {
-            $bad.Add("$($declaration.Skill) declares $($declaration.Capabilities -join ', '), which no locally started server in registry/mcps.json provides, so it has no local fallback step for a surface-provided step to precede; see behavior 4")
-            continue
+        $totalSteps += $steps.Count
+        $malformed = $false
+        foreach ($marker in @($placements.Stray)) {
+            $malformed = $true
+            $bad.Add("$relativePath line $($marker.Line) carries the marker '<!-- resolution-step: $($marker.Role) -->' outside the numbered steps of its '## $resolutionSectionHeadingPrefix ...' section, so it claims a resolution role for something that is not a resolution step")
         }
-        $localServerPattern = '`(?:' + (($localServerIds | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')`'
-        $surfaceIndex  = -1
-        $fallbackIndex = -1
+        foreach ($step in $steps) {
+            if ($step.Roles.Count -eq 0) {
+                $malformed = $true
+                $bad.Add("$relativePath step $($step.Number) (line $($step.Line)) carries no '<!-- resolution-step: ... -->' marker, so its role would have to be guessed from its prose; every numbered step of the resolution section must declare one of: $($knownStepRoles -join ', ')")
+                continue
+            }
+            if ($step.Roles.Count -gt 1) {
+                $malformed = $true
+                $bad.Add("$relativePath step $($step.Number) (line $($step.Line)) carries $($step.Roles.Count) markers ($(($step.Roles | ForEach-Object { "'$_'" }) -join ', ')), so it declares more than one role and no single role can be read from it")
+            }
+            foreach ($role in $step.Roles) {
+                if ($role -notin $knownStepRoles) {
+                    $malformed = $true
+                    $bad.Add("$relativePath step $($step.Number) (line $($step.Line)) carries the marker '<!-- resolution-step: $role -->', naming a role this check does not know; the vocabulary is: $($knownStepRoles -join ', ')")
+                }
+            }
+        }
+        $stepsByRole = @{}
         for ($i = 0; $i -lt $steps.Count; $i++) {
-            $namesLocalServer = [regex]::IsMatch($steps[$i].Text, $localServerPattern)
-            if ($fallbackIndex -lt 0 -and $namesLocalServer) { $fallbackIndex = $i }
-            if ($surfaceIndex -lt 0 -and -not $namesLocalServer -and [regex]::IsMatch($steps[$i].Text, $surfaceLookupPattern)) { $surfaceIndex = $i }
+            foreach ($role in $steps[$i].Roles) {
+                if (-not $stepsByRole.ContainsKey($role)) { $stepsByRole[$role] = [Collections.Generic.List[object]]::new() }
+                $stepsByRole[$role].Add([pscustomobject]@{ Index = $i; Number = $steps[$i].Number })
+            }
         }
-        if ($surfaceIndex -lt 0) {
-            $bad.Add("$($declaration.Skill) states no step that resolves the running surface's own provider -- no numbered step in its '## $resolutionSectionHeadingPrefix ...' section consults the hostSurfaces matrix in fleet-profile.json -- so the order it documents starts at the fallback")
-            continue
+        foreach ($role in @($singletonStepRoles.Keys)) {
+            $carriers = @(if ($stepsByRole.ContainsKey($role)) { $stepsByRole[$role] } else { @() })
+            if ($carriers.Count -eq 0) {
+                $malformed = $true
+                $bad.Add("$relativePath declares no '<!-- resolution-step: $role -->' step ($($singletonStepRoles[$role])), so half the resolution order is unstated and there is no pair of steps to order")
+            } elseif ($carriers.Count -gt 1) {
+                $malformed = $true
+                $bad.Add("$relativePath declares '<!-- resolution-step: $role -->' on $($carriers.Count) steps (steps $(($carriers | ForEach-Object { $_.Number }) -join ', ')); exactly one step may hold that role, or which step it refers to is ambiguous")
+            }
         }
-        if ($fallbackIndex -lt 0) {
-            $bad.Add("$($declaration.Skill) states no step that reaches the locally started fallback ($($localServerIds -join '/')) in its '## $resolutionSectionHeadingPrefix ...' section, so only half the documented order is present and there is no second step for the surface-provided one to precede")
-            continue
+        if ($malformed) { continue }
+        $surfaceStep  = $stepsByRole['surface-provided'][0]
+        $fallbackStep = $stepsByRole['local-fallback'][0]
+        if ($fallbackStep.Index -lt $surfaceStep.Index) {
+            $bad.Add("$($declaration.Skill) puts its '<!-- resolution-step: local-fallback -->' step at step $($fallbackStep.Number), BEFORE its '<!-- resolution-step: surface-provided -->' step at step $($surfaceStep.Number), so the skill reaches for a spawned local process before checking the browser the running surface already has. That contradicts the rationale the same section carries -- registry/mcps.json activationPolicy prefers a shared remote over a locally spawned process, requires one shared local process rather than one per host, and requires it to be started by the capability that needs it -- and the fleet preference order in global-agent-policy.md")
         }
-        if ($fallbackIndex -lt $surfaceIndex) {
-            $fallbackStep = $steps[$fallbackIndex]
-            $surfaceStep  = $steps[$surfaceIndex]
-            $named = @($localServerIds | Where-Object { [regex]::IsMatch($fallbackStep.Text, '`' + [regex]::Escape($_) + '`') })
-            $bad.Add("$($declaration.Skill) puts the locally started fallback ($($named -join '/')) at step $($fallbackStep.Number), BEFORE the surface-provided step at step $($surfaceStep.Number), so the skill reaches for a spawned local process before checking the browser the running surface already has. That contradicts the rationale the same section carries -- registry/mcps.json activationPolicy prefers a shared remote over a locally spawned process, requires one shared local process rather than one per host, and requires it to be started by the capability that needs it -- and the fleet preference order in global-agent-policy.md")
-        }
+    }
+    if ($bad.Count -eq 0 -and $totalSteps -eq 0) {
+        return @{ Passed = $false; Detail = "the skills state zero numbered steps in their '## $resolutionSectionHeadingPrefix ...' sections between them, so this check ordered nothing at all." }
     }
     if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
     return @{ Passed = $true; Detail = $null }
@@ -688,7 +792,7 @@ $r7 = Test-DeclaredCapabilitiesHaveASurfaceProvider
 Report 'every capability a skill names is recorded true on at least one surface, not served only by the MCP fallback' $r7.Passed $r7.Detail
 
 $r8 = Test-SurfaceStepPrecedesLocalFallbackStep
-Report 'each skill resolves the running surface own provider in a step before the step that starts the local fallback' $r8.Passed $r8.Detail
+Report 'each skill declares its surface-provided step before its local-fallback step' $r8.Passed $r8.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

@@ -24,11 +24,14 @@ else resolves is vocabulary rather than routing. It is the actual justification 
    `hostSurfaces.surfaces`. If it records the required capability as `true`, drive its
    own first-party browser for observation, reproduction, and accessibility work.
    Nothing extra is started.
+   <!-- resolution-step: surface-provided -->
 2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
    `registry/mcps.json` -- when the surface records `false` or `null`, or when the
    step needs DevTools depth the surface cannot reach.
+   <!-- resolution-step: local-fallback -->
 3. Use Playwright CLI only when compact repeatable actions are more useful than live
    DevTools state.
+   <!-- resolution-step: additional-lane -->
 
 `false` and `null` are different findings and neither is a provider: `false` means
 checked and absent, `null` means never established. Resolve, do not assume.

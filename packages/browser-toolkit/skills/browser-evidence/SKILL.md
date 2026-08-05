@@ -23,9 +23,11 @@ personal Chrome state, unrelated tabs, credentials, or customer data.
 1. Look up the running surface in `registry/fleet-profile.json`,
    `hostSurfaces.surfaces`. If it records the required capability as `true`, capture
    with its own first-party browser and start nothing.
+   <!-- resolution-step: surface-provided -->
 2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
    `registry/mcps.json` -- when the surface records `false` or `null`, or when the
    evidence needed is a performance trace, heap comparison, or Lighthouse run.
+   <!-- resolution-step: local-fallback -->
 
 `false` and `null` are different findings and neither is a provider: `false` means
 checked and absent, `null` means never established. Record which provider produced

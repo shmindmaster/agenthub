@@ -489,11 +489,16 @@ function Test-EscalationGateIsNotRelaxed {
 #
 # Scope, because the label used to overstate it: this reads global-agent-policy.md
 # and registry/mcps.json and opens no SKILL.md, so it establishes nothing about
-# what the skills do. That the skills resolve the same way is true and IS
-# enforced -- by behavior 8 of tests/Test-CapabilityRouting.ps1, 'each skill
-# resolves the running surface own provider in a step before the step that
-# starts the local fallback'. Broadening this check to make the old wording true
-# would only duplicate that one. ---
+# what the skills do. The nearest thing that is enforced is behavior 8 of
+# tests/Test-CapabilityRouting.ps1, 'each skill declares its surface-provided
+# step before its local-fallback step' -- note "declares": since the markers
+# went in, that check reads each step's declared role and no longer verifies
+# the step's prose argues for the role it claims. So no test in this repository
+# establishes that the skills' SENTENCES resolve the way the policy does; a
+# marker on the wrong step would pass both. Detecting that would mean
+# re-deriving a role from prose, which failed here badly enough to be worth not
+# repeating. Broadening this check would duplicate behavior 8 without closing
+# that gap. ---
 $preferenceOrderAnchor = 'Prefer, in this order'
 $activationTiebreakPhrases = [ordered]@{
     'a capability the surface already provides outranks one that must be started' = 'already provides'

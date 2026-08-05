@@ -18,12 +18,15 @@ session."
    `hostSurfaces.surfaces`. If it records the required capability as `true`, drive its
    own first-party browser and start nothing. This is the ordinary case for a host
    that ships a browser.
+   <!-- resolution-step: surface-provided -->
 2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
    `registry/mcps.json` -- when the surface records `false` or `null`, or when the run
    needs accessibility snapshots, console/network correlation, Lighthouse,
    performance, screencasts, or memory analysis that the surface cannot reach.
+   <!-- resolution-step: local-fallback -->
 3. Use pinned Playwright CLI for token-efficient action sequences, multiple named
    sessions, screenshots, traces, video, or locator generation:
+   <!-- resolution-step: additional-lane -->
 
 ```powershell
 npx -y @playwright/cli@0.1.17 -s=<task-slug> open <url> --headed
