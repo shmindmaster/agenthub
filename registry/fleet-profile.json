@@ -94,6 +94,52 @@
       "reason": "Owner explicitly reauthorized all Cursor surfaces on 2026-07-30. Health checks remain read-only and must not consume a paid run."
     }
   },
+  "hostSurfaces": {
+    "recordedOn": "2026-08-04",
+    "purpose": "A host is not one uniform capability target. Codex CLI, the Codex IDE extension and the ChatGPT desktop app are the same registered host reading the same ~/.codex config, but they do NOT expose the same tools -- routing a task to the built-in Browser succeeds on one and silently has nowhere to go on another. This records which surface actually offers which capability, so a skill can request an outcome and resolve a provider instead of naming a tool that may not exist where it runs.",
+    "modelNote": "Deliberately NOT modelled as extra entries in registry/agents.json. Hosts are split there when their surfaces read DIFFERENT paths -- antigravity-ide and cursor-agent each have their own config file, which is what earns them a host entry. Every Claude surface reads ~/.claude and every Codex surface reads ~/.codex, so splitting them would duplicate 11 and 12 capability mappings that deploy to identical destinations and add nothing. What differs is capability availability, and that lives here.",
+    "knownCapabilities": [
+      "browser.isolated",
+      "browser.authenticated",
+      "computer.gui"
+    ],
+    "capabilityMeanings": {
+      "browser.isolated": "A first-party browser the agent drives itself, with its own profile. Suits localhost and public pages; carries no signed-in session.",
+      "browser.authenticated": "A browser using the user's real profile, so already-signed-in sites work. Requires a live extension connection, not merely an installed product.",
+      "computer.gui": "First-party control of native desktop applications."
+    },
+    "surfaces": [
+      {
+        "hostId": "codex",
+        "surfaceId": "codex-cli",
+        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": false },
+        "verifiedOn": "2026-08-04",
+        "verification": "learn.chatgpt.com/docs/browser states verbatim: 'Browser isn't available in Codex CLI or the Codex IDE extension. Open the ChatGPT desktop app to use the built-in browser.' MCP remains available on this surface, so structured integrations are the route here, not browser automation."
+      },
+      {
+        "hostId": "codex",
+        "surfaceId": "codex-ide",
+        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": false },
+        "verifiedOn": "2026-08-04",
+        "verification": "Same documented sentence as codex-cli names the IDE extension explicitly."
+      },
+      {
+        "hostId": "codex",
+        "surfaceId": "codex-desktop",
+        "capabilities": { "browser.isolated": true, "browser.authenticated": null, "computer.gui": null },
+        "verifiedOn": "2026-08-04",
+        "verification": "The same page states Browser is available in ChatGPT on the web and in the ChatGPT desktop app. The Chrome-extension and Computer Use surfaces were not probed from this machine, so they are recorded null rather than assumed."
+      },
+      {
+        "hostId": "claude",
+        "surfaceId": "claude-cli",
+        "capabilities": { "browser.isolated": true, "browser.authenticated": false, "computer.gui": true },
+        "verifiedOn": "2026-08-04",
+        "verification": "browser.isolated measured live: the in-app Browser pane opened and navigated. browser.authenticated measured FALSE: list_connected_browsers returned an empty array, so Claude in Chrome is not connected on this machine -- the product exists but the capability does not, which is exactly the distinction this table is for. computer.gui is available, with documented tier limits: browsers are read-only and terminals/IDEs reject typing, so it cannot substitute for either browser capability."
+      }
+    ],
+    "note": "null means not established, never 'assumed false'. A false must carry evidence in the same entry, the same rule registry/mcps.json applies to protocol revisions. Enforced by tests/Test-HostSurfaces.ps1."
+  },
   "notes": [
     "OAuth consent and provider login remain provider-controlled.",
     "Active and inactive installation evidence is maintained only in registry/agents.json."

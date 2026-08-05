@@ -89,7 +89,16 @@ function Test-HostValidatorRejectsABrokenManifest {
         return @{ Passed = $false; Detail = 'product-experience-engineering package not found; this mutation targets its agents array specifically.' }
     }
     $manifest = Join-Path $package.FullName '.claude-plugin\plugin.json'
-    $pristine = Get-Content -LiteralPath $manifest -Raw
+    # Read and write through [IO.File] with an explicit BOM-free encoding, NOT
+    # Get-Content/Set-Content -Encoding UTF8. That parameter means UTF-8 WITHOUT
+    # a BOM in pwsh 7 and WITH one in Windows PowerShell 5.1, so the earlier
+    # version of this test restored a BOM under 5.1 that `claude plugin validate`
+    # then rejected with "Unrecognized token ''". The two shells alternated:
+    # 5.1 left the BOM, the next pwsh run failed on it and cleaned it up, and so
+    # on. A test that corrupts the artifact it validates, differently per shell,
+    # is the same defect class it was written to catch.
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $pristine = [IO.File]::ReadAllText($manifest)
 
     try {
         # The exact defect that shipped: an array field written as a directory string.
@@ -97,7 +106,7 @@ function Test-HostValidatorRejectsABrokenManifest {
         if ($mutated -eq $pristine) {
             return @{ Passed = $false; Detail = "could not mutate the agents array in $manifest -- the field shape changed, so this anti-vacuity check is no longer testing what it claims to." }
         }
-        Set-Content -LiteralPath $manifest -Value $mutated -Encoding UTF8 -NoNewline
+        [IO.File]::WriteAllText($manifest, $mutated, $utf8NoBom)
 
         $null = & claude plugin validate $package.FullName 2>&1
         if ($LASTEXITCODE -eq 0) {
@@ -105,7 +114,26 @@ function Test-HostValidatorRejectsABrokenManifest {
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
-        Set-Content -LiteralPath $manifest -Value $pristine -Encoding UTF8 -NoNewline
+        [IO.File]::WriteAllText($manifest, $pristine, $utf8NoBom)
+    }
+}
+
+# --- Behavior 3: this suite leaves the manifest exactly as it found it.
+#
+# Behavior 2 edits a real tracked file. If its restore is imperfect in any way
+# -- a BOM, a line ending, a trailing newline -- the damage is committed by
+# whoever runs the suite next, and it presents as an unrelated failure later.
+# Ask git directly rather than trusting the restore. ---
+function Test-SuiteLeavesManifestsUnmodified {
+    Push-Location $repoRoot
+    try {
+        $dirty = @(git status --porcelain -- 'packages/*/.claude-plugin/plugin.json' 2>&1 | Where-Object { $_ })
+        if ($dirty.Count -gt 0) {
+            return @{ Passed = $false; Detail = "running this suite left plugin manifest(s) modified in the working tree: $($dirty -join '; '). The mutation in Behavior 2 did not restore byte-identically -- check the write encoding, which differs between pwsh and Windows PowerShell for -Encoding UTF8." }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Pop-Location
     }
 }
 
@@ -114,6 +142,9 @@ Report 'every AgentHub plugin passes the host schema via claude plugin validate'
 
 $r2 = Test-HostValidatorRejectsABrokenManifest
 Report 'the host validator rejects a manifest broken the way one actually shipped' $r2.Passed $r2.Detail
+
+$r3 = Test-SuiteLeavesManifestsUnmodified
+Report 'the suite restores every mutated manifest byte-identically' $r3.Passed $r3.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
