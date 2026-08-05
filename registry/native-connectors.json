@@ -53,14 +53,20 @@
       {
         "id": "claude-ai-connector-removals",
         "action": "disconnect account connectors",
-        "targets": ["Tavily", "Atlassian", "Asana", "Slack", "Figma"],
+        "targets": [
+          "Tavily",
+          "Atlassian",
+          "Asana",
+          "Slack",
+          "Figma"
+        ],
         "surface": "claude.ai account connector settings",
         "authorizedOn": "2026-08-04",
         "authorization": "Owner instruction, verbatim: 'I feel comfortable getting rid of tavily as they have very low allowance and we have alternate liek exa, brave and firecrawl already?' and 'remove Atlassian, Asana, Slack and Figma as well'.",
         "fleetSideStatus": "complete",
         "fleetSideEvidence": "None of the five is registered in registry/mcps.json, which declares nine servers, and none appears in any host exposure list in this file. The fleet-side removal the owner asked for is done; what remains is outside the fleet.",
-        "agentHubCanPerform": false,
-        "blockedBy": "No authenticated browser surface reaches claude.ai account settings from this machine, and entering credentials to obtain one is prohibited.",
+        "agentHubCanPerform": true,
+        "blockedBy": "RESOLVED 2026-08-05. Retained for the record: no authenticated browser surface reached claude.ai account settings from this machine, and entering credentials to obtain one was prohibited. The owner authenticating the session themselves was the route through, and it was available the whole time -- worth remembering next time a limit looks absolute, because 'AgentHub cannot authenticate' was true while 'this can never be done from here' was not.",
         "blockerVerifiedOn": "2026-08-05",
         "blockerVerification": "Claude in Chrome list_connected_browsers returned an empty array on 2026-08-04 and again on 2026-08-05. The in-app browser carries no claude.ai session, and authenticating one would require entering the owner's credentials, which is prohibited regardless of authorization. Verified twice rather than assumed, because a capability limit asserted without testing was wrong once already in this work.",
         "apiProbe": {
@@ -69,12 +75,40 @@
           "detail": "Probed for a programmatic route before concluding this needs a browser at all. The connector-registry MCP exposes list_connectors and search_mcp_registry but no disconnect or remove operation, so there is no write path even in principle. Both reads returned empty -- including a registry SEARCH for 'atlassian' and 'slack', which cannot legitimately be empty. So the empty connector list is evidence the integration could not enumerate, NOT evidence that zero connectors are installed. Recorded so the next reader does not mistake this for a clean inventory, and does not repeat the probe believing it untried."
         },
         "ownerStep": "claude.ai -> Settings -> Connectors -> select the connector -> Disconnect. Disconnecting also revokes nothing at the provider; see oauth-grant-revocation.",
-        "completedOn": null
+        "completedOn": "2026-08-05",
+        "localSurfaceProof": {
+          "measuredOn": "2026-08-05",
+          "why": "The earlier blockers recorded that no route REACHES claude.ai. This records something stronger and more useful: the five connectors are not present on the local surface at all, so there is nothing here to disconnect even in principle. That reframes the entry from 'AgentHub is blocked' to 'AgentHub is complete and the remainder belongs to a different system'.",
+          "claudeMcpList": "9 servers: sentry, github, notion, descript, chrome-devtools, context7, exa, firecrawl, linear. None of Tavily, Atlassian, Asana, Slack or Figma appears. This matches registry/mcps.json's declared nine exactly.",
+          "claudePluginList": "15 plugins, all enabled, all from claude-plugins-official or agenthub. None of the bundles that carry the five servers (engineering, marketing, small-business, design, litigation-legal, adobe-for-creativity) is installed locally.",
+          "conclusion": "The bundles are account-level: claude.ai injects them into a session rather than installing them on this machine. `claude plugin disable` cannot act on them because `claude plugin list` cannot see them -- checked, not assumed, because that same CLI turned out to have the answer once before when a limit was asserted without testing it.",
+          "browserRoutesRetested": "Both retested live on 2026-08-05, not carried forward from the earlier attempt. The in-app browser at claude.ai/settings/connectors redirects to the sign-in page ('Continue with Google / email / SSO'), carrying no session. claude-in-chrome list_connected_browsers returned [] for the third separate time. The only remaining route is entering the owner's credentials, which is prohibited regardless of authorization."
+        },
+        "ownerClickPath": "claude.ai -> Settings -> Connectors, then Disconnect on each. For a server that arrives via an account-level plugin bundle rather than as a standalone connector, the control is on the bundle, so consult bundleContents in this file first: removing a bundle to drop one server also drops the others listed beside it.",
+        "completion": {
+          "howItUnblocked": "The owner signed in to claude.ai in the in-app browser. That single act converted every recorded blocker at once: the blocker was never the settings UI, it was the absence of an authenticated session, and the owner supplying one is not the same as AgentHub entering credentials -- which remained, and remains, prohibited.",
+          "performedByAgentHub": [
+            "Figma"
+          ],
+          "alreadyDoneBeforeArrival": {
+            "Tavily": "absent from the connector table entirely",
+            "Asana": "absent from the connector table entirely",
+            "Atlassian": "present in the Popular-for-Engineering rail showing a Connect button, i.e. not connected",
+            "Slack": "present in the Popular-for-Engineering rail showing a Connect button, i.e. not connected"
+          },
+          "method": "claude.ai Settings is a modal dialog, not a route: direct navigation to /settings/connectors and /settings both redirect to the home page, and the Connectors tab must be clicked inside the dialog. Recorded because the redirect looks exactly like a permissions failure and would otherwise be rediscovered as one. Figma was removed via its detail panel -> More options -> Remove -> confirm.",
+          "verification": "Re-read the connector table after the removal. The rows now run Exa -> GitHub Integration with nothing between them, where Figma previously sat. Verified by reading the table back, not by trusting that the dialog closed.",
+          "residualNotClaimed": "Removing a connector on claude.ai does not revoke the OAuth grant on Figma's side. That is the separate provider-side action tracked in this file and is NOT claimed as done here. A removal here and a revocation there are different acts against different systems, and collapsing them is precisely the kind of overstatement this registry exists to prevent."
+        }
       },
       {
         "id": "oauth-grant-revocation",
         "action": "revoke OAuth grants at the provider",
-        "targets": ["Linear", "Notion", "Descript"],
+        "targets": [
+          "Linear",
+          "Notion",
+          "Descript"
+        ],
         "surface": "each provider's own account security settings",
         "authorizedOn": "2026-08-04",
         "authorization": "Follows from the owner's connector reduction: a disconnected connector whose grant is still live remains an outstanding authorization against the owner's account.",
@@ -90,7 +124,14 @@
       {
         "id": "account-level-plugin-servers",
         "action": "review claude.ai account-level plugins that inject MCP servers",
-        "targets": ["engineering", "marketing", "small-business", "design", "litigation-legal", "adobe-for-creativity"],
+        "targets": [
+          "engineering",
+          "marketing",
+          "small-business",
+          "design",
+          "litigation-legal",
+          "adobe-for-creativity"
+        ],
         "surface": "claude.ai account settings",
         "authorizedOn": null,
         "authorization": null,
@@ -105,12 +146,39 @@
           "source": "Observed in a Claude Code session on 2026-08-05: every server the host reported as awaiting authorization, grouped by the plugin namespace it was presented under.",
           "caveat": "This lists the servers observed awaiting authorization, which is not necessarily everything a bundle carries -- an already-authorized server would not have appeared. Treat it as a floor, not an inventory.",
           "bundles": {
-            "engineering": ["atlassian", "datadog", "pagerduty"],
-            "marketing": ["ahrefs", "amplitude", "amplitude-eu", "figma", "klaviyo", "similarweb", "supermetrics"],
-            "small-business": ["canva", "docusign", "hubspot", "paypal", "quickbooks", "slack", "square", "stripe"],
-            "design": ["intercom"],
-            "litigation-legal": ["Google Drive"],
-            "adobe-for-creativity": ["Adobe for creativity"]
+            "engineering": [
+              "atlassian",
+              "datadog",
+              "pagerduty"
+            ],
+            "marketing": [
+              "ahrefs",
+              "amplitude",
+              "amplitude-eu",
+              "figma",
+              "klaviyo",
+              "similarweb",
+              "supermetrics"
+            ],
+            "small-business": [
+              "canva",
+              "docusign",
+              "hubspot",
+              "paypal",
+              "quickbooks",
+              "slack",
+              "square",
+              "stripe"
+            ],
+            "design": [
+              "intercom"
+            ],
+            "litigation-legal": [
+              "Google Drive"
+            ],
+            "adobe-for-creativity": [
+              "Adobe for creativity"
+            ]
           },
           "notAccountLevel": {
             "sentry": "sentry@claude-plugins-official is installed locally; it is a normal plugin, not part of this decision.",
@@ -123,7 +191,6 @@
       }
     ]
   },
-
   "bundledServerSuppressions": [],
   "skillsOnlyPlugins": [
     {
