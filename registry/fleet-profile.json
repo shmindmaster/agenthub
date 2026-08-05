@@ -112,14 +112,28 @@
       {
         "hostId": "codex",
         "surfaceId": "codex-cli",
-        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": false },
+        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": null },
+        "capabilityEvidence": {
+          "browser.isolated": "learn.chatgpt.com/docs/browser states verbatim: 'Browser isn't available in Codex CLI or the Codex IDE extension. Open the ChatGPT desktop app to use the built-in browser.'",
+          "browser.authenticated": "The same quoted sentence. What the documentation withholds from this surface is Browser itself, so it covers the authenticated variant and the isolated one alike."
+        },
+        "capabilityNotEstablished": {
+          "computer.gui": "Computer Use was not probed from this surface. The documented evidence here covers Browser availability only and says nothing about first-party control of native desktop applications. Recorded false until 2026-08-05 on the strength of that Browser sentence, which is the assumption this table exists to forbid; demoted to null rather than backfilled with a finding nobody made."
+        },
         "verifiedOn": "2026-08-04",
         "verification": "learn.chatgpt.com/docs/browser states verbatim: 'Browser isn't available in Codex CLI or the Codex IDE extension. Open the ChatGPT desktop app to use the built-in browser.' MCP remains available on this surface, so structured integrations are the route here, not browser automation."
       },
       {
         "hostId": "codex",
         "surfaceId": "codex-ide",
-        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": false },
+        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": null },
+        "capabilityEvidence": {
+          "browser.isolated": "The documented sentence quoted in codex-cli names this surface explicitly: 'Browser isn't available in Codex CLI or the Codex IDE extension.'",
+          "browser.authenticated": "The same documented sentence. It names the IDE extension and withholds Browser from it entirely, not one variant of it."
+        },
+        "capabilityNotEstablished": {
+          "computer.gui": "Computer Use was not probed from this surface. The documented sentence this surface relies on is about Browser availability, so it establishes nothing about first-party control of native desktop applications. Recorded false until 2026-08-05; demoted to null for the same reason as codex-cli."
+        },
         "verifiedOn": "2026-08-04",
         "verification": "Same documented sentence as codex-cli names the IDE extension explicitly."
       },
@@ -127,6 +141,13 @@
         "hostId": "codex",
         "surfaceId": "codex-desktop",
         "capabilities": { "browser.isolated": true, "browser.authenticated": null, "computer.gui": null },
+        "capabilityEvidence": {
+          "browser.isolated": "learn.chatgpt.com/docs/browser states Browser is available in ChatGPT on the web and in the ChatGPT desktop app."
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "The Chrome-extension surface was not probed from this machine, so it is recorded null rather than assumed.",
+          "computer.gui": "The Computer Use surface was not probed from this machine, so it is recorded null rather than assumed."
+        },
         "verifiedOn": "2026-08-04",
         "verification": "The same page states Browser is available in ChatGPT on the web and in the ChatGPT desktop app. The Chrome-extension and Computer Use surfaces were not probed from this machine, so they are recorded null rather than assumed."
       },
@@ -134,6 +155,11 @@
         "hostId": "claude",
         "surfaceId": "claude-cli",
         "capabilities": { "browser.isolated": true, "browser.authenticated": false, "computer.gui": true },
+        "capabilityEvidence": {
+          "browser.isolated": "Measured live: the in-app Browser pane opened and navigated.",
+          "browser.authenticated": "Measured FALSE: list_connected_browsers returned an empty array, so Claude in Chrome is not connected on this machine -- the product exists but the capability does not, which is exactly the distinction this table is for.",
+          "computer.gui": "Available, with documented tier limits: browsers are read-only and terminals/IDEs reject typing, so it cannot substitute for either browser capability."
+        },
         "verifiedOn": "2026-08-04",
         "verification": "browser.isolated measured live: the in-app Browser pane opened and navigated. browser.authenticated measured FALSE: list_connected_browsers returned an empty array, so Claude in Chrome is not connected on this machine -- the product exists but the capability does not, which is exactly the distinction this table is for. computer.gui is available, with documented tier limits: browsers are read-only and terminals/IDEs reject typing, so it cannot substitute for either browser capability."
       }

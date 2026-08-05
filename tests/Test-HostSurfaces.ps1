@@ -111,12 +111,42 @@ function Test-CapabilityNamesAreKnown {
 }
 
 # --- Behavior 3 (the load-bearing one): every surface carries dated evidence,
-# and `false` is never a bare assertion.
+# and no single capability value is asserted bare.
 #
 # `null` is the honest value for "not established". `false` is a claim that
 # something was checked and found absent, and a claim needs evidence. Without
 # this rule the cheapest way to fill the table is to write false everywhere,
-# producing a document that looks verified and is not. ---
+# producing a document that looks verified and is not.
+#
+# The claim is per capability, so the check has to be per capability. It used to
+# be per surface: one non-empty `verification` string on the surface entry, after
+# which every boolean underneath it counted as evidenced. Review demonstrated what
+# that buys -- a mutation writing EIGHT evidence-free `false` values across the
+# matrix passed this behavior cleanly, because each surface still carried its
+# original verification sentence, one written about something else entirely. That
+# is how codex-cli and codex-ide came to assert `computer.gui: false` backed by a
+# sentence about Browser availability; both are now `null`, which is what they
+# always were.
+#
+# Prose matching was tried and rejected before landing this shape. Requiring the
+# verification text to name the capability fails six honestly-evidenced entries
+# whose wording predates the rule; matching the capability family instead accepts
+# `computer.gui: false` on the strength of the word "Computer" in the sentence
+# "Computer Use surfaces were not probed ... recorded null rather than assumed" --
+# a guard that reads as evidence while being noise. So the attribution is data,
+# not inference: `capabilityEvidence` is keyed by capability name.
+#
+# Its keys must be exactly the capabilities this surface asserts:
+#   * a bool with no entry is a bare claim -- the failure names the surface AND
+#     the capability, because "this surface is deficient" is not actionable;
+#   * an entry against a `null` is evidence attached to a value nobody asserted,
+#     which is exactly what a later `false` would silently inherit. Removing it is
+#     the cost of demoting a value, and it keeps `null` free of any requirement to
+#     write anything -- an author must never be pushed toward `false` to dodge
+#     friction. Why a value is not established belongs in `capabilityNotEstablished`,
+#     which is a note and is deliberately not evidence.
+# The surface-level `verification`/`verifiedOn` stay required: they date the visit
+# and carry the narrative no single capability owns. ---
 function Test-EverySurfaceCarriesDatedEvidence {
     $bad = [Collections.Generic.List[string]]::new()
     foreach ($surface in Get-Surfaces) {
@@ -130,9 +160,30 @@ function Test-EverySurfaceCarriesDatedEvidence {
         if ($verifiedOn -notmatch '^\d{4}-\d{2}-\d{2}$') {
             $bad.Add("$id has no ISO verifiedOn date (found '$verifiedOn'); an undated check cannot be audited for staleness")
         }
-        $asserted = @($surface.capabilities.PSObject.Properties | Where-Object { $_.Value -is [bool] })
-        if ($asserted.Count -gt 0 -and [string]::IsNullOrWhiteSpace($verification)) {
-            $bad.Add("$id asserts $($asserted.Count) capability value(s) with no evidence")
+
+        $evidence = $surface.capabilityEvidence
+        foreach ($property in @($surface.capabilities.PSObject.Properties)) {
+            $capability = $property.Name
+            $backing = $null
+            if ($evidence) {
+                $entry = $evidence.PSObject.Properties[$capability]
+                if ($entry) { $backing = [string]$entry.Value }
+            }
+            if ($property.Value -is [bool]) {
+                if ([string]::IsNullOrWhiteSpace($backing)) {
+                    $value = ([string]$property.Value).ToLowerInvariant()
+                    $bad.Add("$id asserts $capability = $value with no capabilityEvidence entry for $capability; the surface's verification backs the surface, not this value")
+                }
+            } elseif ($null -eq $property.Value -and -not [string]::IsNullOrWhiteSpace($backing)) {
+                $bad.Add("$id records $capability as not established (null) yet carries capabilityEvidence for $capability; evidence for a value nobody asserted is what a later false would inherit without anyone writing it")
+            }
+        }
+        if ($evidence) {
+            foreach ($entry in @($evidence.PSObject.Properties)) {
+                if (-not $surface.capabilities.PSObject.Properties[$entry.Name]) {
+                    $bad.Add("$id records capabilityEvidence for '$($entry.Name)', which it does not declare under capabilities; a mistyped key leaves the real capability unbacked while looking backed")
+                }
+            }
         }
     }
     if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
