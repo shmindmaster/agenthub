@@ -277,6 +277,41 @@ function Test-NoDeclarationIsUnused {
 }
 
 # ---------------------------------------------------------------------------
+# Behavior 7: a per-tool citation names a mapping that exists, and says
+# something.
+#
+# Scope, stated plainly because the registry note says the same thing and
+# the two must not drift: this does NOT require every mapped tool to carry
+# a citation. Most do not -- the six original mappings per host rest on the
+# host-level verifiedAgainst field. It requires only that a citation which
+# IS present points at a live mapping. That catches the rot case: a tool
+# renamed or removed from toolMap while the sentence claiming it was
+# verified stays behind, still reading as evidence for something that is no
+# longer there.
+# ---------------------------------------------------------------------------
+function Test-EveryCitationNamesALiveMapping {
+    $problems = [Collections.Generic.List[string]]::new()
+    foreach ($hostEntry in $translatingHosts) {
+        if (-not $hostEntry.PSObject.Properties['toolMapVerifiedAgainst']) { continue }
+        if (-not $hostEntry.toolMapVerifiedAgainst) { continue }
+        $mapped = @{}
+        foreach ($key in (Get-ToolMapKeys $hostEntry.toolMap)) { $mapped[$key] = $true }
+        foreach ($property in $hostEntry.toolMapVerifiedAgainst.PSObject.Properties) {
+            if (-not $mapped.ContainsKey($property.Name)) {
+                $problems.Add("$($hostEntry.id): $($property.Name) is cited as verified but is not in that host's toolMap")
+            }
+            if ([string]::IsNullOrWhiteSpace([string]$property.Value)) {
+                $problems.Add("$($hostEntry.id): $($property.Name) carries an empty citation")
+            }
+        }
+    }
+    if ($problems.Count -gt 0) {
+        return @{ Passed = $false; Detail = "toolMapVerifiedAgainst has entries that no longer describe reality: $($problems -join '; ')" }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
+
+# ---------------------------------------------------------------------------
 # Behavior 6: the generator agrees with this file about what gets dropped.
 #
 # Behaviors 1-5 read the canonical files through a parser mirrored from
@@ -310,8 +345,34 @@ function Test-GeneratorAgreesWithComputedDrops {
         $ErrorActionPreference = 'Continue'
         try {
             $output = & $hostExe @allArgs 2>&1 | Out-String
+            $exitCode = $LASTEXITCODE
         } finally {
             $ErrorActionPreference = $previousEap
+        }
+
+        # The run must have SUCCEEDED before its output means anything.
+        #
+        # Without this, a generator that throws before rendering anything
+        # emits zero NOTE lines, and comparing an empty reported set against
+        # an empty computed set reads as agreement -- this behavior returns
+        # PASS for a run that produced nothing at all. A reviewer proved that
+        # by fault injection: an unrelated broken plugin.json makes
+        # Get-EligibleCapabilities throw, and this check still went green.
+        #
+        # It survives today only because antigravity really does drop
+        # WebSearch/WebFetch, which keeps $computedDrops non-empty and turns
+        # most crashes into a mismatch by luck rather than by design. That
+        # protection disappears the day antigravity's web tools get verified
+        # -- an outcome this registry's own toolsNotEstablished text tells a
+        # future maintainer to go and produce. Gating on the exit code and on
+        # the generator's own terminal SUMMARY line makes an empty-vs-empty
+        # comparison mean "the generator ran and found nothing to drop"
+        # rather than "the generator never got that far".
+        if ($exitCode -ne 0) {
+            return @{ Passed = $false; Detail = "the generator exited $exitCode, so its output cannot be compared against anything. An empty drop set from a failed run is not agreement. Generator output: $($output.Trim())" }
+        }
+        if ($output -notmatch '(?m)^SUMMARY: ') {
+            return @{ Passed = $false; Detail = "the generator exited 0 but never printed its SUMMARY line, so it did not complete a full audit pass and its NOTE lines (or absence of them) prove nothing. Generator output: $($output.Trim())" }
         }
 
         $reportedDrops = @{}
@@ -359,6 +420,7 @@ $behaviors = @(
     @{ Name = 'every not-established declaration carries a reason';                Run = { Test-EveryDeclarationCarriesAReason } }
     @{ Name = 'the scan examined real canonical agents and a real toolMap';        Run = { Test-ScanExaminedRealInput } }
     @{ Name = 'no not-established declaration names an unrequested tool';          Run = { Test-NoDeclarationIsUnused } }
+    @{ Name = 'every per-tool citation names a live mapping and says something';   Run = { Test-EveryCitationNamesALiveMapping } }
     @{ Name = 'the generator agrees with this file about what gets dropped';       Run = { Test-GeneratorAgreesWithComputedDrops } }
 )
 foreach ($behavior in $behaviors) {
