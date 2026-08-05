@@ -78,12 +78,14 @@ function Get-RoutingSection {
 # bullet and the assertion labelled "names the file that carries it" stays green
 # on the gate bullet's copy. Returning $null for zero OR more than one match also
 # catches an anchor that has been duplicated across bullets.
+function Get-SectionBullets {
+    $section = Get-RoutingSection
+    if ($null -eq $section) { return @() }
+    return @($section -split "`n" | Where-Object { $_.TrimStart().StartsWith('- ') })
+}
 function Get-SectionBullet {
     param([string]$Anchor)
-    $section = Get-RoutingSection
-    if ($null -eq $section) { return $null }
-    $bullets = @($section -split "`n" | Where-Object { $_.TrimStart().StartsWith('- ') })
-    $matched = @($bullets | Where-Object { $_.IndexOf($Anchor, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
+    $matched = @(Get-SectionBullets | Where-Object { $_.IndexOf($Anchor, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
     if ($matched.Count -ne 1) { return $null }
     return [string]$matched[0]
 }
@@ -196,18 +198,31 @@ function Test-RoutingResolvesCapabilitiesInsteadOfNamingProducts {
 # first-party management surface is absent is a repeated, recorded mistake, so
 # it gets a line rather than a memory.
 #
-# The forbidden 'remove' below is the second half of the same lesson, and it was
+# The removal check below is the second half of the same lesson, and it was
 # earned by getting it wrong in this very bullet. `claude plugin --help` reports
 # two distinct commands: "disable [options] [plugin]  Disable an enabled plugin"
 # and "uninstall|remove [options] <plugin>  Uninstall an installed plugin". A
-# bullet that says disable removes a plugin, in the one bullet whose whole
-# subject is not guessing at management surfaces, sends 22 instruction files an
-# agent that disables a plugin and reports it removed. ---
-$managementSurfaceAnchor = 'claude plugin validate'
+# policy that says disable removes a plugin sends 22 instruction files an agent
+# that disables a plugin and reports it removed.
+#
+# The two halves are scoped differently, on purpose, and the difference is the
+# whole point. The REQUIRED phrases are matched against the management bullet
+# alone: a section-scoped match is satisfied by any neighbour that happens to
+# mention the same command, so moving the disable clause out of this bullet into
+# a sibling used to leave the suite green. The FORBIDDEN removal language is
+# matched against EVERY bullet that names a plugin command, because the false
+# claim is exactly as wrong in a sibling bullet as in this one -- scoping that
+# half to a single bullet would be the same over-broad/over-narrow mistake in a
+# smaller box. Both scenarios were reproduced green before this shape landed.
+#
+# The anchor is 'management surface' rather than a command name so that removing
+# either command from the bullet is caught by the phrase check with a useful
+# message, while losing the confirm-before-assuming language is caught by the
+# anchor lookup itself. ---
+$managementSurfaceAnchor = 'management surface'
 $managementSurfacePhrases = [ordered]@{
     'the authoritative manifest checker is named' = 'claude plugin validate'
     'the non-interactive management command is named' = 'claude plugin disable'
-    'and absence must be confirmed, not assumed'  = 'management surface'
 }
 function Test-SectionNamesTheHostsOwnManagementCli {
     $section = Get-RoutingSection
@@ -217,16 +232,20 @@ function Test-SectionNamesTheHostsOwnManagementCli {
     if ($managementSurfacePhrases.Count -eq 0) {
         return @{ Passed = $false; Detail = 'anti-vacuity: the required-phrase set is empty.' }
     }
-    $missing = @(Find-MissingPhrases -Text $section -Phrases $managementSurfacePhrases)
-    if ($missing.Count -gt 0) {
-        return @{ Passed = $false; Detail = "the routing section does not cover the host's own management CLI: $($missing -join '; ')" }
-    }
     $managementBullet = Get-SectionBullet -Anchor $managementSurfaceAnchor
     if ($null -eq $managementBullet) {
-        return @{ Passed = $false; Detail = "no single bullet in the routing section names '$managementSurfaceAnchor'." }
+        return @{ Passed = $false; Detail = "the routing section has no single bullet saying a '$managementSurfaceAnchor' must be confirmed absent before it is worked around. Assuming a first-party management surface does not exist is the recorded mistake this bullet exists to prevent." }
     }
-    if ($managementBullet.IndexOf('remov', [StringComparison]::OrdinalIgnoreCase) -ge 0) {
-        return @{ Passed = $false; Detail = "the management-CLI bullet describes a plugin command in terms of removal: '$managementBullet'. `claude plugin disable` disables an enabled plugin; `claude plugin uninstall|remove` uninstalls an installed one. Conflating them in this bullet tells 22 hosts to disable a plugin and report it removed." }
+    $missing = @(Find-MissingPhrases -Text $managementBullet -Phrases $managementSurfacePhrases)
+    if ($missing.Count -gt 0) {
+        return @{ Passed = $false; Detail = "the management-CLI bullet does not name the host's own management CLI: $($missing -join '; '). Bullet as written: '$managementBullet'" }
+    }
+    $conflating = @(Get-SectionBullets | Where-Object {
+        $_.IndexOf('claude plugin', [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+        $_.IndexOf('remov', [StringComparison]::OrdinalIgnoreCase) -ge 0
+    })
+    if ($conflating.Count -gt 0) {
+        return @{ Passed = $false; Detail = "a bullet naming a plugin command describes it in terms of removal: '$($conflating[0])'. ``claude plugin disable`` disables an enabled plugin; ``claude plugin uninstall|remove`` uninstalls an installed one. Conflating them tells 22 hosts to disable a plugin and report it removed." }
     }
     return @{ Passed = $true; Detail = $null }
 }
