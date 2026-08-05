@@ -58,8 +58,25 @@ function Invoke-AgentHubGit {
         [switch]$AllowFailure
     )
 
-    $gitOutput = @(& git @Arguments 2>&1 | ForEach-Object { [string]$_ })
-    $exitCode = $LASTEXITCODE
+    # git writes ordinary progress to stderr while exiting 0 (`git worktree
+    # add` prints "Preparing worktree (new branch '...')"). Under Windows
+    # PowerShell 5.1 -- the shell global-agent-policy.md mandates for
+    # invoking this script -- a native command's stderr under
+    # $ErrorActionPreference = 'Stop' is a TERMINATING NativeCommandError,
+    # so that succeeding call aborted the script mid-worktree-add. pwsh 7
+    # returns the same records as strings and does not throw, which is why
+    # only the mandated invocation was broken. Restore EAP around the
+    # native call only; $LASTEXITCODE below still drives every failure
+    # branch, so no error handling is given up for it. Same idiom as
+    # tests/Run-AllTests.ps1.
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $gitOutput = @(& git @Arguments 2>&1 | ForEach-Object { [string]$_ })
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousEap
+    }
     if ($exitCode -ne 0 -and -not $AllowFailure) {
         $detail = @($gitOutput | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ' | '
         if ($detail) { throw "$Operation failed: $detail" }
