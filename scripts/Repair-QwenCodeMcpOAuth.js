@@ -16,6 +16,20 @@
 // implementations. Expired-but-present credentials then reach the refresh
 // path, which works with the stored clientId + refreshToken + resource.
 //
+// NOT THIS BUG (read before patching)
+// If qwen-code fails BEFORE token exchange -- "Failed to discover OAuth
+// configuration from MCP server" -- the server URL itself is likely
+// unreachable from this egress, and nothing in this repository fixes that.
+// Run Test-McpOAuthReachability.js (same directory) first. Known foreign
+// signature (documented 2026-08-05 on a Comcast residential egress): every
+// notion.com / notion.so hostname resets during the TLS handshake on IPv4 and
+// IPv6 while a control SNI on the same Notion-owned edge IP completes, DNS
+// returns the genuine NOTION-WEB records, and Notion answers fine from other
+// vantage points. That is a hostname-keyed network block (gateway security,
+// ISP middlebox, or the site edge refusing the client IP). Remediate with the
+// network operator: renew the public IP, check gateway blocklists, or change
+// egress -- never re-patch qwen-code for it.
+//
 // This script is idempotent and version-agnostic: chunk file names change
 // between releases, so it scans every chunk-*.js for the known code shapes.
 // It never invents a replacement shape -- an unrecognized variant is reported
