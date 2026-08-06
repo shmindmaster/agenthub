@@ -146,7 +146,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
       "canonicalSource": "packages/product-demo-studio",
-      "contentHash": "BB9631563B74ED9F293FF50E68D34DFC45808F00F6170D50EF139892CBB61A5D",
+      "contentHash": "AB8D8EC61CFE50445643357A5B43BED584CA577D45CE4BC2A66368A963095606",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -694,7 +694,8 @@
       "managedSkillNames": [
         "browser-debugging",
         "browser-evidence",
-        "interactive-browser-testing"
+        "interactive-browser-testing",
+        "use-chrome-devtools-mcp"
       ],
       "retiredSkillNames": [
         "browser-audit",

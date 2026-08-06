@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.7.1**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.7.2**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared

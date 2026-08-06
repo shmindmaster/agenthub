@@ -42,12 +42,18 @@ if (!scriptPath || !outDir) {
 // standard". These are the DEFAULT PVC settings for prerecorded narration. They are deliberate: do
 // NOT silently change them. optimize_streaming_latency is intentionally never sent (0 = highest
 // quality) because aggressive latency optimization degrades prerecorded narration.
+//
+// speed was 0.92 until 2026-08-06: live-verified across a 6-episode ElevenLabs
+// eleven_multilingual_v2 narration series (abacare) that any speed below 1.0 (ElevenLabs'
+// documented neutral rate) reads as an artificially slowed, sluggish narrator regardless of
+// per-line pacing elsewhere in the pipeline -- reset to 1.0. stability/style are untouched;
+// only speed was independently proven wrong.
 const VOICE_QUALITY_STANDARD = {
   model: "eleven_multilingual_v2",
   stability: 0.42,
   similarity_boost: 0.75,
   style: 0.0,
-  speed: 0.92,
+  speed: 1.0,
   use_speaker_boost: true,
   // ElevenLabs: "auto" enables normalization of numbers/dates/acronyms -- the standard's
   // "Text normalization: enabled". Set to "on" to force it, "off" only with a reason.
@@ -56,10 +62,14 @@ const VOICE_QUALITY_STANDARD = {
 
 // Named presets from the standard. Try these before touching style; only raise style to 0.05 then
 // 0.10 after pacing and stability are already good and quality clearly improves.
+// natural-warm/calm speeds reset to 1.0 alongside the standard above (2026-08-06) -- both were
+// sub-1.0 slowdowns with the same proven defect. expressive is untouched: a deliberately slower,
+// more deliberate pace is a plausible intentional choice for dramatic/expressive delivery, not
+// the same accidental-slowdown bug.
 const VOICE_PRESETS = {
-  "natural-warm": { stability: 0.42, similarity_boost: 0.75, speed: 0.92, style: 0.0 },
+  "natural-warm": { stability: 0.42, similarity_boost: 0.75, speed: 1.0, style: 0.0 },
   expressive: { stability: 0.35, similarity_boost: 0.72, speed: 0.9, style: 0.0 },
-  calm: { stability: 0.5, similarity_boost: 0.78, speed: 0.9, style: 0.0 },
+  calm: { stability: 0.5, similarity_boost: 0.78, speed: 1.0, style: 0.0 },
 };
 
 const PROVIDERS = {

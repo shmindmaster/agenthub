@@ -51,7 +51,7 @@ const eligible = new Set(parity.conditionallyEligibleReviewHosts ?? []);
 for (const host of eligible) {
   if (!expectedHosts.includes(host)) failures.push(`conditionally eligible host ${host} is not mapped`);
 }
-if (parity.capabilityVersion !== "1.7.1" ||
+if (parity.capabilityVersion !== "1.7.2" ||
     parity.equivalentContract?.unsupportedIsolationDecision !== "PIPELINE_BLOCKED" ||
     parity.executionRule?.liveRunMustRecordNativeReadOnlyEnforcement !== true ||
     parity.executionRule?.promptOnlyOrBroadWriteContextMayRelease !== false ||
