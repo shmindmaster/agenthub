@@ -365,7 +365,7 @@
     {
       "id": "cline",
       "name": "Cline CLI / ACP / Kanban",
-      "version": "3.0.50",
+      "version": "3.0.51",
       "executable": "C:\\Users\\SaroshHussain\\bin\\cline.cmd",
       "nativePaths": {
         "dataDir": "C:\\Users\\SaroshHussain\\.cline",
@@ -398,7 +398,7 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Cline 3.0.50. Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; on-demand-local chrome-devtools/brave-search are intentionally not fleet-synced. VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). sharedSkillsDir (~/.agents/skills) stays omitted: Cline documents only .cline/skills and ~/.cline/skills (contrast codex/gemini which document ~/.agents/skills)."
+      "notes": "Cline 3.0.51. Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; on-demand-local chrome-devtools/brave-search are intentionally not fleet-synced. VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). sharedSkillsDir (~/.agents/skills) stays omitted: Cline documents only .cline/skills and ~/.cline/skills (contrast codex/gemini which document ~/.agents/skills). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%\\Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
     },
     {
       "id": "cursor",

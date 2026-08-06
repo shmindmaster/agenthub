@@ -1,6 +1,6 @@
 {
   "schemaVersion": 6,
-  "generatedAt": "2026-07-30T22:19:10.4107485Z",
+  "generatedAt": "2026-08-06T01:55:33.313Z",
   "migrationAliases": {},
   "activationPolicy": {
     "recordedOn": "2026-08-04",
@@ -209,7 +209,71 @@
     },
     {
       "id": "chrome-devtools",
-      "name": "Chrome DevTools",
+      "name": "Chrome DevTools (authenticated autoConnect)",
+      "scope": "on-demand-desktop",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.6.0",
+        "--autoConnect",
+        "--no-usage-statistics",
+        "--no-performance-crux"
+      ],
+      "env": {
+        "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "true"
+      },
+      "credentialPolicy": "user-chrome-autoConnect-existing-session",
+      "providesCapabilities": [
+        "browser.authenticated"
+      ],
+      "providesCapabilitiesNote": "Official Chrome DevTools MCP path for signed-in sessions (Chrome >=144): --autoConnect attaches to the owner's already-running personal Chrome. Owner must enable chrome://inspect/#remote-debugging once and Allow the connection dialog. Does not launch a blank profile. Does not use --remote-debugging-port on the Default profile (ignored since Chrome 136). Pair with chrome-devtools-isolated for browser.isolated QA. See docs/CHROME_CDP.md and https://developer.chrome.com/blog/chrome-devtools-mcp-debug-your-browser-session",
+      "protocol": {
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-08-05",
+        "verification": "chrome-devtools-mcp@1.6.0 --autoConnect; protocol 2025-11-25. Requires Chrome remote-debugging UI enabled + user Allow prompt."
+      },
+      "localProcessPolicy": {
+        "instancing": "single-shared-process",
+        "declaredByHostCount": 6,
+        "note": "On-demand only. Owner starts normal TaskBar Chrome first. MCP never starts a second personal Chrome. Pair with chrome-devtools-isolated for synthetic QA.",
+        "versionPinVerifiedOn": "2026-08-04"
+      },
+      "owner": {
+        "type": "capability",
+        "id": "browser-toolkit"
+      },
+      "hosts": [
+        "amp",
+        "antigravity",
+        "claude",
+        "cline",
+        "codex",
+        "copilot",
+        "cursor",
+        "devin",
+        "factory",
+        "gemini",
+        "grok",
+        "hermes",
+        "opencode",
+        "qoder",
+        "qwen-code",
+        "vscode-insiders",
+        "warp",
+        "windsurf"
+      ],
+      "conflictingHostPlugins": {
+        "qoder": [
+          "chrome-devtools-mcp@qoder-marketplace"
+        ]
+      },
+      "experimentalFlagsEnabled": []
+    },
+    {
+      "id": "chrome-devtools-isolated",
+      "name": "Chrome DevTools (isolated temp profile)",
       "scope": "on-demand-desktop",
       "transport": "stdio",
       "activationMode": "on-demand-local",
@@ -228,7 +292,7 @@
       "providesCapabilities": [
         "browser.isolated"
       ],
-      "providesCapabilitiesNote": "Names come from registry/fleet-profile.json hostSurfaces.knownCapabilities so the browser-toolkit skills can resolve this server as the declared fallback -- 'fallback provider' as data, not prose -- when the active surface records no native browser. browser.isolated only: the server is launched with --isolated into a temporary profile (see credentialPolicy above), so it never carries the user's signed-in session and cannot satisfy browser.authenticated, and it drives a browser rather than native desktop applications, so it cannot satisfy computer.gui.",
+      "providesCapabilitiesNote": "Spawns a temporary headed Chrome profile for localhost/public QA only. No signed-in cookies. Use for browser-toolkit skills that require browser.isolated. Do not use for LinkedIn, email, bank, or any owner-authenticated site \u2014 that is chrome-devtools (browser.authenticated).",
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-08-04",
@@ -237,7 +301,7 @@
       "localProcessPolicy": {
         "instancing": "single-shared-process",
         "declaredByHostCount": 6,
-        "note": "This is the server the activation policy exists for: it is the most widely declared local process in the fleet, and each host that spawns its own `npx` instance costs a separate browser-driving process. Invocation must stay owned by the browser-toolkit capability so the process starts when that capability is used rather than at every session start. The version is pinned because an unpinned browser-automation binary changing underneath a QA run makes the run unreproducible; 1.6.0 was the latest published version as of 2026-08-04.",
+        "note": "QA-only fallback. Pinned chrome-devtools-mcp@1.6.0. Owned by browser-toolkit.",
         "versionPinVerifiedOn": "2026-08-04"
       },
       "owner": {

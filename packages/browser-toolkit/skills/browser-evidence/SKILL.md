@@ -8,6 +8,8 @@ description: Use when an authorized workflow needs reproducible screenshots, acc
 This skill captures observed browser evidence. Product decisions remain with Product
 Experience Engineering; demo and release decisions remain with Product Demo Studio.
 
+For MCP tool routing and snapshot-first discipline, also load **`use-chrome-devtools-mcp`**.
+
 ## Capability required
 
 This skill requires `browser.isolated`, defined in `registry/fleet-profile.json`
@@ -24,9 +26,10 @@ personal Chrome state, unrelated tabs, credentials, or customer data.
    `hostSurfaces.surfaces`. If it records the required capability as `true`, capture
    with its own first-party browser and start nothing.
    <!-- resolution-step: surface-provided -->
-2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
-   `registry/mcps.json` -- when the surface records `false` or `null`, or when the
-   evidence needed is a performance trace, heap comparison, or Lighthouse run.
+2. Use `chrome-devtools-isolated` -- the declared fallback, `providesCapabilities` in
+   `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
+   `null`, or when the evidence needed is a performance trace, heap comparison, or
+   Lighthouse run.
    <!-- resolution-step: local-fallback -->
 
 `false` and `null` are different findings and neither is a provider: `false` means
@@ -36,10 +39,10 @@ each artifact, because a screenshot's meaning depends on the profile it came fro
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at
 session start, and to run as one shared process rather than one per host.
-`chrome-devtools` is the most widely declared local process in the fleet
-(`localProcessPolicy.declaredByHostCount`), and every host that spawns its own `npx`
-instance costs a separate browser-driving process, so a session that resolves
-natively must not start one it never uses.
+`chrome-devtools-isolated` is the QA fallback for this skill; do not start it when
+the surface already provides `browser.isolated`. Personal Chrome attach is a different
+MCP id (`chrome-devtools` / `browser.authenticated`) and must not be used for
+isolated evidence captures.
 
 ## Procedure
 

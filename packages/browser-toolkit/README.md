@@ -1,26 +1,45 @@
 # Browser Toolkit
 
-One browser-quality plugin with one on-demand MCP server and three focused skills.
+One browser-quality plugin with **two** on-demand Chrome DevTools MCP servers and **four** focused skills.
 
 ## Architecture
 
-- The skills state the capability they need (`browser.isolated`) and resolve a
-  provider at use time: the active surface's own browser first, when
-  `registry/fleet-profile.json` -> `hostSurfaces` records that capability true for
-  the running surface.
-- Chrome DevTools MCP 1.6.0 is the declared fallback provider for that capability
-  (`registry/mcps.json` -> `providesCapabilities`). It is reached when the surface
-  records `false` or `null`, and for DevTools-protocol depth no surface offers:
-  Lighthouse, performance traces, screencasts, and heap analysis.
-- Playwright CLI 0.1.17 is invoked from the interactive-testing skill for compact
-  multi-step actions, headed sessions, traces, screenshots, and recordings.
-- Playwright MCP is intentionally not included. It overlaps browser automation and
-  would create another persistent tool schema and local worker.
+- Skills that need synthetic/localhost QA state the capability `browser.isolated` and
+  fall back to **`chrome-devtools-isolated`** (`--isolated` temp profile).
+- Work that needs the owner's signed-in Chrome (LinkedIn, job portals, etc.) is
+  capability **`browser.authenticated`**, provided by **`chrome-devtools`**, which
+  **attaches only** to TaskBar personal Chrome via CDP (never launches a blank profile).
+- Resolution: surface-native browser first (`registry/fleet-profile.json` ->
+  `hostSurfaces`), then the matching MCP fallback for the capability.
+- Playwright CLI 0.1.17 remains the compact multi-step action lane for interactive testing.
+- Playwright MCP is intentionally not included.
 
-The MCP server starts only when the installed plugin is used. Its default browser is
-headed but isolated in a temporary profile that is deleted when Chrome closes. It does
-not connect to the normal personal Chrome profile. Usage statistics, update checks, and
-CrUX URL lookups are disabled.
+### Skills (load by intent)
+
+| Skill | When |
+| --- | --- |
+| **`use-chrome-devtools-mcp`** | Tool catalog, core loop, autoConnect vs isolated, smoke checks |
+| **`interactive-browser-testing`** | Visual product workflows (`browser.isolated`) |
+| **`browser-debugging`** | Console/network/performance/memory (`browser.isolated`) |
+| **`browser-evidence`** | Screenshots, traces, Lighthouse artifacts (`browser.isolated`) |
+
+Upstream parameter bible: https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md  
+Do not fork the full schema; keep routing in the skill and link upstream.
+
+### Personal Chrome (authenticated) — official path
+
+| Item | Value |
+| --- | --- |
+| TaskBar pin | Normal **Google Chrome** (no special debug flags required) |
+| Owner enable | `chrome://inspect/#remote-debugging` → enable |
+| MCP | `chrome-devtools` with **`--autoConnect`** (Chrome ≥144) |
+| Permission | Chrome **Allow** dialog when agent connects |
+| Registry | `registry/mcps.json` ids `chrome-devtools` + `chrome-devtools-isolated` |
+| Docs | `docs/CHROME_CDP.md` |
+
+**Do not** put `--remote-debugging-port=9222` on the Default profile TaskBar shortcut (ignored since Chrome 136).  
+**Do not** use `--isolated` for signed-in work.  
+Usage statistics and CrUX are disabled on both MCP servers (`--no-usage-statistics`, `--no-performance-crux`).
 
 ## Resolution-step markers
 

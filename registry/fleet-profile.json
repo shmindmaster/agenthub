@@ -64,7 +64,7 @@
       { "hostId": "windsurf", "defaultProfile": "interactive", "native": { "surface": "configured-only", "reason": "Do not emit settings without a current official Windows schema." } },
       { "hostId": "hermes", "defaultProfile": "interactive", "native": { "surface": "cli", "acpCommand": ["acp"], "reason": "No verified universal bypass contract in the managed Windows installation." } },
       { "hostId": "warp", "defaultProfile": "interactive", "native": { "surface": "desktop-and-cloud-cli", "implementation": "UI permission profile and per-task controls" } },
-      { "hostId": "cline", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "cline", "native": { "equivalent": "--yolo", "acpFlags": ["--acp", "--auto-approve", "true"], "administrativeCommandsExcluded": ["auth", "config", "plugin", "skill", "connect", "mcp", "doctor", "history", "hook", "schedule", "hub", "dashboard", "update", "kanban"] } },
+      { "hostId": "cline", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "cline", "native": { "equivalent": "--auto-approve true", "acpFlags": ["--acp", "--auto-approve", "true"], "administrativeCommandsExcluded": ["auth", "config", "plugin", "skill", "connect", "mcp", "doctor", "history", "hook", "schedule", "hub", "dashboard", "update", "kanban"] } },
       { "hostId": "qoder", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "qoder", "native": { "permissionMode": "bypass_permissions", "tools": "default", "acpFlags": ["--acp"], "administrativeCommandsExcluded": ["login", "mcp", "plugins", "skills", "hooks", "agents", "update", "status", "feedback", "rollback"] } },
       { "hostId": "vscode-insiders", "defaultProfile": "repo-autonomous", "native": { "implementation": "workspace-and-user-policy" }, "note": "Added 2026-08-04 when vscode-insiders was reclassified active. NOT invented for the occasion: recovered verbatim from the deleted registry/host-capability-contracts.json (git show fc1bda6:registry/host-capability-contracts.json), whose vscode-insiders contract records autonomy.profile 'repo-autonomous' and implementation 'workspace-and-user-policy'. The note below explains why it was previously excluded." }
     ],
@@ -105,7 +105,7 @@
     ],
     "capabilityMeanings": {
       "browser.isolated": "A first-party browser the agent drives itself, with its own profile. Suits localhost and public pages; carries no signed-in session.",
-      "browser.authenticated": "A browser using the user's real profile, so already-signed-in sites work. Requires a live extension connection, not merely an installed product.",
+      "browser.authenticated": "A browser using the user's real profile, so already-signed-in sites work. On this fleet: Chrome DevTools MCP id chrome-devtools with --autoConnect to the owner's already-running Chrome after chrome://inspect/#remote-debugging is enabled (Chrome >=144). Not a product install alone and not --remote-debugging-port on the default profile.",
       "computer.gui": "First-party control of native desktop applications."
     },
     "surfaces": [

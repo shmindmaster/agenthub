@@ -5,6 +5,8 @@ description: Use when an authorized browser workflow has runtime errors, failed 
 
 # Browser debugging
 
+For MCP tool names, core loop, and autoConnect vs isolated, also load **`use-chrome-devtools-mcp`**.
+
 ## Capability required
 
 This skill requires `browser.isolated`, defined in `registry/fleet-profile.json`
@@ -16,7 +18,8 @@ It also requires DevTools-protocol depth: performance traces, heap snapshots,
 Lighthouse, and raw console/network correlation. That depth is not a capability name
 in `hostSurfaces` because only one provider offers it, and a capability name nothing
 else resolves is vocabulary rather than routing. It is the actual justification for
-`chrome-devtools`, so this skill reaches the fallback more often than the other two.
+`chrome-devtools-isolated`, so this skill reaches the isolated fallback more often
+than the other two when DevTools depth is required without signed-in cookies.
 
 ## Resolve a provider before choosing a tool
 
@@ -25,9 +28,9 @@ else resolves is vocabulary rather than routing. It is the actual justification 
    own first-party browser for observation, reproduction, and accessibility work.
    Nothing extra is started.
    <!-- resolution-step: surface-provided -->
-2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
-   `registry/mcps.json` -- when the surface records `false` or `null`, or when the
-   step needs DevTools depth the surface cannot reach.
+2. Use `chrome-devtools-isolated` -- the declared fallback, `providesCapabilities` in
+   `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
+   `null`, or when the step needs DevTools depth the surface cannot reach.
    <!-- resolution-step: local-fallback -->
 3. Use Playwright CLI only when compact repeatable actions are more useful than live
    DevTools state.
@@ -39,10 +42,8 @@ checked and absent, `null` means never established. Resolve, do not assume.
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at
 session start, and to run as one shared process rather than one per host.
-`chrome-devtools` is the most widely declared local process in the fleet
-(`localProcessPolicy.declaredByHostCount`), and every host that spawns its own `npx`
-instance costs a separate browser-driving process, so a session that resolves
-natively must not start one it never uses.
+`chrome-devtools-isolated` is the QA fallback for this skill; do not start it when
+the surface already provides `browser.isolated`.
 
 ## Workflow
 
@@ -64,7 +65,7 @@ natively must not start one it never uses.
 8. Use reversible live CSS or JavaScript only to test a hypothesis. The repository fix
    and focused regression remain the deliverable.
 
-Do not enable experimental tool categories or connect to a personal Chrome profile
-without explicit authorization. A signed-in browser profile is a separate capability
-this skill does not request and must not obtain by other means. Do not call type
-checks or unit tests browser proof.
+Do not enable experimental tool categories or attach to personal Chrome for this skill's
+`browser.isolated` path. Signed-in browsing is `browser.authenticated` via MCP id
+`chrome-devtools` (CDP attach) and requires explicit owner authorization outside this
+skill's isolation requirement. Do not call type checks or unit tests browser proof.
