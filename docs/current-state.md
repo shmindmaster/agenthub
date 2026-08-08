@@ -54,10 +54,19 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
     removes them. 8 merged PR titles also still name the product. Left alone
     deliberately: editing a title whose own diff still says the old name makes
     the record incoherent, and the refs beneath it are permanent regardless.
-  - **Gitignored working files.** `backend/.env` still pointed at a dead
-    `sabhi_dev` database, and `frontend/out`, `.next`, `test-evidence`, and
-    `test-results` held pre-rename output. None are tracked, so no rewrite
-    touches them. Repointed at the compose database; artifacts deleted.
+  - **Gitignored working files.** `backend/.env` still pointed at a database
+    named after the retired product (dead — nothing was listening on its
+    port), and `frontend/out`, `.next`, `test-evidence`, and `test-results`
+    held pre-rename output. None are tracked, so no rewrite touches them.
+    Repointed at the compose database; artifacts deleted.
+  - **Vendor vocabulary, not just the product name.** A de-brand that greps
+    for the product name misses everything the retired positioning dragged
+    in. Here that was a payment rail (`SlimCD`) named across the design
+    system, its bundled demo payload, and a demo QA script — describing
+    "customer parts payments" for a product that now sells Stripe-billed
+    SaaS. Grep the vendors, partners, and third-party systems too. Two
+    negative test assertions deliberately still name it: they fail if it
+    reappears in the API surface, so they are the enforcement.
   - Clean end state: `git ls-remote` shows `refs/heads/main` and nothing else.
 
 - **Third-party plugin tracking (2026-08-08)**: `registry/native-connectors.json`

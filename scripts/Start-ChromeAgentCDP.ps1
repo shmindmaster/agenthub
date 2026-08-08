@@ -24,6 +24,11 @@ param(
     [switch]$OpenRemoteDebuggingPage
 )
 
+# Safe here: the only cmdlet that can fail is Start-Process (no chrome:// handler
+# registered), and that is gated behind an explicit switch where a silent no-op
+# would be worse than a throw. Get-Process already opts out via -ErrorAction.
+$ErrorActionPreference = 'Stop'
+
 Write-Host @"
 Chrome DevTools MCP — authenticated (fleet standard)
 ----------------------------------------------------
@@ -39,7 +44,7 @@ Owner checklist:
 
 QA blank browser: use MCP id chrome-devtools-isolated (--isolated).
 
-Docs: C:\Repos\shmindmaster\agenthub\docs\CHROME_CDP.md
+Docs: docs\development\chrome-cdp.md (in this repository)
 "@
 
 if ($OpenRemoteDebuggingPage) {
