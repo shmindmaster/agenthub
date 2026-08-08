@@ -53,15 +53,18 @@ Deliberately **not** in this plan; each needs its own decomposition:
 
 - Rexa reference-implementation hardening (dev-client, three installable
   variants, EAS environments, EAS Update + fingerprint runtime, EAS Workflows,
-  Maestro, Sentry, EAS Observe, `expo-doctor` CI gate).
+  Maestro, Sentry, EAS Observe, `expo-doctor` CI gate). **Its first step is
+  M6 below.** Also carries a defect found here: `eas.json` declares
+  `developmentClient: true` while `package.json` has no `expo-dev-client`.
 - `abacare` `apps/mobile` (RBT session capture, caregiver workflows).
 - `gentlenext` native caregiver/family experience.
 - Apple App Store Connect API key; Google Play organization account and Play
   App Signing.
 - Push (APNs/FCM v1) and Universal Links / Android App Links.
 
-One carve-out is in scope: the Rexa EAS slug rename (milestone 4), separately
-approved by the owner because the window closes at first store submission.
+One carve-out was in scope — the Rexa EAS slug rename — but Expo turned out to
+expose no rename, so it became a project re-create and moved into the hardening
+work. See "Rexa identity" below.
 
 ## Milestones
 
@@ -70,8 +73,11 @@ approved by the owner because the window closes at first store submission.
 3. [x] `mobile-platform-standard` skill + 2 references; registered in
        `capabilities.json`; `contentHash` recomputed.
 4. [x] `tests/Test-MobileScope.ps1` — 5 behaviors, each verified to fail.
-5. [ ] Fleet sync: instruction files rendered to all managed hosts.
-6. [ ] Rexa EAS slug `recallforge` -> `rexa`.
+5. [x] Fleet sync: instruction files rendered to all managed hosts.
+6. [ ] **Rexa EAS project re-create** — deferred into the Rexa hardening work
+       by owner decision 2026-08-08, as its *first* step. See "Rexa identity"
+       below. This is a milestone, not an intention: `recallforge` survived
+       this long precisely because it was never one.
 
 ## Validation per milestone
 
@@ -83,8 +89,39 @@ approved by the owner because the window closes at first store submission.
 - M5: `Sync-Instructions.ps1 -Audit` reports drift on every managed host and
   **zero unmanaged** hosts (an unmanaged destination is never written, so the
   guard would silently not reach that host), then `-Apply`.
-- M6: `eas project:info` reports the unchanged `projectId` under the new slug
-  and `eas build:list` still resolves prior builds.
+- M6: `eas project:info` reports `@shmindmaster/rexa`; `app.json` carries the
+  new `extra.eas.projectId`; an internal build succeeds on the regenerated
+  credentials.
+
+## Rexa identity (M6 detail)
+
+**Measured 2026-08-08.** Expo exposes no slug rename. The project settings
+page edits only a separate "Display name" field; the Danger zone offers only
+transfer and delete, and `eas-cli` 21.7.0 exposes only
+`project:icon|delete|info|init|new`. `@shmindmaster/recallforge` is therefore
+permanent for project `982c8db2-0af0-4bc0-9770-b261385c78cc`. The only route
+to `@shmindmaster/rexa` is a new EAS project.
+
+What a re-create actually costs, measured rather than assumed:
+
+| Asset | State | Cost |
+| --- | --- | --- |
+| Store submissions | `eas submit:list` empty | none |
+| EAS Update branches | `eas branch:list` empty | none |
+| EAS Update channels | `eas channel:list` empty | none |
+| `expo-updates` | not in `package.json`; no `updates`/`runtimeVersion` in `app.json` | none |
+| Build history | 2 internal `preview` builds | lost |
+| iOS credentials | present | regenerate |
+| Bundle identifiers | `app.shmindmaster.rexa` on both platforms, already correct | unchanged |
+
+So the only real cost is regenerating iOS credentials — which the hardening
+work incurs anyway the moment it mints `.dev` and `.preview` variants. Doing
+the re-create as hardening's first step pays that cost once instead of twice.
+
+Note what is *not* at stake: the stale name never reaches Apple, Google, or an
+end user. Both bundle identifiers are already correct. `recallforge` lives
+only in expo.dev URLs. That is the whole reason deferring is safe here and
+would not be safe for a name that had reached a store.
 
 ## Decision log
 
@@ -93,7 +130,10 @@ approved by the owner because the window closes at first store submission.
 - **2026-08-08** Owner: move `documed` from evaluate-later to frozen — dormant
   since 2026-07-18, never cloned, direction unsettled.
 - **2026-08-08** Owner: rename the Rexa EAS slug now, while only internal
-  preview builds exist.
+  preview builds exist. **Superseded same day**: Expo exposes no slug rename
+  at all, so the only route is a new EAS project. Owner then chose to fold the
+  re-create into the Rexa hardening work as its first step, because that work
+  regenerates iOS credentials regardless.
 - **2026-08-08** `subops` was absent from the owner's portfolio table.
   Classified `evaluateLater` (not eligible, identity not frozen) because
   unclassified must never resolve to eligible. **Open: owner call needed.**
@@ -125,7 +165,7 @@ global-agent-policy.md                                              ## Mobile sc
 tests/Test-MobileScope.ps1                                          new
 packages/portfolio-engineering/skills/mobile-platform-standard/     new (SKILL.md + 2 references)
 docs/plans/active/mobile-scope-guard.md                             this file
-rexa/app.json                                                       M6 only: slug
+rexa/app.json                                                       M6 only: extra.eas.projectId
 ```
 
 ## Risks / rollback
@@ -136,12 +176,10 @@ rexa/app.json                                                       M6 only: slu
   not verified for `sabhi`/`empowera`/`documed`. **Open item** — audit the Expo
   dashboard and Apple/Google consoles before treating the freeze as proven
   clean rather than merely enforced going forward.
-- **The Rexa rename has no CLI path.** `eas project` exposes only
-  `icon`/`delete`/`info`/`init`/`new`. If the dashboard offers no rename, the
-  fallback (`eas project:new` + relink) discards build history and mints a new
-  project ID — a different decision, to be brought back to the owner, not taken
-  unattended.
-- **Rexa has an active writer** per `fleet-repo-standardization.md`. Check
-  `git status` before touching it; the slug change is one line and must not
-  collide with in-flight work.
+- **Rexa's stale identity is now permanent unless M6 runs.** Resolved to a
+  measured decision above; the residual risk is that M6 is skipped and
+  `recallforge` reaches a store URL.
+- **Rexa working tree** was clean at 2026-08-08 (`670e54a`, only untracked
+  RepoWise artifacts), so the active-writer warning in
+  `fleet-repo-standardization.md` did not apply. Re-check before M6.
 - Rollback for everything except M6 is `git revert`; the guard is declarative.

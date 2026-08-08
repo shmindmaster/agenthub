@@ -88,10 +88,16 @@ the display name to match.
 - Anything compiled into client JavaScript is public. EAS secrets do not make
   an embedded `EXPO_PUBLIC_*` value private.
 
+**The EAS slug cannot be renamed.** Verified 2026-08-08 against eas-cli 21.7.0
+and the Expo dashboard: `eas project` exposes only
+`icon`/`delete`/`info`/`init`/`new`, and project settings edits a separate
+"Display name" while the Danger zone offers only transfer and delete. The only
+route to a different slug is a new project, which means a new project ID, lost
+build history, and regenerated credentials.
+
 Cautionary case: Rexa's EAS project shipped as `@shmindmaster/recallforge` -
-the pre-rename product name, live in every build URL, fixable only because
-nothing had been store-submitted yet. Set the slug from the final name, or
-freeze the product until there is one.
+the pre-rename product name, now permanent for that project ID. Set the slug
+from the final name, or freeze the product until there is one.
 
 ## 5. Health-sensitive products
 
