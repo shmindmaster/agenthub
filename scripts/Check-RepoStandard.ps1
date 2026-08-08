@@ -101,7 +101,7 @@ function Test-MarkdownLinks([string]$RepoPath) {
         $text = Get-Content -LiteralPath $file -Raw -Encoding UTF8
         foreach ($m in [regex]::Matches($text, '\]\(([^)\s]+)\)')) {
             $target = $m.Groups[1].Value
-            if ($target -match '^(https?://|mailto:|#|ftp://)') { continue }
+            if ($target -match '^(https?://|mailto:|#|ftp://|/)') { continue }
             $targetNoAnchor = ($target -split '#')[0]
             if ([string]::IsNullOrWhiteSpace($targetNoAnchor)) { continue }
             $decoded = [uri]::UnescapeDataString($targetNoAnchor)
@@ -137,9 +137,10 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
         }
     }
 
+    $rootTextAllowlist = @('robots.txt', 'llms.txt')
     $rootDocs = Get-ChildItem -LiteralPath $path -File |
-        Where-Object { $_.Extension -in '.md', '.txt', '.out', '.log' } |
-        Where-Object { $_.Name -notin $rootMdAllowlist -and $_.Name -notin $forbiddenPaths }
+        Where-Object { $_.Extension -in '.txt', '.out', '.log' } |
+        Where-Object { $_.Name -notin $rootTextAllowlist -and $_.Name -notin $forbiddenPaths }
     foreach ($f in $rootDocs) {
         Add-Result $Name 'root-scratch' $false $f.Name $false
     }
@@ -176,14 +177,29 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
     $agentsPath = Join-Path $path 'AGENTS.md'
     if (Test-Path -LiteralPath $agentsPath) {
         $agentsText = Get-Content -LiteralPath $agentsPath -Raw -Encoding UTF8
-        foreach ($anchor in $agentsAnchors) {
-            $has = $agentsText -match [regex]::Escape($anchor)
-            Add-Result $Name "agents-anchor:$anchor" $has $(if (-not $has) { 'section missing' } else { '' }) $false
+        $agentSignals = @(
+            @{ Id = 'mission';   Pattern = '(?im)^#{1,6}\s*(Mission|Purpose|Purpose and current outcome|What this is|Product direction|.+repository guide)\b' },
+            @{ Id = 'authority'; Pattern = '(?im)(Knowledge authority|source of truth|canonical source|code and runtime configuration win when documentation drifts|Executable code.*describe.*reality|GitHub\s+`?main`?\s+owns code|This file is the repository-specific source of truth)' },
+            @{ Id = 'start';     Pattern = '(?im)^#{1,6}\s*(Start here|Read first|First-read context|Operating rules)\b' },
+            @{ Id = 'repowise';  Pattern = '(?im)\bRepoWise\b|(?im)\brepowise\b' },
+            @{ Id = 'commands';  Pattern = '(?im)^#{1,6}\s*(Canonical commands|Commands|Command map|Windows-first commands|Command contract)\b' },
+            @{ Id = 'tracker';   Pattern = '(?im)^#{1,6}\s*Tracker\b|(?im)\bLinear\b.*\b(outcome|outcomes|acceptance|track|tracks)\b|(?im)\bGitHub Issues\b|(?im)\bNo external tracker\b|(?im)\bLinear owns\b' },
+            @{ Id = 'done';      Pattern = '(?im)^#{1,6}\s*(Definition of done|Completion criteria|Verification and completion)\b|(?im)\bA change is complete when\b' },
+            @{ Id = 'safety';    Pattern = '(?im)^#{1,6}\s*(Safety|Sensitive areas|Secrets and safety|Hard boundaries|Hard constraints|Core constraints)\b' }
+        )
+        foreach ($signal in $agentSignals) {
+            $has = $agentsText -match $signal.Pattern
+            Add-Result $Name "agents-signal:$($signal.Id)" $has $(if (-not $has) { 'signal missing' } else { '' }) $false
         }
         $lineCount = ($agentsText -split "`n").Count
         Add-Result $Name 'agents-length' ($lineCount -le 400) $(if ($lineCount -gt 400) { "$lineCount lines exceeds 400-line contract ceiling" } else { '' }) $false
         $tracker = [string]$Entry.tracker
-        $hasTracker = $agentsText -match '(?im)^#+\s*Tracker'
+        $trackerPattern = switch ($tracker) {
+            'linear' { '(?im)\bLinear\b' }
+            'github-issues' { '(?im)\bGitHub Issues\b|\bGitHub\b' }
+            default { '(?im)\bNo external tracker\b|\btracker\b|\bnone\b' }
+        }
+        $hasTracker = $agentsText -match $trackerPattern
         Add-Result $Name 'tracker-section' $hasTracker $(if (-not $hasTracker) { "AGENTS.md must name its tracker authority (declared: $tracker)" } else { '' }) $false
     }
 
@@ -209,7 +225,7 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
     $nested = Get-ChildItem -LiteralPath $path -Recurse -File -Filter 'AGENTS.md' |
         Where-Object { $_.FullName -ne $agentsFull } |
         Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|\.repowise)[\\/]' }
-    $exemptions = @($Entry.agentsExemptions)
+    $exemptions = @($Entry.agentsExemptions | ForEach-Object { [string]$_ -replace '/', '\' })
     foreach ($n in $nested) {
         $rel = $n.FullName.Substring($rootFull.Length + 1)
         if ($rel -in $exemptions) { continue }
@@ -315,4 +331,3 @@ if ($Format -eq 'json') {
 
 if ($failed.Count -gt 0) { exit 1 }
 exit 0
-

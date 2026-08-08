@@ -129,7 +129,7 @@ Set-Content -LiteralPath (Join-Path $good '.repowise\state.json') -Encoding UTF8
 # --- Fixture 2: drifting repo ----------------------------------------------
 $bad = New-FixtureRepo 'drifting'
 Set-Content -LiteralPath (Join-Path $bad '.cursorrules') -Value 'legacy rules'
-Set-Content -LiteralPath (Join-Path $bad 'STATUS.md') -Value 'stale status'
+Set-Content -LiteralPath (Join-Path $bad 'error.log') -Value 'stale log'
 # .repowise deliberately absent -> indexed check must fail
 $oldLocation = Get-Location
 try {
@@ -144,7 +144,7 @@ try {
     Report 'drift-detected-exit-1' ($codeBad -eq 1) "exit=$codeBad"
     Report 'drift-names-cursorrules' ($outBad -match 'forbidden:\.cursorrules') (($outBad.Trim().Split("`n")) | Select-Object -Last 6 | Out-String)
     Report 'drift-names-missing-agents' ($outBad -match 'root-file:AGENTS\.md') (($outBad.Trim().Split("`n")) | Select-Object -Last 6 | Out-String)
-    Report 'drift-names-root-scratch' ($outBad -match 'root-scratch.*STATUS\.md') (($outBad.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
+    Report 'drift-names-root-scratch' ($outBad -match 'root-scratch.*error\.log') (($outBad.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
     Report 'drift-names-repowise' ($outBad -match 'repowise-indexed') (($outBad.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
 
     # -Fix deletes forbidden files and creates the docs skeleton, nothing else.

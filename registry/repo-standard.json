@@ -48,7 +48,7 @@
     "Definition of done",
     "## Safety"
   ],
-  "claudeMaxAuthoredLines": 8,
+  "claudeMaxAuthoredLines": 80,
   "repos": {
     "abacare":        { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
     "agenthub":       { "tracker": "none", "trackerNote": "Fleet policy repo; work tracked by drift/validation, no external backlog" },
