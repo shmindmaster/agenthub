@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 [CmdletBinding()]
 param([string]$RepositoryRoot)
 
@@ -16,8 +16,12 @@ function Read-Json([string]$Path) {
   catch { Fail "invalid JSON: $Path ($($_.Exception.Message))"; $null }
 }
 
+# 'docs' was removed from this list on 2026-08-08: the fleet repository
+# standard (registry/repo-standard.json) requires a curated docs/ taxonomy in
+# every repo including this one. The ban historically targeted ungoverned
+# report/state dumps; those stay forbidden via the remaining roots below.
 $forbiddenRoots = @(
-  'adapters','capabilities','docs','generated','profiles','reports','roles',
+  'adapters','capabilities','generated','profiles','reports','roles',
   'standards','state','templates','packages\plugins','packages\handoff-plugins','packages\portfolio-plugins'
 )
 foreach ($relative in $forbiddenRoots) {
@@ -294,7 +298,7 @@ if (-not (Test-Path -LiteralPath $subagentFormatsFile)) {
 }
 
 $stale = @(rg -l --hidden --glob '!node_modules/**' --glob '!tests/validate.ps1' `
-  'packages/(handoff-plugins/plugins|portfolio-plugins)|agenthub[/\\]capabilities[/\\]|agenthub[/\\](docs|reports|state|generated)[/\\]' `
+  'packages/(handoff-plugins/plugins|portfolio-plugins)|agenthub[/\\]capabilities[/\\]|agenthub[/\\](reports|state|generated)[/\\]' `
   $root 2>$null)
 if ($stale.Count -gt 0) { Fail "stale legacy paths remain: $($stale -join ', ')" }
 

@@ -1,4 +1,4 @@
-{
+﻿{
   "schemaVersion": 6,
   "generatedAt": "2026-08-06T01:55:33.313Z",
   "migrationAliases": {},
@@ -356,6 +356,31 @@
         "codex": "product-demo-studio@agenthub"
       },
       "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Claude uses its native account connector while retaining canonical Product Demo Studio loose skills; Codex and reviewed native plugin adapters use the plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509"
+    },
+    {
+      "id": "repowise-workspace",
+      "name": "RepoWise Workspace (shmindmaster)",
+      "scope": "global-default",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "command": "repowise",
+      "args": [ "mcp", "C:/Repos/shmindmaster" ],
+      "credentialPolicy": "none-in-config; repowise resolves its LLM provider from the process environment (OPENAI_API_KEY) and never stores keys in repository or MCP configuration",
+      "providesCapabilities": [ "repo.intelligence", "repo.wiki", "repo.cross-repo-context" ],
+      "providesCapabilitiesNote": "Federated code intelligence for all 17 workspace repos (wiki docs, dependency graph, git history/ownership, health, dead code, decisions, cross-repo contracts). Query per repo (repo=<name>) or across the fleet (repo=all).",
+      "protocol": {
+        "revision": "2025-06-18",
+        "verifiedOn": "2026-08-08",
+        "verification": "stdio initialize against `repowise mcp C:/Repos/shmindmaster` (repowise CLI 0.39.0, serverInfo repowise 1.29.0) returned protocolVersion 2025-06-18 with tools, prompts, and resources capabilities."
+      },
+      "localProcessPolicy": {
+        "instancing": "single-shared-process",
+        "note": "ONE federated workspace server covers every owned repo. Per-repo repowise MCP entries (.mcp.json or host config) are drift and are flagged by scripts/Check-RepoStandard.ps1. Started on demand by the invoking host per activationPolicy."
+      },
+      "owner": { "type": "capability", "id": "repowise" },
+      "hosts": [ "amp", "antigravity", "claude", "cline", "codex", "copilot", "cursor", "devin", "factory", "gemini", "grok", "hermes", "opencode", "qoder", "qwen-code", "vscode-insiders", "warp", "windsurf" ],
+      "experimentalFlagsEnabled": [],
+      "notes": "Registered 2026-08-08 during the fleet repository standardization. The workspace lives at the fleet root (.repowise-workspace.yaml); awesome-mcp-servers (external fork) and .demo-workspace (not a repo) are deliberately excluded. Post-commit hooks keep member indexes fresh; `repowise status -w` / `doctor -w` report fleet health. Dashboard: `repowise serve` from the fleet root."
     }
   ]
 }

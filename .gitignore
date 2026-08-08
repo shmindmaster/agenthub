@@ -19,3 +19,7 @@ playwright-report/
 
 # Subagent-driven-development scratch (ledger, briefs, review packages).
 .superpowers/
+
+# RepoWise generated index state
+.repowise/
+.claude/CLAUDE.md

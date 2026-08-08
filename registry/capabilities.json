@@ -1,4 +1,4 @@
-{
+﻿{
   "schemaVersion": 2,
   "generatedAt": "2026-07-30T22:19:10.4107485Z",
   "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
@@ -708,7 +708,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "FAF6A843968F5531AE8A5CB7E0EB3CEDBCD5FEAF0B993222D846995E129D96A4",
+      "contentHash": "8C8B67640AC4DB8839669AA6F9F8EAEC66A52E6432A695220BC2BB6CA3E0B0EA",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
@@ -789,6 +789,29 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ]
+    },
+    {
+      "id": "repowise",
+      "owner": "fleet-intelligence",
+      "capabilityType": "skills+mcp",
+      "canonicalSource": "packages/repowise",
+      "managedSkillNames": [
+        "use-repowise"
+      ],
+      "contentHash": "47EE9CE583617041B993E29D308190D2A9D0343AC505C6425D4547206293FE4E",
+      "hashBasis": "packages/repowise",
+      "status": "active-canonical",
+      "hostMappings": [
+        { "hostId": "claude", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "codex", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "cursor", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "vscode-insiders", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "devin", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "qwen-code", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "cline", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "qoder", "deploymentStatus": "managed-loose-skills" }
+      ],
+      "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) and the use-repowise loose skill. The external repowise CLI itself is machine tooling (uv tool install repowise), not package content."
     }
   ]
 }

@@ -1,17 +1,12 @@
 ---
 name: use-chrome-devtools-mcp
-description: >
-  Use when driving Chrome via chrome-devtools MCP tools (list_pages, take_snapshot,
-  click, fill_form, network, console, performance), choosing --autoConnect vs
-  --isolated, attaching to the owner's signed-in Chrome session, or after
-  chrome://inspect/#remote-debugging setup. Prefer this skill over raw docs when
-  selecting or sequencing DevTools MCP tools.
+description: Use when driving Chrome via chrome-devtools MCP tools (list_pages, take_snapshot, click, fill_form, network, console, performance), choosing --autoConnect vs --isolated, attaching to the owner's signed-in Chrome session, or after chrome://inspect/#remote-debugging setup. Prefer this skill over raw docs when selecting or sequencing DevTools MCP tools.
 ---
 
 # Use Chrome DevTools MCP
 
 Official tool catalog: https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md  
-Fleet setup: `docs/CHROME_CDP.md` in agenthub · https://developer.chrome.com/blog/chrome-devtools-mcp-debug-your-browser-session
+Fleet setup: `docs/development/chrome-cdp.md` in agenthub · https://developer.chrome.com/blog/chrome-devtools-mcp-debug-your-browser-session
 
 This skill is the **tooling and connection guide**. For QA workflows, also load:
 

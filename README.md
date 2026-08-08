@@ -23,12 +23,37 @@ pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1
 # Read-only drift audit
 pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Audit -Validate
 
+# Full test suite
+pwsh -NoProfile -File .\tests\Run-AllTests.ps1
+
+# Fleet repository-standard sweep (report / repair)
+pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All
+pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All -Fix
+
 # Apply canonical loose-skill distribution
 pwsh -NoProfile -File .\scripts\Sync-Capabilities.ps1 -Apply
 
 # Apply managed instructions and MCP configuration
 pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Apply -Validate
 ```
+
+## Documentation
+
+Curated knowledge lives under [`docs/`](./docs/README.md): the fleet
+repository standard, architecture, testing, and runbooks.
+
+## Codebase intelligence
+
+This repo is the primary member of the fleet RepoWise workspace
+(`C:\Repos\shmindmaster`), which provides generated documentation,
+dependency/history analysis, code health, and one MCP server
+(`repowise-workspace` in `registry/mcps.json`) for coding agents.
+
+Useful commands (from the fleet root):
+
+- `repowise status -w`
+- `repowise update -w`
+- `repowise serve`  (local dashboard + MCP)
 
 `Sync-Capabilities.ps1` owns loose-skill distribution. `Sync-AgentHub.ps1` owns MCP and instruction deployment plus the documented Qwen compatibility projection. Native plugin installation remains host-managed from the canonical catalog and its Claude-compatible projection; no script invents a host plugin format.
 

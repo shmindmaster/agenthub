@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "recordedOn": "2026-08-08",
+  "purpose": "Machine-readable roster and rule parameters for the fleet repository knowledge + agent-instruction standard, enforced by scripts/Check-RepoStandard.ps1. One authored agent contract (AGENTS.md) per repo; CLAUDE.md is an @-import adapter carrying the RepoWise-managed block; docs/ holds durable curated knowledge; RepoWise (one workspace at the fleet root) holds derived intelligence; the tracker named per repo is the only backlog authority.",
+  "fleetRoot": "C:/Repos/shmindmaster",
+  "workspace": {
+    "file": ".repowise-workspace.yaml",
+    "note": "Single RepoWise workspace over the fleet root. awesome-mcp-servers is deliberately NOT a member (external fork on an upstream PR branch); .demo-workspace is not a git repo."
+  },
+  "excluded": [
+    { "name": "awesome-mcp-servers", "reason": "External fork existing only for an upstream PR; standardization would pollute upstream-facing history." },
+    { "name": ".demo-workspace", "reason": "Not a git repository; demo production outputs." }
+  ],
+  "requiredRootFiles": ["README.md", "AGENTS.md", "CLAUDE.md"],
+  "requiredDocsFiles": ["docs/README.md", "docs/current-state.md", "docs/plans/PLANS.md"],
+  "requiredDocsDirs": ["docs/product", "docs/architecture", "docs/development", "docs/runbooks", "docs/plans"],
+  "forbiddenPaths": [
+    "GEMINI.md",
+    ".cursorrules",
+    ".windsurfrules",
+    ".github/copilot-instructions.md",
+    "docs/ai/REPO_AGENT_RULES.md",
+    "NEXT_SESSION.md",
+    "STATUS.md",
+    "output.txt",
+    "lint_output.txt"
+  ],
+  "rootMarkdownAllowlist": [
+    "README.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md",
+    "LICENSE.md",
+    "LICENSE",
+    "global-agent-policy.md"
+  ],
+  "agentsAnchors": [
+    "## Mission",
+    "Knowledge authority",
+    "Start here",
+    "RepoWise",
+    "Canonical commands",
+    "## Tracker",
+    "Definition of done",
+    "## Safety"
+  ],
+  "claudeMaxAuthoredLines": 8,
+  "repos": {
+    "abacare":        { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
+    "agenthub":       { "tracker": "none", "trackerNote": "Fleet policy repo; work tracked by drift/validation, no external backlog" },
+    "coledger":       { "tracker": "linear", "trackerNote": "Linear" },
+    "crewscore":      { "tracker": "github-issues", "trackerNote": "OSS: GitHub Issues/PRs public; Linear SH- IDs for internal items", "agentsExemptions": ["examples/corpus/repo-config/AGENTS.md"] },
+    "gentlenext":     { "tracker": "linear", "trackerNote": "Linear" },
+    "gitpin":         { "tracker": "github-issues", "trackerNote": "OSS: GitHub Issues/PRs" },
+    "lawli":          { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
+    "lexalign":       { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
+    "mahumtech":      { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
+    "rexa":           { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
+    "sabhi":          { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
+    "saroshhussain":  { "tracker": "none", "trackerNote": "No external tracker" },
+    "shtrial":        { "tracker": "none", "trackerNote": "No external tracker" },
+    "subops":         { "tracker": "linear", "trackerNote": "Linear SH- IDs; DEBT.md registers accepted debt" },
+    "tgiagency":      { "tracker": "none", "trackerNote": "No external tracker" },
+    "verigence":      { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
+    "warrantygains":  { "tracker": "linear", "trackerNote": "Linear SH- IDs" }
+  }
+}
