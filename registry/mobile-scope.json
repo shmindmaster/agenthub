@@ -45,7 +45,7 @@
         "easProjectCreated": true,
         "easProjectId": "fd1cb9b3-bcb5-4afb-ab1e-108191dd6fdf",
         "recordedOn": "2026-08-08",
-        "note": "Org reverse-DNS rather than product-domain because rexa.ai is not owned; minted before the convention and permanent, so it stays. The EAS project @shmindmaster/recallforge was deleted by the owner on 2026-08-08, which freed the stale slug -- Expo exposes no rename, so deletion was the only route. Re-initialized the same day directly under the shmindmaster root account as @shmindmaster/rexa (id fd1cb9b3-bcb5-4afb-ab1e-108191dd6fdf); a fresh Android keystore was minted with it. iOS credentials were NOT carried over and cannot be: generating them requires interactive Apple Developer authentication, which an agent must not perform on the owner's behalf. Team 9V6CGU625U is unchanged. Consequence to expect: builds from this project are signed by a different key than the 2026-08-07 artifacts, so the first Android install after the switch is an uninstall-reinstall, not an upgrade."
+        "note": "Org reverse-DNS rather than product-domain because rexa.ai is not owned; minted before the convention and permanent, so it stays. The EAS slug 'recallforge' carried the pre-rename product name and Expo exposes no rename, so the owner deleted the project on 2026-08-08 and re-created it as @shmindmaster/rexa. Affordable only because nothing had been store-submitted; the cost was build history. Account-level Apple state survived."
       }
     },
     {
