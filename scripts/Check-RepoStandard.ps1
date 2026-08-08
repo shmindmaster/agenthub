@@ -223,7 +223,7 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
 
     $gitignorePath = Join-Path $path '.gitignore'
     $gi = if (Test-Path -LiteralPath $gitignorePath) { Get-Content -LiteralPath $gitignorePath -Raw -Encoding UTF8 } else { '' }
-    $giOk = $gi -match '(?m)^\.repowise/?$'
+    $giOk = $gi -match '(?m)^\.repowise/?\r?$'
     $giFixed = $false
     if (-not $giOk -and $Fix) {
         [IO.File]::AppendAllText($gitignorePath, "`r`n# RepoWise generated index state`r`n.repowise/`r`n.claude/CLAUDE.md`r`n", [Text.UTF8Encoding]::new($false))
