@@ -1,6 +1,6 @@
 {
   "name": "digitalocean",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Operate the SH DigitalOcean portfolio across App Platform, Droplets, DNS, managed databases, Spaces, inference, and incidents.",
   "author": {
     "name": "SH Mindmaster"

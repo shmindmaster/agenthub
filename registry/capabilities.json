@@ -60,7 +60,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin",
       "canonicalSource": "packages/digitalocean",
-      "contentHash": "9EAEDCBDF897C63DA111B36445F97C7E6267A438C4E8DC23F398DF67497CCF26",
+      "contentHash": "4B6BE364E9B166182FC3D75EBF8C9C1B4FE5D17D274749F8E65BFB902500AFBF",
       "hashBasis": "packages/digitalocean",
       "status": "active-canonical",
       "hostMappings": [
@@ -146,7 +146,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
       "canonicalSource": "packages/product-demo-studio",
-      "contentHash": "9AC96E03F85B628DE0785E1F6AC672675B05C2640E155020D7ED6F025E3640CB",
+      "contentHash": "E69D334E883BF207C8F5805FC7A5B78A6229046F2E1987A9F4D859D0594B7D7A",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -265,7 +265,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "B6F511C60474E4C86439AE1EEC5BDA857AF14E240E675B5EF21C7CF80183D466",
+      "contentHash": "D4847A15761F592BADF9643602B2469EEC9C9637474B81B8A5948946E9377487",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
