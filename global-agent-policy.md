@@ -21,6 +21,13 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Use isolated worktrees only when parallel write isolation or repository policy requires them. The sole-approved-root rule and helper invocation below are load-bearing; consult them before creating or removing one.
 - `C:\wt\<repo>\<task>` is the sole approved user-created worktree root. Use a documented native root control only when it resolves to `C:\wt`. Otherwise, do not invoke the host's native worktree command, flag, isolation mode, or UI; run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\SaroshHussain\AppData\Local\AgentHub\bin\New-AgentHubWorktree.ps1" -Cwd <repository-path> -Name <task-slug>` or use manual Git under `C:\wt`. The helper consumes the AgentHub-managed `AGENTHUB_WORKTREE_ROOT`, defaults it to `C:\wt`, and rejects every other resolved root.
 
+## Evidence discipline
+
+- Before reporting an absence, a negative, or a count, enumerate the whole space the claim covers, and state which space was enumerated. Reporting "no X exists" after inspecting one directory, one component, or one key space has repeatedly been wrong here — a single-component sample never establishes a system-wide claim.
+- Distinguish "checked and absent" from "did not check". The registry encodes this (`false` versus `null`); prose reports must carry the same distinction rather than presenting an unchecked thing as a settled one.
+- A check is only evidence if its signal tracks the thing it claims to watch. Before trusting a guard, monitor, or gate, confirm it can fail — one that has never fired, or that measures a quantity the current operation does not change, is decoration.
+- Verify an alarm against the underlying evidence before acting on it, especially when acting is destructive or interrupts expensive work.
+
 ## Capability ownership
 
 - Reuse the owner recorded in `C:\Repos\shmindmaster\agenthub\registry\capabilities.json` before creating a skill, plugin, MCP server, role, hook, or wrapper.
