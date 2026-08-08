@@ -14,7 +14,7 @@ and inspect current files. These are observed shapes, not permanent assumptions.
 |---|---|---|
 | ABACare `studio` | Retire after preserving accepted media and any independently useful product tests | Convert useful manifests/reports to canonical evidence in the external workspace; do not retain studio code |
 | Verigence `packages/videos` | Retire after preserving accepted media and product test coverage | Recreate candidates from product Playwright traces with the external Recast adapter |
-| Sabhi `studio` | Retire repo-local catalog, capture, narration, composition, mux, QA, delivery, and video-only CI | Keep the canonical truth/review contracts in this plugin and accepted media in mapped OneDrive |
+| LienWise `studio` | Retire repo-local catalog, capture, narration, composition, mux, QA, delivery, and video-only CI | Keep the canonical truth/review contracts in this plugin and accepted media in mapped OneDrive |
 | Lawli or WarrantyGains `apps/videos` | Retire the repo-local package and repair workspace/lockfile references | Use product behavior as read-only input; traces and all video production stay external |
 | SubOps Playwright + FFmpeg | Keep only Playwright tests that are independently valuable product QA; retire video-only capture/render scripts | Recast consumes external or existing test traces; canonical preflight owns media checks |
 | CrewScore release demo | Keep product fixtures only when useful outside video; retire narration/render/output trees | Synthetic product state remains product-owned; all production artifacts stay external |

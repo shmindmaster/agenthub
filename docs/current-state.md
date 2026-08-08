@@ -26,11 +26,21 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   its prior hash so the modification stays detectable). Live ledger recovered
   from 469 destinations at 2026-08-05 to 501 current.
 - **Mobile scope guard**: `registry/mobile-scope.json` classifies all 21
-  products (4 eligible, 4 evaluate-later, 3 frozen, 10 no-native); the
+  products (5 eligible, 4 evaluate-later, 2 frozen, 10 no-native); the
   prohibition is compiled into every managed host by `Sync-Instructions.ps1`;
   `tests/Test-MobileScope.ps1` (5 behavior checks, passing 2026-08-08, each
   demonstrated failing against a synthetic fixture) keeps registry and policy
   true together.
+- **LienWise rename (2026-08-08)**: the product frozen by the mobile guard on
+  2026-08-07 was repositioned and renamed. The owner rewrote all 296 commits
+  with `git filter-repo` and force-pushed, so the retired name is absent from
+  content, filenames, and commit messages across the whole history — verified
+  independently here. Fleet references (`repo-standard.json`,
+  `mobile-scope.json`, the DigitalOcean portfolio/DNS skills, the
+  product-demo-studio compatibility table, the product-experience-engineering
+  leak guard, and the RepoWise workspace) now say `lienwise`. The freeze exit
+  condition was met, so it moved to `include` (P1). **Pre-rewrite SHAs are
+  dead**: any other checkout needs `git fetch && git reset --hard origin/main`.
 
 ## In progress
 

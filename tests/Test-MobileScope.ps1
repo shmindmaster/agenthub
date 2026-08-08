@@ -165,7 +165,11 @@ function Test-EveryFleetRepoIsClassified {
 # an exit condition that names who can lift the freeze.
 # ---------------------------------------------------------------------------
 function Test-FrozenProductsStayFrozen {
-    $required = @('sabhi', 'empowera', 'documed')
+    # lienwise was frozen here under its former name until 2026-08-08, when the owner
+    # met the recorded exit condition -- new identity established, repository renamed,
+    # retired name rewritten out of all history -- and ruled it in scope. It is
+    # deliberately not in this list; empowera and documed remain unresolved.
+    $required = @('empowera', 'documed')
     $problems = [Collections.Generic.List[string]]::new()
 
     foreach ($id in $required) {
@@ -314,7 +318,7 @@ function Test-NoFrozenProductHasMobileArtifacts {
 $behaviors = @(
     @{ Name = 'mobile-scope.json is structurally sound';                 Run = { Test-SchemaIsSound } }
     @{ Name = 'every fleet repository carries a classification';         Run = { Test-EveryFleetRepoIsClassified } }
-    @{ Name = 'sabhi, empowera and documed are still frozen';            Run = { Test-FrozenProductsStayFrozen } }
+    @{ Name = 'empowera and documed are still frozen';                   Run = { Test-FrozenProductsStayFrozen } }
     @{ Name = 'global-agent-policy.md still carries the guard verbatim'; Run = { Test-PolicyStillCarriesTheGuard } }
     @{ Name = 'no frozen product has grown a mobile footprint';          Run = { Test-NoFrozenProductHasMobileArtifacts } }
 )

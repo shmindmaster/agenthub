@@ -6,7 +6,7 @@ param(
     "C:\Repos\shmindmaster\gentlenext",
     "C:\Repos\shmindmaster\lawli",
     "C:\Repos\shmindmaster\lexalign",
-    "C:\Repos\shmindmaster\sabhi",
+    "C:\Repos\shmindmaster\lienwise",
     "C:\Repos\shmindmaster\subops"
   )
 )

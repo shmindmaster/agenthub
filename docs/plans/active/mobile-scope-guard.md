@@ -9,10 +9,17 @@ one.
 
 Mobile identifiers do not behave like the rest of the stack. An Apple bundle
 identifier cannot be changed after the first build reaches App Store Connect,
-and Android treats a changed `applicationId` as a different application. Sabhi
-and Empowera are both pending refactor, repositioning, and rebranding, so any
-Expo/EAS/Apple/Google/Firebase identity minted under their current names
-becomes long-lived infrastructure carrying a name already known to be wrong.
+and Android treats a changed `applicationId` as a different application. A
+product pending refactor, repositioning, and rebranding therefore cannot have
+an Expo/EAS/Apple/Google/Firebase identity minted under its current name: that
+identity becomes long-lived infrastructure carrying a name already known to be
+wrong.
+
+The guard earned its keep within a day. The product frozen here on 2026-08-07
+was renamed to **LienWise** on 2026-08-08 — new domain, new package
+identifiers, and a `git filter-repo` rewrite that erased the retired name from
+all 296 commits. Had a bundle identifier been minted under the old name during
+that window, it would have outlived the rename permanently.
 
 This is not hypothetical here. Rexa's EAS project shipped as
 `@shmindmaster/recallforge` — the pre-rename product name, live in every build
@@ -33,8 +40,9 @@ URL — recoverable only because nothing had been store-submitted yet.
   `preview`/internal builds — nothing store-submitted.
 - Rexa declares `developmentClient: true` in `eas.json` but carries no
   `expo-dev-client` dependency.
-- No mobile artifacts exist under `sabhi` (verified by behavior 5 of the new
-  test); `empowera` and `documed` are not on disk to check.
+- No mobile artifacts existed under the then-frozen product (verified by
+  behavior 5 of the new test); `empowera` and `documed` are not on disk to
+  check.
 
 ## Target observable behavior
 
@@ -126,8 +134,17 @@ would not be safe for a name that had reached a store.
 
 ## Decision log
 
-- **2026-08-07** Owner: exclude Sabhi and Empowera from the mobile rollout; no
+- **2026-08-07** Owner: exclude two products from the mobile rollout; no
   Expo/EAS/store work until refactor and new product identity are decided.
+- **2026-08-08** The first of those two exited the freeze the way the schema
+  intended. The owner established the new identity (`docs/lienwise/DECISION.md`,
+  lienwise.ai), renamed the repository, and rewrote the retired name out of all
+  296 commits — the recorded `exitCondition`, met by the owner's own artifacts —
+  then ruled it in scope. Moved to `include` at **P1**; reverse-DNS is now
+  `ai.lienwise.*`. Priority was my call, not the owner's: P0 is the reference
+  build and the health flagship, so a fifth eligible product sits at P1. The
+  native case is field capture — site photos, delivery proof, signed waivers.
+  `empowera` and `documed` stay frozen.
 - **2026-08-08** Owner: move `documed` from evaluate-later to frozen — dormant
   since 2026-07-18, never cloned, direction unsettled.
 - **2026-08-08** Owner: rename the Rexa EAS slug now, while only internal
@@ -185,7 +202,7 @@ rexa/app.json                                                       M6 only: ext
 - **A frozen identifier already exists remotely.** The on-disk check is the
   visible half; an EAS/Apple/Google/Firebase registration is the half that
   cannot be taken back. EAS CLI exposes no project-list command, so this was
-  not verified for `sabhi`/`empowera`/`documed`. **Open item** — audit the Expo
+  not verified for `empowera`/`documed`. **Open item** — audit the Expo
   dashboard and Apple/Google consoles before treating the freeze as proven
   clean rather than merely enforced going forward.
 - **Rexa's stale identity is now permanent unless M6 runs.** Resolved to a

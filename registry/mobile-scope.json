@@ -54,6 +54,20 @@
       "note": "Native caregiver and family experience; selected navigator functions later."
     },
     {
+      "productId": "subops",
+      "repository": "shmindmaster/subops",
+      "bucket": "include",
+      "priority": "P1",
+      "note": "Absent from the owner's 2026-08-07 portfolio table; owner ruled it eligible 2026-08-08. Statement and evidence intake for FedEx Ground contractors is a field-capture workflow, which is the native case. Its HCBS lane is proposed research on synthetic data, not a shipped healthcare product, so healthSensitive is not set - set it the moment that lane touches real participant data."
+    },
+    {
+      "productId": "lienwise",
+      "repository": "shmindmaster/lienwise",
+      "bucket": "include",
+      "priority": "P1",
+      "note": "Frozen under a former product name on 2026-08-07 pending repositioning; the exit condition was met on 2026-08-08. docs/lienwise/DECISION.md establishes the new identity and architecture, the repository was renamed, and a history rewrite removed the retired name from all 296 commits, so nothing temporary can leak into a permanent identifier. Owner ruled it in scope the same day. lienwise.ai is canonical, so reverse-DNS is ai.lienwise.*. The native case is field capture - site photos, delivery proof, and signed waivers are the evidence a preliminary-notice deadline depends on, and they are gathered away from a desk. Not healthSensitive: construction payment records, no PHI."
+    },
+    {
       "productId": "lawli",
       "repository": "shmindmaster/lawli",
       "bucket": "evaluateLater",
@@ -78,21 +92,6 @@
       "repository": "shmindmaster/lexalign",
       "bucket": "evaluateLater",
       "note": "PWA/web first. Native only when attorney field workflows justify it."
-    },
-    {
-      "productId": "subops",
-      "repository": "shmindmaster/subops",
-      "bucket": "include",
-      "priority": "P1",
-      "note": "Absent from the owner's 2026-08-07 portfolio table; owner ruled it eligible 2026-08-08. Statement and evidence intake for FedEx Ground contractors is a field-capture workflow, which is the native case. Its HCBS lane is proposed research on synthetic data, not a shipped healthcare product, so healthSensitive is not set - set it the moment that lane touches real participant data."
-    },
-    {
-      "productId": "sabhi",
-      "repository": "shmindmaster/sabhi",
-      "bucket": "excludedPendingReposition",
-      "frozen": true,
-      "exitCondition": "Owner explicitly establishes a new product identity and architecture. Only the owner lifts this freeze.",
-      "note": "Pending substantive product refactoring, repositioning, renaming, and rebranding. Treat the current product name, domain, and package identifiers as non-canonical and temporary."
     },
     {
       "productId": "empowera",

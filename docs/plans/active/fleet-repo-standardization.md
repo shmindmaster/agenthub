@@ -33,7 +33,7 @@ indexed and fresh; one bootstrap commit per repo on `main`.
 | Repo | Model tier | Notes |
 | --- | --- | --- |
 | agenthub | coordinator | this plan; checker + registry + skill done first |
-| abacare, coledger, lawli, lexalign, subops, verigence, warrantygains, sabhi | deepseek-v4-pro | large/sensitive monorepos; sabhi has in-flight studio deletion — do not touch those paths; its CLAUDE.md edits are mid-standardization by owner |
+| abacare, coledger, lawli, lexalign, subops, verigence, warrantygains, lienwise | deepseek-v4-pro | large/sensitive monorepos; lienwise had its history rewritten on 2026-08-08 (all 296 commits) — re-clone or hard-reset any stale checkout before touching it |
 | mahumtech, saroshhussain, shtrial, tgiagency, gitpin, crewscore | deepseek-v4-flash | mechanically standard |
 | rexa | coordinator (last) | already ~standard; ACTIVE writer in tree — defer until their FSRS work lands |
 | Repairs | kimi-k2.7-code | on demand |
@@ -59,7 +59,10 @@ indexed and fresh; one bootstrap commit per repo on `main`.
 
 - Knowledge loss on deletion → fold-then-delete; git history is the archive.
 - Active writer in rexa → rexa deferred; re-check before its turn.
-- sabhi/warrantygains in-flight deletions → workers stage only their own paths.
+- warrantygains in-flight deletions → workers stage only their own paths.
+- lienwise history was rewritten 2026-08-08; pre-rewrite SHAs are dead. Any
+  worker holding a stale checkout must `git fetch && git reset --hard origin/main`
+  before it stages anything.
 - Rollback per repo: `git revert` the bootstrap commit.
 
 ## Decision log

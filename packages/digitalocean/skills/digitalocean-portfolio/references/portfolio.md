@@ -13,7 +13,7 @@ Use this as the starting map. Refresh live data before making changes because Ap
 | lawli | `C:\Repos\shmindmaster\lawli` | `lawli` / `006a9176-a98c-4746-ad55-dc1d887f99ef` | `.do/app.yaml`, shared Postgres/Valkey. |
 | lexalign | `C:\Repos\shmindmaster\lexalign` | `lexalign` / `add34a2b-dbb6-4a11-af0a-7ddaacfe267c` | `.do/app.yaml`, shared Postgres/Valkey. |
 | subops | `C:\Repos\shmindmaster\subops` | `subops` / `3dc23de1-dadc-49df-8683-7997f4692537` | `.do/app.yaml`, `subops-frontend`, `subops-core-api`, shared Postgres/Valkey, `sh-storage`. |
-| sabhi | `C:\Repos\shmindmaster\sabhi` | no DO app found in latest inventory | DNS in `shtrial.com` points to Railway for sabhi subdomains. |
+| lienwise | `C:\Repos\shmindmaster\lienwise` | no DO app found in latest inventory | DNS in `shtrial.com` points to Railway for lienwise subdomains. |
 
 ## Shared Services
 

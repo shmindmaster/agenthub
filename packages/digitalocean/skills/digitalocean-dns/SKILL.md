@@ -22,7 +22,7 @@ description: Use when DigitalOcean DNS zones, application routing, mail records,
 
 - App subdomains often CNAME to App Platform default ingress hosts such as `*.ondigitalocean.app`.
 - Some apex records use Cloudflare A/AAAA values, so do not replace apex routing just because the app is on DO.
-- `shtrial.com` includes Railway verification and CNAME records for sabhi-related subdomains.
+- `shtrial.com` includes Railway verification and CNAME records for lienwise-related subdomains.
 - Mail and auth records for Microsoft 365 and Clerk should be preserved unless the task explicitly targets them.
 
 ## Commands

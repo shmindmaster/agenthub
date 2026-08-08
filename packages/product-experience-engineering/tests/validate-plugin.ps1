@@ -165,7 +165,7 @@ foreach ($reference in $expectedReferences) {
 
 $allTextFiles = Get-ChildItem -LiteralPath $pluginRoot -Recurse -File |
     Where-Object { $_.Extension -in @('.md', '.json', '.yaml', '.yml', '.mjs', '.ps1', '.svg') }
-$forbidden = '(?i)AI[- ]Native[- ]Freight|gentlenext|lawli|lexalign|sabhi|shwiki|subops|verigence|warrantygains|abacare|coledger|documed|empowera'
+$forbidden = '(?i)AI[- ]Native[- ]Freight|gentlenext|lawli|lexalign|lienwise|shwiki|subops|verigence|warrantygains|abacare|coledger|documed|empowera'
 foreach ($file in $allTextFiles) {
     $content = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
     if ($file.FullName -notlike '*\tests\*') {

@@ -25,7 +25,7 @@ description: Use when DigitalOcean account-wide apps, projects, repositories, DN
 
 - Primary repos are under `C:\Repos\shmindmaster`.
 - Main production DO apps are `verigence`, `abacare`, `coledger`, `gentlenext`, `lawli`, `lexalign`, and `subops`.
-- `sabhi` is currently DNS/Railway-oriented in discovery, not a DO App Platform app.
+- `lienwise` is currently DNS/Railway-oriented in discovery, not a DO App Platform app.
 - Shared services are `sh-postgres`, `sh-valkey`, `sh-storage`, and `sh-verigence-prd`.
 - Most app domains are DO-managed zones with `www`/`api` records pointing to App Platform default ingress hosts.
 
