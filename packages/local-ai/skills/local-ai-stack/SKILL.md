@@ -25,6 +25,19 @@ After this bootstrap, resolve services, ports, models, indexes, storage roots,
 and artifacts from `$LocalAiRegistry`. Examples below describe intent; embedded
 paths or ports are not a second source of truth.
 
+## Layout
+
+```text
+models\chat | retrieve | generate
+data\catalog | qdrant | artifacts | cache | secrets | runtime
+runtimes\retrieve | media | llama | python
+apps\retrieval | api
+media\   # image/voice/motif/music/transcribe scripts
+```
+
+Verified against disk 2026-08-08. This is orientation, not authority — the
+registry stays the source of truth for any path you act on.
+
 ## Outcome-oriented discovery
 
 Use this skill only after layered checks:
@@ -65,9 +78,10 @@ authority required by the current task. Build a replacement collection without
 independent review pass.
 
 The retrieval service's local admin credentials are auto-provisioned on first
-`start retrieval` / `start core`: `ai.ps1` writes `secrets\retrieval-admin-secrets.json`
-under the resolved root with a restrictive ACL when it is absent. No manual
-environment variables are required for a local run.
+`start retrieval` / `start core`: `ai.ps1` writes
+`data\secrets\retrieval-admin-secrets.json` under the resolved root with a
+restrictive ACL when it is absent. No manual environment variables are
+required for a local run.
 
 All media and synthesis routes are also under the same interface:
 
@@ -99,10 +113,10 @@ pull ad-hoc models, or copy weights outside `policy.single_model_root`.
   multimodal service.
 - **Vector store**: the single declared Qdrant service.
 - **Persistent indexing contract**: the catalog at
-  `shared\catalogs\corpus-v2.sqlite` under the resolved root feeds versioned
-  Qdrant collections exposed through `knowledge` and `legal`. Older
-  personal/legal SQLite databases are migration inputs only, not retrieval
-  engines.
+  `data\catalog\corpus-v2.sqlite` under the resolved root feeds versioned
+  Qdrant collections exposed through the stable aliases `knowledge`
+  (→ `knowledge_v1`) and `legal` (→ `legal_v1`). Older personal/legal SQLite
+  databases are migration inputs only, not retrieval engines.
 - **Index metadata contract**: `indexes` in `$LocalAiRegistry`.
 
 #### 2a) Direct corpus query (read-only helper)
@@ -131,8 +145,18 @@ collection/alias contract as the retrieval API, not a second source of truth.
 Resolve which media capabilities exist by reading `capabilities` in
 `$LocalAiRegistry` at runtime. Do not assume the set named here is complete —
 it is a description of route *kinds*, not an inventory, and the inventory
-grows. As of the last check the stack declared fourteen capabilities across
-retrieval, provider, voice, STT, image, video and music.
+grows. Count them at runtime rather than trusting a number written here; this
+line previously said "fourteen" and was wrong within days.
+
+## Chat model policy
+
+`policy.chat_models_policy = uncensored-or-abliterated-required`.
+
+Read the live model IDs from the registry; the declared kinds are an
+abliterated Qwen3 for text and an abliterated Qwen3-VL for vision. Do not wire
+aligned/refusal chat models into `generation.routes`. Embeddings, rerank, STT,
+and the media synthesizers are not chat-refusal models — this policy does not
+apply to them, and their declared winners stay as they are.
 
 ## Exact knowledge and legal scope contract
 
