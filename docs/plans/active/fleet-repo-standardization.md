@@ -43,7 +43,13 @@ indexed and fresh; one bootstrap commit per repo on `main`.
 1. [x] RepoWise workspace + hooks + MCP registration + capability + skill.
 2. [x] Checker + fixture tests + roster.
 3. [x] agenthub standardized (this commit).
-4. [ ] Worker migrations ×16 with evidence artifacts.
+4. [ ] Worker migrations ×16 with evidence artifacts. **1 of 16 done:**
+       `lienwise` — standardized by the owner in `5e1bfae` (AGENTS.md + nested
+       adapters, `docs/lienwise/*` folded into the `docs/product/` and
+       `docs/architecture/decisions/` taxonomy), indexed 2026-08-08, and
+       verified here at **33 checks / 0 failures**. Clearing its last 3
+       failures required fixing the checker itself, not the repo — see the
+       `nested-refs-root` entry in `docs/current-state.md`.
 5. [ ] Fleet sweep: checker `-All` green, repowise doctor/status clean.
 6. [ ] Final evidence report.
 
