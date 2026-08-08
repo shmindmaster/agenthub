@@ -171,6 +171,10 @@ $priorHashesAreLegacy = $priorSchemaVersion -lt $StateSchemaVersion
 $desired = @{}
 $rows = [Collections.Generic.List[object]]::new()
 $failures = [Collections.Generic.List[string]]::new()
+# Destinations a guard declined to touch this run, keyed by path. Parallel to
+# $failures, which is prose for the operator; this is what the ledger write
+# below reads to avoid recording ownership of anything it refused.
+$refused = @{}
 
 foreach ($capability in $capabilities.capabilities) {
   # canonicalSource is repo-relative (e.g. "packages/clerk"); resolve it
@@ -218,6 +222,7 @@ foreach ($capability in $capabilities.capabilities) {
       if (-not $Apply -or $status -eq 'current') { continue }
       if ($currentHash -and -not $prior.managed.ContainsKey($destination) -and -not $AdoptExisting) {
         $failures.Add("refusing to replace unowned skill: $destination")
+        $refused[$destination] = $true
         continue
       }
       # Compare a stored digest in the format it was stored in, not the format
@@ -229,6 +234,7 @@ foreach ($capability in $capabilities.capabilities) {
       if ($currentHash -and $prior.managed.ContainsKey($destination) -and
           $prior.managed[$destination].hash -ne $recordedComparableHash -and -not $AdoptExisting) {
         $failures.Add("refusing to replace user-modified managed skill: $destination")
+        $refused[$destination] = $true
         continue
       }
       if (Test-Path -LiteralPath $destination) { Remove-Item -LiteralPath $destination -Recurse -Force }
@@ -246,6 +252,7 @@ if ($Apply -and $Prune) {
     $currentHash = if ($priorHashesAreLegacy) { Get-TreeHashLegacy $destination } else { Get-TreeHash $destination }
     if ($currentHash -ne $prior.managed[$destination].hash) {
       $failures.Add("refusing to prune modified managed skill: $destination")
+      $refused[$destination] = $true
       continue
     }
     Remove-Item -LiteralPath $destination -Recurse -Force
@@ -253,9 +260,43 @@ if ($Apply -and $Prune) {
   }
 }
 
-if ($failures.Count -gt 0) {
-  $failures | ForEach-Object { Write-Host "FAIL: $_" -ForegroundColor Red }
-  exit 1
+# The ledger records what this run actually manages, and it is written BEFORE
+# the failure gate below -- deliberately, and this ordering is load-bearing.
+#
+# THE DEFECT THIS FIXES. The copies above already happened by the time control
+# reaches here. Writing the ledger after an `exit 1` meant a run that deployed
+# 99 skills and refused 4 recorded NONE of the 99: every one became "unowned"
+# on the next run, which then refused to ever update it. Measured 2026-08-08:
+# the live ledger was last written 2026-08-05, so every skill deployed after
+# the refusals appeared on 2026-08-06 was stranded exactly this way, and no
+# -Apply could repair it. Nothing failed loudly; the state was just silently
+# wrong -- this repo's signature defect class, in the deployment path.
+#
+# WHAT IS RECORDED, AND WHY IT IS NOT $desired. $desired is every destination
+# the registry DECLARES, which is not the same as the set this run can
+# honestly claim:
+#   - refused, never owned    -> not recorded. Claiming it would let the next
+#                                run overwrite a file we just declined to touch.
+#   - refused, already owned  -> prior record carried forward verbatim. The
+#     (user-modified, or        stored hash is what detects the modification,
+#      unprunable)              so re-recording today's hash would launder the
+#                               modification into the new baseline, and
+#                               dropping it entirely would orphan a file the
+#                               prune path can only reach through this ledger.
+#   - everything else         -> recorded as deployed.
+$managedAfterRun = @{}
+foreach ($destination in $desired.Keys) {
+  if ($refused.ContainsKey($destination)) {
+    if ($prior.managed.ContainsKey($destination)) { $managedAfterRun[$destination] = $prior.managed[$destination] }
+    continue
+  }
+  $managedAfterRun[$destination] = $desired[$destination]
+}
+# A prune we refused is still ours; it is absent from $desired by definition
+# (that absence is what nominated it for pruning), so carry it separately.
+foreach ($destination in $refused.Keys) {
+  if ($managedAfterRun.ContainsKey($destination)) { continue }
+  if ($prior.managed.ContainsKey($destination)) { $managedAfterRun[$destination] = $prior.managed[$destination] }
 }
 
 if ($Apply) {
@@ -264,9 +305,14 @@ if ($Apply) {
   # 5.1 and none under PowerShell 7, so the state file this run leaves behind
   # would differ by shell. The trailing CRLF reproduces what Set-Content
   # appended, keeping the emitted bytes identical to today's PowerShell 7 run.
-  $stateJson = @{ schemaVersion=$StateSchemaVersion; updatedAt=(Get-Date).ToUniversalTime().ToString('o'); managed=$desired } |
+  $stateJson = @{ schemaVersion=$StateSchemaVersion; updatedAt=(Get-Date).ToUniversalTime().ToString('o'); managed=$managedAfterRun } |
     ConvertTo-Json -Depth 6
   [IO.File]::WriteAllText($statePath, ($stateJson + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
+}
+
+if ($failures.Count -gt 0) {
+  $failures | ForEach-Object { Write-Host "FAIL: $_" -ForegroundColor Red }
+  exit 1
 }
 
 if ($VerbosePreference -eq 'Continue') { $rows | Sort-Object capability,host,skill | Format-Table -AutoSize }

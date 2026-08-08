@@ -333,6 +333,76 @@ function Test-SecondApplyIsIdempotent {
     }
 }
 
+# --- Behavior 5a: a PARTIAL -Apply -- one skill deployed, one refused --
+# must still record the deployed one in managed-skills.json.
+#
+# The script used to `exit 1` on any failure BEFORE writing the ledger, while
+# the copies had already happened inside the loop. So a run that deployed 99
+# skills and refused 4 recorded none of the 99, and every one of them became
+# "unowned" on the next run -- which then refused to update it, permanently.
+# Measured on the live fleet 2026-08-08: the ledger was last written
+# 2026-08-05, stranding every skill deployed after the refusals appeared on
+# 2026-08-06. Nothing failed loudly; the deployment state was just silently
+# unrepairable.
+#
+# The companion assertion matters as much as the main one: the REFUSED
+# destination must NOT be recorded. Writing the ledger unconditionally would
+# have fixed the stranding by claiming ownership of a directory the run had
+# just declined to touch, which hands the next run permission to overwrite it.
+function Test-PartialApplyStillRecordsWhatItDeployed {
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-partial-cap' -HostId 'zz-partial-host' -SkillName 'deployed-skill' -SkillContent 'canonical content v1'
+    try {
+        # A second skill in the same capability, with a pre-existing unowned
+        # destination, so this one run both deploys and refuses.
+        $blockedSource = Join-Path $fixture.Root 'packages\zz-partial-cap\skills\blocked-skill'
+        New-Item -ItemType Directory -Path $blockedSource -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $blockedSource 'SKILL.md') -Value 'canonical blocked v1' -Encoding UTF8 -NoNewline
+
+        $blockedDestination = Join-Path $fixture.SkillsDir 'blocked-skill'
+        New-Item -ItemType Directory -Path $blockedDestination -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $blockedDestination 'unrelated.txt') -Value 'not deployed by AgentHub' -Encoding UTF8 -NoNewline
+
+        $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($result.ExitCode -eq 0) {
+            return @{ Passed = $false; Detail = "expected a non-zero exit from the refused skill -- test setup invalid. Output: $($result.Output)" }
+        }
+        if (-not (Test-Path -LiteralPath (Join-Path $fixture.Destination 'SKILL.md'))) {
+            return @{ Passed = $false; Detail = "the deployable skill was not copied -- test setup invalid. Output: $($result.Output)" }
+        }
+
+        # -UserProfile rebases the runtime root too (Behavior 7), so the state
+        # file lands under the synthetic profile, not the overridden LOCALAPPDATA.
+        $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        if (-not (Test-Path -LiteralPath $statePath)) {
+            return @{ Passed = $false; Detail = "managed-skills.json was never written. The run copied a skill to disk and recorded nothing, so the next -Apply will see that skill as unowned and refuse to update it forever. Expected at: $statePath" }
+        }
+        $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $recorded = @($state.managed.PSObject.Properties | ForEach-Object { $_.Name })
+        if ($fixture.Destination -notin $recorded) {
+            return @{ Passed = $false; Detail = "the deployed destination is absent from the ledger. Recorded: $($recorded -join '; ')" }
+        }
+        if ($blockedDestination -in $recorded) {
+            return @{ Passed = $false; Detail = "the REFUSED destination was recorded as managed. That hands the next run permission to overwrite a directory this run deliberately declined to touch." }
+        }
+
+        # And the fix must actually restore updatability: change the source,
+        # re-apply, and the previously deployed skill must now update rather
+        # than be refused as unowned.
+        Set-Content -LiteralPath (Join-Path $fixture.Root 'packages\zz-partial-cap\skills\deployed-skill\SKILL.md') -Value 'canonical content v2' -Encoding UTF8 -NoNewline
+        $second = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($second.Output -match [regex]::Escape("refusing to replace unowned skill: $($fixture.Destination)")) {
+            return @{ Passed = $false; Detail = "the skill this script itself deployed was refused as unowned on the next run. Output: $($second.Output)" }
+        }
+        $deployedText = [IO.File]::ReadAllText((Join-Path $fixture.Destination 'SKILL.md'))
+        if ($deployedText -ne 'canonical content v2') {
+            return @{ Passed = $false; Detail = "the deployed skill did not update after a partial first run; content is '$deployedText'. Output: $($second.Output)" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $fixture
+    }
+}
+
 # --- Behavior 6: a registry with zero capabilities and zero agents ("empty
 # work set") must fail loudly, per this project's defining constraint. This
 # assertion was written RED -- the script printed
@@ -573,6 +643,9 @@ Report '-Prune removes an unmodified stale managed skill once its mapping is wit
 
 $r5 = Test-SecondApplyIsIdempotent
 Report 'second consecutive -Apply against the same fixture makes no further byte changes and reports current' $r5.Passed $r5.Detail
+
+$r5a = Test-PartialApplyStillRecordsWhatItDeployed
+Report 'a partial -Apply records the skill it deployed, and does not record the one it refused' $r5a.Passed $r5a.Detail
 
 $r6 = Test-EmptyWorkSetFailsLoudly
 Report 'zero capabilities and zero agents fails loudly instead of reporting success' $r6.Passed $r6.Detail

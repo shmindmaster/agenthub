@@ -17,6 +17,14 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   (protocol 2025-06-18, probed). agenthub is the default/primary repo.
 - **Fleet checker**: `scripts/Check-RepoStandard.ps1` with fixture tests in
   `tests/Test-RepoStandard.ps1` (11 behavior checks, passing 2026-08-08).
+- **Skill deployment ledger**: fixed 2026-08-08. `Sync-Capabilities.ps1` wrote
+  `managed-skills.json` only after the failure gate, so any run with a refusal
+  copied skills to disk and recorded none of them — stranding every skill
+  deployed between 2026-08-06 and 2026-08-08 as permanently "unowned". The
+  ledger now writes before the gate and records only what the run can claim
+  (refused-and-never-owned excluded; refused-but-owned carried forward with
+  its prior hash so the modification stays detectable). Live ledger recovered
+  from 469 destinations at 2026-08-05 to 501 current.
 - **Mobile scope guard**: `registry/mobile-scope.json` classifies all 21
   products (3 eligible, 5 evaluate-later, 3 frozen, 10 no-native); the
   prohibition is compiled into every managed host by `Sync-Instructions.ps1`;
@@ -51,8 +59,9 @@ The 4 failing files are agenthub's own engineering debt:
 | Test-RepoStandard | `compliant-repo-passes`: the checker's `nested-no-duplication` rule flags the fixture's own nested AGENTS.md |
 | Test-ScriptsFailLoudly | `Start-ChromeAgentCDP.ps1` does not set `$ErrorActionPreference = 'Stop'` |
 
-The mobile scope guard added `Test-MobileScope.ps1` (+5 passed) and changed no
-failure: 168 passed / 4 failed, same four files.
+The mobile scope guard added `Test-MobileScope.ps1` (+5) and the
+Sync-Capabilities ledger fix added one behavior (+1), changing no failure:
+**169 passed / 4 failed**, same four files.
 
 ## Known constraints
 

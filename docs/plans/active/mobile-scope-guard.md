@@ -150,6 +150,15 @@ would not be safe for a name that had reached a store.
   enforcement therefore had to be inverted: classify everything, fail on the
   unclassified. That is stronger than a deny-list, which only blocks names
   somebody remembered to add.
+- **Deploying the skill surfaced a live fleet-wide defect**, unrelated to
+  mobile scope but blocking this deliverable. `Sync-Capabilities.ps1` wrote its
+  ownership ledger *after* the failure gate, while the file copies happened
+  earlier in the loop — so any run with a refusal deployed skills and recorded
+  none of them. The live ledger had been frozen at 2026-08-05 since the
+  `use-chrome-devtools-mcp` refusals appeared on 2026-08-06, silently
+  stranding every skill deployed after that as unowned and unrepairable.
+  Fixed at owner request: ledger writes before the gate, recording only what
+  the run can honestly claim. Recovered 469 -> 501 destinations.
 - `Check-RepoStandard.ps1` iterating the roster rather than the filesystem
   leaves a real gap: a newly cloned repo is invisible to it. Behavior 2 of
   `Test-MobileScope.ps1` closes that gap for mobile scope specifically.
