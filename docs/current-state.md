@@ -41,6 +41,24 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   leak guard, and the RepoWise workspace) now say `lienwise`. The freeze exit
   condition was met, so it moved to `include` (P1). **Pre-rewrite SHAs are
   dead**: any other checkout needs `git fetch && git reset --hard origin/main`.
+- **What a history rewrite does not reach** (measured on lienwise 2026-08-08,
+  and true of any future rename): `git push --force` rewrites branches only.
+  Three surfaces survive it and are worth checking before declaring a rename
+  complete.
+  - **Unmerged branches.** `lienwise/m0-rebrand-and-domain` still descended
+    from pre-rewrite history and carried the retired name in **343 files and
+    46 commit messages**. Verified superseded (its 8 unique files were older
+    docs and `CLAUDE.md` adapters that `main` replaced), then deleted.
+  - **`refs/pull/*/head`.** All **163** carried it; **zero** were reachable
+    from `main`. GitHub keeps these as immutable PR snapshots — no push
+    removes them. 8 merged PR titles also still name the product. Left alone
+    deliberately: editing a title whose own diff still says the old name makes
+    the record incoherent, and the refs beneath it are permanent regardless.
+  - **Gitignored working files.** `backend/.env` still pointed at a dead
+    `sabhi_dev` database, and `frontend/out`, `.next`, `test-evidence`, and
+    `test-results` held pre-rename output. None are tracked, so no rewrite
+    touches them. Repointed at the compose database; artifacts deleted.
+  - Clean end state: `git ls-remote` shows `refs/heads/main` and nothing else.
 
 - **Third-party plugin tracking (2026-08-08)**: `registry/native-connectors.json`
   -> `thirdPartyPlugins` records plugins the fleet uses but does not own, with
@@ -78,13 +96,27 @@ The 4 failing files are agenthub's own engineering debt:
 | File | Cause |
 | --- | --- |
 | Test-CapabilityRouting | `use-chrome-devtools-mcp` carries no `## Capability required` or `## Resolve a provider` section (5 assertions) |
-| Test-DeclaredPathAccountability | 6 hermes paths absent from disk with no `<field>Note` |
-| Test-RepoStandard | `compliant-repo-passes`: the checker's `nested-no-duplication` rule flags the fixture's own nested AGENTS.md |
+| Test-DeclaredPathAccountability | 4 hermes paths absent from disk with no `<field>Note` |
 | Test-ScriptsFailLoudly | `Start-ChromeAgentCDP.ps1` does not set `$ErrorActionPreference = 'Stop'` |
 
 The mobile scope guard added `Test-MobileScope.ps1` (+5) and the
 Sync-Capabilities ledger fix added one behavior (+1), changing no failure:
-**169 passed / 4 failed**, same four files. `Test-ThirdPartyPlugins.ps1` then
+169 passed / 4 failed.
+
+**`Test-RepoStandard` was the fourth, and is fixed as of 2026-08-08.** It was
+never fixture noise. `Check-RepoStandard.ps1` compared `Get-ChildItem`'s
+`FullName` against a path built from the configured `fleetRoot`; those two
+disagree whenever the root is spelled differently on disk — an 8.3 short path
+(`C:\Users\SAROSH~1\...`, which is exactly what `$env:TEMP` returns here), a
+`subst` drive, a symlink. The root `AGENTS.md` then failed the "is this the root
+file" test and was audited as a nested one, with its relative path sliced at the
+wrong offset (`iant\AGENTS.md`). `Get-Item` expands 8.3; `Resolve-Path` does not.
+Two further findings from the same pass: the `nested-refs-root` rule accepted only
+two exact phrasings and rejected lienwise's perfectly clear "Root contract still
+applies: [`../AGENTS.md`]", and the whole nested-AGENTS rule had **no fixture
+coverage at all**, which is why both defects sat unnoticed. Three behaviors added,
+covering pass, fail, and the root-is-not-nested case. Suite now **179 passed /
+3 failed**. `Test-ThirdPartyPlugins.ps1` then
 added six more: **175 passed / 4 failed** across 28 files, still the same four.
 
 ## Known constraints

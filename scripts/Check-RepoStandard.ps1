@@ -198,15 +198,28 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
         Add-Result $Name 'claude-no-duplication' ($authoredLines.Count -le $claudeMaxLines) $(if ($authoredLines.Count -gt $claudeMaxLines) { "$($authoredLines.Count) authored content lines in CLAUDE.md; rules belong in AGENTS.md" } else { '' }) $false
     }
 
+    # Canonicalize before comparing. $path is built from the configured fleetRoot,
+    # which may be spelled differently than the filesystem's own answer -- an 8.3
+    # short root (C:\Users\SAROSH~1\...), a substituted drive, a symlink. Get-ChildItem
+    # always returns the long form, so a raw string compare left the root AGENTS.md
+    # failing the -ne test and audited as if it were nested, with $rel sliced at the
+    # wrong offset ("iant\AGENTS.md"). Get-Item expands 8.3; Resolve-Path does not.
+    $rootFull = (Get-Item -LiteralPath $path).FullName.TrimEnd('\', '/')
+    $agentsFull = if (Test-Path -LiteralPath $agentsPath) { (Get-Item -LiteralPath $agentsPath).FullName } else { $agentsPath }
     $nested = Get-ChildItem -LiteralPath $path -Recurse -File -Filter 'AGENTS.md' |
-        Where-Object { $_.FullName -ne $agentsPath } |
+        Where-Object { $_.FullName -ne $agentsFull } |
         Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|\.repowise)[\\/]' }
     $exemptions = @($Entry.agentsExemptions)
     foreach ($n in $nested) {
-        $rel = $n.FullName.Substring($path.Length + 1)
+        $rel = $n.FullName.Substring($rootFull.Length + 1)
         if ($rel -in $exemptions) { continue }
         $nText = Get-Content -LiteralPath $n.FullName -Raw -Encoding UTF8
-        $refsRoot = $nText -match '(?i)root\s+AGENTS\.md' -or $nText -match '(?i)root\s+file\s+(still\s+)?applies'
+        # Any of: "root AGENTS.md", "root file/contract (still) applies", or a link
+        # up to the root AGENTS.md. The rule is that the nested file defers to the
+        # root -- not that it defers in one exact phrasing.
+        $refsRoot = ($nText -match '(?i)root\s+AGENTS\.md') -or
+                    ($nText -match '(?i)root\s+(file|contract)\s+(still\s+)?applies') -or
+                    ($nText -match '(?i)\]\(\s*(\.\./)+AGENTS\.md\s*\)')
         Add-Result $Name "nested-refs-root:$rel" $refsRoot $(if (-not $refsRoot) { 'nested AGENTS.md must state the root AGENTS.md applies' } else { '' }) $false
         $dupes = (($nText -match '(?im)^#+\s*Mission') -and ($nText -match 'Knowledge authority') -and ($nText -match 'Definition of done'))
         Add-Result $Name "nested-no-duplication:$rel" (-not $dupes) $(if ($dupes) { 'nested AGENTS.md restates the root contract' } else { '' }) $false

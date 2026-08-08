@@ -158,6 +158,26 @@ try {
     $outDup = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
     Report 'claude-duplication-detected' ($outDup -match 'claude-no-duplication') (($outDup.Trim().Split("`n")) | Select-Object -Last 4 | Out-String)
 
+    # Nested AGENTS.md: a file that defers to the root passes, one that does not
+    # fails, and the root's own AGENTS.md is never audited as nested. The last of
+    # those regressed once already -- $env:TEMP is an 8.3 short path here while
+    # Get-ChildItem returns the long form, so a raw string compare mistook the root
+    # file for a nested one and sliced its $rel to "iant\AGENTS.md".
+    Remove-Item -LiteralPath (Join-Path $good 'CLAUDE.md') -Force
+    Set-Content -LiteralPath (Join-Path $good 'CLAUDE.md') -Encoding UTF8 -Value "# CLAUDE.md`n`n@AGENTS.md`n`n@.claude/CLAUDE.md`n"
+    New-Item -ItemType Directory -Force (Join-Path $good 'service') | Out-Null
+    Set-Content -LiteralPath (Join-Path $good 'service\AGENTS.md') -Encoding UTF8 `
+        -Value "# Service — local agent notes`n`nRoot contract still applies: [``../AGENTS.md``](../AGENTS.md).`n"
+    $outNested = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    Report 'nested-deferring-passes' ($outNested -notmatch 'nested-refs-root') (($outNested.Trim().Split("`n")) | Select-Object -Last 5 | Out-String)
+    Report 'root-agents-not-audited-as-nested' ($outNested -notmatch 'nested-\w+:[^\\/]*AGENTS\.md') (($outNested.Trim().Split("`n")) | Select-Object -Last 5 | Out-String)
+
+    Set-Content -LiteralPath (Join-Path $good 'service\AGENTS.md') -Encoding UTF8 `
+        -Value "# Service — local agent notes`n`nDo whatever you like in here.`n"
+    $outOrphan = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    Report 'nested-not-deferring-fails' ($outOrphan -match 'nested-refs-root:service') (($outOrphan.Trim().Split("`n")) | Select-Object -Last 5 | Out-String)
+    Remove-Item -LiteralPath (Join-Path $good 'service') -Recurse -Force
+
     # JSON mode stays parseable for machine consumers.
     $jsonOut = & $checker -Repo drifting -ConfigPath $configPath -Format json 2>&1 | Out-String
     $parsed = $null

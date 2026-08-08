@@ -62,7 +62,9 @@ indexed and fresh; one bootstrap commit per repo on `main`.
 - warrantygains in-flight deletions → workers stage only their own paths.
 - lienwise history was rewritten 2026-08-08; pre-rewrite SHAs are dead. Any
   worker holding a stale checkout must `git fetch && git reset --hard origin/main`
-  before it stages anything.
+  before it stages anything. The repo is now a single `main` on both sides —
+  the one surviving pre-rewrite branch was deleted after verifying it held no
+  unique work. See `docs/current-state.md` for what a rewrite cannot reach.
 - Rollback per repo: `git revert` the bootstrap commit.
 
 ## Decision log
