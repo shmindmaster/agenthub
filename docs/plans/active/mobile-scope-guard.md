@@ -58,6 +58,7 @@ Deliberately **not** in this plan; each needs its own decomposition:
   `developmentClient: true` while `package.json` has no `expo-dev-client`.
 - `abacare` `apps/mobile` (RBT session capture, caregiver workflows).
 - `gentlenext` native caregiver/family experience.
+- `subops` native statement/evidence field capture.
 - Apple App Store Connect API key; Google Play organization account and Play
   App Signing.
 - Push (APNs/FCM v1) and Universal Links / Android App Links.
@@ -134,9 +135,11 @@ would not be safe for a name that had reached a store.
   at all, so the only route is a new EAS project. Owner then chose to fold the
   re-create into the Rexa hardening work as its first step, because that work
   regenerates iOS credentials regardless.
-- **2026-08-08** `subops` was absent from the owner's portfolio table.
-  Classified `evaluateLater` (not eligible, identity not frozen) because
-  unclassified must never resolve to eligible. **Open: owner call needed.**
+- **2026-08-08** `subops` was absent from the owner's portfolio table, so it
+  was parked in `evaluateLater` because unclassified must never resolve to
+  eligible. Owner then ruled it **`include`, P1** the same day. Priority was my
+  call, not the owner's: P0 is the reference build and the flagship, so a
+  fourth eligible product sits with `gentlenext`.
 - **2026-08-08** The guard keys on product identity, not local path, so a
   freeze binds `empowera` and `documed` despite neither being cloned.
 - **2026-08-08** Accountability reuses `repo-standard.json` -> `excluded`

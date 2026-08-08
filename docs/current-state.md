@@ -26,7 +26,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   its prior hash so the modification stays detectable). Live ledger recovered
   from 469 destinations at 2026-08-05 to 501 current.
 - **Mobile scope guard**: `registry/mobile-scope.json` classifies all 21
-  products (3 eligible, 5 evaluate-later, 3 frozen, 10 no-native); the
+  products (4 eligible, 4 evaluate-later, 3 frozen, 10 no-native); the
   prohibition is compiled into every managed host by `Sync-Instructions.ps1`;
   `tests/Test-MobileScope.ps1` (5 behavior checks, passing 2026-08-08, each
   demonstrated failing against a synthetic fixture) keeps registry and policy

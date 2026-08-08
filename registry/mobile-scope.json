@@ -82,8 +82,9 @@
     {
       "productId": "subops",
       "repository": "shmindmaster/subops",
-      "bucket": "evaluateLater",
-      "note": "Absent from the owner's 2026-08-07 mobile portfolio table. Classified here as not-eligible pending an owner call, because unclassified must never resolve to eligible. Field subcontractor workflows are a plausible native case."
+      "bucket": "include",
+      "priority": "P1",
+      "note": "Absent from the owner's 2026-08-07 portfolio table; owner ruled it eligible 2026-08-08. Statement and evidence intake for FedEx Ground contractors is a field-capture workflow, which is the native case. Its HCBS lane is proposed research on synthetic data, not a shipped healthcare product, so healthSensitive is not set - set it the moment that lane touches real participant data."
     },
     {
       "productId": "sabhi",
