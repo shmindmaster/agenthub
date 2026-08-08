@@ -151,7 +151,7 @@ consistent forever:
 | Apple team | **1** | `9V6CGU625U`, Individual. |
 | iOS Distribution certificate | **1** | Shared by every app. Apple caps you at 2 - do not burn them. |
 | Apple App IDs | **1 per product** | EAS creates each on that product's first build. |
-| Provisioning profiles | **1 per App ID** | EAS-generated, named `[expo] <bundleId> AdHoc <ts>`. |
+| Provisioning profiles | **1 per App ID** | The target, not the default - see below. |
 | Registered devices | **1 per physical phone** | Shared across all profiles. |
 | APNs / App Store Connect API keys | **0** | Only needed for push and store submission. |
 
@@ -164,7 +164,14 @@ Ad Hoc profiles embed the device list, so adding a phone invalidates every
 existing profile until the next build regenerates them. A build that suddenly
 will not install on a new device is that, not a bug.
 
-Two traps found on this account, both worth checking elsewhere:
+**Profiles accumulate; EAS creates, it does not replace.** Regenerating
+credentials mints `[expo] <bundleId> AdHoc <ts>` and leaves the previous
+profile active against the same App ID - observed on 2026-08-08, two live
+profiles for `app.shmindmaster.rexa` after one rebuild. Only the newest is
+bound to the project. The stale ones are inert but they are what makes an
+account drift, so delete them in the portal when the count exceeds one.
+
+Three traps found on this account, all worth checking elsewhere:
 
 - Expo historically auto-created a `<username>s-team` organization at signup.
   It is a legacy artifact, not something to build on. A solo developer should
@@ -174,6 +181,13 @@ Two traps found on this account, both worth checking elsewhere:
   `app.shmindmaster.rexa` is described `shmindmasterrecallforge...`. The
   description is editable and EAS will not overwrite it; the bundle
   identifier underneath is not editable at all.
+- **A rebuild will not repair that name.** EAS names an App ID only when it
+  creates one, and it will not create one that already exists - `Bundle
+  identifier registered` in the build log means matched, not minted. Deleting
+  the App ID in the portal *before* the build is the only way to get a
+  correctly-named replacement, and it forces deleting every profile that
+  references it first. Renaming the description in the portal reaches the same
+  end state without spending a build; prefer it.
 
 Deleting an Expo project or account requires an interactive password
 re-confirmation ("sudo mode") and is not exposed as a GraphQL mutation, so it
