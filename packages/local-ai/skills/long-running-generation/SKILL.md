@@ -123,6 +123,34 @@ take 95s, 600s is a stall; if they take 20 minutes, it is normal.
 against the underlying evidence before killing anything. A monitor that has
 never fired is a monitor that has never been tested.
 
+### Prove a watcher can succeed before you trust its silence
+
+A polling watcher reports two states, and they look identical from outside:
+"not finished yet" and "my filter can never match." Neither prints an error.
+Neither exits non-zero. A watcher wrong in this way will poll politely until
+you give up, and its log is a wall of calm negative readings.
+
+**Run the watcher's own filter once, by hand, against real data, and confirm it
+returns a non-empty result — before backgrounding it.** If it cannot match
+something that already exists, it will never match something that appears
+later.
+
+Two watchers in one session polled `eas build:list` for 62 and 65 minutes
+respectively, printing `android=[]` throughout, while all four builds had
+already reached `FINISHED`. The cause was case: the API returns `"ANDROID"`
+and `"IOS"`, the filters compared against `"android"` and `"ios"`. Two hours
+of wall-clock spent watching a comparison that could not have matched.
+
+```bash
+# Before backgrounding any poll loop, prove the filter fires:
+<the-exact-query> | <the-exact-filter>   # must print something NOW
+```
+
+String-valued enums from an external API are the usual culprit — case,
+pluralization, and `-`/`_` spelling are all vendor choices you cannot infer.
+Print the raw values once and compare against those, never against the
+spelling you would have chosen.
+
 ## Shard by stable hash, never by index
 
 To split work across N processes, partition on a hash of the item's own stable
