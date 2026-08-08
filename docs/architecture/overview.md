@@ -13,6 +13,10 @@ and per-host deployment:
 - `fleet-profile.json` — dispatch policy, autonomy profiles, host surfaces.
 - `repo-standard.json` — fleet repository roster + standard rule parameters
   for the checker.
+- `mobile-scope.json` — which products may receive native mobile work, and
+  which have their mobile identity frozen pending repositioning. Absence from
+  it never means eligible; `tests/Test-MobileScope.ps1` fails on any
+  unclassified fleet repository.
 - `plugin-formats.json`, `subagent-formats.json`, `native-connectors.json`,
   `gateway-profiles.json`, `product-video-delivery.json` — host format and
   delivery records.

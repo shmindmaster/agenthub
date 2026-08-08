@@ -17,24 +17,42 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   (protocol 2025-06-18, probed). agenthub is the default/primary repo.
 - **Fleet checker**: `scripts/Check-RepoStandard.ps1` with fixture tests in
   `tests/Test-RepoStandard.ps1` (11 behavior checks, passing 2026-08-08).
+- **Mobile scope guard**: `registry/mobile-scope.json` classifies all 21
+  products (3 eligible, 5 evaluate-later, 3 frozen, 10 no-native); the
+  prohibition is compiled into every managed host by `Sync-Instructions.ps1`;
+  `tests/Test-MobileScope.ps1` (5 behavior checks, passing 2026-08-08, each
+  demonstrated failing against a synthetic fixture) keeps registry and policy
+  true together.
 
 ## In progress
 
 - Fleet-wide repository standardization to the
   [repo standard](./development/repo-standard.md): plan and live status in
   [plans/active/fleet-repo-standardization.md](./plans/active/fleet-repo-standardization.md).
+- Mobile platform rollout for the eligible products: plan and live status in
+  [plans/active/mobile-scope-guard.md](./plans/active/mobile-scope-guard.md).
+  The guard and the standard are landed; per-product implementation
+  (Rexa reference build, abacare `apps/mobile`, gentlenext) is not started.
 
 ## Known pre-existing test failures (as of 2026-08-08)
 
-`tests/Run-AllTests.ps1` has 7 failing files that fail identically on the
-commit preceding the standardization work (verified against a clean HEAD
-clone, 125 passed / 7 failed): Test-AgentHubEntryPoint, Test-CapabilityRouting,
-Test-CrlfAnchors, Test-DeclaredPathAccountability, Test-ScriptsFailLoudly,
-Test-SyncAgentHubIdempotency, Test-SyncCapabilities. They are agenthub's own
-engineering debt (capability-routing sections missing from
-use-chrome-devtools-mcp, hermes path notes, Start-ChromeAgentCDP strictness,
-Sync-AgentHub Get-FileHash resolution in test harnesses) — not caused by the
-standardization, which fixed Validate-AgentHub to green.
+Re-measured 2026-08-08 against a clean clone of `8ae18ff`: **163 passed / 4
+failed** across 26 files. Four earlier entries (Test-AgentHubEntryPoint,
+Test-CrlfAnchors, Test-SyncAgentHubIdempotency, Test-SyncCapabilities) now
+pass; `Test-RepoStandard` newly fails and is **not** the 11/11 this file
+previously claimed.
+
+The 4 failing files are agenthub's own engineering debt:
+
+| File | Cause |
+| --- | --- |
+| Test-CapabilityRouting | `use-chrome-devtools-mcp` carries no `## Capability required` or `## Resolve a provider` section (5 assertions) |
+| Test-DeclaredPathAccountability | 6 hermes paths absent from disk with no `<field>Note` |
+| Test-RepoStandard | `compliant-repo-passes`: the checker's `nested-no-duplication` rule flags the fixture's own nested AGENTS.md |
+| Test-ScriptsFailLoudly | `Start-ChromeAgentCDP.ps1` does not set `$ErrorActionPreference = 'Stop'` |
+
+The mobile scope guard added `Test-MobileScope.ps1` (+5 passed) and changed no
+failure: 168 passed / 4 failed, same four files.
 
 ## Known constraints
 

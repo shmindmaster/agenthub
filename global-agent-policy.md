@@ -37,6 +37,13 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Resolve a capability against `registry/fleet-profile.json` -> `hostSurfaces` for the surface actually in use, instead of inferring it from a product name. There, `null` means not established and `false` means checked and absent; neither is something to route to.
 - Continuous execution, meaning continuing to the next required task without prompting, applies only where the host's own autonomy profile in `registry/fleet-profile.json` -> `autonomyProfiles` permits it. On a host whose default profile is `interactive`, ask instead. This narrows autonomy and never widens it: the escalation check under Engineering behavior applies on every host, whatever its profile.
 
+## Mobile scope
+
+- `registry/mobile-scope.json` is the sole authority for which products may receive native mobile work. Resolve the product against it before any mobile action. A product absent from it is not eligible; stop and ask rather than inferring eligibility from an active repository, a live domain, or an owner remark.
+- For a product this file places in `excludedPendingReposition`, do not create, configure, publish, register, reserve, or modify any Expo project, EAS project, Apple bundle identifier, App Store Connect app, Google Play application or package, Firebase mobile application, APNs or FCM credential, mobile deep-link association, store metadata, mobile branding, or native application code. Their current product names, domains, and package identifiers are non-canonical and temporary. A placeholder identifier is a prohibited identifier.
+- This is a freeze on long-lived identity, not a scheduling preference: an Apple bundle identifier cannot be changed after the first build is uploaded to App Store Connect, and Android treats a changed `applicationId` as a different application. Only the owner lifts a freeze, and only by the `exitCondition` recorded against that product.
+- Mobile platform conventions for eligible products live in the `mobile-platform-standard` skill. Read it before mobile work; do not reconstruct the baseline from memory.
+
 ## Provider availability
 
 - Obey `registry/fleet-profile.json` dispatch policy before invoking an agent host, CLI, cloud runner, or API.

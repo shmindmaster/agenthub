@@ -446,6 +446,7 @@
       "canonicalSource": "packages/portfolio-engineering",
       "managedSkillNames": [
         "docs-drift",
+        "mobile-platform-standard",
         "portfolio-audit",
         "release-readiness",
         "repo-onboard",
@@ -458,7 +459,7 @@
         "repo-onboard": ["C7ED85300834CE1DFA55209150560B133FB36B665D5DD07C0E5BDB4768765387"],
         "verify-and-commit": ["DD71BF1E975AA45E953643CECD875451C4BC0992D0D0B97F71F516F9AFE3515F"]
       },
-      "contentHash": "ABF022A052CF55DAA4EFB4D890D8E9051EB3E850C89E87B46FF73C3AFE551DE0",
+      "contentHash": "7FFECBEEFF6C4EBA5FC8D5BE5EC4E48E20ED9276938CE4BECC25D3ACF7940EBA",
       "hashBasis": "packages/portfolio-engineering",
       "status": "active-canonical",
       "hostMappings": [

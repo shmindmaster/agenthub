@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "recordedOn": "2026-08-08",
+  "purpose": "Machine-readable authority for which fleet products may receive native mobile work, enforced by tests/Test-MobileScope.ps1. Mobile identifiers are effectively permanent: an Apple bundle identifier cannot be changed after the first build is uploaded to App Store Connect, and Android treats a changed applicationId as a different application. A product whose name is known to be temporary must therefore not have any long-lived mobile identity created for it, not even a placeholder.",
+  "rosterSource": "registry/repo-standard.json",
+  "rosterNote": "Every repo in repo-standard.json -> repos must appear below, except the names in repo-standard.json -> excluded. Products not in that roster (not cloned to the fleet root) may also appear here; empowera and documed do, because a freeze has to bind whether or not the repo is checked out locally.",
+  "scopePolicy": {
+    "unclassifiedIsEligible": false,
+    "unclassifiedNote": "Absence from this file never means allowed. An unlisted product is not eligible for mobile work; stop and ask the owner to classify it.",
+    "freezeLiftedBy": "owner-only",
+    "frozenIdentifierClasses": [
+      "expo-project",
+      "eas-project",
+      "apple-bundle-identifier",
+      "app-store-connect-app",
+      "google-play-package",
+      "firebase-mobile-app",
+      "apns-credential",
+      "fcm-credential",
+      "deep-link-association",
+      "store-metadata",
+      "mobile-branding",
+      "native-application-code"
+    ]
+  },
+  "buckets": {
+    "include": "Eligible now. Build against the mobile-platform-standard skill.",
+    "evaluateLater": "Not eligible. Native value is unproven; revisit when the product's own evidence justifies it. Identity is not frozen, but no mobile identifier may be reserved ahead of that decision either.",
+    "excludedPendingReposition": "Not eligible, and identity is frozen. Every class in scopePolicy.frozenIdentifierClasses is prohibited until the recorded exitCondition is met.",
+    "noNative": "Web, CLI, service, marketing, or infrastructure. No native mobile surface is intended."
+  },
+  "products": [
+    {
+      "productId": "rexa",
+      "repository": "shmindmaster/Rexa",
+      "bucket": "include",
+      "priority": "P0",
+      "note": "Reference implementation. Already Expo SDK 57 / RN 0.86 with an EAS project. Its slug carried the pre-rename product name 'recallforge', which is the exact failure this file exists to prevent."
+    },
+    {
+      "productId": "abacare",
+      "repository": "shmindmaster/abacare",
+      "bucket": "include",
+      "priority": "P0",
+      "healthSensitive": true,
+      "note": "apps/mobile in the existing pnpm workspace. RBT session capture and caregiver workflows first."
+    },
+    {
+      "productId": "gentlenext",
+      "repository": "shmindmaster/gentlenext",
+      "bucket": "include",
+      "priority": "P1",
+      "healthSensitive": true,
+      "note": "Native caregiver and family experience; selected navigator functions later."
+    },
+    {
+      "productId": "lawli",
+      "repository": "shmindmaster/lawli",
+      "bucket": "evaluateLater",
+      "priority": "P2",
+      "note": "Evaluate a companion app after the web beta proves demand."
+    },
+    {
+      "productId": "warrantygains",
+      "repository": "shmindmaster/warrantygains",
+      "bucket": "evaluateLater",
+      "priority": "P2",
+      "note": "Consider later for evidence, document, and photo capture."
+    },
+    {
+      "productId": "verigence",
+      "repository": "shmindmaster/verigence",
+      "bucket": "evaluateLater",
+      "note": "Native only if live-call or mobile operator workflows justify it."
+    },
+    {
+      "productId": "lexalign",
+      "repository": "shmindmaster/lexalign",
+      "bucket": "evaluateLater",
+      "note": "PWA/web first. Native only when attorney field workflows justify it."
+    },
+    {
+      "productId": "subops",
+      "repository": "shmindmaster/subops",
+      "bucket": "evaluateLater",
+      "note": "Absent from the owner's 2026-08-07 mobile portfolio table. Classified here as not-eligible pending an owner call, because unclassified must never resolve to eligible. Field subcontractor workflows are a plausible native case."
+    },
+    {
+      "productId": "sabhi",
+      "repository": "shmindmaster/sabhi",
+      "bucket": "excludedPendingReposition",
+      "frozen": true,
+      "exitCondition": "Owner explicitly establishes a new product identity and architecture. Only the owner lifts this freeze.",
+      "note": "Pending substantive product refactoring, repositioning, renaming, and rebranding. Treat the current product name, domain, and package identifiers as non-canonical and temporary."
+    },
+    {
+      "productId": "empowera",
+      "repository": "shmindmaster/empowera",
+      "bucket": "excludedPendingReposition",
+      "frozen": true,
+      "clonedToFleetRoot": false,
+      "exitCondition": "Owner explicitly establishes a new product identity and architecture. Only the owner lifts this freeze.",
+      "note": "Pending substantive product refactoring, repositioning, renaming, and rebranding. Not a repo-standard.json roster member because it is not cloned to the fleet root; the freeze binds on product identity regardless."
+    },
+    {
+      "productId": "documed",
+      "repository": "shmindmaster/documed",
+      "bucket": "excludedPendingReposition",
+      "frozen": true,
+      "clonedToFleetRoot": false,
+      "exitCondition": "Owner explicitly establishes a new product identity and architecture. Only the owner lifts this freeze.",
+      "note": "Dormant since 2026-07-18 and never cloned to the fleet root. Owner moved it from evaluate-later to frozen on 2026-08-08 so no identifier can be reserved for a product whose direction is unsettled."
+    },
+    {
+      "productId": "coledger",
+      "repository": "shmindmaster/coledger",
+      "bucket": "noNative",
+      "note": "Web and service oriented."
+    },
+    {
+      "productId": "crewscore",
+      "repository": "shmindmaster/crewscore",
+      "bucket": "noNative",
+      "note": "Open-source CLI and service."
+    },
+    {
+      "productId": "agenthub",
+      "repository": "shmindmaster/agenthub",
+      "bucket": "noNative",
+      "note": "Fleet control plane. No product surface."
+    },
+    {
+      "productId": "gitpin",
+      "repository": "shmindmaster/gitpin",
+      "bucket": "noNative",
+      "note": "Open-source CLI."
+    },
+    {
+      "productId": "mahumtech",
+      "repository": "shmindmaster/mahumtech",
+      "bucket": "noNative",
+      "note": "Marketing site."
+    },
+    {
+      "productId": "saroshhussain",
+      "repository": "shmindmaster/saroshhussain",
+      "bucket": "noNative",
+      "note": "Personal site."
+    },
+    {
+      "productId": "shtrial",
+      "repository": "shmindmaster/shtrial",
+      "bucket": "noNative",
+      "note": "Trial and staging domain infrastructure."
+    },
+    {
+      "productId": "tgiagency",
+      "repository": "shmindmaster/tgiagency",
+      "bucket": "noNative",
+      "note": "Marketing site."
+    },
+    {
+      "productId": "contact-email-relay",
+      "repository": "shmindmaster/contact-email-relay",
+      "bucket": "noNative",
+      "clonedToFleetRoot": false,
+      "note": "Infrastructure service."
+    },
+    {
+      "productId": "shmindmaster",
+      "repository": "shmindmaster/shmindmaster",
+      "bucket": "noNative",
+      "clonedToFleetRoot": false,
+      "note": "GitHub profile repository."
+    }
+  ]
+}
