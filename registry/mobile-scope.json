@@ -35,7 +35,17 @@
       "repository": "shmindmaster/Rexa",
       "bucket": "include",
       "priority": "P0",
-      "note": "Reference implementation. Already Expo SDK 57 / RN 0.86 with an EAS project. Its slug carried the pre-rename product name 'recallforge', which is the exact failure this file exists to prevent."
+      "note": "Reference implementation. Already Expo SDK 57 / RN 0.86 with an EAS project. Its slug carried the pre-rename product name 'recallforge', which is the exact failure this file exists to prevent.",
+      "mobileIdentity": {
+        "iosBundleIdentifier": "app.shmindmaster.rexa",
+        "androidPackage": "app.shmindmaster.rexa",
+        "easSlug": "recallforge",
+        "appleTeamId": "9V6CGU625U",
+        "appPath": ".",
+        "easProjectCreated": false,
+        "recordedOn": "2026-08-08",
+        "note": "Org reverse-DNS rather than product-domain because rexa.ai is not owned. Minted before the convention below existed and permanent, so it stays. The EAS slug still reads recallforge and Expo exposes no rename -- see M6 in the mobile-scope-guard plan."
+      }
     },
     {
       "productId": "abacare",
@@ -43,7 +53,16 @@
       "bucket": "include",
       "priority": "P0",
       "healthSensitive": true,
-      "note": "apps/mobile in the existing pnpm workspace. RBT session capture and caregiver workflows first."
+      "note": "apps/mobile in the existing pnpm workspace. RBT session capture and caregiver workflows first.",
+      "mobileIdentity": {
+        "iosBundleIdentifier": "ai.abacare.app",
+        "androidPackage": "ai.abacare.app",
+        "easSlug": "abacare",
+        "appleTeamId": "9V6CGU625U",
+        "appPath": "apps/mobile",
+        "easProjectCreated": false,
+        "recordedOn": "2026-08-08"
+      }
     },
     {
       "productId": "gentlenext",
@@ -51,7 +70,16 @@
       "bucket": "include",
       "priority": "P1",
       "healthSensitive": true,
-      "note": "Native caregiver and family experience; selected navigator functions later."
+      "note": "Native caregiver and family experience; selected navigator functions later.",
+      "mobileIdentity": {
+        "iosBundleIdentifier": "ai.gentlenext.app",
+        "androidPackage": "ai.gentlenext.app",
+        "easSlug": "gentlenext",
+        "appleTeamId": "9V6CGU625U",
+        "appPath": "apps/mobile",
+        "easProjectCreated": false,
+        "recordedOn": "2026-08-08"
+      }
     },
     {
       "productId": "subops",
@@ -65,7 +93,16 @@
       "repository": "shmindmaster/lienwise",
       "bucket": "include",
       "priority": "P1",
-      "note": "Frozen under a former product name on 2026-08-07 pending repositioning; the exit condition was met on 2026-08-08. docs/lienwise/DECISION.md establishes the new identity and architecture, the repository was renamed, and a history rewrite removed the retired name from all 296 commits, so nothing temporary can leak into a permanent identifier. Owner ruled it in scope the same day. lienwise.ai is canonical, so reverse-DNS is ai.lienwise.*. The native case is field capture - site photos, delivery proof, and signed waivers are the evidence a preliminary-notice deadline depends on, and they are gathered away from a desk. Not healthSensitive: construction payment records, no PHI."
+      "note": "Frozen under a former product name on 2026-08-07 pending repositioning; the exit condition was met on 2026-08-08. docs/lienwise/DECISION.md establishes the new identity and architecture, the repository was renamed, and a history rewrite removed the retired name from all 296 commits, so nothing temporary can leak into a permanent identifier. Owner ruled it in scope the same day. lienwise.ai is canonical, so reverse-DNS is ai.lienwise.*. The native case is field capture - site photos, delivery proof, and signed waivers are the evidence a preliminary-notice deadline depends on, and they are gathered away from a desk. Not healthSensitive: construction payment records, no PHI.",
+      "mobileIdentity": {
+        "iosBundleIdentifier": "ai.lienwise.app",
+        "androidPackage": "ai.lienwise.app",
+        "easSlug": "lienwise",
+        "appleTeamId": "9V6CGU625U",
+        "appPath": "apps/mobile",
+        "easProjectCreated": false,
+        "recordedOn": "2026-08-08"
+      }
     },
     {
       "productId": "lawli",
@@ -173,5 +210,11 @@
       "clonedToFleetRoot": false,
       "note": "GitHub profile repository."
     }
-  ]
+  ],
+  "identifierConvention": {
+    "rule": "Reverse-DNS from the product's own canonical domain, so an identifier never binds a product to the org that happens to own it today.",
+    "appliesFrom": "2026-08-08",
+    "exception": "rexa uses app.shmindmaster.rexa because rexa.ai is not owned; it predates this rule and cannot be changed.",
+    "permanence": "An Apple bundle identifier cannot change after the first App Store Connect upload, and Android treats a changed applicationId as a different application. Owner decision required to mint or alter one."
+  }
 }

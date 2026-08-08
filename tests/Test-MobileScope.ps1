@@ -315,12 +315,71 @@ function Test-NoFrozenProductHasMobileArtifacts {
 
 # ---------------------------------------------------------------------------
 
+function Test-RecordedIdentifiersMatchDisk {
+    # A recorded identifier that has drifted from the app config is worse than
+    # no record: it reads as authoritative while the build mints something else.
+    # Bundle identifiers cannot be corrected after a store upload, so the two
+    # must be checked against each other, not trusted in parallel.
+    $fleetRoot = [string]$standard.fleetRoot
+    $findings  = [Collections.Generic.List[string]]::new()
+    $checked   = 0
+
+    foreach ($product in $products) {
+        $identity = $product.mobileIdentity
+        if (-not $identity) { continue }
+
+        $repoName = [string]$product.repository -replace '^.*/', ''
+        $appDir   = if ([string]$identity.appPath -eq '.') { Join-Path $fleetRoot $repoName }
+                    else { Join-Path (Join-Path $fleetRoot $repoName) ([string]$identity.appPath) }
+        $appJson  = Join-Path $appDir 'app.json'
+        if (-not (Test-Path -LiteralPath $appJson)) {
+            $findings.Add("$($product.productId): mobileIdentity recorded but no app.json at $appJson")
+            continue
+        }
+        $checked++
+        $expo = (Get-Content -LiteralPath $appJson -Raw -Encoding UTF8 | ConvertFrom-Json).expo
+        $pairs = @(
+            @{ Field = 'iosBundleIdentifier'; Recorded = [string]$identity.iosBundleIdentifier; OnDisk = [string]$expo.ios.bundleIdentifier }
+            @{ Field = 'androidPackage';      Recorded = [string]$identity.androidPackage;      OnDisk = [string]$expo.android.package }
+            @{ Field = 'easSlug';             Recorded = [string]$identity.easSlug;             OnDisk = [string]$expo.slug }
+            @{ Field = 'appleTeamId';         Recorded = [string]$identity.appleTeamId;         OnDisk = [string]$expo.ios.appleTeamId }
+        )
+        foreach ($pair in $pairs) {
+            if ($pair.Recorded -ne $pair.OnDisk) {
+                $findings.Add("$($product.productId).$($pair.Field): registry says '$($pair.Recorded)', app.json says '$($pair.OnDisk)'")
+            }
+        }
+
+        # One development profile, and nothing that ships to a store.
+        $easJson = Join-Path $appDir 'eas.json'
+        if (Test-Path -LiteralPath $easJson) {
+            $eas = Get-Content -LiteralPath $easJson -Raw -Encoding UTF8 | ConvertFrom-Json
+            $profiles = @($eas.build.PSObject.Properties.Name)
+            if ($profiles -ne 'development') {
+                $findings.Add("$($product.productId): eas.json declares build profile(s) [$($profiles -join ', ')]; only 'development' is in scope")
+            }
+            if ($eas.PSObject.Properties.Name -contains 'submit') {
+                $findings.Add("$($product.productId): eas.json carries a submit block; store submission is out of scope")
+            }
+        }
+    }
+
+    if ($checked -eq 0) {
+        return @{ Passed = $false; Detail = 'no product with a recorded mobileIdentity was found on disk, so this behavior proved nothing' }
+    }
+    if ($findings.Count -gt 0) {
+        return @{ Passed = $false; Detail = ($findings -join '; ') }
+    }
+    return @{ Passed = $true; Detail = "$checked app config(s) agree with the registry" }
+}
+
 $behaviors = @(
     @{ Name = 'mobile-scope.json is structurally sound';                 Run = { Test-SchemaIsSound } }
     @{ Name = 'every fleet repository carries a classification';         Run = { Test-EveryFleetRepoIsClassified } }
     @{ Name = 'empowera and documed are still frozen';                   Run = { Test-FrozenProductsStayFrozen } }
     @{ Name = 'global-agent-policy.md still carries the guard verbatim'; Run = { Test-PolicyStillCarriesTheGuard } }
     @{ Name = 'no frozen product has grown a mobile footprint';          Run = { Test-NoFrozenProductHasMobileArtifacts } }
+    @{ Name = 'recorded mobile identifiers match the app configs';       Run = { Test-RecordedIdentifiersMatchDisk } }
 )
 foreach ($behavior in $behaviors) {
     $result = & $behavior.Run
