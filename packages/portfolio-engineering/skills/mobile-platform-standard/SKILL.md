@@ -64,11 +64,35 @@ Release routing follows the fingerprint: unchanged native state ships as an
 EAS Update; changed native state builds and submits. Do not hand-roll this
 decision.
 
-## 3. Three installable variants, not three profiles
+## 3. One identity per product until a product actually ships
 
-Development, preview, and production must install side by side on one device,
-which requires distinct application identifiers - not just distinct EAS build
-profiles. Drive them from `APP_VARIANT` in `app.config.ts`:
+**Default: a single bundle identifier, a single EAS `development` profile.**
+Owner decision 2026-08-08, after this file briefly said otherwise.
+
+Every identifier suffix is a separate Apple App ID with its own provisioning
+profile. A `.dev` / `.preview` / production split across four products is
+twelve App IDs and twelve profiles - to run debug builds on two phones. The
+side-by-side install that split buys is worth nothing until something is
+actually being released.
+
+```json
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    }
+  }
+}
+```
+
+Add profiles when a real need appears and say what it is - Rexa carries a
+`study` profile because it needs a build that runs without a dev server. That
+is a reason; "we might release someday" is not.
+
+Adopt suffixed variants only when a product is genuinely heading to a store
+and needs side-by-side installs. Then, and only then:
 
 ```ts
 const variant = process.env.APP_VARIANT ?? "production";
@@ -76,13 +100,18 @@ const suffix =
   variant === "development" ? ".dev" : variant === "preview" ? ".preview" : "";
 ```
 
-Apply `suffix` to both `ios.bundleIdentifier` and `android.package`, and vary
-the display name to match.
+Applied to both `ios.bundleIdentifier` and `android.package`, with a matching
+display name.
 
 ## 4. Identifier conventions
 
-- Reverse-DNS from the product's own domain (`ai.abacare.mobile`), not a
-  shared vendor prefix.
+- Reverse-DNS from the product's own domain (`ai.abacare.app`), not a shared
+  vendor prefix - so an identifier never binds a product to whoever owns it
+  today. Recorded per product under `mobileIdentity` in
+  `registry/mobile-scope.json`, and `tests/Test-MobileScope.ps1` fails if a
+  recorded identifier drifts from the app config.
+- Exception on record: `rexa` uses `app.shmindmaster.rexa` because `rexa.ai`
+  is not owned. It predates the rule and cannot be changed.
 - One EAS project per product. The EAS slug equals the product's `productId`
   in `registry/mobile-scope.json`.
 - Anything compiled into client JavaScript is public. EAS secrets do not make
@@ -92,14 +121,65 @@ the display name to match.
 and the Expo dashboard: `eas project` exposes only
 `icon`/`delete`/`info`/`init`/`new`, and project settings edits a separate
 "Display name" while the Danger zone offers only transfer and delete. The only
-route to a different slug is a new project, which means a new project ID, lost
+route to a different slug is delete and re-create - a new project ID, lost
 build history, and regenerated credentials.
 
-Cautionary case: Rexa's EAS project shipped as `@shmindmaster/recallforge` -
-the pre-rename product name, now permanent for that project ID. Set the slug
+Cautionary case, and how it ended: Rexa's EAS project shipped as
+`@shmindmaster/recallforge`, the pre-rename product name. The owner deleted
+the project on 2026-08-08 and the slug is being re-created as `rexa`. That was
+only affordable because nothing had been store-submitted and no EAS Update
+channel existed - the sole cost was build history. **Delete-and-re-create stops
+being an option the moment a build reaches App Store Connect.** Set the slug
 from the final name, or freeze the product until there is one.
 
-## 5. Health-sensitive products
+When a project is deleted, clear `extra.eas.projectId` from `app.json`. A
+project ID pointing at a deleted project fails every `eas` command with
+"project not found"; `eas init` writes a fresh one.
+
+Account-level Apple state (team, distribution certificate, App IDs, devices)
+survives an EAS project deletion - it belongs to the account, not the project.
+
+## 5. Account topology - one of everything
+
+Verified against the live Expo and Apple accounts on 2026-08-08. A solo
+developer needs exactly this, and every extra row is something to keep
+consistent forever:
+
+| Layer | Correct count | Detail |
+| --- | --- | --- |
+| Expo account | **1** | `shmindmaster`, the personal account. Not an organization. |
+| Apple team | **1** | `9V6CGU625U`, Individual. |
+| iOS Distribution certificate | **1** | Shared by every app. Apple caps you at 2 - do not burn them. |
+| Apple App IDs | **1 per product** | EAS creates each on that product's first build. |
+| Provisioning profiles | **1 per App ID** | EAS-generated, named `[expo] <bundleId> AdHoc <ts>`. |
+| Registered devices | **1 per physical phone** | Shared across all profiles. |
+| APNs / App Store Connect API keys | **0** | Only needed for push and store submission. |
+
+**Never hand-create anything in the Apple Developer portal.** Let EAS create
+App IDs and profiles; hand-made ones drift from what EAS expects and produce
+provisioning failures that are slow to unpick. Four apps do not mean four
+certificates - EAS reuses the one.
+
+Ad Hoc profiles embed the device list, so adding a phone invalidates every
+existing profile until the next build regenerates them. A build that suddenly
+will not install on a new device is that, not a bug.
+
+Two traps found on this account, both worth checking elsewhere:
+
+- Expo historically auto-created a `<username>s-team` organization at signup.
+  It is a legacy artifact, not something to build on. A solo developer should
+  delete it and work under the personal account.
+- EAS names an Apple App ID from the EAS project's full name at creation time,
+  so a stale EAS slug leaks into the Apple portal - here the App ID for
+  `app.shmindmaster.rexa` is described `shmindmasterrecallforge...`. The
+  description is editable and EAS will not overwrite it; the bundle
+  identifier underneath is not editable at all.
+
+Deleting an Expo project or account requires an interactive password
+re-confirmation ("sudo mode") and is not exposed as a GraphQL mutation, so it
+cannot be automated - hand those steps to the owner.
+
+## 6. Health-sensitive products
 
 `registry/mobile-scope.json` marks products with `healthSensitive: true`
 (currently `abacare` and `gentlenext`). For those, do not enable screenshot
@@ -107,7 +187,7 @@ collection, session replay, or broad AI/MCP access against real patient data.
 Review the connected model provider's retention and training policy before
 enabling MCP access at all, and prefer synthetic fixtures.
 
-## 6. Dated platform requirement
+## 7. Dated platform requirement
 
 Google Play requires new apps and updates to target Android 16 / API 36 from
 **2026-08-31**. Expo SDK 57 already compiles against API 36, so a

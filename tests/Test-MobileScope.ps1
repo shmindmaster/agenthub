@@ -331,38 +331,56 @@ function Test-RecordedIdentifiersMatchDisk {
         $repoName = [string]$product.repository -replace '^.*/', ''
         $appDir   = if ([string]$identity.appPath -eq '.') { Join-Path $fleetRoot $repoName }
                     else { Join-Path (Join-Path $fleetRoot $repoName) ([string]$identity.appPath) }
-        $appJson  = Join-Path $appDir 'app.json'
-        if (-not (Test-Path -LiteralPath $appJson)) {
-            $findings.Add("$($product.productId): mobileIdentity recorded but no app.json at $appJson")
-            continue
-        }
-        $checked++
-        $expo = (Get-Content -LiteralPath $appJson -Raw -Encoding UTF8 | ConvertFrom-Json).expo
-        $pairs = @(
-            @{ Field = 'iosBundleIdentifier'; Recorded = [string]$identity.iosBundleIdentifier; OnDisk = [string]$expo.ios.bundleIdentifier }
-            @{ Field = 'androidPackage';      Recorded = [string]$identity.androidPackage;      OnDisk = [string]$expo.android.package }
-            @{ Field = 'easSlug';             Recorded = [string]$identity.easSlug;             OnDisk = [string]$expo.slug }
-            @{ Field = 'appleTeamId';         Recorded = [string]$identity.appleTeamId;         OnDisk = [string]$expo.ios.appleTeamId }
-        )
-        foreach ($pair in $pairs) {
-            if ($pair.Recorded -ne $pair.OnDisk) {
-                $findings.Add("$($product.productId).$($pair.Field): registry says '$($pair.Recorded)', app.json says '$($pair.OnDisk)'")
-            }
-        }
 
-        # One development profile, and nothing that ships to a store.
-        $easJson = Join-Path $appDir 'eas.json'
-        if (Test-Path -LiteralPath $easJson) {
-            $eas = Get-Content -LiteralPath $easJson -Raw -Encoding UTF8 | ConvertFrom-Json
-            $profiles = @($eas.build.PSObject.Properties.Name)
-            if ($profiles -ne 'development') {
-                $findings.Add("$($product.productId): eas.json declares build profile(s) [$($profiles -join ', ')]; only 'development' is in scope")
+        # Expo resolves a dynamic app.config.ts/js ahead of a static app.json, so
+        # checking only app.json would silently pass on a repo whose real identity
+        # lives elsewhere. Evaluating TypeScript here is not worth a test
+        # dependency: a dynamic config builds identifiers from constants, so the
+        # recorded base identifier must appear literally in the file.
+        $static  = Join-Path $appDir 'app.json'
+        $dynamic = @('app.config.ts','app.config.js','app.config.mjs') |
+                   ForEach-Object { Join-Path $appDir $_ } |
+                   Where-Object { Test-Path -LiteralPath $_ } |
+                   Select-Object -First 1
+
+        if ($dynamic) {
+            $checked++
+            $text = Get-Content -LiteralPath $dynamic -Raw -Encoding UTF8
+            $configName = Split-Path -Leaf $dynamic
+            foreach ($field in 'iosBundleIdentifier','easSlug','appleTeamId') {
+                $recorded = [string]$identity.$field
+                if ($text -notmatch [regex]::Escape($recorded)) {
+                    $findings.Add("$($product.productId).$field : registry says '$recorded', which does not appear anywhere in $configName")
+                }
             }
-            if ($eas.PSObject.Properties.Name -contains 'submit') {
-                $findings.Add("$($product.productId): eas.json carries a submit block; store submission is out of scope")
+        }
+        elseif (Test-Path -LiteralPath $static) {
+            $checked++
+            $expo = (Get-Content -LiteralPath $static -Raw -Encoding UTF8 | ConvertFrom-Json).expo
+            $pairs = @(
+                @{ Field = 'iosBundleIdentifier'; Recorded = [string]$identity.iosBundleIdentifier; OnDisk = [string]$expo.ios.bundleIdentifier }
+                @{ Field = 'androidPackage';      Recorded = [string]$identity.androidPackage;      OnDisk = [string]$expo.android.package }
+                @{ Field = 'easSlug';             Recorded = [string]$identity.easSlug;             OnDisk = [string]$expo.slug }
+                @{ Field = 'appleTeamId';         Recorded = [string]$identity.appleTeamId;         OnDisk = [string]$expo.ios.appleTeamId }
+            )
+            foreach ($pair in $pairs) {
+                if ($pair.Recorded -ne $pair.OnDisk) {
+                    $findings.Add("$($product.productId).$($pair.Field): registry says '$($pair.Recorded)', app.json says '$($pair.OnDisk)'")
+                }
             }
+        }
+        else {
+            $findings.Add("$($product.productId): mobileIdentity recorded but no app.json or app.config.* under $appDir")
         }
     }
+
+    # Deliberately NOT asserted here: how many EAS build profiles a product
+    # declares, or whether it carries a submit block. Those are scheduling
+    # decisions the owner changes freely -- Rexa grew a 'study' profile and
+    # abacare a store.config.json within a day of this file being written -- and
+    # a guard that fails on a legitimate decision only teaches people to ignore
+    # it. What is permanent, and therefore what this behavior defends, is the
+    # identifier itself.
 
     if ($checked -eq 0) {
         return @{ Passed = $false; Detail = 'no product with a recorded mobileIdentity was found on disk, so this behavior proved nothing' }
