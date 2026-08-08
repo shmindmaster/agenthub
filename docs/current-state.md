@@ -42,6 +42,19 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   condition was met, so it moved to `include` (P1). **Pre-rewrite SHAs are
   dead**: any other checkout needs `git fetch && git reset --hard origin/main`.
 
+- **Third-party plugin tracking (2026-08-08)**: `registry/native-connectors.json`
+  -> `thirdPartyPlugins` records plugins the fleet uses but does not own, with
+  the official channel and last-observed version per host.
+  `tests/Test-ThirdPartyPlugins.ps1` (6 behaviors, each demonstrated failing
+  against a synthetic fixture) fails if a lagging host names no fix, if an
+  absent host explains no reason, or if a tracked plugin is ever republished
+  from AgentHub's own marketplace. First tracked plugin is **superpowers**
+  (obra/superpowers, MIT): current at 6.2.0 on claude, codex, antigravity, and
+  grok; **behind on cursor (6.1.1) and qoder (5.1.0)**, both in-app owner
+  actions. AgentHub does not vendor it — `hostPrivateExtensionPolicy` withholds
+  install authority for claude and codex, and mirroring would cut the host off
+  from the upstream release stream.
+
 ## In progress
 
 - Fleet-wide repository standardization to the
@@ -71,7 +84,8 @@ The 4 failing files are agenthub's own engineering debt:
 
 The mobile scope guard added `Test-MobileScope.ps1` (+5) and the
 Sync-Capabilities ledger fix added one behavior (+1), changing no failure:
-**169 passed / 4 failed**, same four files.
+**169 passed / 4 failed**, same four files. `Test-ThirdPartyPlugins.ps1` then
+added six more: **175 passed / 4 failed** across 28 files, still the same four.
 
 ## Known constraints
 

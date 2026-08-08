@@ -231,6 +231,39 @@
       "mutationPolicy": "do-not-add-bundled-mcp-without-owner-reassignment"
     }
   ],
+  "thirdPartyPlugins": {
+    "policy": {
+      "authority": "upstream-maintainer",
+      "agentHubOwnership": "none",
+      "inventoryMode": "channel-and-currency-observation-only",
+      "rule": "AgentHub does not vendor, fork, mirror, or re-host a third-party plugin. Each host installs it from that host's own official channel and updates it with that host's own command. This block records which channel each host uses and what was last observed there, so a host silently falling behind is detectable; it does not grant AgentHub install authority, which hostPrivateExtensionPolicy withholds for claude and codex.",
+      "whyNotAMarketplaceEntry": "Adding a third-party plugin to .claude-plugin/marketplace.json would make AgentHub the publisher of code it does not own, pin it to whatever revision AgentHub last copied, and cut the host off from the upstream release stream. The official per-host channel is what keeps it current."
+    },
+    "plugins": [
+      {
+        "pluginId": "superpowers",
+        "upstream": "https://github.com/obra/superpowers",
+        "maintainer": "Jesse Vincent",
+        "license": "MIT",
+        "capabilityType": "skills-and-hooks",
+        "declaresMcpServers": false,
+        "upstreamMarketplace": {
+          "name": "superpowers-dev",
+          "note": "The manifest in obra/superpowers self-describes as a development marketplace. Upstream's README points Claude Code at Anthropic's official marketplace first and at obra/superpowers-marketplace second; the development marketplace is not the distribution channel."
+        },
+        "observedAt": "2026-08-08",
+        "hostChannels": [
+          { "hostId": "claude", "channel": "claude-plugins-official", "installedVersion": "6.2.0", "current": true, "updateCommand": "claude plugin update superpowers@claude-plugins-official" },
+          { "hostId": "codex", "channel": "openai-curated-remote", "installedVersion": "6.2.0", "current": true, "updateCommand": "Codex app -> Plugins -> Superpowers", "note": "A stale 6.1.1 also sits in the claude-plugins-official cache under ~/.codex; the openai-curated-remote copy is the live one." },
+          { "hostId": "antigravity", "channel": "upstream-git", "installedVersion": "6.2.0", "current": true, "updateCommand": "agy plugin install https://github.com/obra/superpowers", "note": "Installed 2026-08-08; it was absent before. Upstream documents reinstall-as-update for this host. 14 skills + 1 hook imported." },
+          { "hostId": "grok", "channel": "upstream-git", "installedVersion": "6.2.0", "current": true, "updateCommand": "grok plugin update superpowers", "note": "Clone is at the v6.2.0 release commit; origin/main is 2 docs-only commits ahead. The 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory - retry when no grok session is running." },
+          { "hostId": "cursor", "channel": "cursor-public", "installedVersion": "6.1.1", "current": false, "updateCommand": "Cursor in-app plugin UI", "note": "Pinned to upstream commit d884ae0 (v6.1.1). cursor-agent's CLI exposes only marketplace add/list/remove/update, and marketplace update needs account auth that is not present in this environment, so the bump is an in-app owner action." },
+          { "hostId": "qoder", "channel": "qoder-marketplace", "installedVersion": "5.1.0", "current": false, "updateCommand": "Qoder in-app plugin UI", "note": "Four minor versions behind. The qoder CLI is an editor launcher with no plugin subcommand, so this is an in-app owner action." },
+          { "hostId": "cline", "channel": null, "installedVersion": null, "current": false, "note": "Not installed. Cline consumes loose skills rather than plugins; upstream documents no Cline install path, so this is a deliberate gap, not drift." }
+        ]
+      }
+    ]
+  },
   "exposureModes": [
     "plugin-owned",
     "native-connector",
