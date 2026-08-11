@@ -381,6 +381,32 @@
       "hosts": [ "amp", "antigravity", "claude", "cline", "codex", "copilot", "cursor", "devin", "factory", "gemini", "grok", "hermes", "opencode", "qoder", "qwen-code", "vscode-insiders", "warp", "windsurf" ],
       "experimentalFlagsEnabled": [],
       "notes": "Registered 2026-08-08 during the fleet repository standardization. The workspace lives at the fleet root (.repowise-workspace.yaml); awesome-mcp-servers (external fork) and .demo-workspace (not a repo) are deliberately excluded. Post-commit hooks keep member indexes fresh; `repowise status -w` / `doctor -w` report fleet health. Dashboard: `repowise serve` from the fleet root."
+    },
+    {
+      "id": "appium-mobile",
+      "name": "Appium Mobile (Android local, iOS remote)",
+      "scope": "on-demand-desktop",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "command": "npx",
+      "args": [ "-y", "appium-mcp@1.92.0" ],
+      "env": { "ANDROID_HOME": "${env:ANDROID_HOME}", "NO_UI": "true" },
+      "credentialPolicy": "none-in-config; no account, token, or API key is required. AI_VISION_ENABLED is deliberately left off, because it would require an external vision API key and the native element tree already provides locators.",
+      "providesCapabilities": [ "mobile.android.local", "mobile.ios.simulated" ],
+      "providesCapabilitiesNote": "mobile.android.local -- an Android emulator or attached device on the Windows host, driven through the MCP's embedded UiAutomator2 (omit remoteServerUrl). mobile.ios.simulated -- an iOS Simulator inside the VMware macOS guest, driven by passing remoteServerUrl for the guest's Appium 3.6.0 + XCUITest 12.3.1 on port 4723. Neither capability covers a physical iPhone or a real-hardware claim.",
+      "protocol": {
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-08-10",
+        "verification": "stdio initialize against `npx -y appium-mcp@1.92.0` returned protocolVersion 2025-11-25, serverInfo 'MCP Appium' 1.92.0, and 31 tools. Sessions then created against both platforms concurrently: Android emulator-5554 (UiAutomator2, local) and iPhone 17 / iOS 26.5 (XCUITest, remote), with screenshots captured from each."
+      },
+      "localProcessPolicy": {
+        "instancing": "single-shared-process",
+        "note": "Pinned to 1.92.0 rather than @latest so a re-resolve does not silently move the lab; see chrome-devtools for the pinned precedent and brave-search for the deliberately unpinned counterpart. Started on demand by the mobile-device-lab capability, never at session start -- the emulator and macOS guest it drives are expensive and must not be implied to be running."
+      },
+      "owner": { "type": "capability", "id": "mobile-device-lab" },
+      "hosts": [ "amp", "antigravity", "claude", "cline", "codex", "copilot", "cursor", "devin", "factory", "gemini", "grok", "hermes", "opencode", "qoder", "qwen-code", "vscode-insiders", "warp", "windsurf" ],
+      "experimentalFlagsEnabled": [],
+      "notes": "Registered 2026-08-10. Windows-host only: it needs adb for Android, and its iOS half is a remote client to the macOS guest rather than a local driver, because Xcode and simctl do not exist on Windows. The guest address is DHCP-assigned by VMware NAT -- resolve it with `vmrun getGuestIPAddress` (Test-MobileLab.ps1 does) instead of hardcoding it. NO_UI is set per the package's own guidance to cut generated-UI token overhead."
     }
   ]
 }

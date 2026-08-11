@@ -814,6 +814,39 @@
         { "hostId": "qoder", "deploymentStatus": "managed-loose-skills" }
       ],
       "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) and the use-repowise loose skill. The external repowise CLI itself is machine tooling (uv tool install repowise), not package content."
+    },
+    {
+      "id": "mobile-device-lab",
+      "owner": "mobile-quality",
+      "capabilityType": "plugin+mcp+skills",
+      "canonicalSource": "packages/mobile-device-lab",
+      "managedSkillNames": [
+        "mobile-device-lab"
+      ],
+      "contentHash": "D87724F86982A751D1E6BCE881B3062BD493A73DB6E351473BC10D4D052F2464",
+      "hashBasis": "packages/mobile-device-lab",
+      "status": "active-canonical",
+      "hostMappings": [
+        { "hostId": "amp", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "antigravity", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "claude", "deploymentStatus": "native-plugin-installed", "components": [ "skills", "mcp" ] },
+        { "hostId": "cline", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "codex", "deploymentStatus": "native-plugin-installed", "components": [ "skills", "mcp" ] },
+        { "hostId": "copilot", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "cursor", "deploymentStatus": "native-local-plugin", "components": [ "skills", "mcp" ] },
+        { "hostId": "devin", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "factory", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "gemini", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "grok", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "hermes", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "opencode", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "qoder", "deploymentStatus": "native-local-plugin", "components": [ "skills", "mcp" ] },
+        { "hostId": "qwen-code", "deploymentStatus": "managed-native-skills-and-mcp" },
+        { "hostId": "vscode-insiders", "deploymentStatus": "managed-native-mcp" },
+        { "hostId": "warp", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "windsurf", "deploymentStatus": "managed-loose-skills" }
+      ],
+      "notes": "Owns mobile device automation for the fleet: the appium-mobile MCP (registry/mcps.json#appium-mobile) and the mobile-device-lab skill. Android runs natively on the Windows host through the MCP's embedded UiAutomator2; iOS runs in the VMware macOS guest, where Appium 3.6.0 + XCUITest 12.3.1 serve on port 4723 and are reached with remoteServerUrl over the VMnet8 private network. Verified end to end 2026-08-10: concurrent Android and iOS sessions from one MCP, screenshots from both. This capability covers interactive, agent-driven investigation only; committed regression flows remain Maestro's under the mobile-platform-standard skill, and nothing here substitutes for a physical-device run."
     }
   ]
 }

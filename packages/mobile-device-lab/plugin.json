@@ -1,0 +1,4 @@
+{
+  "name": "mobile-device-lab",
+  "description": "One Appium MCP control plane for Android (local, Windows) and iOS (remote, macOS VM simulator): app launch, inspection, interaction, screenshots, and screen-recording evidence with no physical device."
+}
