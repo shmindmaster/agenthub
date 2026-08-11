@@ -175,6 +175,58 @@ second JDK (its bundled JetBrains Runtime) to a box where "which JDK is the
 daemon on" is exactly the question the failure above turns on. `sdkmanager` and
 `avdmanager` cover SDK and AVD management from the CLI.
 
+### A signed iOS build in the guest needs the WWDR intermediates first
+
+Signing fails on a fresh macOS guest, and the error names the wrong thing:
+
+```
+Distribution certificate with fingerprint <hex> hasn't been imported successfully
+```
+
+The certificate imported fine. What failed is *validation*. `eas-build` — and
+anything else that checks a signing identity — runs
+
+```bash
+security find-identity -v -s "(<TEAM_ID>)" <keychain>
+```
+
+and `-v` lists only identities whose **chain builds**. A current Apple
+distribution certificate chains through **WWDR G3**, and a guest that has never
+signed into Xcode does not have it: the intermediates normally arrive with an
+Xcode account sign-in. Measured here 2026-08-11, the only WWDR present was the
+original one —
+
+```
+notBefore=Feb  7 21:48:47 2013 GMT
+notAfter =Feb  7 21:48:47 2023 GMT
+```
+
+— the CA whose 2023 expiry broke signing industry-wide. So the identity was
+imported and then filtered out as unvalidatable, and the tooling reported that
+as a failed import.
+
+Fix, into the **login** keychain (user scope — do not touch the system trust
+store, and do not alter trust settings; this only makes the chain resolvable):
+
+```bash
+for g in G2 G3 G4 G5 G6; do
+  curl -fsSL -o "AppleWWDRCA$g.cer" "https://www.apple.com/certificateauthority/AppleWWDRCA$g.cer"
+  security import "AppleWWDRCA$g.cer" -k ~/Library/Keychains/login.keychain-db
+done
+```
+
+Diagnose before assuming it is this — the same message covers several causes:
+
+```bash
+security find-certificate -a -c "Apple Worldwide Developer Relations" -p \
+  | openssl x509 -noout -subject -dates
+```
+
+An expired-only result is the fault above. Note that a plain
+`security find-identity -v -p codesigning` returning **0 valid identities** does
+not distinguish "no certificate" from "certificate present but unvalidatable" —
+check the intermediates before concluding a guest has no credentials.
+
 An iOS **device** build (`.ipa`, `Debug-iphoneos`) will not run on a simulator.
 They are different architectures and different SDKs.
 
