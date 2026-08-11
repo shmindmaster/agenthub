@@ -7,7 +7,7 @@
         "appium-mcp@1.92.0"
       ],
       "env": {
-        "ANDROID_HOME": "${env:ANDROID_HOME}",
+        "ANDROID_HOME": "${ANDROID_HOME}",
         "NO_UI": "true"
       }
     }

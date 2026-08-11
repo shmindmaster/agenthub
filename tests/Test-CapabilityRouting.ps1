@@ -78,6 +78,43 @@ $capabilitySectionHeading = 'Capability required'
 # parsing the list, and is not claimed here.
 $resolutionSectionHeadingPrefix = 'Resolve a provider'
 
+# Not every SKILL.md under this package routes. `use-chrome-devtools-mcp` is the
+# tool catalog for ONE registered server, loaded BY the routing skills after they
+# have already resolved to it ("For MCP tool names ... also load
+# `use-chrome-devtools-mcp`", in all three). Requiring it to route would require
+# it to re-declare a decision that has provably already been made, and behavior 6
+# would additionally require its tool catalog to name no MCP tool -- that is, to
+# stop being a tool catalog.
+#
+# This file was written on 2026-08-04 for the three routing skills; the reference
+# skill arrived on 2026-08-06 and nobody reconciled the two, so the suite has been
+# red ever since. A permanently red gate is not a gate -- it is read as background
+# noise, and the next real regression lands underneath it.
+#
+# So the kind is DATA, for the same reason the step roles are (see behavior 8):
+# inferring "is this a router?" from prose is the interpretation step that has
+# already produced defects in this repository twice.
+#
+# Default is `routing`. A skill that declares nothing is held to the full
+# contract, so the exemption cannot be taken by omission -- opting out of a guard
+# by doing nothing is this repository's signature defect, and an optional marker
+# would reintroduce it. And the exemption is CHECKED, not granted: behavior 9
+# requires a provider-reference skill to be loaded by name from a routing skill
+# and to document a server that is actually registered. An orphan cannot hide
+# here; it has no reader, so it must route on its own.
+$skillKindMarkerPattern = '<!--\s*skill-kind:\s*([^\s>]+)\s*-->'
+$defaultSkillKind = 'routing'
+$knownSkillKinds = @('routing', 'provider-reference')
+function Get-SkillKind {
+    param([string]$Text)
+    # All matches, not the first: two markers disagreeing is a finding, and
+    # taking the first would silently pick a winner.
+    $roles = @([regex]::Matches($Text, $skillKindMarkerPattern) | ForEach-Object { $_.Groups[1].Value })
+    if ($roles.Count -eq 0) { return $defaultSkillKind }
+    if ($roles.Count -gt 1) { return '<multiple:' + ($roles -join ',') + '>' }
+    return $roles[0]
+}
+
 # One extractor for both sections; $HeadingPattern is the regex for whatever
 # follows '## ' on the heading line, so the capability section can be matched
 # exactly while the resolution section is matched on its prefix. `\r?\n`
@@ -132,7 +169,7 @@ function Get-NumberedStepLines {
     return $steps
 }
 
-function Get-SkillCapabilityDeclarations {
+function Get-AllSkillDeclarations {
     $declarations = [Collections.Generic.List[object]]::new()
     if (-not (Test-Path -LiteralPath $skillsRoot -PathType Container)) { return $declarations }
     foreach ($skillDirectory in @(Get-ChildItem -LiteralPath $skillsRoot -Directory | Sort-Object Name)) {
@@ -149,6 +186,7 @@ function Get-SkillCapabilityDeclarations {
             Skill              = $skillDirectory.Name
             Path               = $skillFile
             Text               = $text
+            Kind               = (Get-SkillKind -Text $text)
             HasSection         = ($null -ne $capabilitySection)
             CapabilitySection  = $section
             ResolutionSection  = $resolutionSection
@@ -157,6 +195,15 @@ function Get-SkillCapabilityDeclarations {
         })
     }
     return $declarations
+}
+
+# Behaviors 1-8 are the routing contract, so they see routing skills only. An
+# unknown or duplicated kind marker is NOT quietly dropped from that set -- it
+# stays in, and fails behaviors 1-8 exactly as an unmarked skill would, because a
+# marker the vocabulary does not know must not act as an exemption. Behavior 9
+# names it explicitly.
+function Get-SkillCapabilityDeclarations {
+    return @(Get-AllSkillDeclarations | Where-Object { $_.Kind -ne 'provider-reference' })
 }
 
 # The count of capabilities actually extracted -- NOT the count of skills.
@@ -181,9 +228,18 @@ function Test-EverySkillDeclaresACapability {
     if (-not (Test-Path -LiteralPath $skillsRoot -PathType Container)) {
         return @{ Passed = $false; Detail = "no skills directory at $skillsRoot; the routing assertions below would pass over an empty set." }
     }
-    $declarations = Get-SkillCapabilityDeclarations
-    if ($declarations.Count -eq 0) {
+    $allSkills = Get-AllSkillDeclarations
+    if ($allSkills.Count -eq 0) {
         return @{ Passed = $false; Detail = "found zero SKILL.md files under $skillsRoot." }
+    }
+    $declarations = Get-SkillCapabilityDeclarations
+    # The exemption's own anti-vacuity guard. Behaviors 1-8 all iterate the
+    # routing set, so marking every skill `provider-reference` would turn the
+    # entire routing contract green while checking nothing -- the same shape as
+    # the empty-directory case above, reached by adding a line rather than by
+    # deleting a folder, and therefore easier to do by accident.
+    if ($declarations.Count -eq 0) {
+        return @{ Passed = $false; Detail = "all $($allSkills.Count) SKILL.md file(s) under $skillsRoot declare '<!-- skill-kind: provider-reference -->', so no skill routes and behaviors 1-8 would pass over an empty set. At least one must be a routing skill, or this package documents providers nobody resolves." }
     }
     $missingSection = @($declarations | Where-Object { -not $_.HasSection } | ForEach-Object { $_.Skill })
     if ($missingSection.Count -gt 0) {
@@ -770,6 +826,77 @@ Closing prose. <!-- resolution-step: additional-lane -->
     return @{ Passed = $true; Detail = $null }
 }
 
+# --- Behavior 9: a skill excused from the routing contract must be what it says
+# it is.
+#
+# `<!-- skill-kind: provider-reference -->` removes a file from behaviors 1-8, so
+# on its own it is a way to switch this suite off one skill at a time. Two things
+# make the claim checkable instead of merely stated:
+#
+#   - Something must LOAD it. A provider reference is only excused from routing
+#     because the routing already happened in the skill that sent the reader here;
+#     if no routing skill names it, that premise is false and the file is an
+#     orphan that must state its own capability and resolution order like any
+#     other. This is what stops the marker from being a way to smuggle in an
+#     unrouted skill.
+#   - It must document a REGISTERED server. A tool catalog for a server absent
+#     from registry/mcps.json routes readers to something the fleet does not run,
+#     which is the exact failure ("naming one tool that may not exist where the
+#     skill runs") this whole file was written to prevent -- the marker must not
+#     become the way back to it.
+#
+# The kind vocabulary is closed and checked here for the same reason behavior 8
+# reads unknown step roles by name: a typo'd `<!-- skill-kind: provider_reference -->`
+# is not 'provider-reference', so it stays in the routing set and fails behaviors
+# 1-8 -- but with a message about a missing capability section, which sends the
+# author to rewrite a skill when the actual defect is one character in a marker. ---
+function Test-ProviderReferenceSkillsAreLoadedAndRegistered {
+    # Anti-vacuity for the kind parser: prove it reads the three placements apart
+    # before any exemption it grants is worth anything.
+    $controlKinds = @(
+        (Get-SkillKind -Text "# A`n`nNo marker here."),
+        (Get-SkillKind -Text "# B`n`n<!-- skill-kind: provider-reference -->"),
+        (Get-SkillKind -Text "# C`n`n<!-- skill-kind: routing -->`n<!-- skill-kind: provider-reference -->")
+    ) -join ' '
+    $expectedKinds = 'routing provider-reference <multiple:routing,provider-reference>'
+    if ($controlKinds -ne $expectedKinds) {
+        return @{ Passed = $false; Detail = "the kind parser read the control fixtures as '$controlKinds'; it must read '$expectedKinds', or it cannot tell an unmarked skill from a marked one from one carrying two contradictory markers." }
+    }
+    $allSkills = Get-AllSkillDeclarations
+    if ($allSkills.Count -eq 0) {
+        return @{ Passed = $false; Detail = "found zero SKILL.md files under $skillsRoot; see behavior 1." }
+    }
+    $serverIds = @($mcps.mcpServers | ForEach-Object { [string]$_.id } | Where-Object { $_ })
+    $bad = [Collections.Generic.List[string]]::new()
+    foreach ($declaration in $allSkills) {
+        if ($declaration.Kind -eq $defaultSkillKind) { continue }
+        $relativePath = $declaration.Path.Substring($repoRoot.Length).TrimStart('\', '/')
+        if ($declaration.Kind -notin $knownSkillKinds) {
+            $bad.Add("$relativePath declares '<!-- skill-kind: $($declaration.Kind) -->', which is not a kind this check knows; the vocabulary is: $($knownSkillKinds -join ', '). It stays in the routing set, so any behavior 1-8 finding against it is a symptom of this marker, not of the skill's prose.")
+            continue
+        }
+        # Backticked, matching how the routing skills already cite it and how
+        # every other cross-reference in this file is matched: a bare mention in
+        # a sentence about something else is not a load instruction.
+        $loaders = @(
+            $allSkills |
+                Where-Object { $_.Skill -ne $declaration.Skill -and $_.Kind -eq $defaultSkillKind } |
+                Where-Object { $_.Text -match ('`' + [regex]::Escape($declaration.Skill) + '`') } |
+                ForEach-Object { $_.Skill }
+        )
+        if ($loaders.Count -eq 0) {
+            $bad.Add("$($declaration.Skill) is excused from the routing contract as a provider reference, but no routing skill names ``$($declaration.Skill)``, so nothing resolves a provider before sending a reader to it. An unloaded skill has no prior resolution to rely on and must state its own '## $capabilitySectionHeading' and '## $resolutionSectionHeadingPrefix ...' sections; remove the marker or give it a reader.")
+            continue
+        }
+        $namedServers = @($serverIds | Where-Object { $declaration.Text -match ('`' + [regex]::Escape($_) + '`') })
+        if ($namedServers.Count -eq 0) {
+            $bad.Add("$($declaration.Skill) is excused as a provider reference (loaded by $($loaders -join ', ')) but names no server registered in registry/mcps.json, so it documents tools for something the fleet does not run -- the failure this file exists to prevent.")
+        }
+    }
+    if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r1 = Test-EverySkillDeclaresACapability
 Report 'every browser-toolkit skill states the capability it requires' $r1.Passed $r1.Detail
 
@@ -793,6 +920,9 @@ Report 'every capability a skill names is recorded true on at least one surface,
 
 $r8 = Test-SurfaceStepPrecedesLocalFallbackStep
 Report 'each skill declares its surface-provided step before its local-fallback step' $r8.Passed $r8.Detail
+
+$r9 = Test-ProviderReferenceSkillsAreLoadedAndRegistered
+Report 'every skill excused from routing is loaded by a routing skill and documents a registered server' $r9.Passed $r9.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

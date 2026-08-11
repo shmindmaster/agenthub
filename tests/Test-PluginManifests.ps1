@@ -241,6 +241,66 @@ function Test-SuiteNeverWritesATrackedManifest([hashtable]$MutationResult) {
     return @{ Passed = $false; Detail = "the tracked manifest $($MutationResult.TrackedManifest) changed while this suite ran -- $likelyCause. Nothing in this suite may write to it." }
 }
 
+# --- Behavior 4: a plugin's .mcp.json spells variables in CLAUDE's dialect, not
+# the registry's.
+#
+# registry/mcps.json deliberately writes `${env:NAME}` -- the host-neutral
+# spelling -- and Sync-AgentHub.ps1 translates it to Claude's `${NAME}` on the
+# way into .claude.json. A plugin's own .mcp.json never passes through that
+# translator: Claude Code reads it directly. So the registry spelling, copied
+# into a plugin manifest, is handed to the server verbatim.
+#
+# Measured 2026-08-11: mobile-device-lab shipped `"ANDROID_HOME":
+# "${env:ANDROID_HOME}"`, and the first real tool call failed with
+#   The Android SDK root folder '${env:ANDROID_HOME}' does not exist
+# on a machine where ANDROID_HOME was correctly set to C:\Android\Sdk. The
+# capability was installed, enabled, and completely unusable.
+#
+# Nothing existing could catch it. `claude plugin validate` passes -- the value
+# is a valid JSON string, and a schema cannot know a dialect. Validate-AgentHub
+# type-checks fields it knows. Behavior 1 above delegates to the host validator
+# for exactly the fields nobody thought of, and this is one the host validator
+# does not think about either. It is the same lesson as this file's opening
+# note, one layer down: `"agents": "./agents/"` was valid JSON of the wrong
+# TYPE; this was a valid string in the wrong LANGUAGE.
+#
+# The check is deliberately narrow -- the `${env:...}` form specifically, not
+# variables in general -- because `${NAME}` is correct and must stay allowed. ---
+$registryDialectPattern = '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}'
+function Test-PluginMcpUsesClaudeVariableDialect {
+    $packages = @(Get-PluginPackages)
+    if ($packages.Count -eq 0) {
+        return @{ Passed = $false; Detail = "found no plugin packages under $repoRoot\packages, so this check inspected nothing." }
+    }
+    # Anti-vacuity: prove the pattern matches the form that actually shipped and
+    # does NOT match the correct one, before a clean sweep means anything.
+    $shouldMatch = '{ "ANDROID_HOME": "${env:ANDROID_HOME}" }'
+    $shouldNotMatch = '{ "ANDROID_HOME": "${ANDROID_HOME}" }'
+    if (-not [regex]::IsMatch($shouldMatch, $registryDialectPattern)) {
+        return @{ Passed = $false; Detail = 'the dialect pattern does not match the exact form that shipped broken, so a clean result would mean nothing.' }
+    }
+    if ([regex]::IsMatch($shouldNotMatch, $registryDialectPattern)) {
+        return @{ Passed = $false; Detail = "the dialect pattern also matches Claude's correct `${NAME} form, so it would condemn every valid manifest." }
+    }
+    $bad = [Collections.Generic.List[string]]::new()
+    $inspected = 0
+    foreach ($package in $packages) {
+        $mcpPath = Join-Path $package.FullName '.mcp.json'
+        if (-not (Test-Path -LiteralPath $mcpPath -PathType Leaf)) { continue }
+        $inspected++
+        $text = [IO.File]::ReadAllText($mcpPath)
+        foreach ($match in @([regex]::Matches($text, $registryDialectPattern))) {
+            $name = $match.Groups[1].Value
+            $bad.Add("packages\$($package.Name)\.mcp.json uses the registry's host-neutral spelling '`${env:$name}'; Claude Code reads a plugin's .mcp.json directly and does not translate it, so the server receives that text literally. Write '`${$name}' here. The `${env:...} form is correct ONLY in registry/mcps.json, which Sync-AgentHub.ps1 translates per host.")
+        }
+    }
+    if ($inspected -eq 0) {
+        return @{ Passed = $false; Detail = "none of the $($packages.Count) plugin package(s) carries a .mcp.json, so this check inspected no file. If plugins stopped shipping MCP servers that is fine, but this check is then asserting nothing and should be reconsidered rather than left green." }
+    }
+    if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r1 = Test-EveryPluginPassesHostValidator
 Report 'every AgentHub plugin passes the host schema via claude plugin validate' $r1.Passed $r1.Detail
 
@@ -249,6 +309,9 @@ Report 'the host validator rejects a manifest broken the way one actually shippe
 
 $r3 = Test-SuiteNeverWritesATrackedManifest $r2
 Report 'the suite mutates only a copy outside the repository and leaves the tracked manifest byte-identical' $r3.Passed $r3.Detail
+
+$r4 = Test-PluginMcpUsesClaudeVariableDialect
+Report "every plugin .mcp.json spells variables in Claude's `${NAME} dialect, not the registry's `${env:NAME}" $r4.Passed $r4.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

@@ -5,14 +5,32 @@ description: Use when driving Chrome via chrome-devtools MCP tools (list_pages, 
 
 # Use Chrome DevTools MCP
 
+<!-- skill-kind: provider-reference -->
+
 Official tool catalog: https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md  
 Fleet setup: `docs/development/chrome-cdp.md` in agenthub · https://developer.chrome.com/blog/chrome-devtools-mcp-debug-your-browser-session
 
-This skill is the **tooling and connection guide**. For QA workflows, also load:
+**Do not start here.** This file is the tool catalog for two registered servers,
+not a routing skill, and everything below presumes a provider has already been
+resolved to one of them. Enter through the skill that made that decision:
 
 - `interactive-browser-testing` — visual product flows (`browser.isolated`)
 - `browser-debugging` — console/network/performance/memory (`browser.isolated`)
 - `browser-evidence` — screenshots/traces/Lighthouse artifacts (`browser.isolated`)
+
+Each states its `## Capability required` and resolves a provider before sending
+you here. If the running surface provides the capability natively — check
+`hostSurfaces.surfaces` in `registry/fleet-profile.json` — drive that surface's
+own browser and do not read on: starting `chrome-devtools-isolated` on a host
+that already has a browser is the spawned-process-per-host cost that
+`registry/mcps.json`'s `activationPolicy` exists to avoid.
+
+That prior resolution is why this file is exempt from the routing contract in
+`tests/Test-CapabilityRouting.ps1`, and why the exemption is declared as data at
+the top rather than inferred. The exemption is not free: behavior 9 fails unless
+a routing skill actually names this one and unless the servers below are
+registered. Deleting the `also load` line from all three routing skills makes
+this file an orphan and turns it red.
 
 ---
 
