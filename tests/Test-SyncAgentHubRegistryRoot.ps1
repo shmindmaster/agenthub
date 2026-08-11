@@ -40,8 +40,11 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 }
 
 function Invoke-SyncAgentHub {
-    param([string[]]$ExtraArgs = @())
-    $allArgs = @('-NoProfile', '-File', $syncScript, '-Audit') + $ExtraArgs
+    param([string[]]$ExtraArgs = @(), [string]$ScriptPath = $null)
+    # -ScriptPath lets behavior 2 run a COPY of the script from a scratch tree.
+    # The default stays the real script, so every other behavior is unchanged.
+    $target = if ([string]::IsNullOrWhiteSpace($ScriptPath)) { $syncScript } else { $ScriptPath }
+    $allArgs = @('-NoProfile', '-File', $target, '-Audit') + $ExtraArgs
     # Windows PowerShell 5.1 wraps a native child process's stderr lines as
     # ErrorRecords; under $ErrorActionPreference = 'Stop' those become
     # terminating even though the child process itself did not fail. Relax
@@ -87,40 +90,69 @@ function Test-EmptyRegistryRootFailsLoudly {
 }
 
 # --- Behavior 2: with no -RegistryRoot, the script must resolve its registry
-# root from its own on-disk location, not a hardcoded checkout. Proven by
-# planting a uniquely-named canary agent into THIS repository's own
-# registry/agents.json, running the script with no -RegistryRoot, and
-# confirming the canary shows up in the drift output -- which is only
-# possible if the script read the copy of the registry sitting next to
-# itself. The edit is fully reverted (byte-identical) in the finally block. ---
+# root from its own on-disk location, not a hardcoded checkout.
+#
+# Proven by copying the repository to a scratch tree, planting a uniquely-named
+# canary agent in THAT COPY's registry/agents.json, running THE COPIED SCRIPT
+# with no -RegistryRoot, and requiring the canary in its drift output. The
+# canary exists only in the copy, so seeing it proves the script read the
+# registry sitting beside itself. A hardcoded path back to the real checkout
+# fails, because that registry has no canary -- which is the defect this
+# behavior exists to catch, now discriminated more sharply than before.
+#
+# It used to plant the canary in the REAL registry/agents.json and revert it in
+# a finally block. A finally block does not run when the process is killed, and
+# on 2026-08-11 an interrupted suite left a canary behind that was then
+# committed -- a modified registry/agents.json looks exactly like the author's
+# own edit. Test-PluginManifests.ps1 already records this rule for the plugin
+# manifest ("A run killed between the write and the restore leaves that file
+# broken in the user's checkout... Mutate a copy outside the repository
+# instead"); the fleet now has one rule instead of two. Behavior 6 below pins
+# it down so this cannot quietly regress.
+#
+# .git and node_modules are excluded: the script reads registry/, scripts/ and
+# packages/, and copying history would dominate the runtime for nothing. ---
+function Copy-RepositoryToScratch {
+    param([string]$Destination)
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    foreach ($entry in @(Get-ChildItem -LiteralPath $repoRoot -Force)) {
+        if ($entry.Name -in @('.git', 'node_modules')) { continue }
+        Copy-Item -LiteralPath $entry.FullName -Destination $Destination -Recurse -Force
+    }
+}
 function Test-NoRegistryRootSelfDerivesFromScriptLocation {
-    $agentsJsonPath = Join-Path $repoRoot 'registry\agents.json'
-    $originalBytes = [IO.File]::ReadAllBytes($agentsJsonPath)
+    $scratchRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-self-derive-" + [guid]::NewGuid())
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-self-derive-profile-" + [guid]::NewGuid())
     $marker = 'agenthub-task0c-canary-' + [guid]::NewGuid().ToString('N')
     try {
-        $agentsDoc = Get-Content -LiteralPath $agentsJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        Copy-RepositoryToScratch -Destination $scratchRoot
+        $scratchAgentsJson = Join-Path $scratchRoot 'registry\agents.json'
+        $scratchScript = Join-Path $scratchRoot 'scripts\Sync-AgentHub.ps1'
+        if (-not (Test-Path -LiteralPath $scratchAgentsJson) -or -not (Test-Path -LiteralPath $scratchScript)) {
+            return @{ Passed = $false; Detail = "the scratch copy at $scratchRoot is missing registry\agents.json or scripts\Sync-AgentHub.ps1, so this behavior would be testing an incomplete tree rather than root self-derivation." }
+        }
+        $agentsDoc = Get-Content -LiteralPath $scratchAgentsJson -Raw -Encoding UTF8 | ConvertFrom-Json
         $canaryAgent = [pscustomobject]@{
             id = $marker
-            name = 'AgentHub Task 0c Canary (reverted by test)'
+            name = 'AgentHub Task 0c Canary (scratch copy only)'
             status = 'inactive'
             nativePaths = [pscustomobject]@{ instructions = $null }
             supportedCapabilities = @()
         }
         $agentsDoc.inactiveAgents = @(@($agentsDoc.inactiveAgents) + @($canaryAgent))
-        ($agentsDoc | ConvertTo-Json -Depth 20) | Set-Content -LiteralPath $agentsJsonPath -Encoding UTF8
+        ($agentsDoc | ConvertTo-Json -Depth 20) | Set-Content -LiteralPath $scratchAgentsJson -Encoding UTF8
 
-        $result = Invoke-SyncAgentHub -ExtraArgs @('-UserProfile', $userProfile, '-IncludeInactiveAgents')
+        $result = Invoke-SyncAgentHub -ScriptPath $scratchScript -ExtraArgs @('-UserProfile', $userProfile, '-IncludeInactiveAgents')
 
         if ($result.ExitCode -ne 0) {
-            return @{ Passed = $false; Detail = "exit code was $($result.ExitCode) instead of 0 running with no -RegistryRoot against this repository. Output: $($result.Output)" }
+            return @{ Passed = $false; Detail = "exit code was $($result.ExitCode) instead of 0 running the copied script with no -RegistryRoot against $scratchRoot. Output: $($result.Output)" }
         }
         if ($result.Output -notmatch [regex]::Escape("[$marker]")) {
-            return @{ Passed = $false; Detail = "drift output did not mention canary host '$marker' -- self-derived root does not appear to be this repository's own checkout. Output: $($result.Output)" }
+            return @{ Passed = $false; Detail = "drift output did not mention canary host '$marker', which exists ONLY in the scratch copy at $scratchRoot -- so the script did not read the registry sitting beside itself and is resolving its root from somewhere else (a hardcoded checkout would produce exactly this). Output: $($result.Output)" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
-        [IO.File]::WriteAllBytes($agentsJsonPath, $originalBytes)
+        Remove-Item -LiteralPath $scratchRoot -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
@@ -246,6 +278,38 @@ function Test-UnrebasablePathShapeFailsLoudly {
     }
 }
 
+# --- Behavior 6: this suite leaves the tracked registry byte-identical.
+#
+# Behavior 2 is the only thing here that ever wanted to write it, and it no
+# longer does. This pins that down, because the failure it prevents is not a
+# wrong assertion -- it is a leaked canary committed into registry/agents.json,
+# which is what happened on 2026-08-11 and cost a red suite plus a bad commit.
+# The check is bytes, not parsed JSON: a re-serialization that changed only
+# formatting or line endings would still be an unintended write to a tracked
+# file, and this repository has CRLF gates that would then fire somewhere else
+# entirely.
+#
+# Captured before the behaviors run and compared after, so it covers the whole
+# file rather than trusting any one of them to clean up. It cannot catch a
+# process killed mid-run -- nothing inside the process can -- which is exactly
+# why behavior 2 was changed to never write the file in the first place, rather
+# than being left to restore it more carefully. ---
+$trackedRegistryPath = Join-Path $repoRoot 'registry\agents.json'
+$trackedRegistryBytesBefore = [IO.File]::ReadAllBytes($trackedRegistryPath)
+
+function Test-SuiteLeavesTrackedRegistryUntouched {
+    $after = [IO.File]::ReadAllBytes($trackedRegistryPath)
+    if ($trackedRegistryBytesBefore.Length -ne $after.Length) {
+        return @{ Passed = $false; Detail = "registry/agents.json changed while this suite ran ($($trackedRegistryBytesBefore.Length) bytes before, $($after.Length) after). Nothing in this suite may write it -- behavior 2 works on a scratch copy precisely so an interrupted run cannot leave a canary in the checkout. Inspect `git diff registry/agents.json` before committing anything." }
+    }
+    for ($i = 0; $i -lt $after.Length; $i++) {
+        if ($trackedRegistryBytesBefore[$i] -ne $after[$i]) {
+            return @{ Passed = $false; Detail = "registry/agents.json changed while this suite ran -- same length, first differing byte at offset $i. Nothing in this suite may write it. Inspect `git diff registry/agents.json` before committing anything." }
+        }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r1 = Test-EmptyRegistryRootFailsLoudly
 Report 'empty/wrong registry root fails loudly instead of reporting success' $r1.Passed $r1.Detail
 
@@ -260,6 +324,10 @@ Report '-UserProfile rebases host destinations, not just the runtime state direc
 
 $r5 = Test-UnrebasablePathShapeFailsLoudly
 Report 'an absolute nativePaths shape the rebasing cannot handle fails loudly' $r5.Passed $r5.Detail
+
+# Last, so it observes every write the behaviors above could have made.
+$r6 = Test-SuiteLeavesTrackedRegistryUntouched
+Report 'the suite leaves the tracked registry/agents.json byte-identical' $r6.Passed $r6.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
