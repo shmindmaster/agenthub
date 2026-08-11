@@ -87,6 +87,18 @@
         "authentication": "ON_USE"
       },
       "category": "Developer Tools"
+    },
+    {
+      "name": "mobile-device-lab",
+      "source": {
+        "source": "local",
+        "path": "./packages/mobile-device-lab"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools"
     }
   ]
 }

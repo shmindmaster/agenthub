@@ -131,6 +131,50 @@ meaningless to the guest.
 | Android | `.apk` | Windows, or already installed on the emulator |
 | iOS | `.app` for **iphonesimulator** | inside the macOS VM |
 
+### Building the Android APK on this workstation needs `TEMP` redirected
+
+Not optional, and not project-specific — **every** local `gradlew` invocation on
+this box fails without it, before doing any work:
+
+```text
+java.io.IOException: Unable to establish loopback connection
+```
+
+```powershell
+$env:TEMP='C:\Temp'; $env:TMP='C:\Temp'
+cd <repo>\android
+.\gradlew.bat :app:assembleRelease -PreactNativeArchitectures=x86_64
+```
+
+The message names the wrong thing. The cause is
+`sun.nio.ch.UnixDomainSockets.connect0` returning WSAEINVAL: since JDK 13 the
+Windows NIO selector builds its wakeup pipe from an **AF_UNIX socket**, whose
+file lives in `%TEMP%`, and this workstation rejects AF_UNIX socket creation
+anywhere under `%LOCALAPPDATA%\Temp` — including fresh subdirectories — while
+`C:\Temp` and `D:\` work. Every `Selector.open()` in every JVM fails there:
+0/20, against 20/20 for `Pipe.open()` and raw TCP loopback. So it breaks the
+Gradle client and the daemon independently, and `--no-daemon` does not help
+because it still forks one.
+
+**Do not reach for `JDK_JAVA_OPTIONS`.** It fixes Gradle and then breaks the
+native build: every JVM prints `NOTE: Picked up JDK_JAVA_OPTIONS` to stderr, the
+NDK's CMake configure step parses that output, and `:react-native-screens` and
+`:react-native-worklets` fail with the banner *as* the error. Also useless:
+`preferIPv4Stack`, the legacy `WindowsSelectorProvider`, `org.gradle.jvmargs`,
+`systemProp.*` (both applied after daemon startup), and `GRADLE_OPTS` (client
+only). It is **not** the dynamic TCP port range — that was a wrong first
+diagnosis that cost hours.
+
+Verified 2026-08-11 on Rexa: `BUILD SUCCESSFUL in 3m 26s`, 50.8 MB APK,
+installed and driven on `rexa-api36`. Full write-up in
+`%USERPROFILE%\.gradle\gradle.properties`. Drop the redirect once the
+Defender/ASR policy behind it is fixed.
+
+**Android Studio is deliberately not installed**, and installing it would add a
+second JDK (its bundled JetBrains Runtime) to a box where "which JDK is the
+daemon on" is exactly the question the failure above turns on. `sdkmanager` and
+`avdmanager` cover SDK and AVD management from the CLI.
+
 An iOS **device** build (`.ipa`, `Debug-iphoneos`) will not run on a simulator.
 They are different architectures and different SDKs.
 

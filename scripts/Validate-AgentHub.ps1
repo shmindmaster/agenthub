@@ -107,6 +107,23 @@ foreach ($entry in $marketplace.plugins) {
   }
 }
 
+# A package that carries a plugin manifest but is absent from the catalog is
+# built, registered, hashed -- and installed by nobody. mobile-device-lab
+# shipped that way on 2026-08-10 and was found only on 2026-08-11, when an
+# agent needed the Appium MCP, did not have it, and drove the emulator with raw
+# adb instead. Every other check passed the whole time, and the PASS line even
+# counted "7 installable plugins" without noticing the eighth manifest.
+#
+# This is the packaging twin of the reachability gates in Rexa: correctness and
+# distribution are separate properties, and only one of them was being checked.
+foreach ($packageName in $packageNames) {
+  $claudeManifest = Join-Path $pluginRoot "$packageName\.claude-plugin\plugin.json"
+  if (-not (Test-Path -LiteralPath $claudeManifest)) { continue }
+  if ($packageName -notin $catalogNames) {
+    Fail "package '$packageName' has .claude-plugin/plugin.json but is absent from the plugin catalog, so no host can install it. Add it to .agents/plugins/marketplace.json and .claude-plugin/marketplace.json, or delete the manifest if it is deliberately not distributed."
+  }
+}
+
 $claudeMarketplace = Read-Json (Join-Path $root '.claude-plugin\marketplace.json')
 if ((@($claudeMarketplace.plugins.name | Sort-Object) -join '|') -ne ($catalogNames -join '|')) {
   Fail 'Claude-compatible marketplace does not match the canonical plugin catalog'
