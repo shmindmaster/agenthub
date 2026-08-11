@@ -13,6 +13,48 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   are retired. The AgentHub local-AI and Product Demo Studio narration skills
   enforce the same route across managed hosts.
 
+- **Mobile device lab reaches hosts (2026-08-11):** `mobile-device-lab` had a
+  plugin manifest and a registry entry but was in neither marketplace, so no
+  host could install it — an agent drove the Android emulator with raw `adb`
+  for a whole session while the Appium MCP sat unreachable in the repo. Now
+  catalogued, installed and enabled. `Validate-AgentHub.ps1` fails when a
+  package carries `.claude-plugin/plugin.json` and no catalog entry.
+  Its `.mcp.json` then shipped `${env:ANDROID_HOME}` — the *registry's*
+  host-neutral spelling, which `Sync-AgentHub.ps1` translates per host but
+  which Claude Code reads literally from a plugin, because a plugin manifest
+  never passes through that translator. The first real tool call failed with
+  `The Android SDK root folder '${env:ANDROID_HOME}' does not exist` on a
+  machine where `ANDROID_HOME` was correctly set: installed, enabled, and
+  unusable. `claude plugin validate` passes such a manifest — a schema cannot
+  know a dialect. Fixed in 1.0.1 and gated by `Test-PluginManifests` behavior
+  4. **Plugin `.mcp.json` uses `${NAME}`; only `registry/mcps.json` uses
+  `${env:NAME}`.**
+- **Eight of 22 "active" agents declare an executable that is not on disk**
+  (measured 2026-08-11, PATH-resolved so bare names like `qwen` are not false
+  positives). Three are stale paths for installed products (`cline`, `amp`,
+  and `factory`, whose declaration is version-pinned to `app-0.144.0` and
+  re-breaks on every update); four products are simply not installed
+  (`hermes`, `qoder`, `codex`, `opencode-desktop`); `windsurf` declares no
+  executable at all. No test checks that field —
+  `Test-DeclaredPathAccountability` scans only `nativePaths` — and
+  `inactiveAgents` is empty, so every host claims active regardless. For
+  hermes and qoder the only contents of their config roots are the files
+  agenthub itself syncs: those directories exist because we created them.
+  Not yet fixed; see the notes on those fields in `registry/agents.json`.
+- **`~/.claude/skills` is stale and the parity check does not notice
+  (2026-08-11).** Every browser-toolkit skill deployed there still has mtime
+  `2026-08-05 21:03`; a `Sync-Capabilities.ps1 -Apply` on 2026-08-11 did not
+  rewrite them, yet the re-audit reported `current=562` with no drift. The
+  copy of `use-chrome-devtools-mcp` there is a different lineage from source —
+  folded `description: >` frontmatter, plus a `references/tool-catalog.md`
+  the source directory no longer contains — so an unscoped stale skill and the
+  plugin-scoped `browser-toolkit:use-chrome-devtools-mcp` are both reachable
+  in one session with different content. Either the parity check false-PASSes
+  without comparing bytes, or these became host-managed when browser-toolkit
+  was packaged as a plugin and the orphans should have been pruned
+  (`pruned=0`). Not yet resolved. **A plugin version bump is what actually
+  ships a skill edit to a Claude host** — the cache is keyed by version, so an
+  edit without a bump reaches nobody.
 - Registry (`registry/*.json`) declares hosts, capabilities, MCP servers,
   fleet profile, and the fleet repository standard roster.
 - `scripts/Validate-AgentHub.ps1` validates the registry against on-disk
@@ -101,7 +143,40 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   The guard and the standard are landed; per-product implementation
   (Rexa reference build, abacare `apps/mobile`, gentlenext) is not started.
 
-## Known pre-existing test failures (as of 2026-08-08)
+## Test suite: green, with one intermittent hang (2026-08-11)
+
+**194 passed / 0 failed across all 27 test files**, each run to completion.
+Every failure the section below records is now fixed:
+
+| File | Was | Now |
+| --- | --- | --- |
+| Test-CapabilityRouting | 5 assertions failing on `use-chrome-devtools-mcp` | 9/9 — the skill is a provider reference, not a router; see below |
+| Test-DeclaredPathAccountability | 4 (later 7) hermes/qoder paths with no note | 4/4 — every absent path carries a sourced note |
+| Test-ScriptsFailLoudly | `Start-ChromeAgentCDP.ps1` missing `$ErrorActionPreference` | passing; fixed at some point before 2026-08-11 and never recorded |
+| Test-RepoStandard | 8.3 short-path comparison | fixed 2026-08-08, already recorded below |
+
+`use-chrome-devtools-mcp` was never a routing skill — it is the tool catalog
+the three routing skills load *after* resolving a provider. It now declares
+`<!-- skill-kind: provider-reference -->`, and a new behavior 9 checks that
+claim rather than trusting it: an excused skill must be named by a routing
+skill and must document a registered server. The kind defaults to `routing`,
+so the exemption cannot be taken by omission.
+
+**The one thing not verified end to end: `Run-AllTests.ps1` hung twice on
+2026-08-11**, both times at `Test-SyncAgentHubRegistryRoot` →
+`Sync-AgentHub.ps1 -Audit` → `Repair-QwenCodeMcpOAuth.js --check`. The child
+`node` sat at 0.1s CPU for minutes — blocked, not slow, and not catastrophic
+backtracking. It is not that test and not that script: the test passes 5/5 in
+isolation in well under its budget, and the script alone exits 0 in seconds
+with 70 bytes of output. It reproduces only inside the full runner, and only
+under the heavy concurrent load this machine carried that day (several agent
+sessions each running chrome-devtools-mcp, desktop-commander and appium-mcp,
+plus a Remotion render). Treat a `Run-AllTests` hang as this, not as a new
+failure — and confirm by running the named file alone. Root cause unknown;
+a suite that hangs intermittently is nearly as useless as one that is red, so
+this is worth chasing when the machine is quiet.
+
+## Known pre-existing test failures (as of 2026-08-08, all now fixed — see above)
 
 Re-measured 2026-08-08 against a clean clone of `8ae18ff`: **163 passed / 4
 failed** across 26 files. Four earlier entries (Test-AgentHubEntryPoint,
