@@ -87,13 +87,34 @@ All media and synthesis routes are also under the same interface:
 
 ```powershell
 & $LocalAiControl image <single|batch>
-& $LocalAiControl voice <qwen|chatterbox|verify>
+& $LocalAiControl voice <qwen|qwen-role|qwen-clone|qwen-role-batch|verify>
 & $LocalAiControl transcribe <audio-or-video-path>
 & $LocalAiControl music <batch-json>
 & $LocalAiControl motif <verify|single|batch>
 ```
 
 Do not add a second control script or a parallel launcher for this capability.
+
+### Canonical Sarosh narration voice
+
+Use exactly one route for Sarosh narration:
+
+```powershell
+& $LocalAiControl voice qwen-clone --voice sarosh --text "Your words." --out <output.wav>
+```
+
+The owner selected transcript-conditioned Qwen3-TTS Base ICL on 2026-08-11.
+The `sarosh` profile preserves the reference transcript, disables sampling,
+and forbids x-vector-only mode. Do not recreate or use Chatterbox Sarosh
+profiles, `sarosh-qwen`, meeting/singing profiles, shootout baselines, or loose
+`sarosh-ref-*` files. The meeting corpus is reference material only and is not
+an approved narration fine-tuning corpus.
+
+Resolve the exact profile from
+`data\artifacts\media\voice-corpus\voices\sarosh\profile.json`. Require human
+listening approval before replacing its reference or changing a client video.
+When the script contains Sarosh, test that line explicitly: one smoke render
+was heard closer to Saurash, so name pronunciation is an open release gate.
 
 ## Route matrix
 

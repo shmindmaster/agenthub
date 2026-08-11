@@ -4,6 +4,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Canonical Sarosh narration voice (2026-08-11):** Local-AI now exposes one
+  personal narration route: transcript-conditioned Qwen3-TTS Base ICL through
+  `ai.ps1 voice qwen-clone --voice sarosh`. The owner preferred it in a local
+  listening comparison; the retained validation line was complete at WER
+  0.000 and 145.8 WPM. Chatterbox Sarosh profiles, aliases, x-vector-only
+  cloning, meeting/singing profiles, shootout profiles, and loose references
+  are retired. The AgentHub local-AI and Product Demo Studio narration skills
+  enforce the same route across managed hosts.
+
 - Registry (`registry/*.json`) declares hosts, capabilities, MCP servers,
   fleet profile, and the fleet repository standard roster.
 - `scripts/Validate-AgentHub.ps1` validates the registry against on-disk

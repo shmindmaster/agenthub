@@ -18,3 +18,16 @@ Narration explains viewer value without racing the interface or claiming more th
 
 Use `../../scripts/generate-narration.mjs` for the canonical segment workflow. OpenAI is the minimal external-workspace dependency; ElevenLabs is optional through the shared ElevenLabs capability. Sensitive or privileged audio remains local-first.
 
+When the narration is explicitly Sarosh's voice and the local stack is
+available, use the canonical Local-AI route only:
+
+```powershell
+D:\Local-AI\ai.ps1 voice qwen-clone --voice sarosh --text "..." --out <segment.wav>
+```
+
+Do not use or recreate Chatterbox Sarosh profiles, `sarosh-qwen`, x-vector-only
+cloning, meeting/singing profiles, shootout baselines, or loose Sarosh
+references. Preserve the canonical profile settings and validate each final
+segment for words, pacing, pronunciation, identity, duration, and hash. If a
+segment says Sarosh, treat the name as an explicit listening gate because one
+smoke render was heard closer to Saurash.
