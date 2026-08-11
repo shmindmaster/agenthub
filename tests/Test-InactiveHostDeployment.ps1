@@ -309,6 +309,29 @@ function Test-InactiveHostsCarryAJustification {
             $unjustified.Add([string]$agent.id)
         }
     }
+    # A leaked canary is NOT an unjustified host, and must not be reported as
+    # one. Behavior 2 of Test-SyncAgentHubRegistryRoot.ps1 plants a canary into
+    # THIS repository's own registry to prove the sync self-derives its root,
+    # and reverts it byte-for-byte in a finally block. A finally block does not
+    # run when the process is killed, so an interrupted suite leaves the canary
+    # behind -- which happened on 2026-08-11 and was then committed, because a
+    # `git status` showing registry/agents.json modified looked like the
+    # author's own edit.
+    #
+    # This branch exists for the message, not the detection: the generic text
+    # told the reader to add a dated justification, and doing what it said would
+    # have written a permanent entry describing a temporary test fixture. A
+    # failure message that makes the wrong fix look correct is worse than no
+    # message. The right action is deletion, so say so and name the source.
+    $leakedCanaries = @($unjustified | Where-Object { $_ -match '^agenthub-task0c-canary-' })
+    $realHosts = @($unjustified | Where-Object { $_ -notmatch '^agenthub-task0c-canary-' })
+    if ($leakedCanaries.Count -gt 0) {
+        $detail = "leaked test canary/canaries in registry/agents.json inactiveAgents: $($leakedCanaries -join ', '). DELETE these entries -- do NOT write a justification for them. They are planted by Test-SyncAgentHubRegistryRoot.ps1 behavior 2 and reverted in its finally block, which is skipped when the suite is killed mid-run. Restore inactiveAgents to what it held before the leak (it was [] on 2026-08-11) and re-read the diff before committing registry/agents.json."
+        if ($realHosts.Count -gt 0) {
+            $detail += " Separately, real host(s) marked inactive with no dated justification: $($realHosts -join ', ')."
+        }
+        return @{ Passed = $false; Detail = $detail }
+    }
     if ($unjustified.Count -gt 0) {
         return @{ Passed = $false; Detail = "host(s) marked inactive with no dated justification in notes: $($unjustified -join ', '). An inactive label gates deployment; it must record why and when, or it becomes a stale claim nothing can audit." }
     }

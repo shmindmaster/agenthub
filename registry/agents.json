@@ -52,6 +52,7 @@
       "name": "OpenAI Codex",
       "version": "0.144.4",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe",
+      "executableNote": "Path believed CORRECT; Codex is NOT INSTALLED on this workstation, checked 2026-08-11. %LOCALAPPDATA%\\Programs\\OpenAI\\Codex\\ still exists and still contains bin\\ and codex-resources\\, but both are empty and `codex` is not on PATH -- the signature of an uninstall that left its directory tree behind. The empty bin\\ is why the shape of the declared path is still trusted: it is where the binary was. Absence here is not fleet-wide: codex is in fleet-profile.json managedHosts, so another machine may have it. Do not delete this declaration or move the host to inactiveAgents on the strength of one workstation.",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.codex\\config.toml",
         "instructions": "C:\\Users\\SaroshHussain\\.codex\\AGENTS.md",
@@ -133,6 +134,7 @@
       "name": "OpenCode Desktop",
       "version": "1.18.9",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\@opencode-aidesktop\\OpenCode.exe",
+      "executableNote": "UNVERIFIED and probably wrong in shape; the OpenCode DESKTOP app is not installed on this workstation, checked 2026-08-11. Neither the declared path nor any *opencode* directory exists under %LOCALAPPDATA%\\Programs\\. The literal '@opencode-aidesktop' segment reads like an npm package specifier rather than an installed-program directory name, so this looks derived from a package name instead of observed on disk -- treat it as a guess until a machine with the desktop app confirms it. Distinct from the `opencode` CLI host, which IS installed here and whose declared path resolves.",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
         "instructions": "C:\\Users\\SaroshHussain\\.config\\opencode\\AGENTS.md",
@@ -181,6 +183,7 @@
       "name": "Hermes Agent",
       "version": "0.19.0",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\hermes.exe",
+      "executableNote": "Path shape believed CORRECT; Hermes is NOT INSTALLED on this workstation, checked 2026-08-11. The whole hermes-agent\\ install tree is absent -- not just the exe -- and `hermes` is not on PATH. The documented Windows layout keeps the disposable install under HERMES_HOME\\hermes-agent\\ with a Python venv inside, which is the shape declared here, so this is an uninstall rather than a wrong path. See configNote below: the only surviving contents of %LOCALAPPDATA%\\hermes are SOUL.md and skills\\, both written by agenthub's own sync, so this host's config root exists because we created it. Hermes is in fleet-profile.json managedHosts; absence here is not fleet-wide.",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\config.yaml",
         "instructions": "C:\\Users\\SaroshHussain\\AppData\\Local\\hermes\\SOUL.md",
@@ -370,7 +373,8 @@
       "id": "cline",
       "name": "Cline CLI / ACP / Kanban",
       "version": "3.0.51",
-      "executable": "C:\\Users\\SaroshHussain\\bin\\cline.cmd",
+      "executable": "C:\\Users\\SaroshHussain\\.local\\bin\\cline.cmd",
+      "executableNote": "Corrected 2026-08-11: the declaration read C:\\Users\\SaroshHussain\\bin\\cline.cmd, which does not exist. Cline installs to %USERPROFILE%\\.local\\bin, the same root `claude` uses, and ships both cline.cmd and cline.ps1 there; PowerShell's Get-Command resolves the .ps1 first, so a check that compares against Get-Command output alone will disagree with this declaration even though both are the same install. .cmd is declared because it is the form callable from any shell.",
       "nativePaths": {
         "dataDir": "C:\\Users\\SaroshHussain\\.cline",
         "config": "C:\\Users\\SaroshHussain\\.cline\\data\\settings",
@@ -465,6 +469,7 @@
       "name": "Qoder CLI / Desktop / JetBrains / QoderWork",
       "version": "1.1.5",
       "executable": "C:\\Users\\SaroshHussain\\.qoder\\bin\\qodercli\\qodercli.exe",
+      "executableNote": "Path CORRECT and independently corroborated; Qoder is NOT INSTALLED on this workstation, checked 2026-08-11. ~/.qoder/bin is absent, yet an orphaned launcher left behind at %USERPROFILE%\\bin\\qodercli.cmd is still on PATH and its body invokes exactly this path, so the declaration matches what the vendor's own wrapper expects. That wrapper is also why `qodercli` LOOKS installed: Get-Command finds it and it fails only on invocation, with 'The system cannot find the path specified.' Any future check that treats 'resolves on PATH' as 'installed' will be wrong about this host specifically. See agentsDirNote: ~/.qoder contains only settings.json and skills\\, both written by agenthub's sync.",
       "nativePaths": {
         "configHome": "C:\\Users\\SaroshHussain\\.qoder",
         "settings": "C:\\Users\\SaroshHussain\\.qoder\\settings.json",
@@ -503,7 +508,8 @@
       "id": "amp",
       "name": "Sourcegraph Amp",
       "version": "0.0.1785401491-g022332",
-      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\amp.exe",
+      "executable": "C:\\Users\\SaroshHussain\\.amp\\bin\\amp.exe",
+      "executableNote": "Corrected 2026-08-11: the declaration read the WinGet shim path %LOCALAPPDATA%\\Microsoft\\WinGet\\Links\\amp.exe, which does not exist. Amp is installed at %USERPROFILE%\\.amp\\bin\\amp.exe and that is what `amp` resolves to on PATH. A WinGet Links shim is written only for packages installed through WinGet, so the old path recorded an installation method this host never used rather than a path that later moved.",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.config\\amp\\settings.json",
         "mcp": "C:\\Users\\SaroshHussain\\.config\\amp\\settings.json",
@@ -564,7 +570,8 @@
       "id": "factory",
       "name": "Factory Droid",
       "version": "0.183.0",
-      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.144.0\\resources\\bin\\droid.exe",
+      "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.150.0\\resources\\bin\\droid.exe",
+      "executableNote": "Version-bumped 2026-08-11 from app-0.144.0, which no longer existed. EXPECT THIS TO GO STALE AGAIN. Factory ships as a Squirrel application: each update installs a new app-<version>\\ directory beside the old one and removes the previous, so any path naming a version is correct only until the next update. It was not replaced with a stable path because there is no stable path to the droid CLI on this host -- %LOCALAPPDATA%\\Factory\\ holds only factory-desktop.exe (the Squirrel stub for the GUI) and Update.exe, `droid` is not on PATH, and droid.exe exists solely under the versioned resources\\bin. Pointing at factory-desktop.exe would be a different program, not a more stable spelling of this one. Nothing in this repository executes this field -- it is inventory -- so the cost of staleness is a wrong record, and Test-DeclaredExecutableAccountability.ps1 now makes that record fail loudly on the next Factory update instead of drifting unnoticed. When it fires, bump the version here or, better, declare a stable launcher if Factory ever ships one.",
       "executableNote": "Corrected 2026-08-04: the recorded path still pointed at app-0.142.0, which no longer exists. Factory version-stamps its application directory, so this path goes stale on every upgrade and should be re-resolved rather than trusted. MCP config verified the same day against docs.factory.ai/cli/configuration/mcp: ~/.factory/mcp.json with top-level key mcpServers, matching this entry and Sync-AgentHub.ps1.",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.factory\\settings.json",
@@ -642,15 +649,5 @@
       "notes": "Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%\\Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch."
     }
   ],
-  "inactiveAgents": [
-    {
-      "id": "agenthub-task0c-canary-d4ce9877ecbe4971ac58f66ddb87c335",
-      "name": "AgentHub Task 0c Canary (reverted by test)",
-      "status": "inactive",
-      "nativePaths": {
-        "instructions": null
-      },
-      "supportedCapabilities": []
-    }
-  ]
+  "inactiveAgents": []
 }
