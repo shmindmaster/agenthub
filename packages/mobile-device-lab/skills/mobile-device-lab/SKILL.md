@@ -138,13 +138,32 @@ For an Expo product, the simulator build is what an EAS profile with
 `ios.simulator: true` produces — the `.tar.gz` archive that is useless on a
 phone. It is exactly the right input here.
 
-Install once, then address the app by bundle id instead of shipping a path:
+You do not need EAS for it. Build locally in the guest instead — no cloud
+queue, no build minutes, and no credentials, because simulator builds are not
+code-signed:
 
 ```bash
-ssh macvm 'xcrun simctl install booted /Users/maclab/build/MyApp.app'
+# 1. mirror the working tree into the guest (uncommitted work included;
+#    node_modules, ios/ and Pods in the guest are preserved, not re-sent)
+pwsh -File 'D:\OneDrive - MahumTech\Documents\30_Computer_Setup\macOS-VM-Mobile-Dev-Lab\04-Lab-Operations\Sync-RepoToGuest.ps1' `
+  -RepoPath C:\Repos\shmindmaster\<product> -GuestPath '~/Repos/shmindmaster/<product>'
+
+# 2. build Release for the simulator and install it
+ssh macvm 'bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/<product>'
 ```
 
-and thereafter use `appium:bundleId`.
+`Sync-RepoToGuest.ps1` lives in the VM lab folder rather than in this package,
+so it is a dependency this capability does not version. Do not copy it here —
+two copies of a script is how the Anki exporter silently drifted and shipped a
+package with zero media. If it needs to be owned by this capability, move it
+and leave the lab folder pointing at the moved copy.
+
+`build-expo-simulator.sh` runs `expo prebuild` when `ios/` is absent, builds
+**Release** (a Debug build expects a Metro server and shows a red screen
+without one), installs onto the booted simulator, and prints the bundle id.
+
+Then address the app by `appium:bundleId` rather than shipping a path, which
+avoids the "path must exist on the server" trap entirely.
 
 ## Evidence
 

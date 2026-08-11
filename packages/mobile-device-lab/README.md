@@ -40,11 +40,27 @@ The Android capture was Rexa itself mid-session, not a stock home screen.
 ## Use it
 
 ```powershell
-# Gate first -- names the one broken layer instead of leaving you to guess.
+# Bring it up (emulator + guest + simulator), then gate it.
+pwsh -NoProfile -File packages/mobile-device-lab/skills/mobile-device-lab/scripts/Start-MobileLab.ps1
 pwsh -NoProfile -File packages/mobile-device-lab/skills/mobile-device-lab/scripts/Test-MobileLab.ps1
 ```
 
 Then load the **`mobile-device-lab`** skill and drive `appium-mobile`.
+
+A host reboot stops the emulator and the guest, and `Start-MobileLab.ps1` is
+what brings them back — it discovers the `.vmx` from VMware's own inventory and
+the guest IP from `vmrun`, so neither is hardcoded. Appium itself needs no help:
+it runs as a launchd agent and came back 170s after a verified guest reboot.
+
+To build an app for the iOS Simulator without EAS, cloud minutes, or
+credentials, see `scripts/guest/build-expo-simulator.sh`.
+
+## Eligibility is not optional
+
+Resolve the product against `registry/mobile-scope.json` before driving it.
+`include` only. `abacare` and `gentlenext` are `healthSensitive`, and this
+lab's own tools — screenshot, screen recording, page source — are exactly what
+that flag restricts: synthetic fixtures only.
 
 ## Guest setup (once, idempotent)
 
