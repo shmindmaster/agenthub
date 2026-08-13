@@ -127,6 +127,18 @@ if (-not $Vmx) {
 if (-not $Vmx) { throw "Could not resolve a .vmx from VMware's inventory. Pass -Vmx explicitly." }
 Say "  vmx: $Vmx"
 
+# This macOS guest does not run nested VMs. Workstation cannot expose AMD-V/RVI
+# to it while the Windows Hyper-V profile is active, and an accidental TRUE
+# makes vmrun abort before macOS starts. Enforce the documented lab invariant.
+$vmxText = [IO.File]::ReadAllText($Vmx)
+if ($vmxText -match '(?m)^vhv\.enable\s*=\s*"TRUE"') {
+    $backup = "$Vmx.pre-mobile-lab-vhv-disable"
+    if (-not (Test-Path -LiteralPath $backup)) { Copy-Item -LiteralPath $Vmx -Destination $backup }
+    $vmxText = $vmxText -replace '(?m)^vhv\.enable\s*=\s*"TRUE"', 'vhv.enable = "FALSE"'
+    [IO.File]::WriteAllText($Vmx, $vmxText, [Text.UTF8Encoding]::new($false))
+    Say '  repaired vhv.enable=FALSE for Hyper-V compatibility' 'Yellow'
+}
+
 $running = @(& $vmrun list)
 if ($running -contains $Vmx) {
     Say '  already running' 'Green'

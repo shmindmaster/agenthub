@@ -44,7 +44,8 @@ permanent mistake.
 | Navigation | Expo Router |
 | Native generation | Continuous Native Generation + config plugins |
 | Dev runtime | `expo-dev-client` - not Expo Go |
-| Builds / distribution / OTA | EAS Build, EAS Submit, EAS Update |
+| Builds | **Local by default** - see below. EAS Build is the fallback |
+| Distribution / OTA | EAS Submit, EAS Update |
 | CI/CD | EAS Workflows |
 | Store metadata | EAS Metadata (`store.config.json` in-repo) |
 | Environments | EAS Environment Variables (account-wide + per project) |
@@ -63,6 +64,94 @@ permanent mistake.
 Release routing follows the fingerprint: unchanged native state ships as an
 EAS Update; changed native state builds and submits. Do not hand-roll this
 decision.
+
+### Build locally. The cloud runner is the fallback
+
+Every target compiles on this hardware. Sending a routine build to EAS's
+runners spends money for nothing, and the fleet has already paid that bill -
+the account exhausted its build quota on 2026-08-11, mostly on iOS builds,
+which run on macOS runners and burn quota far faster than the Linux runners
+Android uses.
+
+| Target | Build it with | Where |
+| --- | --- | --- |
+| Android APK | `gradlew` | the Windows workstation |
+| iOS Simulator `.app` | `xcodebuild` (`ios.simulator: true`) | the macOS guest |
+| iOS device `.ipa`, signed | `eas build --platform ios --profile <p> --local` | the macOS guest |
+
+`--local` runs the same build EAS runs, on your machine. It contacts Expo for
+exactly two things - confirming the project exists and downloading the managed
+credentials - and **neither is a build minute**. Caching and `secret`-type
+environment variables are not supported locally, and the `node`/`yarn`/
+`fastlane`/`cocoapods`/`ndk`/`image` version fields in `eas.json` are ignored.
+
+Verified on Rexa 2026-08-11 in the VMware macOS guest, ~10 minutes wall clock:
+a 16.1 MB `arm64` `.ipa`, authority `iPhone Distribution: Sarosh Hussain
+(9V6CGU625U)`, `codesign --verify` clean, Ad Hoc profile carrying the test
+device's UDID.
+
+**An empty signing-identity list does not mean the guest cannot sign.**
+
+```
+security find-identity -v -p codesigning   ->  0 valid identities found
+```
+
+That is the expected state *after a successful local build*: `eas build
+--local` imports the certificate into a throwaway keychain for the build and
+tears it down afterwards. Rexa's runbook read that output as "the guest cannot
+sign", recorded "iOS device builds require EAS" as fact, and kept spending
+quota on the one build it did not need to. Check for a signed artifact, never
+for a permanent keychain identity.
+
+Reach for the cloud runner only when the macOS guest is genuinely unavailable.
+
+**Local builds solve signing, not delivery.** A cloud build comes with an
+install page the phone can open in Safari; a local `.ipa` does not, so each
+product still needs a route onto hardware.
+
+The working route on this workstation is **`pymobiledevice3` over USB from
+Windows** - it needs no VMware USB passthrough, which is the fiddly part of the
+alternatives. Set up and verified 2026-08-11:
+
+```powershell
+winget install --id 9NP83LWLPZ9K --source msstore   # Apple Devices - supplies usbmuxd
+py -m pip install --user --no-deps pymobiledevice3  # plus its pinned deps, see below
+py -m pymobiledevice3 usbmux list                   # [] == socket live, no device attached
+py -m pymobiledevice3 apps install <path-to-ipa>    # with the phone plugged in and trusted
+```
+
+Two traps, both already paid for:
+
+- **`pip install pymobiledevice3` fails on Windows.** It pulls `pyimg4`, which
+  requires `lzfse` on non-darwin, and `lzfse` publishes no wheel at all - it
+  needs a C compiler. `pyimg4` parses Apple Image4 firmware and is irrelevant
+  to installing an app, so resolve the dependency set once
+  (`pip install --dry-run --report`), then install it flat with `--no-deps`,
+  omitting `pyimg4` and `lzfse`. The CLI imports them lazily; `apps install`
+  works without them. This does not arise in the macOS guest, where `pyimg4`
+  does not require `lzfse`.
+- **Installing Apple Devices is not enough - it must be launched once.** The
+  MSIX package registers no service at install time. Until the app runs,
+  `usbmux list` fails with `Failed to connect to usbmuxd socket`. After launch,
+  `AppleMobileDeviceProcess` and `AppleMobileDeviceLauncher` are running and
+  the socket answers. There is no Windows *service* and nothing under
+  `C:\Program Files\Common Files\Apple` - checking for either reports a
+  correctly working setup as broken.
+
+App install rides `installation_proxy` over lockdown, so it should not need the
+`sudo tunneld` RemoteXPC tunnel that iOS 17+ *developer* services require -
+expected, not yet confirmed against a device. The remaining alternatives are
+VMware USB passthrough to the guest (`xcrun devicectl device install app`) and
+a self-hosted `itms-services://` manifest, which Apple requires over real
+HTTPS.
+
+To drop the credential fetch as well, export the `.p12` once with `eas
+credentials`, or mint an App Store Connect API key and let `fastlane
+cert`/`sigh` manage the certificate and profile headlessly. The API-key route
+needs no interactive Apple ID sign-in, which matters because the macOS guest
+runs a synthetic SMBIOS and cannot complete one. Weigh it as independence, not
+savings - the fetch is free and read-only. It handles a private key, so it
+belongs to the account holder, not an agent.
 
 ## 3. One identity per product until a product actually ships
 

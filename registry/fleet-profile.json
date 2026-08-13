@@ -101,24 +101,30 @@
     "knownCapabilities": [
       "browser.isolated",
       "browser.authenticated",
-      "computer.gui"
+      "computer.gui",
+      "mobile.android.local",
+      "mobile.ios.simulated"
     ],
     "capabilityMeanings": {
       "browser.isolated": "A first-party browser the agent drives itself, with its own profile. Suits localhost and public pages; carries no signed-in session.",
       "browser.authenticated": "A browser using the user's real profile, so already-signed-in sites work. On this fleet: Chrome DevTools MCP id chrome-devtools with --autoConnect to the owner's already-running Chrome after chrome://inspect/#remote-debugging is enabled (Chrome >=144). Not a product install alone and not --remote-debugging-port on the default profile.",
-      "computer.gui": "First-party control of native desktop applications."
+      "computer.gui": "First-party control of native desktop applications.",
+      "mobile.android.local": "Driving an Android emulator or attached device on the Windows host. On this fleet the provider is the appium-mobile MCP through its embedded UiAutomator2. Does not cover a physical iPhone or any real-hardware claim.",
+      "mobile.ios.simulated": "Driving an iOS Simulator inside the VMware macOS guest, reached as a remote Appium client because Xcode and simctl do not exist on Windows. On this fleet the provider is the appium-mobile MCP with remoteServerUrl set to the guest. Does not cover a physical iPhone or any real-hardware claim."
     },
     "surfaces": [
       {
         "hostId": "codex",
         "surfaceId": "codex-cli",
-        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": null },
+        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": null, "mobile.android.local": null, "mobile.ios.simulated": null },
         "capabilityEvidence": {
           "browser.isolated": "learn.chatgpt.com/docs/browser states verbatim: 'Browser isn't available in Codex CLI or the Codex IDE extension. Open the ChatGPT desktop app to use the built-in browser.'",
           "browser.authenticated": "The same quoted sentence. What the documentation withholds from this surface is Browser itself, so it covers the authenticated variant and the isolated one alike."
         },
         "capabilityNotEstablished": {
-          "computer.gui": "Computer Use was not probed from this surface. The documented evidence here covers Browser availability only and says nothing about first-party control of native desktop applications. Recorded false until 2026-08-05 on the strength of that Browser sentence, which is the assumption this table exists to forbid; demoted to null rather than backfilled with a finding nobody made."
+          "computer.gui": "Computer Use was not probed from this surface. The documented evidence here covers Browser availability only and says nothing about first-party control of native desktop applications. Recorded false until 2026-08-05 on the strength of that Browser sentence, which is the assumption this table exists to forbid; demoted to null rather than backfilled with a finding nobody made.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
         },
         "verifiedOn": "2026-08-04",
         "verification": "learn.chatgpt.com/docs/browser states verbatim: 'Browser isn't available in Codex CLI or the Codex IDE extension. Open the ChatGPT desktop app to use the built-in browser.' MCP remains available on this surface, so structured integrations are the route here, not browser automation."
@@ -126,13 +132,15 @@
       {
         "hostId": "codex",
         "surfaceId": "codex-ide",
-        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": null },
+        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": null, "mobile.android.local": null, "mobile.ios.simulated": null },
         "capabilityEvidence": {
           "browser.isolated": "The documented sentence quoted in codex-cli names this surface explicitly: 'Browser isn't available in Codex CLI or the Codex IDE extension.'",
           "browser.authenticated": "The same documented sentence. It names the IDE extension and withholds Browser from it entirely, not one variant of it."
         },
         "capabilityNotEstablished": {
-          "computer.gui": "Computer Use was not probed from this surface. The documented sentence this surface relies on is about Browser availability, so it establishes nothing about first-party control of native desktop applications. Recorded false until 2026-08-05; demoted to null for the same reason as codex-cli."
+          "computer.gui": "Computer Use was not probed from this surface. The documented sentence this surface relies on is about Browser availability, so it establishes nothing about first-party control of native desktop applications. Recorded false until 2026-08-05; demoted to null for the same reason as codex-cli.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
         },
         "verifiedOn": "2026-08-04",
         "verification": "Same documented sentence as codex-cli names the IDE extension explicitly."
@@ -140,13 +148,15 @@
       {
         "hostId": "codex",
         "surfaceId": "codex-desktop",
-        "capabilities": { "browser.isolated": true, "browser.authenticated": null, "computer.gui": null },
+        "capabilities": { "browser.isolated": true, "browser.authenticated": null, "computer.gui": null, "mobile.android.local": null, "mobile.ios.simulated": null },
         "capabilityEvidence": {
           "browser.isolated": "learn.chatgpt.com/docs/browser states Browser is available in ChatGPT on the web and in the ChatGPT desktop app."
         },
         "capabilityNotEstablished": {
           "browser.authenticated": "The Chrome-extension surface was not probed from this machine, so it is recorded null rather than assumed.",
-          "computer.gui": "The Computer Use surface was not probed from this machine, so it is recorded null rather than assumed."
+          "computer.gui": "The Computer Use surface was not probed from this machine, so it is recorded null rather than assumed.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
         },
         "verifiedOn": "2026-08-04",
         "verification": "The same page states Browser is available in ChatGPT on the web and in the ChatGPT desktop app. The Chrome-extension and Computer Use surfaces were not probed from this machine, so they are recorded null rather than assumed."
@@ -154,11 +164,15 @@
       {
         "hostId": "claude",
         "surfaceId": "claude-cli",
-        "capabilities": { "browser.isolated": true, "browser.authenticated": false, "computer.gui": true },
+        "capabilities": { "browser.isolated": true, "browser.authenticated": false, "computer.gui": true, "mobile.android.local": null, "mobile.ios.simulated": null },
         "capabilityEvidence": {
           "browser.isolated": "Measured live: the in-app Browser pane opened and navigated.",
           "browser.authenticated": "Measured FALSE: list_connected_browsers returned an empty array, so Claude in Chrome is not connected on this machine -- the product exists but the capability does not, which is exactly the distinction this table is for.",
           "computer.gui": "Available, with documented tier limits: browsers are read-only and terminals/IDEs reject typing, so it cannot substitute for either browser capability."
+        },
+        "capabilityNotEstablished": {
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. This surface reaches the mobile lab through the appium-mobile MCP, which is a provider in registry/mcps.json rather than a first-party surface capability; a true here would claim the surface offers Android device control itself, and that was never established.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. Same reason as mobile.android.local, and the iOS half is additionally a remote client to the VMware macOS guest rather than anything this surface provides."
         },
         "verifiedOn": "2026-08-04",
         "verification": "browser.isolated measured live: the in-app Browser pane opened and navigated. browser.authenticated measured FALSE: list_connected_browsers returned an empty array, so Claude in Chrome is not connected on this machine -- the product exists but the capability does not, which is exactly the distinction this table is for. computer.gui is available, with documented tier limits: browsers are read-only and terminals/IDEs reject typing, so it cannot substitute for either browser capability."

@@ -92,7 +92,10 @@ simctl       -> iPhone 17 (Booted)
 ```
 
 VMware runs on the Windows Hypervisor Platform alongside Hyper-V. No reboot, no
-boot-entry switching, no alternating workflow.
+boot-entry switching, no alternating workflow. The macOS guest must keep
+`vhv.enable = "FALSE"`: it does not need nested virtualization, and Workstation
+cannot expose AMD-V/RVI to the guest while Hyper-V is active. The lab starter
+self-repairs this setting before power-on.
 
 ### `sudo npm install -g` — rejected
 
@@ -116,6 +119,59 @@ permanent guard. Adopting one does not displace the other.
 
 Google Play requires new apps and updates to target Android 16 / API 36 from
 **2026-08-31**. `rexa-api36` already exists. Standardise there.
+
+### Maestro under WSL for Android — rejected, measured 2026-08-13
+
+WSL 2 is installed here (Ubuntu 26.04), so this was worth testing rather than
+assuming. It is the wrong path.
+
+The socket bridge does work, but only after rebinding the Windows adb server to
+all interfaces — a raw adb probe from WSL to the host gateway then returned
+`OKAY0015emulator-5554 device`. In the default configuration both routes fail:
+`/dev/tcp/172.31.48.1/5037` is closed or filtered because adb binds loopback,
+and `/dev/tcp/127.0.0.1/5037` is refused because WSL is in NAT mode.
+`localhostForwarding=true` does not cover this direction. WSL also has no JDK
+and no adb, so it would need a second Maestro install to reach a worse outcome.
+
+**Adopted instead: run Android E2E from the macOS guest over an SSH reverse
+tunnel.** One Maestro install (2.8.0) then covers both platforms, which is the
+stated preference and is now measured rather than assumed.
+
+```bash
+ssh macvm 'adb kill-server'
+ssh -f -N -R 5037:127.0.0.1:5037 macvm
+```
+
+With that up, and the Windows adb server left at its default loopback-only bind
+(`TCP 127.0.0.1:5037 LISTENING`), the guest sees the emulator and drives it:
+
+```
+$ ssh macvm 'adb devices -l'
+emulator-5554   device product:sdk_gphone64_x86_64 device:emu64xa
+
+$ maestro --device emulator-5554 test smoke.yaml
+Launch app "app.shmindmaster.rexa"... COMPLETED
+```
+
+Confirmed from the Windows side by
+`topResumedActivity=ActivityRecord{... app.shmindmaster.rexa/.MainActivity}`.
+No firewall change and no all-interfaces adb bind are needed.
+
+Two hazards, both of which produced a wrong answer during the spike:
+
+- **Always pass `--device`.** Bare `maestro test` silently prefers the guest's
+  booted iOS simulator. It returned a plausible tree containing "Rexa" that was
+  the iPhone, not the emulator — a green Android run that never touched
+  Android.
+- **`ADB_SERVER_SOCKET` and `ANDROID_ADB_SERVER_ADDRESS` configure `adb` but
+  not Maestro.** `adb devices` succeeds with them while
+  `maestro --device emulator-5554 hierarchy` still reports
+  `Device with id emulator-5554 is not connected`. That is why the tunnel is
+  required rather than optional.
+
+A `could not connect to TCP port 5554: Connection refused` warning persists —
+Maestro probing the emulator *console* port, which was not tunnelled. Flows
+pass regardless; `-R 5554:127.0.0.1:5554` should clear it, untested.
 
 ## Things the source recommendation did not cover
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-31T00:50:49.1480587Z",
+  "generatedAt": "2026-08-13T05:19:28.6570537Z",
   "authority": {
     "capabilitiesRegistry": "registry/capabilities.json",
     "mcpRegistry": "registry/mcps.json",
@@ -27,6 +27,7 @@
     "defaultHostConfiguration": "shared-remote-only-persisted",
     "sharedRemoteTransport": "http",
     "onDemandLocalMcpIds": [
+      "appium-mobile",
       "brave-search",
       "chrome-devtools"
     ],
@@ -34,7 +35,19 @@
     "localFanoutPolicy": "never-persist-on-demand-local-in-host-config",
     "hostConfiguredLocalFanoutPolicy": "no-current-exceptions",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
-    "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider"
+    "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
+    "onDemandLocalCoverage": {
+      "reconciledOn": "2026-08-13",
+      "why": "generatedAt is bumped by this reconciliation, so it would otherwise read as a claim that onDemandLocalMcpIds covers every on-demand-local server in registry/mcps.json as of today. It does not. This block is what keeps the bumped date from overclaiming, and it is the record that the gap was seen rather than missed.",
+      "added": {
+        "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local, owned by capability mobile-device-lab, after the previous generatedAt of 2026-07-31. Straightforward staleness: it is an on-demand-desktop stdio process started by its owning capability, the same shape as chrome-devtools, so this policy governs it on the same terms."
+      },
+      "notAdded": {
+        "chrome-devtools-isolated": "Registered 2026-08-06 with activationMode on-demand-local. Not added here because whether it is governed as a separate lifecycle id or as part of its chrome-devtools sibling is a decision about how browser-toolkit exposes the pair, and no host exposure list in this file names it at all -- adding it to the lifecycle list alone would record a governance claim the exposures do not back.",
+        "repowise-workspace": "Registered 2026-08-07 with activationMode on-demand-local but scope global-default and 18 declared hosts, unlike every id currently in this list. localFanoutPolicy says an on-demand-local id is never persisted in host configuration; a global-default server with 18 hosts is the shape that normally IS persisted. Which of the two is correct was not measured against the deployed host configs, and recording it either way without that measurement is the assumption this registry exists to forbid."
+      },
+      "nextStep": "Measure both against the deployed host configurations, then either add them here or record why each is exempt. Until then this list is complete for what it claims and explicitly incomplete for what it does not."
+    }
   },
   "managedMarketplaces": [
     {
