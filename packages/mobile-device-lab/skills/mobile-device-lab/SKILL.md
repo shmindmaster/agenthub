@@ -241,18 +241,20 @@ code-signed:
 ```bash
 # 1. mirror the working tree into the guest (uncommitted work included;
 #    node_modules, ios/ and Pods in the guest are preserved, not re-sent)
-pwsh -File 'D:\OneDrive - MahumTech\Documents\30_Computer_Setup\macOS-VM-Mobile-Dev-Lab\04-Lab-Operations\Sync-RepoToGuest.ps1' `
+pwsh -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1' `
   -RepoPath C:\Repos\shmindmaster\<product> -GuestPath '~/Repos/shmindmaster/<product>'
 
 # 2. build Release for the simulator and install it
 ssh macvm 'bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/<product>'
 ```
 
-`Sync-RepoToGuest.ps1` lives in the VM lab folder rather than in this package,
-so it is a dependency this capability does not version. Do not copy it here —
-two copies of a script is how the Anki exporter silently drifted and shipped a
-package with zero media. If it needs to be owned by this capability, move it
-and leave the lab folder pointing at the moved copy.
+`Sync-RepoToGuest.ps1` is owned and versioned by this capability, under
+`scripts/` beside `Start-MobileLab.ps1`. It was moved here from the VM lab
+folder (`04-Lab-Operations/`) on 2026-08-13, and that lab path is now a
+forwarding shim that calls this copy. There is exactly one implementation —
+never restore a second one, in either direction. Two copies of a script is how
+the Anki exporter silently drifted and shipped a package with zero media, which
+is why the lab path forwards rather than duplicates.
 
 `build-expo-simulator.sh` runs `expo prebuild` when `ios/` is absent, builds
 **Release** (a Debug build expects a Metro server and shows a red screen
