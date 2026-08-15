@@ -24,6 +24,7 @@ $mobile = @($capabilities.capabilities | Where-Object id -eq 'mobile-device-lab'
 $appium = @($mcps.mcpServers | Where-Object id -eq 'appium-mobile')
 $packageRoot = Join-Path $repoRoot 'packages\mobile-device-lab'
 $syncScriptText = Get-Content -LiteralPath (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') -Raw -Encoding UTF8
+$mcpSmokeText = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Invoke-AppiumMcpSmoke.mjs') -Raw -Encoding UTF8
 
 Report 'one canonical mobile capability exists' ($mobile.Count -eq 1) "count=$($mobile.Count)"
 Report 'one pinned Appium MCP exists' ($appium.Count -eq 1 -and $appium[0].command -eq 'npx' -and 'appium-mcp@1.92.0' -in @($appium[0].args)) 'Expected registry/mcps.json#appium-mobile pinned to appium-mcp@1.92.0.'
@@ -89,6 +90,11 @@ Report 'synthetic fixture is local-only and has no durable cloud identity' (
     -not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'eas.json')) -and
     $fixtureText -notmatch 'projectId|owner|updates\.url|store'
 ) 'Fixture must not declare EAS project IDs, owners, store metadata, or cloud update URLs.'
+Report 'cross-platform MCP interactions bind to explicit concurrent session IDs' (
+    $mcpSmokeText -match 'exerciseSession\("android",\s*report\.android\.sessionId\)' -and
+    $mcpSmokeText -match 'exerciseSession\("ios",\s*report\.ios\.sessionId\)' -and
+    $mcpSmokeText -match 'appium_get_page_source",\s*\{ sessionId \}'
+) 'Do not rely on Appium MCP active-session state after Android and iOS coexist.'
 
 if ($failures.Count) {
     Write-Host "`n$($failures.Count) of $reported mobile reachability checks failed." -ForegroundColor Red

@@ -103,29 +103,49 @@ function extractSessionId(result) {
   return match?.[1] ?? null;
 }
 
-async function exerciseCurrentSession(label) {
-  const input = await callTool("appium_find_element", {
-    strategy: "accessibility id",
-    selector: "message-input",
-  });
-  const inputText = textOf(input);
-  const elementMatch = inputText.match(/(?:elementUUID|elementId|ELEMENT)["'\s:=]+([0-9a-f-]{8,})/i);
-  if (!elementMatch) throw new Error(`${label}: could not resolve message-input element from ${inputText}`);
-  await callTool("appium_set_value", { elementUUID: elementMatch[1], text: `hello-${label}` });
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  const button = await callTool("appium_find_element", {
-    strategy: "accessibility id",
-    selector: "submit-message",
-  });
-  const buttonText = textOf(button);
-  const buttonMatch = buttonText.match(/(?:elementUUID|elementId|ELEMENT)["'\s:=]+([0-9a-f-]{8,})/i);
-  if (!buttonMatch) throw new Error(`${label}: could not resolve submit-message element from ${buttonText}`);
-  await callTool("appium_gesture", { action: "tap", elementUUID: buttonMatch[1] });
+async function findElementWithRetry(label, sessionId, selector, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError;
+  while (Date.now() < deadline) {
+    try {
+      const result = await callTool("appium_find_element", {
+        strategy: "accessibility id",
+        selector,
+        sessionId,
+      });
+      const resultText = textOf(result);
+      const match = resultText.match(/(?:elementUUID|elementId|ELEMENT)["'\s:=]+([0-9a-f-]{8,})/i);
+      if (match) return match[1];
+      lastError = new Error(`${label}: could not resolve ${selector} element from ${resultText}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(1000);
+  }
+  throw new Error(`${label}: ${selector} did not become ready within ${timeoutMs}ms: ${lastError?.message ?? "unknown error"}`);
+}
 
-  const source = await callTool("appium_get_page_source", {});
-  const sourceText = textOf(source);
-  if (!sourceText.includes(`hello-${label}`)) throw new Error(`${label}: echo text did not appear in page source`);
-  const screenshot = await callTool("appium_screenshot", { maxWidth: 900, returnRawBase64: true });
+async function exerciseSession(label, sessionId) {
+  const inputId = await findElementWithRetry(label, sessionId, "message-input");
+  await callTool("appium_set_value", { elementUUID: inputId, text: `hello-${label}`, sessionId });
+
+  const buttonId = await findElementWithRetry(label, sessionId, "submit-message");
+  await callTool("appium_gesture", { action: "tap", elementUUID: buttonId, sessionId });
+
+  const sourceDeadline = Date.now() + 15_000;
+  let sourceText = "";
+  while (Date.now() < sourceDeadline) {
+    const source = await callTool("appium_get_page_source", { sessionId });
+    sourceText = textOf(source);
+    if (sourceText.includes(`hello-${label}`)) break;
+    await sleep(500);
+  }
+  if (!sourceText.includes(`hello-${label}`)) throw new Error(`${label}: echo text did not appear in page source within 15000ms`);
+  const screenshot = await callTool("appium_screenshot", { maxWidth: 900, returnRawBase64: true, sessionId });
   const imageContent = (screenshot.content ?? []).find((item) => item.type === "image" && item.data);
   let screenshotArtifact = textOf(screenshot);
   if (imageContent) {
@@ -187,7 +207,8 @@ try {
     }),
   });
   report.android.sessionId = extractSessionId(androidSession);
-  report.android.exercise = await exerciseCurrentSession("android");
+  if (!report.android.sessionId) throw new Error(`Could not parse Android session ID from ${textOf(androidSession)}`);
+  report.android.exercise = await exerciseSession("android", report.android.sessionId);
 
   const iosSession = await callTool("appium_session_management", {
     action: "create",
@@ -206,7 +227,8 @@ try {
     }),
   }, 900_000);
   report.ios.sessionId = extractSessionId(iosSession);
-  report.ios.exercise = await exerciseCurrentSession("ios");
+  if (!report.ios.sessionId) throw new Error(`Could not parse iOS session ID from ${textOf(iosSession)}`);
+  report.ios.exercise = await exerciseSession("ios", report.ios.sessionId);
 
   const sessions = await callTool("appium_session_management", { action: "list" });
   const sessionText = textOf(sessions);

@@ -266,7 +266,7 @@ if ($Deep) {
     $mcpOk = ($mcpExit -eq 0 -and $mcpResult -and $mcpResult.ok)
     $script:Facts['deepEvidenceRoot'] = $evidenceRoot
     $script:Facts['appiumMcpVersion'] = '1.92.0'
-    $script:Facts['appiumMcpToolCount'] = if ($mcpResult) { $mcpResult.toolCount } else { 0 }
+    $script:Facts['appiumMcpToolCount'] = if ($null -ne $mcpResult) { [int]$mcpResult.toolCount } else { 0 }
     Write-Stage 'deep: pinned Appium MCP cross-platform interaction' $mcpOk (($mcpOutput | Select-Object -Last 6) -join ' ') 'Open appium-mcp-smoke.json in deepEvidenceRoot, apply the reported error, and rerun -Deep.'
     if (-not $mcpOk) { Stop-Gate 'Appium MCP deep smoke' }
 }
