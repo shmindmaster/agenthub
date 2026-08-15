@@ -44,11 +44,20 @@ const configuredLocalAiRegistry = process.env.LOCAL_AI_REGISTRY;
 const configuredLocalAiRoot = process.env.LOCAL_AI_ROOT;
 const defaultLocalAiRoot = process.platform === "win32" ? "D:\\Local-AI" : null;
 const localAiRoot = configuredLocalAiRoot ?? defaultLocalAiRoot;
-const sharedRegistryPath = configuredLocalAiRegistry
-  ? resolve(configuredLocalAiRegistry)
+// The Local-AI registry lives at <root>/registry.json. This previously looked
+// only under <root>/media/registry.json, which does not exist, so the lookup
+// silently found nothing, no capability runtimes were collected, and detection
+// fell through to bare `python` -- the system interpreter, which carries a
+// CPU-only torch. The result was a confident `cudaUsable: false` on a machine
+// with a working RTX 5060 Ti and four CUDA venvs, and every pipeline decision
+// keyed on that flag was wrong. Both locations are probed now so a layout
+// change in either direction degrades to the other rather than to silence.
+const localAiRegistryCandidates = configuredLocalAiRegistry
+  ? [resolve(configuredLocalAiRegistry)]
   : localAiRoot
-    ? resolve(localAiRoot, "media", "registry.json")
-    : null;
+    ? [resolve(localAiRoot, "registry.json"), resolve(localAiRoot, "media", "registry.json")]
+    : [];
+const sharedRegistryPath = localAiRegistryCandidates.find((p) => existsSync(p)) ?? null;
 const inferenceRuntimes = [];
 if (process.env.AGENTHUB_LOCAL_AI_PYTHON) inferenceRuntimes.push(process.env.AGENTHUB_LOCAL_AI_PYTHON);
 if (sharedRegistryPath && existsSync(sharedRegistryPath)) {

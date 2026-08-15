@@ -49,7 +49,11 @@ if (!scriptPath || !outDir) {
 // per-line pacing elsewhere in the pipeline -- reset to 1.0. stability/style are untouched;
 // only speed was independently proven wrong.
 const VOICE_QUALITY_STANDARD = {
-  model: "eleven_multilingual_v2",
+  // ElevenLabs-specific and therefore NOT seeded into the resolved profile: it
+  // reaches generation as the elevenlabs provider's defaultModel. Seeding it
+  // into the shared profile made it outrank every other provider's default, so
+  // the local provider was handed "eleven_multilingual_v2" as an engine name.
+  elevenLabsModel: "eleven_multilingual_v2",
   stability: 0.42,
   similarity_boost: 0.75,
   style: 0.0,
@@ -72,10 +76,98 @@ const VOICE_PRESETS = {
   calm: { stability: 0.5, similarity_boost: 0.78, speed: 1.0, style: 0.0 },
 };
 
+// Resolve the Local-AI control plane. Matches detect-media-acceleration.mjs:
+// LOCAL_AI_ROOT wins, then the documented Windows default.
+function localAiRoot() {
+  return process.env.LOCAL_AI_ROOT ?? (process.platform === "win32" ? "D:\\Local-AI" : null);
+}
+
+function localAiControl() {
+  const root = localAiRoot();
+  if (!root) return null;
+  const control = join(root, "ai.ps1");
+  return existsSync(control) ? control : null;
+}
+
 const PROVIDERS = {
+  // The owner's own voice is generated locally and never leaves the machine.
+  // ai.ps1 is the single control plane for the Local-AI stack -- this shells out
+  // to it rather than importing the engine directly, so engine changes (model
+  // routing, identity gating, pronunciation) land here without touching this
+  // file.
+  local: {
+    defaultApiKeyEnv: null, // local inference has no credential
+    requiresApiKey: false,
+    defaultModel: "qwen-clone",
+    async generate({ text, voice, model }) {
+      const control = localAiControl();
+      if (!control) {
+        throw new Error(
+          `Local-AI control plane not found. Expected ai.ps1 under ${localAiRoot() ?? "(no root)"}; ` +
+            "set LOCAL_AI_ROOT or pass --provider elevenlabs|openai.",
+        );
+      }
+      // A voice profile id, not an API voice id. Profiles live under
+      // data/artifacts/media/voice-corpus/voices/<id>/.
+      const profile = voice ?? process.env.LOCAL_AI_VOICE;
+      if (!profile) {
+        throw new Error(
+          "The local provider needs a voice profile id -- pass --voice <profile>, set a per-segment " +
+            "\"voice\" field, set LOCAL_AI_VOICE, or put \"voiceId\" in the --voice-profile.",
+        );
+      }
+      const tempRoot = mkdtempSync(join(tmpdir(), "agenthub-localai-"));
+      const outputPath = join(tempRoot, "narration.wav");
+      try {
+        // Invoked with -Command and the call operator, NOT -File. ai.ps1 declares
+        // [CmdletBinding()], which enables PowerShell's common parameters; under
+        // -File the argument `--out` prefix-matches both -OutVariable and
+        // -OutBuffer and the script dies with "the parameter name 'out' is
+        // ambiguous" before it runs. The call operator does not bind that way.
+        //
+        // Values travel in environment variables rather than inline in the
+        // command string. Narration text routinely contains quotes and
+        // apostrophes; interpolating it into a PowerShell command line would
+        // both break on them and make the caller responsible for escaping
+        // arbitrary text into a shell. PowerShell expands $env: references in
+        // argument position without re-tokenizing, so a value with spaces or
+        // quotes arrives as exactly one argument.
+        const command =
+          `& '${control.replace(/'/g, "''")}' voice $env:AGENTHUB_LAI_MODEL ` +
+          "--voice $env:AGENTHUB_LAI_VOICE --text $env:AGENTHUB_LAI_TEXT --out $env:AGENTHUB_LAI_OUT";
+        const result = spawnSync(
+          process.env.AGENTHUB_PWSH ?? "pwsh",
+          ["-NoProfile", "-Command", command],
+          {
+            encoding: "utf8",
+            maxBuffer: 8 * 1024 * 1024,
+            env: {
+              ...process.env,
+              AGENTHUB_LAI_MODEL: model,
+              AGENTHUB_LAI_VOICE: profile,
+              AGENTHUB_LAI_TEXT: text,
+              AGENTHUB_LAI_OUT: outputPath,
+            },
+          },
+        );
+        if (result.status !== 0 || !existsSync(outputPath)) {
+          throw new Error(
+            `Local-AI narration failed (${result.status ?? "launch error"}): ` +
+              `${(result.stderr || result.error?.message || "no output").trim()}`,
+          );
+        }
+        // WAV, not MP3: the local engines emit uncompressed audio and it stays
+        // uncompressed through composition. Encoding here would add a lossy
+        // generation for no benefit.
+        return { buffer: readFileSync(outputPath), ext: "wav", voice: profile };
+      } finally {
+        rmSync(tempRoot, { recursive: true, force: true });
+      }
+    },
+  },
   elevenlabs: {
     defaultApiKeyEnv: "ELEVENLABS_API_KEY",
-    defaultModel: VOICE_QUALITY_STANDARD.model,
+    defaultModel: VOICE_QUALITY_STANDARD.elevenLabsModel,
     async generate({ text, voice, model, apiKey, settings, previousText, nextText }) {
       const voiceId = voice ?? process.env.ELEVENLABS_VOICE_ID;
       if (!voiceId) {
@@ -188,6 +280,15 @@ function resolveProvider() {
     }
     return explicit;
   }
+  // Local first. The owner's voice is a local capability, and routing it to a
+  // cloud provider both sends his speech off the machine and returns a voice
+  // that is not his. Cloud providers remain the default for any other voice.
+  //
+  // This is also why local is not merely "another entry in the list": before
+  // it existed, a machine with no cloud key could not run this script at all,
+  // while the sibling SKILL.md instructed agents to use the local route.
+  if (localAiControl()) return "local";
+
   const available = [
     process.env.ELEVENLABS_API_KEY ? "elevenlabs" : null,
     process.env.OPENAI_API_KEY ? "openai" : null,
@@ -200,9 +301,9 @@ function resolveProvider() {
     );
   }
   throw new Error(
-    "No --provider given and neither ELEVENLABS_API_KEY nor OPENAI_API_KEY is set. " +
-      "Set one of those env vars, or pass --provider plus --api-key-env <VAR> if your key lives " +
-      "under a different environment variable name.",
+    "No narration provider available: the Local-AI control plane was not found and neither " +
+      "ELEVENLABS_API_KEY nor OPENAI_API_KEY is set. Set LOCAL_AI_ROOT to a Local-AI install, " +
+      "set one of those env vars, or pass --provider plus --api-key-env <VAR>.",
   );
 }
 
@@ -219,9 +320,11 @@ function sha256File(buffer) {
 async function main() {
   const provider = resolveProvider();
   const providerImpl = PROVIDERS[provider];
+  // Local inference has no credential, so the key check is per-provider rather
+  // than unconditional.
   const apiKeyEnv = flag("--api-key-env") ?? providerImpl.defaultApiKeyEnv;
-  const apiKey = process.env[apiKeyEnv];
-  if (!apiKey) {
+  const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : undefined;
+  if (providerImpl.requiresApiKey !== false && !apiKey) {
     throw new Error(`Provider "${provider}" needs an API key in $${apiKeyEnv}, but it is not set.`);
   }
 
@@ -260,7 +363,12 @@ async function main() {
     const hash = hashSegment({ text: segment.text, voice, provider, model, settings, previousText, nextText });
     const previous = previousById.get(segment.id);
 
-    if (!force && previous?.hash === hash && existsSync(join(outDir, `${segment.id}.mp3`))) {
+    // Check the extension the previous run actually produced, not a hardcoded
+    // ".mp3". The local provider emits .wav, so a fixed .mp3 probe never finds
+    // the existing file and re-renders every segment on every run, defeating
+    // regenerate-only-changed entirely.
+    const previousAudioPath = previous?.audioPath ?? join(outDir, `${segment.id}.mp3`);
+    if (!force && previous?.hash === hash && existsSync(previousAudioPath)) {
       console.log(`[skip] ${segment.id} — unchanged`);
       results.push(previous);
       continue;

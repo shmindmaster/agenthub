@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.7.2",
+  "capabilityVersion": "1.7.4",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -11,6 +11,9 @@
     "composition": "external-finishing-adapter",
     "experimentalComposition": "playwright-recast@0.19.2-windows-spike-blocked",
     "exceptionalComposition": "remotion:remotion-best-practices",
+    "ownerVoiceProvider": "local-ai",
+    "ownerVoiceRoute": "ai.ps1 voice qwen-clone --voice sarosh",
+    "ownerVoiceGate": "media/qa/score_identity.py",
     "elevenLabsProvider": "elevenlabs",
     "editorialFinish": "product-demo-studio-descript",
     "github": "gh-cli",

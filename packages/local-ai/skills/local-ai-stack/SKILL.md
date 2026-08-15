@@ -103,6 +103,18 @@ Use exactly one route for Sarosh narration:
 & $LocalAiControl voice qwen-clone --voice sarosh --text "Your words." --out <output.wav>
 ```
 
+**Invoke it with the call operator, never `pwsh -File`.** `ai.ps1` is an
+advanced script, so PowerShell's common parameters exist and `--out` prefix-
+matches both `-OutVariable` and `-OutBuffer`; under `-File` the script aborts
+with "the parameter name 'out' is ambiguous" before it runs. The failure is
+invisible interactively and fatal to every programmatic caller. From a
+non-PowerShell process, pass values through the environment so text containing
+quotes cannot break or inject into the command string:
+
+```powershell
+pwsh -NoProfile -Command "& '<root>\ai.ps1' voice qwen-clone --voice $env:V --text $env:T --out $env:O"
+```
+
 The owner selected transcript-conditioned Qwen3-TTS Base ICL on 2026-08-11.
 The `sarosh` profile preserves the reference transcript, disables sampling,
 and forbids x-vector-only mode. Do not recreate or use Chatterbox Sarosh
@@ -113,8 +125,43 @@ an approved narration fine-tuning corpus.
 Resolve the exact profile from
 `data\artifacts\media\voice-corpus\voices\sarosh\profile.json`. Require human
 listening approval before replacing its reference or changing a client video.
-When the script contains Sarosh, test that line explicitly: one smoke render
-was heard closer to Saurash, so name pronunciation is an open release gate.
+
+### Identity gating is mandatory for owner-voice output
+
+Every generated clip that claims to be Sarosh is scored against an enrolled
+speaker profile before it ships:
+
+```powershell
+& $LocalAiRuntime\audio-qa\Scripts\python.exe <root>\media\qa\score_identity.py --voice sarosh <file-or-dir>
+```
+
+It reports two independent backends (ReDimNet2-B6 and CAM++), requires both to
+clear a floor derived from the owner's own recordings, and exits non-zero on
+failure so it composes with render scripts. Backends were selected by
+measurement, not reputation; `wavlm-base-plus-sv` is deliberately excluded
+because it could not separate this speaker from other narrators.
+
+This is not optional polish. Retro-scoring 148 already-delivered brief segments
+found 6 below the floor, one at less than half of it -- audio that had shipped
+without anyone noticing it no longer sounded like the speaker.
+
+Do not fix pronunciation by respelling the input text. Measured on the
+`voice-out/names/` A/B set, phonetic respelling (`v5_phon`) was the only variant
+that FAILED the identity floor on both backends: it changes the voice to change
+the vowel. Pronunciation belongs in a dedicated dictionary layer that applies
+across engines.
+
+### Engine selection is measured, not remembered
+
+`<root>\media\qa\shootout.py` renders a fixed evaluation script through every
+installed engine and ranks them by identity score. Run it before changing the
+default engine, and keep `media\qa\eval_script.json` stable -- editing the text
+invalidates comparison with earlier runs.
+
+Adding an engine means adding an adapter under `media\engines\` that honours the
+shared `--text/--out/--reference/--ref-text/--seed/--print-id` contract, plus a
+`capabilities` entry in `$LocalAiRegistry`. Engines are never co-resident: one
+model at a time, per `policy.gpu_heavy_jobs`.
 
 ## Route matrix
 
