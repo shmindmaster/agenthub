@@ -39,6 +39,7 @@ cat > "$PLIST" <<PLIST_EOF
     <string>--address</string><string>0.0.0.0</string>
     <string>--port</string><string>${PORT}</string>
     <string>--use-drivers</string><string>xcuitest</string>
+    <string>--allow-insecure</string><string>*:session_discovery</string>
     <string>--log-level</string><string>info</string>
   </array>
   <key>EnvironmentVariables</key>
@@ -60,7 +61,21 @@ echo "wrote $PLIST"
 
 UID_NUM="$(id -u)"
 launchctl bootout "gui/${UID_NUM}/${LABEL}" 2>/dev/null || true
-launchctl bootstrap "gui/${UID_NUM}" "$PLIST"
+bootstrapped=0
+# bootout can return before launchd has fully removed the old job. An immediate
+# bootstrap then intermittently fails with error 5 even though the plist is
+# valid; retry the documented operation instead of leaving Appium down.
+for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+  if launchctl bootstrap "gui/${UID_NUM}" "$PLIST"; then
+    bootstrapped=1
+    break
+  fi
+  sleep 1
+done
+if [ "$bootstrapped" -ne 1 ]; then
+  echo "FATAL: launchctl bootstrap did not succeed after 30 attempts." >&2
+  exit 1
+fi
 launchctl enable "gui/${UID_NUM}/${LABEL}"
 
 echo "launchd agent bootstrapped: ${LABEL}"

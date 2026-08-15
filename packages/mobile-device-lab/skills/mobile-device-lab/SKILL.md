@@ -56,6 +56,9 @@ pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab
 ```
 
 `Start-MobileLab.ps1` boots the emulator and the macOS guest and waits for each.
+A startup also deploys the canonical `scripts/guest/*.sh` set as LF-only UTF-8
+before polling Appium; if the launch-agent definition changed, it restarts only
+Appium and waits for readiness. Do not maintain a second guest-side copy.
 A host reboot stops both, and nothing else restarts them — Appium itself does
 come back inside the guest on its own (verified: guest rebooted, Appium serving
 again 170s later, no human action), but only once the guest is running.
@@ -78,6 +81,16 @@ launches it on both simulators, initializes pinned `appium-mcp@1.92.0`, checks
 the tool catalog, keeps concurrent sessions, taps/types, inspects page source,
 and captures screenshots. It never creates an Expo/EAS project, store entry,
 credential, or product identity.
+
+Deep validation is intentionally foreground-mutating. Before any build,
+install, or launch, it enumerates the Windows process table, the macOS guest
+process table, and guest Appium sessions. It refuses to run while Maestro,
+Xcode, another simulator mutation, or an Appium session is active. Wait for the
+reported owner to finish; never terminate another run merely to make the gate
+pass. The deep client pins the enumerated `emulator-*` and Simulator UDIDs, so
+it cannot select an attached physical device by name or platform alone.
+The private guest Appium service enables only Appium 3's
+`*:session_discovery` feature so this preflight can inspect active sessions.
 
 **Do not debug more than one layer at a time.** The gate exists so you don't
 have to: emulator, VM, simulator, Appium, and network are checked separately.

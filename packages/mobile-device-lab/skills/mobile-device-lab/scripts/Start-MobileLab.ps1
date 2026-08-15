@@ -26,7 +26,7 @@ Android virtual device to boot. Defaults to the first one listed.
 Bring up Android only; do not start the macOS guest.
 
 .PARAMETER TimeoutMinutes
-Overall budget for each wait phase. Default 10.
+Overall budget for each wait phase. Default 15.
 #>
 [CmdletBinding()]
 param(
@@ -34,7 +34,7 @@ param(
     [string]$Vmx,
     [switch]$SkipIos,
     [switch]$Json,
-    [int]$TimeoutMinutes = 10
+    [int]$TimeoutMinutes = 15
 )
 
 $ErrorActionPreference = 'Stop'
@@ -78,6 +78,7 @@ function Emit-Result {
         ready = $Ready
         androidDeviceId = $script:Facts.androidDeviceId
         iosDevice = $script:Facts.iosDevice
+        iosDeviceId = $script:Facts.iosDeviceId
         iosRuntime = $script:Facts.iosRuntime
         guestAppiumUrl = $script:Facts.guestAppiumUrl
         guestIp = $script:Facts.guestIp
@@ -105,7 +106,7 @@ foreach ($required in @($adb, $emulatorExe)) {
 }
 
 Say 'Android:'
-$attached = @(& $adb devices | Where-Object { $_ -match '\sdevice$' })
+$attached = @(& $adb devices | Where-Object { $_ -match '^emulator-\d+\s+device$' })
 if ($attached.Count -gt 0) {
     Say ("  already attached: {0}" -f (($attached | ForEach-Object { ($_ -split '\s+')[0] }) -join ', ')) 'Green'
 }
@@ -117,14 +118,15 @@ else {
     Say "  booting AVD '$Avd' (available: $($avds -join ', '))"
     Start-Process -FilePath $emulatorExe -ArgumentList @('-avd', $Avd) -WindowStyle Minimized | Out-Null
     if (-not (Wait-Until -What "emulator '$Avd'" -TimeoutSec $timeoutSec -Condition {
-                @(& $adb devices | Where-Object { $_ -match '\sdevice$' }).Count -gt 0
+                @(& $adb devices | Where-Object { $_ -match '^emulator-\d+\s+device$' }).Count -gt 0
             })) { throw "Android emulator failed to attach." }
+    $startedAndroidId = [string](@(& $adb devices | Where-Object { $_ -match '^emulator-\d+\s+device$' } | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1))
     # `adb devices` reports the device before Android has finished booting.
     if (-not (Wait-Until -What 'android boot completed' -TimeoutSec $timeoutSec -Condition {
-                (& $adb shell getprop sys.boot_completed 2>$null) -match '1'
+                (& $adb -s $startedAndroidId shell getprop sys.boot_completed 2>$null) -match '1'
             })) { throw "Android did not finish booting." }
 }
-$androidId = @(& $adb devices | Where-Object { $_ -match '\sdevice$' } | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
+$androidId = @(& $adb devices | Where-Object { $_ -match '^emulator-\d+\s+device$' } | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
 $script:Facts.androidDeviceId = if ($androidId.Count) { $androidId[0] } else { $null }
 Add-Stage 'android' ([bool]$script:Facts.androidDeviceId) "device=$($script:Facts.androidDeviceId)" 'Start an API 36 AVD and rerun.'
 
@@ -181,7 +183,9 @@ else {
 
 $guestIp = $null
 if (-not (Wait-Until -What 'guest IP' -TimeoutSec $timeoutSec -Condition {
-            $candidate = (& $vmrun getGuestIPAddress $Vmx -wait) 2>&1 | Select-Object -First 1
+            # Never pass vmrun -wait here: it can block forever inside this
+            # bounded loop and make TimeoutMinutes decorative.
+            $candidate = (& $vmrun getGuestIPAddress $Vmx) 2>&1 | Select-Object -First 1
             if ($candidate -match '^\d+\.\d+\.\d+\.\d+$') { $script:guestIp = $candidate; $true } else { $false }
         })) { throw "VMware Tools did not report a guest IP." }
 Say "  guest at $script:guestIp"
@@ -189,10 +193,21 @@ $script:Facts.guestIp = $script:guestIp
 Add-Stage 'macos-guest' $true "vmx=$Vmx; ip=$script:guestIp"
 
 if (-not (Wait-Until -What 'ssh to guest' -TimeoutSec $timeoutSec -Condition {
-            $null = & ssh -o "HostName=$script:guestIp" -o ConnectTimeout=8 -o BatchMode=yes macvm 'true' 2>&1
+            $null = & ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o ConnectTimeout=8 -o BatchMode=yes macvm 'true' 2>&1
             $LASTEXITCODE -eq 0
         })) { throw "SSH failed at the dynamically discovered guest address $script:guestIp." }
 Add-Stage 'guest-ssh' $true "macvm via $script:guestIp"
+
+$guestSync = Join-Path $PSScriptRoot 'Sync-MobileLabGuestScripts.ps1'
+$syncOutput = @(& $guestSync -GuestIp $script:guestIp -Json 2>&1)
+$syncExit = $LASTEXITCODE
+$syncLine = $syncOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+$syncResult = $null
+if ($syncLine) { try { $syncResult = $syncLine | ConvertFrom-Json } catch { } }
+if ($syncExit -ne 0 -or -not $syncResult -or -not $syncResult.ok) {
+    throw "Guest helper sync failed: $(($syncOutput | Select-Object -Last 4) -join ' ')"
+}
+Add-Stage 'guest-helper-sync' $true "changed=$($syncResult.changed); appiumRestarted=$($syncResult.appiumRestarted)"
 
 # Appium runs as a launchd agent (RunAtLoad), so it comes back with the guest.
 # Cold start is minutes here, hence the generous budget.
@@ -203,30 +218,52 @@ if (-not (Wait-Until -What "appium at $appiumUrl" -TimeoutSec $timeoutSec -Condi
         })) {
     Say '  Appium did not answer. Is the launchd agent installed?' 'Yellow'
     Say "    ssh macvm 'bash ~/mobile-lab/start-appium-guest.sh'" 'Cyan'
-    throw "Guest Appium did not become ready at $appiumUrl. Remediation: ssh -o HostName=$script:guestIp macvm 'bash ~/mobile-lab/start-appium-guest.sh'."
+    throw "Guest Appium did not become ready at $appiumUrl. Remediation: ssh -o HostName=$script:guestIp -o HostKeyAlias=macvm macvm 'bash ~/mobile-lab/start-appium-guest.sh'."
 }
 Add-Stage 'guest-appium' $true $appiumUrl
 
 # A booted simulator is what iOS sessions attach to. Booting is slow, so do it
 # here rather than making the first session pay for it.
-$booted = & ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl list devices booted | grep Booted | head -1' 2>&1
-if ($booted -notmatch 'Booted') {
+$booted = @(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted | grep Booted | head -1' 2>&1)
+$bootedText = [string]($booted | Where-Object { $_ -match 'Booted' } | Select-Object -First 1)
+if ([string]::IsNullOrWhiteSpace($bootedText)) {
     Say '  no simulator booted; booting iPhone 17'
-    & ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl boot "iPhone 17" 2>/dev/null || true' | Out-Null
+    $availableJson = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices available -j' 2>&1) -join "`n")
+    try { $availableDevices = $availableJson | ConvertFrom-Json }
+    catch { throw "Could not parse simctl device inventory JSON: $($_.Exception.Message)" }
+    $flatDevices = @(
+        foreach ($runtimeProperty in @($availableDevices.devices.PSObject.Properties)) {
+            @($runtimeProperty.Value)
+        }
+    )
+    $targetSimulator = @($flatDevices | Where-Object { $_.name -eq 'iPhone 17' } | Select-Object -First 1)
+    if ($targetSimulator.Count -ne 1 -or -not $targetSimulator[0].udid) { throw 'Could not resolve exactly one available iPhone 17 Simulator UDID.' }
+    $targetSimulatorUdid = [string]$targetSimulator[0].udid
+    $script:Facts.iosDeviceId = $targetSimulatorUdid
+    $script:lastSimulatorBootEvidence = ''
     if (-not (Wait-Until -What 'simulator boot' -TimeoutSec $timeoutSec -Condition {
-                (& ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl list devices booted' 2>&1) -match 'Booted'
-            })) { throw "iPhone 17 Simulator did not boot." }
-    $booted = & ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl list devices booted | grep Booted | head -1' 2>&1
+                $currentState = @(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted' 2>&1)
+                if ($currentState -match 'Booted') { return $true }
+                # CoreSimulator can reject the first boot request immediately
+                # after a cold guest boot. Keep the request inside the same
+                # bounded loop, and route remote stderr to stdout so Windows
+                # PowerShell 5.1 does not promote it to a terminating record.
+                $script:lastSimulatorBootEvidence = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm "xcrun simctl boot $targetSimulatorUdid 2>&1 || true") -join ' ')
+                return $false
+            })) { throw "iPhone 17 Simulator did not boot. Last boot response: $script:lastSimulatorBootEvidence" }
+    $booted = @(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted | grep Booted | head -1' 2>&1)
+    $bootedText = [string]($booted | Where-Object { $_ -match 'Booted' } | Select-Object -First 1)
 }
 else {
-    Say ("  simulator already booted: {0}" -f ([string]($booted | Where-Object { $_ -match 'Booted' } | Select-Object -First 1)).Trim()) 'Green'
+    Say ("  simulator already booted: {0}" -f $bootedText.Trim()) 'Green'
 }
-$bootedText = [string]($booted | Where-Object { $_ -match 'Booted' } | Select-Object -First 1)
-if (-not $bootedText) { $bootedText = 'iPhone 17 (Booted)' }
+if ([string]::IsNullOrWhiteSpace($bootedText)) { throw 'Simulator boot reported success without an enumerated Booted device.' }
 $script:Facts.iosDevice = if ($bootedText -match '^\s*([^\(]+)') { $Matches[1].Trim() } else { 'iPhone 17' }
-$runtimeLine = & ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl list runtimes | grep iOS | head -1' 2>&1
+$script:Facts.iosDeviceId = if ($bootedText -match '\(([0-9A-Fa-f-]{36})\)\s+\(Booted\)') { $Matches[1] } else { $null }
+if (-not $script:Facts.iosDeviceId) { throw "Could not resolve a Simulator UDID from: $bootedText" }
+$runtimeLine = & ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list runtimes | grep iOS | head -1' 2>&1
 $runtimeText = [string]($runtimeLine | Where-Object { $_ -match 'iOS\s+26\.5' } | Select-Object -First 1)
-$script:Facts.iosRuntime = if ($runtimeText -match 'iOS\s+([0-9.]+)') { "iOS $($Matches[1])" } else { $runtimeText.Trim() }
+$script:Facts.iosRuntime = if ($runtimeText -match 'iOS\s+([0-9.]+)') { "iOS $($Matches[1])" } else { $runtimeText }
 Add-Stage 'ios-simulator' ($bootedText -match 'Booted') $bootedText 'Boot iPhone 17 in the macOS guest.'
 
 Write-Host ''

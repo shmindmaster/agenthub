@@ -163,39 +163,6 @@ shared `--text/--out/--reference/--ref-text/--seed/--print-id` contract, plus a
 `capabilities` entry in `$LocalAiRegistry`. Engines are never co-resident: one
 model at a time, per `policy.gpu_heavy_jobs`.
 
-### Building or extending the owner voice corpus
-
-Training and reference material is assembled by the refinery, never by hand:
-
-```powershell
-& $LocalAiControl corpus <sources|ingest|map|calibrate|select|transcribe|classify|report>
-```
-
-Every stage is resumable and its output file is the completion record. Three
-properties matter to any agent touching it:
-
-**Source audio is read-only.** `ingest` decodes into a working tree; every later
-stage reads that. Do not point any tool at the originals.
-
-**The path denylist fails closed.** A path outside every declared pool in
-`media\refinery\sources.py` is refused, not admitted, and denial is checked
-before pool membership so a denied subtree inside an allowed pool stays denied.
-Legal-matter recordings, third-party analyst audio, and the singing register are
-denied there. Add a pool by declaring it, never by passing a file directly.
-
-**Mined pools cannot reach Gold.** Clearing the identity gate proves the voice
-is the owner's; it does not prove the file is a recording rather than a render.
-Both acoustic tests for synthetic audio were tried and failed, so provenance
-remains the deciding evidence and uncurated sources cap at silver.
-
-Run `corpus map` as the only GPU job. A second concurrent job measured 2.8 s per
-segment against 0.11 s — a 25x penalty, not the 2x that sharing a card suggests.
-
-Gold and silver are separated by delivery register, not by identity: everything
-reaching classification has already cleared the identity floor. The existing
-prohibition on fine-tuning a narration model on the meeting corpus is unchanged;
-the refinery makes it a per-clip measurement instead of a per-folder assertion.
-
 ## Route matrix
 
 Read endpoint URLs and model IDs from `$LocalAiRegistry`; do not invent them,

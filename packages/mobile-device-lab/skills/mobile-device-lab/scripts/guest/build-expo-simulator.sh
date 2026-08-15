@@ -13,7 +13,7 @@
 # which is what an automated test needs.
 #
 # Usage:
-#   bash build-expo-simulator.sh <repo-path> [scheme]
+#   bash build-expo-simulator.sh <repo-path> [scheme] [simulator-udid]
 #
 # Example:
 #   bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/rexa Rexa
@@ -22,6 +22,7 @@ set -euo pipefail
 
 REPO="${1:?usage: build-expo-simulator.sh <repo-path> [scheme]}"
 SCHEME="${2:-}"
+SIMULATOR_UDID="${3:-booted}"
 
 cd "$REPO"
 
@@ -97,14 +98,14 @@ echo "$APP"
 BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" 2>/dev/null || true)"
 echo "bundleId: ${BUNDLE_ID:-<unreadable>}"
 
-say "install on booted simulator"
+say "install on simulator $SIMULATOR_UDID"
 if ! xcrun simctl list devices booted 2>/dev/null | grep -q Booted; then
   echo "no simulator booted; skipping install."
   echo "Boot one and re-run, or install by hand:"
   echo "  xcrun simctl install booted '$APP'"
   exit 0
 fi
-xcrun simctl install booted "$APP"
+xcrun simctl install "$SIMULATOR_UDID" "$APP"
 echo "installed."
 echo
 echo "Drive it with appium:bundleId = ${BUNDLE_ID:-<unknown>}"

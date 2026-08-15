@@ -80,6 +80,7 @@ function Emit-Json {
         ready = $Ok
         androidDeviceId = $script:Facts.androidDeviceId
         iosDevice = $script:Facts.iosDevice
+        iosDeviceId = $script:Facts.iosDeviceId
         iosRuntime = $script:Facts.iosRuntime
         guestAppiumUrl = $script:Facts.guestAppiumUrl
         facts = $script:Facts
@@ -140,11 +141,13 @@ Write-Stage 'windows: ANDROID_HOME resolves an adb' $adbOk "ANDROID_HOME=$androi
 if (-not $adbOk) { Stop-Gate 'Android SDK' }
 
 $adb = Join-Path $androidHome 'platform-tools\adb.exe'
-$devices = (& $adb devices) 2>&1 | Where-Object { $_ -match '\sdevice$' }
-$haveEmulator = [bool]$devices
+$attachedDevices = @((& $adb devices) 2>&1 | Where-Object { $_ -match '\sdevice$' })
+$devices = @($attachedDevices | Where-Object { $_ -match '^emulator-\d+\s+device$' })
+$haveEmulator = ($devices.Count -gt 0)
+$script:Facts['androidAttachedDeviceIds'] = @($attachedDevices | ForEach-Object { ($_ -split '\s+')[0] })
 $script:Facts['androidDevices'] = @($devices | ForEach-Object { ($_ -split '\s+')[0] })
 $script:Facts['androidDeviceId'] = @($script:Facts['androidDevices'])[0]
-Write-Stage 'android: a device or emulator is attached' $haveEmulator (($devices -join '; ') -replace '\s+', ' ') "Start one: & `"$androidHome\emulator\emulator.exe`" -avd <name>  (see -list-avds)"
+Write-Stage 'android: an emulator is attached' $haveEmulator (($devices -join '; ') -replace '\s+', ' ') "Start one: & `"$androidHome\emulator\emulator.exe`" -avd <name>  (see -list-avds). Physical devices are deliberately excluded."
 if (-not $haveEmulator) { Stop-Gate 'Android emulator' }
 
 if ($SkipIos) {
@@ -196,6 +199,18 @@ if ($configuredHost -and $configuredHost -ne $guestIp) {
     Write-Host ("WARN  ssh config HostName ({0}) != discovered guest IP ({1}). Update ~/.ssh/config." -f $configuredHost, $guestIp) -ForegroundColor Yellow
 }
 
+if ($Deep) {
+    $guestSync = Join-Path $PSScriptRoot 'Sync-MobileLabGuestScripts.ps1'
+    $syncOutput = @(& $guestSync -GuestIp $guestIp -Json 2>&1)
+    $syncExit = $LASTEXITCODE
+    $syncLine = $syncOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+    $syncResult = $null
+    if ($syncLine) { try { $syncResult = $syncLine | ConvertFrom-Json } catch { } }
+    $syncOk = ($syncExit -eq 0 -and $syncResult -and $syncResult.ok)
+    Write-Stage 'guest: versioned lab helpers synchronized' $syncOk (($syncOutput | Select-Object -Last 4) -join ' ') 'Rerun Start-MobileLab.ps1 -Json; never hand-edit ~/mobile-lab copies.'
+    if (-not $syncOk) { Stop-Gate 'guest helper sync' }
+}
+
 # Ask the toolchain, never a path: xcodes installs /Applications/Xcode-<ver>.app,
 # so a literal /Applications/Xcode.app test is false on a good install.
 $xcode = Invoke-Guest -Command 'xcodebuild -version' -TimeoutSec 120
@@ -213,8 +228,13 @@ $booted = Invoke-Guest -Command 'xcrun simctl list devices booted | grep Booted 
 $bootedOk = ($booted.ExitCode -eq 0 -and $booted.Stdout -match 'Booted')
 $script:Facts['bootedSimulator'] = $booted.Stdout
 $script:Facts['iosDevice'] = if ($booted.Stdout -match '^\s*([^\(]+)') { $Matches[1].Trim() } else { 'iPhone 17' }
+$script:Facts['iosDeviceId'] = if ($booted.Stdout -match '\(([0-9A-Fa-f-]{36})\)\s+\(Booted\)') { $Matches[1] } else { $null }
 Write-Stage 'guest: a simulator is booted' $bootedOk $booted.Stdout 'Run: ssh macvm "xcrun simctl boot ''iPhone 17''"  (cold boot takes minutes here)'
 if (-not $bootedOk) { Stop-Gate 'booted simulator' }
+if (-not $script:Facts['iosDeviceId']) {
+    Write-Stage 'guest: booted simulator has an explicit UDID' $false $booted.Stdout 'Boot exactly one Simulator and rerun; deep validation never targets a physical iPhone or an ambiguous device name.'
+    Stop-Gate 'simulator identity'
+}
 
 $driver = Invoke-Guest -Command 'appium driver list --installed 2>&1 | grep -c xcuitest' -TimeoutSec 300
 $driverOk = ($driver.ExitCode -eq 0 -and [int]($driver.Stdout -replace '\D', '') -ge 1)
@@ -245,8 +265,18 @@ if ($Deep) {
         Write-Stage 'deep: cross-platform fixture' $false '-Deep requires the iOS guest' 'Remove -SkipIos and rerun.'
         Stop-Gate 'deep validation'
     }
+    $idleProbe = Join-Path $PSScriptRoot 'Test-MobileLabIdle.ps1'
+    $idleOutput = @(& $idleProbe -GuestIp $guestIp -AppiumUrl $appiumUrl -Json 2>&1)
+    $idleExit = $LASTEXITCODE
+    $idleLine = $idleOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+    $idleResult = $null
+    if ($idleLine) { try { $idleResult = $idleLine | ConvertFrom-Json } catch { } }
+    $idleOk = ($idleExit -eq 0 -and $idleResult -and $idleResult.idle)
+    Write-Stage 'deep: simulators are idle and unclaimed' $idleOk (($idleOutput | Select-Object -Last 4) -join ' ') 'Wait for the reported build, Maestro run, simulator mutation, or Appium session to finish. Never terminate another task merely to make this gate pass.'
+    if (-not $idleOk) { Stop-Gate 'deep exclusivity' }
+
     $builder = Join-Path $PSScriptRoot 'Build-MobileLabSmokeFixture.ps1'
-    $buildOutput = @(& $builder -GuestIp $guestIp -Json 2>&1)
+    $buildOutput = @(& $builder -GuestIp $guestIp -IosUdid $script:Facts['iosDeviceId'] -Json 2>&1)
     $buildExit = $LASTEXITCODE
     $buildLine = $buildOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
     $buildResult = $null
@@ -258,7 +288,7 @@ if ($Deep) {
     $evidenceRoot = Join-Path $env:LOCALAPPDATA ('AgentHub\mobile-lab\evidence\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
     New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
     $mcpClient = Join-Path $PSScriptRoot 'Invoke-AppiumMcpSmoke.mjs'
-    $mcpOutput = @(& node $mcpClient --remote-url $appiumUrl --android-app $buildResult.androidApk --ios-app $buildResult.iosApp --ios-bundle-id $buildResult.iosBundleId --output-dir $evidenceRoot 2>&1)
+    $mcpOutput = @(& node $mcpClient --remote-url $appiumUrl --android-udid $script:Facts['androidDeviceId'] --ios-udid $script:Facts['iosDeviceId'] --android-app $buildResult.androidApk --ios-app $buildResult.iosApp --ios-bundle-id $buildResult.iosBundleId --output-dir $evidenceRoot 2>&1)
     $mcpExit = $LASTEXITCODE
     $mcpLine = $mcpOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
     $mcpResult = $null

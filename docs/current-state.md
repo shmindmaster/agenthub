@@ -59,11 +59,17 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   unusable. `claude plugin validate` passes such a manifest — a schema cannot
   know a dialect. Fixed in 1.0.1 and gated by `Test-PluginManifests` behavior
   4. **Plugin `.mcp.json` uses `${NAME}`; only `registry/mcps.json` uses
-  `${env:NAME}`.** Version 1.0.5 adds the Qoder manifest, dynamic VMware
+  `${env:NAME}`.** Version 1.0.5 added the Qoder manifest, dynamic VMware
   addressing, stable JSON startup/gate output, a local-only cross-platform
   fixture, pinned MCP deep smoke, and a reachability gate. Appium may persist
   as the one reviewed lightweight on-demand provider exception; the VM and
-  emulators remain cold until the skill starts them.
+  emulators remain cold until the skill starts them. Version 1.0.6 makes deep
+  validation fail closed when Maestro, Xcode, simulator mutation, or an Appium
+  session already owns the shared lab, and pins both Appium sessions to the
+  enumerated emulator/Simulator UDIDs so no attached physical device can be
+  selected. Startup now synchronizes all versioned guest helpers as LF-only
+  UTF-8 before readiness, enables only Appium 3's guarded session-discovery
+  route, and retries launchd's observed post-bootout error-5 race.
 - **Six declared agent surfaces are unverified on this workstation
   (2026-08-15):** `codex`, `opencode-desktop`, `hermes`, `qoder`, and `factory`
   have declared executables that do not resolve; `windsurf` still has no

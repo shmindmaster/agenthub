@@ -10,7 +10,7 @@ function readArgs(argv) {
     if (!key || value === undefined) throw new Error(`Invalid argument near ${argv[i] ?? "<end>"}`);
     result[key] = value;
   }
-  for (const required of ["remote-url", "android-app", "ios-app", "ios-bundle-id", "output-dir"]) {
+  for (const required of ["remote-url", "android-udid", "ios-udid", "android-app", "ios-app", "ios-bundle-id", "output-dir"]) {
     if (!result[required]) throw new Error(`Missing --${required}`);
   }
   return result;
@@ -219,6 +219,7 @@ try {
     platform: "android",
     capabilities: JSON.stringify({
       "appium:app": path.resolve(args["android-app"]),
+      "appium:udid": args["android-udid"],
       "appium:appPackage": "test.agenthub.mobilelab.smoke",
       "appium:autoGrantPermissions": true,
       "appium:newCommandTimeout": 600,
@@ -238,6 +239,7 @@ try {
       "appium:automationName": "XCUITest",
       "appium:deviceName": "iPhone 17",
       "appium:platformVersion": "26.5",
+      "appium:udid": args["ios-udid"],
       "appium:app": args["ios-app"],
       "appium:bundleId": args["ios-bundle-id"],
       "appium:noReset": true,

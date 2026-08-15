@@ -45,6 +45,13 @@ pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab
 pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Test-MobileLab.ps1' -Deep -Json
 ```
 
+The deep gate mutates foreground app state, so it first proves the shared lab
+is idle across Windows processes, guest processes, and Appium sessions. It
+fails closed on active Maestro/Xcode/simulator work and pins both virtual-device
+UDIDs; it never falls through to an attached physical device.
+Startup synchronizes the canonical guest helpers as LF-only UTF-8 before it
+polls Appium, removing the previous Windows/guest version-skew path.
+
 Then load the **`mobile-device-lab`** skill and drive `appium-mobile`.
 
 A host reboot stops the emulator and the guest, and `Start-MobileLab.ps1` is

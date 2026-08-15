@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$GuestIp,
+    [Parameter(Mandatory)][ValidatePattern('^[0-9A-Fa-f-]{36}$')][string]$IosUdid,
     [string]$SshHost = 'macvm',
     [switch]$Json
 )
@@ -62,7 +63,7 @@ try {
     if (-not $apk) { throw 'Android build completed without a release APK.' }
 
     & $syncScript -RepoPath $runRoot -GuestPath $guestPath -SshHost $SshHost -SshHostName $GuestIp
-    $sshBase = @('-o', "HostName=$GuestIp", '-o', "HostKeyAlias=$SshHost", '-o', 'BatchMode=yes', $SshHost)
+    $sshBase = @('-o', "HostName=$GuestIp", '-o', "HostKeyAlias=$SshHost", '-o', 'LogLevel=ERROR', '-o', 'BatchMode=yes', $SshHost)
     $activeGuestBuilds = @(& ssh @sshBase "ps ax -o command= | grep -E '[x]codebuild|[p]od install|[e]xpo prebuild'" 2>$null)
     $foreignBuilds = @($activeGuestBuilds | Where-Object {
         $_ -notmatch '/mobile-lab/smoke-fixture/' -and
@@ -72,7 +73,7 @@ try {
     if ($foreignBuilds.Count) {
         throw "Another guest build is active; wait for it instead of competing for the software-rendered VM: $($foreignBuilds -join ' | ')"
     }
-    & ssh @sshBase "bash ~/mobile-lab/run-smoke-fixture-build.sh start $guestPath"
+    & ssh @sshBase "bash ~/mobile-lab/run-smoke-fixture-build.sh start $guestPath $IosUdid"
     if ($LASTEXITCODE -ne 0) { throw "Could not start the guest-owned iOS fixture build (ssh exit $LASTEXITCODE)." }
     $deadline = (Get-Date).AddMinutes(45)
     $guestBuildExit = $null
@@ -95,6 +96,7 @@ try {
         androidApk = $apk
         androidPackage = $androidPackage
         iosBundleId = $iosBundleId
+        iosDeviceId = $IosUdid
         iosApp = $iosApp
         guestPath = $guestPath
         localBuildRoot = $runRoot

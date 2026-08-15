@@ -34,6 +34,7 @@ recommendation is right and is adopted unchanged.
 | `appium@3.6.0`, `xcuitest@12.3.1` | `appium driver doctor xcuitest` → **0 required fixes** |
 | Prebuilt WebDriverAgent | `** TEST BUILD SUCCEEDED **`, `Debug-iphonesimulator`, 3.5 min |
 | `ffmpeg` in the guest | 8.1.2 via brew — backs `appium_screen_recording`, i.e. video evidence |
+| Appium 3 session discovery on the private guest service | Deep validation must fail closed when another Appium session owns the Simulator. Appium 3 replaced `GET /sessions` with guarded `GET /appium/sessions`, so launchd enables only `*:session_discovery`; the server remains confined to the VMware NAT network. |
 
 ## Rejected, with the reason
 
