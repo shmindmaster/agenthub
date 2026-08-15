@@ -29,6 +29,8 @@ $deepGatePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-Mo
 $deepGateText = Get-Content -LiteralPath $deepGatePath -Raw -Encoding UTF8
 $idleProbePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1'
 $guestStartText = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\start-appium-guest.sh') -Raw -Encoding UTF8
+$guestWdaCleanupPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\cleanup-wda-guest.sh'
+$guestWdaCleanupText = Get-Content -LiteralPath $guestWdaCleanupPath -Raw -Encoding UTF8
 $guestSyncPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Sync-MobileLabGuestScripts.ps1'
 
 Report 'one canonical mobile capability exists' ($mobile.Count -eq 1) "count=$($mobile.Count)"
@@ -206,6 +208,17 @@ Report 'startup retries the idempotent Simulator boot request while shutdown' (
 Report 'deep smoke busy guard demonstrably rejects an active Maestro run' $idleProbeBlocksBusy 'The idle probe must exit non-zero and report the competing command.'
 Report 'deep smoke busy guard accepts a synthetic idle snapshot' $idleProbeAcceptsIdle 'The same probe must exit zero when no conflicting operation or Appium session exists.'
 Report 'deep smoke checks exclusivity before building or installing the fixture' $idleProbeIsBeforeBuilder 'Invoke Test-MobileLabIdle.ps1 before Build-MobileLabSmokeFixture.ps1.'
+Report 'deep validation guest-IP discovery cannot block indefinitely' (
+    $deepGateText -notmatch 'getGuestIPAddress\s+\$vmx\s+-wait'
+) 'Use a non-waiting vmrun probe after the running-VM gate.'
+Report 'deep smoke retires only its Appium-owned WDA runner after MCP cleanup' (
+    $deepGateText -match 'cleanup-wda-guest\.sh' -and
+    $deepGateText.IndexOf('cleanup-wda-guest.sh', [StringComparison]::Ordinal) -gt $deepGateText.IndexOf("if (-not `$mcpOk)", [StringComparison]::Ordinal) -and
+    $guestWdaCleanupText -match 'WebDriverAgent\.xcodeproj' -and
+    $guestWdaCleanupText -match 'destination id=\$udid' -and
+    $guestWdaCleanupText -match 'appium server' -and
+    $guestWdaCleanupText -notmatch 'pkill|killall'
+) 'After Appium session deletion, stop only WDA xcodebuild children of the lab Appium server for the explicit Simulator UDID.'
 if (Test-Path -LiteralPath $idleProbePath) {
     $idleProbeText = Get-Content -LiteralPath $idleProbePath -Raw -Encoding UTF8
     Report 'Appium 3 session discovery uses the guarded current endpoint' (

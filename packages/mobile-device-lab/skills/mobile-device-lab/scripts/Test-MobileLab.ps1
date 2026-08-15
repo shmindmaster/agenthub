@@ -177,7 +177,7 @@ if (-not $vmUp) { Stop-Gate 'macOS VM' }
 
 # Discover the address rather than trusting a hardcoded one -- VMware NAT hands
 # it out by DHCP and it does change on lease renewal.
-$guestIp = (& $vmrun getGuestIPAddress $vmx -wait) 2>&1 | Select-Object -First 1
+$guestIp = (& $vmrun getGuestIPAddress $vmx) 2>&1 | Select-Object -First 1
 $script:GuestIp = $guestIp
 $ipOk = $guestIp -match '^\d+\.\d+\.\d+\.\d+$'
 $script:Facts['guestIp'] = $guestIp
@@ -299,6 +299,17 @@ if ($Deep) {
     $script:Facts['appiumMcpToolCount'] = if ($null -ne $mcpResult) { [int]$mcpResult.toolCount } else { 0 }
     Write-Stage 'deep: pinned Appium MCP cross-platform interaction' $mcpOk (($mcpOutput | Select-Object -Last 6) -join ' ') 'Open appium-mcp-smoke.json in deepEvidenceRoot, apply the reported error, and rerun -Deep.'
     if (-not $mcpOk) { Stop-Gate 'Appium MCP deep smoke' }
+
+    # Appium/XCUITest can leave its xcodebuild WebDriverAgent runner alive after
+    # both protocol sessions have been deleted. That runner is able to mutate
+    # the Simulator later and makes the next exclusivity probe fail forever.
+    # Retire only the exact WDA process for the enumerated Simulator when its
+    # parent is this lab's Appium server; never target arbitrary xcodebuild work.
+    $wdaCleanup = Invoke-Guest -Command "~/mobile-lab/cleanup-wda-guest.sh '$($script:Facts['iosDeviceId'])'" -TimeoutSec 30
+    $wdaCleanupOk = ($wdaCleanup.ExitCode -eq 0 -and $wdaCleanup.Stdout -match '"ok":true')
+    $script:Facts['wdaCleanup'] = $wdaCleanup.Stdout
+    Write-Stage 'deep: Appium-owned WDA runner retired' $wdaCleanupOk "$($wdaCleanup.Stdout) $($wdaCleanup.Stderr)" 'Inspect only Appium-owned WebDriverAgent processes for the reported Simulator UDID; do not terminate unrelated Xcode work.'
+    if (-not $wdaCleanupOk) { Stop-Gate 'WDA cleanup' }
 
     $androidAfter = @(& $adb devices | Where-Object { $_ -match '\sdevice$' })
     $simulatorAfter = Invoke-Guest -Command 'xcrun simctl list devices booted | grep Booted | head -1' -TimeoutSec 120

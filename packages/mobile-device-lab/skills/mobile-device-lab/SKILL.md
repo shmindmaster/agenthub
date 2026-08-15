@@ -91,6 +91,10 @@ pass. The deep client pins the enumerated `emulator-*` and Simulator UDIDs, so
 it cannot select an attached physical device by name or platform alone.
 The private guest Appium service enables only Appium 3's
 `*:session_discovery` feature so this preflight can inspect active sessions.
+After both MCP sessions are deleted, deep validation also retires only the
+WebDriverAgent `xcodebuild` child owned by the lab Appium server for the exact
+Simulator UDID. Appium stays running, while a stale WDA runner cannot later
+foreground the fixture or permanently block the next exclusivity check.
 
 **Do not debug more than one layer at a time.** The gate exists so you don't
 have to: emulator, VM, simulator, Appium, and network are checked separately.
