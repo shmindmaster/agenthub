@@ -258,7 +258,7 @@ if ($Deep) {
     $evidenceRoot = Join-Path $env:LOCALAPPDATA ('AgentHub\mobile-lab\evidence\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
     New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
     $mcpClient = Join-Path $PSScriptRoot 'Invoke-AppiumMcpSmoke.mjs'
-    $mcpOutput = @(& node $mcpClient --remote-url $appiumUrl --android-app $buildResult.androidApk --ios-bundle-id $buildResult.iosBundleId --output-dir $evidenceRoot 2>&1)
+    $mcpOutput = @(& node $mcpClient --remote-url $appiumUrl --android-app $buildResult.androidApk --ios-app $buildResult.iosApp --ios-bundle-id $buildResult.iosBundleId --output-dir $evidenceRoot 2>&1)
     $mcpExit = $LASTEXITCODE
     $mcpLine = $mcpOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
     $mcpResult = $null
@@ -269,6 +269,14 @@ if ($Deep) {
     $script:Facts['appiumMcpToolCount'] = if ($null -ne $mcpResult) { [int]$mcpResult.toolCount } else { 0 }
     Write-Stage 'deep: pinned Appium MCP cross-platform interaction' $mcpOk (($mcpOutput | Select-Object -Last 6) -join ' ') 'Open appium-mcp-smoke.json in deepEvidenceRoot, apply the reported error, and rerun -Deep.'
     if (-not $mcpOk) { Stop-Gate 'Appium MCP deep smoke' }
+
+    $androidAfter = @(& $adb devices | Where-Object { $_ -match '\sdevice$' })
+    $simulatorAfter = Invoke-Guest -Command 'xcrun simctl list devices booted | grep Booted | head -1' -TimeoutSec 120
+    $appiumAfter = $false
+    try { $appiumAfter = [bool](Invoke-RestMethod -Uri "$appiumUrl/status" -TimeoutSec 15).value.ready } catch { }
+    $postDeepReady = ($androidAfter.Count -gt 0 -and $simulatorAfter.ExitCode -eq 0 -and $simulatorAfter.Stdout -match 'Booted' -and $appiumAfter)
+    Write-Stage 'deep: lab remains ready after session cleanup' $postDeepReady "android=$($androidAfter -join '; '); ios=$($simulatorAfter.Stdout); appium=$appiumAfter; sessionsCleaned=$($mcpResult.sessionsCleaned)" 'Rerun Start-MobileLab.ps1 -Json, then repeat -Deep; inspect host memory pressure if the emulator exited.'
+    if (-not $postDeepReady) { Stop-Gate 'post-deep readiness' }
 }
 
 Write-Host ''

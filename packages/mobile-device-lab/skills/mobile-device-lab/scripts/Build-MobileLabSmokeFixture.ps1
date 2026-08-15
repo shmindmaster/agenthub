@@ -64,7 +64,11 @@ try {
     & $syncScript -RepoPath $runRoot -GuestPath $guestPath -SshHost $SshHost -SshHostName $GuestIp
     $sshBase = @('-o', "HostName=$GuestIp", '-o', "HostKeyAlias=$SshHost", '-o', 'BatchMode=yes', $SshHost)
     $activeGuestBuilds = @(& ssh @sshBase "ps ax -o command= | grep -E '[x]codebuild|[p]od install|[e]xpo prebuild'" 2>$null)
-    $foreignBuilds = @($activeGuestBuilds | Where-Object { $_ -notmatch '/mobile-lab/smoke-fixture/' })
+    $foreignBuilds = @($activeGuestBuilds | Where-Object {
+        $_ -notmatch '/mobile-lab/smoke-fixture/' -and
+        $_ -notmatch 'WebDriverAgent\.xcodeproj' -and
+        $_ -notmatch 'maestro-driver-ios-config\.xctestrun'
+    })
     if ($foreignBuilds.Count) {
         throw "Another guest build is active; wait for it instead of competing for the software-rendered VM: $($foreignBuilds -join ' | ')"
     }
@@ -82,12 +86,16 @@ try {
     $guestLog | ForEach-Object { Write-Host $_ }
     if ($null -eq $guestBuildExit) { throw 'Guest iOS fixture build timed out after 45 minutes.' }
     if ($guestBuildExit -ne 0) { throw "Guest iOS fixture build exited $guestBuildExit." }
+    $guestHome = [string](& ssh @sshBase 'printf %s "$HOME"' 2>$null)
+    if ([string]::IsNullOrWhiteSpace($guestHome) -or $LASTEXITCODE -ne 0) { throw 'Could not resolve the guest home for the iOS .app artifact.' }
+    $iosApp = ($guestHome.TrimEnd('/') + '/mobile-lab/smoke-fixture/build/simulator/Build/Products/Release-iphonesimulator/MobileLabSmoke.app')
 
     $result = [ordered]@{
         ok = $true
         androidApk = $apk
         androidPackage = $androidPackage
         iosBundleId = $iosBundleId
+        iosApp = $iosApp
         guestPath = $guestPath
         localBuildRoot = $runRoot
     }

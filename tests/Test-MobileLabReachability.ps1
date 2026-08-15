@@ -95,6 +95,11 @@ Report 'cross-platform MCP interactions bind to explicit concurrent session IDs'
     $mcpSmokeText -match 'exerciseSession\("ios",\s*report\.ios\.sessionId\)' -and
     $mcpSmokeText -match 'appium_get_page_source",\s*\{ sessionId \}'
 ) 'Do not rely on Appium MCP active-session state after Android and iOS coexist.'
+Report 'deep smoke cleans up every MCP-created session' (
+    $mcpSmokeText -match 'cleanupCreatedSessions\(\)' -and
+    $mcpSmokeText -match 'report\.sessionsCleaned' -and
+    $mcpSmokeText -match 'action:\s*"delete",\s*sessionId'
+) 'Delete Android and iOS sessions after concurrent evidence so WDA and emulator state do not leak between runs.'
 
 if ($failures.Count) {
     Write-Host "`n$($failures.Count) of $reported mobile reachability checks failed." -ForegroundColor Red

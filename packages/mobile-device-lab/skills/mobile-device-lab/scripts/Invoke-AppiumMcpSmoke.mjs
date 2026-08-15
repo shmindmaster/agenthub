@@ -10,7 +10,7 @@ function readArgs(argv) {
     if (!key || value === undefined) throw new Error(`Invalid argument near ${argv[i] ?? "<end>"}`);
     result[key] = value;
   }
-  for (const required of ["remote-url", "android-app", "ios-bundle-id", "output-dir"]) {
+  for (const required of ["remote-url", "android-app", "ios-app", "ios-bundle-id", "output-dir"]) {
     if (!result[required]) throw new Error(`Missing --${required}`);
   }
   return result;
@@ -131,7 +131,11 @@ async function findElementWithRetry(label, sessionId, selector, timeoutMs = 30_0
 
 async function exerciseSession(label, sessionId) {
   const inputId = await findElementWithRetry(label, sessionId, "message-input");
-  await callTool("appium_set_value", { elementUUID: inputId, text: `hello-${label}`, sessionId });
+  await callTool("appium_gesture", { action: "tap", elementUUID: inputId, sessionId });
+  // Driver-level setValue can mutate an iOS native field without emitting the
+  // React Native change event. Real W3C key actions target the focused field
+  // and prove the app itself observed the typing.
+  await callTool("appium_set_value", { text: `hello-${label}`, w3cActions: true, sessionId });
 
   const buttonId = await findElementWithRetry(label, sessionId, "submit-message");
   await callTool("appium_gesture", { action: "tap", elementUUID: buttonId, sessionId });
@@ -169,6 +173,20 @@ const report = {
   android: {},
   ios: {},
 };
+const createdSessionIds = [];
+
+async function cleanupCreatedSessions() {
+  const errors = [];
+  for (const sessionId of [...createdSessionIds].reverse()) {
+    try {
+      await callTool("appium_session_management", { action: "delete", sessionId }, 120_000);
+    } catch (error) {
+      errors.push(`${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  createdSessionIds.length = 0;
+  return errors;
+}
 
 try {
   const initialized = await request("initialize", {
@@ -208,6 +226,7 @@ try {
   });
   report.android.sessionId = extractSessionId(androidSession);
   if (!report.android.sessionId) throw new Error(`Could not parse Android session ID from ${textOf(androidSession)}`);
+  createdSessionIds.push(report.android.sessionId);
   report.android.exercise = await exerciseSession("android", report.android.sessionId);
 
   const iosSession = await callTool("appium_session_management", {
@@ -219,6 +238,7 @@ try {
       "appium:automationName": "XCUITest",
       "appium:deviceName": "iPhone 17",
       "appium:platformVersion": "26.5",
+      "appium:app": args["ios-app"],
       "appium:bundleId": args["ios-bundle-id"],
       "appium:noReset": true,
       "appium:newCommandTimeout": 600,
@@ -228,12 +248,16 @@ try {
   }, 900_000);
   report.ios.sessionId = extractSessionId(iosSession);
   if (!report.ios.sessionId) throw new Error(`Could not parse iOS session ID from ${textOf(iosSession)}`);
+  createdSessionIds.push(report.ios.sessionId);
   report.ios.exercise = await exerciseSession("ios", report.ios.sessionId);
 
   const sessions = await callTool("appium_session_management", { action: "list" });
   const sessionText = textOf(sessions);
   report.concurrentSessions = (sessionText.match(/sessionId=/g) ?? []).length >= 2;
   if (!report.concurrentSessions) throw new Error(`Concurrent session listing was not credible: ${sessionText}`);
+
+  report.cleanupErrors = await cleanupCreatedSessions();
+  report.sessionsCleaned = report.cleanupErrors.length === 0;
 
   report.ok = true;
   fs.writeFileSync(
@@ -244,6 +268,8 @@ try {
 } catch (error) {
   report.error = error instanceof Error ? error.message : String(error);
   report.stderrTail = stderr.slice(-4000);
+  report.cleanupErrors = await cleanupCreatedSessions();
+  report.sessionsCleaned = report.cleanupErrors.length === 0;
   fs.writeFileSync(
     path.join(args["output-dir"], "appium-mcp-smoke.json"),
     `${JSON.stringify(report, null, 2)}\n`,
