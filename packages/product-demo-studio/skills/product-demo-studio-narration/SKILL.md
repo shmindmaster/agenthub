@@ -25,9 +25,31 @@ available, use the canonical Local-AI route only:
 D:\Local-AI\ai.ps1 voice qwen-clone --voice sarosh --text "..." --out <segment.wav>
 ```
 
+Invoke it with the PowerShell call operator, never `pwsh -File`: `ai.ps1` is an
+advanced script, so `--out` prefix-matches `-OutVariable`/`-OutBuffer` and the
+script aborts with "the parameter name 'out' is ambiguous" before it runs. From
+Node or any non-PowerShell caller, use `scripts/generate-narration.mjs`
+(`--provider local`), which already handles this and passes text through the
+environment so quotes cannot break the command.
+
 Do not use or recreate Chatterbox Sarosh profiles, `sarosh-qwen`, x-vector-only
 cloning, meeting/singing profiles, shootout baselines, or loose Sarosh
 references. Preserve the canonical profile settings and validate each final
-segment for words, pacing, pronunciation, identity, duration, and hash. If a
-segment says Sarosh, treat the name as an explicit listening gate because one
-smoke render was heard closer to Saurash.
+segment for words, pacing, pronunciation, identity, duration, and hash.
+
+**Score every owner-voice segment before it ships:**
+
+```powershell
+D:\Local-AI\ai.ps1 voice score --voice sarosh <segment-or-dir>
+```
+
+It returns two independent speaker embeddings and exits non-zero if either
+falls below a floor derived from the owner's own recordings. This is not
+optional: retro-scoring 148 already-delivered brief segments found 6 below the
+floor, one at less than half of it, in audio that had already gone out.
+
+If a segment says Sarosh, keep the listening gate as well — the identity score
+measures *who* is speaking, not whether the name was pronounced correctly, and
+those fail independently. Do not try to fix pronunciation by respelling the
+text: of five orthography variants measured, phonetic respelling was the only
+one to fail the identity floor on both backends.

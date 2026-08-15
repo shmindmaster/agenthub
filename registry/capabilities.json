@@ -3,13 +3,34 @@
   "generatedAt": "2026-07-30T22:19:10.4107485Z",
   "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
   "surfaceAliases": [
-    { "surfaceId": "cursor-agent", "inheritsHostId": "cursor" },
-    { "surfaceId": "opencode-desktop", "inheritsHostId": "opencode" },
-    { "surfaceId": "antigravity-desktop", "inheritsHostId": "antigravity" },
-    { "surfaceId": "antigravity-ide", "inheritsHostId": "antigravity" },
-    { "surfaceId": "devin-desktop", "inheritsHostId": "devin" },
-    { "surfaceId": "factory-desktop", "inheritsHostId": "factory" },
-    { "surfaceId": "warp-oz", "inheritsHostId": "warp" }
+    {
+      "surfaceId": "cursor-agent",
+      "inheritsHostId": "cursor"
+    },
+    {
+      "surfaceId": "opencode-desktop",
+      "inheritsHostId": "opencode"
+    },
+    {
+      "surfaceId": "antigravity-desktop",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "surfaceId": "antigravity-ide",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "surfaceId": "devin-desktop",
+      "inheritsHostId": "devin"
+    },
+    {
+      "surfaceId": "factory-desktop",
+      "inheritsHostId": "factory"
+    },
+    {
+      "surfaceId": "warp-oz",
+      "inheritsHostId": "warp"
+    }
   ],
   "capabilities": [
     {
@@ -103,7 +124,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin+cli",
       "canonicalSource": "packages/elevenlabs",
-      "contentHash": "06332D0080DA13F02586A4E4F498096EC5C815FC5906D7339B8252CEE06485C9",
+      "contentHash": "AF4549CCCB4A10D15292BC46D6E95BE1EF9BFA4CFCF582535449F71DE37A427A",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
@@ -146,42 +167,57 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
       "canonicalSource": "packages/product-demo-studio",
-      "contentHash": "E4D2D6A492723D3265C3DA210B263890ED701C6E9E1BD954A233BAA4D6162A95",
+      "contentHash": "E36893E2DC263EFD8517154C6DE5A6C51AE6248D487131EBFA670DB7EEDE48B9",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
         {
           "hostId": "claude",
           "deploymentStatus": "native-plugin-installed",
-          "components": ["skills", "agents", "mcp"],
+          "components": [
+            "skills",
+            "agents",
+            "mcp"
+          ],
           "reviewIsolation": "shell-free-role-tools-plus-read-only-receipt-required"
         },
         {
           "hostId": "codex",
           "deploymentStatus": "native-plugin-installed",
-          "components": ["plugin-skills", "plugin-mcp", "managed-native-agents"],
+          "components": [
+            "plugin-skills",
+            "plugin-mcp",
+            "managed-native-agents"
+          ],
           "reviewIsolation": "sandbox-mode-read-only-plus-receipt-required"
         },
-      {
-        "hostId": "cursor",
-        "deploymentStatus": "native-local-plugin",
-        "components": [
-          "skills",
-          "agents",
-          "mcp"
-        ],
-        "reviewIsolation": "readonly-agent-tools-plus-receipt-required"
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills",
+            "agents",
+            "mcp"
+          ],
+          "reviewIsolation": "readonly-agent-tools-plus-receipt-required"
         },
         {
           "hostId": "vscode-insiders",
           "deploymentStatus": "native-local-plugin",
-          "components": ["skills", "agents", "mcp"],
+          "components": [
+            "skills",
+            "agents",
+            "mcp"
+          ],
           "reviewIsolation": "tool-limited-only-read-only-receipt-required"
         },
         {
           "hostId": "qwen-code",
           "deploymentStatus": "native-extension-junction",
-          "components": ["skills", "agents"],
+          "components": [
+            "skills",
+            "agents"
+          ],
           "mcpOwnership": "shared-registry",
           "reviewIsolation": "tool-limited-parent-yolo-not-release-eligible"
         },
@@ -204,7 +240,11 @@
         {
           "hostId": "factory",
           "deploymentStatus": "native-plugin-installed",
-          "components": ["translated-skills", "translated-droids", "translated-mcp"],
+          "components": [
+            "translated-skills",
+            "translated-droids",
+            "translated-mcp"
+          ],
           "runtimeState": "inactive-configured"
         },
         {
@@ -221,7 +261,10 @@
         {
           "hostId": "copilot",
           "deploymentStatus": "native-local-plugin",
-          "components": ["skills", "agents"],
+          "components": [
+            "skills",
+            "agents"
+          ],
           "mcpOwnership": "shared-registry",
           "reviewIsolation": "tool-limited-only-external-read-only-boundary-required"
         },
@@ -239,7 +282,11 @@
         {
           "hostId": "grok",
           "deploymentStatus": "native-plugin-installed",
-          "components": ["skills", "agents", "mcp"],
+          "components": [
+            "skills",
+            "agents",
+            "mcp"
+          ],
           "reviewIsolation": "windows-native-read-only-enforcement-unverified"
         },
         {
@@ -255,7 +302,11 @@
         {
           "hostId": "qoder",
           "deploymentStatus": "native-local-plugin",
-          "components": ["skills", "agents", "mcp"],
+          "components": [
+            "skills",
+            "agents",
+            "mcp"
+          ],
           "reviewIsolation": "tool-limited-plus-read-only-receipt-required"
         }
       ]
@@ -277,13 +328,13 @@
           "hostId": "codex",
           "deploymentStatus": "native-plugin-installed"
         },
-      {
-        "hostId": "cursor",
-        "deploymentStatus": "native-local-plugin",
-        "components": [
-          "skills",
-          "agents"
-        ]
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills",
+            "agents"
+          ]
         },
         {
           "hostId": "vscode-insiders",
@@ -453,11 +504,21 @@
         "verify-and-commit"
       ],
       "legacySkillTreeHashes": {
-        "docs-drift": ["558EDC3244298B0A3CE361EA43C5E6BA0D7B8605A7475DD6F2FB1CFC3F1E5AE1"],
-        "portfolio-audit": ["ABD5E214D400087F0780E5402A1FA682B3D6A51F75723D417FBC7BEB5CE8BC24"],
-        "release-readiness": ["C47539028BAAE85E38088B1CA2C44716124846C01AC0242899F273682B125766"],
-        "repo-onboard": ["C7ED85300834CE1DFA55209150560B133FB36B665D5DD07C0E5BDB4768765387"],
-        "verify-and-commit": ["DD71BF1E975AA45E953643CECD875451C4BC0992D0D0B97F71F516F9AFE3515F"]
+        "docs-drift": [
+          "558EDC3244298B0A3CE361EA43C5E6BA0D7B8605A7475DD6F2FB1CFC3F1E5AE1"
+        ],
+        "portfolio-audit": [
+          "ABD5E214D400087F0780E5402A1FA682B3D6A51F75723D417FBC7BEB5CE8BC24"
+        ],
+        "release-readiness": [
+          "C47539028BAAE85E38088B1CA2C44716124846C01AC0242899F273682B125766"
+        ],
+        "repo-onboard": [
+          "C7ED85300834CE1DFA55209150560B133FB36B665D5DD07C0E5BDB4768765387"
+        ],
+        "verify-and-commit": [
+          "DD71BF1E975AA45E953643CECD875451C4BC0992D0D0B97F71F516F9AFE3515F"
+        ]
       },
       "contentHash": "4D87CE0F1BD650CB6B87BA2A36795E518766C3CC7E1FDE1075E7B1B04FCBF0F9",
       "hashBasis": "packages/portfolio-engineering",
@@ -543,8 +604,12 @@
         "framer-code-components"
       ],
       "legacySkillTreeHashes": {
-        "framer": ["F7373D238B81B6EA20EC1F3810E30D380FA980AC6339491BFFBA9DC482B2BE27"],
-        "framer-code-components": ["68A371E6D4A413A2F5004B3FB42738D1B3E1FF39964020B3438FDF835AA9C425"]
+        "framer": [
+          "F7373D238B81B6EA20EC1F3810E30D380FA980AC6339491BFFBA9DC482B2BE27"
+        ],
+        "framer-code-components": [
+          "68A371E6D4A413A2F5004B3FB42738D1B3E1FF39964020B3438FDF835AA9C425"
+        ]
       },
       "contentHash": "B87161BD85B377BFA41B371D7CA8C58E0F9C515B200A98C0E9EBD4F243C08F77",
       "hashBasis": "packages/framer",
@@ -649,7 +714,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "2305941E24082EBF3D76ED5478989A4A361EF3B268CE8259FB81E4BB8ACEA9A7",
+      "contentHash": "87AE71FF6AE2E38F1DB9E61F698733C357A45C9EC5B7BBD28B4D12BF28DEE7E5",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the same eight-host tier clerk, digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. firecrawl is also single-mapped and that one IS deliberate -- its deploymentStatus is native-plugin-installed, meaning Codex installs it natively rather than AgentHub deploying it.",
@@ -725,7 +790,10 @@
         {
           "hostId": "claude",
           "deploymentStatus": "native-plugin-installed",
-          "components": ["skills", "mcp"]
+          "components": [
+            "skills",
+            "mcp"
+          ]
         },
         {
           "hostId": "cline",
@@ -734,7 +802,10 @@
         {
           "hostId": "codex",
           "deploymentStatus": "native-plugin-installed",
-          "components": ["skills", "mcp"]
+          "components": [
+            "skills",
+            "mcp"
+          ]
         },
         {
           "hostId": "copilot",
@@ -743,7 +814,10 @@
         {
           "hostId": "cursor",
           "deploymentStatus": "native-local-plugin",
-          "components": ["skills", "mcp"]
+          "components": [
+            "skills",
+            "mcp"
+          ]
         },
         {
           "hostId": "devin",
@@ -772,7 +846,10 @@
         {
           "hostId": "qoder",
           "deploymentStatus": "native-local-plugin",
-          "components": ["skills", "mcp"]
+          "components": [
+            "skills",
+            "mcp"
+          ]
         },
         {
           "hostId": "qwen-code",
@@ -804,14 +881,38 @@
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
-        { "hostId": "claude", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "codex", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "cursor", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "vscode-insiders", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "devin", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "qwen-code", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "cline", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "qoder", "deploymentStatus": "managed-loose-skills" }
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        }
       ],
       "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) and the use-repowise loose skill. The external repowise CLI itself is machine tooling (uv tool install repowise), not package content."
     },
@@ -827,24 +928,94 @@
       "hashBasis": "packages/mobile-device-lab",
       "status": "active-canonical",
       "hostMappings": [
-        { "hostId": "amp", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "antigravity", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "claude", "deploymentStatus": "native-plugin-installed", "components": [ "skills", "mcp" ] },
-        { "hostId": "cline", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "codex", "deploymentStatus": "managed-native-skills-and-mcp", "components": [ "skills", "mcp" ] },
-        { "hostId": "copilot", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "cursor", "deploymentStatus": "managed-native-skills-and-mcp", "components": [ "skills", "mcp" ] },
-        { "hostId": "devin", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "factory", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "gemini", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "grok", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "hermes", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "opencode", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "qoder", "deploymentStatus": "managed-native-skills-and-mcp", "components": [ "skills", "mcp" ] },
-        { "hostId": "qwen-code", "deploymentStatus": "managed-native-skills-and-mcp" },
-        { "hostId": "vscode-insiders", "deploymentStatus": "managed-native-mcp" },
-        { "hostId": "warp", "deploymentStatus": "managed-loose-skills-and-mcp" },
-        { "hostId": "windsurf", "deploymentStatus": "managed-loose-skills-and-mcp" }
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills",
+            "mcp"
+          ]
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-native-skills-and-mcp",
+          "components": [
+            "skills",
+            "mcp"
+          ]
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-native-skills-and-mcp",
+          "components": [
+            "skills",
+            "mcp"
+          ]
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-native-skills-and-mcp",
+          "components": [
+            "skills",
+            "mcp"
+          ]
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-native-skills-and-mcp"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-native-mcp"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills-and-mcp"
+        }
       ],
       "notes": "Owns mobile device automation for the fleet: the appium-mobile MCP (registry/mcps.json#appium-mobile) and the mobile-device-lab skill. Android runs natively on the Windows host through the MCP's embedded UiAutomator2; iOS runs in the VMware macOS guest, where Appium 3.6.0 + XCUITest 12.3.1 serve on port 4723 and are reached with remoteServerUrl over the VMnet8 private network. Verified end to end 2026-08-10: concurrent Android and iOS sessions from one MCP, screenshots from both. This capability covers interactive, agent-driven investigation only; committed regression flows remain Maestro's under the mobile-platform-standard skill, and nothing here substitutes for a physical-device run."
     }

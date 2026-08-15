@@ -51,6 +51,13 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - This is a freeze on long-lived identity, not a scheduling preference: an Apple bundle identifier cannot be changed after the first build is uploaded to App Store Connect, and Android treats a changed `applicationId` as a different application. Only the owner lifts a freeze, and only by the `exitCondition` recorded against that product.
 - Mobile platform conventions for eligible products live in the `mobile-platform-standard` skill. Read it before mobile work; do not reconstruct the baseline from memory.
 
+## Owner voice
+
+- The owner's own speaking voice is a local capability. Never generate it, or attempt to approximate it, through a hosted TTS provider: a cloud provider cannot produce that speaker and returns a different one that merely sounds professional. Route it through the Local-AI control plane and keep the audio on the machine.
+- Owner-voice audio, and any corpus derived from it, is not training data for an external service and is not transmitted for benchmarking. Comparing against a hosted provider sends only benchmark *text*, and needs the same explicit approval as any other outbound transmission.
+- Every owner-voice generation passes a speaker-identity gate before it is delivered, embedded in a video, or sent to anyone. Identity is measured against the owner's own recordings, not assumed from the fact that the correct route was used. Expression, emotion, and pacing are adjustable; speaker identity is the fixed constraint they are adjusted within.
+- Do not correct pronunciation by respelling input text. It measurably degrades speaker identity. Pronunciation is a dictionary layer applied at render time and shared across engines.
+
 ## Provider availability
 
 - Obey `registry/fleet-profile.json` dispatch policy before invoking an agent host, CLI, cloud runner, or API.

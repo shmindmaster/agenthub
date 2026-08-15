@@ -391,6 +391,41 @@ Quality tips: record in a quiet room with minimal echo; professional XLR mic; 7�
 
 **Never auto-clone a voice.** Owner consent is mandatory and the consent recording is the mechanism.
 
+This does not restrict the **owner's own local voice profile**, which is a
+consented, purpose-recorded capability rather than a clone of a third party. It
+is not produced here at all — see §5.8.
+
+## 5.8 The owner's voice is local, not a provider choice
+
+When the narration is the owner's own voice, no cloud provider is correct. They
+cannot produce that voice; they return a different speaker who merely sounds
+professional. The owner's speech also never leaves the machine.
+
+```powershell
+D:\Local-AI\ai.ps1 voice qwen-clone --voice sarosh --text "..." --out <segment.wav>
+```
+
+From Node, use `scripts/generate-narration.mjs --provider local`, which selects
+this route automatically when the Local-AI control plane is present and handles
+the PowerShell invocation correctly (`ai.ps1` must be called with the call
+operator, not `pwsh -File`).
+
+Every owner-voice segment is scored against an enrolled speaker profile before
+it ships — `ai.ps1 voice score --voice sarosh <file>` — on two independent
+embedders, against a floor derived from the owner's own recordings. Retro-scoring
+148 already-delivered segments found 6 below that floor, one at less than half
+of it.
+
+Do not fix a mispronounced name by respelling it. Of five orthography variants
+measured on this speaker, phonetic respelling was the **only** one to fail the
+identity floor on both backends: changing the spelling to change the vowel
+changes the speaker. Pronunciation belongs in a dictionary layer applied at
+render time.
+
+Everything else in Part 5 — voice selection, `instructions` steering, the pinned
+`gpt-4o-mini-tts-2025-12-15` snapshot — continues to apply to every non-owner
+voice.
+
 ## 5.7 Multilingual
 
 The TTS model broadly follows Whisper's language coverage (50+ languages) though voices are English-optimized. With the same capture and burned-caption pipeline, **localization is nearly free** — regenerate narration per language against the same master. Worth doing for any international footprint.

@@ -13,6 +13,37 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   are retired. The AgentHub local-AI and Product Demo Studio narration skills
   enforce the same route across managed hosts.
 
+- **Owner-voice output is now measured, not assumed (2026-08-15):** until this
+  date the stack had no speaker-identity measurement at all, so the 2026-08-11
+  selection above — and every reference change since — was a listening call on a
+  single candidate. `ai.ps1 voice score` gates any generation against an
+  enrolled profile using two independent embedders (ReDimNet2-B6 and CAM++),
+  with the floor derived from the owner's own recordings rather than hard-coded.
+  Backends were chosen by measured separation on real audio;
+  `wavlm-base-plus-sv` was rejected because it scored up to 0.851 between
+  *different* speakers against a same-speaker floor of 0.879.
+
+  Three findings that were invisible before it existed. Retro-scoring 148
+  already-delivered brief segments found **6 below the floor**, one at 0.205
+  against a floor of 0.505, inside audio that had already gone out. Phonetic
+  respelling — the leading candidate fix for the Sarosh/Pendoah mispronunciation
+  — was the only orthography variant to **fail** the identity floor on both
+  backends, so respelling to fix a vowel changes the speaker. And the canonical
+  route itself had never worked from a non-PowerShell caller: `ai.ps1` is an
+  advanced script, so under `pwsh -File` the `--out` argument prefix-matches
+  `-OutVariable`/`-OutBuffer` and it aborts before running.
+
+- **Engine selection is a shootout, not a memory (2026-08-15):** VoxCPM2 (48 kHz
+  native) and IndexTTS-2.5 are installed, registered in `registry.json`, and
+  dispatch through `ai.ps1 voice voxcpm|indextts`. On a fixed 10-line evaluation
+  script VoxCPM2 beats the Qwen incumbent on 8 of 10 lines
+  (redimnet 0.725 vs 0.681, camplus 0.754 vs 0.738). The margin is modest and
+  **neither engine reaches the genuine-recording band** (redimnet 0.749–0.900),
+  so zero-shot cloning from one reference is measurably not this speaker and the
+  default engine has not been changed on this evidence alone. The two lines the
+  incumbent wins are both proper-noun lines, which is independent support for
+  fixing pronunciation in a dictionary layer rather than by swapping engines.
+
 - **Mobile device lab reaches hosts (updated 2026-08-15):** `mobile-device-lab` had a
   plugin manifest and a registry entry but was in neither marketplace, so no
   host could install it — an agent drove the Android emulator with raw `adb`
