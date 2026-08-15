@@ -58,21 +58,6 @@ try {
     }
     if ($files.Count -eq 0) { throw "No guest shell scripts found under $sourceRoot" }
 
-    if ($StageOnly) {
-        Write-Result -Ok $true -Stage 'staged' -Files @($files) -Changed $false -Restarted $false -ErrorMessage $null
-        exit 0
-    }
-
-    $sshBase = @('-o', "HostName=$GuestIp", '-o', "HostKeyAlias=$SshHost", '-o', 'LogLevel=ERROR', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', $SshHost)
-    & ssh @sshBase 'mkdir -p "$HOME/mobile-lab/.agenthub-sync"'
-    if ($LASTEXITCODE -ne 0) { throw "Could not create guest staging directory (ssh exit $LASTEXITCODE)." }
-    foreach ($file in $files) {
-        $localPath = Join-Path $stageRoot $file.name
-        $remotePath = "${SshHost}:~/mobile-lab/.agenthub-sync/$($file.name)"
-        & scp -o "HostName=$GuestIp" -o "HostKeyAlias=$SshHost" -o "LogLevel=ERROR" -o BatchMode=yes $localPath $remotePath
-        if ($LASTEXITCODE -ne 0) { throw "Could not upload $($file.name) (scp exit $LASTEXITCODE)." }
-    }
-
     $fileNames = @($files | ForEach-Object { $_.name }) -join ' '
     $remoteInstall = @'
 set -eu
@@ -92,8 +77,30 @@ if [ "$restart" -eq 1 ]; then
   bash "$HOME/mobile-lab/start-appium-guest.sh"
 fi
 printf 'AGENTHUB_GUEST_SYNC changed=%s restarted=%s\n' "$changed" "$restart"
-'@.Replace('__AGENTHUB_FILE_NAMES__', $fileNames)
-    $installOutput = @(& ssh @sshBase $remoteInstall 2>&1)
+'@.Replace('__AGENTHUB_FILE_NAMES__', $fileNames).Replace("`r`n", "`n").Replace("`r", "`n")
+    $installerName = 'agenthub-install.sh'
+    $installerPath = Join-Path $stageRoot $installerName
+    [IO.File]::WriteAllText($installerPath, $remoteInstall, [Text.UTF8Encoding]::new($false))
+
+    if ($StageOnly) {
+        Write-Result -Ok $true -Stage 'staged' -Files @($files) -Changed $false -Restarted $false -ErrorMessage $null
+        exit 0
+    }
+
+    $sshBase = @('-o', "HostName=$GuestIp", '-o', "HostKeyAlias=$SshHost", '-o', 'LogLevel=ERROR', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', $SshHost)
+    & ssh @sshBase 'mkdir -p "$HOME/mobile-lab/.agenthub-sync"'
+    if ($LASTEXITCODE -ne 0) { throw "Could not create guest staging directory (ssh exit $LASTEXITCODE)." }
+    foreach ($file in $files) {
+        $localPath = Join-Path $stageRoot $file.name
+        $remotePath = "${SshHost}:~/mobile-lab/.agenthub-sync/$($file.name)"
+        & scp -o "HostName=$GuestIp" -o "HostKeyAlias=$SshHost" -o "LogLevel=ERROR" -o BatchMode=yes $localPath $remotePath
+        if ($LASTEXITCODE -ne 0) { throw "Could not upload $($file.name) (scp exit $LASTEXITCODE)." }
+    }
+
+    & scp -o "HostName=$GuestIp" -o "HostKeyAlias=$SshHost" -o "LogLevel=ERROR" -o BatchMode=yes $installerPath "${SshHost}:~/mobile-lab/.agenthub-sync/$installerName"
+    if ($LASTEXITCODE -ne 0) { throw "Could not upload $installerName (scp exit $LASTEXITCODE)." }
+
+    $installOutput = @(& ssh @sshBase "bash ~/mobile-lab/.agenthub-sync/$installerName" 2>&1)
     if ($LASTEXITCODE -ne 0) { throw "Guest helper install failed: $(($installOutput | Select-Object -Last 5) -join ' ')" }
     $resultLine = [string]($installOutput | Where-Object { $_ -match '^AGENTHUB_GUEST_SYNC ' } | Select-Object -Last 1)
     if ($resultLine -notmatch 'changed=([01])\s+restarted=([01])') { throw "Guest helper install returned no result marker: $(($installOutput | Select-Object -Last 5) -join ' ')" }

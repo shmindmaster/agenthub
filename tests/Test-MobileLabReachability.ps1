@@ -41,6 +41,9 @@ $deepGatePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-Mo
 $deepGateText = Get-Content -LiteralPath $deepGatePath -Raw -Encoding UTF8
 $idleProbePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1'
 $idleProbeText = Get-Content -LiteralPath $idleProbePath -Raw -Encoding UTF8
+$leaseToolPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Enter-MobileLabLease.ps1'
+$leaseToolText = Get-Content -LiteralPath $leaseToolPath -Raw -Encoding UTF8
+$mobileSkillText = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\SKILL.md') -Raw -Encoding UTF8
 $guestStartText = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\start-appium-guest.sh') -Raw -Encoding UTF8
 $guestWdaCleanupPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\cleanup-wda-guest.sh'
 $guestWdaCleanupText = Get-Content -LiteralPath $guestWdaCleanupPath -Raw -Encoding UTF8
@@ -180,6 +183,9 @@ Report 'deep smoke pins both sessions to enumerated virtual-device IDs' (
 $idleProbeBlocksBusy = $false
 $idleProbeAcceptsIdle = $false
 $idleProbeBlocksLease = $false
+$idleProbeAcceptsOwnedLease = $false
+$leaseRejectsContender = $false
+$leaseReleasesCleanly = $false
 $idleProbeIsBeforeBuilder = $false
 if (Test-Path -LiteralPath $idleProbePath) {
     $fixtureRootForProbe = Join-Path ([IO.Path]::GetTempPath()) ('agenthub-mobile-idle-' + [guid]::NewGuid().ToString('N'))
@@ -212,19 +218,45 @@ if (Test-Path -LiteralPath $idleProbePath) {
         $idleResult = if ($idleLine) { $idleLine | ConvertFrom-Json } else { $null }
         $idleProbeAcceptsIdle = ($idleExit -eq 0 -and $idleResult -and $idleResult.idle)
 
-        $leaseSnapshot = Join-Path $fixtureRootForProbe 'leased.json'
-        [IO.File]::WriteAllText($leaseSnapshot, (@{
-                    hostProcesses = @()
-                    guestProcesses = @()
-                    appiumSessions = @()
-                    labLease = $true
-                } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
-        $leaseOutput = @(& $idleProbePath -SnapshotPath $leaseSnapshot -Json 2>&1)
+        $leaseOutput = @(& $leaseToolPath -Action Acquire -TimeoutMinutes 2 -Json 2>&1)
         $leaseExit = $LASTEXITCODE
         $leaseLine = $leaseOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
         $leaseResult = if ($leaseLine) { $leaseLine | ConvertFrom-Json } else { $null }
-        $idleProbeBlocksLease = ($leaseExit -ne 0 -and $leaseResult -and -not $leaseResult.idle -and
-            (@($leaseResult.conflicts | ForEach-Object { $_.Kind }) -contains 'mobile-lab foreground lease'))
+        if ($leaseExit -eq 0 -and $leaseResult -and $leaseResult.ok) {
+            try {
+                $blockedOutput = @(& $idleProbePath -LeaseOnly -Json 2>&1)
+                $blockedExit = $LASTEXITCODE
+                $blockedLine = $blockedOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+                $blockedResult = if ($blockedLine) { $blockedLine | ConvertFrom-Json } else { $null }
+                $idleProbeBlocksLease = ($blockedExit -ne 0 -and $blockedResult -and -not $blockedResult.idle -and
+                    (@($blockedResult.conflicts | ForEach-Object { $_.Kind }) -contains 'mobile-lab foreground lease'))
+
+                $ownedOutput = @(& $idleProbePath -LeaseOnly -LeaseId ([string]$leaseResult.leaseId) -Json 2>&1)
+                $ownedExit = $LASTEXITCODE
+                $ownedLine = $ownedOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+                $ownedResult = if ($ownedLine) { $ownedLine | ConvertFrom-Json } else { $null }
+                $idleProbeAcceptsOwnedLease = ($ownedExit -eq 0 -and $ownedResult -and $ownedResult.idle)
+
+                $contenderOutput = @(& $leaseToolPath -Action Acquire -TimeoutMinutes 2 -Json 2>&1)
+                $contenderExit = $LASTEXITCODE
+                $contenderLine = $contenderOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+                $contenderResult = if ($contenderLine) { $contenderLine | ConvertFrom-Json } else { $null }
+                $leaseRejectsContender = ($contenderExit -ne 0 -and $contenderResult -and -not $contenderResult.ok -and $contenderResult.state -eq 'busy')
+            }
+            finally {
+                $releaseOutput = @(& $leaseToolPath -Action Release -LeaseId ([string]$leaseResult.leaseId) -Json 2>&1)
+                $releaseExit = $LASTEXITCODE
+                $releaseLine = $releaseOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+                $releaseResult = if ($releaseLine) { $releaseLine | ConvertFrom-Json } else { $null }
+                if ($releaseExit -eq 0 -and $releaseResult -and $releaseResult.ok) {
+                    $afterOutput = @(& $idleProbePath -LeaseOnly -Json 2>&1)
+                    $afterExit = $LASTEXITCODE
+                    $afterLine = $afterOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+                    $afterResult = if ($afterLine) { $afterLine | ConvertFrom-Json } else { $null }
+                    $leaseReleasesCleanly = ($afterExit -eq 0 -and $afterResult -and $afterResult.idle)
+                }
+            }
+        }
     }
     finally {
         Remove-Item -LiteralPath $fixtureRootForProbe -Recurse -Force -ErrorAction SilentlyContinue
@@ -235,6 +267,7 @@ if (Test-Path -LiteralPath $idleProbePath) {
 }
 
 $guestSyncStagesLf = $false
+$guestSyncStagesInstaller = $false
 $guestSyncPrecedesReadiness = $false
 if (Test-Path -LiteralPath $guestSyncPath) {
     $stageRoot = Join-Path ([IO.Path]::GetTempPath()) ('agenthub-mobile-guest-sync-' + [guid]::NewGuid().ToString('N'))
@@ -247,6 +280,10 @@ if (Test-Path -LiteralPath $guestSyncPath) {
         $containsCarriageReturn = @($stagedScripts | Where-Object { [IO.File]::ReadAllText($_.FullName).Contains("`r") }).Count -gt 0
         $guestSyncStagesLf = ($syncExit -eq 0 -and $syncResult -and $syncResult.ok -and
             $stagedScripts.Count -ge 4 -and -not $containsCarriageReturn)
+        $installerPath = Join-Path $stageRoot 'agenthub-install.sh'
+        $guestSyncStagesInstaller = ((Test-Path -LiteralPath $installerPath) -and
+            -not [IO.File]::ReadAllText($installerPath).Contains("`r") -and
+            [IO.File]::ReadAllText($installerPath).Contains('AGENTHUB_GUEST_SYNC'))
     }
     finally {
         Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue
@@ -257,6 +294,7 @@ if (Test-Path -LiteralPath $guestSyncPath) {
     $guestSyncPrecedesReadiness = ($syncIndex -ge 0 -and $statusIndex -gt $syncIndex)
 }
 Report 'guest helper sync stages every shell script as LF-only UTF-8' $guestSyncStagesLf 'Stage all versioned guest helpers without CR bytes before scp.'
+Report 'guest helper sync stages its installer instead of passing multiline shell through ssh arguments' $guestSyncStagesInstaller 'Generate agenthub-install.sh as LF-only UTF-8 and execute that uploaded file.'
 Report 'one-command startup syncs guest helpers before Appium readiness' $guestSyncPrecedesReadiness 'Invoke Sync-MobileLabGuestScripts.ps1 after SSH and before polling Appium.'
 Report 'guest Appium launchd restart retries the post-bootout bootstrap race' (
     $guestStartText -match 'for\s+attempt\s+in' -and
@@ -297,6 +335,16 @@ Report 'deep smoke busy guard demonstrably rejects an active Maestro run' $idleP
 Report 'deep smoke busy guard accepts a synthetic idle snapshot' $idleProbeAcceptsIdle 'The same probe must exit zero when no conflicting operation or Appium session exists.'
 Report 'deep smoke busy guard demonstrably rejects an active foreground lease' $idleProbeBlocksLease 'The idle probe must fail closed while another AgentHub mobile run owns the named lease.'
 Report 'deep smoke checks exclusivity before building or installing the fixture' $idleProbeIsBeforeBuilder 'Invoke Test-MobileLabIdle.ps1 before Build-MobileLabSmokeFixture.ps1.'
+Report 'cross-process foreground lease blocks an independent idle probe' $idleProbeBlocksLease 'Hold the named mutex in another process and require Test-MobileLabIdle.ps1 -LeaseOnly to reject it.'
+Report 'lease owner can preflight without ignoring another owner' $idleProbeAcceptsOwnedLease 'Accept only the random live LeaseId returned by Enter-MobileLabLease.ps1.'
+Report 'cross-process foreground lease rejects a competing acquisition' $leaseRejectsContender 'A second product or Deep task must not acquire the machine-wide mutex.'
+Report 'cross-process foreground lease releases cleanly' $leaseReleasesCleanly 'Release the holder in finally and prove a fresh probe can acquire the mutex.'
+Report 'product mutation guidance requires holding the shared lease' (
+    $leaseToolText -match 'Global\\AgentHub\.MobileDeviceLab\.ForegroundMutation' -and
+    $mobileSkillText -match '-Action Acquire' -and
+    $mobileSkillText -match '-Action Release' -and
+    $mobileSkillText -match 'finally'
+) 'Product tasks must hold the same lease for their full mutation window, not merely run a point-in-time probe.'
 Report 'deep smoke holds a cross-process foreground lease and rechecks immediately before launch' (
     $deepGateText -match 'Global\\AgentHub\.MobileDeviceLab\.ForegroundMutation' -and
     $deepGateText -match 'final pre-launch exclusivity check' -and

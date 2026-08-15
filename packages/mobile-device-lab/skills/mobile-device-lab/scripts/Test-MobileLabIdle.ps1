@@ -5,6 +5,8 @@ param(
     [string]$SshHost = 'macvm',
     [string]$AppiumUrl,
     [string]$SnapshotPath,
+    [string]$LeaseId,
+    [switch]$LeaseOnly,
     [switch]$IgnoreLabLease,
     [switch]$Json
 )
@@ -29,10 +31,10 @@ function Get-ConflictKind {
 }
 
 function Emit-Result {
-    param([bool]$Idle, [object[]]$Conflicts, [object[]]$ProbeErrors)
+    param([bool]$Idle, [object[]]$Conflicts, [object[]]$ProbeErrors, [string[]]$CheckedScopes)
     $result = [ordered]@{
         idle = $Idle
-        checkedScopes = @('mobile-lab foreground lease', 'Windows process table', 'macOS guest process table', 'guest Appium sessions')
+        checkedScopes = @($CheckedScopes)
         conflicts = @($Conflicts)
         probeErrors = @($ProbeErrors)
         remediation = if ($Idle) { $null } else { 'Wait for every reported operation/session to finish. Do not terminate it unless its owner confirms it is stale, then rerun Test-MobileLab.ps1 -Deep -Json.' }
@@ -47,6 +49,8 @@ try {
     $appiumSessions = @()
     $labLeaseHeld = $false
     $probeErrors = [Collections.Generic.List[object]]::new()
+    $checkedScopes = [Collections.Generic.List[string]]::new()
+    $checkedScopes.Add('mobile-lab foreground lease')
 
     if ($SnapshotPath) {
         $snapshot = Get-Content -LiteralPath $SnapshotPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -54,11 +58,11 @@ try {
         $guestProcesses = @($snapshot.guestProcesses | ForEach-Object { [string]$_ })
         $appiumSessions = @($snapshot.appiumSessions)
         $labLeaseHeld = [bool]$snapshot.labLease
+        $checkedScopes.Add('Windows process table')
+        $checkedScopes.Add('macOS guest process table')
+        $checkedScopes.Add('guest Appium sessions')
     }
     else {
-        if ([string]::IsNullOrWhiteSpace($GuestIp)) { throw 'GuestIp is required for a live idle probe.' }
-        if ([string]::IsNullOrWhiteSpace($AppiumUrl)) { $AppiumUrl = "http://${GuestIp}:4723" }
-
         if (-not $IgnoreLabLease) {
             $leaseProbe = [Threading.Mutex]::new($false, 'Global\AgentHub.MobileDeviceLab.ForegroundMutation')
             $leaseAcquired = $false
@@ -71,30 +75,47 @@ try {
                 if ($leaseAcquired) { try { $leaseProbe.ReleaseMutex() } catch { } }
                 $leaseProbe.Dispose()
             }
+            if ($labLeaseHeld -and $LeaseId) {
+                if ($LeaseId -notmatch '^[0-9a-f]{32}$') { throw 'LeaseId must be the 32-character identifier returned by Enter-MobileLabLease.ps1.' }
+                $statusPath = Join-Path $env:LOCALAPPDATA "AgentHub\mobile-lab\leases\$LeaseId.status.json"
+                if (Test-Path -LiteralPath $statusPath) {
+                    $status = Get-Content -LiteralPath $statusPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                    $holderAlive = if ($status.holderPid) { [bool](Get-Process -Id ([int]$status.holderPid) -ErrorAction SilentlyContinue) } else { $false }
+                    if ($status.active -and $holderAlive -and [string]$status.leaseId -eq $LeaseId) { $labLeaseHeld = $false }
+                }
+            }
         }
 
-        $hostProcesses = @(Get-CimInstance Win32_Process | Where-Object {
+        if (-not $LeaseOnly) {
+            if ([string]::IsNullOrWhiteSpace($GuestIp)) { throw 'GuestIp is required for a live idle probe.' }
+            if ([string]::IsNullOrWhiteSpace($AppiumUrl)) { $AppiumUrl = "http://${GuestIp}:4723" }
+            $checkedScopes.Add('Windows process table')
+            $checkedScopes.Add('macOS guest process table')
+            $checkedScopes.Add('guest Appium sessions')
+
+            $hostProcesses = @(Get-CimInstance Win32_Process | Where-Object {
                 $_.ProcessId -ne $PID -and -not [string]::IsNullOrWhiteSpace($_.CommandLine)
             } | ForEach-Object {
                 [pscustomobject]@{ Pid = [int]$_.ProcessId; Name = [string]$_.Name; Command = [string]$_.CommandLine }
             })
 
-        $sshArgs = @('-o', "HostName=$GuestIp", '-o', "HostKeyAlias=$SshHost", '-o', 'LogLevel=ERROR', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', $SshHost, 'ps -axo pid=,ppid=,command=')
-        $guestOutput = @(& ssh @sshArgs 2>&1)
-        if ($LASTEXITCODE -ne 0) {
-            $probeErrors.Add([pscustomobject]@{ Scope = 'macOS guest process table'; Error = (($guestOutput | Select-Object -Last 3) -join ' ') })
-        }
-        else { $guestProcesses = @($guestOutput | ForEach-Object { [string]$_ }) }
+            $sshArgs = @('-o', "HostName=$GuestIp", '-o', "HostKeyAlias=$SshHost", '-o', 'LogLevel=ERROR', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', $SshHost, 'ps -axo pid=,ppid=,command=')
+            $guestOutput = @(& ssh @sshArgs 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+                $probeErrors.Add([pscustomobject]@{ Scope = 'macOS guest process table'; Error = (($guestOutput | Select-Object -Last 3) -join ' ') })
+            }
+            else { $guestProcesses = @($guestOutput | ForEach-Object { [string]$_ }) }
 
-        try {
-            # Appium 3 removed legacy GET /sessions. The replacement is
-            # deliberately feature-gated and enabled only for this private
-            # guest service by start-appium-guest.sh.
-            $sessionResponse = Invoke-RestMethod -Uri "$AppiumUrl/appium/sessions" -TimeoutSec 20
-            $appiumSessions = @($sessionResponse.value)
-        }
-        catch {
-            $probeErrors.Add([pscustomobject]@{ Scope = 'guest Appium sessions'; Error = $_.Exception.Message })
+            try {
+                # Appium 3 removed legacy GET /sessions. The replacement is
+                # deliberately feature-gated and enabled only for this private
+                # guest service by start-appium-guest.sh.
+                $sessionResponse = Invoke-RestMethod -Uri "$AppiumUrl/appium/sessions" -TimeoutSec 20
+                $appiumSessions = @($sessionResponse.value)
+            }
+            catch {
+                $probeErrors.Add([pscustomobject]@{ Scope = 'guest Appium sessions'; Error = $_.Exception.Message })
+            }
         }
     }
 
@@ -123,11 +144,11 @@ try {
     }
 
     $idle = ($conflicts.Count -eq 0 -and $probeErrors.Count -eq 0)
-    Emit-Result -Idle $idle -Conflicts @($conflicts) -ProbeErrors @($probeErrors)
+    Emit-Result -Idle $idle -Conflicts @($conflicts) -ProbeErrors @($probeErrors) -CheckedScopes @($checkedScopes)
     if (-not $idle) { exit 1 }
     exit 0
 }
 catch {
-    Emit-Result -Idle $false -Conflicts @() -ProbeErrors @([pscustomobject]@{ Scope = 'idle probe'; Error = $_.Exception.Message })
+    Emit-Result -Idle $false -Conflicts @() -ProbeErrors @([pscustomobject]@{ Scope = 'idle probe'; Error = $_.Exception.Message }) -CheckedScopes @('mobile-lab foreground lease')
     exit 1
 }

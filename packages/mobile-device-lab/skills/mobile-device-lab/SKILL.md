@@ -93,8 +93,26 @@ It also holds the machine-wide
 `Global\AgentHub.MobileDeviceLab.ForegroundMutation` lease for the entire deep
 run and repeats the idle check after building, immediately before Appium may
 install or foreground the fixture. Any product task that will mutate a shared
-emulator or Simulator must run `Test-MobileLabIdle.ps1 -Json` first and must not
-proceed while that foreground lease is reported.
+emulator or Simulator must acquire the same lease for its complete
+build/install/session window, run the idle probe under that lease, and release
+it in `finally`:
+
+```powershell
+$leaseTool = 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Enter-MobileLabLease.ps1'
+$idleTool = 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1'
+$lease = (& $leaseTool -Action Acquire -Json | ConvertFrom-Json)
+try {
+  & $idleTool -GuestIp <resolved-ip> -LeaseId $lease.leaseId -Json
+  # Keep every build, install, Appium/Maestro session, and foreground action here.
+}
+finally {
+  & $leaseTool -Action Release -LeaseId $lease.leaseId -Json
+}
+```
+
+Do not use a bare point-in-time idle probe as permission to mutate later; it
+does not close the race with Deep or another product task. Do not proceed when
+lease acquisition or the idle probe fails.
 The private guest Appium service enables only Appium 3's
 `*:session_discovery` feature so this preflight can inspect active sessions.
 After both MCP sessions are deleted, deep validation also retires only the

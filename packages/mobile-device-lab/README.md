@@ -35,8 +35,6 @@ can be alive at once and the agent switches between them.
 | Both sessions concurrent | 2 sessions listed, Android + iOS |
 | Android + macOS VM + Simulator together | all three running simultaneously |
 
-The Android capture was Rexa itself mid-session, not a stock home screen.
-
 ## Use it
 
 ```powershell
@@ -45,10 +43,13 @@ pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab
 pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Test-MobileLab.ps1' -Deep -Json
 ```
 
-The deep gate mutates foreground app state, so it first proves the shared lab
-is idle across Windows processes, guest processes, and Appium sessions. It
-fails closed on active Maestro/Xcode/simulator work and pins both virtual-device
-UDIDs; it never falls through to an attached physical device.
+The deep gate mutates foreground app state, so it holds the machine-wide lab
+lease while proving the shared lab is idle across Windows processes, guest
+processes, and Appium sessions. Product tasks must use the lease workflow in
+the skill for their complete mutation window; a point-in-time probe alone is
+not sufficient. The gate fails closed on active Maestro/Xcode/simulator work
+and pins both virtual-device UDIDs; it never falls through to an attached
+physical device.
 Startup synchronizes the canonical guest helpers as LF-only UTF-8 before it
 polls Appium, removing the previous Windows/guest version-skew path.
 
@@ -69,13 +70,16 @@ Resolve the product against `registry/mobile-scope.json` before driving it.
 lab's own tools — screenshot, screen recording, page source — are exactly what
 that flag restricts: synthetic fixtures only.
 
-## Guest setup (once, idempotent)
+## Guest setup and updates are owned by startup
 
-```bash
-scp -r packages/mobile-device-lab/skills/mobile-device-lab/scripts/guest/ macvm:~/mobile-lab/
-ssh macvm 'bash ~/mobile-lab/setup-appium-guest.sh'
-ssh macvm 'bash ~/mobile-lab/start-appium-guest.sh'   # launchd agent, survives reboot
+```powershell
+pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Start-MobileLab.ps1' -Json
 ```
+
+Startup stages the versioned guest helpers and its installer as LF-only UTF-8,
+deploys them through the dynamically resolved guest address, and restarts only
+Appium when its launch helper changed. Do not maintain or manually copy a
+second guest-side source tree.
 
 Do **not** stage files in `~/Downloads`, `~/Desktop`, or `~/Documents` on the
 guest — macOS TCC blocks sshd from all three and the failure looks like an
