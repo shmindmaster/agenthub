@@ -260,6 +260,9 @@ try {
 
   report.cleanupErrors = await cleanupCreatedSessions();
   report.sessionsCleaned = report.cleanupErrors.length === 0;
+  if (!report.sessionsCleaned) {
+    throw new Error(`Session cleanup failed: ${report.cleanupErrors.join(" | ")}`);
+  }
 
   report.ok = true;
   fs.writeFileSync(
@@ -270,7 +273,8 @@ try {
 } catch (error) {
   report.error = error instanceof Error ? error.message : String(error);
   report.stderrTail = stderr.slice(-4000);
-  report.cleanupErrors = await cleanupCreatedSessions();
+  const additionalCleanupErrors = await cleanupCreatedSessions();
+  report.cleanupErrors = [...(report.cleanupErrors ?? []), ...additionalCleanupErrors];
   report.sessionsCleaned = report.cleanupErrors.length === 0;
   fs.writeFileSync(
     path.join(args["output-dir"], "appium-mcp-smoke.json"),

@@ -89,6 +89,12 @@ Xcode, another simulator mutation, or an Appium session is active. Wait for the
 reported owner to finish; never terminate another run merely to make the gate
 pass. The deep client pins the enumerated `emulator-*` and Simulator UDIDs, so
 it cannot select an attached physical device by name or platform alone.
+It also holds the machine-wide
+`Global\AgentHub.MobileDeviceLab.ForegroundMutation` lease for the entire deep
+run and repeats the idle check after building, immediately before Appium may
+install or foreground the fixture. Any product task that will mutate a shared
+emulator or Simulator must run `Test-MobileLabIdle.ps1 -Json` first and must not
+proceed while that foreground lease is reported.
 The private guest Appium service enables only Appium 3's
 `*:session_discovery` feature so this preflight can inspect active sessions.
 After both MCP sessions are deleted, deep validation also retires only the

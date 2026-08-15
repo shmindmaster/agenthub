@@ -7,8 +7,8 @@
     exactly the working tree minus everything .gitignore excludes. That is the
     right boundary here: it carries uncommitted work (the host repo is often
     ahead of origin), and it automatically leaves out node_modules, ios,
-    android and .expo -- 6.6 GB of generated output for Rexa, against roughly
-    20 MB of actual source.
+    android and .expo, avoiding generated native payloads that can be several
+    gigabytes larger than the actual source.
 
     Transfer is Git archive + scp rather than rsync because Git Bash on this
     host ships no rsync, and PowerShell corrupts binary data sent through a
@@ -25,13 +25,12 @@
     survive between syncs.
 
 .EXAMPLE
-    .\Sync-RepoToGuest.ps1
     .\Sync-RepoToGuest.ps1 -RepoPath C:\Repos\shmindmaster\abacare -GuestPath '~/Repos/shmindmaster/abacare'
 #>
 [CmdletBinding()]
 param(
-    [string] $RepoPath  = 'C:\Repos\shmindmaster\rexa',
-    [string] $GuestPath = '~/Repos/shmindmaster/rexa',
+    [Parameter(Mandatory)][string] $RepoPath,
+    [string] $GuestPath,
     [string] $SshHost   = 'macvm',
     [string] $SshHostName,
 
@@ -52,6 +51,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+if (-not $StageOnly -and [string]::IsNullOrWhiteSpace($GuestPath)) {
+    throw '-GuestPath is required unless -StageOnly is used. Product-neutral infrastructure never guesses a repository destination.'
+}
 if (-not (Test-Path (Join-Path $RepoPath '.git'))) {
     throw "Not a git repository: $RepoPath"
 }

@@ -142,12 +142,19 @@ if (-not $adbOk) { Stop-Gate 'Android SDK' }
 
 $adb = Join-Path $androidHome 'platform-tools\adb.exe'
 $attachedDevices = @((& $adb devices) 2>&1 | Where-Object { $_ -match '\sdevice$' })
-$devices = @($attachedDevices | Where-Object { $_ -match '^emulator-\d+\s+device$' })
+$emulatorDetails = @(
+    foreach ($line in @($attachedDevices | Where-Object { $_ -match '^emulator-\d+\s+device$' })) {
+        $id = [string](($line -split '\s+')[0])
+        $sdk = [string]((& $adb -s $id shell getprop ro.build.version.sdk 2>$null) | Select-Object -First 1)
+        [pscustomobject]@{ Id = $id; Sdk = $sdk.Trim() }
+    }
+)
+$devices = @($emulatorDetails | Where-Object Sdk -eq '36')
 $haveEmulator = ($devices.Count -gt 0)
 $script:Facts['androidAttachedDeviceIds'] = @($attachedDevices | ForEach-Object { ($_ -split '\s+')[0] })
-$script:Facts['androidDevices'] = @($devices | ForEach-Object { ($_ -split '\s+')[0] })
+$script:Facts['androidDevices'] = @($devices | ForEach-Object Id)
 $script:Facts['androidDeviceId'] = @($script:Facts['androidDevices'])[0]
-Write-Stage 'android: an emulator is attached' $haveEmulator (($devices -join '; ') -replace '\s+', ' ') "Start one: & `"$androidHome\emulator\emulator.exe`" -avd <name>  (see -list-avds). Physical devices are deliberately excluded."
+Write-Stage 'android: an API 36 emulator is attached' $haveEmulator (($emulatorDetails | ForEach-Object { "$($_.Id):API-$($_.Sdk)" }) -join '; ') "Start an API 36 AVD: & `"$androidHome\emulator\emulator.exe`" -avd <name>. Physical devices and other API levels are deliberately excluded."
 if (-not $haveEmulator) { Stop-Gate 'Android emulator' }
 
 if ($SkipIos) {
@@ -224,12 +231,15 @@ $runtimeOk = ($runtime.ExitCode -eq 0 -and [int]($runtime.Stdout -replace '\D', 
 Write-Stage 'guest: an iOS simulator runtime is installed' $runtimeOk "iOS runtimes: $($runtime.Stdout)" 'Run: ssh macvm "sudo xcodebuild -downloadPlatform iOS -architectureVariant universal"'
 if (-not $runtimeOk) { Stop-Gate 'iOS runtime' }
 
-$booted = Invoke-Guest -Command 'xcrun simctl list devices booted | grep Booted | head -1' -TimeoutSec 120
-$bootedOk = ($booted.ExitCode -eq 0 -and $booted.Stdout -match 'Booted')
-$script:Facts['bootedSimulator'] = $booted.Stdout
-$script:Facts['iosDevice'] = if ($booted.Stdout -match '^\s*([^\(]+)') { $Matches[1].Trim() } else { 'iPhone 17' }
-$script:Facts['iosDeviceId'] = if ($booted.Stdout -match '\(([0-9A-Fa-f-]{36})\)\s+\(Booted\)') { $Matches[1] } else { $null }
-Write-Stage 'guest: a simulator is booted' $bootedOk $booted.Stdout 'Run: ssh macvm "xcrun simctl boot ''iPhone 17''"  (cold boot takes minutes here)'
+$deviceInventory = Invoke-Guest -Command "xcrun simctl list devices available | awk '/-- iOS 26[.]5 --/{on=1;next} /^--/{on=0} on && /iPhone 17 [(]/{print; exit}'" -TimeoutSec 120
+$targetUdid = if ($deviceInventory.Stdout -match '\(([0-9A-Fa-f-]{36})\)\s+\((Booted|Shutdown)\)') { $Matches[1] } else { $null }
+$targetState = if ($deviceInventory.Stdout -match '\((Booted|Shutdown)\)') { $Matches[1] } else { $null }
+$bootedOk = ($deviceInventory.ExitCode -eq 0 -and $targetUdid -and $targetState -eq 'Booted')
+$bootedEvidence = if ($targetUdid) { "iPhone 17 ($targetUdid) ($targetState); runtime=iOS 26.5" } else { $deviceInventory.Stdout }
+$script:Facts['bootedSimulator'] = $bootedEvidence
+$script:Facts['iosDevice'] = 'iPhone 17'
+$script:Facts['iosDeviceId'] = $targetUdid
+Write-Stage 'guest: iPhone 17 / iOS 26.5 Simulator is booted' $bootedOk $bootedEvidence 'Run Start-MobileLab.ps1 -Json to boot the exact configured Simulator.'
 if (-not $bootedOk) { Stop-Gate 'booted simulator' }
 if (-not $script:Facts['iosDeviceId']) {
     Write-Stage 'guest: booted simulator has an explicit UDID' $false $booted.Stdout 'Boot exactly one Simulator and rerun; deep validation never targets a physical iPhone or an ambiguous device name.'
@@ -265,8 +275,15 @@ if ($Deep) {
         Write-Stage 'deep: cross-platform fixture' $false '-Deep requires the iOS guest' 'Remove -SkipIos and rerun.'
         Stop-Gate 'deep validation'
     }
+    $deepLease = [Threading.Mutex]::new($false, 'Global\AgentHub.MobileDeviceLab.ForegroundMutation')
+    $deepLeaseAcquired = $false
+    try { $deepLeaseAcquired = $deepLease.WaitOne(0) }
+    catch [Threading.AbandonedMutexException] { $deepLeaseAcquired = $true }
+    Write-Stage 'deep: exclusive foreground lease acquired' $deepLeaseAcquired 'Global\AgentHub.MobileDeviceLab.ForegroundMutation' 'Wait for the owning mobile run to finish; never terminate it merely to make this gate pass.'
+    if (-not $deepLeaseAcquired) { Stop-Gate 'deep exclusivity lease' }
+
     $idleProbe = Join-Path $PSScriptRoot 'Test-MobileLabIdle.ps1'
-    $idleOutput = @(& $idleProbe -GuestIp $guestIp -AppiumUrl $appiumUrl -Json 2>&1)
+    $idleOutput = @(& $idleProbe -GuestIp $guestIp -AppiumUrl $appiumUrl -IgnoreLabLease -Json 2>&1)
     $idleExit = $LASTEXITCODE
     $idleLine = $idleOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
     $idleResult = $null
@@ -282,8 +299,20 @@ if ($Deep) {
     $buildResult = $null
     if ($buildLine) { try { $buildResult = $buildLine | ConvertFrom-Json } catch { } }
     $buildOk = ($buildExit -eq 0 -and $buildResult -and $buildResult.ok)
-    Write-Stage 'deep: synthetic fixture built and installed' $buildOk (($buildOutput | Select-Object -Last 8) -join ' ') 'Inspect localBuildRoot, verify Expo/Gradle/Xcode, then rerun -Deep.'
+    Write-Stage 'deep: synthetic fixture built' $buildOk (($buildOutput | Select-Object -Last 8) -join ' ') 'Inspect localBuildRoot, verify Expo/Gradle/Xcode, then rerun -Deep.'
     if (-not $buildOk) { Stop-Gate 'synthetic fixture build' }
+
+    # Building is non-foreground work. Re-enumerate immediately before Appium
+    # installs or launches either fixture, while the cross-process lease still
+    # excludes every other AgentHub mobile run.
+    $preLaunchOutput = @(& $idleProbe -GuestIp $guestIp -AppiumUrl $appiumUrl -IgnoreLabLease -Json 2>&1)
+    $preLaunchExit = $LASTEXITCODE
+    $preLaunchLine = $preLaunchOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+    $preLaunchResult = $null
+    if ($preLaunchLine) { try { $preLaunchResult = $preLaunchLine | ConvertFrom-Json } catch { } }
+    $preLaunchOk = ($preLaunchExit -eq 0 -and $preLaunchResult -and $preLaunchResult.idle)
+    Write-Stage 'deep: final pre-launch exclusivity check' $preLaunchOk (($preLaunchOutput | Select-Object -Last 4) -join ' ') 'A competing Maestro, build, Simulator mutation, or Appium session started during the build; wait for it and rerun.'
+    if (-not $preLaunchOk) { Stop-Gate 'deep pre-launch exclusivity' }
 
     $evidenceRoot = Join-Path $env:LOCALAPPDATA ('AgentHub\mobile-lab\evidence\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
     New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
@@ -293,31 +322,42 @@ if ($Deep) {
     $mcpLine = $mcpOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
     $mcpResult = $null
     if ($mcpLine) { try { $mcpResult = $mcpLine | ConvertFrom-Json } catch { } }
-    $mcpOk = ($mcpExit -eq 0 -and $mcpResult -and $mcpResult.ok)
+    $reportedSessionsCleaned = ($mcpResult -and [bool]$mcpResult.sessionsCleaned)
+    $sessionDiscoveryOk = $false
+    $remainingAppiumSessions = @()
+    try {
+        $remainingAppiumSessions = @((Invoke-RestMethod -Uri "$appiumUrl/appium/sessions" -TimeoutSec 20).value)
+        $sessionDiscoveryOk = $true
+    }
+    catch { }
+    $sessionsGone = ($sessionDiscoveryOk -and $remainingAppiumSessions.Count -eq 0)
+    $mcpSessionsCleaned = ($reportedSessionsCleaned -and $sessionsGone)
+    $mcpOk = ($mcpExit -eq 0 -and $mcpResult -and $mcpResult.ok -and $mcpSessionsCleaned)
     $script:Facts['deepEvidenceRoot'] = $evidenceRoot
     $script:Facts['appiumMcpVersion'] = '1.92.0'
     $script:Facts['appiumMcpToolCount'] = if ($null -ne $mcpResult) { [int]$mcpResult.toolCount } else { 0 }
     Write-Stage 'deep: pinned Appium MCP cross-platform interaction' $mcpOk (($mcpOutput | Select-Object -Last 6) -join ' ') 'Open appium-mcp-smoke.json in deepEvidenceRoot, apply the reported error, and rerun -Deep.'
-    if (-not $mcpOk) { Stop-Gate 'Appium MCP deep smoke' }
-
     # Appium/XCUITest can leave its xcodebuild WebDriverAgent runner alive after
     # both protocol sessions have been deleted. That runner is able to mutate
     # the Simulator later and makes the next exclusivity probe fail forever.
     # Retire only the exact WDA process for the enumerated Simulator when its
     # parent is this lab's Appium server; never target arbitrary xcodebuild work.
-    $wdaCleanup = Invoke-Guest -Command "~/mobile-lab/cleanup-wda-guest.sh '$($script:Facts['iosDeviceId'])'" -TimeoutSec 30
-    $wdaCleanupOk = ($wdaCleanup.ExitCode -eq 0 -and $wdaCleanup.Stdout -match '"ok":true')
+    $wdaCleanup = if ($sessionsGone) { Invoke-Guest -Command "~/mobile-lab/cleanup-wda-guest.sh '$($script:Facts['iosDeviceId'])'" -TimeoutSec 30 } else { [pscustomobject]@{ ExitCode = 1; Stdout = ''; Stderr = 'skipped because one or more Appium sessions remain active or session discovery failed' } }
+    $wdaCleanupOk = ($sessionsGone -and $wdaCleanup.ExitCode -eq 0 -and $wdaCleanup.Stdout -match '"ok":true')
     $script:Facts['wdaCleanup'] = $wdaCleanup.Stdout
     Write-Stage 'deep: Appium-owned WDA runner retired' $wdaCleanupOk "$($wdaCleanup.Stdout) $($wdaCleanup.Stderr)" 'Inspect only Appium-owned WebDriverAgent processes for the reported Simulator UDID; do not terminate unrelated Xcode work.'
+    if (-not $mcpOk) { Stop-Gate 'Appium MCP deep smoke' }
     if (-not $wdaCleanupOk) { Stop-Gate 'WDA cleanup' }
 
-    $androidAfter = @(& $adb devices | Where-Object { $_ -match '\sdevice$' })
+    $androidAfter = @(& $adb devices | Where-Object { $_ -match ('^' + [regex]::Escape([string]$script:Facts['androidDeviceId']) + '\s+device$') })
     $simulatorAfter = Invoke-Guest -Command 'xcrun simctl list devices booted | grep Booted | head -1' -TimeoutSec 120
     $appiumAfter = $false
     try { $appiumAfter = [bool](Invoke-RestMethod -Uri "$appiumUrl/status" -TimeoutSec 15).value.ready } catch { }
-    $postDeepReady = ($androidAfter.Count -gt 0 -and $simulatorAfter.ExitCode -eq 0 -and $simulatorAfter.Stdout -match 'Booted' -and $appiumAfter)
+    $postDeepReady = ($androidAfter.Count -gt 0 -and $simulatorAfter.ExitCode -eq 0 -and $simulatorAfter.Stdout -match [regex]::Escape([string]$script:Facts['iosDeviceId']) -and $appiumAfter -and $mcpSessionsCleaned)
     Write-Stage 'deep: lab remains ready after session cleanup' $postDeepReady "android=$($androidAfter -join '; '); ios=$($simulatorAfter.Stdout); appium=$appiumAfter; sessionsCleaned=$($mcpResult.sessionsCleaned)" 'Rerun Start-MobileLab.ps1 -Json, then repeat -Deep; inspect host memory pressure if the emulator exited.'
     if (-not $postDeepReady) { Stop-Gate 'post-deep readiness' }
+    try { $deepLease.ReleaseMutex() } catch { }
+    $deepLease.Dispose()
 }
 
 Write-Host ''

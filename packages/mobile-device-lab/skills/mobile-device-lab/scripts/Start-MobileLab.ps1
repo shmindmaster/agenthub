@@ -65,6 +65,15 @@ function Wait-Until {
     return $false
 }
 
+function Get-Api36EmulatorIds {
+    param([Parameter(Mandatory)][string]$AdbPath)
+    $ids = @(& $AdbPath devices | Where-Object { $_ -match '^emulator-\d+\s+device$' } | ForEach-Object { ($_ -split '\s+')[0] })
+    @($ids | Where-Object {
+            $sdk = [string]((& $AdbPath -s $_ shell getprop ro.build.version.sdk 2>$null) | Select-Object -First 1)
+            $sdk.Trim() -eq '36'
+        })
+}
+
 $script:Stages = [System.Collections.Generic.List[object]]::new()
 $script:Facts = [ordered]@{}
 function Add-Stage {
@@ -106,9 +115,9 @@ foreach ($required in @($adb, $emulatorExe)) {
 }
 
 Say 'Android:'
-$attached = @(& $adb devices | Where-Object { $_ -match '^emulator-\d+\s+device$' })
+$attached = @(Get-Api36EmulatorIds -AdbPath $adb)
 if ($attached.Count -gt 0) {
-    Say ("  already attached: {0}" -f (($attached | ForEach-Object { ($_ -split '\s+')[0] }) -join ', ')) 'Green'
+    Say ("  API 36 already attached: {0}" -f ($attached -join ', ')) 'Green'
 }
 else {
     $avds = @(& $emulatorExe -list-avds | Where-Object { $_ -and $_.Trim() })
@@ -118,16 +127,17 @@ else {
     Say "  booting AVD '$Avd' (available: $($avds -join ', '))"
     Start-Process -FilePath $emulatorExe -ArgumentList @('-avd', $Avd) -WindowStyle Minimized | Out-Null
     if (-not (Wait-Until -What "emulator '$Avd'" -TimeoutSec $timeoutSec -Condition {
-                @(& $adb devices | Where-Object { $_ -match '^emulator-\d+\s+device$' }).Count -gt 0
-            })) { throw "Android emulator failed to attach." }
-    $startedAndroidId = [string](@(& $adb devices | Where-Object { $_ -match '^emulator-\d+\s+device$' } | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1))
+                @(Get-Api36EmulatorIds -AdbPath $adb).Count -gt 0
+            })) { throw "Android emulator failed to attach as API 36. Verify the selected AVD's system image." }
+    $startedAndroidId = [string](@(Get-Api36EmulatorIds -AdbPath $adb | Select-Object -First 1))
     # `adb devices` reports the device before Android has finished booting.
     if (-not (Wait-Until -What 'android boot completed' -TimeoutSec $timeoutSec -Condition {
                 (& $adb -s $startedAndroidId shell getprop sys.boot_completed 2>$null) -match '1'
             })) { throw "Android did not finish booting." }
 }
-$androidId = @(& $adb devices | Where-Object { $_ -match '^emulator-\d+\s+device$' } | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
+$androidId = @(Get-Api36EmulatorIds -AdbPath $adb | Select-Object -First 1)
 $script:Facts.androidDeviceId = if ($androidId.Count) { $androidId[0] } else { $null }
+if (-not $script:Facts.androidDeviceId) { throw 'Android emulator enumeration returned no API 36 virtual device ID.' }
 Add-Stage 'android' ([bool]$script:Facts.androidDeviceId) "device=$($script:Facts.androidDeviceId)" 'Start an API 36 AVD and rerun.'
 
 if ($SkipIos) {
@@ -222,49 +232,37 @@ if (-not (Wait-Until -What "appium at $appiumUrl" -TimeoutSec $timeoutSec -Condi
 }
 Add-Stage 'guest-appium' $true $appiumUrl
 
-# A booted simulator is what iOS sessions attach to. Booting is slow, so do it
-# here rather than making the first session pay for it.
-$booted = @(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted | grep Booted | head -1' 2>&1)
-$bootedText = [string]($booted | Where-Object { $_ -match 'Booted' } | Select-Object -First 1)
-if ([string]::IsNullOrWhiteSpace($bootedText)) {
-    Say '  no simulator booted; booting iPhone 17'
-    $availableJson = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices available -j' 2>&1) -join "`n")
-    try { $availableDevices = $availableJson | ConvertFrom-Json }
-    catch { throw "Could not parse simctl device inventory JSON: $($_.Exception.Message)" }
-    $flatDevices = @(
-        foreach ($runtimeProperty in @($availableDevices.devices.PSObject.Properties)) {
-            @($runtimeProperty.Value)
-        }
-    )
-    $targetSimulator = @($flatDevices | Where-Object { $_.name -eq 'iPhone 17' } | Select-Object -First 1)
-    if ($targetSimulator.Count -ne 1 -or -not $targetSimulator[0].udid) { throw 'Could not resolve exactly one available iPhone 17 Simulator UDID.' }
-    $targetSimulatorUdid = [string]$targetSimulator[0].udid
-    $script:Facts.iosDeviceId = $targetSimulatorUdid
-    $script:lastSimulatorBootEvidence = ''
-    if (-not (Wait-Until -What 'simulator boot' -TimeoutSec $timeoutSec -Condition {
-                $currentState = @(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted' 2>&1)
-                if ($currentState -match 'Booted') { return $true }
-                # CoreSimulator can reject the first boot request immediately
-                # after a cold guest boot. Keep the request inside the same
-                # bounded loop, and route remote stderr to stdout so Windows
-                # PowerShell 5.1 does not promote it to a terminating record.
+# Resolve the exact configured device from the runtime-keyed JSON inventory.
+$availableJson = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices available -j' 2>&1) -join "`n")
+try { $availableDevices = $availableJson | ConvertFrom-Json }
+catch { throw "Could not parse simctl device inventory JSON: $($_.Exception.Message)" }
+$targetSimulator = $null
+foreach ($runtimeProperty in @($availableDevices.devices.PSObject.Properties)) {
+    if ($runtimeProperty.Name -notmatch 'iOS-26-5$') { continue }
+    $matches = @($runtimeProperty.Value | Where-Object name -eq 'iPhone 17')
+    if ($matches.Count -ne 1) { throw "Expected exactly one iPhone 17 under iOS 26.5, found $($matches.Count)." }
+    $targetSimulator = $matches[0]
+    break
+}
+if (-not $targetSimulator -or -not $targetSimulator.udid) { throw 'Could not resolve the iPhone 17 / iOS 26.5 Simulator UDID.' }
+$targetSimulatorUdid = [string]$targetSimulator.udid
+$script:Facts.iosDevice = 'iPhone 17'
+$script:Facts.iosDeviceId = $targetSimulatorUdid
+$script:Facts.iosRuntime = 'iOS 26.5'
+$script:lastSimulatorBootEvidence = ''
+if ($targetSimulator.state -ne 'Booted') {
+    Say '  exact iPhone 17 / iOS 26.5 Simulator is shutdown; booting it'
+    if (-not (Wait-Until -What 'iPhone 17 / iOS 26.5 Simulator boot' -TimeoutSec $timeoutSec -Condition {
+                $currentState = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted' 2>&1) -join "`n")
+                if ($currentState -match [regex]::Escape($targetSimulatorUdid)) { return $true }
                 $script:lastSimulatorBootEvidence = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm "xcrun simctl boot $targetSimulatorUdid 2>&1 || true") -join ' ')
                 return $false
-            })) { throw "iPhone 17 Simulator did not boot. Last boot response: $script:lastSimulatorBootEvidence" }
-    $booted = @(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted | grep Booted | head -1' 2>&1)
-    $bootedText = [string]($booted | Where-Object { $_ -match 'Booted' } | Select-Object -First 1)
+            })) { throw "iPhone 17 / iOS 26.5 Simulator did not boot. Last boot response: $script:lastSimulatorBootEvidence" }
 }
-else {
-    Say ("  simulator already booted: {0}" -f $bootedText.Trim()) 'Green'
-}
-if ([string]::IsNullOrWhiteSpace($bootedText)) { throw 'Simulator boot reported success without an enumerated Booted device.' }
-$script:Facts.iosDevice = if ($bootedText -match '^\s*([^\(]+)') { $Matches[1].Trim() } else { 'iPhone 17' }
-$script:Facts.iosDeviceId = if ($bootedText -match '\(([0-9A-Fa-f-]{36})\)\s+\(Booted\)') { $Matches[1] } else { $null }
-if (-not $script:Facts.iosDeviceId) { throw "Could not resolve a Simulator UDID from: $bootedText" }
-$runtimeLine = & ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list runtimes | grep iOS | head -1' 2>&1
-$runtimeText = [string]($runtimeLine | Where-Object { $_ -match 'iOS\s+26\.5' } | Select-Object -First 1)
-$script:Facts.iosRuntime = if ($runtimeText -match 'iOS\s+([0-9.]+)') { "iOS $($Matches[1])" } else { $runtimeText }
-Add-Stage 'ios-simulator' ($bootedText -match 'Booted') $bootedText 'Boot iPhone 17 in the macOS guest.'
+$bootedText = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted' 2>&1) -join "`n")
+if ($bootedText -notmatch [regex]::Escape($targetSimulatorUdid)) { throw "Exact Simulator $targetSimulatorUdid is not booted." }
+Say ("  exact simulator ready: iPhone 17 ({0}) / iOS 26.5" -f $targetSimulatorUdid) 'Green'
+Add-Stage 'ios-simulator' $true "iPhone 17 ($targetSimulatorUdid) (Booted); runtime=iOS 26.5" 'Boot the exact iPhone 17 / iOS 26.5 Simulator.'
 
 Write-Host ''
 Say 'MOBILE LAB READY' 'Green'

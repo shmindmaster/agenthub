@@ -1,6 +1,6 @@
 #!/bin/bash
-# Build an Expo app as an iOS *Simulator* .app inside the macOS guest, and
-# install it on the booted simulator.
+# Build an Expo app as an iOS *Simulator* .app inside the macOS guest. Installation
+# is deliberately left to the Appium session after the final exclusivity check.
 #
 # Why this exists: the lab drives an app, it does not produce one, and a device
 # build (.ipa / Debug-iphoneos) cannot run on a simulator -- different
@@ -98,14 +98,6 @@ echo "$APP"
 BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" 2>/dev/null || true)"
 echo "bundleId: ${BUNDLE_ID:-<unreadable>}"
 
-say "install on simulator $SIMULATOR_UDID"
-if ! xcrun simctl list devices booted 2>/dev/null | grep -q Booted; then
-  echo "no simulator booted; skipping install."
-  echo "Boot one and re-run, or install by hand:"
-  echo "  xcrun simctl install booted '$APP'"
-  exit 0
-fi
-xcrun simctl install "$SIMULATOR_UDID" "$APP"
-echo "installed."
 echo
+echo "built for simulator $SIMULATOR_UDID; Appium will install after the final idle check."
 echo "Drive it with appium:bundleId = ${BUNDLE_ID:-<unknown>}"

@@ -14,6 +14,18 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 function Read-Json([string]$RelativePath) {
     Get-Content -LiteralPath (Join-Path $repoRoot $RelativePath) -Raw -Encoding UTF8 | ConvertFrom-Json
 }
+function Resolve-LivePath([string]$PathValue) {
+    if ([string]::IsNullOrWhiteSpace($PathValue)) { return $null }
+    $registryProfile = [string]$agents.userProfile
+    if ($PathValue -eq '~') { return $env:USERPROFILE }
+    if ($PathValue.StartsWith('~/') -or $PathValue.StartsWith('~\')) {
+        return Join-Path $env:USERPROFILE $PathValue.Substring(2)
+    }
+    if ($registryProfile -and $PathValue.StartsWith($registryProfile, [StringComparison]::OrdinalIgnoreCase)) {
+        return $env:USERPROFILE + $PathValue.Substring($registryProfile.Length)
+    }
+    return $PathValue
+}
 
 $agents = Read-Json 'registry\agents.json'
 $capabilities = Read-Json 'registry\capabilities.json'
@@ -28,10 +40,14 @@ $mcpSmokeText = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-
 $deepGatePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-MobileLab.ps1'
 $deepGateText = Get-Content -LiteralPath $deepGatePath -Raw -Encoding UTF8
 $idleProbePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1'
+$idleProbeText = Get-Content -LiteralPath $idleProbePath -Raw -Encoding UTF8
 $guestStartText = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\start-appium-guest.sh') -Raw -Encoding UTF8
 $guestWdaCleanupPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\cleanup-wda-guest.sh'
 $guestWdaCleanupText = Get-Content -LiteralPath $guestWdaCleanupPath -Raw -Encoding UTF8
 $guestSyncPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Sync-MobileLabGuestScripts.ps1'
+$expectedPluginVersion = [string](Read-Json 'packages\mobile-device-lab\plugin.json').version
+$liveDriftPath = Join-Path $env:LOCALAPPDATA 'AgentHub\sync\latest-drift.json'
+$liveDrift = if (Test-Path -LiteralPath $liveDriftPath) { Get-Content -LiteralPath $liveDriftPath -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
 
 Report 'one canonical mobile capability exists' ($mobile.Count -eq 1) "count=$($mobile.Count)"
 Report 'one pinned Appium MCP exists' ($appium.Count -eq 1 -and $appium[0].command -eq 'npx' -and 'appium-mcp@1.92.0' -in @($appium[0].args)) 'Expected registry/mcps.json#appium-mobile pinned to appium-mcp@1.92.0.'
@@ -70,6 +86,53 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'active')) {
     $packageRoute = $packageBacked -and $packageManifest -and (Test-Path -LiteralPath (Join-Path $packageRoot $packageManifest))
     $directRoute = $directBacked -and $effectiveHost -in @($appium[0].hosts) -and 'appium-mobile' -in @($connectors.lifecyclePolicy.persistedOnDemandLocalMcpIds)
     Report "$hostId has an Appium MCP activation route" ([bool]($packageRoute -or $directRoute)) "status=$status manifest=$packageManifest direct=$directRoute"
+
+    $effectiveAgent = @($agents.activeAgents | Where-Object id -eq $effectiveHost | Select-Object -First 1)
+    $liveInstruction = $false
+    $liveMcp = $false
+    if ($effectiveHost -eq 'claude' -and $packageBacked) {
+        $installedPath = Join-Path $env:USERPROFILE '.claude\plugins\installed_plugins.json'
+        $settingsPath = Join-Path $env:USERPROFILE '.claude\settings.json'
+        if ((Test-Path -LiteralPath $installedPath) -and (Test-Path -LiteralPath $settingsPath)) {
+            $installed = Get-Content -LiteralPath $installedPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $settings = Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $pluginEntry = @($installed.plugins.'mobile-device-lab@agenthub' | Select-Object -Last 1)
+            $enabledProperty = $settings.enabledPlugins.PSObject.Properties['mobile-device-lab@agenthub']
+            if ($pluginEntry.Count -eq 1 -and $pluginEntry[0].version -eq $expectedPluginVersion -and $enabledProperty -and [bool]$enabledProperty.Value) {
+                $installPath = [string]$pluginEntry[0].installPath
+                $liveInstruction = Test-Path -LiteralPath (Join-Path $installPath 'skills\mobile-device-lab\SKILL.md')
+                $liveMcp = Test-Path -LiteralPath (Join-Path $installPath '.mcp.json')
+            }
+        }
+    }
+    else {
+        $skillRoots = [Collections.Generic.List[string]]::new()
+        if ($effectiveAgent.Count -eq 1) {
+            $declaredSkillRoot = if ($effectiveAgent[0].nativePaths.sharedSkillsDir) { [string]$effectiveAgent[0].nativePaths.sharedSkillsDir } else { [string]$effectiveAgent[0].nativePaths.skillsDir }
+            if ($declaredSkillRoot) { $skillRoots.Add((Resolve-LivePath $declaredSkillRoot)) }
+        }
+        if ($format.Count -eq 1) {
+            foreach ($formatRoot in @([string]$format[0].globalSkillsDir) + @($format[0].alsoScannedSkillsDirs | ForEach-Object { [string]$_ })) {
+                $resolvedRoot = Resolve-LivePath $formatRoot
+                if ($resolvedRoot -and $resolvedRoot -notin $skillRoots) { $skillRoots.Add($resolvedRoot) }
+            }
+        }
+        $liveInstruction = @($skillRoots | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'mobile-device-lab\SKILL.md') }).Count -gt 0
+
+        $driftHost = @(if ($liveDrift) { $liveDrift.hosts | Where-Object host -eq $effectiveHost | Select-Object -First 1 })
+        if ($driftHost.Count -eq 1) {
+            foreach ($mcpEntry in @($driftHost[0].mcp)) {
+                $mcpPath = [string]$mcpEntry.path
+                if ($mcpEntry.status -eq 'unchanged' -and $mcpPath -and (Test-Path -LiteralPath $mcpPath) -and
+                    (Get-Content -LiteralPath $mcpPath -Raw -Encoding UTF8) -match 'appium-mobile') {
+                    $liveMcp = $true
+                    break
+                }
+            }
+        }
+    }
+    Report "$hostId live profile exposes mobile instructions" $liveInstruction 'A configured directory string is insufficient; the resolved SKILL.md or enabled package must exist in the live profile.'
+    Report "$hostId live profile exposes Appium MCP" $liveMcp 'The resolved live plugin/config must contain the Appium route and the latest sync audit must classify direct config as unchanged.'
 }
 
 foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'unverified')) {
@@ -116,6 +179,7 @@ Report 'deep smoke pins both sessions to enumerated virtual-device IDs' (
 
 $idleProbeBlocksBusy = $false
 $idleProbeAcceptsIdle = $false
+$idleProbeBlocksLease = $false
 $idleProbeIsBeforeBuilder = $false
 if (Test-Path -LiteralPath $idleProbePath) {
     $fixtureRootForProbe = Join-Path ([IO.Path]::GetTempPath()) ('agenthub-mobile-idle-' + [guid]::NewGuid().ToString('N'))
@@ -126,6 +190,7 @@ if (Test-Path -LiteralPath $idleProbePath) {
                     hostProcesses = @('30164 ssh.exe macvm maestro --device 371BE9E8-0ED2-415A-AF85-F2BF9D6F6194 test release.yaml')
                     guestProcesses = @()
                     appiumSessions = @()
+                    labLease = $false
                 } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
         $busyOutput = @(& $idleProbePath -SnapshotPath $busySnapshot -Json 2>&1)
         $busyExit = $LASTEXITCODE
@@ -139,12 +204,27 @@ if (Test-Path -LiteralPath $idleProbePath) {
                     hostProcesses = @()
                     guestProcesses = @()
                     appiumSessions = @()
+                    labLease = $false
                 } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
         $idleOutput = @(& $idleProbePath -SnapshotPath $idleSnapshot -Json 2>&1)
         $idleExit = $LASTEXITCODE
         $idleLine = $idleOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
         $idleResult = if ($idleLine) { $idleLine | ConvertFrom-Json } else { $null }
         $idleProbeAcceptsIdle = ($idleExit -eq 0 -and $idleResult -and $idleResult.idle)
+
+        $leaseSnapshot = Join-Path $fixtureRootForProbe 'leased.json'
+        [IO.File]::WriteAllText($leaseSnapshot, (@{
+                    hostProcesses = @()
+                    guestProcesses = @()
+                    appiumSessions = @()
+                    labLease = $true
+                } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
+        $leaseOutput = @(& $idleProbePath -SnapshotPath $leaseSnapshot -Json 2>&1)
+        $leaseExit = $LASTEXITCODE
+        $leaseLine = $leaseOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+        $leaseResult = if ($leaseLine) { $leaseLine | ConvertFrom-Json } else { $null }
+        $idleProbeBlocksLease = ($leaseExit -ne 0 -and $leaseResult -and -not $leaseResult.idle -and
+            (@($leaseResult.conflicts | ForEach-Object { $_.Kind }) -contains 'mobile-lab foreground lease'))
     }
     finally {
         Remove-Item -LiteralPath $fixtureRootForProbe -Recurse -Force -ErrorAction SilentlyContinue
@@ -188,6 +268,12 @@ Report 'startup machine result identifies only virtual devices' (
     $startText -match 'iosDeviceId\s*=\s*\$script:Facts\.iosDeviceId' -and
     $startText -match '\^emulator-\\d\+\\s\+device\$'
 ) 'Emit both virtual-device IDs and exclude physical adb devices during startup.'
+Report 'startup and deep validation enforce Android API 36' (
+    $startText -match 'Get-Api36EmulatorIds' -and
+    $startText -match 'ro\.build\.version\.sdk' -and
+    $startText -match "Trim\(\) -eq '36'" -and
+    $deepGateText -match "Where-Object Sdk -eq '36'"
+) 'A different emulator API level must not satisfy readiness merely because adb reports it attached.'
 Report 'startup guest-IP polling cannot outlive its declared timeout' (
     $startText -notmatch 'getGuestIPAddress\s+\$Vmx\s+-wait' -and
     $startText -match '\[int\]\$TimeoutMinutes\s*=\s*15'
@@ -196,10 +282,12 @@ Report 'startup guest SSH overrides retain the stable host-key alias' (
     $startText -match '-o\s+"HostName=\$script:guestIp"\s+-o\s+"HostKeyAlias=macvm"\s+-o\s+"LogLevel=ERROR"' -and
     $startText -notmatch '-o\s+"HostName=\$script:guestIp"\s+-o\s+ConnectTimeout'
 ) 'Pair every dynamic HostName override with HostKeyAlias=macvm and suppress warning-level SSH diagnostics so PowerShell 5.1 does not promote them to terminating errors.'
-Report 'startup handles a null booted-Simulator probe explicitly' (
-    $startText -match '\[string\]::IsNullOrWhiteSpace\(\$bootedText\)' -and
-    $startText -notmatch "\$bootedText\s*=\s*'iPhone 17 \(Booted\)'"
-) 'Do not apply -notmatch or Trim to a null native-command result, and never synthesize a Booted identity.'
+Report 'startup resolves the exact configured Simulator and runtime' (
+    $startText -match 'xcrun simctl list devices available -j' -and
+    $startText -match 'iOS-26-5\$' -and
+    $startText -match "Where-Object name -eq 'iPhone 17'" -and
+    $startText -match '\$targetSimulatorUdid'
+) 'Resolve iPhone 17 only from the iOS 26.5 inventory bucket and verify its explicit UDID is booted.'
 Report 'startup retries the idempotent Simulator boot request while shutdown' (
     $startText -match '\$script:lastSimulatorBootEvidence' -and
     $startText -match 'xcrun simctl list devices available -j' -and
@@ -207,18 +295,35 @@ Report 'startup retries the idempotent Simulator boot request while shutdown' (
 ) 'Resolve the exact iPhone 17 Simulator UDID from JSON and retry that quote-free identifier inside the bounded readiness loop.'
 Report 'deep smoke busy guard demonstrably rejects an active Maestro run' $idleProbeBlocksBusy 'The idle probe must exit non-zero and report the competing command.'
 Report 'deep smoke busy guard accepts a synthetic idle snapshot' $idleProbeAcceptsIdle 'The same probe must exit zero when no conflicting operation or Appium session exists.'
+Report 'deep smoke busy guard demonstrably rejects an active foreground lease' $idleProbeBlocksLease 'The idle probe must fail closed while another AgentHub mobile run owns the named lease.'
 Report 'deep smoke checks exclusivity before building or installing the fixture' $idleProbeIsBeforeBuilder 'Invoke Test-MobileLabIdle.ps1 before Build-MobileLabSmokeFixture.ps1.'
+Report 'deep smoke holds a cross-process foreground lease and rechecks immediately before launch' (
+    $deepGateText -match 'Global\\AgentHub\.MobileDeviceLab\.ForegroundMutation' -and
+    $deepGateText -match 'final pre-launch exclusivity check' -and
+    $deepGateText -match '-IgnoreLabLease' -and
+    $idleProbeText -match 'mobile-lab foreground lease'
+) 'Hold one named lease across build/install/interaction and re-enumerate external activity immediately before Appium can foreground the fixture.'
 Report 'deep validation guest-IP discovery cannot block indefinitely' (
     $deepGateText -notmatch 'getGuestIPAddress\s+\$vmx\s+-wait'
 ) 'Use a non-waiting vmrun probe after the running-VM gate.'
 Report 'deep smoke retires only its Appium-owned WDA runner after MCP cleanup' (
     $deepGateText -match 'cleanup-wda-guest\.sh' -and
-    $deepGateText.IndexOf('cleanup-wda-guest.sh', [StringComparison]::Ordinal) -gt $deepGateText.IndexOf("if (-not `$mcpOk)", [StringComparison]::Ordinal) -and
+    $deepGateText.IndexOf('cleanup-wda-guest.sh', [StringComparison]::Ordinal) -gt $deepGateText.IndexOf('mcpSessionsCleaned', [StringComparison]::Ordinal) -and
     $guestWdaCleanupText -match 'WebDriverAgent\.xcodeproj' -and
     $guestWdaCleanupText -match 'destination id=\$udid' -and
     $guestWdaCleanupText -match 'appium server' -and
     $guestWdaCleanupText -notmatch 'pkill|killall'
 ) 'After Appium session deletion, stop only WDA xcodebuild children of the lab Appium server for the explicit Simulator UDID.'
+Report 'deep smoke cannot pass when any MCP-created session cleanup fails' (
+    $mcpSmokeText -match 'if \(!report\.sessionsCleaned\)' -and
+    $deepGateText -match '\$mcpResult\.sessionsCleaned' -and
+    $deepGateText -match '/appium/sessions' -and
+    $deepGateText -match 'skipped because one or more Appium sessions remain active or session discovery failed'
+) 'Treat cleanup errors as a failed smoke and never terminate WDA while an Appium session remains active.'
+Report 'product-neutral guest sync requires the caller to select its repository and destination' (
+    (Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1') -Raw -Encoding UTF8) -notmatch 'shmindmaster\\rexa|shmindmaster/rexa' -and
+    (Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1') -Raw -Encoding UTF8) -match '\[Parameter\(Mandatory\)\]\[string\]\s+\$RepoPath'
+) 'Never default a shared infrastructure helper to a product repository or guest path.'
 if (Test-Path -LiteralPath $idleProbePath) {
     $idleProbeText = Get-Content -LiteralPath $idleProbePath -Raw -Encoding UTF8
     Report 'Appium 3 session discovery uses the guarded current endpoint' (

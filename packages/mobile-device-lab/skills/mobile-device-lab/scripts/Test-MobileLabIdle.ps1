@@ -5,6 +5,7 @@ param(
     [string]$SshHost = 'macvm',
     [string]$AppiumUrl,
     [string]$SnapshotPath,
+    [switch]$IgnoreLabLease,
     [switch]$Json
 )
 
@@ -31,7 +32,7 @@ function Emit-Result {
     param([bool]$Idle, [object[]]$Conflicts, [object[]]$ProbeErrors)
     $result = [ordered]@{
         idle = $Idle
-        checkedScopes = @('Windows process table', 'macOS guest process table', 'guest Appium sessions')
+        checkedScopes = @('mobile-lab foreground lease', 'Windows process table', 'macOS guest process table', 'guest Appium sessions')
         conflicts = @($Conflicts)
         probeErrors = @($ProbeErrors)
         remediation = if ($Idle) { $null } else { 'Wait for every reported operation/session to finish. Do not terminate it unless its owner confirms it is stale, then rerun Test-MobileLab.ps1 -Deep -Json.' }
@@ -44,6 +45,7 @@ try {
     $hostProcesses = @()
     $guestProcesses = @()
     $appiumSessions = @()
+    $labLeaseHeld = $false
     $probeErrors = [Collections.Generic.List[object]]::new()
 
     if ($SnapshotPath) {
@@ -51,10 +53,25 @@ try {
         $hostProcesses = @($snapshot.hostProcesses | ForEach-Object { [string]$_ })
         $guestProcesses = @($snapshot.guestProcesses | ForEach-Object { [string]$_ })
         $appiumSessions = @($snapshot.appiumSessions)
+        $labLeaseHeld = [bool]$snapshot.labLease
     }
     else {
         if ([string]::IsNullOrWhiteSpace($GuestIp)) { throw 'GuestIp is required for a live idle probe.' }
         if ([string]::IsNullOrWhiteSpace($AppiumUrl)) { $AppiumUrl = "http://${GuestIp}:4723" }
+
+        if (-not $IgnoreLabLease) {
+            $leaseProbe = [Threading.Mutex]::new($false, 'Global\AgentHub.MobileDeviceLab.ForegroundMutation')
+            $leaseAcquired = $false
+            try {
+                try { $leaseAcquired = $leaseProbe.WaitOne(0) }
+                catch [Threading.AbandonedMutexException] { $leaseAcquired = $true }
+                $labLeaseHeld = -not $leaseAcquired
+            }
+            finally {
+                if ($leaseAcquired) { try { $leaseProbe.ReleaseMutex() } catch { } }
+                $leaseProbe.Dispose()
+            }
+        }
 
         $hostProcesses = @(Get-CimInstance Win32_Process | Where-Object {
                 $_.ProcessId -ne $PID -and -not [string]::IsNullOrWhiteSpace($_.CommandLine)
@@ -82,6 +99,9 @@ try {
     }
 
     $conflicts = [Collections.Generic.List[object]]::new()
+    if ($labLeaseHeld) {
+        $conflicts.Add([pscustomobject]@{ Scope = 'Windows'; Kind = 'mobile-lab foreground lease'; Pid = $null })
+    }
     foreach ($process in $hostProcesses) {
         $command = if ($process -is [string]) { [string]$process } else { [string]$process.Command }
         $kind = Get-ConflictKind -CommandLine $command
