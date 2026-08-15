@@ -714,7 +714,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "87AE71FF6AE2E38F1DB9E61F698733C357A45C9EC5B7BBD28B4D12BF28DEE7E5",
+      "contentHash": "6D4338A8A1D9A51AA05FE636B6CD0D18891F7410F978EB409C050C950281B7F4",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the same eight-host tier clerk, digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. firecrawl is also single-mapped and that one IS deliberate -- its deploymentStatus is native-plugin-installed, meaning Codex installs it natively rather than AgentHub deploying it.",
