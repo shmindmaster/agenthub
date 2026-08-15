@@ -51,8 +51,8 @@ treat it as real and stop.
 Bring the lab up, then verify it. Both are idempotent and safe to re-run:
 
 ```powershell
-pwsh -NoProfile -File packages/mobile-device-lab/skills/mobile-device-lab/scripts/Start-MobileLab.ps1
-pwsh -NoProfile -File packages/mobile-device-lab/skills/mobile-device-lab/scripts/Test-MobileLab.ps1
+pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Start-MobileLab.ps1' -Json
+pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Test-MobileLab.ps1' -Json
 ```
 
 `Start-MobileLab.ps1` boots the emulator and the macOS guest and waits for each.
@@ -62,8 +62,22 @@ again 170s later, no human action), but only once the guest is running.
 
 `Test-MobileLab.ps1` reports `PASS`/`FAIL` per layer, stops at the first broken
 one, and exits non-zero, so it names the layer to fix instead of leaving you to
-guess. Add `-SkipIos` to either when only Android is needed — it avoids waking
-the VM.
+guess. Both commands resolve the VMware DHCP address dynamically and emit a
+stable JSON final line containing readiness, device/runtime identity, the guest
+Appium URL, stage evidence, and remediation. Add `-SkipIos` to either when only
+Android is needed — it avoids waking the VM.
+
+For deterministic infrastructure validation, run the deep synthetic smoke:
+
+```powershell
+pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Test-MobileLab.ps1' -Deep -Json
+```
+
+This builds the local-only fixture under `fixtures/smoke-app`, installs and
+launches it on both simulators, initializes pinned `appium-mcp@1.92.0`, checks
+the tool catalog, keeps concurrent sessions, taps/types, inspects page source,
+and captures screenshots. It never creates an Expo/EAS project, store entry,
+credential, or product identity.
 
 **Do not debug more than one layer at a time.** The gate exists so you don't
 have to: emulator, VM, simulator, Appium, and network are checked separately.
@@ -255,6 +269,16 @@ forwarding shim that calls this copy. There is exactly one implementation —
 never restore a second one, in either direction. Two copies of a script is how
 the Anki exporter silently drifted and shipped a package with zero media, which
 is why the lab path forwards rather than duplicates.
+
+The sync intentionally stages the current, including uncommitted, source tree
+through a private Git index before it transfers it. That applies the source
+repository's Git `text`/`eol` attributes to the archive without modifying the
+developer's index or working tree. In particular, a Windows CRLF checkout must
+not send CRLF shell scripts to macOS. It refuses paths with non-EOL Git clean
+conversions (such as LFS filters) rather than silently transferring a pointer
+or another transformed representation. For a local inspection without SSH,
+use `-StageOnly -StagePath <empty-directory>`; it retains the normalized
+archive and manifest there.
 
 `build-expo-simulator.sh` runs `expo prebuild` when `ios/` is absent, builds
 **Release** (a Debug build expects a Metro server and shows a red screen

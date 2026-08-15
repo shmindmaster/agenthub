@@ -1221,7 +1221,7 @@ function Sync-HostMcp-Grok {
     foreach ($name in @($Mcps.Keys | Sort-Object)) {
         $mcp = $Mcps[$name]
         $sectionPattern = Get-CodexMcpSectionPattern -Key $name
-        $existing = [regex]::Replace($existing, $sectionPattern, '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+        $canonicalSectionExists = [regex]::IsMatch($existing, $sectionPattern)
         foreach ($alias in @(Get-McpAliasesForCanonicalKey $name)) {
             $existing = [regex]::Replace($existing, (Get-CodexMcpSectionPattern -Key $alias), '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
         }
@@ -1256,7 +1256,16 @@ function Sync-HostMcp-Grok {
                 }
             }
         }
-        $null = $blocks.Add(($lines -join "`n"))
+        $block = $lines -join "`n"
+        if ($canonicalSectionExists) {
+            # A partial scope must not move an existing section to the end of
+            # the file. Reordering made two individually idempotent scopes
+            # report drift against each other even when their values agreed.
+            $existing = [regex]::Replace($existing, $sectionPattern, ($block + "`n`n"))
+        }
+        else {
+            $null = $blocks.Add($block)
+        }
     }
 
     if ($Prune) {
@@ -1267,8 +1276,11 @@ function Sync-HostMcp-Grok {
     }
 
     $updated = $existing.TrimEnd()
-    if ($updated) { $updated += "`n`n" }
-    $updated += ($blocks -join "`n`n") + "`n"
+    if ($blocks.Count -gt 0) {
+        if ($updated) { $updated += "`n`n" }
+        $updated += ($blocks -join "`n`n")
+    }
+    $updated += "`n"
     $changed = $original.TrimEnd() -ne $updated.TrimEnd()
     if ($WhatIf) { return @{ status = (Resolve-McpAuditStatus $changed); path = $path } }
     Write-Utf8NoBom -Path $path -Content $updated
@@ -2379,15 +2391,24 @@ $onDemandLocalMcpKeys = @($mcpsReg.mcpServers | Where-Object {
 } | ForEach-Object {
     Resolve-McpAliasKey ([string]$_.id)
 } | Sort-Object -Unique)
+$persistedOnDemandLocalMcpKeys = @($connectorReg.lifecyclePolicy.persistedOnDemandLocalMcpIds | ForEach-Object {
+    Resolve-McpAliasKey ([string]$_)
+} | Sort-Object -Unique)
 
-# Fleet synchronization omits on-demand local launchers. A registry entry with
-# the distinct host-configured-local lifecycle is an explicit fleet exception
-# requested by the owner and is emitted through each reviewed native adapter.
-$candidateServers = @(Get-McpCandidatesForScope `
+# Fleet synchronization omits on-demand local launchers. A reviewed persistent
+# exception participates in every scope so a default audit cannot remove or
+# report drift against a registration applied by the on-demand-desktop scope.
+$scopedCandidateServers = @(Get-McpCandidatesForScope `
     -Servers $mcpsReg.mcpServers `
     -Scope $ScopeProfile `
-    -AllowDeprecated:$IncludeDeprecated | Where-Object {
-        [string]$_.activationMode -ne 'on-demand-local'
+    -AllowDeprecated:$IncludeDeprecated)
+$persistentExceptionServers = @($mcpsReg.mcpServers | Where-Object {
+    (Resolve-McpAliasKey ([string]$_.id)) -in $persistedOnDemandLocalMcpKeys
+})
+$candidateServers = @(($scopedCandidateServers + $persistentExceptionServers) |
+    Sort-Object -Property id -Unique | Where-Object {
+        [string]$_.activationMode -ne 'on-demand-local' -or
+        (Resolve-McpAliasKey ([string]$_.id)) -in $persistedOnDemandLocalMcpKeys
     })
 
 $allMcpEntries = @{}
@@ -2421,7 +2442,8 @@ foreach ($agent in $agentsToSync) {
     $pluginOwnedKeys = if ($pluginProvidedByHost.ContainsKey($agent.id)) { @($pluginProvidedByHost[$agent.id].Keys) } else { @() }
     # Remove stale local registrations narrowly even without -Prune so an
     # older sync or a broad scope cannot recreate process-fanout entries.
-    $suppressedKeys = @($pluginOwnedKeys) + @($onDemandLocalMcpKeys)
+    $nonPersistedOnDemandLocalMcpKeys = @($onDemandLocalMcpKeys | Where-Object { $_ -notin $persistedOnDemandLocalMcpKeys })
+    $suppressedKeys = @($pluginOwnedKeys) + @($nonPersistedOnDemandLocalMcpKeys)
     if ($gatewayPlan) { $suppressedKeys += @($gatewayPlan.managedKeys) }
     $suppressedKeys = @($suppressedKeys | Sort-Object -Unique)
 

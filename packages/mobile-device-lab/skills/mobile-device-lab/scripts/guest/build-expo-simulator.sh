@@ -29,7 +29,7 @@ say() { printf '\n=== %s ===\n' "$1"; }
 
 say "preflight"
 [ -f package.json ] || { echo "FATAL: no package.json in $REPO"; exit 1; }
-if [ ! -d node_modules ]; then
+if [ ! -x node_modules/.bin/expo ]; then
   echo "node_modules missing -- installing (slow on this guest)"
   npm ci --no-audit --no-fund
 fi
@@ -42,6 +42,11 @@ if [ ! -d ios ]; then
 fi
 
 WORKSPACE="$(ls -d ios/*.xcworkspace 2>/dev/null | head -1 || true)"
+if [ -z "$WORKSPACE" ] && [ -f ios/Podfile ]; then
+  say "pod install (workspace absent)"
+  npx pod-install
+  WORKSPACE="$(ls -d ios/*.xcworkspace 2>/dev/null | head -1 || true)"
+fi
 if [ -z "$WORKSPACE" ]; then
   echo "FATAL: no .xcworkspace under ios/. Run: npx expo prebuild --platform ios"
   exit 1

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-13T05:19:28.6570537Z",
+  "generatedAt": "2026-08-15T19:00:00Z",
   "authority": {
     "capabilitiesRegistry": "registry/capabilities.json",
     "mcpRegistry": "registry/mcps.json",
@@ -8,7 +8,7 @@
       "C:/Users/SaroshHussain/.claude/plugins/installed_plugins.json",
       "C:/Users/SaroshHussain/.codex/plugins/cache"
     ],
-    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. Every on-demand-local MCP, including Chrome DevTools, is removed from host configuration under every fleet-sync scope and may run only through its owning plugin or skill, a host-native browser capability, or one reviewed shared gateway. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners."
+    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. On-demand-local MCPs are removed from host configuration unless lifecyclePolicy.persistedOnDemandLocalMcpIds records a reviewed lightweight exception. The appium-mobile exception may persist its provider registration but never starts the VM or emulators. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners."
   },
   "hostPrivateExtensionPolicy": {
     "hosts": [
@@ -31,9 +31,12 @@
       "brave-search",
       "chrome-devtools"
     ],
+    "persistedOnDemandLocalMcpIds": [
+      "appium-mobile"
+    ],
     "hostConfiguredLocalMcpIds": [],
-    "localFanoutPolicy": "never-persist-on-demand-local-in-host-config",
-    "hostConfiguredLocalFanoutPolicy": "no-current-exceptions",
+    "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
+    "hostConfiguredLocalFanoutPolicy": "appium-mobile may be registered persistently where no package activation route exists; registration is lightweight and does not start the VM or emulators",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
     "onDemandLocalCoverage": {
@@ -304,6 +307,7 @@
           "firecrawl"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search"
         ]
       },
@@ -319,6 +323,7 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
+          "appium-mobile",
           "chrome-devtools",
           "github",
           "notion"
@@ -359,6 +364,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -381,6 +387,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search"
         ]
       }
@@ -404,6 +411,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -425,6 +433,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -447,6 +456,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -468,6 +478,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -493,6 +504,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -514,6 +526,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -536,6 +549,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -557,6 +571,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -587,6 +602,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -608,6 +624,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -629,6 +646,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -652,6 +670,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search"
         ]
       }
@@ -671,6 +690,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]
@@ -691,6 +711,7 @@
           "notion"
         ],
         "local-only": [
+          "appium-mobile",
           "brave-search",
           "chrome-devtools"
         ]

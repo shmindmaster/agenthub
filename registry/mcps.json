@@ -401,7 +401,7 @@
       },
       "localProcessPolicy": {
         "instancing": "single-shared-process",
-        "note": "Pinned to 1.92.0 rather than @latest so a re-resolve does not silently move the lab; see chrome-devtools for the pinned precedent and brave-search for the deliberately unpinned counterpart. Started on demand by the mobile-device-lab capability, never at session start -- the emulator and macOS guest it drives are expensive and must not be implied to be running."
+        "note": "Pinned to 1.92.0 rather than @latest so a re-resolve does not silently move the lab; see chrome-devtools for the pinned precedent and brave-search for the deliberately unpinned counterpart. The lightweight stdio provider may be registered persistently on hosts without package activation. It does not start the Android emulator or macOS guest; those expensive resources stay cold until Start-MobileLab.ps1 is invoked."
       },
       "owner": { "type": "capability", "id": "mobile-device-lab" },
       "hosts": [ "amp", "antigravity", "claude", "cline", "codex", "copilot", "cursor", "devin", "factory", "gemini", "grok", "hermes", "opencode", "qoder", "qwen-code", "vscode-insiders", "warp", "windsurf" ],

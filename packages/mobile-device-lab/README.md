@@ -41,8 +41,8 @@ The Android capture was Rexa itself mid-session, not a stock home screen.
 
 ```powershell
 # Bring it up (emulator + guest + simulator), then gate it.
-pwsh -NoProfile -File packages/mobile-device-lab/skills/mobile-device-lab/scripts/Start-MobileLab.ps1
-pwsh -NoProfile -File packages/mobile-device-lab/skills/mobile-device-lab/scripts/Test-MobileLab.ps1
+pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Start-MobileLab.ps1' -Json
+pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Test-MobileLab.ps1' -Deep -Json
 ```
 
 Then load the **`mobile-device-lab`** skill and drive `appium-mobile`.

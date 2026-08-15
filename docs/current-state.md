@@ -13,7 +13,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   are retired. The AgentHub local-AI and Product Demo Studio narration skills
   enforce the same route across managed hosts.
 
-- **Mobile device lab reaches hosts (2026-08-11):** `mobile-device-lab` had a
+- **Mobile device lab reaches hosts (updated 2026-08-15):** `mobile-device-lab` had a
   plugin manifest and a registry entry but was in neither marketplace, so no
   host could install it — an agent drove the Android emulator with raw `adb`
   for a whole session while the Appium MCP sat unreachable in the repo. Now
@@ -28,19 +28,18 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   unusable. `claude plugin validate` passes such a manifest — a schema cannot
   know a dialect. Fixed in 1.0.1 and gated by `Test-PluginManifests` behavior
   4. **Plugin `.mcp.json` uses `${NAME}`; only `registry/mcps.json` uses
-  `${env:NAME}`.**
-- **Eight of 22 "active" agents declare an executable that is not on disk**
-  (measured 2026-08-11, PATH-resolved so bare names like `qwen` are not false
-  positives). Three are stale paths for installed products (`cline`, `amp`,
-  and `factory`, whose declaration is version-pinned to `app-0.144.0` and
-  re-breaks on every update); four products are simply not installed
-  (`hermes`, `qoder`, `codex`, `opencode-desktop`); `windsurf` declares no
-  executable at all. No test checks that field —
-  `Test-DeclaredPathAccountability` scans only `nativePaths` — and
-  `inactiveAgents` is empty, so every host claims active regardless. For
-  hermes and qoder the only contents of their config roots are the files
-  agenthub itself syncs: those directories exist because we created them.
-  Not yet fixed; see the notes on those fields in `registry/agents.json`.
+  `${env:NAME}`.** Version 1.0.5 adds the Qoder manifest, dynamic VMware
+  addressing, stable JSON startup/gate output, a local-only cross-platform
+  fixture, pinned MCP deep smoke, and a reachability gate. Appium may persist
+  as the one reviewed lightweight on-demand provider exception; the VM and
+  emulators remain cold until the skill starts them.
+- **Six declared agent surfaces are unverified on this workstation
+  (2026-08-15):** `codex`, `opencode-desktop`, `hermes`, `qoder`, and `factory`
+  have declared executables that do not resolve; `windsurf` still has no
+  executable declaration. Their inventory/configuration is retained, but
+  their status is `unverified` and mobile reachability does not count them as
+  functional. The remaining active surfaces must pass both instruction and
+  Appium activation-route checks.
 - **`~/.claude/skills` is stale and the parity check does not notice
   (2026-08-11).** Every browser-toolkit skill deployed there still has mtime
   `2026-08-05 21:03`; a `Sync-Capabilities.ps1 -Apply` on 2026-08-11 did not

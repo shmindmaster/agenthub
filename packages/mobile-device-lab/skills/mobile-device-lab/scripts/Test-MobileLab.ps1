@@ -23,10 +23,16 @@ Check only the Android half. Does not wake or require the macOS VM.
 
 .PARAMETER Json
 Emit a machine-readable result object as the final line, for agent use.
+
+.PARAMETER Deep
+Build and install the local synthetic fixture, initialize appium-mcp@1.92.0,
+verify its catalog, exercise concurrent Android/iOS sessions, and capture
+screenshots and page-source evidence.
 #>
 [CmdletBinding()]
 param(
     [switch]$SkipIos,
+    [switch]$Deep,
     [switch]$Json
 )
 
@@ -71,9 +77,13 @@ function Stop-Gate {
 function Emit-Json {
     param([bool]$Ok)
     $payload = [ordered]@{
-        ok      = $Ok
-        facts   = $script:Facts
-        stages  = $script:Results
+        ready = $Ok
+        androidDeviceId = $script:Facts.androidDeviceId
+        iosDevice = $script:Facts.iosDevice
+        iosRuntime = $script:Facts.iosRuntime
+        guestAppiumUrl = $script:Facts.guestAppiumUrl
+        facts = $script:Facts
+        stages = $script:Results
     }
     Write-Output ($payload | ConvertTo-Json -Depth 6 -Compress)
 }
@@ -86,7 +96,8 @@ function Invoke-Guest {
     )
     $psi = [System.Diagnostics.ProcessStartInfo]::new()
     $psi.FileName = 'ssh'
-    $psi.Arguments = "-o ConnectTimeout=10 -o BatchMode=yes macvm `"$Command`""
+    $hostOverride = if ($script:GuestIp) { "-o HostName=$($script:GuestIp) -o HostKeyAlias=macvm " } else { '' }
+    $psi.Arguments = "${hostOverride}-o ConnectTimeout=10 -o BatchMode=yes macvm `"$Command`""
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.UseShellExecute = $false
@@ -132,6 +143,7 @@ $adb = Join-Path $androidHome 'platform-tools\adb.exe'
 $devices = (& $adb devices) 2>&1 | Where-Object { $_ -match '\sdevice$' }
 $haveEmulator = [bool]$devices
 $script:Facts['androidDevices'] = @($devices | ForEach-Object { ($_ -split '\s+')[0] })
+$script:Facts['androidDeviceId'] = @($script:Facts['androidDevices'])[0]
 Write-Stage 'android: a device or emulator is attached' $haveEmulator (($devices -join '; ') -replace '\s+', ' ') "Start one: & `"$androidHome\emulator\emulator.exe`" -avd <name>  (see -list-avds)"
 if (-not $haveEmulator) { Stop-Gate 'Android emulator' }
 
@@ -163,6 +175,7 @@ if (-not $vmUp) { Stop-Gate 'macOS VM' }
 # Discover the address rather than trusting a hardcoded one -- VMware NAT hands
 # it out by DHCP and it does change on lease renewal.
 $guestIp = (& $vmrun getGuestIPAddress $vmx -wait) 2>&1 | Select-Object -First 1
+$script:GuestIp = $guestIp
 $ipOk = $guestIp -match '^\d+\.\d+\.\d+\.\d+$'
 $script:Facts['guestIp'] = $guestIp
 Write-Stage 'vmware: guest IP discovered' $ipOk "guest at $guestIp" 'VMware Tools must be running in the guest for getGuestIPAddress.'
@@ -170,7 +183,7 @@ if (-not $ipOk) { Stop-Gate 'guest networking' }
 
 $ssh = Invoke-Guest -Command 'echo GUEST-UP' -TimeoutSec 30
 $sshOk = ($ssh.ExitCode -eq 0 -and $ssh.Stdout -match 'GUEST-UP')
-Write-Stage 'ssh: guest reachable as macvm' $sshOk "exit=$($ssh.ExitCode) $($ssh.Stderr)" 'Check ~/.ssh/config Host macvm -- HostName may be stale if the DHCP lease changed.'
+Write-Stage 'ssh: guest reachable at discovered address' $sshOk "macvm via $guestIp; exit=$($ssh.ExitCode) $($ssh.Stderr)" 'Verify the macvm identity/user/key; the HostName is overridden with VMware''s current DHCP address.'
 if (-not $sshOk) { Stop-Gate 'ssh to guest' }
 
 # The ssh alias carries a hardcoded HostName. If the lease moved, ssh still
@@ -199,6 +212,7 @@ if (-not $runtimeOk) { Stop-Gate 'iOS runtime' }
 $booted = Invoke-Guest -Command 'xcrun simctl list devices booted | grep Booted | head -1' -TimeoutSec 120
 $bootedOk = ($booted.ExitCode -eq 0 -and $booted.Stdout -match 'Booted')
 $script:Facts['bootedSimulator'] = $booted.Stdout
+$script:Facts['iosDevice'] = if ($booted.Stdout -match '^\s*([^\(]+)') { $Matches[1].Trim() } else { 'iPhone 17' }
 Write-Stage 'guest: a simulator is booted' $bootedOk $booted.Stdout 'Run: ssh macvm "xcrun simctl boot ''iPhone 17''"  (cold boot takes minutes here)'
 if (-not $bootedOk) { Stop-Gate 'booted simulator' }
 
@@ -209,6 +223,7 @@ if (-not $driverOk) { Stop-Gate 'Appium drivers' }
 
 $appiumUrl = "http://${guestIp}:4723"
 $script:Facts['appiumUrl'] = $appiumUrl
+$script:Facts['guestAppiumUrl'] = $appiumUrl
 $statusOk = $false
 $statusEvidence = ''
 try {
@@ -221,6 +236,40 @@ catch {
 }
 Write-Stage 'appium: server reachable from Windows' $statusOk $statusEvidence 'Start it in the guest (see scripts/guest/), then allow up to ~6 min for cold start.'
 if (-not $statusOk) { Stop-Gate 'Appium server' }
+
+$runtimeDetail = Invoke-Guest -Command 'xcrun simctl list runtimes | grep iOS | head -1' -TimeoutSec 120
+$script:Facts['iosRuntime'] = if ($runtimeDetail.Stdout -match 'iOS\s+([0-9.]+)') { "iOS $($Matches[1])" } else { $runtimeDetail.Stdout }
+
+if ($Deep) {
+    if ($SkipIos) {
+        Write-Stage 'deep: cross-platform fixture' $false '-Deep requires the iOS guest' 'Remove -SkipIos and rerun.'
+        Stop-Gate 'deep validation'
+    }
+    $builder = Join-Path $PSScriptRoot 'Build-MobileLabSmokeFixture.ps1'
+    $buildOutput = @(& $builder -GuestIp $guestIp -Json 2>&1)
+    $buildExit = $LASTEXITCODE
+    $buildLine = $buildOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+    $buildResult = $null
+    if ($buildLine) { try { $buildResult = $buildLine | ConvertFrom-Json } catch { } }
+    $buildOk = ($buildExit -eq 0 -and $buildResult -and $buildResult.ok)
+    Write-Stage 'deep: synthetic fixture built and installed' $buildOk (($buildOutput | Select-Object -Last 8) -join ' ') 'Inspect localBuildRoot, verify Expo/Gradle/Xcode, then rerun -Deep.'
+    if (-not $buildOk) { Stop-Gate 'synthetic fixture build' }
+
+    $evidenceRoot = Join-Path $env:LOCALAPPDATA ('AgentHub\mobile-lab\evidence\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
+    $mcpClient = Join-Path $PSScriptRoot 'Invoke-AppiumMcpSmoke.mjs'
+    $mcpOutput = @(& node $mcpClient --remote-url $appiumUrl --android-app $buildResult.androidApk --ios-bundle-id $buildResult.iosBundleId --output-dir $evidenceRoot 2>&1)
+    $mcpExit = $LASTEXITCODE
+    $mcpLine = $mcpOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
+    $mcpResult = $null
+    if ($mcpLine) { try { $mcpResult = $mcpLine | ConvertFrom-Json } catch { } }
+    $mcpOk = ($mcpExit -eq 0 -and $mcpResult -and $mcpResult.ok)
+    $script:Facts['deepEvidenceRoot'] = $evidenceRoot
+    $script:Facts['appiumMcpVersion'] = '1.92.0'
+    $script:Facts['appiumMcpToolCount'] = if ($mcpResult) { $mcpResult.toolCount } else { 0 }
+    Write-Stage 'deep: pinned Appium MCP cross-platform interaction' $mcpOk (($mcpOutput | Select-Object -Last 6) -join ' ') 'Open appium-mcp-smoke.json in deepEvidenceRoot, apply the reported error, and rerun -Deep.'
+    if (-not $mcpOk) { Stop-Gate 'Appium MCP deep smoke' }
+}
 
 Write-Host ''
 Write-Host 'MOBILE LAB READY' -ForegroundColor Green

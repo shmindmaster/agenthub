@@ -1,6 +1,6 @@
 {
   "name": "mobile-device-lab",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Drive an Android emulator and an iOS Simulator from one Appium MCP control plane, with no physical device.",
   "author": {
     "name": "Sarosh Hussain"

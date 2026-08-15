@@ -71,7 +71,7 @@
         "mcp",
         "plugins"
       ],
-      "status": "active"
+      "status": "unverified"
     },
     {
       "id": "qwen-code",
@@ -147,7 +147,7 @@
         "skills",
         "mcp"
       ],
-      "status": "active",
+      "status": "unverified",
       "surfaceType": "companion-desktop"
     },
     {
@@ -211,7 +211,7 @@
         "mcp",
         "acp"
       ],
-      "status": "active",
+      "status": "unverified",
       "notes": "Native Windows installation. The former Ubuntu installation was migrated and removed."
     },
     {
@@ -501,7 +501,7 @@
         "qoderwork",
         "headless"
       ],
-      "status": "active",
+      "status": "unverified",
       "notes": "Qoder CLI 1.1.5. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
     },
     {
@@ -593,7 +593,7 @@
         "plugins",
         "hooks"
       ],
-      "status": "active",
+      "status": "unverified",
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes."
     },
     {
@@ -644,7 +644,7 @@
         "parallel-agents",
         "mcp"
       ],
-      "status": "active",
+      "status": "unverified",
       "installationExpectation": "in-use-executable-not-located",
       "notes": "Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%\\Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch."
     }

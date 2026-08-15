@@ -33,6 +33,7 @@ param(
     [string]$Avd,
     [string]$Vmx,
     [switch]$SkipIos,
+    [switch]$Json,
     [int]$TimeoutMinutes = 10
 )
 
@@ -64,7 +65,32 @@ function Wait-Until {
     return $false
 }
 
+$script:Stages = [System.Collections.Generic.List[object]]::new()
+$script:Facts = [ordered]@{}
+function Add-Stage {
+    param([string]$Name, [bool]$Ready, [string]$Evidence, [string]$Remedy = '')
+    $script:Stages.Add([pscustomobject]@{ stage = $Name; ready = $Ready; evidence = $Evidence; remedy = $Remedy })
+}
+function Emit-Result {
+    param([bool]$Ready, [string]$FailedStage = '', [string]$ErrorMessage = '', [string]$Remedy = '')
+    if (-not $Json) { return }
+    $payload = [ordered]@{
+        ready = $Ready
+        androidDeviceId = $script:Facts.androidDeviceId
+        iosDevice = $script:Facts.iosDevice
+        iosRuntime = $script:Facts.iosRuntime
+        guestAppiumUrl = $script:Facts.guestAppiumUrl
+        guestIp = $script:Facts.guestIp
+        failedStage = $FailedStage
+        error = $ErrorMessage
+        remediation = $Remedy
+        stages = $script:Stages
+    }
+    Write-Output ($payload | ConvertTo-Json -Depth 7 -Compress)
+}
+
 $timeoutSec = $TimeoutMinutes * 60
+try {
 Write-Host ''
 Say '=== Starting mobile device lab ===' 'White'
 
@@ -92,16 +118,20 @@ else {
     Start-Process -FilePath $emulatorExe -ArgumentList @('-avd', $Avd) -WindowStyle Minimized | Out-Null
     if (-not (Wait-Until -What "emulator '$Avd'" -TimeoutSec $timeoutSec -Condition {
                 @(& $adb devices | Where-Object { $_ -match '\sdevice$' }).Count -gt 0
-            })) { exit 1 }
+            })) { throw "Android emulator failed to attach." }
     # `adb devices` reports the device before Android has finished booting.
     if (-not (Wait-Until -What 'android boot completed' -TimeoutSec $timeoutSec -Condition {
                 (& $adb shell getprop sys.boot_completed 2>$null) -match '1'
-            })) { exit 1 }
+            })) { throw "Android did not finish booting." }
 }
+$androidId = @(& $adb devices | Where-Object { $_ -match '\sdevice$' } | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
+$script:Facts.androidDeviceId = if ($androidId.Count) { $androidId[0] } else { $null }
+Add-Stage 'android' ([bool]$script:Facts.androidDeviceId) "device=$($script:Facts.androidDeviceId)" 'Start an API 36 AVD and rerun.'
 
 if ($SkipIos) {
     Write-Host ''
     Say 'ANDROID READY (iOS skipped by -SkipIos)' 'Green'
+    Emit-Result -Ready $true
     exit 0
 }
 
@@ -153,42 +183,66 @@ $guestIp = $null
 if (-not (Wait-Until -What 'guest IP' -TimeoutSec $timeoutSec -Condition {
             $candidate = (& $vmrun getGuestIPAddress $Vmx -wait) 2>&1 | Select-Object -First 1
             if ($candidate -match '^\d+\.\d+\.\d+\.\d+$') { $script:guestIp = $candidate; $true } else { $false }
-        })) { exit 1 }
+        })) { throw "VMware Tools did not report a guest IP." }
 Say "  guest at $script:guestIp"
+$script:Facts.guestIp = $script:guestIp
+Add-Stage 'macos-guest' $true "vmx=$Vmx; ip=$script:guestIp"
 
 if (-not (Wait-Until -What 'ssh to guest' -TimeoutSec $timeoutSec -Condition {
-            $null = & ssh -o ConnectTimeout=8 -o BatchMode=yes macvm 'true' 2>&1
+            $null = & ssh -o "HostName=$script:guestIp" -o ConnectTimeout=8 -o BatchMode=yes macvm 'true' 2>&1
             $LASTEXITCODE -eq 0
-        })) { exit 1 }
+        })) { throw "SSH failed at the dynamically discovered guest address $script:guestIp." }
+Add-Stage 'guest-ssh' $true "macvm via $script:guestIp"
 
 # Appium runs as a launchd agent (RunAtLoad), so it comes back with the guest.
 # Cold start is minutes here, hence the generous budget.
 $appiumUrl = "http://$($script:guestIp):4723"
+$script:Facts.guestAppiumUrl = $appiumUrl
 if (-not (Wait-Until -What "appium at $appiumUrl" -TimeoutSec $timeoutSec -Condition {
             try { [bool](Invoke-RestMethod -Uri "$appiumUrl/status" -TimeoutSec 10).value.ready } catch { $false }
         })) {
     Say '  Appium did not answer. Is the launchd agent installed?' 'Yellow'
     Say "    ssh macvm 'bash ~/mobile-lab/start-appium-guest.sh'" 'Cyan'
-    exit 1
+    throw "Guest Appium did not become ready at $appiumUrl. Remediation: ssh -o HostName=$script:guestIp macvm 'bash ~/mobile-lab/start-appium-guest.sh'."
 }
+Add-Stage 'guest-appium' $true $appiumUrl
 
 # A booted simulator is what iOS sessions attach to. Booting is slow, so do it
 # here rather than making the first session pay for it.
-$booted = & ssh -o BatchMode=yes macvm 'xcrun simctl list devices booted | grep Booted | head -1' 2>&1
+$booted = & ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl list devices booted | grep Booted | head -1' 2>&1
 if ($booted -notmatch 'Booted') {
     Say '  no simulator booted; booting iPhone 17'
-    & ssh -o BatchMode=yes macvm 'xcrun simctl boot "iPhone 17" 2>/dev/null || true' | Out-Null
+    & ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl boot "iPhone 17" 2>/dev/null || true' | Out-Null
     if (-not (Wait-Until -What 'simulator boot' -TimeoutSec $timeoutSec -Condition {
-                (& ssh -o BatchMode=yes macvm 'xcrun simctl list devices booted' 2>&1) -match 'Booted'
-            })) { exit 1 }
+                (& ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl list devices booted' 2>&1) -match 'Booted'
+            })) { throw "iPhone 17 Simulator did not boot." }
+    $booted = & ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl list devices booted | grep Booted | head -1' 2>&1
 }
 else {
-    Say ("  simulator already booted: {0}" -f $booted.Trim()) 'Green'
+    Say ("  simulator already booted: {0}" -f ([string]($booted | Where-Object { $_ -match 'Booted' } | Select-Object -First 1)).Trim()) 'Green'
 }
+$bootedText = [string]($booted | Where-Object { $_ -match 'Booted' } | Select-Object -First 1)
+if (-not $bootedText) { $bootedText = 'iPhone 17 (Booted)' }
+$script:Facts.iosDevice = if ($bootedText -match '^\s*([^\(]+)') { $Matches[1].Trim() } else { 'iPhone 17' }
+$runtimeLine = & ssh -o "HostName=$script:guestIp" -o BatchMode=yes macvm 'xcrun simctl list runtimes | grep iOS | head -1' 2>&1
+$runtimeText = [string]($runtimeLine | Where-Object { $_ -match 'iOS\s+26\.5' } | Select-Object -First 1)
+$script:Facts.iosRuntime = if ($runtimeText -match 'iOS\s+([0-9.]+)') { "iOS $($Matches[1])" } else { $runtimeText.Trim() }
+Add-Stage 'ios-simulator' ($bootedText -match 'Booted') $bootedText 'Boot iPhone 17 in the macOS guest.'
 
 Write-Host ''
 Say 'MOBILE LAB READY' 'Green'
 Say ("  remote : {0}   <- remoteServerUrl for iOS sessions" -f $appiumUrl)
 Say '  verify : Test-MobileLab.ps1'
 Write-Host ''
+Emit-Result -Ready $true
 exit 0
+}
+catch {
+    $message = $_.Exception.Message
+    $stage = if ($script:Stages.Count) { $script:Stages[$script:Stages.Count - 1].stage } else { 'startup' }
+    $remedy = if ($message -match 'Remediation:\s*(.+)$') { $Matches[1] } else { 'Run Test-MobileLab.ps1 -Json to identify the first broken layer, apply its remediation, and rerun startup.' }
+    Add-Stage $stage $false $message $remedy
+    Say "MOBILE LAB START FAILED: $message" 'Red'
+    Emit-Result -Ready $false -FailedStage $stage -ErrorMessage $message -Remedy $remedy
+    exit 1
+}
