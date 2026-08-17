@@ -61,8 +61,10 @@
         "easSlug": "abacare",
         "appleTeamId": "9V6CGU625U",
         "appPath": "apps/mobile",
-        "easProjectCreated": false,
-        "recordedOn": "2026-08-08"
+        "easProjectCreated": true,
+        "easProjectId": "3badc374-7224-4dbe-ba0a-44de6808a67b",
+        "recordedOn": "2026-08-16",
+        "note": "Was recorded easProjectCreated: false; verified against `eas project:info` on 2026-08-16 and corrected. The project is @shmindmaster/abacare on the personal account with the correct slug, and has zero builds -- so no Apple App ID has been minted and the bundle identifier is still changeable. Test-MobileScope.ps1 does not check this field, which is why the drift went unnoticed. The app config carried a .dev/.preview identifier split against the 2026-08-08 one-identity decision; collapsed to a single identity on 2026-08-16 while it was still free to do so."
       }
     },
     {
