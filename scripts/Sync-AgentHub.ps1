@@ -1127,11 +1127,23 @@ function Sync-HostMcp-Codex {
         if ($entry.type -eq 'http' -and $entry.url) {
             $sectionLines += "url = `"$($entry.url)`""
 
-            # Codex natively supports a bearer-token environment variable for
-            # remote MCPs, but not arbitrary request headers. Convert the
-            # canonical header reference without ever resolving its secret.
+            # Convert canonical environment references into Codex's native
+            # remote-MCP auth fields without ever resolving their secrets.
             if ($entry.headers -and $entry.headers.Authorization -match '^Bearer \$\{env:([A-Za-z_][A-Za-z0-9_]*)\}$') {
                 $sectionLines += "bearer_token_env_var = `"$($Matches[1])`""
+            }
+            if ($entry.headers) {
+                $envHeaderPairs = @(
+                    foreach ($header in @($entry.headers.GetEnumerator() | Sort-Object Key)) {
+                        if ([string]$header.Value -notmatch '^\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}$') { continue }
+                        $headerName = ([string]$header.Key).Replace('\', '\\').Replace('"', '\"')
+                        $environmentName = $Matches[1]
+                        "`"$headerName`" = `"$environmentName`""
+                    }
+                )
+                if ($envHeaderPairs.Count -gt 0) {
+                    $sectionLines += "env_http_headers = { $($envHeaderPairs -join ', ') }"
+                }
             }
         } elseif ($entry.command) {
             $sectionLines += "command = `"$($entry.command)`""

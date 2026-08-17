@@ -4,6 +4,14 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Exa MCP authentication is environment-backed (2026-08-17):** the canonical
+  remote server sends `x-api-key` from `EXA_API_KEY`; no key value is stored in
+  the registry or any generated host configuration. The Codex MCP writer now
+  translates canonical `${env:NAME}` HTTP headers to native
+  `env_http_headers` entries, which avoids falling through to OAuth for Exa.
+  A synthetic regression fixture proves both the rendered mapping and that an
+  available secret value is not resolved into `config.toml`.
+
 - **Canonical Sarosh narration voice (2026-08-11):** Local-AI now exposes one
   personal narration route: transcript-conditioned Qwen3-TTS Base ICL through
   `ai.ps1 voice qwen-clone --voice sarosh`. The owner preferred it in a local

@@ -269,6 +269,70 @@ function Test-RealChangeStillReportsUpdated {
     }
 }
 
+# --- Behavior 4: Codex remote MCP entries preserve arbitrary HTTP header
+# names while referencing, rather than resolving, their environment-backed
+# values. This is the supported Codex shape for providers such as Exa that
+# accept x-api-key instead of a bearer token. ---
+function Test-CodexEnvironmentHttpHeaders {
+    $fixtureRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-codex-env-http-headers-repo-" + [guid]::NewGuid())
+    $fixtureProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-codex-env-http-headers-profile-" + [guid]::NewGuid())
+    $registryDir = Join-Path $fixtureRoot 'registry'
+    $configPath = Join-Path $fixtureProfile 'config.toml'
+    $priorKey = $env:EXA_API_KEY
+    New-Item -ItemType Directory -Path $registryDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $fixtureProfile -Force | Out-Null
+    try {
+        $env:EXA_API_KEY = 'fixture-secret-that-must-not-be-written'
+        @{
+            activeAgents = @(
+                @{ id = 'codex'; name = 'Fixture Codex'; status = 'active'; nativePaths = @{ config = $configPath } }
+            )
+            inactiveAgents = @()
+        } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryDir 'agents.json') -Encoding UTF8 -NoNewline
+
+        @{
+            mcpServers = @(
+                @{
+                    id = 'exa'
+                    transport = 'http'
+                    url = 'https://mcp.exa.ai/mcp'
+                    headers = @{ 'x-api-key' = '${env:EXA_API_KEY}' }
+                    credentialPolicy = 'environment-api-key'
+                }
+            )
+        } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryDir 'mcps.json') -Encoding UTF8 -NoNewline
+
+        @{
+            schemaVersion = 2
+            capabilities = @(
+                @{ id = 'fixture-cap'; owner = 'test'; capabilityType = 'skills'; canonicalSource = 'packages/does-not-exist' }
+            )
+        } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $registryDir 'capabilities.json') -Encoding UTF8 -NoNewline
+
+        [IO.File]::WriteAllText($configPath, '', [Text.UTF8Encoding]::new($false))
+        $result = Invoke-SyncAgentHub -ExtraArgs @('-Apply', '-RegistryRoot', $fixtureRoot, '-UserProfile', $fixtureProfile)
+        if ($result.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "-Apply exit code was $($result.ExitCode). Output: $($result.Output)" }
+        }
+
+        $config = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8
+        if ($config -notmatch '(?m)^env_http_headers = \{ "x-api-key" = "EXA_API_KEY" \}\r?$') {
+            return @{ Passed = $false; Detail = "Codex config did not contain the expected environment header mapping. Config: [$config]" }
+        }
+        if ($config.Contains($env:EXA_API_KEY)) {
+            return @{ Passed = $false; Detail = 'Codex config resolved and wrote the secret value instead of its environment variable name.' }
+        }
+        if ($config -match '\$\{env:EXA_API_KEY\}') {
+            return @{ Passed = $false; Detail = 'Codex config retained the registry placeholder instead of translating it to env_http_headers.' }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        $env:EXA_API_KEY = $priorKey
+        Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $fixtureProfile -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $r1 = Test-SecondApplyMakesNoFurtherChanges
 Report 'second consecutive -Apply -Prune against the same synthetic host makes no further byte changes' $r1.Passed $r1.Detail
 
@@ -278,7 +342,10 @@ Report 'a no-op second -Apply reports mcp=unchanged on both the drift report and
 $r3 = Test-RealChangeStillReportsUpdated
 Report 'a first -Apply that genuinely writes new config still reports mcp=updated' $r3.Passed $r3.Detail
 
-$reported = 3
+$r4 = Test-CodexEnvironmentHttpHeaders
+Report 'Codex remote MCP sync writes env_http_headers without resolving the secret' $r4.Passed $r4.Detail
+
+$reported = 4
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
     exit 1

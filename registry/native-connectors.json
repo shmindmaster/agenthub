@@ -200,7 +200,7 @@
           "notAccountLevel": {
             "sentry": "sentry@claude-plugins-official is installed locally; it is a normal plugin, not part of this decision.",
             "product-demo-studio": "Installed locally from the agenthub marketplace; owns the Descript server by design.",
-            "exa": "A shared-remote server declared in registry/mcps.json with credentialPolicy provider-managed; fleet-managed, not account-level."
+            "exa": "A shared-remote server declared in registry/mcps.json with credentialPolicy environment-api-key; fleet-managed, not account-level."
           }
         },
         "ownerStep": "Decide per bundle in claude.ai settings, using bundleContents above -- a bundle is all-or-nothing. The three that matter for the owner's stated goal: engineering carries Atlassian but also Datadog and PagerDuty; marketing carries Figma but also six analytics and SEO servers; small-business carries Slack but also Stripe, QuickBooks, PayPal and four more. Dropping a bundle to remove one server removes every other server in it.",
