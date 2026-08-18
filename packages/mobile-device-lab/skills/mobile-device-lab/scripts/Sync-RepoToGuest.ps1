@@ -56,12 +56,18 @@ param(
     # rule written to keep the payload small, and the consequence went
     # unnoticed until a build proved it.
     #
-    # Expo inlines `EXPO_PUBLIC_*` into the JS bundle at *build* time. A guest
-    # that never received `.env` therefore does not produce a degraded app; it
-    # produces a finished binary with the values baked in as absent, which
-    # cannot be repaired afterwards by any amount of configuration. ABACare's
-    # 2026-08-17 simulator build spent ~40 minutes to render its own
-    # "BUILD NOT CONFIGURED" screen for exactly this reason.
+    # Expo inlines `EXPO_PUBLIC_*` into the JS bundle at *bundle* time, by
+    # Metro -- not by Xcode. The distinction is the whole point: for a Release
+    # build Metro runs here in the guest, so a guest that never received `.env`
+    # does not produce a degraded app, it produces a finished binary with the
+    # values baked in as absent, which cannot be repaired afterwards by any
+    # amount of configuration. ABACare's 2026-08-17 simulator build spent ~40
+    # minutes to render its own "BUILD NOT CONFIGURED" screen for exactly this
+    # reason.
+    #
+    # For a *Debug* build there is no embedded bundle and Metro can run on the
+    # Windows host, where `.env` already sits -- which removes the failure mode
+    # instead of guarding it. Prefer that; see Start-MobileLabMetro.ps1.
     #
     # Explicit paths only, never a glob. These files hold credentials, so
     # which ones cross the boundary is a decision the caller makes by name --
