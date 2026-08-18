@@ -164,11 +164,14 @@
       "transport": "http",
       "activationMode": "shared-remote",
       "url": "https://mcp.exa.ai/mcp",
-      "credentialPolicy": "provider-managed",
+      "headers": {
+        "x-api-key": "${env:EXA_API_KEY}"
+      },
+      "credentialPolicy": "environment-api-key",
       "protocol": {
         "revision": "2025-11-25",
-        "verifiedOn": "2026-08-04",
-        "verification": "initialize returned protocolVersion 2025-11-25. server/discover returned JSON-RPC -32601 'Method not found', which the 2026-07-28 revision requires servers to implement."
+        "verifiedOn": "2026-08-17",
+        "verification": "initialize with x-api-key sourced from EXA_API_KEY returned HTTP 200 and protocolVersion 2025-11-25. The registry stores only the environment reference, never the key value."
       },
       "owner": {
         "type": "registry",
