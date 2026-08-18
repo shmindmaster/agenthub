@@ -229,7 +229,12 @@ try {
             $configPath = Join-Path $ProjectPath $configName
             if (Test-Path -LiteralPath $configPath) {
                 try {
-                    $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+                    # -Encoding UTF8 is not decoration: without it Windows
+                    # PowerShell 5.1 decodes this file in the ANSI code page, so a
+                    # non-ASCII slug or scheme becomes mojibake -- and because the
+                    # whole block is wrapped in an empty catch, that surfaces as
+                    # "scheme not resolvable" rather than as a decoding error.
+                    $config = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
                     if ($config.expo) {
                         if ($config.expo.scheme) { $scheme = @($config.expo.scheme)[0] }
                         elseif ($config.expo.slug) { $scheme = "exp+$($config.expo.slug)" }
