@@ -823,7 +823,7 @@
       "managedSkillNames": [
         "mobile-device-lab"
       ],
-      "contentHash": "06C87499A34AAC83496B425851E6991FF694BA43BD1E1889FBF256EA1D4FC5DA",
+      "contentHash": "59E8DC473BD503A3A42D27CAD3BE48E38CED83F2C23C8DA7169F340DC9C1549A",
       "hashBasis": "packages/mobile-device-lab",
       "status": "active-canonical",
       "hostMappings": [
