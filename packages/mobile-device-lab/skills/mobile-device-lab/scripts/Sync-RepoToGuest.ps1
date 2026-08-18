@@ -96,11 +96,6 @@ function Invoke-SyncGit {
     param(
         [Parameter(Mandatory)][string[]] $Arguments,
         [Parameter(Mandatory)][string] $FailureMessage,
-        # Paths fed to Git on stdin instead of as arguments. Windows caps a
-        # command line at 32767 characters, and a manifest is one path per
-        # tracked-or-untracked file -- abacare alone is 3526 of them, which
-        # overruns it and fails as "The filename or extension is too long",
-        # naming neither the limit nor the caller.
         [string[]] $StdinLines
     )
 
@@ -113,6 +108,10 @@ function Invoke-SyncGit {
     $ErrorActionPreference = 'Continue'
     try {
         if ($PSBoundParameters.ContainsKey('StdinLines')) {
+            # Retained only so an explicit caller still works; nothing in this
+            # script feeds Git on stdin any more. See Get-SyncGitAttributeReport
+            # for why: PowerShell terminates piped lines with CRLF and Git's
+            # --stdin readers split on LF.
             $output = $StdinLines | & git -C $RepoPath @Arguments 2>&1 | Out-String
         } else {
             $output = & git -C $RepoPath @Arguments 2>&1 | Out-String
@@ -122,6 +121,68 @@ function Invoke-SyncGit {
     }
     if ($LASTEXITCODE -ne 0) { throw "$FailureMessage (git exit $LASTEXITCODE): $output" }
     return $output.TrimEnd()
+}
+
+function Get-SyncGitAttributeReport {
+    <#
+    .SYNOPSIS
+        `git check-attr` output for every supplied path, as report lines.
+    .DESCRIPTION
+        Paths go on the command line in batches, deliberately, rather than to
+        `check-attr --stdin`.
+
+        --stdin is the obvious way to hand Git thousands of paths, and it is
+        silently wrong from PowerShell: the pipeline terminates every line it
+        feeds a native command with CRLF, while Git's --stdin readers split on
+        LF alone. Each path therefore arrives with a trailing CR, matches no
+        file in the index, and Git answers `unspecified` for every attribute it
+        was asked about.
+
+        That does not weaken the caller's guard, it disables it. Measured
+        2026-08-18 against a repository whose .gitattributes says
+        `*.bin filter=lfs`: Git reported `"a.bin": filter: unspecified`, the
+        guard found nothing to refuse, and the sync proceeded -- which is the
+        exact case the guard exists to stop, because isolated-index staging
+        would replace that file with an LFS pointer in the guest.
+
+        Passing paths as arguments keeps PowerShell's own native-argument
+        encoding in charge, so nothing has to be quoted or line-terminated by
+        hand. The cost is the 32767-character Windows command line, which is
+        why this batches: abacare alone is 3526 paths and overruns it as "The
+        filename or extension is too long", a message naming neither the limit
+        nor the caller.
+    #>
+    param([Parameter(Mandatory)][string[]] $Paths)
+
+    # Well under the 32767 limit, leaving room for `git -C <repo> check-attr`
+    # and the three attribute names on every batch.
+    $batchBudget = 8000
+    $lines = [Collections.Generic.List[string]]::new()
+    $batch = [Collections.Generic.List[string]]::new()
+    $batchLength = 0
+
+    function Invoke-Batch {
+        param([string[]] $BatchPaths)
+        if ($BatchPaths.Count -eq 0) { return @() }
+        $arguments = @('check-attr', 'filter', 'ident', 'working-tree-encoding', '--') + $BatchPaths
+        $output = Invoke-SyncGit -Arguments $arguments -FailureMessage "git check-attr failed in $RepoPath"
+        return @($output -split "`r?`n" | Where-Object { $_ })
+    }
+
+    foreach ($path in $Paths) {
+        # +1 for the separating space the command line needs anyway.
+        if ($batch.Count -gt 0 -and ($batchLength + $path.Length + 1) -gt $batchBudget) {
+            $lines.AddRange([string[]]@(Invoke-Batch -BatchPaths $batch.ToArray()))
+            $batch.Clear()
+            $batchLength = 0
+        }
+        $batch.Add($path)
+        $batchLength += $path.Length + 1
+    }
+    if ($batch.Count -gt 0) {
+        $lines.AddRange([string[]]@(Invoke-Batch -BatchPaths $batch.ToArray()))
+    }
+    return $lines.ToArray()
 }
 
 # --- build the manifest -----------------------------------------------------
@@ -159,7 +220,7 @@ if ($forcedFiles.Count -gt 0) {
 # `--stdin` rather than a splatted path list: the argument form scales with the
 # repository and silently stops working once it is large enough, which is a
 # worse failure than a slow one because it arrives only for big repositories.
-$attributeOutput = @((Invoke-SyncGit -Arguments @('check-attr', 'filter', 'ident', 'working-tree-encoding', '--stdin') -StdinLines $files -FailureMessage "git check-attr failed in $RepoPath") -split "`r?`n")
+$attributeOutput = @(Get-SyncGitAttributeReport -Paths $files)
 $unsupportedAttributes = @(
     $attributeOutput |
         Where-Object { $_ -match ': (filter|ident|working-tree-encoding): (.+)$' } |
