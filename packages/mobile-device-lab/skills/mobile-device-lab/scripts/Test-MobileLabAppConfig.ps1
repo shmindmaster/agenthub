@@ -111,6 +111,34 @@ function Get-SourceFiles {
     return $found
 }
 
+# Relative path for display, without prefix arithmetic.
+#
+# `$full.Substring($root.Length)` looks obviously correct and is not: it assumes
+# the two strings spell the same directory the same way. They do not when 8.3
+# short names are involved. Measured 2026-08-18 with a project under
+# `C:\Users\SAROSH~1\...`: the root had been expanded to `SaroshHussain` while
+# the file paths had not, so the trim removed five characters too many and
+# reported `xture/src/config.ts` for `envfixture/src/config.ts`.
+#
+# That is the bad kind of wrong -- a mangled path still looks like a path, so it
+# misdirects instead of announcing itself. Junctions, substituted drives and
+# case-differing mounts all produce the same class of error.
+function ConvertTo-RelativeDisplayPath {
+    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$Full)
+
+    $normalizedRoot = ([System.IO.Path]::GetFullPath($Root)).TrimEnd('\', '/')
+    $normalizedFull = [System.IO.Path]::GetFullPath($Full)
+    $separator = [System.IO.Path]::DirectorySeparatorChar
+
+    if ($normalizedFull.StartsWith($normalizedRoot + $separator, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return ($normalizedFull.Substring($normalizedRoot.Length + 1) -replace '\\', '/')
+    }
+
+    # The prefix does not match, so any subtraction here would be a guess.
+    # A full path is longer but true.
+    return ($normalizedFull -replace '\\', '/')
+}
+
 # Discovers every EXPO_PUBLIC_* name the source actually references, keyed to
 # the first file it was seen in. A hardcoded list is exactly the thing this
 # script exists to replace -- shared fleet infrastructure that special-cased
@@ -126,8 +154,7 @@ function Find-RequiredEnvNames {
         foreach ($m in $pattern.Matches($content)) {
             $name = $m.Groups[1].Value
             if (-not $discovered.Contains($name)) {
-                $relative = $file.Substring($Root.Length).TrimStart('\', '/') -replace '\\', '/'
-                $discovered[$name] = $relative
+                $discovered[$name] = ConvertTo-RelativeDisplayPath -Root $Root -Full $file
             }
         }
     }
