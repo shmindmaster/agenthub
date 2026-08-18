@@ -82,6 +82,36 @@ function Say {
     Write-Host $Message -ForegroundColor $Colour
 }
 
+function Test-IsLoopbackHost {
+    <#
+    .SYNOPSIS
+        Is this host name a reference to "the machine I am typing on"?
+    .DESCRIPTION
+        This is the precondition for every rewrite in this script, and it was
+        missing. Translating `localhost` is the script's whole purpose: the name
+        resolves to a different machine inside the emulator and inside the
+        guest, so it has to be replaced with an address that means "the Windows
+        host" from there.
+
+        A name that is NOT loopback needs no translation -- and must not get
+        one. `staging.example.com` already means the same thing everywhere;
+        rewriting its host sends the device to this workstation instead, which
+        looks like it worked. Measured 2026-08-18: `-Url https://example.com`
+        opened `https://10.0.2.2/` on the emulator.
+    #>
+    param([Parameter(Mandatory)][string]$HostName)
+
+    $bare = $HostName.Trim('[', ']')
+    if ($bare -in @('localhost', '::1', '0.0.0.0')) { return $true }
+    if ($bare -like '*.localhost') { return $true }
+
+    $parsedAddress = [System.Net.IPAddress]::Any
+    if ([System.Net.IPAddress]::TryParse($bare, [ref]$parsedAddress)) {
+        return [System.Net.IPAddress]::IsLoopback($parsedAddress)
+    }
+    return $false
+}
+
 function New-RewrittenUrl {
     <#
     .SYNOPSIS
@@ -200,6 +230,22 @@ function Open-AndroidUrl {
         if ($devices.Count -eq 0) { throw "No attached Android emulator ('adb devices' returned none in 'device' state). Start the emulator first." }
         $resolvedDeviceId = $devices[0]
     }
+    elseif ($resolvedDeviceId -notmatch '^emulator-\d+$') {
+        # Auto-selection already filters to `emulator-<port>`; an explicit
+        # -AndroidDeviceId must not be the way around that filter.
+        #
+        # This workstation does have a physical handset attached (observed
+        # 2026-08-18: serial 47181FDAS00A0D, alongside emulator-5554), so the
+        # unsafe value is one paste away rather than hypothetical. The lab
+        # drives health-sensitive products whose capture tools are screenshots
+        # and full element trees, and it may only ever point those at synthetic
+        # fixtures on a simulator -- which is also why nothing here is allowed
+        # to claim "verified on device".
+        throw ("Refusing to drive '$resolvedDeviceId': it is not an Android emulator. " +
+               "This lab targets emulators and simulators only, and the same tools that open a URL " +
+               "also capture screenshots and page source from whatever is on screen. " +
+               "Pass an 'emulator-<port>' serial from 'adb devices', or start an emulator.")
+    }
 
     # `| Out-Null` here is safe: Out-Null consumes pipeline objects, and
     # $LASTEXITCODE is set only by the native adb process, so the exit code
@@ -267,11 +313,21 @@ try {
     $wantsIos = ($Platform -eq 'ios' -or $Platform -eq 'both')
     $wantsAndroid = ($Platform -eq 'android' -or $Platform -eq 'both')
 
+    # Only a loopback host is ambiguous across these namespaces, so only a
+    # loopback host gets translated. Everything else is already the same
+    # machine from every device, and rewriting it would quietly substitute this
+    # workstation for the server the caller named.
+    $needsTranslation = Test-IsLoopbackHost -HostName $parsedUrl.Host
+    $script:Facts.hostTranslated = $needsTranslation
+    if (-not $needsTranslation) {
+        Say "  '$($parsedUrl.Host)' is not a loopback host: opening it unchanged on every target." 'DarkGray'
+    }
+
     # The VMnet8 address is needed to build the iOS URL, and it is also the
     # address the reachability check probes against regardless of platform --
     # the loopback-bind failure mode it is looking for is a host-side
     # property of the dev server, not something specific to one device.
-    $needsVmnet8 = $wantsIos -or -not $SkipReachabilityCheck
+    $needsVmnet8 = $needsTranslation -and ($wantsIos -or -not $SkipReachabilityCheck)
     $vmnet8Address = $null
     if ($needsVmnet8) {
         $vmnet8Address = Resolve-Vmnet8Address
@@ -293,7 +349,11 @@ try {
         }
     }
 
-    if (-not $SkipReachabilityCheck) {
+    # The check below diagnoses one specific failure: a dev server bound to
+    # loopback only. That failure cannot apply to a host this script is not
+    # translating, and probing the VMnet8 address for a remote site would just
+    # invent a problem.
+    if (-not $SkipReachabilityCheck -and $needsTranslation) {
         Say "  checking dev server reachability on port $devServerPort..."
         $reachableOnVmnet8 = Test-DevServerPort -ComputerName $vmnet8Address -Port $devServerPort
         if (-not $reachableOnVmnet8) {
@@ -324,7 +384,7 @@ try {
     $overallOk = $true
 
     if ($wantsAndroid) {
-        $androidUrl = New-RewrittenUrl -Source $parsedUrl -NewHost '10.0.2.2'
+        $androidUrl = if ($needsTranslation) { New-RewrittenUrl -Source $parsedUrl -NewHost '10.0.2.2' } else { $Url }
         Say "Android: $androidUrl"
         try {
             $deviceId = Open-AndroidUrl -TargetUrl $androidUrl -DeviceId $AndroidDeviceId
@@ -338,7 +398,7 @@ try {
     }
 
     if ($wantsIos) {
-        $iosUrl = New-RewrittenUrl -Source $parsedUrl -NewHost $vmnet8Address
+        $iosUrl = if ($needsTranslation) { New-RewrittenUrl -Source $parsedUrl -NewHost $vmnet8Address } else { $Url }
         Say "iOS: $iosUrl"
         try {
             Open-IosUrl -TargetUrl $iosUrl -GuestAddress $guest.address -Udid $IosUdid
