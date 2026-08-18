@@ -258,8 +258,23 @@ $script:Facts['xcode'] = ($xcode.Stdout -split "`n")[0]
 Write-Stage 'guest: Xcode usable' $xcodeOk (($xcode.Stdout -split "`n")[0]) 'Run: ssh macvm "sudo xcodebuild -runFirstLaunch"'
 if (-not $xcodeOk) { Stop-Gate 'Xcode in guest' }
 
+# Three outcomes, not two. "simctl answered and listed no runtime" and "simctl
+# did not answer" are different facts, and collapsing them sends the operator
+# to a multi-gigabyte download to fix a problem they do not have.
+#
+# Observed 2026-08-18, immediately after a hard power-off: the guest was at load
+# average 18.5 reindexing, this command exceeded its timeout, and the gate
+# reported "an iOS simulator runtime is installed: FAIL -- iOS runtimes: " with
+# the download remediation. The runtime was installed the whole time
+# (iOS 26.5 - 23F77).
 $runtime = Invoke-Guest -Command 'xcrun simctl list runtimes | grep -c "iOS"' -TimeoutSec 120
-$runtimeOk = ($runtime.ExitCode -eq 0 -and [int]($runtime.Stdout -replace '\D', '') -ge 1)
+if ($runtime.ExitCode -ne 0) {
+    Write-Stage 'guest: an iOS simulator runtime is installed' $false `
+        "could not determine: simctl did not answer (exit=$($runtime.ExitCode)) $($runtime.Stderr)" `
+        'The guest did not answer in time -- this is NOT evidence the runtime is missing. It is usually load right after a boot or a hard power-off (check `uptime`); retry once it settles. Only if simctl answers with zero iOS runtimes should you run: ssh macvm "sudo xcodebuild -downloadPlatform iOS -architectureVariant universal"'
+    Stop-Gate 'iOS runtime (undetermined)'
+}
+$runtimeOk = ([int]($runtime.Stdout -replace '\D', '') -ge 1)
 Write-Stage 'guest: an iOS simulator runtime is installed' $runtimeOk "iOS runtimes: $($runtime.Stdout)" 'Run: ssh macvm "sudo xcodebuild -downloadPlatform iOS -architectureVariant universal"'
 if (-not $runtimeOk) { Stop-Gate 'iOS runtime' }
 
@@ -267,7 +282,15 @@ $deviceInventory = Invoke-Guest -Command "xcrun simctl list devices available | 
 $targetUdid = if ($deviceInventory.Stdout -match '\(([0-9A-Fa-f-]{36})\)\s+\((Booted|Shutdown)\)') { $Matches[1] } else { $null }
 $targetState = if ($deviceInventory.Stdout -match '\((Booted|Shutdown)\)') { $Matches[1] } else { $null }
 $bootedOk = ($deviceInventory.ExitCode -eq 0 -and $targetUdid -and $targetState -eq 'Booted')
-$bootedEvidence = if ($targetUdid) { "iPhone 17 ($targetUdid) ($targetState); runtime=iOS 26.5" } else { $deviceInventory.Stdout }
+# Same distinction as the runtime check above: a command that never answered
+# has not established that the simulator is absent.
+$bootedEvidence = if ($deviceInventory.ExitCode -ne 0) {
+    "could not determine: simctl did not answer (exit=$($deviceInventory.ExitCode)) $($deviceInventory.Stderr) -- not evidence the simulator is missing; retry once guest load settles"
+} elseif ($targetUdid) {
+    "iPhone 17 ($targetUdid) ($targetState); runtime=iOS 26.5"
+} else {
+    $deviceInventory.Stdout
+}
 $script:Facts['bootedSimulator'] = $bootedEvidence
 $script:Facts['iosDevice'] = 'iPhone 17'
 $script:Facts['iosDeviceId'] = $targetUdid
