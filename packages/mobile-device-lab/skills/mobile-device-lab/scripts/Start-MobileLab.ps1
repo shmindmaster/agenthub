@@ -13,8 +13,10 @@ not need a human after every reboot.
 
 Nothing here is discovered by guessing a path:
   * the .vmx comes from VMware's own inventory, so a moved VM still resolves
-  * the guest IP comes from `vmrun getGuestIPAddress`, because VMware NAT
-    assigns it by DHCP and a hardcoded address goes stale silently
+  * the guest address is *proposed* by four independent sources and *believed*
+    only once SSH reaches it, because VMware NAT assigns it by DHCP and the
+    guest-tools channel that used to be the single source has been measured
+    answering wrong while the guest was perfectly healthy
 
 Waits are generous on purpose. This guest renders in software and is slow
 enough that a short timeout reports a false failure.
@@ -38,6 +40,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Shared guest-address resolution. Kept in a module because Start- and Test-
+# both need identical semantics; two copies of this logic is how the lab ends up
+# with two different answers to 'where is the guest'.
+Import-Module (Join-Path $PSScriptRoot 'MobileLabGuest.psm1') -Force
 
 function Say {
     param([string]$Message, [string]$Colour = 'Gray')
@@ -191,22 +198,21 @@ else {
     if ($LASTEXITCODE -ne 0) { throw "vmrun start failed with exit $LASTEXITCODE" }
 }
 
-$guestIp = $null
-if (-not (Wait-Until -What 'guest IP' -TimeoutSec $timeoutSec -Condition {
-            # Never pass vmrun -wait here: it can block forever inside this
-            # bounded loop and make TimeoutMinutes decorative.
-            $candidate = (& $vmrun getGuestIPAddress $Vmx) 2>&1 | Select-Object -First 1
-            if ($candidate -match '^\d+\.\d+\.\d+\.\d+$') { $script:guestIp = $candidate; $true } else { $false }
-        })) { throw "VMware Tools did not report a guest IP." }
-Say "  guest at $script:guestIp"
+# One resolution step, not two. `getGuestIPAddress` used to answer this alone
+# and then SSH separately confirmed its answer -- which meant a wrong answer
+# from VMware Tools failed the run outright, with no second candidate to try.
+# Resolve-MobileLabGuestAddress proposes from four sources and believes only
+# what SSH reaches, so "the address moved" and "VMware Tools is broken" both
+# recover instead of stopping the lab. See MobileLabGuest.psm1.
+$guest = Resolve-MobileLabGuestAddress -Vmx $Vmx -VmrunPath $vmrun -SshHost 'macvm' -TimeoutSeconds $timeoutSec
+$script:guestIp = $guest.address
+Say "  guest at $script:guestIp (via $($guest.source), $($guest.elapsedSeconds)s)"
 $script:Facts.guestIp = $script:guestIp
-Add-Stage 'macos-guest' $true "vmx=$Vmx; ip=$script:guestIp"
-
-if (-not (Wait-Until -What 'ssh to guest' -TimeoutSec $timeoutSec -Condition {
-            $null = & ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o ConnectTimeout=8 -o BatchMode=yes macvm 'true' 2>&1
-            $LASTEXITCODE -eq 0
-        })) { throw "SSH failed at the dynamically discovered guest address $script:guestIp." }
-Add-Stage 'guest-ssh' $true "macvm via $script:guestIp"
+$script:Facts.guestAddressSource = $guest.source
+Add-Stage 'macos-guest' $true "vmx=$Vmx; ip=$script:guestIp; source=$($guest.source)"
+# SSH is not re-tested here: the resolver returns only an address it has
+# already connected to, so a separate probe would restate a settled fact.
+Add-Stage 'guest-ssh' $true "macvm via $script:guestIp (proven during address resolution)"
 
 $guestSync = Join-Path $PSScriptRoot 'Sync-MobileLabGuestScripts.ps1'
 $syncOutput = @(& $guestSync -GuestIp $script:guestIp -Json 2>&1)

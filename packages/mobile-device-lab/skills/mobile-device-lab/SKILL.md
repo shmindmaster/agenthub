@@ -11,9 +11,40 @@ no paid Mac, no cloud device farm, and no subscription.
 **Android runs locally on Windows. iOS runs in the macOS VM and is driven
 remotely.** Both are reached through the same MCP server, `appium-mcp`.
 
+It also drives **mobile browsers**, so a web app running as a dev server on
+Windows can be opened and debugged on a real iOS Simulator or Android emulator
+— see [Testing a web app on a mobile device](#testing-a-web-app-on-a-mobile-device).
+
 Read [architecture-decisions.md](./references/architecture-decisions.md) before
 changing any version, address, or device name — several obvious-looking
 "upgrades" are already recorded there as measured dead ends.
+
+## Read this first: do not rebuild to test a JavaScript change
+
+The single most expensive mistake in this lab is treating a full native build
+as the development loop. It is roughly **40 minutes**; the alternative is
+**seconds**, and it is a supported first-class path rather than a trick.
+
+A Debug build carries no JavaScript bundle — React Native's own build script
+skips bundling for Debug + simulator and lets Metro serve it at runtime. So you
+build the native shell once and then reload JS as you edit it.
+
+```powershell
+# once: build the dev shell, then start Metro on the host and attach the app
+ssh macvm 'bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/<product> "" booted --dev'
+.\Start-MobileLabMetro.ps1 -ProjectPath C:\Repos\shmindmaster\<product>\apps\mobile -Attach
+# then: edit on Windows, reload the app. No rebuild. No sync.
+```
+
+Rebuild only for a new native dependency, an `app.config`/config-plugin change,
+or edits under `ios/`.
+
+**[references/inner-loop.md](./references/inner-loop.md) is the full guide** and
+covers the parts that are easy to get wrong: why `EXPO_PUBLIC_*` is inlined by
+Metro rather than Xcode (and how that produced a 40-minute build of an app that
+could not work), the build-speed levers that are real versus folklore, which of
+Appium / Maestro / Detox to use for what, and the async-`render` gotcha that
+made component testing look broken when it was not.
 
 ## Which product may you point this at
 
@@ -122,6 +153,32 @@ foreground the fixture or permanently block the next exclusivity check.
 
 **Do not debug more than one layer at a time.** The gate exists so you don't
 have to: emulator, VM, simulator, Appium, and network are checked separately.
+
+### "The guest is down" is usually wrong
+
+The guest's most common failure is not being down — it is being *reported* as
+down. Measured 2026-08-17: the guest had been up 4h13m and was serving SSH and
+Appium normally, while `vmrun list` said "Total running VMs: 0" and
+`vmrun getGuestIPAddress` failed from every shell. The host-to-guest VMX
+control channel had degraded; the network had not. An hour went into
+diagnosing a guest that was fine the whole time.
+
+Both entry points now separate *proposing* an address from *believing* one.
+`MobileLabGuest.psm1` proposes from four sources — an on-disk cache, the VMware
+DHCP lease file, `ssh_config`, and `vmrun` last — and accepts only an address
+SSH actually reaches. On that day the lease file held the right address the
+entire time; the resolver finds it in about 0.2s. `Test-MobileLab.ps1` also no
+longer gates on `vmrun list`: if SSH reaches the guest while `vmrun` claims
+nothing is running, it says so and continues, naming the VMX channel rather
+than the guest.
+
+To check by hand, or to route around a broken VMX channel deliberately:
+
+```powershell
+Import-Module .\scripts\MobileLabGuest.psm1
+Resolve-MobileLabGuestAddress -SkipVmrun
+Get-MobileLabLeaseAddresses
+```
 
 ## Driving Android — local
 
@@ -294,6 +351,10 @@ queue, no build minutes, and no credentials, because simulator builds are not
 code-signed:
 
 ```bash
+# 0. check the build can even be configured -- seconds, versus 40 minutes to
+#    discover the same thing from a finished binary that cannot work
+pwsh -File '...\scripts\Test-MobileLabAppConfig.ps1' -ProjectPath C:\Repos\shmindmaster\<product>\apps\mobile
+
 # 1. mirror the working tree into the guest (uncommitted work included;
 #    node_modules, ios/ and Pods in the guest are preserved, not re-sent)
 pwsh -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1' `
@@ -302,6 +363,21 @@ pwsh -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mob
 # 2. build Release for the simulator and install it
 ssh macvm 'bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/<product>'
 ```
+
+**Step 0 is not optional for an Expo product.** `EXPO_PUBLIC_*` values are
+inlined into the JS bundle at *bundle* time, by Metro — which for a Release
+build runs in the guest. The sync excludes gitignored files, `.env` is
+gitignored, and the result is a build that **succeeds** and produces a finished
+binary with those values baked in as absent. It cannot be repaired afterwards.
+When a Release build genuinely needs that config in the guest, carry it over by
+name:
+
+```powershell
+-IncludeIgnored 'apps/mobile/.env'
+```
+
+Explicit paths only, never a glob — these files hold credentials, so which ones
+cross the boundary is a decision made deliberately rather than by pattern.
 
 `Sync-RepoToGuest.ps1` is owned and versioned by this capability, under
 `scripts/` beside `Start-MobileLab.ps1`. It was moved here from the VM lab
@@ -321,12 +397,48 @@ or another transformed representation. For a local inspection without SSH,
 use `-StageOnly -StagePath <empty-directory>`; it retains the normalized
 archive and manifest there.
 
-`build-expo-simulator.sh` runs `expo prebuild` when `ios/` is absent, builds
-**Release** (a Debug build expects a Metro server and shows a red screen
-without one), installs onto the booted simulator, and prints the bundle id.
+`build-expo-simulator.sh` runs `expo prebuild` only when `ios/` is absent,
+builds for the simulator, and prints the bundle id and the elapsed time.
+Useful flags:
+
+| Flag | Effect |
+| --- | --- |
+| `--dev` | Debug instead of Release. No embedded bundle: pairs with `Start-MobileLabMetro.ps1` for the reload loop. Skips Metro bundling and the hermesc pass entirely. |
+| `--profile` | adds `-showBuildTimingSummary`, which attributes time per phase |
+| `--all-archs` | build every simulator slice (the default is this host's only) |
+| `--no-ccache` | disable the compiler cache |
+
+By default it now passes `ONLY_ACTIVE_ARCH=YES` and `ARCHS=$(uname -m)`. The
+Expo bare template sets `ONLY_ACTIVE_ARCH` in the Debug configuration only, so
+a Release simulator build was compiling **arm64 and x86_64 for every target and
+every pod** — and on this Intel guest the arm64 half cannot be run by anything.
+It also enables `USE_CCACHE` when `ccache` is installed in the guest
+(`brew install ccache`), which React Native supports first-class.
 
 Then address the app by `appium:bundleId` rather than shipping a path, which
 avoids the "path must exist on the server" trap entirely.
+
+## Testing a web app on a mobile device
+
+The lab drives mobile browsers as well as native apps. To open a dev server
+running on Windows inside Mobile Safari on the simulator and Chrome on the
+emulator:
+
+```powershell
+.\Open-MobileLabWebTarget.ps1 -Url http://localhost:5173/dashboard
+```
+
+`localhost` means something different in each target, so the script rewrites the
+host per platform: the Android emulator reaches this machine at `10.0.2.2`, and
+the iOS Simulator — living inside the guest — reaches it at the Windows
+**VMnet8** adapter address.
+
+Before opening anything it checks the port is reachable *on the VMnet8 address*,
+not on localhost. That distinction is the whole point: a dev server bound to
+`127.0.0.1` is perfectly healthy from a Windows browser and invisible to both
+devices, and the symptom is a page that will not load — which gets debugged as
+an app problem. When it sees that shape it names the fix (`vite --host 0.0.0.0`,
+`next dev -H 0.0.0.0`, and so on).
 
 ## Evidence
 
@@ -353,15 +465,40 @@ A short timeout here reports a false hang — that mistake has already been made
 in this lab. Keep a booted simulator rather than cold-booting per run, and let
 `Test-MobileLab.ps1` warm the toolchain before you time anything.
 
-## When not to use this
+## When not to use this — and which tool instead
 
-Use **Maestro** for committed, deterministic regression flows that run in CI
-(the fleet standard, run from EAS Workflows). This lab is for interactive,
-agent-driven investigation and one-off validation.
+Reach for the cheapest thing that can answer the question. Most questions never
+need a device at all.
+
+| Question | Tool | Cost |
+| --- | --- | --- |
+| Does this component/logic behave? | **Jest + RNTL** | seconds |
+| Does this flow still work end to end? | **Maestro** | a run |
+| What *is* this app doing right now? | **Appium MCP** (this lab) | a session |
+| Does it work on real hardware? | nothing here can tell you | — |
 
 The division: Appium MCP is how an agent *investigates*; Maestro is how a
 finding becomes a permanent guard. A bug found here should usually leave a
 Maestro flow behind.
+
+Notes that change how these are used, verified 2026-08-17:
+
+- **Maestro's CLI runs natively on Windows** — Java 17+ and a `PATH` entry, no
+  WSL (the docs explicitly discourage WSL). iOS must still run *inside* the
+  guest, because it shells to Xcode's own tooling.
+- **Maestro drives Expo development builds**, not only Release ones. So E2E
+  does not require the slow build either. `maestro test --continuous` re-runs
+  on change, and `maestro start-device` boots a simulator or emulator directly.
+- **Appium is not the stale option** the comparison articles imply: the two
+  drivers this lab depends on both shipped releases within the past week, and
+  the iOS driver carries 7 open issues. Whatever is slow here is session
+  startup, not an unmaintained dependency.
+- **Do not adopt Detox.** Its support matrix stops at RN 0.84 (this stack is on
+  0.86), `@config-plugins/detox` was deleted from the Expo monorepo in June
+  2025, Expo's Detox guide is a 404, and Detox's own docs say there is no
+  special support for Expo and refer you to the Expo community. It also needs
+  its own instrumented native build, which cuts directly against the reload
+  loop.
 
 Nothing here proves real-hardware behaviour. A simulator does not exercise real
 GPU, camera, sensors, thermals, or App Store signing. Say "verified on

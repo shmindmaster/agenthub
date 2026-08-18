@@ -210,3 +210,137 @@ ssh macvm 'brew trust wix/brew && brew install applesimutils'
 
 Until then, treat programmatic permission-granting as unavailable rather than
 assuming it works.
+
+## Release-by-default as the development loop — rejected, 2026-08-18
+
+`build-expo-simulator.sh` built Release only, and its comment justified that
+with "a Debug build expects a Metro server and shows a red screen without one."
+True, and the wrong conclusion: needing Metro is the *feature*, not the defect.
+
+React Native's `scripts/react-native-xcode.sh` short-circuits for Debug +
+simulator — "Skipping bundling in Debug for the Simulator (since the packager
+bundles for you)" — so a Debug build skips Metro bundling and the hermesc
+bytecode pass entirely, and carries no embedded JS. The app fetches JS at
+runtime, which makes every subsequent JavaScript change a reload rather than a
+~40-minute rebuild.
+
+Release stays the **default**, because an automated regression run needs a
+binary that stands alone. Debug is now available via `--dev` and is the correct
+choice for development. Both are supported rather than one being blessed.
+
+## `ONLY_ACTIVE_ARCH` left at its default — rejected
+
+The Expo bare template sets `ONLY_ACTIVE_ARCH = YES` in the **Debug**
+configuration only. Release does not set it, so it defaults to `NO`, and a
+Release *simulator* build compiles arm64 **and** x86_64 for every app target
+and every pod. On this Intel guest the arm64 half cannot be run by anything.
+
+The build script now passes `ONLY_ACTIVE_ARCH=YES` and `ARCHS=$(uname -m)`;
+`--all-archs` restores the old behaviour.
+
+Worth recording what this is *not*: it is not the prebuilt-artifact question.
+React Native has shipped precompiled iOS binaries by default since 0.84, and
+their simulator slices genuinely include x86_64 — confirmed by downloading
+`React.xcframework` and `ReactNativeDependencies.xcframework` from Maven
+Central and reading the `Info.plist` (`ios-arm64_x86_64-simulator` →
+`arm64, x86_64`). Hermes is likewise downloaded prebuilt, from a separate Maven
+group. The Intel guest was never compiling React core from source. What it was
+doing is compiling every `expo-*` and community pod from source, twice.
+
+(`HERMES_ENGINE_NO_SOURCE_BUILD` appears nowhere in the React Native repo.
+Folklore — do not add it.)
+
+## A single source for the guest address — rejected, measured 2026-08-17
+
+`vmrun getGuestIPAddress` was the only source, polled blindly until timeout.
+
+That day the guest had been up 4h13m and was serving SSH and Appium normally,
+while `vmrun list` reported "Total running VMs: 0" and `getGuestIPAddress`
+failed from every shell. The host-to-guest VMX control channel had degraded
+while the network was entirely healthy. Nothing could recover, because the only
+question being asked was of the one component that was broken — and its wrong
+answer was indistinguishable from a guest that was not running. An hour went
+into diagnosing a guest that was fine.
+
+`MobileLabGuest.psm1` now separates *proposing* an address from *believing*
+one: candidates come from an on-disk cache, `C:\ProgramData\VMware\vmnetdhcp.leases`,
+`ssh_config`, and `vmrun` last, and only an address SSH actually reaches is
+accepted. The lease file held the correct address the whole time; the resolver
+finds it in ~0.2s.
+
+`Test-MobileLab.ps1` also stopped gating on `vmrun list`. When SSH reaches the
+guest and `vmrun` claims nothing runs, it reports the VMX channel as degraded
+and continues, rather than stopping at stage one and naming the wrong
+component.
+
+The cache is deliberately **not** an authority — it is probed like every other
+candidate and written only after a probe succeeds, so a stale entry costs one
+failed probe and nothing else.
+
+## Excluding gitignored files unconditionally from the guest sync — adjusted
+
+The sync payload is `git ls-files -co --exclude-standard`, which is right for
+`node_modules` and generated native folders. It was never a decision about
+`.env`; that file fell out of a rule written to keep the payload small.
+
+The consequence was invisible until a build proved it. Expo inlines
+`EXPO_PUBLIC_*` at **bundle** time, and for a Release build the bundler runs in
+the guest — so a guest without `.env` produces a *finished* binary with those
+values baked in as absent. Not a build that fails; a build that succeeds and
+cannot work, unrepairable afterwards. ABACare spent ~40 minutes on 2026-08-17
+to be shown its own "BUILD NOT CONFIGURED" screen.
+
+`-IncludeIgnored` now takes **explicit repo-relative paths**, never a glob. A
+pattern like `.env*` would sweep up `.env.production` the first time someone
+created one, and these files carry credentials, so which ones cross the
+boundary is a decision made by name. The script refuses a named path that does
+not exist rather than skipping it silently — a silently-absent config file
+reproduces exactly the failure this exists to prevent.
+
+The better fix, where it applies, is to not need it: run Metro on the Windows
+host (`Start-MobileLabMetro.ps1`) and `.env` is read from where it already is.
+
+## Detox — rejected on the merits, 2026-08-18
+
+Distinct from the earlier "Dropping Maestro — rejected" entry: this is about
+never adopting Detox in the first place. Four independent grounds, each checked:
+
+- its supported range stops at RN 0.84; this stack is on 0.86
+- `@config-plugins/detox` was deleted from the Expo monorepo (2025-06-03) and
+  its npm package is frozen at `peerDependencies: {"expo": "^53"}`
+- Expo's Detox guide (`/build-reference/e2e-tests/`) is a 404
+- Detox's own docs: "There is no special support for Expo projects in Detox…
+  you should contact the Expo team or the Expo community"
+
+Both projects point at each other and one target does not exist. There is no
+deprecation notice and the repo is not archived — the evidence is a commit rate
+that fell 971 (2024) → 450 (2025) → 41 (2026 YTD). Architecturally it is also
+the wrong shape here: Detox requires its own instrumented native build, which
+is precisely what the reload loop exists to avoid.
+
+## Component testing declared impossible — retracted, 2026-08-18
+
+Recorded because the wrong belief was expensive and could easily recur.
+
+`@testing-library/react-native` v14 made the API **asynchronous**: `render`,
+`renderHook` and `fireEvent` return Promises. Calling `render(...)` without
+`await` yields a Promise whose `Object.keys()` is `[]` — which reads exactly
+like a broken environment, and was diagnosed as one. Component testing was
+written off across a full session, and clinically load-bearing logic went
+untested on the strength of it.
+
+It works. `await render(...)` passes in ~344ms, and 23 tests covering interval
+auto-scoring landed immediately afterwards.
+
+Two adjacent traps in the same area:
+
+- `expect(value, message)` is **vitest** syntax; jest's `expect` takes one
+  argument and silently ignores the second.
+- A `console.error` may fail the test outright where a repo's `jest.setup.js`
+  throws on it (ABACare's does, deliberately). React reports `act()` violations
+  through `console.error`, so that failure usually means a missing `await` —
+  fix the test, do not weaken the setup.
+
+The general lesson is the one this file keeps relearning: an empty result is
+not evidence of a broken environment until you have checked what type of thing
+you are holding.

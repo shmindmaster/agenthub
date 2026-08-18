@@ -46,7 +46,28 @@ param(
     # `<repo>/build/simulator`): repos that don't gitignore `build/` never put
     # it in the host manifest, so without this entry every sync prunes it as
     # "not in the manifest" and forces a cold rebuild. Observed: pruned=18397.
-    [string[]] $GuestOwned = @('.git', 'node_modules', 'ios', 'android', '.expo', '.gradle', 'Pods', 'build')
+    [string[]] $GuestOwned = @('.git', 'node_modules', 'ios', 'android', '.expo', '.gradle', 'Pods', 'build'),
+
+    # Named gitignored files to carry over anyway, repo-relative.
+    #
+    # The manifest deliberately excludes everything .gitignore excludes, and
+    # that is right for node_modules and generated native folders. It was
+    # never a decision about `.env`, though -- that file simply fell out of a
+    # rule written to keep the payload small, and the consequence went
+    # unnoticed until a build proved it.
+    #
+    # Expo inlines `EXPO_PUBLIC_*` into the JS bundle at *build* time. A guest
+    # that never received `.env` therefore does not produce a degraded app; it
+    # produces a finished binary with the values baked in as absent, which
+    # cannot be repaired afterwards by any amount of configuration. ABACare's
+    # 2026-08-17 simulator build spent ~40 minutes to render its own
+    # "BUILD NOT CONFIGURED" screen for exactly this reason.
+    #
+    # Explicit paths only, never a glob. These files hold credentials, so
+    # which ones cross the boundary is a decision the caller makes by name --
+    # a pattern like `.env*` would sweep up `.env.production` the first time
+    # someone created one.
+    [string[]] $IncludeIgnored = @()
 )
 
 $ErrorActionPreference = 'Stop'
@@ -68,7 +89,13 @@ Write-Host "Sync $RepoPath -> ${SshHost}:$GuestPath" -ForegroundColor Cyan
 function Invoke-SyncGit {
     param(
         [Parameter(Mandatory)][string[]] $Arguments,
-        [Parameter(Mandatory)][string] $FailureMessage
+        [Parameter(Mandatory)][string] $FailureMessage,
+        # Paths fed to Git on stdin instead of as arguments. Windows caps a
+        # command line at 32767 characters, and a manifest is one path per
+        # tracked-or-untracked file -- abacare alone is 3526 of them, which
+        # overruns it and fails as "The filename or extension is too long",
+        # naming neither the limit nor the caller.
+        [string[]] $StdinLines
     )
 
     # Windows PowerShell 5.1 turns ordinary Git stderr warnings (including
@@ -79,7 +106,11 @@ function Invoke-SyncGit {
     $previousEap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        $output = & git -C $RepoPath @Arguments 2>&1 | Out-String
+        if ($PSBoundParameters.ContainsKey('StdinLines')) {
+            $output = $StdinLines | & git -C $RepoPath @Arguments 2>&1 | Out-String
+        } else {
+            $output = & git -C $RepoPath @Arguments 2>&1 | Out-String
+        }
     } finally {
         $ErrorActionPreference = $previousEap
     }
@@ -94,13 +125,35 @@ $files = @((Invoke-SyncGit -Arguments @('ls-files', '-co', '--exclude-standard')
 $files = @($files | Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $RepoPath $_)) })
 if ($files.Count -eq 0) { throw "Manifest is empty -- refusing to sync (this would prune the guest copy)" }
 
+# Named ignored files, added after the manifest so they are also protected from
+# the prune step (anything absent from the manifest is deleted in the guest).
+$forcedFiles = @()
+foreach ($ignoredPath in $IncludeIgnored) {
+    $relative = $ignoredPath -replace '\\', '/'
+    $absolute = Join-Path $RepoPath $relative
+    if (-not (Test-Path -LiteralPath $absolute -PathType Leaf)) {
+        throw "-IncludeIgnored names a file that does not exist: $relative (looked in $RepoPath). Refusing to sync, because a silently-skipped config file produces a built app that is broken in a way the build itself reports as success."
+    }
+    if ($files -notcontains $relative) {
+        $forcedFiles += $relative
+        $files += $relative
+    }
+}
+if ($forcedFiles.Count -gt 0) {
+    Write-Host "  carrying $($forcedFiles.Count) gitignored file(s) into the guest: $($forcedFiles -join ', ')" -ForegroundColor Yellow
+    Write-Host "  these may contain credentials; the guest keeps them until the next sync prunes or replaces them" -ForegroundColor Yellow
+}
+
 # A temporary index lets Git apply text/eol conversion without changing the
 # developer's index or checkout. It must not silently apply *other* clean
 # conversions: an LFS/filter pointer, working-tree encoding conversion, or
 # ident collapse would make the guest payload differ materially from the
 # developer's file. Refuse those repositories until this sync owns a safe
 # byte-preserving implementation for the relevant filter.
-$attributeOutput = @((Invoke-SyncGit -Arguments (@('check-attr', 'filter', 'ident', 'working-tree-encoding', '--') + $files) -FailureMessage "git check-attr failed in $RepoPath") -split "`r?`n")
+# `--stdin` rather than a splatted path list: the argument form scales with the
+# repository and silently stops working once it is large enough, which is a
+# worse failure than a slow one because it arrives only for big repositories.
+$attributeOutput = @((Invoke-SyncGit -Arguments @('check-attr', 'filter', 'ident', 'working-tree-encoding', '--stdin') -StdinLines $files -FailureMessage "git check-attr failed in $RepoPath") -split "`r?`n")
 $unsupportedAttributes = @(
     $attributeOutput |
         Where-Object { $_ -match ': (filter|ident|working-tree-encoding): (.+)$' } |
@@ -149,6 +202,13 @@ try {
     $env:GIT_INDEX_FILE = $tempIndex
     Invoke-SyncGit -Arguments @('read-tree', 'HEAD') -FailureMessage "git read-tree failed in $RepoPath" | Out-Null
     Invoke-SyncGit -Arguments @('add', '--all') -FailureMessage "git add failed while staging the normalized payload in $RepoPath" | Out-Null
+    if ($forcedFiles.Count -gt 0) {
+        # `add --all` honours .gitignore, so the forced files need `-f`. They
+        # still go through the same private index, and therefore still get the
+        # repository's text/eol policy applied -- a CRLF `.env` would otherwise
+        # reach macOS with carriage returns inside the values.
+        Invoke-SyncGit -Arguments (@('add', '--force', '--') + $forcedFiles) -FailureMessage "git add --force failed while staging -IncludeIgnored files in $RepoPath" | Out-Null
+    }
     $tree = (Invoke-SyncGit -Arguments @('write-tree') -FailureMessage "git write-tree failed while staging the normalized payload in $RepoPath").Trim()
     if ([string]::IsNullOrWhiteSpace($tree)) { throw "git write-tree returned no tree while staging the normalized payload in $RepoPath" }
     Invoke-SyncGit -Arguments @('archive', '--format=tar.gz', "--output=$tarFile", $tree) -FailureMessage 'git archive failed' | Out-Null

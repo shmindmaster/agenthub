@@ -38,6 +38,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Shared guest-address resolution. Kept in a module because Start- and Test-
+# both need identical semantics; two copies of this logic is how the lab ends up
+# with two different answers to 'where is the guest'.
+Import-Module (Join-Path $PSScriptRoot 'MobileLabGuest.psm1') -Force
+
 $script:Results = [System.Collections.Generic.List[object]]::new()
 $script:Facts = [ordered]@{}
 
@@ -174,26 +179,53 @@ if (-not $vmrunOk) { Stop-Gate 'VMware' }
 
 $running = & $vmrun list
 $vmx = $running | Select-Object -Skip 1 | Where-Object { $_ -match '\.vmx$' } | Select-Object -First 1
-$vmUp = [bool]$vmx
 $script:Facts['vmx'] = $vmx
 # Written long-hand rather than with `??`: that operator is PowerShell 7 only,
 # and this file declares 5.1 so it runs under either shell.
 $vmEvidence = if ($vmx) { $vmx } else { $running -join ' ' }
+
+# `vmrun list` is a *report about* the guest, not the guest. On 2026-08-17 it
+# said "Total running VMs: 0" while that guest was four hours into an uptime
+# and serving SSH and Appium normally -- the host-to-guest control channel had
+# degraded, and nothing else had. Gating here on its word would have stopped
+# the run at stage one and named the wrong component, which is exactly what
+# happened for an hour.
+#
+# So its answer is recorded, and then the question that actually matters is
+# asked directly: can SSH reach the guest?
+$reachable = $null
+$resolveError = ''
+try {
+    $reachable = Resolve-MobileLabGuestAddress -Vmx $vmx -VmrunPath $vmrun -SshHost 'macvm' -TimeoutSeconds 45
+} catch {
+    $resolveError = $_.Exception.Message
+}
+
+$vmUp = [bool]$reachable
+if ($reachable -and -not $vmx) {
+    $vmEvidence = "vmrun list reported no running VM, but the guest answered SSH at $($reachable.address) (via $($reachable.source)). Trusting SSH: the VMX control channel is degraded, the guest is not."
+}
+elseif (-not $reachable) {
+    # Both signals failed, which is the case where the guest really is down.
+    # Carry the resolver's account of what it probed, so the operator is not
+    # left with "not running" and no idea which addresses were ruled out.
+    $vmEvidence = "vmrun evidence: $vmEvidence -- and no address was SSH-reachable. $resolveError"
+}
 Write-Stage 'vmware: the macOS guest is running' $vmUp $vmEvidence "Start it: & `"$vmrun`" -T ws start <path\to\macos.vmx> nogui"
 if (-not $vmUp) { Stop-Gate 'macOS VM' }
 
-# Discover the address rather than trusting a hardcoded one -- VMware NAT hands
-# it out by DHCP and it does change on lease renewal.
-$guestIp = (& $vmrun getGuestIPAddress $vmx) 2>&1 | Select-Object -First 1
+$guestIp = $reachable.address
 $script:GuestIp = $guestIp
-$ipOk = $guestIp -match '^\d+\.\d+\.\d+\.\d+$'
 $script:Facts['guestIp'] = $guestIp
-Write-Stage 'vmware: guest IP discovered' $ipOk "guest at $guestIp" 'VMware Tools must be running in the guest for getGuestIPAddress.'
-if (-not $ipOk) { Stop-Gate 'guest networking' }
+$script:Facts['guestAddressSource'] = $reachable.source
+Write-Stage 'vmware: guest address resolved and reached' $true "guest at $guestIp via $($reachable.source) in $($reachable.elapsedSeconds)s" ''
 
+# Not a second opinion -- the resolver returns only an address it has already
+# connected to. This runs a real command so the stage records what the guest
+# actually said, rather than that a TCP handshake completed.
 $ssh = Invoke-Guest -Command 'echo GUEST-UP' -TimeoutSec 30
 $sshOk = ($ssh.ExitCode -eq 0 -and $ssh.Stdout -match 'GUEST-UP')
-Write-Stage 'ssh: guest reachable at discovered address' $sshOk "macvm via $guestIp; exit=$($ssh.ExitCode) $($ssh.Stderr)" 'Verify the macvm identity/user/key; the HostName is overridden with VMware''s current DHCP address.'
+Write-Stage 'ssh: guest executes commands' $sshOk "macvm via $guestIp; exit=$($ssh.ExitCode) $($ssh.Stderr)" 'Verify the macvm identity/user/key; the HostName is overridden with the current DHCP address.'
 if (-not $sshOk) { Stop-Gate 'ssh to guest' }
 
 # The ssh alias carries a hardcoded HostName. If the lease moved, ssh still
