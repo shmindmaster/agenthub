@@ -171,29 +171,37 @@ say "xcodebuild ($CONFIGURATION, iphonesimulator)"
 # status, which has already reported a passing build for a failing one in this
 # lab. The full log goes to a file and only the tail is printed afterwards.
 #
-# Ad-hoc signing rather than `CODE_SIGNING_ALLOWED=NO`. Disabling signing
-# produced a binary with *no entitlements at all*, which silently broke every
-# app in the lab that uses the keychain -- i.e. every app with authentication:
+# Ad-hoc signing rather than `CODE_SIGNING_ALLOWED=NO`. `-` needs no Apple
+# account, no provisioning profile and no network, so this costs nothing and is
+# closer to how a real build is produced.
 #
-#   codesign -dv          -> flags=0x2(adhoc)     # signed anyway...
-#   codesign -d --entitlements -   -> (nothing)   # ...but nothing declared
+# CORRECTION 2026-08-17, same day this was introduced. It was added on the
+# theory that `CODE_SIGNING_ALLOWED=NO` broke keychain access -- the binary
+# carries no entitlements, Clerk's keychain calls return
+# errSecMissingEntitlement (-34018), and the app renders a blank screen without
+# crashing. Two parts of that turned out to be wrong, both measured on ABACare:
 #
-# Clerk stores its device token in the keychain, so its calls returned
-# errSecMissingEntitlement (-34018), the SDK never initialized, and the app
-# rendered a blank screen *without crashing*. That reads as a UI bug and cost a
-# day in ABACare before anyone looked at the device log (2026-08-17).
+#  1. The entitlement was never the blocker. The blank screen was Clerk's
+#     Native API being disabled on the instance (every `_is_native=1` request
+#     returned 400 `native_api_disabled`). With that toggled on, the app
+#     reaches its sign-in screen and passes its Maestro flow. `-34018` still
+#     appears in the log and is not fatal -- Clerk's bridge sets no
+#     accessGroup, so its items use the app's default keychain access group,
+#     which needs no entitlement.
 #
-# `-` needs no Apple account, no provisioning profile and no network, and an
-# app that declares no entitlements builds exactly as it did before -- so this
-# is strictly additive: it only starts embedding entitlements for the products
-# that actually declare them.
+#  2. These flags do not embed entitlements anyway. On a simulator build with
+#     no provisioning profile, `codesign -d --entitlements` on the product of
+#     *this* command still reports an empty `<dict/>`, even with
+#     CODE_SIGN_ENTITLEMENTS set in the project.
+#
+# So: keep it, because it is harmless and verified to build and launch, but do
+# not reach for it to solve a keychain or entitlement problem. It will not.
 #
 # Do NOT "fix" a missing entitlement afterwards with `codesign --entitlements`.
 # Measured both directions: a bundle re-signed that way verifies clean ("valid
 # on disk", "satisfies its Designated Requirement") and is then refused by the
 # simulator with "denied by service delegate (SBMainWorkspace)", while the same
-# bundle re-signed ad-hoc with no entitlements launches normally. They have to
-# be embedded here, at build time.
+# bundle re-signed ad-hoc with no entitlements launches normally.
 BUILD_DIR="$REPO/build/simulator"
 BUILD_LOG="/tmp/expo-sim-build.log"
 BUILD_STARTED=$(date +%s)
