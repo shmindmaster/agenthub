@@ -344,3 +344,58 @@ Two adjacent traps in the same area:
 The general lesson is the one this file keeps relearning: an empty result is
 not evidence of a broken environment until you have checked what type of thing
 you are holding.
+
+## `cpuid.coresPerSocket = 1` — keep it, 2026-08-18
+
+The VM presents 4 vCPUs as **four single-core sockets** rather than one
+four-core socket:
+
+```
+numvcpus             = "4"
+cpuid.coresPerSocket = "1"      # macOS sees hw.packages = 4
+```
+
+This looks exactly like a configuration mistake. The host is a Ryzen 7 7700X —
+8 cores, 16 threads, a **single** NUMA node, confirmed in the VM log as
+`WIN32 NUMA node 0, CPU mask 0x000000000000ffff` — so describing it to the
+guest as four isolated packages with no shared L3 describes hardware that does
+not exist. The standard advice for a macOS guest is `coresPerSocket =
+numvcpus`, and it is a one-line change.
+
+**Do not make it. It prevents the guest from booting.** Measured both
+directions on this machine, with nothing else changed:
+
+| `coresPerSocket` | working set at t+30s | SSH |
+| --- | --- | --- |
+| `4` | 15 MB, still 15 MB ten minutes later | never |
+| `1` | 1,282 MB | up at **t+60s** |
+
+The failure gives you almost nothing to go on, which is the reason this entry
+exists. There is no panic, no CPU or topology error, and no complaint in
+`vmware.log` — the last line is an ordinary `Tools: Tools heartbeat timeout`
+about twenty seconds after power-on, which is also what a *healthy* boot logs
+before VMware Tools loads. After that the log simply stops. The guest hangs
+early, silently, and the symptom is indistinguishable from "this guest is slow
+to boot", which it genuinely is, so the natural response is to wait longer.
+
+The tell is the **working set**: a macOS guest that is really booting climbs
+into the hundreds of megabytes within seconds. One sitting at 15 MB is not
+booting slowly, it is not executing. Sample `vmware-vmx`'s working set before
+concluding anything about boot progress.
+
+Cause is not established beyond the measurement. This is an OpenCore-patched
+macOS on AMD — the `.vmx` carries `featMask.vm.cpuid.AMD`, `AVX`, `AVX2`,
+`F16C` and `RDRAND` guards for exactly that reason — and multi-core-per-socket
+topology on such a guest is a known-fragile area. The measurement is what
+governs here; the explanation would be a bonus.
+
+**Corollary for the "400% CPU" question.** Four vCPUs can consume 400% of one
+core, and that is arithmetic rather than a leak. Do not read a per-core
+percentage as evidence of a runaway VM, and do not sample `vmware-vmx` CPU
+while the guest is powering off — a shutdown looks like a busy idle VM and has
+already produced one wrong diagnosis here.
+
+If vCPU count ever needs tuning for build speed, change `numvcpus` alone and
+leave `coresPerSocket` at 1. Measure it with
+`build-expo-simulator.sh --profile`, which prints per-phase timings, rather
+than by feel.

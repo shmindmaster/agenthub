@@ -165,13 +165,23 @@ Chrome on the Android emulator:
 .\Open-MobileLabWebTarget.ps1 -Url http://localhost:5173/dashboard
 ```
 
-The hard part is that `localhost` means something different in each target, and
-the script rewrites it per platform:
+The hard part is that `localhost` means something different in each target, so
+the script rewrites **loopback hosts only**:
 
 | Target | How it reaches the Windows host |
 | --- | --- |
 | Android emulator | `10.0.2.2` (the emulator's alias for the host) |
 | iOS Simulator in the guest | the Windows **VMnet8** adapter address |
+
+`localhost`, `127.0.0.1`, `::1` and `*.localhost` are translated; path, query
+and port are preserved. **Any other host is opened unchanged**, which is what
+you want when pointing the lab at staging or production — those names already
+mean the same thing from every device.
+
+That distinction is load-bearing rather than pedantic. The script originally
+rewrote unconditionally, so `-Url https://example.com -Platform android` opened
+`https://10.0.2.2/` — this workstation — and reported success. Anyone checking a
+deployed site on a device would have been looking at their own dev server.
 
 The most common failure is a dev server bound to `127.0.0.1`, which is
 reachable from a Windows browser and from nothing else. The script checks the
@@ -187,7 +197,7 @@ running everything.
 | Tool | Use it for | Notes |
 | --- | --- | --- |
 | **Appium MCP** | interactive, agent-driven investigation — poke at a running app, read the element tree, try things | Android embedded locally; iOS over `remoteServerUrl` to the guest. WDA compiles on first session. |
-| **Maestro** | committed, deterministic regression flows | CLI runs **natively on Windows**, no WSL — Java 17+ and a `PATH` entry. iOS must run *inside* the guest, because it shells to Xcode tooling. |
+| **Maestro** | committed, deterministic regression flows | iOS must run *inside* the guest, because it shells to Xcode tooling — that path is verified. The Windows-native CLI for the Android half is **not installed here** (checked 2026-08-18: nothing on `PATH`, no `~/.maestro`); Java 21 is present, so it is an install away, not a redesign. |
 | **Jest + RNTL** | component and logic behaviour | Fastest by a wide margin. See the gotcha below. |
 | **Detox** | — | Not viable on this stack. |
 
