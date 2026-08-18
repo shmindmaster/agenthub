@@ -59,6 +59,30 @@ say "xcodebuild (Release, iphonesimulator)"
 # No `| tail` and no `| xcpretty`: a pipeline returns the LAST command's exit
 # status, which has already reported a passing build for a failing one in this
 # lab. The full log goes to a file and only the tail is printed afterwards.
+#
+# Ad-hoc signing rather than `CODE_SIGNING_ALLOWED=NO`. Disabling signing
+# produced a binary with *no entitlements at all*, which silently broke every
+# app in the lab that uses the keychain -- i.e. every app with authentication:
+#
+#   codesign -dv          -> flags=0x2(adhoc)     # signed anyway...
+#   codesign -d --entitlements -   -> (nothing)   # ...but nothing declared
+#
+# Clerk stores its device token in the keychain, so its calls returned
+# errSecMissingEntitlement (-34018), the SDK never initialized, and the app
+# rendered a blank screen *without crashing*. That reads as a UI bug and cost a
+# day in ABACare before anyone looked at the device log (2026-08-17).
+#
+# `-` needs no Apple account, no provisioning profile and no network, and an
+# app that declares no entitlements builds exactly as it did before -- so this
+# is strictly additive: it only starts embedding entitlements for the products
+# that actually declare them.
+#
+# Do NOT "fix" a missing entitlement afterwards with `codesign --entitlements`.
+# Measured both directions: a bundle re-signed that way verifies clean ("valid
+# on disk", "satisfies its Designated Requirement") and is then refused by the
+# simulator with "denied by service delegate (SBMainWorkspace)", while the same
+# bundle re-signed ad-hoc with no entitlements launches normally. They have to
+# be embedded here, at build time.
 BUILD_DIR="$REPO/build/simulator"
 set +e
 xcodebuild \
@@ -68,7 +92,9 @@ xcodebuild \
   -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath "$BUILD_DIR" \
-  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGN_IDENTITY="-" \
   build >/tmp/expo-sim-build.log 2>&1
 BUILD_RC=$?
 set -e
