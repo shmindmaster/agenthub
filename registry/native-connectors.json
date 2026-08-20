@@ -161,14 +161,32 @@
           "adobe-for-creativity"
         ],
         "surface": "claude.ai account settings",
-        "authorizedOn": null,
-        "authorization": null,
+        "authorizedOn": "2026-08-20",
+        "authorization": "Owner instruction, verbatim: 'Atlassian should have been removed'. This is the authorization the entry lacked. Until 2026-08-20 authorizedOn and authorization were both null and correctly so -- the 2026-08-04 instruction named the SERVER Atlassian, and dropping the engineering bundle is a different act with different casualties, so nobody had authorized it. The owner has now named the outcome directly. Scoped to engineering only; the other five bundles remain unauthorized and must not be swept along with it.",
+        "authorizationScope": {
+          "authorized": [
+            "engineering"
+          ],
+          "stillUnauthorized": [
+            "marketing",
+            "small-business",
+            "design",
+            "litigation-legal",
+            "adobe-for-creativity"
+          ],
+          "collateral": "Dropping engineering also drops Datadog and PagerDuty. Neither is authenticated and neither is registered in registry/mcps.json, so the cost is believed to be nil -- but that is an inference about what the owner uses, not a fact about what the owner wants, so it is stated to them rather than decided for them.",
+          "allOrNothingUnverified": "The claim that a bundle cannot be reduced to a subset comes from bundleContents.caveat, observed 2026-08-05 and NOT re-verified since -- reaching the UI to re-check it is the same blocked surface. If claude.ai has since added a per-server toggle, removing the whole bundle would be destroying Datadog and PagerDuty for no reason. Check for a per-server control before dropping the bundle."
+        },
+        "misreportedOn": "2026-08-20",
+        "misreport": "A session summary listed Atlassian among roughly 27 connectors that merely needed OAuth authorization. That framing was wrong in kind, not degree: it presented a removal the owner had asked for as a login the owner had not gotten around to, which is the opposite instruction. The tell was available in this file the whole time -- Atlassian appears under a removal entry, and a server slated for removal should never be reported as one awaiting sign-in. Any future summary that enumerates unauthenticated servers must first subtract everything named in ownerActionRequired.",
         "fleetSideStatus": "out-of-scope",
         "fleetSideEvidence": "These are not fleet capabilities and are not registered here. They are recorded because they present MCP servers -- including Atlassian, Slack, and Figma, three of the five the owner asked to remove -- into a Claude session through a path this registry does not manage, so a reader comparing the session's tool list against registry/mcps.json would otherwise find an unexplained surplus.",
         "agentHubCanPerform": false,
         "blockedBy": "Same claude.ai account surface as claude-ai-connector-removals, and no local installation exists to remove.",
-        "blockerVerifiedOn": "2026-08-05",
-        "blockerVerification": "installed_plugins.json lists 15 plugins and contains none of these six; none has a directory under .claude/plugins/cache and none appears in known_marketplaces.json. There is nothing locally installed to remove, which is what makes this account-level rather than a fleet drift.",
+        "blockerVerifiedOn": "2026-08-20",
+        "blockerVerification": "Re-verified 2026-08-20, not carried forward. claude plugin list now reports 18 plugins (was 15 on 2026-08-05) and still contains none of these six; none has a directory under .claude/plugins/cache and none appears in known_marketplaces.json. There is nothing locally installed to remove, which is what makes this account-level rather than a fleet drift. .claude.json does carry an engineering@inline key, which looks like a local switch and is not one -- it sits in the usage-statistics block alongside lastUsedAt and usageCount, so deleting it erases telemetry and the bundle returns. Checked before concluding, because a key named for the thing you want to remove is exactly what a local switch would look like.",
+        "sessionRouteRecheckedOn": "2026-08-20",
+        "sessionRouteRecheck": "The route that worked for Figma on 2026-08-05 -- the owner signing in to the in-app browser -- no longer exists. Opened claude.ai/settings/connectors in the in-app browser on 2026-08-20: it redirects to claude.ai and renders the sign-in page (email field plus a Continue button), so that session did not persist. Entering the owner credentials to restore it stays prohibited regardless of authorization, so the authorization recorded above does not make this performable -- it makes it a precise instruction waiting for a session.",
         "bundleContents": {
           "recordedOn": "2026-08-05",
           "source": "Observed in a Claude Code session on 2026-08-05: every server the host reported as awaiting authorization, grouped by the plugin namespace it was presented under.",
