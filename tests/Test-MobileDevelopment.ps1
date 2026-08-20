@@ -328,10 +328,14 @@ $wrongApi = Get-MobileRuntimeProcessMatch -Platform android -Processes $androidP
 $canonicalVmx = (([string]$contract.authorities.vmx) -replace '/', '\')
 $iosMatch = Get-MobileRuntimeProcessMatch -Platform ios -Processes @([pscustomobject]@{ Name='vmware-vmx.exe'; ProcessId=201; ExecutablePath='C:\Program Files\VMware\VMware Workstation\x64\vmware-vmx.exe'; CommandLine="vmware-vmx.exe `"$canonicalVmx`"" })
 $wrongIos = Get-MobileRuntimeProcessMatch -Platform ios -Processes @([pscustomobject]@{ Name='vmware-vmx.exe'; ProcessId=202; ExecutablePath='C:\Program Files\VMware\VMware Workstation\x64\vmware-vmx.exe'; CommandLine='vmware-vmx.exe "C:\unrelated\macos.vmx"' })
+$iosTrailingCollision = Get-MobileRuntimeProcessMatch -Platform ios -Processes @([pscustomobject]@{ Name='vmware-vmx.exe'; ProcessId=203; ExecutablePath='C:\Program Files\VMware\VMware Workstation\x64\vmware-vmx.exe'; CommandLine="vmware-vmx.exe `"$canonicalVmx.backup`"" })
+$iosLeadingCollision = Get-MobileRuntimeProcessMatch -Platform ios -Processes @([pscustomobject]@{ Name='vmware-vmx.exe'; ProcessId=204; ExecutablePath='C:\Program Files\VMware\VMware Workstation\x64\vmware-vmx.exe'; CommandLine="vmware-vmx.exe `"prefix-$canonicalVmx`"" })
 Report 'runtime matching requires canonical Android SDK, AVD, and API evidence' (
     $androidMatch.ready -and $androidMatch.android.avdConfigMatchesApi -and -not $wrongAvd.ready -and -not $wrongApi.ready
 ) "canonical=$($androidMatch | ConvertTo-Json -Depth 5 -Compress) wrongAvdReady=$($wrongAvd.ready) wrongApiReady=$($wrongApi.ready)"
-Report 'runtime matching requires the authoritative full iOS VMX path' ($iosMatch.ready -and -not $wrongIos.ready) "canonicalReady=$($iosMatch.ready) unrelatedReady=$($wrongIos.ready) path=$canonicalVmx"
+Report 'runtime matching requires the authoritative iOS VMX as an exact command-line token' (
+    $iosMatch.ready -and -not $wrongIos.ready -and -not $iosTrailingCollision.ready -and -not $iosLeadingCollision.ready
+) "canonicalReady=$($iosMatch.ready) unrelatedReady=$($wrongIos.ready) trailingCollisionReady=$($iosTrailingCollision.ready) leadingCollisionReady=$($iosLeadingCollision.ready) path=$canonicalVmx"
 
 Report 'deep smoke pins both sessions to enumerated virtual-device IDs' (
     $mcpSmokeText -match '"appium:udid":\s*args\["android-udid"\]' -and `

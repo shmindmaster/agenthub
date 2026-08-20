@@ -85,3 +85,12 @@ Task 2/fix loop owns:
 - Session-cleanup tests execute the same imported helper used by the smoke client and verify cleanup continues after one deletion fails.
 - No Task 2 manifest, marketplace document, native connector, fleet deployment, VM state, credential, or external service was modified.
 - Fix-round commit is recorded in the parent handoff after commit creation.
+
+## Fix round 2/5
+
+- Changed iOS runtime matching to require the authoritative normalized VMX path as a complete quoted or unquoted command-line token. Substring matches no longer count.
+- Added synthetic coverage for an unrelated VMX, `macos.vmx.backup`, and a leading-prefix collision; only the exact canonical path reports ready.
+- Exact command: `pwsh -NoProfile -File .\tests\Test-MobileDevelopment.ps1`.
+- Exact output summary: **39 passed, 2 failed**. The exact-token assertion passed with `canonicalReady=True`, `unrelatedReady=False`, `trailingCollisionReady=False`, and `leadingCollisionReady=False`. The only failures remain the two Task 2-owned manifest assertions.
+- Self-review: matching remains process-table-only and read-only; no adb, emulator, VMware command, guest, VM state, manifest, connector, credential, or external service was touched.
+- Fix-round commit is recorded in the parent handoff after commit creation.

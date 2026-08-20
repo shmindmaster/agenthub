@@ -174,9 +174,11 @@ function Get-MobileRuntimeProcessMatch {
     if ($Platform -in @('ios', 'both')) {
         $vmxFacts = Get-MobileVmxFacts
         $canonicalVmx = ([IO.Path]::GetFullPath([string]$vmxFacts.path)).Replace('/', '\')
+        $escapedVmx = [regex]::Escape($canonicalVmx)
+        $vmxTokenPattern = '(?i)(?:^|\s)(?:"' + $escapedVmx + '"|' + $escapedVmx + ')(?=\s|$)'
         $vm = @($Processes | Where-Object {
             if ([string]$_.Name -ine 'vmware-vmx.exe' -or -not [string]$_.CommandLine) { return $false }
-            ([string]$_.CommandLine).Replace('/', '\').IndexOf($canonicalVmx, [StringComparison]::OrdinalIgnoreCase) -ge 0
+            ([string]$_.CommandLine).Replace('/', '\') -match $vmxTokenPattern
         })
         $result.ios = [ordered]@{
             ready = ($vm.Count -gt 0)
