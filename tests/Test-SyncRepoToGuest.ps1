@@ -115,7 +115,14 @@ function Test-NormalizedArchivePreservesUncommittedWork {
             return @{ Passed = $false; Detail = "-StageOnly did not retain both archive and manifest under $($fixture.Stage)" }
         }
         New-Item -ItemType Directory -Path $extract -Force | Out-Null
-        & tar.exe -xzf $archive -C $extract
+        # Resolve tar explicitly. Git for Windows puts GNU tar on PATH ahead of
+        # the Windows-bundled bsdtar, and GNU tar reads the "C:" of an absolute
+        # Windows path as a remote host spec -- it fails with "Cannot connect to
+        # C: resolve failed" rather than extracting. bsdtar ships with Windows
+        # 10+ and handles drive letters natively, so pin to it when present.
+        $tarExe = Join-Path $env:SystemRoot 'System32\tar.exe'
+        if (-not (Test-Path -LiteralPath $tarExe)) { $tarExe = 'tar.exe' }
+        & $tarExe -xzf $archive -C $extract
         if ($LASTEXITCODE -ne 0) { return @{ Passed = $false; Detail = 'tar.exe could not extract the staged archive' } }
 
         $payloadPath = Join-Path $extract 'e2e-ios.sh'

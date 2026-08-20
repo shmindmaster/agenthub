@@ -5,7 +5,7 @@ description: Use when a coding agent should visually inspect and interact with a
 
 # Interactive browser testing
 
-For MCP server choice, tool routing, and autoConnect setup, also load **`use-chrome-devtools-mcp`**.
+For tool routing and the core loop, also load **`use-chrome-devtools-mcp`**.
 
 ## Capability required
 
@@ -21,7 +21,7 @@ session."
    own first-party browser and start nothing. This is the ordinary case for a host
    that ships a browser.
    <!-- resolution-step: surface-provided -->
-2. Use `chrome-devtools-isolated` -- the declared fallback, `providesCapabilities`
+2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities`
    in `registry/mcps.json` for `browser.isolated` -- when the surface records
    `false` or `null`, or when the run needs accessibility snapshots, console/network
    correlation, Lighthouse, performance, screencasts, or memory analysis that the
@@ -44,7 +44,7 @@ as evidence) routes to the fallback rather than to nothing.
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at
 session start, and to run as one shared process rather than one per host.
-`chrome-devtools-isolated` is the QA fallback for this skill; do not start it when
+`chrome-devtools` is the QA fallback for this skill; do not start it when
 the surface already provides `browser.isolated`.
 
 Add repository Playwright tests only after discovering a regression worth preserving.
@@ -63,14 +63,14 @@ Existing automated tests do not replace interactive rendered verification.
    state. Never invent inaccessible states.
 7. Record exact evidence and close the named Playwright session when finished.
 
-`chrome-devtools-isolated` launches with `--isolated` into a temporary profile
-(`registry/mcps.json`). A surface recorded as providing `browser.isolated` carries
+`chrome-devtools` launches into a dedicated persistent profile that is separate from
+personal Chrome (`registry/mcps.json`). Cookies survive a close, so a signed-in test
+site is authenticated once rather than every run -- but nothing from the owner's
+personal session leaks in. A surface recorded as providing `browser.isolated` carries
 no signed-in session by that capability's own definition. The Playwright CLI lane is
 neither: it is not a surface provider and this repository records nothing about how
 it handles profiles, so do not assume it is isolated -- establish it.
 
-Connecting to the owner's already-running personal Chrome is `browser.authenticated`,
-provided by MCP id `chrome-devtools` with **`--autoConnect`** (owner enables
-`chrome://inspect/#remote-debugging` and Allows the dialog). This skill does not
-request that capability. Use `chrome-devtools` only for explicitly authorized signed-in
-workflows outside this skill's isolation requirement.
+Connecting to the owner's already-running personal Chrome is a separate thing: it means
+passing `--browserUrl` at invocation. This skill does not do that, and the default
+profile mode never touches personal Chrome.

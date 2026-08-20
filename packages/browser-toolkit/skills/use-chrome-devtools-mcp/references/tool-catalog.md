@@ -21,4 +21,4 @@ Do not fork the full parameter schema into agenthub. When parameters change, tru
 ## Related fleet docs
 
 - `docs/CHROME_CDP.md` — autoConnect vs isolated, host config
-- `registry/mcps.json` — `chrome-devtools`, `chrome-devtools-isolated`
+- `registry/mcps.json` — `chrome-devtools`

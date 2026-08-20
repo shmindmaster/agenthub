@@ -34,7 +34,7 @@
     "persistedOnDemandLocalMcpIds": [
       "appium-mobile"
     ],
-    "hostConfiguredLocalMcpIds": [],
+    "hostConfiguredLocalMcpIds": [ "node_repl" ],
     "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
     "hostConfiguredLocalFanoutPolicy": "appium-mobile may be registered persistently where no package activation route exists; registration is lightweight and does not start the VM or emulators",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",

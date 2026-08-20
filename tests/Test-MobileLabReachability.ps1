@@ -54,6 +54,7 @@ $liveDrift = if (Test-Path -LiteralPath $liveDriftPath) { Get-Content -LiteralPa
 
 Report 'one canonical mobile capability exists' ($mobile.Count -eq 1) "count=$($mobile.Count)"
 Report 'one pinned Appium MCP exists' ($appium.Count -eq 1 -and $appium[0].command -eq 'npx' -and 'appium-mcp@1.92.0' -in @($appium[0].args)) 'Expected registry/mcps.json#appium-mobile pinned to appium-mcp@1.92.0.'
+Report 'Windows stdio MCP wrap exists' ($syncScriptText -match 'function Resolve-WindowsHiddenStdioEntry' -and $syncScriptText -match 'Hide-Stdio.exe') 'Emit stdio MCP through Hide-Stdio.exe on Windows so npx/cmd wrappers do not steal focus.'
 Report 'Appium is the reviewed persistent on-demand exception' ('appium-mobile' -in @($connectors.lifecyclePolicy.persistedOnDemandLocalMcpIds)) 'Add only appium-mobile to persistedOnDemandLocalMcpIds.'
 Report 'persistent on-demand exceptions participate in every sync scope' (
     $syncScriptText -match '\$scopedCandidateServers\s*\+\s*\$persistentExceptionServers'
@@ -80,7 +81,18 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'active')) {
     $mapping = $mappingByHost[$effectiveHost]
     $format = @($formats.hosts | Where-Object id -eq $effectiveHost | Select-Object -First 1)
     $hasInstructionRoute = $mapping -and ($agent.nativePaths.skillsDir -or ($format.Count -eq 1 -and ($format[0].globalSkillsDir -or $format[0].alsoScannedSkillsDirs)))
-    Report "$hostId has discoverable mobile instructions" ([bool]$hasInstructionRoute) "effectiveHost=$effectiveHost mapping=$($mapping.deploymentStatus)"
+    # The mobile-device-lab SKILL states both platforms are reached through the
+    # appium-mcp server, so on a host with no such route it is instructions for
+    # tooling that host cannot invoke. Its hostMappings were narrowed to claude
+    # and codex on 2026-08-19 to match registry/mcps.json. Note this covers only
+    # mobile-device-lab; mobile-platform-standard is owned by portfolio-engineering
+    # and stays fleet-wide, because writing Expo/EAS code needs no MCP.
+    $inMobileScope = $effectiveHost -in @($appium[0].hosts)
+    if ($inMobileScope) {
+        Report "$hostId has discoverable mobile instructions" ([bool]$hasInstructionRoute) "effectiveHost=$effectiveHost mapping=$($mapping.deploymentStatus)"
+    } else {
+        Report "$hostId is outside mobile scope and carries no lab instructions" (-not $hasInstructionRoute) "effectiveHost=$effectiveHost mapping=$($mapping.deploymentStatus)"
+    }
 
     $status = if ($mapping) { [string]$mapping.deploymentStatus } else { '' }
     $packageBacked = $status -in @('plugin-owned', 'native-plugin-installed', 'native-local-plugin', 'native-extension-junction')
@@ -88,7 +100,17 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'active')) {
     $packageManifest = if ($manifestByHost.ContainsKey($effectiveHost)) { $manifestByHost[$effectiveHost] } else { $null }
     $packageRoute = $packageBacked -and $packageManifest -and (Test-Path -LiteralPath (Join-Path $packageRoot $packageManifest))
     $directRoute = $directBacked -and $effectiveHost -in @($appium[0].hosts) -and 'appium-mobile' -in @($connectors.lifecyclePolicy.persistedOnDemandLocalMcpIds)
-    Report "$hostId has an Appium MCP activation route" ([bool]($packageRoute -or $directRoute)) "status=$status manifest=$packageManifest direct=$directRoute"
+    # Appium's host list was narrowed to claude and codex on 2026-08-19 (the
+    # reason is recorded in registry/mcps.json -> appium-mobile
+    # localProcessPolicy.note). Fleet-wide registration cost ~93 MB of node per
+    # host at session start for a lab most hosts never drive. Assert both
+    # directions: in scope the route must exist, out of scope the direct MCP
+    # route must be absent, so the narrowing is enforced and not merely tolerated.
+    if ($inMobileScope) {
+        Report "$hostId has an Appium MCP activation route" ([bool]($packageRoute -or $directRoute)) "status=$status manifest=$packageManifest direct=$directRoute"
+    } else {
+        Report "$hostId is outside Appium scope and carries no direct MCP route" (-not $directRoute) "status=$status direct=$directRoute"
+    }
 
     $effectiveAgent = @($agents.activeAgents | Where-Object id -eq $effectiveHost | Select-Object -First 1)
     $liveInstruction = $false
@@ -134,8 +156,24 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'active')) {
             }
         }
     }
-    Report "$hostId live profile exposes mobile instructions" $liveInstruction 'A configured directory string is insufficient; the resolved SKILL.md or enabled package must exist in the live profile.'
-    Report "$hostId live profile exposes Appium MCP" $liveMcp 'The resolved live plugin/config must contain the Appium route and the latest sync audit must classify direct config as unchanged.'
+    # Out of scope, the private copy must be gone. A host that reads the shared
+    # ~/.agents/skills directory is the documented exception: codex, gemini and
+    # warp all read it, so the skill cannot be withdrawn from gemini or warp
+    # without also withdrawing it from codex, which is in scope. Record that
+    # rather than asserting something the directory layout makes impossible.
+    $usesSharedSkills = [bool]($effectiveAgent.Count -eq 1 -and $effectiveAgent[0].nativePaths.sharedSkillsDir)
+    if ($inMobileScope) {
+        Report "$hostId live profile exposes mobile instructions" $liveInstruction 'A configured directory string is insufficient; the resolved SKILL.md or enabled package must exist in the live profile.'
+    } elseif ($usesSharedSkills) {
+        Report "$hostId sees mobile instructions only via the shared skills dir" $liveInstruction 'Known limitation: the shared ~/.agents/skills directory is read by in-scope and out-of-scope hosts alike.'
+    } else {
+        Report "$hostId live profile carries no mobile lab instructions" (-not $liveInstruction) 'An out-of-scope host with its own skills directory must not retain a private copy after prune.'
+    }
+    if ($inMobileScope) {
+        Report "$hostId live profile exposes Appium MCP" $liveMcp 'The resolved live plugin/config must contain the Appium route and the latest sync audit must classify direct config as unchanged.'
+    } else {
+        Report "$hostId live profile has no Appium MCP" (-not $liveMcp) 'A host outside the narrowed Appium scope must not carry the server in its live config; prune should have removed it.'
+    }
 }
 
 foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'unverified')) {

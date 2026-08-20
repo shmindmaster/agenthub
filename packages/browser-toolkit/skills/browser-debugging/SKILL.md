@@ -5,7 +5,7 @@ description: Use when an authorized browser workflow has runtime errors, failed 
 
 # Browser debugging
 
-For MCP tool names, core loop, and autoConnect vs isolated, also load **`use-chrome-devtools-mcp`**.
+For MCP tool names and the core loop, also load **`use-chrome-devtools-mcp`**.
 
 ## Capability required
 
@@ -18,8 +18,8 @@ It also requires DevTools-protocol depth: performance traces, heap snapshots,
 Lighthouse, and raw console/network correlation. That depth is not a capability name
 in `hostSurfaces` because only one provider offers it, and a capability name nothing
 else resolves is vocabulary rather than routing. It is the actual justification for
-`chrome-devtools-isolated`, so this skill reaches the isolated fallback more often
-than the other two when DevTools depth is required without signed-in cookies.
+the local `chrome-devtools` fallback, so this skill reaches it more often than the
+other two when DevTools depth is required.
 
 ## Resolve a provider before choosing a tool
 
@@ -28,7 +28,7 @@ than the other two when DevTools depth is required without signed-in cookies.
    own first-party browser for observation, reproduction, and accessibility work.
    Nothing extra is started.
    <!-- resolution-step: surface-provided -->
-2. Use `chrome-devtools-isolated` -- the declared fallback, `providesCapabilities` in
+2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
    `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
    `null`, or when the step needs DevTools depth the surface cannot reach.
    <!-- resolution-step: local-fallback -->
@@ -42,8 +42,9 @@ checked and absent, `null` means never established. Resolve, do not assume.
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at
 session start, and to run as one shared process rather than one per host.
-`chrome-devtools-isolated` is the QA fallback for this skill; do not start it when
-the surface already provides `browser.isolated`.
+`chrome-devtools` is the QA fallback for this skill; do not start it when
+the surface already provides `browser.isolated`. Its profile is separate from
+personal Chrome, which is the isolation this skill requires.
 
 ## Workflow
 
@@ -66,6 +67,6 @@ the surface already provides `browser.isolated`.
    and focused regression remain the deliverable.
 
 Do not enable experimental tool categories or attach to personal Chrome for this skill's
-`browser.isolated` path. Signed-in browsing is `browser.authenticated` via MCP id
-`chrome-devtools` (CDP attach) and requires explicit owner authorization outside this
-skill's isolation requirement. Do not call type checks or unit tests browser proof.
+`browser.isolated` path. The automation profile is not personal Chrome, so the default
+mode already satisfies that requirement; attaching to a live personal session would mean
+passing `--browserUrl` deliberately, which is outside this skill.' Do not call type checks or unit tests browser proof.

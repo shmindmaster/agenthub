@@ -26,7 +26,7 @@ personal Chrome state, unrelated tabs, credentials, or customer data.
    `hostSurfaces.surfaces`. If it records the required capability as `true`, capture
    with its own first-party browser and start nothing.
    <!-- resolution-step: surface-provided -->
-2. Use `chrome-devtools-isolated` -- the declared fallback, `providesCapabilities` in
+2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
    `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
    `null`, or when the evidence needed is a performance trace, heap comparison, or
    Lighthouse run.
@@ -39,10 +39,11 @@ each artifact, because a screenshot's meaning depends on the profile it came fro
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at
 session start, and to run as one shared process rather than one per host.
-`chrome-devtools-isolated` is the QA fallback for this skill; do not start it when
-the surface already provides `browser.isolated`. Personal Chrome attach is a different
-MCP id (`chrome-devtools` / `browser.authenticated`) and must not be used for
-isolated evidence captures.
+`chrome-devtools` is the QA fallback for this skill; do not start it when
+the surface already provides `browser.isolated`. Its dedicated profile is separate
+from personal Chrome, so evidence captures are isolated by construction. Attaching to
+the owner's live personal Chrome would require passing `--browserUrl` deliberately and
+must not be done for evidence captures.
 
 ## Procedure
 

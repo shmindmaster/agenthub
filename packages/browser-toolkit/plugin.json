@@ -1,4 +1,4 @@
 {
   "name": "browser-toolkit",
-  "description": "Chrome DevTools MCP guidance (autoConnect vs isolated, tool routing), interactive visual browser testing, debugging, and evidence capture with Playwright CLI support."
+  "description": "Chrome DevTools MCP guidance (single dedicated persistent profile, tool routing), interactive visual browser testing, debugging, and evidence capture with Playwright CLI support."
 }

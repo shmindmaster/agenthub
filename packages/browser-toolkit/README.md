@@ -5,7 +5,8 @@ One browser-quality plugin with **two** on-demand Chrome DevTools MCP servers an
 ## Architecture
 
 - Skills that need synthetic/localhost QA state the capability `browser.isolated` and
-  fall back to **`chrome-devtools-isolated`** (`--isolated` temp profile).
+  fall back to **`chrome-devtools`** (dedicated persistent automation profile,
+  separate from personal Chrome).
 - Work that needs the owner's signed-in Chrome (LinkedIn, job portals, etc.) is
   capability **`browser.authenticated`**, provided by **`chrome-devtools`**, which
   **attaches only** to TaskBar personal Chrome via CDP (never launches a blank profile).
@@ -34,7 +35,7 @@ Do not fork the full schema; keep routing in the skill and link upstream.
 | Owner enable | `chrome://inspect/#remote-debugging` → enable |
 | MCP | `chrome-devtools` with **`--autoConnect`** (Chrome ≥144) |
 | Permission | Chrome **Allow** dialog when agent connects |
-| Registry | `registry/mcps.json` ids `chrome-devtools` + `chrome-devtools-isolated` |
+| Registry | `registry/mcps.json` id `chrome-devtools` (single server since 2026-08-19) |
 | Docs | `docs/CHROME_CDP.md` |
 
 **Do not** put `--remote-debugging-port=9222` on the Default profile TaskBar shortcut (ignored since Chrome 136).  

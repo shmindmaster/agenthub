@@ -323,6 +323,18 @@ print('OK')
     }
 }
 
+function ConvertTo-TomlString {
+    # A TOML basic string treats backslash as an escape introducer, so emitting a
+    # Windows path such as C:\Users\... makes \U an invalid unicode escape and the
+    # whole file stops parsing. A literal string has no escapes at all, which is
+    # exactly what a path wants, and it matches the [projects.'c:\repos\x'] keys
+    # these files already carry. Fall back to an escaped basic string only when the
+    # value contains a single quote, which a literal string cannot represent.
+    param([string]$Value)
+    if ($Value -notmatch "'") { return "'" + $Value + "'" }
+    return '"' + ($Value.Replace('\', '\\').Replace('"', '\"')) + '"'
+}
+
 function Test-MarkdownFrontmatter {
     param([string]$Path)
     try {
@@ -598,6 +610,9 @@ function Merge-McpServers {
     }
 
     if ($PruneUnknown) {
+        foreach ($k in @($script:hostOwnedMcpKeys)) {
+            if ($k) { $canonicalKeys[$k] = $true }
+        }
         foreach ($k in @($Target.Keys)) {
             if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $k))) {
                 $Target.Remove($k)
@@ -606,6 +621,50 @@ function Merge-McpServers {
     }
 
     return $Target
+}
+
+function Resolve-WindowsHiddenStdioEntry {
+    param([hashtable]$Entry)
+    if ($env:OS -ne 'Windows_NT') { return $Entry }
+    if (-not $Entry -or -not $Entry.ContainsKey('command')) { return $Entry }
+    $hide = Join-Path $RuntimeDir 'bin\Hide-Stdio.exe'
+    if (-not (Test-Path -LiteralPath $hide)) { return $Entry }
+
+    $cmd = [string]$Entry.command
+    $leaf = [IO.Path]::GetFileNameWithoutExtension($cmd)
+    if ([string]::IsNullOrWhiteSpace($leaf)) { $leaf = $cmd }
+    $leaf = $leaf.ToLowerInvariant()
+    $args = @($Entry.args)
+    $joined = ($args -join ' ')
+
+    if ($leaf -eq 'railway') {
+        $exe = Join-Path $env:APPDATA 'npm\node_modules\@railway\cli\bin\railway.exe'
+        if (Test-Path -LiteralPath $exe) {
+            $Entry.command = $hide
+            $Entry.args = @($exe) + $args
+        }
+        return $Entry
+    }
+
+    if ($leaf -eq 'npx' -and $joined -match 'appium-mcp') {
+        $node = Join-Path $env:ProgramFiles 'nodejs\node.exe'
+        $js = Join-Path $env:APPDATA 'npm\node_modules\appium-mcp\dist\index.js'
+        if ((Test-Path -LiteralPath $node) -and (Test-Path -LiteralPath $js)) {
+            $Entry.command = $hide
+            $Entry.args = @($node, $js)
+        }
+        return $Entry
+    }
+
+    if ($leaf -eq 'npx') {
+        $node = Join-Path $env:ProgramFiles 'nodejs\node.exe'
+        $npxCli = Join-Path $env:ProgramFiles 'nodejs\node_modules\npm\bin\npx-cli.js'
+        if ((Test-Path -LiteralPath $node) -and (Test-Path -LiteralPath $npxCli)) {
+            $Entry.command = $hide
+            $Entry.args = @($node, $npxCli) + $args
+        }
+    }
+    return $Entry
 }
 
 function Get-CanonicalMcpEntry {
@@ -617,6 +676,7 @@ function Get-CanonicalMcpEntry {
             $entry.command = $Mcp.command
             $entry.args = @($Mcp.args)
             if ($Mcp.env) { $entry.env = ConvertTo-Hashtable $Mcp.env }
+            $entry = Resolve-WindowsHiddenStdioEntry $entry
         }
         'http' {
             $entry.type = 'http'
@@ -1146,8 +1206,8 @@ function Sync-HostMcp-Codex {
                 }
             }
         } elseif ($entry.command) {
-            $sectionLines += "command = `"$($entry.command)`""
-            $argsStr = ($entry.args | ForEach-Object { '"' + (($_ -replace '\\','\\\\') -replace '"','\"') + '"' }) -join ', '
+            $sectionLines += "command = $(ConvertTo-TomlString ([string]$entry.command))"
+            $argsStr = ($entry.args | ForEach-Object { ConvertTo-TomlString ([string]$_) }) -join ', '
             $sectionLines += "args = [$argsStr]"
             if ($entry.ContainsKey('startup_timeout_ms')) {
                 $sectionLines += "startup_timeout_ms = $([int]$entry.startup_timeout_ms)"
@@ -1175,6 +1235,9 @@ function Sync-HostMcp-Codex {
         $keep = @{}
         foreach ($k in $McpEntries.Keys) {
             $keep[(Resolve-McpAliasKey $k)] = $true
+        }
+        foreach ($k in @($script:hostOwnedMcpKeys)) {
+            if ($k) { $keep[$k] = $true }
         }
 
         # Remove non-canonical top-level mcp_servers sections.
@@ -1255,16 +1318,18 @@ function Sync-HostMcp-Grok {
             }
         }
         else {
-            $null = $lines.Add("command = `"$($mcp.command)`"")
+            $null = $lines.Add("command = $(ConvertTo-TomlString ([string]$mcp.command))")
             if ($mcp.args) {
-                $args = @($mcp.args | ForEach-Object { "`"$_`"" })
+                $args = @($mcp.args | ForEach-Object { ConvertTo-TomlString ([string]$_) })
                 $null = $lines.Add("args = [$($args -join ', ')]")
             }
             if ($mcp.env) {
+                # The header belongs outside the loop. Emitting it per key redefines
+                # the same table once per environment variable, which TOML rejects.
+                $null = $lines.Add("[mcp_servers.$name.env]")
                 foreach ($property in @($mcp.env.GetEnumerator() | Sort-Object Key)) {
                     $value = ConvertTo-HostEnvironmentReference -Value ([string]$property.Value) -TargetHost 'grok'
-                    $null = $lines.Add("[mcp_servers.$name.env]")
-                    $null = $lines.Add("$($property.Key) = `"$value`"")
+                    $null = $lines.Add("$($property.Key) = $(ConvertTo-TomlString ([string]$value))")
                 }
             }
         }
@@ -1281,9 +1346,22 @@ function Sync-HostMcp-Grok {
     }
 
     if ($Prune) {
-        foreach ($name in @('context7', 'firecrawl', 'tavily', 'exa', 'linear', 'notion', 'brave-search', 'playwright')) {
-            $sectionPattern = Get-CodexMcpSectionPattern -Key $name
-            $existing = [regex]::Replace($existing, $sectionPattern, '', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+        # Prune what the registry does not name, never a fixed denylist. The old
+        # list ran AFTER the canonical sections above were rewritten in place, so
+        # it deleted the very entries this function had just written: a -Prune run
+        # on 2026-08-19 took grok from seven servers to two, keeping only the ones
+        # that happened to be absent from the list. Keying off $Mcps cannot do that,
+        # because a canonical server is by definition in the keep set.
+        $keep = @{}
+        foreach ($k in $Mcps.Keys) { $keep[(Resolve-McpAliasKey $k)] = $true }
+        foreach ($k in @($script:hostOwnedMcpKeys)) { if ($k) { $keep[$k] = $true } }
+
+        $existingKeys = @([regex]::Matches($existing, '(?m)^\[mcp_servers\.([^\].]+)\]\r?$') |
+            ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+        foreach ($k in $existingKeys) {
+            if ($keep.ContainsKey((Resolve-McpAliasKey $k))) { continue }
+            $existing = [regex]::Replace($existing, (Get-CodexMcpSectionPattern -Key $k), '',
+                [System.Text.RegularExpressions.RegexOptions]::Multiline)
         }
     }
 
@@ -2404,6 +2482,14 @@ $onDemandLocalMcpKeys = @($mcpsReg.mcpServers | Where-Object {
     Resolve-McpAliasKey ([string]$_.id)
 } | Sort-Object -Unique)
 $persistedOnDemandLocalMcpKeys = @($connectorReg.lifecyclePolicy.persistedOnDemandLocalMcpIds | ForEach-Object {
+    Resolve-McpAliasKey ([string]$_)
+} | Sort-Object -Unique)
+
+# Servers the host writes and owns itself. They are not fleet-managed and must
+# survive prune: codex regenerates node_repl per session with a content-addressed
+# runtime path and a live named pipe in its env, so deleting it as "unknown"
+# breaks codex code mode and the entry cannot be reproduced from this registry.
+$script:hostOwnedMcpKeys = @($connectorReg.lifecyclePolicy.hostConfiguredLocalMcpIds | ForEach-Object {
     Resolve-McpAliasKey ([string]$_)
 } | Sort-Object -Unique)
 

@@ -399,3 +399,39 @@ If vCPU count ever needs tuning for build speed, change `numvcpus` alone and
 leave `coresPerSocket` at 1. Measure it with
 `build-expo-simulator.sh --profile`, which prints per-phase timings, rather
 than by feel.
+
+## Maestro MCP alongside Appium MCP - rejected, 2026-08-19
+
+The question was whether to register Maestro's MCP server next to `appium-mcp`,
+and - if Maestro proved better - to drop Appium entirely. Both halves are no.
+
+**Maestro still cannot drive a physical iPhone locally.** Its own supported-
+platforms page reads "iOS: Full support for simulators", against "Full support
+for emulators and physical devices" for Android. Official real-device iOS
+support had no committed timeline as of December 2025. What exists is community
+forks (`devicelab-dev/maestro-ios-device`, `maestro-runner`) and paid cloud
+farms - TestingBot added physical iOS on 2026-01-19, BrowserStack has it - none
+of which is local, free and official. Appium's XCUITest driver does it today,
+and `appium-mcp` exposes Android emulator + physical and iOS simulator + real
+device, with `remoteServerUrl`/`attach` for the Windows-agent to macOS-guest
+split this lab already runs. Dropping Appium would delete the physical-iPhone
+capability outright.
+
+**The MCP adds one tool that is not already reachable.** Maestro MCP is bundled
+in the CLI (`maestro mcp`) and exposes nine tools: `list_devices`,
+`inspect_screen`, `take_screenshot`, `run`, `cheat_sheet`, plus four Maestro
+Cloud calls. Six duplicate what `appium-mcp`'s 31 tools already do; the four
+cloud ones are paid and outside the free-only constraint. The single additive
+tool is `run`, and an agent already runs `maestro --device emulator-5554 test
+flow.yaml` through the shell.
+
+**It also costs a second persistent local MCP process per host,** which
+`registry/mcps.json` -> `activationPolicy` exists to prevent ("multiple hosts
+must not each spawn their own instance of the same server"), and the fleet
+routing rule prefers a native CLI over an added integration for the same
+outcome.
+
+So the division of labour in "Dropping Maestro - rejected" stands unchanged and
+minimal: Appium MCP is how an agent investigates, including on hardware;
+Maestro is a CLI that turns a finding into a committed regression flow. One MCP
+process, one CLI, no cloud dependency.

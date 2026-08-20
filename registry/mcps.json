@@ -1,7 +1,11 @@
 ﻿{
   "schemaVersion": 6,
   "generatedAt": "2026-08-06T01:55:33.313Z",
-  "migrationAliases": {},
+  "migrationAliases": {
+    "repowise": "repowise-workspace",
+    "chrome-devtools-isolated": "chrome-devtools"
+  },
+  "migrationAliasesNote": "Maps a key a host config actually carries to the canonical server id. Prune keeps only what the canonical set names after Resolve-McpAliasKey, so an unaliased drifted key is deleted rather than reconciled. Recorded 2026-08-19: .claude/settings.json carried repowise-workspace under the key 'repowise', and migrationAliases was empty, so a prune run would have removed the only working repowise registration on the machine. Verified the canonical args are safe to converge on: 'repowise mcp' defaults to stdio, so the deployed '--transport stdio' is redundant and dropping it changes nothing.",
   "activationPolicy": {
     "recordedOn": "2026-08-04",
     "preferenceOrder": [
@@ -14,6 +18,32 @@
       "A local server is started by the plugin or skill that needs it, not eagerly at session start, so no process is running for a session that never uses it."
     ],
     "note": "Recorded from an explicit owner preference on 2026-08-04: local MCP processes were multiplying across hosts and costing CPU and memory for sessions that never invoked them. activationMode carries this per server. 'shared-remote' means the fleet talks to one hosted endpoint and starts nothing locally. 'on-demand-local' means a local process is permitted, but only invoked through an owning capability, and only when that capability is used. A local server that would be eagerly started by every host at session start does not satisfy this policy regardless of how its activationMode reads."
+  },
+  "hostInventory": {
+    "recordedOn": "2026-08-19",
+    "hosts": [
+      "amp",
+      "antigravity",
+      "claude",
+      "cline",
+      "codex",
+      "copilot",
+      "cursor",
+      "devin",
+      "factory",
+      "gemini",
+      "grok",
+      "opencode",
+      "qoder",
+      "qwen-code",
+      "vscode-insiders",
+      "warp"
+    ],
+    "notInstalled": [
+      "hermes",
+      "windsurf"
+    ],
+    "note": "Which hosts actually exist on this machine, established 2026-08-19 by enumerating ~/.local/bin, ~/bin, %APPDATA%/npm(+node_modules), %LOCALAPPDATA%/Programs, Program Files, Program Files (x86), WindowsApps, %LOCALAPPDATA%/Packages, WinGet Links/Packages, the uninstall registry, and the VS Code / VS Code Insiders / Cursor extension dirs. The field is named 'hosts' so Test-RegistryHostReferences.ps1, which validates every property literally named 'hosts' against agents.json, checks these ids too. notInstalled entries are checked-and-absent, not unchecked: hermes has ~/AppData/Local/hermes with skills but no binary anywhere (its ~/bin/hermes-acp.cmd shim points at a venv path that does not exist), and windsurf has ~/.codeium/windsurf config but no binary and no host extension. An on-demand-local server must not name either -- see Test-LocalMcpHostScope.ps1."
   },
   "protocolRevisionNote": "Every server carries a `protocol` block establishing which MCP revision it actually speaks, probed rather than assumed. This exists because `transport: \"http\"` stopped being informative once the 2026-07-28 revision made the core stateless: a 2025-11-25 server and a 2026-07-28 server are both 'http' and are not wire-compatible. `revision: null` is a legitimate recorded state meaning 'could not be established', and it must say why -- it is never a placeholder for an unchecked entry. Known revisions are listed in knownProtocolRevisions.",
   "knownProtocolRevisions": [
@@ -212,7 +242,7 @@
     },
     {
       "id": "chrome-devtools",
-      "name": "Chrome DevTools (authenticated autoConnect)",
+      "name": "Chrome DevTools (dedicated persistent profile)",
       "scope": "on-demand-desktop",
       "transport": "stdio",
       "activationMode": "on-demand-local",
@@ -220,27 +250,27 @@
       "args": [
         "-y",
         "chrome-devtools-mcp@1.6.0",
-        "--autoConnect",
         "--no-usage-statistics",
         "--no-performance-crux"
       ],
       "env": {
         "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "true"
       },
-      "credentialPolicy": "user-chrome-autoConnect-existing-session",
+      "credentialPolicy": "dedicated-persistent-automation-profile",
       "providesCapabilities": [
-        "browser.authenticated"
+        "browser.authenticated",
+        "browser.isolated"
       ],
-      "providesCapabilitiesNote": "Official Chrome DevTools MCP path for signed-in sessions (Chrome >=144): --autoConnect attaches to the owner's already-running personal Chrome. Owner must enable chrome://inspect/#remote-debugging once and Allow the connection dialog. Does not launch a blank profile. Does not use --remote-debugging-port on the Default profile (ignored since Chrome 136). Pair with chrome-devtools-isolated for browser.isolated QA. See docs/CHROME_CDP.md and https://developer.chrome.com/blog/chrome-devtools-mcp-debug-your-browser-session",
+      "providesCapabilitiesNote": "Single Chrome DevTools MCP registration for the fleet. Passes neither --isolated nor --autoConnect, so chrome-devtools-mcp uses its default userDataDir ($HOME/.cache/chrome-devtools-mcp/chrome-profile): a dedicated profile that is separate from the owner's personal Chrome and whose logins persist across sessions. This supersedes the two-entry split retired 2026-08-19. --isolated wiped cookies on every close, so every signed-in task re-authenticated; --autoConnect required a manual chrome://inspect enable plus an Allow click and exposed every tab of the personal profile. Serves both browser.authenticated and browser.isolated: it is isolated FROM personal Chrome (which is what the QA skills need) while still able to hold a login. The one thing it cannot do is attach to the page the owner is personally looking at; use --browserUrl deliberately if that is ever required. Concurrency note: Chrome locks a user-data-dir, so this is single-shared-process by design.",
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-08-05",
-        "verification": "chrome-devtools-mcp@1.6.0 --autoConnect; protocol 2025-11-25. Requires Chrome remote-debugging UI enabled + user Allow prompt."
+        "verification": "chrome-devtools-mcp@1.6.0 default profile mode; flag semantics read from the package's own build/src/bin/chrome-devtools-mcp-cli-options.js on 2026-08-19 (userDataDir default, and autoConnect's conflicts:['isolated','executablePath'])."
       },
       "localProcessPolicy": {
         "instancing": "single-shared-process",
-        "declaredByHostCount": 6,
-        "note": "On-demand only. Owner starts normal TaskBar Chrome first. MCP never starts a second personal Chrome. Pair with chrome-devtools-isolated for synthetic QA.",
+        "declaredByHostCount": 1,
+        "note": "Pinned chrome-devtools-mcp@1.6.0. Owned by browser-toolkit and delivered by its plugin, not written into host configs. One registration since 2026-08-19.",
         "versionPinVerifiedOn": "2026-08-04"
       },
       "owner": {
@@ -248,95 +278,15 @@
         "id": "browser-toolkit"
       },
       "hosts": [
-        "amp",
-        "antigravity",
-        "claude",
-        "cline",
-        "codex",
-        "copilot",
-        "cursor",
-        "devin",
-        "factory",
-        "gemini",
-        "grok",
-        "hermes",
-        "opencode",
-        "qoder",
-        "qwen-code",
-        "vscode-insiders",
-        "warp",
-        "windsurf"
+        "claude"
       ],
       "conflictingHostPlugins": {
         "qoder": [
           "chrome-devtools-mcp@qoder-marketplace"
         ]
       },
-      "experimentalFlagsEnabled": []
-    },
-    {
-      "id": "chrome-devtools-isolated",
-      "name": "Chrome DevTools (isolated temp profile)",
-      "scope": "on-demand-desktop",
-      "transport": "stdio",
-      "activationMode": "on-demand-local",
-      "command": "npx",
-      "args": [
-        "-y",
-        "chrome-devtools-mcp@1.6.0",
-        "--isolated",
-        "--no-usage-statistics",
-        "--no-performance-crux"
-      ],
-      "env": {
-        "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "true"
-      },
-      "credentialPolicy": "isolated-temporary-qa-profile-no-sensitive-data",
-      "providesCapabilities": [
-        "browser.isolated"
-      ],
-      "providesCapabilitiesNote": "Spawns a temporary headed Chrome profile for localhost/public QA only. No signed-in cookies. Use for browser-toolkit skills that require browser.isolated. Do not use for LinkedIn, email, bank, or any owner-authenticated site \u2014 that is chrome-devtools (browser.authenticated).",
-      "protocol": {
-        "revision": "2025-11-25",
-        "verifiedOn": "2026-08-04",
-        "verification": "stdio initialize returned protocolVersion 2025-11-25 from the pinned 1.6.0 package."
-      },
-      "localProcessPolicy": {
-        "instancing": "single-shared-process",
-        "declaredByHostCount": 6,
-        "note": "QA-only fallback. Pinned chrome-devtools-mcp@1.6.0. Owned by browser-toolkit.",
-        "versionPinVerifiedOn": "2026-08-04"
-      },
-      "owner": {
-        "type": "capability",
-        "id": "browser-toolkit"
-      },
-      "hosts": [
-        "amp",
-        "antigravity",
-        "claude",
-        "cline",
-        "codex",
-        "copilot",
-        "cursor",
-        "devin",
-        "factory",
-        "gemini",
-        "grok",
-        "hermes",
-        "opencode",
-        "qoder",
-        "qwen-code",
-        "vscode-insiders",
-        "warp",
-        "windsurf"
-      ],
-      "conflictingHostPlugins": {
-        "qoder": [
-          "chrome-devtools-mcp@qoder-marketplace"
-        ]
-      },
-      "experimentalFlagsEnabled": []
+      "experimentalFlagsEnabled": [],
+      "hostScopeNote": "claude only. Delivered by the browser-toolkit plugin, and codex has that plugin installed but DISABLED (config.toml [plugins.\"browser-toolkit@agenthub\"] enabled=false) because codex ships its own first-party browser@openai-bundled and chrome@openai-bundled, both enabled. Routing to a surface's native capability instead of spawning a local process is the intended order, so codex is correctly excluded rather than missing. Was 18 aspirational hosts until 2026-08-19; zero host configs ever carried it, because activationPolicy delivers it by plugin, not by host-config write."
     },
     {
       "id": "descript",
@@ -367,9 +317,16 @@
       "transport": "stdio",
       "activationMode": "on-demand-local",
       "command": "repowise",
-      "args": [ "mcp", "C:/Repos/shmindmaster" ],
+      "args": [
+        "mcp",
+        "C:/Repos/shmindmaster"
+      ],
       "credentialPolicy": "none-in-config; repowise resolves its LLM provider from the process environment (OPENAI_API_KEY) and never stores keys in repository or MCP configuration",
-      "providesCapabilities": [ "repo.intelligence", "repo.wiki", "repo.cross-repo-context" ],
+      "providesCapabilities": [
+        "repo.intelligence",
+        "repo.wiki",
+        "repo.cross-repo-context"
+      ],
       "providesCapabilitiesNote": "Federated code intelligence for all 17 workspace repos (wiki docs, dependency graph, git history/ownership, health, dead code, decisions, cross-repo contracts). Query per repo (repo=<name>) or across the fleet (repo=all).",
       "protocol": {
         "revision": "2025-06-18",
@@ -380,10 +337,20 @@
         "instancing": "single-shared-process",
         "note": "ONE federated workspace server covers every owned repo. Per-repo repowise MCP entries (.mcp.json or host config) are drift and are flagged by scripts/Check-RepoStandard.ps1. Started on demand by the invoking host per activationPolicy."
       },
-      "owner": { "type": "capability", "id": "repowise" },
-      "hosts": [ "amp", "antigravity", "claude", "cline", "codex", "copilot", "cursor", "devin", "factory", "gemini", "grok", "hermes", "opencode", "qoder", "qwen-code", "vscode-insiders", "warp", "windsurf" ],
+      "owner": {
+        "type": "capability",
+        "id": "repowise"
+      },
+      "hosts": [
+        "claude",
+        "cursor",
+        "qwen-code",
+        "qoder",
+        "cline"
+      ],
       "experimentalFlagsEnabled": [],
-      "notes": "Registered 2026-08-08 during the fleet repository standardization. The workspace lives at the fleet root (.repowise-workspace.yaml); awesome-mcp-servers (external fork) and .demo-workspace (not a repo) are deliberately excluded. Post-commit hooks keep member indexes fresh; `repowise status -w` / `doctor -w` report fleet health. Dashboard: `repowise serve` from the fleet root."
+      "notes": "Registered 2026-08-08 during the fleet repository standardization. The workspace lives at the fleet root (.repowise-workspace.yaml); awesome-mcp-servers (external fork) and .demo-workspace (not a repo) are deliberately excluded. Post-commit hooks keep member indexes fresh; `repowise status -w` / `doctor -w` report fleet health. Dashboard: `repowise serve` from the fleet root.",
+      "hostScopeNote": "Narrowed from 18 on 2026-08-19 to the intersection of the owning capability's hostMappings and the hosts where use-repowise is actually deployed on disk. grok reaches repowise through the repowise-augment hook, which needs no MCP registration; warp deliberately curates its own server list and excludes it."
     },
     {
       "id": "appium-mobile",
@@ -392,10 +359,19 @@
       "transport": "stdio",
       "activationMode": "on-demand-local",
       "command": "npx",
-      "args": [ "-y", "appium-mcp@1.92.0" ],
-      "env": { "ANDROID_HOME": "${env:ANDROID_HOME}", "NO_UI": "true" },
+      "args": [
+        "-y",
+        "appium-mcp@1.92.0"
+      ],
+      "env": {
+        "ANDROID_HOME": "${env:ANDROID_HOME}",
+        "NO_UI": "true"
+      },
       "credentialPolicy": "none-in-config; no account, token, or API key is required. AI_VISION_ENABLED is deliberately left off, because it would require an external vision API key and the native element tree already provides locators.",
-      "providesCapabilities": [ "mobile.android.local", "mobile.ios.simulated" ],
+      "providesCapabilities": [
+        "mobile.android.local",
+        "mobile.ios.simulated"
+      ],
       "providesCapabilitiesNote": "mobile.android.local -- an Android emulator or attached device on the Windows host, driven through the MCP's embedded UiAutomator2 (omit remoteServerUrl). mobile.ios.simulated -- an iOS Simulator inside the VMware macOS guest, driven by passing remoteServerUrl for the guest's Appium 3.6.0 + XCUITest 12.3.1 on port 4723. Neither capability covers a physical iPhone or a real-hardware claim.",
       "protocol": {
         "revision": "2025-11-25",
@@ -404,12 +380,52 @@
       },
       "localProcessPolicy": {
         "instancing": "single-shared-process",
-        "note": "Pinned to 1.92.0 rather than @latest so a re-resolve does not silently move the lab; see chrome-devtools for the pinned precedent and brave-search for the deliberately unpinned counterpart. The lightweight stdio provider may be registered persistently on hosts without package activation. It does not start the Android emulator or macOS guest; those expensive resources stay cold until Start-MobileLab.ps1 is invoked."
+        "note": "Pinned to 1.92.0 rather than @latest so a re-resolve does not silently move the lab; see chrome-devtools for the pinned precedent and brave-search for the deliberately unpinned counterpart. It does not start the Android emulator or macOS guest; those expensive resources stay cold until Start-MobileLab.ps1 is invoked. Host list narrowed to claude and codex on 2026-08-19: this entry previously named 18 hosts on the reasoning that registering a stdio provider is lightweight, and measurement disproved it -- every host that opened spawned a node process of roughly 93 MB even when no mobile work was done, 647 MB across 7 live processes at the time of measurement. Registration is only lightweight where the host starts nothing until a tool is called; on these hosts it is not. Re-add a host when mobile work actually moves there."
       },
-      "owner": { "type": "capability", "id": "mobile-device-lab" },
-      "hosts": [ "amp", "antigravity", "claude", "cline", "codex", "copilot", "cursor", "devin", "factory", "gemini", "grok", "hermes", "opencode", "qoder", "qwen-code", "vscode-insiders", "warp", "windsurf" ],
+      "owner": {
+        "type": "capability",
+        "id": "mobile-device-lab"
+      },
+      "hosts": [
+        "claude",
+        "codex"
+      ],
       "experimentalFlagsEnabled": [],
       "notes": "Registered 2026-08-10. Windows-host only: it needs adb for Android, and its iOS half is a remote client to the macOS guest rather than a local driver, because Xcode and simctl do not exist on Windows. The guest address is DHCP-assigned by VMware NAT -- resolve it with `vmrun getGuestIPAddress` (Test-MobileLab.ps1 does) instead of hardcoding it. NO_UI is set per the package's own guidance to cut generated-UI token overhead."
+    },
+    {
+      "id": "railway",
+      "name": "Railway (deploy and infrastructure)",
+      "scope": "on-demand-desktop",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "command": "railway",
+      "args": [
+        "mcp"
+      ],
+      "credentialPolicy": "none-in-config; the railway CLI holds its own session token outside MCP configuration",
+      "providesCapabilities": [
+        "deploy.railway"
+      ],
+      "protocol": {
+        "revision": "2025-03-26",
+        "verifiedOn": "2026-08-19",
+        "verification": "stdio initialize against `railway mcp` returned protocolVersion 2025-03-26, serverInfo 'railway' 5.37.4, capabilities: tools."
+      },
+      "localProcessPolicy": {
+        "instancing": "single-shared-process",
+        "note": "Registered 2026-08-19 to bring an already-deployed but ungoverned server under the registry. It had reached six hosts by hand, each spawning a node process on session start for a deploy CLI that is needed occasionally and is fully usable as `railway` on the shell. Narrowed to the two hosts that actually run deployments."
+      },
+      "owner": {
+        "type": "capability",
+        "id": "mcp-registry"
+      },
+      "hosts": [
+        "claude",
+        "codex"
+      ],
+      "experimentalFlagsEnabled": [],
+      "notes": "The use-railway skill drives the CLI directly and does not require this server; the server is the convenience path, not the capability."
     }
   ]
 }
