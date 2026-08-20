@@ -309,7 +309,7 @@ try {
         $LeaseId = [string]$lease.leaseId
         $ownedLeaseId = $LeaseId
     }
-    $idleOutput = @(& (Get-Process -Id $PID).Path -NoProfile -File $idleScript -LeaseOnly -LeaseId $LeaseId -Json 2>&1)
+    $idleOutput = @(& (Get-Process -Id $PID).Path -NoProfile -File $idleScript -HostOnly -LeaseId $LeaseId -Json 2>&1)
     if ($LASTEXITCODE -ne 0) { throw "The canonical mobile-lab idle probe refused web foreground mutation: $($idleOutput -join ' ')" }
 
     Write-Host ''
@@ -354,6 +354,9 @@ try {
         $guest = Resolve-MobileLabGuestAddress -SshHost 'macvm' -TimeoutSeconds 60
         $script:Facts.guestAddress = $guest.address
         Say "  guest at $($guest.address) (via $($guest.source))"
+
+        $fullIdleOutput = @(& (Get-Process -Id $PID).Path -NoProfile -File $idleScript -GuestIp $guest.address -LeaseId $LeaseId -Json 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "The full mobile-lab idle probe refused iOS web foreground mutation: $($fullIdleOutput -join ' ')" }
 
         $hostPrefix = Get-Ipv4Slash24 -Address $vmnet8Address
         $guestPrefix = Get-Ipv4Slash24 -Address $guest.address

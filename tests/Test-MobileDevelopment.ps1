@@ -232,7 +232,7 @@ $claudeManifest = Read-Json 'packages\mobile-development\.claude-plugin\plugin.j
 $codexManifest = Read-Json 'packages\mobile-development\.codex-plugin\plugin.json'
 Report 'generic, Claude, and Codex manifests share one mobile-development identity and version' (
     $manifest.name -eq 'mobile-development' -and $claudeManifest.name -eq $manifest.name -and $codexManifest.name -eq $manifest.name -and `
-    $manifest.version -eq '2.0.2' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
+    $manifest.version -eq '2.0.3' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
 ) "generic=$($manifest.name)@$($manifest.version) claude=$($claudeManifest.name)@$($claudeManifest.version) codex=$($codexManifest.name)@$($codexManifest.version)"
 $retainedHostManifestDirs = @(Get-ChildItem -LiteralPath $packageRoot -Force -Directory | Where-Object Name -match '^\..+-plugin$' | Select-Object -ExpandProperty Name | Sort-Object)
 Report 'unsupported legacy host manifests are absent' (
@@ -450,9 +450,10 @@ Report 'startup requires the attached emulator canonical AVD name and API' (
 Report 'web foreground mutation holds the canonical lease and probes idle ownership' (
     $webText -match '\[string\]\$LeaseId' -and `
     $webText -match 'Enter-MobileLabLease\.ps1' -and $webText -match '-Action Acquire' -and `
-    $webText -match 'Test-MobileLabIdle\.ps1' -and $webText -match '-LeaseOnly -LeaseId \$LeaseId' -and `
+    $webText -match 'Test-MobileLabIdle\.ps1' -and $webText -match '-HostOnly -LeaseId \$LeaseId' -and `
+    $webText -match '-GuestIp \$guest\.address -LeaseId \$LeaseId' -and `
     $webText -match '-Action Release -LeaseId \$ownedLeaseId' -and `
-    $webText.IndexOf('-LeaseOnly -LeaseId $LeaseId') -lt $webText.LastIndexOf('Open-AndroidUrl -TargetUrl')
+    $webText.IndexOf('-HostOnly -LeaseId $LeaseId') -lt $webText.LastIndexOf('Open-AndroidUrl -TargetUrl')
 ) 'adb or simctl open-url can mutate without the canonical lease and idle probe.'
 Report 'Claude activation installs clean state and disable preserves installed on-demand state' (
     $entrypointText -match 'plugin list --json' -and `

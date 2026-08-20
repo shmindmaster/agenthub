@@ -7,6 +7,7 @@ param(
     [string]$SnapshotPath,
     [string]$LeaseId,
     [switch]$LeaseOnly,
+    [switch]$HostOnly,
     [switch]$IgnoreLabLease,
     [switch]$Json
 )
@@ -88,37 +89,30 @@ try {
         }
 
         if (-not $LeaseOnly) {
-            if ([string]::IsNullOrWhiteSpace($GuestIp)) { throw 'GuestIp is required for a live idle probe.' }
-            if ([string]::IsNullOrWhiteSpace($AppiumUrl)) {
-                $guestAppium = Get-MobileDevelopmentExpectation -Name guestAppium
-                $AppiumUrl = "http://${GuestIp}:$($guestAppium.port)"
-            }
             $checkedScopes.Add('Windows process table')
-            $checkedScopes.Add('macOS guest process table')
-            $checkedScopes.Add('guest Appium sessions')
-
             $hostProcesses = @(Get-CimInstance Win32_Process | Where-Object {
                 $_.ProcessId -ne $PID -and -not [string]::IsNullOrWhiteSpace($_.CommandLine)
             } | ForEach-Object {
                 [pscustomobject]@{ Pid = [int]$_.ProcessId; Name = [string]$_.Name; Command = [string]$_.CommandLine }
             })
 
-            $sshArgs = @('-o', "HostName=$GuestIp", '-o', "HostKeyAlias=$SshHost", '-o', 'LogLevel=ERROR', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', $SshHost, 'ps -axo pid=,ppid=,command=')
-            $guestOutput = @(& ssh @sshArgs 2>&1)
-            if ($LASTEXITCODE -ne 0) {
-                $probeErrors.Add([pscustomobject]@{ Scope = 'macOS guest process table'; Error = (($guestOutput | Select-Object -Last 3) -join ' ') })
-            }
-            else { $guestProcesses = @($guestOutput | ForEach-Object { [string]$_ }) }
-
-            try {
-                # Appium 3 removed legacy GET /sessions. The replacement is
-                # deliberately feature-gated and enabled only for this private
-                # guest service by start-appium-guest.sh.
-                $sessionResponse = Invoke-RestMethod -Uri "$AppiumUrl/appium/sessions" -TimeoutSec 20
-                $appiumSessions = @($sessionResponse.value)
-            }
-            catch {
-                $probeErrors.Add([pscustomobject]@{ Scope = 'guest Appium sessions'; Error = $_.Exception.Message })
+            if (-not $HostOnly) {
+                if ([string]::IsNullOrWhiteSpace($GuestIp)) { throw 'GuestIp is required for a full live idle probe.' }
+                if ([string]::IsNullOrWhiteSpace($AppiumUrl)) {
+                    $guestAppium = Get-MobileDevelopmentExpectation -Name guestAppium
+                    $AppiumUrl = "http://${GuestIp}:$($guestAppium.port)"
+                }
+                $checkedScopes.Add('macOS guest process table')
+                $checkedScopes.Add('guest Appium sessions')
+                $sshArgs = @('-o', "HostName=$GuestIp", '-o', "HostKeyAlias=$SshHost", '-o', 'LogLevel=ERROR', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', $SshHost, 'ps -axo pid=,ppid=,command=')
+                $guestOutput = @(& ssh @sshArgs 2>&1)
+                if ($LASTEXITCODE -ne 0) { $probeErrors.Add([pscustomobject]@{ Scope = 'macOS guest process table'; Error = (($guestOutput | Select-Object -Last 3) -join ' ') }) }
+                else { $guestProcesses = @($guestOutput | ForEach-Object { [string]$_ }) }
+                try {
+                    $sessionResponse = Invoke-RestMethod -Uri "$AppiumUrl/appium/sessions" -TimeoutSec 20
+                    $appiumSessions = @($sessionResponse.value)
+                }
+                catch { $probeErrors.Add([pscustomobject]@{ Scope = 'guest Appium sessions'; Error = $_.Exception.Message }) }
             }
         }
     }
