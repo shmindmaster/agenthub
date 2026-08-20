@@ -51,11 +51,19 @@ $conn    = Read-Json 'registry\native-connectors.json'
 # the host's MCP config, so its absence there is correct rather than drift.
 # github is the worked example -- plugin-owned on claude and copilot, and
 # reachable in-session from the plugin while absent from every config file.
-$pluginOwned = @{}
+# Two exposure modes deliver a server WITHOUT writing the host's MCP config, so
+# absence there is correct rather than drift:
+#   plugin-owned     - a plugin supplies it (github on claude and copilot)
+#   native-connector - the host's own built-in connector (descript on claude)
+# shared-gateway is deliberately NOT in this set: those ARE written to the
+# config, which is how codex's missing github was caught as genuine drift.
+$notInConfig = @{}
 foreach ($h in @($conn.hosts)) {
     $hid = [string]$h.hostId
-    foreach ($sid in @($h.exposures.'plugin-owned')) {
-        if ($sid) { $pluginOwned["$hid/$sid"] = $true }
+    foreach ($mode in 'plugin-owned', 'native-connector') {
+        foreach ($sid in @($h.exposures.$mode)) {
+            if ($sid) { $notInConfig["$hid/$sid"] = $mode }
+        }
     }
 }
 
@@ -109,18 +117,62 @@ foreach ($h in @($formats.hosts)) {
 Report 'host MCP config paths are declared in plugin-formats' ($hostConfig.Count -gt 0) `
     'No host declares mcpPath, so every check below would be vacuous.'
 
+# Every exposure id must be a canonical server id. Without this, an id that
+# stops existing just sits in a host's exposure list looking like coverage:
+# claude carried 'chrome-devtools' for a day after playwright replaced it
+# fleet-wide, and the descript gap analysis that found it was itself only
+# looking at two of the three exposure modes. migrationAliases are accepted,
+# because that is exactly what they are for.
+$canonicalIds = @{}
+foreach ($s in @($mcps.mcpServers)) { $canonicalIds[[string]$s.id] = $true }
+$aliasKeys = @{}
+foreach ($p in @($mcps.migrationAliases.PSObject.Properties)) { $aliasKeys[$p.Name] = [string]$p.Value }
+$staleExposures = [Collections.Generic.List[string]]::new()
+foreach ($h in @($conn.hosts)) {
+    foreach ($mode in @($h.exposures.PSObject.Properties)) {
+        foreach ($sid in @($mode.Value)) {
+            if (-not $sid) { continue }
+            if ($canonicalIds.ContainsKey([string]$sid)) { continue }
+            $staleExposures.Add("$($h.hostId)/$($mode.Name)/$sid" + $(if ($aliasKeys.ContainsKey([string]$sid)) { " (alias -> $($aliasKeys[[string]$sid]))" } else { ' (no alias)' }))
+        }
+    }
+}
+Report 'every native-connector exposure id is a canonical MCP server id' ($staleExposures.Count -eq 0) `
+    "these exposure ids no longer exist in mcps.json, so they read as coverage while providing none: $($staleExposures -join '; ')"
+
+# hostInventory.installed is the 'all hosts' set for a shared-remote server that
+# names no hosts. Empty-hosts on shared-remote means EVERY host by convention --
+# the same convention used to reject a reported 5-server grok drift as a
+# non-finding. Until 2026-08-20 this file read that convention as 'skip', so
+# seven servers (linear, context7, notion, firecrawl, exa, descript,
+# brave-search) were asserted nowhere at all.
+$installedHosts = @($mcps.hostInventory.hosts | Where-Object { $_ })
+# The field is `hosts`, not `installed` -- named that way so
+# Test-RegistryHostReferences validates the ids for free. Reading the wrong name
+# yields an empty set, which makes the all-hosts expansion below expand to
+# NOTHING and pass silently. That is precisely what it did on first run.
+Report 'the all-hosts inventory resolved to a non-empty host set' ($installedHosts.Count -gt 0) `
+    'mcps.json hostInventory.hosts is empty or missing, so every shared-remote server that names no hosts expands to zero hosts and is asserted nowhere.'
+
 $checked = 0
 foreach ($server in @($mcps.mcpServers)) {
     $id = [string]$server.id
     $hosts = @($server.hosts | Where-Object { $_ })
-    if ($hosts.Count -eq 0) { continue }
 
     $isPersisted = ($server.activationMode -eq 'shared-remote') -or $persistedLocal.ContainsKey($id)
     if (-not $isPersisted) { continue }
 
+    if ($hosts.Count -eq 0) {
+        # Only shared-remote carries the all-hosts reading. An on-demand-local
+        # server with no hosts (brave-search) is declared by nobody, which is a
+        # different statement and is asserted by its declaredByHostCount instead.
+        if ($server.activationMode -ne 'shared-remote') { continue }
+        $hosts = $installedHosts
+    }
+
     foreach ($hostId in $hosts) {
         if (-not $hostConfig.ContainsKey($hostId)) { continue }
-        if ($pluginOwned.ContainsKey("$hostId/$id")) { continue }   # supplied by a plugin, not the config
+        if ($notInConfig.ContainsKey("$hostId/$id")) { continue }   # delivered off-config; see $notInConfig
         $deployed = Get-DeployedIds $hostConfig[$hostId].Path $hostConfig[$hostId].Key
         if ($null -eq $deployed) {
             Report "persisted '$id' host '$hostId' has a readable config" $false `

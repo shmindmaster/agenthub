@@ -386,7 +386,6 @@
       "exposures": {
         "plugin-owned": [
           "appium-mobile",
-          "chrome-devtools",
           "github",
           "notion"
         ],
@@ -402,7 +401,7 @@
         "local-only": []
       },
       "evidence": [
-        "Claude installed_plugins.json and package manifests own Chrome DevTools, GitHub, and Notion.",
+        "Claude installed_plugins.json and package manifests own GitHub and Notion. chrome-devtools was removed from this list on 2026-08-20: it stopped being a canonical id in registry/mcps.json when playwright replaced it fleet-wide on 2026-08-19, and it was the only exposure id left on any host that no longer resolves. It is NOT replaced by playwright here -- playwright's hosts are the ones with no verified native browser, which excludes claude; browser-toolkit reaches claude as managed loose skills instead. Test-DeclaredVsDeployedMcp now asserts every exposure id is a canonical server id, which is the check that would have caught this.",
         "Claude account connectors own Descript; Product Demo Studio suppresses its bundled Descript MCP on Claude so the connector is not loaded twice.",
         "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03. Any residual Adobe or Canva tools in a Claude session come from claude.ai account connectors, which are not managed by this registry and must be removed in claude.ai connector settings.",
         "Measured 2026-08-05: C:/Users/SaroshHussain/.claude/plugins/installed_plugins.json lists 15 locally installed plugins, and none of engineering, marketing, small-business, design, litigation-legal, or adobe-for-creativity is among them; none has a directory under plugins/cache and none appears in known_marketplaces.json. Servers presented to a Claude session under those plugin names are therefore account-level, delivered by claude.ai rather than by any local installation this registry can reach. See ownerActionRequired."

@@ -417,7 +417,10 @@
       },
       "localProcessPolicy": {
         "instancing": "single-shared-process",
-        "note": "Registered 2026-08-19 to bring an already-deployed but ungoverned server under the registry. It had reached six hosts by hand, each spawning a node process on session start for a deploy CLI that is needed occasionally and is fully usable as `railway` on the shell. Narrowed to the two hosts that actually run deployments."
+        "declaredByHostCount": 2,
+        "note": "Registered 2026-08-19 to bring an already-deployed but ungoverned server under the registry. It had reached six hosts by hand, each spawning a node process on session start for a deploy CLI that is needed occasionally and is fully usable as `railway` on the shell. Narrowed to the two hosts that actually run deployments.",
+        "measuredOn": "2026-08-20",
+        "measurement": "One node process, 4 MB resident, running @railway/cli/bin/railway.js mcp. An audit had reported three processes at roughly 33 MB each; that was a measurement error -- a PowerShell `switch -Regex` without `break` falls through, so unrelated node processes were tallied under railway. The declared single-shared-process instancing matches observed reality; no violation."
       },
       "owner": {
         "type": "registry",

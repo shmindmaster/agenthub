@@ -89,7 +89,9 @@
       "repository": "shmindmaster/subops",
       "bucket": "include",
       "priority": "P1",
-      "note": "Absent from the owner's 2026-08-07 portfolio table; owner ruled it eligible 2026-08-08. Statement and evidence intake for FedEx Ground contractors is a field-capture workflow, which is the native case. Its HCBS lane is proposed research on synthetic data, not a shipped healthcare product, so healthSensitive is not set - set it the moment that lane touches real participant data."
+      "note": "Absent from the owner's 2026-08-07 portfolio table; owner ruled it eligible 2026-08-08. Statement and evidence intake for FedEx Ground contractors is a field-capture workflow, which is the native case. Its HCBS lane is proposed research on synthetic data, not a shipped healthcare product, so healthSensitive is not set - set it the moment that lane touches real participant data.",
+      "mobileIdentityStatus": "not-yet-minted",
+      "mobileIdentityNote": "The only include-bucket product without a mobileIdentity block (rexa, abacare, gentlenext and lienwise all have one), which reads as an omission but is not. An identifier is recorded when the EAS project is actually created, and minting one here to close the gap would be the precise failure this file exists to prevent: an Apple bundle identifier cannot be changed once a build reaches App Store Connect, and Android treats a changed applicationId as a different application. The convention needs the product's own domain to apply, and no domain for subops has been established -- so a reverse-DNS identifier cannot be derived without guessing. Deliberately left unminted rather than filled with a placeholder; an owner decision, taken when mobile work on subops actually starts. Recorded 2026-08-20."
     },
     {
       "productId": "lienwise",
