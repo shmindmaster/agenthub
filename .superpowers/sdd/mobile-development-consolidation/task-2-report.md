@@ -51,6 +51,16 @@ pin resolution stays in `registry/mcps.json`.
   installed copies of product-demo-studio, product-experience-engineering, and
   browser-toolkit differ from their sources. No fleet sync was authorized in
   this task; Task 4 owns synchronization.
+- `pwsh -NoProfile -File .\tests\Test-MobileScope.ps1` — **6 passed,
+  0 failed**; 21 products classified, 2 frozen, 17 fleet repositories.
+- `pwsh -NoProfile -File .\tests\Test-SyncRepoToGuest.ps1` — **4 passed,
+  0 failed** using synthetic staged fixtures only; no guest sync ran.
+- `pwsh -NoProfile -File .\tests\Test-CapabilityOwnership.ps1` — **5 passed,
+  0 failed** across 15 capabilities and 19 managed skill names.
+- `pwsh -NoProfile -File .\tests\Test-RegistryHostReferences.ps1` — **5
+  passed, 0 failed**.
+- `pwsh -NoProfile -File .\tests\Test-DeclaredVsDeployedMcp.ps1` — **104
+  passed, 0 failed**.
 - `git diff --cached --check` — no whitespace errors.
 
 Computed package content hash:
