@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { cleanupCreatedSessions } from "./AppiumSessionCleanup.mjs";
 
 function readArgs(argv) {
   const result = {};
@@ -178,17 +179,9 @@ const report = {
 };
 const createdSessionIds = [];
 
-async function cleanupCreatedSessions() {
-  const errors = [];
-  for (const sessionId of [...createdSessionIds].reverse()) {
-    try {
-      await callTool("appium_session_management", { action: "delete", sessionId }, 120_000);
-    } catch (error) {
-      errors.push(`${sessionId}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-  createdSessionIds.length = 0;
-  return errors;
+async function cleanupAllCreatedSessions() {
+  return cleanupCreatedSessions(createdSessionIds, (sessionId) =>
+    callTool("appium_session_management", { action: "delete", sessionId }, 120_000));
 }
 
 try {
@@ -261,7 +254,7 @@ try {
   report.concurrentSessions = (sessionText.match(/sessionId=/g) ?? []).length >= 2;
   if (!report.concurrentSessions) throw new Error(`Concurrent session listing was not credible: ${sessionText}`);
 
-  report.cleanupErrors = await cleanupCreatedSessions();
+  report.cleanupErrors = await cleanupAllCreatedSessions();
   report.sessionsCleaned = report.cleanupErrors.length === 0;
   if (!report.sessionsCleaned) {
     throw new Error(`Session cleanup failed: ${report.cleanupErrors.join(" | ")}`);
@@ -276,7 +269,7 @@ try {
 } catch (error) {
   report.error = error instanceof Error ? error.message : String(error);
   report.stderrTail = stderr.slice(-4000);
-  const additionalCleanupErrors = await cleanupCreatedSessions();
+  const additionalCleanupErrors = await cleanupAllCreatedSessions();
   report.cleanupErrors = [...(report.cleanupErrors ?? []), ...additionalCleanupErrors];
   report.sessionsCleaned = report.cleanupErrors.length === 0;
   fs.writeFileSync(

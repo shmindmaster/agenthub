@@ -937,7 +937,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "0F6C629DCA6EAEEAB0645B7BA8A05C52DF1123BD8B651AE0268E728860C20C26",
+      "contentHash": "A5A39CF45B1DD9C912EFBBF81052927B65B4FD0E7F24067FA5A4B5F839A2CF66",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "hostMappings": [

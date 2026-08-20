@@ -119,34 +119,7 @@ function Get-MobileRuntimeCheck([string]$Platform) {
     # an adb server, and invoking a lab starter or vmrun start would turn a
     # read-only health check into a mutation. Deep readiness belongs to
     # `test deep`; this command reports only what is already running.
-    $processes = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Select-Object Name, ProcessId, CommandLine)
-    $result = [ordered]@{ kind = 'runtime'; platform = $Platform; startedResources = $false }
-    if ($Platform -in @('android', 'both')) {
-        $adb = @($processes | Where-Object { [string]$_.Name -ieq 'adb.exe' })
-        $emulator = @($processes | Where-Object { [string]$_.Name -match '^emulator(64-[A-Za-z]+)?\.exe$|^qemu-system-' })
-        $result.android = [ordered]@{
-            ready = ($adb.Count -gt 0 -and $emulator.Count -gt 0)
-            adbServerProcesses = @($adb | ForEach-Object ProcessId)
-            emulatorProcesses = @($emulator | ForEach-Object ProcessId)
-            expectation = Get-MobileDevelopmentExpectation -Name android
-        }
-    }
-    if ($Platform -in @('ios', 'both')) {
-        $vmxFacts = Get-MobileVmxFacts
-        $vm = @($processes | Where-Object { [string]$_.Name -ieq 'vmware-vmx.exe' -and [string]$_.CommandLine -match [regex]::Escape([IO.Path]::GetFileName($vmxFacts.path)) })
-        $result.ios = [ordered]@{
-            ready = ($vm.Count -gt 0)
-            vmProcesses = @($vm | ForEach-Object ProcessId)
-            vmx = $vmxFacts
-            expectation = Get-MobileDevelopmentExpectation -Name ios
-            note = 'Guest SSH, Simulator, and Appium readiness require a non-starting network probe after a guest is already running; use the full lab gate when that evidence is required.'
-        }
-    }
-    $selected = @()
-    if ($result.android) { $selected += [bool]$result.android.ready }
-    if ($result.ios) { $selected += [bool]$result.ios.ready }
-    $result.ready = ($selected.Count -gt 0 -and @($selected | Where-Object { -not $_ }).Count -eq 0)
-    [pscustomobject]$result
+    Get-MobileRuntimeProcessMatch -Platform $Platform
 }
 
 try {

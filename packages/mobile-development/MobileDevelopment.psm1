@@ -111,4 +111,88 @@ function Get-MobileVmxFacts {
     [pscustomobject]@{ path = $vmx; exists = $true; vcpu = $vcpu; memoryMb = $memory }
 }
 
-Export-ModuleMember -Function Read-AgentHubJson, Get-MobileDevelopmentContract, Get-MobileScopeContract, Get-MobileScopeProduct, Get-AppiumMcpAuthority, Get-MobileDevelopmentRepoRoot, Get-MobileDevelopmentPackageRoot, Get-MobileDevelopmentExpectation, Get-MobileDevelopmentResource, Get-MobileVmxFacts
+function Get-MobileRuntimeProcessMatch {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('android', 'ios', 'both')][string]$Platform,
+        [object[]]$Processes,
+        [string]$AndroidSdkRoot,
+        [AllowEmptyString()][string]$AvdConfigText
+    )
+
+    if (-not $PSBoundParameters.ContainsKey('Processes')) {
+        $Processes = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Select-Object Name, ProcessId, ExecutablePath, CommandLine)
+    }
+    $result = [ordered]@{ kind = 'runtime'; platform = $Platform; startedResources = $false }
+
+    if ($Platform -in @('android', 'both')) {
+        $expectation = Get-MobileDevelopmentExpectation -Name android
+        $toolchain = Get-MobileDevelopmentResource -Id 'windows-mobile-toolchain'
+        if (-not $AndroidSdkRoot) {
+            foreach ($name in @($toolchain.discovery.androidSdkEnvironment)) {
+                $candidate = [Environment]::GetEnvironmentVariable([string]$name)
+                if ($candidate) { $AndroidSdkRoot = $candidate; break }
+            }
+        }
+        $sdkRoot = if ($AndroidSdkRoot) { [IO.Path]::GetFullPath($AndroidSdkRoot) } else { $null }
+        $adbPath = if ($sdkRoot) { [IO.Path]::GetFullPath((Join-Path $sdkRoot (([string]$toolchain.discovery.adbRelativePath) -replace '/', '\'))) } else { $null }
+        $emulatorRoot = if ($sdkRoot) { [IO.Path]::GetFullPath((Join-Path $sdkRoot 'emulator')) } else { $null }
+        $avdName = [string]$expectation.avdName
+        $avdPattern = '(?i)(?:^|\s)-avd(?:\s+|=)"?' + [regex]::Escape($avdName) + '"?(?:\s|$)'
+        $adb = @($Processes | Where-Object {
+            [string]$_.Name -ieq 'adb.exe' -and $adbPath -and [string]$_.ExecutablePath -and
+            [IO.Path]::GetFullPath([string]$_.ExecutablePath).Equals($adbPath, [StringComparison]::OrdinalIgnoreCase)
+        })
+        $emulator = @($Processes | Where-Object {
+            $nameMatches = [string]$_.Name -match '^emulator(64-[A-Za-z]+)?\.exe$|^qemu-system-.*\.exe$'
+            $pathMatches = $false
+            if ($nameMatches -and $emulatorRoot -and [string]$_.ExecutablePath) {
+                $candidatePath = [IO.Path]::GetFullPath([string]$_.ExecutablePath)
+                $pathMatches = $candidatePath.StartsWith(($emulatorRoot.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)
+            }
+            $nameMatches -and $pathMatches -and [string]$_.CommandLine -match $avdPattern
+        })
+        $avdConfigPath = Join-Path ([Environment]::GetFolderPath('UserProfile')) ".android\avd\$avdName.avd\config.ini"
+        if (-not $PSBoundParameters.ContainsKey('AvdConfigText')) {
+            $AvdConfigText = if (Test-Path -LiteralPath $avdConfigPath -PathType Leaf) { Get-Content -LiteralPath $avdConfigPath -Raw -Encoding UTF8 } else { '' }
+        }
+        $apiPattern = '(?im)^\s*(?:target|image\.sysdir(?:\.\d+)?)\s*=.*android-' + [regex]::Escape([string]$expectation.apiLevel) + '(?:[\\/]|$)'
+        $apiMatches = [bool]($AvdConfigText -match $apiPattern)
+        $result.android = [ordered]@{
+            ready = ($adb.Count -gt 0 -and $emulator.Count -gt 0 -and $apiMatches)
+            adbServerProcesses = @($adb | ForEach-Object ProcessId)
+            emulatorProcesses = @($emulator | ForEach-Object ProcessId)
+            canonicalAdbPath = $adbPath
+            canonicalAvd = $avdName
+            canonicalApiLevel = [int]$expectation.apiLevel
+            avdConfigPath = $avdConfigPath
+            avdConfigMatchesApi = $apiMatches
+            expectation = $expectation
+        }
+    }
+
+    if ($Platform -in @('ios', 'both')) {
+        $vmxFacts = Get-MobileVmxFacts
+        $canonicalVmx = ([IO.Path]::GetFullPath([string]$vmxFacts.path)).Replace('/', '\')
+        $vm = @($Processes | Where-Object {
+            if ([string]$_.Name -ine 'vmware-vmx.exe' -or -not [string]$_.CommandLine) { return $false }
+            ([string]$_.CommandLine).Replace('/', '\').IndexOf($canonicalVmx, [StringComparison]::OrdinalIgnoreCase) -ge 0
+        })
+        $result.ios = [ordered]@{
+            ready = ($vm.Count -gt 0)
+            vmProcesses = @($vm | ForEach-Object ProcessId)
+            canonicalVmxPath = $canonicalVmx
+            vmx = $vmxFacts
+            expectation = Get-MobileDevelopmentExpectation -Name ios
+            note = 'Guest SSH, Simulator, and Appium readiness require a non-starting network probe after the canonical guest is already running.'
+        }
+    }
+
+    $selected = @()
+    if ($result.android) { $selected += [bool]$result.android.ready }
+    if ($result.ios) { $selected += [bool]$result.ios.ready }
+    $result.ready = ($selected.Count -gt 0 -and @($selected | Where-Object { -not $_ }).Count -eq 0)
+    [pscustomobject]$result
+}
+
+Export-ModuleMember -Function Read-AgentHubJson, Get-MobileDevelopmentContract, Get-MobileScopeContract, Get-MobileScopeProduct, Get-AppiumMcpAuthority, Get-MobileDevelopmentRepoRoot, Get-MobileDevelopmentPackageRoot, Get-MobileDevelopmentExpectation, Get-MobileDevelopmentResource, Get-MobileVmxFacts, Get-MobileRuntimeProcessMatch

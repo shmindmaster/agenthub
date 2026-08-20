@@ -58,3 +58,30 @@ Task 2/fix loop owns:
 2. Remove the unsupported Cursor and Qoder manifests.
 3. Complete marketplace/fleet documentation and manifest validation, then rerun the canonical contract test to reach 35/35.
 4. Run broader fleet validation after Task 2 lands. Live deep smoke remains a later authorized gate, not part of this checkpoint.
+
+## Fix round 1/5
+
+### Findings addressed
+
+1. `check runtime` now calls a reusable read-only matcher that requires the canonical Android SDK `adb.exe`, an emulator executable under that SDK with the exact registry AVD argument, on-disk AVD configuration matching the registry API, and the authoritative full iOS VMX path. Same-named unrelated AVDs/VMX files cannot report ready.
+2. Both loose skills now enumerate `noNative` and state that only an exact `include` record authorizes product-targeted work.
+3. The platform skill no longer copies product bundle IDs, the Apple team ID, provider-account topology, or named identity exceptions. It resolves identity from `registry/mobile-scope.json` and treats account facts as live owner-gated state.
+4. Executable busy/idle/owned-lease/competing-lease/release coverage is restored in `tests/Test-MobileLabExclusivity.ps1`. Appium cleanup is extracted into the production helper `AppiumSessionCleanup.mjs`, and `tests/Test-AppiumSessionCleanup.mjs` executes success and failure/continue behavior.
+5. The canonical contract test now resolves every service invocation and the public wrapper's start/test/sync/metro/web delegate paths, including the guest Appium helper.
+
+### Exact covering verification
+
+- `pwsh -NoProfile -File .\tests\Test-MobileDevelopment.ps1` — **39 passed, 2 failed**. Every Task 1 assertion passed. The two unchanged failures are the already-recorded Task 2 manifest identity/version parity and unsupported Cursor/Qoder manifest removal.
+- `pwsh -NoProfile -File .\tests\Test-MobileLabExclusivity.ps1` — **6 passed, 0 failed**: active Maestro rejected, synthetic idle accepted, independent probe blocked by lease, owner probe accepted, competing acquisition rejected, clean release proven.
+- `node .\tests\Test-AppiumSessionCleanup.mjs` — **2 passed, 0 failed**: reverse-order deletion/ownership clearing and failure recording with continued deletion attempts.
+- `pwsh -NoProfile -File .\tests\Test-MobileScope.ps1` — **6 passed, 0 failed**; 21 products classified, 2 frozen, 17 repos on the repo-standard roster.
+- The canonical runtime fixture assertions explicitly produced ready only for the registry AVD/API and exact VMX path, rejected an unrelated AVD, API 35, and `C:\unrelated\macos.vmx`, while the live `check runtime both` process snapshot remained unchanged and reported `startedResources=false`.
+- `Test-SyncRepoToGuest.ps1` was not rerun because no sync implementation or test changed in this fix round; its Task 1 checkpoint remains 4 passed, 0 failed.
+
+### Fix-round self-review
+
+- The runtime matcher reads only the Windows process table, AVD config, registries, and VMX; it never invokes adb, emulator, vmrun, SSH, or a guest service.
+- Synthetic lease tests redirect `LOCALAPPDATA` to their private fixture and release the named mutex in `finally`.
+- Session-cleanup tests execute the same imported helper used by the smoke client and verify cleanup continues after one deletion fails.
+- No Task 2 manifest, marketplace document, native connector, fleet deployment, VM state, credential, or external service was modified.
+- Fix-round commit is recorded in the parent handoff after commit creation.

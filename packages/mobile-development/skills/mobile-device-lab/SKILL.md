@@ -55,9 +55,14 @@ driving it, exactly as `mobile-platform-standard` requires:
 | Bucket | What this lab may do |
 | --- | --- |
 | `include` | Drive it. |
+| `noNative` | Stop. This product has no intended native mobile surface. |
 | `evaluateLater` | Stop. Native value is unproven, and no mobile identifier may be reserved ahead of that decision. |
 | `excludedPendingReposition` | Stop. Identity is frozen. |
 | absent | Stop and ask the owner to classify it. Absence never means allowed. |
+
+Fail closed: only an exact `include` record authorizes product-targeted lab
+work. An existing build, repository, domain, app configuration, or remembered
+decision is not evidence of eligibility.
 
 Driving an existing build does not itself mint an identifier, but the work that
 usually follows — creating an Expo or EAS project, a bundle id, a Play package
@@ -65,8 +70,9 @@ usually follows — creating an Expo or EAS project, a bundle id, a Play package
 
 ### Health-sensitive products: the capture tools are the risk
 
-`abacare` and `gentlenext` carry `healthSensitive: true`. This lab's primary
-tools are exactly the ones that flag governs:
+Resolve `healthSensitive` for the selected product from
+`registry/mobile-scope.json`; do not maintain a copied product list here. This
+lab's primary tools are exactly the ones that flag governs:
 
 - `appium_screenshot` and `appium_screen_recording` are screenshot and session
   capture,

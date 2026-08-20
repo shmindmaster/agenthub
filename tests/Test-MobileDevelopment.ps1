@@ -73,6 +73,7 @@ $gateText = Get-Content -LiteralPath $gatePath -Raw -Encoding UTF8
 $idleText = Get-Content -LiteralPath $idlePath -Raw -Encoding UTF8
 $syncGuestText = Get-Content -LiteralPath $syncGuestPath -Raw -Encoding UTF8
 $mcpSmokeText = Get-Content -LiteralPath $mcpSmokePath -Raw -Encoding UTF8
+Import-Module (Join-Path $packageRoot 'MobileDevelopment.psm1') -Force
 
 Report 'canonical contract has stable top-level ownership and authorities' (
     $contract.schemaVersion -eq 1 -and $contract.recordedOn -eq '2026-08-20' -and `
@@ -107,6 +108,7 @@ $badProviderRefs = @()
 $badServiceRefs = @()
 $badFileRefs = @()
 $badCommands = @()
+$badServiceInvocationRefs = @()
 foreach ($surface in @($contract.agentSurface.primary) + @($contract.agentSurface.specialty)) {
     foreach ($id in @($surface.providerIds | Where-Object { $_ })) { if ($id -notin $resourceIds) { $badProviderRefs += "$($surface.id):$id" } }
     foreach ($id in @($surface.serviceIds | Where-Object { $_ })) { if ($id -notin $serviceIds) { $badServiceRefs += "$($surface.id):$id" } }
@@ -119,7 +121,39 @@ foreach ($surface in @($contract.agentSurface.primary) + @($contract.agentSurfac
 foreach ($resource in @($contract.resources)) {
     if ($resource.providerId -and [string]$resource.providerId -notin $resourceIds) { $badProviderRefs += "$($resource.id):$($resource.providerId)" }
 }
-Report 'every provider, service, command, and file reference resolves' ($badProviderRefs.Count -eq 0 -and $badServiceRefs.Count -eq 0 -and $badFileRefs.Count -eq 0 -and $badCommands.Count -eq 0) "providers=$($badProviderRefs -join ',') services=$($badServiceRefs -join ',') files=$($badFileRefs -join ',') commands=$($badCommands -join ',')"
+foreach ($service in @($contract.services)) {
+    $invocation = [string]$service.invocation
+    if ($invocation -match '^(packages/[^ ]+)') {
+        if (-not (Test-Path -LiteralPath (Join-Path $repoRoot ($Matches[1] -replace '/', '\')) -PathType Leaf)) { $badServiceInvocationRefs += "$($service.id):$invocation" }
+    }
+    elseif ($invocation -match '^mobile\.ps1\b') {
+        if (-not (Test-Path -LiteralPath $entrypoint -PathType Leaf)) { $badServiceInvocationRefs += "$($service.id):$invocation" }
+    }
+    elseif ($invocation -match '^<android-sdk>/(.+)$') {
+        $toolchain = @($contract.resources | Where-Object id -eq 'windows-mobile-toolchain')[0]
+        $sdkRoot = @($toolchain.discovery.androidSdkEnvironment | ForEach-Object { [Environment]::GetEnvironmentVariable([string]$_) } | Where-Object { $_ } | Select-Object -First 1)
+        if ($sdkRoot.Count -ne 1 -or -not (Test-Path -LiteralPath (Join-Path $sdkRoot[0] ($Matches[1] -replace '/', '\')) -PathType Leaf)) { $badServiceInvocationRefs += "$($service.id):$invocation" }
+    }
+    elseif ($invocation -match '^ssh\b') {
+        if (-not (Get-Command ssh -ErrorAction SilentlyContinue)) { $badServiceInvocationRefs += "$($service.id):$invocation" }
+    }
+    else { $badServiceInvocationRefs += "$($service.id):$invocation" }
+}
+$delegateMap = [ordered]@{
+    start = 'skills\mobile-device-lab\scripts\Start-MobileLab.ps1'
+    test = 'skills\mobile-device-lab\scripts\Test-MobileLab.ps1'
+    sync = 'skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1'
+    metro = 'skills\mobile-device-lab\scripts\Start-MobileLabMetro.ps1'
+    web = 'skills\mobile-device-lab\scripts\Open-MobileLabWebTarget.ps1'
+}
+$badDelegates = @($delegateMap.GetEnumerator() | Where-Object {
+    -not (Test-Path -LiteralPath (Join-Path $packageRoot $_.Value) -PathType Leaf) -or
+    $entrypointText -notmatch [regex]::Escape($_.Value)
+} | ForEach-Object Key)
+Report 'every provider, service, command, file, service invocation, and wrapper delegate resolves' (
+    $badProviderRefs.Count -eq 0 -and $badServiceRefs.Count -eq 0 -and $badFileRefs.Count -eq 0 -and
+    $badCommands.Count -eq 0 -and $badServiceInvocationRefs.Count -eq 0 -and $badDelegates.Count -eq 0
+) "providers=$($badProviderRefs -join ',') services=$($badServiceRefs -join ',') files=$($badFileRefs -join ',') commands=$($badCommands -join ',') serviceInvocations=$($badServiceInvocationRefs -join ',') delegates=$($badDelegates -join ',')"
 Report 'every service declares activation, invocation, and readiness metadata' (@($contract.services | Where-Object { -not $_.activationMode -or -not $_.invocation -or -not $_.readiness }).Count -eq 0) 'A lifecycle field is missing.'
 
 $appium = @($mcps.mcpServers | Where-Object id -eq 'appium-mobile')
@@ -185,6 +219,16 @@ $includeScope = Invoke-MobileJson @('scope','rexa')
 $noNativeScope = Invoke-MobileJson @('scope','agenthub')
 Report 'scope resolves include products' ($includeScope.ExitCode -eq 0 -and $includeScope.Result.bucket -eq 'include' -and $includeScope.Result.eligible) "output=$($includeScope.Output -join ' ')"
 Report 'scope resolves noNative explicitly instead of treating it as absent' ($noNativeScope.ExitCode -eq 0 -and $noNativeScope.Result.bucket -eq 'noNative' -and -not $noNativeScope.Result.eligible -and $noNativeScope.Result.decision -match 'no native') "output=$($noNativeScope.Output -join ' ')"
+Report 'both loose skills enumerate noNative and fail closed to exact include eligibility' (
+    $platformSkillText -match '\| `noNative` \|' -and $labSkillText -match '\| `noNative` \|' -and
+    $platformSkillText -match 'only an exact `include` record authorizes' -and
+    $labSkillText -match 'only an exact `include` record authorizes'
+) 'A loose skill can infer product eligibility outside registry/mobile-scope.json#include.'
+Report 'platform skill resolves mutable product identity and account facts instead of copying them' (
+    $platformSkillText -match 'sole product identity authority' -and
+    $platformSkillText -match 'do not persist a second table in a skill' -and
+    $platformSkillText -notmatch '9V6CGU625U|app\.shmindmaster\.rexa|ai\.abacare\.app|@shmindmaster/recallforge'
+) 'The skill still carries a copied bundle ID, Apple team ID, provider identity, or product exception.'
 $gatedNoNative = Invoke-MobileJson @('sync','agenthub')
 $gatedEvaluate = Invoke-MobileJson @('metro','lawli')
 $gatedFrozen = Invoke-MobileJson @('web','empowera')
@@ -270,6 +314,25 @@ Report 'runtime check is process-table-only and never invokes lifecycle commands
     $entrypointText -notmatch 'Get-MobileRuntimeCheck[\s\S]{0,3500}&\s*\$adb'
 ) 'The read-only runtime path can start or drive a mobile resource.'
 
+$syntheticSdk = 'C:\synthetic\Android\Sdk'
+$canonicalAvd = [string]$contract.expectations.android.avdName
+$canonicalApi = [string]$contract.expectations.android.apiLevel
+$androidProcesses = @(
+    [pscustomobject]@{ Name='adb.exe'; ProcessId=101; ExecutablePath="$syntheticSdk\platform-tools\adb.exe"; CommandLine='adb -L tcp:5037 fork-server server' },
+    [pscustomobject]@{ Name='qemu-system-x86_64.exe'; ProcessId=102; ExecutablePath="$syntheticSdk\emulator\qemu\windows-x86_64\qemu-system-x86_64.exe"; CommandLine="qemu-system-x86_64.exe -avd $canonicalAvd" }
+)
+$androidMatch = Get-MobileRuntimeProcessMatch -Platform android -Processes $androidProcesses -AndroidSdkRoot $syntheticSdk -AvdConfigText "image.sysdir.1=system-images\android-$canonicalApi\google_apis\x86_64\"
+$wrongAvdProcesses = @($androidProcesses[0], [pscustomobject]@{ Name='qemu-system-x86_64.exe'; ProcessId=103; ExecutablePath="$syntheticSdk\emulator\qemu\windows-x86_64\qemu-system-x86_64.exe"; CommandLine='qemu-system-x86_64.exe -avd unrelated-api36' })
+$wrongAvd = Get-MobileRuntimeProcessMatch -Platform android -Processes $wrongAvdProcesses -AndroidSdkRoot $syntheticSdk -AvdConfigText "image.sysdir.1=system-images\android-$canonicalApi\google_apis\x86_64\"
+$wrongApi = Get-MobileRuntimeProcessMatch -Platform android -Processes $androidProcesses -AndroidSdkRoot $syntheticSdk -AvdConfigText 'image.sysdir.1=system-images\android-35\google_apis\x86_64\'
+$canonicalVmx = (([string]$contract.authorities.vmx) -replace '/', '\')
+$iosMatch = Get-MobileRuntimeProcessMatch -Platform ios -Processes @([pscustomobject]@{ Name='vmware-vmx.exe'; ProcessId=201; ExecutablePath='C:\Program Files\VMware\VMware Workstation\x64\vmware-vmx.exe'; CommandLine="vmware-vmx.exe `"$canonicalVmx`"" })
+$wrongIos = Get-MobileRuntimeProcessMatch -Platform ios -Processes @([pscustomobject]@{ Name='vmware-vmx.exe'; ProcessId=202; ExecutablePath='C:\Program Files\VMware\VMware Workstation\x64\vmware-vmx.exe'; CommandLine='vmware-vmx.exe "C:\unrelated\macos.vmx"' })
+Report 'runtime matching requires canonical Android SDK, AVD, and API evidence' (
+    $androidMatch.ready -and $androidMatch.android.avdConfigMatchesApi -and -not $wrongAvd.ready -and -not $wrongApi.ready
+) "canonical=$($androidMatch | ConvertTo-Json -Depth 5 -Compress) wrongAvdReady=$($wrongAvd.ready) wrongApiReady=$($wrongApi.ready)"
+Report 'runtime matching requires the authoritative full iOS VMX path' ($iosMatch.ready -and -not $wrongIos.ready) "canonicalReady=$($iosMatch.ready) unrelatedReady=$($wrongIos.ready) path=$canonicalVmx"
+
 Report 'deep smoke pins both sessions to enumerated virtual-device IDs' (
     $mcpSmokeText -match '"appium:udid":\s*args\["android-udid"\]' -and `
     $mcpSmokeText -match '"appium:udid":\s*args\["ios-udid"\]' -and `
@@ -279,9 +342,16 @@ Report 'deep smoke pins both sessions to enumerated virtual-device IDs' (
 Report 'deep smoke retains exclusivity and complete session cleanup' (
     $gateText -match 'Global\\AgentHub\.MobileDeviceLab\.ForegroundMutation' -and `
     $gateText -match 'final pre-launch exclusivity check' -and `
-    $mcpSmokeText -match 'cleanupCreatedSessions\(\)' -and `
+    $mcpSmokeText -match 'cleanupAllCreatedSessions\(\)' -and `
     $mcpSmokeText -match 'if \(!report\.sessionsCleaned\)'
-) 'Foreground mutation or Appium session cleanup became unsafe.'
+) 'Foreground mutation or Appium session cleanup wiring became unsafe.'
+$hostExe = (Get-Process -Id $PID).Path
+$exclusivityOutput = @(& $hostExe -NoProfile -File (Join-Path $repoRoot 'tests\Test-MobileLabExclusivity.ps1') 2>&1)
+$exclusivityExit = $LASTEXITCODE
+$cleanupOutput = @(& node (Join-Path $repoRoot 'tests\Test-AppiumSessionCleanup.mjs') 2>&1)
+$cleanupExit = $LASTEXITCODE
+Report 'lease busy/idle/contender behavior is executable' ($exclusivityExit -eq 0) "exit=$exclusivityExit output=$($exclusivityOutput -join ' ')"
+Report 'Appium session cleanup behavior is executable' ($cleanupExit -eq 0) "exit=$cleanupExit output=$($cleanupOutput -join ' ')"
 Report 'guest helper sync stages LF-only scripts plus generated registry facts' (
     $syncGuestText -match 'Replace\("`r`n", "`n"\)' -and `
     $syncGuestText -match "guestEnvironmentName = 'mobile-development\.env'" -and `

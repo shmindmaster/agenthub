@@ -18,9 +18,14 @@ anything else.
 | Bucket | What to do |
 | --- | --- |
 | `include` | Proceed with the baseline below. |
+| `noNative` | Stop. This product has no intended native mobile surface. |
 | `evaluateLater` | Stop. Report that native value is unproven for this product and no identifier may be reserved ahead of that decision. |
 | `excludedPendingReposition` | Stop. Identity is frozen; see below. |
 | absent from the file | Stop and ask the owner to classify it. Absence never means allowed. |
+
+Fail closed: only an exact `include` record authorizes product-targeted mobile
+work. Do not infer eligibility from a repository, app config, existing build,
+domain, or remembered owner decision.
 
 For a frozen product, every class in `scopePolicy.frozenIdentifierClasses` is
 prohibited: Expo project, EAS project, Apple bundle identifier, App Store
@@ -85,10 +90,10 @@ credentials - and **neither is a build minute**. Caching and `secret`-type
 environment variables are not supported locally, and the `node`/`yarn`/
 `fastlane`/`cocoapods`/`ndk`/`image` version fields in `eas.json` are ignored.
 
-Verified on Rexa 2026-08-11 in the VMware macOS guest, ~10 minutes wall clock:
-a 16.1 MB `arm64` `.ipa`, authority `iPhone Distribution: Sarosh Hussain
-(9V6CGU625U)`, `codesign --verify` clean, Ad Hoc profile carrying the test
-device's UDID.
+A measured local guest build completed in roughly ten minutes and produced a
+verified signed `arm64` `.ipa`. Treat that as route evidence, not as current
+product, account, certificate, team, or device state; resolve those facts from
+their authorities at execution time.
 
 **An empty signing-identity list does not mean the guest cannot sign.**
 
@@ -98,7 +103,7 @@ security find-identity -v -p codesigning   ->  0 valid identities found
 
 That is the expected state *after a successful local build*: `eas build
 --local` imports the certificate into a throwaway keychain for the build and
-tears it down afterwards. Rexa's runbook read that output as "the guest cannot
+tears it down afterwards. A prior runbook read that output as "the guest cannot
 sign", recorded "iOS device builds require EAS" as fact, and kept spending
 quota on the one build it did not need to. Check for a signed artifact, never
 for a permanent keychain identity.
@@ -176,9 +181,8 @@ actually being released.
 }
 ```
 
-Add profiles when a real need appears and say what it is - Rexa carries a
-`study` profile because it needs a build that runs without a dev server. That
-is a reason; "we might release someday" is not.
+Add profiles when a real need appears and record that reason in the product's
+authoritative configuration. "We might release someday" is not a reason.
 
 Adopt suffixed variants only when a product is genuinely heading to a store
 and needs side-by-side installs. Then, and only then:
@@ -192,100 +196,39 @@ const suffix =
 Applied to both `ios.bundleIdentifier` and `android.package`, with a matching
 display name.
 
-## 4. Identifier conventions
+## 4. Resolve identity and account state; do not copy it here
 
-- Reverse-DNS from the product's own domain (`ai.abacare.app`), not a shared
-  vendor prefix - so an identifier never binds a product to whoever owns it
-  today. Recorded per product under `mobileIdentity` in
-  `registry/mobile-scope.json`, and `tests/Test-MobileScope.ps1` fails if a
-  recorded identifier drifts from the app config.
-- Exception on record: `rexa` uses `app.shmindmaster.rexa` because `rexa.ai`
-  is not owned. It predates the rule and cannot be changed.
-- One EAS project per product. The EAS slug equals the product's `productId`
-  in `registry/mobile-scope.json`.
-- Anything compiled into client JavaScript is public. EAS secrets do not make
-  an embedded `EXPO_PUBLIC_*` value private.
+`registry/mobile-scope.json` is the sole product identity authority. After the
+eligibility gate passes, resolve the selected product's `mobileIdentity` there
+for its canonical domain, bundle/application identifiers, and project naming.
+Never derive or copy those values from this skill, another product, an old
+build, or a provider dashboard. `tests/Test-MobileScope.ps1` verifies recorded
+identities against eligible product configuration.
 
-**The EAS slug cannot be renamed.** Verified 2026-08-08 against eas-cli 21.7.0
-and the Expo dashboard: `eas project` exposes only
-`icon`/`delete`/`info`/`init`/`new`, and project settings edits a separate
-"Display name" while the Danger zone offers only transfer and delete. The only
-route to a different slug is delete and re-create - a new project ID, lost
-build history, and regenerated credentials.
+Stable policy:
 
-Cautionary case, and how it ended: Rexa's EAS project shipped as
-`@shmindmaster/recallforge`, the pre-rename product name. The owner deleted
-the project on 2026-08-08 and the slug is being re-created as `rexa`. That was
-only affordable because nothing had been store-submitted and no EAS Update
-channel existed - the sole cost was build history. **Delete-and-re-create stops
-being an option the moment a build reaches App Store Connect.** Set the slug
-from the final name, or freeze the product until there is one.
-
-When a project is deleted, clear `extra.eas.projectId` from `app.json`. A
-project ID pointing at a deleted project fails every `eas` command with
-"project not found"; `eas init` writes a fresh one.
-
-Account-level Apple state (team, distribution certificate, App IDs, devices)
-survives an EAS project deletion - it belongs to the account, not the project.
-
-## 5. Account topology - one of everything
-
-Verified against the live Expo and Apple accounts on 2026-08-08. A solo
-developer needs exactly this, and every extra row is something to keep
-consistent forever:
-
-| Layer | Correct count | Detail |
-| --- | --- | --- |
-| Expo account | **1** | `shmindmaster`, the personal account. Not an organization. |
-| Apple team | **1** | `9V6CGU625U`, Individual. |
-| iOS Distribution certificate | **1** | Shared by every app. Apple caps you at 2 - do not burn them. |
-| Apple App IDs | **1 per product** | EAS creates each on that product's first build. |
-| Provisioning profiles | **1 per App ID** | The target, not the default - see below. |
-| Registered devices | **1 per physical phone** | Shared across all profiles. |
-| APNs / App Store Connect API keys | **0** | Only needed for push and store submission. |
-
-**Never hand-create anything in the Apple Developer portal.** Let EAS create
-App IDs and profiles; hand-made ones drift from what EAS expects and produce
-provisioning failures that are slow to unpick. Four apps do not mean four
-certificates - EAS reuses the one.
-
-Ad Hoc profiles embed the device list, so adding a phone invalidates every
-existing profile until the next build regenerates them. A build that suddenly
-will not install on a new device is that, not a bug.
-
-**Profiles accumulate; EAS creates, it does not replace.** Regenerating
-credentials mints `[expo] <bundleId> AdHoc <ts>` and leaves the previous
-profile active against the same App ID - observed on 2026-08-08, two live
-profiles for `app.shmindmaster.rexa` after one rebuild. Only the newest is
-bound to the project. The stale ones are inert but they are what makes an
-account drift, so delete them in the portal when the count exceeds one.
-
-Three traps found on this account, all worth checking elsewhere:
-
-- Expo historically auto-created a `<username>s-team` organization at signup.
-  It is a legacy artifact, not something to build on. A solo developer should
-  delete it and work under the personal account.
-- EAS names an Apple App ID from the EAS project's full name at creation time,
-  so a stale EAS slug leaks into the Apple portal - here the App ID for
-  `app.shmindmaster.rexa` is described `shmindmasterrecallforge...`. The
-  description is editable and EAS will not overwrite it; the bundle
-  identifier underneath is not editable at all.
-- **A rebuild will not repair that name.** EAS names an App ID only when it
-  creates one, and it will not create one that already exists - `Bundle
-  identifier registered` in the build log means matched, not minted. Deleting
-  the App ID in the portal *before* the build is the only way to get a
-  correctly-named replacement, and it forces deleting every profile that
-  references it first. Renaming the description in the portal reaches the same
-  end state without spending a build; prefer it.
-
-Deleting an Expo project or account requires an interactive password
-re-confirmation ("sudo mode") and is not exposed as a GraphQL mutation, so it
-cannot be automated - hand those steps to the owner.
+- Use the exact authority value; do not normalize, improve, or replace it.
+- One EAS project per eligible product unless the authority records a reviewed
+  exception. Anything compiled into client JavaScript is public.
+- Treat EAS project IDs/slugs, Apple team and certificate state, App IDs,
+  profiles, registered devices, and provider account topology as mutable live
+  facts. Resolve them from the eligible product record and provider at the
+  authorized execution gate; do not persist a second table in a skill.
+- Product identity or provider-account mutation is owner-gated. Deletion,
+  recreation, signing, registration, store submission, and credential changes
+  are never implied by development work.
+- EAS slugs and store identifiers can carry irreversible history. If the
+  authority and provider disagree, stop and report the drift rather than
+  repairing either side automatically.
+- Ad Hoc profiles embed device membership and provider credentials/profiles
+  can accumulate. Diagnose current live state before proposing cleanup; any
+  cleanup remains an explicit owner action.
 
 ## 6. Health-sensitive products
 
-`registry/mobile-scope.json` marks products with `healthSensitive: true`
-(currently `abacare` and `gentlenext`). For those, do not enable screenshot
+`registry/mobile-scope.json` marks products with `healthSensitive: true`.
+Resolve that flag for the selected product at execution time. For those
+products, do not enable screenshot
 collection, session replay, or broad AI/MCP access against real patient data.
 Review the connected model provider's retention and training policy before
 enabling MCP access at all, and prefer synthetic fixtures.
