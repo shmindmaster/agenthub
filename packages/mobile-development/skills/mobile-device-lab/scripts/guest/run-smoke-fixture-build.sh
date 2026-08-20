@@ -14,7 +14,8 @@ if [ "${1:-}" = "--worker" ]; then
   set +e
   bash "$BUILDER" "$REPO" '' "$UDID" >"$LOG_FILE" 2>&1
   RC=$?
-  printf '%s\n' "$RC" >"$STATUS_FILE"
+  printf '%s\n' "$RC" >"$STATUS_FILE.tmp"
+  mv "$STATUS_FILE.tmp" "$STATUS_FILE"
   exit "$RC"
 fi
 
@@ -26,14 +27,20 @@ case "${1:-status}" in
       echo RUNNING
       exit 0
     fi
-    rm -f "$STATUS_FILE" "$LOG_FILE"
+    rm -f "$STATUS_FILE" "$STATUS_FILE.tmp" "$LOG_FILE"
+    printf '%s\n' 'RUNNING' >"$STATUS_FILE"
     nohup "$0" --worker "$REPO" "$UDID" </dev/null >/dev/null 2>&1 &
     printf '%s\n' "$!" >"$PID_FILE"
     echo STARTED
     ;;
   status)
     if [ -f "$STATUS_FILE" ]; then
-      printf 'DONE:%s\n' "$(cat "$STATUS_FILE")"
+      STATUS="$(cat "$STATUS_FILE")"
+      if [ "$STATUS" = "RUNNING" ]; then
+        echo RUNNING
+      else
+        printf 'DONE:%s\n' "$STATUS"
+      fi
     elif [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
       echo RUNNING
     else

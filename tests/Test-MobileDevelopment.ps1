@@ -30,6 +30,31 @@ function Test-Sequence([object[]]$Actual, [object[]]$Expected) {
     (@($Actual) -join "`n") -ceq (@($Expected) -join "`n")
 }
 
+function Test-ReadableSkillTree([string]$Source, [string]$Destination) {
+    if (-not (Test-Path -LiteralPath $Source -PathType Container) -or
+        -not (Test-Path -LiteralPath $Destination -PathType Container)) { return $false }
+    try {
+        $sourceFiles = @(
+            Get-ChildItem -LiteralPath $Source -Recurse -File -Force |
+                ForEach-Object { $_.FullName.Substring($Source.TrimEnd('\').Length + 1).Replace('\','/') } |
+                Sort-Object
+        )
+        $destinationFiles = @(
+            Get-ChildItem -LiteralPath $Destination -Recurse -File -Force |
+                ForEach-Object { $_.FullName.Substring($Destination.TrimEnd('\').Length + 1).Replace('\','/') } |
+                Sort-Object
+        )
+        if (-not (Test-Sequence $sourceFiles $destinationFiles)) { return $false }
+        foreach ($relative in $sourceFiles) {
+            $sourcePath = Join-Path $Source ($relative -replace '/', '\')
+            $destinationPath = Join-Path $Destination ($relative -replace '/', '\')
+            if ((Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash -ne
+                (Get-FileHash -LiteralPath $destinationPath -Algorithm SHA256).Hash) { return $false }
+        }
+        return $true
+    } catch { return $false }
+}
+
 function Invoke-MobileJson([string[]]$Arguments) {
     $hostExe = (Get-Process -Id $PID).Path
     $old = $ErrorActionPreference
@@ -68,6 +93,9 @@ $gatePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-Mobile
 $idlePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1'
 $syncGuestPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Sync-MobileLabGuestScripts.ps1'
 $mcpSmokePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Invoke-AppiumMcpSmoke.mjs'
+$guestBuildSupervisorPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\run-smoke-fixture-build.sh'
+$guestSimulatorBuilderPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\build-expo-simulator.sh'
+$guestWdaCleanupPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\cleanup-wda-guest.sh'
 $labSkillText = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\SKILL.md') -Raw -Encoding UTF8
 $platformSkillText = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-platform-standard\SKILL.md') -Raw -Encoding UTF8
 $startText = Get-Content -LiteralPath $startPath -Raw -Encoding UTF8
@@ -75,7 +103,25 @@ $gateText = Get-Content -LiteralPath $gatePath -Raw -Encoding UTF8
 $idleText = Get-Content -LiteralPath $idlePath -Raw -Encoding UTF8
 $syncGuestText = Get-Content -LiteralPath $syncGuestPath -Raw -Encoding UTF8
 $mcpSmokeText = Get-Content -LiteralPath $mcpSmokePath -Raw -Encoding UTF8
+$guestBuildSupervisorText = Get-Content -LiteralPath $guestBuildSupervisorPath -Raw -Encoding UTF8
+$guestSimulatorBuilderText = Get-Content -LiteralPath $guestSimulatorBuilderPath -Raw -Encoding UTF8
+$guestWdaCleanupText = Get-Content -LiteralPath $guestWdaCleanupPath -Raw -Encoding UTF8
 Import-Module (Join-Path $packageRoot 'MobileDevelopment.psm1') -Force
+
+$powerShellParseErrors = @(
+    Get-ChildItem -LiteralPath $packageRoot -Recurse -File -Filter '*.ps1' |
+        ForEach-Object {
+            $parseTokens = $null
+            $parseErrors = $null
+            [Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+            foreach ($parseError in @($parseErrors)) {
+                '{0}: {1}' -f $_.FullName, $parseError.Message
+            }
+        }
+)
+Report 'every canonical mobile PowerShell script parses' (
+    $powerShellParseErrors.Count -eq 0
+) ($powerShellParseErrors -join '; ')
 
 Report 'canonical contract has stable top-level ownership and authorities' (
     $contract.schemaVersion -eq 1 -and $contract.recordedOn -eq '2026-08-20' -and `
@@ -156,6 +202,13 @@ Report 'every provider, service, command, file, service invocation, and wrapper 
     $badProviderRefs.Count -eq 0 -and $badServiceRefs.Count -eq 0 -and $badFileRefs.Count -eq 0 -and
     $badCommands.Count -eq 0 -and $badServiceInvocationRefs.Count -eq 0 -and $badDelegates.Count -eq 0
 ) "providers=$($badProviderRefs -join ',') services=$($badServiceRefs -join ',') files=$($badFileRefs -join ',') commands=$($badCommands -join ',') serviceInvocations=$($badServiceInvocationRefs -join ',') delegates=$($badDelegates -join ',')"
+$delegateInvocationCount = ([regex]::Matches($entrypointText, 'Invoke-MobileDelegate\s+-Script\s+\$script\s+-Arguments\s+\$forward')).Count
+Report 'public wrapper preserves named options for every delegated PowerShell route' (
+    $entrypointText -match 'function\s+Invoke-MobileDelegate' -and `
+    $entrypointText -match '&\s+\$hostExe\s+-NoProfile\s+-File\s+\$Script\s+@Arguments' -and `
+    $entrypointText -notmatch '&\s+\$script\s+@forward' -and `
+    $delegateInvocationCount -eq 6
+) "delegateInvocationCount=$delegateInvocationCount"
 Report 'every service declares activation, invocation, and readiness metadata' (@($contract.services | Where-Object { -not $_.activationMode -or -not $_.invocation -or -not $_.readiness }).Count -eq 0) 'A lifecycle field is missing.'
 
 $appium = @($mcps.mcpServers | Where-Object id -eq 'appium-mobile')
@@ -206,13 +259,41 @@ Report 'old package and split skill residues are absent' (
 ) 'A duplicate canonical package or split skill tree remains.'
 
 $alias = @{}; foreach ($row in @($capabilities.surfaceAliases)) { $alias[[string]$row.surfaceId] = [string]$row.inheritsHostId }
-$activeHosts = @($agents.activeAgents | Where-Object status -eq 'active' | ForEach-Object { if ($alias.ContainsKey([string]$_.id)) { $alias[[string]$_.id] } else { [string]$_.id } } | Sort-Object -Unique)
+$activeAgents = @($agents.activeAgents | Where-Object status -eq 'active')
+$activeHosts = @($activeAgents | ForEach-Object { if ($alias.ContainsKey([string]$_.id)) { $alias[[string]$_.id] } else { [string]$_.id } } | Sort-Object -Unique)
 $mappedHosts = @($mobileCapability[0].hostMappings.hostId | Sort-Object -Unique)
+$mobileDeploymentFailures = @(
+    foreach ($activeAgent in $activeAgents) {
+        $resolvedHost = if ($alias.ContainsKey([string]$activeAgent.id)) { $alias[[string]$activeAgent.id] } else { [string]$activeAgent.id }
+        $resolvedAgent = @($agents.activeAgents | Where-Object id -eq $resolvedHost | Select-Object -First 1)
+        $mapping = @($mobileCapability[0].hostMappings | Where-Object hostId -eq $resolvedHost)
+        $skillsDir = if ($resolvedAgent.Count -eq 1 -and -not [string]::IsNullOrWhiteSpace([string]$resolvedAgent[0].nativePaths.sharedSkillsDir)) {
+            [string]$resolvedAgent[0].nativePaths.sharedSkillsDir
+        } elseif ($resolvedAgent.Count -eq 1) {
+            [string]$resolvedAgent[0].nativePaths.skillsDir
+        } else { $null }
+        $skillsReadable = $true
+        foreach ($skillName in @($mobileCapability[0].managedSkillNames)) {
+            $source = Join-Path $packageRoot "skills\$skillName"
+            $destination = if ($skillsDir) { Join-Path $skillsDir $skillName } else { $null }
+            if (-not $destination -or -not (Test-ReadableSkillTree -Source $source -Destination $destination)) {
+                $skillsReadable = $false
+            }
+        }
+        $catalogPath = Join-Path $repoRoot (([string]$mobileCapability[0].catalogEntrypoint -split '\s+')[0] -replace '/', '\')
+        $catalogReadable = Test-Path -LiteralPath $catalogPath -PathType Leaf
+        if ($mapping.Count -ne 1 -or 'skills' -notin @($mapping[0].components) -or
+            'catalog' -notin @($mapping[0].components) -or -not $skillsReadable -or -not $catalogReadable) {
+            "$($activeAgent.id)->$resolvedHost skillsDir=$skillsDir mappingCount=$($mapping.Count) skillsReadable=$skillsReadable catalogReadable=$catalogReadable"
+        }
+    }
+)
 Report 'all active coding hosts receive the loose mobile skills and catalog' (
     (Test-Sequence $mappedHosts $activeHosts) -and `
     $mobileCapability[0].catalogEntrypoint -eq 'packages/mobile-development/mobile.ps1 catalog' -and `
-    @($mobileCapability[0].hostMappings | Where-Object { [string]$_.deploymentStatus -notmatch 'loose-skills' -or 'skills' -notin @($_.components) -or 'catalog' -notin @($_.components) }).Count -eq 0
-) "active=$($activeHosts -join ',') mapped=$($mappedHosts -join ',')"
+    @($mobileCapability[0].hostMappings | Where-Object { [string]$_.deploymentStatus -notmatch 'loose-skills' -or 'skills' -notin @($_.components) -or 'catalog' -notin @($_.components) }).Count -eq 0 -and `
+    $mobileDeploymentFailures.Count -eq 0
+) "active=$($activeHosts -join ',') mapped=$($mappedHosts -join ',') deploymentFailures=$($mobileDeploymentFailures -join '; ')"
 Report 'Appium MCP is scoped to Claude and Codex only' (Test-Sequence @($appium[0].hosts) @('claude','codex')) "hosts=$(@($appium[0].hosts) -join ',')"
 Report 'Appium never persists in default host MCP configuration' ('appium-mobile' -notin @($connectors.lifecyclePolicy.persistedOnDemandLocalMcpIds)) 'Persisting stdio Appium starts an idle process per task.'
 Report 'native MCP management is enable/disable and explains new-task loading' (
@@ -313,7 +394,7 @@ Report 'active scripts resolve guest and virtual-device expectations from regist
     $copiedExpectationLiterals.Count -eq 0 -and `
     $startText -match 'Get-MobileDevelopmentContract' -and $gateText -match 'Get-MobileDevelopmentContract' -and `
     $syncGuestText -match 'mobile-development\.env' -and `
-    (Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\setup-appium-guest.sh') -Raw) -match 'mobile-development\.env'
+    (Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\setup-appium-guest.sh') -Raw -Encoding UTF8) -match 'mobile-development\.env'
 ) "copied literals=$($copiedExpectationLiterals -join ',')"
 Report 'startup resolves only the canonical VMX and fails closed on nested virtualization' (
     $startText -match '\$Vmx\s*=\s*\(Get-MobileVmxFacts\)\.path' -and `
@@ -341,11 +422,14 @@ Report 'runtime check is process-table-only and never invokes lifecycle commands
 
 $runtimeHealthFunction = [regex]::Match($entrypointText, 'function Invoke-MobileRuntimeHealthCheck[\s\S]+?(?=\r?\ntry \{)').Value
 $healthProcessPreflight = $runtimeHealthFunction.IndexOf('Get-MobileRuntimeCheck -Platform $Platform')
-$healthDelegate = $runtimeHealthFunction.IndexOf('& $script @forward')
+$healthDelegate = $runtimeHealthFunction.IndexOf('Invoke-MobileDelegate -Script $script -Arguments $forward')
 $gateProcessPreflight = $gateText.IndexOf('Get-MobileRuntimeProcessMatch -Platform $runtimePlatform')
 $gateNodeProbe = $gateText.IndexOf('Get-Command node')
 $gateAdbProbe = $gateText.IndexOf('& $adb @existingServerArgs devices')
 $gateVmProbe = $gateText.IndexOf('& $vmrun list')
+$invokeGuestFunction = [regex]::Match($gateText, 'function Invoke-Guest[\s\S]+?(?=\r?\nWrite-Host)').Value
+$guestAsyncDrain = $invokeGuestFunction.IndexOf('ReadToEndAsync()')
+$guestWaitForExit = $invokeGuestFunction.IndexOf('$p.WaitForExit($TimeoutSec * 1000)')
 Report 'check runtime -Deep fails closed on canonical processes before full health delegation' (
     $entrypointText -match "-Deep is valid only with check runtime" -and `
     $healthProcessPreflight -ge 0 -and $healthProcessPreflight -lt $healthDelegate -and `
@@ -354,7 +438,7 @@ Report 'check runtime -Deep fails closed on canonical processes before full heal
 ) 'The public deep-health route can probe or delegate before exact process identity is established.'
 Report 'deep health delegates to the retained gate without enabling synthetic smoke' (
     $runtimeHealthFunction -match 'Get-MobileRuntimeHealthInvocation' -and `
-    $runtimeHealthFunction -match '& \$script @forward' -and `
+    $runtimeHealthFunction -match 'Invoke-MobileDelegate -Script \$script -Arguments \$forward' -and `
     $runtimeHealthFunction -notmatch "@\('-Deep'\)" -and `
     $gateText -match '\[switch\]\$RequireRunningProcesses'
 ) 'The public health route bypasses the retained gate or can trigger its mutating -Deep mode.'
@@ -364,6 +448,22 @@ Report 'retained health gate repeats process preflight before node adb and VMwar
     $gateText -match "@\('-H', '127\.0\.0\.1', '-P', '5037'\)" -and `
     $gateText -match '& \$adb @existingServerArgs -s \$id emu avd name'
 ) 'The retained gate can auto-discover/start adb or probe before canonical runtime processes are proven.'
+Report 'guest command runner drains redirected output before waiting for exit' (
+    $guestAsyncDrain -ge 0 -and $guestAsyncDrain -lt $guestWaitForExit -and `
+    $invokeGuestFunction -notmatch '\.Standard(Output|Error)\.ReadToEnd\(\)'
+) 'Large simctl JSON can fill the redirected pipe and deadlock the gate before its timeout.'
+Report 'guest synthetic build lifecycle is race-free under macOS Bash' (
+    $guestBuildSupervisorText.Contains('printf ''%s\n'' ''RUNNING'' >"$STATUS_FILE"') -and `
+    $guestBuildSupervisorText -match 'mv "\$STATUS_FILE\.tmp" "\$STATUS_FILE"' -and `
+    $guestSimulatorBuilderText.Contains('${XCODE_EXTRA[@]+"${XCODE_EXTRA[@]}"}') -and `
+    $guestSimulatorBuilderText -notmatch '(?m)^\s*"\$\{XCODE_EXTRA\[@\]\}"\s*\\\s*$'
+) 'The supervisor can report transient IDLE or the optional Xcode argument array is unsafe with set -u.'
+Report 'guest WDA cleanup is bounded and safe with an empty match set' (
+    $guestWdaCleanupText -match 'while read -r pid ppid command; do' -and `
+    $guestWdaCleanupText -notmatch '\bawk\b' -and `
+    $guestWdaCleanupText.Contains('for pid in $owned_pids; do') -and `
+    $guestWdaCleanupText.Contains('"$owned_count" "$owned_pids"')
+) 'The cleanup can exceed its 30-second caller timeout or fail under macOS Bash when no Appium-owned runner remains.'
 $requiredHealthEvidence = @(
     'windows: node >= 22',
     'android: canonical',

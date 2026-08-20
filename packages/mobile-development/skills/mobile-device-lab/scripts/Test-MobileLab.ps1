@@ -131,16 +131,24 @@ function Invoke-Guest {
     $psi.RedirectStandardError = $true
     $psi.UseShellExecute = $false
     $p = [System.Diagnostics.Process]::Start($psi)
+    # Drain both redirected pipes while the child runs. Waiting first can
+    # deadlock once a large simctl JSON response fills the OS pipe buffer: the
+    # child cannot exit until Windows reads, while Windows waits for it to exit.
+    $stdoutTask = $p.StandardOutput.ReadToEndAsync()
+    $stderrTask = $p.StandardError.ReadToEndAsync()
     if (-not $p.WaitForExit($TimeoutSec * 1000)) {
         # Kill() with no argument: the entire-process-tree overload is .NET Core
         # only and would throw under Windows PowerShell 5.1.
         try { $p.Kill() } catch { }
+        try { $p.WaitForExit() } catch { }
         return [pscustomobject]@{ ExitCode = 124; Stdout = ''; Stderr = "timed out after ${TimeoutSec}s" }
     }
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
     [pscustomobject]@{
         ExitCode = $p.ExitCode
-        Stdout   = $p.StandardOutput.ReadToEnd().Trim()
-        Stderr   = $p.StandardError.ReadToEnd().Trim()
+        Stdout   = $stdout.Trim()
+        Stderr   = $stderr.Trim()
     }
 }
 

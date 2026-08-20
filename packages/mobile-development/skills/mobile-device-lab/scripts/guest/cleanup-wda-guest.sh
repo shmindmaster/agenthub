@@ -7,12 +7,11 @@ if [[ ! "$udid" =~ ^[0-9A-Fa-f-]{36}$ ]]; then
   exit 2
 fi
 
-declare -a owned_pids=()
-while IFS= read -r line; do
-  [[ -n "$line" ]] || continue
-  pid="$(awk '{print $1}' <<<"$line")"
-  ppid="$(awk '{print $2}' <<<"$line")"
-  command="${line#*"$ppid"}"
+owned_pids=""
+owned_count=0
+while read -r pid ppid command; do
+  [[ "$pid" =~ ^[0-9]+$ ]] || continue
+  [[ "$ppid" =~ ^[0-9]+$ ]] || continue
 
   [[ "$command" == *xcodebuild* ]] || continue
   [[ "$command" == *WebDriverAgent.xcodeproj* ]] || continue
@@ -20,16 +19,17 @@ while IFS= read -r line; do
 
   parent_command="$(ps -p "$ppid" -o command= 2>/dev/null || true)"
   [[ "$parent_command" == *"appium server"* ]] || continue
-  owned_pids+=("$pid")
+  owned_pids="${owned_pids}${owned_pids:+ }${pid}"
+  owned_count=$((owned_count + 1))
 done < <(ps -axo pid=,ppid=,command=)
 
-for pid in "${owned_pids[@]}"; do
+for pid in $owned_pids; do
   kill -TERM "$pid" 2>/dev/null || true
 done
 
 for _ in {1..20}; do
   remaining=0
-  for pid in "${owned_pids[@]}"; do
+  for pid in $owned_pids; do
     if kill -0 "$pid" 2>/dev/null; then
       remaining=$((remaining + 1))
     fi
@@ -38,16 +38,16 @@ for _ in {1..20}; do
   sleep 0.5
 done
 
-declare -a stuck_pids=()
-for pid in "${owned_pids[@]}"; do
+stuck_pids=""
+for pid in $owned_pids; do
   if kill -0 "$pid" 2>/dev/null; then
-    stuck_pids+=("$pid")
+    stuck_pids="${stuck_pids}${stuck_pids:+ }${pid}"
   fi
 done
 
-if (( ${#stuck_pids[@]} > 0 )); then
-  printf 'WebDriverAgent runner did not stop after SIGTERM: %s\n' "${stuck_pids[*]}" >&2
+if [[ -n "$stuck_pids" ]]; then
+  printf 'WebDriverAgent runner did not stop after SIGTERM: %s\n' "$stuck_pids" >&2
   exit 1
 fi
 
-printf '{"ok":true,"terminated":%d,"pids":"%s"}\n' "${#owned_pids[@]}" "${owned_pids[*]:-}"
+printf '{"ok":true,"terminated":%d,"pids":"%s"}\n' "$owned_count" "$owned_pids"

@@ -14,7 +14,10 @@ $ownsStage = $false
 Import-Module (Join-Path $PSScriptRoot '..\..\..\MobileDevelopment.psm1') -Force
 
 function ConvertTo-ShellSingleQuoted([string]$Value) {
-    "'" + $Value.Replace("'", "'\"'\"'") + "'"
+    $singleQuote = [string][char]39
+    $doubleQuote = [string][char]34
+    $embeddedQuote = $singleQuote + $doubleQuote + $singleQuote + $doubleQuote + $singleQuote
+    $singleQuote + $Value.Replace($singleQuote, $embeddedQuote) + $singleQuote
 }
 
 function Write-Result {

@@ -213,7 +213,7 @@ xcodebuild \
   -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath "$BUILD_DIR" \
-  "${XCODE_EXTRA[@]}" \
+  ${XCODE_EXTRA[@]+"${XCODE_EXTRA[@]}"} \
   CODE_SIGNING_ALLOWED=YES \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY="-" \

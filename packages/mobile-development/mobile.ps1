@@ -68,6 +68,16 @@ function Resolve-ToolPath([string]$Command) {
     $null
 }
 
+function Invoke-MobileDelegate([string]$Script, [string[]]$Arguments) {
+    # Array splatting into a PowerShell script does not rebind strings such as
+    # '-Json' or '-Deep' as named parameters; it passes them positionally. Run
+    # the retained script through this process's own PowerShell host so its
+    # native command-line binder preserves the public wrapper's named options.
+    $hostExe = (Get-Process -Id $PID).Path
+    & $hostExe -NoProfile -File $Script @Arguments
+    exit $LASTEXITCODE
+}
+
 function Get-AndroidFilesCheck {
     $resource = Get-MobileDevelopmentResource -Id 'windows-mobile-toolchain'
     $sdkRoot = $null
@@ -145,8 +155,7 @@ function Invoke-MobileRuntimeHealthCheck([string]$Platform) {
     $script = Join-Path $PSScriptRoot $invocation.scriptRelativePath
     $forward = @($invocation.arguments)
     if ($Json) { $forward += '-Json' }
-    & $script @forward
-    exit $LASTEXITCODE
+    Invoke-MobileDelegate -Script $script -Arguments $forward
 }
 
 try {
@@ -246,8 +255,7 @@ try {
             if ($platform -eq 'android') { $forward += '-SkipIos' }
             elseif ($platform -eq 'ios') { $forward += '-SkipAndroid' }
             if ($Json) { $forward += '-Json' }
-            & $script @forward
-            exit $LASTEXITCODE
+            Invoke-MobileDelegate -Script $script -Arguments $forward
         }
         'test' {
             $mode = (Take-Token 'test mode').ToLowerInvariant()
@@ -256,32 +264,28 @@ try {
             $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Test-MobileLab.ps1'
             $forward = @('-Deep')
             if ($Json) { $forward += '-Json' }
-            & $script @forward
-            exit $LASTEXITCODE
+            Invoke-MobileDelegate -Script $script -Arguments $forward
         }
         'sync' {
             $product = Resolve-ProductForCommand 'sync'
             $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1'
             $forward = @($tokens)
             if ($Json) { $forward += '-Json' }
-            & $script @forward
-            exit $LASTEXITCODE
+            Invoke-MobileDelegate -Script $script -Arguments $forward
         }
         'metro' {
             $product = Resolve-ProductForCommand 'metro'
             $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Start-MobileLabMetro.ps1'
             $forward = @($tokens)
             if ($Json) { $forward += '-Json' }
-            & $script @forward
-            exit $LASTEXITCODE
+            Invoke-MobileDelegate -Script $script -Arguments $forward
         }
         'web' {
             $product = Resolve-ProductForCommand 'web'
             $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Open-MobileLabWebTarget.ps1'
             $forward = @($tokens)
             if ($Json) { $forward += '-Json' }
-            & $script @forward
-            exit $LASTEXITCODE
+            Invoke-MobileDelegate -Script $script -Arguments $forward
         }
         default { throw "Unknown command '$command'." }
     }
