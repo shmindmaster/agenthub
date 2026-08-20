@@ -114,7 +114,7 @@
       {
         "id": "test.mobile-web",
         "name": "Exercise a responsive web target in mobile browsers",
-        "command": "mobile.ps1 web <productId> -Url <url>",
+        "command": "mobile.ps1 web <productId> -ProjectPath <path> -Url <url>",
         "providerIds": ["android-avd", "ios-simulator"],
         "serviceIds": ["adb", "ssh"]
       },
@@ -224,7 +224,7 @@
       "id": "macos-guest-vm",
       "kind": "virtual-machine",
       "providerId": "vmware-workstation",
-      "vmxAuthority": "D:/VMs/macOS-Tahoe-AMD/macos.vmx",
+      "vmxAuthorityRef": "authorities.vmx",
       "hardwareDiscovery": {
         "source": "vmx-live",
         "fields": ["numvcpus", "memsize"],

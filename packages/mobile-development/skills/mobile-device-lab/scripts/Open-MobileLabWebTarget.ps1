@@ -66,11 +66,13 @@ param(
     [ValidateSet('ios', 'android', 'both')][string]$Platform = 'both',
     [string]$IosUdid = 'booted',
     [string]$AndroidDeviceId,
+    [string]$LeaseId,
     [switch]$Json,
     [switch]$SkipReachabilityCheck
 )
 
 $ErrorActionPreference = 'Stop'
+$ownedLeaseId = $null
 
 # Shared guest-address resolution. Kept in a module because Start- and Test-
 # both need identical semantics; two copies of this logic is how the lab ends
@@ -298,6 +300,18 @@ function Emit-Result {
 }
 
 try {
+    $leaseScript = Join-Path $PSScriptRoot 'Enter-MobileLabLease.ps1'
+    $idleScript = Join-Path $PSScriptRoot 'Test-MobileLabIdle.ps1'
+    if ([string]::IsNullOrWhiteSpace($LeaseId)) {
+        $leaseOutput = @(& (Get-Process -Id $PID).Path -NoProfile -File $leaseScript -Action Acquire -Json 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "Could not acquire the canonical mobile-lab foreground lease: $($leaseOutput -join ' ')" }
+        $lease = $leaseOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1 | ConvertFrom-Json
+        $LeaseId = [string]$lease.leaseId
+        $ownedLeaseId = $LeaseId
+    }
+    $idleOutput = @(& (Get-Process -Id $PID).Path -NoProfile -File $idleScript -LeaseOnly -LeaseId $LeaseId -Json 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw "The canonical mobile-lab idle probe refused web foreground mutation: $($idleOutput -join ' ')" }
+
     Write-Host ''
     Say '=== Opening web target in mobile lab ===' 'White'
 
@@ -421,4 +435,9 @@ catch {
     Say "OPEN FAILED: $message" 'Red'
     Emit-Result -Ok $false
     exit 1
+}
+finally {
+    if ($ownedLeaseId) {
+        & (Get-Process -Id $PID).Path -NoProfile -File (Join-Path $PSScriptRoot 'Enter-MobileLabLease.ps1') -Action Release -LeaseId $ownedLeaseId -Json | Out-Null
+    }
 }

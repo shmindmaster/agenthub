@@ -89,7 +89,7 @@ Bring the lab up, then verify it. Both are idempotent and safe to re-run:
 
 ```powershell
 pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" start both -Json
-pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" check runtime both -Json
+pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" check runtime both -Deep -Json
 ```
 
 `Start-MobileLab.ps1` boots the emulator and the macOS guest and waits for each.
@@ -497,8 +497,8 @@ Notes that change how these are used, verified 2026-08-17:
 - **Maestro drives Expo development builds**, not only Release ones. So E2E
   does not require the slow build either. `maestro test --continuous` re-runs
   on change, and `maestro start-device` boots a simulator or emulator directly.
-- **Appium is not the stale option** the comparison articles imply: the two
-  drivers this lab depends on both shipped releases within the past week, and
+- **Appium is not the stale option** the comparison articles imply: as verified
+  on 2026-08-20, both drivers this lab depends on had current maintained releases, and
   the iOS driver carries 7 open issues. Whatever is slow here is session
   startup, not an unmaintained dependency.
 - **Do not adopt Detox.** Its support matrix stops at RN 0.84 (this stack is on

@@ -38,7 +38,9 @@ The command catalog and lifecycle metadata come from
   persistent host configuration and is activated only for Claude or Codex.
 - Every active coding host receives the loose `mobile-platform-standard` and
   `mobile-device-lab` skills plus catalog discovery. Enabling or disabling the
-  Appium plugin requires a new task before the MCP tool set changes.
+  Appium plugin requires a new task before the MCP tool set changes. Claude
+  installs the canonical plugin when absent and leaves it installed-disabled
+  after use; Codex retains add/remove lifecycle semantics.
 - Guest expectations come from `registry/mobile-development.json`; live VM
   hardware comes from the VMX authority named there and is not copied here.
 

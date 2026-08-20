@@ -514,7 +514,7 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Qoder CLI 1.1.5. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
+      "notes": "Qoder CLI 1.0.45. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
     },
     {
       "id": "amp",

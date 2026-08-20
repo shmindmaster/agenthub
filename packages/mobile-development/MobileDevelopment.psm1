@@ -51,6 +51,47 @@ function Get-MobileScopeProduct {
     $product
 }
 
+function Resolve-MobileProductTarget {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][object]$Product,
+        [Parameter(Mandatory)][ValidateSet('repository', 'project')][string]$TargetKind,
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    if ([string]$Product.bucket -ne 'include') { throw "Product '$($Product.productId)' is not eligible for mobile work." }
+    $repoStandard = Read-AgentHubJson -RelativePath 'registry/repo-standard.json'
+    $repoName = ([string]$Product.repository -split '/')[-1]
+    $authoritativeRoot = [IO.Path]::GetFullPath((Join-Path (([string]$repoStandard.fleetRoot -replace '/', '\')) $repoName))
+    $resolved = [IO.Path]::GetFullPath($Path)
+    if (-not (Test-Path -LiteralPath $resolved -PathType Container)) { throw "Target path does not exist: $resolved" }
+
+    $gitRoot = [string](& git -C $resolved rev-parse --show-toplevel 2>$null)
+    $origin = [string](& git -C $resolved remote get-url origin 2>$null)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitRoot) -or [string]::IsNullOrWhiteSpace($origin)) {
+        throw "Target '$resolved' is not a Git checkout with an origin remote for '$($Product.repository)'."
+    }
+    $gitRoot = [IO.Path]::GetFullPath($gitRoot.Trim())
+    $originIdentity = $origin.Trim() -replace '\\', '/' -replace '^git@[^:]+:', '' -replace '^https?://github\.com/', '' -replace '\.git$', ''
+    if ($originIdentity -ine [string]$Product.repository) {
+        throw "Product '$($Product.productId)' is bound to '$($Product.repository)', but target '$resolved' belongs to '$originIdentity'."
+    }
+
+    if ($TargetKind -eq 'repository') {
+        if (-not $resolved.Equals($gitRoot, [StringComparison]::OrdinalIgnoreCase)) { throw "RepoPath must be the checkout root '$gitRoot'; path escape rejected." }
+        return [pscustomobject]@{ productId = [string]$Product.productId; repositoryRoot = $gitRoot; authoritativeRoot = $authoritativeRoot; target = $resolved }
+    }
+
+    if (-not $Product.PSObject.Properties['mobileIdentity'] -or [string]::IsNullOrWhiteSpace([string]$Product.mobileIdentity.appPath)) {
+        throw "Product '$($Product.productId)' has no authoritative mobileIdentity.appPath binding."
+    }
+    $expectedProject = [IO.Path]::GetFullPath((Join-Path $gitRoot (([string]$Product.mobileIdentity.appPath -replace '/', '\'))))
+    if (-not $resolved.Equals($expectedProject, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "ProjectPath '$resolved' does not match product '$($Product.productId)' project '$expectedProject'; foreign target or path escape rejected."
+    }
+    [pscustomobject]@{ productId = [string]$Product.productId; repositoryRoot = $gitRoot; authoritativeRoot = $authoritativeRoot; target = $resolved }
+}
+
 function Get-AppiumMcpAuthority {
     [CmdletBinding()]
     param()
@@ -216,4 +257,4 @@ function Get-MobileRuntimeHealthInvocation {
     }
 }
 
-Export-ModuleMember -Function Read-AgentHubJson, Get-MobileDevelopmentContract, Get-MobileScopeContract, Get-MobileScopeProduct, Get-AppiumMcpAuthority, Get-MobileDevelopmentRepoRoot, Get-MobileDevelopmentPackageRoot, Get-MobileDevelopmentExpectation, Get-MobileDevelopmentResource, Get-MobileVmxFacts, Get-MobileRuntimeProcessMatch, Get-MobileRuntimeHealthInvocation
+Export-ModuleMember -Function Read-AgentHubJson, Get-MobileDevelopmentContract, Get-MobileScopeContract, Get-MobileScopeProduct, Resolve-MobileProductTarget, Get-AppiumMcpAuthority, Get-MobileDevelopmentRepoRoot, Get-MobileDevelopmentPackageRoot, Get-MobileDevelopmentExpectation, Get-MobileDevelopmentResource, Get-MobileVmxFacts, Get-MobileRuntimeProcessMatch, Get-MobileRuntimeHealthInvocation

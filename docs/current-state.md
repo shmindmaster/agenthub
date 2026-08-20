@@ -53,7 +53,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   fixing pronunciation in a dictionary layer rather than by swapping engines.
 
 - **Mobile development is one canonical capability (updated 2026-08-20):**
-  `packages/mobile-development` version 2.0.0 owns the public `mobile.ps1`
+  `packages/mobile-development` version 2.0.1 owns the public `mobile.ps1`
   entrypoint and both loose skills. Every active coding host receives the
   skills and catalog discovery. Appium remains absent from persistent MCP
   configuration and may be activated only for Claude or Codex; both native
@@ -61,27 +61,10 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   and identity remain in `registry/mobile-scope.json`, the Appium pin remains
   in `registry/mcps.json`, and VM hardware remains live VMX state. Fleet sync
   and live synthetic smoke are separate acceptance gates.
-- **Six declared agent surfaces are unverified on this workstation
-  (2026-08-15):** `codex`, `opencode-desktop`, `hermes`, `qoder`, and `factory`
-  have declared executables that do not resolve; `windsurf` still has no
-  executable declaration. Their inventory/configuration is retained, but
-  their status is `unverified` and mobile reachability does not count them as
-  functional. The remaining active surfaces must pass both instruction and
-  Appium activation-route checks.
-- **`~/.claude/skills` is stale and the parity check does not notice
-  (2026-08-11).** Every browser-toolkit skill deployed there still has mtime
-  `2026-08-05 21:03`; a `Sync-Capabilities.ps1 -Apply` on 2026-08-11 did not
-  rewrite them, yet the re-audit reported `current=562` with no drift. The
-  copy of `use-chrome-devtools-mcp` there is a different lineage from source —
-  folded `description: >` frontmatter, plus a `references/tool-catalog.md`
-  the source directory no longer contains — so an unscoped stale skill and the
-  plugin-scoped `browser-toolkit:use-chrome-devtools-mcp` are both reachable
-  in one session with different content. Either the parity check false-PASSes
-  without comparing bytes, or these became host-managed when browser-toolkit
-  was packaged as a plugin and the orphans should have been pruned
-  (`pruned=0`). Not yet resolved. **A plugin version bump is what actually
-  ships a skill edit to a Claude host** — the cache is keyed by version, so an
-  edit without a bump reaches nobody.
+- **Current host evidence (2026-08-20):** Codex, Qoder, and Factory are active.
+  OpenCode Desktop, Hermes, and Windsurf remain unverified on this workstation.
+  Mobile skills/catalog are deployed to active coding surfaces, while native
+  Appium activation is intentionally available only through Claude and Codex.
 - Registry (`registry/*.json`) declares hosts, capabilities, MCP servers,
   fleet profile, and the fleet repository standard roster.
 - `scripts/Validate-AgentHub.ps1` validates the registry against on-disk

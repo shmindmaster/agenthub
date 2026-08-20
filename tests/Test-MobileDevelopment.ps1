@@ -91,6 +91,7 @@ $moduleText = Get-Content -LiteralPath (Join-Path $packageRoot 'MobileDevelopmen
 $startPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Start-MobileLab.ps1'
 $gatePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-MobileLab.ps1'
 $idlePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1'
+$webPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Open-MobileLabWebTarget.ps1'
 $syncGuestPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Sync-MobileLabGuestScripts.ps1'
 $mcpSmokePath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\Invoke-AppiumMcpSmoke.mjs'
 $guestBuildSupervisorPath = Join-Path $packageRoot 'skills\mobile-device-lab\scripts\guest\run-smoke-fixture-build.sh'
@@ -101,6 +102,7 @@ $platformSkillText = Get-Content -LiteralPath (Join-Path $packageRoot 'skills\mo
 $startText = Get-Content -LiteralPath $startPath -Raw -Encoding UTF8
 $gateText = Get-Content -LiteralPath $gatePath -Raw -Encoding UTF8
 $idleText = Get-Content -LiteralPath $idlePath -Raw -Encoding UTF8
+$webText = Get-Content -LiteralPath $webPath -Raw -Encoding UTF8
 $syncGuestText = Get-Content -LiteralPath $syncGuestPath -Raw -Encoding UTF8
 $mcpSmokeText = Get-Content -LiteralPath $mcpSmokePath -Raw -Encoding UTF8
 $guestBuildSupervisorText = Get-Content -LiteralPath $guestBuildSupervisorPath -Raw -Encoding UTF8
@@ -230,7 +232,7 @@ $claudeManifest = Read-Json 'packages\mobile-development\.claude-plugin\plugin.j
 $codexManifest = Read-Json 'packages\mobile-development\.codex-plugin\plugin.json'
 Report 'generic, Claude, and Codex manifests share one mobile-development identity and version' (
     $manifest.name -eq 'mobile-development' -and $claudeManifest.name -eq $manifest.name -and $codexManifest.name -eq $manifest.name -and `
-    $manifest.version -eq '2.0.0' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
+    $manifest.version -eq '2.0.1' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
 ) "generic=$($manifest.name)@$($manifest.version) claude=$($claudeManifest.name)@$($claudeManifest.version) codex=$($codexManifest.name)@$($codexManifest.version)"
 $retainedHostManifestDirs = @(Get-ChildItem -LiteralPath $packageRoot -Force -Directory | Where-Object Name -match '^\..+-plugin$' | Select-Object -ExpandProperty Name | Sort-Object)
 Report 'unsupported legacy host manifests are absent' (
@@ -355,6 +357,20 @@ Report 'every product-targeting command requires an include product' (
     $gatedFrozen.ExitCode -ne 0 -and $gatedFrozen.Result.error -match "classified 'excludedPendingReposition'" -and `
     $gatedAbsent.ExitCode -ne 0 -and $gatedAbsent.Result.error -match 'absent.*Absence never means eligible'
 ) 'sync, metro, or web reached its underlying script before the sole scope authority allowed it.'
+$foreignTarget = Invoke-MobileJson @('sync','rexa','-RepoPath',$repoRoot,'-StageOnly')
+$rexaProduct = @($scope.products | Where-Object productId -eq 'rexa')[0]
+$rexaRoot = Join-Path ((Read-Json 'registry\repo-standard.json').fleetRoot -replace '/', '\') 'Rexa'
+$correctBinding = $null
+$escapeRejected = $false
+if (Test-Path -LiteralPath $rexaRoot -PathType Container) {
+    try { $correctBinding = Resolve-MobileProductTarget -Product $rexaProduct -TargetKind project -Path $rexaRoot } catch { }
+    try { $null = Resolve-MobileProductTarget -Product $rexaProduct -TargetKind project -Path (Join-Path $rexaRoot 'src') } catch { $escapeRejected = $true }
+}
+Report 'eligible product targets are bound to the authoritative repository and app path' (
+    $foreignTarget.ExitCode -ne 0 -and $foreignTarget.Result.error -match 'belongs to' -and `
+    $correctBinding -and $escapeRejected -and `
+    $entrypointText -match "web <productId> -ProjectPath <path> -Url <url>"
+) "foreign=$($foreignTarget.Output -join ' ') correct=$($correctBinding | ConvertTo-Json -Compress) escapeRejected=$escapeRejected"
 Report 'deep smoke is the sole fixed synthetic product-scope exception' (
     $contract.syntheticFixture.path -eq 'packages/mobile-development/fixtures/smoke-app' -and `
     $contract.syntheticFixture.scopeException -match 'test deep' -and `
@@ -399,6 +415,11 @@ Report 'catalog parses VM hardware live and registry records no copied values' (
     -not $contract.resources[4].PSObject.Properties['vcpu'] -and `
     -not $contract.resources[4].PSObject.Properties['memoryMb']
 ) "catalog=$($catalog.Result.resolved.vmxHardware | ConvertTo-Json -Compress) liveCpu=$vmxCpu liveMemory=$vmxMemory"
+Report 'VMX authority is single-sourced at authorities.vmx' (
+    $contract.resources[4].vmxAuthorityRef -eq 'authorities.vmx' -and `
+    -not $contract.resources[4].PSObject.Properties['vmxAuthority'] -and `
+    ([regex]::Matches(($contract | ConvertTo-Json -Depth 20), [regex]::Escape('D:/VMs/macOS-Tahoe-AMD/macos.vmx'))).Count -eq 1
+) 'The macOS guest resource copied the VMX literal instead of referencing authorities.vmx.'
 
 $activeScriptText = @($startText,$gateText,$idleText,$syncGuestText,$mcpSmokeText) -join "`n"
 $copiedExpectationLiterals = @(
@@ -420,6 +441,29 @@ Report 'startup resolves only the canonical VMX and fails closed on nested virtu
     $startText -notmatch 'WriteAllText\(\$Vmx' -and `
     $startText -match 'Nested virtualization is out of scope'
 ) 'Startup may select or rewrite a different VMX.'
+Report 'startup requires the attached emulator canonical AVD name and API' (
+    $startText -match 'function Get-CanonicalEmulatorIds' -and `
+    $startText -match '& \$AdbPath -s \$_ emu avd name' -and `
+    $startText -match '\$avd\.Trim\(\) -eq \[string\]\$androidExpectation\.avdName' -and `
+    $startText -notmatch 'function Get-ExpectedApiEmulatorIds'
+) 'A wrong API-36 AVD could be accepted by startup.'
+Report 'web foreground mutation holds the canonical lease and probes idle ownership' (
+    $webText -match '\[string\]\$LeaseId' -and `
+    $webText -match 'Enter-MobileLabLease\.ps1' -and $webText -match '-Action Acquire' -and `
+    $webText -match 'Test-MobileLabIdle\.ps1' -and $webText -match '-LeaseOnly -LeaseId \$LeaseId' -and `
+    $webText -match '-Action Release -LeaseId \$ownedLeaseId' -and `
+    $webText.IndexOf('-LeaseOnly -LeaseId $LeaseId') -lt $webText.LastIndexOf('Open-AndroidUrl -TargetUrl')
+) 'adb or simctl open-url can mutate without the canonical lease and idle probe.'
+Report 'Claude activation installs clean state and disable preserves installed on-demand state' (
+    $entrypointText -match 'plugin list --json' -and `
+    $entrypointText.Contains('plugin install $plugin') -and `
+    $entrypointText.Contains("@('plugin', `$action, `$plugin)") -and `
+    $entrypointText -match 'installed-disabled'
+) 'Claude activation cannot recover from an absent canonical plugin or documents uninstall cleanup.'
+Report 'skill deep preflight matches claimed SSH Xcode Simulator and Appium evidence' (
+    $labSkillText -match 'check runtime both -Deep -Json' -and `
+    $labSkillText -notmatch 'check runtime both -Json'
+) 'The skill claims deep runtime evidence after only a process-table check.'
 
 $before = Get-MobileProcessSnapshot
 $filesCheck = Invoke-MobileJson @('check','files','both')

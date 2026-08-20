@@ -81,13 +81,14 @@ function Wait-Until {
     return $false
 }
 
-function Get-ExpectedApiEmulatorIds {
+function Get-CanonicalEmulatorIds {
     param([Parameter(Mandatory)][string]$AdbPath)
     $devicePattern = [string]$androidExpectation.virtualDeviceIdPattern
     $ids = @(& $AdbPath devices | Where-Object { $_ -match '^\S+\s+device$' } | ForEach-Object { ($_ -split '\s+')[0] } | Where-Object { $_ -match $devicePattern })
     @($ids | Where-Object {
             $sdk = [string]((& $AdbPath -s $_ shell getprop ro.build.version.sdk 2>$null) | Select-Object -First 1)
-            $sdk.Trim() -eq [string]$androidExpectation.apiLevel
+            $avd = [string]((& $AdbPath -s $_ emu avd name 2>$null) | Select-Object -First 1)
+            $sdk.Trim() -eq [string]$androidExpectation.apiLevel -and $avd.Trim() -eq [string]$androidExpectation.avdName
         })
 }
 
@@ -137,7 +138,7 @@ if (-not $SkipAndroid) {
     $Avd = $expectedAvd
 
     Say 'Android:'
-    $attached = @(Get-ExpectedApiEmulatorIds -AdbPath $adb)
+    $attached = @(Get-CanonicalEmulatorIds -AdbPath $adb)
     if ($attached.Count -gt 0) {
         Say ("  API $expectedApi already attached: {0}" -f ($attached -join ', ')) 'Green'
     }
@@ -147,14 +148,14 @@ if (-not $SkipAndroid) {
         Say "  booting canonical AVD '$Avd'"
         Start-Process -FilePath $emulatorExe -ArgumentList @('-avd', $Avd) -WindowStyle Minimized | Out-Null
         if (-not (Wait-Until -What "emulator '$Avd'" -TimeoutSec $timeoutSec -Condition {
-                    @(Get-ExpectedApiEmulatorIds -AdbPath $adb).Count -gt 0
+                    @(Get-CanonicalEmulatorIds -AdbPath $adb).Count -gt 0
                 })) { throw "Android emulator failed to attach as API $expectedApi. Verify the canonical AVD's system image." }
-        $startedAndroidId = [string](@(Get-ExpectedApiEmulatorIds -AdbPath $adb | Select-Object -First 1))
+        $startedAndroidId = [string](@(Get-CanonicalEmulatorIds -AdbPath $adb | Select-Object -First 1))
         if (-not (Wait-Until -What 'android boot completed' -TimeoutSec $timeoutSec -Condition {
                     (& $adb -s $startedAndroidId shell getprop sys.boot_completed 2>$null) -match '1'
                 })) { throw "Android did not finish booting." }
     }
-    $androidId = @(Get-ExpectedApiEmulatorIds -AdbPath $adb | Select-Object -First 1)
+    $androidId = @(Get-CanonicalEmulatorIds -AdbPath $adb | Select-Object -First 1)
     $script:Facts.androidDeviceId = if ($androidId.Count) { $androidId[0] } else { $null }
     if (-not $script:Facts.androidDeviceId) { throw "Android emulator enumeration returned no API $expectedApi virtual device ID." }
     Add-Stage 'android' ([bool]$script:Facts.androidDeviceId) "device=$($script:Facts.androidDeviceId); avd=$Avd; api=$expectedApi" "Start canonical AVD '$Avd' and rerun."

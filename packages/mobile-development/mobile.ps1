@@ -32,7 +32,7 @@ mobile.ps1 start android|ios|both [Start-MobileLab options] [-Json]
 mobile.ps1 test deep [-Json]
 mobile.ps1 sync <productId> -RepoPath <path> -GuestPath <path> [Sync-RepoToGuest options] [-Json]
 mobile.ps1 metro <productId> -ProjectPath <path> [Start-MobileLabMetro options] [-Json]
-mobile.ps1 web <productId> -Url <url> [Open-MobileLabWebTarget options] [-Json]
+mobile.ps1 web <productId> -ProjectPath <path> -Url <url> [Open-MobileLabWebTarget options] [-Json]
 
 Use `catalog` to discover the closed primary/specialty surface. Physical
 devices, signing, push, deep links, observability, EAS, and stores remain
@@ -60,6 +60,16 @@ function Require-NoTokens {
 function Resolve-ProductForCommand([string]$Verb) {
     $productId = Take-Token "$Verb productId"
     Get-MobileScopeProduct -ProductId $productId -RequireInclude
+}
+
+function Get-NamedTokenValue([string]$Name, [switch]$Remove) {
+    $indexes = @(for ($i = 0; $i -lt $tokens.Count; $i++) { if ($tokens[$i] -ieq $Name) { $i } })
+    if ($indexes.Count -ne 1 -or $indexes[0] + 1 -ge $tokens.Count) { throw "Exactly one $Name value is required." }
+    $index = $indexes[0]
+    $value = [string]$tokens[$index + 1]
+    if ($value.StartsWith('-')) { throw "$Name requires a value." }
+    if ($Remove) { $tokens.RemoveAt($index + 1); $tokens.RemoveAt($index) }
+    $value
 }
 
 function Resolve-ToolPath([string]$Command) {
@@ -230,19 +240,26 @@ try {
             if ($action -notin @('enable', 'disable')) { throw "Unknown MCP action '$action'. Expected enable or disable." }
             if ($hostName -notin @('claude', 'codex')) { throw "Unknown MCP host '$hostName'. Appium is on demand for claude and codex only." }
             $plugin = 'mobile-development@agenthub'
+            $executable = Resolve-ToolPath $hostName
+            if (-not $executable) { throw "The native '$hostName' management CLI is not available on PATH." }
             if ($hostName -eq 'claude') {
+                $inventoryJson = (@(& $executable plugin list --json 2>$null) -join [Environment]::NewLine)
+                $installed = @($inventoryJson | ConvertFrom-Json | Where-Object { [string]$_.id -eq $plugin })
+                if ($action -eq 'enable' -and $installed.Count -eq 0) {
+                    & $executable plugin install $plugin
+                    if ($LASTEXITCODE -ne 0) { throw "claude native plugin install failed with exit $LASTEXITCODE." }
+                }
                 $nativeArgs = @('plugin', $action, $plugin)
             } else {
                 $nativeArgs = @('plugin', $(if ($action -eq 'enable') { 'add' } else { 'remove' }), $plugin)
             }
-            $executable = Resolve-ToolPath $hostName
-            if (-not $executable) { throw "The native '$hostName' management CLI is not available on PATH." }
             & $executable @nativeArgs
             if ($LASTEXITCODE -ne 0) { throw "$hostName native plugin management failed with exit $LASTEXITCODE." }
             $message = if ($action -eq 'enable') {
                 "Appium was enabled for $hostName. Plugin/MCP loading is task-scoped: open a new $hostName task before using Appium. Disable it after mobile work so later tasks do not start an idle MCP process."
             } else {
-                "Appium was disabled for $hostName. Existing tasks may retain what they loaded; open a new task to observe the disabled state."
+                if ($hostName -eq 'claude') { "Appium was disabled for Claude. The canonical plugin remains installed-disabled for on-demand reuse. Existing tasks may retain what they loaded; open a new task to observe the disabled state." }
+                else { "Appium was removed for Codex. Existing tasks may retain what they loaded; open a new task to observe the disabled state." }
             }
             Write-OutputObject ([pscustomobject]@{ ok = $true; host = $hostName; action = $action; nativeCommand = "$hostName $($nativeArgs -join ' ')"; newTaskRequired = $true; message = $message })
             exit 0
@@ -268,6 +285,8 @@ try {
         }
         'sync' {
             $product = Resolve-ProductForCommand 'sync'
+            $repoPath = Get-NamedTokenValue -Name '-RepoPath'
+            $null = Resolve-MobileProductTarget -Product $product -TargetKind repository -Path $repoPath
             $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1'
             $forward = @($tokens)
             if ($Json) { $forward += '-Json' }
@@ -275,6 +294,8 @@ try {
         }
         'metro' {
             $product = Resolve-ProductForCommand 'metro'
+            $projectPath = Get-NamedTokenValue -Name '-ProjectPath'
+            $null = Resolve-MobileProductTarget -Product $product -TargetKind project -Path $projectPath
             $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Start-MobileLabMetro.ps1'
             $forward = @($tokens)
             if ($Json) { $forward += '-Json' }
@@ -282,6 +303,10 @@ try {
         }
         'web' {
             $product = Resolve-ProductForCommand 'web'
+            $projectPath = Get-NamedTokenValue -Name '-ProjectPath' -Remove
+            $null = Resolve-MobileProductTarget -Product $product -TargetKind project -Path $projectPath
+            $url = [Uri](Get-NamedTokenValue -Name '-Url')
+            if (-not $url.IsAbsoluteUri) { throw '-Url must be absolute.' }
             $script = Join-Path $PSScriptRoot 'skills\mobile-device-lab\scripts\Open-MobileLabWebTarget.ps1'
             $forward = @($tokens)
             if ($Json) { $forward += '-Json' }
