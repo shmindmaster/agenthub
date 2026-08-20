@@ -514,7 +514,7 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Qoder CLI 1.1.5. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
+      "notes": "Qoder CLI 1.0.45. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
     },
     {
       "id": "amp",
@@ -616,9 +616,11 @@
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\mcp.json",
         "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\settings.json",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Verified 2026-08-20 against https://code.visualstudio.com/docs/agent-customization/agent-skills: VS Code supports personal Agent Skills under ~/.copilot/skills, ~/.claude/skills, and ~/.agents/skills. AgentHub already manages ~/.agents/skills as the shared user-level destination for Codex, Gemini, and Warp, so VS Code Insiders resolves to that same documented shared directory instead of inventing an AppData-private skills path.",
         "instructions": null,
         "verification": "documented-feature-undocumented-path",
-        "instructionsNote": "Researched 2026-08-04 against code.visualstudio.com/docs/copilot/customization/custom-instructions (subject confirmed: Copilot custom instructions). A user-profile instructions scope exists and is file-based, but neither that page nor the prompt-files page states an absolute path -- they say only 'your user data'. No prompts directory and no *.instructions.md exists under AppData/Roaming/Code - Insiders/User on this machine. Path is discovery-required: create one through the UI and observe where it lands. Host is inactive, so nothing is deployed regardless."
+        "instructionsNote": "Researched 2026-08-04 against code.visualstudio.com/docs/copilot/customization/custom-instructions (subject confirmed: Copilot custom instructions). A user-profile instructions scope exists and is file-based, but neither that page nor the prompt-files page states an absolute path -- they say only 'your user data'. No prompts directory and no *.instructions.md exists under AppData/Roaming/Code - Insiders/User on this machine. The instructions path remains discovery-required; the separately documented shared Agent Skills route is recorded in sharedSkillsDir."
       },
       "supportedCapabilities": [
         "rules",

@@ -42,11 +42,12 @@ function Resolve-UnderUserProfile([string]$Path) {
   return $full
 }
 
-$runtimeRoot = if ($profileIsOverridden) {
-  Join-Path $UserProfile 'AppData\Local\AgentHub\sync'
+$agentHubRuntimeRoot = if ($profileIsOverridden) {
+  Join-Path $UserProfile 'AppData\Local\AgentHub'
 } else {
-  Join-Path $env:LOCALAPPDATA 'AgentHub\sync'
+  Join-Path $env:LOCALAPPDATA 'AgentHub'
 }
+$runtimeRoot = Join-Path $agentHubRuntimeRoot 'sync'
 $statePath = Join-Path $runtimeRoot 'managed-skills.json'
 $capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -177,6 +178,53 @@ $failures = [Collections.Generic.List[string]]::new()
 # below reads to avoid recording ownership of anything it refused.
 $refused = @{}
 
+function Resolve-AgentHubRuntimeDestination([string]$RelativePath) {
+  if ([string]::IsNullOrWhiteSpace($RelativePath) -or [IO.Path]::IsPathRooted($RelativePath)) {
+    throw "Managed runtime path must be non-empty and relative to '$agentHubRuntimeRoot': '$RelativePath'"
+  }
+  $destination = [IO.Path]::GetFullPath((Join-Path $agentHubRuntimeRoot $RelativePath))
+  $prefix = $agentHubRuntimeRoot.TrimEnd('\') + '\'
+  if (-not $destination.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Managed runtime path escapes '$agentHubRuntimeRoot': '$RelativePath'"
+  }
+  return $destination
+}
+
+function Register-ManagedTree {
+  param(
+    [Parameter(Mandatory)][string]$Source,
+    [Parameter(Mandatory)][string]$Destination,
+    [Parameter(Mandatory)][string]$CapabilityId,
+    [Parameter(Mandatory)][string]$ItemName,
+    [Parameter(Mandatory)][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('skill','runtime package')][string]$Kind,
+    [string]$HostId = '<fleet>'
+  )
+  $sourceHash = Get-TreeHash $Source
+  $desired[$Destination] = @{ capability=$CapabilityId; kind=$Kind; name=$ItemName; hash=$sourceHash }
+  $currentHash = if (Test-Path -LiteralPath $Destination) { Get-TreeHash $Destination } else { $null }
+  $status = if ($currentHash -eq $sourceHash) { 'current' } elseif ($currentHash) { 'drift' } else { 'missing' }
+  $rows.Add([pscustomobject]@{ capability=$CapabilityId; host=$HostId; mode=$Mode; skill=$ItemName; status=$status })
+  if (-not $Apply -or $status -eq 'current') { return }
+  if ($currentHash -and -not $prior.managed.ContainsKey($Destination) -and -not $AdoptExisting) {
+    $failures.Add("refusing to replace unowned ${Kind}: $Destination")
+    $refused[$Destination] = $true
+    return
+  }
+  $recordedComparableHash = if ($currentHash -and $priorHashesAreLegacy -and $prior.managed.ContainsKey($Destination)) {
+    Get-TreeHashLegacy $Destination
+  } else { $currentHash }
+  if ($currentHash -and $prior.managed.ContainsKey($Destination) -and
+      $prior.managed[$Destination].hash -ne $recordedComparableHash -and -not $AdoptExisting) {
+    $failures.Add("refusing to replace user-modified managed ${Kind}: $Destination")
+    $refused[$Destination] = $true
+    return
+  }
+  if (Test-Path -LiteralPath $Destination) { Remove-Item -LiteralPath $Destination -Recurse -Force }
+  New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force | Out-Null
+  Copy-Item -LiteralPath $Source -Destination $Destination -Recurse
+}
+
 foreach ($capability in $capabilities.capabilities) {
   # canonicalSource is repo-relative (e.g. "packages/clerk"); resolve it
   # against the repository root this script is actually running from, not
@@ -184,6 +232,19 @@ foreach ($capability in $capabilities.capabilities) {
   $sourceRoot = [IO.Path]::GetFullPath((Join-Path $root ([string]$capability.canonicalSource)))
   $skillsRoot = Join-Path $sourceRoot 'skills'
   $skills = if (Test-Path -LiteralPath $skillsRoot) { @(Get-ChildItem -LiteralPath $skillsRoot -Directory) } else { @() }
+  if ($capability.deployedCatalog) {
+    $catalogDestination = Resolve-AgentHubRuntimeDestination ([string]$capability.deployedCatalog.runtimeRelativeRoot)
+    Register-ManagedTree -Source $sourceRoot -Destination $catalogDestination -CapabilityId ([string]$capability.id) `
+      -ItemName ([string]$capability.deployedCatalog.entrypoint) -Mode 'managed-runtime-package' -Kind 'runtime package'
+    $authoritySource = [IO.Path]::GetFullPath((Join-Path $root ([string]$capability.deployedCatalog.authoritySource)))
+    $rootPrefix = $root.TrimEnd('\') + '\'
+    if (-not $authoritySource.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+      throw "Deployed catalog authority source escapes repository root: '$($capability.deployedCatalog.authoritySource)'"
+    }
+    $authorityDestination = Resolve-AgentHubRuntimeDestination ([string]$capability.deployedCatalog.authorityRuntimeRelativeRoot)
+    Register-ManagedTree -Source $authoritySource -Destination $authorityDestination -CapabilityId ([string]$capability.id) `
+      -ItemName 'registry' -Mode 'managed-runtime-authority' -Kind 'runtime package'
+  }
   foreach ($mapping in $capability.hostMappings) {
     $agent = $agents | Where-Object id -eq $mapping.hostId | Select-Object -First 1
     if (-not $agent) { continue }
@@ -228,32 +289,8 @@ foreach ($capability in $capabilities.capabilities) {
     $deployMode = if ($usesSharedDir) { 'shared-loose-skill' } else { 'loose-skill' }
     foreach ($skill in $skills) {
       $destination = Join-Path $skillsDir $skill.Name
-      $sourceHash = Get-TreeHash $skill.FullName
-      $desired[$destination] = @{ capability=$capability.id; skill=$skill.Name; hash=$sourceHash }
-      $currentHash = if (Test-Path -LiteralPath $destination) { Get-TreeHash $destination } else { $null }
-      $status = if ($currentHash -eq $sourceHash) { 'current' } elseif ($currentHash) { 'drift' } else { 'missing' }
-      $rows.Add([pscustomobject]@{ capability=$capability.id; host=$agent.id; mode=$deployMode; skill=$skill.Name; status=$status })
-      if (-not $Apply -or $status -eq 'current') { continue }
-      if ($currentHash -and -not $prior.managed.ContainsKey($destination) -and -not $AdoptExisting) {
-        $failures.Add("refusing to replace unowned skill: $destination")
-        $refused[$destination] = $true
-        continue
-      }
-      # Compare a stored digest in the format it was stored in, not the format
-      # this run computes. Only recomputed when a stored digest is actually
-      # about to be read.
-      $recordedComparableHash = if ($currentHash -and $priorHashesAreLegacy -and $prior.managed.ContainsKey($destination)) {
-        Get-TreeHashLegacy $destination
-      } else { $currentHash }
-      if ($currentHash -and $prior.managed.ContainsKey($destination) -and
-          $prior.managed[$destination].hash -ne $recordedComparableHash -and -not $AdoptExisting) {
-        $failures.Add("refusing to replace user-modified managed skill: $destination")
-        $refused[$destination] = $true
-        continue
-      }
-      if (Test-Path -LiteralPath $destination) { Remove-Item -LiteralPath $destination -Recurse -Force }
-      New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
-      Copy-Item -LiteralPath $skill.FullName -Destination $destination -Recurse
+      Register-ManagedTree -Source $skill.FullName -Destination $destination -CapabilityId ([string]$capability.id) `
+        -ItemName $skill.Name -Mode $deployMode -Kind 'skill' -HostId $agent.id
     }
   }
 }

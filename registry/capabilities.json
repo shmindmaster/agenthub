@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-30T22:19:10.4107485Z",
+  "generatedAt": "2026-08-20T00:00:00.000Z",
   "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
   "retiredFleetSkills": [
     {
@@ -509,7 +509,6 @@
       "canonicalSource": "packages/portfolio-engineering",
       "managedSkillNames": [
         "docs-drift",
-        "mobile-platform-standard",
         "portfolio-audit",
         "release-readiness",
         "repo-onboard",
@@ -532,7 +531,7 @@
           "DD71BF1E975AA45E953643CECD875451C4BC0992D0D0B97F71F516F9AFE3515F"
         ]
       },
-      "contentHash": "4D87CE0F1BD650CB6B87BA2A36795E518766C3CC7E1FDE1075E7B1B04FCBF0F9",
+      "contentHash": "ABF022A052CF55DAA4EFB4D890D8E9051EB3E850C89E87B46FF73C3AFE551DE0",
       "hashBasis": "packages/portfolio-engineering",
       "status": "active-canonical",
       "hostMappings": [
@@ -806,7 +805,7 @@
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Loose skills, not the plugin, since 2026-08-20 -- and this is the SECOND capability to hit this exact failure. The plugin is disabled on claude because claude ships its own browser surface, so routing to a native capability beats spawning a local server. But the plugin was also claude's only source for browser-debugging, browser-evidence, interactive-browser-testing and use-playwright-mcp, so disabling it left claude with NO browser guidance at all while this mapping still read native-plugin-installed. Skills carry no process cost and are useful with a native browser -- their first resolution step is to use the host's own browser -- so they deploy independently of the MCP. Same split already applied to mobile-device-lab; the general rule is that a plugin bundling skills+MCP cannot be disabled to gate the MCP without first moving its skills to loose deployment."
+          "deploymentStatusNote": "Loose skills, not the plugin, since 2026-08-20 -- and this is the SECOND capability to hit this exact failure. The plugin is disabled on claude because claude ships its own browser surface, so routing to a native capability beats spawning a local server. But the plugin was also claude's only source for browser-debugging, browser-evidence, interactive-browser-testing and use-playwright-mcp, so disabling it left claude with NO browser guidance at all while this mapping still read native-plugin-installed. Skills carry no process cost and are useful with a native browser -- their first resolution step is to use the host's own browser -- so they deploy independently of the MCP. The same split already applies to mobile-development; the general rule is that a plugin bundling skills+MCP cannot be disabled to gate the MCP without first moving its skills to loose deployment."
         },
         {
           "hostId": "cline",
@@ -930,37 +929,120 @@
       "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) and the use-repowise loose skill. The external repowise CLI itself is machine tooling (uv tool install repowise), not package content."
     },
     {
-      "id": "mobile-device-lab",
+      "id": "mobile-development",
       "owner": "mobile-quality",
       "capabilityType": "plugin+mcp+skills",
-      "canonicalSource": "packages/mobile-device-lab",
+      "canonicalSource": "packages/mobile-development",
       "managedSkillNames": [
-        "mobile-device-lab"
+        "mobile-device-lab",
+        "mobile-platform-standard"
       ],
-      "contentHash": "8A16D93DFA4D3E1E7F47302A0A4B86009C392ACFB509913A9E521023F7FE70D4",
-      "hashBasis": "packages/mobile-device-lab",
+      "contentHash": "4289C7CD4ECD5B0FE6B36C763C3E188D3B2E9F3BE6E86D21AA7C81403F0D5FF3",
+      "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
+      "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
+      "deployedCatalog": {
+        "syncOwner": "scripts/Sync-Capabilities.ps1",
+        "runtimeRelativeRoot": "capabilities/mobile-development",
+        "entrypoint": "mobile.ps1",
+        "arguments": ["catalog"],
+        "authoritySource": "registry",
+        "authorityRuntimeRelativeRoot": "registry"
+      },
       "hostMappings": [
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
         {
           "hostId": "claude",
           "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills",
+            "catalog",
             "mcp"
           ],
-          "deploymentStatusNote": "Loose skills, not the plugin, since 2026-08-20. The plugin carries BOTH the skill and the appium-mobile MCP, and the MCP costs a node process per session (measured 2,024 MB across 15 processes with no mobile work running). Disabling the plugin to stop that also removed claude's only copy of the instructions. Splitting them keeps the skill readable at all times while the server stays enable-on-demand via `claude plugin enable mobile-device-lab@agenthub`."
+          "deploymentStatusNote": "Both skills stay loosely readable and route catalog/lifecycle commands through the AgentHub-managed runtime package. Appium remains absent from default host configuration and is enabled only for a new mobile task through that deployed mobile.ps1 entrypoint."
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "codex",
-          "deploymentStatus": "managed-native-skills-and-mcp",
+          "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills",
+            "catalog",
             "mcp"
-          ]
+          ],
+          "deploymentStatusNote": "Both skills stay loosely readable and route catalog/lifecycle commands through the AgentHub-managed runtime package. Appium remains absent from default host configuration and is installed only for a new mobile task through that deployed mobile.ps1 entrypoint."
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         }
       ],
-      "notes": "Owns mobile device automation for the fleet: the appium-mobile MCP (registry/mcps.json#appium-mobile) and the mobile-device-lab skill. Android runs natively on the Windows host through the MCP's embedded UiAutomator2; iOS runs in the VMware macOS guest, where Appium 3.6.0 + XCUITest 12.3.1 serve on port 4723 and are reached with remoteServerUrl over the VMnet8 private network. Verified end to end 2026-08-10: concurrent Android and iOS sessions from one MCP, screenshots from both. This capability covers interactive, agent-driven investigation only; committed regression flows remain Maestro's under the mobile-platform-standard skill, and nothing here substitutes for a physical-device run.",
-      "hostScopeNote": "Narrowed to claude and codex on 2026-08-19 to match the appium-mobile host list in registry/mcps.json. This skill states that both platforms are reached through the same MCP server, so on a host without that server it is instructions for tooling the host cannot invoke -- it was deployed to 11 hosts while only 2 had a route. mobile-platform-standard is deliberately NOT narrowed: it is the eligibility gate and Expo/EAS baseline for writing mobile code and depends on no MCP."
+      "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the source public contract at packages/mobile-development/mobile.ps1, the AgentHub-managed deployed runtime package, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",
+      "hostScopeNote": "All active coding hosts receive both loose skills and resolve the catalog through the fleet-managed package under %LOCALAPPDATA%/AgentHub/capabilities/mobile-development, independent of a repository checkout or native marketplace state. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration."
     },
     {
       "id": "railway",

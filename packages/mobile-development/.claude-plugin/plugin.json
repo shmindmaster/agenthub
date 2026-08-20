@@ -1,0 +1,16 @@
+{
+  "name": "mobile-development",
+  "version": "2.0.4",
+  "description": "Canonical mobile development guidance with explicitly enabled, on-demand Appium tooling.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "mobile-testing",
+    "appium",
+    "android-emulator",
+    "ios-simulator",
+    "expo"
+  ]
+}

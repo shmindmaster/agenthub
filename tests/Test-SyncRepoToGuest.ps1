@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 <#
-Behavior tests for the mobile-device-lab's cross-OS repository sync.
+Behavior tests for the canonical mobile-development package's cross-OS repository sync.
 
 THE DEFECT
 `tar.exe -C <working-tree>` transfers the checkout rendition of a file. On a
@@ -28,7 +28,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$syncScript = Join-Path $repoRoot 'packages\mobile-device-lab\skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1'
+$syncScript = Join-Path $repoRoot 'packages\mobile-development\skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1'
 
 if ([string]::IsNullOrWhiteSpace($env:AGENTHUB_TEST_SCRATCH)) {
     $env:AGENTHUB_TEST_SCRATCH = [IO.Path]::GetTempPath()

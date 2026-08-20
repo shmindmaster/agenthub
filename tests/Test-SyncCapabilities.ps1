@@ -138,19 +138,28 @@ function New-SyncCapabilitiesFixture {
 }
 
 function Set-SyncCapabilitiesFixtureCapabilities {
-    param([string]$RegistryDir, [string]$CapabilityId, [string]$HostId, [switch]$DropHostMapping)
+    param([string]$RegistryDir, [string]$CapabilityId, [string]$HostId, [switch]$DropHostMapping, [switch]$DeployCatalog)
     $hostMappings = if ($DropHostMapping) { @() } else { @(@{ hostId = $HostId; deploymentStatus = 'managed' }) }
+    $capability = @{
+        id = $CapabilityId
+        owner = 'test'
+        capabilityType = 'skill-pack'
+        canonicalSource = "packages/$CapabilityId"
+        hostMappings = $hostMappings
+    }
+    if ($DeployCatalog) {
+        $capability.deployedCatalog = @{
+            syncOwner = 'scripts/Sync-Capabilities.ps1'
+            runtimeRelativeRoot = "capabilities/$CapabilityId"
+            entrypoint = 'mobile.ps1'
+            arguments = @('catalog')
+            authoritySource = 'registry'
+            authorityRuntimeRelativeRoot = 'registry'
+        }
+    }
     $capabilities = @{
         schemaVersion = 2
-        capabilities = @(
-            @{
-                id = $CapabilityId
-                owner = 'test'
-                capabilityType = 'skill-pack'
-                canonicalSource = "packages/$CapabilityId"
-                hostMappings = $hostMappings
-            }
-        )
+        capabilities = @($capability)
     }
     ($capabilities | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath (Join-Path $RegistryDir 'capabilities.json') -Encoding UTF8 -NoNewline
 }
@@ -326,6 +335,38 @@ function Test-SecondApplyIsIdempotent {
         }
         if ($second.Output -match 'missing=|drift=') {
             return @{ Passed = $false; Detail = "second -Apply's summary unexpectedly reports missing/drift entries. Output: $($second.Output)" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $fixture
+    }
+}
+
+# --- Behavior 5b: a capability may declare one checkout-independent runtime
+# package. The same guarded managed-tree path that owns loose skills must copy
+# the complete canonical package, update it when source changes, and converge
+# to current without relying on a repository checkout at invocation time. ---
+function Test-ManagedRuntimeCatalogPackageConverges {
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-catalog-cap' -HostId 'zz-catalog-host' -SkillName 'sample-skill' -SkillContent 'canonical skill v1'
+    try {
+        Set-SyncCapabilitiesFixtureCapabilities -RegistryDir $fixture.RegistryDir -CapabilityId 'zz-catalog-cap' -HostId 'zz-catalog-host' -DeployCatalog
+        $sourceEntrypoint = Join-Path $fixture.Root 'packages\zz-catalog-cap\mobile.ps1'
+        [IO.File]::WriteAllText($sourceEntrypoint, 'catalog entrypoint v1', [Text.UTF8Encoding]::new($false))
+        $destinationRoot = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\capabilities\zz-catalog-cap'
+        $destinationEntrypoint = Join-Path $destinationRoot 'mobile.ps1'
+
+        $first = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($first.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $destinationEntrypoint)) {
+            return @{ Passed = $false; Detail = "first runtime-package deploy failed. Output: $($first.Output)" }
+        }
+        [IO.File]::WriteAllText($sourceEntrypoint, 'catalog entrypoint v2', [Text.UTF8Encoding]::new($false))
+        $second = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($second.ExitCode -ne 0 -or [IO.File]::ReadAllText($destinationEntrypoint) -ne 'catalog entrypoint v2') {
+            return @{ Passed = $false; Detail = "managed runtime package did not update with canonical source. Output: $($second.Output)" }
+        }
+        $third = Invoke-SyncCapabilities -ExtraArgs @('-Audit', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($third.ExitCode -ne 0 -or $third.Output -notmatch 'current=3' -or $third.Output -match 'missing=|drift=') {
+            return @{ Passed = $false; Detail = "runtime package, authority, and loose skill did not converge to three current managed trees. Output: $($third.Output)" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
@@ -646,6 +687,9 @@ Report 'second consecutive -Apply against the same fixture makes no further byte
 
 $r5a = Test-PartialApplyStillRecordsWhatItDeployed
 Report 'a partial -Apply records the skill it deployed, and does not record the one it refused' $r5a.Passed $r5a.Detail
+
+$r5b = Test-ManagedRuntimeCatalogPackageConverges
+Report 'a managed runtime catalog package mirrors complete source and converges independently of a checkout' $r5b.Passed $r5b.Detail
 
 $r6 = Test-EmptyWorkSetFailsLoudly
 Report 'zero capabilities and zero agents fails loudly instead of reporting success' $r6.Passed $r6.Detail

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-19T00:00:00.000Z",
+  "generatedAt": "2026-08-20T00:00:00.000Z",
   "authority": {
     "capabilitiesRegistry": "registry/capabilities.json",
     "mcpRegistry": "registry/mcps.json",
@@ -9,7 +9,7 @@
       "C:/Users/SaroshHussain/.codex/plugins/cache"
     ],
     "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. On-demand-local MCPs are removed from host configuration unless lifecyclePolicy.persistedOnDemandLocalMcpIds records a reviewed exception -- and note that 'on-demand' names an intent, not a mechanism: a host starts every stdio server named in its config at session start, so there is no lazy path for a persisted stdio entry. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners.",
-    "retiredExceptionNote": "This policy previously ended the exception sentence with: 'The appium-mobile exception may persist its provider registration but never starts the VM or emulators.' That was false, and it is the sentence that licensed the leak -- appium-mobile was measured on 2026-08-19 holding 15 node processes totalling 2,017 MB at rest, 48-239 MB each and climbing, with no mobile work in progress. Registering a stdio server in a host config IS starting it. appium-mobile was removed from persistedOnDemandLocalMcpIds and gated behind `claude plugin enable mobile-device-lab@agenthub`; see lifecyclePolicy.appiumActivationRoute. Kept here rather than deleted because the wording, not the entry, was the failure mode."
+    "retiredExceptionNote": "This policy previously ended the exception sentence with: 'The appium-mobile exception may persist its provider registration but never starts the VM or emulators.' That was false, and it is the sentence that licensed the leak -- appium-mobile was measured on 2026-08-19 holding 15 node processes totalling 2,017 MB at rest, 48-239 MB each and climbing, with no mobile work in progress. Registering a stdio server in a host config IS starting it. appium-mobile was removed from persistedOnDemandLocalMcpIds and gated behind `claude plugin enable mobile-development@agenthub`; see lifecyclePolicy.appiumActivationRoute. Kept here rather than deleted because the wording, not the entry, was the failure mode."
   },
   "hostPrivateExtensionPolicy": {
     "hosts": [
@@ -47,7 +47,7 @@
       "reconciledOn": "2026-08-13",
       "why": "generatedAt is bumped by this reconciliation, so it would otherwise read as a claim that onDemandLocalMcpIds covers every on-demand-local server in registry/mcps.json as of today. It does not. This block is what keeps the bumped date from overclaiming, and it is the record that the gap was seen rather than missed.",
       "added": {
-        "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local, owned by capability mobile-device-lab, after the previous generatedAt of 2026-07-31. Straightforward staleness: it is an on-demand-desktop stdio process started by its owning capability, the same shape as chrome-devtools, so this policy governs it on the same terms."
+        "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers."
       },
       "notAdded": {
         "chrome-devtools-isolated": "Registered 2026-08-06 with activationMode on-demand-local. Not added here because whether it is governed as a separate lifecycle id or as part of its chrome-devtools sibling is a decision about how browser-toolkit exposes the pair, and no host exposure list in this file names it at all -- adding it to the lifecycle list alone would record a governance claim the exposures do not back.",
@@ -58,7 +58,7 @@
     },
     "persistedOnDemandLocalMcpIdsNote": "Reviewed exceptions: on-demand-local servers that ARE written into host configs. The default is to omit them, because activationPolicy wants a local server started by the capability that needs it rather than declared everywhere. playwright was added 2026-08-19 with a specific justification: the eight hosts it targets have no native browser and no plugin format that can deliver an MCP for them (amp, copilot, devin, gemini, grok, opencode, qwen-code, warp take raw MCP config), so omitting it would leave them with no browser capability at all. The usual objection to persisting a local server -- a process per host at session start -- does not apply: Playwright does not launch a browser until a tool needs one, and its daemon measured 10-22 MB here against appium's ~93 MB.",
     "onDemandLocalMcpIdsNote": "Refreshed 2026-08-19. chrome-devtools was replaced by playwright and brave-search was removed (zero host declarations, zero session visibility). railway and repowise-workspace were live on-demand-local servers this list had never been updated to include.",
-    "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: `claude plugin enable mobile-device-lab@agenthub`. On codex: `codex plugin add mobile-device-lab@agenthub`. Five of twenty-one products in registry/mobile-scope.json are mobile eligible (rexa, abacare, gentlenext, subops, lienwise), so the default state for the other sixteen is the one that should cost nothing."
+    "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json."
   },
   "managedMarketplaces": [
     {

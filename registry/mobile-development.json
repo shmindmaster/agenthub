@@ -1,0 +1,331 @@
+{
+  "schemaVersion": 1,
+  "recordedOn": "2026-08-20",
+  "owner": "mobile-quality",
+  "contract": "mobile-development",
+  "status": "active-canonical",
+  "entrypoint": "packages/mobile-development/mobile.ps1",
+  "authorities": {
+    "productScope": "registry/mobile-scope.json",
+    "appiumMcp": "registry/mcps.json#appium-mobile",
+    "vmx": "D:/VMs/macOS-Tahoe-AMD/macos.vmx",
+    "note": "Product eligibility and identity, the Appium MCP package pin, and live VM hardware must be read from these authorities. This registry owns guest runtime expectations but does not copy VM vCPU or RAM values."
+  },
+  "syntheticFixture": {
+    "id": "mobile-development-smoke",
+    "path": "packages/mobile-development/fixtures/smoke-app",
+    "scopeException": "The fixed local-only fixture may run through `mobile.ps1 test deep` without a productId. It creates no durable product or cloud identity."
+  },
+  "expectations": {
+    "android": {
+      "apiLevel": 36,
+      "avdName": "rexa-api36",
+      "virtualDeviceIdPattern": "^emulator-[0-9]+$"
+    },
+    "ios": {
+      "deviceName": "iPhone 17",
+      "platformVersion": "26.5",
+      "runtimeKeySuffix": "iOS-26-5"
+    },
+    "guestAppium": {
+      "version": "3.6.0",
+      "port": 4723,
+      "bindAddress": "0.0.0.0",
+      "statusPath": "/status",
+      "sessionDiscoveryPath": "/appium/sessions"
+    },
+    "xcuitest": {
+      "version": "12.3.1"
+    }
+  },
+  "agentSurface": {
+    "primary": [
+      {
+        "id": "scope.resolve",
+        "name": "Resolve mobile product scope",
+        "command": "mobile.ps1 scope <productId>",
+        "providerIds": ["mobile-scope-registry"],
+        "fileRefs": ["registry/mobile-scope.json", "packages/mobile-development/skills/mobile-platform-standard/SKILL.md"]
+      },
+      {
+        "id": "platform.expo-baseline",
+        "name": "Apply the Expo, React Native, and TypeScript baseline",
+        "command": "mobile.ps1 catalog platform.expo-baseline",
+        "providerIds": ["windows-mobile-toolchain"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-platform-standard/SKILL.md"]
+      },
+      {
+        "id": "development.metro",
+        "name": "Run the fast Metro reload loop",
+        "command": "mobile.ps1 metro <productId> -ProjectPath <path>",
+        "providerIds": ["windows-mobile-toolchain", "macos-guest-vm"],
+        "serviceIds": ["metro", "adb", "ssh"]
+      },
+      {
+        "id": "build.android-apk",
+        "name": "Build an Android APK locally",
+        "command": "mobile.ps1 catalog build.android-apk",
+        "providerIds": ["windows-mobile-toolchain", "windows-hypervisor-platform"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-platform-standard/SKILL.md"]
+      },
+      {
+        "id": "build.ios-simulator",
+        "name": "Build an iOS Simulator app locally",
+        "command": "mobile.ps1 catalog build.ios-simulator",
+        "providerIds": ["macos-guest-vm", "ios-simulator"],
+        "serviceIds": ["ssh"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-device-lab/scripts/guest/build-expo-simulator.sh"]
+      },
+      {
+        "id": "device.android-emulator",
+        "name": "Use the Windows Android emulator on WHPX",
+        "command": "mobile.ps1 start android",
+        "providerIds": ["windows-mobile-toolchain", "windows-hypervisor-platform", "android-avd"],
+        "serviceIds": ["adb"]
+      },
+      {
+        "id": "device.ios-simulator",
+        "name": "Use the Xcode Simulator in the VMware macOS guest",
+        "command": "mobile.ps1 start ios",
+        "providerIds": ["vmware-workstation", "macos-guest-vm", "ios-simulator"],
+        "serviceIds": ["ssh", "guest-appium"]
+      },
+      {
+        "id": "inspect.appium",
+        "name": "Investigate Android and iOS interactively with Appium MCP",
+        "command": "mobile.ps1 mcp enable <claude|codex>",
+        "providerIds": ["android-avd", "ios-simulator"],
+        "serviceIds": ["appium-mcp", "guest-appium"]
+      },
+      {
+        "id": "test.unit-component",
+        "name": "Run Jest and React Native Testing Library checks",
+        "command": "mobile.ps1 catalog test.unit-component",
+        "providerIds": ["windows-mobile-toolchain"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-device-lab/references/inner-loop.md"]
+      },
+      {
+        "id": "test.maestro",
+        "name": "Run committed Maestro end-to-end flows",
+        "command": "mobile.ps1 catalog test.maestro",
+        "providerIds": ["android-avd", "ios-simulator"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-device-lab/SKILL.md"]
+      },
+      {
+        "id": "test.mobile-web",
+        "name": "Exercise a responsive web target in mobile browsers",
+        "command": "mobile.ps1 web <productId> -ProjectPath <path> -Url <url>",
+        "providerIds": ["android-avd", "ios-simulator"],
+        "serviceIds": ["adb", "ssh"]
+      },
+      {
+        "id": "evidence.capture",
+        "name": "Capture synthetic mobile evidence with health-sensitive safeguards",
+        "command": "mobile.ps1 catalog evidence.capture",
+        "providerIds": ["android-avd", "ios-simulator"],
+        "serviceIds": ["appium-mcp"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-device-lab/SKILL.md"]
+      },
+      {
+        "id": "guest.sync",
+        "name": "Synchronize an explicit repository tree to the macOS guest",
+        "command": "mobile.ps1 sync <productId> -RepoPath <path> -GuestPath <path>",
+        "providerIds": ["macos-guest-vm"],
+        "serviceIds": ["ssh"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-device-lab/scripts/Sync-RepoToGuest.ps1"]
+      },
+      {
+        "id": "health.check",
+        "name": "Check provisioned files or current runtime readiness without starting resources",
+        "command": "mobile.ps1 check <files|runtime> [android|ios|both]",
+        "providerIds": ["windows-mobile-toolchain", "vmware-workstation", "macos-guest-vm", "android-avd", "ios-simulator"],
+        "serviceIds": ["adb", "ssh", "guest-appium", "appium-mcp"]
+      }
+    ],
+    "specialty": [
+      {
+        "id": "build.ios-signed",
+        "name": "Build a signed iOS artifact",
+        "gates": ["include-product", "apple-credentials", "owner-approval"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-platform-standard/references/release-infrastructure.md"]
+      },
+      {
+        "id": "device.physical",
+        "name": "Install or control an app on physical Android or iOS hardware",
+        "gates": ["include-product", "physical-hardware", "credentials-as-applicable", "owner-approval-as-applicable"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-platform-standard/SKILL.md"]
+      },
+      {
+        "id": "delivery.eas-store",
+        "name": "Deliver through EAS or a mobile store",
+        "gates": ["include-product", "stable-mobile-identity", "credentials", "owner-approval", "external-mutation"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-platform-standard/references/store-compliance.md"]
+      },
+      {
+        "id": "integration.push",
+        "name": "Configure mobile push notifications",
+        "gates": ["include-product", "firebase-or-apns-credentials", "owner-approval", "external-mutation"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-platform-standard/references/release-infrastructure.md"]
+      },
+      {
+        "id": "integration.deep-links",
+        "name": "Configure universal links and Android app links",
+        "gates": ["include-product", "canonical-domain-and-identity", "owner-approval"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-platform-standard/SKILL.md"]
+      },
+      {
+        "id": "observability.mobile",
+        "name": "Configure mobile observability",
+        "gates": ["include-product", "provider-project-and-credentials", "owner-approval", "external-mutation"],
+        "fileRefs": ["packages/mobile-development/skills/mobile-platform-standard/SKILL.md"]
+      }
+    ]
+  },
+  "resources": [
+    {
+      "id": "mobile-scope-registry",
+      "kind": "registry",
+      "path": "registry/mobile-scope.json",
+      "discovery": "read-json"
+    },
+    {
+      "id": "windows-mobile-toolchain",
+      "kind": "host-toolchain",
+      "platform": "windows",
+      "discovery": {
+        "androidSdkEnvironment": ["ANDROID_HOME", "ANDROID_SDK_ROOT"],
+        "adbRelativePath": "platform-tools/adb.exe",
+        "emulatorRelativePath": "emulator/emulator.exe",
+        "nodeCommand": "node",
+        "javaEnvironment": "JAVA_HOME",
+        "javaRelativePath": "bin/java.exe",
+        "javaFallbackCommand": "java"
+      }
+    },
+    {
+      "id": "windows-hypervisor-platform",
+      "kind": "acceleration-substrate",
+      "platform": "windows",
+      "provider": "WHP/WHPX",
+      "readiness": "The Android emulator's acceleration check reports WHPX usable; this is not a separate mobile lane."
+    },
+    {
+      "id": "vmware-workstation",
+      "kind": "hypervisor",
+      "platform": "windows",
+      "discovery": {
+        "vmrunPaths": [
+          "C:/Program Files/VMware/VMware Workstation/vmrun.exe",
+          "C:/Program Files (x86)/VMware/VMware Workstation/vmrun.exe"
+        ]
+      }
+    },
+    {
+      "id": "macos-guest-vm",
+      "kind": "virtual-machine",
+      "providerId": "vmware-workstation",
+      "vmxAuthorityRef": "authorities.vmx",
+      "hardwareDiscovery": {
+        "source": "vmx-live",
+        "fields": ["numvcpus", "memsize"],
+        "recordValuesHere": false
+      },
+      "network": "VMnet8 NAT",
+      "sshHostAlias": "macvm"
+    },
+    {
+      "id": "macos-guest-known-good-backup",
+      "kind": "immutable-backup",
+      "path": "D:/VMs/macOS-Tahoe-AMD-Backup-2026-08-10",
+      "mutationAllowed": false
+    },
+    {
+      "id": "android-avd",
+      "kind": "virtual-device",
+      "platform": "android",
+      "expectationRef": "expectations.android",
+      "providerId": "windows-mobile-toolchain"
+    },
+    {
+      "id": "ios-simulator",
+      "kind": "virtual-device",
+      "platform": "ios",
+      "expectationRef": "expectations.ios",
+      "providerId": "macos-guest-vm"
+    }
+  ],
+  "services": [
+    {
+      "id": "adb",
+      "activationMode": "on-demand-local",
+      "invocation": "<android-sdk>/platform-tools/adb.exe",
+      "readiness": "An existing adb server process and an API-level-matching emulator are reported; read-only checks never start adb."
+    },
+    {
+      "id": "metro",
+      "activationMode": "explicit-local",
+      "invocation": "packages/mobile-development/skills/mobile-device-lab/scripts/Start-MobileLabMetro.ps1",
+      "readiness": "HTTP /status returns packager-status:running on the selected port."
+    },
+    {
+      "id": "ssh",
+      "activationMode": "command-on-demand",
+      "invocation": "ssh -o HostKeyAlias=macvm macvm",
+      "readiness": "TCP port 22 is reachable at a dynamically resolved guest address."
+    },
+    {
+      "id": "guest-appium",
+      "activationMode": "guest-launchd-after-vm-start",
+      "invocation": "packages/mobile-development/skills/mobile-device-lab/scripts/guest/start-appium-guest.sh",
+      "readiness": "expectations.guestAppium.statusPath returns value.ready=true on the private VMnet8 address."
+    },
+    {
+      "id": "appium-mcp",
+      "activationMode": "on-demand-local",
+      "mcpServerId": "appium-mobile",
+      "mcpAuthority": "registry/mcps.json",
+      "hosts": ["claude", "codex"],
+      "invocation": "mobile.ps1 mcp enable <claude|codex>",
+      "readiness": "A newly loaded host task exposes the Appium MCP tool catalog; disable it after mobile work."
+    }
+  ],
+  "taskMap": {
+    "closedDecision": true,
+    "rationale": "This is an approved closed decision map, not a backlog. A new proposal requires a new approved contract before it can be added.",
+    "enabled": [
+      "scope.resolve",
+      "platform.expo-baseline",
+      "development.metro",
+      "build.android-apk",
+      "build.ios-simulator",
+      "device.android-emulator",
+      "device.ios-simulator",
+      "inspect.appium",
+      "test.unit-component",
+      "test.maestro",
+      "test.mobile-web",
+      "evidence.capture",
+      "guest.sync",
+      "health.check"
+    ],
+    "specialty": [
+      "build.ios-signed",
+      "device.physical",
+      "delivery.eas-store",
+      "integration.push",
+      "integration.deep-links",
+      "observability.mobile"
+    ],
+    "deferred": [],
+    "outOfScope": [
+      { "id": "detox", "name": "Detox", "reason": "Unsupported by the adopted Expo and React Native stack and requires a separate instrumented build." },
+      { "id": "maestro-mcp", "name": "Maestro MCP", "reason": "The native Maestro CLI already runs committed flows; another persistent MCP duplicates Appium and adds process cost." },
+      { "id": "wsl-android-e2e", "name": "WSL Android E2E", "reason": "The Windows-native or guest reverse-tunnel routes are measured working; WSL adds a second inferior toolchain." },
+      { "id": "android-studio", "name": "Android Studio", "reason": "CLI SDK and AVD tooling is sufficient and avoids a second bundled JDK." },
+      { "id": "nested-virtualization", "name": "Nested virtualization", "reason": "The macOS guest does not need nested VMs and the working VM configuration keeps vhv.enable false." },
+      { "id": "second-vm-nic", "name": "Second VM NIC", "reason": "VMnet8 NAT already provides host-private reachability and a second NIC adds address ambiguity." },
+      { "id": "routine-cloud-builds", "name": "Routine cloud builds", "reason": "Android APKs and iOS Simulator builds compile locally; cloud builds are a gated fallback, not the routine path." },
+      { "id": "cloud-device-farms", "name": "Cloud device farms", "reason": "The canonical lab uses local virtual devices; paid external device farms are outside this capability." }
+    ]
+  }
+}

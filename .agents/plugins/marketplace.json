@@ -89,10 +89,10 @@
       "category": "Developer Tools"
     },
     {
-      "name": "mobile-device-lab",
+      "name": "mobile-development",
       "source": {
         "source": "local",
-        "path": "./packages/mobile-device-lab"
+        "path": "./packages/mobile-development"
       },
       "policy": {
         "installation": "AVAILABLE",
