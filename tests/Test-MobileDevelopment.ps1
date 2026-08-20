@@ -45,10 +45,15 @@ function Test-ReadableSkillTree([string]$Source, [string]$Destination) {
                 Sort-Object
         )
         if (-not (Test-Sequence $sourceFiles $destinationFiles)) { return $false }
+        $portableTextExtensions = @('.json', '.md', '.mjs', '.ps1', '.psm1', '.sh', '.txt', '.yaml', '.yml')
         foreach ($relative in $sourceFiles) {
             $sourcePath = Join-Path $Source ($relative -replace '/', '\')
             $destinationPath = Join-Path $Destination ($relative -replace '/', '\')
-            if ((Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash -ne
+            if ([IO.Path]::GetExtension($sourcePath).ToLowerInvariant() -in $portableTextExtensions) {
+                $sourceContent = (Get-Content -LiteralPath $sourcePath -Raw -Encoding UTF8).Replace("`r`n", "`n").Replace("`r", "`n")
+                $destinationContent = (Get-Content -LiteralPath $destinationPath -Raw -Encoding UTF8).Replace("`r`n", "`n").Replace("`r", "`n")
+                if ($sourceContent -cne $destinationContent) { return $false }
+            } elseif ((Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash -ne
                 (Get-FileHash -LiteralPath $destinationPath -Algorithm SHA256).Hash) { return $false }
         }
         return $true
