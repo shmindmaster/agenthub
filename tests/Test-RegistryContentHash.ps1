@@ -56,13 +56,15 @@ function New-HashFixtureRepo {
     Set-Content -LiteralPath (Join-Path $workRoot '.gitignore') -Value '*.mp4' -Encoding UTF8 -NoNewline
     $trackedFile = Join-Path $packageDir 'content.md'
     Set-Content -LiteralPath $trackedFile -Value "fixture content for tests/Test-RegistryContentHash.ps1`n" -Encoding UTF8 -NoNewline
+    $moduleFile = Join-Path $packageDir 'module.psm1'
+    [IO.File]::WriteAllText($moduleFile, "function Get-Fixture {`n    'fixture'`n}`n", [Text.UTF8Encoding]::new($false))
 
     & git -C $workRoot init -q
     if ($LASTEXITCODE -ne 0) { throw "git init failed for fixture at $workRoot" }
     & git -C $workRoot add -A
     if ($LASTEXITCODE -ne 0) { throw "git add failed for fixture at $workRoot" }
 
-    return [pscustomobject]@{ WorkRoot = $workRoot; PackageDir = $packageDir; TrackedFile = $trackedFile }
+    return [pscustomobject]@{ WorkRoot = $workRoot; PackageDir = $packageDir; TrackedFile = $trackedFile; ModuleFile = $moduleFile }
 }
 
 # --- Behavior 1: a gitignored file inside a package must never affect the hash. ---
@@ -102,7 +104,24 @@ function Test-TrackedFileChangeMovesHash {
     }
 }
 
-# --- Behavior 3: if git is unavailable, fail loudly instead of returning a wrong hash. ---
+# --- Behavior 3: PowerShell modules are text and checkout EOL policy must not move the hash. ---
+function Test-PowerShellModuleLineEndingsAreStable {
+    $fixture = New-HashFixtureRepo
+    try {
+        [IO.File]::WriteAllText($fixture.ModuleFile, "function Get-Fixture {`n    'fixture'`n}`n", [Text.UTF8Encoding]::new($false))
+        $lfHash = Get-AgentHubRegistryHashBasisValue -Path $fixture.PackageDir
+        [IO.File]::WriteAllText($fixture.ModuleFile, "function Get-Fixture {`r`n    'fixture'`r`n}`r`n", [Text.UTF8Encoding]::new($false))
+        $crlfHash = Get-AgentHubRegistryHashBasisValue -Path $fixture.PackageDir
+        if ($lfHash -ne $crlfHash) {
+            return @{ Passed = $false; Detail = "PowerShell module EOL changed hash: lf=$lfHash crlf=$crlfHash" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        if (Test-Path -LiteralPath $fixture.WorkRoot) { Remove-Item -LiteralPath $fixture.WorkRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+# --- Behavior 4: if git is unavailable, fail loudly instead of returning a wrong hash. ---
 function Test-UnavailableGitFailsLoudly {
     $packageDir = Join-Path $repoRoot 'packages\framer'
     $originalPath = $env:PATH
@@ -134,7 +153,7 @@ function Test-UnavailableGitFailsLoudly {
     }
 }
 
-# --- Behavior 4: a path outside any git work tree must fail loudly, not silently hash the filesystem. ---
+# --- Behavior 5: a path outside any git work tree must fail loudly, not silently hash the filesystem. ---
 function Test-NonWorkTreePathFailsLoudly {
     $tempDir = Join-Path $env:AGENTHUB_TEST_SCRATCH ("non-worktree-" + [guid]::NewGuid())
     New-Item -ItemType Directory -Path $tempDir | Out-Null
@@ -151,7 +170,7 @@ function Test-NonWorkTreePathFailsLoudly {
     }
 }
 
-# --- Behavior 5: zero tracked files under an existing directory must fail loudly, not silently hash an empty set. ---
+# --- Behavior 6: zero tracked files under an existing directory must fail loudly, not silently hash an empty set. ---
 #
 # The empty directory used to be created (and removed) directly inside the
 # checkout's own packages/framer. That is untracked content written to the
@@ -186,14 +205,17 @@ Report 'gitignored file does not move the hash' $r1.Passed $r1.Detail
 $r2 = Test-TrackedFileChangeMovesHash
 Report 'tracked file change moves the hash' $r2.Passed $r2.Detail
 
-$r3 = Test-UnavailableGitFailsLoudly
-Report 'unavailable git enumeration mechanism fails loudly' $r3.Passed $r3.Detail
+$r3 = Test-PowerShellModuleLineEndingsAreStable
+Report 'PowerShell module line endings do not move the hash' $r3.Passed $r3.Detail
 
-$r4 = Test-NonWorkTreePathFailsLoudly
-Report 'path outside a git work tree fails loudly' $r4.Passed $r4.Detail
+$r4 = Test-UnavailableGitFailsLoudly
+Report 'unavailable git enumeration mechanism fails loudly' $r4.Passed $r4.Detail
 
-$r5 = Test-EmptyTrackedSetFailsLoudly
-Report 'zero git-tracked files under an existing directory fails loudly' $r5.Passed $r5.Detail
+$r5 = Test-NonWorkTreePathFailsLoudly
+Report 'path outside a git work tree fails loudly' $r5.Passed $r5.Detail
+
+$r6 = Test-EmptyTrackedSetFailsLoudly
+Report 'zero git-tracked files under an existing directory fails loudly' $r6.Passed $r6.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

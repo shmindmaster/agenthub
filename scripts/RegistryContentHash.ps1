@@ -7,7 +7,7 @@ function Get-AgentHubStableFileHash {
         '.cjs', '.cmd', '.css', '.cts', '.csv', '.editorconfig', '.eslintrc',
         '.example', '.gitattributes', '.html', '.js', '.json', '.map',
         '.markdown', '.md', '.mdc', '.mjs', '.mts', '.npmignore', '.nycrc',
-        '.ps1', '.py', '.sh', '.svg', '.toml', '.ts', '.tsx', '.txt',
+        '.ps1', '.psm1', '.py', '.sh', '.svg', '.toml', '.ts', '.tsx', '.txt',
         '.xml', '.yaml', '.yml'
     )
     $extension = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
