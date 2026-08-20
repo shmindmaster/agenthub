@@ -14,8 +14,12 @@
 
 set -euo pipefail
 
-APPIUM_VERSION="3.6.0"
-XCUITEST_VERSION="12.3.1"
+FACTS="$HOME/mobile-lab/mobile-development.env"
+[ -f "$FACTS" ] || { echo "FATAL: canonical mobile-development.env is missing; rerun mobile.ps1 start ios" >&2; exit 1; }
+# shellcheck source=/dev/null
+. "$FACTS"
+: "${APPIUM_VERSION:?APPIUM_VERSION missing from mobile-development.env}"
+: "${XCUITEST_VERSION:?XCUITEST_VERSION missing from mobile-development.env}"
 
 say() { printf '\n=== %s ===\n' "$1"; }
 

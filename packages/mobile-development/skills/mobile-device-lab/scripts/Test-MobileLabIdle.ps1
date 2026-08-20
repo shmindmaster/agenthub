@@ -12,6 +12,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot '..\..\..\MobileDevelopment.psm1') -Force
 
 function Get-ConflictKind {
     param([Parameter(Mandatory)][string]$CommandLine)
@@ -88,7 +89,10 @@ try {
 
         if (-not $LeaseOnly) {
             if ([string]::IsNullOrWhiteSpace($GuestIp)) { throw 'GuestIp is required for a live idle probe.' }
-            if ([string]::IsNullOrWhiteSpace($AppiumUrl)) { $AppiumUrl = "http://${GuestIp}:4723" }
+            if ([string]::IsNullOrWhiteSpace($AppiumUrl)) {
+                $guestAppium = Get-MobileDevelopmentExpectation -Name guestAppium
+                $AppiumUrl = "http://${GuestIp}:$($guestAppium.port)"
+            }
             $checkedScopes.Add('Windows process table')
             $checkedScopes.Add('macOS guest process table')
             $checkedScopes.Add('guest Appium sessions')

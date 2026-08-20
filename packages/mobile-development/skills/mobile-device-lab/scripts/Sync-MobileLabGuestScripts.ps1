@@ -11,6 +11,11 @@ param(
 $ErrorActionPreference = 'Stop'
 $sourceRoot = Join-Path $PSScriptRoot 'guest'
 $ownsStage = $false
+Import-Module (Join-Path $PSScriptRoot '..\..\..\MobileDevelopment.psm1') -Force
+
+function ConvertTo-ShellSingleQuoted([string]$Value) {
+    "'" + $Value.Replace("'", "'\"'\"'") + "'"
+}
 
 function Write-Result {
     param([bool]$Ok, [string]$Stage, [object[]]$Files, [bool]$Changed, [bool]$Restarted, [string]$ErrorMessage)
@@ -58,6 +63,28 @@ try {
     }
     if ($files.Count -eq 0) { throw "No guest shell scripts found under $sourceRoot" }
 
+    # Guest scripts consume one generated, versioned-at-deployment fact file.
+    # The mutable expectations stay authoritative in registry/mobile-development.json;
+    # no guest helper carries a second literal that can drift independently.
+    $contract = Get-MobileDevelopmentContract
+    $guestEnvironmentName = 'mobile-development.env'
+    $guestEnvironmentPath = Join-Path $stageRoot $guestEnvironmentName
+    $guestEnvironment = @(
+        "APPIUM_VERSION=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.guestAppium.version))"
+        "XCUITEST_VERSION=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.xcuitest.version))"
+        "APPIUM_PORT=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.guestAppium.port))"
+        "APPIUM_BIND_ADDRESS=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.guestAppium.bindAddress))"
+        "IOS_DEVICE_NAME=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.ios.deviceName))"
+        "IOS_PLATFORM_VERSION=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.ios.platformVersion))"
+        "ANDROID_API_LEVEL=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.android.apiLevel))"
+        "ANDROID_AVD_NAME=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.android.avdName))"
+    ) -join "`n"
+    [IO.File]::WriteAllText($guestEnvironmentPath, $guestEnvironment + "`n", [Text.UTF8Encoding]::new($false))
+    $files.Add([pscustomobject]@{
+            name = $guestEnvironmentName
+            sha256 = (Get-FileHash -LiteralPath $guestEnvironmentPath -Algorithm SHA256).Hash
+        })
+
     $fileNames = @($files | ForEach-Object { $_.name }) -join ' '
     $remoteInstall = @'
 set -eu
@@ -68,7 +95,7 @@ for name in __AGENTHUB_FILE_NAMES__; do
   dst="$HOME/mobile-lab/$name"
   if ! cmp -s "$src" "$dst" 2>/dev/null; then
     changed=1
-    [ "$name" = "start-appium-guest.sh" ] && restart=1
+    { [ "$name" = "start-appium-guest.sh" ] || [ "$name" = "mobile-development.env" ]; } && restart=1
     install -m 755 "$src" "$dst"
   fi
 done

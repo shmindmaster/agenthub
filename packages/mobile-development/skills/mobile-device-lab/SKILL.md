@@ -32,7 +32,7 @@ build the native shell once and then reload JS as you edit it.
 ```powershell
 # once: build the dev shell, then start Metro on the host and attach the app
 ssh macvm 'bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/<product> "" booted --dev'
-.\Start-MobileLabMetro.ps1 -ProjectPath C:\Repos\shmindmaster\<product>\apps\mobile -Attach
+pwsh -NoProfile -File C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1 metro <productId> -ProjectPath C:\Repos\shmindmaster\<product>\apps\mobile -Attach
 # then: edit on Windows, reload the app. No rebuild. No sync.
 ```
 
@@ -82,8 +82,8 @@ treat it as real and stop.
 Bring the lab up, then verify it. Both are idempotent and safe to re-run:
 
 ```powershell
-pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Start-MobileLab.ps1' -Json
-pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Test-MobileLab.ps1' -Json
+pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1' start both -Json
+pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1' check runtime both -Json
 ```
 
 `Start-MobileLab.ps1` boots the emulator and the macOS guest and waits for each.
@@ -104,11 +104,12 @@ Android is needed — it avoids waking the VM.
 For deterministic infrastructure validation, run the deep synthetic smoke:
 
 ```powershell
-pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Test-MobileLab.ps1' -Deep -Json
+pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1' test deep -Json
 ```
 
 This builds the local-only fixture under `fixtures/smoke-app`, installs and
-launches it on both simulators, initializes pinned `appium-mcp@1.92.0`, checks
+launches it on both simulators, initializes the exact Appium MCP pin resolved
+from `registry/mcps.json`, checks
 the tool catalog, keeps concurrent sessions, taps/types, inspects page source,
 and captures screenshots. It never creates an Expo/EAS project, store entry,
 credential, or product identity.
@@ -129,8 +130,8 @@ build/install/session window, run the idle probe under that lease, and release
 it in `finally`:
 
 ```powershell
-$leaseTool = 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Enter-MobileLabLease.ps1'
-$idleTool = 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1'
+$leaseTool = 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\skills\mobile-device-lab\scripts\Enter-MobileLabLease.ps1'
+$idleTool = 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1'
 $lease = (& $leaseTool -Action Acquire -Json | ConvertFrom-Json)
 try {
   & $idleTool -GuestIp <resolved-ip> -LeaseId $lease.leaseId -Json
@@ -197,7 +198,7 @@ Go straight to remote mode.
 
 `appium_session_management` with `action: create`, `platform: ios`, and
 `remoteServerUrl` set to the guest's Appium URL. Resolve that URL from
-`Test-MobileLab.ps1` output rather than typing it — the guest address is
+`mobile.ps1 start ios -Json` output rather than typing it — the guest address is
 DHCP-assigned and does change.
 
 Standard capabilities for this lab:
@@ -206,8 +207,8 @@ Standard capabilities for this lab:
 {
   "platformName": "iOS",
   "appium:automationName": "XCUITest",
-  "appium:deviceName": "iPhone 17",
-  "appium:platformVersion": "26.5",
+  "appium:deviceName": "<registry/mobile-development.json expectations.ios.deviceName>",
+  "appium:platformVersion": "<registry/mobile-development.json expectations.ios.platformVersion>",
   "appium:noReset": true,
   "appium:newCommandTimeout": 600,
   "appium:wdaLaunchTimeout": 900000,
@@ -226,8 +227,9 @@ if that is empty, the flag is a trap.
 Let the driver install WDA once. Only consider the flag afterwards, and only if
 `listapps` shows it present.
 
-`iPhone 17` / iOS `26.5` are not preferences — they are the only runtime
-installed, and the decision record explains why no older one can be.
+The device name and platform version are not preferences. Resolve the current
+expectation with `mobile.ps1 catalog device.ios-simulator -Json`; the decision
+record explains why an arbitrary older runtime is not interchangeable.
 
 ## Getting the app under test
 
@@ -278,7 +280,7 @@ only). It is **not** the dynamic TCP port range — that was a wrong first
 diagnosis that cost hours.
 
 Verified 2026-08-11 on Rexa: `BUILD SUCCESSFUL in 3m 26s`, 50.8 MB APK,
-installed and driven on `rexa-api36`. Full write-up in
+installed and driven on the AVD now recorded in the canonical registry. Full write-up in
 `%USERPROFILE%\.gradle\gradle.properties`. Drop the redirect once the
 Defender/ASR policy behind it is fixed.
 
@@ -357,7 +359,7 @@ pwsh -File '...\scripts\Test-MobileLabAppConfig.ps1' -ProjectPath C:\Repos\shmin
 
 # 1. mirror the working tree into the guest (uncommitted work included;
 #    node_modules, ios/ and Pods in the guest are preserved, not re-sent)
-pwsh -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-device-lab\skills\mobile-device-lab\scripts\Sync-RepoToGuest.ps1' `
+pwsh -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1' sync <productId> `
   -RepoPath C:\Repos\shmindmaster\<product> -GuestPath '~/Repos/shmindmaster/<product>'
 
 # 2. build Release for the simulator and install it
@@ -425,7 +427,7 @@ running on Windows inside Mobile Safari on the simulator and Chrome on the
 emulator:
 
 ```powershell
-.\Open-MobileLabWebTarget.ps1 -Url http://localhost:5173/dashboard
+pwsh -NoProfile -File C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1 web <productId> -Url http://localhost:5173/dashboard
 ```
 
 `localhost` means something different in each target, so the script rewrites the

@@ -374,7 +374,7 @@
         "mobile.android.local",
         "mobile.ios.simulated"
       ],
-      "providesCapabilitiesNote": "mobile.android.local -- an Android emulator or attached device on the Windows host, driven through the MCP's embedded UiAutomator2 (omit remoteServerUrl). mobile.ios.simulated -- an iOS Simulator inside the VMware macOS guest, driven by passing remoteServerUrl for the guest's Appium 3.6.0 + XCUITest 12.3.1 on port 4723. Neither capability covers a physical iPhone or a real-hardware claim.",
+      "providesCapabilitiesNote": "mobile.android.local -- an Android emulator on the Windows host, driven through the MCP's embedded UiAutomator2 (omit remoteServerUrl). mobile.ios.simulated -- the registry/mobile-development.json Simulator expectation inside the VMware macOS guest, driven by passing the dynamically resolved guest Appium URL. Neither capability covers physical hardware or a real-device claim.",
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-08-19",
@@ -382,19 +382,19 @@
       },
       "localProcessPolicy": {
         "instancing": "single-shared-process",
-        "note": "Pinned to 1.92.0 rather than @latest so a re-resolve does not silently move the lab; see chrome-devtools for the pinned precedent and brave-search for the deliberately unpinned counterpart. It does not start the Android emulator or macOS guest; those expensive resources stay cold until Start-MobileLab.ps1 is invoked. Host list narrowed to claude and codex on 2026-08-19: this entry previously named 18 hosts on the reasoning that registering a stdio provider is lightweight, and measurement disproved it -- every host that opened spawned a node process of roughly 93 MB even when no mobile work was done, 647 MB across 7 live processes at the time of measurement. Registration is only lightweight where the host starts nothing until a tool is called; on these hosts it is not. Re-add a host when mobile work actually moves there.",
+        "note": "The exact appium-mcp package argument above is the sole pin authority; @latest is prohibited so a re-resolve cannot silently move the lab. It does not start the Android emulator or macOS guest; those expensive resources stay cold until packages/mobile-development/mobile.ps1 start is invoked. Host list narrowed to claude and codex on 2026-08-19: this entry previously named 18 hosts on the reasoning that registering a stdio provider is lightweight, and measurement disproved it -- every host that opened spawned a node process of roughly 93 MB even when no mobile work was done, 647 MB across 7 live processes at the time of measurement. Registration is only lightweight where the host starts nothing until a tool is called; on these hosts it is not. Re-add a host only through a newly approved mobile-development contract.",
         "versionPinVerifiedOn": "2026-08-19"
       },
       "owner": {
         "type": "capability",
-        "id": "mobile-device-lab"
+        "id": "mobile-development"
       },
       "hosts": [
         "claude",
         "codex"
       ],
       "experimentalFlagsEnabled": [],
-      "notes": "Registered 2026-08-10. Windows-host only: it needs adb for Android, and its iOS half is a remote client to the macOS guest rather than a local driver, because Xcode and simctl do not exist on Windows. The guest address is DHCP-assigned by VMware NAT -- resolve it with `vmrun getGuestIPAddress` (Test-MobileLab.ps1 does) instead of hardcoding it. NO_UI is set per the package's own guidance to cut generated-UI token overhead."
+      "notes": "Registered 2026-08-10. Windows-host only: it needs adb for Android, and its iOS half is a remote client to the macOS guest rather than a local driver, because Xcode and simctl do not exist on Windows. packages/mobile-development/mobile.ps1 and its retained lab scripts resolve guest and runtime expectations from registry/mobile-development.json. NO_UI is set per the package guidance to cut generated-UI token overhead."
     },
     {
       "id": "railway",

@@ -10,8 +10,11 @@ function readArgs(argv) {
     if (!key || value === undefined) throw new Error(`Invalid argument near ${argv[i] ?? "<end>"}`);
     result[key] = value;
   }
-  for (const required of ["remote-url", "android-udid", "ios-udid", "android-app", "ios-app", "ios-bundle-id", "output-dir"]) {
+  for (const required of ["remote-url", "android-udid", "ios-udid", "android-app", "ios-app", "ios-bundle-id", "output-dir", "appium-package", "ios-device-name", "ios-platform-version"]) {
     if (!result[required]) throw new Error(`Missing --${required}`);
+  }
+  if (!/^appium-mcp@[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$/.test(result["appium-package"])) {
+    throw new Error("--appium-package must be an exact appium-mcp@<semver> pin from registry/mcps.json");
   }
   return result;
 }
@@ -21,7 +24,7 @@ fs.mkdirSync(args["output-dir"], { recursive: true });
 
 const child = spawn(
   "cmd.exe",
-  ["/d", "/s", "/c", "npx -y appium-mcp@1.92.0"],
+  ["/d", "/s", "/c", `npx -y ${args["appium-package"]}`],
   {
     stdio: ["pipe", "pipe", "pipe"],
     env: { ...process.env, NO_UI: "true" },
@@ -237,8 +240,8 @@ try {
     capabilities: JSON.stringify({
       platformName: "iOS",
       "appium:automationName": "XCUITest",
-      "appium:deviceName": "iPhone 17",
-      "appium:platformVersion": "26.5",
+      "appium:deviceName": args["ios-device-name"],
+      "appium:platformVersion": args["ios-platform-version"],
       "appium:udid": args["ios-udid"],
       "appium:app": args["ios-app"],
       "appium:bundleId": args["ios-bundle-id"],

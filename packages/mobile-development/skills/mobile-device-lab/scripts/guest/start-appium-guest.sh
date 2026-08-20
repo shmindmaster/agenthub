@@ -13,7 +13,12 @@ set -euo pipefail
 LABEL="dev.shmindmaster.appium"
 PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
 LOG_DIR="$HOME/Library/Logs/mobile-lab"
-PORT="${APPIUM_PORT:-4723}"
+FACTS="$HOME/mobile-lab/mobile-development.env"
+[ -f "$FACTS" ] || { echo "FATAL: canonical mobile-development.env is missing; rerun mobile.ps1 start ios" >&2; exit 1; }
+# shellcheck source=/dev/null
+. "$FACTS"
+PORT="${APPIUM_PORT:?APPIUM_PORT missing from mobile-development.env}"
+BIND_ADDRESS="${APPIUM_BIND_ADDRESS:?APPIUM_BIND_ADDRESS missing from mobile-development.env}"
 
 mkdir -p "$HOME/Library/LaunchAgents" "$LOG_DIR"
 
@@ -36,7 +41,7 @@ cat > "$PLIST" <<PLIST_EOF
     <string>${NODE_BIN}</string>
     <string>${APPIUM_BIN}</string>
     <string>server</string>
-    <string>--address</string><string>0.0.0.0</string>
+    <string>--address</string><string>${BIND_ADDRESS}</string>
     <string>--port</string><string>${PORT}</string>
     <string>--use-drivers</string><string>xcuitest</string>
     <string>--allow-insecure</string><string>*:session_discovery</string>

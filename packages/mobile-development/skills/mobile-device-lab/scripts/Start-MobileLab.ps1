@@ -22,7 +22,10 @@ Waits are generous on purpose. This guest renders in software and is slow
 enough that a short timeout reports a false failure.
 
 .PARAMETER Avd
-Android virtual device to boot. Defaults to the first one listed.
+Android virtual device to boot. Must match the canonical registry expectation.
+
+.PARAMETER SkipAndroid
+Bring up iOS only; do not inspect or start Android resources.
 
 .PARAMETER SkipIos
 Bring up Android only; do not start the macOS guest.
@@ -33,7 +36,7 @@ Overall budget for each wait phase. Default 15.
 [CmdletBinding()]
 param(
     [string]$Avd,
-    [string]$Vmx,
+    [switch]$SkipAndroid,
     [switch]$SkipIos,
     [switch]$Json,
     [int]$TimeoutMinutes = 15
@@ -45,6 +48,12 @@ $ErrorActionPreference = 'Stop'
 # both need identical semantics; two copies of this logic is how the lab ends up
 # with two different answers to 'where is the guest'.
 Import-Module (Join-Path $PSScriptRoot 'MobileLabGuest.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '..\..\..\MobileDevelopment.psm1') -Force
+$contract = Get-MobileDevelopmentContract
+$androidExpectation = $contract.expectations.android
+$iosExpectation = $contract.expectations.ios
+$guestAppiumExpectation = $contract.expectations.guestAppium
+if ($SkipAndroid -and $SkipIos) { throw 'SkipAndroid and SkipIos cannot both be set.' }
 
 function Say {
     param([string]$Message, [string]$Colour = 'Gray')
@@ -72,12 +81,13 @@ function Wait-Until {
     return $false
 }
 
-function Get-Api36EmulatorIds {
+function Get-ExpectedApiEmulatorIds {
     param([Parameter(Mandatory)][string]$AdbPath)
-    $ids = @(& $AdbPath devices | Where-Object { $_ -match '^emulator-\d+\s+device$' } | ForEach-Object { ($_ -split '\s+')[0] })
+    $devicePattern = [string]$androidExpectation.virtualDeviceIdPattern
+    $ids = @(& $AdbPath devices | Where-Object { $_ -match '^\S+\s+device$' } | ForEach-Object { ($_ -split '\s+')[0] } | Where-Object { $_ -match $devicePattern })
     @($ids | Where-Object {
             $sdk = [string]((& $AdbPath -s $_ shell getprop ro.build.version.sdk 2>$null) | Select-Object -First 1)
-            $sdk.Trim() -eq '36'
+            $sdk.Trim() -eq [string]$androidExpectation.apiLevel
         })
 }
 
@@ -113,39 +123,42 @@ Say '=== Starting mobile device lab ===' 'White'
 
 # ------------------------------------------------------------------ Android
 
-$androidHome = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
-if (-not $androidHome) { throw "ANDROID_HOME is not set; cannot locate the Android SDK." }
-$adb = Join-Path $androidHome 'platform-tools\adb.exe'
-$emulatorExe = Join-Path $androidHome 'emulator\emulator.exe'
-foreach ($required in @($adb, $emulatorExe)) {
-    if (-not (Test-Path $required)) { throw "Missing required Android tool: $required" }
-}
+if (-not $SkipAndroid) {
+    $androidHome = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
+    if (-not $androidHome) { throw "ANDROID_HOME is not set; cannot locate the Android SDK." }
+    $adb = Join-Path $androidHome 'platform-tools\adb.exe'
+    $emulatorExe = Join-Path $androidHome 'emulator\emulator.exe'
+    foreach ($required in @($adb, $emulatorExe)) {
+        if (-not (Test-Path $required)) { throw "Missing required Android tool: $required" }
+    }
+    $expectedApi = [string]$androidExpectation.apiLevel
+    $expectedAvd = [string]$androidExpectation.avdName
+    if ($Avd -and $Avd -ne $expectedAvd) { throw "AVD '$Avd' conflicts with registry/mobile-development.json expectation '$expectedAvd'." }
+    $Avd = $expectedAvd
 
-Say 'Android:'
-$attached = @(Get-Api36EmulatorIds -AdbPath $adb)
-if ($attached.Count -gt 0) {
-    Say ("  API 36 already attached: {0}" -f ($attached -join ', ')) 'Green'
+    Say 'Android:'
+    $attached = @(Get-ExpectedApiEmulatorIds -AdbPath $adb)
+    if ($attached.Count -gt 0) {
+        Say ("  API $expectedApi already attached: {0}" -f ($attached -join ', ')) 'Green'
+    }
+    else {
+        $avds = @(& $emulatorExe -list-avds | Where-Object { $_ -and $_.Trim() })
+        if ($avds -notcontains $Avd) { throw "Canonical AVD '$Avd' not found. Available: $($avds -join ', ')" }
+        Say "  booting canonical AVD '$Avd'"
+        Start-Process -FilePath $emulatorExe -ArgumentList @('-avd', $Avd) -WindowStyle Minimized | Out-Null
+        if (-not (Wait-Until -What "emulator '$Avd'" -TimeoutSec $timeoutSec -Condition {
+                    @(Get-ExpectedApiEmulatorIds -AdbPath $adb).Count -gt 0
+                })) { throw "Android emulator failed to attach as API $expectedApi. Verify the canonical AVD's system image." }
+        $startedAndroidId = [string](@(Get-ExpectedApiEmulatorIds -AdbPath $adb | Select-Object -First 1))
+        if (-not (Wait-Until -What 'android boot completed' -TimeoutSec $timeoutSec -Condition {
+                    (& $adb -s $startedAndroidId shell getprop sys.boot_completed 2>$null) -match '1'
+                })) { throw "Android did not finish booting." }
+    }
+    $androidId = @(Get-ExpectedApiEmulatorIds -AdbPath $adb | Select-Object -First 1)
+    $script:Facts.androidDeviceId = if ($androidId.Count) { $androidId[0] } else { $null }
+    if (-not $script:Facts.androidDeviceId) { throw "Android emulator enumeration returned no API $expectedApi virtual device ID." }
+    Add-Stage 'android' ([bool]$script:Facts.androidDeviceId) "device=$($script:Facts.androidDeviceId); avd=$Avd; api=$expectedApi" "Start canonical AVD '$Avd' and rerun."
 }
-else {
-    $avds = @(& $emulatorExe -list-avds | Where-Object { $_ -and $_.Trim() })
-    if ($avds.Count -eq 0) { throw "No Android virtual devices exist. Create one in Android Studio first." }
-    if (-not $Avd) { $Avd = $avds[0] }
-    if ($avds -notcontains $Avd) { throw "AVD '$Avd' not found. Available: $($avds -join ', ')" }
-    Say "  booting AVD '$Avd' (available: $($avds -join ', '))"
-    Start-Process -FilePath $emulatorExe -ArgumentList @('-avd', $Avd) -WindowStyle Minimized | Out-Null
-    if (-not (Wait-Until -What "emulator '$Avd'" -TimeoutSec $timeoutSec -Condition {
-                @(Get-Api36EmulatorIds -AdbPath $adb).Count -gt 0
-            })) { throw "Android emulator failed to attach as API 36. Verify the selected AVD's system image." }
-    $startedAndroidId = [string](@(Get-Api36EmulatorIds -AdbPath $adb | Select-Object -First 1))
-    # `adb devices` reports the device before Android has finished booting.
-    if (-not (Wait-Until -What 'android boot completed' -TimeoutSec $timeoutSec -Condition {
-                (& $adb -s $startedAndroidId shell getprop sys.boot_completed 2>$null) -match '1'
-            })) { throw "Android did not finish booting." }
-}
-$androidId = @(Get-Api36EmulatorIds -AdbPath $adb | Select-Object -First 1)
-$script:Facts.androidDeviceId = if ($androidId.Count) { $androidId[0] } else { $null }
-if (-not $script:Facts.androidDeviceId) { throw 'Android emulator enumeration returned no API 36 virtual device ID.' }
-Add-Stage 'android' ([bool]$script:Facts.androidDeviceId) "device=$($script:Facts.androidDeviceId)" 'Start an API 36 AVD and rerun.'
 
 if ($SkipIos) {
     Write-Host ''
@@ -156,24 +169,14 @@ if ($SkipIos) {
 
 # ---------------------------------------------------------------------- iOS
 
-$vmrun = 'C:\Program Files\VMware\VMware Workstation\vmrun.exe'
-if (-not (Test-Path $vmrun)) { $vmrun = 'C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe' }
+$vmwareResource = Get-MobileDevelopmentResource -Id 'vmware-workstation'
+$vmrun = @($vmwareResource.discovery.vmrunPaths | ForEach-Object { ([string]$_) -replace '/', '\' } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1)
+if ($vmrun.Count) { $vmrun = [string]$vmrun[0] } else { $vmrun = $null }
 if (-not (Test-Path $vmrun)) { throw "vmrun not found. Install VMware Workstation, or pass -SkipIos." }
 
 Say 'macOS guest:'
-if (-not $Vmx) {
-    # VMware's own inventory, so a moved or renamed VM still resolves. Explicit
-    # UTF-8: a BOM-less file decodes differently in 5.1 and 7.
-    $inventory = Join-Path $env:APPDATA 'VMware\inventory.vmls'
-    if (Test-Path $inventory) {
-        $Vmx = Get-Content $inventory -Encoding UTF8 -ErrorAction SilentlyContinue |
-            Select-String -Pattern '^\s*vmlist\d+\.config\s*=\s*"(.+\.vmx)"' |
-            ForEach-Object { $_.Matches[0].Groups[1].Value } |
-            Where-Object { Test-Path $_ } |
-            Select-Object -First 1
-    }
-}
-if (-not $Vmx) { throw "Could not resolve a .vmx from VMware's inventory. Pass -Vmx explicitly." }
+$Vmx = (Get-MobileVmxFacts).path
+if (-not (Test-Path -LiteralPath $Vmx -PathType Leaf)) { throw "Canonical VMX authority is missing: $Vmx" }
 Say "  vmx: $Vmx"
 
 # This macOS guest does not run nested VMs. Workstation cannot expose AMD-V/RVI
@@ -181,11 +184,7 @@ Say "  vmx: $Vmx"
 # makes vmrun abort before macOS starts. Enforce the documented lab invariant.
 $vmxText = [IO.File]::ReadAllText($Vmx)
 if ($vmxText -match '(?m)^vhv\.enable\s*=\s*"TRUE"') {
-    $backup = "$Vmx.pre-mobile-lab-vhv-disable"
-    if (-not (Test-Path -LiteralPath $backup)) { Copy-Item -LiteralPath $Vmx -Destination $backup }
-    $vmxText = $vmxText -replace '(?m)^vhv\.enable\s*=\s*"TRUE"', 'vhv.enable = "FALSE"'
-    [IO.File]::WriteAllText($Vmx, $vmxText, [Text.UTF8Encoding]::new($false))
-    Say '  repaired vhv.enable=FALSE for Hyper-V compatibility' 'Yellow'
+    throw "Canonical VMX has vhv.enable=TRUE. Nested virtualization is out of scope; stop and obtain owner approval before changing the VM configuration."
 }
 
 $running = @(& $vmrun list)
@@ -227,10 +226,10 @@ Add-Stage 'guest-helper-sync' $true "changed=$($syncResult.changed); appiumResta
 
 # Appium runs as a launchd agent (RunAtLoad), so it comes back with the guest.
 # Cold start is minutes here, hence the generous budget.
-$appiumUrl = "http://$($script:guestIp):4723"
+$appiumUrl = "http://$($script:guestIp):$($guestAppiumExpectation.port)"
 $script:Facts.guestAppiumUrl = $appiumUrl
 if (-not (Wait-Until -What "appium at $appiumUrl" -TimeoutSec $timeoutSec -Condition {
-            try { [bool](Invoke-RestMethod -Uri "$appiumUrl/status" -TimeoutSec 10).value.ready } catch { $false }
+            try { [bool](Invoke-RestMethod -Uri "$appiumUrl$($guestAppiumExpectation.statusPath)" -TimeoutSec 10).value.ready } catch { $false }
         })) {
     Say '  Appium did not answer. Is the launchd agent installed?' 'Yellow'
     Say "    ssh macvm 'bash ~/mobile-lab/start-appium-guest.sh'" 'Cyan'
@@ -244,31 +243,31 @@ try { $availableDevices = $availableJson | ConvertFrom-Json }
 catch { throw "Could not parse simctl device inventory JSON: $($_.Exception.Message)" }
 $targetSimulator = $null
 foreach ($runtimeProperty in @($availableDevices.devices.PSObject.Properties)) {
-    if ($runtimeProperty.Name -notmatch 'iOS-26-5$') { continue }
-    $matches = @($runtimeProperty.Value | Where-Object name -eq 'iPhone 17')
-    if ($matches.Count -ne 1) { throw "Expected exactly one iPhone 17 under iOS 26.5, found $($matches.Count)." }
+    if ($runtimeProperty.Name -notmatch ([regex]::Escape([string]$iosExpectation.runtimeKeySuffix) + '$')) { continue }
+    $matches = @($runtimeProperty.Value | Where-Object name -eq ([string]$iosExpectation.deviceName))
+    if ($matches.Count -ne 1) { throw "Expected exactly one $($iosExpectation.deviceName) under iOS $($iosExpectation.platformVersion), found $($matches.Count)." }
     $targetSimulator = $matches[0]
     break
 }
-if (-not $targetSimulator -or -not $targetSimulator.udid) { throw 'Could not resolve the iPhone 17 / iOS 26.5 Simulator UDID.' }
+if (-not $targetSimulator -or -not $targetSimulator.udid) { throw "Could not resolve the $($iosExpectation.deviceName) / iOS $($iosExpectation.platformVersion) Simulator UDID." }
 $targetSimulatorUdid = [string]$targetSimulator.udid
-$script:Facts.iosDevice = 'iPhone 17'
+$script:Facts.iosDevice = [string]$iosExpectation.deviceName
 $script:Facts.iosDeviceId = $targetSimulatorUdid
-$script:Facts.iosRuntime = 'iOS 26.5'
+$script:Facts.iosRuntime = "iOS $($iosExpectation.platformVersion)"
 $script:lastSimulatorBootEvidence = ''
 if ($targetSimulator.state -ne 'Booted') {
-    Say '  exact iPhone 17 / iOS 26.5 Simulator is shutdown; booting it'
-    if (-not (Wait-Until -What 'iPhone 17 / iOS 26.5 Simulator boot' -TimeoutSec $timeoutSec -Condition {
+    Say "  exact $($iosExpectation.deviceName) / iOS $($iosExpectation.platformVersion) Simulator is shutdown; booting it"
+    if (-not (Wait-Until -What "$($iosExpectation.deviceName) / iOS $($iosExpectation.platformVersion) Simulator boot" -TimeoutSec $timeoutSec -Condition {
                 $currentState = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted' 2>&1) -join "`n")
                 if ($currentState -match [regex]::Escape($targetSimulatorUdid)) { return $true }
                 $script:lastSimulatorBootEvidence = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm "xcrun simctl boot $targetSimulatorUdid 2>&1 || true") -join ' ')
                 return $false
-            })) { throw "iPhone 17 / iOS 26.5 Simulator did not boot. Last boot response: $script:lastSimulatorBootEvidence" }
+            })) { throw "$($iosExpectation.deviceName) / iOS $($iosExpectation.platformVersion) Simulator did not boot. Last boot response: $script:lastSimulatorBootEvidence" }
 }
 $bootedText = [string](@(& ssh -o "HostName=$script:guestIp" -o "HostKeyAlias=macvm" -o "LogLevel=ERROR" -o BatchMode=yes macvm 'xcrun simctl list devices booted' 2>&1) -join "`n")
 if ($bootedText -notmatch [regex]::Escape($targetSimulatorUdid)) { throw "Exact Simulator $targetSimulatorUdid is not booted." }
-Say ("  exact simulator ready: iPhone 17 ({0}) / iOS 26.5" -f $targetSimulatorUdid) 'Green'
-Add-Stage 'ios-simulator' $true "iPhone 17 ($targetSimulatorUdid) (Booted); runtime=iOS 26.5" 'Boot the exact iPhone 17 / iOS 26.5 Simulator.'
+Say ("  exact simulator ready: {0} ({1}) / iOS {2}" -f $iosExpectation.deviceName, $targetSimulatorUdid, $iosExpectation.platformVersion) 'Green'
+Add-Stage 'ios-simulator' $true "$($iosExpectation.deviceName) ($targetSimulatorUdid) (Booted); runtime=iOS $($iosExpectation.platformVersion)" "Boot the exact $($iosExpectation.deviceName) / iOS $($iosExpectation.platformVersion) Simulator."
 
 Write-Host ''
 Say 'MOBILE LAB READY' 'Green'

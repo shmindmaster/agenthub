@@ -25,7 +25,8 @@ Check only the Android half. Does not wake or require the macOS VM.
 Emit a machine-readable result object as the final line, for agent use.
 
 .PARAMETER Deep
-Build and install the local synthetic fixture, initialize appium-mcp@1.92.0,
+Build and install the local synthetic fixture, initialize the Appium MCP pin
+resolved from registry/mcps.json,
 verify its catalog, exercise concurrent Android/iOS sessions, and capture
 screenshots and page-source evidence.
 #>
@@ -42,6 +43,13 @@ $ErrorActionPreference = 'Stop'
 # both need identical semantics; two copies of this logic is how the lab ends up
 # with two different answers to 'where is the guest'.
 Import-Module (Join-Path $PSScriptRoot 'MobileLabGuest.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '..\..\..\MobileDevelopment.psm1') -Force
+$contract = Get-MobileDevelopmentContract
+$androidExpectation = $contract.expectations.android
+$iosExpectation = $contract.expectations.ios
+$guestAppiumExpectation = $contract.expectations.guestAppium
+$xcuitestExpectation = $contract.expectations.xcuitest
+$appiumMcp = Get-AppiumMcpAuthority
 
 $script:Results = [System.Collections.Generic.List[object]]::new()
 $script:Facts = [ordered]@{}
@@ -154,12 +162,12 @@ $emulatorDetails = @(
         [pscustomobject]@{ Id = $id; Sdk = $sdk.Trim() }
     }
 )
-$devices = @($emulatorDetails | Where-Object Sdk -eq '36')
+$devices = @($emulatorDetails | Where-Object Sdk -eq ([string]$androidExpectation.apiLevel))
 $haveEmulator = ($devices.Count -gt 0)
 $script:Facts['androidAttachedDeviceIds'] = @($attachedDevices | ForEach-Object { ($_ -split '\s+')[0] })
 $script:Facts['androidDevices'] = @($devices | ForEach-Object Id)
 $script:Facts['androidDeviceId'] = @($script:Facts['androidDevices'])[0]
-Write-Stage 'android: an API 36 emulator is attached' $haveEmulator (($emulatorDetails | ForEach-Object { "$($_.Id):API-$($_.Sdk)" }) -join '; ') "Start an API 36 AVD: & `"$androidHome\emulator\emulator.exe`" -avd <name>. Physical devices and other API levels are deliberately excluded."
+Write-Stage "android: an API $($androidExpectation.apiLevel) emulator is attached" $haveEmulator (($emulatorDetails | ForEach-Object { "$($_.Id):API-$($_.Sdk)" }) -join '; ') "Start canonical AVD '$($androidExpectation.avdName)': & `"$androidHome\emulator\emulator.exe`" -avd $($androidExpectation.avdName). Physical devices and other API levels are deliberately excluded."
 if (-not $haveEmulator) { Stop-Gate 'Android emulator' }
 
 if ($SkipIos) {
@@ -171,18 +179,21 @@ if ($SkipIos) {
 
 # -------------------------------------------------------------------- iOS side
 
-$vmrun = 'C:\Program Files\VMware\VMware Workstation\vmrun.exe'
-if (-not (Test-Path $vmrun)) { $vmrun = 'C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe' }
+$vmwareResource = Get-MobileDevelopmentResource -Id 'vmware-workstation'
+$vmrun = @($vmwareResource.discovery.vmrunPaths | ForEach-Object { ([string]$_) -replace '/', '\' } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1)
+if ($vmrun.Count) { $vmrun = [string]$vmrun[0] } else { $vmrun = $null }
 $vmrunOk = Test-Path $vmrun
 Write-Stage 'vmware: vmrun present' $vmrunOk $vmrun 'Install VMware Workstation, or pass -SkipIos.'
 if (-not $vmrunOk) { Stop-Gate 'VMware' }
 
 $running = & $vmrun list
-$vmx = $running | Select-Object -Skip 1 | Where-Object { $_ -match '\.vmx$' } | Select-Object -First 1
+$listedVmx = $running | Select-Object -Skip 1 | Where-Object { $_ -match '\.vmx$' } | Select-Object -First 1
+$vmxFacts = Get-MobileVmxFacts
+$vmx = $vmxFacts.path
 $script:Facts['vmx'] = $vmx
 # Written long-hand rather than with `??`: that operator is PowerShell 7 only,
 # and this file declares 5.1 so it runs under either shell.
-$vmEvidence = if ($vmx) { $vmx } else { $running -join ' ' }
+$vmEvidence = if ($listedVmx) { "vmrun listed $listedVmx; authority=$vmx" } else { "authority=$vmx; vmrun=$($running -join ' ')" }
 
 # `vmrun list` is a *report about* the guest, not the guest. On 2026-08-17 it
 # said "Total running VMs: 0" while that guest was four hours into an uptime
@@ -202,7 +213,7 @@ try {
 }
 
 $vmUp = [bool]$reachable
-if ($reachable -and -not $vmx) {
+if ($reachable -and -not $listedVmx) {
     $vmEvidence = "vmrun list reported no running VM, but the guest answered SSH at $($reachable.address) (via $($reachable.source)). Trusting SSH: the VMX control channel is degraded, the guest is not."
 }
 elseif (-not $reachable) {
@@ -266,53 +277,65 @@ if (-not $xcodeOk) { Stop-Gate 'Xcode in guest' }
 # average 18.5 reindexing, this command exceeded its timeout, and the gate
 # reported "an iOS simulator runtime is installed: FAIL -- iOS runtimes: " with
 # the download remediation. The runtime was installed the whole time
-# (iOS 26.5 - 23F77).
-$runtime = Invoke-Guest -Command 'xcrun simctl list runtimes | grep -c "iOS"' -TimeoutSec 120
+# (the configured runtime was present and healthy).
+$runtime = Invoke-Guest -Command 'xcrun simctl list runtimes -j' -TimeoutSec 120
 if ($runtime.ExitCode -ne 0) {
     Write-Stage 'guest: an iOS simulator runtime is installed' $false `
         "could not determine: simctl did not answer (exit=$($runtime.ExitCode)) $($runtime.Stderr)" `
         'The guest did not answer in time -- this is NOT evidence the runtime is missing. It is usually load right after a boot or a hard power-off (check `uptime`); retry once it settles. Only if simctl answers with zero iOS runtimes should you run: ssh macvm "sudo xcodebuild -downloadPlatform iOS -architectureVariant universal"'
     Stop-Gate 'iOS runtime (undetermined)'
 }
-$runtimeOk = ([int]($runtime.Stdout -replace '\D', '') -ge 1)
-Write-Stage 'guest: an iOS simulator runtime is installed' $runtimeOk "iOS runtimes: $($runtime.Stdout)" 'Run: ssh macvm "sudo xcodebuild -downloadPlatform iOS -architectureVariant universal"'
+$runtimeInventory = $null
+try { $runtimeInventory = $runtime.Stdout | ConvertFrom-Json } catch { }
+$runtimeMatches = @($runtimeInventory.runtimes | Where-Object { [string]$_.identifier -match ([regex]::Escape([string]$iosExpectation.runtimeKeySuffix) + '$') -and $_.isAvailable -ne $false })
+$runtimeOk = ($runtime.ExitCode -eq 0 -and $runtimeMatches.Count -eq 1)
+Write-Stage "guest: iOS $($iosExpectation.platformVersion) simulator runtime is installed" $runtimeOk "matches=$($runtimeMatches.Count)" 'Run: ssh macvm "sudo xcodebuild -downloadPlatform iOS -architectureVariant universal"'
 if (-not $runtimeOk) { Stop-Gate 'iOS runtime' }
 
-$deviceInventory = Invoke-Guest -Command "xcrun simctl list devices available | awk '/-- iOS 26[.]5 --/{on=1;next} /^--/{on=0} on && /iPhone 17 [(]/{print; exit}'" -TimeoutSec 120
-$targetUdid = if ($deviceInventory.Stdout -match '\(([0-9A-Fa-f-]{36})\)\s+\((Booted|Shutdown)\)') { $Matches[1] } else { $null }
-$targetState = if ($deviceInventory.Stdout -match '\((Booted|Shutdown)\)') { $Matches[1] } else { $null }
-$bootedOk = ($deviceInventory.ExitCode -eq 0 -and $targetUdid -and $targetState -eq 'Booted')
+$deviceInventory = Invoke-Guest -Command 'xcrun simctl list devices available -j' -TimeoutSec 120
+$deviceJson = $null
+try { $deviceJson = $deviceInventory.Stdout | ConvertFrom-Json } catch { }
+$runtimeProperty = if ($deviceJson -and $deviceJson.devices) { @($deviceJson.devices.PSObject.Properties | Where-Object { $_.Name -match ([regex]::Escape([string]$iosExpectation.runtimeKeySuffix) + '$') } | Select-Object -First 1) } else { @() }
+$targetMatches = if ($runtimeProperty.Count) { @($runtimeProperty[0].Value | Where-Object { [string]$_.name -eq [string]$iosExpectation.deviceName }) } else { @() }
+$target = if ($targetMatches.Count -eq 1) { $targetMatches[0] } else { $null }
+$targetUdid = if ($target) { [string]$target.udid } else { $null }
+$targetState = if ($target) { [string]$target.state } else { $null }
+$bootedOk = ($deviceInventory.ExitCode -eq 0 -and $targetUdid -and $targetState -eq 'Booted' -and $targetMatches.Count -eq 1)
 # Same distinction as the runtime check above: a command that never answered
 # has not established that the simulator is absent.
 $bootedEvidence = if ($deviceInventory.ExitCode -ne 0) {
     "could not determine: simctl did not answer (exit=$($deviceInventory.ExitCode)) $($deviceInventory.Stderr) -- not evidence the simulator is missing; retry once guest load settles"
 } elseif ($targetUdid) {
-    "iPhone 17 ($targetUdid) ($targetState); runtime=iOS 26.5"
+    "$($iosExpectation.deviceName) ($targetUdid) ($targetState); runtime=iOS $($iosExpectation.platformVersion)"
 } else {
     $deviceInventory.Stdout
 }
 $script:Facts['bootedSimulator'] = $bootedEvidence
-$script:Facts['iosDevice'] = 'iPhone 17'
+$script:Facts['iosDevice'] = [string]$iosExpectation.deviceName
 $script:Facts['iosDeviceId'] = $targetUdid
-Write-Stage 'guest: iPhone 17 / iOS 26.5 Simulator is booted' $bootedOk $bootedEvidence 'Run Start-MobileLab.ps1 -Json to boot the exact configured Simulator.'
+Write-Stage "guest: $($iosExpectation.deviceName) / iOS $($iosExpectation.platformVersion) Simulator is booted" $bootedOk $bootedEvidence 'Run mobile.ps1 start ios -Json to boot the exact configured Simulator.'
 if (-not $bootedOk) { Stop-Gate 'booted simulator' }
 if (-not $script:Facts['iosDeviceId']) {
     Write-Stage 'guest: booted simulator has an explicit UDID' $false $booted.Stdout 'Boot exactly one Simulator and rerun; deep validation never targets a physical iPhone or an ambiguous device name.'
     Stop-Gate 'simulator identity'
 }
 
-$driver = Invoke-Guest -Command 'appium driver list --installed 2>&1 | grep -c xcuitest' -TimeoutSec 300
-$driverOk = ($driver.ExitCode -eq 0 -and [int]($driver.Stdout -replace '\D', '') -ge 1)
-Write-Stage 'guest: XCUITest driver installed' $driverOk "matches: $($driver.Stdout)" 'Run the guest setup script: scripts/guest/setup-appium-guest.sh'
+$guestAppium = Invoke-Guest -Command 'appium --version' -TimeoutSec 120
+$guestAppiumOk = ($guestAppium.ExitCode -eq 0 -and $guestAppium.Stdout.Trim() -eq [string]$guestAppiumExpectation.version)
+Write-Stage "guest: Appium $($guestAppiumExpectation.version) installed" $guestAppiumOk $guestAppium.Stdout 'Run the registry-driven guest setup script.'
+if (-not $guestAppiumOk) { Stop-Gate 'guest Appium version' }
+$driver = Invoke-Guest -Command 'appium driver list --installed 2>&1' -TimeoutSec 300
+$driverOk = ($driver.ExitCode -eq 0 -and $driver.Stdout -match ('xcuitest@' + [regex]::Escape([string]$xcuitestExpectation.version) + '\b'))
+Write-Stage "guest: XCUITest $($xcuitestExpectation.version) installed" $driverOk $driver.Stdout 'Run the registry-driven guest setup script.'
 if (-not $driverOk) { Stop-Gate 'Appium drivers' }
 
-$appiumUrl = "http://${guestIp}:4723"
+$appiumUrl = "http://${guestIp}:$($guestAppiumExpectation.port)"
 $script:Facts['appiumUrl'] = $appiumUrl
 $script:Facts['guestAppiumUrl'] = $appiumUrl
 $statusOk = $false
 $statusEvidence = ''
 try {
-    $status = Invoke-RestMethod -Uri "$appiumUrl/status" -TimeoutSec 30
+    $status = Invoke-RestMethod -Uri "$appiumUrl$($guestAppiumExpectation.statusPath)" -TimeoutSec 30
     $statusOk = [bool]$status.value.ready
     $statusEvidence = "$appiumUrl -- ready=$($status.value.ready) v$($status.value.build.version)"
 }
@@ -322,8 +345,7 @@ catch {
 Write-Stage 'appium: server reachable from Windows' $statusOk $statusEvidence 'Start it in the guest (see scripts/guest/), then allow up to ~6 min for cold start.'
 if (-not $statusOk) { Stop-Gate 'Appium server' }
 
-$runtimeDetail = Invoke-Guest -Command 'xcrun simctl list runtimes | grep iOS | head -1' -TimeoutSec 120
-$script:Facts['iosRuntime'] = if ($runtimeDetail.Stdout -match 'iOS\s+([0-9.]+)') { "iOS $($Matches[1])" } else { $runtimeDetail.Stdout }
+$script:Facts['iosRuntime'] = "iOS $($iosExpectation.platformVersion)"
 
 if ($Deep) {
     if ($SkipIos) {
@@ -372,7 +394,7 @@ if ($Deep) {
     $evidenceRoot = Join-Path $env:LOCALAPPDATA ('AgentHub\mobile-lab\evidence\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
     New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
     $mcpClient = Join-Path $PSScriptRoot 'Invoke-AppiumMcpSmoke.mjs'
-    $mcpOutput = @(& node $mcpClient --remote-url $appiumUrl --android-udid $script:Facts['androidDeviceId'] --ios-udid $script:Facts['iosDeviceId'] --android-app $buildResult.androidApk --ios-app $buildResult.iosApp --ios-bundle-id $buildResult.iosBundleId --output-dir $evidenceRoot 2>&1)
+    $mcpOutput = @(& node $mcpClient --remote-url $appiumUrl --android-udid $script:Facts['androidDeviceId'] --ios-udid $script:Facts['iosDeviceId'] --android-app $buildResult.androidApk --ios-app $buildResult.iosApp --ios-bundle-id $buildResult.iosBundleId --output-dir $evidenceRoot --appium-package $appiumMcp.Package --ios-device-name $iosExpectation.deviceName --ios-platform-version $iosExpectation.platformVersion 2>&1)
     $mcpExit = $LASTEXITCODE
     $mcpLine = $mcpOutput | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
     $mcpResult = $null
@@ -381,7 +403,7 @@ if ($Deep) {
     $sessionDiscoveryOk = $false
     $remainingAppiumSessions = @()
     try {
-        $remainingAppiumSessions = @((Invoke-RestMethod -Uri "$appiumUrl/appium/sessions" -TimeoutSec 20).value)
+        $remainingAppiumSessions = @((Invoke-RestMethod -Uri "$appiumUrl$($guestAppiumExpectation.sessionDiscoveryPath)" -TimeoutSec 20).value)
         $sessionDiscoveryOk = $true
     }
     catch { }
@@ -389,7 +411,7 @@ if ($Deep) {
     $mcpSessionsCleaned = ($reportedSessionsCleaned -and $sessionsGone)
     $mcpOk = ($mcpExit -eq 0 -and $mcpResult -and $mcpResult.ok -and $mcpSessionsCleaned)
     $script:Facts['deepEvidenceRoot'] = $evidenceRoot
-    $script:Facts['appiumMcpVersion'] = '1.92.0'
+    $script:Facts['appiumMcpVersion'] = $appiumMcp.Version
     $script:Facts['appiumMcpToolCount'] = if ($null -ne $mcpResult) { [int]$mcpResult.toolCount } else { 0 }
     Write-Stage 'deep: pinned Appium MCP cross-platform interaction' $mcpOk (($mcpOutput | Select-Object -Last 6) -join ' ') 'Open appium-mcp-smoke.json in deepEvidenceRoot, apply the reported error, and rerun -Deep.'
     # Appium/XCUITest can leave its xcodebuild WebDriverAgent runner alive after
@@ -407,7 +429,7 @@ if ($Deep) {
     $androidAfter = @(& $adb devices | Where-Object { $_ -match ('^' + [regex]::Escape([string]$script:Facts['androidDeviceId']) + '\s+device$') })
     $simulatorAfter = Invoke-Guest -Command 'xcrun simctl list devices booted | grep Booted | head -1' -TimeoutSec 120
     $appiumAfter = $false
-    try { $appiumAfter = [bool](Invoke-RestMethod -Uri "$appiumUrl/status" -TimeoutSec 15).value.ready } catch { }
+    try { $appiumAfter = [bool](Invoke-RestMethod -Uri "$appiumUrl$($guestAppiumExpectation.statusPath)" -TimeoutSec 15).value.ready } catch { }
     $postDeepReady = ($androidAfter.Count -gt 0 -and $simulatorAfter.ExitCode -eq 0 -and $simulatorAfter.Stdout -match [regex]::Escape([string]$script:Facts['iosDeviceId']) -and $appiumAfter -and $mcpSessionsCleaned)
     Write-Stage 'deep: lab remains ready after session cleanup' $postDeepReady "android=$($androidAfter -join '; '); ios=$($simulatorAfter.Stdout); appium=$appiumAfter; sessionsCleaned=$($mcpResult.sessionsCleaned)" 'Rerun Start-MobileLab.ps1 -Json, then repeat -Deep; inspect host memory pressure if the emulator exited.'
     if (-not $postDeepReady) { Stop-Gate 'post-deep readiness' }
