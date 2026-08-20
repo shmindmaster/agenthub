@@ -53,7 +53,12 @@ $liveDriftPath = Join-Path $env:LOCALAPPDATA 'AgentHub\sync\latest-drift.json'
 $liveDrift = if (Test-Path -LiteralPath $liveDriftPath) { Get-Content -LiteralPath $liveDriftPath -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
 
 Report 'one canonical mobile capability exists' ($mobile.Count -eq 1) "count=$($mobile.Count)"
-Report 'one pinned Appium MCP exists' ($appium.Count -eq 1 -and $appium[0].command -eq 'npx' -and 'appium-mcp@1.92.0' -in @($appium[0].args)) 'Expected registry/mcps.json#appium-mobile pinned to appium-mcp@1.92.0.'
+# The pin comes from the registry, not a literal. Hardcoding the version
+# made this fail on a correct bump that had been protocol-verified, which
+# trains people to edit the assertion rather than read it.
+$pinnedAppiumArg = @($appium[0].args | Where-Object { $_ -like 'appium-mcp@*' })
+Report 'one pinned Appium MCP exists' ($appium.Count -eq 1 -and $appium[0].command -eq 'npx' -and $pinnedAppiumArg.Count -eq 1) `
+    "Expected exactly one npx-invoked appium-mcp@<version> arg in registry/mcps.json#appium-mobile; found $($pinnedAppiumArg.Count)."
 Report 'Windows stdio MCP wrap exists' ($syncScriptText -match 'function Resolve-WindowsHiddenStdioEntry' -and $syncScriptText -match 'Hide-Stdio.exe') 'Emit stdio MCP through Hide-Stdio.exe on Windows so npx/cmd wrappers do not steal focus.'
 Report 'Appium is the reviewed persistent on-demand exception' ('appium-mobile' -in @($connectors.lifecyclePolicy.persistedOnDemandLocalMcpIds)) 'Add only appium-mobile to persistedOnDemandLocalMcpIds.'
 Report 'persistent on-demand exceptions participate in every sync scope' (

@@ -775,7 +775,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "30576D47E900327F16855D95C543A0DE03286678B280CB442965BE49333AE0C5",
+      "contentHash": "FF768EB332A3FD12B0EDC714ED2B8C7AAE24B7B4B59A8AB95612B681097DE2D3",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
@@ -924,7 +924,7 @@
       "managedSkillNames": [
         "mobile-device-lab"
       ],
-      "contentHash": "63F97137A34D9A0EC1103604D12C3CFFF679220A27626A57E791CA500E38F8D7",
+      "contentHash": "8A16D93DFA4D3E1E7F47302A0A4B86009C392ACFB509913A9E521023F7FE70D4",
       "hashBasis": "packages/mobile-device-lab",
       "status": "active-canonical",
       "hostMappings": [

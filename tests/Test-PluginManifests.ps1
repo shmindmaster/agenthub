@@ -317,5 +317,21 @@ if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
     exit 1
 }
+
+# A package carrying BOTH plugin.json and .claude-plugin/plugin.json must keep
+# their versions equal. On 2026-08-19 only .claude-plugin was bumped, so
+# mobile-device-lab read 1.1.2 to the plugin host and 1.1.1 to the test that
+# resolves the live install -- a split that presents as a missing plugin.
+foreach ($pkgDir in Get-ChildItem -LiteralPath (Join-Path $repoRoot 'packages') -Directory) {
+    $rootManifest = Join-Path $pkgDir.FullName 'plugin.json'
+    $claudeManifest = Join-Path $pkgDir.FullName '.claude-plugin\plugin.json'
+    if (-not (Test-Path -LiteralPath $rootManifest) -or -not (Test-Path -LiteralPath $claudeManifest)) { continue }
+    $rv = (Get-Content -LiteralPath $rootManifest -Raw -Encoding UTF8 | ConvertFrom-Json).version
+    $cv = (Get-Content -LiteralPath $claudeManifest -Raw -Encoding UTF8 | ConvertFrom-Json).version
+    if (-not $rv) { continue }   # root manifest may legitimately omit version
+    Report "$($pkgDir.Name) plugin manifests agree on version" ($rv -eq $cv) `
+        "plugin.json says '$rv' but .claude-plugin/plugin.json says '$cv'."
+}
+
 Write-Host "RESULT: $reported passed, 0 failed" -ForegroundColor Green
 exit 0
