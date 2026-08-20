@@ -357,7 +357,8 @@
         "shared-gateway": [
           "context7",
           "exa",
-          "firecrawl"
+          "firecrawl",
+          "github"
         ],
         "local-only": [
           "appium-mobile"
@@ -368,7 +369,8 @@
         "The installed Firecrawl plugin is skills-only and contains no MCP manifest; registry/mcps.json retains the Firecrawl service contract.",
         "Installed Codex app connectors own GitHub.",
         "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03 and are no longer registered on any host."
-      ]
+      ],
+      "exposureNote": "github added to codex's shared-gateway exposure on 2026-08-20. mcps.json listed codex among github's hosts, but codex had no delivery route for it in any mode -- not in config.toml, not plugin-owned, not gateway -- so the declaration was unreachable. Caught by Test-DeclaredVsDeployedMcp, which compares declared hosts against the host's actual config; no prior test opened a config file. github is shared-remote over HTTP, so this costs a config line and no process."
     },
     {
       "hostId": "claude",
