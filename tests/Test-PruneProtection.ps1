@@ -23,14 +23,16 @@ $syncPath = Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1'
 $connPath = Join-Path $repoRoot 'registry\native-connectors.json'
 
 $failures = [Collections.Generic.List[string]]::new()
+$passed = 0
 function Report {
     param([string]$Name, [bool]$Ok, [string]$Detail)
-    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green }
+    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green; $script:passed++ }
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $failures.Add($Name) }
 }
 
 $syncText = Get-Content -LiteralPath $syncPath -Raw -Encoding UTF8
 $conn = Get-Content -LiteralPath $connPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$mcpRegistry = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\mcps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $hostOwned = @($conn.lifecyclePolicy.hostConfiguredLocalMcpIds)
 
 Report 'the registry names at least one host-owned server' ($hostOwned.Count -gt 0) `
@@ -67,39 +69,78 @@ if (Test-Path -LiteralPath $codexConfig) {
 # rewriting canonical sections in place, so it deleted servers it had just
 # written -- grok went from seven servers to two. Prune must key off the
 # canonical set, which cannot delete a canonical server by construction.
-$grokBlock = [regex]::Match($syncText, '(?s)function Sync-HostMcp-Grok.*?\nfunction ')
-$grokText = if ($grokBlock.Success) { $grokBlock.Value } else { '' }
-if (-not $grokText) {
-    # Fall back to the region between the grok writer and the next function.
-    $grokText = $syncText
-}
+#
+# The assertion MUST be scoped to the grok function body. The earlier form ran
+# a `(?s).*?` regex over the whole file; it matched starting inside
+# Sync-HostMcp-Codex and bridged 126 lines across the function boundary, so
+# deleting grok's entire prune block still passed. Extract the function extent
+# from the AST -- text scanning cannot find a function's end reliably.
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($syncPath, [ref]$null, [ref]$null)
+$grokFn = $ast.FindAll({
+    param($n)
+    $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Sync-HostMcp-Grok'
+}, $true) | Select-Object -First 1
+
+# An unmatched function is a hard failure, never a fallback to the whole file:
+# the fallback is exactly what made the old assertion vacuous.
+Report 'the grok writer function is locatable for scoped assertions' ($null -ne $grokFn) `
+    'Sync-HostMcp-Grok not found in the AST; every grok assertion below would be unscoped.'
+$grokText = if ($grokFn) { $grokFn.Extent.Text } else { '' }
+
 Report 'the grok prune no longer uses a hardcoded server denylist' `
-    ($syncText -notmatch "foreach \(\`$name in @\('context7', 'firecrawl', 'tavily'") `
+    ($grokText -and $grokText -notmatch "foreach \(\`$name in @\('context7', 'firecrawl', 'tavily'") `
     'The denylist deleted canonical servers that had just been written in place.'
 
 Report 'the grok prune keys off the canonical set' `
-    ($syncText -match '(?s)if \(\$Prune\) \{.*?\$keep\[\(Resolve-McpAliasKey \$k\)\] = \$true.*?\$existingKeys') `
+    ($grokText -match '(?s)if \(\$Prune\) \{.*?\$keep\[.*?\] = \$true.*?\$existingKeys') `
     'Expected a keep-set built from $Mcps.Keys plus host-owned ids, then removal of everything else.'
 
+# The keep-set must be alias-resolved on INSERT, not only on lookup. Grok
+# seeded raw ids while looking up through Resolve-McpAliasKey, so any
+# host-owned id carrying a migrationAliases entry was kept in codex and pruned
+# from grok -- a silent divergence between two writers of the same policy.
+$hostOwnedBuild = [regex]::Match($syncText,
+    '(?s)\$script:hostOwnedMcpKeys\s*=\s*@\(.*?\)\s*?
+')
+Report 'the host-owned key list is built at all' $hostOwnedBuild.Success `
+    'Could not locate the $script:hostOwnedMcpKeys assignment; the assertion below would be vacuous.'
+Report 'the host-owned key list is alias-resolved where it is built' `
+    ($hostOwnedBuild.Success -and $hostOwnedBuild.Value -match 'Resolve-McpAliasKey') `
+    'The writers seed this list raw into their keep-sets, so if construction stops resolving, an aliased host-owned id is pruned.'
+
 $grokConfig = Join-Path $env:USERPROFILE '.grok\config.toml'
+Report 'deployed grok config is present to check' (Test-Path -LiteralPath $grokConfig) `
+    "absent: $grokConfig -- a broken TOML write is one way it goes missing, so this is a failure, not a skip."
 if (Test-Path -LiteralPath $grokConfig) {
     $gk = @([regex]::Matches((Get-Content -LiteralPath $grokConfig -Raw -Encoding UTF8),
-        '(?m)^\[mcp_servers\.([^\].]+)\]\r?$') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
-    Report 'grok retains its canonical remote servers after prune' ($gk.Count -ge 5) `
-        "grok carries $($gk.Count) server(s): $($gk -join ', '). A denylist prune left it with two."
+        '(?m)^\[mcp_servers\.([^\].]+)\]
+?$') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+    # Expected count comes from the registry, not a magic number: the old
+    # `-ge 5` would still pass if the canonical set shrank to five.
+    $expected = @($mcpRegistry.mcpServers | Where-Object { @($_.hosts) -contains 'grok' } | ForEach-Object { $_.id })
+    $missing = @($expected | Where-Object { $_ -notin $gk })
+    Report 'grok retains every canonical server the registry scopes to it' ($missing.Count -eq 0) `
+        "missing $($missing.Count) of $($expected.Count): $($missing -join ', '). grok carries: $($gk -join ', ')."
 }
 
-# The guard must be able to fail: an id the registry does not protect and the
-# canonical set does not contain must NOT be treated as protected.
-$fake = 'definitely-not-a-registered-server'
-Report 'an unprotected, unregistered id is not in the protected list' `
-    ($fake -notin $hostOwned) `
-    'The protection list matched an arbitrary id, so it proves nothing.'
+# The guard must be able to fail. Derive the negative from real data rather
+# than a hand-picked string that cannot match by construction: take a canonical
+# server id that is NOT host-owned and assert the protection list excludes it.
+$canonicalIds = @($mcpRegistry.mcpServers | ForEach-Object { $_.id })
+$notProtected = @($canonicalIds | Where-Object { $_ -notin $hostOwned })
+Report 'the protection list is a strict subset of what exists, not a catch-all' `
+    ($notProtected.Count -gt 0 -and $hostOwned.Count -lt $canonicalIds.Count + $hostOwned.Count) `
+    "Every canonical id ($($canonicalIds.Count)) appears protected; the protection check would pass for anything."
+foreach ($id in $notProtected) {
+    Report "canonical server '$id' is correctly NOT in the host-owned protection list" `
+        ($id -notin $hostOwned) `
+        'A registry-declared server was treated as host-owned, which would exempt it from prune entirely.'
+}
 
 Write-Host ''
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed" -ForegroundColor Red
+    Write-Host "RESULT: $passed passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: all prune-protection checks passed' -ForegroundColor Green
+Write-Host "RESULT: $passed passed, 0 failed" -ForegroundColor Green
 exit 0

@@ -142,7 +142,14 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'active')) {
                 if ($resolvedRoot -and $resolvedRoot -notin $skillRoots) { $skillRoots.Add($resolvedRoot) }
             }
         }
-        $liveInstruction = @($skillRoots | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'mobile-device-lab\SKILL.md') }).Count -gt 0
+        # Track WHICH root matched, not just whether one did. The shared-dir
+        # exception below has to know the difference between a private copy that
+        # survived prune and the shared ~/.agents/skills directory that several
+        # hosts read by design.
+        $matchedRoots = @($skillRoots | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'mobile-device-lab\SKILL.md') })
+        $liveInstruction = $matchedRoots.Count -gt 0
+        $sharedSkillsRoot = Resolve-LivePath '~/.agents/skills'
+        $onlyViaSharedDir = $liveInstruction -and -not @($matchedRoots | Where-Object { $_ -ne $sharedSkillsRoot }).Count
 
         $driftHost = @(if ($liveDrift) { $liveDrift.hosts | Where-Object host -eq $effectiveHost | Select-Object -First 1 })
         if ($driftHost.Count -eq 1) {
@@ -161,7 +168,12 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'active')) {
     # warp all read it, so the skill cannot be withdrawn from gemini or warp
     # without also withdrawing it from codex, which is in scope. Record that
     # rather than asserting something the directory layout makes impossible.
-    $usesSharedSkills = [bool]($effectiveAgent.Count -eq 1 -and $effectiveAgent[0].nativePaths.sharedSkillsDir)
+    # A host reaches the shared dir either by declaring sharedSkillsDir in
+    # agents.json OR by listing ~/.agents/skills in alsoScannedSkillsDirs in
+    # plugin-formats.json. Checking only the first field reported factory as
+    # retaining a private copy when its own directory was correctly pruned
+    # and the skill was resolving from the shared dir like codex and gemini.
+    $usesSharedSkills = [bool]($effectiveAgent.Count -eq 1 -and $effectiveAgent[0].nativePaths.sharedSkillsDir) -or $onlyViaSharedDir
     if ($inMobileScope) {
         Report "$hostId live profile exposes mobile instructions" $liveInstruction 'A configured directory string is insufficient; the resolved SKILL.md or enabled package must exist in the live profile.'
     } elseif ($usesSharedSkills) {
@@ -186,10 +198,30 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'unverified'
     Report "$($agent.id) is not counted functional without an executable" (-not $resolves) "status=$($agent.status) executable=$declared"
 }
 
+$appiumScopeHosts = @(($mcps.mcpServers | Where-Object { $_.id -eq 'appium-mobile' }).hosts)
+Report 'the registry declares an Appium host scope to test against' ($appiumScopeHosts.Count -gt 0) `
+    'appium-mobile has no hosts in registry/mcps.json, so every check below would be vacuous.'
+
 foreach ($connectorHost in @($connectors.hosts | Where-Object exposures)) {
     $routes = @($connectorHost.exposures.'plugin-owned') + @($connectorHost.exposures.'native-connector') +
         @($connectorHost.exposures.'shared-gateway') + @($connectorHost.exposures.'local-only')
-    Report "$($connectorHost.hostId) classifies exactly one Appium route" (@($routes | Where-Object { $_ -eq 'appium-mobile' }).Count -eq 1) 'Classify appium-mobile exactly once as plugin-owned or local-only.'
+    # Scope-aware, matching the narrowing recorded in registry/mcps.json.
+    # This assertion originally required EVERY host to classify an Appium
+    # route, which was right while appium-mobile named all 18 hosts. After
+    # the narrowing to claude+codex, demanding a route everywhere would
+    # force the fleet-wide exposure back into native-connectors.json and
+    # re-create the per-host process cost the narrowing removed. Assert the
+    # invariant in BOTH directions instead: present in scope, absent out of
+    # scope -- an assertion that only checks presence cannot detect a
+    # silent re-fan-out.
+    $appiumRoutes = @($routes | Where-Object { $_ -eq 'appium-mobile' }).Count
+    if ($connectorHost.hostId -in $appiumScopeHosts) {
+        Report "$($connectorHost.hostId) classifies exactly one Appium route" ($appiumRoutes -eq 1) `
+            "in-scope host classified appium-mobile $appiumRoutes time(s); expected exactly one."
+    } else {
+        Report "$($connectorHost.hostId) classifies no Appium route (out of scope)" ($appiumRoutes -eq 0) `
+            "host is outside appium-mobile hosts in registry/mcps.json but still carries $appiumRoutes exposure row(s); this is the fleet-wide fan-out returning."
+    }
 }
 
 $fixtureRoot = Join-Path $packageRoot 'fixtures\smoke-app'

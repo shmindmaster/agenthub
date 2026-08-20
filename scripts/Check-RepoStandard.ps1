@@ -125,9 +125,31 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
         Add-Result $Name "root-file:$f" $exists $(if (-not $exists) { 'missing' } else { '' }) $false
     }
 
+    # forbiddenPaths is config data and $path is a SIBLING repository, so a
+    # bad entry here runs Remove-Item -Recurse -Force somewhere unintended.
+    # Demonstrated 2026-08-19: a blank entry makes Join-Path return the repo
+    # root, and -Fix deleted the fixture repo. A ".." or absolute entry
+    # escapes the repo entirely. Same containment pattern as
+    # Sync-AgentHub.ps1 refusing to prune outside its managed runtime.
+    $repoFull = [IO.Path]::GetFullPath($path).TrimEnd([IO.Path]::DirectorySeparatorChar)
     foreach ($f in $forbiddenPaths) {
+        if ([string]::IsNullOrWhiteSpace($f)) {
+            Add-Result $Name "forbidden:<blank>" $false 'refused: blank forbiddenPaths entry resolves to the repository root' $false
+            continue
+        }
         $fp = Join-Path $path $f
+        $fpFull = try { [IO.Path]::GetFullPath($fp) } catch { $null }
+        if (-not $fpFull -or -not $fpFull.StartsWith($repoFull + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            Add-Result $Name "forbidden:$f" $false "refused: resolves outside the repository ($fpFull)" $false
+            continue
+        }
         if (Test-Path -LiteralPath $fp) {
+            $item = Get-Item -LiteralPath $fp -Force
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                # -Recurse -Force deletes THROUGH a junction, into the target.
+                Add-Result $Name "forbidden:$f" $false 'refused: path is a reparse point' $false
+                continue
+            }
             $fixed = $false
             if ($Fix) {
                 Remove-Item -LiteralPath $fp -Recurse -Force

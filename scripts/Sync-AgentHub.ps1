@@ -331,8 +331,22 @@ function ConvertTo-TomlString {
     # these files already carry. Fall back to an escaped basic string only when the
     # value contains a single quote, which a literal string cannot represent.
     param([string]$Value)
-    if ($Value -notmatch "'") { return "'" + $Value + "'" }
-    return '"' + ($Value.Replace('\', '\\').Replace('"', '\"')) + '"'
+    # A literal string cannot hold a control character and a single-line basic
+    # string cannot hold a raw newline, so a value carrying either must take the
+    # escaping branch. The first version emitted it raw, producing an
+    # unterminated string that broke the whole file -- the same failure this
+    # function exists to prevent, in a case it did not originally cover.
+    $hasControl = $Value -match '[\x00-\x1F\x7F]'
+    if (-not $hasControl -and $Value -notmatch "'") { return "'" + $Value + "'" }
+    $escaped = $Value.Replace('\', '\\').Replace('"', '\"')
+    foreach ($pair in @(@("`b", '\b'), @("`t", '\t'), @("`n", '\n'), @("`f", '\f'), @("`r", '\r'))) {
+        $escaped = $escaped.Replace($pair[0], $pair[1])
+    }
+    # Control characters with no short TOML escape still need encoding.
+    $escaped = [regex]::Replace($escaped, '[\x00-\x1F\x7F]', {
+        param($m) '\u{0:X4}' -f [int][char]$m.Value
+    })
+    return '"' + $escaped + '"'
 }
 
 function Test-MarkdownFrontmatter {
@@ -1185,20 +1199,20 @@ function Sync-HostMcp-Codex {
         }
         $sectionLines = @("[mcp_servers.$key]")
         if ($entry.type -eq 'http' -and $entry.url) {
-            $sectionLines += "url = `"$($entry.url)`""
+            $sectionLines += "url = $(ConvertTo-TomlString ([string]$entry.url))"
 
             # Convert canonical environment references into Codex's native
             # remote-MCP auth fields without ever resolving their secrets.
             if ($entry.headers -and $entry.headers.Authorization -match '^Bearer \$\{env:([A-Za-z_][A-Za-z0-9_]*)\}$') {
-                $sectionLines += "bearer_token_env_var = `"$($Matches[1])`""
+                $sectionLines += "bearer_token_env_var = $(ConvertTo-TomlString ([string]$Matches[1]))"
             }
             if ($entry.headers) {
                 $envHeaderPairs = @(
                     foreach ($header in @($entry.headers.GetEnumerator() | Sort-Object Key)) {
                         if ([string]$header.Value -notmatch '^\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}$') { continue }
-                        $headerName = ([string]$header.Key).Replace('\', '\\').Replace('"', '\"')
-                        $environmentName = $Matches[1]
-                        "`"$headerName`" = `"$environmentName`""
+                        $headerName = ConvertTo-TomlString ([string]$header.Key)
+                        $environmentName = ConvertTo-TomlString ([string]$Matches[1])
+                        "$headerName = $environmentName"
                     }
                 )
                 if ($envHeaderPairs.Count -gt 0) {
@@ -1308,11 +1322,11 @@ function Sync-HostMcp-Grok {
         }
         if ($mcp.type -eq 'http') {
             $url = ConvertTo-HostEnvironmentReference -Value $mcp.url -TargetHost 'grok'
-            $null = $lines.Add("url = `"$url`"")
+            $null = $lines.Add("url = $(ConvertTo-TomlString ([string]$url))")
             if ($mcp.headers) {
                 $pairs = @($mcp.headers.GetEnumerator() | Sort-Object Key | ForEach-Object {
                     $headerValue = ConvertTo-HostEnvironmentReference -Value ([string]$_.Value) -TargetHost 'grok'
-                    "`"$($_.Key)`" = `"$headerValue`""
+                    "$(ConvertTo-TomlString ([string]$_.Key)) = $(ConvertTo-TomlString ([string]$headerValue))"
                 })
                 if ($pairs.Count -gt 0) { $null = $lines.Add("headers = { $($pairs -join ', ') }") }
             }

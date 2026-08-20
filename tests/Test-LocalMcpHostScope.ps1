@@ -29,9 +29,10 @@ $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $mcpPath  = Join-Path $repoRoot 'registry\mcps.json'
 
 $failures = [Collections.Generic.List[string]]::new()
+$passed = 0
 function Report {
     param([string]$Name, [bool]$Ok, [string]$Detail)
-    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green }
+    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green; $script:passed++ }
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $failures.Add($Name) }
 }
 
@@ -84,8 +85,13 @@ if ($mcp.migrationAliases) {
 
 # Host-owned servers are written by the host itself and are deliberately absent
 # from the registry, so they are not drift -- they are protected by name.
-$connPath = Join-Path $repoRoot 'registry
-ative-connectors.json'
+$connPath = Join-Path $repoRoot 'registry\native-connectors.json'
+# A wrong path here must fail loudly. The previous form carried a literal
+# newline, so Test-Path simply returned false and the host-owned carve-out
+# below silently became dead code -- the failure mode a guard must not have.
+if (-not (Test-Path -LiteralPath $connPath)) {
+    throw "native-connectors.json not found at '$connPath'. Refusing to run with an empty host-owned set, which would make the carve-out below vacuous."
+}
 $hostOwned = @{}
 if (Test-Path -LiteralPath $connPath) {
     $conn = Get-Content -LiteralPath $connPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -115,8 +121,8 @@ Report 'a fabricated host name is not reported as installed' `
 
 Write-Host ''
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed" -ForegroundColor Red
+    Write-Host "RESULT: $passed passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: all local-MCP host-scope checks passed' -ForegroundColor Green
+Write-Host "RESULT: $passed passed, 0 failed" -ForegroundColor Green
 exit 0

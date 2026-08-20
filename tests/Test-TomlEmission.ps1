@@ -25,9 +25,10 @@ $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $syncPath = Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1'
 
 $failures = [Collections.Generic.List[string]]::new()
+$passed = 0
 function Report {
     param([string]$Name, [bool]$Ok, [string]$Detail)
-    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green }
+    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green; $script:passed++ }
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $failures.Add($Name) }
 }
 
@@ -132,8 +133,8 @@ foreach ($h in $tomlHosts) {
 
 Write-Host ''
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed" -ForegroundColor Red
+    Write-Host "RESULT: $passed passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: all TOML emission checks passed' -ForegroundColor Green
+Write-Host "RESULT: $passed passed, 0 failed" -ForegroundColor Green
 exit 0

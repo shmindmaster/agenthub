@@ -316,7 +316,14 @@ function Test-CodexEnvironmentHttpHeaders {
         }
 
         $config = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8
-        if ($config -notmatch '(?m)^env_http_headers = \{ "x-api-key" = "EXA_API_KEY" \}\r?$') {
+        # Accept either TOML string form. The emitter routes these through
+        # ConvertTo-TomlString, which picks a literal ('...') string when the value
+        # has no apostrophe and a basic ("...") string otherwise. Both are valid
+        # inline-table keys and values, so which appears is formatting, not
+        # behaviour. What this test is named for is that the ENV VAR NAME is
+        # written instead of the resolved secret. Pinning one quote style made a
+        # correct escaping fix look like a regression on 2026-08-19.
+        if ($config -notmatch '(?m)^env_http_headers = \{ ["'']x-api-key["''] = ["'']EXA_API_KEY["''] \}\r?$') {
             return @{ Passed = $false; Detail = "Codex config did not contain the expected environment header mapping. Config: [$config]" }
         }
         if ($config.Contains($env:EXA_API_KEY)) {

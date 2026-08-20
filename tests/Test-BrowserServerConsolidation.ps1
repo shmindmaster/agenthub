@@ -32,9 +32,10 @@ $mcpPath  = Join-Path $repoRoot 'registry\mcps.json'
 $pkgRoot  = Join-Path $repoRoot 'packages\browser-toolkit'
 
 $failures = [Collections.Generic.List[string]]::new()
+$passed = 0
 function Report {
     param([string]$Name, [bool]$Ok, [string]$Detail)
-    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green }
+    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green; $script:passed++ }
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $failures.Add($Name) }
 }
 
@@ -90,8 +91,8 @@ Report 'the browser-server matcher finds a server at all' ($browser.Count -gt 0)
 
 Write-Host ''
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed" -ForegroundColor Red
+    Write-Host "RESULT: $passed passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: all browser-server consolidation checks passed' -ForegroundColor Green
+Write-Host "RESULT: $passed passed, 0 failed" -ForegroundColor Green
 exit 0

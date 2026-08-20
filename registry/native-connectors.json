@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-15T19:00:00Z",
+  "generatedAt": "2026-08-19T00:00:00.000Z",
   "authority": {
     "capabilitiesRegistry": "registry/capabilities.json",
     "mcpRegistry": "registry/mcps.json",
@@ -34,7 +34,9 @@
     "persistedOnDemandLocalMcpIds": [
       "appium-mobile"
     ],
-    "hostConfiguredLocalMcpIds": [ "node_repl" ],
+    "hostConfiguredLocalMcpIds": [
+      "node_repl"
+    ],
     "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
     "hostConfiguredLocalFanoutPolicy": "appium-mobile may be registered persistently where no package activation route exists; registration is lightweight and does not start the VM or emulators",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
@@ -47,7 +49,8 @@
       },
       "notAdded": {
         "chrome-devtools-isolated": "Registered 2026-08-06 with activationMode on-demand-local. Not added here because whether it is governed as a separate lifecycle id or as part of its chrome-devtools sibling is a decision about how browser-toolkit exposes the pair, and no host exposure list in this file names it at all -- adding it to the lifecycle list alone would record a governance claim the exposures do not back.",
-        "repowise-workspace": "Registered 2026-08-07 with activationMode on-demand-local but scope global-default and 18 declared hosts, unlike every id currently in this list. localFanoutPolicy says an on-demand-local id is never persisted in host configuration; a global-default server with 18 hosts is the shape that normally IS persisted. Which of the two is correct was not measured against the deployed host configs, and recording it either way without that measurement is the assumption this registry exists to forbid."
+        "repowise-workspace": "Registered 2026-08-07 with activationMode on-demand-local but scope global-default and 18 declared hosts, unlike every id currently in this list. localFanoutPolicy says an on-demand-local id is never persisted in host configuration; a global-default server with 18 hosts is the shape that normally IS persisted. Which of the two is correct was not measured against the deployed host configs, and recording it either way without that measurement is the assumption this registry exists to forbid.",
+        "railway": "Registered 2026-08-19, after this block was reconciled on 2026-08-13, so the 'complete for what it claims' sentence above did not cover it. Declared to claude and codex but measured in zero host configs, so there is nothing to persist yet -- recorded here so the gap is visible rather than implied."
       },
       "nextStep": "Measure both against the deployed host configurations, then either add them here or record why each is exempt. Until then this list is complete for what it claims and explicitly incomplete for what it does not."
     }
@@ -269,13 +272,60 @@
         },
         "observedAt": "2026-08-08",
         "hostChannels": [
-          { "hostId": "claude", "channel": "claude-plugins-official", "installedVersion": "6.2.0", "current": true, "updateCommand": "claude plugin update superpowers@claude-plugins-official" },
-          { "hostId": "codex", "channel": "openai-curated-remote", "installedVersion": "6.2.0", "current": true, "updateCommand": "Codex app -> Plugins -> Superpowers", "note": "A stale 6.1.1 also sits in the claude-plugins-official cache under ~/.codex; the openai-curated-remote copy is the live one." },
-          { "hostId": "antigravity", "channel": "upstream-git", "installedVersion": "6.2.0", "current": true, "updateCommand": "agy plugin install https://github.com/obra/superpowers", "note": "Installed 2026-08-08; it was absent before. Upstream documents reinstall-as-update for this host. 14 skills + 1 hook imported." },
-          { "hostId": "grok", "channel": "upstream-git", "installedVersion": "6.2.0", "current": true, "updateCommand": "grok plugin update superpowers", "note": "Clone is at the v6.2.0 release commit; origin/main is 2 docs-only commits ahead. The 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory - retry when no grok session is running." },
-          { "hostId": "cursor", "channel": "cursor-public", "installedVersion": "6.1.1", "current": false, "updateCommand": "Cursor in-app plugin UI", "note": "Pinned to upstream commit d884ae0 (v6.1.1). cursor-agent's CLI exposes only marketplace add/list/remove/update, and marketplace update needs account auth that is not present in this environment, so the bump is an in-app owner action." },
-          { "hostId": "qoder", "channel": "qoder-marketplace", "installedVersion": "5.1.0", "current": false, "updateCommand": "Qoder in-app plugin UI", "note": "Four minor versions behind. The qoder CLI is an editor launcher with no plugin subcommand, so this is an in-app owner action." },
-          { "hostId": "cline", "channel": null, "installedVersion": null, "current": false, "note": "Not installed. Cline consumes loose skills rather than plugins; upstream documents no Cline install path, so this is a deliberate gap, not drift." }
+          {
+            "hostId": "claude",
+            "channel": "claude-plugins-official",
+            "installedVersion": "6.2.0",
+            "current": true,
+            "updateCommand": "claude plugin update superpowers@claude-plugins-official"
+          },
+          {
+            "hostId": "codex",
+            "channel": "openai-curated-remote",
+            "installedVersion": "6.2.0",
+            "current": true,
+            "updateCommand": "Codex app -> Plugins -> Superpowers",
+            "note": "A stale 6.1.1 also sits in the claude-plugins-official cache under ~/.codex; the openai-curated-remote copy is the live one."
+          },
+          {
+            "hostId": "antigravity",
+            "channel": "upstream-git",
+            "installedVersion": "6.2.0",
+            "current": true,
+            "updateCommand": "agy plugin install https://github.com/obra/superpowers",
+            "note": "Installed 2026-08-08; it was absent before. Upstream documents reinstall-as-update for this host. 14 skills + 1 hook imported."
+          },
+          {
+            "hostId": "grok",
+            "channel": "upstream-git",
+            "installedVersion": "6.2.0",
+            "current": true,
+            "updateCommand": "grok plugin update superpowers",
+            "note": "Clone is at the v6.2.0 release commit; origin/main is 2 docs-only commits ahead. The 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory - retry when no grok session is running."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "cursor-public",
+            "installedVersion": "6.1.1",
+            "current": false,
+            "updateCommand": "Cursor in-app plugin UI",
+            "note": "Pinned to upstream commit d884ae0 (v6.1.1). cursor-agent's CLI exposes only marketplace add/list/remove/update, and marketplace update needs account auth that is not present in this environment, so the bump is an in-app owner action."
+          },
+          {
+            "hostId": "qoder",
+            "channel": "qoder-marketplace",
+            "installedVersion": "5.1.0",
+            "current": false,
+            "updateCommand": "Qoder in-app plugin UI",
+            "note": "Four minor versions behind. The qoder CLI is an editor launcher with no plugin subcommand, so this is an in-app owner action."
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "Not installed. Cline consumes loose skills rather than plugins; upstream documents no Cline install path, so this is a deliberate gap, not drift."
+          }
         ]
       }
     ]
@@ -293,7 +343,6 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
-          "chrome-devtools",
           "descript",
           "linear",
           "notion"
@@ -364,9 +413,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -375,7 +422,6 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
-          "chrome-devtools",
           "descript"
         ],
         "native-connector": [],
@@ -387,7 +433,6 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
           "brave-search"
         ]
       }
@@ -411,9 +456,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -433,9 +476,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -456,9 +497,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -478,9 +517,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -504,9 +541,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -526,9 +561,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -549,9 +582,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -571,9 +602,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -602,9 +631,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -624,9 +651,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -646,9 +671,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -657,7 +680,6 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
-          "chrome-devtools",
           "context7",
           "descript"
         ],
@@ -670,7 +692,6 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
           "brave-search"
         ]
       }
@@ -690,9 +711,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     },
@@ -711,9 +730,7 @@
           "notion"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search",
-          "chrome-devtools"
+          "brave-search"
         ]
       }
     }

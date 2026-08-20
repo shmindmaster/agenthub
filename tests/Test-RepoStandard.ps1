@@ -151,6 +151,48 @@ try {
     $null = & $checker -Repo drifting -ConfigPath $configPath -Fix 2>&1 | Out-String
     Report 'fix-deletes-forbidden' (-not (Test-Path -LiteralPath (Join-Path $bad '.cursorrules'))) '.cursorrules survived -Fix'
     Report 'fix-creates-docs-skeleton' ((Test-Path -LiteralPath (Join-Path $bad 'docs\plans\PLANS.md')) -and (Test-Path -LiteralPath (Join-Path $bad 'docs\current-state.md'))) 'docs skeleton missing after -Fix'
+
+    # -Fix runs Remove-Item -Recurse -Force on a path built from config data
+    # against a SIBLING repository. Without containment, a blank entry makes
+    # Join-Path return the repo root itself and -Fix deletes the whole repo; a
+    # '..' or absolute entry escapes it entirely. Assert refusal, and assert
+    # the repo survives -- a guard that only logs is not a guard.
+    foreach ($case in @(
+        @{ Name = 'blank';    Entry = '   ' },
+        @{ Name = 'traversal'; Entry = '..\ESCAPED.md' },
+        @{ Name = 'absolute'; Entry = (Join-Path $fixtureRoot 'ESCAPED.md') })) {
+
+        $evilPath = Join-Path $fixtureRoot 'repo-standard.evil.json'
+        $evil = $fixtureConfig | ConvertTo-Json -Depth 6 | ConvertFrom-Json
+        $evil.forbiddenPaths = @($case.Entry)
+        $evil | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $evilPath -Encoding UTF8
+
+        # A canary the escaping entries would delete if containment is missing.
+        $canary = Join-Path $fixtureRoot 'ESCAPED.md'
+        Set-Content -LiteralPath $canary -Encoding UTF8 -Value 'canary'
+        # The drifting fixture deliberately has no README.md -- missing root
+        # files is its drift -- so the canary is the repository directory
+        # itself plus a file the checker never deletes. A blank entry made
+        # Join-Path return this directory and -Fix removed it wholesale.
+        $marker = $bad
+
+        $out = & pwsh -NoProfile -File $checker -StandardPath $evilPath -All -Fix 2>&1 | Out-String
+
+        Report "fix-refuses-$($case.Name)-forbidden-entry" `
+            (($out -match 'Refus|refus|invalid|outside') -or (Test-Path -LiteralPath $canary)) `
+            "no refusal reported for entry '$($case.Entry)'; output tail: $((($out.Trim() -split "`n") | Select-Object -Last 4) -join ' | ')"
+
+        Report "fix-does-not-destroy-repo-on-$($case.Name)-entry" `
+            (Test-Path -LiteralPath $marker) `
+            "the fixture repository DIRECTORY was deleted by a '$($case.Entry)' forbiddenPaths entry"
+
+        Report "fix-does-not-escape-repo-on-$($case.Name)-entry" `
+            (Test-Path -LiteralPath $canary) `
+            "a file OUTSIDE the repo was deleted via forbiddenPaths entry '$($case.Entry)'"
+
+        Remove-Item -LiteralPath $canary -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $evilPath -Force -ErrorAction SilentlyContinue
+    }
     Report 'fix-does-not-author-agents' (-not (Test-Path -LiteralPath (Join-Path $bad 'AGENTS.md'))) '-Fix must never author AGENTS.md'
 
     # CLAUDE.md duplication heuristic: 40 authored lines must fail.

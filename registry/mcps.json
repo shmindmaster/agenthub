@@ -1,6 +1,6 @@
 ﻿{
   "schemaVersion": 6,
-  "generatedAt": "2026-08-06T01:55:33.313Z",
+  "generatedAt": "2026-08-19T00:00:00.000Z",
   "migrationAliases": {
     "repowise": "repowise-workspace",
     "chrome-devtools-isolated": "chrome-devtools"
@@ -87,7 +87,6 @@
         "qwen-code",
         "opencode",
         "gemini",
-        "hermes",
         "copilot",
         "antigravity",
         "grok",
@@ -99,7 +98,8 @@
         "claude": "github@claude-plugins-official",
         "copilot": "built-in:github-mcp-server"
       },
-      "notes": "Canonical personal GitHub MCP owner. The remote endpoint is GitHub-hosted; authentication is intentionally pinned to the shmindmaster account through an environment reference. Native automatic multi-account routing is not available in the released server, so do not add duplicate account servers without a reviewed routing design. Official: https://github.com/github/github-mcp-server/tree/main/docs/installation-guides"
+      "notes": "Canonical personal GitHub MCP owner. The remote endpoint is GitHub-hosted; authentication is intentionally pinned to the shmindmaster account through an environment reference. Native automatic multi-account routing is not available in the released server, so do not add duplicate account servers without a reviewed routing design. Official: https://github.com/github/github-mcp-server/tree/main/docs/installation-guides",
+      "hostScopeNote": "hermes removed 2026-08-19: hostInventory.notInstalled records it as checked-and-absent, so declaring a server to it cannot buy capability. shared-remote costs only a config line, which is why the scope test exempts it and did not catch this."
     },
     {
       "id": "linear",
@@ -417,7 +417,7 @@
         "note": "Registered 2026-08-19 to bring an already-deployed but ungoverned server under the registry. It had reached six hosts by hand, each spawning a node process on session start for a deploy CLI that is needed occasionally and is fully usable as `railway` on the shell. Narrowed to the two hosts that actually run deployments."
       },
       "owner": {
-        "type": "capability",
+        "type": "registry",
         "id": "mcp-registry"
       },
       "hosts": [
