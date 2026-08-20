@@ -339,6 +339,48 @@ Report 'runtime check is process-table-only and never invokes lifecycle commands
     $entrypointText -notmatch 'Get-MobileRuntimeCheck[\s\S]{0,3500}&\s*\$adb'
 ) 'The read-only runtime path can start or drive a mobile resource.'
 
+$runtimeHealthFunction = [regex]::Match($entrypointText, 'function Invoke-MobileRuntimeHealthCheck[\s\S]+?(?=\r?\ntry \{)').Value
+$healthProcessPreflight = $runtimeHealthFunction.IndexOf('Get-MobileRuntimeCheck -Platform $Platform')
+$healthDelegate = $runtimeHealthFunction.IndexOf('& $script @forward')
+$gateProcessPreflight = $gateText.IndexOf('Get-MobileRuntimeProcessMatch -Platform $runtimePlatform')
+$gateNodeProbe = $gateText.IndexOf('Get-Command node')
+$gateAdbProbe = $gateText.IndexOf('& $adb @existingServerArgs devices')
+$gateVmProbe = $gateText.IndexOf('& $vmrun list')
+Report 'check runtime -Deep fails closed on canonical processes before full health delegation' (
+    $entrypointText -match "-Deep is valid only with check runtime" -and `
+    $healthProcessPreflight -ge 0 -and $healthProcessPreflight -lt $healthDelegate -and `
+    $runtimeHealthFunction -match 'if \(-not \$invocation\.delegate\)' -and `
+    $runtimeHealthFunction -match 'startedResources = \$false'
+) 'The public deep-health route can probe or delegate before exact process identity is established.'
+Report 'deep health delegates to the retained gate without enabling synthetic smoke' (
+    $runtimeHealthFunction -match 'Get-MobileRuntimeHealthInvocation' -and `
+    $runtimeHealthFunction -match '& \$script @forward' -and `
+    $runtimeHealthFunction -notmatch "@\('-Deep'\)" -and `
+    $gateText -match '\[switch\]\$RequireRunningProcesses'
+) 'The public health route bypasses the retained gate or can trigger its mutating -Deep mode.'
+Report 'retained health gate repeats process preflight before node adb and VMware probes' (
+    $gateProcessPreflight -ge 0 -and $gateProcessPreflight -lt $gateNodeProbe -and `
+    $gateProcessPreflight -lt $gateAdbProbe -and $gateProcessPreflight -lt $gateVmProbe -and `
+    $gateText -match "@\('-H', '127\.0\.0\.1', '-P', '5037'\)" -and `
+    $gateText -match '& \$adb @existingServerArgs -s \$id emu avd name'
+) 'The retained gate can auto-discover/start adb or probe before canonical runtime processes are proven.'
+$requiredHealthEvidence = @(
+    'windows: node >= 22',
+    'android: canonical',
+    'vmware: the macOS guest is running',
+    'ssh: guest executes commands',
+    'guest: Xcode usable',
+    'simulator runtime is installed',
+    'Simulator is booted',
+    'guest: Appium',
+    'guest: XCUITest',
+    'appium: server reachable from Windows'
+)
+$missingHealthEvidence = @($requiredHealthEvidence | Where-Object { $gateText -notmatch [regex]::Escape($_) })
+Report 'deep health retains SSH Xcode runtime Simulator Appium and XCUITest coverage' (
+    $missingHealthEvidence.Count -eq 0
+) "missing=$($missingHealthEvidence -join ',')"
+
 $syntheticSdk = 'C:\synthetic\Android\Sdk'
 $canonicalAvd = [string]$contract.expectations.android.avdName
 $canonicalApi = [string]$contract.expectations.android.apiLevel
@@ -361,6 +403,14 @@ Report 'runtime matching requires canonical Android SDK, AVD, and API evidence' 
 Report 'runtime matching requires the authoritative iOS VMX as an exact command-line token' (
     $iosMatch.ready -and -not $wrongIos.ready -and -not $iosTrailingCollision.ready -and -not $iosLeadingCollision.ready
 ) "canonicalReady=$($iosMatch.ready) unrelatedReady=$($wrongIos.ready) trailingCollisionReady=$($iosTrailingCollision.ready) leadingCollisionReady=$($iosLeadingCollision.ready) path=$canonicalVmx"
+$readyHealthInvocation = Get-MobileRuntimeHealthInvocation -Platform android -ProcessCheck $androidMatch
+$blockedHealthInvocation = Get-MobileRuntimeHealthInvocation -Platform android -ProcessCheck $wrongAvd
+Report 'deep health invocation delegates only after a successful process match' (
+    $readyHealthInvocation.delegate -and -not $blockedHealthInvocation.delegate -and `
+    -not $readyHealthInvocation.startedResources -and `
+    (Test-Sequence @($readyHealthInvocation.arguments) @('-RequireRunningProcesses','-SkipIos')) -and `
+    $readyHealthInvocation.scriptRelativePath -eq 'skills\mobile-device-lab\scripts\Test-MobileLab.ps1'
+) "ready=$($readyHealthInvocation | ConvertTo-Json -Compress) blocked=$($blockedHealthInvocation | ConvertTo-Json -Compress)"
 
 Report 'deep smoke pins both sessions to enumerated virtual-device IDs' (
     $mcpSmokeText -match '"appium:udid":\s*args\["android-udid"\]' -and `

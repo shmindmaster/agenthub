@@ -26,7 +26,7 @@ function Write-Usage {
     @'
 mobile.ps1 catalog [query] [-Json]
 mobile.ps1 scope <productId> [-Json]
-mobile.ps1 check files|runtime [android|ios|both] [-Json]
+mobile.ps1 check files|runtime [android|ios|both] [-Deep] [-Json]
 mobile.ps1 mcp enable|disable <claude|codex> [-Json]
 mobile.ps1 start android|ios|both [Start-MobileLab options] [-Json]
 mobile.ps1 test deep [-Json]
@@ -122,6 +122,33 @@ function Get-MobileRuntimeCheck([string]$Platform) {
     Get-MobileRuntimeProcessMatch -Platform $Platform
 }
 
+function Invoke-MobileRuntimeHealthCheck([string]$Platform) {
+    # Fail closed on the exact registry-backed process identities before any
+    # adb, SSH, vmrun, Simulator, Xcode, or Appium probe can run. The retained
+    # health gate repeats the same preflight so direct invocation is safe too.
+    $processCheck = Get-MobileRuntimeCheck -Platform $Platform
+    $invocation = Get-MobileRuntimeHealthInvocation -Platform $Platform -ProcessCheck $processCheck
+    if (-not $invocation.delegate) {
+        $result = [pscustomobject]@{
+            kind = 'runtime'
+            platform = $Platform
+            mode = 'deep-health'
+            ready = $false
+            startedResources = $false
+            delegated = $false
+            processCheck = $processCheck
+        }
+        Write-OutputObject $result
+        exit 1
+    }
+
+    $script = Join-Path $PSScriptRoot $invocation.scriptRelativePath
+    $forward = @($invocation.arguments)
+    if ($Json) { $forward += '-Json' }
+    & $script @forward
+    exit $LASTEXITCODE
+}
+
 try {
     if ($tokens.Count -eq 0) { Write-Usage; exit 0 }
     $command = (Take-Token 'command').ToLowerInvariant()
@@ -167,9 +194,17 @@ try {
         'check' {
             $kind = (Take-Token 'check kind (files|runtime)').ToLowerInvariant()
             if ($kind -notin @('files', 'runtime')) { throw "Unknown check kind '$kind'. Expected files or runtime." }
+            $deepIndex = $tokens.FindIndex([Predicate[string]] { param($item) $item -ieq '-Deep' })
+            $deepRuntime = $deepIndex -ge 0
+            while ($deepIndex -ge 0) {
+                $tokens.RemoveAt($deepIndex)
+                $deepIndex = $tokens.FindIndex([Predicate[string]] { param($item) $item -ieq '-Deep' })
+            }
             $platform = if ($tokens.Count) { (Take-Token 'platform').ToLowerInvariant() } else { 'both' }
             if ($platform -notin @('android', 'ios', 'both')) { throw "Unknown platform '$platform'. Expected android, ios, or both." }
             Require-NoTokens
+            if ($deepRuntime -and $kind -ne 'runtime') { throw '-Deep is valid only with check runtime.' }
+            if ($deepRuntime) { Invoke-MobileRuntimeHealthCheck -Platform $platform }
             if ($kind -eq 'files') {
                 $checks = @()
                 if ($platform -in @('android', 'both')) { $checks += Get-AndroidFilesCheck }

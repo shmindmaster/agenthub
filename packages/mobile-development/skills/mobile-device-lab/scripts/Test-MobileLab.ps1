@@ -21,6 +21,13 @@ Two rules this file exists to enforce, both learned here the hard way:
 .PARAMETER SkipIos
 Check only the Android half. Does not wake or require the macOS VM.
 
+.PARAMETER SkipAndroid
+Check only the iOS half. Does not inspect or invoke adb.
+
+.PARAMETER RequireRunningProcesses
+Fail before any tool or network probe unless the registry-backed canonical
+runtime processes are already present. This mode never starts a resource.
+
 .PARAMETER Json
 Emit a machine-readable result object as the final line, for agent use.
 
@@ -32,12 +39,16 @@ screenshots and page-source evidence.
 #>
 [CmdletBinding()]
 param(
+    [switch]$SkipAndroid,
     [switch]$SkipIos,
+    [switch]$RequireRunningProcesses,
     [switch]$Deep,
     [switch]$Json
 )
 
 $ErrorActionPreference = 'Stop'
+if ($SkipAndroid -and $SkipIos) { throw 'SkipAndroid and SkipIos cannot both be set.' }
+if ($Deep -and ($SkipAndroid -or $SkipIos)) { throw 'Deep validation requires both platforms.' }
 
 # Shared guest-address resolution. Kept in a module because Start- and Test-
 # both need identical semantics; two copies of this logic is how the lab ends up
@@ -90,7 +101,11 @@ function Stop-Gate {
 function Emit-Json {
     param([bool]$Ok)
     $payload = [ordered]@{
+        kind = 'runtime'
+        platform = if ($SkipAndroid) { 'ios' } elseif ($SkipIos) { 'android' } else { 'both' }
+        mode = if ($Deep) { 'synthetic-smoke' } else { 'deep-health' }
         ready = $Ok
+        startedResources = [bool]$Deep
         androidDeviceId = $script:Facts.androidDeviceId
         iosDevice = $script:Facts.iosDevice
         iosDeviceId = $script:Facts.iosDeviceId
@@ -133,8 +148,17 @@ Write-Host ''
 Write-Host '=== Mobile device lab gate ===' -ForegroundColor White
 Write-Host ''
 
+if ($RequireRunningProcesses) {
+    $runtimePlatform = if ($SkipAndroid) { 'ios' } elseif ($SkipIos) { 'android' } else { 'both' }
+    $processCheck = Get-MobileRuntimeProcessMatch -Platform $runtimePlatform
+    $script:Facts['runtimeProcessCheck'] = $processCheck
+    Write-Stage 'runtime: canonical processes already running' ([bool]$processCheck.ready) ($processCheck | ConvertTo-Json -Depth 6 -Compress) 'Run mobile.ps1 start for the required platform, then repeat this non-starting health check.'
+    if (-not $processCheck.ready) { Stop-Gate 'canonical runtime processes' }
+}
+
 # ---------------------------------------------------------------- Windows side
 
+if (-not $SkipAndroid) {
 $node = (Get-Command node -ErrorAction SilentlyContinue)
 if (-not $node) {
     Write-Stage 'windows: node present' $false 'node not on PATH' 'Install Node >= 22 (appium-mcp engines.node = >=22).'
@@ -154,21 +178,27 @@ Write-Stage 'windows: ANDROID_HOME resolves an adb' $adbOk "ANDROID_HOME=$androi
 if (-not $adbOk) { Stop-Gate 'Android SDK' }
 
 $adb = Join-Path $androidHome 'platform-tools\adb.exe'
-$attachedDevices = @((& $adb devices) 2>&1 | Where-Object { $_ -match '\sdevice$' })
+$existingServerArgs = if ($RequireRunningProcesses) { @('-H', '127.0.0.1', '-P', '5037') } else { @() }
+# With an explicit server host/port adb acts only as a client of the server
+# whose canonical process was proven above. It cannot launch a replacement
+# server through the default local-server discovery path.
+$attachedDevices = @((& $adb @existingServerArgs devices) 2>&1 | Where-Object { $_ -match '\sdevice$' })
 $emulatorDetails = @(
     foreach ($line in @($attachedDevices | Where-Object { $_ -match '^emulator-\d+\s+device$' })) {
         $id = [string](($line -split '\s+')[0])
-        $sdk = [string]((& $adb -s $id shell getprop ro.build.version.sdk 2>$null) | Select-Object -First 1)
-        [pscustomobject]@{ Id = $id; Sdk = $sdk.Trim() }
+        $sdk = [string]((& $adb @existingServerArgs -s $id shell getprop ro.build.version.sdk 2>$null) | Select-Object -First 1)
+        $avd = [string]((& $adb @existingServerArgs -s $id emu avd name 2>$null) | Select-Object -First 1)
+        [pscustomobject]@{ Id = $id; Sdk = $sdk.Trim(); Avd = $avd.Trim() }
     }
 )
-$devices = @($emulatorDetails | Where-Object Sdk -eq ([string]$androidExpectation.apiLevel))
+$devices = @($emulatorDetails | Where-Object { $_.Sdk -eq ([string]$androidExpectation.apiLevel) -and $_.Avd -eq ([string]$androidExpectation.avdName) })
 $haveEmulator = ($devices.Count -gt 0)
 $script:Facts['androidAttachedDeviceIds'] = @($attachedDevices | ForEach-Object { ($_ -split '\s+')[0] })
 $script:Facts['androidDevices'] = @($devices | ForEach-Object Id)
 $script:Facts['androidDeviceId'] = @($script:Facts['androidDevices'])[0]
-Write-Stage "android: an API $($androidExpectation.apiLevel) emulator is attached" $haveEmulator (($emulatorDetails | ForEach-Object { "$($_.Id):API-$($_.Sdk)" }) -join '; ') "Start canonical AVD '$($androidExpectation.avdName)': & `"$androidHome\emulator\emulator.exe`" -avd $($androidExpectation.avdName). Physical devices and other API levels are deliberately excluded."
+Write-Stage "android: canonical $($androidExpectation.avdName) API $($androidExpectation.apiLevel) emulator is attached" $haveEmulator (($emulatorDetails | ForEach-Object { "$($_.Id):$($_.Avd):API-$($_.Sdk)" }) -join '; ') "Start canonical AVD '$($androidExpectation.avdName)': & `"$androidHome\emulator\emulator.exe`" -avd $($androidExpectation.avdName). Physical devices, other AVDs, and other API levels are deliberately excluded."
 if (-not $haveEmulator) { Stop-Gate 'Android emulator' }
+}
 
 if ($SkipIos) {
     Write-Host ''
@@ -439,9 +469,11 @@ if ($Deep) {
 
 Write-Host ''
 Write-Host 'MOBILE LAB READY' -ForegroundColor Green
-Write-Host ("  android : {0}" -f (($script:Facts['androidDevices']) -join ', ')) -ForegroundColor Gray
-Write-Host ("  ios     : {0}" -f $script:Facts['bootedSimulator']) -ForegroundColor Gray
-Write-Host ("  remote  : {0}   <- pass as remoteServerUrl for iOS sessions" -f $appiumUrl) -ForegroundColor Gray
+if (-not $SkipAndroid) { Write-Host ("  android : {0}" -f (($script:Facts['androidDevices']) -join ', ')) -ForegroundColor Gray }
+if (-not $SkipIos) {
+    Write-Host ("  ios     : {0}" -f $script:Facts['bootedSimulator']) -ForegroundColor Gray
+    Write-Host ("  remote  : {0}   <- pass as remoteServerUrl for iOS sessions" -f $appiumUrl) -ForegroundColor Gray
+}
 Write-Host ''
 if ($Json) { Emit-Json -Ok $true }
 exit 0

@@ -197,4 +197,23 @@ function Get-MobileRuntimeProcessMatch {
     [pscustomobject]$result
 }
 
-Export-ModuleMember -Function Read-AgentHubJson, Get-MobileDevelopmentContract, Get-MobileScopeContract, Get-MobileScopeProduct, Get-AppiumMcpAuthority, Get-MobileDevelopmentRepoRoot, Get-MobileDevelopmentPackageRoot, Get-MobileDevelopmentExpectation, Get-MobileDevelopmentResource, Get-MobileVmxFacts, Get-MobileRuntimeProcessMatch
+function Get-MobileRuntimeHealthInvocation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('android', 'ios', 'both')][string]$Platform,
+        [Parameter(Mandatory)][object]$ProcessCheck
+    )
+
+    $arguments = @('-RequireRunningProcesses')
+    if ($Platform -eq 'android') { $arguments += '-SkipIos' }
+    elseif ($Platform -eq 'ios') { $arguments += '-SkipAndroid' }
+    [pscustomobject]@{
+        platform = $Platform
+        delegate = [bool]$ProcessCheck.ready
+        startedResources = $false
+        scriptRelativePath = 'skills\mobile-device-lab\scripts\Test-MobileLab.ps1'
+        arguments = $arguments
+    }
+}
+
+Export-ModuleMember -Function Read-AgentHubJson, Get-MobileDevelopmentContract, Get-MobileScopeContract, Get-MobileScopeProduct, Get-AppiumMcpAuthority, Get-MobileDevelopmentRepoRoot, Get-MobileDevelopmentPackageRoot, Get-MobileDevelopmentExpectation, Get-MobileDevelopmentResource, Get-MobileVmxFacts, Get-MobileRuntimeProcessMatch, Get-MobileRuntimeHealthInvocation
