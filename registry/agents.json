@@ -6,7 +6,7 @@
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.235",
+      "version": "2.1.237",
       "executable": "C:\\Users\\SaroshHussain\\.local\\bin\\claude.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.claude\\settings.json",
