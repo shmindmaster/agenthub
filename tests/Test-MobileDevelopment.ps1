@@ -55,11 +55,11 @@ function Test-ReadableSkillTree([string]$Source, [string]$Destination) {
     } catch { return $false }
 }
 
-function Invoke-MobileJson([string[]]$Arguments) {
+function Invoke-MobileJson([string[]]$Arguments, [string]$Entrypoint = $entrypoint) {
     $hostExe = (Get-Process -Id $PID).Path
     $old = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    try { $output = @(& $hostExe -NoProfile -File $entrypoint @Arguments -Json 2>&1); $exit = $LASTEXITCODE }
+    try { $output = @(& $hostExe -NoProfile -File $Entrypoint @Arguments -Json 2>&1); $exit = $LASTEXITCODE }
     finally { $ErrorActionPreference = $old }
     $line = $output | Where-Object { $_ -is [string] -and $_.Trim().StartsWith('{') } | Select-Object -Last 1
     $parsed = $null
@@ -262,6 +262,15 @@ $alias = @{}; foreach ($row in @($capabilities.surfaceAliases)) { $alias[[string
 $activeAgents = @($agents.activeAgents | Where-Object status -eq 'active')
 $activeHosts = @($activeAgents | ForEach-Object { if ($alias.ContainsKey([string]$_.id)) { $alias[[string]$_.id] } else { [string]$_.id } } | Sort-Object -Unique)
 $mappedHosts = @($mobileCapability[0].hostMappings.hostId | Sort-Object -Unique)
+$deployedCatalogRoot = Join-Path (Join-Path $env:LOCALAPPDATA 'AgentHub') (([string]$mobileCapability[0].deployedCatalog.runtimeRelativeRoot) -replace '/', '\')
+$deployedCatalogPath = Join-Path $deployedCatalogRoot ([string]$mobileCapability[0].deployedCatalog.entrypoint)
+$deployedAuthorityRoot = Join-Path (Join-Path $env:LOCALAPPDATA 'AgentHub') (([string]$mobileCapability[0].deployedCatalog.authorityRuntimeRelativeRoot) -replace '/', '\')
+$deployedPackageMatchesSource = Test-ReadableSkillTree -Source $packageRoot -Destination $deployedCatalogRoot
+$deployedAuthorityMatchesSource = Test-ReadableSkillTree -Source (Join-Path $repoRoot 'registry') -Destination $deployedAuthorityRoot
+$deployedCatalog = if (Test-Path -LiteralPath $deployedCatalogPath -PathType Leaf) {
+    Invoke-MobileJson -Arguments @('catalog','inspect.appium') -Entrypoint $deployedCatalogPath
+} else { [pscustomobject]@{ ExitCode = 1; Output = @('deployed catalog entrypoint is absent'); Result = $null } }
+$deployedCatalogResolves = ($deployedCatalog.ExitCode -eq 0 -and 'inspect.appium' -in @($deployedCatalog.Result.matches.id))
 $mobileDeploymentFailures = @(
     foreach ($activeAgent in $activeAgents) {
         $resolvedHost = if ($alias.ContainsKey([string]$activeAgent.id)) { $alias[[string]$activeAgent.id] } else { [string]$activeAgent.id }
@@ -280,8 +289,7 @@ $mobileDeploymentFailures = @(
                 $skillsReadable = $false
             }
         }
-        $catalogPath = Join-Path $repoRoot (([string]$mobileCapability[0].catalogEntrypoint -split '\s+')[0] -replace '/', '\')
-        $catalogReadable = Test-Path -LiteralPath $catalogPath -PathType Leaf
+        $catalogReadable = $deployedPackageMatchesSource -and $deployedAuthorityMatchesSource -and $deployedCatalogResolves
         if ($mapping.Count -ne 1 -or 'skills' -notin @($mapping[0].components) -or
             'catalog' -notin @($mapping[0].components) -or -not $skillsReadable -or -not $catalogReadable) {
             "$($activeAgent.id)->$resolvedHost skillsDir=$skillsDir mappingCount=$($mapping.Count) skillsReadable=$skillsReadable catalogReadable=$catalogReadable"
@@ -291,9 +299,19 @@ $mobileDeploymentFailures = @(
 Report 'all active coding hosts receive the loose mobile skills and catalog' (
     (Test-Sequence $mappedHosts $activeHosts) -and `
     $mobileCapability[0].catalogEntrypoint -eq 'packages/mobile-development/mobile.ps1 catalog' -and `
+    $mobileCapability[0].deployedCatalog.syncOwner -eq 'scripts/Sync-Capabilities.ps1' -and `
+    $mobileCapability[0].deployedCatalog.runtimeRelativeRoot -eq 'capabilities/mobile-development' -and `
+    $mobileCapability[0].deployedCatalog.entrypoint -eq 'mobile.ps1' -and `
+    $mobileCapability[0].deployedCatalog.authoritySource -eq 'registry' -and `
+    $mobileCapability[0].deployedCatalog.authorityRuntimeRelativeRoot -eq 'registry' -and `
+    (Test-Sequence @($mobileCapability[0].deployedCatalog.arguments) @('catalog')) -and `
     @($mobileCapability[0].hostMappings | Where-Object { [string]$_.deploymentStatus -notmatch 'loose-skills' -or 'skills' -notin @($_.components) -or 'catalog' -notin @($_.components) }).Count -eq 0 -and `
-    $mobileDeploymentFailures.Count -eq 0
-) "active=$($activeHosts -join ',') mapped=$($mappedHosts -join ',') deploymentFailures=$($mobileDeploymentFailures -join '; ')"
+    $mobileDeploymentFailures.Count -eq 0 -and `
+    $labSkillText -notmatch [regex]::Escape('C:\Repos\shmindmaster\agenthub\packages\mobile-development') -and `
+    $platformSkillText -notmatch [regex]::Escape('C:\Repos\shmindmaster\agenthub\packages\mobile-development') -and `
+    $labSkillText -match '\$env:LOCALAPPDATA\\AgentHub\\capabilities\\mobile-development\\mobile\.ps1' -and `
+    $platformSkillText -match '\$env:LOCALAPPDATA\\AgentHub\\capabilities\\mobile-development\\mobile\.ps1'
+) "active=$($activeHosts -join ',') mapped=$($mappedHosts -join ',') deployed=$deployedCatalogPath packageParity=$deployedPackageMatchesSource authorityParity=$deployedAuthorityMatchesSource catalogExit=$($deployedCatalog.ExitCode) deploymentFailures=$($mobileDeploymentFailures -join '; ')"
 Report 'Appium MCP is scoped to Claude and Codex only' (Test-Sequence @($appium[0].hosts) @('claude','codex')) "hosts=$(@($appium[0].hosts) -join ',')"
 Report 'Appium never persists in default host MCP configuration' ('appium-mobile' -notin @($connectors.lifecyclePolicy.persistedOnDemandLocalMcpIds)) 'Persisting stdio Appium starts an idle process per task.'
 Report 'native MCP management is enable/disable and explains new-task loading' (
@@ -455,9 +473,12 @@ Report 'guest command runner drains redirected output before waiting for exit' (
 Report 'guest synthetic build lifecycle is race-free under macOS Bash' (
     $guestBuildSupervisorText.Contains('printf ''%s\n'' ''RUNNING'' >"$STATUS_FILE"') -and `
     $guestBuildSupervisorText -match 'mv "\$STATUS_FILE\.tmp" "\$STATUS_FILE"' -and `
+    $guestBuildSupervisorText -match 'kill -0 "\$\(cat "\$PID_FILE"\)"' -and `
+    $guestBuildSupervisorText.Contains("printf '%s\n' '125' >`"`$STATUS_FILE.tmp`"") -and `
+    $guestBuildSupervisorText -match 'echo DONE:125' -and `
     $guestSimulatorBuilderText.Contains('${XCODE_EXTRA[@]+"${XCODE_EXTRA[@]}"}') -and `
     $guestSimulatorBuilderText -notmatch '(?m)^\s*"\$\{XCODE_EXTRA\[@\]\}"\s*\\\s*$'
-) 'The supervisor can report transient IDLE or the optional Xcode argument array is unsafe with set -u.'
+) 'The supervisor can report transient IDLE/RUNNING for a dead worker or the optional Xcode argument array is unsafe with set -u.'
 Report 'guest WDA cleanup is bounded and safe with an empty match set' (
     $guestWdaCleanupText -match 'while read -r pid ppid command; do' -and `
     $guestWdaCleanupText -notmatch '\bawk\b' -and `

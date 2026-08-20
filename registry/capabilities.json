@@ -937,10 +937,18 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "33D1CE86482ED3133B074DFC72823B451E4A4AB5D745CA353A9032EB4189D973",
+      "contentHash": "FE77111173CE867EC5B3C1DDF83D9DF3F9B7A2AD1F03359D2DB6CA2C96BE7517",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
+      "deployedCatalog": {
+        "syncOwner": "scripts/Sync-Capabilities.ps1",
+        "runtimeRelativeRoot": "capabilities/mobile-development",
+        "entrypoint": "mobile.ps1",
+        "arguments": ["catalog"],
+        "authoritySource": "registry",
+        "authorityRuntimeRelativeRoot": "registry"
+      },
       "hostMappings": [
         {
           "hostId": "amp",
@@ -960,7 +968,7 @@
             "catalog",
             "mcp"
           ],
-          "deploymentStatusNote": "Both skills stay loosely readable. Appium remains absent from default host configuration and is enabled only for a new mobile task through `packages/mobile-development/mobile.ps1 mcp enable claude`."
+          "deploymentStatusNote": "Both skills stay loosely readable and route catalog/lifecycle commands through the AgentHub-managed runtime package. Appium remains absent from default host configuration and is enabled only for a new mobile task through that deployed mobile.ps1 entrypoint."
         },
         {
           "hostId": "cline",
@@ -975,7 +983,7 @@
             "catalog",
             "mcp"
           ],
-          "deploymentStatusNote": "Both skills stay loosely readable. Appium remains absent from default host configuration and is installed only for a new mobile task through `packages/mobile-development/mobile.ps1 mcp enable codex`."
+          "deploymentStatusNote": "Both skills stay loosely readable and route catalog/lifecycle commands through the AgentHub-managed runtime package. Appium remains absent from default host configuration and is installed only for a new mobile task through that deployed mobile.ps1 entrypoint."
         },
         {
           "hostId": "copilot",
@@ -1033,8 +1041,8 @@
           "components": ["skills", "catalog"]
         }
       ],
-      "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the public mobile.ps1 entrypoint, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",
-      "hostScopeNote": "All active coding hosts receive both loose skills and can read the catalog. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration."
+      "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the source public contract at packages/mobile-development/mobile.ps1, the AgentHub-managed deployed runtime package, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",
+      "hostScopeNote": "All active coding hosts receive both loose skills and resolve the catalog through the fleet-managed package under %LOCALAPPDATA%/AgentHub/capabilities/mobile-development, independent of a repository checkout or native marketplace state. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration."
     },
     {
       "id": "railway",

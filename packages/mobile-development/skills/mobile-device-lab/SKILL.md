@@ -32,7 +32,7 @@ build the native shell once and then reload JS as you edit it.
 ```powershell
 # once: build the dev shell, then start Metro on the host and attach the app
 ssh macvm 'bash ~/mobile-lab/build-expo-simulator.sh ~/Repos/shmindmaster/<product> "" booted --dev'
-pwsh -NoProfile -File C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1 metro <productId> -ProjectPath C:\Repos\shmindmaster\<product>\apps\mobile -Attach
+pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" metro <productId> -ProjectPath C:\Repos\shmindmaster\<product>\apps\mobile -Attach
 # then: edit on Windows, reload the app. No rebuild. No sync.
 ```
 
@@ -88,8 +88,8 @@ treat it as real and stop.
 Bring the lab up, then verify it. Both are idempotent and safe to re-run:
 
 ```powershell
-pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1' start both -Json
-pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1' check runtime both -Json
+pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" start both -Json
+pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" check runtime both -Json
 ```
 
 `Start-MobileLab.ps1` boots the emulator and the macOS guest and waits for each.
@@ -110,7 +110,7 @@ Android is needed — it avoids waking the VM.
 For deterministic infrastructure validation, run the deep synthetic smoke:
 
 ```powershell
-pwsh -NoProfile -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1' test deep -Json
+pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" test deep -Json
 ```
 
 This builds the local-only fixture under `fixtures/smoke-app`, installs and
@@ -136,8 +136,8 @@ build/install/session window, run the idle probe under that lease, and release
 it in `finally`:
 
 ```powershell
-$leaseTool = 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\skills\mobile-device-lab\scripts\Enter-MobileLabLease.ps1'
-$idleTool = 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1'
+$leaseTool = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\skills\mobile-device-lab\scripts\Enter-MobileLabLease.ps1"
+$idleTool = "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\skills\mobile-device-lab\scripts\Test-MobileLabIdle.ps1"
 $lease = (& $leaseTool -Action Acquire -Json | ConvertFrom-Json)
 try {
   & $idleTool -GuestIp <resolved-ip> -LeaseId $lease.leaseId -Json
@@ -365,7 +365,7 @@ pwsh -File '...\scripts\Test-MobileLabAppConfig.ps1' -ProjectPath C:\Repos\shmin
 
 # 1. mirror the working tree into the guest (uncommitted work included;
 #    node_modules, ios/ and Pods in the guest are preserved, not re-sent)
-pwsh -File 'C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1' sync <productId> `
+pwsh -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" sync <productId> `
   -RepoPath C:\Repos\shmindmaster\<product> -GuestPath '~/Repos/shmindmaster/<product>'
 
 # 2. build Release for the simulator and install it
@@ -433,7 +433,7 @@ running on Windows inside Mobile Safari on the simulator and Chrome on the
 emulator:
 
 ```powershell
-pwsh -NoProfile -File C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1 web <productId> -Url http://localhost:5173/dashboard
+pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" web <productId> -Url http://localhost:5173/dashboard
 ```
 
 `localhost` means something different in each target, so the script rewrites the

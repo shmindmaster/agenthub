@@ -9,6 +9,18 @@ One baseline for every fleet product that gets a native app. Read this before
 writing mobile code, and before touching any Apple, Google, Expo, EAS, or
 Firebase surface.
 
+Resolve scope and catalog facts through the fleet-managed package, not an
+AgentHub checkout that may be absent or not yet integrated:
+
+```powershell
+pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" scope <productId> -Json
+pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" catalog -Json
+```
+
+`packages/mobile-development/mobile.ps1` remains the canonical source
+contract; `scripts/Sync-Capabilities.ps1` owns and verifies this deployed
+whole-package mirror.
+
 ## 1. Eligibility gate - do this first
 
 `registry/mobile-scope.json` in AgentHub is the sole authority for which

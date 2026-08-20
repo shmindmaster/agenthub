@@ -37,7 +37,14 @@ case "${1:-status}" in
     if [ -f "$STATUS_FILE" ]; then
       STATUS="$(cat "$STATUS_FILE")"
       if [ "$STATUS" = "RUNNING" ]; then
-        echo RUNNING
+        if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+          echo RUNNING
+        else
+          printf '%s\n' '125' >"$STATUS_FILE.tmp"
+          mv "$STATUS_FILE.tmp" "$STATUS_FILE"
+          printf '%s\n' 'worker exited without publishing a build result' >>"$LOG_FILE"
+          echo DONE:125
+        fi
       else
         printf 'DONE:%s\n' "$STATUS"
       fi

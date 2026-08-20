@@ -13,6 +13,16 @@ pwsh -NoProfile -File C:\Repos\shmindmaster\agenthub\packages\mobile-development
 pwsh -NoProfile -File C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1 check runtime both
 ```
 
+The paths above are the canonical source contract for repository development.
+Fleet-loaded loose skills use the checkout-independent mirror managed by
+`scripts/Sync-Capabilities.ps1` at
+`$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1`.
+The sync ledger enforces whole-package source/deployed parity; do not point a
+deployed skill at a repository checkout or maintain a second manual copy. The
+same guarded sync mirrors AgentHub's registry authority under
+`$env:LOCALAPPDATA\AgentHub\registry`, preserving the package's relative
+registry lookup without tying it to an unmerged checkout.
+
 Use `mobile.ps1` for catalog, scope, read-only checks, Appium activation,
 lab lifecycle, deep validation, guest sync, Metro, and mobile-web routes.
 The command catalog and lifecycle metadata come from
