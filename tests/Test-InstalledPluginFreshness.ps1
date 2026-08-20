@@ -309,6 +309,58 @@ function Test-EmptySourceFailsLoudly {
     }
 }
 
+# --- Behavior 6: a retired package identity is absent from deployed state.
+#
+# This is intentionally separate from content freshness. Unrelated installed
+# plugins may be stale without disguising whether the retired mobile package
+# still has a registration or loadable cache. Marketplace source is excluded:
+# a catalog row is not an installed registration or deployed cache. ---
+function Test-RetiredMobilePluginIdentityIsAbsent {
+    $retiredId = 'mobile-device-lab@agenthub'
+    $retiredName = 'mobile-device-lab'
+    $hits = [Collections.Generic.List[string]]::new()
+    $files = @(
+        (Join-Path $env:USERPROFILE '.claude\settings.json'),
+        (Join-Path $env:USERPROFILE '.claude\plugins\installed_plugins.json'),
+        (Join-Path $env:USERPROFILE '.codex\config.toml')
+    )
+    foreach ($file in $files) {
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { continue }
+        if (Select-String -LiteralPath $file -SimpleMatch -Quiet -Pattern $retiredId) {
+            $hits.Add("registration/config: $file")
+        }
+    }
+
+    $claudeCache = Join-Path $env:USERPROFILE ".claude\plugins\cache\agenthub\$retiredName"
+    if (Test-Path -LiteralPath $claudeCache) { $hits.Add("Claude cache: $claudeCache") }
+    $codexPlugins = Join-Path $env:USERPROFILE '.codex\plugins'
+    if (Test-Path -LiteralPath $codexPlugins) {
+        foreach ($directory in @(Get-ChildItem -LiteralPath $codexPlugins -Directory -Recurse -Force -ErrorAction SilentlyContinue | Where-Object Name -eq $retiredName)) {
+            $hits.Add("Codex cache: $($directory.FullName)")
+        }
+    }
+
+    if ($hits.Count -gt 0) { return @{ Passed = $false; Detail = ($hits -join '; ') } }
+    return @{ Passed = $true; Detail = 'no retired registration, config entry, or deployed cache exists in the declared Claude/Codex plugin spaces' }
+}
+
+# --- Behavior 7: Appium remains absent from persistent host configuration.
+function Test-AppiumIsNotPersisted {
+    $hits = [Collections.Generic.List[string]]::new()
+    foreach ($file in @(
+        (Join-Path $env:USERPROFILE '.claude.json'),
+        (Join-Path $env:USERPROFILE '.claude\settings.json'),
+        (Join-Path $env:USERPROFILE '.codex\config.toml')
+    )) {
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { continue }
+        if (Select-String -LiteralPath $file -SimpleMatch -Quiet -Pattern 'appium-mobile') {
+            $hits.Add($file)
+        }
+    }
+    if ($hits.Count -gt 0) { return @{ Passed = $false; Detail = "persistent Appium entry found in: $($hits -join ', ')" } }
+    return @{ Passed = $true; Detail = 'no appium-mobile entry exists in Claude or Codex persistent configuration' }
+}
+
 $r1 = Test-InstalledSetIsProvenNonEmpty
 Report 'the installed @agenthub plugin set is proven non-empty before anything claims freshness' $r1.Passed $r1.Detail
 
@@ -323,6 +375,12 @@ Report 'the comparator detects changed, missing and left-behind files, and clear
 
 $r5 = Test-EmptySourceFailsLoudly
 Report 'an empty source tree fails loudly instead of reporting a clean comparison' $r5.Passed $r5.Detail
+
+$r6 = Test-RetiredMobilePluginIdentityIsAbsent
+Report 'retired mobile-device-lab registration and cache residue are absent from Claude and Codex' $r6.Passed $r6.Detail
+
+$r7 = Test-AppiumIsNotPersisted
+Report 'Appium remains absent from Claude and Codex persistent configuration' $r7.Passed $r7.Detail
 
 Write-Host ''
 if ($failures.Count -gt 0) {

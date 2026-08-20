@@ -74,3 +74,56 @@ Computed package content hash:
 
 No live lab, guest sync, fleet sync, Appium activation, credential operation,
 store operation, or external service mutation was performed.
+
+## Fix round 1/5: retired deployed plugin cleanup
+
+### Enumeration and cleanup
+
+- Fix-round BASE: `ec559819688a36da8b94bea9c7f4dae7c2b52067`;
+  worktree clean.
+- Registry-declared Claude spaces checked: `~/.claude/settings.json`,
+  `~/.claude/plugins/installed_plugins.json`,
+  `~/.claude/plugins/known_marketplaces.json`, and
+  `~/.claude/plugins/cache`. Native `claude plugin list` confirmed the retired
+  `mobile-device-lab@agenthub` registration at version 1.1.2, disabled. The
+  settings file had one disabled entry, the installed registry had one plugin
+  key, and the cache held versions 1.1.1 and 1.1.2.
+- Registry-declared Codex spaces checked: `~/.codex/config.toml` and
+  `~/.codex/plugins`, plus native `codex plugin list`. Codex had no installed
+  registration, config reference, or cache directory for the retired identity;
+  its CLI showed only the marketplace row from the not-yet-integrated canonical
+  checkout and correctly marked it `not installed`.
+- Exact native command:
+  `claude plugin uninstall mobile-device-lab@agenthub` — exit 0,
+  `Successfully uninstalled plugin: mobile-device-lab (scope: user)`.
+  This removed the settings and installed-plugin registrations.
+- `claude plugin prune --dry-run` reported `Nothing to prune`; Claude has no
+  target-scoped cache-prune command. The exact remaining cache root
+  `~/.claude/plugins/cache/agenthub/mobile-device-lab` was therefore validated
+  as a non-linked child of the AgentHub cache and moved out of deployed state
+  to the recoverable quarantine
+  `%LOCALAPPDATA%/AgentHub/quarantine/mobile-device-lab-claude-cache-20260820`.
+  It contained 72 files. No unrelated plugin was removed or moved.
+
+### Regression and verification
+
+- Added separate behaviors to `tests/Test-InstalledPluginFreshness.ps1` for
+  retired Claude/Codex registration/cache residue and Appium persistence. These
+  assertions do not reuse or hide unrelated byte-freshness failures.
+- `pwsh -NoProfile -File .\tests\Test-InstalledPluginFreshness.ps1` — new
+  retired-identity assertion **PASS**; new persistent-Appium assertion **PASS**;
+  overall **6 passed, 1 failed** only because the previously recorded installed
+  product-demo-studio, product-experience-engineering, and browser-toolkit
+  copies still differ from source.
+- `pwsh -NoProfile -File .\tests\Test-MobileDevelopment.ps1` — **44 passed,
+  0 failed**.
+- `pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1` — **PASS: 15
+  capability packages, 8 installable plugins, 12 MCP servers, 22 active
+  agents**.
+- Post-cleanup native/file evidence: Claude list old identity `False`; Claude
+  old cache exists `False`; old registration in Claude settings,
+  `installed_plugins.json`, and Codex config all `False`; Appium Node process
+  count `0`.
+
+No fleet sync, mobile-development install, Appium enablement, lab start, VM
+mutation, or unrelated plugin cleanup was performed.
