@@ -24,17 +24,40 @@
     "vscode-insiders"
   ],
   "launchDefaults": {
-    "gemini": ["--yolo", "--skip-trust"],
-    "copilot": ["--allow-all", "--autopilot", "--no-ask-user", "--allow-all-mcp-server-instructions"],
-    "devin": ["--permission-mode", "dangerous", "--respect-workspace-trust", "false"],
-    "agy": ["--dangerously-skip-permissions"],
-    "cline": ["--auto-approve", "true"],
-    "qoder": ["--dangerously-skip-permissions"]
+    "gemini": [
+      "--yolo",
+      "--skip-trust"
+    ],
+    "copilot": [
+      "--allow-all",
+      "--autopilot",
+      "--no-ask-user",
+      "--allow-all-mcp-server-instructions"
+    ],
+    "devin": [
+      "--permission-mode",
+      "dangerous",
+      "--respect-workspace-trust",
+      "false"
+    ],
+    "agy": [
+      "--dangerously-skip-permissions"
+    ],
+    "cline": [
+      "--auto-approve",
+      "true"
+    ],
+    "qoder": [
+      "--dangerously-skip-permissions"
+    ]
   },
   "autonomyProfiles": {
     "schemaVersion": 1,
     "purpose": "Per-host permission model recovered from the deleted profiles/host-autonomy-mappings.json (git show fc1bda6:profiles/host-autonomy-mappings.json; AGENTS.md:20 forbids recreating profiles/, so the data lives here instead). A host whose defaultProfile is 'interactive' must never be dispatched unattended.",
-    "knownDefaultProfiles": ["repo-autonomous", "interactive"],
+    "knownDefaultProfiles": [
+      "repo-autonomous",
+      "interactive"
+    ],
     "flagsOwnedByLaunchDefaults": "When a profile below carries launchDefaultsKey, that key's array in the sibling launchDefaults object (directly, or via aliases[] for a non-hostId key like agy) is the single authoritative source for that host's CLI flags. This section intentionally does not restate those flags, so there is exactly one place that can be wrong about them.",
     "aliases": [
       {
@@ -45,28 +68,255 @@
       }
     ],
     "profiles": [
-      { "hostId": "codex", "defaultProfile": "repo-autonomous", "native": { "approval_policy": "never", "sandbox_mode": "danger-full-access" } },
-      { "hostId": "claude", "defaultProfile": "repo-autonomous", "native": { "permissionMode": "bypassPermissions" } },
-      { "hostId": "cursor-agent", "defaultProfile": "repo-autonomous", "native": { "flags": ["--yolo", "--sandbox", "disabled", "--approve-mcps"] } },
-      { "hostId": "qwen-code", "defaultProfile": "repo-autonomous", "native": { "approvalMode": "yolo", "permissions": "allow-all", "managedAutoMemory": true, "managedAutoDream": true, "subagents": ["scout", "implementer", "reviewer", "verifier"], "headless": { "promptFlag": "--prompt", "structuredOutput": ["json", "stream-json"] }, "lsp": { "flag": "--experimental-lsp", "projectConfig": ".lsp.json" }, "hooks": "default-enabled; SessionStart command hook re-applies the MCP OAuth refresh hotfix (scripts/Repair-QwenCodeMcpOAuth.js; personal mirror ~/.qwen/scripts/repair-mcp-oauth-hotfix.js) after qwen-code npm updates" } },
-      { "hostId": "opencode", "defaultProfile": "repo-autonomous", "native": { "permission": "allow", "acpCommand": ["acp"] }, "note": "registry/host-capability-contracts.json (deleted, fc1bda6) additionally listed a '--auto' flag not present here. Retained host-autonomy-mappings.json's value as the source of record; flagged for owner review since opencode is active." },
-      { "hostId": "gemini", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "gemini", "native": { "acpFlags": ["--acp"], "sandbox": false } },
-      { "hostId": "copilot", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "copilot", "native": { "acpFlags": ["--acp"], "stayInAutopilot": true }, "note": "Current launchDefaults.copilot carries an extra flag, '--allow-all-mcp-server-instructions', that the deleted host-autonomy-mappings.json native.flags did not have. Per task-3 reconciliation rule the current value wins; it is live via launchDefaults and intentionally not restated here." },
-      { "hostId": "antigravity", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "agy", "native": { "settings": { "permissions": "wildcard-policy-supported" } }, "note": "See aliases[] above -- this host's launch flags live under launchDefaults.agy, not launchDefaults.antigravity." },
-      { "hostId": "devin", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "devin", "native": {} },
-      { "hostId": "grok", "defaultProfile": "repo-autonomous", "native": { "permission_mode": "always-approve", "yolo": true } },
-      { "hostId": "cursor", "defaultProfile": "interactive", "native": { "surface": "ide" }, "note": "Cross-source conflict: host-autonomy-mappings.json (deleted) said 'interactive'; registry/host-capability-contracts.json (deleted, state: configured) said 'repo-autonomous' with a worktreePolicy constraint of 'AgentHub C:\\wt helper only'. Retained the conservative 'interactive' value here. Flagged for owner review -- fleet-profile.json.dispatchPolicy.cursor already reauthorizes Cursor surfaces (2026-07-30), so the owner may want repo-autonomous instead; that reauthorization governs whether Cursor may be dispatched at all, not what its default autonomy should be, so this task did not treat it as resolving the conflict." },
-      { "hostId": "opencode-desktop", "defaultProfile": "interactive", "native": { "surface": "desktop" } },
-      { "hostId": "antigravity-desktop", "defaultProfile": "interactive", "native": { "surface": "desktop" } },
-      { "hostId": "antigravity-ide", "defaultProfile": "interactive", "native": { "surface": "ide" } },
-      { "hostId": "factory", "defaultProfile": "repo-autonomous", "native": { "surface": "desktop-and-cli", "interactionMode": "auto", "autonomyLevel": "high" }, "note": "registry/host-capability-contracts.json (deleted, fc1bda6) described this host's autonomy differently: flags ['exec','--auto','high'] plus unsafeOnlyInIsolatedSandbox: true. Retained host-autonomy-mappings.json's value; factory is currently inactive in registry/agents.json, so this is lower risk." },
-      { "hostId": "amp", "defaultProfile": "interactive", "native": { "surface": "cli", "headlessConstraint": "paid-tier-required" } },
-      { "hostId": "windsurf", "defaultProfile": "interactive", "native": { "surface": "configured-only", "reason": "Do not emit settings without a current official Windows schema." } },
-      { "hostId": "hermes", "defaultProfile": "interactive", "native": { "surface": "cli", "acpCommand": ["acp"], "reason": "No verified universal bypass contract in the managed Windows installation." } },
-      { "hostId": "warp", "defaultProfile": "interactive", "native": { "surface": "desktop-and-cloud-cli", "implementation": "UI permission profile and per-task controls" } },
-      { "hostId": "cline", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "cline", "native": { "equivalent": "--auto-approve true", "acpFlags": ["--acp", "--auto-approve", "true"], "administrativeCommandsExcluded": ["auth", "config", "plugin", "skill", "connect", "mcp", "doctor", "history", "hook", "schedule", "hub", "dashboard", "update", "kanban"] } },
-      { "hostId": "qoder", "defaultProfile": "repo-autonomous", "launchDefaultsKey": "qoder", "native": { "permissionMode": "bypass_permissions", "tools": "default", "acpFlags": ["--acp"], "administrativeCommandsExcluded": ["login", "mcp", "plugins", "skills", "hooks", "agents", "update", "status", "feedback", "rollback"] } },
-      { "hostId": "vscode-insiders", "defaultProfile": "repo-autonomous", "native": { "implementation": "workspace-and-user-policy" }, "note": "Added 2026-08-04 when vscode-insiders was reclassified active. NOT invented for the occasion: recovered verbatim from the deleted registry/host-capability-contracts.json (git show fc1bda6:registry/host-capability-contracts.json), whose vscode-insiders contract records autonomy.profile 'repo-autonomous' and implementation 'workspace-and-user-policy'. The note below explains why it was previously excluded." }
+      {
+        "hostId": "codex",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "approval_policy": "never",
+          "sandbox_mode": "danger-full-access"
+        }
+      },
+      {
+        "hostId": "claude",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "permissionMode": "bypassPermissions"
+        }
+      },
+      {
+        "hostId": "cursor-agent",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "flags": [
+            "--yolo",
+            "--sandbox",
+            "disabled",
+            "--approve-mcps"
+          ]
+        }
+      },
+      {
+        "hostId": "qwen-code",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "approvalMode": "yolo",
+          "permissions": "allow-all",
+          "managedAutoMemory": true,
+          "managedAutoDream": true,
+          "subagents": [
+            "scout",
+            "implementer",
+            "reviewer",
+            "verifier"
+          ],
+          "headless": {
+            "promptFlag": "--prompt",
+            "structuredOutput": [
+              "json",
+              "stream-json"
+            ]
+          },
+          "lsp": {
+            "flag": "--experimental-lsp",
+            "projectConfig": ".lsp.json"
+          },
+          "hooks": "default-enabled; SessionStart command hook re-applies the MCP OAuth refresh hotfix (scripts/Repair-QwenCodeMcpOAuth.js; personal mirror ~/.qwen/scripts/repair-mcp-oauth-hotfix.js) after qwen-code npm updates"
+        }
+      },
+      {
+        "hostId": "opencode",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "permission": "allow",
+          "acpCommand": [
+            "acp"
+          ]
+        },
+        "note": "registry/host-capability-contracts.json (deleted, fc1bda6) additionally listed a '--auto' flag not present here. Retained host-autonomy-mappings.json's value as the source of record; flagged for owner review since opencode is active."
+      },
+      {
+        "hostId": "gemini",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "gemini",
+        "native": {
+          "acpFlags": [
+            "--acp"
+          ],
+          "sandbox": false
+        }
+      },
+      {
+        "hostId": "copilot",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "copilot",
+        "native": {
+          "acpFlags": [
+            "--acp"
+          ],
+          "stayInAutopilot": true
+        },
+        "note": "Current launchDefaults.copilot carries an extra flag, '--allow-all-mcp-server-instructions', that the deleted host-autonomy-mappings.json native.flags did not have. Per task-3 reconciliation rule the current value wins; it is live via launchDefaults and intentionally not restated here."
+      },
+      {
+        "hostId": "antigravity",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "agy",
+        "native": {
+          "settings": {
+            "permissions": "wildcard-policy-supported"
+          }
+        },
+        "note": "See aliases[] above -- this host's launch flags live under launchDefaults.agy, not launchDefaults.antigravity."
+      },
+      {
+        "hostId": "devin",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "devin",
+        "native": {}
+      },
+      {
+        "hostId": "grok",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "permission_mode": "always-approve",
+          "yolo": true
+        }
+      },
+      {
+        "hostId": "cursor",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "ide"
+        },
+        "note": "Cross-source conflict: host-autonomy-mappings.json (deleted) said 'interactive'; registry/host-capability-contracts.json (deleted, state: configured) said 'repo-autonomous' with a worktreePolicy constraint of 'AgentHub C:\\wt helper only'. Retained the conservative 'interactive' value here. Flagged for owner review -- fleet-profile.json.dispatchPolicy.cursor already reauthorizes Cursor surfaces (2026-07-30), so the owner may want repo-autonomous instead; that reauthorization governs whether Cursor may be dispatched at all, not what its default autonomy should be, so this task did not treat it as resolving the conflict."
+      },
+      {
+        "hostId": "opencode-desktop",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "desktop"
+        }
+      },
+      {
+        "hostId": "antigravity-desktop",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "desktop"
+        }
+      },
+      {
+        "hostId": "antigravity-ide",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "ide"
+        }
+      },
+      {
+        "hostId": "factory",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "surface": "desktop-and-cli",
+          "interactionMode": "auto",
+          "autonomyLevel": "high"
+        },
+        "note": "registry/host-capability-contracts.json (deleted, fc1bda6) described this host's autonomy differently: flags ['exec','--auto','high'] plus unsafeOnlyInIsolatedSandbox: true. Retained host-autonomy-mappings.json's value; factory is currently inactive in registry/agents.json, so this is lower risk."
+      },
+      {
+        "hostId": "amp",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "cli",
+          "headlessConstraint": "paid-tier-required"
+        }
+      },
+      {
+        "hostId": "windsurf",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "configured-only",
+          "reason": "Do not emit settings without a current official Windows schema."
+        }
+      },
+      {
+        "hostId": "hermes",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "cli",
+          "acpCommand": [
+            "acp"
+          ],
+          "reason": "No verified universal bypass contract in the managed Windows installation."
+        }
+      },
+      {
+        "hostId": "warp",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "desktop-and-cloud-cli",
+          "implementation": "UI permission profile and per-task controls"
+        }
+      },
+      {
+        "hostId": "cline",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "cline",
+        "native": {
+          "equivalent": "--auto-approve true",
+          "acpFlags": [
+            "--acp",
+            "--auto-approve",
+            "true"
+          ],
+          "administrativeCommandsExcluded": [
+            "auth",
+            "config",
+            "plugin",
+            "skill",
+            "connect",
+            "mcp",
+            "doctor",
+            "history",
+            "hook",
+            "schedule",
+            "hub",
+            "dashboard",
+            "update",
+            "kanban"
+          ]
+        }
+      },
+      {
+        "hostId": "qoder",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "qoder",
+        "native": {
+          "permissionMode": "bypass_permissions",
+          "tools": "default",
+          "acpFlags": [
+            "--acp"
+          ],
+          "administrativeCommandsExcluded": [
+            "login",
+            "mcp",
+            "plugins",
+            "skills",
+            "hooks",
+            "agents",
+            "update",
+            "status",
+            "feedback",
+            "rollback"
+          ]
+        }
+      },
+      {
+        "hostId": "vscode-insiders",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "implementation": "workspace-and-user-policy"
+        },
+        "note": "Added 2026-08-04 when vscode-insiders was reclassified active. NOT invented for the occasion: recovered verbatim from the deleted registry/host-capability-contracts.json (git show fc1bda6:registry/host-capability-contracts.json), whose vscode-insiders contract records autonomy.profile 'repo-autonomous' and implementation 'workspace-and-user-policy'. The note below explains why it was previously excluded."
+      }
     ],
     "exemptions": [],
     "notes": [
@@ -106,8 +356,8 @@
       "mobile.ios.simulated"
     ],
     "capabilityMeanings": {
-      "browser.isolated": "A first-party browser the agent drives itself, with its own profile. Suits localhost and public pages; carries no signed-in session.",
-      "browser.authenticated": "A browser using the user's real profile, so already-signed-in sites work. On this fleet: Chrome DevTools MCP id chrome-devtools with --autoConnect to the owner's already-running Chrome after chrome://inspect/#remote-debugging is enabled (Chrome >=144). Not a product install alone and not --remote-debugging-port on the default profile.",
+      "browser.isolated": "A browser the agent drives itself with a throwaway or per-workspace profile, carrying no signed-in session. Suits localhost and public pages. This is the capability that scales across hosts, because no two sessions contend for one profile directory -- Playwright MCP partitions automatically as mcp-{channel}-{workspace-hash}, and --isolated removes the on-disk profile entirely.",
+      "browser.authenticated": "A browser carrying a signed-in session, so already-authenticated sites work without logging in each run. Updated 2026-08-19: this previously described chrome-devtools with --autoConnect, which was retired the same day -- it required a manual chrome://inspect enable plus an Allow click and exposed every tab of the owner's personal profile. The surviving route is a browser server holding a PERSISTENT profile of its own, separate from personal Chrome: chrome-devtools' default userDataDir ($HOME/.cache/chrome-devtools-mcp/chrome-profile), or Playwright MCP with --storage-state. Constraint that decides deployment: a persistent profile directory can be used by exactly one browser at a time, and every host on this workstation shares one $HOME, so a persistent-profile server cannot be fanned across hosts -- the second concurrent session fails to launch. Not a product install alone, and not --remote-debugging-port on the default profile.",
       "computer.gui": "First-party control of native desktop applications.",
       "mobile.android.local": "Driving an Android emulator or attached device on the Windows host. On this fleet the provider is the appium-mobile MCP through its embedded UiAutomator2. Does not cover a physical iPhone or any real-hardware claim.",
       "mobile.ios.simulated": "Driving an iOS Simulator inside the VMware macOS guest, reached as a remote Appium client because Xcode and simctl do not exist on Windows. On this fleet the provider is the appium-mobile MCP with remoteServerUrl set to the guest. Does not cover a physical iPhone or any real-hardware claim."
@@ -116,7 +366,13 @@
       {
         "hostId": "codex",
         "surfaceId": "codex-cli",
-        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": null, "mobile.android.local": null, "mobile.ios.simulated": null },
+        "capabilities": {
+          "browser.isolated": false,
+          "browser.authenticated": false,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
         "capabilityEvidence": {
           "browser.isolated": "learn.chatgpt.com/docs/browser states verbatim: 'Browser isn't available in Codex CLI or the Codex IDE extension. Open the ChatGPT desktop app to use the built-in browser.'",
           "browser.authenticated": "The same quoted sentence. What the documentation withholds from this surface is Browser itself, so it covers the authenticated variant and the isolated one alike."
@@ -132,7 +388,13 @@
       {
         "hostId": "codex",
         "surfaceId": "codex-ide",
-        "capabilities": { "browser.isolated": false, "browser.authenticated": false, "computer.gui": null, "mobile.android.local": null, "mobile.ios.simulated": null },
+        "capabilities": {
+          "browser.isolated": false,
+          "browser.authenticated": false,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
         "capabilityEvidence": {
           "browser.isolated": "The documented sentence quoted in codex-cli names this surface explicitly: 'Browser isn't available in Codex CLI or the Codex IDE extension.'",
           "browser.authenticated": "The same documented sentence. It names the IDE extension and withholds Browser from it entirely, not one variant of it."
@@ -148,7 +410,13 @@
       {
         "hostId": "codex",
         "surfaceId": "codex-desktop",
-        "capabilities": { "browser.isolated": true, "browser.authenticated": null, "computer.gui": null, "mobile.android.local": null, "mobile.ios.simulated": null },
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
         "capabilityEvidence": {
           "browser.isolated": "learn.chatgpt.com/docs/browser states Browser is available in ChatGPT on the web and in the ChatGPT desktop app."
         },
@@ -164,7 +432,13 @@
       {
         "hostId": "claude",
         "surfaceId": "claude-cli",
-        "capabilities": { "browser.isolated": true, "browser.authenticated": false, "computer.gui": true, "mobile.android.local": null, "mobile.ios.simulated": null },
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": false,
+          "computer.gui": true,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
         "capabilityEvidence": {
           "browser.isolated": "Measured live: the in-app Browser pane opened and navigated.",
           "browser.authenticated": "Measured FALSE: list_connected_browsers returned an empty array, so Claude in Chrome is not connected on this machine -- the product exists but the capability does not, which is exactly the distinction this table is for.",

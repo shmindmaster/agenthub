@@ -762,11 +762,11 @@
         "browser-debugging",
         "browser-evidence",
         "interactive-browser-testing",
-        "use-chrome-devtools-mcp"
+        "use-playwright-mcp"
       ],
       "retiredSkillNames": [
         "browser-audit",
-        "product-demo"
+        "use-chrome-devtools-mcp"
       ],
       "retiredSkills": [
         {
@@ -775,7 +775,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "FF768EB332A3FD12B0EDC714ED2B8C7AAE24B7B4B59A8AB95612B681097DE2D3",
+      "contentHash": "B8F3131EA0884AD2AE724AA024EBB191D3BF542D676780F3CE42D36D1605A0C5",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [

@@ -1,7 +1,7 @@
 # Chrome DevTools MCP — tool catalog pointer
 
 **Canonical (auto-generated upstream):**  
-https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md
+https://github.com/ChromeDevTools/playwright-mcp/blob/main/docs/tool-reference.md
 
 Do not fork the full parameter schema into agenthub. When parameters change, trust upstream `tool-reference.md` and keep `SKILL.md` as the routing/cheat sheet only.
 
@@ -21,4 +21,4 @@ Do not fork the full parameter schema into agenthub. When parameters change, tru
 ## Related fleet docs
 
 - `docs/CHROME_CDP.md` — autoConnect vs isolated, host config
-- `registry/mcps.json` — `chrome-devtools`
+- `registry/mcps.json` — `playwright`

@@ -5,14 +5,17 @@ description: Use when a coding agent should visually inspect and interact with a
 
 # Interactive browser testing
 
-For tool routing and the core loop, also load **`use-chrome-devtools-mcp`**.
+For tool routing and the core loop, also load **`use-playwright-mcp`**.
 
 ## Capability required
 
 This skill requires `browser.isolated`, defined in `registry/fleet-profile.json`
-under `hostSurfaces.capabilityMeanings` as: "A first-party browser the agent drives
-itself, with its own profile. Suits localhost and public pages; carries no signed-in
-session."
+under `hostSurfaces.capabilityMeanings` as: "A browser the agent drives itself with a throwaway or per-workspace profile,
+carrying no signed-in session. Suits localhost and public pages. This is the
+capability that scales across hosts, because no two sessions contend for one
+profile directory -- Playwright MCP partitions automatically as
+mcp-{channel}-{workspace-hash}, and --isolated removes the on-disk profile
+entirely."
 
 ## Resolve a provider before choosing the lane
 
@@ -21,7 +24,7 @@ session."
    own first-party browser and start nothing. This is the ordinary case for a host
    that ships a browser.
    <!-- resolution-step: surface-provided -->
-2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities`
+2. Use `playwright` -- the declared fallback, `providesCapabilities`
    in `registry/mcps.json` for `browser.isolated` -- when the surface records
    `false` or `null`, or when the run needs accessibility snapshots, console/network
    correlation, Lighthouse, performance, screencasts, or memory analysis that the
@@ -44,7 +47,7 @@ as evidence) routes to the fallback rather than to nothing.
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at
 session start, and to run as one shared process rather than one per host.
-`chrome-devtools` is the QA fallback for this skill; do not start it when
+`playwright` is the QA fallback for this skill; do not start it when
 the surface already provides `browser.isolated`.
 
 Add repository Playwright tests only after discovering a regression worth preserving.
@@ -63,7 +66,7 @@ Existing automated tests do not replace interactive rendered verification.
    state. Never invent inaccessible states.
 7. Record exact evidence and close the named Playwright session when finished.
 
-`chrome-devtools` launches into a dedicated persistent profile that is separate from
+`playwright` launches into a dedicated persistent profile that is separate from
 personal Chrome (`registry/mcps.json`). Cookies survive a close, so a signed-in test
 site is authenticated once rather than every run -- but nothing from the owner's
 personal session leaks in. A surface recorded as providing `browser.isolated` carries

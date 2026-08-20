@@ -8,14 +8,17 @@ description: Use when an authorized workflow needs reproducible screenshots, acc
 This skill captures observed browser evidence. Product decisions remain with Product
 Experience Engineering; demo and release decisions remain with Product Demo Studio.
 
-For MCP tool routing and snapshot-first discipline, also load **`use-chrome-devtools-mcp`**.
+For MCP tool routing and snapshot-first discipline, also load **`use-playwright-mcp`**.
 
 ## Capability required
 
 This skill requires `browser.isolated`, defined in `registry/fleet-profile.json`
-under `hostSurfaces.capabilityMeanings` as: "A first-party browser the agent drives
-itself, with its own profile. Suits localhost and public pages; carries no signed-in
-session."
+under `hostSurfaces.capabilityMeanings` as: "A browser the agent drives itself with a throwaway or per-workspace profile,
+carrying no signed-in session. Suits localhost and public pages. This is the
+capability that scales across hosts, because no two sessions contend for one
+profile directory -- Playwright MCP partitions automatically as
+mcp-{channel}-{workspace-hash}, and --isolated removes the on-disk profile
+entirely."
 
 Isolation is the point here, not an implementation detail: evidence must not carry
 personal Chrome state, unrelated tabs, credentials, or customer data.
@@ -26,7 +29,7 @@ personal Chrome state, unrelated tabs, credentials, or customer data.
    `hostSurfaces.surfaces`. If it records the required capability as `true`, capture
    with its own first-party browser and start nothing.
    <!-- resolution-step: surface-provided -->
-2. Use `chrome-devtools` -- the declared fallback, `providesCapabilities` in
+2. Use `playwright` -- the declared fallback, `providesCapabilities` in
    `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
    `null`, or when the evidence needed is a performance trace, heap comparison, or
    Lighthouse run.
@@ -39,7 +42,7 @@ each artifact, because a screenshot's meaning depends on the profile it came fro
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at
 session start, and to run as one shared process rather than one per host.
-`chrome-devtools` is the QA fallback for this skill; do not start it when
+`playwright` is the QA fallback for this skill; do not start it when
 the surface already provides `browser.isolated`. Its dedicated profile is separate
 from personal Chrome, so evidence captures are isolated by construction. Attaching to
 the owner's live personal Chrome would require passing `--browserUrl` deliberately and

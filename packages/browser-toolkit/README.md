@@ -5,10 +5,10 @@ One browser-quality plugin with **two** on-demand Chrome DevTools MCP servers an
 ## Architecture
 
 - Skills that need synthetic/localhost QA state the capability `browser.isolated` and
-  fall back to **`chrome-devtools`** (dedicated persistent automation profile,
+  fall back to **`playwright`** (dedicated persistent automation profile,
   separate from personal Chrome).
 - Work that needs the owner's signed-in Chrome (LinkedIn, job portals, etc.) is
-  capability **`browser.authenticated`**, provided by **`chrome-devtools`**, which
+  capability **`browser.authenticated`**, provided by **`playwright`**, which
   **attaches only** to TaskBar personal Chrome via CDP (never launches a blank profile).
 - Resolution: surface-native browser first (`registry/fleet-profile.json` ->
   `hostSurfaces`), then the matching MCP fallback for the capability.
@@ -19,12 +19,12 @@ One browser-quality plugin with **two** on-demand Chrome DevTools MCP servers an
 
 | Skill | When |
 | --- | --- |
-| **`use-chrome-devtools-mcp`** | Tool catalog, core loop, autoConnect vs isolated, smoke checks |
+| **`use-playwright-mcp`** | Tool catalog, core loop, autoConnect vs isolated, smoke checks |
 | **`interactive-browser-testing`** | Visual product workflows (`browser.isolated`) |
 | **`browser-debugging`** | Console/network/performance/memory (`browser.isolated`) |
 | **`browser-evidence`** | Screenshots, traces, Lighthouse artifacts (`browser.isolated`) |
 
-Upstream parameter bible: https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md  
+Upstream parameter bible: https://github.com/ChromeDevTools/playwright-mcp/blob/main/docs/tool-reference.md  
 Do not fork the full schema; keep routing in the skill and link upstream.
 
 ### Personal Chrome (authenticated) — official path
@@ -33,9 +33,9 @@ Do not fork the full schema; keep routing in the skill and link upstream.
 | --- | --- |
 | TaskBar pin | Normal **Google Chrome** (no special debug flags required) |
 | Owner enable | `chrome://inspect/#remote-debugging` → enable |
-| MCP | `chrome-devtools` with **`--autoConnect`** (Chrome ≥144) |
+| MCP | `playwright` with **`--autoConnect`** (Chrome ≥144) |
 | Permission | Chrome **Allow** dialog when agent connects |
-| Registry | `registry/mcps.json` id `chrome-devtools` (single server since 2026-08-19) |
+| Registry | `registry/mcps.json` id `playwright` (single server since 2026-08-19) |
 | Docs | `docs/CHROME_CDP.md` |
 
 **Do not** put `--remote-debugging-port=9222` on the Default profile TaskBar shortcut (ignored since Chrome 136).  
@@ -69,5 +69,5 @@ it actually describes.
 
 ```powershell
 python C:\Users\SaroshHussain\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py .
-npx -y chrome-devtools-mcp@1.6.0 --help
+npx -y playwright-mcp@1.6.0 --help
 ```

@@ -1,16 +1,14 @@
 {
   "mcpServers": {
-    "chrome-devtools": {
+    "playwright": {
       "command": "npx",
       "args": [
         "-y",
-        "chrome-devtools-mcp@1.7.0",
-        "--no-usage-statistics",
-        "--no-performance-crux"
+        "@playwright/mcp@0.0.79",
+        "--browser",
+        "chromium"
       ],
-      "env": {
-        "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "true"
-      }
+      "env": {}
     }
   }
 }

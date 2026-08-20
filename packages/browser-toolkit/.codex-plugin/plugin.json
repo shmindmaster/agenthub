@@ -8,7 +8,7 @@
   "license": "MIT",
   "keywords": [
     "browser-testing",
-    "chrome-devtools",
+    "playwright",
     "playwright",
     "visual-testing",
     "accessibility",

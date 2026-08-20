@@ -1,14 +1,14 @@
 ---
-name: use-chrome-devtools-mcp
-description: Use when driving Chrome via chrome-devtools MCP tools (list_pages, take_snapshot, click, fill_form, network, console, performance), signing in to the dedicated automation profile, or resolving a browser provider. Prefer this skill over raw docs when selecting or sequencing DevTools MCP tools.
+name: use-playwright-mcp
+description: Use when driving Chrome via playwright MCP tools (list_pages, take_snapshot, click, fill_form, network, console, performance), signing in to the dedicated automation profile, or resolving a browser provider. Prefer this skill over raw docs when selecting or sequencing DevTools MCP tools.
 ---
 
-# Use Chrome DevTools MCP
+# Use Playwright MCP
 
 <!-- skill-kind: provider-reference -->
 
-Official tool catalog: https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md  
-Fleet setup: `docs/development/chrome-cdp.md` in agenthub · https://developer.chrome.com/blog/chrome-devtools-mcp-debug-your-browser-session
+Official tool catalog: https://github.com/ChromeDevTools/playwright-mcp/blob/main/docs/tool-reference.md  
+Fleet setup: `docs/development/chrome-cdp.md` in agenthub · https://developer.chrome.com/blog/playwright-mcp-debug-your-browser-session
 
 **Do not start here.** This file is the tool catalog for the one registered
 browser server, not a routing skill, and everything below presumes a provider
@@ -21,7 +21,7 @@ has already been resolved to it. Enter through the skill that made that decision
 Each states its `## Capability required` and resolves a provider before sending
 you here. If the running surface provides the capability natively — check
 `hostSurfaces.surfaces` in `registry/fleet-profile.json` — drive that surface's
-own browser and do not read on: starting `chrome-devtools` on a host
+own browser and do not read on: starting `playwright` on a host
 that already has a browser is the spawned-process-per-host cost that
 `registry/mcps.json`'s `activationPolicy` exists to avoid.
 
@@ -36,13 +36,13 @@ this file an orphan and turns it red.
 
 ## One server, one profile
 
-There is a single MCP id: **`chrome-devtools`**. It serves both
+There is a single MCP id: **`playwright`**. It serves both
 `browser.authenticated` and `browser.isolated`, so no server choice is needed —
 resolve the capability and go.
 
 It passes **neither** `--isolated` nor `--autoConnect`, which means
-chrome-devtools-mcp falls back to its default `userDataDir`,
-`$HOME/.cache/chrome-devtools-mcp/chrome-profile`. That profile is:
+playwright-mcp falls back to its default `userDataDir`,
+`$HOME/.cache/playwright-mcp/chrome-profile`. That profile is:
 
 - **separate from the owner's personal Chrome** — which is the isolation the
   QA and evidence skills actually require, and
@@ -66,10 +66,10 @@ registration.
 
 Two flags were retired on 2026-08-19: `--isolated` (wiped cookies on every
 close, so every signed-in task re-authenticated) and `--autoConnect` (above).
-They could never have been merged anyway — chrome-devtools-mcp declares
+They could never have been merged anyway — playwright-mcp declares
 `conflicts: ['isolated', 'executablePath']` on `autoConnect`, so passing both
-aborts startup. The retired id `chrome-devtools-isolated` resolves to
-`chrome-devtools` through `migrationAliases`.
+aborts startup. The retired id `playwright-isolated` resolves to
+`playwright` through `migrationAliases`.
 
 **Concurrency:** Chrome locks a user-data-dir, so this server is
 single-shared-process by design. Do not run two sessions against it at once.

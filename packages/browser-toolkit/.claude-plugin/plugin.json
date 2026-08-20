@@ -1,6 +1,6 @@
 {
   "name": "browser-toolkit",
-  "version": "1.2.1",
+  "version": "2.0.0",
   "description": "Interactive visual browser testing and Chrome DevTools diagnostics with Playwright CLI guidance.",
   "author": {
     "name": "Sarosh Hussain"
@@ -8,7 +8,7 @@
   "license": "MIT",
   "keywords": [
     "browser-testing",
-    "chrome-devtools",
+    "playwright",
     "playwright",
     "visual-testing"
   ]

@@ -3,7 +3,8 @@
   "generatedAt": "2026-08-19T00:00:00.000Z",
   "migrationAliases": {
     "repowise": "repowise-workspace",
-    "chrome-devtools-isolated": "chrome-devtools"
+    "chrome-devtools-isolated": "playwright",
+    "chrome-devtools": "playwright"
   },
   "migrationAliasesNote": "Maps a key a host config actually carries to the canonical server id. Prune keeps only what the canonical set names after Resolve-McpAliasKey, so an unaliased drifted key is deleted rather than reconciled. Recorded 2026-08-19: .claude/settings.json carried repowise-workspace under the key 'repowise', and migrationAliases was empty, so a prune run would have removed the only working repowise registration on the machine. Verified the canonical args are safe to converge on: 'repowise mcp' defaults to stdio, so the deployed '--transport stdio' is redundant and dropping it changes nothing.",
   "activationPolicy": {
@@ -241,52 +242,51 @@
       }
     },
     {
-      "id": "chrome-devtools",
-      "name": "Chrome DevTools (dedicated persistent profile)",
+      "id": "playwright",
+      "name": "Playwright MCP (headed, per-workspace profile)",
       "scope": "on-demand-desktop",
       "transport": "stdio",
       "activationMode": "on-demand-local",
       "command": "npx",
       "args": [
         "-y",
-        "chrome-devtools-mcp@1.7.0",
-        "--no-usage-statistics",
-        "--no-performance-crux"
+        "@playwright/mcp@0.0.79",
+        "--browser",
+        "chromium"
       ],
-      "env": {
-        "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "true"
-      },
-      "credentialPolicy": "dedicated-persistent-automation-profile",
+      "env": {},
+      "hosts": [
+        "amp",
+        "copilot",
+        "devin",
+        "gemini",
+        "grok",
+        "opencode",
+        "qwen-code",
+        "warp"
+      ],
+      "credentialPolicy": "per-workspace-profile-no-personal-session",
       "providesCapabilities": [
-        "browser.authenticated",
-        "browser.isolated"
+        "browser.isolated",
+        "browser.authenticated"
       ],
-      "providesCapabilitiesNote": "Single Chrome DevTools MCP registration for the fleet. Passes neither --isolated nor --autoConnect, so chrome-devtools-mcp uses its default userDataDir ($HOME/.cache/chrome-devtools-mcp/chrome-profile): a dedicated profile that is separate from the owner's personal Chrome and whose logins persist across sessions. This supersedes the two-entry split retired 2026-08-19. --isolated wiped cookies on every close, so every signed-in task re-authenticated; --autoConnect required a manual chrome://inspect enable plus an Allow click and exposed every tab of the personal profile. Serves both browser.authenticated and browser.isolated: it is isolated FROM personal Chrome (which is what the QA skills need) while still able to hold a login. The one thing it cannot do is attach to the page the owner is personally looking at; use --browserUrl deliberately if that is ever required. Concurrency note: Chrome locks a user-data-dir, so this is single-shared-process by design.",
+      "providesCapabilitiesNote": "The fleet's browser layer, replacing chrome-devtools on 2026-08-19. Headed by default -- verified the same day by driving it to https://example.com and observing a real window titled 'Example Domain - Google Chrome for Testing', so the owner can watch and take over a run. Chosen over chrome-devtools for one decisive reason: chrome-devtools' persistent profile lives at a single path under $HOME, and Chrome permits one browser per user-data-dir, so fanning it across hosts on this one workstation means the first host to open a browser takes the lock and every other host fails at launch. Playwright partitions its profile as mcp-{channel}-{workspace-hash}, so per-host processes cannot collide. Cost is also far lower than the appium precedent: measured 10-22 MB per daemon here versus appium's ~93 MB per host. Serves browser.isolated natively; browser.authenticated via --storage-state or a signed-in workspace profile, without ever touching the owner's personal Chrome. For parallel or CI runs use --isolated, or one HTTP server (--port) that hosts dial by URL, where each client gets its own context by default.",
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-08-19",
-        "verification": "chrome-devtools-mcp@1.7.0 default profile mode; protocol re-verified 2026-08-19 by stdio initialize, which returned protocolVersion 2025-11-25 and serverInfo chrome_devtools 1.7.0. Flag semantics re-read from the 1.7.0 binary's own --help at the same time and are unchanged: userDataDir still defaults to $HOME/.cache/chrome-devtools-mcp/chrome-profile, --isolated still creates a temporary dir cleaned up on close, and --autoConnect still requires Chrome 144+ plus a manual chrome://inspect enable. The single-entry design therefore still holds at this pin."
+        "verification": "stdio initialize against @playwright/mcp@0.0.79 returned protocolVersion 2025-11-25 and serverInfo Playwright 1.63.0-alpha-2026-08-05. A browser_navigate call then loaded https://example.com and returned its title, and a visible headed window was confirmed by process inspection while the session was live."
       },
       "localProcessPolicy": {
-        "instancing": "single-shared-process",
-        "declaredByHostCount": 1,
-        "note": "Pinned chrome-devtools-mcp@1.7.0. Owned by browser-toolkit and delivered by its plugin, not written into host configs. One registration since 2026-08-19.",
+        "instancing": "one-process-per-host-session",
+        "declaredByHostCount": 8,
+        "note": "Pinned @playwright/mcp@0.0.79. Unlike a single-shared-process server this is safe per host, because Playwright derives its profile directory from the workspace hash, so two host sessions never contend for one directory. Browsers install to PLAYWRIGHT_BROWSERS_PATH (D:/Local-AI/cache/ms-playwright here), keeping them off C:.",
         "versionPinVerifiedOn": "2026-08-19"
       },
       "owner": {
         "type": "capability",
         "id": "browser-toolkit"
       },
-      "hosts": [
-        "claude"
-      ],
-      "conflictingHostPlugins": {
-        "qoder": [
-          "chrome-devtools-mcp@qoder-marketplace"
-        ]
-      },
-      "experimentalFlagsEnabled": [],
-      "hostScopeNote": "claude only. Delivered by the browser-toolkit plugin, and codex has that plugin installed but DISABLED (config.toml [plugins.\"browser-toolkit@agenthub\"] enabled=false) because codex ships its own first-party browser@openai-bundled and chrome@openai-bundled, both enabled. Routing to a surface's native capability instead of spawning a local process is the intended order, so codex is correctly excluded rather than missing. Was 18 aspirational hosts until 2026-08-19; zero host configs ever carried it, because activationPolicy delivers it by plugin, not by host-config write."
+      "hostScopeNote": "Only hosts with NO verified native browser, established 2026-08-19 from official docs plus local evidence. Excluded as natively capable: cursor, antigravity, vscode-insiders, cline, qoder, claude, codex, hermes, windsurf, and factory (its first-party droid-control plugin was installed rather than adding a third-party MCP). qwen-code is included despite native computer_use__* tools because those cannot read console or network without an external CDP adapter."
     },
     {
       "id": "descript",

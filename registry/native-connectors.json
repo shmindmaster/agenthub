@@ -28,11 +28,13 @@
     "sharedRemoteTransport": "http",
     "onDemandLocalMcpIds": [
       "appium-mobile",
-      "brave-search",
-      "chrome-devtools"
+      "playwright",
+      "railway",
+      "repowise-workspace"
     ],
     "persistedOnDemandLocalMcpIds": [
-      "appium-mobile"
+      "appium-mobile",
+      "playwright"
     ],
     "hostConfiguredLocalMcpIds": [
       "node_repl"
@@ -53,7 +55,9 @@
         "railway": "Registered 2026-08-19, after this block was reconciled on 2026-08-13, so the 'complete for what it claims' sentence above did not cover it. Declared to claude and codex but measured in zero host configs, so there is nothing to persist yet -- recorded here so the gap is visible rather than implied."
       },
       "nextStep": "Measure both against the deployed host configurations, then either add them here or record why each is exempt. Until then this list is complete for what it claims and explicitly incomplete for what it does not."
-    }
+    },
+    "persistedOnDemandLocalMcpIdsNote": "Reviewed exceptions: on-demand-local servers that ARE written into host configs. The default is to omit them, because activationPolicy wants a local server started by the capability that needs it rather than declared everywhere. playwright was added 2026-08-19 with a specific justification: the eight hosts it targets have no native browser and no plugin format that can deliver an MCP for them (amp, copilot, devin, gemini, grok, opencode, qwen-code, warp take raw MCP config), so omitting it would leave them with no browser capability at all. The usual objection to persisting a local server -- a process per host at session start -- does not apply: Playwright does not launch a browser until a tool needs one, and its daemon measured 10-22 MB here against appium's ~93 MB.",
+    "onDemandLocalMcpIdsNote": "Refreshed 2026-08-19. chrome-devtools was replaced by playwright and brave-search was removed (zero host declarations, zero session visibility). railway and repowise-workspace were live on-demand-local servers this list had never been updated to include."
   },
   "managedMarketplaces": [
     {
@@ -356,8 +360,7 @@
           "firecrawl"
         ],
         "local-only": [
-          "appium-mobile",
-          "brave-search"
+          "appium-mobile"
         ]
       },
       "evidence": [
@@ -386,9 +389,7 @@
           "firecrawl",
           "linear"
         ],
-        "local-only": [
-          "brave-search"
-        ]
+        "local-only": []
       },
       "evidence": [
         "Claude installed_plugins.json and package manifests own Chrome DevTools, GitHub, and Notion.",
@@ -412,9 +413,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "brave-search"
-        ]
+        "local-only": []
       }
     },
     {
@@ -432,9 +431,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "brave-search"
-        ]
+        "local-only": []
       }
     },
     {
@@ -456,7 +453,7 @@
           "notion"
         ],
         "local-only": [
-          "brave-search"
+          "playwright"
         ]
       }
     },
@@ -475,9 +472,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "brave-search"
-        ]
+        "local-only": []
       }
     },
     {
@@ -497,7 +492,7 @@
           "notion"
         ],
         "local-only": [
-          "brave-search"
+          "playwright"
         ]
       }
     },
@@ -517,7 +512,7 @@
           "notion"
         ],
         "local-only": [
-          "brave-search"
+          "playwright"
         ]
       }
     },
@@ -541,7 +536,7 @@
           "notion"
         ],
         "local-only": [
-          "brave-search"
+          "playwright"
         ]
       }
     },
@@ -560,9 +555,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "brave-search"
-        ]
+        "local-only": []
       }
     },
     {
@@ -582,7 +575,7 @@
           "notion"
         ],
         "local-only": [
-          "brave-search"
+          "playwright"
         ]
       }
     },
@@ -601,9 +594,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "brave-search"
-        ]
+        "local-only": []
       }
     },
     {
@@ -631,7 +622,7 @@
           "notion"
         ],
         "local-only": [
-          "brave-search"
+          "playwright"
         ]
       }
     },
@@ -651,7 +642,7 @@
           "notion"
         ],
         "local-only": [
-          "brave-search"
+          "playwright"
         ]
       }
     },
@@ -670,9 +661,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "brave-search"
-        ]
+        "local-only": []
       }
     },
     {
@@ -691,9 +680,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "brave-search"
-        ]
+        "local-only": []
       }
     },
     {
@@ -711,7 +698,7 @@
           "notion"
         ],
         "local-only": [
-          "brave-search"
+          "playwright"
         ]
       }
     },
@@ -729,9 +716,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "brave-search"
-        ]
+        "local-only": []
       }
     }
   ]
