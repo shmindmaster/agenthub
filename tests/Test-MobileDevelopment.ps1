@@ -232,7 +232,7 @@ $claudeManifest = Read-Json 'packages\mobile-development\.claude-plugin\plugin.j
 $codexManifest = Read-Json 'packages\mobile-development\.codex-plugin\plugin.json'
 Report 'generic, Claude, and Codex manifests share one mobile-development identity and version' (
     $manifest.name -eq 'mobile-development' -and $claudeManifest.name -eq $manifest.name -and $codexManifest.name -eq $manifest.name -and `
-    $manifest.version -eq '2.0.3' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
+    $manifest.version -eq '2.0.4' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
 ) "generic=$($manifest.name)@$($manifest.version) claude=$($claudeManifest.name)@$($claudeManifest.version) codex=$($codexManifest.name)@$($codexManifest.version)"
 $retainedHostManifestDirs = @(Get-ChildItem -LiteralPath $packageRoot -Force -Directory | Where-Object Name -match '^\..+-plugin$' | Select-Object -ExpandProperty Name | Sort-Object)
 Report 'unsupported legacy host manifests are absent' (

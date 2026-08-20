@@ -74,9 +74,16 @@ try {
         if ($release.ExitCode -eq 0 -and $release.Result -and $release.Result.ok) { $leaseId = $null }
         $after = Invoke-JsonScript -Path $idleProbePath -Parameters @{ LeaseOnly = $true }
         Report 'foreground lease releases cleanly' ($release.ExitCode -eq 0 -and $after.ExitCode -eq 0 -and $after.Result.idle) "release=$($release.Output -join ' ') after=$($after.Output -join ' ')"
+
+        $staleLeaseId = [guid]::NewGuid().ToString('N')
+        $stale = Invoke-JsonScript -Path $idleProbePath -Parameters @{ LeaseOnly = $true; LeaseId = $staleLeaseId }
+        Report 'stale lease id cannot bypass a free canonical mutex' (
+            $stale.ExitCode -ne 0 -and $stale.Result -and -not $stale.Result.idle -and
+            (@($stale.Result.probeErrors | ForEach-Object Error) -join ' ') -match 'does not own'
+        ) "exit=$($stale.ExitCode) output=$($stale.Output -join ' ')"
     }
     else {
-        foreach ($name in @('independent idle probe rejects an active foreground lease','lease owner can run its own preflight','competing foreground lease acquisition is rejected','foreground lease releases cleanly')) {
+        foreach ($name in @('independent idle probe rejects an active foreground lease','lease owner can run its own preflight','competing foreground lease acquisition is rejected','foreground lease releases cleanly','stale lease id cannot bypass a free canonical mutex')) {
             Report $name $false "initial lease acquisition failed: $($lease.Output -join ' ')"
         }
     }

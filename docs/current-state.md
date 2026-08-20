@@ -53,7 +53,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   fixing pronunciation in a dictionary layer rather than by swapping engines.
 
 - **Mobile development is one canonical capability (updated 2026-08-20):**
-  `packages/mobile-development` version 2.0.3 owns the public `mobile.ps1`
+  `packages/mobile-development` version 2.0.4 owns the public `mobile.ps1`
   entrypoint and both loose skills. Every active coding host receives the
   skills and catalog discovery. Appium remains absent from persistent MCP
   configuration and may be activated only for Claude or Codex; both native

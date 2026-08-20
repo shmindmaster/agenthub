@@ -77,14 +77,17 @@ try {
                 if ($leaseAcquired) { try { $leaseProbe.ReleaseMutex() } catch { } }
                 $leaseProbe.Dispose()
             }
-            if ($labLeaseHeld -and $LeaseId) {
+            if ($LeaseId) {
                 if ($LeaseId -notmatch '^[0-9a-f]{32}$') { throw 'LeaseId must be the 32-character identifier returned by Enter-MobileLabLease.ps1.' }
+                if (-not $labLeaseHeld) { throw "LeaseId '$LeaseId' does not own the canonical mobile-lab mutex." }
                 $statusPath = Join-Path $env:LOCALAPPDATA "AgentHub\mobile-lab\leases\$LeaseId.status.json"
-                if (Test-Path -LiteralPath $statusPath) {
-                    $status = Get-Content -LiteralPath $statusPath -Raw -Encoding UTF8 | ConvertFrom-Json
-                    $holderAlive = if ($status.holderPid) { [bool](Get-Process -Id ([int]$status.holderPid) -ErrorAction SilentlyContinue) } else { $false }
-                    if ($status.active -and $holderAlive -and [string]$status.leaseId -eq $LeaseId) { $labLeaseHeld = $false }
+                if (-not (Test-Path -LiteralPath $statusPath)) { throw "LeaseId '$LeaseId' has no active lease status." }
+                $status = Get-Content -LiteralPath $statusPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                $holderAlive = if ($status.holderPid) { [bool](Get-Process -Id ([int]$status.holderPid) -ErrorAction SilentlyContinue) } else { $false }
+                if (-not ($status.active -and $holderAlive -and [string]$status.leaseId -eq $LeaseId)) {
+                    throw "LeaseId '$LeaseId' is stale or is not held by a live lease owner."
                 }
+                $labLeaseHeld = $false
             }
         }
 
