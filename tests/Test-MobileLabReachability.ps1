@@ -33,6 +33,7 @@ $mcps = Read-Json 'registry\mcps.json'
 $formats = Read-Json 'registry\plugin-formats.json'
 $connectors = Read-Json 'registry\native-connectors.json'
 $mobile = @($capabilities.capabilities | Where-Object id -eq 'mobile-device-lab')
+$marketplace = Read-Json '.agents\plugins\marketplace.json'
 $appium = @($mcps.mcpServers | Where-Object id -eq 'appium-mobile')
 $packageRoot = Join-Path $repoRoot 'packages\mobile-device-lab'
 $syncScriptText = Get-Content -LiteralPath (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') -Raw -Encoding UTF8
@@ -60,7 +61,20 @@ $pinnedAppiumArg = @($appium[0].args | Where-Object { $_ -like 'appium-mcp@*' })
 Report 'one pinned Appium MCP exists' ($appium.Count -eq 1 -and $appium[0].command -eq 'npx' -and $pinnedAppiumArg.Count -eq 1) `
     "Expected exactly one npx-invoked appium-mcp@<version> arg in registry/mcps.json#appium-mobile; found $($pinnedAppiumArg.Count)."
 Report 'Windows stdio MCP wrap exists' ($syncScriptText -match 'function Resolve-WindowsHiddenStdioEntry' -and $syncScriptText -match 'Hide-Stdio.exe') 'Emit stdio MCP through Hide-Stdio.exe on Windows so npx/cmd wrappers do not steal focus.'
-Report 'Appium is the reviewed persistent on-demand exception' ('appium-mobile' -in @($connectors.lifecyclePolicy.persistedOnDemandLocalMcpIds)) 'Add only appium-mobile to persistedOnDemandLocalMcpIds.'
+# appium-mobile must NOT be persisted. A stdio MCP server named in a host
+# config is started BY THE HOST at session start -- there is no lazy path --
+# so persisting it means a node process per session whether or not any mobile
+# work happens. Measured after a clean reboot on 2026-08-20: 15 processes,
+# 2,024 MB, still climbing as sessions opened, with no mobile work running.
+Report 'Appium is not persisted into host configs' ('appium-mobile' -notin @($connectors.lifecyclePolicy.persistedOnDemandLocalMcpIds)) `
+    'appium-mobile is back in persistedOnDemandLocalMcpIds; that re-creates the per-session process cost measured at 2,024 MB.'
+
+# The capability must still be REACHABLE, or the saving above is just a
+# removal. An explicit, documented enable route is what makes it on-demand
+# rather than gone.
+$appiumRoute = [string]$connectors.lifecyclePolicy.appiumActivationRoute
+Report 'Appium has a documented enable-on-demand route' ($appiumRoute -match 'plugin (enable|add)' -and $appiumRoute -match 'mobile-device-lab') `
+    'lifecyclePolicy.appiumActivationRoute must name the concrete command that turns the capability on, or removing it from the default set just loses the capability.'
 Report 'persistent on-demand exceptions participate in every sync scope' (
     $syncScriptText -match '\$scopedCandidateServers\s*\+\s*\$persistentExceptionServers'
 ) 'Merge reviewed persistent exceptions after scope selection so default audits agree with on-demand deployment.'
@@ -112,7 +126,15 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'active')) {
     # directions: in scope the route must exist, out of scope the direct MCP
     # route must be absent, so the narrowing is enforced and not merely tolerated.
     if ($inMobileScope) {
-        Report "$hostId has an Appium MCP activation route" ([bool]($packageRoute -or $directRoute)) "status=$status manifest=$packageManifest direct=$directRoute"
+        # The route must EXIST (the capability can be turned on) while being absent
+        # from the running default. Asserting only presence would fail the new design;
+        # asserting only absence would let the capability quietly disappear.
+        # A route is a way to TURN IT ON, not evidence it is on. After gating, the
+        # route is the marketplace entry the enable command resolves against -- that
+        # is what makes the capability recoverable rather than deleted.
+        $marketplaceRoute = (@($marketplace.plugins | Where-Object { $_.name -eq 'mobile-device-lab' }).Count -eq 1)
+        Report "$hostId can activate Appium on demand" ([bool]($packageRoute -or $directRoute -or $marketplaceRoute)) `
+            "status=$status manifest=$packageManifest direct=$directRoute marketplace=$marketplaceRoute -- an in-scope host must retain a way to enable the capability."
     } else {
         Report "$hostId is outside Appium scope and carries no direct MCP route" (-not $directRoute) "status=$status direct=$directRoute"
     }
@@ -153,8 +175,18 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'active')) {
         # hosts read by design.
         $matchedRoots = @($skillRoots | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'mobile-device-lab\SKILL.md') })
         $liveInstruction = $matchedRoots.Count -gt 0
-        $sharedSkillsRoot = Resolve-LivePath '~/.agents/skills'
-        $onlyViaSharedDir = $liveInstruction -and -not @($matchedRoots | Where-Object { $_ -ne $sharedSkillsRoot }).Count
+        # What prune can actually control is a host's OWN skills directory. Every
+        # other root in $skillRoots belongs to some other host and is merely also
+        # scanned -- ~/.agents/skills by codex/gemini/warp, ~/.claude/skills by
+        # vscode-insiders/copilot/warp. Withdrawing the skill from those would
+        # withdraw it from the in-scope host that owns them, which the directory
+        # layout makes impossible. Keying this on one hardcoded shared path missed
+        # the ~/.claude/skills readers and reported them as retaining a private copy.
+        $ownSkillsRoot = if ($effectiveAgent.Count -eq 1 -and $effectiveAgent[0].nativePaths.skillsDir) {
+            Resolve-LivePath ([string]$effectiveAgent[0].nativePaths.skillsDir)
+        } else { $null }
+        $privateCopy = [bool]($ownSkillsRoot -and @($matchedRoots | Where-Object { $_ -eq $ownSkillsRoot }).Count -gt 0)
+        $onlyViaSharedDir = $liveInstruction -and -not $privateCopy
 
         $driftHost = @(if ($liveDrift) { $liveDrift.hosts | Where-Object host -eq $effectiveHost | Select-Object -First 1 })
         if ($driftHost.Count -eq 1) {
@@ -180,14 +212,19 @@ foreach ($agent in @($agents.activeAgents | Where-Object status -eq 'active')) {
     # and the skill was resolving from the shared dir like codex and gemini.
     $usesSharedSkills = [bool]($effectiveAgent.Count -eq 1 -and $effectiveAgent[0].nativePaths.sharedSkillsDir) -or $onlyViaSharedDir
     if ($inMobileScope) {
-        Report "$hostId live profile exposes mobile instructions" $liveInstruction 'A configured directory string is insufficient; the resolved SKILL.md or enabled package must exist in the live profile.'
+        Report "$hostId live profile carries mobile instructions" $liveInstruction `
+            'Instructions are cheap and stay deployed; only the MCP server is gated, so the skill must remain readable.'
     } elseif ($usesSharedSkills) {
         Report "$hostId sees mobile instructions only via the shared skills dir" $liveInstruction 'Known limitation: the shared ~/.agents/skills directory is read by in-scope and out-of-scope hosts alike.'
     } else {
-        Report "$hostId live profile carries no mobile lab instructions" (-not $liveInstruction) 'An out-of-scope host with its own skills directory must not retain a private copy after prune.'
+        Report "$hostId live profile carries no private mobile lab copy" (-not $privateCopy) `
+            "An out-of-scope host must not keep a copy in its OWN skills directory ($ownSkillsRoot) after prune; roots owned by other hosts are the documented shared-directory limitation."
     }
     if ($inMobileScope) {
-        Report "$hostId live profile exposes Appium MCP" $liveMcp 'The resolved live plugin/config must contain the Appium route and the latest sync audit must classify direct config as unchanged.'
+        # Gated by default. The skill tells the agent how to enable it when mobile
+        # work actually starts.
+        Report "$hostId live profile does not eagerly expose Appium MCP" (-not $liveMcp) `
+            'An in-scope host is carrying the Appium server in its live config again, which spawns a node process every session.'
     } else {
         Report "$hostId live profile has no Appium MCP" (-not $liveMcp) 'A host outside the narrowed Appium scope must not carry the server in its live config; prune should have removed it.'
     }

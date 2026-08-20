@@ -33,14 +33,13 @@
       "repowise-workspace"
     ],
     "persistedOnDemandLocalMcpIds": [
-      "appium-mobile",
       "playwright"
     ],
     "hostConfiguredLocalMcpIds": [
       "node_repl"
     ],
     "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
-    "hostConfiguredLocalFanoutPolicy": "appium-mobile may be registered persistently where no package activation route exists; registration is lightweight and does not start the VM or emulators",
+    "hostConfiguredLocalFanoutPolicy": "playwright may be registered persistently where no package activation route exists: its eight hosts take raw MCP config only, and it launches no browser until a tool needs one. appium-mobile was removed from persistedOnDemandLocalMcpIds on 2026-08-20. The previous wording said registration was 'lightweight and does not start the VM or emulators'. The second half is true and the first half is false, which is what made the claim survive: the emulators stay down, but the MCP server itself is not free. Measured immediately after a clean reboot with no mobile work running, appium-mobile held 15 live node processes totalling 2,017 MB -- 48 to 239 MB each -- and the count grew from 9 to 15 while the machine was merely being used, because every new host session spawns another. A stdio MCP server declared in a host config is started BY THE HOST when the session starts; there is no lazy path for it, so 'on-demand' is unachievable for a persisted stdio entry and the only real lever is not declaring it until it is needed.",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
     "onDemandLocalCoverage": {
@@ -57,7 +56,8 @@
       "nextStep": "Measure both against the deployed host configurations, then either add them here or record why each is exempt. Until then this list is complete for what it claims and explicitly incomplete for what it does not."
     },
     "persistedOnDemandLocalMcpIdsNote": "Reviewed exceptions: on-demand-local servers that ARE written into host configs. The default is to omit them, because activationPolicy wants a local server started by the capability that needs it rather than declared everywhere. playwright was added 2026-08-19 with a specific justification: the eight hosts it targets have no native browser and no plugin format that can deliver an MCP for them (amp, copilot, devin, gemini, grok, opencode, qwen-code, warp take raw MCP config), so omitting it would leave them with no browser capability at all. The usual objection to persisting a local server -- a process per host at session start -- does not apply: Playwright does not launch a browser until a tool needs one, and its daemon measured 10-22 MB here against appium's ~93 MB.",
-    "onDemandLocalMcpIdsNote": "Refreshed 2026-08-19. chrome-devtools was replaced by playwright and brave-search was removed (zero host declarations, zero session visibility). railway and repowise-workspace were live on-demand-local servers this list had never been updated to include."
+    "onDemandLocalMcpIdsNote": "Refreshed 2026-08-19. chrome-devtools was replaced by playwright and brave-search was removed (zero host declarations, zero session visibility). railway and repowise-workspace were live on-demand-local servers this list had never been updated to include.",
+    "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: `claude plugin enable mobile-device-lab@agenthub`. On codex: `codex plugin add mobile-device-lab@agenthub`. Five of twenty-one products in registry/mobile-scope.json are mobile eligible (rexa, abacare, gentlenext, subops, lienwise), so the default state for the other sixteen is the one that should cost nothing."
   },
   "managedMarketplaces": [
     {

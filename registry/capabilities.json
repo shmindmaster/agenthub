@@ -930,11 +930,12 @@
       "hostMappings": [
         {
           "hostId": "claude",
-          "deploymentStatus": "native-plugin-installed",
+          "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills",
             "mcp"
-          ]
+          ],
+          "deploymentStatusNote": "Loose skills, not the plugin, since 2026-08-20. The plugin carries BOTH the skill and the appium-mobile MCP, and the MCP costs a node process per session (measured 2,024 MB across 15 processes with no mobile work running). Disabling the plugin to stop that also removed claude's only copy of the instructions. Splitting them keeps the skill readable at all times while the server stays enable-on-demand via `claude plugin enable mobile-device-lab@agenthub`."
         },
         {
           "hostId": "codex",
