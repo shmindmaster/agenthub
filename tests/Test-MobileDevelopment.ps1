@@ -57,6 +57,8 @@ $mcps = Read-Json 'registry\mcps.json'
 $capabilities = Read-Json 'registry\capabilities.json'
 $agents = Read-Json 'registry\agents.json'
 $connectors = Read-Json 'registry\native-connectors.json'
+$agentMarketplace = Read-Json '.agents\plugins\marketplace.json'
+$claudeMarketplace = Read-Json '.claude-plugin\marketplace.json'
 $manifest = Read-Json 'packages\mobile-development\plugin.json'
 $mcpManifest = Read-Json 'packages\mobile-development\.mcp.json'
 $entrypointText = Get-Content -LiteralPath $entrypoint -Raw -Encoding UTF8
@@ -175,12 +177,19 @@ $claudeManifest = Read-Json 'packages\mobile-development\.claude-plugin\plugin.j
 $codexManifest = Read-Json 'packages\mobile-development\.codex-plugin\plugin.json'
 Report 'generic, Claude, and Codex manifests share one mobile-development identity and version' (
     $manifest.name -eq 'mobile-development' -and $claudeManifest.name -eq $manifest.name -and $codexManifest.name -eq $manifest.name -and `
-    $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
+    $manifest.version -eq '2.0.0' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
 ) "generic=$($manifest.name)@$($manifest.version) claude=$($claudeManifest.name)@$($claudeManifest.version) codex=$($codexManifest.name)@$($codexManifest.version)"
+$retainedHostManifestDirs = @(Get-ChildItem -LiteralPath $packageRoot -Force -Directory | Where-Object Name -match '^\..+-plugin$' | Select-Object -ExpandProperty Name | Sort-Object)
 Report 'unsupported legacy host manifests are absent' (
-    -not (Test-Path -LiteralPath (Join-Path $packageRoot '.cursor-plugin')) -and `
-    -not (Test-Path -LiteralPath (Join-Path $packageRoot '.qoder-plugin'))
-) 'Only generic, Claude, and Codex package manifests are retained.'
+    Test-Sequence $retainedHostManifestDirs @('.claude-plugin','.codex-plugin')
+) "retained=$($retainedHostManifestDirs -join ',')"
+Report 'both marketplaces expose only the canonical mobile-development package identity' (
+    @($agentMarketplace.plugins | Where-Object name -eq 'mobile-development').Count -eq 1 -and `
+    @($claudeMarketplace.plugins | Where-Object name -eq 'mobile-development').Count -eq 1 -and `
+    @($agentMarketplace.plugins | Where-Object name -eq 'mobile-development')[0].source.path -eq './packages/mobile-development' -and `
+    @($claudeMarketplace.plugins | Where-Object name -eq 'mobile-development')[0].source -eq './packages/mobile-development' -and `
+    'mobile-device-lab' -notin @($agentMarketplace.plugins.name) -and 'mobile-device-lab' -notin @($claudeMarketplace.plugins.name)
+) 'A marketplace still exposes the retired package/plugin identity or path.'
 
 $mobileCapability = @($capabilities.capabilities | Where-Object id -eq 'mobile-development')
 $oldCapability = @($capabilities.capabilities | Where-Object id -eq 'mobile-device-lab')
@@ -196,12 +205,13 @@ Report 'old package and split skill residues are absent' (
     @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'packages\portfolio-engineering\skills\mobile-platform-standard') -Recurse -File -Force -ErrorAction SilentlyContinue).Count -eq 0
 ) 'A duplicate canonical package or split skill tree remains.'
 
-$alias = @{ 'cursor-agent'='cursor'; 'opencode-desktop'='opencode'; 'antigravity-desktop'='antigravity'; 'antigravity-ide'='antigravity' }
+$alias = @{}; foreach ($row in @($capabilities.surfaceAliases)) { $alias[[string]$row.surfaceId] = [string]$row.inheritsHostId }
 $activeHosts = @($agents.activeAgents | Where-Object status -eq 'active' | ForEach-Object { if ($alias.ContainsKey([string]$_.id)) { $alias[[string]$_.id] } else { [string]$_.id } } | Sort-Object -Unique)
 $mappedHosts = @($mobileCapability[0].hostMappings.hostId | Sort-Object -Unique)
 Report 'all active coding hosts receive the loose mobile skills and catalog' (
     (Test-Sequence $mappedHosts $activeHosts) -and `
-    @($mobileCapability[0].hostMappings | Where-Object { [string]$_.deploymentStatus -notmatch 'loose-skills' }).Count -eq 0
+    $mobileCapability[0].catalogEntrypoint -eq 'packages/mobile-development/mobile.ps1 catalog' -and `
+    @($mobileCapability[0].hostMappings | Where-Object { [string]$_.deploymentStatus -notmatch 'loose-skills' -or 'skills' -notin @($_.components) -or 'catalog' -notin @($_.components) }).Count -eq 0
 ) "active=$($activeHosts -join ',') mapped=$($mappedHosts -join ',')"
 Report 'Appium MCP is scoped to Claude and Codex only' (Test-Sequence @($appium[0].hosts) @('claude','codex')) "hosts=$(@($appium[0].hosts) -join ',')"
 Report 'Appium never persists in default host MCP configuration' ('appium-mobile' -notin @($connectors.lifecyclePolicy.persistedOnDemandLocalMcpIds)) 'Persisting stdio Appium starts an idle process per task.'
@@ -210,6 +220,13 @@ Report 'native MCP management is enable/disable and explains new-task loading' (
     $entrypointText -match "'add'" -and $entrypointText -match "'remove'" -and `
     $entrypointText -match 'open a new.*task' -and $entrypointText -match 'Existing tasks may retain'
 ) 'The public entrypoint must use claude plugin enable/disable and codex plugin add/remove, then explain task-scoped loading.'
+Report 'native activation registry names the canonical explicit add/remove routes' (
+    $connectors.lifecyclePolicy.appiumActivationRoute -match 'claude plugin enable mobile-development@agenthub' -and `
+    $connectors.lifecyclePolicy.appiumActivationRoute -match 'claude plugin disable mobile-development@agenthub' -and `
+    $connectors.lifecyclePolicy.appiumActivationRoute -match 'codex plugin add mobile-development@agenthub' -and `
+    $connectors.lifecyclePolicy.appiumActivationRoute -match 'codex plugin remove mobile-development@agenthub' -and `
+    $connectors.lifecyclePolicy.appiumActivationRoute -match 'new task'
+) 'The registry does not match the public entrypoint activation contract.'
 
 $catalog = Invoke-MobileJson @('catalog','inspect.appium')
 $catalogMatch = 'inspect.appium' -in @($catalog.Result.matches.id)
@@ -268,6 +285,14 @@ Report 'VMX and known-good backup paths resolve without touching either tree' (
     $backupResource[0].path -eq 'D:/VMs/macOS-Tahoe-AMD-Backup-2026-08-10' -and `
     (Test-Path -LiteralPath (([string]$backupResource[0].path -replace '/', '\')) -PathType Container)
 ) "vmx=$vmx backup=$($backupResource[0].path)"
+$vmReadmePath = 'D:\VMs\macOS-Tahoe-AMD\README.md'
+$vmReadmeText = if (Test-Path -LiteralPath $vmReadmePath) { Get-Content -LiteralPath $vmReadmePath -Raw -Encoding UTF8 } else { '' }
+Report 'VM README is a thin canonical pointer with no copied runtime contract' (
+    $vmReadmeText -match [regex]::Escape('C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1') -and `
+    $vmReadmeText -match [regex]::Escape('D:\VMs\macOS-Tahoe-AMD-Backup-2026-08-10') -and `
+    $vmReadmeText -match 'must not modify VM disks' -and `
+    $vmReadmeText -notmatch 'D:\\Downloads|boot entry|vCPU|GB RAM|fixed IP|192\.168\.'
+) 'The external VM document copied mutable hardware/network facts or dead operational guidance.'
 Report 'catalog parses VM hardware live and registry records no copied values' (
     $catalog.Result.resolved.vmxHardware.vcpu -eq $vmxCpu -and `
     $catalog.Result.resolved.vmxHardware.memoryMb -eq $vmxMemory -and `

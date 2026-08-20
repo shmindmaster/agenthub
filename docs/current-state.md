@@ -52,32 +52,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   incumbent wins are both proper-noun lines, which is independent support for
   fixing pronunciation in a dictionary layer rather than by swapping engines.
 
-- **Mobile device lab reaches hosts (updated 2026-08-15):** `mobile-device-lab` had a
-  plugin manifest and a registry entry but was in neither marketplace, so no
-  host could install it — an agent drove the Android emulator with raw `adb`
-  for a whole session while the Appium MCP sat unreachable in the repo. Now
-  catalogued, installed and enabled. `Validate-AgentHub.ps1` fails when a
-  package carries `.claude-plugin/plugin.json` and no catalog entry.
-  Its `.mcp.json` then shipped `${env:ANDROID_HOME}` — the *registry's*
-  host-neutral spelling, which `Sync-AgentHub.ps1` translates per host but
-  which Claude Code reads literally from a plugin, because a plugin manifest
-  never passes through that translator. The first real tool call failed with
-  `The Android SDK root folder '${env:ANDROID_HOME}' does not exist` on a
-  machine where `ANDROID_HOME` was correctly set: installed, enabled, and
-  unusable. `claude plugin validate` passes such a manifest — a schema cannot
-  know a dialect. Fixed in 1.0.1 and gated by `Test-PluginManifests` behavior
-  4. **Plugin `.mcp.json` uses `${NAME}`; only `registry/mcps.json` uses
-  `${env:NAME}`.** Version 1.0.5 added the Qoder manifest, dynamic VMware
-  addressing, stable JSON startup/gate output, a local-only cross-platform
-  fixture, pinned MCP deep smoke, and a reachability gate. Appium may persist
-  as the one reviewed lightweight on-demand provider exception; the VM and
-  emulators remain cold until the skill starts them. Version 1.0.6 makes deep
-  validation fail closed when Maestro, Xcode, simulator mutation, or an Appium
-  session already owns the shared lab, and pins both Appium sessions to the
-  enumerated emulator/Simulator UDIDs so no attached physical device can be
-  selected. Startup now synchronizes all versioned guest helpers as LF-only
-  UTF-8 before readiness, enables only Appium 3's guarded session-discovery
-  route, and retries launchd's observed post-bootout error-5 race.
+- **Mobile development is one canonical capability (updated 2026-08-20):**
+  `packages/mobile-development` version 2.0.0 owns the public `mobile.ps1`
+  entrypoint and both loose skills. Every active coding host receives the
+  skills and catalog discovery. Appium remains absent from persistent MCP
+  configuration and may be activated only for Claude or Codex; both native
+  routes require a new task after enable/add or disable/remove. Product scope
+  and identity remain in `registry/mobile-scope.json`, the Appium pin remains
+  in `registry/mcps.json`, and VM hardware remains live VMX state. Fleet sync
+  and live synthetic smoke are separate acceptance gates.
 - **Six declared agent surfaces are unverified on this workstation
   (2026-08-15):** `codex`, `opencode-desktop`, `hermes`, `qoder`, and `factory`
   have declared executables that do not resolve; `windsurf` still has no

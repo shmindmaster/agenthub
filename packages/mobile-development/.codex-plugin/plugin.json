@@ -1,7 +1,7 @@
 {
-  "name": "mobile-device-lab",
-  "version": "1.1.0",
-  "description": "Drive an Android emulator and an iOS Simulator from one Appium MCP control plane, with no physical device.",
+  "name": "mobile-development",
+  "version": "2.0.0",
+  "description": "Canonical mobile development guidance with explicitly added, on-demand Appium tooling.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -16,8 +16,8 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Mobile Device Lab",
-    "shortDescription": "Test Android and iOS builds without a physical device.",
+    "displayName": "Mobile Development",
+    "shortDescription": "Develop and test local Android and iOS surfaces.",
     "longDescription": "One Appium MCP control plane for both mobile platforms: an Android emulator running natively on Windows, and an iOS Simulator inside the existing VMware macOS guest driven over the private virtual network. Launch apps, inspect the element tree, tap and type, capture screenshots and screen recordings, and compare the same flow across platforms.",
     "developerName": "Sarosh Hussain",
     "category": "Developer Tools",

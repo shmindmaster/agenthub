@@ -8,16 +8,15 @@ silently re-adopt the discarded option.
 ## The shape
 
 ```
-WINDOWS 11 HOST                              VMware (D:\VMs\macOS-Tahoe-AMD\macos.vmx)
-  agent (any AgentHub host)                    macOS Tahoe 26.6.1, x86_64
-    -> appium-mcp 1.92.0  --------------+        Appium 3.6.0  (0.0.0.0:4723)
+WINDOWS HOST                                  VMware guest (VMX authority in registry)
+  active coding host                           guest expectations from registry
+    -> appium-mcp (pin in mcps.json) ----+        Appium (registry expectation)
          |                              |          XCUITest 12.3.1
          | embedded UiAutomator2        |            WebDriverAgent (prebuilt)
          v                              |              iOS 26.5 Simulator
        adb -> Android emulator          |                iPhone 17
        (WHPX accelerated, local)        |
-                                        +-- TCP 4723 over VMnet8
-                                            192.168.133.1 -> 192.168.133.128
+                                        +-- registry-resolved service over VMnet8
 ```
 
 One MCP control plane. Android local, iOS remote. That much of the source
@@ -27,7 +26,7 @@ recommendation is right and is adopted unchanged.
 
 | Decision | Evidence |
 | --- | --- |
-| `appium-mcp` as the single control plane | stdio initialize returned protocolVersion `2025-11-25`, serverInfo `MCP Appium` 1.92.0, 31 tools |
+| `appium-mcp` as the single control plane | Dated 2026-08-10 evidence: stdio initialize returned protocolVersion `2025-11-25`, serverInfo `MCP Appium` 1.92.0, 31 tools. The current pin is resolved only from `registry/mcps.json`. |
 | Android emulator native on Windows | `emulator -accel-check` → `WHPX(10.0.26200) is installed and usable`; `adb devices` → `emulator-5554 device` |
 | iOS Simulator inside the macOS VM | `xcrun simctl boot "iPhone 17"` → Booted; screenshot renders |
 | iOS driven remotely via `remoteServerUrl` | `/status` from Windows → `ready: true` |
@@ -45,7 +44,7 @@ working installs for nothing:
 
 ```
 appium@3.6.0      engines.node = ^20.19.0 || ^22.12.0 || >=24.0.0
-appium-mcp@1.92.0 engines.node = >=22
+appium-mcp@1.92.0 engines.node = >=22   # measured 2026-08-10; historical
 Windows           v26.7.0   ✓ satisfies >=22
 macOS guest       v24.19.0  ✓ satisfies >=24.0.0
 ```

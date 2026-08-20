@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-30T22:19:10.4107485Z",
+  "generatedAt": "2026-08-20T00:00:00.000Z",
   "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
   "retiredFleetSkills": [
     {
@@ -805,7 +805,7 @@
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Loose skills, not the plugin, since 2026-08-20 -- and this is the SECOND capability to hit this exact failure. The plugin is disabled on claude because claude ships its own browser surface, so routing to a native capability beats spawning a local server. But the plugin was also claude's only source for browser-debugging, browser-evidence, interactive-browser-testing and use-playwright-mcp, so disabling it left claude with NO browser guidance at all while this mapping still read native-plugin-installed. Skills carry no process cost and are useful with a native browser -- their first resolution step is to use the host's own browser -- so they deploy independently of the MCP. Same split already applied to mobile-device-lab; the general rule is that a plugin bundling skills+MCP cannot be disabled to gate the MCP without first moving its skills to loose deployment."
+          "deploymentStatusNote": "Loose skills, not the plugin, since 2026-08-20 -- and this is the SECOND capability to hit this exact failure. The plugin is disabled on claude because claude ships its own browser surface, so routing to a native capability beats spawning a local server. But the plugin was also claude's only source for browser-debugging, browser-evidence, interactive-browser-testing and use-playwright-mcp, so disabling it left claude with NO browser guidance at all while this mapping still read native-plugin-installed. Skills carry no process cost and are useful with a native browser -- their first resolution step is to use the host's own browser -- so they deploy independently of the MCP. The same split already applies to mobile-development; the general rule is that a plugin bundling skills+MCP cannot be disabled to gate the MCP without first moving its skills to loose deployment."
         },
         {
           "hostId": "cline",
@@ -937,83 +937,100 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "A5A39CF45B1DD9C912EFBBF81052927B65B4FD0E7F24067FA5A4B5F839A2CF66",
+      "contentHash": "727F5E39BFBE86F8BCA1D1B73CC8A018097D82328C0D92150431F7E3C5FA16B1",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
+      "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
       "hostMappings": [
         {
           "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "claude",
           "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills",
+            "catalog",
             "mcp"
           ],
           "deploymentStatusNote": "Both skills stay loosely readable. Appium remains absent from default host configuration and is enabled only for a new mobile task through `packages/mobile-development/mobile.ps1 mcp enable claude`."
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "codex",
           "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills",
+            "catalog",
             "mcp"
           ],
           "deploymentStatusNote": "Both skills stay loosely readable. Appium remains absent from default host configuration and is installed only for a new mobile task through `packages/mobile-development/mobile.ps1 mcp enable codex`."
         },
         {
           "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         },
         {
           "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": ["skills", "catalog"]
         }
       ],
       "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the public mobile.ps1 entrypoint, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",
