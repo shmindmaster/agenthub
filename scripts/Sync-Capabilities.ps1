@@ -169,6 +169,7 @@ $prior = if (Test-Path -LiteralPath $statePath) {
 if (-not $prior.ContainsKey('managed')) { $prior.managed = @{} }
 $priorHashesAreLegacy = $priorSchemaVersion -lt $StateSchemaVersion
 $desired = @{}
+$retiredDestinations = @{}
 $rows = [Collections.Generic.List[object]]::new()
 $failures = [Collections.Generic.List[string]]::new()
 # Destinations a guard declined to touch this run, keyed by path. Parallel to
@@ -210,7 +211,20 @@ foreach ($capability in $capabilities.capabilities) {
     $sharedSkillsDirRaw = [string]$agent.nativePaths.sharedSkillsDir
     $usesSharedDir = -not [string]::IsNullOrWhiteSpace($sharedSkillsDirRaw)
     $skillsDir = if ($usesSharedDir) { Resolve-UnderUserProfile $sharedSkillsDirRaw } else { Resolve-UnderUserProfile ([string]$agent.nativePaths.skillsDir) }
-    if ([string]::IsNullOrWhiteSpace($skillsDir) -or $skills.Count -eq 0) { continue }
+    if ([string]::IsNullOrWhiteSpace($skillsDir)) { continue }
+    # retiredSkillNames records the PREVIOUS name of a renamed or withdrawn
+    # skill. The ledger-based prune below cannot reach these: a renamed skill
+    # drops out of the ledger and becomes unowned, which is exactly the state
+    # prune skips, so copies survive forever. Until 2026-08-20 nothing read
+    # this field at all and use-chrome-devtools-mcp sat on 12 hosts pointing
+    # at an MCP id that no longer existed. Collected before the empty-skills
+    # guard so a capability whose skills were ALL renamed is still cleaned up.
+    foreach ($retiredName in @($capability.retiredSkillNames)) {
+      if ([string]::IsNullOrWhiteSpace($retiredName)) { continue }
+      if ($skills.Name -contains $retiredName) { continue }  # still shipping; not retired in fact
+      $retiredDestinations[(Join-Path $skillsDir $retiredName)] = $capability.id
+    }
+    if ($skills.Count -eq 0) { continue }
     $deployMode = if ($usesSharedDir) { 'shared-loose-skill' } else { 'loose-skill' }
     foreach ($skill in $skills) {
       $destination = Join-Path $skillsDir $skill.Name
@@ -241,6 +255,16 @@ foreach ($capability in $capabilities.capabilities) {
       New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
       Copy-Item -LiteralPath $skill.FullName -Destination $destination -Recurse
     }
+  }
+}
+
+$retiredPruned = 0
+if ($Apply -and $Prune) {
+  foreach ($destination in @($retiredDestinations.Keys)) {
+    if (-not (Test-Path -LiteralPath $destination)) { continue }
+    if ($desired.ContainsKey($destination)) { continue }   # a live skill reclaimed the name
+    Remove-Item -LiteralPath $destination -Recurse -Force
+    $retiredPruned++
   }
 }
 
@@ -325,4 +349,4 @@ if ($rows.Count -eq 0 -and $pruned -eq 0) {
 }
 
 $counts = $rows | Group-Object status | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Count)" }
-Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; apply=$Apply."
+Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; retired-pruned=$retiredPruned; apply=$Apply."

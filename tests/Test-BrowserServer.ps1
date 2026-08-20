@@ -26,7 +26,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $mcpPath  = Join-Path $repoRoot 'registry\mcps.json'
-$pkgRoot  = Join-Path $repoRoot 'packagesrowser-toolkit'
+$pkgRoot  = Join-Path $repoRoot 'packages\browser-toolkit'
 
 $failures = [Collections.Generic.List[string]]::new()
 $passed = 0
@@ -71,7 +71,7 @@ foreach ($b in $browser) {
 # retirement vocabulary on the same line and is deliberately narrow.
 $retirementMarkers = 'retired|migrationAlias|resolves to|replaced'
 $stale = @()
-foreach ($file in Get-ChildItem -LiteralPath $pkgRoot -Recurse -File -Include '*.md', '*.json' -ErrorAction SilentlyContinue) {
+foreach ($file in Get-ChildItem -LiteralPath $pkgRoot -Recurse -File -Include '*.md', '*.json') {
     $routing = @(Get-Content -LiteralPath $file.FullName -Encoding UTF8 |
         Where-Object { $_ -match 'chrome-devtools' -and $_ -notmatch $retirementMarkers })
     if ($routing.Count -gt 0) { $stale += ('{0} ({1} line(s))' -f $file.FullName.Substring($repoRoot.Length + 1), $routing.Count) }

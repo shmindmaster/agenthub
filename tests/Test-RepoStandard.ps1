@@ -176,10 +176,12 @@ try {
         # Join-Path return this directory and -Fix removed it wholesale.
         $marker = $bad
 
-        $out = & pwsh -NoProfile -File $checker -StandardPath $evilPath -All -Fix 2>&1 | Out-String
+        $out = & pwsh -NoProfile -File $checker -ConfigPath $evilPath -All -Fix 2>&1 | Out-String
 
+        # No canary disjunction: survival is asserted on its own below, and
+        # folding it in here made the refusal itself unfalsifiable.
         Report "fix-refuses-$($case.Name)-forbidden-entry" `
-            (($out -match 'Refus|refus|invalid|outside') -or (Test-Path -LiteralPath $canary)) `
+            ($out -match 'Refus|refus|invalid|outside') `
             "no refusal reported for entry '$($case.Entry)'; output tail: $((($out.Trim() -split "`n") | Select-Object -Last 4) -join ' | ')"
 
         Report "fix-does-not-destroy-repo-on-$($case.Name)-entry" `

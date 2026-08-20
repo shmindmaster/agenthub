@@ -789,11 +789,12 @@
         },
         {
           "hostId": "claude",
-          "deploymentStatus": "native-plugin-installed",
+          "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills",
             "mcp"
-          ]
+          ],
+          "deploymentStatusNote": "Loose skills, not the plugin, since 2026-08-20 -- and this is the SECOND capability to hit this exact failure. The plugin is disabled on claude because claude ships its own browser surface, so routing to a native capability beats spawning a local server. But the plugin was also claude's only source for browser-debugging, browser-evidence, interactive-browser-testing and use-playwright-mcp, so disabling it left claude with NO browser guidance at all while this mapping still read native-plugin-installed. Skills carry no process cost and are useful with a native browser -- their first resolution step is to use the host's own browser -- so they deploy independently of the MCP. Same split already applied to mobile-device-lab; the general rule is that a plugin bundling skills+MCP cannot be disabled to gate the MCP without first moving its skills to loose deployment."
         },
         {
           "hostId": "cline",

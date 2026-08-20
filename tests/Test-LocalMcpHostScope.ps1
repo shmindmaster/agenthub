@@ -53,12 +53,26 @@ Report 'the inventory names at least one installed host' ($installed.Count -gt 0
 $installedSet = @{}
 foreach ($h in $installed) { if ($h) { $installedSet[[string]$h] = $true } }
 
+$intentionallyUnscoped = @('brave-search')
+$localServers = @($mcp.mcpServers | Where-Object { $_.activationMode -eq 'on-demand-local' })
+Report 'the registry declares at least one on-demand-local server' ($localServers.Count -gt 0) `
+    'No server matched activationMode on-demand-local. If that field was renamed, every scope check below silently disappears.'
+
 foreach ($server in @($mcp.mcpServers)) {
     if ($server.activationMode -ne 'on-demand-local') { continue }
     # PowerShell wraps a null property into a one-element array holding $null,
     # so an unscoped server would otherwise report a stray with a blank name.
     $hosts = @($server.hosts | Where-Object { $_ })
-    if ($hosts.Count -eq 0) { continue }   # unscoped-by-design; nothing to spawn
+    # A silent `continue` here meant the guard vanished exactly when the thing
+    # it guards did: emptying a hosts array removes that server from the check
+    # entirely and the suite stays green with one fewer PASS nobody counts.
+    # Unscoped must therefore be declared, not inferred.
+    if ($hosts.Count -eq 0) {
+        Report "on-demand-local '$($server.id)' is unscoped only if declared so" `
+            ($server.id -in $intentionallyUnscoped) `
+            'Its hosts array is empty and it is not in the intentionally-unscoped list, so its scope check was silently skipped.'
+        continue
+    }
 
     $strays = @($hosts | Where-Object { -not $installedSet.ContainsKey([string]$_) })
     Report "on-demand-local '$($server.id)' targets only installed hosts" `
@@ -110,7 +124,7 @@ if (Test-Path -LiteralPath $claudeSettings) {
             "Neither a registry id nor a migrationAliases target nor host-owned; prune would delete it."
     }
 } else {
-    Report 'claude settings.json is present to check for key drift' $true "absent, skipped: $claudeSettings"
+    Report 'claude settings.json is present to check for key drift' (Test-Path -LiteralPath $claudeSettings) "absent: $claudeSettings -- drift cannot be checked against a file that is gone, so this is a failure: $claudeSettings"
 }
 
 # The guard must be able to fail: a host that is definitely not installed must

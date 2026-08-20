@@ -62,7 +62,7 @@ if (Test-Path -LiteralPath $codexConfig) {
             "A prune run removed it, or the host has not written it yet."
     }
 } else {
-    Report 'deployed codex config is present to check' $true "absent, skipped: $codexConfig"
+    Report 'deployed codex config is present to check' (Test-Path -LiteralPath $codexConfig) "absent: $codexConfig -- a prune that removes the file entirely must not score as a pass: $codexConfig"
 }
 
 # Regression, 2026-08-19: the grok writer pruned a hardcoded denylist AFTER
@@ -127,15 +127,15 @@ if (Test-Path -LiteralPath $grokConfig) {
 # than a hand-picked string that cannot match by construction: take a canonical
 # server id that is NOT host-owned and assert the protection list excludes it.
 $canonicalIds = @($mcpRegistry.mcpServers | ForEach-Object { $_.id })
-$notProtected = @($canonicalIds | Where-Object { $_ -notin $hostOwned })
-Report 'the protection list is a strict subset of what exists, not a catch-all' `
-    ($notProtected.Count -gt 0 -and $hostOwned.Count -lt $canonicalIds.Count + $hostOwned.Count) `
-    "Every canonical id ($($canonicalIds.Count)) appears protected; the protection check would pass for anything."
-foreach ($id in $notProtected) {
-    Report "canonical server '$id' is correctly NOT in the host-owned protection list" `
-        ($id -notin $hostOwned) `
-        'A registry-declared server was treated as host-owned, which would exempt it from prune entirely.'
-}
+$overProtected = @($canonicalIds | Where-Object { $_ -in $hostOwned })
+# The old form here iterated the complement set and re-asserted the very
+# predicate that defined it -- twelve comparisons of a value to itself, which
+# no registry content could fail, and which made up half this file's reported
+# assertion count. The real invariant is the opposite direction: a server the
+# registry declares must NOT also be marked host-owned, because host-owned ids
+# are exempt from prune and an exempt canonical id can never be cleaned up.
+Report 'no registry-declared server is also marked host-owned' ($overProtected.Count -eq 0) `
+    "these would be exempted from prune entirely: $($overProtected -join ', ')"
 
 Write-Host ''
 if ($failures.Count -gt 0) {

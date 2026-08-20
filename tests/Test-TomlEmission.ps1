@@ -119,7 +119,7 @@ $tomlHosts = @(
 )
 foreach ($h in $tomlHosts) {
     if (-not (Test-Path -LiteralPath $h.Path)) {
-        Report "deployed $($h.Host) config parses" $true "absent, skipped: $($h.Path)"
+        Report "deployed $($h.Host) config is present to check" (Test-Path -LiteralPath $h.Path) "absent: $($h.Path) -- a broken TOML write is one way a config goes missing, so this is a failure, not a skip: $($h.Path)"
         continue
     }
     # Parse the file directly rather than through the k= helper: we want the
