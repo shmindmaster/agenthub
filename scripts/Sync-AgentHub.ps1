@@ -670,6 +670,36 @@ function Resolve-WindowsHiddenStdioEntry {
         return $Entry
     }
 
+    # @playwright/mcp is installed globally, so npx never fetches it -- what npx
+    # still costs is npm's own CLI bootstrap. Measured 2026-08-20, same package,
+    # same machine: 2.12s to MCP initialize through npx-cli.js against 0.48s
+    # launching cli.js directly, with an identical handshake both ways
+    # (protocolVersion 2025-11-25, serverInfo Playwright 1.63.0-alpha-2026-08-05).
+    # That 1.64s is paid once per host session on each of the eight hosts that
+    # declare playwright. Same treatment as appium-mcp above, with one
+    # difference: appium takes no runtime flags and playwright does, so every
+    # token after the package spec has to survive the rewrite.
+    if ($leaf -eq 'npx' -and $joined -match '@playwright/mcp') {
+        $node = Join-Path $env:ProgramFiles 'nodejs\node.exe'
+        $js = Join-Path $env:APPDATA 'npm\node_modules\@playwright\mcp\cli.js'
+        if ((Test-Path -LiteralPath $node) -and (Test-Path -LiteralPath $js)) {
+            $flags = @()
+            $seenSpec = $false
+            foreach ($a in $args) {
+                if ($seenSpec) { $flags += $a; continue }
+                if ([string]$a -match '^@playwright/mcp(@|$)') { $seenSpec = $true }
+            }
+            $Entry.command = $hide
+            $Entry.args = @($node, $js) + $flags
+            return $Entry
+        }
+        # Deliberately no early return when the global copy is missing: fall
+        # through to the generic npx rewrite below. Returning here would leave
+        # command = 'npx', reintroducing the bare-command PATH hazard that
+        # rewrite exists to remove, and npx would then correctly fetch the
+        # package -- which is the right behaviour when it really is absent.
+    }
+
     if ($leaf -eq 'npx') {
         $node = Join-Path $env:ProgramFiles 'nodejs\node.exe'
         $npxCli = Join-Path $env:ProgramFiles 'nodejs\node_modules\npm\bin\npx-cli.js'

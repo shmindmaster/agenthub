@@ -258,6 +258,40 @@ foreach ($capability in $capabilities.capabilities) {
   }
 }
 
+# Fleet-level retirement. capability.retiredSkillNames is scoped to the hosts
+# that capability maps to, which is correct for a rename inside a capability but
+# cannot reach a skill deployed more widely than any current capability maps.
+# repocontext is the worked example: it sat on 14 hosts, and its natural
+# successor capability (repowise) maps to 8, so retiring it there would have
+# left it on 9 while reporting success. retiredFleetSkills names a skill dead
+# EVERYWHERE and is swept across every agent's skills directory regardless of
+# capability mapping.
+$shippedAnywhere = @{}
+foreach ($capability in $capabilities.capabilities) {
+  $r = Join-Path ([IO.Path]::GetFullPath((Join-Path $root ([string]$capability.canonicalSource)))) 'skills'
+  if (Test-Path -LiteralPath $r) {
+    foreach ($s in @(Get-ChildItem -LiteralPath $r -Directory)) { $shippedAnywhere[$s.Name] = $capability.id }
+  }
+}
+foreach ($retired in @($capabilities.retiredFleetSkills)) {
+  $name = [string]$retired.name
+  if ([string]::IsNullOrWhiteSpace($name)) { continue }
+  # Same self-check as the capability-scoped path: a name some package still
+  # ships is not retired in fact, whatever this list claims.
+  if ($shippedAnywhere.ContainsKey($name)) {
+    $failures.Add("retiredFleetSkills names '$name' but packages/$($shippedAnywhere[$name])/skills still ships it")
+    continue
+  }
+  foreach ($agent in $agents) {
+    foreach ($raw in @([string]$agent.nativePaths.skillsDir, [string]$agent.nativePaths.sharedSkillsDir)) {
+      if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+      $dir = Resolve-UnderUserProfile $raw
+      if ([string]::IsNullOrWhiteSpace($dir)) { continue }
+      $retiredDestinations[(Join-Path $dir $name)] = "<fleet:$name>"
+    }
+  }
+}
+
 $retiredPruned = 0
 if ($Apply -and $Prune) {
   foreach ($destination in @($retiredDestinations.Keys)) {

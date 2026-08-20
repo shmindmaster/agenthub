@@ -492,8 +492,13 @@ if (Test-Path -LiteralPath $idleProbePath) {
     ) 'Use GET /appium/sessions and enable only the Appium 3 session_discovery feature on the private guest service.'
 }
 
+# Run-AllTests parses "RESULT: N passed, M failed" and, when that line is
+# absent, falls back to counting the whole file as a single check. This file
+# ran dozens of assertions and contributed 1 to the suite total until
+# 2026-08-20, hiding both its real coverage and any silent loss of
+# assertions inside it.
 if ($failures.Count) {
-    Write-Host "`n$($failures.Count) of $reported mobile reachability checks failed." -ForegroundColor Red
+    Write-Host "`nRESULT: $($reported - $failures.Count) passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1
 }
-Write-Host "`nAll $reported mobile reachability checks passed." -ForegroundColor Green
+Write-Host "`nRESULT: $reported passed, 0 failed" -ForegroundColor Green

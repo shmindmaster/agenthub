@@ -8,7 +8,8 @@
       "C:/Users/SaroshHussain/.claude/plugins/installed_plugins.json",
       "C:/Users/SaroshHussain/.codex/plugins/cache"
     ],
-    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. On-demand-local MCPs are removed from host configuration unless lifecyclePolicy.persistedOnDemandLocalMcpIds records a reviewed lightweight exception. The appium-mobile exception may persist its provider registration but never starts the VM or emulators. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners."
+    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. On-demand-local MCPs are removed from host configuration unless lifecyclePolicy.persistedOnDemandLocalMcpIds records a reviewed exception -- and note that 'on-demand' names an intent, not a mechanism: a host starts every stdio server named in its config at session start, so there is no lazy path for a persisted stdio entry. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners.",
+    "retiredExceptionNote": "This policy previously ended the exception sentence with: 'The appium-mobile exception may persist its provider registration but never starts the VM or emulators.' That was false, and it is the sentence that licensed the leak -- appium-mobile was measured on 2026-08-19 holding 15 node processes totalling 2,017 MB at rest, 48-239 MB each and climbing, with no mobile work in progress. Registering a stdio server in a host config IS starting it. appium-mobile was removed from persistedOnDemandLocalMcpIds and gated behind `claude plugin enable mobile-device-lab@agenthub`; see lifecyclePolicy.appiumActivationRoute. Kept here rather than deleted because the wording, not the entry, was the failure mode."
   },
   "hostPrivateExtensionPolicy": {
     "hosts": [
@@ -87,7 +88,7 @@
         "authorizedOn": "2026-08-04",
         "authorization": "Owner instruction, verbatim: 'I feel comfortable getting rid of tavily as they have very low allowance and we have alternate liek exa, brave and firecrawl already?' and 'remove Atlassian, Asana, Slack and Figma as well'.",
         "fleetSideStatus": "complete",
-        "fleetSideEvidence": "None of the five is registered in registry/mcps.json, which declares nine servers, and none appears in any host exposure list in this file. The fleet-side removal the owner asked for is done; what remains is outside the fleet.",
+        "fleetSideEvidence": "None of the five is registered in registry/mcps.json, which declares twelve servers as of 2026-08-20 (appium-mobile, brave-search, context7, descript, exa, firecrawl, github, linear, notion, playwright, railway, repowise-workspace), and none appears in any host exposure list in this file. The fleet-side removal the owner asked for is done; what remains is outside the fleet. This sentence said 'nine servers' in the present tense until 2026-08-20, when it had been false for some time -- unlike the counts under measuredOn/blockerVerifiedOn below, which are dated observations and correctly still read nine and fifteen for 2026-08-05.",
         "agentHubCanPerform": true,
         "blockedBy": "RESOLVED 2026-08-05. Retained for the record: no authenticated browser surface reached claude.ai account settings from this machine, and entering credentials to obtain one was prohibited. The owner authenticating the session themselves was the route through, and it was available the whole time -- worth remembering next time a limit looks absolute, because 'AgentHub cannot authenticate' was true while 'this can never be done from here' was not.",
         "blockerVerifiedOn": "2026-08-05",
@@ -341,6 +342,13 @@
     "local-only",
     "provider-held"
   ],
+  "providerHeldBasis": {
+    "state": "discovery-required",
+    "recordedOn": "2026-08-20",
+    "finding": "18 host entries carry providerHeld: false and 4 carry null, and no host has a non-empty provider-held exposure list. Nothing in this repo records how any of the 18 false values was established, and nothing explains why those 4 differ from the other 18.",
+    "whyNotSilentlyChanged": "By this registry's own convention false means checked-and-absent and null means not established, so the 18 false values are an assertion that a check was performed. Flipping them to null would assert the opposite -- that no check ever happened -- and that is equally unevidenced. Neither value can be written honestly until someone determines, per host, whether its provider holds connectors server-side. Recorded as discovery-required rather than guessed in either direction.",
+    "resolves": "Registry audit finding: providerHeld: false on 18 hosts with no supporting evidence."
+  },
   "hosts": [
     {
       "hostId": "codex",

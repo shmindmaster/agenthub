@@ -35,7 +35,7 @@ $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $failures = [Collections.Generic.List[string]]::new()
 function Report {
     param([string]$Name, [bool]$Ok, [string]$Detail)
-    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green }
+    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green; $script:passed++ }
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $failures.Add($Name) }
 }
 
@@ -64,13 +64,15 @@ foreach ($id in @($conn.lifecyclePolicy.persistedOnDemandLocalMcpIds)) { if ($id
 
 # Which server ids does a host's config actually declare?
 function Get-DeployedIds([string]$McpPath, [string]$McpKey) {
-    # Assign before calling: inside method parentheses the comma of -replace's
-    # second operand is parsed as an argument separator, so the inline form
-    # fails with "cannot find an overload ... argument count: 2". The profile
-    # path is regex-escaped because it is the REPLACEMENT operand and holds
-    # backslashes.
-    $profileRoot = [regex]::Escape($env:USERPROFILE)
-    $expanded = ($McpPath -replace '^~', $profileRoot) -replace '/', '\'
+    # The regex-escape that used to be here was wrong, and its comment argued
+    # for it backwards: escaping is for a PATTERN operand, but $env:USERPROFILE
+    # is the REPLACEMENT operand, where the escaped form's doubled backslashes
+    # survive literally and produce C:\\Users\\... . Win32 tolerates doubled
+    # separators, so it never failed -- it just emitted wrong paths in the
+    # failure text a reader would then go chase. Substring avoids both the
+    # escaping question and -replace's argument-separator parse trap.
+    $expanded = if ($McpPath.StartsWith('~')) { $env:USERPROFILE + $McpPath.Substring(1) } else { $McpPath }
+    $expanded = $expanded -replace '/', '\'
     $p = [Environment]::ExpandEnvironmentVariables($expanded)
     if (-not (Test-Path -LiteralPath $p)) { return $null }          # null = could not check
     $text = Get-Content -LiteralPath $p -Raw -Encoding UTF8
@@ -138,8 +140,8 @@ Report 'at least one persisted declaration was actually checked' ($checked -gt 0
 
 Write-Host ''
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed" -ForegroundColor Red
+    Write-Host "RESULT: $passed passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: all declared-vs-deployed MCP checks passed' -ForegroundColor Green
+Write-Host "RESULT: $passed passed, 0 failed" -ForegroundColor Green
 exit 0

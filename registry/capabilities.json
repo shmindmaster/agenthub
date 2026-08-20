@@ -2,6 +2,18 @@
   "schemaVersion": 2,
   "generatedAt": "2026-07-30T22:19:10.4107485Z",
   "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
+  "retiredFleetSkills": [
+    {
+      "name": "repocontext",
+      "retiredOn": "2026-08-20",
+      "supersededBy": "repowise",
+      "reason": "The skill's entire contract is 'exactly eight read-only, job-oriented tools' served by an MCP server named repocontext. No such server exists anywhere on the fleet, so the skill names tools that cannot be called.",
+      "evidence": "registry/mcps.json declares twelve servers and repocontext is not among them. All 17 readable host MCP configs were enumerated and none registers it -- codex's config mentions the string only in a stale [projects.'c:\\repos\\shmindmaster\\repocontext'] trust entry, which is a project-trust row, not a server. Both routes the skill documents are dead: the local stdio route runs `pnpm --dir C:/Repos/shmindmaster/repocontext mcp:serve` and that directory does not exist (C:/Repos/shmindmaster holds 18 repos, none named repocontext), and the remote route needs a REPOCONTEXT_MCP_TOKEN no host holds. Deployed to 14 hosts at retirement.",
+      "whyFleetScoped": "repowise supersedes it but maps to 8 hosts, only 5 of which overlap the 14 carrying repocontext. A capability-scoped retirement would have cleaned 5, left 9, and reported success.",
+      "corroboratingResidue": "A whole-disk sweep (not just the skills directories) also found ~/.gemini/antigravity/mcp/repocontext and ~/.gemini/antigravity-ide/mcp/repocontext. These are antigravity's own tool-description caches, holding exactly the eight tools the skill documents -- repo.compare, repo.inspect, repo.read, repo.search, wiki.analyze, wiki.catalog, wiki.get, wiki.search -- each with parameters: null. They are stale caches from when repocontext WAS registered, and antigravity's live mcp_config.json does not list it, so they corroborate the retirement rather than contradicting it. Deliberately NOT swept: they are a host's internal cache, not a managed skill, and are the host's to regenerate.",
+      "sweptDirectories": 13
+    }
+  ],
   "surfaceAliases": [
     {
       "surfaceId": "cursor-agent",

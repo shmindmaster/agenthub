@@ -28,7 +28,7 @@ $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $failures = [Collections.Generic.List[string]]::new()
 function Report {
     param([string]$Name, [bool]$Ok, [string]$Detail)
-    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green }
+    if ($Ok) { Write-Host "PASS: $Name" -ForegroundColor Green; $script:passed++ }
     else { Write-Host "FAIL: $Name -- $Detail" -ForegroundColor Red; $failures.Add($Name) }
 }
 
@@ -46,6 +46,20 @@ foreach ($c in @($caps.capabilities)) {
     }
 }
 
+# retiredFleetSkills is the fleet-scoped counterpart, added 2026-08-20. A
+# capability's retiredSkillNames only reaches the hosts that capability maps to,
+# which cannot clean a skill deployed more widely than any capability maps.
+# repocontext was the case that forced it: 14 hosts carried it, its successor
+# capability (repowise) maps to 8, and only 5 overlapped -- so the capability
+# route would have cleaned 5, left 9, and reported success. Both kinds are
+# asserted identically below, because the END STATE is the same either way.
+$fleetRetired = @{}
+foreach ($r in @($caps.retiredFleetSkills)) {
+    if ($r.name) { $fleetRetired[[string]$r.name] = $true; $retired[[string]$r.name] = '<fleet>' }
+}
+Report 'the fleet-retirement list is readable and non-empty' ($fleetRetired.Count -gt 0) `
+    'capabilities.json declares no retiredFleetSkills. If the field was renamed or dropped, the fleet-scoped half of this test silently vanished.'
+
 Report 'the registry names at least one retired skill' ($retired.Count -gt 0) `
     'No capability declares retiredSkillNames, so every check below would be vacuous.'
 
@@ -61,7 +75,14 @@ $roots = [Collections.Generic.List[string]]::new()
 foreach ($a in @($agents.activeAgents)) {
     foreach ($p in @($a.nativePaths.skillsDir, $a.nativePaths.sharedSkillsDir)) {
         if (-not $p) { continue }
-        $expanded = ([string]$p) -replace '^~', ([regex]::Escape($env:USERPROFILE))
+        # Not `-replace '^~', $env:USERPROFILE`: in -replace the second operand
+        # is a replacement STRING where $ and backslash-digit are special, and
+        # regex-escaping it (which this line used to do) is worse still -- the
+        # escaped form's doubled backslashes survive literally into the result,
+        # giving C:\\Users\\... . Win32 tolerates doubled separators so it never
+        # failed outright, it just produced wrong paths in failure messages.
+        $raw = [string]$p
+        $expanded = if ($raw.StartsWith('~')) { $env:USERPROFILE + $raw.Substring(1) } else { $raw }
         $resolved = [Environment]::ExpandEnvironmentVariables($expanded)
         if ((Test-Path -LiteralPath $resolved) -and $resolved -notin $roots) { $roots.Add($resolved) }
     }
@@ -77,8 +98,8 @@ foreach ($name in $retired.Keys) {
 
 Write-Host ''
 if ($failures.Count -gt 0) {
-    Write-Host "RESULT: $($failures.Count) failed" -ForegroundColor Red
+    Write-Host "RESULT: $passed passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1
 }
-Write-Host 'RESULT: all retired-skill checks passed' -ForegroundColor Green
+Write-Host "RESULT: $passed passed, 0 failed" -ForegroundColor Green
 exit 0

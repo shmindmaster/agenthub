@@ -233,8 +233,9 @@
       },
       "localProcessPolicy": {
         "instancing": "single-shared-process",
-        "declaredByHostCount": 1,
-        "note": "Declared by devin only, so the multi-host process multiplication the activation policy guards against does not currently apply. The `npx -y` invocation resolves the latest published version at spawn time and is deliberately unpinned; see chrome-devtools for the pinned counterpart and the reason the two differ."
+        "declaredByHostCount": 0,
+        "note": "Declared by NO host. This read 1 with the note 'declared by devin only' until 2026-08-20; the entry's own `hosts` array is absent entirely, and no host config carries it, so the count was intent that outlived the declaration. The `npx -y` invocation resolves the latest published version at spawn time and is deliberately unpinned. The note also pointed at chrome-devtools as the pinned counterpart -- chrome-devtools was replaced fleet-wide by playwright on 2026-08-19, so that comparison now reads against registry/mcps.json's playwright entry instead.",
+        "countCorrectedOn": "2026-08-20"
       },
       "owner": {
         "type": "registry",
@@ -280,7 +281,8 @@
         "instancing": "one-process-per-host-session",
         "declaredByHostCount": 8,
         "note": "Pinned @playwright/mcp@0.0.79. Unlike a single-shared-process server this is safe per host, because Playwright derives its profile directory from the workspace hash, so two host sessions never contend for one directory. Browsers install to PLAYWRIGHT_BROWSERS_PATH (D:/Local-AI/cache/ms-playwright here), keeping them off C:.",
-        "versionPinVerifiedOn": "2026-08-19"
+        "versionPinVerifiedOn": "2026-08-19",
+        "launchNote": "Declared as npx for portability, but Sync-AgentHub's Resolve-WindowsHiddenStdioEntry resolves it to the global install and runs %APPDATA%/npm/node_modules/@playwright/mcp/cli.js under node.exe directly, preserving the --browser flag. This corrects an earlier claim that these hosts cold-fetched the package on every session start: the global install already prevented any fetch, so what npx still cost was npm's own CLI bootstrap. Measured 2026-08-20, identical handshake both ways (protocolVersion 2025-11-25, serverInfo Playwright 1.63.0-alpha-2026-08-05): 2.12s to MCP initialize through npx-cli.js against 0.48s launching cli.js directly. That 1.64s was paid once per host session on each of the eight hosts. tests/Test-McpLauncherDirectness.ps1 now asserts that no deployed entry boots npm to reach a package already installed globally; playwright was the last server on the fleet still doing so."
       },
       "owner": {
         "type": "capability",
