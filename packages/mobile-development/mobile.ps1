@@ -242,19 +242,31 @@ try {
             $plugin = 'mobile-development@agenthub'
             $executable = Resolve-ToolPath $hostName
             if (-not $executable) { throw "The native '$hostName' management CLI is not available on PATH." }
+            $invokeNative = $true
             if ($hostName -eq 'claude') {
                 $inventoryJson = (@(& $executable plugin list --json 2>$null) -join [Environment]::NewLine)
                 $installed = @($inventoryJson | ConvertFrom-Json | Where-Object { [string]$_.id -eq $plugin })
                 if ($action -eq 'enable' -and $installed.Count -eq 0) {
                     & $executable plugin install $plugin
                     if ($LASTEXITCODE -ne 0) { throw "claude native plugin install failed with exit $LASTEXITCODE." }
+                    # Claude installs marketplace plugins enabled. Treat that
+                    # resulting state as the requested enable; a redundant
+                    # native enable exits non-zero and would make clean-state
+                    # activation fail after a successful install.
+                    $nativeArgs = @('plugin', 'install', $plugin)
+                    $invokeNative = $false
                 }
-                $nativeArgs = @('plugin', $action, $plugin)
+                else {
+                    $nativeArgs = @('plugin', $action, $plugin)
+                    if ($action -eq 'enable' -and [bool]$installed[0].enabled) { $invokeNative = $false }
+                }
             } else {
                 $nativeArgs = @('plugin', $(if ($action -eq 'enable') { 'add' } else { 'remove' }), $plugin)
             }
-            & $executable @nativeArgs
-            if ($LASTEXITCODE -ne 0) { throw "$hostName native plugin management failed with exit $LASTEXITCODE." }
+            if ($invokeNative) {
+                & $executable @nativeArgs
+                if ($LASTEXITCODE -ne 0) { throw "$hostName native plugin management failed with exit $LASTEXITCODE." }
+            }
             $message = if ($action -eq 'enable') {
                 "Appium was enabled for $hostName. Plugin/MCP loading is task-scoped: open a new $hostName task before using Appium. Disable it after mobile work so later tasks do not start an idle MCP process."
             } else {

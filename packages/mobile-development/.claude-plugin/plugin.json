@@ -1,6 +1,6 @@
 {
   "name": "mobile-development",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Canonical mobile development guidance with explicitly enabled, on-demand Appium tooling.",
   "author": {
     "name": "Sarosh Hussain"

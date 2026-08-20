@@ -232,7 +232,7 @@ $claudeManifest = Read-Json 'packages\mobile-development\.claude-plugin\plugin.j
 $codexManifest = Read-Json 'packages\mobile-development\.codex-plugin\plugin.json'
 Report 'generic, Claude, and Codex manifests share one mobile-development identity and version' (
     $manifest.name -eq 'mobile-development' -and $claudeManifest.name -eq $manifest.name -and $codexManifest.name -eq $manifest.name -and `
-    $manifest.version -eq '2.0.1' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
+    $manifest.version -eq '2.0.2' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
 ) "generic=$($manifest.name)@$($manifest.version) claude=$($claudeManifest.name)@$($claudeManifest.version) codex=$($codexManifest.name)@$($codexManifest.version)"
 $retainedHostManifestDirs = @(Get-ChildItem -LiteralPath $packageRoot -Force -Directory | Where-Object Name -match '^\..+-plugin$' | Select-Object -ExpandProperty Name | Sort-Object)
 Report 'unsupported legacy host manifests are absent' (
@@ -458,6 +458,7 @@ Report 'Claude activation installs clean state and disable preserves installed o
     $entrypointText -match 'plugin list --json' -and `
     $entrypointText.Contains('plugin install $plugin') -and `
     $entrypointText.Contains("@('plugin', `$action, `$plugin)") -and `
+    $entrypointText -match 'Claude installs marketplace plugins enabled' -and `
     $entrypointText -match 'installed-disabled'
 ) 'Claude activation cannot recover from an absent canonical plugin or documents uninstall cleanup.'
 Report 'skill deep preflight matches claimed SSH Xcode Simulator and Appium evidence' (
