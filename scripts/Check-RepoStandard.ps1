@@ -34,7 +34,7 @@
          pwsh -NoProfile -File scripts/Check-RepoStandard.ps1 -Repo abacare
          pwsh -NoProfile -File scripts/Check-RepoStandard.ps1 -All -Fix
 #>
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$Repo,
     [switch]$All,
@@ -113,7 +113,14 @@ function Test-MarkdownLinks([string]$RepoPath) {
     }
     return $broken
 }
-function Invoke-RepoCheck([string]$Name, [object]$Entry) {
+function Invoke-RepoCheck {
+    # SupportsShouldProcess here (rather than only on the top-level script)
+    # is what makes $PSCmdlet.ShouldProcess available at each mutating call
+    # site below. It cascades correctly: the ambient $WhatIfPreference set
+    # by the top-level script's own -WhatIf switch is visible to this
+    # function without needing to be passed explicitly.
+    [CmdletBinding(SupportsShouldProcess)]
+    param([string]$Name, [object]$Entry)
     $path = Join-Path $fleetRoot $Name
     if (-not (Test-Path -LiteralPath (Join-Path $path '.git'))) {
         Add-Result $Name 'repo-exists' $false 'no .git directory' $false
@@ -151,7 +158,7 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
                 continue
             }
             $fixed = $false
-            if ($Fix) {
+            if ($Fix -and $PSCmdlet.ShouldProcess($fp, 'Remove forbidden path')) {
                 Remove-Item -LiteralPath $fp -Recurse -Force
                 $fixed = -not (Test-Path -LiteralPath $fp)
             }
@@ -170,7 +177,7 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
     foreach ($d in $requiredDocsDirs) {
         $exists = Test-Path -LiteralPath (Join-Path $path $d)
         $fixed = $false
-        if (-not $exists -and $Fix) {
+        if (-not $exists -and $Fix -and $PSCmdlet.ShouldProcess((Join-Path $path $d), 'Create missing docs directory')) {
             New-Item -ItemType Directory -Force (Join-Path $path $d) | Out-Null
             $fixed = Test-Path -LiteralPath (Join-Path $path $d)
         }
@@ -181,7 +188,7 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
         $fp = Join-Path $path $f
         $exists = Test-Path -LiteralPath $fp
         $fixed = $false
-        if (-not $exists -and $Fix) {
+        if (-not $exists -and $Fix -and $PSCmdlet.ShouldProcess($fp, 'Create missing docs file')) {
             $parent = Split-Path -Parent $fp
             if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Force $parent | Out-Null }
             $leaf = Split-Path -Leaf $fp
@@ -276,7 +283,7 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
     $gi = if (Test-Path -LiteralPath $gitignorePath) { Get-Content -LiteralPath $gitignorePath -Raw -Encoding UTF8 } else { '' }
     $giOk = $gi -match '(?m)^\.repowise/?\r?$'
     $giFixed = $false
-    if (-not $giOk -and $Fix) {
+    if (-not $giOk -and $Fix -and $PSCmdlet.ShouldProcess($gitignorePath, 'Append RepoWise gitignore entries')) {
         [IO.File]::AppendAllText($gitignorePath, "`r`n# RepoWise generated index state`r`n.repowise/`r`n.claude/CLAUDE.md`r`n", [Text.UTF8Encoding]::new($false))
         $giFixed = $true
         $giOk = $true
@@ -288,11 +295,19 @@ function Invoke-RepoCheck([string]$Name, [object]$Entry) {
         try {
             $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
             $syncCommit = [string]$state.last_sync_commit
-            $head = (git -C $path rev-parse HEAD 2>$null)
+            # Never discard git's stderr into $null: a failed `git rev-parse`
+            # (corrupt .git, git missing from PATH, etc.) must surface as its
+            # own failure, not silently collapse $head to an empty string and
+            # get misdiagnosed as ordinary staleness ("index not at HEAD") --
+            # a signal only tracks what it claims to watch when git actually ran.
+            $head = (git -C $path rev-parse HEAD 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+                throw "git rev-parse HEAD failed (exit $LASTEXITCODE): $head"
+            }
             $stale = ($syncCommit -ne $head)
             Add-Result $Name 'repowise-freshness' (-not $stale) $(if ($stale) { "index not at HEAD; run repowise update --repo $Name" } else { '' }) $false
         } catch {
-            Add-Result $Name 'repowise-freshness' $false "state.json unreadable: $($_.Exception.Message)" $false
+            Add-Result $Name 'repowise-freshness' $false "unable to verify freshness: $($_.Exception.Message)" $false
         }
     } else {
         Add-Result $Name 'repowise-indexed' $false 'no .repowise/state.json; run repowise update --repo <name>' $false

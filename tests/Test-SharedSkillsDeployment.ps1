@@ -307,6 +307,63 @@ Report 'a host with no sharedSkillsDir declared still gets its own dedicated per
 $r3 = Test-PruneNeverTouchesUnmanagedPathInSharedDir
 Report '-Prune never touches an unmanaged sibling path inside a now-shared, multi-tenant directory' $r3.Passed $r3.Detail
 
+# --- live end-state check, added 2026-08-20 -------------------------------
+# The three fixture tests above prove the COLLAPSE works. They cannot see the
+# residue it leaves behind: when a host that already had its own per-host copy
+# later gains a sharedSkillsDir, sync starts writing only to the shared
+# directory and the host's original copy is stranded. Sync can never reach it
+# again -- it is not a desired destination, and prune only removes paths the
+# ledger still tracks -- so it sits there at whatever version it was, forever.
+#
+# Found live: adopting use-railway converged 9 copies on 1.3.7 and left 1.3.6
+# shadows in ~/.codex/skills and ~/.gemini/skills. That is not cosmetic --
+# gemini documents ~/.gemini/skills and the ~/.agents/skills alias at the SAME
+# precedence tier, so two copies of one skill name at two versions is a genuine
+# ambiguity about which one the host loads.
+$caps   = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+
+$managedNames = @{}
+foreach ($c in @($caps.capabilities)) {
+    foreach ($n in @($c.managedSkillNames)) { if ($n) { $managedNames[[string]$n] = [string]$c.id } }
+}
+
+function Expand-HomePath([string]$Raw) {
+    if ([string]::IsNullOrWhiteSpace($Raw)) { return $null }
+    # Not a regex-escaped -replace: escaping a REPLACEMENT operand leaves the
+    # doubled backslashes in the result.
+    $x = if ($Raw.StartsWith('~')) { $env:USERPROFILE + $Raw.Substring(1) } else { $Raw }
+    # Assign before the call. Inside method parentheses the comma of -replace's
+    # second operand is parsed as an argument separator, so the inline form dies
+    # with "cannot find an overload ... argument count: 2".
+    $x = $x -replace '/', '\'
+    return [Environment]::ExpandEnvironmentVariables($x)
+}
+
+$shadowed = [Collections.Generic.List[string]]::new()
+$sharedHosts = 0
+foreach ($a in @($agents.activeAgents)) {
+    $shared = Expand-HomePath ([string]$a.nativePaths.sharedSkillsDir)
+    $own    = Expand-HomePath ([string]$a.nativePaths.skillsDir)
+    if (-not $shared -or -not $own) { continue }
+    if ($shared -eq $own) { continue }
+    $sharedHosts++
+    if (-not (Test-Path -LiteralPath $own)) { continue }
+    foreach ($d in @(Get-ChildItem -LiteralPath $own -Directory -ErrorAction SilentlyContinue)) {
+        if ($managedNames.ContainsKey($d.Name)) {
+            $shadowed.Add("$($a.id): $($d.FullName) shadows the managed copy in $shared (owner: $($managedNames[$d.Name]))")
+        }
+    }
+}
+
+# Without this the check passes vacuously the moment sharedSkillsDir is renamed
+# or no host declares one.
+Report 'at least one host declares a sharedSkillsDir distinct from its own skillsDir' ($sharedHosts -gt 0) `
+    'No host resolved to a shared-vs-own directory pair, so the shadow-copy check below examined nothing.'
+
+Report 'no managed skill is shadowed by a stale copy in a shared-dir host own skillsDir' ($shadowed.Count -eq 0) `
+    "sync writes only to the shared directory for these hosts, so these copies are unreachable and frozen at whatever version they hold: $($shadowed -join '; ')"
+
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
     exit 1

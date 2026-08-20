@@ -46,6 +46,18 @@ Report 'the sync script defines a dedicated TOML string emitter' ($null -ne $fnA
 if (-not $fnAst) { Write-Host 'RESULT: 0 passed, 1 failed'; exit 1 }
 . ([scriptblock]::Create($fnAst.Extent.Text))
 
+# Extract Test-TomlParse (and Resolve-PythonExe, its interpreter resolver) the
+# same way, without dot-sourcing the whole script (param block + top-level work).
+function Get-SyncFunctionText([string]$Name) {
+    $found = $ast.FindAll({
+            param($n)
+            $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $n.Name -eq $Name
+        }, $true) | Select-Object -First 1
+    if ($found) { return $found.Extent.Text }
+    return $null
+}
+
 # A real parser is the only honest oracle here.
 $python = (Get-Command python -ErrorAction SilentlyContinue)
 if (-not $python) {
@@ -129,6 +141,65 @@ foreach ($h in $tomlHosts) {
     $res = (& python $tmpReader $h.Path 2>&1 | Out-String).Trim()
     Remove-Item -LiteralPath $tmpReader -Force -ErrorAction SilentlyContinue
     Report "deployed $($h.Host) config parses" ($res -eq 'OK') $res
+}
+
+# 6. Test-TomlParse must not string-interpolate the path into a Python raw
+#    string: a path containing a single quote breaks out of the r'...'
+#    literal and the whole generated script fails to parse, regardless of
+#    whether the TOML content itself is valid.
+$testTomlParseText = Get-SyncFunctionText 'Test-TomlParse'
+Report 'the sync script defines Test-TomlParse' ($null -ne $testTomlParseText) `
+    'Expected function Test-TomlParse in scripts/Sync-AgentHub.ps1.'
+if ($testTomlParseText) {
+    # Test-TomlParse depends on Resolve-PythonExe (added by the same fix);
+    # extract and dot-source it too so this fixture matches how the real
+    # script wires them together.
+    $resolvePythonTextForParse = Get-SyncFunctionText 'Resolve-PythonExe'
+    if ($resolvePythonTextForParse) { . ([scriptblock]::Create($resolvePythonTextForParse)) }
+    $script:validationErrors = @()
+    . ([scriptblock]::Create($testTomlParseText))
+
+    $quoteDir = Join-Path ([IO.Path]::GetTempPath()) ("toml-inj-o'brien-" + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $quoteDir -Force | Out-Null
+    $quotePath = Join-Path $quoteDir 'valid.toml'
+    try {
+        [IO.File]::WriteAllText($quotePath, "k = `"v`"`n", [Text.UTF8Encoding]::new($false))
+        $script:validationErrors = @()
+        $ok = Test-TomlParse -Path $quotePath
+        Report 'Test-TomlParse handles a path containing a single quote' $ok `
+            "valid TOML at a single-quote path was reported invalid: $($script:validationErrors -join '; ')"
+    } finally {
+        Remove-Item -LiteralPath $quoteDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# 7. Test-TomlParse must resolve a real Python interpreter (never rely on a
+#    bare `python` that can silently resolve to the Windows Store alias
+#    stub) and, when none is available, fail loudly through
+#    $validationErrors rather than silently reporting success.
+$resolvePythonText = Get-SyncFunctionText 'Resolve-PythonExe'
+Report 'the sync script defines a dedicated Python interpreter resolver (never bare python)' ($null -ne $resolvePythonText) `
+    'Expected function Resolve-PythonExe in scripts/Sync-AgentHub.ps1, used instead of a bare `python` call.'
+if ($resolvePythonText) {
+    . ([scriptblock]::Create($resolvePythonText))
+    $previousPath = $env:PATH
+    try {
+        $env:PATH = [IO.Path]::GetTempPath().TrimEnd('\')
+        $threw = $false
+        $errorMessage = ''
+        try {
+            Resolve-PythonExe | Out-Null
+        } catch {
+            $threw = $true
+            $errorMessage = $_.Exception.Message
+        }
+        Report 'Resolve-PythonExe fails loudly (throws) when no interpreter is on PATH' $threw `
+            'Expected a terminating error naming the missing interpreter; got none (silent failure).'
+        Report 'Resolve-PythonExe error message names the missing interpreter' ($errorMessage -match '(?i)python') `
+            "Error message did not mention Python: [$errorMessage]"
+    } finally {
+        $env:PATH = $previousPath
+    }
 }
 
 Write-Host ''

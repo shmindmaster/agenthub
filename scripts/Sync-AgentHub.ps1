@@ -303,18 +303,38 @@ function Test-JsonParse {
     }
 }
 
+function Resolve-PythonExe {
+    # Bare `python` can silently resolve to the Windows Store alias stub (a
+    # placeholder that prints an install prompt rather than running code) --
+    # this repo already learned the same lesson with a bare `tar.exe`
+    # resolving to Git's GNU tar. Prefer the `py` launcher, which is
+    # Python's own dispatcher and never aliases to the Store stub; fall back
+    # to `python` on PATH only when it does not point at the Store alias.
+    # Fail loudly (throw) rather than letting the caller silently skip TOML
+    # validation when no real interpreter is present.
+    $py = Get-Command py -ErrorAction SilentlyContinue
+    if ($py) { return $py.Source }
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($python -and $python.Source -notmatch '(?i)\\WindowsApps\\python(3)?\.exe$') { return $python.Source }
+    throw "No usable Python interpreter found (checked the 'py' launcher and 'python' on PATH, excluding the Windows Store alias stub). Install Python or add it to PATH to validate TOML output."
+}
+
 function Test-TomlParse {
     param([string]$Path)
     try {
-        $toml = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
-        # PowerShell 7+ has Invoke-RestMethod or we can use Python tomllib
-        $py = @"
+        $pythonExe = Resolve-PythonExe
+        # The path is passed as a Python argument (sys.argv), never
+        # string-interpolated into the generated source: a Windows path
+        # containing a single quote, an odd trailing backslash, or a
+        # newline would otherwise break out of the r'...' raw-string
+        # literal and corrupt the generated script.
+        $py = @'
 import tomllib, sys
-with open(r'$Path', 'rb') as f:
+with open(sys.argv[1], 'rb') as f:
     tomllib.load(f)
 print('OK')
-"@
-        $result = & python -c $py 2>&1
+'@
+        $result = & $pythonExe -c $py $Path 2>&1
         if ($LASTEXITCODE -ne 0) { throw $result }
         return $true
     } catch {
@@ -353,11 +373,22 @@ function Test-MarkdownFrontmatter {
     param([string]$Path)
     try {
         $content = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
-        if ($content -match '^---\r?\n') {
-            $parts = $content -split '^---\r?\n', 3
-            if ($parts.Count -ge 3) {
-                $null = $parts[1] | ConvertFrom-Yaml -ErrorAction SilentlyContinue
-            }
+        # The prior form ($content -split '^---\r?\n', 3) anchored '^' with
+        # no Multiline option, so it only ever matched the string's absolute
+        # start -- the closing '---' delimiter was never split on, $parts
+        # never reached Count 3, and ConvertFrom-Yaml was never reached at
+        # all, for any input. A single regex match of the whole
+        # opening-delimiter/body/closing-delimiter block, with the body
+        # captured non-greedily, is what actually extracts the YAML text.
+        $fm = [regex]::Match($content, '(?s)\A---\r?\n(?<yaml>.*?)\r?\n---\r?\n')
+        if ($fm.Success) {
+            # -ErrorAction SilentlyContinue on ConvertFrom-Yaml suppresses its
+            # own non-terminating parse errors before the surrounding catch
+            # ever sees them, so malformed frontmatter always reported as
+            # valid. -ErrorAction Stop lets a real parse failure reach the
+            # catch below, which is the only place this function reports
+            # invalid frontmatter.
+            $null = $fm.Groups['yaml'].Value | ConvertFrom-Yaml -ErrorAction Stop
         }
         return $true
     } catch {
@@ -1661,6 +1692,17 @@ function Sync-QwenCapabilityExtensions {
         if ($hasSourceAgents) { $manifest.agents = 'agents' }
         $manifestJson = Get-StableJsonString $manifest
 
+        # Deliberate suppression, verified as such (task audit finding #4):
+        # "not found" is the ordinary, expected state here -- the junction
+        # simply has not been created yet -- and SilentlyContinue only
+        # collapses that expected case, it does not hide a genuine failure
+        # going undetected. Any other Get-Item failure (permission denied,
+        # a locked handle, etc.) still surfaces loudly downstream: with
+        # $ErrorActionPreference = 'Stop' active for this whole script, the
+        # New-Item -ItemType Junction / Remove-Item calls a few lines below
+        # that key off $skillsItem/$agentsItem/$userItem being $null throw a
+        # real, unsuppressed terminating error the moment they collide with
+        # a path Get-Item could not actually read cleanly.
         $skillsItem = Get-Item -LiteralPath $skillsLink -Force -ErrorAction SilentlyContinue
         $agentsItem = Get-Item -LiteralPath $agentsLink -Force -ErrorAction SilentlyContinue
         $userItem = Get-Item -LiteralPath $userLink -Force -ErrorAction SilentlyContinue

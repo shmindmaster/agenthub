@@ -104,11 +104,12 @@ $fixtureConfig = [pscustomobject]@{
     agentsAnchors = @('## Mission','Knowledge authority','Start here','RepoWise','Canonical commands','## Tracker','Definition of done','## Safety')
     claudeMaxAuthoredLines = 8
     repos = [pscustomobject]@{
-        compliant = [pscustomobject]@{ tracker = 'none' }
-        drifting  = [pscustomobject]@{ tracker = 'none' }
+        compliant  = [pscustomobject]@{ tracker = 'none' }
+        drifting   = [pscustomobject]@{ tracker = 'none' }
+        'corrupt-vcs' = [pscustomobject]@{ tracker = 'none' }
     }
 }
-Set-Content -LiteralPath (Join-Path $fixtureRoot '.repowise-workspace.yaml') -Encoding UTF8 -Value "version: 1`nrepos:`n- path: compliant`n- path: drifting`n"
+Set-Content -LiteralPath (Join-Path $fixtureRoot '.repowise-workspace.yaml') -Encoding UTF8 -Value "version: 1`nrepos:`n- path: compliant`n- path: drifting`n- path: corrupt-vcs`n"
 $configPath = Join-Path $fixtureRoot 'repo-standard.test.json'
 $fixtureConfig | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configPath -Encoding UTF8
 
@@ -131,12 +132,39 @@ $bad = New-FixtureRepo 'drifting'
 Set-Content -LiteralPath (Join-Path $bad '.cursorrules') -Value 'legacy rules'
 Set-Content -LiteralPath (Join-Path $bad 'error.log') -Value 'stale log'
 # .repowise deliberately absent -> indexed check must fail
+
+# --- Fixture 3: repo with an unusable .git (present as a directory, but not
+# a valid git repository) plus a .repowise/state.json claiming a specific
+# commit. `git -C $path rev-parse HEAD` must fail here -- this proves the
+# freshness check's error path (line ~298: `2>$null`) surfaces that failure
+# honestly instead of silently swallowing it and reporting the unrelated,
+# misleading verdict "index not at HEAD". ---
+$brokenGit = Join-Path $fixtureRoot 'corrupt-vcs'
+New-Item -ItemType Directory -Force $brokenGit | Out-Null
+New-Item -ItemType Directory -Force (Join-Path $brokenGit '.git') | Out-Null
+New-Item -ItemType Directory -Force (Join-Path $brokenGit '.repowise') | Out-Null
+Set-Content -LiteralPath (Join-Path $brokenGit '.repowise\state.json') -Encoding UTF8 `
+    -Value '{ "last_sync_commit": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef" }'
+
 $oldLocation = Get-Location
 try {
     # Compliant repo passes every check whose preconditions we fabricated.
     $out = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
     $code = $LASTEXITCODE
     Report 'compliant-repo-passes' ($code -eq 0) (($out.Trim().Split("`n")) | Select-Object -Last 3 | Out-String)
+
+    # A git failure during the freshness check must be reported honestly --
+    # never silently swallowed into the unrelated "index not at HEAD" verdict.
+    $outBrokenGit = & $checker -Repo corrupt-vcs -ConfigPath $configPath 2>&1 | Out-String
+    Report 'corrupt-vcs-freshness-check-runs' ($outBrokenGit -match 'repowise-freshness') `
+        (($outBrokenGit.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
+    Report 'corrupt-vcs-does-not-claim-stale-index' ($outBrokenGit -notmatch 'index not at HEAD') `
+        "checker blamed 'index not at HEAD' for a git command failure, not a real staleness verdict. Output tail: $((($outBrokenGit.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
+    # Deliberately specific (not a bare 'git' substring match, which
+    # 'gitignore-repowise' -- a check name printed for every repo -- would
+    # satisfy trivially and prove nothing).
+    Report 'corrupt-vcs-names-the-real-failure' ($outBrokenGit -match '(?i)(not a git repository|rev-parse HEAD|fatal:)') `
+        "expected the freshness failure detail to name the git command failure. Output tail: $((($outBrokenGit.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
 
     # Drifting repo fails and names the drift.
     $outBad = & $checker -Repo drifting -ConfigPath $configPath 2>&1 | Out-String
@@ -147,10 +175,42 @@ try {
     Report 'drift-names-root-scratch' ($outBad -match 'root-scratch.*error\.log') (($outBad.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
     Report 'drift-names-repowise' ($outBad -match 'repowise-indexed') (($outBad.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
 
+    # -Fix -WhatIf previews mutations without performing them
+    # (SupportsShouldProcess). Run before the real -Fix below, while
+    # .cursorrules and the docs skeleton gap still exist to preview.
+    try {
+        $outWhatIf = & $checker -Repo drifting -ConfigPath $configPath -Fix -WhatIf 2>&1 | Out-String
+        $codeWhatIf = $LASTEXITCODE
+    } catch {
+        $outWhatIf = "INVOCATION FAILED: $($_.Exception.Message)"
+        $codeWhatIf = -1
+    }
+    Report 'fix-whatif-does-not-delete-forbidden' `
+        (Test-Path -LiteralPath (Join-Path $bad '.cursorrules')) `
+        "-Fix -WhatIf must not delete .cursorrules. exit=$codeWhatIf. Output tail: $((($outWhatIf.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
+    Report 'fix-whatif-does-not-create-docs-skeleton' `
+        (-not (Test-Path -LiteralPath (Join-Path $bad 'docs\plans\PLANS.md'))) `
+        "-Fix -WhatIf must not create docs\plans\PLANS.md. Output tail: $((($outWhatIf.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
+    # PowerShell's own "What if:" preview line is written straight to host UI
+    # (PSHostUserInterface), never through any redirectable stream -- proven
+    # empirically: even `*>&1` does not capture it. The RESULT summary line
+    # (plain Write-Output, genuinely capturable) is the honest place to prove
+    # -WhatIf suppressed every fix.
+    Report 'fix-whatif-reports-zero-auto-fixed' `
+        ($outWhatIf -match 'RESULT:.*\b0 auto-fixed\b') `
+        "Expected the RESULT summary to report 0 auto-fixed under -WhatIf. Output tail: $((($outWhatIf.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
+
     # -Fix deletes forbidden files and creates the docs skeleton, nothing else.
-    $null = & $checker -Repo drifting -ConfigPath $configPath -Fix 2>&1 | Out-String
+    $outRealFix = & $checker -Repo drifting -ConfigPath $configPath -Fix 2>&1 | Out-String
     Report 'fix-deletes-forbidden' (-not (Test-Path -LiteralPath (Join-Path $bad '.cursorrules'))) '.cursorrules survived -Fix'
     Report 'fix-creates-docs-skeleton' ((Test-Path -LiteralPath (Join-Path $bad 'docs\plans\PLANS.md')) -and (Test-Path -LiteralPath (Join-Path $bad 'docs\current-state.md'))) 'docs skeleton missing after -Fix'
+    # Without -WhatIf, ShouldProcess must default to proceeding (no prompt,
+    # no silent no-op) so real -Fix still reports a nonzero auto-fixed count
+    # -- guards against a ShouldProcess wiring that accidentally suppresses
+    # every fix regardless of -WhatIf.
+    Report 'fix-real-reports-nonzero-auto-fixed' `
+        ($outRealFix -match 'RESULT:.*auto-fixed' -and $outRealFix -notmatch 'RESULT:.*\b0 auto-fixed\b') `
+        "Expected a nonzero auto-fixed count from a real (non-WhatIf) -Fix run. Output tail: $((($outRealFix.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
 
     # -Fix runs Remove-Item -Recurse -Force on a path built from config data
     # against a SIBLING repository. Without containment, a blank entry makes
