@@ -1,46 +1,61 @@
 # Browser Toolkit
 
-One browser-quality plugin with **two** on-demand Chrome DevTools MCP servers and **four** focused skills.
+One browser-quality plugin with a single on-demand Microsoft Playwright MCP
+server, three routing skills, and three provider catalogs (MCP, CLI, Test).
 
 ## Architecture
 
-- Skills that need synthetic/localhost QA state the capability `browser.isolated` and
-  fall back to **`playwright`** (dedicated persistent automation profile,
-  separate from personal Chrome).
-- Work that needs the owner's signed-in Chrome (LinkedIn, job portals, etc.) is
-  capability **`browser.authenticated`**, provided by **`playwright`**, which
-  **attaches only** to TaskBar personal Chrome via CDP (never launches a blank profile).
-- Resolution: surface-native browser first (`registry/fleet-profile.json` ->
-  `hostSurfaces`), then the matching MCP fallback for the capability.
-- Playwright CLI 0.1.17 remains the compact multi-step action lane for interactive testing.
-- Playwright MCP is intentionally not included.
+```text
+interactive-browser-testing  ──┐
+browser-debugging            ──┼── routers (capability + lane selection)
+browser-evidence             ──┘
+
+use-playwright-cli   ← provider catalog (coding-agent / repeatable capture)
+use-playwright-mcp   ← provider catalog (exploratory persistent MCP)
+use-playwright-test  ← provider catalog (regression suites)
+```
+
+- Skills that need synthetic/localhost QA state the capability `browser.isolated`
+  and resolve: surface-native browser first, then a Playwright lane.
+- **Lane selection** (after capability resolution):
+  - **Playwright CLI** — preferred for coding agents; token-efficient capture
+  - **Playwright MCP** (`playwright`) — exploratory / persistent reasoning loops
+  - **Playwright Test** — committed regressions after interactive discovery
+- Work that needs a signed-in automation profile uses the same `playwright` MCP
+  id (`browser.authenticated`); the profile is per-workspace, not personal Chrome.
+- Resolution: surface-native browser first (`registry/fleet-profile.json` →
+  `hostSurfaces`), then the matching Playwright lane.
+- Playwright MCP is Microsoft `@playwright/mcp@0.0.79` (headed Chromium). It is
+  **not** Chrome DevTools MCP; tool names are `browser_*`.
 
 ### Skills (load by intent)
 
-| Skill | When |
-| --- | --- |
-| **`use-playwright-mcp`** | Tool catalog, core loop, autoConnect vs isolated, smoke checks |
-| **`interactive-browser-testing`** | Visual product workflows (`browser.isolated`) |
-| **`browser-debugging`** | Console/network/performance/memory (`browser.isolated`) |
-| **`browser-evidence`** | Screenshots, traces, Lighthouse artifacts (`browser.isolated`) |
+| Skill | Kind | When |
+| --- | --- | --- |
+| **`interactive-browser-testing`** | router | Visual product workflows (`browser.isolated`) |
+| **`browser-debugging`** | router | Console/network/trace debugging (`browser.isolated`) |
+| **`browser-evidence`** | router | Screenshots, traces, artifacts (`browser.isolated`) |
+| **`use-playwright-cli`** | provider | CLI command catalog + session patterns |
+| **`use-playwright-mcp`** | provider | MCP `browser_*` tool catalog + profile semantics |
+| **`use-playwright-test`** | provider | Promoting captures into `@playwright/test` |
 
-Upstream parameter bible: https://github.com/ChromeDevTools/playwright-mcp/blob/main/docs/tool-reference.md  
-Do not fork the full schema; keep routing in the skill and link upstream.
+Upstream MCP tools: https://github.com/microsoft/playwright-mcp/blob/main/README.md  
+CLI for coding agents: https://playwright.dev/docs/getting-started-cli  
+Do not fork the full schema; keep routing in skills and link upstream.
 
-### Personal Chrome (authenticated) — official path
+### Playwright MCP (fleet)
 
 | Item | Value |
 | --- | --- |
-| TaskBar pin | Normal **Google Chrome** (no special debug flags required) |
-| Owner enable | `chrome://inspect/#remote-debugging` → enable |
-| MCP | `playwright` with **`--autoConnect`** (Chrome ≥144) |
-| Permission | Chrome **Allow** dialog when agent connects |
-| Registry | `registry/mcps.json` id `playwright` (single server since 2026-08-19) |
-| Docs | `docs/CHROME_CDP.md` |
+| Package | `@playwright/mcp@0.0.79` |
+| Browser | Chromium, headed (no `--headless`) |
+| Registry | `registry/mcps.json` id `playwright` |
+| Profile | per-workspace `mcp-{channel}-{workspace-hash}` (not personal Chrome) |
+| Docs | `docs/development/chrome-cdp.md` (migration + owner notes) |
 
 **Do not** put `--remote-debugging-port=9222` on the Default profile TaskBar shortcut (ignored since Chrome 136).  
-**Do not** use `--isolated` for signed-in work.  
-Usage statistics and CrUX are disabled on both MCP servers (`--no-usage-statistics`, `--no-performance-crux`).
+**Do not** reinstate Chrome DevTools MCP tool names (`list_pages`, `take_snapshot`, …) against this server.  
+Retired ids `chrome-devtools` / `chrome-devtools-isolated` migrate to `playwright`.
 
 ## Resolution-step markers
 
@@ -53,21 +68,22 @@ byte and an agent sees the raw text, markers included. Keep them terse.
 | Marker | Meaning | Count per skill |
 | --- | --- | --- |
 | `<!-- resolution-step: surface-provided -->` | resolves the running surface's own provider from `hostSurfaces` | exactly one |
-| `<!-- resolution-step: local-fallback -->` | reaches the locally started fallback server | exactly one |
-| `<!-- resolution-step: additional-lane -->` | a further option that is neither of those two (the Playwright CLI lane) | any number, including none |
+| `<!-- resolution-step: local-fallback -->` | reaches the locally started Playwright MCP fallback | exactly one |
+| `<!-- resolution-step: additional-lane -->` | CLI and/or Test lanes that are neither of those two | any number, including none |
 
 `tests/Test-CapabilityRouting.ps1` behavior 8 requires every numbered step in that
 section to carry exactly one known marker, requires every marker in the file to sit on
 such a step, and requires the `surface-provided` step to come before the
-`local-fallback` step. A step with no marker fails; the marker is not optional. The
-role used to be inferred from each step's wording, which both rejected a correct step
-that forward-referenced the fallback and accepted a step citing the registry for an
-unrelated reason. The marker is a declaration and is trusted as one: put it on the step
-it actually describes.
+`local-fallback` step. A step with no marker fails; the marker is not optional.
+
+Provider catalogs declare `<!-- skill-kind: provider-reference -->` and a
+`<!-- provider-channel: mcp|cli|test -->` marker so behavior 9 can tell MCP
+catalogs (must name a registered server) from CLI/Test catalogs (no MCP id).
 
 ## Validation
 
 ```powershell
-python C:\Users\SaroshHussain\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py .
-npx -y playwright-mcp@1.6.0 --help
+pwsh -NoProfile -File tests/Test-BrowserServer.ps1
+pwsh -NoProfile -File tests/Test-CapabilityRouting.ps1
+pwsh -NoProfile -File scripts/Validate-AgentHub.ps1
 ```

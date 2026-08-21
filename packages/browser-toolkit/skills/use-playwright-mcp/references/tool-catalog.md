@@ -1,24 +1,32 @@
-# Chrome DevTools MCP — tool catalog pointer
+# Playwright MCP — tool catalog pointer
 
-**Canonical (auto-generated upstream):**  
-https://github.com/ChromeDevTools/playwright-mcp/blob/main/docs/tool-reference.md
+**Canonical upstream:**  
+https://github.com/microsoft/playwright-mcp/blob/main/README.md
 
-Do not fork the full parameter schema into agenthub. When parameters change, trust upstream `tool-reference.md` and keep `SKILL.md` as the routing/cheat sheet only.
+Package pin (fleet): `@playwright/mcp@0.0.79` — see `registry/mcps.json` and
+`packages/browser-toolkit/.mcp.json`.
 
-## Categories (upstream)
+Do not fork the full parameter schema into AgentHub. When parameters change,
+trust upstream README Tools and keep `SKILL.md` as the routing/cheat sheet only.
 
-- Input automation (10)
-- Navigation automation (6)
-- Emulation (2)
-- Performance (3)
-- Network (2)
-- Debugging (8)
-- Memory (12; deep tools need `--memoryDebugging`)
-- Extensions (5; need `--categoryExtensions`)
-- Third-party (2; need flag)
-- WebMCP (2; need flag)
+## Naming rule
+
+Live tools use the Microsoft Playwright MCP `browser_*` vocabulary, for example:
+
+- `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_fill_form`
+- `browser_tabs`, `browser_console_messages`, `browser_network_requests`
+- `browser_take_screenshot`, `browser_evaluate`, `browser_wait_for`
+
+Do **not** use retired Chrome DevTools MCP names (`list_pages`, `take_snapshot`, `fill_form`, `lighthouse_audit`, …) against this server.
+
+## CLI vs MCP
+
+- Coding agents / token-efficient capture → Playwright CLI + skills  
+  https://playwright.dev/docs/getting-started-cli
+- Persistent exploratory loops → Playwright MCP (this catalog)
 
 ## Related fleet docs
 
-- `docs/CHROME_CDP.md` — autoConnect vs isolated, host config
+- `docs/development/chrome-cdp.md` — migration notes from the retired chrome-devtools stack
 - `registry/mcps.json` — `playwright`
+- Sibling catalogs: `use-playwright-cli`, `use-playwright-test`

@@ -95,6 +95,36 @@ Report 'a live routing line is still caught by the stale-reference check' `
     ($probe -match 'chrome-devtools' -and $probe -notmatch $retirementMarkers) `
     'The retirement carve-out swallowed an ordinary routing instruction.'
 
+# Provider catalog must teach the live Microsoft Playwright MCP vocabulary.
+# The 2026-08-19 server swap renamed the skill to use-playwright-mcp while the
+# body still documented Chrome DevTools MCP tools; routing tests do not catch
+# that because provider-reference catalogs are exempt from post-resolution tool
+# name bans. Pin the live names here.
+$mcpSkill = Join-Path $pkgRoot 'skills\use-playwright-mcp\SKILL.md'
+$mcpText = Get-Content -LiteralPath $mcpSkill -Raw -Encoding UTF8
+foreach ($tool in @('browser_navigate', 'browser_snapshot', 'browser_click', 'browser_fill_form', 'browser_tabs', 'browser_console_messages', 'browser_network_requests', 'browser_take_screenshot')) {
+    Report ("use-playwright-mcp documents live Playwright MCP tool '{0}'" -f $tool) `
+        ($mcpText -match [regex]::Escape($tool)) `
+        ("Microsoft @playwright/mcp exposes {0}; the catalog must not keep teaching Chrome DevTools MCP names for this server." -f $tool)
+}
+$staleTools = @('list_pages', 'take_snapshot', 'fill_form', 'list_console_messages', 'lighthouse_audit')
+$staleHits = @()
+foreach ($tool in $staleTools) {
+    # Mentions are allowed only on retirement/migration lines (same carve-out idea).
+    $toolPattern = '`' + [regex]::Escape($tool) + '`'
+    $lines = @(Get-Content -LiteralPath $mcpSkill -Encoding UTF8 |
+        Where-Object { $_ -match $toolPattern -and $_ -notmatch 'retired|not expose|Do \*\*not\*\*|Do not use|Chrome DevTools MCP' })
+    if ($lines.Count -gt 0) { $staleHits += $tool }
+}
+Report 'use-playwright-mcp does not teach retired Chrome DevTools MCP tool names as live' `
+    ($staleHits.Count -eq 0) `
+    "still presents as live: $($staleHits -join ', ')"
+
+$cliSkill = Join-Path $pkgRoot 'skills\use-playwright-cli\SKILL.md'
+$testSkill = Join-Path $pkgRoot 'skills\use-playwright-test\SKILL.md'
+Report 'use-playwright-cli provider catalog exists' (Test-Path -LiteralPath $cliSkill) 'missing skills/use-playwright-cli/SKILL.md'
+Report 'use-playwright-test provider catalog exists' (Test-Path -LiteralPath $testSkill) 'missing skills/use-playwright-test/SKILL.md'
+
 Write-Host ''
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $passed passed, $($failures.Count) failed" -ForegroundColor Red

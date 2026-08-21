@@ -888,9 +888,30 @@ function Test-ProviderReferenceSkillsAreLoadedAndRegistered {
             $bad.Add("$($declaration.Skill) is excused from the routing contract as a provider reference, but no routing skill names ``$($declaration.Skill)``, so nothing resolves a provider before sending a reader to it. An unloaded skill has no prior resolution to rely on and must state its own '## $capabilitySectionHeading' and '## $resolutionSectionHeadingPrefix ...' sections; remove the marker or give it a reader.")
             continue
         }
-        $namedServers = @($serverIds | Where-Object { $declaration.Text -match ('`' + [regex]::Escape($_) + '`') })
-        if ($namedServers.Count -eq 0) {
-            $bad.Add("$($declaration.Skill) is excused as a provider reference (loaded by $($loaders -join ', ')) but names no server registered in registry/mcps.json, so it documents tools for something the fleet does not run -- the failure this file exists to prevent.")
+        # Provider catalogs are not always MCP servers. Playwright CLI and
+        # Playwright Test are first-class lanes with no registry/mcps.json id.
+        # Those skills declare `<!-- provider-channel: cli -->` or
+        # `<!-- provider-channel: test -->`. MCP catalogs omit the marker or
+        # declare `<!-- provider-channel: mcp -->` and must still name a
+        # registered server -- otherwise a catalog can describe tools for a
+        # server the fleet does not run.
+        $channelMatches = @([regex]::Matches($declaration.Text, '<!--\s*provider-channel:\s*([^\s>]+)\s*-->'))
+        $channels = @($channelMatches | ForEach-Object { $_.Groups[1].Value })
+        if ($channels.Count -gt 1) {
+            $bad.Add("$($declaration.Skill) declares multiple provider-channel markers ($($channels -join ', ')); a provider reference is one lane, so it must declare at most one channel")
+            continue
+        }
+        $channel = if ($channels.Count -eq 1) { $channels[0] } else { 'mcp' }
+        $knownChannels = @('mcp', 'cli', 'test')
+        if ($channel -notin $knownChannels) {
+            $bad.Add("$($declaration.Skill) declares '<!-- provider-channel: $channel -->', which is not a channel this check knows; the vocabulary is: $($knownChannels -join ', ')")
+            continue
+        }
+        if ($channel -eq 'mcp') {
+            $namedServers = @($serverIds | Where-Object { $declaration.Text -match ('`' + [regex]::Escape($_) + '`') })
+            if ($namedServers.Count -eq 0) {
+                $bad.Add("$($declaration.Skill) is excused as a provider reference (loaded by $($loaders -join ', ')) on the mcp channel but names no server registered in registry/mcps.json, so it documents tools for something the fleet does not run -- the failure this file exists to prevent.")
+            }
         }
     }
     if ($bad.Count -gt 0) { return @{ Passed = $false; Detail = ($bad -join '; ') } }
@@ -922,7 +943,7 @@ $r8 = Test-SurfaceStepPrecedesLocalFallbackStep
 Report 'each skill declares its surface-provided step before its local-fallback step' $r8.Passed $r8.Detail
 
 $r9 = Test-ProviderReferenceSkillsAreLoadedAndRegistered
-Report 'every skill excused from routing is loaded by a routing skill and documents a registered server' $r9.Passed $r9.Detail
+Report 'every skill excused from routing is loaded by a routing skill and documents a registered server (mcp) or a known non-mcp provider channel' $r9.Passed $r9.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

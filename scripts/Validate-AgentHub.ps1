@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
   $RepositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
-$root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
+$root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
 $errors = [Collections.Generic.List[string]]::new()
 . (Join-Path $root 'scripts\RegistryContentHash.ps1')
 
@@ -169,7 +169,8 @@ function Test-RegistryRelativePath {
     return $null
   }
   $resolved = [IO.Path]::GetFullPath((Join-Path $Root $Value))
-  $rootPrefix = $Root.TrimEnd('\') + '\'
+  $sep = [IO.Path]::DirectorySeparatorChar
+  $rootPrefix = $Root.TrimEnd('\', '/') + $sep
   if (-not ($resolved.Equals($Root, [StringComparison]::OrdinalIgnoreCase) -or
       $resolved.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase))) {
     Fail "$FieldName escapes the repository root: $CapabilityId ($Value)"

@@ -1,6 +1,6 @@
 ---
 name: browser-evidence
-description: Use when an authorized workflow needs reproducible screenshots, accessibility snapshots, console or network records, Lighthouse results, traces, or screencasts.
+description: Use when an authorized workflow needs reproducible screenshots, accessibility snapshots, console or network records, traces, or screencasts.
 ---
 
 # Browser evidence
@@ -8,7 +8,11 @@ description: Use when an authorized workflow needs reproducible screenshots, acc
 This skill captures observed browser evidence. Product decisions remain with Product
 Experience Engineering; demo and release decisions remain with Product Demo Studio.
 
-For MCP tool routing and snapshot-first discipline, also load **`use-playwright-mcp`**.
+After resolving a provider lane, load the matching catalog:
+
+- `use-playwright-mcp` — snapshot/screenshot/console/network evidence in an exploratory loop
+- `use-playwright-cli` — named-session screenshots, traces, and video for coding-agent capture
+- `use-playwright-test` — fixture-backed evidence inside a regression suite when appropriate
 
 ## Capability required
 
@@ -31,9 +35,15 @@ personal Chrome state, unrelated tabs, credentials, or customer data.
    <!-- resolution-step: surface-provided -->
 2. Use `playwright` -- the declared fallback, `providesCapabilities` in
    `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
-   `null`, or when the evidence needed is a performance trace, heap comparison, or
-   Lighthouse run.
+   `null`, or when the evidence needed is MCP-side console/network/snapshot capture.
+   Load `use-playwright-mcp`.
    <!-- resolution-step: local-fallback -->
+3. Use Playwright CLI when named-session screenshots, traces, or video are the
+   evidence form and a coding-agent CLI loop is enough. Load `use-playwright-cli`.
+   <!-- resolution-step: additional-lane -->
+4. Use Playwright Test when evidence belongs inside a committed regression run.
+   Load `use-playwright-test`.
+   <!-- resolution-step: additional-lane -->
 
 `false` and `null` are different findings and neither is a provider: `false` means
 checked and absent, `null` means never established. Record which provider produced
@@ -42,11 +52,15 @@ each artifact, because a screenshot's meaning depends on the profile it came fro
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at
 session start, and to run as one shared process rather than one per host.
-`playwright` is the QA fallback for this skill; do not start it when
-the surface already provides `browser.isolated`. Its dedicated profile is separate
-from personal Chrome, so evidence captures are isolated by construction. Attaching to
-the owner's live personal Chrome would require passing `--browserUrl` deliberately and
-must not be done for evidence captures.
+`playwright` is the MCP QA fallback for this skill; do not start it when the surface
+already provides `browser.isolated`. Its dedicated profile is separate from personal
+Chrome, so evidence captures are isolated by construction. Attaching to the owner's
+live personal Chrome would require a browser-url attachment deliberately and must not
+be done for evidence captures.
+
+Microsoft Playwright MCP does not expose Chrome DevTools MCP Lighthouse tools. Prefer
+Playwright screenshots, snapshots, traces, and video for evidence; use a dedicated
+audit tool only when Lighthouse-style scores are explicitly required.
 
 ## Procedure
 

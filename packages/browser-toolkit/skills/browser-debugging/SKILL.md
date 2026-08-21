@@ -1,11 +1,15 @@
 ---
 name: browser-debugging
-description: Use when an authorized browser workflow has runtime errors, failed requests, accessibility defects, memory growth, or unexplained performance behavior.
+description: Use when an authorized browser workflow has runtime errors, failed requests, accessibility defects, unexpected traces, or unexplained performance behavior.
 ---
 
 # Browser debugging
 
-For MCP tool names and the core loop, also load **`use-playwright-mcp`**.
+After resolving a provider lane, load the matching catalog:
+
+- `use-playwright-mcp` — live console/network/snapshot correlation (usual debug lane)
+- `use-playwright-cli` — compact reproduction scripts and traces while coding
+- `use-playwright-test` — preserve a regression once the failure is understood
 
 ## Capability required
 
@@ -17,12 +21,12 @@ profile directory -- Playwright MCP partitions automatically as
 mcp-{channel}-{workspace-hash}, and --isolated removes the on-disk profile
 entirely."
 
-It also requires DevTools-protocol depth: performance traces, heap snapshots,
-Lighthouse, and raw console/network correlation. That depth is not a capability name
-in `hostSurfaces` because only one provider offers it, and a capability name nothing
-else resolves is vocabulary rather than routing. It is the actual justification for
-the local `playwright` fallback, so this skill reaches it more often than the
-other two when DevTools depth is required.
+It also needs deep runtime observation: console and network correlation, traces,
+and accessibility structure. That depth is not a separate capability name in
+`hostSurfaces` because only the Playwright MCP/CLI/Test stack offers it here, and
+a capability name nothing else resolves is vocabulary rather than routing. It is
+the justification for leaving the surface browser when it cannot expose those
+signals.
 
 ## Resolve a provider before choosing a tool
 
@@ -33,10 +37,14 @@ other two when DevTools depth is required.
    <!-- resolution-step: surface-provided -->
 2. Use `playwright` -- the declared fallback, `providesCapabilities` in
    `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
-   `null`, or when the step needs DevTools depth the surface cannot reach.
+   `null`, or when the step needs MCP-depth console/network/snapshot correlation the
+   surface cannot reach. Load `use-playwright-mcp`.
    <!-- resolution-step: local-fallback -->
-3. Use Playwright CLI only when compact repeatable actions are more useful than live
-   DevTools state.
+3. Use Playwright CLI when a compact repeatable reproduction or trace capture is more
+   useful than a live MCP reasoning loop. Load `use-playwright-cli`.
+   <!-- resolution-step: additional-lane -->
+4. After the failure is understood, encode it as Playwright Test when it is worth
+   preserving. Load `use-playwright-test`.
    <!-- resolution-step: additional-lane -->
 
 `false` and `null` are different findings and neither is a provider: `false` means
@@ -45,31 +53,37 @@ checked and absent, `null` means never established. Resolve, do not assume.
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at
 session start, and to run as one shared process rather than one per host.
-`playwright` is the QA fallback for this skill; do not start it when
-the surface already provides `browser.isolated`. Its profile is separate from
-personal Chrome, which is the isolation this skill requires.
+`playwright` is the MCP QA fallback for this skill; do not start it when the surface
+already provides `browser.isolated`. Its profile is separate from personal Chrome,
+which is the isolation this skill requires.
+
+### Honest tool expectations
+
+Microsoft Playwright MCP exposes console, network, snapshots, screenshots, and
+optional tracing/video via caps — not Chrome DevTools MCP Lighthouse or heap-snapshot
+tool names. For Lighthouse-style audits or heap workflows, use Playwright Trace/CLI/Test
+or a dedicated audit tool; do not invent DevTools MCP calls against `playwright`.
 
 ## Workflow
 
 1. Record the build, URL, role, synthetic identity, viewport, and reproduction.
-2. List the resolved provider's open pages, select the target page, wait for the
-   expected state, then take both a snapshot and screenshot. Refresh the snapshot
-   after DOM changes.
+2. List the resolved provider's open pages/tabs, select the target, wait for the
+   expected state, then take both a structural snapshot and a screenshot. Refresh the
+   snapshot after DOM changes.
 3. Reproduce with natural clicks, typing, hover, focus, and keyboard navigation.
 4. Correlate visible state with console messages and network requests. Inspect only
    relevant request details and redact credentials, cookies, tokens, and private data.
 5. For accessibility, compare the accessibility snapshot with the screenshot; check
    headings, accessible names, labels, focus order, modal focus trapping, keyboard
-   operation, tap targets, and contrast. Use Lighthouse as a baseline, not sole proof.
-6. For performance, capture a normal trace before justified throttling. Report the
-   observed LCP, INP, CLS, long tasks, blocking resources, and request waterfall.
-7. For suspected leaks, capture baseline and post-repetition heap snapshots, compare
-   summaries and retaining paths, then close every loaded snapshot. Never read a raw
-   heap snapshot into model context.
-8. Use reversible live CSS or JavaScript only to test a hypothesis. The repository fix
+   operation, tap targets, and contrast.
+6. For performance, capture a normal Playwright trace before justified throttling.
+   Report observed load behavior, long tasks, blocking resources, and request
+   waterfall from that evidence.
+7. Use reversible live CSS or JavaScript only to test a hypothesis. The repository fix
    and focused regression remain the deliverable.
 
 Do not enable experimental tool categories or attach to personal Chrome for this skill's
 `browser.isolated` path. The automation profile is not personal Chrome, so the default
 mode already satisfies that requirement; attaching to a live personal session would mean
-passing `--browserUrl` deliberately, which is outside this skill.' Do not call type checks or unit tests browser proof.
+passing a browser-url attachment deliberately, which is outside this skill. Do not call
+type checks or unit tests browser proof.

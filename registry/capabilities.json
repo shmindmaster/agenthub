@@ -773,7 +773,9 @@
         "browser-debugging",
         "browser-evidence",
         "interactive-browser-testing",
-        "use-playwright-mcp"
+        "use-playwright-cli",
+        "use-playwright-mcp",
+        "use-playwright-test"
       ],
       "retiredSkillNames": [
         "browser-audit",
@@ -786,7 +788,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "B8F3131EA0884AD2AE724AA024EBB191D3BF542D676780F3CE42D36D1605A0C5",
+      "contentHash": "6FF7978C3C126E2367C3F78180AD8043A7C6409B42246080C89BAD43E2104DEF",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [

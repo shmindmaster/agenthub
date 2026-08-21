@@ -1,14 +1,13 @@
 {
   "name": "browser-toolkit",
-  "version": "1.1.1",
-  "description": "Interactive visual browser testing, Chrome DevTools debugging, evidence capture, and token-efficient Playwright CLI workflows.",
+  "version": "2.1.0",
+  "description": "Interactive visual browser testing, Playwright MCP/CLI/Test provider catalogs, debugging, and evidence capture.",
   "author": {
     "name": "Sarosh Hussain"
   },
   "license": "MIT",
   "keywords": [
     "browser-testing",
-    "playwright",
     "playwright",
     "visual-testing",
     "accessibility",
@@ -19,7 +18,7 @@
   "interface": {
     "displayName": "Browser Toolkit",
     "shortDescription": "Interactively test and debug real browser workflows.",
-    "longDescription": "Use an isolated headed Chrome session for agent-directed visual testing, interaction, console and network inspection, accessibility checks, Lighthouse and performance analysis, and reproducible evidence. Use the bundled Playwright CLI guidance for compact scripted actions, traces, screenshots, and recordings without another MCP server.",
+    "longDescription": "Use an isolated headed Chromium session for agent-directed visual testing, interaction, console and network inspection, accessibility checks, and reproducible evidence. Prefer Playwright CLI for compact coding-agent capture; Playwright MCP for exploratory loops; Playwright Test for regressions.",
     "developerName": "Sarosh Hussain",
     "category": "Developer Tools",
     "capabilities": [
