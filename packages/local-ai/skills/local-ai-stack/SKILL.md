@@ -87,81 +87,135 @@ All media and synthesis routes are also under the same interface:
 
 ```powershell
 & $LocalAiControl image <single|batch>
-& $LocalAiControl voice <qwen|qwen-role|qwen-clone|qwen-role-batch|verify>
+& $LocalAiControl voice <qwen|qwen-role|qwen-clone|qwen-*-batch|score|verify>
+& $LocalAiControl catalog ["<voice alias>"]
 & $LocalAiControl transcribe <audio-or-video-path>
 & $LocalAiControl music <batch-json>
 & $LocalAiControl motif <verify|single|batch>
 ```
 
 Do not add a second control script or a parallel launcher for this capability.
+**`ai.ps1 voice kokoro` is removed** and fails loudly.
 
-### Canonical Sarosh narration voice
+## Voice TTS — FROZEN (Qwen3-TTS only)
 
-Use exactly one route for Sarosh narration:
+> **Qwen3-TTS is the only production TTS family. `faster-qwen3-tts` is the only
+> Qwen inference backend. 0.6B Base = default clone; 1.7B Base = premium clone;
+> 0.6B CustomVoice = generic presets; 1.7B CustomVoice = directed/`instruct`;
+> VoiceDesign = create then enroll. Full ICL + cached prompts + hot CUDA graphs.
+> Kokoro removed. Stock `qwen_tts` / `Qwen3TTSModel` production route disabled —
+> no silent fallback.**
 
-```powershell
-& $LocalAiControl voice qwen-clone --voice sarosh --text "Your words." --out <output.wav>
+Authoritative disk policy (do not fork a second catalogue into AgentHub):
+
+- `$LocalAiRoot\data\artifacts\media\voice-corpus\PRODUCTION-VOICE-POLICY.md`
+- `$LocalAiRoot\data\artifacts\media\voice-corpus\VOICE-MAP.md`
+- `$LocalAiRoot\data\artifacts\media\voice-corpus\library.json`
+- `$LocalAiRoot\data\artifacts\media\voice-corpus\AGENTS.md`
+
+Architecture:
+
+```text
+YOUR VOICE BANK → QWEN VOICE ROUTER
+  → 0.6B Base Fast (DEFAULT clone) | 1.7B Base Fast (PREMIUM)
+  → 0.6B CustomVoice Fast (DEFAULT role) | 1.7B CustomVoice Fast (instruct)
+  → 1.7B VoiceDesign Fast (FACTORY only)
+  → faster-qwen3-tts CUDA Graphs → RTX 5060 Ti
 ```
 
-**Invoke it with the call operator, never `pwsh -File`.** `ai.ps1` is an
-advanced script, so PowerShell's common parameters exist and `--out` prefix-
-matches both `-OutVariable` and `-OutBuffer`; under `-File` the script aborts
-with "the parameter name 'out' is ambiguous" before it runs. The failure is
-invisible interactively and fatal to every programmatic caller. From a
-non-PowerShell process, pass values through the environment so text containing
-quotes cannot break or inject into the command string:
+Do **not** add Docker, vLLM, Triton, or FlashAttention for TTS speed. Native
+Windows CUDA venv (`runtimes\media\voice-qwen-fast`) only.
+
+### STOP — first-class voices (celebrity names are style labels)
+
+| Display name | Canonical id | Default render |
+| --- | --- | --- |
+| **Sarosh** | `sarosh` | 0.6B Base Fast (identity-gated) |
+| **Morgan Freeman-style** | `narrator-calm-authoritative` | 0.6B Base Fast |
+| **Matthew McConaughey-style** | `narrator-conversational-charismatic` | 0.6B Base Fast |
+| **Michael Caine-style** | `narrator-deliberate-mentor` | 0.6B Base Fast |
+| **David Attenborough-style** | `narrator-natural-history-documentary` | 0.6B Base Fast |
+| Relaxed Storyteller | `narrator-relaxed-storyteller` | 0.6B Base Fast |
+| Documentary Scholar | `narrator-documentary-scholar` | 0.6B Base Fast |
+| Technical Instructor | `narrator-technical-instructor` | 0.6B Base Fast |
+| Aiden / Ryan / Uncle_Fu / Vivian / Serena / Dylan / Eric / Ono_Anna / Sohee | `role-*` | 0.6B CV Fast |
+
+Never invent a new clone because “Morgan Freeman isn’t a folder name.” Resolve
+via `ai.ps1 catalog "Morgan"` / `library.json` aliases. Public copy: **“-style”**
+persona — not an impersonation claim. Voice id is stable; model size is only the
+renderer (`preferred_tier=premium` → 1.7B, same id).
+
+Former Kokoro / `smoke-narrator` / `af_heart` → **`role-aiden`** (retired alias
+with `redirect_to`). Do not call Kokoro.
+
+### Router
+
+1. Existing clone → `qwen-clone` 0.6B Fast → need premium? → `--premium` (1.7B)
+2. Generic preset → `qwen-role` 0.6B CustomVoice Fast
+3. Preset + acting/`--instruction` → 1.7B CustomVoice Fast (0.6B lacks full NL instruct)
+4. Brand-new persona → `qwen` VoiceDesign Fast → approve → enroll → Base Fast thereafter
+
+```powershell
+& $LocalAiControl voice qwen-clone --voice narrator-calm-authoritative --text "…" --out out.wav
+& $LocalAiControl voice qwen-clone --voice sarosh --premium --text "…" --out out.wav
+& $LocalAiControl voice qwen-role --speaker Aiden --text "…" --out out.wav
+& $LocalAiControl voice qwen-role --speaker Ryan --instruction "restrained anger, deliberate pace" --text "…" --out out.wav
+```
+
+**Invoke with the call operator, never `pwsh -File`.** `--out` prefix-matches
+`-OutVariable`/`-OutBuffer`. From non-PowerShell, pass text through the
+environment:
 
 ```powershell
 pwsh -NoProfile -Command "& '<root>\ai.ps1' voice qwen-clone --voice $env:V --text $env:T --out $env:O"
 ```
 
-The owner selected transcript-conditioned Qwen3-TTS Base ICL on 2026-08-11.
-The `sarosh` profile preserves the reference transcript, disables sampling,
-and forbids x-vector-only mode. Do not recreate or use Chatterbox Sarosh
-profiles, `sarosh-qwen`, meeting/singing profiles, shootout baselines, or loose
-`sarosh-ref-*` files. The meeting corpus is reference material only and is not
-an approved narration fine-tuning corpus.
+If anything requests stock `qwen_tts` / slow backend:
 
-Resolve the exact profile from
-`data\artifacts\media\voice-corpus\voices\sarosh\profile.json`. Require human
-listening approval before replacing its reference or changing a client video.
-
-### Identity gating is mandatory for owner-voice output
-
-Every generated clip that claims to be Sarosh is scored against an enrolled
-speaker profile before it ships:
-
-```powershell
-& $LocalAiRuntime\audio-qa\Scripts\python.exe <root>\media\qa\score_identity.py --voice sarosh <file-or-dir>
+```text
+ERROR: Slow Qwen TTS backend disabled.
+Use faster-qwen3-tts.
 ```
 
-It reports two independent backends (ReDimNet2-B6 and CAM++), requires both to
-clear a floor derived from the owner's own recordings, and exits non-zero on
-failure so it composes with render scripts. Backends were selected by
-measurement, not reputation; `wavlm-base-plus-sv` is deliberately excluded
-because it could not separate this speaker from other narrators.
+Fail → retry fast → new seed → escalate 0.6→1.7 Fast → STOP+LOG. Never silent
+stock fallback. One bad WAV ≠ abandon the backend.
 
-This is not optional polish. Retro-scoring 148 already-delivered brief segments
-found 6 below the floor, one at less than half of it -- audio that had shipped
-without anyone noticing it no longer sounded like the speaker.
+### Sarosh (identity-gated)
 
-Do not fix pronunciation by respelling the input text. Measured on the
-`voice-out/names/` A/B set, phonetic respelling (`v5_phon`) was the only variant
-that FAILED the identity floor on both backends: it changes the voice to change
-the vowel. Pronunciation belongs in a dedicated dictionary layer that applies
-across engines.
+Expressiveness = style WAV + `.txt` from
+`voices\sarosh\styles-20260815\` (default `02_explaining`) — **not** free-text
+`instruct`. Profile locks `do_sample: false`. `reference.wav` is the identity
+score anchor only.
 
-### Engine selection is measured, not remembered
+```powershell
+& $LocalAiControl voice qwen-clone --voice sarosh `
+  --reference "<root>\data\artifacts\media\voice-corpus\voices\sarosh\styles-20260815\02_explaining.wav" `
+  --ref-text "<sidecar txt>" --text "…" --out out.wav
+& $LocalAiControl voice score --voice sarosh <file-or-dir>
+```
 
-`<root>\media\qa\shootout.py` renders a fixed evaluation script through every
-installed engine and ranks them by identity score. Run it before changing the
-default engine, and keep `media\qa\eval_script.json` stable -- editing the text
-invalidates comparison with earlier runs.
+Do not recreate Chatterbox / `sarosh-qwen` / x-vector-only / meeting-fine-tune
+profiles. Do not fix pronunciation by respelling text (fails identity floor).
 
-Adding an engine means adding an adapter under `media\engines\` that honours the
-shared `--text/--out/--reference/--ref-text/--seed/--print-id` contract, plus a
-`capabilities` entry in `$LocalAiRegistry`. Engines are never co-resident: one
-model at a time, per `policy.gpu_heavy_jobs`.
+### Ops
+
+- Full **ICL** for enrolled clones (ref WAV + exact transcript). x-vector only
+  with an explicit reason.
+- Cache clone prompts once per process; keep the model hot (warmup / CUDA graphs
+  once; no per-line reload).
+- Offline/episode: **non-streaming**; group jobs by model then voice. Resident
+  default = 0.6B Base; load other variants for grouped jobs.
+- Live UI: stream chunk ≈ 4–8.
+- Advanced sampling (`temperature`, `top_k`, …) under Advanced only — don’t
+  randomize per line; use 1.7B CV `instruct` for acting.
+- Languages (Qwen): Chinese, English, Japanese, Korean, German, French, Russian,
+  Portuguese, Spanish, Italian.
+
+### Specialty engines
+
+`voice.voxcpm2`, `voice.indextts25`, `voice.bestof`, `voice.performance` remain
+specialty — not production defaults. Do not expand the production TTS family
+unless Qwen fails a measured requirement.
 
 ### Building or extending the owner voice corpus
 
@@ -171,30 +225,9 @@ Training and reference material is assembled by the refinery, never by hand:
 & $LocalAiControl corpus <sources|ingest|map|calibrate|select|transcribe|classify|report>
 ```
 
-Every stage is resumable and its output file is the completion record. Three
-properties matter to any agent touching it:
-
-**Source audio is read-only.** `ingest` decodes into a working tree; every later
-stage reads that. Do not point any tool at the originals.
-
-**The path denylist fails closed.** A path outside every declared pool in
-`media\refinery\sources.py` is refused, not admitted, and denial is checked
-before pool membership so a denied subtree inside an allowed pool stays denied.
-Legal-matter recordings, third-party analyst audio, and the singing register are
-denied there. Add a pool by declaring it, never by passing a file directly.
-
-**Mined pools cannot reach Gold.** Clearing the identity gate proves the voice
-is the owner's; it does not prove the file is a recording rather than a render.
-Both acoustic tests for synthetic audio were tried and failed, so provenance
-remains the deciding evidence and uncurated sources cap at silver.
-
-Run `corpus map` as the only GPU job. A second concurrent job measured 2.8 s per
-segment against 0.11 s — a 25x penalty, not the 2x that sharing a card suggests.
-
-Gold and silver are separated by delivery register, not by identity: everything
-reaching classification has already cleared the identity floor. The existing
-prohibition on fine-tuning a narration model on the meeting corpus is unchanged;
-the refinery makes it a per-clip measurement instead of a per-folder assertion.
+Source audio is read-only. Path denylist fails closed. Mined pools cannot reach
+Gold without provenance. New VoiceDesign personas: generate once → enroll into
+`library.json` with aliases → produce with Base clone thereafter.
 
 ## Route matrix
 
@@ -239,8 +272,9 @@ collection/alias contract as the retrieval API, not a second source of truth.
 ### 3) Media routes
 
 - **Image**: the declared image capability via `ai.ps1 image`.
-- **Voice and TTS/STT**: the declared voice/STT capabilities via the control
-  plane.
+- **Voice and TTS/STT**: Qwen3-TTS via `faster-qwen3-tts` only (`voice.clone` /
+  `voice.role` / `voice.design`) plus STT; see Voice TTS section above. Kokoro
+  / `audio.tts.bulk` removed.
 - **Video/music**: `ai.ps1 motif` and `ai.ps1 music`.
 
 Resolve which media capabilities exist by reading `capabilities` in

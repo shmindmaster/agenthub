@@ -16,8 +16,10 @@ speaker that merely sounds professional.
 & '<LOCAL_AI_ROOT>\ai.ps1' voice qwen-clone --voice sarosh --text "..." --out <out.wav>
 ```
 
-See the `local-ai-stack` skill for the route, the mandatory identity gate, and
-the call-operator invocation requirement. This mirrors the boundary
+Sarosh moods use the `styles-20260815` style-bank WAVs (not ElevenLabs and not
+free-text mood prompts). See the `local-ai-stack` skill for the full Qwen-only
+playbook (0.6B Fast default, `--premium` for 1.7B, celebrity-style narrator ids,
+mandatory identity gate, call-operator invocation). This mirrors the boundary
 `elevenlabs-stt` already enforces for privileged media: some audio belongs on
 this machine and nowhere else.
 

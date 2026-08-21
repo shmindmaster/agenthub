@@ -136,7 +136,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin+cli",
       "canonicalSource": "packages/elevenlabs",
-      "contentHash": "AF4549CCCB4A10D15292BC46D6E95BE1EF9BFA4CFCF582535449F71DE37A427A",
+      "contentHash": "BF30FB8BFE30C8E6BE5086F452EE3F32FD41C48C48BDCE0FF0CB7D3622AA8B4C",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
@@ -179,7 +179,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
       "canonicalSource": "packages/product-demo-studio",
-      "contentHash": "E36893E2DC263EFD8517154C6DE5A6C51AE6248D487131EBFA670DB7EEDE48B9",
+      "contentHash": "C99EE050162E7AE5F6C94BD2BD282942933E1B5CB69B85B9D55E6AEA430B4E6A",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -725,7 +725,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "6D4338A8A1D9A51AA05FE636B6CD0D18891F7410F978EB409C050C950281B7F4",
+      "contentHash": "81A42EB2F49BCF7DF0E30A3EB8C17B5E93E88E171C9124BE3DB23A7D0F723FB7",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the same eight-host tier clerk, digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. firecrawl is also single-mapped and that one IS deliberate -- its deploymentStatus is native-plugin-installed, meaning Codex installs it natively rather than AgentHub deploying it.",
@@ -945,7 +945,9 @@
         "syncOwner": "scripts/Sync-Capabilities.ps1",
         "runtimeRelativeRoot": "capabilities/mobile-development",
         "entrypoint": "mobile.ps1",
-        "arguments": ["catalog"],
+        "arguments": [
+          "catalog"
+        ],
         "authoritySource": "registry",
         "authorityRuntimeRelativeRoot": "registry"
       },
@@ -953,12 +955,18 @@
         {
           "hostId": "amp",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "antigravity",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "claude",
@@ -973,7 +981,10 @@
         {
           "hostId": "cline",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "codex",
@@ -988,57 +999,90 @@
         {
           "hostId": "copilot",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "cursor",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "devin",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "factory",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "gemini",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "grok",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "opencode",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "qwen-code",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "vscode-insiders",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         },
         {
           "hostId": "warp",
           "deploymentStatus": "managed-loose-skills",
-          "components": ["skills", "catalog"]
+          "components": [
+            "skills",
+            "catalog"
+          ]
         }
       ],
       "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the source public contract at packages/mobile-development/mobile.ps1, the AgentHub-managed deployed runtime package, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",

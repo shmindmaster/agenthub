@@ -19,13 +19,21 @@ Narration explains viewer value without racing the interface or claiming more th
 Use `../../scripts/generate-narration.mjs` for the canonical segment workflow. OpenAI is the minimal external-workspace dependency; ElevenLabs is optional through the shared ElevenLabs capability. Sensitive or privileged audio remains local-first.
 
 When the narration is explicitly Sarosh's voice and the local stack is
-available, use the canonical Local-AI route only:
+available, use the canonical Local-AI route only (see `local-ai-stack`):
 
 ```powershell
-D:\Local-AI\ai.ps1 voice qwen-clone --voice sarosh --text "..." --out <segment.wav>
+D:\Local-AI\ai.ps1 voice qwen-clone --voice sarosh `
+  --reference "D:\Local-AI\data\artifacts\media\voice-corpus\voices\sarosh\styles-20260815\02_explaining.wav" `
+  --ref-text "<sidecar txt contents>" --text "..." --out <segment.wav>
 ```
 
-Invoke it with the PowerShell call operator, never `pwsh -File`: `ai.ps1` is an
+Default clone is **0.6B Base + faster-qwen3-tts**; add `--premium` for 1.7B.
+Expressiveness = style WAV, not free-text mood. Identity-gate before ship.
+Celebrity-style narrators (Morgan Freeman-style → `narrator-calm-authoritative`,
+etc.) are first-class enrolled clones — resolve via `ai.ps1 catalog` / the
+`local-ai-stack` voice bank; never invent new clones or call Kokoro.
+
+Invoke with the PowerShell call operator, never `pwsh -File`: `ai.ps1` is an
 advanced script, so `--out` prefix-matches `-OutVariable`/`-OutBuffer` and the
 script aborts with "the parameter name 'out' is ambiguous" before it runs. From
 Node or any non-PowerShell caller, use `scripts/generate-narration.mjs`
