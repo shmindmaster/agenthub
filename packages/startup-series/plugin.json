@@ -1,4 +1,6 @@
 {
+  "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "startup-series",
+  "version": "1.0.0",
   "description": "Receipts showrunner skills — portable Agent Skills for multi-host episode production (no private media)."
 }

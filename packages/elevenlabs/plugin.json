@@ -1,4 +1,6 @@
 {
+  "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "elevenlabs",
+  "version": "1.0.0",
   "description": "ElevenLabs voice, text-to-speech, speech-to-text, and account health workflows."
 }

@@ -318,20 +318,44 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-# A package carrying BOTH plugin.json and .claude-plugin/plugin.json must keep
-# their versions equal. On 2026-08-19 only .claude-plugin was bumped, so
-# mobile-device-lab read 1.1.2 to the plugin host and 1.1.1 to the test that
-# resolves the live install -- a split that presents as a missing plugin.
+# Root plugin.json is the portable Agent Plugins floor and the version
+# authority. Host projections may add host-native fields but must not diverge
+# on version. On 2026-08-19 only .claude-plugin was bumped for one package, so
+# hosts disagreed; requiring root authority prevents that split.
+$hostManifestDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin', '.qoder-plugin')
+$packagesWithHostVersion = 0
 foreach ($pkgDir in Get-ChildItem -LiteralPath (Join-Path $repoRoot 'packages') -Directory) {
     $rootManifest = Join-Path $pkgDir.FullName 'plugin.json'
-    $claudeManifest = Join-Path $pkgDir.FullName '.claude-plugin\plugin.json'
-    if (-not (Test-Path -LiteralPath $rootManifest) -or -not (Test-Path -LiteralPath $claudeManifest)) { continue }
-    $rv = (Get-Content -LiteralPath $rootManifest -Raw -Encoding UTF8 | ConvertFrom-Json).version
-    $cv = (Get-Content -LiteralPath $claudeManifest -Raw -Encoding UTF8 | ConvertFrom-Json).version
-    if (-not $rv) { continue }   # root manifest may legitimately omit version
-    Report "$($pkgDir.Name) plugin manifests agree on version" ($rv -eq $cv) `
-        "plugin.json says '$rv' but .claude-plugin/plugin.json says '$cv'."
+    $hostVersions = [ordered]@{}
+    foreach ($hostDir in $hostManifestDirs) {
+        $hostManifest = Join-Path $pkgDir.FullName "$hostDir\plugin.json"
+        if (-not (Test-Path -LiteralPath $hostManifest)) { continue }
+        $hv = (Get-Content -LiteralPath $hostManifest -Raw -Encoding UTF8 | ConvertFrom-Json).version
+        if ($hv) { $hostVersions[$hostDir] = [string]$hv }
+    }
+    if ($hostVersions.Count -eq 0) { continue }
+    $packagesWithHostVersion++
+    if (-not (Test-Path -LiteralPath $rootManifest)) {
+        Report "$($pkgDir.Name) has portable root plugin.json as version authority" $false `
+            "host manifests declare version(s) ($(($hostVersions.GetEnumerator() | ForEach-Object { '$($_.Key)=$($_.Value)' }) -join ', ')) but packages/$($pkgDir.Name)/plugin.json is missing."
+        continue
+    }
+    $root = Get-Content -LiteralPath $rootManifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    $rv = [string]$root.version
+    Report "$($pkgDir.Name) root plugin.json declares the package version" (-not [string]::IsNullOrWhiteSpace($rv)) `
+        "packages/$($pkgDir.Name)/plugin.json must carry version; it is the Agent Plugins portable authority."
+    if ([string]::IsNullOrWhiteSpace($rv)) { continue }
+    foreach ($entry in $hostVersions.GetEnumerator()) {
+        Report "$($pkgDir.Name) $($entry.Key)/plugin.json matches root version" ($entry.Value -eq $rv) `
+            "root plugin.json says '$rv' but $($entry.Key)/plugin.json says '$($entry.Value)'."
+    }
 }
+Report 'at least one package participates in portable root version authority' ($packagesWithHostVersion -gt 0) `
+    'found no packages with host plugin manifests declaring version; the authority check would be vacuously true.'
 
+if ($failures.Count -gt 0) {
+    Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
+    exit 1
+}
 Write-Host "RESULT: $reported passed, 0 failed" -ForegroundColor Green
 exit 0

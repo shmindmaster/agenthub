@@ -1,7 +1,11 @@
 {
   "schemaVersion": 1,
   "canonicalPackage": {
+    "portableManifest": "plugin.json",
+    "portableManifestSchema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
+    "portableManifestNote": "Agent Plugins 1.0.0 floor: root plugin.json is the portable package identity and the single version authority. Host projections (.claude-plugin, .codex-plugin, .cursor-plugin, .qoder-plugin) may add host-native fields but must not diverge on name/version. Use scripts/Bump-PackageVersion.ps1 to bump.",
     "manifest": ".claude-plugin/plugin.json",
+    "manifestNote": "Claude-shaped host projection retained for hosts that still consume the Claude plugin layout. Version must match root plugin.json.",
     "skills": "skills/*/SKILL.md",
     "agents": "agents/*.agent.md",
     "mcp": ".mcp.json"
