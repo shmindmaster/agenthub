@@ -30,7 +30,6 @@
     "onDemandLocalMcpIds": [
       "appium-mobile",
       "playwright",
-      "railway",
       "repowise-workspace"
     ],
     "persistedOnDemandLocalMcpIds": [
@@ -52,12 +51,12 @@
       "notAdded": {
         "chrome-devtools-isolated": "Registered 2026-08-06 with activationMode on-demand-local. Not added here because whether it is governed as a separate lifecycle id or as part of its chrome-devtools sibling is a decision about how browser-toolkit exposes the pair, and no host exposure list in this file names it at all -- adding it to the lifecycle list alone would record a governance claim the exposures do not back.",
         "repowise-workspace": "Registered 2026-08-07 with activationMode on-demand-local but scope global-default and 18 declared hosts, unlike every id currently in this list. localFanoutPolicy says an on-demand-local id is never persisted in host configuration; a global-default server with 18 hosts is the shape that normally IS persisted. Which of the two is correct was not measured against the deployed host configs, and recording it either way without that measurement is the assumption this registry exists to forbid.",
-        "railway": "Registered 2026-08-19, after this block was reconciled on 2026-08-13, so the 'complete for what it claims' sentence above did not cover it. Declared to claude and codex but measured in zero host configs, so there is nothing to persist yet -- recorded here so the gap is visible rather than implied."
+        "railway": "Was on-demand-local stdio from 2026-08-19 to 2026-08-20. Moved to shared-remote https://mcp.railway.com (OAuth, no local process) on 2026-08-20 after Cursor's official plugin spawned two `railway mcp` process trees. No longer belongs in this on-demand-local coverage list."
       },
       "nextStep": "Measure both against the deployed host configurations, then either add them here or record why each is exempt. Until then this list is complete for what it claims and explicitly incomplete for what it does not."
     },
     "persistedOnDemandLocalMcpIdsNote": "Reviewed exceptions: on-demand-local servers that ARE written into host configs. The default is to omit them, because activationPolicy wants a local server started by the capability that needs it rather than declared everywhere. playwright was added 2026-08-19 with a specific justification: the eight hosts it targets have no native browser and no plugin format that can deliver an MCP for them (amp, copilot, devin, gemini, grok, opencode, qwen-code, warp take raw MCP config), so omitting it would leave them with no browser capability at all. The usual objection to persisting a local server -- a process per host at session start -- does not apply: Playwright does not launch a browser until a tool needs one, and its daemon measured 10-22 MB here against appium's ~93 MB.",
-    "onDemandLocalMcpIdsNote": "Refreshed 2026-08-19. chrome-devtools was replaced by playwright and brave-search was removed (zero host declarations, zero session visibility). railway and repowise-workspace were live on-demand-local servers this list had never been updated to include.",
+    "onDemandLocalMcpIdsNote": "Refreshed 2026-08-20. railway left this list when it moved to shared-remote (https://mcp.railway.com); a stdio `railway mcp` entry is a process per host session and is not an AgentHub-managed local server any more. chrome-devtools was replaced by playwright and brave-search was removed earlier. repowise-workspace remains on-demand-local.",
     "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json."
   },
   "managedMarketplaces": [

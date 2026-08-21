@@ -1,6 +1,6 @@
 ﻿{
   "schemaVersion": 6,
-  "generatedAt": "2026-08-19T00:00:00.000Z",
+  "generatedAt": "2026-08-20T00:00:00.000Z",
   "migrationAliases": {
     "repowise": "repowise-workspace",
     "chrome-devtools-isolated": "playwright",
@@ -399,39 +399,24 @@
     {
       "id": "railway",
       "name": "Railway (deploy and infrastructure)",
-      "scope": "on-demand-desktop",
-      "transport": "stdio",
-      "activationMode": "on-demand-local",
-      "command": "railway",
-      "args": [
-        "mcp"
-      ],
-      "credentialPolicy": "none-in-config; the railway CLI holds its own session token outside MCP configuration",
+      "scope": "global-default",
+      "transport": "http",
+      "activationMode": "shared-remote",
+      "url": "https://mcp.railway.com",
+      "credentialPolicy": "oauth",
       "providesCapabilities": [
         "deploy.railway"
       ],
       "protocol": {
-        "revision": "2025-03-26",
-        "verifiedOn": "2026-08-19",
-        "verification": "stdio initialize against `railway mcp` returned protocolVersion 2025-03-26, serverInfo 'railway' 5.37.4, capabilities: tools."
-      },
-      "localProcessPolicy": {
-        "instancing": "single-shared-process",
-        "declaredByHostCount": 2,
-        "note": "Registered 2026-08-19 to bring an already-deployed but ungoverned server under the registry. It had reached six hosts by hand, each spawning a node process on session start for a deploy CLI that is needed occasionally and is fully usable as `railway` on the shell. Narrowed to the two hosts that actually run deployments.",
-        "measuredOn": "2026-08-20",
-        "measurement": "One node process, 4 MB resident, running @railway/cli/bin/railway.js mcp. An audit had reported three processes at roughly 33 MB each; that was a measurement error -- a PowerShell `switch -Regex` without `break` falls through, so unrelated node processes were tallied under railway. The declared single-shared-process instancing matches observed reality; no violation."
+        "revision": null,
+        "verifiedOn": "2026-08-20",
+        "verification": "POST initialize to https://mcp.railway.com returned HTTP 401 {\"error\":\"Authentication required\"}. https://mcp.railway.com/mcp and /sse returned 404. This endpoint refuses protocol negotiation before an interactive OAuth grant, so the revision cannot be established non-interactively. Deliberately left null rather than assumed. Official docs: https://docs.railway.com/ai/mcp-server"
       },
       "owner": {
         "type": "registry",
         "id": "mcp-registry"
       },
-      "hosts": [
-        "claude",
-        "codex"
-      ],
-      "experimentalFlagsEnabled": [],
-      "notes": "The use-railway skill drives the CLI directly and does not require this server; the server is the convenience path, not the capability."
+      "notes": "Switched 2026-08-20 from stdio `railway mcp` to Remote MCP. Local CLI MCP spawned a Node+railway.exe process per host session; measured two copies from Cursor's official plugin alone (~136 MB) with no Railway work in progress. Do not configure `railway mcp` or `railway mcp proxy` -- both spawn local processes. Direct OAuth to https://mcp.railway.com spawns nothing. The use-railway skill still drives the CLI for cwd/deploy work; this server is the OAuth remote convenience path, not the capability."
     }
   ]
 }
