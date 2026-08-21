@@ -111,6 +111,42 @@
         "authentication": "ON_USE"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "technical-storytelling",
+      "source": {
+        "source": "local",
+        "path": "./packages/technical-storytelling"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "story-series-studio",
+      "source": {
+        "source": "local",
+        "path": "./packages/story-series-studio"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "learning-studio",
+      "source": {
+        "source": "local",
+        "path": "./packages/learning-studio"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
     }
   ]
 }

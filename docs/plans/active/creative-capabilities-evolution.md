@@ -25,21 +25,21 @@ artifacts outside the repo, Local-AI outside AgentHub.
 
 ## Implementation order
 
-1. **P0 — browser-toolkit** ✅ (landed on main 2026-08-21) (blocking): Microsoft Playwright MCP vocabulary +
+1. **P0 — browser-toolkit** ✅ (landed on main): Microsoft Playwright MCP vocabulary +
    profile semantics; add `use-playwright-cli` and `use-playwright-test`
    provider references; router lane selection (CLI vs MCP vs Test); tests.
-2. **P1 — portable plugin floor**: root `plugin.json` as Agent Plugins 1.0.0
+2. **P1 — portable plugin floor** ✅: root `plugin.json` as Agent Plugins 1.0.0
    portable core; host projections remain; version authority + projection
    checks.
-3. **P1 — third-party + deps + bundles**: generalize `thirdPartyPlugins` →
+3. **P1 — third-party + deps + bundles** ✅: generalize `thirdPartyPlugins` →
    extensions; track Remotion; optional Creative Writing; capability
    dependency metadata; `registry/bundles.json`.
-4. **P2 — local-ai progressive disclosure**: keep `ai.ps1` / one control plane;
+4. **P2 — local-ai progressive disclosure** ✅: keep `ai.ps1` / one control plane;
    split agent knowledge into router + specialists (or reference packs).
-5. **P2 — technical-storytelling + story-series-studio**: schemas for episode /
-   receipt / scene / continuity; FACT/DRAMATIZED/COMPOSITE; evolve or retire
-   `startup-series` into the generic studio (no private story bible).
-6. **P2 — learning-studio**: single `engaging-exam-coach` + schemas; attention-
+5. **P2 — technical-storytelling + story-series-studio** ✅: schemas for episode /
+   receipt / scene / continuity; FACT/DRAMATIZED/COMPOSITE; `startup-series`
+   evolved to Receipts overlay (no private story bible in AgentHub).
+6. **P2 — learning-studio** ✅: single `engaging-exam-coach` + schemas; attention-
    friendly loop; no CCAF-specific logic; Remotion optional.
 7. **P3 — maturity/provenance/freshness**: registry metadata; replace misleading
    global `generatedAt` semantics; ChatGPT as distinct Codex distribution
@@ -68,4 +68,7 @@ green without running checks.
 
 - 2026-08-21: P0 browser-toolkit landed on main (`b93c6a1`).
 - 2026-08-21: P1 portable root version authority landed on main (`77bae75`).
-- 2026-08-21: P1 thirdPartyExtensions + Remotion/CW tracking + bundles.json in progress.
+- 2026-08-21: P1 thirdPartyExtensions + Remotion/CW tracking + bundles.json landed.
+- 2026-08-21: P2 local-ai progressive disclosure landed.
+- 2026-08-21: P2 technical-storytelling, story-series-studio, learning-studio
+  registered; startup-series slimmed to Receipts-only skills.

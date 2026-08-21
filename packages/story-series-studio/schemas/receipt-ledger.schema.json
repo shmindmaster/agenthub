@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "episode_id",
+    "entries"
+  ],
+  "properties": {
+    "episode_id": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim",
+          "truth",
+          "source"
+        ],
+        "properties": {
+          "claim": {
+            "type": "string"
+          },
+          "truth": {
+            "type": "string",
+            "enum": [
+              "FACT",
+              "DRAMATIZED",
+              "COMPOSITE"
+            ]
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

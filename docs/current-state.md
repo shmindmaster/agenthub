@@ -148,6 +148,11 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - **Portable plugin version authority (2026-08-21)**: root `plugin.json` is the
   Agent Plugins floor and single version authority; host projections must match
   (`scripts/Bump-PackageVersion.ps1`, `tests/Test-PluginManifests.ps1`).
+- **Creative / learning packages (2026-08-21)**: `technical-storytelling`,
+  `story-series-studio`, and `learning-studio` are registered packages.
+  `startup-series` is now a Receipts-only overlay (`startup-showrunner`,
+  `comedy-writer`); generic craft lives in the studio packages. Private show
+  bibles stay outside AgentHub. Product Demo Studio is unchanged.
 
 ## In progress
 

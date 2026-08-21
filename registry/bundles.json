@@ -24,8 +24,9 @@
         ]
       },
       "notes": [
-        "story-series-studio and technical-storytelling land in a later commit on this plan.",
-        "Product Demo Studio stays separate; do not route series work through it by default."
+        "story-series-studio and technical-storytelling are registered AgentHub packages.",
+        "Product Demo Studio stays separate; do not route series work through it by default.",
+        "startup-series remains a Receipts-specific overlay that requires the generic studio packages."
       ]
     },
     {
@@ -44,7 +45,7 @@
         ]
       },
       "notes": [
-        "learning-studio lands in a later commit on this plan.",
+        "learning-studio and technical-storytelling are registered AgentHub packages.",
         "Remotion/animations are optional enhancements, not required to answer a question."
       ]
     }

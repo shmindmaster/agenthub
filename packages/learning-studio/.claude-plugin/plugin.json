@@ -1,0 +1,15 @@
+{
+  "name": "learning-studio",
+  "version": "1.0.0",
+  "description": "Attention-friendly exam and training coach: question → answer → why → memory hook → recall.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "learning",
+    "exam",
+    "coach",
+    "education"
+  ]
+}

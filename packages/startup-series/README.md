@@ -1,6 +1,10 @@
 # Startup Series (Receipts)
 
-AgentHub capability: **portable showrunner skills** for the Receipts series.
+AgentHub capability: **Receipts-specific showrunner** skills.
+
+Generic series methodology lives in `story-series-studio` and shared explanation
+craft in `technical-storytelling`. This package keeps only Receipts-facing
+skills (`startup-showrunner`, `comedy-writer`) so skill ownership stays unique.
 
 ## Production repo (separate)
 

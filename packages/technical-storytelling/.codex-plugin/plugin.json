@@ -1,0 +1,15 @@
+{
+  "name": "technical-storytelling",
+  "version": "1.0.0",
+  "description": "Reusable technical explanation and visualization planning for demos, series, learning, and docs.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "storytelling",
+    "explainer",
+    "diagram",
+    "education"
+  ]
+}

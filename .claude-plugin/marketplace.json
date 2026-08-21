@@ -5,14 +5,53 @@
     "name": "MahumTech"
   },
   "plugins": [
-    { "name": "product-demo-studio", "source": "./packages/product-demo-studio" },
-    { "name": "product-experience-engineering", "source": "./packages/product-experience-engineering" },
-    { "name": "digitalocean", "source": "./packages/digitalocean" },
-    { "name": "elevenlabs", "source": "./packages/elevenlabs" },
-    { "name": "clerk", "source": "./packages/clerk" },
-    { "name": "firecrawl", "source": "./packages/firecrawl" },
-    { "name": "browser-toolkit", "source": "./packages/browser-toolkit" },
-    { "name": "mobile-development", "source": "./packages/mobile-development" },
-    { "name": "startup-series", "source": "./packages/startup-series" }
+    {
+      "name": "product-demo-studio",
+      "source": "./packages/product-demo-studio"
+    },
+    {
+      "name": "product-experience-engineering",
+      "source": "./packages/product-experience-engineering"
+    },
+    {
+      "name": "digitalocean",
+      "source": "./packages/digitalocean"
+    },
+    {
+      "name": "elevenlabs",
+      "source": "./packages/elevenlabs"
+    },
+    {
+      "name": "clerk",
+      "source": "./packages/clerk"
+    },
+    {
+      "name": "firecrawl",
+      "source": "./packages/firecrawl"
+    },
+    {
+      "name": "browser-toolkit",
+      "source": "./packages/browser-toolkit"
+    },
+    {
+      "name": "mobile-development",
+      "source": "./packages/mobile-development"
+    },
+    {
+      "name": "startup-series",
+      "source": "./packages/startup-series"
+    },
+    {
+      "name": "technical-storytelling",
+      "source": "./packages/technical-storytelling"
+    },
+    {
+      "name": "story-series-studio",
+      "source": "./packages/story-series-studio"
+    },
+    {
+      "name": "learning-studio",
+      "source": "./packages/learning-studio"
+    }
   ]
 }

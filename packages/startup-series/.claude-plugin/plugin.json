@@ -1,6 +1,5 @@
 {
   "name": "startup-series",
-  "version": "1.0.0",
   "description": "Receipts startup comedy-drama production skills (showrunner, truth ledger, continuity).",
   "author": {
     "name": "Sarosh Hussain"
@@ -11,5 +10,6 @@
     "showrunner",
     "remotion",
     "storytelling"
-  ]
+  ],
+  "version": "1.1.0"
 }

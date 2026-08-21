@@ -739,7 +739,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "8AA976D5B08CC6B78717EDF23E703C73D29704F507B91B62BB83D749104A2624",
+      "contentHash": "4F24CE50426DAED347DC4E4F5A870CC10332073C58363373B3FA6CB62A64BC8C",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the same eight-host tier clerk, digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. firecrawl is also single-mapped and that one IS deliberate -- its deploymentStatus is native-plugin-installed, meaning Codex installs it natively rather than AgentHub deploying it.",
@@ -1194,15 +1194,9 @@
       "canonicalSource": "packages/startup-series",
       "managedSkillNames": [
         "startup-showrunner",
-        "dramatize-real-incident",
-        "comedy-writer",
-        "technical-story-director",
-        "technical-explainer",
-        "episode-editor",
-        "privacy-fictionalizer",
-        "series-continuity"
+        "comedy-writer"
       ],
-      "contentHash": "465546B3AE9E94FF95B367971B93161BCA208990CF81E79CD49A794356720BE9",
+      "contentHash": "09DE63F661883A21C767693EAA4B15D1247DCCD24D4DAE82E5BF2160400F6198",
       "hashBasis": "packages/startup-series",
       "status": "active-canonical",
       "hostMappings": [
@@ -1244,9 +1238,12 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-21. Workflow-only skills for Receipts show production. Private media and episode receipts stay in D:\\OneDrive - MahumTech\\Videos\\Duckie\\startup-series (outside AgentHub). ChatGPT web/mobile parity is Phase E plugin packaging — Codex desktop already consumes Agent Skills via this plugin. Planned evolution: split into story-series-studio + technical-storytelling per docs/plans/active/creative-capabilities-evolution.md.",
+      "notes": "Evolved 2026-08-21: Receipts-specific overlay only (startup-showrunner, comedy-writer). Generic craft moved to story-series-studio + technical-storytelling so skill ownership stays unique. Private media remains outside AgentHub. Prefer the generic packages for new series work.",
       "dependencies": {
-        "requires": [],
+        "requires": [
+          "story-series-studio",
+          "technical-storytelling"
+        ],
         "recommends": [
           "browser-toolkit",
           "local-ai"
@@ -1258,6 +1255,207 @@
         ]
       },
       "kind": "orchestrator",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "technical-storytelling",
+      "owner": "personal-media",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/technical-storytelling",
+      "managedSkillNames": [
+        "technical-explainer",
+        "technical-visualizer"
+      ],
+      "contentHash": "6174B9273022E2D20BFD037645EFAAEECB9E18DF0802BF0B039A51CB2FD57575",
+      "hashBasis": "packages/technical-storytelling",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Added 2026-08-21. Shared technical explanation + visualization planning for demos, series, learning, and docs. No private show content. Remotion remains optional via external:remotion.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": [
+          "external:remotion"
+        ]
+      },
+      "kind": "provider",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "story-series-studio",
+      "owner": "personal-media",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/story-series-studio",
+      "managedSkillNames": [
+        "story-series",
+        "dramatize-real-incident",
+        "technical-story-director",
+        "episode-editor",
+        "privacy-fictionalizer",
+        "series-continuity"
+      ],
+      "contentHash": "DEFFA35E0D6E3F2F02B3DB40B6A0D52BCBE1FDE6E97EDD3D7CAFD0866D9C40F2",
+      "hashBasis": "packages/story-series-studio",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Added 2026-08-21. Generic series methodology only — private show bibles and media stay outside AgentHub. Prefer this over startup-series for new series work. Product Demo Studio stays separate.",
+      "dependencies": {
+        "requires": [
+          "technical-storytelling"
+        ],
+        "recommends": [
+          "browser-toolkit",
+          "local-ai"
+        ],
+        "optional": [
+          "external:remotion",
+          "external:superpowers",
+          "external:creative-writing-skills"
+        ]
+      },
+      "kind": "orchestrator",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "learning-studio",
+      "owner": "personal-learning",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/learning-studio",
+      "managedSkillNames": [
+        "engaging-exam-coach"
+      ],
+      "contentHash": "73B3BE22393597AE75343C14799C7ED199AA195B91429F8211331614ED4966C1",
+      "hashBasis": "packages/learning-studio",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Added 2026-08-21. Attention-friendly exam/training coach. Domain packs are data, not baked into the skill. Remotion optional.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [
+          "technical-storytelling"
+        ],
+        "optional": [
+          "external:remotion"
+        ]
+      },
+      "kind": "provider",
       "maturity": "beta",
       "provenance": "agenthub-owned"
     }

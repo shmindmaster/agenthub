@@ -1,6 +1,5 @@
 {
   "name": "startup-series",
-  "version": "1.0.0",
   "description": "Receipts production skills for Codex and ChatGPT Agent Skills — showrunner, dramatization, continuity, privacy ledger.",
   "author": {
     "name": "Sarosh Hussain"
@@ -28,5 +27,6 @@
       "Build an episode.yaml + receipts.yaml truth ledger from this incident.",
       "Run series-continuity checks before I render."
     ]
-  }
+  },
+  "version": "1.1.0"
 }

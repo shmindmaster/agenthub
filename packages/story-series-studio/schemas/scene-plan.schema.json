@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "scene_id",
+    "goal",
+    "visual_mode"
+  ],
+  "properties": {
+    "scene_id": {
+      "type": "string"
+    },
+    "goal": {
+      "type": "string"
+    },
+    "visual_mode": {
+      "type": "string"
+    },
+    "truth": {
+      "type": "string",
+      "enum": [
+        "FACT",
+        "DRAMATIZED",
+        "COMPOSITE"
+      ]
+    }
+  }
+}
