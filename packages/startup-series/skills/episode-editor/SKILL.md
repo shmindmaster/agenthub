@@ -1,11 +1,7 @@
 ---
 name: episode-editor
-description: >
-  Use when gating or editing a Receipts cut for craft quality — pacing, plot
-  completeness, privacy, listen pass — before shipping.
-  QC fails. Prefer qc/gate-episode.py over raw word-count padding.
+description: Use when gating or editing a Receipts cut for craft quality — pacing, plot completeness, privacy, listen pass — before shipping.
 ---
-
 # Episode Editor
 
 ## Primary quality gate (PASS requires all)

@@ -1,11 +1,7 @@
 ---
 name: comedy-writer
-description: >
-  Use when writing Silicon Valley / tech-TV comedy beats, callbacks,
-  confessional asides, or comic timing notes for Receipts C-plot scenes.
-  comic timing notes in scene-plan — never to invent fake receipts.
+description: Use when writing Silicon Valley / tech-TV comedy beats, callbacks, confessional asides, or comic timing notes for Receipts C-plot scenes.
 ---
-
 # Comedy Writer
 
 ## Voice

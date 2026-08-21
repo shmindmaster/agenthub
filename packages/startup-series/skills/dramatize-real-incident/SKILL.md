@@ -1,12 +1,7 @@
 ---
 name: dramatize-real-incident
-description: >
-  Use when turning real Slack/GitHub/deploy receipts into heightened A-plot
-  drama, building beat sheets from incidents, or mapping sources into
-  scene-plan entries without inventing evidence.
-  Soft Scam vs Receipts conflict, or mapping sources into scene-plan entries.
+description: Use when turning real Slack/GitHub/deploy receipts into heightened A-plot drama, building beat sheets from incidents, or mapping sources into scene-plan entries without inventing evidence.
 ---
-
 # Dramatize Real Incident
 
 ## Goal

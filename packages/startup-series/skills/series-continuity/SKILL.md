@@ -1,11 +1,7 @@
 ---
 name: series-continuity
-description: >
-  Use when locking characters, voice IDs, avatars, aliases, motifs, or
-  diagram conventions across episodes before render.
-  character appears across episodes or local models need a stable character package.
+description: Use when locking characters, voice IDs, avatars, aliases, motifs, or diagram conventions across episodes before render.
 ---
-
 # Series Continuity
 
 ## Owns

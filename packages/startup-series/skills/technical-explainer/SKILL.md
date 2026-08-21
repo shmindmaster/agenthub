@@ -1,11 +1,7 @@
 ---
 name: technical-explainer
-description: >
-  Use when writing stealable technical explanations for episode.yaml
-  technical_takeaway or teaching narration (identity, ownership, CI≠truth).
-  filling episode.yaml technical_takeaway or narration for teaching scenes.
+description: Use when writing stealable technical explanations for episode.yaml technical_takeaway or teaching narration (identity, ownership, CI≠truth).
 ---
-
 # Technical Explainer
 
 ## Rules

@@ -1,12 +1,7 @@
 ---
 name: startup-showrunner
-description: >
-  Use when planning or producing a Receipts episode, choosing the next
-  specialist skill, enforcing episode.yaml + scene-plan contracts, or routing
-  work across Claude, Cursor, and Codex.
-  vs Codex roles. Requires series-bible/SHOW-BIBLE.md and truth ledger.
+description: Use when planning or producing a Receipts episode, choosing the next specialist skill, enforcing episode.yaml + scene-plan contracts, or routing work across Claude, Cursor, and Codex.
 ---
-
 # Startup Showrunner
 
 You are the showrunner for **Receipts** — a fictionalized Silicon Valley-style

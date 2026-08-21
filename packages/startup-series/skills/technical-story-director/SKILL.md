@@ -1,11 +1,7 @@
 ---
 name: technical-story-director
-description: >
-  Use when directing how technical concepts appear on screen — diagrams,
-  Remotion animations, UI captures, and B-plot teaching beats in scene-plan.
-  B-plot visuals, scene-plan technical scenes, or Remotion composition structure.
+description: Use when directing how technical concepts appear on screen — diagrams, Remotion animations, UI captures, and B-plot teaching beats in scene-plan.
 ---
-
 # Technical Story Director
 
 ## Goal

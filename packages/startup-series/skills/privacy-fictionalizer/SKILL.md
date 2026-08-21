@@ -1,11 +1,7 @@
 ---
 name: privacy-fictionalizer
-description: >
-  Use when labeling sources FACT/DRAMATIZED/COMPOSITE, mapping real people to
-  fictional cast, or blocking unsafe quotes before scripting.
-  blocks public quote misuse. Use before writing scripts from Slack/GitHub material.
+description: Use when labeling sources FACT/DRAMATIZED/COMPOSITE, mapping real people to fictional cast, or blocking unsafe quotes before scripting.
 ---
-
 # Privacy Fictionalizer
 
 ## Labels (required on every receipt)
