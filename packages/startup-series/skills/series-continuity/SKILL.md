@@ -1,0 +1,36 @@
+---
+name: series-continuity
+description: >
+  Owns production continuity for Receipts — characters, voice IDs, avatars,
+  aliases, music motifs, running jokes, diagram conventions. Use whenever a
+  character appears across episodes or local models need a stable character package.
+---
+
+# Series Continuity
+
+## Owns
+
+characters, voice IDs, avatar refs, local-model seeds/LoRAs, costumes, colors,
+UI styling, Slack/company/customer aliases, music motifs, running jokes,
+recurring animations, technical terminology, diagram conventions.
+
+## Character package layout
+
+```text
+characters/<slug>/
+  character.yaml
+  reference/
+  voice.yaml
+  avatar/
+  prompts/
+  continuity.md
+```
+
+## Template
+
+Copy `characters/_template/` for new cast. Never change voice ID / avatar mid-season
+without an explicit continuity note in `continuity.md`.
+
+## Cross-episode check
+
+Before render: same fictional name, avatar, voice, personality, Slack icon treatment.

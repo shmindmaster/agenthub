@@ -99,6 +99,18 @@
         "authentication": "ON_USE"
       },
       "category": "Developer Tools"
+    },
+    {
+      "name": "startup-series",
+      "source": {
+        "source": "local",
+        "path": "./packages/startup-series"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
     }
   ]
 }

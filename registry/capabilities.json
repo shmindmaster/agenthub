@@ -725,7 +725,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "81A42EB2F49BCF7DF0E30A3EB8C17B5E93E88E171C9124BE3DB23A7D0F723FB7",
+      "contentHash": "839EC9D4C2EA22C170BBC80695E55E4FB86F2CBEAC68B23B9C8E7C20742D6409",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the same eight-host tier clerk, digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. firecrawl is also single-mapped and that one IS deliberate -- its deploymentStatus is native-plugin-installed, meaning Codex installs it natively rather than AgentHub deploying it.",
@@ -1150,6 +1150,65 @@
         }
       ],
       "notes": "Adopted 2026-08-20: use-railway was a live, working skill (drives the Railway CLI; registry/mcps.json#railway is the separate convenience MCP server) already deployed to 12 host skills directories but owned by no capability, so nothing kept the copies current. A full-fleet diff found the 12 deployed copies are NOT uniform: 8 of the 12 Sync-Capabilities.ps1-reachable destinations (claude, opencode, antigravity, cline, cursor, devin, factory, windsurf) are pinned to RAILWAY_CALLER version 1.3.6 (dated 2026-07-29), while 4 reachable destinations -- ~/.agents/skills (the shared destination codex, gemini and warp resolve to) and ~/.copilot/skills -- are byte-identical to each other at version 1.3.7 (dated 2026-08-12, two weeks newer; only the version-string lines in SKILL.md differ). Canonical content was taken from the majority/brief-suggested copy (~/.claude/skills/use-railway, v1.3.6) so adoption converges the larger group and matches deployed reality for 8 of 12 hosts; codex, gemini, warp and copilot will show drift on audit and get downgraded from 1.3.7 to 1.3.6 by the next -Apply -- flagged for owner review before that runs, since it reverses what looks like a deliberate version bump rather than pure adoption of already-uniform reality. codex's own ~/.codex/skills/use-railway and gemini's own ~/.gemini/skills/use-railway also carry the skill (at v1.3.6) but are unreachable by Sync-Capabilities.ps1 (a host declaring nativePaths.sharedSkillsDir resolves ONLY to that shared directory, never its own skillsDir) and are pre-existing drift outside this capability's management, left untouched. hostMappings intentionally omits cursor-agent: registry/capabilities.json#surfaceAliases already maps cursor-agent to hostId cursor, both resolve to the identical physical ~/.cursor/skills, and no other capability in this registry lists cursor-agent separately."
+    },
+    {
+      "id": "startup-series",
+      "owner": "personal-media",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/startup-series",
+      "managedSkillNames": [
+        "startup-showrunner",
+        "dramatize-real-incident",
+        "comedy-writer",
+        "technical-story-director",
+        "technical-explainer",
+        "episode-editor",
+        "privacy-fictionalizer",
+        "series-continuity"
+      ],
+      "contentHash": "9E6286B9B540B7B7C5AB4D530D1E5B95A5FC553E80858D3245BFF59EA060351B",
+      "hashBasis": "packages/startup-series",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Added 2026-08-21. Workflow-only skills for Receipts show production. Private media and episode receipts stay in D:\\OneDrive - MahumTech\\Videos\\Duckie\\startup-series (outside AgentHub). ChatGPT web/mobile parity is Phase E plugin packaging — Codex desktop already consumes Agent Skills via this plugin."
     }
   ]
 }

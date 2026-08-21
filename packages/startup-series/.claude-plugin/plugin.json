@@ -1,0 +1,15 @@
+{
+  "name": "startup-series",
+  "version": "1.0.0",
+  "description": "Receipts startup comedy-drama production skills (showrunner, truth ledger, continuity).",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "receipts",
+    "showrunner",
+    "remotion",
+    "storytelling"
+  ]
+}

@@ -12,6 +12,7 @@
     { "name": "clerk", "source": "./packages/clerk" },
     { "name": "firecrawl", "source": "./packages/firecrawl" },
     { "name": "browser-toolkit", "source": "./packages/browser-toolkit" },
-    { "name": "mobile-development", "source": "./packages/mobile-development" }
+    { "name": "mobile-development", "source": "./packages/mobile-development" },
+    { "name": "startup-series", "source": "./packages/startup-series" }
   ]
 }

@@ -1,0 +1,32 @@
+{
+  "name": "startup-series",
+  "version": "1.0.0",
+  "description": "Receipts production skills for Codex and ChatGPT Agent Skills — showrunner, dramatization, continuity, privacy ledger.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "receipts",
+    "showrunner",
+    "agent-skills",
+    "video-production"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Startup Series (Receipts)",
+    "shortDescription": "Portable showrunner brain for the Receipts series.",
+    "longDescription": "Eight Agent Skills for planning and producing Receipts episodes: showrunner orchestration, dramatizing real incidents, comedy, technical direction, explanations, editing gates, privacy fictionalization, and series continuity. Private media stays in the OneDrive startup-series repo — this plugin is workflow only.",
+    "developerName": "Sarosh Hussain",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Act as startup-showrunner for the next Receipts episode.",
+      "Build an episode.yaml + receipts.yaml truth ledger from this incident.",
+      "Run series-continuity checks before I render."
+    ]
+  }
+}
