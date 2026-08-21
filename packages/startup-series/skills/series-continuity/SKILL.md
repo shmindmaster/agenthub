@@ -1,8 +1,8 @@
 ---
 name: series-continuity
 description: >
-  Owns production continuity for Receipts — characters, voice IDs, avatars,
-  aliases, music motifs, running jokes, diagram conventions. Use whenever a
+  Use when locking characters, voice IDs, avatars, aliases, motifs, or
+  diagram conventions across episodes before render.
   character appears across episodes or local models need a stable character package.
 ---
 

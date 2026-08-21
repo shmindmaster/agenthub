@@ -1,8 +1,8 @@
 ---
 name: comedy-writer
 description: >
-  Writes Silicon Valley / tech-TV comedy beats, callbacks, and character bits
-  for Receipts. Use for C-plot, recurring jokes, confessional asides, and
+  Use when writing Silicon Valley / tech-TV comedy beats, callbacks,
+  confessional asides, or comic timing notes for Receipts C-plot scenes.
   comic timing notes in scene-plan — never to invent fake receipts.
 ---
 

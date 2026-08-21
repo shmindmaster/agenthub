@@ -1,8 +1,8 @@
 ---
 name: technical-explainer
 description: >
-  Writes clear, stealable technical explanations for Receipts episodes — twin-door
-  lifecycles, ownership vs runtime, auth identity, CI green ≠ truth. Use when
+  Use when writing stealable technical explanations for episode.yaml
+  technical_takeaway or teaching narration (identity, ownership, CI≠truth).
   filling episode.yaml technical_takeaway or narration for teaching scenes.
 ---
 

@@ -1,9 +1,9 @@
 ---
 name: startup-showrunner
 description: >
-  Orchestrates the Receipts startup comedy-drama series end-to-end. Use when
-  planning or producing an episode, choosing which skill runs next, enforcing
-  the episode contract (episode.yaml + scene-plan), or deciding Claude vs Cursor
+  Use when planning or producing a Receipts episode, choosing the next
+  specialist skill, enforcing episode.yaml + scene-plan contracts, or routing
+  work across Claude, Cursor, and Codex.
   vs Codex roles. Requires series-bible/SHOW-BIBLE.md and truth ledger.
 ---
 

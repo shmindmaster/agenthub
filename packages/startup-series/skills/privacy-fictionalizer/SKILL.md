@@ -1,8 +1,8 @@
 ---
 name: privacy-fictionalizer
 description: >
-  Maintains the truth/dramatization ledger for Receipts. Labels every source as
-  FACT, DRAMATIZED, or COMPOSITE; maps real people to fictional characters;
+  Use when labeling sources FACT/DRAMATIZED/COMPOSITE, mapping real people to
+  fictional cast, or blocking unsafe quotes before scripting.
   blocks public quote misuse. Use before writing scripts from Slack/GitHub material.
 ---
 
