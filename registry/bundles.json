@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "description": "Capability bundles (recipes) compose AgentHub packages and tracked third-party extensions for a job. Bundles are install-planning metadata; they are not mega-plugins and do not vendor upstream code.",
+  "bundles": [
+    {
+      "id": "technical-series-production",
+      "title": "Technical series production",
+      "summary": "Produce a fictionalized technical story series with evidence-bound capture, explanation, and optional Remotion composition.",
+      "requires": [
+        "story-series-studio",
+        "technical-storytelling",
+        "browser-toolkit"
+      ],
+      "recommends": [
+        "local-ai"
+      ],
+      "thirdParty": {
+        "recommends": [
+          "superpowers",
+          "remotion"
+        ],
+        "optional": [
+          "creative-writing-skills"
+        ]
+      },
+      "notes": [
+        "story-series-studio and technical-storytelling land in a later commit on this plan.",
+        "Product Demo Studio stays separate; do not route series work through it by default."
+      ]
+    },
+    {
+      "id": "engaging-learning",
+      "title": "Engaging learning",
+      "summary": "Attention-friendly exam coaching with optional visual explainers.",
+      "requires": [
+        "learning-studio",
+        "technical-storytelling"
+      ],
+      "recommends": [],
+      "thirdParty": {
+        "recommends": [],
+        "optional": [
+          "remotion"
+        ]
+      },
+      "notes": [
+        "learning-studio lands in a later commit on this plan.",
+        "Remotion/animations are optional enhancements, not required to answer a question."
+      ]
+    }
+  ]
+}

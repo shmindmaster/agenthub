@@ -25,7 +25,7 @@ artifacts outside the repo, Local-AI outside AgentHub.
 
 ## Implementation order
 
-1. **P0 — browser-toolkit** (blocking): Microsoft Playwright MCP vocabulary +
+1. **P0 — browser-toolkit** ✅ (landed on main 2026-08-21) (blocking): Microsoft Playwright MCP vocabulary +
    profile semantics; add `use-playwright-cli` and `use-playwright-test`
    provider references; router lane selection (CLI vs MCP vs Test); tests.
 2. **P1 — portable plugin floor**: root `plugin.json` as Agent Plugins 1.0.0
@@ -65,3 +65,7 @@ green without running checks.
   series capture workflows rely on it.
 - 2026-08-21: Keep Product Demo Studio architecture; extract
   `media-production-core` only if duplication appears after series lands.
+
+- 2026-08-21: P0 browser-toolkit landed on main (`b93c6a1`).
+- 2026-08-21: P1 portable root version authority landed on main (`77bae75`).
+- 2026-08-21: P1 thirdPartyExtensions + Remotion/CW tracking + bundles.json in progress.

@@ -130,18 +130,24 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
     reappears in the API surface, so they are the enforcement.
   - Clean end state: `git ls-remote` shows `refs/heads/main` and nothing else.
 
-- **Third-party plugin tracking (2026-08-08)**: `registry/native-connectors.json`
-  -> `thirdPartyPlugins` records plugins the fleet uses but does not own, with
-  the official channel and last-observed version per host.
-  `tests/Test-ThirdPartyPlugins.ps1` (6 behaviors, each demonstrated failing
-  against a synthetic fixture) fails if a lagging host names no fix, if an
-  absent host explains no reason, or if a tracked plugin is ever republished
-  from AgentHub's own marketplace. First tracked plugin is **superpowers**
-  (obra/superpowers, MIT): current at 6.2.0 on claude, codex, antigravity, and
-  grok; **behind on cursor (6.1.1) and qoder (5.1.0)**, both in-app owner
-  actions. AgentHub does not vendor it — `hostPrivateExtensionPolicy` withholds
-  install authority for claude and codex, and mirroring would cut the host off
-  from the upstream release stream.
+- **Third-party extension tracking (2026-08-21)**: `registry/native-connectors.json`
+  -> `thirdPartyExtensions` (renamed from `thirdPartyPlugins`) records plugins
+  *and* non-plugin upstream distributions the fleet uses but does not own, with
+  provenance/maturity plus the official channel and last-observed version per
+  host. Tracked today: **superpowers**, **remotion** (official skills package;
+  provides `video.programmatic-composition`), and optional
+  **creative-writing-skills**. `tests/Test-ThirdPartyPlugins.ps1` fails if a
+  lagging host names no fix, if an absent host explains no reason, or if a
+  tracked extension is ever republished from AgentHub's own marketplace.
+  AgentHub does not vendor these — `hostPrivateExtensionPolicy` withholds
+  install authority for claude and codex.
+- **Capability bundles (2026-08-21)**: `registry/bundles.json` names recipes such
+  as `technical-series-production` and `engaging-learning` that compose AgentHub
+  packages with tracked third-party extensions. Bundles are install-planning
+  metadata, not mega-plugins (`tests/Test-Bundles.ps1`).
+- **Portable plugin version authority (2026-08-21)**: root `plugin.json` is the
+  Agent Plugins floor and single version authority; host projections must match
+  (`scripts/Bump-PackageVersion.ps1`, `tests/Test-PluginManifests.ps1`).
 
 ## In progress
 

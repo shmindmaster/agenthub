@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-20T00:00:00.000Z",
+  "generatedAt": "2026-08-20T00:00:00Z",
   "canonicalRegistryRoot": "C:/Repos/shmindmaster/agenthub",
   "retiredFleetSkills": [
     {
@@ -50,7 +50,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin",
       "canonicalSource": "packages/clerk",
-      "contentHash": "241212C8B180B284808A10ABF3BBD65991D15657AFDC6BC64D3EDB80C845A787",
+      "contentHash": "2AFF8B9E396670BC97CDF157CFDB3854094B6D9F8EA98FE08B1F69A808F658C5",
       "hashBasis": "packages/clerk",
       "status": "active-canonical",
       "hostMappings": [
@@ -93,7 +93,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin",
       "canonicalSource": "packages/digitalocean",
-      "contentHash": "4B6BE364E9B166182FC3D75EBF8C9C1B4FE5D17D274749F8E65BFB902500AFBF",
+      "contentHash": "3B8483B1C8E133F42F6722AD8A47065920382492AEEFFB020B580791E012552D",
       "hashBasis": "packages/digitalocean",
       "status": "active-canonical",
       "hostMappings": [
@@ -136,7 +136,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin+cli",
       "canonicalSource": "packages/elevenlabs",
-      "contentHash": "BF30FB8BFE30C8E6BE5086F452EE3F32FD41C48C48BDCE0FF0CB7D3622AA8B4C",
+      "contentHash": "381733E889B0C66F73E7488FE82B5C02C0986BA51753419EE44B3458AA7EB827",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
@@ -179,7 +179,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
       "canonicalSource": "packages/product-demo-studio",
-      "contentHash": "C99EE050162E7AE5F6C94BD2BD282942933E1B5CB69B85B9D55E6AEA430B4E6A",
+      "contentHash": "9E8FE937A903B40EF0E9F38E073A3C2141C8496C2FB9622E65DBCB5A20B86BCE",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -321,14 +321,28 @@
           ],
           "reviewIsolation": "tool-limited-plus-read-only-receipt-required"
         }
-      ]
+      ],
+      "dependencies": {
+        "requires": [],
+        "recommends": [
+          "browser-toolkit",
+          "local-ai"
+        ],
+        "optional": [
+          "external:remotion",
+          "elevenlabs"
+        ]
+      },
+      "kind": "orchestrator",
+      "maturity": "stable",
+      "provenance": "agenthub-owned"
     },
     {
       "id": "product-experience-engineering",
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "D4847A15761F592BADF9643602B2469EEC9C9637474B81B8A5948946E9377487",
+      "contentHash": "03C5DF014BA35DC47E7227738D23114895ADB67E791BBEC5ABE93D91DABD04EF",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
@@ -701,7 +715,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin",
       "canonicalSource": "packages/firecrawl",
-      "contentHash": "1B2D9F3630DC861DECC8A9C8F8F8EC9566AF6F235B4185BCD6A807D5A8D95C54",
+      "contentHash": "61D6797B9D62EF8B89355970537E86B0EB41F7B52E479F80CD9BA091EDC87D2A",
       "hashBasis": "packages/firecrawl",
       "status": "active-canonical",
       "hostMappings": [
@@ -762,7 +776,15 @@
           "hostId": "qoder",
           "deploymentStatus": "managed-loose-skill"
         }
-      ]
+      ],
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": []
+      },
+      "kind": "router",
+      "maturity": "stable",
+      "provenance": "agenthub-owned"
     },
     {
       "id": "browser-toolkit",
@@ -788,7 +810,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "6FF7978C3C126E2367C3F78180AD8043A7C6409B42246080C89BAD43E2104DEF",
+      "contentHash": "8F90853B041BEC525E9B44C3C60C6EDF7691609CBB275C2D645443C4F048CB74",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
@@ -881,7 +903,19 @@
           "hostId": "windsurf",
           "deploymentStatus": "managed-loose-skills"
         }
-      ]
+      ],
+      "provides": [
+        "browser.isolated",
+        "browser.authenticated"
+      ],
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": []
+      },
+      "kind": "orchestrator",
+      "maturity": "stable",
+      "provenance": "agenthub-owned"
     },
     {
       "id": "repowise",
@@ -939,7 +973,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "3EB1AD093CB7F06E5219516D9BF34ADE9E2EA4EE4B16E18259BB7E3BE4470A22",
+      "contentHash": "A6274204D650CA99BFC81A9ED34CF25CDECFDE70DD99EAECD2465EC8B6523B0A",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -1168,7 +1202,7 @@
         "privacy-fictionalizer",
         "series-continuity"
       ],
-      "contentHash": "4E1AB055B8A7A2A59BC66E433DBAA8782C65718F0D47EAC5F5A4549584FFBA26",
+      "contentHash": "465546B3AE9E94FF95B367971B93161BCA208990CF81E79CD49A794356720BE9",
       "hashBasis": "packages/startup-series",
       "status": "active-canonical",
       "hostMappings": [
@@ -1210,7 +1244,24 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-21. Workflow-only skills for Receipts show production. Private media and episode receipts stay in D:\\OneDrive - MahumTech\\Videos\\Duckie\\startup-series (outside AgentHub). ChatGPT web/mobile parity is Phase E plugin packaging — Codex desktop already consumes Agent Skills via this plugin."
+      "notes": "Added 2026-08-21. Workflow-only skills for Receipts show production. Private media and episode receipts stay in D:\\OneDrive - MahumTech\\Videos\\Duckie\\startup-series (outside AgentHub). ChatGPT web/mobile parity is Phase E plugin packaging — Codex desktop already consumes Agent Skills via this plugin. Planned evolution: split into story-series-studio + technical-storytelling per docs/plans/active/creative-capabilities-evolution.md.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [
+          "browser-toolkit",
+          "local-ai"
+        ],
+        "optional": [
+          "external:remotion",
+          "external:superpowers",
+          "external:creative-writing-skills"
+        ]
+      },
+      "kind": "orchestrator",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
     }
-  ]
+  ],
+  "lastValidatedAt": "2026-08-21T00:00:00.000Z",
+  "lastCanonicalChangeAt": "2026-08-21T00:00:00.000Z"
 }
