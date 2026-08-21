@@ -1,14 +1,19 @@
 ---
 name: use-repowise
-description: Use when working in any shmindmaster repository to query the shared RepoWise workspace index (docs, symbols, history, health, cross-repo context) before broad code exploration, and to keep the index fresh after changes.
+description: Use when working in any repository under C:\Repos to query the shared RepoWise workspace index (docs, symbols, history, health, cross-repo context) before broad code exploration, and to keep the index fresh after changes.
 ---
 
 # Use RepoWise (fleet code intelligence)
 
-One RepoWise workspace covers all owned repos at `C:\Repos\shmindmaster`
-(`.repowise-workspace.yaml`). It is the fleet's derived-intelligence layer:
-generated wiki docs, dependency graph, git history/ownership, code health,
-dead code, decisions, and cross-repo contract links.
+One RepoWise workspace at `C:\Repos` (`.repowise-workspace.yaml`) covers git
+repos under `C:\Repos\shmindmaster`, `C:\Repos\sh-pendoah`,
+`C:\Repos\musa-dev-team`, and `C:\Repos\pendoah`. It is the derived-intelligence
+layer: generated wiki docs, dependency graph, git history/ownership, code
+health, dead code, decisions, and cross-repo contract links.
+
+Per-repo indexes live in that repo's `.repowise/` directory (`wiki.db`,
+`knowledge-graph.json`, `state.json`, caches). Those directories are gitignored
+and must not be committed.
 
 ## Authority position
 
@@ -36,20 +41,29 @@ Do not call it to avoid reading the exact file you are editing.
 
 ## Access
 
-- **MCP (preferred for agents):** the single workspace server registered in
-  `registry/mcps.json` as `repowise-workspace`
-  (`repowise mcp C:/Repos/shmindmaster`, stdio, on-demand). Per-repo repowise
-  MCP entries are drift — do not add them.
+CLI on this machine is uv-managed (`uv tool install repowise`). Keep it on
+the PyPI latest with `scripts/Update-RepoWise.ps1 -Apply` (daily scheduled
+task `AgentHub-Update-RepoWise`). Do not install a second copy. Do not add
+per-repo repowise MCP entries.
+
+- **MCP (preferred where registered):** `repowise-workspace` in
+  `registry/mcps.json` (`repowise mcp C:/Repos`, stdio, on-demand). First
+  calls: `get_overview`, `get_context` for a file/symbol, `search_codebase`
+  / `get_answer` for questions, `get_risk` / `get_health` before edits.
+  Query one member with `repo=<alias>` or the whole workspace with
+  `repo=all`.
 - **CLI:** `repowise search "<q>"`, `repowise status -w`,
-  `repowise doctor -w` from the fleet root, or run inside a repo for
-  single-repo scope.
-- **Human dashboard:** `repowise serve` (workspace-aware web UI).
+  `repowise doctor -w`, `repowise update --repo <alias>` from `C:\Repos`.
+- **Human dashboard:** `repowise serve` from `C:\Repos`.
+- Official Claude/Codex plugins exist upstream; this fleet uses the
+  AgentHub-managed workspace MCP instead, so every host sees all four
+  repo trees rather than the nearest single repo.
 
 ## Freshness contract
 
 - A post-commit hook in every workspace repo auto-syncs the index.
-- After material changes, verify: `repowise status -w`. If your repo is
-  stale, run `repowise update --repo <name>` from the fleet root (seconds).
+- After material changes, verify: `repowise status -w` from `C:\Repos`. If
+  your repo is stale, run `repowise update --repo <alias>` (seconds).
 - First-time prose docs for a repo: from inside the repo,
   `repowise update --full -y --no-workspace` (LLM spend; provider comes from
   the environment — never write keys anywhere).

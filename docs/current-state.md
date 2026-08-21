@@ -72,10 +72,33 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - `tests/Run-AllTests.ps1` runs all behavior tests and package validators.
 - Sync scripts deploy managed instructions/skills/MCP config to host user
   directories (`Sync-AgentHub.ps1`, `Sync-Capabilities.ps1`, audit by default).
-- **RepoWise workspace** at `C:\Repos\shmindmaster` (created 2026-08-08):
-  17 member repos, post-commit hooks installed in all members,
-  `repowise-workspace` MCP registered in `registry/mcps.json`
-  (protocol 2025-06-18, probed). agenthub is the default/primary repo.
+- **Knowledge-access documents layer (2026-08-21):** capability
+  `knowledge-access` (`packages/knowledge-access`) is the sibling of
+  RepoWise for `D:\OneDrive - MahumTech\Documents\` folders `02`–`06`.
+  `_MAP.md` and `AGENTS.md` sit at that Documents root. Exact search uses
+  WSL `rga` 0.10.10 plus pandoc/poppler (no Windows rga build exists).
+  Opportunity rendering is `opportunity-engine`; runtime records are the
+  private repo `C:\Repos\shmindmaster\portfolio-records` (empty of real
+  engagements; three synthetic fixtures live only in the package).
+  Semantic index at `D:\rag-index\` is not built. Nested-git scan of
+  folders `02`–`06` on 2026-08-21 found **no** `.git` directories.
+  Folders named `Build` in this tree are delivery-kit documents, not
+  compiler output, and were left in place. One empty `__pycache__` was
+  removed; `node_modules` paths that looked empty were OneDrive
+  placeholders and were left. One authorized private engagement record
+  was written to `portfolio-records` (pursuit/proposal; no production
+  outcome; client name not cleared for render).
+- **RepoWise workspace** at `C:\Repos` (relocated 2026-08-21 from
+  `C:\Repos\shmindmaster`; created 2026-08-08): covers git repos under
+  `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah` (62 members).
+  CLI upgraded 0.39.0 → 0.44.0 the same day and is kept on the PyPI latest
+  by `scripts/Update-RepoWise.ps1` (scheduled task `AgentHub-Update-RepoWise`).
+  `repowise-workspace` MCP args are `repowise mcp C:/Repos`. agenthub is
+  the default/primary repo. Per-repo indexes live in each repo's
+  `.repowise/`; cross-repo graph lives in `C:\Repos\.repowise-workspace\`.
+  Fleet policy does not persist this stdio MCP into every host config
+  (on-demand-local); Claude is already wired, other hosts use the
+  `use-repowise` skill plus CLI.
 - **Fleet checker**: `scripts/Check-RepoStandard.ps1` with fixture tests in
   `tests/Test-RepoStandard.ps1` (11 behavior checks, passing 2026-08-08).
 - **Skill deployment ledger**: fixed 2026-08-08. `Sync-Capabilities.ps1` wrote
@@ -247,5 +270,5 @@ added six more: **175 passed / 4 failed** across 28 files, still the same four.
 pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1
 pwsh -NoProfile -File .\tests\Run-AllTests.ps1
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All
-repowise status -w   # from C:\Repos\shmindmaster
+repowise status -w   # from C:\Repos
 ```

@@ -1,7 +1,8 @@
 # Fleet Repository Standard
 
 Canonical statement of the repository knowledge + agent-instruction standard
-for every owned repo under `C:\Repos\shmindmaster`. Mechanically enforced by
+for every owned repo under `C:\Repos\shmindmaster` (the roster in
+`registry/repo-standard.json`). Mechanically enforced by
 [`scripts/Check-RepoStandard.ps1`](../../scripts/Check-RepoStandard.ps1) with
 the roster in [`registry/repo-standard.json`](../../registry/repo-standard.json).
 Supersedes every per-repo legacy instruction layout (2026-08-08).
@@ -13,7 +14,7 @@ README.md     human orientation and quick start
 AGENTS.md     the ONLY human-authored agent contract
 CLAUDE.md     adapter: @AGENTS.md + @.claude/CLAUDE.md (RepoWise-managed block)
 docs/         curated durable knowledge (this taxonomy)
-RepoWise      derived intelligence (ONE workspace at the fleet root)
+RepoWise      derived intelligence (ONE workspace at C:\Repos)
 tests/CI      executable enforcement
 tracker       the one backlog authority named in AGENTS.md
 ```
@@ -55,17 +56,23 @@ contract (Mission + Knowledge authority + Definition of done) is drift.
 
 ## RepoWise
 
-- One workspace at the fleet root covers all owned repos; membership is
-  checked against `.repowise-workspace.yaml`.
-- Every member repo has the post-commit hook installed and gitignores
+- One workspace at `C:\Repos` (`.repowise-workspace.yaml`) covers git repos
+  under `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah`.
+  Rostered shmindmaster membership is checked against that file (path leaf
+  or alias).
+- Every rostered member repo has the post-commit hook installed and gitignores
   `.repowise/` and `.claude/CLAUDE.md`.
 - Index freshness: `.repowise/state.json` `last_sync_commit` == `HEAD`
-  (the hook normally maintains this).
-- One MCP registration: `repowise-workspace` in `registry/mcps.json`.
-  A repo-local `.mcp.json` mentioning repowise is drift.
-  (Tool-managed `.vscode/mcp.json` written by `repowise update` is allowed.)
-- Excluded from the workspace: `awesome-mcp-servers` (external fork),
-  `.demo-workspace` (not a repo).
+  (the hook normally maintains this). Indexes themselves live in each repo's
+  `.repowise/` directory.
+- One MCP registration: `repowise-workspace` in `registry/mcps.json`
+  (`repowise mcp C:/Repos`). A repo-local `.mcp.json` mentioning repowise
+  is drift. (Tool-managed `.vscode/mcp.json` written by `repowise update`
+  is allowed.)
+- Excluded from the workspace: `.demo-workspace` (product-demo-studio
+  capture output; not a git repo — do not delete).
+- The knowledge-standard checker still applies only to rostered
+  shmindmaster repos; client trees are indexed, not standardized.
 
 ## Tracker authority
 

@@ -925,7 +925,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "47EE9CE583617041B993E29D308190D2A9D0343AC505C6425D4547206293FE4E",
+      "contentHash": "4ABEE3D5B06E66BC9B1F8846162B9D1AB9E1B64F89454624CE7B261FC8807CE8",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -960,9 +960,125 @@
         {
           "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) and the use-repowise loose skill. The external repowise CLI itself is machine tooling (uv tool install repowise), not package content."
+      "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) and the use-repowise loose skill. The external CLI is uv-managed machine tooling, kept on the PyPI latest by scripts/Update-RepoWise.ps1 (daily scheduled task AgentHub-Update-RepoWise). Official Claude/Codex plugins are not installed: they would register a second MCP pointed at the nearest repo instead of C:/Repos."
+    },
+    {
+      "id": "knowledge-access",
+      "owner": "portfolio",
+      "capabilityType": "skills",
+      "canonicalSource": "packages/knowledge-access",
+      "managedSkillNames": [
+        "use-knowledge-access",
+        "opportunity-engine"
+      ],
+      "contentHash": "F7D6EB85147FFEF1187404B4DDD82280D244294319D0BAA463C6BBB854DE1C8D",
+      "hashBasis": "packages/knowledge-access",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Document-intelligence layer for D:/OneDrive - MahumTech/Documents folders 02-06. Map + exact search + read. Opportunity rendering is the opportunity-engine skill. Runtime engagement records live in the private repo C:/Repos/shmindmaster/portfolio-records and must not be copied here. Semantic index at D:/rag-index is not built."
     },
     {
       "id": "mobile-development",
@@ -973,7 +1089,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "A6274204D650CA99BFC81A9ED34CF25CDECFDE70DD99EAECD2465EC8B6523B0A",
+      "contentHash": "026605A3845863A239A7950BCF2B4DA569A91A551298A22098402B978C272EF2",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",

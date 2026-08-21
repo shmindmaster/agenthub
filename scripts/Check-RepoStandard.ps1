@@ -74,14 +74,23 @@ $agentsAnchors     = @($config.agentsAnchors)
 $claudeMaxLines    = [int]$config.claudeMaxAuthoredLines
 $workspaceFileName = [string]$config.workspace.file
 if ([string]::IsNullOrWhiteSpace($workspaceFileName)) { $workspaceFileName = '.repowise-workspace.yaml' }
-$workspaceFile     = Join-Path $fleetRoot $workspaceFileName
+$workspaceRoot = [string]$config.workspace.root
+if ([string]::IsNullOrWhiteSpace($workspaceRoot)) { $workspaceRoot = $fleetRoot }
+$workspaceFile     = Join-Path $workspaceRoot $workspaceFileName
 
 $workspaceRepos = @()
 if (Test-Path -LiteralPath $workspaceFile) {
-    $workspaceRepos = @(
-        Select-String -LiteralPath $workspaceFile -Pattern '^\s*-\s+path:\s*(\S+)\s*$' |
-            ForEach-Object { $_.Matches[0].Groups[1].Value }
-    )
+    $workspaceText = Get-Content -LiteralPath $workspaceFile -Raw -Encoding UTF8
+    $ids = [Collections.Generic.List[string]]::new()
+    foreach ($m in [regex]::Matches($workspaceText, '(?m)^\s*-\s+path:\s*(\S+)\s*$')) {
+        $p = $m.Groups[1].Value.Trim("`"'")
+        $ids.Add($p)
+        $ids.Add(([IO.Path]::GetFileName($p.Replace('/', '\'))))
+    }
+    foreach ($m in [regex]::Matches($workspaceText, '(?m)^\s+alias:\s*(\S+)\s*$')) {
+        $ids.Add($m.Groups[1].Value.Trim("`"'"))
+    }
+    $workspaceRepos = @($ids | Select-Object -Unique)
 }
 function Test-MarkdownLinks([string]$RepoPath) {
     # Resolve relative markdown links in root README/AGENTS and docs/**.md.
@@ -277,7 +286,7 @@ function Invoke-RepoCheck {
 
     $hookPath = Join-Path $path '.git\hooks\post-commit'
     $hookOk = (Test-Path -LiteralPath $hookPath) -and ((Get-Content -LiteralPath $hookPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue) -match 'repowise')
-    Add-Result $Name 'repowise-hook' $hookOk $(if (-not $hookOk) { 'run: repowise hook install -w from fleet root' } else { '' }) $false
+    Add-Result $Name 'repowise-hook' $hookOk $(if (-not $hookOk) { 'run: repowise hook install -w from C:\Repos' } else { '' }) $false
 
     $gitignorePath = Join-Path $path '.gitignore'
     $gi = if (Test-Path -LiteralPath $gitignorePath) { Get-Content -LiteralPath $gitignorePath -Raw -Encoding UTF8 } else { '' }

@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "recordedOn": "2026-08-08",
-  "purpose": "Machine-readable roster and rule parameters for the fleet repository knowledge + agent-instruction standard, enforced by scripts/Check-RepoStandard.ps1. One authored agent contract (AGENTS.md) per repo; CLAUDE.md is an @-import adapter carrying the RepoWise-managed block; docs/ holds durable curated knowledge; RepoWise (one workspace at the fleet root) holds derived intelligence; the tracker named per repo is the only backlog authority.",
+  "purpose": "Machine-readable roster and rule parameters for the fleet repository knowledge + agent-instruction standard, enforced by scripts/Check-RepoStandard.ps1. One authored agent contract (AGENTS.md) per repo; CLAUDE.md is an @-import adapter carrying the RepoWise-managed block; docs/ holds durable curated knowledge; RepoWise (one workspace at C:/Repos covering shmindmaster, sh-pendoah, musa-dev-team, and pendoah) holds derived intelligence; the tracker named per repo is the only backlog authority.",
   "fleetRoot": "C:/Repos/shmindmaster",
   "workspace": {
     "file": ".repowise-workspace.yaml",
-    "note": "Single RepoWise workspace over the fleet root. awesome-mcp-servers is deliberately NOT a member (external fork on an upstream PR branch); .demo-workspace is not a git repo."
+    "root": "C:/Repos",
+    "note": "Single RepoWise workspace over C:/Repos. Member paths are relative to that root (shmindmaster/<repo>, sh-pendoah/<repo>, musa-dev-team/<repo>, pendoah/<product>/<repo>). .demo-workspace is not a git repo (product-demo-studio capture output). The fleet knowledge standard still applies only to rostered shmindmaster repos."
   },
   "excluded": [
-    { "name": "awesome-mcp-servers", "reason": "External fork existing only for an upstream PR; standardization would pollute upstream-facing history." },
-    { "name": ".demo-workspace", "reason": "Not a git repository; demo production outputs." }
+    { "name": ".demo-workspace", "reason": "Removed 2026-08-21. Was Product Demo Studio working media (not a git repo). work_dir now lives under %LOCALAPPDATA%\\AgentHub\\demo-workspace." }
   ],
   "requiredRootFiles": ["README.md", "AGENTS.md", "CLAUDE.md"],
   "requiredDocsFiles": ["docs/README.md", "docs/current-state.md", "docs/plans/PLANS.md"],

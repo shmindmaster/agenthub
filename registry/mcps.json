@@ -314,14 +314,14 @@
     },
     {
       "id": "repowise-workspace",
-      "name": "RepoWise Workspace (shmindmaster)",
+      "name": "RepoWise Workspace",
       "scope": "global-default",
       "transport": "stdio",
       "activationMode": "on-demand-local",
       "command": "repowise",
       "args": [
         "mcp",
-        "C:/Repos/shmindmaster"
+        "C:/Repos"
       ],
       "credentialPolicy": "none-in-config; repowise resolves its LLM provider from the process environment (OPENAI_API_KEY) and never stores keys in repository or MCP configuration",
       "providesCapabilities": [
@@ -329,11 +329,11 @@
         "repo.wiki",
         "repo.cross-repo-context"
       ],
-      "providesCapabilitiesNote": "Federated code intelligence for all 17 workspace repos (wiki docs, dependency graph, git history/ownership, health, dead code, decisions, cross-repo contracts). Query per repo (repo=<name>) or across the fleet (repo=all).",
+      "providesCapabilitiesNote": "Federated code intelligence for every git repo under C:/Repos/shmindmaster, C:/Repos/sh-pendoah, C:/Repos/musa-dev-team, and C:/Repos/pendoah (wiki docs, dependency graph, git history/ownership, health, dead code, decisions, cross-repo contracts). Query per repo (repo=<alias>) or across the workspace (repo=all).",
       "protocol": {
         "revision": "2025-06-18",
-        "verifiedOn": "2026-08-08",
-        "verification": "stdio initialize against `repowise mcp C:/Repos/shmindmaster` (repowise CLI 0.39.0, serverInfo repowise 1.29.0) returned protocolVersion 2025-06-18 with tools, prompts, and resources capabilities."
+        "verifiedOn": "2026-08-21",
+        "verification": "Workspace relocated to C:/Repos/.repowise-workspace.yaml and CLI upgraded 0.39.0 -> 0.44.0 on 2026-08-21. Args are `repowise mcp C:/Repos`."
       },
       "localProcessPolicy": {
         "instancing": "single-shared-process",
@@ -345,14 +345,18 @@
       },
       "hosts": [
         "claude",
+        "codex",
         "cursor",
+        "grok",
         "qwen-code",
         "qoder",
-        "cline"
+        "cline",
+        "opencode",
+        "vscode-insiders"
       ],
       "experimentalFlagsEnabled": [],
-      "notes": "Registered 2026-08-08 during the fleet repository standardization. The workspace lives at the fleet root (.repowise-workspace.yaml); awesome-mcp-servers (external fork) and .demo-workspace (not a repo) are deliberately excluded. Post-commit hooks keep member indexes fresh; `repowise status -w` / `doctor -w` report fleet health. Dashboard: `repowise serve` from the fleet root.",
-      "hostScopeNote": "Narrowed from 18 on 2026-08-19 to the intersection of the owning capability's hostMappings and the hosts where use-repowise is actually deployed on disk. grok reaches repowise through the repowise-augment hook, which needs no MCP registration; warp deliberately curates its own server list and excludes it."
+      "notes": "Workspace file lives at C:/Repos/.repowise-workspace.yaml and covers git repos under shmindmaster, sh-pendoah, musa-dev-team, and pendoah. .demo-workspace is not a git repo (product-demo-studio capture output) and is not a member. Post-commit hooks keep member indexes fresh; `repowise status -w` / `doctor -w` from C:/Repos report workspace health. Dashboard: `repowise serve` from C:/Repos. CLI is uv-managed and kept on the PyPI latest by scripts/Update-RepoWise.ps1.",
+      "hostScopeNote": "hosts[] is eligibility, not deployment. activationMode is on-demand-local and the id is not in native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds, so AgentHub sync does not write this stdio server into host configs. Claude Desktop is wired by RepoWise's own install (keep args at C:/Repos). Other hosts use the use-repowise skill plus CLI. warp curates its own list. hermes and windsurf are checked-absent."
     },
     {
       "id": "appium-mobile",

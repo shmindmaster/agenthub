@@ -31,12 +31,14 @@ When they disagree, investigate rather than silently choosing one.
 
 ## RepoWise workflow
 
-This repo is the primary (default) member of the fleet workspace at
-`C:\Repos\shmindmaster`. Use the workspace MCP (`repowise-workspace`,
-registered in `registry/mcps.json`) or `repowise search`/`status` before
-broad exploration. After material changes, run `repowise update --repo agenthub`
-if the post-commit hook has not already refreshed the index. Verify important
-derived claims against source. Full contract:
+This repo is the primary (default) member of the RepoWise workspace at
+`C:\Repos` (covers `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and
+`pendoah`). Use the workspace MCP (`repowise-workspace`, registered in
+`registry/mcps.json`) or `repowise search`/`status -w` from `C:\Repos`
+before broad exploration. After material changes, run
+`repowise update --repo agenthub` if the post-commit hook has not already
+refreshed the index. Verify important derived claims against source. Full
+contract:
 [`packages/repowise/skills/use-repowise/SKILL.md`](./packages/repowise/skills/use-repowise/SKILL.md).
 
 ## Repository map
@@ -57,6 +59,7 @@ derived claims against source. Full contract:
 pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1          # registry validation
 pwsh -NoProfile -File .\tests\Run-AllTests.ps1                 # full test suite
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All    # fleet standard check
+pwsh -NoProfile -File .\scripts\Update-RepoWise.ps1 -Apply -RegisterSchedule  # keep CLI on PyPI latest
 pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Audit -Validate   # drift audit
 pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Apply -Validate   # deploy managed state
 ```

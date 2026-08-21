@@ -1,0 +1,61 @@
+sector: Energy
+industry: Electric_Utilities
+client: LumenGrid_Energy
+engagement: 2022_Field_Knowledge_Capture
+year: 2022
+source_path: fixtures/engagements/2022-lumengrid-field-knowledge.yaml
+
+name_cleared: false
+anon_label: "a regulated electric utility, US, field workforce"
+
+delivered_under: credera
+attribution:
+  personal: "I led the knowledge model and the first search prototype"
+  pendoah: null
+
+situation: >
+  Retiring technicians held switching procedures in personal drives and
+  notebooks. New hires could not find the current version.
+task: >
+  Capture high-risk procedures and make the current version searchable
+  without putting them on a public cloud.
+action: >
+  Inventory of the top procedures, a controlled template, and a local
+  search prototype over the resulting corpus.
+result: >
+  A first slice of procedures had an owner and a current file. Search
+  quality was limited by scan quality, which was not in the original scope.
+capabilities:
+  - regulated-industry-delivery
+  - knowledge-modeling
+  - stakeholder-management-cxo
+stack: [SharePoint, local search]
+constraints: [NERC awareness, no public cloud for procedures]
+
+commercials:
+  shape: t_and_m
+  duration_months: 5
+  team_size: 4
+  my_allocation: 0.4
+  rate_or_value: null
+  estimate_vs_actual: "scan quality pushed search into a follow-on"
+
+methodology_used: []
+risks_hit:
+  - "source scans were too poor for reliable OCR"
+what_id_do_differently: >
+  Budget a scan-quality gate before promising search.
+
+hard_questions_faced:
+  - "is this a records-management project or a search project?"
+objections_overcome:
+  - "records team wanted a multi-year ECM — scoped to procedures first"
+failure_or_setback: >
+  I over-promised search on day one. The honest product was a current,
+  owned file per procedure; search had to wait on scan quality.
+
+outcomes:
+  - claim: null
+    evidence: NOT_FOUND
+sources:
+  - fixtures/engagements/2022-lumengrid-field-knowledge.yaml

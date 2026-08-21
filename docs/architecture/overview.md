@@ -42,8 +42,19 @@ Sync-Capabilities.ps1            Sync-AgentHub.ps1
 
 ## RepoWise workspace
 
-One workspace at the fleet root indexes all owned repos; the
-`repowise-workspace` MCP entry (stdio, on-demand-local) is the single agent
-surface. Workspace YAML lives at the fleet root (unversioned container);
-the versioned declaration of the arrangement is this file plus
-`registry/mcps.json` and `registry/repo-standard.json`.
+One workspace at `C:\Repos` indexes git repos under `shmindmaster`,
+`sh-pendoah`, `musa-dev-team`, and `pendoah`; the `repowise-workspace` MCP
+entry (stdio, on-demand-local, `repowise mcp C:/Repos`) is the single agent
+surface. Workspace YAML lives at `C:\Repos` (unversioned container); the
+versioned declaration of the arrangement is this file plus
+`registry/mcps.json` and `registry/repo-standard.json`. Per-repo indexes
+are stored in each repo's `.repowise/` directory.
+
+## Knowledge-access documents layer
+
+`packages/knowledge-access` is the sibling for curated documents under
+`D:\OneDrive - MahumTech\Documents\` folders `02`–`06`. It is not a
+RepoWise workspace: OneDrive is not a git root, and client names are an
+output gate. Agents read `_MAP.md`, then exact-search, then specific
+files. Runtime engagement records stay in the private
+`C:\Repos\shmindmaster\portfolio-records` repository.

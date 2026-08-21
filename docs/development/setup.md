@@ -5,6 +5,7 @@
 - Windows, PowerShell 5.1+ (`powershell.exe`) or PowerShell 7+ (`pwsh`).
 - Git.
 - `repowise` CLI (`uv tool install repowise`) for the code-intelligence layer.
+  Keep it current with `pwsh -NoProfile -File scripts/Update-RepoWise.ps1 -Apply -RegisterSchedule`.
 
 No package install step: this repo is scripts, registry JSON, and markdown.
 
@@ -19,5 +20,7 @@ pwsh -NoProfile -File .\tests\Run-AllTests.ps1
 
 - `%LOCALAPPDATA%\AgentHub` — runtime output, drift JSON, external workspaces.
 - `D:\Local-AI` — local AI runtimes, models, caches.
-- `C:\Repos\shmindmaster\.repowise-workspace.yaml` — RepoWise workspace
-  membership for the fleet.
+- `C:\Repos\.repowise-workspace.yaml` — RepoWise workspace membership for
+  git repos under `C:\Repos\shmindmaster`, `C:\Repos\sh-pendoah`,
+  `C:\Repos\musa-dev-team`, and `C:\Repos\pendoah`. Per-repo indexes live in
+  each repo's `.repowise/` directory.

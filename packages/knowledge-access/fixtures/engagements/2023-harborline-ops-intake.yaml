@@ -1,0 +1,60 @@
+sector: Consumer_Discretionary
+industry: Specialty_Retail
+client: Harborline_Retail
+engagement: 2023_Ops_Intake_Rebuild
+year: 2023
+source_path: fixtures/engagements/2023-harborline-ops-intake.yaml
+
+name_cleared: false
+anon_label: "a multi-location specialty retailer, US, ~200 stores"
+
+delivered_under: independent
+attribution:
+  personal: "I owned discovery, architecture, and the first two releases"
+  pendoah: null
+
+situation: >
+  Store ops tickets arrived as email forwards. Nobody could see SLA age or
+  repeat faults across regions.
+task: >
+  Replace the inbox with a structured intake and a weekly ops review.
+action: >
+  Mapped the real routing, shipped a form-plus-queue MVP, and sat in the
+  first four regional reviews to correct the taxonomy.
+result: >
+  Repeat faults became visible by region. The first release was late
+  because the taxonomy kept moving.
+capabilities:
+  - stakeholder-management-cxo
+  - process-redesign
+  - lightweight-ops-tooling
+stack: [TypeScript, Postgres]
+constraints: [store managers on shared PCs, no new SaaS without legal review]
+
+commercials:
+  shape: hourly
+  duration_months: 3
+  team_size: 2
+  my_allocation: 0.6
+  rate_or_value: null
+  estimate_vs_actual: "quoted 8 weeks, ran 12 — taxonomy churn"
+
+methodology_used: []
+risks_hit:
+  - "taxonomy rewritten twice after regional reviews"
+what_id_do_differently: >
+  Time-box taxonomy to one region before expanding.
+
+hard_questions_faced:
+  - "can this just be a spreadsheet?"
+objections_overcome:
+  - "legal blocked a new SaaS — stayed on existing stack"
+failure_or_setback: >
+  I let two regions invent parallel categories. The merge cost two weeks
+  and a loss of trust with the slower region.
+
+outcomes:
+  - claim: null
+    evidence: NOT_FOUND
+sources:
+  - fixtures/engagements/2023-harborline-ops-intake.yaml

@@ -31,7 +31,8 @@ documented host user-level config locations; they never carry credentials.
 ```powershell
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All            # report
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All -Fix       # repair deterministic drift
-repowise status -w                                                    # index freshness (from fleet root)
+pwsh -NoProfile -File .\scripts\Update-RepoWise.ps1 -Audit             # CLI vs PyPI latest
+repowise status -w                                                    # index freshness (from C:\Repos)
 repowise doctor -w                                                    # RepoWise health
 ```
 

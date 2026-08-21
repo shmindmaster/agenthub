@@ -1,0 +1,48 @@
+# Superset engagement record. One YAML per engagement. Extract once,
+# project many. Canonical runtime store:
+#   C:\Repos\shmindmaster\portfolio-records\records\engagements\
+# This schema is the authority; records must not invent extra privilege.
+
+sector: string
+industry: string
+client: string
+engagement: string
+year: integer
+source_path: string
+
+name_cleared: boolean    # true = may name the client in rendered output
+anon_label: string
+
+delivered_under: pendoah | credera | independent
+attribution:
+  personal: string
+  pendoah: string | null
+
+situation: string
+task: string
+action: string
+result: string
+capabilities: [string]
+stack: [string]
+constraints: [string]
+
+commercials:
+  shape: fixed | hourly | retainer | t_and_m
+  duration_months: number | null
+  team_size: integer | null
+  my_allocation: number | null   # FTE
+  rate_or_value: string | null   # never-render by default
+  estimate_vs_actual: string | null
+
+methodology_used: [string]
+risks_hit: [string]
+what_id_do_differently: string | null
+
+hard_questions_faced: [string]
+objections_overcome: [string]
+failure_or_setback: string | null
+
+outcomes:
+  - claim: string | null         # null + evidence NOT_FOUND when uncited
+    evidence: string             # "<file>, p.N" or NOT_FOUND
+sources: [string]

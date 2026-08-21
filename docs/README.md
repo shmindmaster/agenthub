@@ -8,6 +8,9 @@ reality. Everything else is durable knowledge, routed below.
 - [product/vision.md](./product/vision.md) — what AgentHub is for, its
   boundaries, and what must never enter this repository. Read before adding a
   capability or a registry surface.
+- Document intelligence for `D:\OneDrive - MahumTech\Documents\` folders
+  `02`–`06` is the `knowledge-access` capability
+  (`packages/knowledge-access`). RepoWise does not cover that tree.
 
 ## Architecture
 
