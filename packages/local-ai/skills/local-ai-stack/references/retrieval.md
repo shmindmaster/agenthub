@@ -43,6 +43,10 @@ It reads only; it never writes, indexes, or controls the stack. Keep write and
 index operations on `$LocalAiControl`. It is a convenience around the same
 collection/alias contract as the retrieval API, not a second source of truth.
 
+For resumes, proposals, RFPs, and pitches, agents retrieve `knowledge` as
+evidence (`use-knowledge-access` / `opportunity-engine`). They do **not**
+draft those artifacts by calling a local chat LLM.
+
 ### 3) Media routes
 
 - **Image**: Visual Bank + `ai.ps1 image` (single/batch/post/mask/design/enroll/…);
@@ -63,8 +67,8 @@ line previously said "fourteen" and was wrong within days.
 
 `policy.chat_models_policy = uncensored-or-abliterated-required`.
 
-Read the live model IDs from the registry; the declared kinds are an
-abliterated Qwen3 for text and an abliterated Qwen3-VL for vision. Do not wire
+Read the live model IDs from the registry. The declared local generator is
+`provider.local` (Huihui-gemma-4-12B-it-abliterated via llama.cpp). Do not wire
 aligned/refusal chat models into `generation.routes`. Embeddings, rerank, STT,
 and the media synthesizers are not chat-refusal models — this policy does not
 apply to them, and their declared winners stay as they are.

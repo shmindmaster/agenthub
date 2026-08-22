@@ -64,6 +64,31 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Cursor IDE agents, Cursor Agent CLI, Cursor Cloud/Background Agents, and Cursor API sessions are active following explicit owner reauthorization on 2026-07-30.
 - Give Cursor the same canonical capabilities, MCP ownership, worktree policy, review requirements, and drift enforcement as every other supported host. Use read-only account or local configuration checks for health evidence; do not consume a paid agent run merely to probe availability.
 
+## Opportunity evidence
+
+When preparing job applications, consulting proposals, RFP responses, capability
+statements, resumes, cover letters, technical pitches, interview preparation, or
+other role/proposal materials, retrieve evidence first. You are already the
+writer; do not start or call a local chat LLM (`ai.ps1 start llamacpp`, Ollama
+chat, Open WebUI generation, or `:8787/v1/chat/completions`) to draft the
+artifact.
+
+- **Qdrant `knowledge`** (Local-AI, host `127.0.0.1:16333`, via
+  `use-knowledge-access` / `Search-Knowledge.ps1 -Semantic` /
+  `D:\Local-AI\query.ps1 --index knowledge`) is the primary store for project
+  history, capabilities, proposal material, career evidence, and business
+  context. Do not query alias `legal` for this work.
+- **RepoWise** (`use-repowise`, workspace `C:\Repos`) is the store for
+  repository architecture, implementations, APIs, infrastructure, and other
+  code-backed examples.
+- Combine them: Qdrant for breadth and history; RepoWise for concrete
+  engineering evidence. Search iteratively if the first hits are thin. Prefer
+  specific, transferable examples over generic capability claims. Translate
+  technical work into outcomes (scale, latency, reliability, cost, delivery).
+- Load `opportunity-engine` to parse the opportunity, match evidence, gate
+  claims, and render. Fail closed on unsourced numbers and uncleared client
+  names.
+
 ## Handoff
 
 Report the outcome, changed files, validation evidence, branch or commit when applicable, remaining risks, and the next required gate. Silence or a missing automated review is not approval.

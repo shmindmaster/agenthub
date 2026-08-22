@@ -3,6 +3,19 @@
 Companion to `knowledge-access-plan.md`. That doc covers getting at the
 contents. This one covers turning the contents into the things you send.
 
+## Evidence sources
+
+Do not draft through a local chat LLM. Retrieve, then write.
+
+- Qdrant alias `knowledge` (Local-AI `query.ps1 --index knowledge` /
+  `Search-Knowledge.ps1 -Semantic`): career, project, and proposal
+  history. Never alias `legal` for this pipeline.
+- RepoWise workspace `C:\Repos`: repository architecture and
+  implementation evidence.
+- Combine them. Iterate the query if the first hits are thin. Prefer
+  specific transferable examples and outcome language. Gate still
+  forbids unsourced numbers and uncleared client names.
+
 ## The insight
 
 Resume, Upwork bid, fixed-scope proposal, hourly/rate proposal, candidate

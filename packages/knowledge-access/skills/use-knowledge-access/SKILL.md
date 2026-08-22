@@ -1,6 +1,6 @@
 ---
 name: use-knowledge-access
-description: Use when asking about client work, business entities, certifications, methodologies, career evidence, research notes, or anything in D:\OneDrive - MahumTech\Documents\ folders 01–06 or 10; also for knowledge map, rga/ripgrep-all search, knowledge-access-plan, or grounding an answer in those documents.
+description: Use when asking about client work, business entities, certifications, methodologies, career evidence, research notes, or anything in D:\OneDrive - MahumTech\Documents\ folders 01–06 or 10; also for knowledge map, rga/ripgrep-all search, knowledge-access-plan, grounding an answer in those documents, or retrieving Qdrant knowledge for resumes, proposals, RFPs, and pitches. Do not use the legal alias. Do not draft those artifacts through a local chat LLM.
 ---
 
 # Use Knowledge Access (document intelligence)
