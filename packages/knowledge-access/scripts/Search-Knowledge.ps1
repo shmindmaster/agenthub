@@ -17,7 +17,9 @@ param(
 
     [string]$DocumentsRoot = 'D:\OneDrive - MahumTech\Documents',
 
-    [int]$MaxCount = 50
+    [int]$MaxCount = 50,
+
+    [switch]$NamesOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +41,16 @@ if ($aliases.ContainsKey($Root)) {
 
 if (-not (Test-Path -LiteralPath $target)) {
     throw "search root does not exist: $target"
+}
+
+if ($NamesOnly) {
+    if (-not $rg) {
+        $rg = Get-Command rg -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    }
+    if (-not $rg) { throw 'rg is required for -NamesOnly' }
+    Write-Output "engine=rg-files root=$target"
+    & $rg.Source --files --hidden --no-ignore --glob-case-insensitive -g "*${Query}*" $target
+    exit $LASTEXITCODE
 }
 
 $rga = Get-Command rga -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1

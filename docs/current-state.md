@@ -78,16 +78,14 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `_MAP.md` and `AGENTS.md` sit at that Documents root. Exact search uses
   WSL `rga` 0.10.10 plus pandoc/poppler (no Windows rga build exists).
   Opportunity rendering is `opportunity-engine`; runtime records are the
-  private repo `C:\Repos\shmindmaster\portfolio-records` (empty of real
-  engagements; three synthetic fixtures live only in the package).
-  Semantic index at `D:\rag-index\` is not built. Nested-git scan of
-  folders `02`–`06` on 2026-08-21 found **no** `.git` directories.
-  Folders named `Build` in this tree are delivery-kit documents, not
-  compiler output, and were left in place. One empty `__pycache__` was
-  removed; `node_modules` paths that looked empty were OneDrive
-  placeholders and were left. One authorized private engagement record
-  was written to `portfolio-records` (pursuit/proposal; no production
-  outcome; client name not cleared for render).
+  private repo `C:\Repos\shmindmaster\portfolio-records` (three fail-closed
+  YAML records as of 2026-08-21 evening; synthetic fixtures stay in the
+  package). Semantic index at `D:\rag-index\` is not built. Nested-git
+  scan of folders `02`–`06` found **no** `.git` directories. Agents were
+  stalling on a 6k-line `_MAP.md` and recursive `Get-ChildItem`; the
+  router is now `_INDEX.md`, filenames `_CATALOG.md` (~2k high-signal
+  files), taxonomy `_ENGAGEMENTS.md`. Portfolio Audit is not the
+  retrieval skill for this tree.
 - **RepoWise workspace** at `C:\Repos` (relocated 2026-08-21 from
   `C:\Repos\shmindmaster`; created 2026-08-08): covers git repos under
   `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah` (62 members).

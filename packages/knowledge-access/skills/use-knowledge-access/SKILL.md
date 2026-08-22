@@ -40,15 +40,20 @@ names them.
 
 ## Access order
 
-1. Read `D:\OneDrive - MahumTech\Documents\_MAP.md`. Decide the branch.
-2. Exact search scoped to that branch:
-   `pwsh -NoProfile -File packages/knowledge-access/scripts/Search-Knowledge.ps1 -Query "<literal>" -Root 05`
-   (`rga` if installed; otherwise `rg`, which will not see inside PDF/Office).
-3. Read only the files that search returned. Never glob or bulk-read a
-   directory.
-4. Semantic search (local RAG under `D:\rag-index\`) only after 1–3 fail
-   to name the target. That index is not built yet — say so rather than
-   pretending.
+Forbidden: `Get-ChildItem -Recurse` on the Documents root, reading the
+old 6k-line map, and the Portfolio Audit skill (that skill is for git
+repos under `C:\Repos`). Those are why agents time out here.
+
+1. Read `D:\OneDrive - MahumTech\Documents\_INDEX.md` (router, short).
+2. Open **one** of `_CATALOG.md`, `_ENGAGEMENTS.md`, or `_maps/<root>.md`.
+3. Filename search: `Search-Knowledge.ps1 -Query architecture -Root 02 -NamesOnly`
+4. Content search scoped to that branch:
+   `Search-Knowledge.ps1 -Query "<literal>" -Root 05`
+5. Read only the files returned.
+6. Resume/application claims must pass
+   `04_Career_and_Public_Profile/FINAL_CAREER_BRAND_PACKAGE/18_Claim_Matrix_Public_Safe.md`
+   before they leave this tree.
+7. Semantic search (`D:\rag-index\`) only after 1–6 fail. Not built yet.
 
 Regenerate the map after a reorganization:
 

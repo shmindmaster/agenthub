@@ -27,6 +27,7 @@ $required = @(
     'skills\use-knowledge-access\SKILL.md',
     'skills\opportunity-engine\SKILL.md',
     'scripts\New-KnowledgeMap.ps1',
+    'scripts\New-KnowledgeIndex.ps1',
     'scripts\Search-Knowledge.ps1',
     'scripts\Find-CodeInKnowledge.ps1',
     'schemas\opportunity.schema.yaml',
