@@ -131,6 +131,25 @@ may use gain plus a transparent true-peak limiter; it still requires listening,
 caption synchronization, loudness, true-peak, ASR/content, and both identity
 backends to pass.
 
+Every generation must leave a machine-verifiable receipt. A wrapper label such
+as `premium` or `1.7B` is not evidence by itself. Bind the output bytes and
+SHA-256 to the resolved local checkpoint and `config.json` hash, model type
+`base`, model size `1b7`, 12 Hz tokenizer, `faster-qwen3-tts` backend, explicit
+language, ICL mode, sampling/seed settings, canonical and rendered text, and the
+reference WAV/transcript paths and hashes. Preserve the exact candidate chosen
+for each stable segment in a selection ledger before assembly; manual copies or
+an unrecorded `selected` directory are not reproducible provenance.
+
+The final content gate transcribes both the mastered narration WAV and audio
+extracted from the exact encoded delivery video. Each ASR receipt must bind the
+source path, byte count, and SHA-256; a free-floating transcript is not evidence.
+Compare both transcripts to the locked script and fail on omissions,
+duplication, reference-tail leakage, clipped joins, or unexplained differences.
+Provide the owner a full continuous listening file from the exact encoded
+candidate. A jump-cut proper-name or pronunciation reel may supplement that
+file only when it is conspicuously labeled as discontinuous; it can never be
+the sole approval artifact.
+
 ### Ops
 
 - Full **ICL** for enrolled clones (ref WAV + exact transcript). x-vector only

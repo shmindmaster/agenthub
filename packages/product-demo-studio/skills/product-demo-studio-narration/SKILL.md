@@ -96,3 +96,19 @@ abrupt endings; do not blindly trim a fixed tail duration. The final program mix
 may use gain plus a transparent true-peak limiter to meet delivery loudness, but
 the exact mastered candidate must pass listening, caption timing, integrated
 loudness, true peak, ASR/content, and both speaker-identity backends.
+
+Do not accept a route name as generation provenance. Record the resolved local
+checkpoint and config hash, `base`/`1b7`/12 Hz model identity, backend, language,
+ICL and sampling settings, canonical and rendered text, reference audio and
+transcript hashes, output hash, and exact selected attempt for every stable
+segment. Assembly must consume a hash-bound selection ledger; an unrecorded copy
+into a `selected` folder is a release failure.
+
+Run ASR twice at the program boundary: once on the exact mastered narration WAV
+and once on audio extracted from the exact encoded delivery video. Bind every
+ASR result to the source path, byte count, and SHA-256, then compare both with
+the locked script. A transcript that does not name and hash its audio source is
+stale by default. The owner listening artifact must be the full continuous audio
+from the encoded candidate. A discontinuous pronunciation excerpt reel is only
+supplemental and must be labeled `DISCONTINUOUS EXCERPTS`; never use it as the
+sole approval file.

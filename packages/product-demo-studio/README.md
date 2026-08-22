@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.7.6**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.7.7**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
@@ -51,6 +51,11 @@ mandatory canonical post-validator independently rereads and rehashes every
 candidate, preflight, review, receipt, and arbiter artifact. Shell absence no
 longer creates a false pipeline blocker; missing inputs, broad-write reviewer
 contexts, or failed post-validation still fail closed.
+Version 1.7.7 makes narration provenance and listening fail closed. Generation
+receipts bind the resolved model and reference inputs, assembly consumes an
+explicit selected-take ledger, ASR is rerun against both mastered narration and
+the encoded delivery candidate, and owner approval uses full continuous audio;
+discontinuous pronunciation excerpts are supplemental and labeled as such.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with

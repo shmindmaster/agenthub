@@ -42,7 +42,7 @@ try {
 $ExpectedPolicy = @{
     single_control_plane = $AiPs1Path
     single_model_root = Join-Path $Root 'models'
-    single_artifact_root = Join-Path $Root 'artifacts'
+    single_artifact_root = Join-Path $Root 'data\artifacts'
     single_vector_engine = 'qdrant'
     gpu_heavy_jobs = 'serialized'
 }
@@ -96,7 +96,7 @@ foreach ($alias in $RequiredIndexes) {
     $index = $Registry.indexes | Where-Object { $_.stable_alias -eq $alias }
     if (-not $index) {
         $Failures.Add("required index alias missing: $alias")
-    } elseif ($index.source_database -ne (Join-Path $Root 'shared\catalogs\corpus-v2.sqlite')) {
+    } elseif ($index.source_database -ne (Join-Path $Root 'data\catalog\corpus-v2.sqlite')) {
         $Failures.Add("index '$alias' must use the corpus-v2 catalog, found '$($index.source_database)'")
     }
 }

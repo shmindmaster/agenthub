@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.7.6";
+const expectedVersion = "1.7.7";
 const failures = [];
 
 function readJson(relativePath) {
