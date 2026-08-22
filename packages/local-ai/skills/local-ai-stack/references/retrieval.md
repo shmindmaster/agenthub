@@ -10,9 +10,10 @@ pull ad-hoc models, or copy weights outside `policy.single_model_root`.
 
 ### 1) Model routes
 
-- **Chat and assistant APIs**: Open WebUI calling the declared Local-AI API.
-- **Local inference provider layer**: the declared Ollama service and optional
-  on-demand llama.cpp capability.
+- **Chat and assistant APIs**: Open WebUI calling the declared Local-AI API
+  (`:8787/v1`), which generates through llama.cpp (`provider.local`).
+- **Local inference provider layer**: the declared llama.cpp service. Ollama
+  remains an Open WebUI connection with empty tags; do not pull models into it.
 - **Model contract source**: `$LocalAiRegistry` under `capabilities`.
 
 ### 2) RAG routes
