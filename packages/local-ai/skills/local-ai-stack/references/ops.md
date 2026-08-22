@@ -39,6 +39,9 @@ check that can no longer fail.
   model allocation.
 - Fail closed on concurrent heavy work unless the current task explicitly
   coordinates ownership of the shared GPU.
+- **Music does not start ComfyUI.** `ai.ps1 music` uses the ACE-Step resident
+  runtime (`music.ace-step`). `start comfyui` / `start media` is for image/motif
+  only and will steal VRAM from ingest and TTS. See `references/music.md`.
 
 ## Validation expectations for coding agents
 

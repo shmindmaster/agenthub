@@ -1,6 +1,6 @@
 ---
 name: local-ai-stack
-description: Use when local model inference, RAG/retrieval, media generation, or legal/knowledge scope routing are required. Thin router over D:\Local-AI\ai.ps1 — load references/voice.md, image.md, retrieval.md, or ops.md only for the needed specialty.
+description: Use when local model inference, RAG/retrieval, media generation, or legal/knowledge scope routing are required. Thin router over D:\Local-AI\ai.ps1 — load references/voice.md, image.md, music.md, retrieval.md, or ops.md only for the needed specialty.
 ---
 
 # Local AI stack
@@ -55,8 +55,9 @@ Proceed only for the route whose checks passed:
 
 - **chat + attachments** -> Open WebUI route.
 - **knowledge/legal retrieval** -> RAG route.
-- **media synthesis** -> ComfyUI/Creative-Lab route.
-- **voice/STT** -> dedicated media runtime route.
+- **image / motif video** -> ComfyUI route (`ai.ps1 image` / `motif`).
+- **music beds** -> `ai.ps1 music` (ACE-Step resident). Do **not** start ComfyUI.
+- **voice/STT** -> dedicated media runtime route. TTS does not need music or Comfy.
 
 ## One control interface
 
@@ -107,6 +108,7 @@ plane checks above, open only the matching reference:
 | --- | --- |
 | Voice / TTS / STT / voice corpus | `references/voice.md` |
 | Image / Visual Bank | `references/image.md` |
+| Music beds / underscore | `references/music.md` |
 | RAG, chat model policy, knowledge/legal scope | `references/retrieval.md` |
 | Storage, GPU scheduling, validation, adoption | `references/ops.md` |
 | Long batch jobs | also load skill `long-running-generation` |

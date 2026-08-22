@@ -50,7 +50,8 @@ collection/alias contract as the retrieval API, not a second source of truth.
 - **Voice and TTS/STT**: Qwen3-TTS via `faster-qwen3-tts` only (`voice.clone` /
   `voice.role` / `voice.design`) plus STT; see Voice TTS section above. Kokoro
   / `audio.tts.bulk` removed.
-- **Video/music**: `ai.ps1 motif` and `ai.ps1 music`.
+- **Video (motif)**: `ai.ps1 motif` (ComfyUI).
+- **Music beds**: `ai.ps1 music` — ACE-Step resident, **not** ComfyUI. See `references/music.md`. TTS does not need this route.
 
 Resolve which media capabilities exist by reading `capabilities` in
 `$LocalAiRegistry` at runtime. Do not assume the set named here is complete —
