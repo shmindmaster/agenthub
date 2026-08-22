@@ -11,6 +11,7 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Read the applicable repository `AGENTS.md` before making changes. Repository instructions may narrow this policy but must not silently broaden authorization.
 - Preserve existing work. Inspect status, branches, worktrees, and active pull requests before writing.
 - Never expose or centralize credentials, authentication state, private evidence, customer data, or regulated data.
+- `D:\Local-AI` is a local runtime, not a git project. Do not `git init`, commit, or push it. Operator policy and skills for that stack live in AgentHub (`packages/local-ai`).
 
 ## Engineering behavior
 

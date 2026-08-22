@@ -10,6 +10,10 @@ are host-neutral, but the supported operator interface is Windows PowerShell.
 The skill's presence does not prove that it is installed on every agent host or
 that the runtime is currently ready.
 
+`D:\Local-AI` is a local runtime tree, not a git repository. Do not `git init`,
+commit, or push it. Canonical agent instructions for this capability live in
+this AgentHub package.
+
 ## Resolve the runtime
 
 Resolve the root once. The environment override supports another machine; the
