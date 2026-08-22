@@ -53,8 +53,9 @@ are stored in each repo's `.repowise/` directory.
 ## Knowledge-access documents layer
 
 `packages/knowledge-access` is the sibling for curated documents under
-`D:\OneDrive - MahumTech\Documents\` folders `02`–`06`. It is not a
-RepoWise workspace: OneDrive is not a git root, and client names are an
-output gate. Agents read `_MAP.md`, then exact-search, then specific
-files. Runtime engagement records stay in the private
-`C:\Repos\shmindmaster\portfolio-records` repository.
+`D:\OneDrive - MahumTech\Documents\` folders `01`–`06` and `10`. It is
+not a RepoWise workspace: OneDrive is not a git root, and client names
+are an output gate. Agents read `_INDEX.md`, then exact-search or
+Local-AI Qdrant `knowledge`, then specific files. Runtime engagement
+records stay in the private `C:\Repos\shmindmaster\portfolio-records`
+repository.

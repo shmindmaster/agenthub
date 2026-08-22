@@ -74,18 +74,22 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   directories (`Sync-AgentHub.ps1`, `Sync-Capabilities.ps1`, audit by default).
 - **Knowledge-access documents layer (2026-08-21):** capability
   `knowledge-access` (`packages/knowledge-access`) is the sibling of
-  RepoWise for `D:\OneDrive - MahumTech\Documents\` folders `02`–`06`.
-  `_MAP.md` and `AGENTS.md` sit at that Documents root. Exact search uses
-  WSL `rga` 0.10.10 plus pandoc/poppler (no Windows rga build exists).
-  Opportunity rendering is `opportunity-engine`; runtime records are the
-  private repo `C:\Repos\shmindmaster\portfolio-records` (three fail-closed
-  YAML records as of 2026-08-21 evening; synthetic fixtures stay in the
-  package). Semantic index at `D:\rag-index\` is not built. Nested-git
-  scan of folders `02`–`06` found **no** `.git` directories. Agents were
-  stalling on a 6k-line `_MAP.md` and recursive `Get-ChildItem`; the
-  router is now `_INDEX.md`, filenames `_CATALOG.md` (~2k high-signal
-  files), taxonomy `_ENGAGEMENTS.md`. Portfolio Audit is not the
-  retrieval skill for this tree.
+  RepoWise for `D:\OneDrive - MahumTech\Documents\` folders `01`–`06` and
+  `10`. `_INDEX.md` and `AGENTS.md` sit at that Documents root; `_MAP.md`
+  is a pointer. Exact search uses WSL `rga` 0.10.10 plus pandoc/poppler
+  (no Windows rga build exists). Opportunity rendering is
+  `opportunity-engine`; runtime records are the private repo
+  `C:\Repos\shmindmaster\portfolio-records` (three fail-closed YAML
+  records as of 2026-08-21 evening; synthetic fixtures stay in the
+  package). Semantic search is Local-AI Qdrant alias `knowledge` (catalog
+  `data\catalog\corpus-v2.sqlite`, collection `knowledge_v1`, Docker
+  named volume on host `127.0.0.1:16333`). Alias cutover waits on reindex
+  parity. Nested-git scan of folders `02`–`06` found **no** `.git`
+  directories. Agents were stalling on a 6k-line `_MAP.md` and recursive
+  `Get-ChildItem`; filenames live in `_CATALOG.md`, taxonomy in
+  `_ENGAGEMENTS.md`. Portfolio Audit is not the retrieval skill for this
+  tree. GPU embed/rerank stays native (`ai.ps1`); do not add a second
+  Docker RAG container. Duckie keeps host `6333`.
 - **RepoWise workspace** at `C:\Repos` (relocated 2026-08-21 from
   `C:\Repos\shmindmaster`; created 2026-08-08): covers git repos under
   `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah` (62 members).

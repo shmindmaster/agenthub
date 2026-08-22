@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Detect git object stores and regenerable build dirs inside folders 02-06.
+    Detect git object stores and regenerable build dirs inside folders 01-06 and 10.
 
 .DESCRIPTION
     Report only. Does not move or delete anything. A HOLD row still needs
@@ -17,11 +17,13 @@ param(
 $ErrorActionPreference = 'Continue'
 
 $roots = @(
+    (Join-Path $DocumentsRoot '01_Business_and_Entities'),
     (Join-Path $DocumentsRoot '02_Client_Work'),
     (Join-Path $DocumentsRoot '03_Products_and_Startups'),
     (Join-Path $DocumentsRoot '04_Career_and_Public_Profile'),
     (Join-Path $DocumentsRoot '05_Methodologies_Templates_and_Accelerators'),
-    (Join-Path $DocumentsRoot '06_Research_and_Knowledge_Base')
+    (Join-Path $DocumentsRoot '06_Research_and_Knowledge_Base'),
+    (Join-Path $DocumentsRoot '10_Certifications_Prep')
 )
 
 # Compiler/package caches only. Do not treat a documents folder named
@@ -71,7 +73,7 @@ Write-Output ("wrote {0} ({1} rows)" -f $CsvPath, $rows.Count)
 
 $repos = @($rows | Where-Object { $_.Kind -eq 'REPO' -and $_.RepoRoot })
 if ($repos.Count -eq 0) {
-    Write-Output 'no nested git repos detected in 02-06'
+    Write-Output 'no nested git repos detected in 01-06 or 10'
     exit 0
 }
 

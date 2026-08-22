@@ -4,7 +4,7 @@
     Build the thin agent index for the documents knowledge tree.
 
 .DESCRIPTION
-    Agents time out walking 02-06. This writes four small, always-read
+    Agents time out walking 01-06 and 10. This writes four small, always-read
     artifacts so they never glob the corpus:
 
       _INDEX.md           router (read this first)
@@ -24,11 +24,13 @@ $ErrorActionPreference = 'Stop'
 $utf8 = [Text.UTF8Encoding]::new($false)
 
 $roots = @(
+    '01_Business_and_Entities',
     '02_Client_Work',
     '03_Products_and_Startups',
     '04_Career_and_Public_Profile',
     '05_Methodologies_Templates_and_Accelerators',
-    '06_Research_and_Knowledge_Base'
+    '06_Research_and_Knowledge_Base',
+    '10_Certifications_Prep'
 )
 
 $mapDir = Join-Path $DocumentsRoot '_maps'
@@ -185,15 +187,18 @@ is for git repos under ``C:\Repos``.
 | Proposal / architecture / SOW / case-study filenames | ``_CATALOG.md`` |
 | Client-work engagements by sector/industry/year | ``_ENGAGEMENTS.md`` |
 | Career claims that may be published | ``04_Career_and_Public_Profile/FINAL_CAREER_BRAND_PACKAGE/18_Claim_Matrix_Public_Safe.md`` |
-| Literal string inside PDF/Office | ``Search-Knowledge.ps1 -Query ... -Root 02`` (or 03–06), never unscoped |
+| Literal string inside PDF/Office | ``Search-Knowledge.ps1 -Query ... -Root 02`` (or 01, 03–06, 10), never unscoped |
+| Meaning / concept (not a filename) | ``Search-Knowledge.ps1 -Query ... -Semantic`` (Local-AI Qdrant ``knowledge``) |
 
 ## Roots
 
+- ``01_Business_and_Entities`` — entities, filings, internal business
 - ``02_Client_Work`` — GICS Sector / Industry / Client / YYYY_Engagement
 - ``03_Products_and_Startups`` — Pendoah services vs MahumTech private ventures (not the same)
 - ``04_Career_and_Public_Profile`` — resumes, claim matrix, brand package
 - ``05_Methodologies_Templates_and_Accelerators`` — Domain / NNNN_Topic
 - ``06_Research_and_Knowledge_Base`` — research notes
+- ``10_Certifications_Prep`` — exam prep (mostly images; text RAG sees extractable files only)
 
 ## Search contract
 

@@ -26,7 +26,6 @@ function Report {
 $required = @(
     'skills\use-knowledge-access\SKILL.md',
     'skills\opportunity-engine\SKILL.md',
-    'scripts\New-KnowledgeMap.ps1',
     'scripts\New-KnowledgeIndex.ps1',
     'scripts\Search-Knowledge.ps1',
     'scripts\Find-CodeInKnowledge.ps1',
@@ -64,6 +63,35 @@ foreach ($f in $fixtures) {
 $engine = Get-Content -LiteralPath (Join-Path $pkg 'skills\opportunity-engine\SKILL.md') -Raw -Encoding UTF8
 Report 'opportunity-engine fail-closed on invented specifics' ($engine -match 'invented specifics') `
     'the fail-closed sentence is gone from opportunity-engine'
+
+$search = Get-Content -LiteralPath (Join-Path $pkg 'scripts\Search-Knowledge.ps1') -Raw -Encoding UTF8
+Report 'Search-Knowledge exposes -Semantic' ($search -match '(?m)\[switch\]\$Semantic') `
+    'semantic search flag missing from Search-Knowledge.ps1'
+Report 'Search-Knowledge semantic path is Local-AI Qdrant' (
+    $search -match 'query\.ps1' -and $search -match 'local-ai-qdrant' -and $search -notmatch 'rag-index'
+) 'semantic search must call Local-AI query.ps1, not a second index'
+
+$skill = Get-Content -LiteralPath (Join-Path $pkg 'skills\use-knowledge-access\SKILL.md') -Raw -Encoding UTF8
+Report 'use-knowledge-access routes semantic to Local-AI Qdrant' (
+    $skill -match '-Semantic' -and $skill -match 'Local-AI Qdrant' -and $skill -notmatch 'D:\\rag-index'
+) 'skill still points at D:\rag-index or dropped -Semantic'
+
+$plan = Get-Content -LiteralPath (Join-Path $pkg 'references\knowledge-access-plan.md') -Raw -Encoding UTF8
+Report 'plan phase 4 is Local-AI Qdrant not a second store' (
+    $plan -match 'Local-AI Qdrant' -and $plan -match 'Do not stand up a second vector engine'
+) 'knowledge-access-plan.md must reuse Local-AI Qdrant and refuse a second store'
+Report 'plan and skill include 01 and 10' (
+    $skill -match '01_Business_and_Entities' -and $skill -match '10_Certifications_Prep' -and
+    $plan -match '01_Business_and_Entities' -and $plan -match '10_Certifications_Prep' -and
+    $skill -notmatch 'Folders ``00``, ``01``'
+) '01/10 must be in-scope; 01 must not be listed as out of scope'
+Report 'Search-Knowledge aliases 01 and 10' (
+    $search -match "'01'\s*=\s*'01_Business_and_Entities'" -and
+    $search -match "'10'\s*=\s*'10_Certifications_Prep'"
+) 'Search-Knowledge.ps1 missing 01 or 10 aliases'
+Report 'package no longer ships New-KnowledgeMap.ps1' (
+    -not (Test-Path -LiteralPath (Join-Path $pkg 'scripts\New-KnowledgeMap.ps1'))
+) 'New-KnowledgeMap.ps1 is the old 6k-line map writer; New-KnowledgeIndex.ps1 replaced it'
 
 Write-Host ''
 if ($failures.Count -gt 0) {

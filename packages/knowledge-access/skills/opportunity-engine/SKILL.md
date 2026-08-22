@@ -15,7 +15,7 @@ OPPORTUNITY → MATCH → RENDER → GATE
 ```
 
 Load `references/opportunity-response-engine.md` for the full model.
-Load `use-knowledge-access` before searching `02`–`06`.
+Load `use-knowledge-access` before searching `01`–`06` or `10`.
 
 ## Records
 

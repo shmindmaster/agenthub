@@ -29,14 +29,15 @@ paths or ports are not a second source of truth.
 
 ```text
 models\chat | retrieve | generate
-data\catalog | qdrant | artifacts | cache | secrets | runtime
+data\catalog | artifacts | cache | secrets | runtime
 runtimes\retrieve | media | llama | python
 apps\retrieval | api
 media\   # image/voice/motif/music/transcribe scripts
 ```
 
-Verified against disk 2026-08-08. This is orientation, not authority — the
-registry stays the source of truth for any path you act on.
+Qdrant is the Compose service with Docker named volumes, not a folder
+under `data\`. Verified against disk 2026-08-21. This is orientation, not
+authority — the registry stays the source of truth for any path you act on.
 
 ## Outcome-oriented discovery
 

@@ -1,12 +1,17 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Literal search over the documents knowledge tree.
+    Literal or semantic search over the documents knowledge tree.
 
 .DESCRIPTION
-    Prefers ripgrep-all (rga) so PDF/docx/xlsx/pptx are searchable.
-    Falls back to rg, which only sees text files. Never walks the whole
+    Literal mode prefers ripgrep-all (rga) so PDF/docx/xlsx/pptx are
+    searchable, then WSL rga, then rg (text only). Never walks the whole
     tree: pass -Root as a top-level folder name or a deeper path.
+
+    -Semantic queries the Local-AI Qdrant `knowledge` collection via
+    D:\Local-AI\query.ps1. That is the content index. Do not stand up a
+    second vector store. Legal stays on the `legal` alias; this script
+    never searches it.
 #>
 [CmdletBinding()]
 param(
@@ -19,17 +24,23 @@ param(
 
     [int]$MaxCount = 50,
 
-    [switch]$NamesOnly
+    [switch]$NamesOnly,
+
+    [switch]$Semantic,
+
+    [string]$LocalAiRoot = $(if ($env:LOCAL_AI_ROOT) { $env:LOCAL_AI_ROOT } else { 'D:\Local-AI' })
 )
 
 $ErrorActionPreference = 'Stop'
 
 $aliases = @{
+    '01' = '01_Business_and_Entities'
     '02' = '02_Client_Work'
     '03' = '03_Products_and_Startups'
     '04' = '04_Career_and_Public_Profile'
     '05' = '05_Methodologies_Templates_and_Accelerators'
     '06' = '06_Research_and_Knowledge_Base'
+    '10' = '10_Certifications_Prep'
 }
 
 $target = $Root
@@ -41,6 +52,31 @@ if ($aliases.ContainsKey($Root)) {
 
 if (-not (Test-Path -LiteralPath $target)) {
     throw "search root does not exist: $target"
+}
+
+if ($Semantic -and $NamesOnly) {
+    throw '-Semantic and -NamesOnly cannot be combined'
+}
+
+if ($Semantic) {
+    $queryPs1 = Join-Path $LocalAiRoot 'query.ps1'
+    if (-not (Test-Path -LiteralPath $queryPs1)) {
+        throw "Local-AI query.ps1 not found: $queryPs1"
+    }
+    $limit = [Math]::Min([Math]::Max($MaxCount, 1), 20)
+    $argList = @('-NoProfile', '-File', $queryPs1, '-Query', $Query, '-Index', 'knowledge', '-Limit', "$limit")
+    if ($PSBoundParameters.ContainsKey('Root')) {
+        $needle = $target
+        if ($target.StartsWith($DocumentsRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            $needle = $target.Substring($DocumentsRoot.Length).TrimStart('\', '/')
+        }
+        if ($needle) {
+            $argList += @('-PathContains', $needle)
+        }
+    }
+    Write-Output "engine=local-ai-qdrant index=knowledge root=$target"
+    & powershell.exe @argList
+    exit $LASTEXITCODE
 }
 
 if ($NamesOnly) {
