@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.7.5",
+  "capabilityVersion": "1.7.6",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -324,6 +324,8 @@
       "role": "final-verifier",
       "runsAfter": "arbiter-pass",
       "freshReadOnlyContextRequired": true,
+      "reviewerShellAccessRequired": false,
+      "deterministicBindingEnforcement": "host-post-validator",
       "mustBindExactFinalCandidate": true,
       "publicationPackagingRequiresPass": true,
       "failureDecision": "PIPELINE_BLOCKED"

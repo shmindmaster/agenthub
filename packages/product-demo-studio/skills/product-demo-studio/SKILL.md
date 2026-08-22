@@ -16,7 +16,7 @@ Produce one of two honest outcomes: a professionally finished, fully gated video
 5. Use `product-demo-studio-render` and `../../agents/composition-render-generator.agent.md` for the proxy and final candidate. Run `../../scripts/detect-media-acceleration.mjs`; GPU preference is evidence, not an assumption.
 6. Use `product-demo-studio-qa`. Automated preflight must pass before exactly four independent domain reviews. The Release Arbiter may pass, remediate, product-block, or pipeline-block; it cannot waive a gate.
 7. Remediation uses `../../agents/remediation-agent.agent.md`, followed by a new render and the affected reviews. No render or edit is allowed after verification.
-8. After arbiter PASS, dispatch `../../agents/final-verifier.agent.md`. The first human touchpoint is the final presentation or the explicit blocked result, not unfinished production debris.
+8. After arbiter PASS, dispatch `../../agents/final-verifier.agent.md`. Keep that context host-enforced read-only; capture its JSON through the host output channel and run the canonical final-verification validator outside the verifier context to rehash every bound byte. The first human touchpoint is the final presentation or the explicit blocked result, not unfinished production debris.
 
 ## Production rules
 
@@ -27,4 +27,3 @@ Produce one of two honest outcomes: a professionally finished, fully gated video
 - Remotion is an exceptional compositor, not the default. When a concept genuinely needs it, use the official `remotion:remotion-best-practices` capability rather than vendoring its rules here.
 
 Read `references/killer-demo-playbook.md` only for story/craft decisions and `references/killer-demo-production-guide.md` only for detailed production constraints. Do not reproduce those guides in the product repository.
-

@@ -172,6 +172,12 @@
       "note": "Fleet control plane. No product surface."
     },
     {
+      "productId": "portfolio-records",
+      "repository": "shmindmaster/portfolio-records",
+      "bucket": "noNative",
+      "note": "Private evidence and opportunity-record repository. No product or native application surface."
+    },
+    {
       "productId": "gitpin",
       "repository": "shmindmaster/gitpin",
       "bucket": "noNative",

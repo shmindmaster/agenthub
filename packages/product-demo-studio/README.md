@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.7.5**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.7.6**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
@@ -44,6 +44,13 @@ that could be misread as an intermediate approval requirement.
 Version 1.6.2 removes the legacy runtime probe. Media acceleration now resolves the
 shared Local-AI registry from `LOCAL_AI_REGISTRY`, then `LOCAL_AI_ROOT`, with
 `D:\Local-AI` as the Windows capability default.
+Version 1.7.6 fixes terminal verification on shell-free Windows read-only
+contexts: the independent verifier performs the semantic terminal review using
+read/search tools, the host captures JSON outside the sandbox, and the
+mandatory canonical post-validator independently rereads and rehashes every
+candidate, preflight, review, receipt, and arbiter artifact. Shell absence no
+longer creates a false pipeline blocker; missing inputs, broad-write reviewer
+contexts, or failed post-validation still fail closed.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with
@@ -57,7 +64,7 @@ videos and evidence to the AgentHub-mapped OneDrive destination.
 
 Any content change to this package requires a version bump — host installs are pinned by version
 directory, so a canonical edit without a bump silently never propagates to an already-installed
-host copy (see `tests/Validate-AgentEcosystem.ps1`'s `deployment-freshness:*` checks). Sequence:
+host copy (see `tests/Test-InstalledPluginFreshness.ps1`). Sequence:
 
 1. Edit the canonical source under this directory.
 2. Bump the version everywhere it is asserted: every `.claude-plugin/.codex-plugin/.cursor-plugin/
@@ -76,10 +83,11 @@ host copy (see `tests/Validate-AgentEcosystem.ps1`'s `deployment-freshness:*` ch
 4. Run the package validators from this directory: `node scripts/validate-package.mjs`,
    `node scripts/validate-host-parity.mjs`, `node scripts/validate-guide-sync.mjs`,
    and `node tests/run-contract-tests.mjs`.
-5. Run the ecosystem validator from the repository root:
-   `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Validate-AgentEcosystem.ps1`.
-   Its `deployment-freshness:*` checks will now correctly report every already-installed host
-   copy as stale until it is redeployed.
+5. Run the repository validator and installed-content freshness check from the
+   repository root: `pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1`
+   and `pwsh -NoProfile -File .\tests\Test-InstalledPluginFreshness.ps1`.
+   The freshness check will correctly report every already-installed host copy
+   as stale until it is redeployed.
 6. Re-deploy the updated package into each host that has a live install (reinstall/update the
    plugin in that host) — this is a separate step from the checks above, which only detect drift.
 

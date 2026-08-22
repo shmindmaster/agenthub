@@ -1,6 +1,5 @@
 {
   "name": "product-demo-studio",
-  "version": "1.7.5",
   "description": "Generate truthful product videos or readiness feedback through deterministic evidence, four independent reviews, release arbitration, remediation, mandatory final independent review and verification, and reproducible delivery.",
   "author": {
     "name": "Sarosh Hussain"
@@ -33,5 +32,6 @@
       "Turn this workflow into a persuasive product demo.",
       "Audit this demo proxy against truth, craft, and persuasion gates."
     ]
-  }
+  },
+  "version": "1.7.6"
 }

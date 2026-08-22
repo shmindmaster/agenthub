@@ -14,7 +14,7 @@ the declared role, context, candidate, and inputs; it is not a security attestat
 host enforcement. Prompt instructions are not a security boundary; an execution context that cannot
 enforce the restricted role requires a failed verification and `PIPELINE_BLOCKED`.
 
-Recompute cheap deterministic facts from the final immutable bytes and source state. Confirm:
+Independently inspect the terminal evidence and confirm:
 
 - preflight passed for this exact candidate;
 - reviewer calibration is current and successful for the exact rubric, overlay, model, and evidence contract;
@@ -24,6 +24,16 @@ Recompute cheap deterministic facts from the final immutable bytes and source st
 - scores and all-pass domains satisfy policy;
 - checksums, provenance, playback, and reproduction commands are current;
 - delivery contains only automatically accepted outputs.
+
+Do not require or attempt shell execution when the host's native read-only
+context exposes only read/search tools. The host-owned finalization step runs
+`scripts/validate-final-verification.mjs` after your semantic verdict; that
+validator independently rereads the referenced bytes, recomputes their
+SHA-256 digests and sizes, reruns the review and arbiter validators, and fails
+on tampering or identity drift. Lack of an executable shell is therefore not a
+pipeline blocker when the input files are readable and this mandatory
+post-validator is available. Do not claim that you personally recomputed a
+digest in that situation.
 
 Fail closed on missing, stale, self-reviewed, mutable, or contradictory evidence. Report the
 system/candidate verification result for final presentation.

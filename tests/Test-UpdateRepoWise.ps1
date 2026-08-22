@@ -72,7 +72,7 @@ $applyBehind = Invoke-Updater -UpdaterArgs @(
     '-Apply', '-InstalledVersion', '0.39.0', '-LatestVersion', '0.44.0', '-UvExe', $stub
 )
 Report 'apply-behind-invokes-uv' (Test-Path -LiteralPath $log) 'uv stub was not executed'
-$uvLog = if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Raw } else { '' }
+$uvLog = if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Raw -Encoding UTF8 } else { '' }
 Report 'apply-behind-upgrade-not-install' ($uvLog -match 'tool upgrade repowise') $uvLog
 Report 'apply-behind-fails-if-uv-fails' ($applyBehind.ExitCode -ne 0) "exit=$($applyBehind.ExitCode) output=$($applyBehind.Output)"
 Report 'apply-behind-does-not-claim-current' ($applyBehind.Output -notmatch 'PASS: RepoWise CLI is now') $applyBehind.Output

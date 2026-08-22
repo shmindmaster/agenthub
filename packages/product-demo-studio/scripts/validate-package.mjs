@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.7.5";
+const expectedVersion = "1.7.6";
 const failures = [];
 
 function readJson(relativePath) {
@@ -50,7 +50,8 @@ if (new Set([claude.version, codex.version, cursor.version, qoder.version]).size
   failures.push("host-native plugin manifest versions differ");
 }
 if (portable.name !== "product-demo-studio") failures.push("portable Copilot/Antigravity manifest has wrong plugin name");
-if (!Object.keys(portable).every((key) => ["name", "description"].includes(key))) {
+if (portable.version !== expectedVersion) failures.push(`portable manifest version must be ${expectedVersion}`);
+if (!Object.keys(portable).every((key) => ["$schema", "name", "version", "description"].includes(key))) {
   failures.push("portable manifest exceeds the Antigravity schema");
 }
 
@@ -246,6 +247,8 @@ if (policy.permissions?.finalVerifier?.mandatoryTerminalGate !== true ||
     policy.releasePolicy?.terminalIndependentReview?.role !== "final-verifier" ||
     policy.releasePolicy?.terminalIndependentReview?.runsAfter !== "arbiter-pass" ||
     policy.releasePolicy?.terminalIndependentReview?.freshReadOnlyContextRequired !== true ||
+    policy.releasePolicy?.terminalIndependentReview?.reviewerShellAccessRequired !== false ||
+    policy.releasePolicy?.terminalIndependentReview?.deterministicBindingEnforcement !== "host-post-validator" ||
     policy.releasePolicy?.terminalIndependentReview?.mustBindExactFinalCandidate !== true ||
     policy.releasePolicy?.terminalIndependentReview?.publicationPackagingRequiresPass !== true ||
     policy.releasePolicy?.terminalIndependentReview?.failureDecision !== "PIPELINE_BLOCKED" ||
@@ -267,6 +270,8 @@ const requiredText = [
   ["skills/product-demo-studio/SKILL.md", "detect-media-acceleration.mjs"],
   ["skills/product-demo-studio-qa/SKILL.md", "schemas/video-finding.schema.json"],
   ["agents/final-verifier.agent.md", "mandatory terminal independent reviewer and verifier"],
+  ["agents/final-verifier.agent.md", "Lack of an executable shell"],
+  ["skills/product-demo-studio-qa/SKILL.md", "mandatory post-validator"],
   ["skills/product-demo-studio-qa/SKILL.md", "mandatory final independent review and verification"],
   ["skills/product-demo-studio/SKILL.md", "private review-delivery lane"],
   ["skills/product-demo-studio-capture/SKILL.md", "plannedActiveRegionCoverage"],

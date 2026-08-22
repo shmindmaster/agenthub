@@ -90,7 +90,8 @@ foreach ($manifestPair in @(
 
 $portableManifest = Get-Content -LiteralPath $portableManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 Assert-True ($portableManifest.name -eq $manifest.name) 'Portable plugin name must match Codex.'
-Assert-True (@($portableManifest.PSObject.Properties.Name | Where-Object { $_ -notin @('name','description') }).Count -eq 0) 'Portable manifest must stay compatible with Antigravity schema.'
+Assert-True ($portableManifest.version -eq $manifest.version) 'Portable plugin version must match Codex.'
+Assert-True (@($portableManifest.PSObject.Properties.Name | Where-Object { $_ -notin @('$schema','name','version','description') }).Count -eq 0) 'Portable manifest must stay compatible with the Agent Plugins floor.'
 foreach ($agentName in $expectedAgents) {
     $agentPath = Join-Path $pluginRoot "agents\$agentName"
     Assert-True (Test-Path -LiteralPath $agentPath) "Missing shared subagent: $agentName"

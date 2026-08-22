@@ -179,7 +179,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
       "canonicalSource": "packages/product-demo-studio",
-      "contentHash": "22D9CDAB6A133D9CBF687F928F3CE1C800FC211DD6D696886F004A5024812C67",
+      "contentHash": "280FA889C76EDFCC83948FF93E117FF3ED37366B31AB17C9D6E0EBCCCFD468E4",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -201,7 +201,7 @@
             "plugin-mcp",
             "managed-native-agents"
           ],
-          "reviewIsolation": "sandbox-mode-read-only-plus-receipt-required"
+          "reviewIsolation": "sandbox-mode-read-only-plus-host-output-post-validation-and-receipt-required"
         },
         {
           "hostId": "cursor",
@@ -342,7 +342,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "03C5DF014BA35DC47E7227738D23114895ADB67E791BBEC5ABE93D91DABD04EF",
+      "contentHash": "E1BEE59604D356DAFB78B74AF435DE582752A5D0BFCA2C3CDF0195E9892828F2",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [

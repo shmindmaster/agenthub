@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.7.5",
+  "capabilityVersion": "1.7.6",
   "hostInventorySource": "registry/capabilities.json#product-demo-studio.hostMappings",
   "equivalentContract": {
     "canonicalPolicy": "policy/product-video-policy.json",
@@ -53,6 +53,8 @@
     "capabilityExposureIsReleaseEligibility": false,
     "liveRunMustRecordNativeReadOnlyEnforcement": true,
     "liveRunMustProvideReadOnlyExecutionReceipt": true,
+    "shellFreeReadOnlyReviewerAllowed": true,
+    "hostPostValidatorRequired": true,
     "agentAuthoredExecutionReceiptAllowed": true,
     "promptOnlyOrBroadWriteContextMayRelease": false,
     "missingOrFailedEnforcementDecision": "PIPELINE_BLOCKED",

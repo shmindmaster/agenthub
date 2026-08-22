@@ -1,8 +1,9 @@
 {
   "name": "product-demo-studio",
-  "version": "1.7.5",
   "description": "Canonical cross-agent product-video system: truthful generation, deterministic evidence/preflight, four independent reviews, release arbitration, remediation, mandatory final independent review and verification, and reproducible delivery.",
-  "author": { "name": "Sarosh Hussain" },
+  "author": {
+    "name": "Sarosh Hussain"
+  },
   "keywords": [
     "remotion",
     "descript",
@@ -16,5 +17,6 @@
     "video-qa",
     "visual-assets"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "version": "1.7.6"
 }

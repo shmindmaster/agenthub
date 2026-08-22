@@ -1,8 +1,8 @@
 {
   "name": "product-experience-engineering",
-  "version": "1.4.3",
   "description": "Audit and remediate product experiences, then issue an evidence-backed demo-readiness handoff before video production.",
   "author": {
     "name": "MahumTech"
-  }
+  },
+  "version": "1.4.4"
 }

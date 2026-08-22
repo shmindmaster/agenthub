@@ -1,6 +1,6 @@
 {
   "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "product-experience-engineering",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Discover, audit, improve, and independently validate complete product experiences."
 }

@@ -18,7 +18,6 @@ QA is a fail-closed release system. Generator self-review is useful but never in
 3. Validate every report with `../../scripts/validate-review-report.mjs`. Missing, malformed, writable, or non-independent review evidence blocks release.
 4. Dispatch `../../agents/release-arbiter.agent.md` in a fresh read-only context. Validate its decision with `../../scripts/validate-release-decision.mjs`.
 5. For REMEDIATE, issue the least-privilege assignment, fix only validated findings, render a new candidate, and rerun preflight plus affected reviews. Product and pipeline blockers return explicit feedback instead of a mediocre video.
-6. After arbiter PASS, dispatch `../../agents/final-verifier.agent.md` for the mandatory final independent review and verification. Validate with `../../scripts/validate-final-verification.mjs`, then run `../../scripts/check-evidence-gate.mjs`.
+6. After arbiter PASS, dispatch `../../agents/final-verifier.agent.md` for the mandatory final independent review and verification. A host-native read-only context may be shell-free: capture the verifier's JSON through the host output channel, then run `../../scripts/validate-final-verification.mjs` outside the verifier context so the host deterministically rereads and rehashes every bound artifact. Lack of reviewer shell access is not a blocker when readable inputs and this mandatory post-validator are available. Then run `../../scripts/check-evidence-gate.mjs`.
 
 Approval binds the exact candidate, reports, receipts, policy, arbiter decision, and final verification. Any byte change invalidates it. Deliver only through the mapped OneDrive review root; never copy evidence or video production folders back into the product repository.
-
