@@ -61,3 +61,38 @@ measures *who* is speaking, not whether the name was pronounced correctly, and
 those fail independently. Do not try to fix pronunciation by respelling the
 text: of five orthography variants measured, phonetic respelling was the only
 one to fail the identity floor on both backends.
+
+## Owner-voice pronunciation and mastering gate
+
+Before generating an owner-voice batch, create a pronunciation-risk manifest
+that enumerates every occurrence of a heteronym, irregular spelling, stress
+shift, proper noun, loanword, acronym, initialism, symbol, and domain term. A
+heteronym entry must bind the exact segment and surrounding text to its meaning,
+part of speech, intended IPA, and spoken form. For example, `resume` as a verb is
+`/rɪˈzuːm/`, while résumé as a noun is `/ˈrɛzəmeɪ/`; `record` and `records` also
+need their noun-or-verb sense recorded. The spoken form is review evidence, not
+permission to mutate the canonical script.
+
+Owner-voice input text stays canonical. Apply approved pronunciation handling
+through the shared Local-AI dictionary layer at render time; never phonetic-
+respell Sarosh's input. ASR is a content check, not a complete pronunciation
+oracle: homophones, proper nouns, stress, and accent can pass ASR while sounding
+wrong. Every risk occurrence therefore remains blocked until a listening check
+records pass or fail against the intended meaning and pronunciation.
+
+Use full ICL with the purpose-recorded style WAV and its exact sidecar transcript.
+Validate references as mono WAV at 24 kHz or higher and 16-bit or higher, with at
+least 60 percent speech density, no unexplained gap over two seconds, matching
+language, and immutable hashes. Prefer 10–15 seconds when a validated style
+reference exists; a shorter purpose-recorded reference may be used only when its
+identity and delivery evidence already pass.
+
+Generate immutable attempts in semantic sentence, breath, or scene-beat chunks;
+do not split on an arbitrary character count. Use restrained punctuation to
+shape natural pauses, never punctuation clutter to force acting. Regenerate only
+the failed stable segment, never time-stretch speech, and do not dynamically
+compress individual TTS takes. Detect clipped words, echoed reference tails, and
+abrupt endings; do not blindly trim a fixed tail duration. The final program mix
+may use gain plus a transparent true-peak limiter to meet delivery loudness, but
+the exact mastered candidate must pass listening, caption timing, integrated
+loudness, true peak, ASR/content, and both speaker-identity backends.

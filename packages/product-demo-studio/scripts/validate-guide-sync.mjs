@@ -4,8 +4,8 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const expected = new Map([
-  ["skills/product-demo-studio/references/killer-demo-production-guide.md", "9DF5C33A20FA1606E9DCFA713030E01D73AC25E7CDE736057F3876C8DF0EAA8E"],
-  ["skills/product-demo-studio/references/Visual-Asset-Guide.md", "10FF70EB3006572BB1151919ED97A73CE8E4528B3DF19627C83D4BEF8FDAD159"]
+  ["skills/product-demo-studio/references/killer-demo-production-guide.md", "C41A65F5ADB925657C67995D8ECD74FEA746B865623F3A1FEBF320A4708546A0"],
+  ["skills/product-demo-studio/references/Visual-Asset-Guide.md", "68991C7D4FB72BEE01570C9CFD0E4C71A314DF5FD4816E689B49E67AE044EA0B"]
 ]);
 const failures = [];
 
@@ -24,8 +24,8 @@ const manifests = [
   JSON.parse(await readFile(new URL(".cursor-plugin/plugin.json", root), "utf8")),
   JSON.parse(await readFile(new URL(".qoder-plugin/plugin.json", root), "utf8"))
 ];
-if (manifests.some(manifest => manifest.version !== "1.7.2")) {
-  failures.push("All host-native plugin manifests must be version 1.7.2.");
+if (manifests.some(manifest => manifest.version !== "1.7.5")) {
+  failures.push("All host-native plugin manifests must be version 1.7.5.");
 }
 const visualSkill = await readFile(new URL("skills/product-demo-studio-visual-assets/SKILL.md", root), "utf8");
 if (!visualSkill.includes("name: product-demo-studio-visual-assets")) {

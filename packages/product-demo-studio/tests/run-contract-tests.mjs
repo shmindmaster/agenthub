@@ -708,7 +708,7 @@ function createReviewIntegrity(root, reviewDomain, executionRecords) {
   writeJson(calibrationPath, {
     schemaVersion: "1.0.0",
     status: "PASS",
-    pluginVersion: "1.7.2",
+    pluginVersion: "1.7.5",
     reviewDomain,
     modelId,
     canonicalRubric,
@@ -2500,6 +2500,25 @@ function publicationIntegration() {
 
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+}
+
+{
+  const policy = loadJson(join(pluginDir, "policy", "product-video-policy.json"));
+  const ownerVoice = policy.ownerVoiceProductionPolicy;
+  assert(ownerVoice?.canonicalTextMutationAllowed === false, "owner voice keeps canonical script text immutable");
+  assert(ownerVoice?.phoneticRespellingAllowed === false, "owner voice forbids phonetic input respelling");
+  assert(ownerVoice?.pronunciationRiskManifestRequired === true, "owner voice requires a pronunciation-risk manifest");
+  assert(ownerVoice?.asrAloneMayApprovePronunciation === false, "ASR alone cannot approve owner-voice pronunciation");
+  assert(ownerVoice?.properNounHomophoneStressAndAccentListeningRequired === true, "ambiguous pronunciation requires listening");
+  assert(ownerVoice?.referenceAudio?.fullIclRequired === true && ownerVoice.referenceAudio.exactTranscriptRequired === true, "owner voice requires full ICL with an exact transcript");
+  assert(ownerVoice?.segmentation?.arbitraryCharacterBlocksAllowed === false && ownerVoice.segmentation.timeStretchAllowed === false, "owner voice forbids arbitrary character chunks and time stretching");
+  assert(ownerVoice?.postProcessing?.individualDynamicCompressionAllowed === false && ownerVoice.postProcessing.finalProgramTransparentTruePeakLimiterAllowed === true, "owner voice preserves raw takes while allowing transparent final mastering");
+  assert(ownerVoice?.acceptance?.dualSpeakerIdentityGateRequired === true && ownerVoice.acceptance.listeningRequired === true, "owner voice requires dual identity scoring and listening");
+
+  const narrationSkill = readFileSync(join(pluginDir, "skills", "product-demo-studio-narration", "SKILL.md"), "utf8");
+  for (const requiredText of ["pronunciation-risk manifest", "resume", "canonical script", "ASR is a content check", "transparent true-peak limiter", "never time-stretch"]) {
+    assert(narrationSkill.includes(requiredText), `narration skill documents ${requiredText}`);
   }
 }
 

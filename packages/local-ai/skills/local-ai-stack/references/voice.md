@@ -18,6 +18,7 @@ Authoritative disk policy (do not fork a second catalogue into AgentHub):
 - `$LocalAiRoot\data\artifacts\media\voice-corpus\VOICE-MAP.md`
 - `$LocalAiRoot\data\artifacts\media\voice-corpus\library.json`
 - `$LocalAiRoot\data\artifacts\media\voice-corpus\AGENTS.md`
+- `$LocalAiRoot\data\artifacts\media\voice-corpus\PRONUNCIATION-RISK-POLICY.md`
 
 Architecture:
 
@@ -102,6 +103,33 @@ score anchor only.
 
 Do not recreate Chatterbox / `sarosh-qwen` / x-vector-only / meeting-fine-tune
 profiles. Do not fix pronunciation by respelling text (fails identity floor).
+
+#### Pronunciation-risk contract
+
+Every owner-voice batch requires a contextual pronunciation-risk manifest before
+generation. Enumerate heteronyms, irregular spellings, noun/verb stress shifts,
+proper nouns, loanwords, acronyms, initialisms, symbols, and domain terms by
+stable segment and occurrence. Record meaning or part of speech, intended IPA,
+spoken form, source text, and listening status. `resume` as a verb
+(`/rɪˈzuːm/`) and résumé as a noun (`/ˈrɛzəmeɪ/`) are separate occurrences, as
+are noun and verb senses of `record`.
+
+The dictionary layer may guide a renderer, but canonical Sarosh input text must
+not be phonetic-respelled. ASR verifies words; it cannot by itself approve
+homophones, names, stress, or accent. Keep every pronunciation-risk occurrence
+blocked until a human listening check verifies the intended sense and sound.
+
+Reference inputs use a purpose-recorded style WAV plus its exact transcript:
+mono, 24 kHz or higher, 16-bit or higher, matching language, at least 60 percent
+speech density, no unexplained pause longer than two seconds, and immutable
+hashes. Prefer 10–15 seconds, while allowing a shorter measured reference only
+when existing identity evidence passes. Generate immutable semantic sentence,
+breath, or scene chunks—not arbitrary character blocks. Keep punctuation
+restrained, never time-stretch speech, never dynamically compress an individual
+take, and detect rather than blindly trim tail artifacts. A final program master
+may use gain plus a transparent true-peak limiter; it still requires listening,
+caption synchronization, loudness, true-peak, ASR/content, and both identity
+backends to pass.
 
 ### Ops
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.7.4",
+  "capabilityVersion": "1.7.5",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -21,6 +21,58 @@
       "notion:notion",
       "linear:linear"
     ]
+  },
+  "ownerVoiceProductionPolicy": {
+    "canonicalTextMutationAllowed": false,
+    "phoneticRespellingAllowed": false,
+    "pronunciationRiskManifestRequired": true,
+    "riskClasses": [
+      "heteronym",
+      "irregular-spelling",
+      "stress-shift",
+      "proper-noun",
+      "loanword",
+      "acronym-or-initialism",
+      "symbol",
+      "domain-term"
+    ],
+    "heteronymContextRequired": true,
+    "meaningPartOfSpeechAndIpaRequired": true,
+    "asrAloneMayApprovePronunciation": false,
+    "properNounHomophoneStressAndAccentListeningRequired": true,
+    "referenceAudio": {
+      "fullIclRequired": true,
+      "exactTranscriptRequired": true,
+      "matchingLanguageRequired": true,
+      "minimumSampleRateHz": 24000,
+      "minimumBitsPerSample": 16,
+      "monoRequired": true,
+      "minimumSpeechDensity": 0.6,
+      "maximumUnexplainedPauseSeconds": 2,
+      "preferredDurationSeconds": { "minimum": 10, "maximum": 15 },
+      "shorterMeasuredReferenceAllowed": true,
+      "hashesRequired": true
+    },
+    "segmentation": {
+      "semanticSentenceBreathOrSceneChunksRequired": true,
+      "arbitraryCharacterBlocksAllowed": false,
+      "stableSegmentIdsRequired": true,
+      "attemptsImmutable": true,
+      "timeStretchAllowed": false
+    },
+    "postProcessing": {
+      "individualDynamicCompressionAllowed": false,
+      "blindFixedTailTrimAllowed": false,
+      "tailArtifactDetectionRequired": true,
+      "finalProgramTransparentTruePeakLimiterAllowed": true
+    },
+    "acceptance": {
+      "listeningRequired": true,
+      "asrContentCheckRequired": true,
+      "dualSpeakerIdentityGateRequired": true,
+      "captionSynchronizationRequired": true,
+      "loudnessAndTruePeakGateRequired": true
+    }
   },
   "connectorPolicy": {
     "readBeforeWrite": true,
