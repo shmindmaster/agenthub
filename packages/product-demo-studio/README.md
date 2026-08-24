@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.7.8**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.7.9**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
@@ -64,6 +64,11 @@ preflight now compares the submitted craft measurements and generator provenance
 own rerun instead of trusting a PASS envelope. A candidate-hash-bound continuous-playback editorial
 audit is required before arbitration. The release also strengthens the YouTube promise, retention, screen-cleanliness,
 responsive-framing, disclosure, and post-publication learning standards.
+Version 1.7.9 corrects causal state-change classification in the final-render craft gate. Only
+interactions that can change product state—click, double-click, type, scroll, drag, select, or
+keyboard input—must prove a before/result pixel difference. Canonical non-interactive holds
+(`none`), pointer movement, and hover remain subject to their timing, framing, and feedback
+contracts without being falsely rejected for preserving product state.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with

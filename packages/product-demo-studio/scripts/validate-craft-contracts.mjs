@@ -31,6 +31,19 @@ const mediaPath = flag("--media");
 const mediaArtifactId = flag("--media-artifact-id");
 const outPath = flag("--out");
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+// Only interactions intended to change product state require a causal
+// before/result pixel difference. `none` is the canonical hold value used by
+// the storyboard and capture contracts; pointer movement and hover may aid
+// orientation without changing product state.
+const STATE_CHANGING_INTERACTION_KINDS = new Set([
+  "click",
+  "double-click",
+  "type",
+  "scroll",
+  "drag",
+  "select",
+  "keyboard",
+]);
 
 if (![candidateId, storyboardArtifactId, captureArtifactId, captureEvidenceArtifactId, rawCaptureArtifactId,
       renderTimingArtifactId, mediaArtifactId]
@@ -398,7 +411,9 @@ try {
         }
       }
     }
-    const stateChangeRequired = entry.segment.interaction?.kind !== "hold";
+    const stateChangeRequired = STATE_CHANGING_INTERACTION_KINDS.has(
+      entry.segment.interaction?.kind,
+    );
     let stateChangeVerified = null;
     let stateChangeMeanAbsoluteDifference = null;
     let stateChangePixelRatio = null;

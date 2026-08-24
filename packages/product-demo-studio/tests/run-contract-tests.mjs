@@ -19,6 +19,9 @@ const pluginDir = resolve(testDir, "..");
 const schemaDir = join(pluginDir, "schemas");
 const fixtureDir = join(testDir, "fixtures");
 const schemaCache = new Map();
+const STATE_CHANGING_INTERACTION_KINDS = new Set([
+  "click", "double-click", "type", "scroll", "drag", "select", "keyboard",
+]);
 let assertions = 0;
 let failures = 0;
 
@@ -488,6 +491,13 @@ function screencastChoreographyIntegration() {
       "craft-contract report probes and binds raw capture geometry");
     assert(craftReport.renderMeasurements.length === storyboard.segments.length && craftReport.mediaProbe.durationSeconds === 23,
       "craft-contract report binds the rendered timeline to the exact final media bytes");
+    const renderMeasurementByBeat = new Map(
+      craftReport.renderMeasurements.map((measurement) => [measurement.beatId, measurement]),
+    );
+    assert(renderMeasurementByBeat.get("approval-exception.before")?.stateChangeRequired === false,
+      "craft-contract reporter does not demand a causal state change for pointer movement");
+    assert(renderMeasurementByBeat.get("approval-exception.reveal")?.stateChangeRequired === true,
+      "craft-contract reporter requires a causal state change for a meaningful click");
 
     const partialCapturePath = join(root, "captures.partial.json");
     writeJson(partialCapturePath, craftCaptures.slice(1));
@@ -874,7 +884,7 @@ function createReviewIntegrity(root, reviewDomain, executionRecords) {
   writeJson(calibrationPath, {
     schemaVersion: "1.0.0",
     status: "PASS",
-    pluginVersion: "1.7.8",
+    pluginVersion: "1.7.9",
     reviewDomain,
     modelId,
     canonicalRubric,
@@ -1373,10 +1383,10 @@ function buildPassingEvidence(root, candidateId) {
             - (segment.timelineStartSeconds + segment.interaction.narrationSync.resultVisibleAtSeconds),
           stableHoldSeconds: segment.endCard ? 3 : null,
           frameHashesVerified: true,
-          stateChangeRequired: segment.interaction.kind !== "hold",
-          stateChangeVerified: segment.interaction.kind !== "hold" ? true : null,
-          stateChangeMeanAbsoluteDifference: segment.interaction.kind !== "hold" ? 10 : null,
-          stateChangePixelRatio: segment.interaction.kind !== "hold" ? 0.1 : null,
+          stateChangeRequired: STATE_CHANGING_INTERACTION_KINDS.has(segment.interaction.kind),
+          stateChangeVerified: STATE_CHANGING_INTERACTION_KINDS.has(segment.interaction.kind) ? true : null,
+          stateChangeMeanAbsoluteDifference: STATE_CHANGING_INTERACTION_KINDS.has(segment.interaction.kind) ? 10 : null,
+          stateChangePixelRatio: STATE_CHANGING_INTERACTION_KINDS.has(segment.interaction.kind) ? 0.1 : null,
           stateChangeMeanThreshold: 0.5,
           stateChangePixelRatioThreshold: 0.001,
           stableFrameSampleCount: segment.endCard ? 8 : 0,
@@ -1662,10 +1672,10 @@ function preflightIntegration() {
               - (segment.timelineStartSeconds + segment.interaction.narrationSync.resultVisibleAtSeconds),
             stableHoldSeconds: segment.endCard ? 3 : null,
             frameHashesVerified: true,
-            stateChangeRequired: segment.interaction.kind !== "hold",
-            stateChangeVerified: segment.interaction.kind !== "hold" ? true : null,
-            stateChangeMeanAbsoluteDifference: segment.interaction.kind !== "hold" ? 10 : null,
-            stateChangePixelRatio: segment.interaction.kind !== "hold" ? 0.1 : null,
+            stateChangeRequired: STATE_CHANGING_INTERACTION_KINDS.has(segment.interaction.kind),
+            stateChangeVerified: STATE_CHANGING_INTERACTION_KINDS.has(segment.interaction.kind) ? true : null,
+            stateChangeMeanAbsoluteDifference: STATE_CHANGING_INTERACTION_KINDS.has(segment.interaction.kind) ? 10 : null,
+            stateChangePixelRatio: STATE_CHANGING_INTERACTION_KINDS.has(segment.interaction.kind) ? 0.1 : null,
             stateChangeMeanThreshold: 0.5,
             stateChangePixelRatioThreshold: 0.001,
             stableFrameSampleCount: segment.endCard ? 8 : 0,
