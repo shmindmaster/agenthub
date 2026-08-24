@@ -24,7 +24,8 @@ enrolled speaker profile on two independent embedders and exits non-zero if
 either falls below a floor derived from that speaker's own recordings. Record
 the scores as audio-analysis evidence. Identity and pronunciation fail
 independently — a segment can score as unmistakably the right speaker while
-still mispronouncing a name — so keep the name listening gate as well.
+still mispronouncing a name — so keep the system-owned name listening gate as well. It is performed
+by the orchestrator or isolated audio reviewer and never creates a recurring owner-approval gate.
 
 Generate automatically accepted narration before final capture; provider latency must never occur inside or be
 compressed as part of the recorded product timeline. Measured segment and word durations drive the

@@ -17,6 +17,11 @@ enforce the restricted role requires a failed verification and `PIPELINE_BLOCKED
 Independently inspect the terminal evidence and confirm:
 
 - preflight passed for this exact candidate;
+- the orchestrator editorial audit proves continuous full playback of these exact candidate bytes,
+  covers every required opening/transition/hero/cleanliness/responsive/CTA/final-hold phase with
+  decoded-frame or checksum-bound artifact evidence tied to the candidate, and passed;
+- the system-owned candidate-listening receipt binds the exact candidate path, hash, bytes, source
+  revision, render provenance, and ffprobe duration; covers the full program continuously; and passed;
 - reviewer calibration is current and successful for the exact rubric, overlay, model, and evidence contract;
 - all four fresh reviewer reports and the arbiter decision reference this candidate and current schema version;
 - any relevant product, data, media, source, configuration, or environment change caused a new candidate, evidence package, affected-domain reviews, and mandatory reruns of technical integrity, synchronization, accuracy, privacy, and compliance;

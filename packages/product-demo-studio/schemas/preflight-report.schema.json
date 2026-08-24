@@ -46,8 +46,8 @@
     },
     "checks": {
       "type": "array",
-      "minItems": 19,
-      "maxItems": 19,
+      "minItems": 20,
+      "maxItems": 20,
       "items": {
         "$ref": "#/$defs/preflightCheck"
       },
@@ -236,6 +236,18 @@
           "contains": {
             "properties": {
               "id": {
+                "const": "rendered-story-contract"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "properties": {
+              "id": {
                 "const": "browser-console-network"
               }
             },
@@ -298,17 +310,17 @@
       ],
       "properties": {
         "total": {
-          "const": 19
+          "const": 20
         },
         "passed": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 19
+          "maximum": 20
         },
         "failed": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 19
+          "maximum": 20
         }
       }
     },
@@ -345,7 +357,7 @@
           "summary": {
             "properties": {
               "passed": {
-                "const": 19
+                "const": 20
               },
               "failed": {
                 "const": 0
@@ -433,6 +445,7 @@
         "storyboard-craft-contract",
         "capture-manifest-craft-contract",
         "beat-timing-deltas",
+        "rendered-story-contract",
         "browser-console-network",
         "render-errors",
         "output-specifications",

@@ -56,7 +56,7 @@ falls below a floor derived from the owner's own recordings. This is not
 optional: retro-scoring 148 already-delivered brief segments found 6 below the
 floor, one at less than half of it, in audio that had already gone out.
 
-If a segment says Sarosh, keep the listening gate as well — the identity score
+If a segment says Sarosh, keep the system-owned full-candidate listening gate as well — the identity score
 measures *who* is speaking, not whether the name was pronounced correctly, and
 those fail independently. Do not try to fix pronunciation by respelling the
 text: of five orthography variants measured, phonetic respelling was the only
@@ -77,8 +77,9 @@ Owner-voice input text stays canonical. Apply approved pronunciation handling
 through the shared Local-AI dictionary layer at render time; never phonetic-
 respell Sarosh's input. ASR is a content check, not a complete pronunciation
 oracle: homophones, proper nouns, stress, and accent can pass ASR while sounding
-wrong. Every risk occurrence therefore remains blocked until a listening check
-records pass or fail against the intended meaning and pronunciation.
+wrong. Every risk occurrence therefore remains blocked until the orchestrator or isolated audio
+reviewer records pass or fail against the intended meaning and pronunciation. This is a listening
+requirement, not a recurring owner-approval dependency.
 
 Use full ICL with the purpose-recorded style WAV and its exact sidecar transcript.
 Validate references as mono WAV at 24 kHz or higher and 16-bit or higher, with at
@@ -108,7 +109,9 @@ Run ASR twice at the program boundary: once on the exact mastered narration WAV
 and once on audio extracted from the exact encoded delivery video. Bind every
 ASR result to the source path, byte count, and SHA-256, then compare both with
 the locked script. A transcript that does not name and hash its audio source is
-stale by default. The owner listening artifact must be the full continuous audio
-from the encoded candidate. A discontinuous pronunciation excerpt reel is only
+stale by default. The candidate listening artifact is the
+`../../schemas/candidate-listening-receipt.schema.json` record for full continuous playback of the
+encoded candidate. It binds the exact candidate path, SHA-256, byte count, source revision, render
+provenance, and ffprobe duration. A discontinuous pronunciation excerpt reel is only
 supplemental and must be labeled `DISCONTINUOUS EXCERPTS`; never use it as the
 sole approval file.

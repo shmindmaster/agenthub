@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const testDir = dirname(fileURLToPath(import.meta.url));
@@ -449,6 +449,13 @@ function screencastChoreographyIntegration() {
       "-frames:v", "1", "-y", rawCapturePath,
     ], { encoding: "utf8" });
     if (result.status !== 0) throw new Error(`could not create raw capture fixture: ${result.stderr}`);
+    const mediaPath = join(root, "candidate.mp4");
+    generateRealCandidate(mediaPath);
+    const renderTimingPath = join(root, "render-timing.json");
+    writeJson(renderTimingPath, bindRenderTimingFrameHashes(
+      buildRenderTimingDocument("synthetic-guided-screencast", storyboard),
+      mediaPath,
+    ));
     const craftReportPath = join(root, "craft-contract-validation.json");
     result = spawnSync(process.execPath, [
       join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
@@ -461,9 +468,14 @@ function screencastChoreographyIntegration() {
       "--capture-evidence-artifact-id", "capture-evidence",
       "--raw-capture", rawCapturePath,
       "--raw-capture-artifact-id", "raw-capture",
+      "--render-timing", renderTimingPath,
+      "--render-timing-artifact-id", "render-timing",
+      "--media", mediaPath,
+      "--media-artifact-id", "media",
       "--out", craftReportPath,
     ], { encoding: "utf8" });
     assert(result.status === 0, "craft-contract reporter accepts and binds valid storyboard/capture inputs");
+    if (result.status !== 0) console.error(result.stderr || result.stdout);
     const craftReport = loadJson(craftReportPath);
     const deterministicSchemaPath = join(schemaDir, "deterministic-report.schema.json");
     const deterministicSchema = loadSchema(deterministicSchemaPath);
@@ -474,6 +486,8 @@ function screencastChoreographyIntegration() {
       "craft-contract report emits evidence-bound per-beat result-hold timing");
     assert(craftReport.sourceGeometry.width === 3840 && craftReport.sourceGeometry.height === 2160,
       "craft-contract report probes and binds raw capture geometry");
+    assert(craftReport.renderMeasurements.length === storyboard.segments.length && craftReport.mediaProbe.durationSeconds === 23,
+      "craft-contract report binds the rendered timeline to the exact final media bytes");
 
     const partialCapturePath = join(root, "captures.partial.json");
     writeJson(partialCapturePath, craftCaptures.slice(1));
@@ -488,6 +502,10 @@ function screencastChoreographyIntegration() {
       "--capture-evidence-artifact-id", "capture-evidence",
       "--raw-capture", rawCapturePath,
       "--raw-capture-artifact-id", "raw-capture",
+      "--render-timing", renderTimingPath,
+      "--render-timing-artifact-id", "render-timing",
+      "--media", mediaPath,
+      "--media-artifact-id", "media",
       "--out", join(root, "craft-contract-validation.partial.json"),
     ], { encoding: "utf8" });
     assert(result.status === 1, "craft-contract reporter rejects partial storyboard capture coverage");
@@ -507,9 +525,157 @@ function screencastChoreographyIntegration() {
       "--capture-evidence-artifact-id", "capture-evidence",
       "--raw-capture", rawCapturePath,
       "--raw-capture-artifact-id", "raw-capture",
+      "--render-timing", renderTimingPath,
+      "--render-timing-artifact-id", "render-timing",
+      "--media", mediaPath,
+      "--media-artifact-id", "media",
       "--out", join(root, "craft-contract-validation.mismatched.json"),
     ], { encoding: "utf8" });
     assert(result.status === 1, "craft-contract reporter rejects timing drift across storyboard, manifest, and capture evidence");
+
+    const compressedRenderTiming = bindRenderTimingFrameHashes(
+      buildRenderTimingDocument("synthetic-guided-screencast", storyboard),
+      mediaPath,
+    );
+    compressedRenderTiming.beats[1].startsAtSeconds = 5;
+    const compressedRenderTimingPath = join(root, "render-timing.compressed.json");
+    writeJson(compressedRenderTimingPath, compressedRenderTiming);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
+      "--candidate-id", "synthetic-guided-screencast",
+      "--storyboard", storyboardPath,
+      "--storyboard-artifact-id", "storyboard",
+      "--capture-manifest", craftCapturePath,
+      "--capture-artifact-id", "capture-manifest",
+      "--capture-evidence", captureEvidencePath,
+      "--capture-evidence-artifact-id", "capture-evidence",
+      "--raw-capture", rawCapturePath,
+      "--raw-capture-artifact-id", "raw-capture",
+      "--render-timing", compressedRenderTimingPath,
+      "--render-timing-artifact-id", "render-timing",
+      "--media", mediaPath,
+      "--media-artifact-id", "media",
+      "--out", join(root, "craft-contract-validation.compressed.json"),
+    ], { encoding: "utf8" });
+    assert(result.status === 1, "craft-contract reporter rejects a final render timeline compressed away from its storyboard");
+
+    const unstableEndCard = bindRenderTimingFrameHashes(
+      buildRenderTimingDocument("synthetic-guided-screencast", storyboard),
+      mediaPath,
+    );
+    unstableEndCard.beats.at(-1).stableFromSeconds = 20.5;
+    const unstableEndCardPath = join(root, "render-timing.unstable-end-card.json");
+    writeJson(unstableEndCardPath, unstableEndCard);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
+      "--candidate-id", "synthetic-guided-screencast",
+      "--storyboard", storyboardPath,
+      "--storyboard-artifact-id", "storyboard",
+      "--capture-manifest", craftCapturePath,
+      "--capture-artifact-id", "capture-manifest",
+      "--capture-evidence", captureEvidencePath,
+      "--capture-evidence-artifact-id", "capture-evidence",
+      "--raw-capture", rawCapturePath,
+      "--raw-capture-artifact-id", "raw-capture",
+      "--render-timing", unstableEndCardPath,
+      "--render-timing-artifact-id", "render-timing",
+      "--media", mediaPath,
+      "--media-artifact-id", "media",
+      "--out", join(root, "craft-contract-validation.unstable-end-card.json"),
+    ], { encoding: "utf8" });
+    assert(result.status === 1, "craft-contract reporter rejects an end card with less than three seconds of stable hold");
+
+    const alteredMediaPath = join(root, "candidate-altered.mp4");
+    result = spawnSync("ffmpeg", [
+      "-v", "error",
+      "-f", "lavfi", "-i", "color=c=black:size=320x180:rate=30",
+      "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000",
+      "-t", "23",
+      "-c:v", "libx264", "-pix_fmt", "yuv420p",
+      "-c:a", "aac", "-ac", "2", "-ar", "48000",
+      "-movflags", "+faststart", "-y", alteredMediaPath,
+    ], { encoding: "utf8" });
+    if (result.status !== 0) throw new Error(`could not create altered media fixture: ${result.stderr}`);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
+      "--candidate-id", "synthetic-guided-screencast",
+      "--storyboard", storyboardPath,
+      "--storyboard-artifact-id", "storyboard",
+      "--capture-manifest", craftCapturePath,
+      "--capture-artifact-id", "capture-manifest",
+      "--capture-evidence", captureEvidencePath,
+      "--capture-evidence-artifact-id", "capture-evidence",
+      "--raw-capture", rawCapturePath,
+      "--raw-capture-artifact-id", "raw-capture",
+      "--render-timing", renderTimingPath,
+      "--render-timing-artifact-id", "render-timing",
+      "--media", alteredMediaPath,
+      "--media-artifact-id", "media",
+      "--out", join(root, "craft-contract-validation.altered-media.json"),
+    ], { encoding: "utf8" });
+    assert(result.status === 1, "craft-contract reporter rejects altered encoded media when nominal timing JSON is unchanged");
+
+    const freshlyBoundStaticTimingPath = join(root, "render-timing.static-fresh-hashes.json");
+    writeJson(freshlyBoundStaticTimingPath, bindRenderTimingFrameHashes(
+      buildRenderTimingDocument("synthetic-guided-screencast", storyboard),
+      alteredMediaPath,
+    ));
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
+      "--candidate-id", "synthetic-guided-screencast",
+      "--storyboard", storyboardPath,
+      "--storyboard-artifact-id", "storyboard",
+      "--capture-manifest", craftCapturePath,
+      "--capture-artifact-id", "capture-manifest",
+      "--capture-evidence", captureEvidencePath,
+      "--capture-evidence-artifact-id", "capture-evidence",
+      "--raw-capture", rawCapturePath,
+      "--raw-capture-artifact-id", "raw-capture",
+      "--render-timing", freshlyBoundStaticTimingPath,
+      "--render-timing-artifact-id", "render-timing",
+      "--media", alteredMediaPath,
+      "--media-artifact-id", "media",
+      "--out", join(root, "craft-contract-validation.static-fresh-hashes.json"),
+    ], { encoding: "utf8" });
+    assert(result.status === 1 && (result.stderr || result.stdout).includes("meaningful visible state change"),
+      "craft-contract reporter rejects a static render even when its frame hashes are freshly rebound");
+
+    const briefMotionMediaPath = join(root, "candidate-brief-end-card-motion.mp4");
+    result = spawnSync("ffmpeg", [
+      "-v", "error",
+      "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=30:duration=20",
+      "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000",
+      "-t", "23",
+      "-vf", "tpad=stop_mode=clone:stop_duration=3,drawbox=x=12:y=12:w=36:h=36:color=white:t=fill:enable='between(t,21.10,21.24)'",
+      "-c:v", "libx264", "-pix_fmt", "yuv420p",
+      "-c:a", "aac", "-ac", "2", "-ar", "48000",
+      "-movflags", "+faststart", "-y", briefMotionMediaPath,
+    ], { encoding: "utf8" });
+    if (result.status !== 0) throw new Error(`could not create brief end-card motion fixture: ${result.stderr}`);
+    const briefMotionTimingPath = join(root, "render-timing.brief-end-card-motion.json");
+    writeJson(briefMotionTimingPath, bindRenderTimingFrameHashes(
+      buildRenderTimingDocument("synthetic-guided-screencast", storyboard),
+      briefMotionMediaPath,
+    ));
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
+      "--candidate-id", "synthetic-guided-screencast",
+      "--storyboard", storyboardPath,
+      "--storyboard-artifact-id", "storyboard",
+      "--capture-manifest", craftCapturePath,
+      "--capture-artifact-id", "capture-manifest",
+      "--capture-evidence", captureEvidencePath,
+      "--capture-evidence-artifact-id", "capture-evidence",
+      "--raw-capture", rawCapturePath,
+      "--raw-capture-artifact-id", "raw-capture",
+      "--render-timing", briefMotionTimingPath,
+      "--render-timing-artifact-id", "render-timing",
+      "--media", briefMotionMediaPath,
+      "--media-artifact-id", "media",
+      "--out", join(root, "craft-contract-validation.brief-end-card-motion.json"),
+    ], { encoding: "utf8" });
+    assert(result.status === 1 && (result.stderr || result.stdout).includes("final end card changes"),
+      "craft-contract reporter inspects every rendered hold frame and rejects brief localized end-card motion");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -708,7 +874,7 @@ function createReviewIntegrity(root, reviewDomain, executionRecords) {
   writeJson(calibrationPath, {
     schemaVersion: "1.0.0",
     status: "PASS",
-    pluginVersion: "1.7.7",
+    pluginVersion: "1.7.8",
     reviewDomain,
     modelId,
     canonicalRubric,
@@ -789,10 +955,11 @@ function generateRealCandidate(videoPath) {
   const result = spawnSync("ffmpeg", [
     "-v", "error",
     "-f", "lavfi",
-    "-i", "testsrc2=size=320x180:rate=30",
+    "-i", "testsrc2=size=320x180:rate=30:duration=20",
     "-f", "lavfi",
     "-i", "sine=frequency=1000:sample_rate=48000",
-    "-t", "2",
+    "-t", "23",
+    "-vf", "tpad=stop_mode=clone:stop_duration=3",
     "-c:v", "libx264",
     "-pix_fmt", "yuv420p",
     "-color_primaries", "bt709",
@@ -812,7 +979,140 @@ function generateRealCandidate(videoPath) {
   }
 }
 
-function buildCanonicalCraftArtifacts(root, candidateId, storyboard, addArtifact) {
+function buildRenderTimingDocument(candidateId, storyboard, durationSeconds = 23, fps = 30) {
+  return {
+    schemaVersion: "1.0.0",
+    candidateId,
+    episodeId: storyboard.episodeId,
+    durationSeconds,
+    fps,
+    status: "PASS",
+    beats: storyboard.segments.map((segment, index) => ({
+      episodeId: storyboard.episodeId,
+      storyboardSegmentId: segment.id,
+      startsAtSeconds: segment.timelineStartSeconds,
+      endsAtSeconds: storyboard.segments[index + 1]?.timelineStartSeconds ?? durationSeconds,
+      actionAtSeconds: segment.timelineStartSeconds + segment.interaction.narrationSync.actionAtSeconds,
+      resultVisibleAtSeconds: segment.timelineStartSeconds + segment.interaction.narrationSync.resultVisibleAtSeconds,
+      ...(segment.endCard ? {
+        stableFromSeconds: segment.timelineStartSeconds + segment.interaction.narrationSync.resultVisibleAtSeconds + 0.7,
+      } : {}),
+    })),
+  };
+}
+
+function decodedFrameHash(mediaPath, seconds) {
+  const result = spawnSync("ffmpeg", [
+    "-v", "error",
+    "-ss", Number(seconds).toFixed(6),
+    "-i", mediaPath,
+    "-frames:v", "1",
+    "-an",
+    "-pix_fmt", "rgb24",
+    "-f", "rawvideo",
+    "-",
+  ], { encoding: null, maxBuffer: 64 * 1024 * 1024 });
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout) || result.stdout.length === 0) {
+    throw new Error(`could not decode frame at ${seconds}s: ${Buffer.from(result.stderr ?? "").toString("utf8")}`);
+  }
+  return shaBytes(result.stdout);
+}
+
+function materializeEditorialAudit(root, candidate, {
+  fileName = "editorial-audit.json",
+  auditId = "PVEA-SYNTHETIC-001",
+  contextId = "orchestrator-editorial-context",
+  startedAt = "2026-07-29T22:00:00.000Z",
+  completedAt = "2026-07-29T22:00:30.000Z",
+} = {}) {
+  const candidatePath = isAbsolute(candidate.artifactPath)
+    ? candidate.artifactPath
+    : join(root, candidate.artifactPath);
+  const durationSeconds = Number(spawnSync("ffprobe", [
+    "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", candidatePath,
+  ], { encoding: "utf8" }).stdout.trim());
+  const phases = [
+    "opening-promise", "transitions-and-focus", "hero-before-action-result",
+    "screen-cleanliness", "responsive-legibility", "cta-and-impact", "stable-final-hold",
+  ];
+  const timestamps = [0.5, 3, 8, 12, 16, 19.5, Math.max(0, durationSeconds - 0.1)];
+  const auditPath = join(root, fileName);
+  writeJson(auditPath, {
+    schemaVersion: "1.0.0",
+    auditId,
+    candidate,
+    auditor: { role: "orchestrator", contextId },
+    fullPlayback: { continuous: true, mediaDurationSeconds: durationSeconds, startedAt, completedAt },
+    phaseChecks: phases.map((phase, index) => ({
+      phase,
+      passed: true,
+      evidence: [{
+        kind: "frame-timestamp",
+        candidateSha256: candidate.sha256,
+        timestampSeconds: timestamps[index],
+        frameSha256: decodedFrameHash(candidatePath, timestamps[index]),
+      }],
+    })),
+    findings: [],
+    status: "PASS",
+    generatedAt: completedAt,
+  });
+  return {
+    path: auditPath,
+    reference: { artifactPath: fileName, sha256: sha(auditPath), bytes: statSync(auditPath).size },
+  };
+}
+
+function materializeCandidateListeningReceipt(root, candidate, {
+  fileName = "candidate-listening-receipt.json",
+  receiptId = "PVLR-SYNTHETIC-001",
+  contextId = "orchestrator-listening-context",
+  startedAt = "2026-07-29T22:00:00.000Z",
+  completedAt = "2026-07-29T22:00:30.000Z",
+} = {}) {
+  const candidatePath = isAbsolute(candidate.artifactPath)
+    ? candidate.artifactPath
+    : join(root, candidate.artifactPath);
+  const durationSeconds = Number(spawnSync("ffprobe", [
+    "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", candidatePath,
+  ], { encoding: "utf8" }).stdout.trim());
+  const receiptPath = join(root, fileName);
+  writeJson(receiptPath, {
+    schemaVersion: "1.0.0",
+    receiptId,
+    candidate,
+    listener: { role: "orchestrator", contextId },
+    fullListening: { continuous: true, mediaDurationSeconds: durationSeconds, startedAt, completedAt },
+    checks: [
+      ["full-program", "Listened continuously to the exact encoded candidate."],
+      ["pronunciation", "Names, acronyms, and pronunciation-risk words are fluent and correct."],
+      ["delivery-and-pacing", "Delivery, pauses, and pacing support the demonstrated outcome."],
+      ["artifacts-and-discontinuities", "No skipped words, leaks, clicks, truncation, or discontinuities are audible."],
+    ].map(([id, notes]) => ({ id, passed: true, notes })),
+    findings: [],
+    status: "PASS",
+    generatedAt: completedAt,
+  });
+  return {
+    path: receiptPath,
+    reference: { artifactPath: fileName, sha256: sha(receiptPath), bytes: statSync(receiptPath).size },
+  };
+}
+
+function bindRenderTimingFrameHashes(renderTiming, mediaPath) {
+  for (const beat of renderTiming.beats) {
+    const endSampleAt = Math.max(beat.startsAtSeconds, beat.endsAtSeconds - (1 / renderTiming.fps));
+    beat.frameHashes = {
+      start: decodedFrameHash(mediaPath, beat.startsAtSeconds),
+      action: decodedFrameHash(mediaPath, beat.actionAtSeconds),
+      result: decodedFrameHash(mediaPath, beat.resultVisibleAtSeconds),
+      end: decodedFrameHash(mediaPath, endSampleAt),
+    };
+  }
+  return renderTiming;
+}
+
+function buildCanonicalCraftArtifacts(root, candidateId, storyboard, addArtifact, media) {
   const baseCapture = {
     scenario: "approval-exception",
     beat: "reveal",
@@ -895,7 +1195,39 @@ function buildCanonicalCraftArtifacts(root, candidateId, storyboard, addArtifact
   ], { encoding: "utf8" });
   if (rawResult.status !== 0) throw new Error(`could not create raw capture fixture: ${rawResult.stderr || rawResult.stdout}`);
   const rawCapture = addArtifact("raw-capture", "raw-capture", "raw-capture.png", "image/png", null, { existing: true });
-  return { captureManifest, captureEvidence, rawCapture };
+  const renderTiming = addArtifact(
+    "render-timing",
+    "render-timing",
+    "render-timing.json",
+    "application/json",
+    bindRenderTimingFrameHashes(buildRenderTimingDocument(candidateId, storyboard), join(root, media.artifactPath)),
+  );
+  return { captureManifest, captureEvidence, rawCapture, renderTiming, media };
+}
+
+function materializeCanonicalCraftReport(root, candidateId, storyboardArtifact, craftArtifacts, media) {
+  const outPath = join(root, "craftContractValidation.json");
+  const result = spawnSync(process.execPath, [
+    join(pluginDir, "scripts", "validate-craft-contracts.mjs"),
+    "--candidate-id", candidateId,
+    "--storyboard", join(root, storyboardArtifact.artifactPath),
+    "--storyboard-artifact-id", storyboardArtifact.artifactId,
+    "--capture-manifest", join(root, craftArtifacts.captureManifest.artifactPath),
+    "--capture-artifact-id", craftArtifacts.captureManifest.artifactId,
+    "--capture-evidence", join(root, craftArtifacts.captureEvidence.artifactPath),
+    "--capture-evidence-artifact-id", craftArtifacts.captureEvidence.artifactId,
+    "--raw-capture", join(root, craftArtifacts.rawCapture.artifactPath),
+    "--raw-capture-artifact-id", craftArtifacts.rawCapture.artifactId,
+    "--render-timing", join(root, craftArtifacts.renderTiming.artifactPath),
+    "--render-timing-artifact-id", craftArtifacts.renderTiming.artifactId,
+    "--media", join(root, media.artifactPath),
+    "--media-artifact-id", media.artifactId,
+    "--out", outPath,
+  ], { encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new Error(`canonical craft fixture failed: ${result.stderr || result.stdout}`);
+  }
+  return { outPath, report: loadJson(outPath) };
 }
 
 function buildScriptArtifacts(candidateId, addArtifact) {
@@ -944,10 +1276,11 @@ function buildPassingEvidence(root, candidateId) {
   });
   const storyboardDocument = loadJson(join(pluginDir, "scripts", "storyboard.example.json"));
   const storyboardArtifact = addArtifact("storyboard", "storyboard", "storyboard.json", "application/json", storyboardDocument);
-  const craftArtifacts = buildCanonicalCraftArtifacts(root, candidateId, storyboardDocument, addArtifact);
+  const craftArtifacts = buildCanonicalCraftArtifacts(root, candidateId, storyboardDocument, addArtifact, media);
   const captureManifestArtifact = craftArtifacts.captureManifest;
   const captureEvidenceArtifact = craftArtifacts.captureEvidence;
   const rawCaptureArtifact = craftArtifacts.rawCapture;
+  const renderTimingArtifact = craftArtifacts.renderTiming;
   buildScriptArtifacts(candidateId, addArtifact);
   const reportChecks = {
     mediaMetadata: ["artifact-completeness", "output-specifications"],
@@ -965,7 +1298,7 @@ function buildPassingEvidence(root, candidateId) {
     technicalDelivery: ["checksums-provenance", "output-specifications"],
     claimVerification: ["names-dates-numbers-claims"],
     truthSheetVerification: ["names-dates-numbers-claims"],
-    craftContractValidation: ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas"],
+    craftContractValidation: ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas", "rendered-story-contract"],
   };
   const reportGenerators = {
     mediaMetadata: "product-demo-studio-technical-checks",
@@ -985,9 +1318,10 @@ function buildPassingEvidence(root, candidateId) {
     truthSheetVerification: "repository-native-truth-sheet-validator",
     craftContractValidation: "product-demo-studio-craft-contract-validator",
   };
+  const canonicalCraft = materializeCanonicalCraftReport(root, candidateId, storyboardArtifact, craftArtifacts, media);
   const reports = {};
   for (const [reportType, checkIds] of Object.entries(reportChecks)) {
-    const report = {
+    const report = reportType === "craftContractValidation" ? canonicalCraft.report : {
       schemaVersion: "1.0.0",
       candidateId,
       reportType,
@@ -998,33 +1332,67 @@ function buildPassingEvidence(root, candidateId) {
         command: `synthetic-fixture ${reportType} --input ${media.sha256}`,
       },
       inputs: (reportType === "craftContractValidation"
-        ? [storyboardArtifact, captureManifestArtifact, captureEvidenceArtifact, rawCaptureArtifact]
+        ? [storyboardArtifact, captureManifestArtifact, captureEvidenceArtifact, rawCaptureArtifact, renderTimingArtifact, media]
         : [media]
       ).map((artifact) => ({ artifactId: artifact.artifactId, sha256: artifact.sha256 })),
       checks: checkIds.map((id) => ({
         id,
         passed: true,
         evidenceArtifactIds: reportType === "craftContractValidation"
-          ? [id === "storyboard-craft-contract"
-            ? storyboardArtifact.artifactId
+          ? (id === "storyboard-craft-contract"
+            ? [storyboardArtifact.artifactId]
             : id === "capture-manifest-craft-contract"
-              ? captureManifestArtifact.artifactId
-              : captureEvidenceArtifact.artifactId]
+              ? [captureManifestArtifact.artifactId, captureEvidenceArtifact.artifactId, rawCaptureArtifact.artifactId]
+              : id === "beat-timing-deltas"
+                ? [storyboardArtifact.artifactId, captureManifestArtifact.artifactId, captureEvidenceArtifact.artifactId, rawCaptureArtifact.artifactId]
+                : [storyboardArtifact.artifactId, renderTimingArtifact.artifactId, media.artifactId])
           : [media.artifactId],
       })),
       ...(reportType === "craftContractValidation" ? {
-        measurements: [{
-          beatId: "reveal",
-          cursorLeadSeconds: 0.35,
-          actionToResultSeconds: 0.7,
-          resultToSpokenSeconds: 0.2,
+        measurements: storyboardDocument.segments.map((segment) => ({
+          beatId: `${storyboardDocument.episodeId}.${segment.id}`,
+          cursorLeadSeconds: segment.interaction.narrationSync.cursorLeadSeconds,
+          actionToResultSeconds: segment.interaction.narrationSync.resultVisibleAtSeconds - segment.interaction.narrationSync.actionAtSeconds,
+          resultToSpokenSeconds: segment.interaction.narrationSync.spokenResultAtSeconds - segment.interaction.narrationSync.resultVisibleAtSeconds,
           resultHoldToCutSeconds: 1.4,
           evidenceArtifactIds: [captureEvidenceArtifact.artifactId],
-        }],
+        })),
         sourceGeometry: {
           width: 3840,
           height: 2160,
           rawCaptureArtifactId: rawCaptureArtifact.artifactId,
+          probe: "ffprobe",
+        },
+        renderMeasurements: storyboardDocument.segments.map((segment) => ({
+          beatId: `${storyboardDocument.episodeId}.${segment.id}`,
+          startDeltaSeconds: 0,
+          actionDeltaSeconds: 0,
+          resultDeltaSeconds: 0,
+          endDeltaSeconds: 0,
+          resultHoldSeconds: (storyboardDocument.segments[storyboardDocument.segments.indexOf(segment) + 1]?.timelineStartSeconds ?? 23)
+            - (segment.timelineStartSeconds + segment.interaction.narrationSync.resultVisibleAtSeconds),
+          stableHoldSeconds: segment.endCard ? 3 : null,
+          frameHashesVerified: true,
+          stateChangeRequired: segment.interaction.kind !== "hold",
+          stateChangeVerified: segment.interaction.kind !== "hold" ? true : null,
+          stateChangeMeanAbsoluteDifference: segment.interaction.kind !== "hold" ? 10 : null,
+          stateChangePixelRatio: segment.interaction.kind !== "hold" ? 0.1 : null,
+          stateChangeMeanThreshold: 0.5,
+          stateChangePixelRatioThreshold: 0.001,
+          stableFrameSampleCount: segment.endCard ? 8 : 0,
+          stableFramesStable: segment.endCard ? true : null,
+          stableFrameMaxMeanAbsoluteDifference: segment.endCard ? 0 : null,
+          stableFrameMaxChangedPixelRatio: segment.endCard ? 0 : null,
+          stableFrameThreshold: segment.endCard ? 1 : null,
+          stableFrameChangedPixelRatioThreshold: segment.endCard ? 0.0005 : null,
+          evidenceArtifactIds: [renderTimingArtifact.artifactId, media.artifactId],
+        })),
+        mediaProbe: {
+          durationSeconds: 23,
+          fps: 30,
+          width: 320,
+          height: 180,
+          mediaArtifactId: media.artifactId,
           probe: "ffprobe",
         },
       } : {}),
@@ -1036,7 +1404,8 @@ function buildPassingEvidence(root, candidateId) {
       "report",
       `${reportType}.json`,
       "application/json",
-      report,
+      reportType === "craftContractValidation" ? null : report,
+      { existing: reportType === "craftContractValidation" },
     );
     reports[reportType] = {
       artifactId: artifact.artifactId,
@@ -1045,7 +1414,7 @@ function buildPassingEvidence(root, candidateId) {
       candidateId,
       reportType,
       status: "PASS",
-      generatedAt,
+      generatedAt: report.generatedAt,
     };
   }
   const evidencePackage = {
@@ -1178,7 +1547,9 @@ function preflightIntegration() {
       return artifact;
     };
 
-    const media = addArtifact("media", "video", "candidate.mp4", "video/mp4", "synthetic-video-fixture");
+    const candidatePath = join(root, "candidate.mp4");
+    generateRealCandidate(candidatePath);
+    const media = addArtifact("media", "video", "candidate.mp4", "video/mp4", null, { existing: true });
     const build = addArtifact("build-manifest", "manifest", "build.json", "application/json", { synthetic: true });
     const config = addArtifact("configuration-manifest", "manifest", "configuration.json", "application/json", { locale: "en-US" });
     const environment = addArtifact("environment-manifest", "manifest", "environment.json", "application/json", { runtime: "synthetic" });
@@ -1194,10 +1565,11 @@ function preflightIntegration() {
     });
     const storyboardDocument = loadJson(join(pluginDir, "scripts", "storyboard.example.json"));
     const storyboardArtifact = addArtifact("storyboard", "storyboard", "storyboard.json", "application/json", storyboardDocument);
-    const craftArtifacts = buildCanonicalCraftArtifacts(root, candidateId, storyboardDocument, addArtifact);
+    const craftArtifacts = buildCanonicalCraftArtifacts(root, candidateId, storyboardDocument, addArtifact, media);
     const captureManifestArtifact = craftArtifacts.captureManifest;
     const captureEvidenceArtifact = craftArtifacts.captureEvidence;
     const rawCaptureArtifact = craftArtifacts.rawCapture;
+    const renderTimingArtifact = craftArtifacts.renderTiming;
     buildScriptArtifacts(candidateId, addArtifact);
     const reportChecks = {
       mediaMetadata: ["artifact-completeness", "output-specifications"],
@@ -1215,7 +1587,7 @@ function preflightIntegration() {
       technicalDelivery: ["checksums-provenance", "output-specifications"],
       claimVerification: ["names-dates-numbers-claims"],
       truthSheetVerification: ["names-dates-numbers-claims"],
-      craftContractValidation: ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas"],
+      craftContractValidation: ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas", "rendered-story-contract"],
     };
     const reportGenerators = {
       mediaMetadata: "product-demo-studio-technical-checks",
@@ -1235,9 +1607,10 @@ function preflightIntegration() {
       truthSheetVerification: "repository-native-truth-sheet-validator",
       craftContractValidation: "product-demo-studio-craft-contract-validator",
     };
+    const canonicalCraft = materializeCanonicalCraftReport(root, candidateId, storyboardArtifact, craftArtifacts, media);
     const reports = {};
     for (const [reportType, checkIds] of Object.entries(reportChecks)) {
-      const report = {
+      const report = reportType === "craftContractValidation" ? canonicalCraft.report : {
         schemaVersion: "1.0.0",
         candidateId,
         reportType,
@@ -1248,33 +1621,67 @@ function preflightIntegration() {
           command: `node synthetic-${reportType}-extractor.mjs`,
         },
         inputs: (reportType === "craftContractValidation"
-          ? [storyboardArtifact, captureManifestArtifact, captureEvidenceArtifact, rawCaptureArtifact]
+          ? [storyboardArtifact, captureManifestArtifact, captureEvidenceArtifact, rawCaptureArtifact, renderTimingArtifact, media]
           : [media]
         ).map((artifact) => ({ artifactId: artifact.artifactId, sha256: artifact.sha256 })),
         checks: checkIds.map((id) => ({
           id,
           passed: true,
           evidenceArtifactIds: reportType === "craftContractValidation"
-            ? [id === "storyboard-craft-contract"
-              ? storyboardArtifact.artifactId
+            ? (id === "storyboard-craft-contract"
+              ? [storyboardArtifact.artifactId]
               : id === "capture-manifest-craft-contract"
-                ? captureManifestArtifact.artifactId
-                : captureEvidenceArtifact.artifactId]
+                ? [captureManifestArtifact.artifactId, captureEvidenceArtifact.artifactId, rawCaptureArtifact.artifactId]
+                : id === "beat-timing-deltas"
+                  ? [storyboardArtifact.artifactId, captureManifestArtifact.artifactId, captureEvidenceArtifact.artifactId, rawCaptureArtifact.artifactId]
+                  : [storyboardArtifact.artifactId, renderTimingArtifact.artifactId, media.artifactId])
             : [media.artifactId],
         })),
         ...(reportType === "craftContractValidation" ? {
-          measurements: [{
-            beatId: "reveal",
-            cursorLeadSeconds: 0.35,
-            actionToResultSeconds: 0.7,
-            resultToSpokenSeconds: 0.2,
+          measurements: storyboardDocument.segments.map((segment) => ({
+            beatId: `${storyboardDocument.episodeId}.${segment.id}`,
+            cursorLeadSeconds: segment.interaction.narrationSync.cursorLeadSeconds,
+            actionToResultSeconds: segment.interaction.narrationSync.resultVisibleAtSeconds - segment.interaction.narrationSync.actionAtSeconds,
+            resultToSpokenSeconds: segment.interaction.narrationSync.spokenResultAtSeconds - segment.interaction.narrationSync.resultVisibleAtSeconds,
             resultHoldToCutSeconds: 1.4,
             evidenceArtifactIds: [captureEvidenceArtifact.artifactId],
-          }],
+          })),
           sourceGeometry: {
             width: 3840,
             height: 2160,
             rawCaptureArtifactId: rawCaptureArtifact.artifactId,
+            probe: "ffprobe",
+          },
+          renderMeasurements: storyboardDocument.segments.map((segment) => ({
+            beatId: `${storyboardDocument.episodeId}.${segment.id}`,
+            startDeltaSeconds: 0,
+            actionDeltaSeconds: 0,
+            resultDeltaSeconds: 0,
+            endDeltaSeconds: 0,
+            resultHoldSeconds: (storyboardDocument.segments[storyboardDocument.segments.indexOf(segment) + 1]?.timelineStartSeconds ?? 23)
+              - (segment.timelineStartSeconds + segment.interaction.narrationSync.resultVisibleAtSeconds),
+            stableHoldSeconds: segment.endCard ? 3 : null,
+            frameHashesVerified: true,
+            stateChangeRequired: segment.interaction.kind !== "hold",
+            stateChangeVerified: segment.interaction.kind !== "hold" ? true : null,
+            stateChangeMeanAbsoluteDifference: segment.interaction.kind !== "hold" ? 10 : null,
+            stateChangePixelRatio: segment.interaction.kind !== "hold" ? 0.1 : null,
+            stateChangeMeanThreshold: 0.5,
+            stateChangePixelRatioThreshold: 0.001,
+            stableFrameSampleCount: segment.endCard ? 8 : 0,
+            stableFramesStable: segment.endCard ? true : null,
+            stableFrameMaxMeanAbsoluteDifference: segment.endCard ? 0 : null,
+            stableFrameMaxChangedPixelRatio: segment.endCard ? 0 : null,
+            stableFrameThreshold: segment.endCard ? 1 : null,
+            stableFrameChangedPixelRatioThreshold: segment.endCard ? 0.0005 : null,
+            evidenceArtifactIds: [renderTimingArtifact.artifactId, media.artifactId],
+          })),
+          mediaProbe: {
+            durationSeconds: 23,
+            fps: 30,
+            width: 320,
+            height: 180,
+            mediaArtifactId: media.artifactId,
             probe: "ffprobe",
           },
         } : {}),
@@ -1286,7 +1693,8 @@ function preflightIntegration() {
         "report",
         `${reportType}.json`,
         "application/json",
-        report,
+        reportType === "craftContractValidation" ? null : report,
+        { existing: reportType === "craftContractValidation" },
       );
       reports[reportType] = {
         artifactId: artifact.artifactId,
@@ -1295,7 +1703,7 @@ function preflightIntegration() {
         candidateId,
         reportType,
         status: "PASS",
-        generatedAt,
+        generatedAt: report.generatedAt,
       };
     }
     const evidencePackage = {
@@ -1381,6 +1789,42 @@ function preflightIntegration() {
     ], { encoding: "utf8", env: process.env });
     assert(result.status === 1, "preflight reruns the canonical craft validator and rejects a forged PASS report");
     writeFileSync(captureManifestPath, originalCaptureManifest);
+    writeFileSync(craftReportPath, originalCraftReport);
+    writeJson(evidencePath, evidencePackage);
+
+    const measurementForgery = loadJson(craftReportPath);
+    measurementForgery.renderMeasurements[0].startDeltaSeconds = 0.01;
+    writeJson(craftReportPath, measurementForgery);
+    const measurementForgeryEvidence = structuredClone(evidencePackage);
+    const measurementForgeryArtifact = measurementForgeryEvidence.artifacts.find(
+      (artifact) => artifact.artifactId === reports.craftContractValidation.artifactId,
+    );
+    measurementForgeryArtifact.sha256 = sha(craftReportPath);
+    measurementForgeryArtifact.bytes = statSync(craftReportPath).size;
+    measurementForgeryEvidence.reports.craftContractValidation.sha256 = measurementForgeryArtifact.sha256;
+    writeJson(evidencePath, measurementForgeryEvidence);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
+    ], { encoding: "utf8", env: process.env });
+    assert(result.status === 1, "preflight rejects forged craft measurements even when all canonical inputs are unchanged");
+    writeFileSync(craftReportPath, originalCraftReport);
+    writeJson(evidencePath, evidencePackage);
+
+    const generatorForgery = loadJson(craftReportPath);
+    generatorForgery.generator.version = "99.0.0-forged";
+    writeJson(craftReportPath, generatorForgery);
+    const generatorForgeryEvidence = structuredClone(evidencePackage);
+    const generatorForgeryArtifact = generatorForgeryEvidence.artifacts.find(
+      (artifact) => artifact.artifactId === reports.craftContractValidation.artifactId,
+    );
+    generatorForgeryArtifact.sha256 = sha(craftReportPath);
+    generatorForgeryArtifact.bytes = statSync(craftReportPath).size;
+    generatorForgeryEvidence.reports.craftContractValidation.sha256 = generatorForgeryArtifact.sha256;
+    writeJson(evidencePath, generatorForgeryEvidence);
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "preflight.mjs"), "--evidence-package", evidencePath, "--out", preflightPath,
+    ], { encoding: "utf8", env: process.env });
+    assert(result.status === 1, "preflight rejects forged craft generator provenance when canonical inputs are unchanged");
     writeFileSync(craftReportPath, originalCraftReport);
     writeJson(evidencePath, evidencePackage);
 
@@ -1779,6 +2223,13 @@ function releaseDecisionIntegration() {
       synchronization: true,
       visualIntegrity: true,
     };
+    const editorialAudit = materializeEditorialAudit(root, candidate, {
+      auditId: "PVEA-SYNTHETIC-RELEASE-001",
+    });
+    const editorialAuditPath = editorialAudit.path;
+    const candidateListening = materializeCandidateListeningReceipt(root, candidate, {
+      receiptId: "PVLR-SYNTHETIC-RELEASE-001",
+    });
     const decisionBase = {
       schemaVersion: "1.0.0",
       decisionId: "PVD-SYNTHETIC-RELEASE-001",
@@ -1796,6 +2247,8 @@ function releaseDecisionIntegration() {
       },
       policy: policyReference,
       preflight: { artifactPath: "preflight-report.json", sha256: sha(preflightPath) },
+      editorialAudit: editorialAudit.reference,
+      candidateListening: candidateListening.reference,
       reviewReports: writeReports(),
       releaseChecks,
       findingDispositions: [],
@@ -1824,6 +2277,59 @@ function releaseDecisionIntegration() {
       console.error(result.stdout);
       console.error(result.stderr);
     }
+
+    const missingEditorialAudit = structuredClone(decisionBase);
+    delete missingEditorialAudit.editorialAudit;
+    result = run(missingEditorialAudit);
+    assert(result.status === 1, "release validator rejects PASS without the candidate-bound orchestrator editorial audit");
+
+    const staleEditorialAudit = structuredClone(decisionBase);
+    const originalEditorialAudit = readFileSync(editorialAuditPath);
+    const staleAuditDocument = loadJson(editorialAuditPath);
+    staleAuditDocument.candidate.sha256 = "0".repeat(64);
+    writeJson(editorialAuditPath, staleAuditDocument);
+    staleEditorialAudit.editorialAudit.sha256 = sha(editorialAuditPath);
+    staleEditorialAudit.editorialAudit.bytes = statSync(editorialAuditPath).size;
+    result = run(staleEditorialAudit);
+    assert(result.status === 1, "release validator rejects an editorial audit bound to different candidate bytes");
+    writeFileSync(editorialAuditPath, originalEditorialAudit);
+
+    const forgedPhaseEvidence = structuredClone(decisionBase);
+    const forgedPhaseAudit = loadJson(editorialAuditPath);
+    forgedPhaseAudit.phaseChecks[0].evidence[0].frameSha256 = "0".repeat(64);
+    writeJson(editorialAuditPath, forgedPhaseAudit);
+    forgedPhaseEvidence.editorialAudit.sha256 = sha(editorialAuditPath);
+    forgedPhaseEvidence.editorialAudit.bytes = statSync(editorialAuditPath).size;
+    result = run(forgedPhaseEvidence);
+    assert(result.status === 1, "release validator rejects editorial phase evidence that does not match the decoded candidate frame");
+    writeFileSync(editorialAuditPath, originalEditorialAudit);
+
+    const missingListeningReceipt = structuredClone(decisionBase);
+    delete missingListeningReceipt.candidateListening;
+    result = run(missingListeningReceipt);
+    assert(result.status === 1, "release validator rejects PASS without a candidate-bound full-program listening receipt");
+
+    const originalListeningReceipt = readFileSync(candidateListening.path);
+    const staleListeningDecision = structuredClone(decisionBase);
+    const staleListeningReceipt = loadJson(candidateListening.path);
+    staleListeningReceipt.candidate.sha256 = "0".repeat(64);
+    writeJson(candidateListening.path, staleListeningReceipt);
+    staleListeningDecision.candidateListening.sha256 = sha(candidateListening.path);
+    staleListeningDecision.candidateListening.bytes = statSync(candidateListening.path).size;
+    result = run(staleListeningDecision);
+    assert(result.status === 1, "release validator rejects a listening receipt bound to different candidate bytes");
+    writeFileSync(candidateListening.path, originalListeningReceipt);
+
+    const shortenedListeningDecision = structuredClone(decisionBase);
+    const shortenedListeningReceipt = loadJson(candidateListening.path);
+    shortenedListeningReceipt.fullListening.completedAt = "2026-07-29T22:00:05.000Z";
+    shortenedListeningReceipt.generatedAt = shortenedListeningReceipt.fullListening.completedAt;
+    writeJson(candidateListening.path, shortenedListeningReceipt);
+    shortenedListeningDecision.candidateListening.sha256 = sha(candidateListening.path);
+    shortenedListeningDecision.candidateListening.bytes = statSync(candidateListening.path).size;
+    result = run(shortenedListeningDecision);
+    assert(result.status === 1, "release validator rejects a listening receipt shorter than the exact candidate duration");
+    writeFileSync(candidateListening.path, originalListeningReceipt);
 
     result = run({ ...decisionBase, candidate: { ...candidate, artifactPath: "missing-candidate.mp4" } });
     assert(result.status === 1, "release validator rejects a nonexistent candidate reference");
@@ -2025,7 +2531,7 @@ function releaseDecisionIntegration() {
       concreteFix: "Restore the immutable candidate artifact.",
       validationCommand: "node scripts/preflight.mjs --evidence-package evidence-package.json --out preflight.json",
     }];
-    failedPreflight.summary = { total: 19, passed: 18, failed: 1 };
+    failedPreflight.summary = { total: 20, passed: 19, failed: 1 };
     failedPreflight.status = "FAIL";
     failedPreflight.readyForIndependentReview = false;
     writeJson(failedPreflightPath, failedPreflight);
@@ -2282,6 +2788,20 @@ function publicationIntegration() {
       artifactPath: "preflight-report.json",
       sha256: sha(join(root, "preflight-report.json")),
     };
+    const publicationEditorialAudit = materializeEditorialAudit(root, candidateWithBytes, {
+      auditId: "PVEA-PUBLICATION-001",
+      contextId: "orchestrator-publication-editorial-context",
+      startedAt: "2026-07-29T15:04:00.000Z",
+      completedAt: "2026-07-29T15:04:30.000Z",
+    });
+    decision.editorialAudit = publicationEditorialAudit.reference;
+    const publicationListeningReceipt = materializeCandidateListeningReceipt(root, candidateWithBytes, {
+      receiptId: "PVLR-PUBLICATION-001",
+      contextId: "orchestrator-publication-listening-context",
+      startedAt: "2026-07-29T15:03:30.000Z",
+      completedAt: "2026-07-29T15:04:00.000Z",
+    });
+    decision.candidateListening = publicationListeningReceipt.reference;
     decision.reviewReports = Object.entries(domainMeta).map(([domain, meta]) => ({
       domain,
       reportPath: meta.file,
@@ -2515,6 +3035,8 @@ function publicationIntegration() {
   assert(ownerVoice?.segmentation?.arbitraryCharacterBlocksAllowed === false && ownerVoice.segmentation.timeStretchAllowed === false, "owner voice forbids arbitrary character chunks and time stretching");
   assert(ownerVoice?.postProcessing?.individualDynamicCompressionAllowed === false && ownerVoice.postProcessing.finalProgramTransparentTruePeakLimiterAllowed === true, "owner voice preserves raw takes while allowing transparent final mastering");
   assert(ownerVoice?.acceptance?.dualSpeakerIdentityGateRequired === true && ownerVoice.acceptance.listeningRequired === true, "owner voice requires dual identity scoring and listening");
+  assert(ownerVoice?.acceptance?.listeningPerformer === "orchestrator-or-audio-reviewer" && ownerVoice.acceptance.ownerApprovalRequired === false,
+    "owner-voice listening is system-owned and does not require recurring owner approval");
 
   const narrationSkill = readFileSync(join(pluginDir, "skills", "product-demo-studio-narration", "SKILL.md"), "utf8");
   for (const requiredText of ["pronunciation-risk manifest", "resume", "canonical script", "ASR is a content check", "transparent true-peak limiter", "never time-stretch"]) {
@@ -2535,6 +3057,8 @@ for (const schemaName of [
   "delivery-spec.schema.json",
   "media-acceleration.schema.json",
   "deterministic-report.schema.json",
+  "candidate-listening-receipt.schema.json",
+  "editorial-audit.schema.json",
   "evidence-package.schema.json",
   "preflight-report.schema.json",
 ]) {
@@ -2552,6 +3076,10 @@ schemaFixture("reviewer-calibration.schema.json", "reviewer-calibration.invalid.
 schemaFixture("release-decision.schema.json", "release-decision.pass.json", true);
 schemaFixture("release-decision.schema.json", "release-decision.remediate.json", true);
 schemaFixture("release-decision.schema.json", "release-decision.invalid.json", false);
+schemaFixture("candidate-listening-receipt.schema.json", "candidate-listening-receipt.pass.json", true);
+schemaFixture("candidate-listening-receipt.schema.json", "candidate-listening-receipt.invalid.json", false);
+schemaFixture("editorial-audit.schema.json", "editorial-audit.pass.json", true);
+schemaFixture("editorial-audit.schema.json", "editorial-audit.invalid.json", false);
 {
   const schemaPath = join(schemaDir, "release-decision.schema.json");
   const schema = loadSchema(schemaPath);

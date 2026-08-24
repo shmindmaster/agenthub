@@ -32,10 +32,21 @@ Assess:
 - inspection of the actual opening, transition, focus/zoom, hero, and final-hold frames rather than
   manifest inference; compare every text scene with `compute-overlay-placement.mjs` and fail any
   overlap with focus/protected regions, active controls, cursor destinations, or evidence status;
+- screen cleanliness across those actual phase frames: fail unexpected toasts, feedback widgets,
+  banners, cookie prompts, tooltips, debug/demo labels, personal browser artifacts, clipped
+  overlays, unrelated notifications, half-entered transitions, or a first/last frame that is not
+  fully designed and stable; an overlay is allowed only when the storyboard declares it and it
+  materially helps comprehension;
 - progressive complexity and spatial continuity, a believable hard-case glimpse where relevant,
   consistent typography/motion, reduced-motion/poster assets, and designed first/last frames;
 - no narration that merely repeats visible text, repeated scenes, or long denouement after payoff;
 - story/product alignment: an accurate but ineffective feature tour fails.
+- for a YouTube candidate, title/thumbnail/opening promise agreement, immediate first-30-second
+  fulfillment, appeal/engagement/satisfaction, a custom thumbnail that remains clear at small
+  display size, accurate succinct outcome-first title wording, exactly one primary CTA, and
+  value-density rather than a universal duration target; do not reward tag volume;
+- every beat earns its runtime as hook, before-state, causal action, hero payoff, trust boundary,
+  required transition, or CTA; orphan, repeated, or causally unnecessary beats are filler and fail.
 
 Use measurable evidence for timestamps and frames, including state-change-to-cut/result-hold deltas for each beat. Judgment must cite the frame, scene, transcript, storyboard, or timing-delta evidence that supports every pass and fail. A criterion without evidence is `MALFORMED_INPUT`, never `PASS`. Do not invent product defects; route possible accuracy defects to Screen, Accuracy, and Compliance.
 

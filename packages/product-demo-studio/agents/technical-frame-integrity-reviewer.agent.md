@@ -29,6 +29,12 @@ Verify:
 - every requested master, cut, poster, thumbnail, caption, transcript, checksum, and manifest
   exists and has its own current evidence rather than inheriting another variant's pass;
 - readiness/storyboard validators passed and no failed episode produced a final candidate.
+- the checksum-bound render-timing artifact maps every storyboard beat one-to-one to the exact
+  final video; ffprobe duration/fps agree within one frame; hero holds are not shortened; and the
+  final end card is fully composed and stable for at least three seconds;
+- each delivery variant has its own responsive framing evidence and small-display legibility pass;
+  a 16:9 pass never authorizes 4:5, and a blind crop never substitutes for a stronger responsive
+  product layout or deliberate recomposition.
 
 Return one JSON document conforming to `schemas/review-report.schema.json` with:
 

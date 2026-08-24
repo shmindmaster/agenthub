@@ -151,8 +151,29 @@ Fail closed after full-playback and representative-frame review unless all are t
 - results land in deliberate near-silence;
 - voice is conversational, varied, correctly pronounced, and not wall-to-wall;
 - final frames are stable, legible at delivery size, and free of occlusion;
+- encoded before/action/result pixels exhibit the promised causal state change; freshly rehashing a static render cannot make it truthful;
+- every decoded frame of the declared final hold is stable, including against brief localized cursor, pulse, toast, or overlay motion between sparse checkpoints;
 - the declared emotional target is actually supported by pace, music, silence, and wording;
 - the close gives exactly one takeaway or next step and ends on a designed frame.
+
+For YouTube, apply a second promise-and-retention gate. YouTube's current guidance centers video
+performance on appeal, engagement, and satisfaction; the first 30 seconds should fulfill the
+title/thumbnail promise, and retention dips/spikes should inform later revisions. Require an
+accurate succinct outcome-first title, a custom simple thumbnail that reads at small size, one
+primary CTA, and no filler. Do not optimize for a universal duration or tag count: duration follows
+value density, and tags mainly help with spelling variants. Bind packaging claims to the same claim
+ledger as narration and on-screen copy. After publication, record CTR, first-30-second retention,
+average percentage viewed, dips/spikes, and end-screen click rate when enough data exists; otherwise
+record `INSUFFICIENT_DATA`.
+
+Primary guidance:
+
+- [YouTube performance](https://support.google.com/youtube/answer/16559650?hl=en)
+- [YouTube audience retention](https://support.google.com/youtube/answer/9314415?hl=en-11)
+- [YouTube titles and thumbnails](https://support.google.com/youtube/answer/12340300?hl=en)
+- [YouTube video length](https://support.google.com/youtube/answer/16559651?hl=en)
+- [Google ABCD creative principles](https://services.google.com/fh/files/misc/en_sg_youtube_core_abcds_summary.pdf)
+- [W3C prerecorded captions](https://www.w3.org/WAI/WCAG22/Understanding/captions-prerecorded)
 
 If re-editing cannot clear the gate, decide whether the remaining cause is capture-fixable or a
 late-discovered product-fix-required defect. Pull and report the latter; never ship it to meet a

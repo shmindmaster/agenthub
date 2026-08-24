@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.7.7**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.7.8**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
@@ -56,6 +56,14 @@ receipts bind the resolved model and reference inputs, assembly consumes an
 explicit selected-take ledger, ASR is rerun against both mastered narration and
 the encoded delivery candidate, and owner approval uses full continuous audio;
 discontinuous pronunciation excerpts are supplemental and labeled as such.
+Version 1.7.8 closes the final-render/storyboard integrity gap: craft validation now checksum-binds
+the rendered timeline and exact final media, probes duration/fps, enforces one-frame beat alignment,
+binds declared beats to decoded-frame hashes, proves meaningful before/result pixel change, protects
+hero-result holds, and inspects every decoded frame of the fully stable three-second end card. Canonical
+preflight now compares the submitted craft measurements and generator provenance with its
+own rerun instead of trusting a PASS envelope. A candidate-hash-bound continuous-playback editorial
+audit is required before arbitration. The release also strengthens the YouTube promise, retention, screen-cleanliness,
+responsive-framing, disclosure, and post-publication learning standards.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with
@@ -196,10 +204,11 @@ invoked from the plugin with the target repo as product input — never copied i
   codec/profile/resolution/fps/color/audio/fast-start, decode/corruption, exact duplicate,
   black/freeze/loudness/clipping/silence, scene frames, contact sheet, and deterministic report
   generation with tool/command/input provenance.
-- `validate-craft-contracts.mjs` / `preflight.mjs` — checksum-bound storyboard/capture validation,
-  complete episode/segment coverage, ffprobe-measured raw-capture geometry, fail-closed evidence-
-  package timing/provenance, canonical validator reruns, and
-  deterministic-report gates before review.
+- `validate-craft-contracts.mjs` / `preflight.mjs` — checksum-bound storyboard/capture/final-render
+  validation, complete episode/segment coverage, ffprobe-measured raw-capture geometry and final
+  media duration/fps, one-frame rendered-story timing tolerance, hero-result and stable end-card
+  holds, fail-closed evidence-package provenance, canonical validator reruns, and deterministic-
+  report gates before review.
 - `validate-reviewer-calibration.mjs` — derives known-bad and clean-pass calibration outcomes from
   criterion-level reviewer outputs and evidence, then verifies execution receipts that bind
   the exact fixture-input and derived result-payload hashes.

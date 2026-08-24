@@ -36,6 +36,7 @@ const SHA256 = /^[a-f0-9]{64}$/;
 const FINDING_ID = /^PVF-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
 const DECISION_ID = /^PVD-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
 const PREFLIGHT_ID = /^PVP-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
+const LISTENING_RECEIPT_ID = /^PVLR-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const errors = [];
 
@@ -264,6 +265,211 @@ function sameCandidate(actual, expected, path) {
   }
 }
 
+function probeCandidateDuration(candidate, path) {
+  if (!candidate) return undefined;
+  const probe = spawnSync("ffprobe", [
+    "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", candidate.absolutePath,
+  ], { encoding: "utf8" });
+  const duration = Number(probe.stdout?.trim());
+  if (probe.status !== 0 || !Number.isFinite(duration) || duration <= 0) {
+    fail(path, `could not probe a positive candidate duration: ${(probe.stderr || probe.stdout).trim()}`);
+    return undefined;
+  }
+  return duration;
+}
+
+function decodeCandidateFrameSha(candidate, seconds, path) {
+  if (!candidate || !Number.isFinite(seconds) || seconds < 0) return undefined;
+  const result = spawnSync("ffmpeg", [
+    "-v", "error",
+    "-ss", seconds.toFixed(6),
+    "-i", candidate.absolutePath,
+    "-frames:v", "1",
+    "-an",
+    "-pix_fmt", "rgb24",
+    "-f", "rawvideo",
+    "-",
+  ], { encoding: null, maxBuffer: 64 * 1024 * 1024 });
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout) || result.stdout.length === 0) {
+    const detail = Buffer.isBuffer(result.stderr) ? result.stderr.toString("utf8") : String(result.stderr ?? "");
+    fail(path, `could not decode candidate frame at ${seconds.toFixed(6)}s: ${detail.trim() || `ffmpeg exited ${result.status}`}`);
+    return undefined;
+  }
+  return digest(result.stdout);
+}
+
+function validateCandidateListening(reference, candidate, path, { requirePass = false } = {}) {
+  if (!exactObject(reference, path, ["artifactPath", "sha256", "bytes"])) return undefined;
+  if (!Number.isInteger(reference.bytes) || reference.bytes < 1) fail(`${path}.bytes`, "must be a positive integer.");
+  const artifact = readArtifact(reference.artifactPath, reference.sha256, path);
+  if (!artifact) return undefined;
+  if (artifact.size !== reference.bytes) fail(`${path}.bytes`, `does not match "${artifact.absolutePath}" (actual ${artifact.size}).`);
+  const receipt = parseJsonArtifact(artifact, `${path}.document`);
+  if (!object(receipt)) return undefined;
+  if (!exactObject(receipt, `${path}.document`, [
+    "schemaVersion", "receiptId", "candidate", "listener", "fullListening",
+    "checks", "findings", "status", "generatedAt",
+  ])) return undefined;
+  if (receipt.schemaVersion !== "1.0.0") fail(`${path}.document.schemaVersion`, 'must equal "1.0.0".');
+  matches(receipt.receiptId, LISTENING_RECEIPT_ID, `${path}.document.receiptId`, "a canonical candidate-listening receipt identifier");
+  const listeningCandidate = validateCandidate(receipt.candidate, `${path}.document.candidate`);
+  sameCandidate(listeningCandidate, candidate, `${path}.document.candidate`);
+  if (!exactObject(receipt.listener, `${path}.document.listener`, ["role", "contextId"])) return undefined;
+  if (!["orchestrator", "audio-captions-sync-reviewer"].includes(receipt.listener.role)) {
+    fail(`${path}.document.listener.role`, "must be orchestrator or audio-captions-sync-reviewer.");
+  }
+  nonEmpty(receipt.listener.contextId, `${path}.document.listener.contextId`);
+  if (!exactObject(receipt.fullListening, `${path}.document.fullListening`, [
+    "continuous", "mediaDurationSeconds", "startedAt", "completedAt",
+  ])) return undefined;
+  if (receipt.fullListening.continuous !== true) fail(`${path}.document.fullListening.continuous`, "must be true.");
+  if (!Number.isFinite(receipt.fullListening.mediaDurationSeconds) || receipt.fullListening.mediaDurationSeconds <= 0) {
+    fail(`${path}.document.fullListening.mediaDurationSeconds`, "must be positive.");
+  }
+  dateTime(receipt.fullListening.startedAt, `${path}.document.fullListening.startedAt`);
+  dateTime(receipt.fullListening.completedAt, `${path}.document.fullListening.completedAt`);
+  const elapsedSeconds = (Date.parse(receipt.fullListening.completedAt) - Date.parse(receipt.fullListening.startedAt)) / 1000;
+  if (Number.isFinite(elapsedSeconds) && elapsedSeconds + 0.001 < receipt.fullListening.mediaDurationSeconds) {
+    fail(`${path}.document.fullListening`, "continuous listening interval is shorter than the candidate duration.");
+  }
+  const actualDuration = probeCandidateDuration(listeningCandidate, `${path}.document.fullListening.mediaDurationSeconds`);
+  if (Number.isFinite(actualDuration) &&
+      Math.abs(actualDuration - receipt.fullListening.mediaDurationSeconds) > 0.05) {
+    fail(`${path}.document.fullListening.mediaDurationSeconds`, "does not match the exact candidate media duration.");
+  }
+  const requiredChecks = new Set([
+    "full-program", "pronunciation", "delivery-and-pacing", "artifacts-and-discontinuities",
+  ]);
+  const seenChecks = new Set();
+  if (!Array.isArray(receipt.checks) || receipt.checks.length !== requiredChecks.size) {
+    fail(`${path}.document.checks`, `must contain exactly ${requiredChecks.size} listening checks.`);
+  } else {
+    receipt.checks.forEach((check, index) => {
+      const checkPath = `${path}.document.checks[${index}]`;
+      if (!exactObject(check, checkPath, ["id", "passed", "notes"])) return;
+      if (!requiredChecks.has(check.id)) fail(`${checkPath}.id`, "is not a canonical listening check.");
+      if (seenChecks.has(check.id)) fail(`${checkPath}.id`, `duplicates "${check.id}".`);
+      seenChecks.add(check.id);
+      if (typeof check.passed !== "boolean") fail(`${checkPath}.passed`, "must be boolean.");
+      nonEmpty(check.notes, `${checkPath}.notes`);
+    });
+  }
+  for (const checkId of requiredChecks) if (!seenChecks.has(checkId)) fail(`${path}.document.checks`, `missing "${checkId}".`);
+  const findings = uniqueStrings(receipt.findings, `${path}.document.findings`, { pattern: FINDING_ID });
+  const allChecksPassed = Array.isArray(receipt.checks) && receipt.checks.every((check) => check?.passed === true);
+  if (!["PASS", "FAIL"].includes(receipt.status)) fail(`${path}.document.status`, "must be PASS or FAIL.");
+  if (receipt.status === "PASS" && (!allChecksPassed || findings.size !== 0)) {
+    fail(`${path}.document`, "PASS requires all listening checks to pass and no findings.");
+  }
+  if (receipt.status === "FAIL" && (allChecksPassed || findings.size === 0)) {
+    fail(`${path}.document`, "FAIL requires at least one failed listening check and one finding.");
+  }
+  if (requirePass && receipt.status !== "PASS") fail(`${path}.document.status`, "must be PASS for a release PASS decision.");
+  dateTime(receipt.generatedAt, `${path}.document.generatedAt`);
+  return receipt;
+}
+
+function validateEditorialAudit(reference, candidate, path) {
+  if (!exactObject(reference, path, ["artifactPath", "sha256", "bytes"])) return undefined;
+  if (!Number.isInteger(reference.bytes) || reference.bytes < 1) fail(`${path}.bytes`, "must be a positive integer.");
+  const artifact = readArtifact(reference.artifactPath, reference.sha256, path);
+  if (!artifact) return undefined;
+  if (artifact.size !== reference.bytes) fail(`${path}.bytes`, `does not match "${artifact.absolutePath}" (actual ${artifact.size}).`);
+  const audit = parseJsonArtifact(artifact, `${path}.document`);
+  if (!object(audit)) return undefined;
+  if (!exactObject(audit, `${path}.document`, [
+    "schemaVersion", "auditId", "candidate", "auditor", "fullPlayback",
+    "phaseChecks", "findings", "status", "generatedAt",
+  ])) return undefined;
+  if (audit.schemaVersion !== "1.0.0") fail(`${path}.document.schemaVersion`, 'must equal "1.0.0".');
+  matches(audit.auditId, /^PVEA-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/, `${path}.document.auditId`, "a canonical editorial audit identifier");
+  const auditCandidate = validateCandidate(audit.candidate, `${path}.document.candidate`);
+  sameCandidate(auditCandidate, candidate, `${path}.document.candidate`);
+  if (!exactObject(audit.auditor, `${path}.document.auditor`, ["role", "contextId"])) return undefined;
+  if (audit.auditor.role !== "orchestrator") fail(`${path}.document.auditor.role`, "must equal orchestrator.");
+  nonEmpty(audit.auditor.contextId, `${path}.document.auditor.contextId`);
+  if (!exactObject(audit.fullPlayback, `${path}.document.fullPlayback`, [
+    "continuous", "mediaDurationSeconds", "startedAt", "completedAt",
+  ])) return undefined;
+  if (audit.fullPlayback.continuous !== true) fail(`${path}.document.fullPlayback.continuous`, "must be true.");
+  if (!Number.isFinite(audit.fullPlayback.mediaDurationSeconds) || audit.fullPlayback.mediaDurationSeconds <= 0) {
+    fail(`${path}.document.fullPlayback.mediaDurationSeconds`, "must be positive.");
+  }
+  dateTime(audit.fullPlayback.startedAt, `${path}.document.fullPlayback.startedAt`);
+  dateTime(audit.fullPlayback.completedAt, `${path}.document.fullPlayback.completedAt`);
+  const elapsedSeconds = (Date.parse(audit.fullPlayback.completedAt) - Date.parse(audit.fullPlayback.startedAt)) / 1000;
+  if (Number.isFinite(elapsedSeconds) && elapsedSeconds + 0.001 < audit.fullPlayback.mediaDurationSeconds) {
+    fail(`${path}.document.fullPlayback`, "continuous playback interval is shorter than the candidate duration.");
+  }
+  const actualDuration = probeCandidateDuration(auditCandidate, `${path}.document.fullPlayback.mediaDurationSeconds`);
+  if (Number.isFinite(actualDuration) &&
+      Math.abs(actualDuration - audit.fullPlayback.mediaDurationSeconds) > 0.05) {
+    fail(`${path}.document.fullPlayback.mediaDurationSeconds`, "does not match the exact candidate media duration.");
+  }
+  const requiredPhases = new Set([
+    "opening-promise", "transitions-and-focus", "hero-before-action-result",
+    "screen-cleanliness", "responsive-legibility", "cta-and-impact", "stable-final-hold",
+  ]);
+  const phases = new Set();
+  if (!Array.isArray(audit.phaseChecks) || audit.phaseChecks.length !== requiredPhases.size) {
+    fail(`${path}.document.phaseChecks`, `must contain exactly ${requiredPhases.size} phase checks.`);
+  } else {
+    audit.phaseChecks.forEach((check, index) => {
+      const checkPath = `${path}.document.phaseChecks[${index}]`;
+      if (!exactObject(check, checkPath, ["phase", "passed", "evidence"])) return;
+      if (!requiredPhases.has(check.phase)) fail(`${checkPath}.phase`, "is not a canonical editorial phase.");
+      if (phases.has(check.phase)) fail(`${checkPath}.phase`, `duplicates "${check.phase}".`);
+      phases.add(check.phase);
+      if (check.passed !== true) fail(`${checkPath}.passed`, "must be true for release arbitration.");
+      if (!Array.isArray(check.evidence) || check.evidence.length === 0) {
+        fail(`${checkPath}.evidence`, "must contain at least one candidate-bound phase evidence record.");
+      } else {
+        check.evidence.forEach((evidence, evidenceIndex) => {
+          const evidencePath = `${checkPath}.evidence[${evidenceIndex}]`;
+          if (!object(evidence)) {
+            fail(evidencePath, "must be an object.");
+            return;
+          }
+          const artifactEvidence = evidence.kind === "artifact";
+          const required = artifactEvidence
+            ? ["kind", "artifactPath", "sha256", "bytes", "candidateSha256", "timestampSeconds"]
+            : ["kind", "candidateSha256", "timestampSeconds", "frameSha256"];
+          if (!exactObject(evidence, evidencePath, required)) return;
+          if (!["artifact", "frame-timestamp"].includes(evidence.kind)) {
+            fail(`${evidencePath}.kind`, "must be artifact or frame-timestamp.");
+          }
+          sha(evidence.candidateSha256, `${evidencePath}.candidateSha256`);
+          if (candidate && evidence.candidateSha256 !== candidate.sha256) {
+            fail(`${evidencePath}.candidateSha256`, "does not match the exact release candidate bytes.");
+          }
+          if (!Number.isFinite(evidence.timestampSeconds) || evidence.timestampSeconds < 0 ||
+              (Number.isFinite(actualDuration) && evidence.timestampSeconds >= actualDuration)) {
+            fail(`${evidencePath}.timestampSeconds`, "must identify a decodable timestamp inside the exact candidate duration.");
+          }
+          if (artifactEvidence) {
+            if (!Number.isInteger(evidence.bytes) || evidence.bytes < 1) fail(`${evidencePath}.bytes`, "must be a positive integer.");
+            const evidenceArtifact = readArtifact(evidence.artifactPath, evidence.sha256, evidencePath);
+            if (evidenceArtifact && evidenceArtifact.size !== evidence.bytes) {
+              fail(`${evidencePath}.bytes`, `does not match "${evidenceArtifact.absolutePath}" (actual ${evidenceArtifact.size}).`);
+            }
+          } else if (evidence.kind === "frame-timestamp") {
+            sha(evidence.frameSha256, `${evidencePath}.frameSha256`);
+            const decodedSha = decodeCandidateFrameSha(auditCandidate, evidence.timestampSeconds, evidencePath);
+            if (decodedSha && decodedSha !== evidence.frameSha256) {
+              fail(`${evidencePath}.frameSha256`, "does not match the decoded exact-candidate frame at timestampSeconds.");
+            }
+          }
+        });
+      }
+    });
+  }
+  for (const phase of requiredPhases) if (!phases.has(phase)) fail(`${path}.document.phaseChecks`, `missing "${phase}".`);
+  if (!Array.isArray(audit.findings) || audit.findings.length !== 0) fail(`${path}.document.findings`, "must be empty for release arbitration.");
+  if (audit.status !== "PASS") fail(`${path}.document.status`, "must be PASS for release arbitration.");
+  dateTime(audit.generatedAt, `${path}.document.generatedAt`);
+  return audit;
+}
+
 function validateArtifactReference(value, path) {
   if (!exactObject(value, path, ["artifactPath", "sha256"])) return undefined;
   return readArtifact(value.artifactPath, value.sha256, path);
@@ -435,8 +641,8 @@ try {
 const canonicalPolicySha = digest(canonicalPolicyBytes);
 const canonicalPreflightCheckIds = new Set(canonicalPreflightSchema?.$defs?.checkId?.enum ?? []);
 const canonicalPreflightSubsystems = new Set(canonicalPreflightSchema?.$defs?.subsystem?.enum ?? []);
-if (canonicalPreflightCheckIds.size !== 19) {
-  console.error(`[error] ${canonicalPreflightSchemaPath}: must define exactly 19 unique preflight check IDs.`);
+if (canonicalPreflightCheckIds.size !== 20) {
+  console.error(`[error] ${canonicalPreflightSchemaPath}: must define exactly 20 unique preflight check IDs.`);
   process.exit(1);
 }
 if (canonicalPreflightSubsystems.size === 0) {
@@ -447,6 +653,8 @@ const commonRequired = ["schemaVersion", "decisionId", "arbiter", "policy", "dec
 const optional = [
   "candidate",
   "preflight",
+  "editorialAudit",
+  "candidateListening",
   "reviewReports",
   "releaseChecks",
   "findingDispositions",
@@ -506,6 +714,20 @@ if (exactObject(decision, "$", commonRequired, optional)) {
   let candidate;
   if (Object.hasOwn(decision, "candidate")) candidate = validateCandidate(decision.candidate, "$.candidate");
   else if (fullReleaseDecision) fail("$.candidate", `is required for ${decision.decision}.`);
+
+  if (Object.hasOwn(decision, "editorialAudit")) {
+    validateEditorialAudit(decision.editorialAudit, candidate, "$.editorialAudit");
+  } else if (fullReleaseDecision) {
+    fail("$.editorialAudit", `is required for ${decision.decision}.`);
+  }
+
+  if (Object.hasOwn(decision, "candidateListening")) {
+    validateCandidateListening(decision.candidateListening, candidate, "$.candidateListening", {
+      requirePass: decision.decision === "PASS",
+    });
+  } else if (fullReleaseDecision) {
+    fail("$.candidateListening", `is required for ${decision.decision}.`);
+  }
 
   let preflight;
   let commonEvidence;

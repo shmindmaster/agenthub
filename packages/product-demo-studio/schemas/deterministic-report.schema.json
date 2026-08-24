@@ -140,6 +140,114 @@
         }
       }
     },
+    "renderMeasurements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "beatId",
+          "startDeltaSeconds",
+          "actionDeltaSeconds",
+          "resultDeltaSeconds",
+          "endDeltaSeconds",
+          "resultHoldSeconds",
+          "stableHoldSeconds",
+          "frameHashesVerified",
+          "stateChangeRequired",
+          "stateChangeVerified",
+          "stateChangeMeanAbsoluteDifference",
+          "stateChangePixelRatio",
+          "stateChangeMeanThreshold",
+          "stateChangePixelRatioThreshold",
+          "stableFrameSampleCount",
+          "stableFramesStable",
+          "stableFrameMaxMeanAbsoluteDifference",
+          "stableFrameMaxChangedPixelRatio",
+          "stableFrameThreshold",
+          "stableFrameChangedPixelRatioThreshold",
+          "evidenceArtifactIds"
+        ],
+        "properties": {
+          "beatId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "startDeltaSeconds": { "type": "number", "minimum": 0 },
+          "actionDeltaSeconds": { "type": "number", "minimum": 0 },
+          "resultDeltaSeconds": { "type": "number", "minimum": 0 },
+          "endDeltaSeconds": { "type": "number", "minimum": 0 },
+          "resultHoldSeconds": { "type": "number", "minimum": 0 },
+          "stableHoldSeconds": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "number", "minimum": 0 }
+            ]
+          },
+          "frameHashesVerified": { "type": "boolean" },
+          "stateChangeRequired": { "type": "boolean" },
+          "stateChangeVerified": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "boolean" }
+            ]
+          },
+          "stateChangeMeanAbsoluteDifference": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "number", "minimum": 0 }
+            ]
+          },
+          "stateChangePixelRatio": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "number", "minimum": 0, "maximum": 1 }
+            ]
+          },
+          "stateChangeMeanThreshold": { "type": "number", "minimum": 0 },
+          "stateChangePixelRatioThreshold": { "type": "number", "minimum": 0, "maximum": 1 },
+          "stableFrameSampleCount": { "type": "integer", "minimum": 0 },
+          "stableFramesStable": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "boolean" }
+            ]
+          },
+          "stableFrameMaxMeanAbsoluteDifference": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "number", "minimum": 0 }
+            ]
+          },
+          "stableFrameMaxChangedPixelRatio": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "number", "minimum": 0, "maximum": 1 }
+            ]
+          },
+          "stableFrameThreshold": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "number", "minimum": 0 }
+            ]
+          },
+          "stableFrameChangedPixelRatioThreshold": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "number", "minimum": 0, "maximum": 1 }
+            ]
+          },
+          "evidenceArtifactIds": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+            }
+          }
+        }
+      }
+    },
     "sourceGeometry": {
       "anyOf": [
         { "type": "null" },
@@ -151,6 +259,27 @@
             "width": { "type": "integer", "minimum": 1 },
             "height": { "type": "integer", "minimum": 1 },
             "rawCaptureArtifactId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+            },
+            "probe": { "const": "ffprobe" }
+          }
+        }
+      ]
+    },
+    "mediaProbe": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["durationSeconds", "fps", "width", "height", "mediaArtifactId", "probe"],
+          "properties": {
+            "durationSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "fps": { "type": "number", "exclusiveMinimum": 0 },
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 },
+            "mediaArtifactId": {
               "type": "string",
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
             },
@@ -196,7 +325,7 @@
         "required": ["reportType"]
       },
       "then": {
-        "required": ["measurements", "sourceGeometry"]
+        "required": ["measurements", "renderMeasurements", "sourceGeometry", "mediaProbe"]
       }
     },
     {
@@ -209,7 +338,28 @@
       },
       "then": {
         "properties": {
-          "sourceGeometry": { "type": "object" }
+          "sourceGeometry": { "type": "object" },
+          "mediaProbe": { "type": "object" },
+          "renderMeasurements": {
+            "minItems": 1,
+            "items": {
+              "properties": {
+                "frameHashesVerified": { "const": true },
+                "stateChangeVerified": {
+                  "anyOf": [
+                    { "type": "null" },
+                    { "const": true }
+                  ]
+                },
+                "stableFramesStable": {
+                  "anyOf": [
+                    { "type": "null" },
+                    { "const": true }
+                  ]
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -305,6 +455,7 @@
         "storyboard-craft-contract",
         "capture-manifest-craft-contract",
         "beat-timing-deltas",
+        "rendered-story-contract",
         "browser-console-network",
         "render-errors",
         "output-specifications",

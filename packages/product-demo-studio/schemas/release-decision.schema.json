@@ -50,6 +50,12 @@
     "preflight": {
       "$ref": "#/$defs/preflightReference"
     },
+    "editorialAudit": {
+      "$ref": "#/$defs/editorialAuditReference"
+    },
+    "candidateListening": {
+      "$ref": "#/$defs/candidateListeningReference"
+    },
     "reviewReports": {
       "type": "array",
       "minItems": 4,
@@ -135,6 +141,8 @@
         "required": [
           "candidate",
           "preflight",
+          "editorialAudit",
+          "candidateListening",
           "reviewReports",
           "releaseChecks",
           "findingDispositions",
@@ -347,6 +355,26 @@
         "sha256": {
           "$ref": "#/$defs/sha256"
         }
+      }
+    },
+    "editorialAuditReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactPath", "sha256", "bytes"],
+      "properties": {
+        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "candidateListeningReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactPath", "sha256", "bytes"],
+      "properties": {
+        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 }
       }
     },
     "completeReviewReportReference": {

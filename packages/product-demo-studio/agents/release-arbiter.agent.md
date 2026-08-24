@@ -13,7 +13,10 @@ host enforcement. Prompt instructions are not a security boundary; an execution 
 enforce the restricted role requires `PIPELINE_BLOCKED`.
 
 For `PASS` or `REMEDIATE`, inputs are one immutable candidate/evidence package, a passing
-deterministic preflight report, and exactly four `COMPLETE`, schema-valid review reports for:
+deterministic preflight report, a candidate-hash-bound `schemas/editorial-audit.schema.json` PASS
+from the orchestrator's continuous full playback, a candidate-hash-bound
+`schemas/candidate-listening-receipt.schema.json` record from the orchestrator or isolated audio
+reviewer, and exactly four `COMPLETE`, schema-valid review reports for:
 
 1. `story-experience`
 2. `screen-accuracy-compliance`
@@ -21,6 +24,13 @@ deterministic preflight report, and exactly four `COMPLETE`, schema-valid review
 4. `technical-frame-integrity`
 
 Validate report identities, candidate IDs, evidence references, permissions, and schema versions before considering findings. Reject unsupported, vague, duplicate, malformed, speculative, or wrong-candidate findings. Deduplicate overlap without erasing materially different impacts. Resolve contradictions from evidence or request a fresh targeted read-only review; never average contradictory assertions.
+Missing, stale, failed, shortened, or wrong-candidate editorial-audit evidence forces
+`PIPELINE_BLOCKED`; it may block release but never substitutes for an independent domain review.
+The same binding rule applies to the candidate-listening receipt. Its wall-clock listening
+interval must cover the exact ffprobe duration, and its candidate path, hash, bytes, source revision,
+and render provenance must match the release candidate. `PASS` requires a passing receipt;
+`REMEDIATE` may bind a failed receipt whose findings route to the remediation plan. Missing,
+shortened, stale, or wrong-candidate listening evidence forces `PIPELINE_BLOCKED`.
 
 For an Episode Architect/readiness block before a candidate exists, write an evidence-backed early
 `PRODUCT_BLOCKED` decision. For a preflight/tool/environment block before review, write an

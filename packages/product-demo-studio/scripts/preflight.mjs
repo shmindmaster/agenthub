@@ -36,6 +36,7 @@ const CHECKS = [
   ["storyboard-craft-contract", "story-script"],
   ["capture-manifest-craft-contract", "capture-playwright"],
   ["beat-timing-deltas", "capture-playwright"],
+  ["rendered-story-contract", "remotion-composition"],
   ["browser-console-network", "capture-playwright"],
   ["render-errors", "remotion-composition"],
   ["output-specifications", "export-pipeline"],
@@ -107,17 +108,47 @@ function runCanonicalValidator(scriptName, validatorArgs, checkIds, evidenceIds)
     encoding: "utf8",
     env: process.env,
   });
+  let canonicalReport = null;
+  if (existsSync(outputPath)) {
+    try {
+      canonicalReport = JSON.parse(readFileSync(outputPath, "utf8"));
+    } catch (error) {
+      const detail = `canonical ${scriptName} produced invalid JSON: ${error.message}`;
+      for (const checkId of checkIds) fail(checkId, detail, evidenceIds);
+    }
+  }
   rmSync(validationDir, { recursive: true, force: true });
-  if (result.status === 0) return;
+  if (result.status === 0 && canonicalReport) return canonicalReport;
   const detail = (result.stderr || result.stdout || `validator exited ${result.status}`).trim();
   for (const checkId of checkIds) {
     fail(checkId, `canonical ${scriptName} rerun failed: ${detail}`, evidenceIds);
   }
+  return null;
 }
 
 function oneArtifactOfType(inputArtifacts, type) {
   const matches = inputArtifacts.filter((artifact) => artifact.type === type);
   return matches.length === 1 ? matches[0] : null;
+}
+
+function normalizeValidatorCommand(command) {
+  if (typeof command !== "string") return null;
+  try {
+    const quotedTokens = command.match(/"(?:\\.|[^"\\])*"/g) ?? [];
+    const tokens = quotedTokens.map((token) => JSON.parse(token));
+    if (tokens.length === 0) return null;
+    const normalized = [];
+    for (let index = 0; index < tokens.length; index += 1) {
+      if (tokens[index] === "--out") {
+        index += 1;
+        continue;
+      }
+      normalized.push(tokens[index]);
+    }
+    return JSON.stringify(normalized);
+  } catch {
+    return null;
+  }
 }
 
 let evidencePackage = {};
@@ -367,15 +398,26 @@ if (!object(evidencePackage.reports)) {
       if (inputArtifacts.filter((artifact) => artifact.type === "raw-capture").length !== 1) {
         fail("capture-manifest-craft-contract", "craft contract validation must bind exactly one probed raw-capture artifact.", [reference.artifactId]);
       }
+      if (inputArtifacts.filter((artifact) => artifact.type === "render-timing").length !== 1) {
+        fail("rendered-story-contract", "craft contract validation must bind exactly one render-timing artifact.", [reference.artifactId]);
+      }
+      if (inputArtifacts.filter((artifact) => artifact.type === "video").length !== 1) {
+        fail("rendered-story-contract", "craft contract validation must bind exactly one final video artifact.", [reference.artifactId]);
+      }
       const storyboard = oneArtifactOfType(inputArtifacts, "storyboard");
       const captureManifest = oneArtifactOfType(inputArtifacts, "capture-manifest");
       const captureEvidence = oneArtifactOfType(inputArtifacts, "capture-evidence");
       const rawCapture = oneArtifactOfType(inputArtifacts, "raw-capture");
-      if (storyboard && captureManifest && captureEvidence && rawCapture) {
+      const renderTiming = oneArtifactOfType(inputArtifacts, "render-timing");
+      const finalMedia = oneArtifactOfType(inputArtifacts, "video");
+      if (storyboard && captureManifest && captureEvidence && rawCapture && renderTiming && finalMedia) {
         if (rawCapture.artifactId !== provenance?.capture?.rawCapture?.artifactId) {
           fail("capture-manifest-craft-contract", "craft validation raw capture does not match immutable capture provenance.", [rawCapture.artifactId]);
         }
-        runCanonicalValidator("validate-craft-contracts.mjs", [
+        if (finalMedia.artifactId !== evidencePackage.candidate?.mediaArtifactId) {
+          fail("rendered-story-contract", "craft validation video does not match the immutable final candidate media.", [finalMedia.artifactId]);
+        }
+        const canonicalCraftReport = runCanonicalValidator("validate-craft-contracts.mjs", [
           "--candidate-id", candidateId,
           "--storyboard", artifactPath(storyboard.artifactPath),
           "--storyboard-artifact-id", storyboard.artifactId,
@@ -385,9 +427,38 @@ if (!object(evidencePackage.reports)) {
           "--capture-evidence-artifact-id", captureEvidence.artifactId,
           "--raw-capture", artifactPath(rawCapture.artifactPath),
           "--raw-capture-artifact-id", rawCapture.artifactId,
-        ], ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas"], [
-          reference.artifactId, storyboard.artifactId, captureManifest.artifactId, captureEvidence.artifactId, rawCapture.artifactId,
+          "--render-timing", artifactPath(renderTiming.artifactPath),
+          "--render-timing-artifact-id", renderTiming.artifactId,
+          "--media", artifactPath(finalMedia.artifactPath),
+          "--media-artifact-id", finalMedia.artifactId,
+        ], ["storyboard-craft-contract", "capture-manifest-craft-contract", "beat-timing-deltas", "rendered-story-contract"], [
+          reference.artifactId, storyboard.artifactId, captureManifest.artifactId, captureEvidence.artifactId,
+          rawCapture.artifactId, renderTiming.artifactId, finalMedia.artifactId,
         ]);
+        if (canonicalCraftReport) {
+          const deterministicFields = [
+            "candidateId", "reportType", "status", "inputs", "checks", "measurements",
+            "renderMeasurements", "sourceGeometry", "mediaProbe", "summary",
+          ];
+          const mismatch = deterministicFields.some((field) => (
+            JSON.stringify(report[field]) !== JSON.stringify(canonicalCraftReport[field])
+          ));
+          const generatorMismatch = report.generator?.tool !== canonicalCraftReport.generator?.tool ||
+            report.generator?.version !== canonicalCraftReport.generator?.version ||
+            normalizeValidatorCommand(report.generator?.command) !== normalizeValidatorCommand(canonicalCraftReport.generator?.command);
+          if (mismatch || generatorMismatch) {
+            for (const checkId of [
+              "storyboard-craft-contract", "capture-manifest-craft-contract",
+              "beat-timing-deltas", "rendered-story-contract", "checksums-provenance",
+            ]) {
+              fail(checkId, "submitted craft report differs from the canonical validator rerun.", [
+                reference.artifactId, storyboard.artifactId, captureManifest.artifactId,
+                captureEvidence.artifactId, rawCapture.artifactId, renderTiming.artifactId,
+                finalMedia.artifactId,
+              ]);
+            }
+          }
+        }
       }
     }
     if (!Array.isArray(report.checks) || report.checks.length === 0 || !object(report.summary)) {
@@ -430,6 +501,8 @@ if (!object(evidencePackage.reports)) {
             ? "capture-manifest"
             : check.id === "beat-timing-deltas"
               ? "capture-evidence"
+              : check.id === "rendered-story-contract"
+                ? "render-timing"
               : null;
         if (!requiredType || !check.evidenceArtifactIds.some((id) => artifacts.get(id)?.type === requiredType)) {
           fail(check.id, `craft contract check must cite its checksum-bound ${requiredType ?? "canonical"} input.`, [reference.artifactId]);
@@ -444,9 +517,10 @@ if (!object(evidencePackage.reports)) {
       fail("artifact-completeness", `reports.${reportType} status/summary does not match its checks.`, [reference.artifactId]);
     }
     if (reportType === "craftContractValidation" &&
-        (seen.size !== 3 || !seen.has("storyboard-craft-contract") ||
-         !seen.has("capture-manifest-craft-contract") || !seen.has("beat-timing-deltas"))) {
-      fail("artifact-completeness", "craft contract validation must contain exactly storyboard, capture-manifest, and beat-timing checks.", [reference.artifactId]);
+        (seen.size !== 4 || !seen.has("storyboard-craft-contract") ||
+         !seen.has("capture-manifest-craft-contract") || !seen.has("beat-timing-deltas") ||
+         !seen.has("rendered-story-contract"))) {
+      fail("artifact-completeness", "craft contract validation must contain exactly storyboard, capture-manifest, capture-timing, and rendered-story checks.", [reference.artifactId]);
     }
     if (reportType === "craftContractValidation") {
       if (!Array.isArray(report.measurements) || report.measurements.length === 0) {
@@ -468,6 +542,53 @@ if (!object(evidencePackage.reports)) {
           artifacts.get(report.sourceGeometry.rawCaptureArtifactId)?.type !== "raw-capture" ||
           !reportInputIds.has(report.sourceGeometry.rawCaptureArtifactId)) {
         fail("capture-manifest-craft-contract", "craft contract validation lacks ffprobe-derived geometry bound to its raw-capture input.", [reference.artifactId]);
+      }
+      if (!Array.isArray(report.renderMeasurements) || report.renderMeasurements.length === 0) {
+        fail("rendered-story-contract", "craft contract validation has no rendered beat measurements.", [reference.artifactId]);
+      } else {
+        for (const measurement of report.renderMeasurements) {
+          const renderEvidence = Array.isArray(measurement?.evidenceArtifactIds)
+            && measurement.evidenceArtifactIds.some((id) => artifacts.get(id)?.type === "render-timing")
+            && measurement.evidenceArtifactIds.some((id) => artifacts.get(id)?.type === "video");
+          if (!object(measurement) || !SAFE_ID.test(measurement.beatId ?? "") ||
+              !["startDeltaSeconds", "actionDeltaSeconds", "resultDeltaSeconds", "endDeltaSeconds", "resultHoldSeconds"]
+                .every((field) => Number.isFinite(measurement[field]) && measurement[field] >= 0) ||
+              !(measurement.stableHoldSeconds === null ||
+                (Number.isFinite(measurement.stableHoldSeconds) && measurement.stableHoldSeconds >= 0)) ||
+              measurement.frameHashesVerified !== true ||
+              typeof measurement.stateChangeRequired !== "boolean" ||
+              !(measurement.stateChangeVerified === null || measurement.stateChangeVerified === true) ||
+              (measurement.stateChangeRequired && measurement.stateChangeVerified !== true) ||
+              !(measurement.stateChangeMeanAbsoluteDifference === null ||
+                (Number.isFinite(measurement.stateChangeMeanAbsoluteDifference) && measurement.stateChangeMeanAbsoluteDifference >= 0)) ||
+              !(measurement.stateChangePixelRatio === null ||
+                (Number.isFinite(measurement.stateChangePixelRatio) && measurement.stateChangePixelRatio >= 0 && measurement.stateChangePixelRatio <= 1)) ||
+              !Number.isFinite(measurement.stateChangeMeanThreshold) || measurement.stateChangeMeanThreshold < 0 ||
+              !Number.isFinite(measurement.stateChangePixelRatioThreshold) || measurement.stateChangePixelRatioThreshold < 0 ||
+              measurement.stateChangePixelRatioThreshold > 1 ||
+              !Number.isInteger(measurement.stableFrameSampleCount) || measurement.stableFrameSampleCount < 0 ||
+              !(measurement.stableFramesStable === null || measurement.stableFramesStable === true) ||
+              !(measurement.stableFrameMaxMeanAbsoluteDifference === null ||
+                (Number.isFinite(measurement.stableFrameMaxMeanAbsoluteDifference) && measurement.stableFrameMaxMeanAbsoluteDifference >= 0)) ||
+              !(measurement.stableFrameMaxChangedPixelRatio === null ||
+                (Number.isFinite(measurement.stableFrameMaxChangedPixelRatio) && measurement.stableFrameMaxChangedPixelRatio >= 0 && measurement.stableFrameMaxChangedPixelRatio <= 1)) ||
+              !(measurement.stableFrameThreshold === null ||
+                (Number.isFinite(measurement.stableFrameThreshold) && measurement.stableFrameThreshold >= 0)) ||
+              !(measurement.stableFrameChangedPixelRatioThreshold === null ||
+                (Number.isFinite(measurement.stableFrameChangedPixelRatioThreshold) && measurement.stableFrameChangedPixelRatioThreshold >= 0 && measurement.stableFrameChangedPixelRatioThreshold <= 1)) ||
+              !renderEvidence) {
+            fail("rendered-story-contract", "craft contract validation contains malformed or unbound rendered beat measurements.", [reference.artifactId]);
+          }
+        }
+      }
+      if (!object(report.mediaProbe) || !Number.isFinite(report.mediaProbe.durationSeconds) ||
+          report.mediaProbe.durationSeconds <= 0 || !Number.isFinite(report.mediaProbe.fps) || report.mediaProbe.fps <= 0 ||
+          !Number.isInteger(report.mediaProbe.width) || report.mediaProbe.width < 1 ||
+          !Number.isInteger(report.mediaProbe.height) || report.mediaProbe.height < 1 ||
+          report.mediaProbe.probe !== "ffprobe" || artifacts.get(report.mediaProbe.mediaArtifactId)?.type !== "video" ||
+          !reportInputIds.has(report.mediaProbe.mediaArtifactId) ||
+          report.mediaProbe.mediaArtifactId !== evidencePackage.candidate?.mediaArtifactId) {
+        fail("rendered-story-contract", "craft contract validation lacks ffprobe-derived media timing bound to the final candidate.", [reference.artifactId]);
       }
     }
   }

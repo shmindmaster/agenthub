@@ -179,7 +179,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
       "canonicalSource": "packages/product-demo-studio",
-      "contentHash": "E388BCE11630C435681C1F591B713DA4E5CC0FF17CC2FF739B0D4E7A75CC3E9D",
+      "contentHash": "0F2FA00E9FCEAC9A88326CC5396D912249F8714E899B962CA0077CCD4F85BD65",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [

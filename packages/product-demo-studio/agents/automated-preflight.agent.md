@@ -17,8 +17,11 @@ Fail closed on:
   candidate narration;
 - black, frozen, duplicate, corrupt, missing, or wrong-candidate frames;
 - browser playback, console, network, capture, asset, font, decode, or render errors;
-- absent or failed checksum-bound `storyboard-craft-contract` and
-  `capture-manifest-craft-contract` reports, or missing per-beat timing deltas;
+- absent or failed checksum-bound `storyboard-craft-contract`,
+  `capture-manifest-craft-contract`, or `rendered-story-contract` reports; missing per-beat timing
+  deltas; a rendered timeline that differs from the storyboard by more than one frame; final media
+  duration/fps not matching the render-timing artifact; an under-held hero result; or an end card
+  that is not fully stable for at least three seconds;
 - cursor-path timing/easing/scale drift, missing click settle/hold, wrong interaction feedback,
   shortcut changes without keystroke overlay, more than one zoom change per beat, UI camera drift,
   insufficient annotation reading time, unapproved wait/text acceleration, capture scale below 2,
@@ -39,7 +42,8 @@ schema-valid `delivery-spec.json`; product-local Playwright, ASR, OCR, caption-l
 truth extractors must emit the same deterministic envelope.
 
 Rerun `scripts/validate-craft-contracts.mjs` from the checksum-bound evidence-package artifact
-paths. Never trust the generator's report body as proof that the validator ran.
+paths, including the `render-timing` artifact and exact immutable final video. Never trust the
+generator's report body as proof that the validator ran.
 
 Write the aggregate result to `schemas/preflight-report.schema.json` through
 `scripts/preflight.mjs`. A prose statement is not preflight evidence.

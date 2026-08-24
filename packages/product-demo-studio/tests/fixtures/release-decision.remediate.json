@@ -29,6 +29,16 @@
     "artifactPath": "preflight-report.json",
     "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
+  "editorialAudit": {
+    "artifactPath": "editorial-audit.json",
+    "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "bytes": 1
+  },
+  "candidateListening": {
+    "artifactPath": "candidate-listening-receipt.json",
+    "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "bytes": 1
+  },
   "reviewReports": [
     {"domain": "story-experience", "reportPath": "reviews/story.json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "status": "COMPLETE", "score": 92, "passed": true, "findingCount": 0, "blockerFindings": 0, "criticalFindings": 0},
     {"domain": "screen-accuracy-compliance", "reportPath": "reviews/screen.json", "sha256": "2222222222222222222222222222222222222222222222222222222222222222", "status": "COMPLETE", "score": 100, "passed": true, "findingCount": 0, "blockerFindings": 0, "criticalFindings": 0},

@@ -206,6 +206,7 @@
               "capture-manifest",
               "capture-evidence",
               "raw-capture",
+              "render-timing",
               "other"
             ]
           },

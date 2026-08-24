@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.7.7";
+const expectedVersion = "1.7.8";
 const failures = [];
 
 function readJson(relativePath) {
@@ -88,8 +88,10 @@ for (const name of readOnlyAgents) {
 
 requireFiles("schemas", [
   "calibration-review-result.schema.json",
+  "candidate-listening-receipt.schema.json",
   "delivery-spec.schema.json",
   "deterministic-report.schema.json",
+  "editorial-audit.schema.json",
   "evidence-package.schema.json",
   "execution-receipt.schema.json",
   "final-verification.schema.json",
@@ -179,6 +181,39 @@ if (policy.reviewDeliveryPolicy?.agentHubRegistry !== "registry/product-video-de
     policy.reviewDeliveryPolicy?.firstHumanTouchpoint !== "final-presentation" ||
     policy.reviewDeliveryPolicy?.automatedAcceptanceRequired !== true) {
   failures.push("policy does not enforce immutable automated acceptance before final presentation");
+}
+const listeningAcceptance = policy.ownerVoiceProductionPolicy?.acceptance;
+if (listeningAcceptance?.listeningRequired !== true ||
+    listeningAcceptance?.listeningPerformer !== "orchestrator-or-audio-reviewer" ||
+    listeningAcceptance?.fullContinuousEncodedCandidateRequired !== true ||
+    listeningAcceptance?.listeningReceiptSchema !== "schemas/candidate-listening-receipt.schema.json" ||
+    listeningAcceptance?.exactCandidatePathHashAndBytesRequired !== true ||
+    listeningAcceptance?.ffprobeDurationMatchRequired !== true ||
+    listeningAcceptance?.listeningIntervalAtLeastMediaDurationRequired !== true ||
+    listeningAcceptance?.ownerApprovalRequired !== false) {
+  failures.push("policy does not require a system-owned, full-duration, exact-candidate listening receipt");
+}
+const candidateListeningPolicy = policy.candidateListeningPolicy;
+if (JSON.stringify(candidateListeningPolicy?.requiredForArbitrationDecisions) !== JSON.stringify(["PASS", "REMEDIATE"]) ||
+    candidateListeningPolicy?.receiptSchema !== "schemas/candidate-listening-receipt.schema.json" ||
+    JSON.stringify(candidateListeningPolicy?.allowedListenerRoles) !== JSON.stringify(["orchestrator", "audio-captions-sync-reviewer"]) ||
+    candidateListeningPolicy?.fullContinuousEncodedCandidateRequired !== true ||
+    candidateListeningPolicy?.exactCandidatePathHashAndBytesRequired !== true ||
+    candidateListeningPolicy?.sourceRevisionAndRenderProvenanceRequired !== true ||
+    candidateListeningPolicy?.ffprobeDurationMatchRequired !== true ||
+    candidateListeningPolicy?.listeningIntervalAtLeastMediaDurationRequired !== true ||
+    candidateListeningPolicy?.passReceiptRequiredForPassDecision !== true ||
+    candidateListeningPolicy?.failedReceiptMayRouteToRemediate !== true ||
+    candidateListeningPolicy?.ownerApprovalRequired !== false) {
+  failures.push("policy does not require candidate listening evidence for PASS and REMEDIATE arbitration");
+}
+if (policy.orchestratorEditorialAuditPolicy?.requiredBeforeExternalPublication !== true ||
+    policy.orchestratorEditorialAuditPolicy?.candidateByteChangeInvalidatesAudit !== true ||
+    policy.orchestratorEditorialAuditPolicy?.phaseEvidenceRequired !== true ||
+    policy.orchestratorEditorialAuditPolicy?.phaseEvidenceCandidateHashRequired !== true ||
+    policy.orchestratorEditorialAuditPolicy?.artifactEvidenceChecksumAndByteCountRequired !== true ||
+    policy.orchestratorEditorialAuditPolicy?.frameTimestampEvidenceDecodedFromCandidateRequired !== true) {
+  failures.push("policy does not require candidate-bound, machine-verifiable editorial phase evidence");
 }
 if (policy.captureQualityPolicy?.guidedScreencastRequired !== true ||
     policy.captureQualityPolicy?.pageOnlyOrNativeFullscreenPreferred !== true ||

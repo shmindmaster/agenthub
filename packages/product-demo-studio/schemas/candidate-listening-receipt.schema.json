@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/candidate-listening-receipt.schema.json",
+  "title": "Product Video Candidate Listening Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "candidate",
+    "listener",
+    "fullListening",
+    "checks",
+    "findings",
+    "status",
+    "generatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "receiptId": { "type": "string", "pattern": "^PVLR-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$" },
+    "candidate": { "$ref": "#/$defs/candidateReference" },
+    "listener": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "contextId"],
+      "properties": {
+        "role": { "enum": ["orchestrator", "audio-captions-sync-reviewer"] },
+        "contextId": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "fullListening": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["continuous", "mediaDurationSeconds", "startedAt", "completedAt"],
+      "properties": {
+        "continuous": { "const": true },
+        "mediaDurationSeconds": { "type": "number", "exclusiveMinimum": 0 },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/listeningCheck" },
+      "allOf": [
+        { "contains": { "properties": { "id": { "const": "full-program" } }, "required": ["id"] } },
+        { "contains": { "properties": { "id": { "const": "pronunciation" } }, "required": ["id"] } },
+        { "contains": { "properties": { "id": { "const": "delivery-and-pacing" } }, "required": ["id"] } },
+        { "contains": { "properties": { "id": { "const": "artifacts-and-discontinuities" } }, "required": ["id"] } }
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^PVF-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$" }
+    },
+    "status": { "enum": ["PASS", "FAIL"] },
+    "generatedAt": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "PASS" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "findings": { "maxItems": 0 },
+          "checks": { "items": { "properties": { "passed": { "const": true } } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "FAIL" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "findings": { "minItems": 1 },
+          "checks": {
+            "contains": { "properties": { "passed": { "const": false } }, "required": ["passed"] }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "safeId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "candidateReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateId", "artifactPath", "sha256", "bytes", "sourceRevision", "renderProvenanceId"],
+      "properties": {
+        "candidateId": { "$ref": "#/$defs/safeId" },
+        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "sourceRevision": { "$ref": "#/$defs/nonEmptyString" },
+        "renderProvenanceId": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "listeningCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "passed", "notes"],
+      "properties": {
+        "id": {
+          "enum": [
+            "full-program",
+            "pronunciation",
+            "delivery-and-pacing",
+            "artifacts-and-discontinuities"
+          ]
+        },
+        "passed": { "type": "boolean" },
+        "notes": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    }
+  }
+}

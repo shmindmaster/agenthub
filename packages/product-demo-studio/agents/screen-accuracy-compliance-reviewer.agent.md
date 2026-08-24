@@ -20,10 +20,17 @@ Verify:
 - annotations, cursor path/destination/park point, visible click cue, focus regions, protected
   controls, branding, safe areas, and layouts are accurate and unobstructed; every shown
   interaction corresponds to a real captured action and state transition;
+- every phase-complete actual frame is clean: no undeclared toast, feedback widget, consent banner,
+  tooltip, demo/debug label, personal browser artifact, unrelated notification, or clipped overlay;
+  distinguish an intentional storyboard-bound overlay from a product transient and fail any
+  accidental surface that weakens trust or hides evidence;
 - cuts and acceleration preserve truthful product latency and feedback; no wait, typed input,
   camera treatment, or interaction overlay implies speed or behavior unsupported by capture;
 - the capture environment, browser playback, console, and network evidence do not contradict the presentation;
 - a failed readiness episode has no release candidate and a conditional episode visibly applies every required fix.
+- YouTube title, thumbnail text, description, synthetic-data disclosure, AI-voice disclosure, CTA,
+  and opening implication are material claims: each must agree with the claim ledger, product
+  behavior, episode brief, and exact candidate rather than being treated as harmless packaging.
 
 Trace each material claim to evidence; ledger presence alone is not proof. Unsupported certainty, regulated/compliance claims, real customer data, or concealed broken behavior are blocker or critical findings as warranted.
 

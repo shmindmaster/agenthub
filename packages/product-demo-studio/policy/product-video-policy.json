@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.7.7",
+  "capabilityVersion": "1.7.8",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -68,11 +68,31 @@
     },
     "acceptance": {
       "listeningRequired": true,
+      "listeningPerformer": "orchestrator-or-audio-reviewer",
+      "fullContinuousEncodedCandidateRequired": true,
+      "listeningReceiptSchema": "schemas/candidate-listening-receipt.schema.json",
+      "exactCandidatePathHashAndBytesRequired": true,
+      "ffprobeDurationMatchRequired": true,
+      "listeningIntervalAtLeastMediaDurationRequired": true,
+      "ownerApprovalRequired": false,
       "asrContentCheckRequired": true,
       "dualSpeakerIdentityGateRequired": true,
       "captionSynchronizationRequired": true,
       "loudnessAndTruePeakGateRequired": true
     }
+  },
+  "candidateListeningPolicy": {
+    "requiredForArbitrationDecisions": ["PASS", "REMEDIATE"],
+    "receiptSchema": "schemas/candidate-listening-receipt.schema.json",
+    "allowedListenerRoles": ["orchestrator", "audio-captions-sync-reviewer"],
+    "fullContinuousEncodedCandidateRequired": true,
+    "exactCandidatePathHashAndBytesRequired": true,
+    "sourceRevisionAndRenderProvenanceRequired": true,
+    "ffprobeDurationMatchRequired": true,
+    "listeningIntervalAtLeastMediaDurationRequired": true,
+    "passReceiptRequiredForPassDecision": true,
+    "failedReceiptMayRouteToRemediate": true,
+    "ownerApprovalRequired": false
   },
   "connectorPolicy": {
     "readBeforeWrite": true,
@@ -125,7 +145,69 @@
     "truthfulLatencyTreatmentRequired": true,
     "realProductActionAndStateTransitionRequired": true,
     "visibleClickCueRequired": true,
-    "resultVisibleBeforeSpokenResult": true
+    "resultVisibleBeforeSpokenResult": true,
+    "blockedTransientSurfaces": [
+      "unexpected-toast",
+      "feedback-widget",
+      "cookie-or-consent-banner",
+      "tooltip-or-popover",
+      "debug-or-demo-label",
+      "personal-browser-artifact",
+      "clipped-overlay",
+      "unrelated-notification"
+    ],
+    "phaseCompleteFrameEvidenceRequired": true,
+    "requiredFramePhases": [
+      "cold-open",
+      "hook",
+      "transition",
+      "hero-before",
+      "hero-action",
+      "hero-result",
+      "trust-boundary",
+      "cta",
+      "end-card-entry",
+      "stable-final-hold"
+    ],
+    "minimumStableFinalHoldSeconds": 3
+  },
+  "youtubeReleaseQualityPolicy": {
+    "viewerPromiseBindingRequired": true,
+    "titleThumbnailOpeningOutcomeMustAgree": true,
+    "titleAccurateSuccinctAndImportantWordsFirst": true,
+    "customThumbnailRequired": true,
+    "thumbnailSmallDisplayReviewRequired": true,
+    "firstThirtySecondPromiseFulfillmentRequired": true,
+    "appealEngagementAndSatisfactionReviewRequired": true,
+    "valueDensityRequired": true,
+    "universalDurationTargetAllowed": false,
+    "tagVolumeScored": false,
+    "singlePrimaryCtaRequired": true,
+    "metadataClaimsMustUseClaimLedger": true,
+    "syntheticDataAndAiVoiceDisclosuresRequired": true,
+    "postPublicationSignals": [
+      "impressions-click-through-rate",
+      "first-thirty-second-retention",
+      "average-percentage-viewed",
+      "retention-dips-and-spikes",
+      "end-screen-click-rate"
+    ],
+    "insufficientAnalyticsDecision": "INSUFFICIENT_DATA"
+  },
+  "orchestratorEditorialAuditPolicy": {
+    "requiredBeforeExternalPublication": true,
+    "fullStartToFinishPlaybackRequired": true,
+    "actualOpeningTransitionHeroCtaAndFinalFramesRequired": true,
+    "screenCleanlinessAndProductExperienceRequired": true,
+    "mayBlockOrRemediate": true,
+    "mayReplaceIndependentReviews": false,
+    "mayApproveWithoutFinalVerifier": false,
+    "ownerWatchOrListenApprovalRequired": false,
+    "candidateByteChangeInvalidatesAudit": true,
+    "phaseEvidenceRequired": true,
+    "phaseEvidenceCandidateHashRequired": true,
+    "artifactEvidenceChecksumAndByteCountRequired": true,
+    "frameTimestampEvidenceDecodedFromCandidateRequired": true
   },
   "hardwareAccelerationPolicy": {
     "capabilityDetectionRequired": true,
