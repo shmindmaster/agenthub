@@ -65,6 +65,23 @@ repos under `C:\Repos`). Those are why agents time out here.
    Optional `-Root 01` (or 02–06, 10) filters hits to that tree. This
    calls Local-AI Qdrant `knowledge` via `D:\Local-AI\query.ps1`. Do not
    query the `legal` alias from this skill.
+
+   **Sensitivity profiles** (enforced in `query.py`, facets written by
+   `D:\Local-AI\indexing\facet_backfill.py`):
+
+   | Profile | Excludes | Use for |
+   |---|---|---|
+   | `safe` (default) | personal, secret, confidential_financial, do_not_send | internal questions |
+   | `client-facing` | above + never_name clients, licensed third-party research, legal_privileged | anything leaving the machine |
+   | `unrestricted` | nothing | internal analysis only; prints a banner |
+
+   `safe` applies automatically — nothing extra to type. **Switch to
+   `client-facing` whenever the output becomes a resume, proposal, RFP,
+   pitch, or public profile:**
+   `D:\Local-AI\query.ps1 "<concept>" -Profile client-facing`
+
+   The filter is on the artifact's destination, not on read access. Use
+   `unrestricted` freely for internal work.
 6. Read only the files returned. The index is a pointer; the file on disk
    is still authority.
 7. Resume/application claims must pass

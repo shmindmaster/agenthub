@@ -30,11 +30,33 @@ the first pass is thin.
 
 1. Analyze the role, RFP, or client requirements: skills, technologies,
    responsibilities, outcomes, evaluation criteria, differentiators.
-2. **Qdrant `knowledge`** (via `Search-Knowledge.ps1 -Semantic` or
-   `D:\Local-AI\query.ps1 --index knowledge`): prior projects, products,
-   architecture decisions, capabilities, proposal material,
+2. **Qdrant `knowledge`** — always with `-Profile client-facing`:
+
+   ```
+   D:\Local-AI\query.ps1 "<query>" -Index knowledge -Profile client-facing
+   ```
+
+   Also reachable via `Search-Knowledge.ps1 -Semantic`. Prior projects,
+   products, architecture decisions, capabilities, proposal material,
    accomplishments, client/work context (names only if this turn cleared
    them), documented expertise. Alias `legal` is out of scope here.
+
+   **The profile is not optional for opportunity work.** The collection
+   also holds personal finance, family records, credentials, licensed
+   analyst research, live-dispute material, and 66K chunks of
+   prior-agency client work that is never nameable. `client-facing`
+   excludes all of it at retrieval time. The default (`safe`) is looser —
+   it still returns licensed research and never-name clients, because it
+   is tuned for internal work. Omitting the flag here is how a Gartner
+   excerpt or a named Fortune 500 client reaches a client-facing draft.
+
+   Use `-Profile unrestricted` only for internal analysis that never
+   leaves the machine.
+
+   `Get-EvidenceAugmentation.ps1` does not take a profile: it applies a
+   rendering mode per item instead of excluding, so restricted client
+   work returns as `ANONYMIZE` rather than disappearing. Hard exclusions
+   are in `config/evidence-layers.json`.
 3. **RepoWise** (workspace `C:\Repos`): implementations, APIs,
    infrastructure, AI/LLM workflows, integrations, database and
    deployment patterns, optimizations, code-backed examples.
