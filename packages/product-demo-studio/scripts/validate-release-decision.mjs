@@ -36,7 +36,8 @@ const SHA256 = /^[a-f0-9]{64}$/;
 const FINDING_ID = /^PVF-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
 const DECISION_ID = /^PVD-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
 const PREFLIGHT_ID = /^PVP-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
-const LISTENING_RECEIPT_ID = /^PVLR-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
+const AUDIO_REPORT_ID = /^PVAR-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
+const AUDIO_ADJUDICATION_ID = /^PVAA-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const errors = [];
 
@@ -298,75 +299,410 @@ function decodeCandidateFrameSha(candidate, seconds, path) {
   return digest(result.stdout);
 }
 
-function validateCandidateListening(reference, candidate, path, { requirePass = false } = {}) {
+function validateBoundArtifactReference(reference, path) {
   if (!exactObject(reference, path, ["artifactPath", "sha256", "bytes"])) return undefined;
   if (!Number.isInteger(reference.bytes) || reference.bytes < 1) fail(`${path}.bytes`, "must be a positive integer.");
   const artifact = readArtifact(reference.artifactPath, reference.sha256, path);
-  if (!artifact) return undefined;
-  if (artifact.size !== reference.bytes) fail(`${path}.bytes`, `does not match "${artifact.absolutePath}" (actual ${artifact.size}).`);
+  if (artifact && artifact.size !== reference.bytes) {
+    fail(`${path}.bytes`, `does not match "${artifact.absolutePath}" (actual ${artifact.size}).`);
+  }
+  return artifact;
+}
+
+function sameArtifactReference(actual, expected, path) {
+  if (!object(actual) || !object(expected)) return;
+  for (const field of ["sha256", "bytes"]) {
+    if (actual[field] !== expected[field]) fail(`${path}.${field}`, "does not match the bound perception report.");
+  }
+  const actualPath = resolveDecisionPath(actual.artifactPath, `${path}.artifactPath`);
+  const expectedPath = resolveDecisionPath(expected.artifactPath, `${path}.artifactPath`);
+  if (actualPath && expectedPath && actualPath !== expectedPath) {
+    fail(`${path}.artifactPath`, "does not identify the bound perception report.");
+  }
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (object(value)) {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function validateModelReceipt(reference, nativeModel, path) {
+  const artifact = validateBoundArtifactReference(reference, path);
   const receipt = parseJsonArtifact(artifact, `${path}.document`);
   if (!object(receipt)) return undefined;
-  if (!exactObject(receipt, `${path}.document`, [
-    "schemaVersion", "receiptId", "candidate", "listener", "fullListening",
-    "checks", "findings", "status", "generatedAt",
-  ])) return undefined;
+  if (!exactObject(receipt, `${path}.document`, ["schemaVersion", "modelId", "revision", "license", "artifacts", "installedAt"])) return receipt;
   if (receipt.schemaVersion !== "1.0.0") fail(`${path}.document.schemaVersion`, 'must equal "1.0.0".');
-  matches(receipt.receiptId, LISTENING_RECEIPT_ID, `${path}.document.receiptId`, "a canonical candidate-listening receipt identifier");
-  const listeningCandidate = validateCandidate(receipt.candidate, `${path}.document.candidate`);
-  sameCandidate(listeningCandidate, candidate, `${path}.document.candidate`);
-  if (!exactObject(receipt.listener, `${path}.document.listener`, ["role", "contextId"])) return undefined;
-  if (!["orchestrator", "audio-captions-sync-reviewer"].includes(receipt.listener.role)) {
-    fail(`${path}.document.listener.role`, "must be orchestrator or audio-captions-sync-reviewer.");
+  nonEmpty(receipt.modelId, `${path}.document.modelId`);
+  nonEmpty(receipt.revision, `${path}.document.revision`);
+  nonEmpty(receipt.license, `${path}.document.license`);
+  dateTime(receipt.installedAt, `${path}.document.installedAt`);
+  if (nativeModel) {
+    if (receipt.modelId !== nativeModel.id) fail(`${path}.document.modelId`, "must match the native listen report model id.");
+    if (receipt.revision !== nativeModel.revision) fail(`${path}.document.revision`, "must match the native listen report model revision.");
+    const canonicalReceiptSha = digest(Buffer.from(canonicalJson(receipt), "utf8"));
+    if (canonicalReceiptSha !== nativeModel.receiptSha256) {
+      fail(`${path}.document`, `canonical receipt hash does not match the native listen report (actual ${canonicalReceiptSha}).`);
+    }
   }
-  nonEmpty(receipt.listener.contextId, `${path}.document.listener.contextId`);
-  if (!exactObject(receipt.fullListening, `${path}.document.fullListening`, [
-    "continuous", "mediaDurationSeconds", "startedAt", "completedAt",
-  ])) return undefined;
-  if (receipt.fullListening.continuous !== true) fail(`${path}.document.fullListening.continuous`, "must be true.");
-  if (!Number.isFinite(receipt.fullListening.mediaDurationSeconds) || receipt.fullListening.mediaDurationSeconds <= 0) {
-    fail(`${path}.document.fullListening.mediaDurationSeconds`, "must be positive.");
-  }
-  dateTime(receipt.fullListening.startedAt, `${path}.document.fullListening.startedAt`);
-  dateTime(receipt.fullListening.completedAt, `${path}.document.fullListening.completedAt`);
-  const elapsedSeconds = (Date.parse(receipt.fullListening.completedAt) - Date.parse(receipt.fullListening.startedAt)) / 1000;
-  if (Number.isFinite(elapsedSeconds) && elapsedSeconds + 0.001 < receipt.fullListening.mediaDurationSeconds) {
-    fail(`${path}.document.fullListening`, "continuous listening interval is shorter than the candidate duration.");
-  }
-  const actualDuration = probeCandidateDuration(listeningCandidate, `${path}.document.fullListening.mediaDurationSeconds`);
-  if (Number.isFinite(actualDuration) &&
-      Math.abs(actualDuration - receipt.fullListening.mediaDurationSeconds) > 0.05) {
-    fail(`${path}.document.fullListening.mediaDurationSeconds`, "does not match the exact candidate media duration.");
-  }
-  const requiredChecks = new Set([
-    "full-program", "pronunciation", "delivery-and-pacing", "artifacts-and-discontinuities",
-  ]);
-  const seenChecks = new Set();
-  if (!Array.isArray(receipt.checks) || receipt.checks.length !== requiredChecks.size) {
-    fail(`${path}.document.checks`, `must contain exactly ${requiredChecks.size} listening checks.`);
+  if (!Array.isArray(receipt.artifacts) || receipt.artifacts.length === 0) {
+    fail(`${path}.document.artifacts`, "must bind at least one model artifact hash.");
   } else {
-    receipt.checks.forEach((check, index) => {
-      const checkPath = `${path}.document.checks[${index}]`;
+    receipt.artifacts.forEach((entry, index) => {
+      const entryPath = `${path}.document.artifacts[${index}]`;
+      if (!exactObject(entry, entryPath, ["path", "bytes", "sha256"])) return;
+      nonEmpty(entry.path, `${entryPath}.path`);
+      if (!Number.isInteger(entry.bytes) || entry.bytes < 1) fail(`${entryPath}.bytes`, "must be a positive integer.");
+      sha(entry.sha256, `${entryPath}.sha256`);
+    });
+  }
+  return receipt;
+}
+
+function validateNativeDecodedAudio(decoded, candidate, path) {
+  if (!exactObject(decoded, path, [
+    "artifactPath", "sha256", "bytes", "sampleRate", "channels", "bitsPerSample",
+    "sampleCount", "durationSeconds", "coverage", "sourceAudioStream", "sourceProbe", "decoder",
+  ])) return;
+  const decodedArtifact = validateBoundArtifactReference({
+    artifactPath: decoded.artifactPath,
+    sha256: decoded.sha256,
+    bytes: decoded.bytes,
+  }, path);
+  if (decoded.sampleRate !== 16000) fail(`${path}.sampleRate`, "must equal 16000.");
+  if (decoded.channels !== 1) fail(`${path}.channels`, "must equal 1.");
+  if (decoded.bitsPerSample !== 16) fail(`${path}.bitsPerSample`, "must equal 16.");
+  if (!Number.isInteger(decoded.sampleCount) || decoded.sampleCount < 1) fail(`${path}.sampleCount`, "must be a positive integer.");
+  if (typeof decoded.durationSeconds !== "number" || decoded.durationSeconds <= 0) fail(`${path}.durationSeconds`, "must be positive.");
+  if (Number.isInteger(decoded.sampleCount) && Math.abs(decoded.durationSeconds - (decoded.sampleCount / 16000)) > 0.000001) {
+    fail(`${path}.durationSeconds`, "must equal sampleCount / 16000.");
+  }
+  if (exactObject(decoded.coverage, `${path}.coverage`, ["startSample", "endSampleExclusive", "expectedSamples", "continuous"])) {
+    if (decoded.coverage.startSample !== 0) fail(`${path}.coverage.startSample`, "must equal 0.");
+    if (decoded.coverage.endSampleExclusive !== decoded.sampleCount) fail(`${path}.coverage.endSampleExclusive`, "must equal sampleCount.");
+    if (decoded.coverage.expectedSamples !== decoded.sampleCount) fail(`${path}.coverage.expectedSamples`, "must equal sampleCount.");
+    if (decoded.coverage.continuous !== true) fail(`${path}.coverage.continuous`, "must be true.");
+  }
+  if (!object(decoded.sourceAudioStream) || decoded.sourceAudioStream.codec_type !== "audio") {
+    fail(`${path}.sourceAudioStream`, "must identify the source audio stream.");
+  }
+  if (!object(decoded.sourceProbe)) fail(`${path}.sourceProbe`, "must be an object.");
+  let ffmpegPath = "ffmpeg";
+  if (exactObject(decoded.decoder, `${path}.decoder`, ["ffmpegPath", "ffmpegSha256", "version", "commandSha256"])) {
+    nonEmpty(decoded.decoder.ffmpegPath, `${path}.decoder.ffmpegPath`);
+    sha(decoded.decoder.ffmpegSha256, `${path}.decoder.ffmpegSha256`);
+    nonEmpty(decoded.decoder.version, `${path}.decoder.version`);
+    sha(decoded.decoder.commandSha256, `${path}.decoder.commandSha256`);
+    const ffmpegArtifact = readArtifact(decoded.decoder.ffmpegPath, decoded.decoder.ffmpegSha256, `${path}.decoder`);
+    if (ffmpegArtifact) ffmpegPath = ffmpegArtifact.absolutePath;
+  }
+
+  const rawBytes = Number.isInteger(decoded.sampleCount) ? decoded.sampleCount * 2 : 0;
+  if (!Number.isSafeInteger(rawBytes) || rawBytes < 1 || rawBytes > 512 * 1024 * 1024) {
+    fail(`${path}.sampleCount`, "decoded PCM must be non-empty and no larger than 512 MiB.");
+    return;
+  }
+  const decode = (input) => spawnSync(ffmpegPath, [
+    "-v", "error", "-i", input, "-map", "0:a:0", "-vn", "-sn", "-dn",
+    "-ac", "1", "-ar", "16000", "-acodec", "pcm_s16le", "-f", "s16le", "-",
+  ], { encoding: null, maxBuffer: Math.max(16 * 1024 * 1024, rawBytes + 64 * 1024) });
+  if (candidate && decodedArtifact) {
+    const candidateDecode = decode(candidate.absolutePath);
+    const artifactDecode = decode(decodedArtifact.absolutePath);
+    for (const [label, result] of [["candidate", candidateDecode], ["decoded artifact", artifactDecode]]) {
+      if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
+        const detail = Buffer.isBuffer(result.stderr) ? result.stderr.toString("utf8") : String(result.stderr ?? "");
+        fail(path, `could not decode ${label}: ${detail.trim() || `ffmpeg exited ${result.status}`}`);
+      }
+    }
+    if (Buffer.isBuffer(candidateDecode.stdout) && Buffer.isBuffer(artifactDecode.stdout)) {
+      if (candidateDecode.stdout.length !== rawBytes) fail(`${path}.sampleCount`, `does not match deterministic candidate decode (${candidateDecode.stdout.length / 2} samples).`);
+      if (!candidateDecode.stdout.equals(artifactDecode.stdout)) fail(path, "decoded artifact PCM does not match the exact candidate decode.");
+    }
+  }
+}
+
+function validateCalibrationCase(value, path, expectedStatus) {
+  if (!exactObject(value, path, ["caseId", "audio", "rawResponse", "expectedStatus", "observedStatus"])) return undefined;
+  matches(value.caseId, SAFE_ID, `${path}.caseId`, "a safe calibration case identifier");
+  const audioArtifact = validateBoundArtifactReference(value.audio, `${path}.audio`);
+  if (audioArtifact) {
+    const probe = spawnSync("ffprobe", [
+      "-v", "error", "-select_streams", "a:0",
+      "-show_entries", "stream=codec_type", "-of", "json", audioArtifact.absolutePath,
+    ], { encoding: "utf8" });
+    if (probe.status !== 0) {
+      fail(`${path}.audio`, `must be decodable audio evidence: ${(probe.stderr || probe.stdout).trim()}`);
+    } else {
+      try {
+        const metadata = JSON.parse(probe.stdout);
+        if (!metadata.streams?.some((stream) => stream.codec_type === "audio")) {
+          fail(`${path}.audio`, "must contain an audio stream.");
+        }
+      } catch (error) {
+        fail(`${path}.audio`, `ffprobe returned invalid JSON: ${error.message}`);
+      }
+    }
+  }
+  validateBoundArtifactReference(value.rawResponse, `${path}.rawResponse`);
+  if (value.expectedStatus !== expectedStatus) fail(`${path}.expectedStatus`, `must equal ${expectedStatus}.`);
+  if (value.observedStatus !== expectedStatus) fail(`${path}.observedStatus`, `must equal ${expectedStatus}.`);
+  return value.caseId;
+}
+
+function validatePassFailChecks(checks, path, requiredCheckIds, noun) {
+  const seen = new Set();
+  if (!Array.isArray(checks) || checks.length !== requiredCheckIds.size) {
+    fail(path, `must contain exactly ${requiredCheckIds.size} ${noun} checks.`);
+  } else {
+    checks.forEach((check, index) => {
+      const checkPath = `${path}[${index}]`;
       if (!exactObject(check, checkPath, ["id", "passed", "notes"])) return;
-      if (!requiredChecks.has(check.id)) fail(`${checkPath}.id`, "is not a canonical listening check.");
-      if (seenChecks.has(check.id)) fail(`${checkPath}.id`, `duplicates "${check.id}".`);
-      seenChecks.add(check.id);
+      if (!requiredCheckIds.has(check.id)) fail(`${checkPath}.id`, `is not a canonical ${noun} check.`);
+      if (seen.has(check.id)) fail(`${checkPath}.id`, `duplicates "${check.id}".`);
+      seen.add(check.id);
       if (typeof check.passed !== "boolean") fail(`${checkPath}.passed`, "must be boolean.");
       nonEmpty(check.notes, `${checkPath}.notes`);
     });
   }
-  for (const checkId of requiredChecks) if (!seenChecks.has(checkId)) fail(`${path}.document.checks`, `missing "${checkId}".`);
-  const findings = uniqueStrings(receipt.findings, `${path}.document.findings`, { pattern: FINDING_ID });
-  const allChecksPassed = Array.isArray(receipt.checks) && receipt.checks.every((check) => check?.passed === true);
-  if (!["PASS", "FAIL"].includes(receipt.status)) fail(`${path}.document.status`, "must be PASS or FAIL.");
-  if (receipt.status === "PASS" && (!allChecksPassed || findings.size !== 0)) {
-    fail(`${path}.document`, "PASS requires all listening checks to pass and no findings.");
+  for (const id of requiredCheckIds) if (!seen.has(id)) fail(path, `missing "${id}".`);
+  return Array.isArray(checks) && checks.every((check) => check?.passed === true);
+}
+
+function validateCandidateAudioApproval(reference, candidate, path, policy, decisionTimestamp, { requirePass = false } = {}) {
+  if (!exactObject(reference, path, ["perceptionReport", "adjudication"])) return undefined;
+  const reportArtifact = validateBoundArtifactReference(reference.perceptionReport, `${path}.perceptionReport`);
+  const report = parseJsonArtifact(reportArtifact, `${path}.perceptionReport.document`);
+  if (!object(report)) return undefined;
+  const reportPath = `${path}.perceptionReport.document`;
+  if (!exactObject(report, reportPath, [
+    "schemaVersion", "reportId", "candidate", "listener", "calibration", "status", "generatedAt",
+  ])) return undefined;
+  if (report.schemaVersion !== "1.0.0") fail(`${reportPath}.schemaVersion`, 'must equal "1.0.0".');
+  matches(report.reportId, AUDIO_REPORT_ID, `${reportPath}.reportId`, "a canonical audio-perception report identifier");
+  const reportCandidate = validateCandidate(report.candidate, `${reportPath}.candidate`);
+  sameCandidate(reportCandidate, candidate, `${reportPath}.candidate`);
+
+  let nativeReport;
+  let listeningModel;
+  let promptVersion;
+  let analysisCompletedAt;
+  let reportFindings = new Set();
+  if (exactObject(report.listener, `${reportPath}.listener`, ["kind", "controlPlane", "command", "localOnly", "report", "modelReceipt"])) {
+    if (report.listener.kind !== "local-audio-model") fail(`${reportPath}.listener.kind`, 'must equal "local-audio-model".');
+    if (report.listener.controlPlane !== "ai.ps1") fail(`${reportPath}.listener.controlPlane`, 'must equal "ai.ps1".');
+    if (report.listener.command !== "listen") fail(`${reportPath}.listener.command`, 'must equal "listen".');
+    if (report.listener.localOnly !== true) fail(`${reportPath}.listener.localOnly`, "must be true.");
+    const nativeArtifact = validateBoundArtifactReference(report.listener.report, `${reportPath}.listener.report`);
+    nativeReport = parseJsonArtifact(nativeArtifact, `${reportPath}.listener.report.document`);
+    const nativePath = `${reportPath}.listener.report.document`;
+    if (object(nativeReport) && exactObject(nativeReport, nativePath, [
+      "schemaVersion", "reportId", "status", "candidate", "decodedAudio", "model", "request",
+      "execution", "checks", "findings", "summary", "generatedAt",
+    ])) {
+      if (nativeReport.schemaVersion !== "1.0.0") fail(`${nativePath}.schemaVersion`, 'must equal "1.0.0".');
+      const nativeCandidate = validateCandidate(nativeReport.candidate, `${nativePath}.candidate`);
+      sameCandidate(nativeCandidate, candidate, `${nativePath}.candidate`);
+      if (candidate?.sha256 && nativeReport.reportId !== `LAPR-${candidate.sha256.slice(0, 16)}`) {
+        fail(`${nativePath}.reportId`, "must be the native ai.ps1 listen id derived from the candidate SHA-256.");
+      }
+      validateNativeDecodedAudio(nativeReport.decodedAudio, nativeCandidate, `${nativePath}.decodedAudio`);
+      if (exactObject(nativeReport.model, `${nativePath}.model`, [
+        "id", "revision", "license", "receiptSha256", "torch", "transformers", "device", "peakVramBytes",
+      ])) {
+        nonEmpty(nativeReport.model.id, `${nativePath}.model.id`);
+        nonEmpty(nativeReport.model.revision, `${nativePath}.model.revision`);
+        nonEmpty(nativeReport.model.license, `${nativePath}.model.license`);
+        sha(nativeReport.model.receiptSha256, `${nativePath}.model.receiptSha256`);
+        nonEmpty(nativeReport.model.torch, `${nativePath}.model.torch`);
+        nonEmpty(nativeReport.model.transformers, `${nativePath}.model.transformers`);
+        nonEmpty(nativeReport.model.device, `${nativePath}.model.device`);
+        if (!Number.isInteger(nativeReport.model.peakVramBytes) || nativeReport.model.peakVramBytes < 1) {
+          fail(`${nativePath}.model.peakVramBytes`, "must be a positive integer.");
+        }
+        listeningModel = nativeReport.model;
+        validateModelReceipt(report.listener.modelReceipt, listeningModel, `${reportPath}.listener.modelReceipt`);
+      }
+      if (exactObject(nativeReport.request, `${nativePath}.request`, [
+        "promptVersion", "promptSha256", "transcript", "pronunciationManifest", "generation", "modelResponse",
+      ])) {
+        if (nonEmpty(nativeReport.request.promptVersion, `${nativePath}.request.promptVersion`)) promptVersion = nativeReport.request.promptVersion;
+        sha(nativeReport.request.promptSha256, `${nativePath}.request.promptSha256`);
+        for (const field of ["transcript", "pronunciationManifest"]) {
+          if (nativeReport.request[field] !== null) validateBoundArtifactReference(nativeReport.request[field], `${nativePath}.request.${field}`);
+        }
+        if (exactObject(nativeReport.request.generation, `${nativePath}.request.generation`, ["doSample", "seed", "maxNewTokens"])) {
+          if (nativeReport.request.generation.doSample !== false) fail(`${nativePath}.request.generation.doSample`, "must be false.");
+          if (nativeReport.request.generation.seed !== 0) fail(`${nativePath}.request.generation.seed`, "must equal 0.");
+          if (!Number.isInteger(nativeReport.request.generation.maxNewTokens) || nativeReport.request.generation.maxNewTokens < 1) {
+            fail(`${nativePath}.request.generation.maxNewTokens`, "must be a positive integer.");
+          }
+        }
+        validateBoundArtifactReference(nativeReport.request.modelResponse, `${nativePath}.request.modelResponse`);
+      }
+      if (exactObject(nativeReport.execution, `${nativePath}.execution`, [
+        "startedAt", "completedAt", "durationSeconds", "localFilesOnly", "remoteInputs",
+      ])) {
+        dateTime(nativeReport.execution.startedAt, `${nativePath}.execution.startedAt`);
+        dateTime(nativeReport.execution.completedAt, `${nativePath}.execution.completedAt`);
+        analysisCompletedAt = Date.parse(nativeReport.execution.completedAt);
+        if (analysisCompletedAt < Date.parse(nativeReport.execution.startedAt)) fail(`${nativePath}.execution`, "completedAt must not precede startedAt.");
+        if (typeof nativeReport.execution.durationSeconds !== "number" || nativeReport.execution.durationSeconds < 0) fail(`${nativePath}.execution.durationSeconds`, "must be non-negative.");
+        if (nativeReport.execution.localFilesOnly !== true) fail(`${nativePath}.execution.localFilesOnly`, "must be true.");
+        if (nativeReport.execution.remoteInputs !== false) fail(`${nativePath}.execution.remoteInputs`, "must be false.");
+      }
+      const perceptionChecks = new Set([
+        "full-program", "pronunciation", "delivery-and-pacing", "artifacts-and-discontinuities",
+      ]);
+      const allPerceptionChecksPassed = validatePassFailChecks(nativeReport.checks, `${nativePath}.checks`, perceptionChecks, "audio-perception");
+      if (!Array.isArray(nativeReport.findings)) {
+        fail(`${nativePath}.findings`, "must be an array.");
+      } else {
+        reportFindings = new Set();
+        nativeReport.findings.forEach((finding, index) => {
+          const findingPath = `${nativePath}.findings[${index}]`;
+          if (!exactObject(finding, findingPath, ["id", "checkId", "severity", "startSeconds", "endSeconds", "description"])) return;
+          matches(finding.id, FINDING_ID, `${findingPath}.id`, "a canonical product-video finding identifier");
+          if (reportFindings.has(finding.id)) fail(`${findingPath}.id`, `duplicates "${finding.id}".`);
+          reportFindings.add(finding.id);
+          if (!perceptionChecks.has(finding.checkId)) fail(`${findingPath}.checkId`, "must name a canonical audio-perception check.");
+          if (!["BLOCKER", "WARNING"].includes(finding.severity)) fail(`${findingPath}.severity`, "must be BLOCKER or WARNING.");
+          for (const field of ["startSeconds", "endSeconds"]) {
+            if (finding[field] !== null && (typeof finding[field] !== "number" || finding[field] < 0)) fail(`${findingPath}.${field}`, "must be null or a non-negative number.");
+          }
+          nonEmpty(finding.description, `${findingPath}.description`);
+        });
+      }
+      nonEmpty(nativeReport.summary, `${nativePath}.summary`);
+      if (!["PASS", "FAIL"].includes(nativeReport.status)) fail(`${nativePath}.status`, "must be PASS or FAIL.");
+      if (nativeReport.status === "PASS" && (!allPerceptionChecksPassed || reportFindings.size !== 0)) fail(nativePath, "PASS requires all four audio checks to pass and no findings.");
+      if (nativeReport.status === "FAIL" && (allPerceptionChecksPassed || reportFindings.size === 0)) fail(nativePath, "FAIL requires a failed check and finding.");
+      dateTime(nativeReport.generatedAt, `${nativePath}.generatedAt`);
+      if (nativeReport.generatedAt !== nativeReport.execution?.completedAt) fail(`${nativePath}.generatedAt`, "must equal execution.completedAt.");
+    }
   }
-  if (receipt.status === "FAIL" && (allChecksPassed || findings.size === 0)) {
-    fail(`${path}.document`, "FAIL requires at least one failed listening check and one finding.");
+
+  let calibrationEvaluatedAt;
+  let calibrationValidUntil;
+  if (exactObject(report.calibration, `${reportPath}.calibration`, [
+    "calibrationId", "promptVersion", "model", "evaluatedAt", "validUntil", "knownGood", "knownBad",
+  ])) {
+    matches(report.calibration.calibrationId, /^PVAC-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$/, `${reportPath}.calibration.calibrationId`, "a canonical audio calibration identifier");
+    nonEmpty(report.calibration.promptVersion, `${reportPath}.calibration.promptVersion`);
+    if (promptVersion && report.calibration.promptVersion !== promptVersion) {
+      fail(`${reportPath}.calibration.promptVersion`, "must match analysis.promptVersion.");
+    }
+    let calibrationModel;
+    if (exactObject(report.calibration.model, `${reportPath}.calibration.model`, ["id", "revision", "receiptSha256"])) {
+      nonEmpty(report.calibration.model.id, `${reportPath}.calibration.model.id`);
+      nonEmpty(report.calibration.model.revision, `${reportPath}.calibration.model.revision`);
+      sha(report.calibration.model.receiptSha256, `${reportPath}.calibration.model.receiptSha256`);
+      calibrationModel = report.calibration.model;
+    }
+    if (calibrationModel && listeningModel) {
+      for (const field of ["id", "revision", "receiptSha256"]) {
+        if (calibrationModel[field] !== listeningModel[field]) fail(`${reportPath}.calibration.model.${field}`, "must match the native listen report model identity.");
+      }
+    }
+    dateTime(report.calibration.evaluatedAt, `${reportPath}.calibration.evaluatedAt`);
+    dateTime(report.calibration.validUntil, `${reportPath}.calibration.validUntil`);
+    calibrationEvaluatedAt = Date.parse(report.calibration.evaluatedAt);
+    calibrationValidUntil = Date.parse(report.calibration.validUntil);
+    const maximumAgeHours = policy?.maximumCalibrationAgeHours;
+    if (!Number.isInteger(maximumAgeHours) || maximumAgeHours < 1) {
+      fail(`${path}.policy.maximumCalibrationAgeHours`, "must be a positive integer.");
+    } else if (Number.isFinite(calibrationEvaluatedAt) && Number.isFinite(calibrationValidUntil)) {
+      const calibrationHours = (calibrationValidUntil - calibrationEvaluatedAt) / 3_600_000;
+      if (calibrationHours <= 0 || calibrationHours > maximumAgeHours) {
+        fail(`${reportPath}.calibration`, `validUntil must be after evaluatedAt by no more than ${maximumAgeHours} hours.`);
+      }
+    }
+    const knownGoodId = validateCalibrationCase(report.calibration.knownGood, `${reportPath}.calibration.knownGood`, "PASS");
+    const knownBadId = validateCalibrationCase(report.calibration.knownBad, `${reportPath}.calibration.knownBad`, "FAIL");
+    if (knownGoodId && knownBadId && knownGoodId === knownBadId) {
+      fail(`${reportPath}.calibration`, "known-good and known-bad calibration must use distinct cases.");
+    }
   }
-  if (requirePass && receipt.status !== "PASS") fail(`${path}.document.status`, "must be PASS for a release PASS decision.");
-  dateTime(receipt.generatedAt, `${path}.document.generatedAt`);
-  return receipt;
+
+  const reportGeneratedAt = Date.parse(report.generatedAt);
+  dateTime(report.generatedAt, `${reportPath}.generatedAt`);
+  if (Number.isFinite(reportGeneratedAt) && Number.isFinite(analysisCompletedAt) && reportGeneratedAt < analysisCompletedAt) {
+    fail(`${reportPath}.generatedAt`, "must not precede completed audio perception.");
+  }
+  if (Number.isFinite(reportGeneratedAt) && Number.isFinite(calibrationEvaluatedAt) && reportGeneratedAt < calibrationEvaluatedAt) {
+    fail(`${reportPath}.calibration.evaluatedAt`, "calibration must exist before the perception report is generated.");
+  }
+  if (Number.isFinite(reportGeneratedAt) && Number.isFinite(calibrationValidUntil) && reportGeneratedAt > calibrationValidUntil) {
+    fail(`${reportPath}.calibration.validUntil`, "calibration was stale when the perception report was generated.");
+  }
+  if (Number.isFinite(decisionTimestamp) && Number.isFinite(calibrationValidUntil) && decisionTimestamp > calibrationValidUntil) {
+    fail(`${reportPath}.calibration.validUntil`, "calibration was stale when the release decision was made.");
+  }
+  if (Number.isFinite(decisionTimestamp) && Number.isFinite(reportGeneratedAt) && decisionTimestamp < reportGeneratedAt) {
+    fail(`${reportPath}.generatedAt`, "must not postdate the release decision.");
+  }
+  if (!["PASS", "FAIL"].includes(report.status)) fail(`${reportPath}.status`, "must be PASS or FAIL.");
+  if (nativeReport && report.status !== nativeReport.status) fail(`${reportPath}.status`, "must match the native ai.ps1 listen report.");
+  const reportResult = { ...report, findings: [...reportFindings] };
+
+  const adjudicationArtifact = validateBoundArtifactReference(reference.adjudication, `${path}.adjudication`);
+  const adjudication = parseJsonArtifact(adjudicationArtifact, `${path}.adjudication.document`);
+  if (!object(adjudication)) return { report: reportResult };
+  const adjudicationPath = `${path}.adjudication.document`;
+  if (!exactObject(adjudication, adjudicationPath, [
+    "schemaVersion", "adjudicationId", "candidate", "perceptionReport", "reviewer",
+    "checks", "findings", "status", "generatedAt",
+  ])) return { report: reportResult };
+  if (adjudication.schemaVersion !== "1.0.0") fail(`${adjudicationPath}.schemaVersion`, 'must equal "1.0.0".');
+  matches(adjudication.adjudicationId, AUDIO_ADJUDICATION_ID, `${adjudicationPath}.adjudicationId`, "a canonical audio adjudication identifier");
+  const adjudicationCandidate = validateCandidate(adjudication.candidate, `${adjudicationPath}.candidate`);
+  sameCandidate(adjudicationCandidate, candidate, `${adjudicationPath}.candidate`);
+  if (exactObject(adjudication.perceptionReport, `${adjudicationPath}.perceptionReport`, ["artifactPath", "sha256", "bytes"])) {
+    sameArtifactReference(adjudication.perceptionReport, reference.perceptionReport, `${adjudicationPath}.perceptionReport`);
+  }
+  if (exactObject(adjudication.reviewer, `${adjudicationPath}.reviewer`, [
+    "role", "contextId", "readOnly", "independent", "executionReceipt",
+  ])) {
+    if (adjudication.reviewer.role !== "audio-captions-sync-reviewer") {
+      fail(`${adjudicationPath}.reviewer.role`, 'must equal "audio-captions-sync-reviewer".');
+    }
+    nonEmpty(adjudication.reviewer.contextId, `${adjudicationPath}.reviewer.contextId`);
+    if (adjudication.reviewer.readOnly !== true) fail(`${adjudicationPath}.reviewer.readOnly`, "must be true.");
+    if (adjudication.reviewer.independent !== true) fail(`${adjudicationPath}.reviewer.independent`, "must be true.");
+    validateExecutionReceipt(adjudication.reviewer.executionReceipt, `${adjudicationPath}.reviewer.executionReceipt`, {
+      role: "reviewer",
+      domain: "audio-captions-synchronization",
+      contextId: adjudication.reviewer.contextId,
+      candidateId: candidate?.candidateId,
+    });
+  }
+  const adjudicationChecks = new Set([
+    "candidate-binding", "decoded-sample-coverage", "model-provenance",
+    "prompt-and-raw-response", "calibration", "audio-criteria",
+  ]);
+  const allAdjudicationChecksPassed = validatePassFailChecks(adjudication.checks, `${adjudicationPath}.checks`, adjudicationChecks, "audio-adjudication");
+  const adjudicationFindings = uniqueStrings(adjudication.findings, `${adjudicationPath}.findings`, { pattern: FINDING_ID });
+  if (!["PASS", "FAIL"].includes(adjudication.status)) fail(`${adjudicationPath}.status`, "must be PASS or FAIL.");
+  if (adjudication.status === "PASS" && (!allAdjudicationChecksPassed || adjudicationFindings.size !== 0 || report.status !== "PASS")) {
+    fail(adjudicationPath, "PASS requires a passing perception report, all adjudication checks to pass, and no findings.");
+  }
+  if (adjudication.status === "FAIL" && (allAdjudicationChecksPassed || adjudicationFindings.size === 0)) {
+    fail(adjudicationPath, "FAIL requires at least one failed adjudication check and one finding.");
+  }
+  const adjudicationGeneratedAt = Date.parse(adjudication.generatedAt);
+  dateTime(adjudication.generatedAt, `${adjudicationPath}.generatedAt`);
+  if (Number.isFinite(adjudicationGeneratedAt) && Number.isFinite(reportGeneratedAt) && adjudicationGeneratedAt < reportGeneratedAt) {
+    fail(`${adjudicationPath}.generatedAt`, "must not precede the perception report.");
+  }
+  if (Number.isFinite(decisionTimestamp) && Number.isFinite(adjudicationGeneratedAt) && adjudicationGeneratedAt > decisionTimestamp) {
+    fail(`${adjudicationPath}.generatedAt`, "must not postdate the release decision.");
+  }
+  if (requirePass && (report.status !== "PASS" || adjudication.status !== "PASS")) {
+    fail(path, "release PASS requires both the local audio-perception report and independent adjudication to pass.");
+  }
+  return { report: reportResult, adjudication };
 }
 
 function validateEditorialAudit(reference, candidate, path) {
@@ -654,7 +990,7 @@ const optional = [
   "candidate",
   "preflight",
   "editorialAudit",
-  "candidateListening",
+  "candidateAudioApproval",
   "reviewReports",
   "releaseChecks",
   "findingDispositions",
@@ -721,12 +1057,20 @@ if (exactObject(decision, "$", commonRequired, optional)) {
     fail("$.editorialAudit", `is required for ${decision.decision}.`);
   }
 
-  if (Object.hasOwn(decision, "candidateListening")) {
-    validateCandidateListening(decision.candidateListening, candidate, "$.candidateListening", {
+  let candidateAudioApproval;
+  if (Object.hasOwn(decision, "candidateAudioApproval")) {
+    candidateAudioApproval = validateCandidateAudioApproval(
+      decision.candidateAudioApproval,
+      candidate,
+      "$.candidateAudioApproval",
+      canonicalPolicy.candidateAudioPerceptionPolicy,
+      Date.parse(decision.decidedAt),
+      {
       requirePass: decision.decision === "PASS",
-    });
+      },
+    );
   } else if (fullReleaseDecision) {
-    fail("$.candidateListening", `is required for ${decision.decision}.`);
+    fail("$.candidateAudioApproval", `is required for ${decision.decision}.`);
   }
 
   let preflight;
@@ -837,6 +1181,17 @@ if (exactObject(decision, "$", commonRequired, optional)) {
   }
   if (contextIds.has(decision.arbiter?.contextId)) {
     fail("$.arbiter.contextId", "must differ from every reviewer contextId.");
+  }
+  if (candidateAudioApproval) {
+    const audioFindingIds = new Set([
+      ...(candidateAudioApproval.report?.findings ?? []),
+      ...(candidateAudioApproval.adjudication?.findings ?? []),
+    ]);
+    for (const findingId of audioFindingIds) {
+      if (!allFindings.has(findingId)) {
+        fail("$.candidateAudioApproval", `audio finding "${findingId}" must also be reported by an independent domain review.`);
+      }
+    }
   }
 
   if (malformedReviewEncountered && decision.decision !== "PIPELINE_BLOCKED") {

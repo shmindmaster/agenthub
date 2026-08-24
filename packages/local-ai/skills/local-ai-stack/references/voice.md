@@ -110,14 +110,15 @@ Every owner-voice batch requires a contextual pronunciation-risk manifest before
 generation. Enumerate heteronyms, irregular spellings, noun/verb stress shifts,
 proper nouns, loanwords, acronyms, initialisms, symbols, and domain terms by
 stable segment and occurrence. Record meaning or part of speech, intended IPA,
-spoken form, source text, and listening status. `resume` as a verb
+spoken form, source text, and audio-perception status. `resume` as a verb
 (`/rɪˈzuːm/`) and résumé as a noun (`/ˈrɛzəmeɪ/`) are separate occurrences, as
 are noun and verb senses of `record`.
 
 The dictionary layer may guide a renderer, but canonical Sarosh input text must
 not be phonetic-respelled. ASR verifies words; it cannot by itself approve
 homophones, names, stress, or accent. Keep every pronunciation-risk occurrence
-blocked until a human listening check verifies the intended sense and sound.
+blocked until the exact encoded candidate passes local `ai.ps1 listen` audio
+perception and independent read-only adjudication for the intended sense and sound.
 
 Reference inputs use a purpose-recorded style WAV plus its exact transcript:
 mono, 24 kHz or higher, 16-bit or higher, matching language, at least 60 percent
@@ -127,7 +128,7 @@ when existing identity evidence passes. Generate immutable semantic sentence,
 breath, or scene chunks—not arbitrary character blocks. Keep punctuation
 restrained, never time-stretch speech, never dynamically compress an individual
 take, and detect rather than blindly trim tail artifacts. A final program master
-may use gain plus a transparent true-peak limiter; it still requires listening,
+may use gain plus a transparent true-peak limiter; it still requires local full-program audio perception,
 caption synchronization, loudness, true-peak, ASR/content, and both identity
 backends to pass.
 
@@ -145,10 +146,43 @@ extracted from the exact encoded delivery video. Each ASR receipt must bind the
 source path, byte count, and SHA-256; a free-floating transcript is not evidence.
 Compare both transcripts to the locked script and fail on omissions,
 duplication, reference-tail leakage, clipped joins, or unexplained differences.
-Provide the owner a full continuous listening file from the exact encoded
-candidate. A jump-cut proper-name or pronunciation reel may supplement that
-file only when it is conspicuously labeled as discontinuous; it can never be
-the sole approval artifact.
+At the program boundary run:
+
+```powershell
+& $LocalAiControl listen <exact-encoded-candidate> --output <immutable-native-report.json> `
+  --candidate-id <id> --source-revision <revision> --render-provenance-id <id>
+```
+
+The immutable native output is a local audio-model perception receipt, not proof
+that an owner, reviewer, or other human played or heard the candidate. It validates
+against Product Demo Studio's `local-ai-listen-report.schema.json` and binds the
+exact candidate path, bytes, SHA-256, source revision, render provenance, prompt
+version, raw response bytes and hash, resolved model id/revision, and canonical
+model-receipt hash. Product Demo Studio then creates a separate immutable
+`candidate-audio-perception-report.schema.json` envelope. That envelope declares
+`listener.kind=local-audio-model`, `controlPlane=ai.ps1`, `command=listen`, and
+`localOnly=true`, binds the untouched native report and model-receipt bytes, and
+adds fresh calibration evidence.
+
+Decode the complete candidate audio stream deterministically to 16 kHz mono PCM16.
+Bind the decoded WAV artifact, source stream, sample rate, channels, sample count,
+byte count, SHA-256, and continuous coverage from sample zero through the exact
+sample count. Coverage must include every decoded sample exactly once without a
+gap, overlap, excerpt substitution, or duration proxy.
+Evaluate exactly four criteria: full program, pronunciation, delivery and pacing,
+and artifacts and discontinuities.
+
+Calibration is part of the release evidence, not a model-name assumption. Bind a
+fresh calibration for the same model receipt hash and prompt version, including immutable
+known-good audio/raw-response evidence that produces PASS and known-bad evidence
+that produces FAIL. Product Demo Studio currently caps calibration validity at
+168 hours and rechecks freshness at release-decision time. A host-enforced
+read-only Audio, Captions, and Synchronization reviewer independently adjudicates
+the report and candidate binding; both report and adjudication must pass. Missing,
+remote, stale, partial-coverage, uncalibrated, or unadjudicated evidence fails
+closed. A jump-cut proper-name or pronunciation reel may supplement the inputs
+only when conspicuously labeled as discontinuous; it is never the full-program
+approval artifact.
 
 ### Ops
 

@@ -65,6 +65,7 @@
     "rerunPolicy": true,
     "thresholdsAndFindings": true,
     "checksumsAndProvenance": true,
+    "audioPerceptionApproval": true,
     "playbackAndReproduction": true,
     "deliveryContents": true
   },

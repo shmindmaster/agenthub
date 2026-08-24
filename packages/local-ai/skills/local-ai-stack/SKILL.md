@@ -61,7 +61,7 @@ Proceed only for the route whose checks passed:
 - **knowledge/legal retrieval** -> RAG route.
 - **image / motif video** -> ComfyUI route (`ai.ps1 image` / `motif`).
 - **music beds** -> `ai.ps1 music` (ACE-Step resident). Do **not** start ComfyUI.
-- **voice/STT** -> dedicated media runtime route. TTS does not need music or Comfy.
+- **voice/STT/audio perception** -> dedicated media runtime route. TTS and `listen` do not need music or Comfy.
 
 ## One control interface
 
@@ -96,12 +96,21 @@ All media and synthesis routes are also under the same interface:
 & $LocalAiControl voice <qwen|qwen-role|qwen-clone|qwen-*-batch|score|verify>
 & $LocalAiControl catalog ["<voice alias>"]
 & $LocalAiControl transcribe <audio-or-video-path>
+& $LocalAiControl listen <encoded-video-path> --output <immutable-native-report.json> `
+  --candidate-id <id> --source-revision <revision> --render-provenance-id <id>
 & $LocalAiControl music <batch-json>
 & $LocalAiControl motif <verify|single|batch>
 ```
 
 Do not add a second control script or a parallel launcher for this capability.
 **`ai.ps1 voice kokoro` is removed** and fails loudly.
+
+`ai.ps1 listen` is the only full-program audio-perception route for a system-owned
+Product Demo Studio audio release gate. It runs locally and emits the immutable
+native report described by Product Demo Studio's `local-ai-listen-report.schema.json`;
+it is not human playback. Product Demo Studio binds that untouched report inside
+`candidate-audio-perception-report.schema.json` with the model receipt and fresh
+calibration before read-only adjudication. Load `references/voice.md` for details.
 
 ## Progressive disclosure
 

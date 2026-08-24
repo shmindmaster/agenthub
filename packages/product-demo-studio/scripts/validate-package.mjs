@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.7.9";
+const expectedVersion = "1.8.0";
 const failures = [];
 
 function readJson(relativePath) {
@@ -88,7 +88,9 @@ for (const name of readOnlyAgents) {
 
 requireFiles("schemas", [
   "calibration-review-result.schema.json",
-  "candidate-listening-receipt.schema.json",
+  "candidate-audio-perception-report.schema.json",
+  "local-ai-listen-report.schema.json",
+  "audio-perception-adjudication.schema.json",
   "delivery-spec.schema.json",
   "deterministic-report.schema.json",
   "editorial-audit.schema.json",
@@ -182,30 +184,50 @@ if (policy.reviewDeliveryPolicy?.agentHubRegistry !== "registry/product-video-de
     policy.reviewDeliveryPolicy?.automatedAcceptanceRequired !== true) {
   failures.push("policy does not enforce immutable automated acceptance before final presentation");
 }
-const listeningAcceptance = policy.ownerVoiceProductionPolicy?.acceptance;
-if (listeningAcceptance?.listeningRequired !== true ||
-    listeningAcceptance?.listeningPerformer !== "orchestrator-or-audio-reviewer" ||
-    listeningAcceptance?.fullContinuousEncodedCandidateRequired !== true ||
-    listeningAcceptance?.listeningReceiptSchema !== "schemas/candidate-listening-receipt.schema.json" ||
-    listeningAcceptance?.exactCandidatePathHashAndBytesRequired !== true ||
-    listeningAcceptance?.ffprobeDurationMatchRequired !== true ||
-    listeningAcceptance?.listeningIntervalAtLeastMediaDurationRequired !== true ||
-    listeningAcceptance?.ownerApprovalRequired !== false) {
-  failures.push("policy does not require a system-owned, full-duration, exact-candidate listening receipt");
+const audioAcceptance = policy.ownerVoiceProductionPolicy?.acceptance;
+if (audioAcceptance?.audioPerceptionRequired !== true ||
+    audioAcceptance?.audioPerceptionSystem !== "local-ai" ||
+    audioAcceptance?.audioPerceptionRoute !== "ai.ps1 listen" ||
+    audioAcceptance?.listenerKind !== "local-audio-model" ||
+    audioAcceptance?.localOnlyExecutionRequired !== true ||
+    audioAcceptance?.audioPerceptionReportSchema !== "schemas/candidate-audio-perception-report.schema.json" ||
+    audioAcceptance?.localAiListenReportSchema !== "schemas/local-ai-listen-report.schema.json" ||
+    audioAcceptance?.audioPerceptionAdjudicationSchema !== "schemas/audio-perception-adjudication.schema.json" ||
+    audioAcceptance?.exactCandidatePathHashAndBytesRequired !== true ||
+    audioAcceptance?.exactDecodedSampleCoverageRequired !== true ||
+    audioAcceptance?.isolatedReadOnlyAudioReviewerAdjudicationRequired !== true ||
+    audioAcceptance?.humanPlaybackClaimAllowed !== false ||
+    audioAcceptance?.ownerApprovalRequired !== false) {
+  failures.push("policy does not require system-owned local full-program audio perception and independent adjudication");
 }
-const candidateListeningPolicy = policy.candidateListeningPolicy;
-if (JSON.stringify(candidateListeningPolicy?.requiredForArbitrationDecisions) !== JSON.stringify(["PASS", "REMEDIATE"]) ||
-    candidateListeningPolicy?.receiptSchema !== "schemas/candidate-listening-receipt.schema.json" ||
-    JSON.stringify(candidateListeningPolicy?.allowedListenerRoles) !== JSON.stringify(["orchestrator", "audio-captions-sync-reviewer"]) ||
-    candidateListeningPolicy?.fullContinuousEncodedCandidateRequired !== true ||
-    candidateListeningPolicy?.exactCandidatePathHashAndBytesRequired !== true ||
-    candidateListeningPolicy?.sourceRevisionAndRenderProvenanceRequired !== true ||
-    candidateListeningPolicy?.ffprobeDurationMatchRequired !== true ||
-    candidateListeningPolicy?.listeningIntervalAtLeastMediaDurationRequired !== true ||
-    candidateListeningPolicy?.passReceiptRequiredForPassDecision !== true ||
-    candidateListeningPolicy?.failedReceiptMayRouteToRemediate !== true ||
-    candidateListeningPolicy?.ownerApprovalRequired !== false) {
-  failures.push("policy does not require candidate listening evidence for PASS and REMEDIATE arbitration");
+const candidateAudioPolicy = policy.candidateAudioPerceptionPolicy;
+if (JSON.stringify(candidateAudioPolicy?.requiredForArbitrationDecisions) !== JSON.stringify(["PASS", "REMEDIATE"]) ||
+    candidateAudioPolicy?.reportSchema !== "schemas/candidate-audio-perception-report.schema.json" ||
+    candidateAudioPolicy?.nativeListenReportSchema !== "schemas/local-ai-listen-report.schema.json" ||
+    candidateAudioPolicy?.adjudicationSchema !== "schemas/audio-perception-adjudication.schema.json" ||
+    candidateAudioPolicy?.listenerKind !== "local-audio-model" ||
+    candidateAudioPolicy?.controlPlane !== "ai.ps1" ||
+    candidateAudioPolicy?.command !== "listen" ||
+    candidateAudioPolicy?.localOnlyExecutionRequired !== true ||
+    candidateAudioPolicy?.fullProgramRequired !== true ||
+    candidateAudioPolicy?.exactCandidatePathHashAndBytesRequired !== true ||
+    candidateAudioPolicy?.sourceRevisionAndRenderProvenanceRequired !== true ||
+    candidateAudioPolicy?.decodedSampleCoverageRequired !== true ||
+    candidateAudioPolicy?.deterministicRedecodeVerificationRequired !== true ||
+    candidateAudioPolicy?.modelIdRevisionHashAndReceiptRequired !== true ||
+    candidateAudioPolicy?.rawResponseHashRequired !== true ||
+    candidateAudioPolicy?.promptVersionRequired !== true ||
+    candidateAudioPolicy?.maximumCalibrationAgeHours !== 168 ||
+    candidateAudioPolicy?.knownGoodAndKnownBadCalibrationRequired !== true ||
+    candidateAudioPolicy?.isolatedReadOnlyAudioReviewerAdjudicationRequired !== true ||
+    JSON.stringify(candidateAudioPolicy?.requiredChecks) !== JSON.stringify([
+      "full-program", "pronunciation", "delivery-and-pacing", "artifacts-and-discontinuities",
+    ]) ||
+    candidateAudioPolicy?.passReportAndAdjudicationRequiredForPassDecision !== true ||
+    candidateAudioPolicy?.failedReportOrAdjudicationMayRouteToRemediate !== true ||
+    candidateAudioPolicy?.humanPlaybackClaimAllowed !== false ||
+    candidateAudioPolicy?.ownerApprovalRequired !== false) {
+  failures.push("policy does not bind the complete local audio-perception contract for PASS and REMEDIATE arbitration");
 }
 if (policy.orchestratorEditorialAuditPolicy?.requiredBeforeExternalPublication !== true ||
     policy.orchestratorEditorialAuditPolicy?.candidateByteChangeInvalidatesAudit !== true ||
@@ -304,6 +326,9 @@ const requiredText = [
   ["skills/product-demo-studio/SKILL.md", "first human touchpoint is the final presentation"],
   ["skills/product-demo-studio/SKILL.md", "detect-media-acceleration.mjs"],
   ["skills/product-demo-studio-qa/SKILL.md", "schemas/video-finding.schema.json"],
+  ["skills/product-demo-studio-qa/SKILL.md", "listener.kind=local-audio-model"],
+  ["skills/product-demo-studio-qa/SKILL.md", "audio-perception-adjudication.schema.json"],
+  ["agents/audio-captions-sync-reviewer.agent.md", "Do not claim that you, an owner, or another human played or heard the candidate"],
   ["agents/final-verifier.agent.md", "mandatory terminal independent reviewer and verifier"],
   ["agents/final-verifier.agent.md", "Lack of an executable shell"],
   ["skills/product-demo-studio-qa/SKILL.md", "mandatory post-validator"],
@@ -422,6 +447,7 @@ for (const marker of [
   "render-candidate",
   "evidence-package",
   "preflight",
+  "audio-perception",
   "review",
   "arbitrate",
   "final-verifier",

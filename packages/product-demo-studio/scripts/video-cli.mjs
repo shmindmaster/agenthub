@@ -5,7 +5,7 @@
 // Usage: node video-cli.mjs <verb> --repo <path> [verb-specific options]
 //
 // Verbs: inventory | discover | readiness | storyboard | claims | reset | capture | voice |
-//        render-proxy | frames | preflight | review | validate-review | arbitrate |
+//        render-proxy | frames | preflight | audio-perception | review | validate-review | arbitrate |
 //        validate-decision | validate-assignment | qa | revise | render-candidate |
 //        package-review | package | all
 import { createHash } from "node:crypto";
@@ -212,6 +212,64 @@ const VERBS = {
     return runNode("preflight.mjs", ["--evidence-package", evidencePackage, "--out", outPath]);
   },
 
+  "audio-perception"() {
+    const candidatePath = flag("--candidate");
+    const outPath = flag("--out");
+    const candidateId = flag("--candidate-id");
+    const sourceRevision = flag("--source-revision");
+    const renderProvenanceId = flag("--render-provenance-id");
+    const transcript = flag("--transcript");
+    const pronunciationManifest = flag("--pronunciation-manifest");
+    if (!candidatePath || !outPath || !candidateId || !sourceRevision || !renderProvenanceId) {
+      console.error(
+        "Usage: video-cli.mjs audio-perception --candidate <encoded-video> --out <native-listen-report.json> " +
+        "--candidate-id <id> --source-revision <revision> --render-provenance-id <id> " +
+        "[--transcript <path>] [--pronunciation-manifest <path>]",
+      );
+      return 1;
+    }
+    const absoluteCandidate = resolve(candidatePath);
+    const absoluteOut = resolve(outPath);
+    if (!existsSync(absoluteCandidate)) {
+      console.error(`Candidate does not exist: ${absoluteCandidate}`);
+      return 1;
+    }
+    const localAiRoot = process.env.LOCAL_AI_ROOT || "D:\\Local-AI";
+    const controlPlane = join(localAiRoot, "ai.ps1");
+    if (!existsSync(controlPlane)) {
+      console.error(`Local-AI control plane does not exist: ${controlPlane}`);
+      return 1;
+    }
+    const command = [
+      "$ErrorActionPreference = 'Stop'",
+      "$listenArgs = @('listen', $env:PDS_AUDIO_CANDIDATE, '--output', $env:PDS_AUDIO_REPORT, '--candidate-id', $env:PDS_AUDIO_CANDIDATE_ID, '--source-revision', $env:PDS_AUDIO_SOURCE_REVISION, '--render-provenance-id', $env:PDS_AUDIO_RENDER_PROVENANCE_ID)",
+      "if ($env:PDS_AUDIO_TRANSCRIPT) { $listenArgs += @('--transcript', $env:PDS_AUDIO_TRANSCRIPT) }",
+      "if ($env:PDS_AUDIO_PRONUNCIATION_MANIFEST) { $listenArgs += @('--pronunciation-manifest', $env:PDS_AUDIO_PRONUNCIATION_MANIFEST) }",
+      "& $env:PDS_LOCAL_AI_CONTROL @listenArgs",
+    ].join("; ");
+    const result = spawnSync("pwsh", ["-NoProfile", "-Command", command], {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        PDS_LOCAL_AI_CONTROL: controlPlane,
+        PDS_AUDIO_CANDIDATE: absoluteCandidate,
+        PDS_AUDIO_REPORT: absoluteOut,
+        PDS_AUDIO_CANDIDATE_ID: candidateId,
+        PDS_AUDIO_SOURCE_REVISION: sourceRevision,
+        PDS_AUDIO_RENDER_PROVENANCE_ID: renderProvenanceId,
+        PDS_AUDIO_TRANSCRIPT: transcript ? resolve(transcript) : "",
+        PDS_AUDIO_PRONUNCIATION_MANIFEST: pronunciationManifest ? resolve(pronunciationManifest) : "",
+      },
+    });
+    if ((result.status ?? 1) !== 0) return result.status ?? 1;
+    if (!existsSync(absoluteOut)) {
+      console.error(`ai.ps1 listen exited successfully but did not create the report: ${absoluteOut}`);
+      return 1;
+    }
+    console.log(`Wrote immutable native ai.ps1 listen report: ${absoluteOut}`);
+    return 0;
+  },
+
   review() {
     console.error(
       'The "review" verb is dispatch guidance, not a release gate, and intentionally exits nonzero.\n' +
@@ -220,7 +278,8 @@ const VERBS = {
         "  - agents/screen-accuracy-compliance-reviewer.agent.md\n" +
         "  - agents/audio-captions-sync-reviewer.agent.md\n" +
         "  - agents/technical-frame-integrity-reviewer.agent.md\n" +
-        "Each output must conform to schemas/review-report.schema.json. If host capacity is lower than " +
+        "The audio reviewer also adjudicates the immutable ai.ps1 listen report using schemas/audio-perception-adjudication.schema.json. " +
+        "Each domain output must conform to schemas/review-report.schema.json. If host capacity is lower than " +
         "four, use fresh isolated waves; never collapse the domains.",
     );
     return 2;
@@ -238,7 +297,7 @@ const VERBS = {
   arbitrate() {
     console.error(
       'The "arbitrate" verb is dispatch guidance, not a release gate, and intentionally exits nonzero.\n' +
-      "After preflight and exactly four schema-valid reviews, dispatch agents/release-arbiter.agent.md " +
+      "After preflight, local audio perception, its isolated read-only adjudication, and exactly four schema-valid reviews, dispatch agents/release-arbiter.agent.md " +
         "in a fresh read-only context. Validate its output with `validate-decision`.",
     );
     return 2;
@@ -379,15 +438,17 @@ const VERBS = {
         "      Freeze the candidate bytes. Every later media/source change creates a new candidate.\n" +
         "  11. evidence-package build immutable evidence-package.json from that exact candidate\n" +
         "  12. preflight     node video-cli.mjs preflight --evidence-package <package.json> --out <preflight.json>\n" +
-        "  13. review        dispatch four isolated reviewers; validate each report\n" +
-        "  14. arbitrate     dispatch a fresh release arbiter; validate its decision\n" +
-        "  15. remediate     if required, use least-privilege assignments and restart at step 9\n" +
-        "  16. final-verifier dispatch the mandatory terminal independent reviewer/verifier in a fresh read-only context against the unchanged candidate\n" +
-        `  17. package-review node video-cli.mjs package-review --repo ${repoPath} ` +
+        "  13. audio-perception node video-cli.mjs audio-perception --candidate <candidate> --out <native-listen-report.json> --candidate-id <id> --source-revision <revision> --render-provenance-id <id>\n" +
+        "      Envelope the immutable native report with local model receipt, fresh calibration, and candidate-audio-perception-report.schema.json.\n" +
+        "  14. review        dispatch four isolated reviewers; the audio reviewer also adjudicates the audio report\n" +
+        "  15. arbitrate     dispatch a fresh release arbiter; validate its decision\n" +
+        "  16. remediate     if required, use least-privilege assignments and restart at step 9\n" +
+        "  17. final-verifier dispatch the mandatory terminal independent reviewer/verifier in a fresh read-only context against the unchanged candidate\n" +
+        `  18. package-review node video-cli.mjs package-review --repo ${repoPath} ` +
           "--delivery-registry <AgentHub>/registry/product-video-delivery.json " +
           "--decision <decision.json> --final-verification <final.json> [--artifact <review-file> ...]\n" +
         "      This creates an immutable review-only package in the product's configured private OneDrive folder.\n" +
-        `  18. package       node video-cli.mjs package --repo ${repoPath} --out bundle.json ` +
+        `  19. package       node video-cli.mjs package --repo ${repoPath} --out bundle.json ` +
           "--decision <decision.json> --final-verification <final.json> " +
           "--release-evidence <release-evidence.json> <accepted-file...>\n" +
         "No render or edit is allowed after verification; any change restarts at render-candidate.",
@@ -402,7 +463,7 @@ if (!verb || !VERBS[verb]) {
 }
 
 const repoPath = [
-  "readiness", "storyboard", "claims", "voice", "frames", "preflight", "review",
+  "readiness", "storyboard", "claims", "voice", "frames", "preflight", "audio-perception", "review",
   "validate-review", "arbitrate", "validate-decision", "validate-assignment", "qa", "revise",
 ].includes(verb)
   ? flag("--repo")

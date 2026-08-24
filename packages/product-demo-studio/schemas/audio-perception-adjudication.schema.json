@@ -1,15 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agenthub.local/schemas/product-video/candidate-listening-receipt.schema.json",
-  "title": "Product Video Candidate Listening Receipt",
+  "$id": "https://agenthub.local/schemas/product-video/audio-perception-adjudication.schema.json",
+  "title": "Product Video Audio Perception Adjudication",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
-    "receiptId",
+    "adjudicationId",
     "candidate",
-    "listener",
-    "fullListening",
+    "perceptionReport",
+    "reviewer",
     "checks",
     "findings",
     "status",
@@ -17,38 +17,33 @@
   ],
   "properties": {
     "schemaVersion": { "const": "1.0.0" },
-    "receiptId": { "type": "string", "pattern": "^PVLR-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$" },
+    "adjudicationId": { "type": "string", "pattern": "^PVAA-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$" },
     "candidate": { "$ref": "#/$defs/candidateReference" },
-    "listener": {
+    "perceptionReport": { "$ref": "#/$defs/artifactReference" },
+    "reviewer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["role", "contextId"],
+      "required": ["role", "contextId", "readOnly", "independent", "executionReceipt"],
       "properties": {
-        "role": { "enum": ["orchestrator", "audio-captions-sync-reviewer"] },
-        "contextId": { "$ref": "#/$defs/nonEmptyString" }
-      }
-    },
-    "fullListening": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["continuous", "mediaDurationSeconds", "startedAt", "completedAt"],
-      "properties": {
-        "continuous": { "const": true },
-        "mediaDurationSeconds": { "type": "number", "exclusiveMinimum": 0 },
-        "startedAt": { "type": "string", "format": "date-time" },
-        "completedAt": { "type": "string", "format": "date-time" }
+        "role": { "const": "audio-captions-sync-reviewer" },
+        "contextId": { "$ref": "#/$defs/nonEmptyString" },
+        "readOnly": { "const": true },
+        "independent": { "const": true },
+        "executionReceipt": { "$ref": "#/$defs/executionReceiptReference" }
       }
     },
     "checks": {
       "type": "array",
-      "minItems": 4,
-      "maxItems": 4,
-      "items": { "$ref": "#/$defs/listeningCheck" },
+      "minItems": 6,
+      "maxItems": 6,
+      "items": { "$ref": "#/$defs/adjudicationCheck" },
       "allOf": [
-        { "contains": { "properties": { "id": { "const": "full-program" } }, "required": ["id"] } },
-        { "contains": { "properties": { "id": { "const": "pronunciation" } }, "required": ["id"] } },
-        { "contains": { "properties": { "id": { "const": "delivery-and-pacing" } }, "required": ["id"] } },
-        { "contains": { "properties": { "id": { "const": "artifacts-and-discontinuities" } }, "required": ["id"] } }
+        { "contains": { "properties": { "id": { "const": "candidate-binding" } }, "required": ["id"] } },
+        { "contains": { "properties": { "id": { "const": "decoded-sample-coverage" } }, "required": ["id"] } },
+        { "contains": { "properties": { "id": { "const": "model-provenance" } }, "required": ["id"] } },
+        { "contains": { "properties": { "id": { "const": "prompt-and-raw-response" } }, "required": ["id"] } },
+        { "contains": { "properties": { "id": { "const": "calibration" } }, "required": ["id"] } },
+        { "contains": { "properties": { "id": { "const": "audio-criteria" } }, "required": ["id"] } }
       ]
     },
     "findings": {
@@ -84,6 +79,17 @@
     "nonEmptyString": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "safeId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "bytes": { "type": "integer", "minimum": 1 },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactPath", "sha256", "bytes"],
+      "properties": {
+        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "$ref": "#/$defs/bytes" }
+      }
+    },
     "candidateReference": {
       "type": "object",
       "additionalProperties": false,
@@ -92,22 +98,32 @@
         "candidateId": { "$ref": "#/$defs/safeId" },
         "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
         "sha256": { "$ref": "#/$defs/sha256" },
-        "bytes": { "type": "integer", "minimum": 1 },
+        "bytes": { "$ref": "#/$defs/bytes" },
         "sourceRevision": { "$ref": "#/$defs/nonEmptyString" },
         "renderProvenanceId": { "$ref": "#/$defs/nonEmptyString" }
       }
     },
-    "listeningCheck": {
+    "executionReceiptReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt"],
+      "properties": {
+        "receipt": { "$ref": "#/$defs/artifactReference" }
+      }
+    },
+    "adjudicationCheck": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "passed", "notes"],
       "properties": {
         "id": {
           "enum": [
-            "full-program",
-            "pronunciation",
-            "delivery-and-pacing",
-            "artifacts-and-discontinuities"
+            "candidate-binding",
+            "decoded-sample-coverage",
+            "model-provenance",
+            "prompt-and-raw-response",
+            "calibration",
+            "audio-criteria"
           ]
         },
         "passed": { "type": "boolean" },

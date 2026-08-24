@@ -24,8 +24,10 @@ enrolled speaker profile on two independent embedders and exits non-zero if
 either falls below a floor derived from that speaker's own recordings. Record
 the scores as audio-analysis evidence. Identity and pronunciation fail
 independently — a segment can score as unmistakably the right speaker while
-still mispronouncing a name — so keep the system-owned name listening gate as well. It is performed
-by the orchestrator or isolated audio reviewer and never creates a recurring owner-approval gate.
+still mispronouncing a name — so keep the system-owned local audio-perception gate as well.
+`ai.ps1 listen` evaluates the final encoded program; an isolated read-only audio reviewer
+adjudicates its immutable report. Neither step creates a recurring owner-approval gate, and neither
+may be represented as human playback.
 
 Generate automatically accepted narration before final capture; provider latency must never occur inside or be
 compressed as part of the recorded product timeline. Measured segment and word durations drive the

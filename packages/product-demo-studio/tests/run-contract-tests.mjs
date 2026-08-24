@@ -755,6 +755,14 @@ function shaBytes(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function createExecutionRecords(root) {
   let sequence = 0;
   const recordReceipt = ({
@@ -884,7 +892,7 @@ function createReviewIntegrity(root, reviewDomain, executionRecords) {
   writeJson(calibrationPath, {
     schemaVersion: "1.0.0",
     status: "PASS",
-    pluginVersion: "1.7.9",
+    pluginVersion: "1.8.0",
     reviewDomain,
     modelId,
     canonicalRubric,
@@ -1073,39 +1081,228 @@ function materializeEditorialAudit(root, candidate, {
   };
 }
 
-function materializeCandidateListeningReceipt(root, candidate, {
-  fileName = "candidate-listening-receipt.json",
-  receiptId = "PVLR-SYNTHETIC-001",
-  contextId = "orchestrator-listening-context",
+function materializeCandidateAudioApproval(root, candidate, executionRecords, {
+  fileStem = "candidate-audio",
+  reportId = "PVAR-SYNTHETIC-001",
+  adjudicationId = "PVAA-SYNTHETIC-001",
+  contextId = "isolated-audio-adjudicator-context",
   startedAt = "2026-07-29T22:00:00.000Z",
   completedAt = "2026-07-29T22:00:30.000Z",
+  adjudicatedAt = "2026-07-29T22:01:00.000Z",
 } = {}) {
   const candidatePath = isAbsolute(candidate.artifactPath)
     ? candidate.artifactPath
     : join(root, candidate.artifactPath);
-  const durationSeconds = Number(spawnSync("ffprobe", [
-    "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", candidatePath,
-  ], { encoding: "utf8" }).stdout.trim());
-  const receiptPath = join(root, fileName);
-  writeJson(receiptPath, {
+  const sampleRateHz = 16000;
+  const channels = 1;
+  const decoded = spawnSync("ffmpeg", [
+    "-v", "error", "-i", candidatePath,
+    "-map", "0:a:0", "-vn", "-sn", "-dn",
+    "-ac", String(channels), "-ar", String(sampleRateHz),
+    "-acodec", "pcm_s16le", "-f", "s16le", "-",
+  ], { encoding: null, maxBuffer: 64 * 1024 * 1024 });
+  if (decoded.status !== 0 || !Buffer.isBuffer(decoded.stdout) || decoded.stdout.length === 0) {
+    throw new Error(`could not decode candidate audio: ${Buffer.from(decoded.stderr ?? "").toString("utf8")}`);
+  }
+  const samplesPerChannel = decoded.stdout.length / (channels * 2);
+  assert(Number.isInteger(samplesPerChannel), "synthetic candidate decode has an integral s16le sample count");
+
+  const decodedAudioPath = join(root, `${fileStem}-program-16k-mono-s16.wav`);
+  const decodedWav = spawnSync("ffmpeg", [
+    "-v", "error", "-i", candidatePath, "-map", "0:a:0", "-vn",
+    "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-y", decodedAudioPath,
+  ], { encoding: "utf8" });
+  if (decodedWav.status !== 0) throw new Error(`could not materialize listener PCM: ${decodedWav.stderr}`);
+
+  const model = {
+    id: "synthetic-local-audio-model",
+    revision: "synthetic-revision-001",
+  };
+  const modelReceiptPath = join(root, `${fileStem}-model-receipt.json`);
+  const modelReceipt = {
     schemaVersion: "1.0.0",
-    receiptId,
+    modelId: model.id,
+    revision: model.revision,
+    license: "synthetic-test",
+    artifacts: [{ path: "synthetic-model.safetensors", bytes: 1, sha256: "1".repeat(64) }],
+    installedAt: "2026-07-28T22:00:00.000Z",
+  };
+  writeJson(modelReceiptPath, modelReceipt);
+  model.receiptSha256 = shaBytes(Buffer.from(canonicalJson(modelReceipt), "utf8"));
+  const rawResponsePath = join(root, `${fileStem}-raw-response.txt`);
+  writeFileSync(rawResponsePath, "CHECK|full-program|PASS\nCHECK|pronunciation|PASS\nCHECK|delivery-and-pacing|PASS\nCHECK|artifacts-and-discontinuities|PASS\nSUMMARY|Synthetic full-program pass.\n", "utf8");
+  const knownGoodAudioPath = join(root, `${fileStem}-known-good.wav`);
+  const knownBadAudioPath = join(root, `${fileStem}-known-bad.wav`);
+  for (const [audioPath, frequency] of [[knownGoodAudioPath, 440], [knownBadAudioPath, 220]]) {
+    const generated = spawnSync("ffmpeg", [
+      "-v", "error", "-f", "lavfi", "-i", `sine=frequency=${frequency}:duration=0.1`,
+      "-c:a", "pcm_s16le", "-y", audioPath,
+    ], { encoding: "utf8" });
+    if (generated.status !== 0) throw new Error(`could not generate synthetic calibration audio: ${generated.stderr}`);
+  }
+  const knownGoodResponsePath = join(root, `${fileStem}-known-good-response.json`);
+  const knownBadResponsePath = join(root, `${fileStem}-known-bad-response.json`);
+  writeJson(knownGoodResponsePath, { expected: "PASS", observed: "PASS" });
+  writeJson(knownBadResponsePath, { expected: "FAIL", observed: "FAIL" });
+  const artifactRef = (absolutePath) => ({
+    artifactPath: absolutePath,
+    sha256: sha(absolutePath),
+    bytes: statSync(absolutePath).size,
+  });
+
+  const nativeReportFileName = `${fileStem}-local-ai-listen-report.json`;
+  const nativeReportPath = join(root, nativeReportFileName);
+  const ffmpegPath = spawnSync("where.exe", ["ffmpeg"], { encoding: "utf8" }).stdout.trim().split(/\r?\n/)[0];
+  const checks = [
+    ["full-program", "Every decoded candidate audio sample was analyzed."],
+    ["pronunciation", "Names, acronyms, and pronunciation-risk words passed local audio perception."],
+    ["delivery-and-pacing", "Delivery, pauses, and pacing passed local audio perception."],
+    ["artifacts-and-discontinuities", "No skipped words, leaks, clicks, truncation, or discontinuities were detected."],
+  ].map(([id, notes]) => ({ id, passed: true, notes }));
+  writeJson(nativeReportPath, {
+    schemaVersion: "1.0.0",
+    reportId: `LAPR-${candidate.sha256.slice(0, 16)}`,
+    status: "PASS",
     candidate,
-    listener: { role: "orchestrator", contextId },
-    fullListening: { continuous: true, mediaDurationSeconds: durationSeconds, startedAt, completedAt },
-    checks: [
-      ["full-program", "Listened continuously to the exact encoded candidate."],
-      ["pronunciation", "Names, acronyms, and pronunciation-risk words are fluent and correct."],
-      ["delivery-and-pacing", "Delivery, pauses, and pacing support the demonstrated outcome."],
-      ["artifacts-and-discontinuities", "No skipped words, leaks, clicks, truncation, or discontinuities are audible."],
-    ].map(([id, notes]) => ({ id, passed: true, notes })),
+    decodedAudio: {
+      ...artifactRef(decodedAudioPath),
+      sampleRate: sampleRateHz,
+      channels,
+      bitsPerSample: 16,
+      sampleCount: samplesPerChannel,
+      durationSeconds: samplesPerChannel / sampleRateHz,
+      coverage: {
+        startSample: 0,
+        endSampleExclusive: samplesPerChannel,
+        expectedSamples: samplesPerChannel,
+        continuous: true,
+      },
+      sourceAudioStream: { index: 1, codec_type: "audio", codec_name: "aac" },
+      sourceProbe: { duration: String(samplesPerChannel / sampleRateHz) },
+      decoder: {
+        ffmpegPath,
+        ffmpegSha256: sha(ffmpegPath),
+        version: "synthetic-test",
+        commandSha256: "2".repeat(64),
+      },
+    },
+    model: {
+      ...model,
+      license: "synthetic-test",
+      torch: "synthetic-test",
+      transformers: "synthetic-test",
+      device: "synthetic-test-device",
+      peakVramBytes: 1,
+    },
+    request: {
+      promptVersion: "product-video-audio-perception-v1",
+      promptSha256: "3".repeat(64),
+      transcript: null,
+      pronunciationManifest: null,
+      generation: { doSample: false, seed: 0, maxNewTokens: 1000 },
+      modelResponse: artifactRef(rawResponsePath),
+    },
+    execution: {
+      startedAt,
+      completedAt,
+      durationSeconds: 30,
+      localFilesOnly: true,
+      remoteInputs: false,
+    },
+    checks,
     findings: [],
+    summary: "Synthetic full-program pass.",
+    generatedAt: completedAt,
+  });
+
+  const reportFileName = `${fileStem}-perception-report.json`;
+  const reportPath = join(root, reportFileName);
+  writeJson(reportPath, {
+    schemaVersion: "1.0.0",
+    reportId,
+    candidate,
+    listener: {
+      kind: "local-audio-model",
+      controlPlane: "ai.ps1",
+      command: "listen",
+      localOnly: true,
+      report: artifactRef(nativeReportPath),
+      modelReceipt: artifactRef(modelReceiptPath),
+    },
+    calibration: {
+      calibrationId: "PVAC-SYNTHETIC-001",
+      promptVersion: "product-video-audio-perception-v1",
+      model,
+      evaluatedAt: "2026-07-29T14:00:00.000Z",
+      validUntil: "2026-08-05T14:00:00.000Z",
+      knownGood: {
+        caseId: "known-good-001",
+        audio: artifactRef(knownGoodAudioPath),
+        rawResponse: artifactRef(knownGoodResponsePath),
+        expectedStatus: "PASS",
+        observedStatus: "PASS",
+      },
+      knownBad: {
+        caseId: "known-bad-001",
+        audio: artifactRef(knownBadAudioPath),
+        rawResponse: artifactRef(knownBadResponsePath),
+        expectedStatus: "FAIL",
+        observedStatus: "FAIL",
+      },
+    },
     status: "PASS",
     generatedAt: completedAt,
   });
+  const perceptionReference = {
+    artifactPath: reportFileName,
+    sha256: sha(reportPath),
+    bytes: statSync(reportPath).size,
+  };
+
+  const adjudicationFileName = `${fileStem}-adjudication.json`;
+  const adjudicationPath = join(root, adjudicationFileName);
+  writeJson(adjudicationPath, {
+    schemaVersion: "1.0.0",
+    adjudicationId,
+    candidate,
+    perceptionReport: perceptionReference,
+    reviewer: {
+      role: "audio-captions-sync-reviewer",
+      contextId,
+      readOnly: true,
+      independent: true,
+      executionReceipt: executionRecords.recordReceipt({
+        role: "reviewer",
+        domain: "audio-captions-synchronization",
+        contextId,
+        candidateId: candidate.candidateId,
+        startedAt: completedAt,
+        completedAt: adjudicatedAt,
+        issuedAt: adjudicatedAt,
+      }),
+    },
+    checks: [
+      ["candidate-binding", "The report binds the exact encoded candidate bytes."],
+      ["decoded-sample-coverage", "Every decoded sample is covered exactly once."],
+      ["model-provenance", "Local model id, revision, hash, and receipt are bound."],
+      ["prompt-and-raw-response", "Prompt version and raw response bytes are bound."],
+      ["calibration", "Fresh known-good and known-bad calibration evidence passed."],
+      ["audio-criteria", "All four full-program audio criteria passed."],
+    ].map(([id, notes]) => ({ id, passed: true, notes })),
+    findings: [],
+    status: "PASS",
+    generatedAt: adjudicatedAt,
+  });
+  const adjudicationReference = {
+    artifactPath: adjudicationFileName,
+    sha256: sha(adjudicationPath),
+    bytes: statSync(adjudicationPath).size,
+  };
   return {
-    path: receiptPath,
-    reference: { artifactPath: fileName, sha256: sha(receiptPath), bytes: statSync(receiptPath).size },
+    nativeReport: { path: nativeReportPath, reference: artifactRef(nativeReportPath) },
+    report: { path: reportPath, reference: perceptionReference },
+    adjudication: { path: adjudicationPath, reference: adjudicationReference },
+    reference: { perceptionReport: perceptionReference, adjudication: adjudicationReference },
   };
 }
 
@@ -2237,8 +2434,10 @@ function releaseDecisionIntegration() {
       auditId: "PVEA-SYNTHETIC-RELEASE-001",
     });
     const editorialAuditPath = editorialAudit.path;
-    const candidateListening = materializeCandidateListeningReceipt(root, candidate, {
-      receiptId: "PVLR-SYNTHETIC-RELEASE-001",
+    const candidateAudioApproval = materializeCandidateAudioApproval(root, candidate, executionRecords, {
+      fileStem: "release-candidate-audio",
+      reportId: "PVAR-SYNTHETIC-RELEASE-001",
+      adjudicationId: "PVAA-SYNTHETIC-RELEASE-001",
     });
     const decisionBase = {
       schemaVersion: "1.0.0",
@@ -2258,7 +2457,7 @@ function releaseDecisionIntegration() {
       policy: policyReference,
       preflight: { artifactPath: "preflight-report.json", sha256: sha(preflightPath) },
       editorialAudit: editorialAudit.reference,
-      candidateListening: candidateListening.reference,
+      candidateAudioApproval: candidateAudioApproval.reference,
       reviewReports: writeReports(),
       releaseChecks,
       findingDispositions: [],
@@ -2314,32 +2513,79 @@ function releaseDecisionIntegration() {
     assert(result.status === 1, "release validator rejects editorial phase evidence that does not match the decoded candidate frame");
     writeFileSync(editorialAuditPath, originalEditorialAudit);
 
-    const missingListeningReceipt = structuredClone(decisionBase);
-    delete missingListeningReceipt.candidateListening;
-    result = run(missingListeningReceipt);
-    assert(result.status === 1, "release validator rejects PASS without a candidate-bound full-program listening receipt");
+    const missingAudioApproval = structuredClone(decisionBase);
+    delete missingAudioApproval.candidateAudioApproval;
+    result = run(missingAudioApproval);
+    assert(result.status === 1, "release validator rejects PASS without local full-program audio perception and adjudication");
 
-    const originalListeningReceipt = readFileSync(candidateListening.path);
-    const staleListeningDecision = structuredClone(decisionBase);
-    const staleListeningReceipt = loadJson(candidateListening.path);
-    staleListeningReceipt.candidate.sha256 = "0".repeat(64);
-    writeJson(candidateListening.path, staleListeningReceipt);
-    staleListeningDecision.candidateListening.sha256 = sha(candidateListening.path);
-    staleListeningDecision.candidateListening.bytes = statSync(candidateListening.path).size;
-    result = run(staleListeningDecision);
-    assert(result.status === 1, "release validator rejects a listening receipt bound to different candidate bytes");
-    writeFileSync(candidateListening.path, originalListeningReceipt);
+    const perceptionPath = candidateAudioApproval.report.path;
+    const originalPerceptionReport = readFileSync(perceptionPath);
+    const stalePerceptionDecision = structuredClone(decisionBase);
+    const stalePerceptionReport = loadJson(perceptionPath);
+    stalePerceptionReport.candidate.sha256 = "0".repeat(64);
+    writeJson(perceptionPath, stalePerceptionReport);
+    stalePerceptionDecision.candidateAudioApproval.perceptionReport.sha256 = sha(perceptionPath);
+    stalePerceptionDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
+    result = run(stalePerceptionDecision);
+    assert(result.status === 1, "release validator rejects an audio-perception report bound to different candidate bytes");
+    writeFileSync(perceptionPath, originalPerceptionReport);
 
-    const shortenedListeningDecision = structuredClone(decisionBase);
-    const shortenedListeningReceipt = loadJson(candidateListening.path);
-    shortenedListeningReceipt.fullListening.completedAt = "2026-07-29T22:00:05.000Z";
-    shortenedListeningReceipt.generatedAt = shortenedListeningReceipt.fullListening.completedAt;
-    writeJson(candidateListening.path, shortenedListeningReceipt);
-    shortenedListeningDecision.candidateListening.sha256 = sha(candidateListening.path);
-    shortenedListeningDecision.candidateListening.bytes = statSync(candidateListening.path).size;
-    result = run(shortenedListeningDecision);
-    assert(result.status === 1, "release validator rejects a listening receipt shorter than the exact candidate duration");
-    writeFileSync(candidateListening.path, originalListeningReceipt);
+    const incompleteCoverageDecision = structuredClone(decisionBase);
+    const nativeReportPath = candidateAudioApproval.nativeReport.path;
+    const originalNativeReport = readFileSync(nativeReportPath);
+    const incompleteCoverageNativeReport = loadJson(nativeReportPath);
+    incompleteCoverageNativeReport.decodedAudio.coverage.startSample = 1;
+    writeJson(nativeReportPath, incompleteCoverageNativeReport);
+    const incompleteCoverageReport = loadJson(perceptionPath);
+    incompleteCoverageReport.listener.report.sha256 = sha(nativeReportPath);
+    incompleteCoverageReport.listener.report.bytes = statSync(nativeReportPath).size;
+    writeJson(perceptionPath, incompleteCoverageReport);
+    incompleteCoverageDecision.candidateAudioApproval.perceptionReport.sha256 = sha(perceptionPath);
+    incompleteCoverageDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
+    result = run(incompleteCoverageDecision);
+    assert(result.status === 1, "release validator rejects native decoded sample coverage that does not start at zero");
+    writeFileSync(nativeReportPath, originalNativeReport);
+    writeFileSync(perceptionPath, originalPerceptionReport);
+
+    const remoteListenerDecision = structuredClone(decisionBase);
+    const remoteListenerReport = loadJson(perceptionPath);
+    remoteListenerReport.listener.kind = "human";
+    remoteListenerReport.listener.localOnly = false;
+    writeJson(perceptionPath, remoteListenerReport);
+    remoteListenerDecision.candidateAudioApproval.perceptionReport.sha256 = sha(perceptionPath);
+    remoteListenerDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
+    result = run(remoteListenerDecision);
+    assert(result.status === 1, "release validator rejects human or non-local listener labeling");
+    writeFileSync(perceptionPath, originalPerceptionReport);
+
+    const staleCalibrationDecision = structuredClone(decisionBase);
+    const staleCalibrationReport = loadJson(perceptionPath);
+    staleCalibrationReport.calibration.validUntil = "2026-07-29T21:59:59.000Z";
+    writeJson(perceptionPath, staleCalibrationReport);
+    staleCalibrationDecision.candidateAudioApproval.perceptionReport.sha256 = sha(perceptionPath);
+    staleCalibrationDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
+    result = run(staleCalibrationDecision);
+    assert(result.status === 1, "release validator rejects stale audio-model calibration");
+    writeFileSync(perceptionPath, originalPerceptionReport);
+
+    const rawResponsePath = join(root, "release-candidate-audio-raw-response.txt");
+    const originalRawResponse = readFileSync(rawResponsePath);
+    writeFileSync(rawResponsePath, Buffer.concat([originalRawResponse, Buffer.from("\n")]), { flag: "w" });
+    result = run(decisionBase);
+    assert(result.status === 1, "release validator rejects raw local-model response byte tampering");
+    writeFileSync(rawResponsePath, originalRawResponse);
+
+    const adjudicationPath = candidateAudioApproval.adjudication.path;
+    const originalAdjudication = readFileSync(adjudicationPath);
+    const writableAdjudicationDecision = structuredClone(decisionBase);
+    const writableAdjudication = loadJson(adjudicationPath);
+    writableAdjudication.reviewer.readOnly = false;
+    writeJson(adjudicationPath, writableAdjudication);
+    writableAdjudicationDecision.candidateAudioApproval.adjudication.sha256 = sha(adjudicationPath);
+    writableAdjudicationDecision.candidateAudioApproval.adjudication.bytes = statSync(adjudicationPath).size;
+    result = run(writableAdjudicationDecision);
+    assert(result.status === 1, "release validator rejects audio-perception adjudication from a writable reviewer context");
+    writeFileSync(adjudicationPath, originalAdjudication);
 
     result = run({ ...decisionBase, candidate: { ...candidate, artifactPath: "missing-candidate.mp4" } });
     assert(result.status === 1, "release validator rejects a nonexistent candidate reference");
@@ -2805,13 +3051,16 @@ function publicationIntegration() {
       completedAt: "2026-07-29T15:04:30.000Z",
     });
     decision.editorialAudit = publicationEditorialAudit.reference;
-    const publicationListeningReceipt = materializeCandidateListeningReceipt(root, candidateWithBytes, {
-      receiptId: "PVLR-PUBLICATION-001",
-      contextId: "orchestrator-publication-listening-context",
+    const publicationAudioApproval = materializeCandidateAudioApproval(root, candidateWithBytes, executionRecords, {
+      fileStem: "publication-candidate-audio",
+      reportId: "PVAR-PUBLICATION-001",
+      adjudicationId: "PVAA-PUBLICATION-001",
+      contextId: "isolated-publication-audio-adjudicator-context",
       startedAt: "2026-07-29T15:03:30.000Z",
       completedAt: "2026-07-29T15:04:00.000Z",
+      adjudicatedAt: "2026-07-29T15:04:30.000Z",
     });
-    decision.candidateListening = publicationListeningReceipt.reference;
+    decision.candidateAudioApproval = publicationAudioApproval.reference;
     decision.reviewReports = Object.entries(domainMeta).map(([domain, meta]) => ({
       domain,
       reportPath: meta.file,
@@ -2864,6 +3113,7 @@ function publicationIntegration() {
         rerunPolicy: true,
         thresholdsAndFindings: true,
         checksumsAndProvenance: true,
+        audioPerceptionApproval: true,
         playbackAndReproduction: true,
         deliveryContents: true,
       },
@@ -3040,13 +3290,18 @@ function publicationIntegration() {
   assert(ownerVoice?.phoneticRespellingAllowed === false, "owner voice forbids phonetic input respelling");
   assert(ownerVoice?.pronunciationRiskManifestRequired === true, "owner voice requires a pronunciation-risk manifest");
   assert(ownerVoice?.asrAloneMayApprovePronunciation === false, "ASR alone cannot approve owner-voice pronunciation");
-  assert(ownerVoice?.properNounHomophoneStressAndAccentListeningRequired === true, "ambiguous pronunciation requires listening");
+  assert(ownerVoice?.properNounHomophoneStressAndAccentAudioPerceptionRequired === true, "ambiguous pronunciation requires local audio perception");
   assert(ownerVoice?.referenceAudio?.fullIclRequired === true && ownerVoice.referenceAudio.exactTranscriptRequired === true, "owner voice requires full ICL with an exact transcript");
   assert(ownerVoice?.segmentation?.arbitraryCharacterBlocksAllowed === false && ownerVoice.segmentation.timeStretchAllowed === false, "owner voice forbids arbitrary character chunks and time stretching");
   assert(ownerVoice?.postProcessing?.individualDynamicCompressionAllowed === false && ownerVoice.postProcessing.finalProgramTransparentTruePeakLimiterAllowed === true, "owner voice preserves raw takes while allowing transparent final mastering");
-  assert(ownerVoice?.acceptance?.dualSpeakerIdentityGateRequired === true && ownerVoice.acceptance.listeningRequired === true, "owner voice requires dual identity scoring and listening");
-  assert(ownerVoice?.acceptance?.listeningPerformer === "orchestrator-or-audio-reviewer" && ownerVoice.acceptance.ownerApprovalRequired === false,
-    "owner-voice listening is system-owned and does not require recurring owner approval");
+  assert(ownerVoice?.acceptance?.dualSpeakerIdentityGateRequired === true && ownerVoice.acceptance.audioPerceptionRequired === true,
+    "owner voice requires dual identity scoring and local full-program audio perception");
+  assert(ownerVoice?.acceptance?.listenerKind === "local-audio-model" &&
+    ownerVoice.acceptance.audioPerceptionRoute === "ai.ps1 listen" &&
+    ownerVoice.acceptance.localOnlyExecutionRequired === true &&
+    ownerVoice.acceptance.humanPlaybackClaimAllowed === false &&
+    ownerVoice.acceptance.ownerApprovalRequired === false,
+    "owner-voice approval is system-owned, local-only, and never mislabeled as human playback");
 
   const narrationSkill = readFileSync(join(pluginDir, "skills", "product-demo-studio-narration", "SKILL.md"), "utf8");
   for (const requiredText of ["pronunciation-risk manifest", "resume", "canonical script", "ASR is a content check", "transparent true-peak limiter", "never time-stretch"]) {
@@ -3067,7 +3322,9 @@ for (const schemaName of [
   "delivery-spec.schema.json",
   "media-acceleration.schema.json",
   "deterministic-report.schema.json",
-  "candidate-listening-receipt.schema.json",
+  "candidate-audio-perception-report.schema.json",
+  "local-ai-listen-report.schema.json",
+  "audio-perception-adjudication.schema.json",
   "editorial-audit.schema.json",
   "evidence-package.schema.json",
   "preflight-report.schema.json",
@@ -3086,8 +3343,12 @@ schemaFixture("reviewer-calibration.schema.json", "reviewer-calibration.invalid.
 schemaFixture("release-decision.schema.json", "release-decision.pass.json", true);
 schemaFixture("release-decision.schema.json", "release-decision.remediate.json", true);
 schemaFixture("release-decision.schema.json", "release-decision.invalid.json", false);
-schemaFixture("candidate-listening-receipt.schema.json", "candidate-listening-receipt.pass.json", true);
-schemaFixture("candidate-listening-receipt.schema.json", "candidate-listening-receipt.invalid.json", false);
+schemaFixture("candidate-audio-perception-report.schema.json", "candidate-audio-perception-report.pass.json", true);
+schemaFixture("candidate-audio-perception-report.schema.json", "candidate-audio-perception-report.invalid.json", false);
+schemaFixture("local-ai-listen-report.schema.json", "local-ai-listen-report.pass.json", true);
+schemaFixture("local-ai-listen-report.schema.json", "local-ai-listen-report.invalid.json", false);
+schemaFixture("audio-perception-adjudication.schema.json", "audio-perception-adjudication.pass.json", true);
+schemaFixture("audio-perception-adjudication.schema.json", "audio-perception-adjudication.invalid.json", false);
 schemaFixture("editorial-audit.schema.json", "editorial-audit.pass.json", true);
 schemaFixture("editorial-audit.schema.json", "editorial-audit.invalid.json", false);
 {

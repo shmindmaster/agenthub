@@ -33,6 +33,7 @@
     "rerunPolicy": false,
     "thresholdsAndFindings": false,
     "checksumsAndProvenance": false,
+    "audioPerceptionApproval": false,
     "playbackAndReproduction": false,
     "deliveryContents": false
   },

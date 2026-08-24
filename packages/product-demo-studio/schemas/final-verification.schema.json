@@ -98,6 +98,7 @@
         "rerunPolicy",
         "thresholdsAndFindings",
         "checksumsAndProvenance",
+        "audioPerceptionApproval",
         "playbackAndReproduction",
         "deliveryContents"
       ],
@@ -121,6 +122,9 @@
           "const": true
         },
         "checksumsAndProvenance": {
+          "const": true
+        },
+        "audioPerceptionApproval": {
           "const": true
         },
         "playbackAndReproduction": {

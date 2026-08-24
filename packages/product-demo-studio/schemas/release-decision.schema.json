@@ -53,8 +53,8 @@
     "editorialAudit": {
       "$ref": "#/$defs/editorialAuditReference"
     },
-    "candidateListening": {
-      "$ref": "#/$defs/candidateListeningReference"
+    "candidateAudioApproval": {
+      "$ref": "#/$defs/candidateAudioApprovalReference"
     },
     "reviewReports": {
       "type": "array",
@@ -142,7 +142,7 @@
           "candidate",
           "preflight",
           "editorialAudit",
-          "candidateListening",
+          "candidateAudioApproval",
           "reviewReports",
           "releaseChecks",
           "findingDispositions",
@@ -367,14 +367,13 @@
         "bytes": { "type": "integer", "minimum": 1 }
       }
     },
-    "candidateListeningReference": {
+    "candidateAudioApprovalReference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["artifactPath", "sha256", "bytes"],
+      "required": ["perceptionReport", "adjudication"],
       "properties": {
-        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
-        "sha256": { "$ref": "#/$defs/sha256" },
-        "bytes": { "type": "integer", "minimum": 1 }
+        "perceptionReport": { "$ref": "#/$defs/executionReceiptArtifactReference" },
+        "adjudication": { "$ref": "#/$defs/executionReceiptArtifactReference" }
       }
     },
     "completeReviewReportReference": {

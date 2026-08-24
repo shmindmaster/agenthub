@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.7.9",
+  "capabilityVersion": "1.8.0",
   "hostInventorySource": "registry/capabilities.json#product-demo-studio.hostMappings",
   "equivalentContract": {
     "canonicalPolicy": "policy/product-video-policy.json",
@@ -11,6 +11,9 @@
     "calibrationReviewResultSchema": "schemas/calibration-review-result.schema.json",
     "mediaAccelerationSchema": "schemas/media-acceleration.schema.json",
     "editorialAuditSchema": "schemas/editorial-audit.schema.json",
+    "audioPerceptionReportSchema": "schemas/candidate-audio-perception-report.schema.json",
+    "localAiListenReportSchema": "schemas/local-ai-listen-report.schema.json",
+    "audioPerceptionAdjudicationSchema": "schemas/audio-perception-adjudication.schema.json",
     "decisionSchema": "schemas/release-decision.schema.json",
     "finalVerificationSchema": "schemas/final-verification.schema.json",
     "executionReceiptSchema": "schemas/execution-receipt.schema.json",

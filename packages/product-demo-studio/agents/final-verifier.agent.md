@@ -20,8 +20,11 @@ Independently inspect the terminal evidence and confirm:
 - the orchestrator editorial audit proves continuous full playback of these exact candidate bytes,
   covers every required opening/transition/hero/cleanliness/responsive/CTA/final-hold phase with
   decoded-frame or checksum-bound artifact evidence tied to the candidate, and passed;
-- the system-owned candidate-listening receipt binds the exact candidate path, hash, bytes, source
-  revision, render provenance, and ffprobe duration; covers the full program continuously; and passed;
+- the system-owned envelope binds the immutable native `ai.ps1 listen` report to the exact candidate
+  path, hash, bytes, source revision, and render provenance; the native report proves model
+  id/revision/canonical receipt hash, prompt version, raw response hash, local-only execution, and
+  continuous exact decoded sample coverage; fresh known-good/known-bad calibration and the separate
+  isolated read-only reviewer adjudication passed;
 - reviewer calibration is current and successful for the exact rubric, overlay, model, and evidence contract;
 - all four fresh reviewer reports and the arbiter decision reference this candidate and current schema version;
 - any relevant product, data, media, source, configuration, or environment change caused a new candidate, evidence package, affected-domain reviews, and mandatory reruns of technical integrity, synchronization, accuracy, privacy, and compliance;
@@ -29,6 +32,9 @@ Independently inspect the terminal evidence and confirm:
 - scores and all-pass domains satisfy policy;
 - checksums, provenance, playback, and reproduction commands are current;
 - delivery contains only automatically accepted outputs.
+
+This gate is not human playback. Never state or imply that an owner or reviewer heard the candidate
+when the evidence is a local audio-model report and read-only adjudication.
 
 Do not require or attempt shell execution when the host's native read-only
 context exposes only read/search tools. The host-owned finalization step runs

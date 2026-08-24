@@ -56,8 +56,8 @@ falls below a floor derived from the owner's own recordings. This is not
 optional: retro-scoring 148 already-delivered brief segments found 6 below the
 floor, one at less than half of it, in audio that had already gone out.
 
-If a segment says Sarosh, keep the system-owned full-candidate listening gate as well — the identity score
-measures *who* is speaking, not whether the name was pronounced correctly, and
+If a segment says Sarosh, keep the system-owned full-candidate local audio-perception gate as well —
+the identity score measures *who* is speaking, not whether the name was pronounced correctly, and
 those fail independently. Do not try to fix pronunciation by respelling the
 text: of five orthography variants measured, phonetic respelling was the only
 one to fail the identity floor on both backends.
@@ -77,9 +77,10 @@ Owner-voice input text stays canonical. Apply approved pronunciation handling
 through the shared Local-AI dictionary layer at render time; never phonetic-
 respell Sarosh's input. ASR is a content check, not a complete pronunciation
 oracle: homophones, proper nouns, stress, and accent can pass ASR while sounding
-wrong. Every risk occurrence therefore remains blocked until the orchestrator or isolated audio
-reviewer records pass or fail against the intended meaning and pronunciation. This is a listening
-requirement, not a recurring owner-approval dependency.
+wrong. Every risk occurrence therefore remains blocked until the final `ai.ps1 listen` report and
+isolated read-only audio reviewer adjudication record pass or fail against the intended meaning and
+pronunciation. This is local audio-model perception, not human playback or a recurring owner-
+approval dependency.
 
 Use full ICL with the purpose-recorded style WAV and its exact sidecar transcript.
 Validate references as mono WAV at 24 kHz or higher and 16-bit or higher, with at
@@ -95,7 +96,7 @@ the failed stable segment, never time-stretch speech, and do not dynamically
 compress individual TTS takes. Detect clipped words, echoed reference tails, and
 abrupt endings; do not blindly trim a fixed tail duration. The final program mix
 may use gain plus a transparent true-peak limiter to meet delivery loudness, but
-the exact mastered candidate must pass listening, caption timing, integrated
+the exact mastered candidate must pass local full-program audio perception, caption timing, integrated
 loudness, true peak, ASR/content, and both speaker-identity backends.
 
 Do not accept a route name as generation provenance. Record the resolved local
@@ -109,9 +110,15 @@ Run ASR twice at the program boundary: once on the exact mastered narration WAV
 and once on audio extracted from the exact encoded delivery video. Bind every
 ASR result to the source path, byte count, and SHA-256, then compare both with
 the locked script. A transcript that does not name and hash its audio source is
-stale by default. The candidate listening artifact is the
-`../../schemas/candidate-listening-receipt.schema.json` record for full continuous playback of the
-encoded candidate. It binds the exact candidate path, SHA-256, byte count, source revision, render
-provenance, and ffprobe duration. A discontinuous pronunciation excerpt reel is only
-supplemental and must be labeled `DISCONTINUOUS EXCERPTS`; never use it as the
-sole approval file.
+stale by default. Run `D:\Local-AI\ai.ps1 listen <candidate> --output <native-report.json>` with the
+exact candidate id, source revision, and render-provenance id. Preserve the immutable native
+`../../schemas/local-ai-listen-report.schema.json` output and raw response, then bind it and the model
+receipt inside a separate `../../schemas/candidate-audio-perception-report.schema.json` envelope.
+The native report proves local-only execution, candidate bytes, deterministic decoded sample hash and
+continuous exact coverage, model id/revision/receipt hash, prompt version, and all four audio checks;
+the envelope adds fresh same-model/same-prompt known-good/known-bad calibration and declares
+`listener.kind=local-audio-model`. A host-enforced read-only audio
+reviewer then writes `../../schemas/audio-perception-adjudication.schema.json` against those exact
+bytes. A discontinuous pronunciation excerpt reel is only supplemental and must be labeled
+`DISCONTINUOUS EXCERPTS`; never use it as the sole evidence input. Do not state that a human heard
+the candidate unless separate genuine human playback actually occurred; it is not required by this gate.

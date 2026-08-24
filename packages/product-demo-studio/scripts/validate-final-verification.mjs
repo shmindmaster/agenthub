@@ -30,6 +30,7 @@ const CHECKS = [
   "rerunPolicy",
   "thresholdsAndFindings",
   "checksumsAndProvenance",
+  "audioPerceptionApproval",
   "playbackAndReproduction",
   "deliveryContents",
 ];

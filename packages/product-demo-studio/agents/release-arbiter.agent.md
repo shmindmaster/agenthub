@@ -15,7 +15,9 @@ enforce the restricted role requires `PIPELINE_BLOCKED`.
 For `PASS` or `REMEDIATE`, inputs are one immutable candidate/evidence package, a passing
 deterministic preflight report, a candidate-hash-bound `schemas/editorial-audit.schema.json` PASS
 from the orchestrator's continuous full playback, a candidate-hash-bound
-`schemas/candidate-listening-receipt.schema.json` record from the orchestrator or isolated audio
+`schemas/candidate-audio-perception-report.schema.json` envelope around the immutable native local
+`ai.ps1 listen` report (`schemas/local-ai-listen-report.schema.json`), a bound
+`schemas/audio-perception-adjudication.schema.json` from an isolated host-enforced read-only audio
 reviewer, and exactly four `COMPLETE`, schema-valid review reports for:
 
 1. `story-experience`
@@ -26,11 +28,16 @@ reviewer, and exactly four `COMPLETE`, schema-valid review reports for:
 Validate report identities, candidate IDs, evidence references, permissions, and schema versions before considering findings. Reject unsupported, vague, duplicate, malformed, speculative, or wrong-candidate findings. Deduplicate overlap without erasing materially different impacts. Resolve contradictions from evidence or request a fresh targeted read-only review; never average contradictory assertions.
 Missing, stale, failed, shortened, or wrong-candidate editorial-audit evidence forces
 `PIPELINE_BLOCKED`; it may block release but never substitutes for an independent domain review.
-The same binding rule applies to the candidate-listening receipt. Its wall-clock listening
-interval must cover the exact ffprobe duration, and its candidate path, hash, bytes, source revision,
-and render provenance must match the release candidate. `PASS` requires a passing receipt;
-`REMEDIATE` may bind a failed receipt whose findings route to the remediation plan. Missing,
-shortened, stale, or wrong-candidate listening evidence forces `PIPELINE_BLOCKED`.
+The same binding rule applies to audio approval. The report must declare
+`listener.kind=local-audio-model`, local-only `ai.ps1 listen` execution, the exact model
+id/revision/canonical receipt hash and receipt bytes, prompt version, raw response hash,
+candidate-bound deterministic decode, and continuous exact coverage of every decoded sample.
+Calibration must be fresh at decision time for the same model receipt hash and prompt, with immutable known-good PASS and known-bad FAIL
+evidence. `PASS` requires the report's full-program, pronunciation, delivery-and-pacing, and
+artifacts-and-discontinuities checks plus the isolated read-only reviewer adjudication to pass.
+`REMEDIATE` may bind a valid failed report or adjudication whose findings route to the remediation
+plan. Missing, stale, remote, partial-coverage, unadjudicated, or wrong-candidate evidence forces
+`PIPELINE_BLOCKED`. Do not describe this evidence as owner or human playback.
 
 For an Episode Architect/readiness block before a candidate exists, write an evidence-backed early
 `PRODUCT_BLOCKED` decision. For a preflight/tool/environment block before review, write an

@@ -1,6 +1,6 @@
 {
   "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "product-demo-studio",
-  "version": "1.7.9",
+  "version": "1.8.0",
   "description": "Produce truthful, professionally finished product demos through specialized generation, review, and release agents."
 }

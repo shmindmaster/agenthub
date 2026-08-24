@@ -34,10 +34,17 @@
     "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
     "bytes": 1
   },
-  "candidateListening": {
-    "artifactPath": "candidate-listening-receipt.json",
-    "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "bytes": 1
+  "candidateAudioApproval": {
+    "perceptionReport": {
+      "artifactPath": "candidate-audio-perception-report.json",
+      "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "bytes": 1
+    },
+    "adjudication": {
+      "artifactPath": "audio-perception-adjudication.json",
+      "sha256": "1212121212121212121212121212121212121212121212121212121212121212",
+      "bytes": 1
+    }
   },
   "reviewReports": [
     {"domain": "story-experience", "reportPath": "reviews/story.json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "status": "COMPLETE", "score": 92, "passed": true, "findingCount": 0, "blockerFindings": 0, "criticalFindings": 0},

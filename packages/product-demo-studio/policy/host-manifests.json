@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.7.9",
+  "capabilityVersion": "1.8.0",
   "note": "One entry per host in policy/host-parity.json#mappedHosts. A host either ships a manifest, reads the Claude layout natively, or carries a documented reason it cannot. validate-host-manifests.mjs fails when a mapped host has none of the three. Formats and translation rules are recorded with the documentation URL they were read from; nothing here is inferred from another host's behaviour.",
   "verificationVocabulary": {
     "format-verified": "Manifest path and field set read from the host's own current documentation.",

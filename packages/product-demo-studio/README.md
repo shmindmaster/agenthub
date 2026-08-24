@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.7.9**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.8.0**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
@@ -51,10 +51,10 @@ mandatory canonical post-validator independently rereads and rehashes every
 candidate, preflight, review, receipt, and arbiter artifact. Shell absence no
 longer creates a false pipeline blocker; missing inputs, broad-write reviewer
 contexts, or failed post-validation still fail closed.
-Version 1.7.7 makes narration provenance and listening fail closed. Generation
+Version 1.7.7 made narration provenance and the then-current owner listening path fail closed. Generation
 receipts bind the resolved model and reference inputs, assembly consumes an
 explicit selected-take ledger, ASR is rerun against both mastered narration and
-the encoded delivery candidate, and owner approval uses full continuous audio;
+the encoded delivery candidate, and that release required full continuous owner audio;
 discontinuous pronunciation excerpts are supplemental and labeled as such.
 Version 1.7.8 closes the final-render/storyboard integrity gap: craft validation now checksum-binds
 the rendered timeline and exact final media, probes duration/fps, enforces one-frame beat alignment,
@@ -69,6 +69,14 @@ interactions that can change product state—click, double-click, type, scroll, 
 keyboard input—must prove a before/result pixel difference. Canonical non-interactive holds
 (`none`), pointer movement, and hover remain subject to their timing, framing, and feedback
 contracts without being falsely rejected for preserving product state.
+Version 1.8.0 replaces recurring owner/human audio approval with a system-owned local audio-
+perception gate. `D:\Local-AI\ai.ps1 listen --output` produces an immutable native exact-candidate
+report with deterministic full-program decoded sample coverage, model id/revision/canonical receipt
+hash, raw response hash, prompt version, local-only execution, and the four audio criteria. A
+separate Product Demo Studio envelope declares `listener.kind=local-audio-model`, binds the untouched
+native report and model receipt, and adds fresh known-good/known-bad calibration. A host-enforced
+read-only audio reviewer adjudication must bind and pass that envelope before arbitration. This
+evidence is never labeled as human playback.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with
