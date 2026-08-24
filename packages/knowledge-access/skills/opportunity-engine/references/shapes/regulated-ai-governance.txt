@@ -1,0 +1,6 @@
+# Regulated AI governance: controls, validation and audit over sensitive data.
+enterprise wide governance of sensitive data with segregation, access control and regulatory compliance
+validation, controls and audit evidence in a regulated operating environment
+technology transformation program for a regulated institution with audit and control requirements
+handling privileged or confidential material with segregation and retention obligations
+designing controls that let a delivery team work without access to production sensitive data

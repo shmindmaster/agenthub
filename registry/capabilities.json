@@ -1005,7 +1005,7 @@
         "use-knowledge-access",
         "opportunity-engine"
       ],
-      "contentHash": "702F456DBA618A74FE1BD35FDA8A037AEDF778530C46711D8545F7E55C394A05",
+      "contentHash": "1ED488FEC1CAB4FA5C5B171308FA2F45A49ABCD927BBF86BF0A5F2DF11DE147F",
       "hashBasis": "packages/knowledge-access",
       "status": "active-canonical",
       "hostMappings": [

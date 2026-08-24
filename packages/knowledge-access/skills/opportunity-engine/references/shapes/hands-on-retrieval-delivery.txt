@@ -1,0 +1,6 @@
+# Hands-on retrieval delivery: short scoped RAG / search build. The Upwork lane.
+tuning a vector and hybrid search index for retrieval quality, chunking and ranking
+building a retrieval augmented generation system over an enterprise document corpus
+short scoped engagement delivering a working retrieval prototype and handover
+document ingestion pipeline with deduplication, OCR assessment and quality filtering
+evaluation harness measuring answer quality and retrieval relevance

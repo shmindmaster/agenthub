@@ -11,13 +11,15 @@ This one turns them into something you send. You are the writer. Do
 `:8787/v1/chat/completions` to draft — those are local inference
 daemons, not this pipeline.
 
-Parse, match, and gate are shared. Only the renderer changes.
+Parse, augment, match, and gate are shared. Only the renderer changes.
 
 ```
-OPPORTUNITY → MATCH → RENDER → GATE
+OPPORTUNITY → AUGMENT → MATCH → RENDER → GATE
 ```
 
-Load `references/opportunity-response-engine.md` for the full model.
+Load `packages/knowledge-access/references/opportunity-response-engine.md`
+for the full model (package-level; not deployed beside this skill).
+Load `references/opportunity-shape-library.md` before writing queries.
 Load `use-knowledge-access` before searching `01`–`06` or `10`.
 Load `use-repowise` when the opportunity needs repository/code evidence.
 
@@ -68,6 +70,35 @@ extraction.
 `rate_or_value` is never-render unless the user explicitly asked for
 commercial figures in the output. An outcome without a locatable
 citation is `claim: null` / `evidence: NOT_FOUND`.
+
+## 0. Augment
+
+Retrieval here is generative, not adjudicating. The corpus exists to
+enhance, adapt and thicken what you are writing — not to rule an
+opportunity in or out. A thin direct match is a prompt to find the
+nearest transferable work and translate it, never a reason to stop.
+
+```
+pwsh -File packages/knowledge-access/scripts/Get-EvidenceAugmentation.ps1 `
+    -Label '<what you are writing>' `
+    -ShapesFile packages/knowledge-access/skills/opportunity-engine/references/shapes/<archetype>.txt `
+    -Shape '<one or two opportunity-specific shapes>'
+```
+
+Query on **problem shape**, never role vocabulary — resumes are written in
+role vocabulary, so a title-shaped query retrieves your own marketing copy
+as "evidence" and launders unsupported claims forward. See
+`references/opportunity-shape-library.md`.
+
+Five layers return together, each contributing something different:
+`METHOD` (05, structure you own) · `PRECEDENT` (02, real substance) ·
+`RECENT` (03, current AI/product work) · `CONTEXT` (06, cite-only market
+framing) · `VOICE` (04, tone and approved claims — never evidence).
+
+Every item carries a rendering mode. `ANONYMIZE` means the substance is
+fully usable and only the client name is withheld; most of `02` is
+un-nameable rather than unusable. Layers, modes and descriptors are data
+in `packages/knowledge-access/config/evidence-layers.json`.
 
 ## 1. Parse
 

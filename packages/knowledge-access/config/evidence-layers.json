@@ -1,0 +1,101 @@
+{
+  "$comment": "Data for Get-EvidenceAugmentation. Code in scripts/evidence_augmentation.py reads this and holds no domain content of its own. Edit here, not in the script.",
+  "schemaVersion": 1,
+  "collection": "knowledge_v1",
+  "services": {
+    "embeddings": "http://127.0.0.1:8790/v1/embeddings",
+    "rerank": "http://127.0.0.1:8790/v1/rerank",
+    "qdrant": "http://127.0.0.1:16333"
+  },
+  "models": {
+    "query": "jina-v5-text-small-retrieval:query",
+    "rerank": "jina-reranker-v3.5"
+  },
+
+  "layers": [
+    {
+      "id": "METHOD",
+      "sourceRoot": "05_Methodologies_Templates_and_Accelerators",
+      "purpose": "structure you already own - reuse the scaffold",
+      "contributes": "Approach sections, phases, workstreams, success criteria, pricing shapes, playbooks. Needs no clearance: this material is method, not client detail."
+    },
+    {
+      "id": "PRECEDENT",
+      "sourceRoot": "02_Client_Work",
+      "purpose": "real program substance to adapt",
+      "contributes": "Actual program shapes, scale figures, constraints and outcomes. Mostly renders anonymized."
+    },
+    {
+      "id": "RECENT",
+      "sourceRoot": "03_Products_and_Startups",
+      "purpose": "recent AI / product substance",
+      "contributes": "Current AI and product work, architecture decisions, IP. Founder/venture work, never client delivery."
+    },
+    {
+      "id": "CONTEXT",
+      "sourceRoot": "06_Research_and_Knowledge_Base",
+      "purpose": "market framing - cite, do not claim",
+      "contributes": "Market sizing, benchmarks and external analysis that make a document current. Third-party throughout."
+    },
+    {
+      "id": "VOICE",
+      "sourceRoot": "04_Career_and_Public_Profile",
+      "purpose": "canonical voice + approved claims (not evidence)",
+      "contributes": "Positioning language, approved claim set and tone. Use for consistency; never count it as proof."
+    }
+  ],
+
+  "renderingModes": {
+    "NAME_OK": "Name the client and quote directly.",
+    "ANONYMIZE": "Use the substance in full; render the client as the supplied descriptor.",
+    "METHOD_OWN": "Your own method or IP. Reuse freely as your approach.",
+    "CITE_ONLY": "Attribute to the external source. Never present as your own work.",
+    "VOICE_ONLY": "Tone and approved claims only. Not evidence for a new claim.",
+    "EXCLUDE": "Withheld."
+  },
+
+  "renderingRules": {
+    "$comment": "Evaluated in order. First match wins. rootPrefix matches the leading digits of source_root.",
+    "hardExcludeSensitivity": ["secret", "personal", "confidential_financial", "excluded_noise"],
+    "excludeIfFlagged": ["do_not_send"],
+    "byRootPrefix": { "06": "CITE_ONLY", "05": "METHOD_OWN", "04": "VOICE_ONLY" },
+    "byFlag": { "never_name": "ANONYMIZE" },
+    "bySensitivity": {
+      "client_confidential": "ANONYMIZE",
+      "client_anonymized": "ANONYMIZE",
+      "publishable": "NAME_OK",
+      "internal": "METHOD_OWN",
+      "third_party": "CITE_ONLY"
+    },
+    "default": "ANONYMIZE"
+  },
+
+  "anonymousDescriptors": {
+    "$comment": "subsector -> how to describe that client in outbound copy. Fallback builds 'a <subsector> organization' from the facet value.",
+    "bySubsector": {
+      "Biotechnology": "a biotechnology company",
+      "Pharmaceuticals": "a global pharmaceutical company",
+      "Health_Care_Facilities": "a large health system",
+      "Chemicals": "a global chemicals manufacturer",
+      "Diversified_Banks": "a diversified bank",
+      "Household_Durables": "a consumer durables manufacturer",
+      "Delivery_Firm_Internal": "a global professional-services firm",
+      "Credentials_and_Case_Studies": "a prior engagement",
+      "Anon_Engagements": "a prior engagement",
+      "MahumTech_Internal": "internal Mahumtech work"
+    },
+    "fallbackSuffix": "organization",
+    "unknown": "a prior client"
+  },
+
+  "retrieval": {
+    "poolPerShape": 40,
+    "maxChunksPerDocument": 2,
+    "rerankBatchSize": 64,
+    "rerankCharLimit": 1600,
+    "quoteCharLimit": 520,
+    "storedTextCharLimit": 900
+  },
+
+  "invariant": "Facts (scale, duration, constraint, outcome, your role) transfer verbatim with a citation. Framing adapts. Never invent a fact to fit a frame."
+}

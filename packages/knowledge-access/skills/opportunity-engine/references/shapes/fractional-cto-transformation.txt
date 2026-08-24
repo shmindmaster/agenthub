@@ -1,0 +1,6 @@
+# Fractional CTO and transformation: operating model, org design, cost decisions.
+executive technology strategy and operating model design for an organization
+technology organization structure, roles and delivery model redesign
+infrastructure and application spend analysis with cost containment decisions
+building an engineering capability where little or none existed
+consolidating fragmented delivery teams into a coherent operating model
