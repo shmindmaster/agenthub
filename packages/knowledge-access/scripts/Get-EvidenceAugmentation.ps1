@@ -70,7 +70,7 @@ $registryPath = Join-Path $LocalAiRoot 'registry.json'
 if (-not (Test-Path -LiteralPath $registryPath)) {
     throw "registry.json not found under $LocalAiRoot"
 }
-$registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+$registry = Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $runtime = ($registry.services | Where-Object { $_.id -eq 'retrieval' }).runtime
 if (-not $runtime -or -not (Test-Path -LiteralPath $runtime)) {
     throw "retrieval runtime not found in registry: $runtime"
