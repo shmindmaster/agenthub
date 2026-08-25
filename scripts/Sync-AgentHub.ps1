@@ -440,6 +440,23 @@ function Deploy-File {
     return @{ status = 'updated'; hash = $sourceHash }
 }
 
+function Remove-ManagedJunction {
+    <#
+    PowerShell 5.1 can throw an internal NullReferenceException when
+    Remove-Item targets a directory junction. Validate the exact object first,
+    then use the .NET directory API, which removes the junction entry without
+    traversing or deleting its target.
+    #>
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+    if (-not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+        -not ($item.Attributes -band [IO.FileAttributes]::Directory)) {
+        throw "Refusing to remove non-junction managed path: $Path"
+    }
+    [IO.Directory]::Delete([IO.Path]::GetFullPath($Path), $false)
+}
+
 # ---------------------------------------------------------------------------
 # JSON -> Hashtable conversion (ConvertFrom-Json returns PSCustomObject)
 # ---------------------------------------------------------------------------
@@ -1744,7 +1761,7 @@ function Sync-QwenCapabilityExtensions {
             throw "Refusing to replace non-junction Qwen adapter path: $skillsLink"
         }
         if ($skillsItem -and -not $adapterReady) {
-            Remove-Item -LiteralPath $skillsLink -Force
+            Remove-ManagedJunction -Path $skillsLink
             $skillsItem = $null
         }
         if (-not $skillsItem) {
@@ -1754,20 +1771,20 @@ function Sync-QwenCapabilityExtensions {
             throw "Refusing to replace non-junction Qwen adapter path: $agentsLink"
         }
         if ($agentsItem -and -not $agentsReady) {
-            Remove-Item -LiteralPath $agentsLink -Force
+            Remove-ManagedJunction -Path $agentsLink
             $agentsItem = $null
         }
         if ($hasSourceAgents -and -not $agentsItem) {
             New-Item -ItemType Junction -Path $agentsLink -Target $sourceAgents | Out-Null
         } elseif (-not $hasSourceAgents -and $agentsItem) {
-            Remove-Item -LiteralPath $agentsLink -Force
+            Remove-ManagedJunction -Path $agentsLink
         }
         if (-not (Test-Path -LiteralPath $extensionsRoot)) { New-Item -ItemType Directory -Path $extensionsRoot -Force | Out-Null }
         if ($userItem -and -not $userTarget) {
             throw "Refusing to replace non-junction Qwen extension path: $userLink"
         }
         if ($userItem -and -not $userReady) {
-            Remove-Item -LiteralPath $userLink -Force
+            Remove-ManagedJunction -Path $userLink
             $userItem = $null
         }
         if (-not $userItem) {
@@ -1781,7 +1798,7 @@ function Sync-QwenCapabilityExtensions {
             if (-not ($userPath.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
                 throw "Refusing to prune non-junction Qwen extension path: $($userPath.FullName)"
             }
-            Remove-Item -LiteralPath $userPath.FullName -Force
+            Remove-ManagedJunction -Path $userPath.FullName
             $changed = $true
         }
         foreach ($adapterPath in @(Get-ChildItem -LiteralPath $adapterRoot -Directory -Force -ErrorAction SilentlyContinue |
