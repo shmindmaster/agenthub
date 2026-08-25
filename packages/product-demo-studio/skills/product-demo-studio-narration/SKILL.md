@@ -114,9 +114,11 @@ stale by default. Run `D:\Local-AI\ai.ps1 listen <candidate> --output <native-re
 exact candidate id, source revision, and render-provenance id. Preserve the immutable native
 `../../schemas/local-ai-listen-report.schema.json` output and raw response, then bind it and the model
 receipt inside a separate `../../schemas/candidate-audio-perception-report.schema.json` envelope.
-The native report proves local-only execution, candidate bytes, deterministic decoded sample hash and
-continuous exact coverage, model id/revision/receipt hash, prompt version, and all four audio checks;
-the envelope adds fresh same-model/same-prompt known-good/known-bad calibration and declares
+Run the same local command independently for the known-good and known-bad calibration inputs and bind
+their untouched native reports and raw responses too. All three reports must be byte-distinct and each
+must prove local-only execution, exact input bytes, deterministic decoded sample hash and continuous
+exact coverage, model id/revision/receipt hash, prompt version/hash, and all four audio checks;
+the envelope adds the fresh same-model/same-prompt calibration and declares
 `listener.kind=local-audio-model`. A host-enforced read-only audio
 reviewer then writes `../../schemas/audio-perception-adjudication.schema.json` against those exact
 bytes. A discontinuous pronunciation excerpt reel is only supplemental and must be labeled

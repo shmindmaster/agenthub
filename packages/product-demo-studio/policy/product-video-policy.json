@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.8.0",
+  "capabilityVersion": "1.8.1",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -106,6 +106,9 @@
     "promptVersionRequired": true,
     "maximumCalibrationAgeHours": 168,
     "knownGoodAndKnownBadCalibrationRequired": true,
+    "knownGoodAndKnownBadNativeListenReportsRequired": true,
+    "candidateAndCalibrationNativeReportsMustBeDistinct": true,
+    "calibrationPromptModelAndDecodeProvenanceRequired": true,
     "isolatedReadOnlyAudioReviewerAdjudicationRequired": true,
     "requiredChecks": [
       "full-program",

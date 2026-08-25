@@ -1,6 +1,6 @@
 # product-demo-studio
 
-Current package release: **1.8.0**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.8.1**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
@@ -77,6 +77,11 @@ separate Product Demo Studio envelope declares `listener.kind=local-audio-model`
 native report and model receipt, and adds fresh known-good/known-bad calibration. A host-enforced
 read-only audio reviewer adjudication must bind and pass that envelope before arbitration. This
 evidence is never labeled as human playback.
+Version 1.8.1 closes the calibration provenance gap: the candidate, known-good, and known-bad
+inputs now require three byte-distinct immutable native `ai.ps1 listen` reports. Both calibration
+reports bind their exact input, deterministic continuous decode, shared model receipt, identical
+prompt version/hash, raw response, local-only execution, and expected PASS/FAIL result. Reusing the
+candidate report as the known-good control now fails release validation.
 
 A cross-agent plugin/skill suite for autonomously assessing demo-worthiness, reconciling, capturing,
 composing, narrating, rendering, and QA'ing persuasive product demo / marketing videos with

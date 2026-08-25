@@ -892,7 +892,7 @@ function createReviewIntegrity(root, reviewDomain, executionRecords) {
   writeJson(calibrationPath, {
     schemaVersion: "1.0.0",
     status: "PASS",
-    pluginVersion: "1.8.0",
+    pluginVersion: "1.8.1",
     reviewDomain,
     modelId,
     canonicalRubric,
@@ -1215,10 +1215,117 @@ function materializeCandidateAudioApproval(root, candidate, executionRecords, {
     generatedAt: completedAt,
   });
 
+  const materializeCalibrationNativeReport = ({ caseName, audioPath, responsePath, status, completedAt: caseCompletedAt }) => {
+    const caseCandidate = {
+      candidateId: `${fileStem}-${caseName}-fixture`,
+      ...artifactRef(audioPath),
+      sourceRevision: "synthetic-audio-calibration-v1",
+      renderProvenanceId: `${fileStem}-${caseName}-fixture-v1`,
+    };
+    const caseDecodedPath = join(root, `${fileStem}-${caseName}-program-16k-mono-s16.wav`);
+    const caseDecoded = spawnSync("ffmpeg", [
+      "-v", "error", "-i", audioPath, "-map", "0:a:0", "-vn",
+      "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-y", caseDecodedPath,
+    ], { encoding: "utf8" });
+    if (caseDecoded.status !== 0) throw new Error(`could not materialize ${caseName} listener PCM: ${caseDecoded.stderr}`);
+    const caseRaw = spawnSync("ffmpeg", [
+      "-v", "error", "-i", audioPath, "-map", "0:a:0", "-vn", "-sn", "-dn",
+      "-ac", "1", "-ar", "16000", "-acodec", "pcm_s16le", "-f", "s16le", "-",
+    ], { encoding: null, maxBuffer: 16 * 1024 * 1024 });
+    if (caseRaw.status !== 0 || !Buffer.isBuffer(caseRaw.stdout) || caseRaw.stdout.length === 0) {
+      throw new Error(`could not decode ${caseName} calibration audio`);
+    }
+    const caseSamples = caseRaw.stdout.length / 2;
+    const caseChecks = checks.map((check) => ({ ...check }));
+    const caseFindings = [];
+    if (status === "FAIL") {
+      caseChecks[3] = { ...caseChecks[3], passed: false, notes: "Synthetic discontinuity correctly detected." };
+      caseFindings.push({
+        id: "PVF-AUDIO-CALIBRATION-BAD-001",
+        checkId: "artifacts-and-discontinuities",
+        severity: "BLOCKER",
+        startSeconds: 0,
+        endSeconds: 0.1,
+        description: "Synthetic known-bad artifact detected.",
+      });
+    }
+    const caseReportPath = join(root, `${fileStem}-${caseName}-local-ai-listen-report.json`);
+    writeJson(caseReportPath, {
+      schemaVersion: "1.0.0",
+      reportId: `LAPR-${caseCandidate.sha256.slice(0, 16)}`,
+      status,
+      candidate: caseCandidate,
+      decodedAudio: {
+        ...artifactRef(caseDecodedPath),
+        sampleRate: 16000,
+        channels: 1,
+        bitsPerSample: 16,
+        sampleCount: caseSamples,
+        durationSeconds: caseSamples / 16000,
+        coverage: {
+          startSample: 0,
+          endSampleExclusive: caseSamples,
+          expectedSamples: caseSamples,
+          continuous: true,
+        },
+        sourceAudioStream: { index: 0, codec_type: "audio", codec_name: "pcm_s16le" },
+        sourceProbe: { duration: String(caseSamples / 16000) },
+        decoder: {
+          ffmpegPath,
+          ffmpegSha256: sha(ffmpegPath),
+          version: "synthetic-test",
+          commandSha256: "2".repeat(64),
+        },
+      },
+      model: {
+        ...model,
+        license: "synthetic-test",
+        torch: "synthetic-test",
+        transformers: "synthetic-test",
+        device: "synthetic-test-device",
+        peakVramBytes: 1,
+      },
+      request: {
+        promptVersion: "product-video-audio-perception-v1",
+        promptSha256: "3".repeat(64),
+        transcript: null,
+        pronunciationManifest: null,
+        generation: { doSample: false, seed: 0, maxNewTokens: 1000 },
+        modelResponse: artifactRef(responsePath),
+      },
+      execution: {
+        startedAt: new Date(Date.parse(caseCompletedAt) - 30_000).toISOString(),
+        completedAt: caseCompletedAt,
+        durationSeconds: 30,
+        localFilesOnly: true,
+        remoteInputs: false,
+      },
+      checks: caseChecks,
+      findings: caseFindings,
+      summary: status === "PASS" ? "Synthetic known-good fixture passed." : "Synthetic known-bad fixture failed as expected.",
+      generatedAt: caseCompletedAt,
+    });
+    return { path: caseReportPath, reference: artifactRef(caseReportPath) };
+  };
+  const knownGoodNativeReport = materializeCalibrationNativeReport({
+    caseName: "known-good",
+    audioPath: knownGoodAudioPath,
+    responsePath: knownGoodResponsePath,
+    status: "PASS",
+    completedAt: "2026-07-29T13:59:00.000Z",
+  });
+  const knownBadNativeReport = materializeCalibrationNativeReport({
+    caseName: "known-bad",
+    audioPath: knownBadAudioPath,
+    responsePath: knownBadResponsePath,
+    status: "FAIL",
+    completedAt: "2026-07-29T14:00:00.000Z",
+  });
+
   const reportFileName = `${fileStem}-perception-report.json`;
   const reportPath = join(root, reportFileName);
   writeJson(reportPath, {
-    schemaVersion: "1.0.0",
+    schemaVersion: "1.1.0",
     reportId,
     candidate,
     listener: {
@@ -1232,12 +1339,14 @@ function materializeCandidateAudioApproval(root, candidate, executionRecords, {
     calibration: {
       calibrationId: "PVAC-SYNTHETIC-001",
       promptVersion: "product-video-audio-perception-v1",
+      promptSha256: "3".repeat(64),
       model,
       evaluatedAt: "2026-07-29T14:00:00.000Z",
       validUntil: "2026-08-05T14:00:00.000Z",
       knownGood: {
         caseId: "known-good-001",
         audio: artifactRef(knownGoodAudioPath),
+        nativeReport: knownGoodNativeReport.reference,
         rawResponse: artifactRef(knownGoodResponsePath),
         expectedStatus: "PASS",
         observedStatus: "PASS",
@@ -1245,6 +1354,7 @@ function materializeCandidateAudioApproval(root, candidate, executionRecords, {
       knownBad: {
         caseId: "known-bad-001",
         audio: artifactRef(knownBadAudioPath),
+        nativeReport: knownBadNativeReport.reference,
         rawResponse: artifactRef(knownBadResponsePath),
         expectedStatus: "FAIL",
         observedStatus: "FAIL",
@@ -1300,6 +1410,8 @@ function materializeCandidateAudioApproval(root, candidate, executionRecords, {
   };
   return {
     nativeReport: { path: nativeReportPath, reference: artifactRef(nativeReportPath) },
+    knownGoodNativeReport,
+    knownBadNativeReport,
     report: { path: reportPath, reference: perceptionReference },
     adjudication: { path: adjudicationPath, reference: adjudicationReference },
     reference: { perceptionReport: perceptionReference, adjudication: adjudicationReference },
@@ -2566,6 +2678,75 @@ function releaseDecisionIntegration() {
     staleCalibrationDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
     result = run(staleCalibrationDecision);
     assert(result.status === 1, "release validator rejects stale audio-model calibration");
+    writeFileSync(perceptionPath, originalPerceptionReport);
+
+    const reusedCandidateReportDecision = structuredClone(decisionBase);
+    const reusedCandidateReport = loadJson(perceptionPath);
+    reusedCandidateReport.calibration.knownGood.nativeReport = reusedCandidateReport.listener.report;
+    writeJson(perceptionPath, reusedCandidateReport);
+    reusedCandidateReportDecision.candidateAudioApproval.perceptionReport.sha256 = sha(perceptionPath);
+    reusedCandidateReportDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
+    result = run(reusedCandidateReportDecision);
+    assert(result.status === 1, "release validator rejects the candidate native report reused as independent known-good calibration");
+    writeFileSync(perceptionPath, originalPerceptionReport);
+
+    const missingKnownBadNativeDecision = structuredClone(decisionBase);
+    const missingKnownBadNative = loadJson(perceptionPath);
+    delete missingKnownBadNative.calibration.knownBad.nativeReport;
+    writeJson(perceptionPath, missingKnownBadNative);
+    missingKnownBadNativeDecision.candidateAudioApproval.perceptionReport.sha256 = sha(perceptionPath);
+    missingKnownBadNativeDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
+    result = run(missingKnownBadNativeDecision);
+    assert(result.status === 1, "release validator rejects calibration without a known-bad native listen report");
+    writeFileSync(perceptionPath, originalPerceptionReport);
+
+    const knownGoodNativePath = candidateAudioApproval.knownGoodNativeReport.path;
+    const originalKnownGoodNative = readFileSync(knownGoodNativePath);
+    const wrongCalibrationPromptDecision = structuredClone(decisionBase);
+    const wrongCalibrationPromptNative = loadJson(knownGoodNativePath);
+    wrongCalibrationPromptNative.request.promptSha256 = "9".repeat(64);
+    writeJson(knownGoodNativePath, wrongCalibrationPromptNative);
+    const wrongCalibrationPromptReport = loadJson(perceptionPath);
+    wrongCalibrationPromptReport.calibration.knownGood.nativeReport.sha256 = sha(knownGoodNativePath);
+    wrongCalibrationPromptReport.calibration.knownGood.nativeReport.bytes = statSync(knownGoodNativePath).size;
+    writeJson(perceptionPath, wrongCalibrationPromptReport);
+    wrongCalibrationPromptDecision.candidateAudioApproval.perceptionReport.sha256 = sha(perceptionPath);
+    wrongCalibrationPromptDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
+    result = run(wrongCalibrationPromptDecision);
+    assert(result.status === 1, "release validator rejects known-good calibration with different prompt provenance");
+    writeFileSync(knownGoodNativePath, originalKnownGoodNative);
+    writeFileSync(perceptionPath, originalPerceptionReport);
+
+    const knownBadNativePath = candidateAudioApproval.knownBadNativeReport.path;
+    const originalKnownBadNative = readFileSync(knownBadNativePath);
+    const wrongCalibrationModelDecision = structuredClone(decisionBase);
+    const wrongCalibrationModelNative = loadJson(knownBadNativePath);
+    wrongCalibrationModelNative.model.revision = "different-model-revision";
+    writeJson(knownBadNativePath, wrongCalibrationModelNative);
+    const wrongCalibrationModelReport = loadJson(perceptionPath);
+    wrongCalibrationModelReport.calibration.knownBad.nativeReport.sha256 = sha(knownBadNativePath);
+    wrongCalibrationModelReport.calibration.knownBad.nativeReport.bytes = statSync(knownBadNativePath).size;
+    writeJson(perceptionPath, wrongCalibrationModelReport);
+    wrongCalibrationModelDecision.candidateAudioApproval.perceptionReport.sha256 = sha(perceptionPath);
+    wrongCalibrationModelDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
+    result = run(wrongCalibrationModelDecision);
+    assert(result.status === 1, "release validator rejects known-bad calibration with different model provenance");
+    writeFileSync(knownBadNativePath, originalKnownBadNative);
+    writeFileSync(perceptionPath, originalPerceptionReport);
+
+    const incompleteCalibrationDecodeDecision = structuredClone(decisionBase);
+    const incompleteCalibrationDecodeNative = loadJson(knownGoodNativePath);
+    incompleteCalibrationDecodeNative.decodedAudio.coverage.startSample = 1;
+    writeJson(knownGoodNativePath, incompleteCalibrationDecodeNative);
+    const incompleteCalibrationDecodeReport = loadJson(perceptionPath);
+    incompleteCalibrationDecodeReport.calibration.knownGood.nativeReport.sha256 = sha(knownGoodNativePath);
+    incompleteCalibrationDecodeReport.calibration.knownGood.nativeReport.bytes = statSync(knownGoodNativePath).size;
+    writeJson(perceptionPath, incompleteCalibrationDecodeReport);
+    incompleteCalibrationDecodeDecision.candidateAudioApproval.perceptionReport.sha256 = sha(perceptionPath);
+    incompleteCalibrationDecodeDecision.candidateAudioApproval.perceptionReport.bytes = statSync(perceptionPath).size;
+    result = run(incompleteCalibrationDecodeDecision);
+    assert(result.status === 1, "release validator rejects known-good calibration without complete decoded sample provenance");
+    writeFileSync(knownGoodNativePath, originalKnownGoodNative);
     writeFileSync(perceptionPath, originalPerceptionReport);
 
     const rawResponsePath = join(root, "release-candidate-audio-raw-response.txt");

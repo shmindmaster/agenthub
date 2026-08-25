@@ -439,7 +439,7 @@ const VERBS = {
         "  11. evidence-package build immutable evidence-package.json from that exact candidate\n" +
         "  12. preflight     node video-cli.mjs preflight --evidence-package <package.json> --out <preflight.json>\n" +
         "  13. audio-perception node video-cli.mjs audio-perception --candidate <candidate> --out <native-listen-report.json> --candidate-id <id> --source-revision <revision> --render-provenance-id <id>\n" +
-        "      Envelope the immutable native report with local model receipt, fresh calibration, and candidate-audio-perception-report.schema.json.\n" +
+        "      Run the same command independently for known-good and known-bad calibration audio; envelope all three distinct immutable native reports with the shared local model receipt and prompt provenance.\n" +
         "  14. review        dispatch four isolated reviewers; the audio reviewer also adjudicates the audio report\n" +
         "  15. arbitrate     dispatch a fresh release arbiter; validate its decision\n" +
         "  16. remediate     if required, use least-privilege assignments and restart at step 9\n" +

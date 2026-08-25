@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.8.0";
+const expectedVersion = "1.8.1";
 const failures = [];
 
 function readJson(relativePath) {
@@ -219,6 +219,9 @@ if (JSON.stringify(candidateAudioPolicy?.requiredForArbitrationDecisions) !== JS
     candidateAudioPolicy?.promptVersionRequired !== true ||
     candidateAudioPolicy?.maximumCalibrationAgeHours !== 168 ||
     candidateAudioPolicy?.knownGoodAndKnownBadCalibrationRequired !== true ||
+    candidateAudioPolicy?.knownGoodAndKnownBadNativeListenReportsRequired !== true ||
+    candidateAudioPolicy?.candidateAndCalibrationNativeReportsMustBeDistinct !== true ||
+    candidateAudioPolicy?.calibrationPromptModelAndDecodeProvenanceRequired !== true ||
     candidateAudioPolicy?.isolatedReadOnlyAudioReviewerAdjudicationRequired !== true ||
     JSON.stringify(candidateAudioPolicy?.requiredChecks) !== JSON.stringify([
       "full-program", "pronunciation", "delivery-and-pacing", "artifacts-and-discontinuities",
@@ -327,6 +330,7 @@ const requiredText = [
   ["skills/product-demo-studio/SKILL.md", "detect-media-acceleration.mjs"],
   ["skills/product-demo-studio-qa/SKILL.md", "schemas/video-finding.schema.json"],
   ["skills/product-demo-studio-qa/SKILL.md", "listener.kind=local-audio-model"],
+  ["skills/product-demo-studio-qa/SKILL.md", "known-good, and known-bad native reports must be byte-distinct"],
   ["skills/product-demo-studio-qa/SKILL.md", "audio-perception-adjudication.schema.json"],
   ["agents/audio-captions-sync-reviewer.agent.md", "Do not claim that you, an owner, or another human played or heard the candidate"],
   ["agents/final-verifier.agent.md", "mandatory terminal independent reviewer and verifier"],
