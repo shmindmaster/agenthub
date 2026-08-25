@@ -12,6 +12,27 @@
       "whyFleetScoped": "repowise supersedes it but maps to 8 hosts, only 5 of which overlap the 14 carrying repocontext. A capability-scoped retirement would have cleaned 5, left 9, and reported success.",
       "corroboratingResidue": "A whole-disk sweep (not just the skills directories) also found ~/.gemini/antigravity/mcp/repocontext and ~/.gemini/antigravity-ide/mcp/repocontext. These are antigravity's own tool-description caches, holding exactly the eight tools the skill documents -- repo.compare, repo.inspect, repo.read, repo.search, wiki.analyze, wiki.catalog, wiki.get, wiki.search -- each with parameters: null. They are stale caches from when repocontext WAS registered, and antigravity's live mcp_config.json does not list it, so they corroborate the retirement rather than contradicting it. Deliberately NOT swept: they are a host's internal cache, not a managed skill, and are the host's to regenerate.",
       "sweptDirectories": 13
+    },
+    {
+      "name": "firecrawl-cli",
+      "retiredOn": "2026-08-24",
+      "supersededBy": "external:firecrawl/skills",
+      "reason": "AgentHub-authored CLI wrapper that duplicated official firecrawl/cli skills (`firecrawl`, firecrawl-scrape, firecrawl-search, firecrawl-crawl). Official catalog is https://github.com/firecrawl/skills; AgentHub must not ship a second copy under a colliding or near-colliding name.",
+      "whyFleetScoped": "The name is AgentHub-unique, so fleet retirement can sweep deployed copies without deleting an official skill of the same name."
+    },
+    {
+      "name": "firecrawl-codex-research",
+      "retiredOn": "2026-08-24",
+      "supersededBy": "external:firecrawl/skills",
+      "reason": "Thin research router over official Firecrawl search/scrape/crawl. Official core and index skills own that work.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "firecrawl-product-integration",
+      "retiredOn": "2026-08-24",
+      "supersededBy": "external:firecrawl/skills",
+      "reason": "Duplicated official firecrawl-build / firecrawl-build-* SDK integration skills.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
     }
   ],
   "surfaceAliases": [
@@ -46,54 +67,11 @@
   ],
   "capabilities": [
     {
-      "id": "clerk",
-      "owner": "portfolio",
-      "capabilityType": "skill-pack-plugin",
-      "canonicalSource": "packages/clerk",
-      "contentHash": "2AFF8B9E396670BC97CDF157CFDB3854094B6D9F8EA98FE08B1F69A808F658C5",
-      "hashBasis": "packages/clerk",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "managed"
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "managed"
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed"
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "managed"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed"
-        },
-        {
-          "hostId": "qwen-code",
-          "deploymentStatus": "native-extension-junction"
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
-        }
-      ]
-    },
-    {
       "id": "digitalocean",
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin",
       "canonicalSource": "packages/digitalocean",
-      "contentHash": "3B8483B1C8E133F42F6722AD8A47065920382492AEEFFB020B580791E012552D",
+      "contentHash": "08721F8B907ECA243972B01A2FAAFAA8283A02B8B10C46F07F97A90928E7D70B",
       "hashBasis": "packages/digitalocean",
       "status": "active-canonical",
       "hostMappings": [
@@ -136,7 +114,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin+cli",
       "canonicalSource": "packages/elevenlabs",
-      "contentHash": "381733E889B0C66F73E7488FE82B5C02C0986BA51753419EE44B3458AA7EB827",
+      "contentHash": "778052597F1CDA328FFA186E0BA086EBA335D8E214BB3C345C7C94F60AEF6C8F",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
@@ -620,48 +598,23 @@
       ]
     },
     {
-      "id": "framer",
+      "id": "firecrawl",
       "owner": "portfolio",
       "capabilityType": "skills",
-      "canonicalSource": "packages/framer",
+      "canonicalSource": "packages/firecrawl",
       "managedSkillNames": [
-        "framer",
-        "framer-code-components"
+        "firecrawl-web-ingestion"
       ],
-      "legacySkillTreeHashes": {
-        "framer": [
-          "F7373D238B81B6EA20EC1F3810E30D380FA980AC6339491BFFBA9DC482B2BE27"
-        ],
-        "framer-code-components": [
-          "68A371E6D4A413A2F5004B3FB42738D1B3E1FF39964020B3438FDF835AA9C425"
-        ]
-      },
-      "contentHash": "B87161BD85B377BFA41B371D7CA8C58E0F9C515B200A98C0E9EBD4F243C08F77",
-      "hashBasis": "packages/framer",
+      "contentHash": "AAE7859ED2C4775278DC7A1D1495D4641B2B2F5C98ADA62D9A6C833A4FFF6639",
+      "hashBasis": "packages/firecrawl",
       "status": "active-canonical",
       "hostMappings": [
-        {
-          "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
-        },
         {
           "hostId": "claude",
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "copilot",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -669,31 +622,11 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
           "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -701,29 +634,15 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "warp",
+          "hostId": "cline",
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "windsurf",
+          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         }
-      ]
-    },
-    {
-      "id": "firecrawl",
-      "owner": "portfolio",
-      "capabilityType": "skill-pack-plugin",
-      "canonicalSource": "packages/firecrawl",
-      "contentHash": "61D6797B9D62EF8B89355970537E86B0EB41F7B52E479F80CD9BA091EDC87D2A",
-      "hashBasis": "packages/firecrawl",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "codex",
-          "deploymentStatus": "native-plugin-installed"
-        }
-      ]
+      ],
+      "notes": "Converted 2026-08-24 from a republished Firecrawl plugin to a fleet overlay. Official scrape/crawl/cli/build/research skills and the plugin live at https://github.com/firecrawl/skills; the fleet remote MCP remains registry/mcps.json#firecrawl. This package keeps only governed ingestion constraints. Do not restore firecrawl-scrape, firecrawl-crawl, or firecrawl-cli here — those names collide with upstream."
     },
     {
       "id": "local-ai",
@@ -739,10 +658,10 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "82D68126D19DB445E989AF4C6547A2114E81F9DE00D071189A7FA6EC2617134B",
+      "contentHash": "12A916D7EA3AA0F08CAB06D1550F7CCFD596F3C1E215A6B5CF39743AF0A39147",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
-      "hostMappingsNote": "Widened 2026-08-04 from codex-only to the same eight-host tier clerk, digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. firecrawl is also single-mapped and that one IS deliberate -- its deploymentStatus is native-plugin-installed, meaning Codex installs it natively rather than AgentHub deploying it.",
+      "hostMappingsNote": "Widened 2026-08-04 from codex-only to the eight-host tier digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. clerk was removed from that tier on 2026-08-24 because AgentHub does not own Clerk skills (official: clerk/skills). firecrawl is now a fleet overlay (firecrawl-web-ingestion); official Firecrawl ops install from firecrawl/skills.",
       "hostMappings": [
         {
           "hostId": "claude",
@@ -925,7 +844,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "4ABEE3D5B06E66BC9B1F8846162B9D1AB9E1B64F89454624CE7B261FC8807CE8",
+      "contentHash": "0C9753A32A17D34A68F47455D4A9B74C2454275AA92F2534BD58BC6C39639F07",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -1005,7 +924,7 @@
         "use-knowledge-access",
         "opportunity-engine"
       ],
-      "contentHash": "AB06C92C789F8C75168E473C81609E59C3E336100D8E720FB67AAA761B5D3806",
+      "contentHash": "92B7C1A68A363C19F500FBDF500C2691CC6A259BB81782D8F34FEA2911C2792C",
       "hashBasis": "packages/knowledge-access",
       "status": "active-canonical",
       "hostMappings": [
@@ -1239,69 +1158,6 @@
       ],
       "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the source public contract at packages/mobile-development/mobile.ps1, the AgentHub-managed deployed runtime package, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",
       "hostScopeNote": "All active coding hosts receive both loose skills and resolve the catalog through the fleet-managed package under %LOCALAPPDATA%/AgentHub/capabilities/mobile-development, independent of a repository checkout or native marketplace state. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration."
-    },
-    {
-      "id": "railway",
-      "owner": "portfolio",
-      "capabilityType": "skills",
-      "canonicalSource": "packages/railway",
-      "managedSkillNames": [
-        "use-railway"
-      ],
-      "contentHash": "F02837653BFECD1C7CD7F186D02321FA502C2123E4310C1AD020D8370B4A3A77",
-      "hashBasis": "packages/railway",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "notes": "Adopted 2026-08-20: use-railway was a live, working skill (drives the Railway CLI; registry/mcps.json#railway is the separate convenience MCP server) already deployed to 12 host skills directories but owned by no capability, so nothing kept the copies current. A full-fleet diff found the 12 deployed copies are NOT uniform: 8 of the 12 Sync-Capabilities.ps1-reachable destinations (claude, opencode, antigravity, cline, cursor, devin, factory, windsurf) are pinned to RAILWAY_CALLER version 1.3.6 (dated 2026-07-29), while 4 reachable destinations -- ~/.agents/skills (the shared destination codex, gemini and warp resolve to) and ~/.copilot/skills -- are byte-identical to each other at version 1.3.7 (dated 2026-08-12, two weeks newer; only the version-string lines in SKILL.md differ). Canonical content was taken from the majority/brief-suggested copy (~/.claude/skills/use-railway, v1.3.6) so adoption converges the larger group and matches deployed reality for 8 of 12 hosts; codex, gemini, warp and copilot will show drift on audit and get downgraded from 1.3.7 to 1.3.6 by the next -Apply -- flagged for owner review before that runs, since it reverses what looks like a deliberate version bump rather than pure adoption of already-uniform reality. codex's own ~/.codex/skills/use-railway and gemini's own ~/.gemini/skills/use-railway also carry the skill (at v1.3.6) but are unreachable by Sync-Capabilities.ps1 (a host declaring nativePaths.sharedSkillsDir resolves ONLY to that shared directory, never its own skillsDir) and are pre-existing drift outside this capability's management, left untouched. hostMappings intentionally omits cursor-agent: registry/capabilities.json#surfaceAliases already maps cursor-agent to hostId cursor, both resolve to the identical physical ~/.cursor/skills, and no other capability in this registry lists cursor-agent separately."
     },
     {
       "id": "startup-series",

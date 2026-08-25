@@ -1,5 +1,10 @@
 # Firecrawl Tool Router
 
+Official Firecrawl skills own live tool choice. Install
+`npx skills add firecrawl/skills` (or `npx -y firecrawl-cli@latest init`) and
+follow those skills. This page is the fleet reminder of the smallest surface,
+not a fork of the upstream catalog.
+
 Use the smallest Firecrawl V2 surface that can produce the requested evidence. The MCP server is the preferred tool surface; use the CLI when a saved artifact, repeatable command, local-file parse, or explicit job polling is useful.
 
 - `firecrawl_search`: discover current facts, news, companies, papers, or unknown sources. Start with 3-5 results and use time/location/source filters when relevant.

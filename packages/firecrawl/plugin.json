@@ -1,6 +1,0 @@
-{
-  "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "firecrawl",
-  "version": "1.0.0",
-  "description": "Firecrawl research, extraction, crawling, and governed web ingestion workflows."
-}

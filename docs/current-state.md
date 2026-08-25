@@ -155,17 +155,24 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
     reappears in the API surface, so they are the enforcement.
   - Clean end state: `git ls-remote` shows `refs/heads/main` and nothing else.
 
-- **Third-party extension tracking (2026-08-21)**: `registry/native-connectors.json`
-  -> `thirdPartyExtensions` (renamed from `thirdPartyPlugins`) records plugins
-  *and* non-plugin upstream distributions the fleet uses but does not own, with
-  provenance/maturity plus the official channel and last-observed version per
-  host. Tracked today: **superpowers**, **remotion** (official skills package;
-  provides `video.programmatic-composition`), and optional
-  **creative-writing-skills**. `tests/Test-ThirdPartyPlugins.ps1` fails if a
-  lagging host names no fix, if an absent host explains no reason, or if a
-  tracked extension is ever republished from AgentHub's own marketplace.
-  AgentHub does not vendor these — `hostPrivateExtensionPolicy` withholds
-  install authority for claude and codex.
+- **Third-party extension tracking (updated 2026-08-24)**: `registry/native-connectors.json`
+  -> `thirdPartyExtensions` records plugins *and* non-plugin upstream
+  distributions the fleet uses but does not own. Tracked today:
+  **superpowers** (obra/superpowers; Claude observed at 6.3.0), **firecrawl**
+  (firecrawl/skills), **clerk-skills**, **railway**, **framer-agent**,
+  **elevenlabs-skills**, **do-app-platform-skills**, **remotion**, and
+  optional **creative-writing-skills**. AgentHub overlays may add fleet
+  policy (Firecrawl ingestion governance, owner-voice routing, DigitalOcean
+  portfolio map) but must not republish upstream skill names. Measured
+  2026-08-24: AgentHub had been publishing `clerk@agenthub` and
+  `firecrawl@agenthub` and deploying vendored `use-railway` / Framer skills
+  as managed loose skills, which pinned hosts and would have downgraded
+  Railway from 1.3.7 to 1.3.6 on the next Apply. Those packages are gone
+  from the marketplace and `packages/`. `tests/Test-ThirdPartyPlugins.ps1`
+  fails if a lagging host names no fix, if an absent host explains no
+  reason, or if a tracked extension is ever republished from AgentHub's own
+  marketplace. `hostPrivateExtensionPolicy` withholds install authority for
+  claude and codex.
 - **Capability bundles (2026-08-21)**: `registry/bundles.json` names recipes such
   as `technical-series-production` and `engaging-learning` that compose AgentHub
   packages with tracked third-party extensions. Bundles are install-planning

@@ -53,30 +53,6 @@
       "category": "Productivity"
     },
     {
-      "name": "clerk",
-      "source": {
-        "source": "local",
-        "path": "./packages/clerk"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Developer Tools"
-    },
-    {
-      "name": "firecrawl",
-      "source": {
-        "source": "local",
-        "path": "./packages/firecrawl"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Developer Tools"
-    },
-    {
       "name": "browser-toolkit",
       "source": {
         "source": "local",

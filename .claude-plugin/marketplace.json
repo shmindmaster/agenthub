@@ -22,14 +22,6 @@
       "source": "./packages/elevenlabs"
     },
     {
-      "name": "clerk",
-      "source": "./packages/clerk"
-    },
-    {
-      "name": "firecrawl",
-      "source": "./packages/firecrawl"
-    },
-    {
       "name": "browser-toolkit",
       "source": "./packages/browser-toolkit"
     },

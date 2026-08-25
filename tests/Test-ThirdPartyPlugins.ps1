@@ -3,11 +3,14 @@
 Behavior tests for native-connectors.json's thirdPartyExtensions block.
 
 AgentHub owns the packages under packages/. It does not own Superpowers,
-Remotion, or Creative Writing Skills, and the whole point of that block is to
-keep it that way: each host installs a third-party extension from that host's
-own official channel, and AgentHub records what was observed there. The failure
-this guards is the quiet one -- a host falls behind by a few releases and
-nobody notices, because nothing in the repo ever asserted what "current" was.
+Firecrawl, Clerk, Railway, Framer, Remotion, or Creative Writing Skills, and
+the whole point of that block is to keep it that way: each host installs a
+third-party extension from that host's own official channel, and AgentHub
+records what was observed there. The failure this guards is the quiet one --
+a host falls behind by a few releases and nobody notices, because nothing in
+the repo ever asserted what "current" was. Republishing those catalogs from
+the AgentHub marketplace was the other failure: it pinned hosts to the last
+copied revision and could overwrite a newer official install.
 
 Renamed from thirdPartyPlugins on 2026-08-21 so skills packages (Remotion) and
 similar non-plugin distributions share the same provenance system.
@@ -78,6 +81,10 @@ Report 'every tracked extension carries extensionId, upstream, ISO observedAt, h
 $ids = @($extensions | ForEach-Object { [string]$_.extensionId })
 Report 'superpowers remains tracked after generalization' ($ids -contains 'superpowers') 'superpowers missing'
 Report 'remotion is tracked as an official skills-package extension' ($ids -contains 'remotion') 'remotion missing'
+Report 'firecrawl official catalog is tracked rather than republished' ($ids -contains 'firecrawl') 'firecrawl missing'
+Report 'clerk-skills official catalog is tracked rather than republished' ($ids -contains 'clerk-skills') 'clerk-skills missing'
+Report 'railway official plugin is tracked rather than vendored' ($ids -contains 'railway') 'railway missing'
+Report 'framer-agent official installer is tracked rather than vendored' ($ids -contains 'framer-agent') 'framer-agent missing'
 
 $remotion = @($extensions | Where-Object { $_.extensionId -eq 'remotion' })[0]
 if ($remotion) {

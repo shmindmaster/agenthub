@@ -258,20 +258,8 @@
     }
   },
   "bundledServerSuppressions": [],
-  "skillsOnlyPlugins": [
-    {
-      "hostId": "codex",
-      "pluginId": "firecrawl@agenthub",
-      "version": "1.0.0",
-      "mcpId": "firecrawl",
-      "sourcePath": "C:/Repos/shmindmaster/agenthub/packages/firecrawl",
-      "installedSourcePath": "C:/Repos/shmindmaster/agenthub/packages/firecrawl",
-      "deploymentState": "live-verified",
-      "installedState": "skills-only-no-mcp-manifest",
-      "mcpOwner": "registry/mcps.json",
-      "mutationPolicy": "do-not-add-bundled-mcp-without-owner-reassignment"
-    }
-  ],
+  "skillsOnlyPlugins": [],
+  "skillsOnlyPluginsNote": "Emptied 2026-08-24. firecrawl@agenthub was an AgentHub republish of official Firecrawl skills with the MCP stripped so registry/mcps.json kept ownership. AgentHub no longer publishes that plugin. Codex may still have a leftover firecrawl@agenthub install; hostPrivateExtensionPolicy withholds AgentHub from removing it. Replace it with official firecrawl/skills (npx skills add firecrawl/skills) or the Firecrawl Codex plugin. The fleet Firecrawl MCP remains https://mcp.firecrawl.dev/v2/mcp.",
   "exposureModes": [
     "plugin-owned",
     "native-connector",
@@ -692,38 +680,39 @@
         "provides": [
           "workflow.superpowers"
         ],
-        "observedAt": "2026-08-08",
+        "observedAt": "2026-08-24",
         "hostChannels": [
           {
             "hostId": "claude",
             "channel": "claude-plugins-official",
-            "installedVersion": "6.2.0",
+            "installedVersion": "6.3.0",
             "current": true,
-            "updateCommand": "claude plugin update superpowers@claude-plugins-official"
+            "updateCommand": "claude plugin update superpowers@claude-plugins-official",
+            "note": "Observed 2026-08-24 in ~/.claude/plugins/installed_plugins.json (installPath cache/claude-plugins-official/superpowers/6.3.0, lastUpdated 2026-08-18)."
           },
           {
             "hostId": "codex",
             "channel": "openai-curated-remote",
             "installedVersion": "6.2.0",
-            "current": true,
+            "current": false,
             "updateCommand": "Codex app -> Plugins -> Superpowers",
-            "note": "A stale 6.1.1 also sits in the claude-plugins-official cache under ~/.codex; the openai-curated-remote copy is the live one."
+            "note": "Last observed live copy is 6.2.0; upstream latest is v6.3.0 (2026-08-12). A stale 6.1.1 also sits in the claude-plugins-official cache under ~/.codex."
           },
           {
             "hostId": "antigravity",
             "channel": "upstream-git",
             "installedVersion": "6.2.0",
-            "current": true,
+            "current": false,
             "updateCommand": "agy plugin install https://github.com/obra/superpowers",
-            "note": "Installed 2026-08-08; it was absent before. Upstream documents reinstall-as-update for this host. 14 skills + 1 hook imported."
+            "note": "Installed 2026-08-08 at 6.2.0. Upstream latest is v6.3.0; reinstall-as-update per upstream docs."
           },
           {
             "hostId": "grok",
             "channel": "upstream-git",
             "installedVersion": "6.2.0",
-            "current": true,
+            "current": false,
             "updateCommand": "grok plugin update superpowers",
-            "note": "Clone is at the v6.2.0 release commit; origin/main is 2 docs-only commits ahead. The 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory - retry when no grok session is running."
+            "note": "Clone last observed at v6.2.0. Upstream latest is v6.3.0. A 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory — retry when no grok session is running."
           },
           {
             "hostId": "cursor",
@@ -753,6 +742,318 @@
           "name": "superpowers-dev",
           "note": "The manifest in obra/superpowers self-describes as a development marketplace. Upstream's README points Claude Code at Anthropic's official marketplace first and at obra/superpowers-marketplace second; the development marketplace is not the distribution channel."
         }
+      },
+      {
+        "extensionId": "firecrawl",
+        "kind": "plugin",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/firecrawl/skills",
+        "maintainer": "Firecrawl",
+        "license": "ISC",
+        "capabilityKind": "skills-and-mcp",
+        "declaresMcpServers": true,
+        "required": false,
+        "provides": [
+          "web.firecrawl"
+        ],
+        "install": {
+          "command": "npx skills add firecrawl/skills",
+          "docs": "https://github.com/firecrawl/skills"
+        },
+        "note": "Official core/build/workflow skills plus Claude/Cursor/Codex plugin packaging. AgentHub keeps only the firecrawl-web-ingestion overlay and the shared-remote MCP at https://mcp.firecrawl.dev/v2/mcp. Do not republish firecrawl-scrape or firecrawl-crawl from AgentHub.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add firecrawl/skills",
+            "note": "Official plugin also ships .claude-plugin/; prefer that or npx skills add over any AgentHub marketplace copy."
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-plugin",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add firecrawl/skills",
+            "note": "A leftover firecrawl@agenthub skills-only install may still be present. Replace it with official firecrawl/skills. MCP stays registry-owned (shared-remote)."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-plugin",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add firecrawl/skills",
+            "note": "Official repo ships .cursor-plugin/."
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native Firecrawl plugin channel; use official skills install if the host gains Agent Skills support."
+          }
+        ]
+      },
+      {
+        "extensionId": "clerk-skills",
+        "kind": "plugin",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/clerk/skills",
+        "maintainer": "Clerk",
+        "license": "MIT",
+        "capabilityKind": "skills",
+        "declaresMcpServers": false,
+        "required": false,
+        "provides": [
+          "auth.clerk"
+        ],
+        "install": {
+          "command": "npx skills add clerk/skills",
+          "docs": "https://github.com/clerk/skills"
+        },
+        "note": "AgentHub previously republished a subset of these skills as clerk@agenthub. That package is gone. Install official clerk/skills (or clerk-skills on Codex).",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add clerk/skills"
+          },
+          {
+            "hostId": "codex",
+            "channel": "clerk-skills-marketplace",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "codex plugin marketplace add clerk/skills",
+            "note": "Then install clerk-skills from the Clerk Skills marketplace."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-plugin",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add clerk/skills",
+            "note": "Official Cursor plugin lives at https://github.com/clerk/cursor-plugin and vendors clerk/skills as a submodule."
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native Clerk plugin; official skills install is the documented path."
+          }
+        ]
+      },
+      {
+        "extensionId": "railway",
+        "kind": "plugin",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/railwayapp/railway-skills",
+        "maintainer": "Railway",
+        "license": "MIT",
+        "capabilityKind": "skills-and-mcp",
+        "declaresMcpServers": true,
+        "required": false,
+        "provides": [
+          "deploy.railway"
+        ],
+        "install": {
+          "command": "railway setup agent",
+          "docs": "https://docs.railway.com/ai/agent-skills"
+        },
+        "note": "AgentHub previously vendored use-railway as managed-loose-skills and would have downgraded hosts from 1.3.7 to 1.3.6 on the next Apply. That package is gone. Keep the fleet remote MCP at https://mcp.railway.com; do not spawn railway mcp stdio.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "claude-plugins-official",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "/plugin install railway@claude-plugins-official"
+          },
+          {
+            "hostId": "codex",
+            "channel": "openai-curated-remote",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "Codex app -> Plugins -> Railway"
+          },
+          {
+            "hostId": "cursor",
+            "channel": "cursor-public",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "/add-plugin railway"
+          },
+          {
+            "hostId": "grok",
+            "channel": "xai-plugin-marketplace",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "grok -> /plugins -> Marketplace -> railway"
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native Railway plugin; railway setup agent covers documented agent targets."
+          }
+        ]
+      },
+      {
+        "extensionId": "framer-agent",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://www.framer.com/agents/external/",
+        "maintainer": "Framer",
+        "license": "See upstream",
+        "install": {
+          "command": "npx @framer/agent@latest setup",
+          "docs": "https://www.framer.com/agents/external/"
+        },
+        "provides": [
+          "design.framer"
+        ],
+        "required": false,
+        "note": "Official installer writes framer and framer-code-components into host skill directories. AgentHub previously copied those skills and would overwrite official updates on Sync -Apply. That package is gone.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-cli",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx @framer/agent@latest setup"
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-cli",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx @framer/agent@latest setup"
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-cli",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx @framer/agent@latest setup"
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "Official setup documents ~/.agents/skills and ~/.claude/skills; no separate Cline path verified."
+          }
+        ]
+      },
+      {
+        "extensionId": "elevenlabs-skills",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/elevenlabs/skills",
+        "maintainer": "ElevenLabs",
+        "license": "MIT",
+        "install": {
+          "command": "npx skills add elevenlabs/skills",
+          "docs": "https://github.com/elevenlabs/skills"
+        },
+        "provides": [
+          "audio.elevenlabs"
+        ],
+        "required": false,
+        "note": "Official product skills (TTS, STT, agents, music, dubbing). AgentHub packages/elevenlabs is a fleet overlay: owner-voice stays local and the bundled CLI is the non-owner route. Do not replace that overlay with a vendored copy of this catalog.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add elevenlabs/skills"
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add elevenlabs/skills"
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add elevenlabs/skills"
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native ElevenLabs channel; official skills install if the host supports Agent Skills."
+          }
+        ]
+      },
+      {
+        "extensionId": "do-app-platform-skills",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/digitalocean-labs/do-app-platform-skills",
+        "maintainer": "DigitalOcean",
+        "license": "MIT",
+        "install": {
+          "command": "npx skills add digitalocean-labs/do-app-platform-skills",
+          "docs": "https://github.com/digitalocean-labs/do-app-platform-skills"
+        },
+        "provides": [
+          "cloud.app-platform-design"
+        ],
+        "required": false,
+        "note": "Official App Platform design/migration/networking skills. AgentHub packages/digitalocean stays: it is the fleet doctl overlay plus the portfolio app map, not a copy of this catalog.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add digitalocean-labs/do-app-platform-skills"
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add digitalocean-labs/do-app-platform-skills"
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add digitalocean-labs/do-app-platform-skills"
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native DigitalOcean App Platform skills channel."
+          }
+        ]
       },
       {
         "extensionId": "remotion",

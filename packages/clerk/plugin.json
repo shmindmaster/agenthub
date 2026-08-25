@@ -1,6 +1,0 @@
-{
-  "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "clerk",
-  "version": "0.2.0",
-  "description": "Clerk authentication setup, application patterns, organizations, webhooks, API, CLI, and testing."
-}

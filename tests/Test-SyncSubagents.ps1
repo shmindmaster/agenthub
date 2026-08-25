@@ -287,7 +287,7 @@ function Test-SecondApplyIsIdempotent {
 }
 
 # --- Behavior 7: a capability with no agents/ directory at all (the
-# majority of registry/capabilities.json -- e.g. clerk) is skipped cleanly,
+# majority of registry/capabilities.json -- e.g. digitalocean) is skipped cleanly,
 # never causing an error, and never appears in the results. ---
 function Test-CapabilityWithoutAgentsDirectoryIsSkippedCleanly {
     $userProfile = New-SyntheticProfile -Name 'no-agents-dir' -InstallCodex
@@ -296,8 +296,8 @@ function Test-CapabilityWithoutAgentsDirectoryIsSkippedCleanly {
         if ($result.ExitCode -ne 0) {
             return @{ Passed = $false; Detail = "exit code was $($result.ExitCode) running against the real registry, which contains capabilities with no agents/ dir. Output: $($result.Output)" }
         }
-        if ($result.Output -match '(?m)^clerk\s') {
-            return @{ Passed = $false; Detail = "capability 'clerk' (no agents/ directory) unexpectedly appears in the results. Output: $($result.Output)" }
+        if ($result.Output -match '(?m)^digitalocean\s') {
+            return @{ Passed = $false; Detail = "capability 'digitalocean' (no agents/ directory) unexpectedly appears in the results. Output: $($result.Output)" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {

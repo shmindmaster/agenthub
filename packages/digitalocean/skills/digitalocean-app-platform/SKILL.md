@@ -5,6 +5,17 @@ description: Use when DigitalOcean App Platform apps need inspection or changes 
 
 # DigitalOcean App Platform
 
+This skill is the fleet overlay: live `doctl` operations against the owner's
+App Platform apps and the portfolio map below. Design, migration, networking,
+and App Spec authoring belong to DigitalOcean's official skills, not a copy
+here:
+
+```bash
+npx skills add digitalocean-labs/do-app-platform-skills
+```
+
+Upstream: https://github.com/digitalocean-labs/do-app-platform-skills
+
 ## Workflow
 
 1. Identify the app from repo, app name, domain, or app id. If ambiguous, run `doctl apps list -o json`.

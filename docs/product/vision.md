@@ -5,8 +5,12 @@ servers, and policy across all coding-agent hosts in the fleet.
 
 ## Purpose
 
-- `packages/<name>/` holds every canonical capability; the registry
-  distinguishes installable plugins from portable skill packs.
+- `packages/<name>/` holds every **AgentHub-owned** capability; the registry
+  distinguishes installable plugins from portable skill packs. Official
+  third-party plugins and skills (Superpowers, Firecrawl, Clerk, Railway,
+  Framer, Remotion, and similar) stay at their upstream and are tracked in
+  `registry/native-connectors.json` -> `thirdPartyExtensions`. AgentHub may
+  overlay fleet policy on top of them; it must not republish or pin a copy.
 - Product repositories never contain plugin code, video tooling, or generated
   experience artifacts.
 - Everything generated at runtime lives under `%LOCALAPPDATA%\AgentHub`.

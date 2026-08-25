@@ -123,7 +123,7 @@ function Test-PowerShellModuleLineEndingsAreStable {
 
 # --- Behavior 4: if git is unavailable, fail loudly instead of returning a wrong hash. ---
 function Test-UnavailableGitFailsLoudly {
-    $packageDir = Join-Path $repoRoot 'packages\framer'
+    $packageDir = Join-Path $repoRoot 'packages\digitalocean'
     $originalPath = $env:PATH
     try {
         $filtered = ($originalPath -split ';' | Where-Object {
@@ -173,7 +173,7 @@ function Test-NonWorkTreePathFailsLoudly {
 # --- Behavior 6: zero tracked files under an existing directory must fail loudly, not silently hash an empty set. ---
 #
 # The empty directory used to be created (and removed) directly inside the
-# checkout's own packages/framer. That is untracked content written to the
+# checkout's own packages/digitalocean. That is untracked content written to the
 # real repository tree for the length of this behavior -- harmless to git
 # status, but not to a process watching the repo for writes. It now lives
 # inside the same isolated fixture repo Behaviors 1 and 2 use, untracked

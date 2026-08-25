@@ -5,6 +5,17 @@ description: Use when approved text needs ElevenLabs speech generation, voice se
 
 # ElevenLabs TTS
 
+Product SDK, agents, music, dubbing, and voice-isolation work belongs to the
+official ElevenLabs skills, not this overlay:
+
+```bash
+npx skills add elevenlabs/skills
+```
+
+Upstream: https://github.com/elevenlabs/skills. This skill is the fleet
+routing layer: owner-voice stays local, and non-owner TTS uses the bundled
+CLI.
+
 ## Check first: is this the owner's own voice?
 
 If the requested narration is Sarosh's voice, **stop and use the local route
