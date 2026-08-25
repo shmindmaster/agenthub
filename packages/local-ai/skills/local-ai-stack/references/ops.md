@@ -13,6 +13,41 @@ Control plane remains `ai.ps1` / `$LocalAiControl`.
 | Attachments | Open WebUI service-owned upload storage | current chat context | treat as persistent corpus ingestion |
 | Artifacts | `policy.single_artifact_root` | generated media and validation evidence | write generated output into model/runtime/catalog roots |
 
+### Reclaiming space in the WSL2 disk Qdrant lives in
+
+Qdrant's named volumes sit inside Docker Desktop's data disk, a `.vhdx` under
+`Docker\wsl\disk` that is a **separate** file from the `docker-desktop` distro's
+own `ext4.vhdx` under `Docker\wsl\main`. Freeing space inside the guest — pruning
+containers, images, or build cache — does not shrink that file. On an install
+predating Docker's sparse-by-default behavior it only ever grows.
+
+Two mechanisms, and they are mutually exclusive at any one moment:
+
+- **Sparse flag** (`fsutil sparse setflag`, no elevation) lets the guest's TRIM
+  punch holes, so future frees release automatically. It does **not** retroactively
+  deallocate blocks already written, so setting it releases almost nothing at the
+  time — the reclaim arrives over subsequent restarts as TRIM runs. Measured
+  2026-08-25: 85.56 GB allocated at flag-set, 72.14 GB one restart later.
+- **`diskpart compact vdisk`** (elevated, Docker and WSL fully stopped) reclaims
+  everything at once, down to real usage.
+
+The trap is that they collide: `compact vdisk` refuses a sparse file outright
+("must be uncompressed and unencrypted and must not be sparse"). Clearing the flag
+first works, but NTFS fills every hole with real zeros to do it, so the file jumps
+back to full logical size before the compact shrinks it. Budget the free space for
+that spike. The working order is clear flag → compact → set flag again; measured
+86.41 GB → 47.16 GB in ~1 min.
+
+Measure with `GetCompressedFileSizeW`, not `Get-Item .Length`. Once the file is
+sparse the two diverge, and `.Length` reports the logical size — the number that
+does not change no matter how much you reclaim.
+
+Bring the stack back afterwards. Containers with `restart=unless-stopped` return
+on their own; anything at `restart=no` does not, so record `docker ps` before
+stopping. Local-AI's own host services (ollama, retrieval, local-ai-api) are not
+containers and need `ai.ps1 start core --gpu-text` — without that flag the text
+embedder silently comes back on CPU.
+
 ## Open WebUI attachments vs persistent corpus retrieval
 
 Treat these as separate storage behaviors:

@@ -73,10 +73,16 @@ Proceed only for the route whose checks passed:
 & $LocalAiControl start <target>
 & $LocalAiControl stop <target>
 & $LocalAiControl reclaim <minimum GiB>
+& $LocalAiControl refresh <knowledge|legal|all>
 & $LocalAiControl reindex <knowledge|legal|all> [--recreate] [--activate]
 ```
 
-`start`, `stop`, `restart`, `clean`, `reclaim`, every `reindex`, media generation,
+`refresh` is the corpus entry point: scan, build, rebuild only what changed,
+verify parity, switch the alias, retire the old collection. It embeds nothing
+when the corpus is already current. `reindex` is the low-level third stage and
+does not notice new files or move aliases.
+
+`start`, `stop`, `restart`, `clean`, `reclaim`, every `refresh` and `reindex`, media generation,
 `--recreate`, and `--activate` mutate shared runtime state, consume shared GPU,
 or write artifacts. Inspect the exact target and active jobs, then obtain the
 authority required by the current task. Build a replacement collection without
