@@ -39,6 +39,56 @@ architecture decisions.
 
 Do not call it to avoid reading the exact file you are editing.
 
+## Sibling stores
+
+RepoWise is one of three retrieval stores and the only one that is not a
+vector index. Route before you search:
+
+| You are asking | Go to |
+| --- | --- |
+| Where is this symbol, who wrote it, what breaks if I change it | RepoWise (here) |
+| What have we done, built, proposed, or written about X | Qdrant `knowledge`, via `use-knowledge-access` |
+| Anything touching a legal matter | Qdrant `legal`, via Local-AI `query.ps1` only |
+
+**RepoWise stores no embeddings.** Search here is FTS5 keyword matching plus
+the symbol and call graph -- there is no semantic search over code. A question
+phrased in different words than the source uses returns nothing, and that empty
+result is not evidence the code lacks the thing. Try a synonym or `grep` before
+concluding absence.
+
+The split is deliberate and should stay. A graph traversal is not a vector
+query, and `legal` is walled off at the collection level so opportunity and
+resume work cannot reach legal matters. Do not fold these into one store.
+
+Scope boundary: RepoWise covers git repos under `C:\Repos`. It must never be
+pointed at `D:\OneDrive - MahumTech\Documents`, which is not a git root and
+carries a client-name output gate. See `docs/architecture/overview.md` in
+agenthub for the full contract.
+
+## Local-only
+
+RepoWise on this fleet is a **local disk index**, not a hosted product.
+
+- Indexes live in each repo's `.repowise/` (`wiki.db`, `knowledge-graph.json`,
+  `state.json`). The workspace graph lives in `C:\Repos\.repowise-workspace\`.
+  Those directories are gitignored.
+- The agent surface is local stdio: `repowise mcp C:/Repos` (`repowise-workspace`
+  in `registry/mcps.json`). Do not point it at a remote URL.
+- `repowise whoami` must stay **Not signed in**. Do not `repowise login` or
+  paste an `rw_live_` token. A hosted account would send repository
+  intelligence off the machine.
+- Telemetry must stay **disabled** (`repowise telemetry disable`). Status is
+  `repowise telemetry status`.
+- Default update path is `--index-only` / `--no-docs`: parse files, rebuild
+  the graph, refresh git/dead-code. That does not call an LLM and does not
+  need an API key.
+- `repowise update --full` / `--docs` is optional LLM wiki generation. It
+  uses a provider from the **process environment**, never a key stored in
+  AgentHub. Do not run it against `portfolio-records` or any private
+  evidence repo. Do not `--save-key`.
+- Do not add per-repo RepoWise MCP entries. Do not index
+  `D:\OneDrive - MahumTech\Documents`.
+
 ## Access
 
 CLI on this machine is uv-managed (`uv tool install repowise`). Keep it on

@@ -10,6 +10,16 @@ corpus. This skill is the access layer: map, exact search, semantic
 search, then read. RepoWise indexes git repos under `C:\Repos`. Do not
 point RepoWise at OneDrive, and do not walk the whole documents tree.
 
+Reach for RepoWise instead of this skill when the question is about code:
+where a symbol lives, who wrote it, what breaks if it changes. Two things
+about it change how you read its answers. It has **no embeddings** -- search
+there is keyword plus call graph, so an empty result means your words did not
+match the source, not that the code lacks the thing. And **59 of its 62 repos
+have no generated prose docs** (verified 2026-08-24), so "explain this repo"
+returns structure, not narrative. This skill is the opposite: Qdrant
+`knowledge` is a vector index, so it finds a document that never uses your
+phrasing. Full routing table: `docs/architecture/overview.md` in agenthub.
+
 ## Authority
 
 1. The file on disk (cite path, and page for PDFs).

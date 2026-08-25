@@ -92,15 +92,19 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   Docker RAG container. Duckie keeps host `6333`.
 - **RepoWise workspace** at `C:\Repos` (relocated 2026-08-21 from
   `C:\Repos\shmindmaster`; created 2026-08-08): covers git repos under
-  `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah` (62 members).
-  CLI upgraded 0.39.0 → 0.44.0 the same day and is kept on the PyPI latest
-  by `scripts/Update-RepoWise.ps1` (scheduled task `AgentHub-Update-RepoWise`).
-  `repowise-workspace` MCP args are `repowise mcp C:/Repos`. agenthub is
-  the default/primary repo. Per-repo indexes live in each repo's
-  `.repowise/`; cross-repo graph lives in `C:\Repos\.repowise-workspace\`.
-  Fleet policy does not persist this stdio MCP into every host config
-  (on-demand-local); Claude is already wired, other hosts use the
-  `use-repowise` skill plus CLI.
+  `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah` (**63
+  members** as of 2026-08-24: 18 shmindmaster including
+  `portfolio-records`, 1 sh-pendoah, 2 musa-dev-team, 42 pendoah). All 63
+  indexed, 0 stale vs HEAD. Nested fixture gits are not members
+  (`crewscore/.corpus-cache/*`, `duckie-app/deploy` which is
+  `duckie-deploy`). CLI 0.44.0, kept on PyPI latest by
+  `scripts/Update-RepoWise.ps1`. MCP is local stdio `repowise mcp C:/Repos`.
+  **Local-only:** not signed in to a hosted RepoWise account; telemetry
+  disabled 2026-08-24 (`repowise telemetry disable`); indexes stay in each
+  repo's `.repowise/` plus `C:\Repos\.repowise-workspace\`; default update
+  is `--index-only` (no LLM). Do not `repowise login`. agenthub is the
+  default/primary repo. On-demand-local: Claude is wired, other hosts use
+  the `use-repowise` skill plus CLI.
 - **Fleet checker**: `scripts/Check-RepoStandard.ps1` with fixture tests in
   `tests/Test-RepoStandard.ps1` (11 behavior checks, passing 2026-08-08).
 - **Skill deployment ledger**: fixed 2026-08-08. `Sync-Capabilities.ps1` wrote
