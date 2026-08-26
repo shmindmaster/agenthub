@@ -7,7 +7,9 @@ description: Use when a video or audio job needs local generation — owner or r
 
 Load `local-ai-stack` first and resolve `$LocalAiControl`. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
 
-**Rapid default:** generate the locked narration with local TTS, then stop. Do not start Comfy, Motif, lipsync, portrait, or music unless the director called for that plate.
+Load `../media-studio/references/engagement.md` (Generate / compose / QA own) for plate choice.
+
+**TTS always.** Viewer-facing jobs also generate the directed music (`musicCue: bed` or `sting`) unless `intent: draft` or `music: none`. Do not start Comfy, Motif, lipsync, or portrait unless the director called for that plate.
 
 Owner voice is local-only. Never ElevenLabs or another hosted TTS for Sarosh.
 
@@ -29,7 +31,7 @@ Start only the route you need (`voice`, `media` / Comfy, `music`). Do not start 
 | Portrait | `ai.ps1 portrait <image>` (specialty) | `references/video.md` |
 | Music bed | `ai.ps1 music <batch.json>` | `references/music.md` |
 | Transcribe | `ai.ps1 transcribe <path>` | `references/voice.md` |
-| Full-program listen | `ai.ps1 listen` | `references/voice.md` |
+| Full-program listen | `ai.ps1 listen <encoded-media> --output <report.json>`; add `--timeline <timeline.json>` above 90 seconds | `references/voice.md` |
 
 Score every owner-voice segment before it is composed. Do not respell input to fix pronunciation.
 

@@ -80,3 +80,8 @@ green without running checks.
   (rapid concept → video). Product Demo Studio is not renamed; it remains the
   product-screencast engine and bounces other kinds here. Remotion stays
   third-party (`npx skills add remotion-dev/skills`).
+- 2026-08-26: Viewer-facing media-studio jobs apply
+  `packages/media-studio/skills/media-studio/references/engagement.md`. Rapid
+  still infers-and-runs; it no longer skips music/pacing/visual change for
+  viewer-facing non-screencast kinds. Product-screencast craft stays in the PDS
+  killer-demo guide. `intent: draft` remains the GPU skip.

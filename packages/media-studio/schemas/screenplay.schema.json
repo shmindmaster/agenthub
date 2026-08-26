@@ -9,6 +9,11 @@
     "title": { "type": "string", "minLength": 1 },
     "kind": { "type": "string" },
     "voice": { "type": "string" },
+    "hook": {
+      "type": "string",
+      "description": "Spoken opening that carries payoff or pain in the first 5–8 seconds."
+    },
+    "emotionalTarget": { "type": "string" },
     "scenes": {
       "type": "array",
       "minItems": 1,
@@ -28,6 +33,16 @@
           "action": { "type": "string" },
           "highlight": { "type": "string" },
           "durationSeconds": { "type": "number", "minimum": 0.5 },
+          "pauseBeforeSeconds": { "type": "number", "minimum": 0 },
+          "holdAfterSeconds": { "type": "number", "minimum": 0 },
+          "emphasis": {
+            "type": "string",
+            "description": "One stressed word or short phrase, not a whole sentence."
+          },
+          "musicCue": {
+            "type": "string",
+            "enum": ["none", "bed", "sting", "silence"]
+          },
           "truth": {
             "type": "string",
             "enum": ["FACT", "DRAMATIZED", "COMPOSITE"]

@@ -205,12 +205,16 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `comedy-writer`); generic craft lives in the studio packages. Private show
   bibles stay outside AgentHub.
 
-- **Local media studio (2026-08-25):** `packages/media-studio` is the **only
-  public** video/audio/animation pack. Rapid default: a concept or outline is
-  enough; writer → director → Local-AI generate → Remotion/FFmpeg/Recast compose
-  in one run. Kinds: briefing, training, explainer, talking-head, animation,
-  audio-only, and `product-screencast`. `product-demo*` **skills are
-  fleet-retired**; the Playwright + Recast + four-domain engine remains in
+- **Local media studio (2026-08-25, craft 2026-08-26):** `packages/media-studio`
+  is the **only public** video/audio/animation pack (`1.3.0`). Rapid default: a
+  concept or outline is enough; writer → director → Local-AI generate →
+  Remotion/FFmpeg/Recast compose in one run. Viewer-facing jobs apply
+  `skills/media-studio/references/engagement.md` (hook, contrast, pauses, ducked
+  bed, visual change per idea); `intent: draft` skips GPU plates. Product
+  screencasts keep the PDS killer-demo / story-experience gate. Kinds: briefing,
+  training, explainer, talking-head, animation, audio-only, and
+  `product-screencast`. `product-demo*` **skills are fleet-retired**; the
+  Playwright + Recast + four-domain engine remains in
   `packages/product-demo-studio/pipeline` and is invoked by media-studio, not
   loaded as a public skill. Owner voice remains
   `ai.ps1 voice qwen-clone --voice sarosh`. Remotion is official

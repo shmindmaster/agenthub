@@ -5,4 +5,4 @@ argument-hint: "<concept or --kind briefing|training|explainer|talking-head|anim
 
 Produce local-studio media from: $ARGUMENTS
 
-Load `skills/media-studio/SKILL.md` and run the rapid path. Infer kind, voice, duration, and compositor. Do not load retired `product-demo` skills.
+Load `skills/media-studio/SKILL.md` and run the rapid path. Infer kind, voice, duration, and compositor. Viewer-facing jobs load `skills/media-studio/references/engagement.md` before writing. Do not load retired `product-demo` skills.

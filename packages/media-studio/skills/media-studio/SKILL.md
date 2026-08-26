@@ -7,7 +7,7 @@ description: Use when the user wants any video, audio, animation, briefing, trai
 
 **This is the only public video plugin.** Product Demo Studio is the internal screencast engine (scripts, review agents, Recast). Do not load `product-demo` or `product-demo-studio-*` skills; they are retired.
 
-**Default: rapid.** A concept, outline, or bullets is enough. Infer the rest, run the crew, return a candidate.
+**Default: rapid.** A concept, outline, or bullets is enough. Infer the rest, run the crew, return a candidate. Rapid means infer-and-run, not skip craft.
 
 Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\<job-id>`. Never write media into AgentHub or a product repo.
 
@@ -19,13 +19,13 @@ $Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Re
 
 ## Rapid path
 
-1. Infer **kind** (table). Create `job.json`.
-2. Defaults: owner/internal voice `sarosh`; briefings 1600×1000 30 fps; duration ~150 wpm.
-3. `media-writer` → locked screenplay.
-4. `media-director` → visual mode. `screen` only for a running product.
-5. `media-studio-generate` + `local-ai-stack` → TTS. Skip Motif/lipsync/music unless needed.
-6. Compose: briefing kit Remotion, FFmpeg mux, or Recast for a captured product trace (`media-studio-capture`).
-7. Screencast kind also runs `media-studio-qa` (PDS gates, local `ai.ps1 listen`). Other kinds: identity-score owner voice and stop.
+1. Infer **kind** (table). Create `job.json`. Default `intent: viewer-facing` unless the user asked for a scratch, proxy, or timing pass (`draft`).
+2. Defaults: owner/internal voice `sarosh`; briefings 1600×1000 30 fps; duration ~150 wpm. Viewer-facing jobs load `references/engagement.md` before the writer. Product screencasts use the PDS killer-demo guide instead.
+3. `media-writer` → locked screenplay (`hook`, `emotionalTarget`, pauses).
+4. `media-director` → visual mode, `musicCue`, hold. `screen` only for a running product.
+5. `media-studio-generate` + `local-ai-stack` → TTS. Viewer-facing: also the directed music bed. Motif/lipsync/portrait only when direction called for that plate. `draft` skips those GPU plates and records the skip.
+6. Compose: briefing kit Remotion, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`).
+7. `media-studio-qa`: screencast → PDS gates. Other kinds → identity-score, `ai.ps1 listen`, engagement pass on the encoded file.
 
 Owner voice: `ai.ps1 voice qwen-clone --voice sarosh` only.
 
@@ -35,7 +35,7 @@ Owner voice: `ai.ps1 voice qwen-clone --voice sarosh` only.
 | --- | --- | --- |
 | Live app walkthrough, demo-worthiness, pointer/click | `product-screencast` | assess (`$Pds\commands\demo-assess.md`) → capture → local voice → Recast → QA |
 | Series / Receipts episode | `series-episode` | `story-series` then compose here |
-| Argument, prep, briefing, slide-led | `briefing` | Remotion kit + local voice |
+| Argument, prep, briefing, slide-led | `briefing` | Remotion kit + local voice + bed |
 | Exam / how-to clip | `training` | Remotion or FFmpeg |
 | Technical idea, no live product required | `explainer` | Remotion + diagrams |
 | Face + new audio | `talking-head` | voice then `ai.ps1 lipsync` |

@@ -5,7 +5,7 @@ description: Use when a media-studio job needs truthful non-product-UI imagery, 
 
 # Media studio visuals
 
-Generated or stock imagery only to clarify problem, outcome, or context. Never synthesize product UI, customer evidence, metrics, or testimonials.
+Generated or stock imagery only to clarify problem, outcome, or context (engagement.md B-roll). Never synthesize product UI, customer evidence, metrics, or testimonials.
 
 Local default: `ai.ps1 image` / Visual Bank (`local-ai-stack` `references/image.md`). Exact logos and legal text are compositor type.
 

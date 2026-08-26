@@ -32,7 +32,7 @@ TAKEAWAY           what the viewer should remember
 - Optional companion bullets for docs / learning cards
 
 After the visual plan exists, compose the film through `media-studio` (kind
-`explainer`). Do not load retired `product-demo*` skills.
+`explainer`, viewer-facing engagement). Do not load retired `product-demo*` skills.
 
 ## Non-goals
 

@@ -1314,7 +1314,7 @@
         "technical-explainer",
         "technical-visualizer"
       ],
-      "contentHash": "5767D184ADCEBE3462CD153CF67EEA9FFF89574E12C1EB77E49369F29D5DA90A",
+      "contentHash": "F2D816497864C176F48C182E85353C9A96DEFF31CA8640E678F86FBB6246583A",
       "hashBasis": "packages/technical-storytelling",
       "status": "active-canonical",
       "hostMappings": [
@@ -1360,7 +1360,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-21. Shared technical explanation + visualization planning for demos, series, learning, and docs. No private show content. Remotion remains optional via external:remotion. Non-screencast composition routes through media-studio.",
+      "notes": "Added 2026-08-21. Shared technical explanation + visualization planning for demos, series, learning, and docs. No private show content. Remotion remains optional via external:remotion. Non-screencast composition routes through media-studio; a film visual that never changes is unfinished (media-studio engagement.md).",
       "dependencies": {
         "requires": [],
         "recommends": [],
@@ -1530,7 +1530,7 @@
         "media-studio-visuals",
         "media-studio-descript"
       ],
-      "contentHash": "2AE0F624C6D0F304696F3927D2DC987EFEEC046A9C460FF4885CF40CC5AFD236",
+      "contentHash": "522F6910A29419AF8E63DC14404C36B11EC6C25700A9CB65EC6D150377BEB3D7",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1619,7 +1619,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25. Only public video/audio pack. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25. Only public video/audio pack (1.3.0). Viewer-facing jobs apply skills/media-studio/references/engagement.md; intent:draft skips GPU plates. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"
@@ -1641,6 +1641,6 @@
       "provenance": "agenthub-owned"
     }
   ],
-  "lastValidatedAt": "2026-08-25T00:00:00.000Z",
-  "lastCanonicalChangeAt": "2026-08-25T00:00:00.000Z"
+  "lastValidatedAt": "2026-08-26T00:00:00.000Z",
+  "lastCanonicalChangeAt": "2026-08-26T00:00:00.000Z"
 }

@@ -85,13 +85,17 @@ Report 'Cursor skillsDir has desktop-evidence (cursor-agent reads this path, not
     (Test-Path -LiteralPath $cursorDesktop) `
     "missing $cursorDesktop"
 
-$pluginFinish = @(
-    (Join-Path $env:USERPROFILE '.claude\plugins\cache\agenthub\media-studio\1.2.0\scripts\Finish-Media.ps1'),
-    (Join-Path $env:USERPROFILE '.codex\plugins\cache\agenthub\media-studio\1.2.0\scripts\Finish-Media.ps1')
-)
-$pluginHits = @($pluginFinish | Where-Object { Test-Path -LiteralPath $_ }).Count
-Report 'Claude or Codex plugin cache ships Finish-Media.ps1 at 1.2.0' ($pluginHits -gt 0) `
-    "checked: $($pluginFinish -join '; ')"
+$pluginFinish = [Collections.Generic.List[string]]::new()
+foreach ($cacheRoot in @(
+        (Join-Path $env:USERPROFILE '.claude\plugins\cache\agenthub\media-studio'),
+        (Join-Path $env:USERPROFILE '.codex\plugins\cache\agenthub\media-studio')
+    )) {
+    if (-not (Test-Path -LiteralPath $cacheRoot)) { continue }
+    Get-ChildItem -LiteralPath $cacheRoot -Recurse -Filter 'Finish-Media.ps1' -File -ErrorAction SilentlyContinue |
+        ForEach-Object { $pluginFinish.Add($_.FullName) }
+}
+Report 'Claude or Codex plugin cache ships Finish-Media.ps1' ($pluginFinish.Count -gt 0) `
+    "checked under ~/.claude and ~/.codex plugins/cache/agenthub/media-studio (any version)"
 
 $finish = Join-Path $repoRoot 'packages\media-studio\scripts\Finish-Media.ps1'
 $capture = Join-Path $repoRoot 'packages\browser-toolkit\scripts\Capture-Screen.ps1'

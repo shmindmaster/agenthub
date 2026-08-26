@@ -38,6 +38,20 @@
     "truth": {
       "type": "string",
       "enum": ["FACT", "DRAMATIZED", "COMPOSITE"]
+    },
+    "intent": {
+      "type": "string",
+      "enum": ["draft", "viewer-facing"],
+      "description": "viewer-facing (default) applies references/engagement.md. draft skips GPU plates but still writes for the ear."
+    },
+    "emotionalTarget": {
+      "type": "string",
+      "description": "One feeling at the payoff (relief, confidence, clarity). Empty means the writer must still infer one."
+    },
+    "music": {
+      "type": "string",
+      "enum": ["none", "bed"],
+      "description": "Program-level default. Per-scene musicCue on the screenplay can silence or sting over a bed."
     }
   }
 }
