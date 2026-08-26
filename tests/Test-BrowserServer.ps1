@@ -122,8 +122,20 @@ Report 'use-playwright-mcp does not teach retired Chrome DevTools MCP tool names
 
 $cliSkill = Join-Path $pkgRoot 'skills\use-playwright-cli\SKILL.md'
 $testSkill = Join-Path $pkgRoot 'skills\use-playwright-test\SKILL.md'
+$desktopSkill = Join-Path $pkgRoot 'skills\desktop-evidence\SKILL.md'
+$captureHelper = Join-Path $pkgRoot 'scripts\Capture-Screen.ps1'
+$evidenceSkill = Join-Path $pkgRoot 'skills\browser-evidence\SKILL.md'
 Report 'use-playwright-cli provider catalog exists' (Test-Path -LiteralPath $cliSkill) 'missing skills/use-playwright-cli/SKILL.md'
 Report 'use-playwright-test provider catalog exists' (Test-Path -LiteralPath $testSkill) 'missing skills/use-playwright-test/SKILL.md'
+Report 'desktop-evidence provider catalog exists' (Test-Path -LiteralPath $desktopSkill) 'missing skills/desktop-evidence/SKILL.md'
+Report 'Capture-Screen.ps1 helper exists' (Test-Path -LiteralPath $captureHelper) 'missing scripts/Capture-Screen.ps1'
+$evidenceText = Get-Content -LiteralPath $evidenceSkill -Raw -Encoding UTF8
+Report 'browser-evidence routes desktop targets to desktop-evidence' `
+    ($evidenceText -match '`desktop-evidence`') `
+    'browser-evidence must name desktop-evidence so a desktop capture request does not stay on a browser lane'
+Report 'browser-evidence requires Playwright CLI for session video' `
+    ($evidenceText -match 'Session video' -and $evidenceText -match 'use-playwright-cli') `
+    'session video must be the CLI lane; fleet Playwright MCP does not pass --caps=devtools'
 
 Write-Host ''
 if ($failures.Count -gt 0) {

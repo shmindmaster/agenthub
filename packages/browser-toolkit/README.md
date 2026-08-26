@@ -1,7 +1,8 @@
 # Browser Toolkit
 
 One browser-quality plugin with a single on-demand Microsoft Playwright MCP
-server, three routing skills, and three provider catalogs (MCP, CLI, Test).
+server, three routing skills, four provider catalogs (MCP, CLI, Test, desktop),
+and a Windows capture helper.
 
 ## Architecture
 
@@ -9,18 +10,28 @@ server, three routing skills, and three provider catalogs (MCP, CLI, Test).
 interactive-browser-testing  ──┐
 browser-debugging            ──┼── routers (capability + lane selection)
 browser-evidence             ──┘
+        │
+        └── desktop-evidence when the target is not a browser
 
-use-playwright-cli   ← provider catalog (coding-agent / repeatable capture)
-use-playwright-mcp   ← provider catalog (exploratory persistent MCP)
+use-playwright-cli   ← provider catalog (coding-agent capture, **video**, traces)
+use-playwright-mcp   ← provider catalog (exploratory persistent MCP; no fleet video)
 use-playwright-test  ← provider catalog (regression suites)
+desktop-evidence     ← provider catalog (Windows desktop/window via Capture-Screen.ps1)
+```
+
+Evidence root for stills, traces, and recordings (browser and desktop):
+
+```text
+%LOCALAPPDATA%\AgentHub\evidence\<task-slug>\
 ```
 
 - Skills that need synthetic/localhost QA state the capability `browser.isolated`
   and resolve: surface-native browser first, then a Playwright lane.
 - **Lane selection** (after capability resolution):
-  - **Playwright CLI** — preferred for coding agents; token-efficient capture
-  - **Playwright MCP** (`playwright`) — exploratory / persistent reasoning loops
+  - **Playwright CLI** — preferred for coding agents; **required for session video and traces**
+  - **Playwright MCP** (`playwright`) — exploratory / persistent reasoning loops (screenshots, snapshots, console, network). Fleet args do not pass `--caps=devtools`.
   - **Playwright Test** — committed regressions after interactive discovery
+  - **Desktop helper** — native Windows window or whole-desktop capture via `scripts/Capture-Screen.ps1`
 - Work that needs a signed-in automation profile uses the same `playwright` MCP
   id (`browser.authenticated`); the profile is per-workspace, not personal Chrome.
 - Resolution: surface-native browser first (`registry/fleet-profile.json` →
@@ -34,10 +45,11 @@ use-playwright-test  ← provider catalog (regression suites)
 | --- | --- | --- |
 | **`interactive-browser-testing`** | router | Visual product workflows (`browser.isolated`) |
 | **`browser-debugging`** | router | Console/network/trace debugging (`browser.isolated`) |
-| **`browser-evidence`** | router | Screenshots, traces, artifacts (`browser.isolated`) |
-| **`use-playwright-cli`** | provider | CLI command catalog + session patterns |
+| **`browser-evidence`** | router | Screenshots, traces, artifacts (`browser.isolated`); bounces desktop targets to `desktop-evidence` |
+| **`use-playwright-cli`** | provider | CLI command catalog + session video/traces |
 | **`use-playwright-mcp`** | provider | MCP `browser_*` tool catalog + profile semantics |
 | **`use-playwright-test`** | provider | Promoting captures into `@playwright/test` |
+| **`desktop-evidence`** | provider | Windows desktop/window capture helper |
 
 Upstream MCP tools: https://github.com/microsoft/playwright-mcp/blob/main/README.md  
 CLI for coding agents: https://playwright.dev/docs/getting-started-cli  
@@ -85,5 +97,6 @@ catalogs (must name a registered server) from CLI/Test catalogs (no MCP id).
 ```powershell
 pwsh -NoProfile -File tests/Test-BrowserServer.ps1
 pwsh -NoProfile -File tests/Test-CapabilityRouting.ps1
+pwsh -NoProfile -File tests/Test-CaptureScreen.ps1
 pwsh -NoProfile -File scripts/Validate-AgentHub.ps1
 ```

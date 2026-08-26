@@ -12,8 +12,12 @@ Experience Engineering; video production and release decisions remain with
 After resolving a provider lane, load the matching catalog:
 
 - `use-playwright-mcp` — snapshot/screenshot/console/network evidence in an exploratory loop
-- `use-playwright-cli` — named-session screenshots, traces, and video for coding-agent capture
+- `use-playwright-cli` — named-session screenshots, traces, and **session video**
 - `use-playwright-test` — fixture-backed evidence inside a regression suite when appropriate
+- `desktop-evidence` — native Windows window or whole-desktop stills and recordings
+
+A URL or web app stays here. A native window or the whole desktop is
+`desktop-evidence`, not a browser screenshot.
 
 ## Capability required
 
@@ -30,19 +34,24 @@ personal Chrome state, unrelated tabs, credentials, or customer data.
 
 ## Resolve a provider before capturing
 
-1. Look up the running surface in `registry/fleet-profile.json`,
+1. If the target is a native Windows window or the whole desktop, load
+   `desktop-evidence` and stop. Do not capture that target through a browser.
+   <!-- resolution-step: additional-lane -->
+2. Look up the running surface in `registry/fleet-profile.json`,
    `hostSurfaces.surfaces`. If it records the required capability as `true`, capture
    with its own first-party browser and start nothing.
    <!-- resolution-step: surface-provided -->
-2. Use `playwright` -- the declared fallback, `providesCapabilities` in
+3. Use `playwright` -- the declared fallback, `providesCapabilities` in
    `registry/mcps.json` for `browser.isolated` -- when the surface records `false` or
    `null`, or when the evidence needed is MCP-side console/network/snapshot capture.
    Load `use-playwright-mcp`.
    <!-- resolution-step: local-fallback -->
-3. Use Playwright CLI when named-session screenshots, traces, or video are the
-   evidence form and a coding-agent CLI loop is enough. Load `use-playwright-cli`.
+4. Session video and Playwright traces MUST use Playwright CLI
+   (`video-start` / `video-stop`, `tracing-start` / `tracing-stop`). Load
+   `use-playwright-cli`. Fleet Playwright MCP does not pass `--caps=devtools`,
+   so MCP has no video or trace tools. Do not enable that cap fleet-wide.
    <!-- resolution-step: additional-lane -->
-4. Use Playwright Test when evidence belongs inside a committed regression run.
+5. Use Playwright Test when evidence belongs inside a committed regression run.
    Load `use-playwright-test`.
    <!-- resolution-step: additional-lane -->
 
@@ -59,9 +68,16 @@ Chrome, so evidence captures are isolated by construction. Attaching to the owne
 live personal Chrome would require a browser-url attachment deliberately and must not
 be done for evidence captures.
 
-Microsoft Playwright MCP does not expose Chrome DevTools MCP Lighthouse tools. Prefer
-Playwright screenshots, snapshots, traces, and video for evidence; use a dedicated
-audit tool only when Lighthouse-style scores are explicitly required.
+Microsoft Playwright MCP does not expose retired Chrome DevTools MCP Lighthouse or
+screencast tools. Prefer Playwright screenshots and snapshots on MCP; prefer
+Playwright CLI for traces and session video. Use a dedicated audit tool only when
+Lighthouse-style scores are explicitly required.
+
+Write files under the evidence root owned by `desktop-evidence`'s helper:
+
+```text
+%LOCALAPPDATA%\AgentHub\evidence\<task-slug>\
+```
 
 ## Procedure
 
@@ -78,8 +94,9 @@ audit tool only when Lighthouse-style scores are explicitly required.
    only when they are in scope.
 5. Recheck snapshot, screenshot, console, and network after each material transition.
    Use file outputs for large artifacts and filters or pagination for verbose results.
-6. Save only evidence needed for the claim. Redact secrets, cookies, personal data,
-   tenant identifiers, and unrelated browser state.
+6. Save only evidence needed for the claim under the evidence root above. Redact
+   secrets, cookies, personal data, tenant identifiers, and unrelated browser state.
+   Do not commit capture blobs to a repository.
 7. Report observed behavior separately from inference and proposed remediation.
 
 Do not classify product defects, approve demo readiness, or produce polished media here.

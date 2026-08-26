@@ -19,7 +19,8 @@ lane after a routing skill chose it. Enter through:
 - `browser-evidence`
 
 Sibling catalogs: `use-playwright-mcp` (exploratory MCP), `use-playwright-test`
-(regression).
+(regression). Native Windows windows and the whole desktop are `desktop-evidence`,
+not this lane.
 
 This lane is **not** an MCP server. It does not appear in `registry/mcps.json`.
 Fleet pin used by routing skills:
@@ -94,7 +95,7 @@ workspace-hash profile. Establish what the session is doing for the task.
 | Screenshot | `screenshot` |
 | Tabs | `tab-list`, `tab-new`, `tab-select` |
 | Console / network | `console`, `requests` |
-| Trace / video | `tracing-start` / `tracing-stop`, `video-start` / `video-stop` |
+| Trace / video | **this lane** — `tracing-start` / `tracing-stop`, `video-start` / `video-stop`. Fleet Playwright MCP does not expose these. |
 | Monitor | `show` |
 
 Full command list: `npx -y @playwright/cli@0.1.17 --help` and upstream docs.
@@ -107,5 +108,5 @@ Do not paste MCP `browser_*` tool names into the CLI.
 - Loading Playwright MCP tool schemas into context for a CLI session.
 - Assuming CLI sessions share the MCP workspace-hash profile.
 - Leaving headed sessions open after the task.
-- Checking raw video/trace blobs into AgentHub; keep artifacts outside the repo
-  (local runtime / Local-AI media paths).
+- Checking raw video/trace blobs into a repository. Write them under the evidence
+  root owned by `desktop-evidence`'s helper: `%LOCALAPPDATA%\AgentHub\evidence\<task-slug>\`.

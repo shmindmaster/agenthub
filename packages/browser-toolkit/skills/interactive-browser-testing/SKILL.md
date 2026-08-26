@@ -7,9 +7,12 @@ description: Use when a coding agent should visually inspect and interact with a
 
 After resolving a provider lane, load the matching catalog:
 
-- `use-playwright-cli` — repeatable capture / coding-agent work (preferred default for coding agents)
+- `use-playwright-cli` — repeatable capture / coding-agent work (preferred default for coding agents), including session video and traces
 - `use-playwright-mcp` — exploratory persistent browser reasoning
 - `use-playwright-test` — regression once a bug/behavior is worth preserving
+
+If the target is a native Windows window or the whole desktop, load
+`desktop-evidence` instead.
 
 ## Capability required
 

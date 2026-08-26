@@ -11,11 +11,14 @@
 | Asset | Role |
 |---|---|
 | **Routers** `interactive-browser-testing`, `browser-debugging`, `browser-evidence` | Capability + lane selection |
-| **Catalog** `use-playwright-mcp` | Microsoft Playwright MCP `browser_*` tools |
-| **Catalog** `use-playwright-cli` | Playwright CLI for coding agents |
+| **Catalog** `use-playwright-mcp` | Microsoft Playwright MCP `browser_*` tools (no fleet video) |
+| **Catalog** `use-playwright-cli` | Playwright CLI for coding agents, including session video and traces |
 | **Catalog** `use-playwright-test` | Playwright Test regressions |
+| **Catalog** `desktop-evidence` | Windows desktop/window capture via `packages/browser-toolkit/scripts/Capture-Screen.ps1` |
 | **This doc** | Owner / migration notes |
 | **Upstream** Playwright MCP README | Full tool schemas (do not fork) |
+
+Evidence files (browser and desktop) go to `%LOCALAPPDATA%\AgentHub\evidence\<task-slug>\`. Never commit them.
 
 Plugin package: `packages/browser-toolkit`.
 
@@ -23,10 +26,11 @@ Plugin package: `packages/browser-toolkit`.
 
 | Work type | Lane | What the agent drives |
 |---|---|---|
-| Coding-agent capture / repeatable steps | Playwright CLI (`@playwright/cli@0.1.17`) | Named headed sessions |
-| Exploratory persistent reasoning | MCP id `playwright` | Per-workspace Chromium profile |
+| Coding-agent capture / repeatable steps / **session video / traces** | Playwright CLI (`@playwright/cli@0.1.17`) | Named headed sessions |
+| Exploratory persistent reasoning (stills, console, network) | MCP id `playwright` | Per-workspace Chromium profile |
 | Committed regression | Playwright Test | Repo `@playwright/test` suite |
 | Host already has a browser | Surface-native | Whatever `hostSurfaces` records |
+| Native Windows window or whole desktop | `desktop-evidence` | `Capture-Screen.ps1` (FFmpeg `gdigrab`) |
 
 ## MCP config (hosts without a native browser)
 
@@ -70,4 +74,6 @@ npx -y @playwright/cli@0.1.17 install --skills
 ```
 
 Microsoft recommends CLI + Skills for coding agents (token-efficient) and MCP for
-specialized persistent exploratory loops.
+specialized persistent exploratory loops. Fleet Playwright MCP args are
+`--browser chromium` only: do not add `--caps=devtools` for video. Use the CLI
+lane. Do not reinstate Chrome DevTools MCP as a live fleet browser server.

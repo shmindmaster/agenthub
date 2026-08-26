@@ -4,6 +4,14 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Fleet evidence capture (2026-08-26):** browser-toolkit owns one capture
+  contract. Web stills/console/network use the host browser or Playwright MCP;
+  **session video and traces use Playwright CLI** (fleet MCP does not pass
+  `--caps=devtools`). Native Windows windows and the whole desktop use
+  `desktop-evidence` → `packages/browser-toolkit/scripts/Capture-Screen.ps1`
+  (FFmpeg `gdigrab`). Files go to `%LOCALAPPDATA%\AgentHub\evidence\<task>\`,
+  never into a git repository. Chrome DevTools MCP stays retired.
+
 - **Exa MCP authentication is environment-backed (2026-08-17):** the canonical
   remote server sends `x-api-key` from `EXA_API_KEY`; no key value is stored in
   the registry or any generated host configuration. The Codex MCP writer now

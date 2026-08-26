@@ -33,7 +33,8 @@ the top rather than inferred. Behavior 9 fails unless a routing skill actually
 names this one and unless the server below is registered.
 
 Sibling provider catalogs (other lanes): `use-playwright-cli`,
-`use-playwright-test`.
+`use-playwright-test`. Native Windows windows and the whole desktop are
+`desktop-evidence`, not this server.
 
 ---
 
@@ -89,8 +90,9 @@ or long-running autonomous browser work where continuous context outweighs
 token cost.
 
 Prefer **`use-playwright-cli`** for coding-agent work that should stay
-token-efficient (repeatable captures, concise commands). Prefer
-**`use-playwright-test`** for committed regression suites.
+token-efficient, and **always** for session video and traces (fleet MCP does
+not pass `--caps=devtools`). Prefer **`use-playwright-test`** for committed
+regression suites.
 
 ---
 
@@ -167,9 +169,9 @@ Names match `@playwright/mcp` (`browser_*`), not Chrome DevTools MCP.
 
 ### Opt-in via `--caps` (do not enable casually)
 
-Fleet default args do **not** pass extra caps. Only update host/`registry/mcps.json`
-config when the task needs them (examples from upstream: vision, pdf, network,
-storage, tracing/video when exposed by the pinned version).
+Fleet default args do **not** pass extra caps. Session video and traces are the
+Playwright CLI lane (`use-playwright-cli`), not an MCP cap. Do not add
+`--caps=devtools` to `registry/mcps.json` for ordinary evidence work.
 
 Microsoft Playwright MCP does **not** expose Chrome DevTools MCP names such as `list_pages`, `take_snapshot`, `fill_form`, or `lighthouse_audit`. If a task needs Lighthouse or heap-snapshot workflows, use Playwright Trace / CLI / Test lanes or a dedicated audit tool — do not invent DevTools MCP calls against `playwright`.
 
@@ -181,7 +183,8 @@ Microsoft Playwright MCP does **not** expose Chrome DevTools MCP names such as `
 - Assuming the workspace profile is already signed in. Check, then sign in once.
 - TaskBar `--remote-debugging-port=9222` on the **Default** profile (ignored since Chrome 136).
 - Clicking without a fresh `browser_snapshot`.
-- Dumping raw traces or videos into model context; save files and summarize.
+- Dumping raw traces or videos into model context; save files under
+  `%LOCALAPPDATA%\AgentHub\evidence\<task-slug>\` and summarize.
 - Reinstating a second server registration for a profile variant.
 
 ---

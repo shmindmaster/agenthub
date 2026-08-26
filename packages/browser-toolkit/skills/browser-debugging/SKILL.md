@@ -8,8 +8,11 @@ description: Use when an authorized browser workflow has runtime errors, failed 
 After resolving a provider lane, load the matching catalog:
 
 - `use-playwright-mcp` — live console/network/snapshot correlation (usual debug lane)
-- `use-playwright-cli` — compact reproduction scripts and traces while coding
+- `use-playwright-cli` — compact reproduction scripts, traces, and session video while coding
 - `use-playwright-test` — preserve a regression once the failure is understood
+
+If the target is a native Windows window or the whole desktop, load
+`desktop-evidence` instead.
 
 ## Capability required
 
@@ -59,10 +62,12 @@ which is the isolation this skill requires.
 
 ### Honest tool expectations
 
-Microsoft Playwright MCP exposes console, network, snapshots, screenshots, and
-optional tracing/video via caps — not Chrome DevTools MCP Lighthouse or heap-snapshot
-tool names. For Lighthouse-style audits or heap workflows, use Playwright Trace/CLI/Test
-or a dedicated audit tool; do not invent DevTools MCP calls against `playwright`.
+Microsoft Playwright MCP exposes console, network, snapshots, and screenshots.
+Fleet config does not pass `--caps=devtools`, so MCP has no video or trace tools;
+load `use-playwright-cli` for those. It does not expose retired Chrome DevTools MCP
+Lighthouse or heap-snapshot tool names. For Lighthouse-style audits or heap
+workflows, use Playwright Trace/CLI/Test or a dedicated audit tool; do not invent
+DevTools MCP calls against `playwright`.
 
 ## Workflow
 

@@ -786,6 +786,7 @@
       "managedSkillNames": [
         "browser-debugging",
         "browser-evidence",
+        "desktop-evidence",
         "interactive-browser-testing",
         "use-playwright-cli",
         "use-playwright-mcp",
@@ -802,7 +803,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "47FCC655199A6FD5446CEBE14E79CD30E0143BB990FB740185175CD9D854E21B",
+      "contentHash": "392BB607AE2D87031B220A6FE2B41A7A3C1DEAC88B3C94792CD32376C69218F7",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
