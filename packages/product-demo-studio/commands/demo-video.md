@@ -5,7 +5,7 @@ argument-hint: "--repo <path> [--episodes <n>] [--workflow <name>] [--recut <for
 
 Produce product demo video(s): $ARGUMENTS
 
-Load `skills/product-demo-studio/SKILL.md` and follow its state machine. It is authoritative; this file is the entry point and the short list of things that go wrong.
+Load `pipeline/product-demo-studio/SKILL.md` and follow its state machine. It is authoritative; this file is the entry point and the short list of things that go wrong.
 
 ## Preconditions — check before starting, do not infer
 

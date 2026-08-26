@@ -892,7 +892,7 @@ function createReviewIntegrity(root, reviewDomain, executionRecords) {
   writeJson(calibrationPath, {
     schemaVersion: "1.0.0",
     status: "PASS",
-    pluginVersion: "1.8.1",
+    pluginVersion: "1.8.3",
     reviewDomain,
     modelId,
     canonicalRubric,
@@ -3484,7 +3484,7 @@ function publicationIntegration() {
     ownerVoice.acceptance.ownerApprovalRequired === false,
     "owner-voice approval is system-owned, local-only, and never mislabeled as human playback");
 
-  const narrationSkill = readFileSync(join(pluginDir, "skills", "product-demo-studio-narration", "SKILL.md"), "utf8");
+  const narrationSkill = readFileSync(join(pluginDir, "pipeline", "product-demo-studio-narration", "SKILL.md"), "utf8");
   for (const requiredText of ["pronunciation-risk manifest", "resume", "canonical script", "ASR is a content check", "transparent true-peak limiter", "never time-stretch"]) {
     assert(narrationSkill.includes(requiredText), `narration skill documents ${requiredText}`);
   }

@@ -26,9 +26,10 @@ nothing — narration enough?
 2. Prefer diagrams when the claim is about structure or flow.
 3. Prefer animation only when motion itself teaches (ordering, fan-out, failure propagation).
 4. Prefer narration-only when a visual would decorate without teaching.
-5. Route composition to providers via capability `video.programmatic-composition`
-   (Remotion upstream) or Mermaid/D2 for static diagrams — do not embed one renderer
-   into this skill's core reasoning.
+5. Route composition through `media-studio-compose`. Remotion is capability
+   `video.programmatic-composition` (official `remotion-dev/skills`), never vendored
+   here. Mermaid/D2 for static diagrams. Product-UI truth still captures through
+   product-demo-studio.
 
 ## Output
 

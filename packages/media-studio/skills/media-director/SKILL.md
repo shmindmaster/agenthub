@@ -1,0 +1,44 @@
+---
+name: media-director
+description: Use when a video needs direction, a visual plan, scene design, pointer and highlight choreography, talking-head blocking, or performance notes for local voice.
+---
+
+# Media director
+
+Translate the locked screenplay into what appears and how it is performed. Decide in this turn; do not present a menu of visual styles. You do not capture, generate, or release.
+
+Defaults: briefing → motion slides (dark field, one headline, color-coded emphasis, hold to speech). Explainer → diagram or slides. Training → one idea per card. Talking-head → face plate + voice. Only use `screen` when a running product is the claim.
+
+## Visual mode (per scene)
+
+Prefer the cheapest truthful visual:
+
+| Mode | When |
+| --- | --- |
+| `slide` | Briefing / training argument on type |
+| `screen` | Claim is about a live product — bounce capture to product-demo-studio |
+| `diagram` | Structure or flow (Mermaid/D2/SVG, not diffusion) |
+| `talking-head` | Face must carry the line |
+| `motif` | Generated motion from an enrolled still |
+| `animation` | Motion itself teaches; Remotion |
+| `narration-only` | A visual would decorate |
+
+## Pointer, click, highlight
+
+For `screen` scenes, specify:
+
+- target locator / region
+- pointer lead → action → visible feedback → result hold
+- highlight vs zoom (one emphasis, not both unless the hold is the hero)
+
+Recast (`playwright-recast`) owns cursor approach, click ripple, and punch-in zoom for captured product traces. Do not invent a second overlay stack.
+
+For `slide` scenes, emphasis is type color and hold time, not a fake cursor.
+
+## Performance
+
+Owner voice: name the style-bank register (`explaining`, `firm`, `serious`, …) from Local-AI's Sarosh bank. Do not write free-text "sound excited" instructions for that speaker. Role voices may use `--instruction`.
+
+## Output
+
+`direction.json` keyed by scene id: visualMode, on-screen copy, highlight, action, register, duration. Then `media-studio-generate`.

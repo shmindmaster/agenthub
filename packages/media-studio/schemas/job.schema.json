@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/job.json",
+  "title": "Media studio job",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "title", "workspace"],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "briefing",
+        "training",
+        "explainer",
+        "talking-head",
+        "animation",
+        "audio-only",
+        "product-screencast",
+        "series-episode"
+      ]
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "audience": { "type": "string" },
+    "durationSeconds": { "type": "number", "minimum": 1 },
+    "voice": {
+      "type": "string",
+      "description": "Local-AI voice library id (sarosh, role-*, narrator-*). Never a cloud speaker for owner voice."
+    },
+    "workspace": {
+      "type": "string",
+      "description": "Absolute path under %LOCALAPPDATA%\\AgentHub\\media-studio or D:\\Local-AI\\data\\artifacts. Never a product repo."
+    },
+    "bounceTo": {
+      "type": ["string", "null"],
+      "enum": ["product-demo-studio", "story-series-studio", null]
+    },
+    "truth": {
+      "type": "string",
+      "enum": ["FACT", "DRAMATIZED", "COMPOSITE"]
+    }
+  }
+}

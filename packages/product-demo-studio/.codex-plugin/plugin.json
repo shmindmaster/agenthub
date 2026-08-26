@@ -1,6 +1,6 @@
 {
   "name": "product-demo-studio",
-  "description": "Generate truthful product videos or readiness feedback through deterministic evidence, four independent reviews, release arbitration, remediation, mandatory final independent review and verification, and reproducible delivery.",
+  "description": "Internal screencast engine (Playwright, Recast, review agents, release gates) used by media-studio. Not a public video skill pack.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -33,5 +33,5 @@
       "Audit this demo proxy against truth, craft, and persuasion gates."
     ]
   },
-  "version": "1.8.1"
+  "version": "1.8.3"
 }

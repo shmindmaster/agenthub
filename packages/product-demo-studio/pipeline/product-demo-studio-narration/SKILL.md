@@ -1,6 +1,6 @@
 ---
 name: product-demo-studio-narration
-description: Use when an approved product-video script needs voiceover, text-to-speech, timing metadata, pronunciation control, or segment-level regeneration.
+description: Use when an approved product-demo script needs voiceover, timing metadata, pronunciation control, or segment-level regeneration. For briefings, training, or other non-demo narration, use media-studio-generate.
 ---
 
 # Product Demo Narration

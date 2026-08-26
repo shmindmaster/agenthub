@@ -188,7 +188,23 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `story-series-studio`, and `learning-studio` are registered packages.
   `startup-series` is now a Receipts-only overlay (`startup-showrunner`,
   `comedy-writer`); generic craft lives in the studio packages. Private show
-  bibles stay outside AgentHub. Product Demo Studio is unchanged.
+  bibles stay outside AgentHub.
+
+- **Local media studio (2026-08-25):** `packages/media-studio` is the parent
+  video/audio/animation pack. Rapid default: a concept or outline is enough;
+  writer → director → Local-AI generate → Remotion/FFmpeg compose in one run.
+  Product Demo Studio 1.8.2 stays the gated **product screencast** workflow
+  (Playwright + Recast pointer/click) and bounces briefings, training,
+  explainers, and talking-heads to media-studio. Owner voice remains
+  `ai.ps1 voice qwen-clone --voice sarosh`. Remotion is official
+  `remotion-dev/skills` (not vendored); measured 2026-08-25 those skills were
+  **checked-absent** from `~/.claude/skills`, `~/.codex/skills`,
+  `~/.cursor` was not separately enumerated here, `~/.grok/skills`, and
+  `~/.agents/skills`. FFmpeg/ffprobe are on PATH. Local-AI motif/lipsync/portrait
+  routes are installed and documented in `local-ai-stack` `references/video.md`;
+  Comfy/voice services start on demand. Grok mappings for media-studio and
+  local-ai are `managed-loose-skills` so Sync copies into `~/.grok/skills`
+  (a `native-plugin-installed` mapping skips that copy).
 
 ## In progress
 

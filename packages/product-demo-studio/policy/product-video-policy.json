@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.8.1",
+  "capabilityVersion": "1.8.3",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -281,7 +281,7 @@
     "mayWeakenBaseThresholds": false
   },
   "calibrationPolicy": {
-    "fixtureCatalog": "skills/product-demo-studio/references/reviewer-calibration.md",
+    "fixtureCatalog": "pipeline/product-demo-studio/references/reviewer-calibration.md",
     "knownBadAndCleanPassRequired": true,
     "requiredAfterRubricAgentModelOrInputContractChange": true,
     "maximumAgeDays": 7,

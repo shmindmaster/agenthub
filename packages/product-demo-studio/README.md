@@ -1,14 +1,14 @@
 # product-demo-studio
 
-Current package release: **1.8.1**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.8.3**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
 contract. The reviewed mapping is documented in
-`skills/product-demo-studio/references/product-pipeline-compatibility.md`.
+`pipeline/product-demo-studio/references/product-pipeline-compatibility.md`.
 The complete self-contained persuasion, craft, production,
 automation, and measurement standard is bundled at
-`skills/product-demo-studio/references/killer-demo-production-guide.md`; the adjacent compact
+`pipeline/product-demo-studio/references/killer-demo-production-guide.md`; the adjacent compact
 playbook maps it to the package's normalized JSON validators.
 The synchronized Visual Communication & Asset Generation Guide is bundled beside it and is owned
 by `product-demo-studio-visual-assets`; it supersedes stale narration/model tables and forbids
@@ -77,6 +77,7 @@ separate Product Demo Studio envelope declares `listener.kind=local-audio-model`
 native report and model receipt, and adds fresh known-good/known-bad calibration. A host-enforced
 read-only audio reviewer adjudication must bind and pass that envelope before arbitration. This
 evidence is never labeled as human playback.
+Version 1.8.3 keeps the product-screencast pipeline and bounces briefings, training films, explainers, talking-heads, and other non-screencast video to `media-studio`.
 Version 1.8.1 closes the calibration provenance gap: the candidate, known-good, and known-bad
 inputs now require three byte-distinct immutable native `ai.ps1 listen` reports. Both calibration
 reports bind their exact input, deterministic continuous decode, shared model receipt, identical
@@ -103,7 +104,7 @@ host copy (see `tests/Test-InstalledPluginFreshness.ps1`). Sequence:
    `policy/product-video-policy.json` (`capabilityVersion`, not `schemaVersion`), this README's
    release line, `scripts/validate-package.mjs` and `scripts/validate-guide-sync.mjs`
    (`expectedVersion`), `scripts/validate-host-parity.mjs`, and
-   `skills/product-demo-studio/references/product-pipeline-compatibility.md`.
+   `pipeline/product-demo-studio/references/product-pipeline-compatibility.md`.
 3. Recompute and update the registry content hash:
    ```powershell
    cd C:\Repos\shmindmaster\agenthub

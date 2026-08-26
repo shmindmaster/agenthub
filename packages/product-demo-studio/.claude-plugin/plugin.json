@@ -1,6 +1,6 @@
 {
   "name": "product-demo-studio",
-  "description": "Canonical cross-agent product-video system: truthful generation, deterministic evidence/preflight, four independent reviews, release arbitration, remediation, mandatory final independent review and verification, and reproducible delivery.",
+  "description": "Internal screencast engine (Playwright, Recast, review agents, release gates) used by media-studio. Not a public video skill pack.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -18,5 +18,5 @@
     "visual-assets"
   ],
   "license": "MIT",
-  "version": "1.8.1"
+  "version": "1.8.3"
 }

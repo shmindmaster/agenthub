@@ -65,6 +65,10 @@ green without running checks.
   series capture workflows rely on it.
 - 2026-08-21: Keep Product Demo Studio architecture; extract
   `media-production-core` only if duplication appears after series lands.
+- 2026-08-25: Duplication appeared (briefings/training/explainers were hitting
+  the demo pipeline). Added `media-studio` rather than renaming PDS. Rapid
+  orchestration is the default; PDS gates stay fail-closed for live-product
+  screencasts.
 
 - 2026-08-21: P0 browser-toolkit landed on main (`b93c6a1`).
 - 2026-08-21: P1 portable root version authority landed on main (`77bae75`).
@@ -72,3 +76,7 @@ green without running checks.
 - 2026-08-21: P2 local-ai progressive disclosure landed.
 - 2026-08-21: P2 technical-storytelling, story-series-studio, learning-studio
   registered; startup-series slimmed to Receipts-only skills.
+- 2026-08-25: P3 `media-studio` landed as the parent local creative studio
+  (rapid concept → video). Product Demo Studio is not renamed; it remains the
+  product-screencast engine and bounces other kinds here. Remotion stays
+  third-party (`npx skills add remotion-dev/skills`).

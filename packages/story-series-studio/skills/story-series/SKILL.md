@@ -29,4 +29,4 @@ Every beat must be tagged:
 
 - No private names, customers, or show bible content in AgentHub.
 - Do not convert Product Demo Studio into a series engine.
-- Remotion via `video.programmatic-composition` (tracked third-party), not vendored.
+- Assemble non-screencast picture through `media-studio`. Remotion via `video.programmatic-composition` (tracked third-party), not vendored.

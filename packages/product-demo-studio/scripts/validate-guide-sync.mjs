@@ -4,8 +4,8 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const expected = new Map([
-  ["skills/product-demo-studio/references/killer-demo-production-guide.md", "C41A65F5ADB925657C67995D8ECD74FEA746B865623F3A1FEBF320A4708546A0"],
-  ["skills/product-demo-studio/references/Visual-Asset-Guide.md", "68991C7D4FB72BEE01570C9CFD0E4C71A314DF5FD4816E689B49E67AE044EA0B"]
+  ["pipeline/product-demo-studio/references/killer-demo-production-guide.md", "C41A65F5ADB925657C67995D8ECD74FEA746B865623F3A1FEBF320A4708546A0"],
+  ["pipeline/product-demo-studio/references/Visual-Asset-Guide.md", "68991C7D4FB72BEE01570C9CFD0E4C71A314DF5FD4816E689B49E67AE044EA0B"]
 ]);
 const failures = [];
 
@@ -24,10 +24,10 @@ const manifests = [
   JSON.parse(await readFile(new URL(".cursor-plugin/plugin.json", root), "utf8")),
   JSON.parse(await readFile(new URL(".qoder-plugin/plugin.json", root), "utf8"))
 ];
-if (manifests.some(manifest => manifest.version !== "1.8.1")) {
-  failures.push("All host-native plugin manifests must be version 1.8.1.");
+if (manifests.some(manifest => manifest.version !== "1.8.3")) {
+  failures.push("All host-native plugin manifests must be version 1.8.3.");
 }
-const visualSkill = await readFile(new URL("skills/product-demo-studio-visual-assets/SKILL.md", root), "utf8");
+const visualSkill = await readFile(new URL("pipeline/product-demo-studio-visual-assets/SKILL.md", root), "utf8");
 if (!visualSkill.includes("name: product-demo-studio-visual-assets")) {
   failures.push("Visual-assets skill is missing or has invalid frontmatter.");
 }

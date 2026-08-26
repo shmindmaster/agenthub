@@ -1,6 +1,6 @@
 ---
 name: local-ai-stack
-description: Use when local model inference, RAG/retrieval, media generation, or legal/knowledge scope routing are required. Thin router over D:\Local-AI\ai.ps1 — load references/voice.md, image.md, music.md, retrieval.md, or ops.md only for the needed specialty.
+description: Use when local model inference, RAG/retrieval, media generation, or legal/knowledge scope routing are required. Thin router over D:\Local-AI\ai.ps1 — load references/voice.md, image.md, video.md, music.md, retrieval.md, or ops.md only for the needed specialty.
 ---
 
 # Local AI stack
@@ -60,6 +60,7 @@ Proceed only for the route whose checks passed:
 - **chat + attachments** -> Open WebUI route.
 - **knowledge/legal retrieval** -> RAG route.
 - **image / motif video** -> ComfyUI route (`ai.ps1 image` / `motif`).
+- **lipsync / portrait** -> `ai.ps1 lipsync` / `portrait` (LatentSync / LivePortrait). Load `references/video.md`.
 - **music beds** -> `ai.ps1 music` (ACE-Step resident). Do **not** start ComfyUI.
 - **voice/STT/audio perception** -> dedicated media runtime route. TTS and `listen` do not need music or Comfy.
 
@@ -105,7 +106,9 @@ All media and synthesis routes are also under the same interface:
 & $LocalAiControl listen <encoded-video-path> --output <immutable-native-report.json> `
   --candidate-id <id> --source-revision <revision> --render-provenance-id <id>
 & $LocalAiControl music <batch-json>
-& $LocalAiControl motif <verify|single|batch>
+& $LocalAiControl motif [verify] [--reference <png> --prompt "…" --out <mp4>]
+& $LocalAiControl lipsync <video> --audio <wav>
+& $LocalAiControl portrait <source-image>
 ```
 
 Do not add a second control script or a parallel launcher for this capability.
@@ -127,6 +130,7 @@ plane checks above, open only the matching reference:
 | --- | --- |
 | Voice / TTS / STT / voice corpus | `references/voice.md` |
 | Image / Visual Bank | `references/image.md` |
+| Motif / lipsync / portrait / avatar | `references/video.md` |
 | Music beds / underscore | `references/music.md` |
 | RAG, chat model policy, knowledge/legal scope | `references/retrieval.md` |
 | Storage, GPU scheduling, validation, adoption | `references/ops.md` |

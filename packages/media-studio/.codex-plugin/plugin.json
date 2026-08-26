@@ -1,0 +1,20 @@
+{
+  "name": "media-studio",
+  "description": "Local creative studio for all video and audio: briefings, training, explainers, talking-heads, animation, and live-product screencasts. Uses Local-AI. Replaces product-demo-studio as the public skill pack.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "video",
+    "audio",
+    "animation",
+    "briefing",
+    "training",
+    "remotion",
+    "local-ai",
+    "screenplay",
+    "director"
+  ],
+  "version": "1.1.0"
+}

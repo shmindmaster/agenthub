@@ -1071,32 +1071,40 @@
           "video.programmatic-composition"
         ],
         "required": false,
-        "note": "AgentHub packages request video.programmatic-composition; hosts resolve to Remotion upstream skills. Do not vendor Remotion rules into AgentHub.",
-        "observedAt": "2026-08-21",
+        "note": "AgentHub packages request video.programmatic-composition; hosts resolve to Remotion upstream skills (remotion-best-practices is a router over create/markup/studio/render/captions). Do not vendor Remotion rules into AgentHub. Install: npx skills add remotion-dev/skills. Official plugins also exist for Claude, Codex, and Cursor (remotion.dev/plugins). Installed 2026-08-25 globally to ~/.agents/skills and Grok (~/.grok/skills symlink) plus Cursor junctions. Claude and Codex remain owner-installed (hostPrivateExtensionPolicy).",
+        "observedAt": "2026-08-25",
         "hostChannels": [
           {
             "hostId": "claude",
             "channel": "upstream-skills",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add remotion-dev/skills",
-            "note": "Install via official Remotion skills package when a host needs programmatic video composition."
+            "installedVersion": "4.0.517",
+            "current": true,
+            "updateCommand": "npx skills add remotion-dev/skills -g -y -a claude-code --skill *",
+            "note": "Owner authorized 2026-08-25. Symlinked from ~/.agents/skills into Claude Code."
           },
           {
             "hostId": "codex",
             "channel": "upstream-skills",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add remotion-dev/skills",
-            "note": "Prefer official upstream skills until a host-curated channel is verified."
+            "installedVersion": "4.0.517",
+            "current": true,
+            "updateCommand": "npx skills add remotion-dev/skills -g -y -a codex --skill *",
+            "note": "Owner authorized 2026-08-25. Universal install into ~/.agents/skills (Codex USER tier)."
+          },
+          {
+            "hostId": "grok",
+            "channel": "upstream-skills",
+            "installedVersion": "4.0.517",
+            "current": true,
+            "updateCommand": "npx skills add remotion-dev/skills -g -y -a grok --skill *",
+            "note": "Symlinked from ~/.agents/skills into ~/.grok/skills on 2026-08-25."
           },
           {
             "hostId": "cursor",
             "channel": "upstream-skills",
-            "installedVersion": null,
-            "current": false,
-            "updateCommand": "npx skills add remotion-dev/skills",
-            "note": "Cursor Agent Skills install path for Remotion official skills."
+            "installedVersion": "4.0.517",
+            "current": true,
+            "updateCommand": "npx skills add remotion-dev/skills -g -y -a cursor --skill *",
+            "note": "Canonical files in ~/.agents/skills; junctioned into ~/.cursor/skills. Observed 2026-08-25."
           },
           {
             "hostId": "cline",

@@ -1,6 +1,6 @@
 ---
 name: product-demo-studio
-description: Use when a product workflow needs demo-worthiness assessment, video planning, capture, narration, rendering, critique, inventory, or an interactive product deep-dive.
+description: Use when a product workflow needs demo-worthiness assessment or a gated product screencast (capture, Recast pointer/click, narration, render, QA). Not for briefings, training films, explainers, talking-heads, or general video — those go to media-studio.
 ---
 
 # Product Demo Studio

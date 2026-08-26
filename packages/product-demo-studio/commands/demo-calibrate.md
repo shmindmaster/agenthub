@@ -5,7 +5,7 @@ argument-hint: "[--set worthiness|craft|all] [--domain <review-domain>] [--fixtu
 
 Run reviewer calibration: $ARGUMENTS
 
-Read `skills/product-demo-studio/references/reviewer-calibration.md` first. It is the contract; this command is the procedure.
+Read `pipeline/product-demo-studio/references/reviewer-calibration.md` first. It is the contract; this command is the procedure.
 
 ## 0. Verify the fixtures before trusting them
 

@@ -1,6 +1,6 @@
 ---
 name: product-demo-studio-render
-description: Use when a demo-ready product workflow needs an episode plan, storyboard, format, proxy or final render, derivative cut, manifest, checksum, or evidence package.
+description: Use when a demo-ready product screencast needs an episode plan, storyboard, Recast/FFmpeg render, or evidence package. For briefings, slides, talking-heads, or Remotion compositions, use media-studio-compose.
 ---
 
 # Product Demo Render

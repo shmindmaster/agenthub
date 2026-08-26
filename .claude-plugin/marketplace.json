@@ -44,6 +44,10 @@
     {
       "name": "learning-studio",
       "source": "./packages/learning-studio"
+    },
+    {
+      "name": "media-studio",
+      "source": "./packages/media-studio"
     }
   ]
 }

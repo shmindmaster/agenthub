@@ -75,6 +75,7 @@ Report 'every third-party id named by a bundle is tracked in thirdPartyExtension
 Report 'registered capabilities named by bundles have packages on disk' (($badCaps | Where-Object { $_ -match 'packages/' }).Count -eq 0) (($badCaps | Where-Object { $_ -match 'packages/' }) -join '; ')
 Report 'technical-series-production bundle exists' ($ids -contains 'technical-series-production') 'missing bundle id technical-series-production'
 Report 'engaging-learning bundle exists' ($ids -contains 'engaging-learning') 'missing bundle id engaging-learning'
+Report 'local-media-production bundle exists' ($ids -contains 'local-media-production') 'missing bundle id local-media-production'
 
 Write-Host ""
 Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed"

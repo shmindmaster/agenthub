@@ -1,6 +1,6 @@
 ---
 name: product-demo
-description: Use when someone mentions a demo video, product video, screencast, walkthrough, product tour, or a recording of a product; wants to know whether a product is demo-ready; asks to assess demo readiness or demo-worthiness; wants product-readiness feedback; or needs narration, voiceover, captions, or a video re-cut. Entry-point router for product demo video work that recognizes intent, confirms the target product and environment, then dispatches. Read before any other product-demo-studio skill.
+description: Use when someone mentions a product demo video, product screencast, live-product walkthrough, product tour, or demo-worthiness assessment. Entry-point router for product-demo-studio. For briefings, training films, explainers, talking-heads, animations, or other non-screencast video, use media-studio instead.
 ---
 
 # Product demo work — router
@@ -11,11 +11,12 @@ Recognize the intent, confirm the two facts every path needs, dispatch. **Do not
 
 | What they want | Route to | Loads |
 |---|---|---|
+| Briefing, training film, explainer, talking-head, animation, or audio that is not a live-product screencast. | `media-studio` | media-studio router |
 | Is this product ready for a demo? Why isn't it? Product-readiness feedback. | `/demo-assess --repo <path>` | assessment only |
-| Make, regenerate, or re-cut a demo video. | `/demo-video --repo <path>` | full pipeline |
+| Make, regenerate, or re-cut a **product screencast** demo. | `/demo-video --repo <path>` | full pipeline |
 | Prove the review gates still work. Fixtures. Drift. | `/demo-calibrate` | fixtures only |
 | A narrow technical question — TTS provider, ffprobe check, Recast composition, Descript editing. | the matching `product-demo-studio-*` subskill directly | that subskill |
-| A composition genuinely needs Remotion. | the official `remotion:remotion-best-practices` capability | that capability |
+| A composition genuinely needs Remotion and is not this screencast pipeline. | `media-studio-compose` then official Remotion skills | those skills |
 | Anything about how the system works, what the outcomes are, what a criterion means. | answer from this file or `docs/`; load nothing | nothing |
 
 **When the intent is a video but the product has never been assessed, route to `/demo-assess` first and say why.** A capture run against a product that cannot carry a demo produces a mediocre video or a wasted run. Assessment costs minutes and needs no capture, narration, or render.

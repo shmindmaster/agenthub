@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.8.1";
+const expectedVersion = "1.8.3";
 const failures = [];
 
 function readJson(relativePath) {
@@ -116,7 +116,7 @@ requireFiles(
 // The router is the cheap entry point; the commands are the only user-invocable
 // surface. Both are required — a host that loads the pipeline skill directly
 // pays an order of magnitude more context to answer a routing question.
-requireFiles("skills/product-demo", ["SKILL.md"], { exact: true });
+requireFiles("pipeline/product-demo", ["SKILL.md"], { exact: true });
 requireFiles("commands", ["demo-assess.md", "demo-calibrate.md", "demo-video.md"], { exact: true });
 requireFiles("docs", ["EXECUTION.md", "USING-AGAINST-ANY-PRODUCT.md"], { exact: true });
 requireFiles("scripts", [
@@ -325,30 +325,30 @@ if (hostParityPolicy.validationScope?.defaultMode !== "STATIC_INVENTORY_ONLY" ||
 const requiredText = [
   ["README.md", "four independent"],
   ["README.md", "GPU-first media work"],
-  ["skills/product-demo-studio/SKILL.md", "Release Arbiter"],
-  ["skills/product-demo-studio/SKILL.md", "first human touchpoint is the final presentation"],
-  ["skills/product-demo-studio/SKILL.md", "detect-media-acceleration.mjs"],
-  ["skills/product-demo-studio-qa/SKILL.md", "schemas/video-finding.schema.json"],
-  ["skills/product-demo-studio-qa/SKILL.md", "listener.kind=local-audio-model"],
-  ["skills/product-demo-studio-qa/SKILL.md", "known-good, and known-bad native reports must be byte-distinct"],
-  ["skills/product-demo-studio-qa/SKILL.md", "audio-perception-adjudication.schema.json"],
+  ["pipeline/product-demo-studio/SKILL.md", "Release Arbiter"],
+  ["pipeline/product-demo-studio/SKILL.md", "first human touchpoint is the final presentation"],
+  ["pipeline/product-demo-studio/SKILL.md", "detect-media-acceleration.mjs"],
+  ["pipeline/product-demo-studio-qa/SKILL.md", "schemas/video-finding.schema.json"],
+  ["pipeline/product-demo-studio-qa/SKILL.md", "listener.kind=local-audio-model"],
+  ["pipeline/product-demo-studio-qa/SKILL.md", "known-good, and known-bad native reports must be byte-distinct"],
+  ["pipeline/product-demo-studio-qa/SKILL.md", "audio-perception-adjudication.schema.json"],
   ["agents/audio-captions-sync-reviewer.agent.md", "Do not claim that you, an owner, or another human played or heard the candidate"],
   ["agents/final-verifier.agent.md", "mandatory terminal independent reviewer and verifier"],
   ["agents/final-verifier.agent.md", "Lack of an executable shell"],
-  ["skills/product-demo-studio-qa/SKILL.md", "mandatory post-validator"],
-  ["skills/product-demo-studio-qa/SKILL.md", "mandatory final independent review and verification"],
-  ["skills/product-demo-studio/SKILL.md", "private review-delivery lane"],
-  ["skills/product-demo-studio-capture/SKILL.md", "plannedActiveRegionCoverage"],
-  ["skills/product-demo-studio-capture/SKILL.md", "deliveredCrop"],
-  ["skills/product-demo-studio-narration/SKILL.md", "pointer lead → real action"],
+  ["pipeline/product-demo-studio-qa/SKILL.md", "mandatory post-validator"],
+  ["pipeline/product-demo-studio-qa/SKILL.md", "mandatory final independent review and verification"],
+  ["pipeline/product-demo-studio/SKILL.md", "private review-delivery lane"],
+  ["pipeline/product-demo-studio-capture/SKILL.md", "plannedActiveRegionCoverage"],
+  ["pipeline/product-demo-studio-capture/SKILL.md", "deliveredCrop"],
+  ["pipeline/product-demo-studio-narration/SKILL.md", "pointer lead → real action"],
   ["agents/script-storyboard-generator.agent.md", "structured `interaction` contract"],
-  ["skills/product-demo-studio/references/interactive-product-deep-dives.md", "Rejected absolutes"],
-  ["skills/product-demo-studio/references/interactive-product-deep-dives.md", "DOM record/replay systems such as rrweb"],
-  ["skills/product-demo-studio/references/repository-native-capture-compositor-patterns.md", "Treat CDP screencast frames as variable-rate"],
-  ["skills/product-demo-studio/references/repository-native-capture-compositor-patterns.md", "A compositor smoke pass is not release"],
-  ["skills/product-demo-studio/references/reviewer-calibration.md", "known-bad fixture passes"],
+  ["pipeline/product-demo-studio/references/interactive-product-deep-dives.md", "Rejected absolutes"],
+  ["pipeline/product-demo-studio/references/interactive-product-deep-dives.md", "DOM record/replay systems such as rrweb"],
+  ["pipeline/product-demo-studio/references/repository-native-capture-compositor-patterns.md", "Treat CDP screencast frames as variable-rate"],
+  ["pipeline/product-demo-studio/references/repository-native-capture-compositor-patterns.md", "A compositor smoke pass is not release"],
+  ["pipeline/product-demo-studio/references/reviewer-calibration.md", "known-bad fixture passes"],
   ["scripts/validate-reviewer-calibration.mjs", "derived verdict"],
-  ["skills/product-demo-studio/references/product-pipeline-compatibility.md", "Product-pipeline compatibility"],
+  ["pipeline/product-demo-studio/references/product-pipeline-compatibility.md", "Product-pipeline compatibility"],
   ["policy/product-video-policy.json", '"terminalHumanTouchpoint": "final-presentation"'],
 ];
 for (const [relativePath, marker] of requiredText) {

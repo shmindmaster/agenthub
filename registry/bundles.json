@@ -25,7 +25,7 @@
       },
       "notes": [
         "story-series-studio and technical-storytelling are registered AgentHub packages.",
-        "Product Demo Studio stays separate; do not route series work through it by default.",
+        "Product Demo Studio stays the product-screencast workflow; assemble non-screencast picture through media-studio.",
         "startup-series remains a Receipts-specific overlay that requires the generic studio packages."
       ]
     },
@@ -47,6 +47,30 @@
       "notes": [
         "learning-studio and technical-storytelling are registered AgentHub packages.",
         "Remotion/animations are optional enhancements, not required to answer a question."
+      ]
+    },
+    {
+      "id": "local-media-production",
+      "title": "Local media production",
+      "summary": "Writer/director crew for briefings, training, explainers, talking-heads, animation, and audio on Local-AI, with optional Remotion composition and Recast pointer finishing.",
+      "requires": [
+        "media-studio",
+        "local-ai"
+      ],
+      "recommends": [
+        "technical-storytelling",
+        "browser-toolkit"
+      ],
+      "thirdParty": {
+        "recommends": [
+          "remotion"
+        ],
+        "optional": []
+      },
+      "notes": [
+        "Product Demo Studio stays the gated product-screencast workflow; media-studio routes to it instead of replacing it.",
+        "Do not vendor Remotion rules. Install official remotion-dev/skills when a host needs programmatic composition.",
+        "Owner voice is Local-AI qwen-clone --voice sarosh only."
       ]
     }
   ]

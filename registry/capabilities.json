@@ -33,6 +33,62 @@
       "supersededBy": "external:firecrawl/skills",
       "reason": "Duplicated official firecrawl-build / firecrawl-build-* SDK integration skills.",
       "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "product-demo",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio",
+      "reason": "Public video router is media-studio. product-demo was capturing briefings and other non-screencast work.",
+      "whyFleetScoped": "Deployed as loose skills on shared ~/.agents/skills plus per-host dirs; capability-scoped retirement on product-demo-studio would miss hosts that only have the shared copy."
+    },
+    {
+      "name": "product-demo-studio",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio",
+      "reason": "Public pipeline skill retired; screencast engine remains in packages/product-demo-studio/pipeline for media-studio to invoke.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-capture",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-capture",
+      "reason": "Renamed into media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-narration",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-generate",
+      "reason": "Narration is Local-AI generate in media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-render",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-compose",
+      "reason": "Composition is media-studio-compose.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-qa",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-qa",
+      "reason": "Renamed into media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-descript",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-descript",
+      "reason": "Renamed into media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-visual-assets",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-visuals",
+      "reason": "Renamed into media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
     }
   ],
   "surfaceAliases": [
@@ -157,7 +213,18 @@
       "owner": "handoff",
       "capabilityType": "plugin+mcp+agents",
       "canonicalSource": "packages/product-demo-studio",
-      "contentHash": "7E1EE06E056D01F4C2543E3553DBACEA3A6943C9B019F290754F29621858CC08",
+      "managedSkillNames": [],
+      "retiredSkillNames": [
+        "product-demo",
+        "product-demo-studio",
+        "product-demo-studio-capture",
+        "product-demo-studio-narration",
+        "product-demo-studio-render",
+        "product-demo-studio-qa",
+        "product-demo-studio-descript",
+        "product-demo-studio-visual-assets"
+      ],
+      "contentHash": "430DDC7459BABF092EA0AA3AD6A92B52F7581E5FE453E76C85EA9D180976EDAF",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -308,7 +375,8 @@
         ],
         "optional": [
           "external:remotion",
-          "elevenlabs"
+          "elevenlabs",
+          "media-studio"
         ]
       },
       "kind": "orchestrator",
@@ -658,7 +726,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "C1AF13137059C89826DB23C245BC73CEF70A2EEA019ADC1E34D2561695D3CCD7",
+      "contentHash": "4FD3C21AFEBDCC39CD66691B41F2F1A621CCB9483D8A0DEABA005EB6A59479AC",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the eight-host tier digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. clerk was removed from that tier on 2026-08-24 because AgentHub does not own Clerk skills (official: clerk/skills). firecrawl is now a fleet overlay (firecrawl-web-ingestion); official Firecrawl ops install from firecrawl/skills.",
@@ -693,6 +761,10 @@
         },
         {
           "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "grok",
           "deploymentStatus": "managed-loose-skill"
         }
       ],
@@ -924,7 +996,7 @@
         "use-knowledge-access",
         "opportunity-engine"
       ],
-      "contentHash": "92B7C1A68A363C19F500FBDF500C2691CC6A259BB81782D8F34FEA2911C2792C",
+      "contentHash": "F3D9D794972F323F4F78AE4B3560C1781E5DC744B845296F1FA366E691DEA68E",
       "hashBasis": "packages/knowledge-access",
       "status": "active-canonical",
       "hostMappings": [
@@ -1239,7 +1311,7 @@
         "technical-explainer",
         "technical-visualizer"
       ],
-      "contentHash": "6174B9273022E2D20BFD037645EFAAEECB9E18DF0802BF0B039A51CB2FD57575",
+      "contentHash": "C8799760F452FEAD8B9086C8C988C588CF704CD1A0A954090BC66EC4030C679F",
       "hashBasis": "packages/technical-storytelling",
       "status": "active-canonical",
       "hostMappings": [
@@ -1279,9 +1351,13 @@
         {
           "hostId": "copilot",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-21. Shared technical explanation + visualization planning for demos, series, learning, and docs. No private show content. Remotion remains optional via external:remotion.",
+      "notes": "Added 2026-08-21. Shared technical explanation + visualization planning for demos, series, learning, and docs. No private show content. Remotion remains optional via external:remotion. Non-screencast composition routes through media-studio.",
       "dependencies": {
         "requires": [],
         "recommends": [],
@@ -1306,7 +1382,7 @@
         "privacy-fictionalizer",
         "series-continuity"
       ],
-      "contentHash": "DEFFA35E0D6E3F2F02B3DB40B6A0D52BCBE1FDE6E97EDD3D7CAFD0866D9C40F2",
+      "contentHash": "0B8959463480C52C57899F3332B6E7B115780142915B351002789369F101A9F0",
       "hashBasis": "packages/story-series-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1346,9 +1422,13 @@
         {
           "hostId": "copilot",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-21. Generic series methodology only — private show bibles and media stay outside AgentHub. Prefer this over startup-series for new series work. Product Demo Studio stays separate.",
+      "notes": "Added 2026-08-21. Generic series methodology only — private show bibles and media stay outside AgentHub. Prefer this over startup-series for new series work. Product Demo Studio stays the product-screencast workflow; assemble non-screencast picture through media-studio.",
       "dependencies": {
         "requires": [
           "technical-storytelling"
@@ -1430,8 +1510,134 @@
       "kind": "provider",
       "maturity": "beta",
       "provenance": "agenthub-owned"
+    },
+    {
+      "id": "media-studio",
+      "owner": "personal-media",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/media-studio",
+      "managedSkillNames": [
+        "media-studio",
+        "media-writer",
+        "media-director",
+        "media-studio-generate",
+        "media-studio-compose",
+        "media-studio-capture",
+        "media-studio-qa",
+        "media-studio-visuals",
+        "media-studio-descript"
+      ],
+      "contentHash": "3261571C6A643F281A7A1B02F6DF370F989CAE04B7101AD74EC8B052DD67DE93",
+      "hashBasis": "packages/media-studio",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Added 2026-08-25. Public video/audio studio. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Grok uses managed-loose-skills.",
+      "dependencies": {
+        "requires": [
+          "local-ai"
+        ],
+        "recommends": [
+          "technical-storytelling",
+          "browser-toolkit"
+        ],
+        "optional": [
+          "product-demo-studio",
+          "story-series-studio",
+          "learning-studio",
+          "external:remotion",
+          "elevenlabs"
+        ]
+      },
+      "kind": "orchestrator",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
     }
   ],
-  "lastValidatedAt": "2026-08-21T00:00:00.000Z",
-  "lastCanonicalChangeAt": "2026-08-21T00:00:00.000Z"
+  "lastValidatedAt": "2026-08-25T00:00:00.000Z",
+  "lastCanonicalChangeAt": "2026-08-25T00:00:00.000Z"
 }
