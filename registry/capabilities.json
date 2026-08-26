@@ -842,11 +842,12 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills",
             "mcp"
-          ]
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-08-26. Cursor's local plugin is a junction at ~/.cursor/plugins/local/browser-toolkit (live package, including desktop-evidence), but cursor-agent reads ~/.cursor/skills and did not receive new skills while this mapping was native-local-plugin. Same split as claude: skills deploy independently of the plugin so a missing or stale plugin cannot strand Capture-Screen/desktop-evidence. The junction remains for Cursor IDE plugin discovery; AgentHub does not remove it."
         },
         {
           "hostId": "devin",
@@ -874,11 +875,11 @@
         },
         {
           "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "managed-loose-skills",
           "components": [
-            "skills",
-            "mcp"
-          ]
+            "skills"
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-08-26. native-local-plugin left ~/.qoder/skills with no browser-toolkit skills and no plugin directory on disk, so desktop-evidence was unreachable. Skills-only mapping; Qoder has no verified plugin copy to refresh."
         },
         {
           "hostId": "qwen-code",
