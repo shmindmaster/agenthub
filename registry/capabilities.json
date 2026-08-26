@@ -224,7 +224,7 @@
         "product-demo-studio-descript",
         "product-demo-studio-visual-assets"
       ],
-      "contentHash": "430DDC7459BABF092EA0AA3AD6A92B52F7581E5FE453E76C85EA9D180976EDAF",
+      "contentHash": "47C5A7AEFA33D4912535569C6ACEDF6A5BA529180CE4A177C43A0B9DB3F21E57",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -236,7 +236,8 @@
             "agents",
             "mcp"
           ],
-          "reviewIsolation": "shell-free-role-tools-plus-read-only-receipt-required"
+          "reviewIsolation": "shell-free-role-tools-plus-read-only-receipt-required",
+          "deploymentStatusNote": "product-demo-studio plugin is not installed on Claude (checked 2026-08-25). Mapping kept so Descript stays plugin-owned and is not doubled with the native account connector. Public video pack is media-studio@agenthub; engine invoked from packages/product-demo-studio on disk."
         },
         {
           "hostId": "codex",
@@ -388,7 +389,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "E1BEE59604D356DAFB78B74AF435DE582752A5D0BFCA2C3CDF0195E9892828F2",
+      "contentHash": "E8F2722585732191E2E0C0FC9C1B041EF47FE99C337E39A5C8B500D8BEAD5F47",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
@@ -726,7 +727,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "4FD3C21AFEBDCC39CD66691B41F2F1A621CCB9483D8A0DEABA005EB6A59479AC",
+      "contentHash": "846988D45184A8C6B5E9CE9FB485C85951F948A56511AA1D2ADDEC5D13E7FFB1",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the eight-host tier digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. clerk was removed from that tier on 2026-08-24 because AgentHub does not own Clerk skills (official: clerk/skills). firecrawl is now a fleet overlay (firecrawl-web-ingestion); official Firecrawl ops install from firecrawl/skills.",
@@ -801,7 +802,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "8F90853B041BEC525E9B44C3C60C6EDF7691609CBB275C2D645443C4F048CB74",
+      "contentHash": "47FCC655199A6FD5446CEBE14E79CD30E0143BB990FB740185175CD9D854E21B",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
@@ -1240,7 +1241,7 @@
         "startup-showrunner",
         "comedy-writer"
       ],
-      "contentHash": "09DE63F661883A21C767693EAA4B15D1247DCCD24D4DAE82E5BF2160400F6198",
+      "contentHash": "CA28DFB280235E0BA2B61134CC066F4853EEE655329BCBEEA4E8E3C4ADA5C8BE",
       "hashBasis": "packages/startup-series",
       "status": "active-canonical",
       "hostMappings": [
@@ -1311,7 +1312,7 @@
         "technical-explainer",
         "technical-visualizer"
       ],
-      "contentHash": "C8799760F452FEAD8B9086C8C988C588CF704CD1A0A954090BC66EC4030C679F",
+      "contentHash": "5767D184ADCEBE3462CD153CF67EEA9FFF89574E12C1EB77E49369F29D5DA90A",
       "hashBasis": "packages/technical-storytelling",
       "status": "active-canonical",
       "hostMappings": [
@@ -1382,7 +1383,7 @@
         "privacy-fictionalizer",
         "series-continuity"
       ],
-      "contentHash": "0B8959463480C52C57899F3332B6E7B115780142915B351002789369F101A9F0",
+      "contentHash": "1418ED2628F8809B806639CE91E5A1254ABF64F66ACE38FC351ABF74007BB44C",
       "hashBasis": "packages/story-series-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1527,20 +1528,20 @@
         "media-studio-visuals",
         "media-studio-descript"
       ],
-      "contentHash": "3261571C6A643F281A7A1B02F6DF370F989CAE04B7101AD74EC8B052DD67DE93",
+      "contentHash": "A8AF65AA25899B594385ADAC0AA0A60634B9A564160F9229C60251433DD4FA81",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
         {
           "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills"
           ]
         },
         {
           "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "native-plugin-installed",
           "components": [
             "skills"
           ]
@@ -1616,7 +1617,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25. Public video/audio studio. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Grok uses managed-loose-skills.",
+      "notes": "Added 2026-08-25. Only public video/audio pack. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"

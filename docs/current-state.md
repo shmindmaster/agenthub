@@ -18,7 +18,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   listening comparison; the retained validation line was complete at WER
   0.000 and 145.8 WPM. Chatterbox Sarosh profiles, aliases, x-vector-only
   cloning, meeting/singing profiles, shootout profiles, and loose references
-  are retired. The AgentHub local-AI and Product Demo Studio narration skills
+  are retired. The AgentHub local-AI and media-studio-generate skills
   enforce the same route across managed hosts.
 
 - **Owner-voice output is now measured, not assumed (2026-08-15):** until this
@@ -190,21 +190,21 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `comedy-writer`); generic craft lives in the studio packages. Private show
   bibles stay outside AgentHub.
 
-- **Local media studio (2026-08-25):** `packages/media-studio` is the parent
-  video/audio/animation pack. Rapid default: a concept or outline is enough;
-  writer → director → Local-AI generate → Remotion/FFmpeg compose in one run.
-  Product Demo Studio 1.8.2 stays the gated **product screencast** workflow
-  (Playwright + Recast pointer/click) and bounces briefings, training,
-  explainers, and talking-heads to media-studio. Owner voice remains
+- **Local media studio (2026-08-25):** `packages/media-studio` is the **only
+  public** video/audio/animation pack. Rapid default: a concept or outline is
+  enough; writer → director → Local-AI generate → Remotion/FFmpeg/Recast compose
+  in one run. Kinds: briefing, training, explainer, talking-head, animation,
+  audio-only, and `product-screencast`. `product-demo*` **skills are
+  fleet-retired**; the Playwright + Recast + four-domain engine remains in
+  `packages/product-demo-studio/pipeline` and is invoked by media-studio, not
+  loaded as a public skill. Owner voice remains
   `ai.ps1 voice qwen-clone --voice sarosh`. Remotion is official
-  `remotion-dev/skills` (not vendored); measured 2026-08-25 those skills were
-  **checked-absent** from `~/.claude/skills`, `~/.codex/skills`,
-  `~/.cursor` was not separately enumerated here, `~/.grok/skills`, and
-  `~/.agents/skills`. FFmpeg/ffprobe are on PATH. Local-AI motif/lipsync/portrait
-  routes are installed and documented in `local-ai-stack` `references/video.md`;
-  Comfy/voice services start on demand. Grok mappings for media-studio and
-  local-ai are `managed-loose-skills` so Sync copies into `~/.grok/skills`
-  (a `native-plugin-installed` mapping skips that copy).
+  `remotion-dev/skills` 4.0.517 (not vendored), installed globally under
+  `~/.agents/skills` and recorded current on Claude and Codex. FFmpeg/ffprobe
+  are on PATH. Local-AI motif/lipsync/portrait routes are installed and
+  documented in `local-ai-stack` `references/video.md`. Media-studio maps as
+  `managed-loose-skills` on skill-only hosts (including Grok) so Sync copies
+  into those skill dirs.
 
 ## In progress
 

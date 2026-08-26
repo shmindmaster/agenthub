@@ -16,5 +16,23 @@
     "screenplay",
     "director"
   ],
-  "version": "1.1.0"
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "interface": {
+    "displayName": "Media Studio",
+    "shortDescription": "Local video, audio, and animation from a concept, including live-product screencasts.",
+    "longDescription": "Single public video/audio studio. Writes a screenplay, directs the picture, generates owner or role voice through Local-AI, captures live product with Playwright when needed, and composes with Remotion, Recast, or FFmpeg. Live-product screencasts invoke the internal screencast engine; everything else stays here.",
+    "developerName": "Sarosh Hussain",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Turn this outline into a local briefing video with owner voice.",
+      "Produce a short training clip from these bullets.",
+      "Capture this product workflow as a screencast, then narrate it locally."
+    ]
+  },
+  "version": "1.1.1"
 }

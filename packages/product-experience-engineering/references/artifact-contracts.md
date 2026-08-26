@@ -41,7 +41,7 @@ are implementation memory and evidence, not governance gates.
 
 Every finding must connect evidence to user impact, a concrete recommendation, and a way to validate the result. Label assumptions and unavailable evidence. Use synthetic data for testing. Do not place secrets, production records, or copied private user content in artifacts.
 
-Product Demo Studio consumes the demo-readiness handoff; it does not own or reconstruct the product-experience assessment. A stale handoff, revision mismatch, missing criterion, missing evidence, or unresolved product-fix-required defect fails closed before capture.
+`media-studio` consumes the demo-readiness handoff for `product-screencast` jobs; it does not own or reconstruct the product-experience assessment. A stale handoff, revision mismatch, missing criterion, missing evidence, or unresolved product-fix-required defect fails closed before capture.
 
 The machine-readable handoff uses its final `afterVerdict` as the video gate. `DEMO-READY` requires all eleven criteria to pass and maps only to `PASS` / `PROCEED`. `REMEDIABLE` and `DEFERRED` both map to `FAIL` / `DO-NOT-RECORD`; neither enters video production. A starting `beforeVerdict` of `REMEDIABLE` is historical context, not permission to record.
 

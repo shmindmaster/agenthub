@@ -1,6 +1,5 @@
 {
   "name": "technical-storytelling",
-  "version": "1.0.0",
   "description": "Reusable technical explanation and visualization planning for demos, series, learning, and docs.",
   "author": {
     "name": "Sarosh Hussain"
@@ -11,5 +10,6 @@
     "explainer",
     "diagram",
     "education"
-  ]
+  ],
+  "version": "1.0.1"
 }

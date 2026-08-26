@@ -31,6 +31,9 @@ TAKEAWAY           what the viewer should remember
 - Optional `visual_plan` notes for `technical-visualizer`
 - Optional companion bullets for docs / learning cards
 
+After the visual plan exists, compose the film through `media-studio` (kind
+`explainer`). Do not load retired `product-demo*` skills.
+
 ## Non-goals
 
 - Not series continuity, privacy fictionalization, or Remotion implementation.

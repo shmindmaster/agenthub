@@ -1,6 +1,5 @@
 {
   "name": "browser-toolkit",
-  "version": "2.1.0",
   "description": "Interactive visual browser testing, Playwright MCP/CLI/Test provider catalogs, debugging, and evidence capture.",
   "author": {
     "name": "Sarosh Hussain"
@@ -30,5 +29,6 @@
       "Debug this browser failure using console and network evidence.",
       "Check this page visually, semantically, and for accessibility."
     ]
-  }
+  },
+  "version": "2.1.1"
 }

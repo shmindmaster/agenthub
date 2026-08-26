@@ -30,7 +30,7 @@ generic lecture remasters.
 - Never put private diary/media into `duckie-app` or product checkouts.
 - Never invent evidence. Facts live in `receipts.yaml` with FACT / DRAMATIZED / COMPOSITE labels.
 - Agents open **this** series repo for show work, not product repos.
-- Do not route series production through Product Demo Studio.
+- Do not route series production through the product-screencast engine. Assemble picture through `media-studio` after this methodology.
 
 ## Episode pipeline
 

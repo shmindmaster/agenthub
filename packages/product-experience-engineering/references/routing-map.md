@@ -4,7 +4,7 @@ Load only the material needed for the current task.
 
 | Task | Required references | Conditional references |
 |---|---|---|
-| Prepare a product for demo or video | `product-experience-audit-remediation-guide`, `artifact-contracts`, `application-surface-coverage` | Numbered references for additional depth; Product Demo Studio only after the handoff validates |
+| Prepare a product for demo or video | `product-experience-audit-remediation-guide`, `artifact-contracts`, `application-surface-coverage` | Numbered references for additional depth; `media-studio` only after the handoff validates |
 | Route broad app improvement work | `artifact-contracts`, `application-surface-coverage` | The specialized references below |
 | Discover an existing application | `00`, `01`, `03`, `09`, `application-surface-coverage` | `02` for AI behavior; `05` for an established visual system |
 | Audit an existing application | `01`, `03`, `06`, `09`, `application-surface-coverage` | `02` for agentic interactions; `05` for visual and interaction quality |

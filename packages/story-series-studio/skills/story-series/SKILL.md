@@ -28,5 +28,5 @@ Every beat must be tagged:
 ## Non-goals
 
 - No private names, customers, or show bible content in AgentHub.
-- Do not convert Product Demo Studio into a series engine.
-- Assemble non-screencast picture through `media-studio`. Remotion via `video.programmatic-composition` (tracked third-party), not vendored.
+- Do not convert the screencast engine into a series engine.
+- Assemble picture through `media-studio` (kind `series-episode`). Remotion via `video.programmatic-composition` (tracked third-party), not vendored.

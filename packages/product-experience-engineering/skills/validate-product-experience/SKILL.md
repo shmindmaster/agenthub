@@ -14,7 +14,7 @@ Prove the implemented experience works for its intended users and states. Valida
 Start from the user request, current implementation, diff, tests, and runtime behavior. Prior specification and implementation-log artifacts are helpful but not required. When they are absent, derive explicit expected behavior and label any unresolved product-intent assumptions. Follow [artifact contracts](../../references/artifact-contracts.md).
 
 For demo or video intent, return the evidence to `prepare-product-for-demo`, which alone emits the
-product-owned demo-readiness handoff consumed by Product Demo Studio.
+product-owned demo-readiness handoff consumed by `media-studio` (kind `product-screencast`).
 
 ## Workflow
 

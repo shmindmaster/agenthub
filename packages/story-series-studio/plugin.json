@@ -1,6 +1,6 @@
 {
   "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "story-series-studio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Generic methodology for privacy-safe, evidence-aware technical story series — no private show bible."
 }

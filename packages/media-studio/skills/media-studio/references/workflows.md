@@ -31,6 +31,10 @@ Still from Visual Bank / Klein → Motif I2V (`ai.ps1 motif --reference --prompt
 
 Voice and/or ACE-Step music. Do not start ComfyUI for music. Mix a bed under speech after both exist.
 
-## product-screencast / series-episode
+## product-screencast
 
-Bounce. Capture and Recast pointer/click stay in product-demo-studio. Series methodology stays in story-series-studio. Return here only for a non-screencast derivative.
+Do not load retired `product-demo*` skills. Stay in media-studio: `media-studio-capture` (Playwright + Recast), `media-studio-generate` (local voice), `$Pds\scripts` render/preflight, `media-studio-qa`. Product-repo config filename stays `product-demo-studio.config.yaml`.
+
+## series-episode
+
+`story-series` owns methodology. Compose non-screencast picture here.

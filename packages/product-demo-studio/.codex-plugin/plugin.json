@@ -6,32 +6,29 @@
   },
   "license": "MIT",
   "keywords": [
-    "product-demo",
-    "video",
-    "remotion",
+    "screencast",
     "playwright",
-    "narration",
+    "recast",
     "video-qa",
-    "demo-readiness",
-    "visual-assets"
+    "media-studio"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Product Demo Studio",
-    "shortDescription": "Produce verified videos or readiness feedback.",
-    "longDescription": "Consume Product Experience Engineering's current pre-video handoff, then plan, assess, capture, narrate, compose, preflight, independently review, arbitrate, remediate, rerender, and require a mandatory final independent review and verification of truthful product videos. Fail closed to fix-oriented Product-Readiness Feedback when the product or pipeline cannot clear the persuasion, correctness, evidence, privacy, compliance, and reproducibility gates.",
+    "displayName": "Screencast Engine",
+    "shortDescription": "Internal Playwright/Recast capture and review engine used by Media Studio.",
+    "longDescription": "Not a public video skill pack. Media Studio routes live-product screencasts here for deterministic Playwright capture, Recast pointer/click finishing, four-domain review, and release gates. Public briefings, training, explainers, talking-heads, animation, and audio go through media-studio.",
     "developerName": "Sarosh Hussain",
-    "category": "Productivity",
+    "category": "Developer Tools",
     "capabilities": [
       "Interactive",
       "Write"
     ],
     "defaultPrompt": [
-      "Assess this product and produce only demo-worthy videos.",
-      "Turn this workflow into a persuasive product demo.",
-      "Audit this demo proxy against truth, craft, and persuasion gates."
+      "Run the screencast engine for a media-studio product-screencast job.",
+      "Assess whether this product can clear the capture gates.",
+      "Return Product-Readiness Feedback instead of a mediocre screencast."
     ]
   },
-  "version": "1.8.3"
+  "version": "1.8.4"
 }

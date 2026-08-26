@@ -34,7 +34,7 @@ folders. Follow [artifact contracts](../../references/artifact-contracts.md).
 10. Return the demo-readiness handoff and machine-readable payload. Persist
     `_product-experience/07-demo-readiness-handoff.md` and `_product-experience/demo-readiness.json`
     only with explicit repository-write authorization; validate both before a file-based handoff to
-    Product Demo Studio.
+    `media-studio` (kind `product-screencast`).
 
 ## Video handoff contract
 

@@ -32,7 +32,8 @@
     },
     "bounceTo": {
       "type": ["string", "null"],
-      "enum": ["product-demo-studio", "story-series-studio", null]
+      "enum": ["story-series-studio", null],
+      "description": "Only series methodology leaves this studio. Product screencasts stay here and invoke the internal engine."
     },
     "truth": {
       "type": "string",

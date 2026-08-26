@@ -115,9 +115,10 @@ Do not add a second control script or a parallel launcher for this capability.
 **`ai.ps1 voice kokoro` is removed** and fails loudly.
 
 `ai.ps1 listen` is the only full-program audio-perception route for a system-owned
-Product Demo Studio audio release gate. It runs locally and emits the immutable
-native report described by Product Demo Studio's `local-ai-listen-report.schema.json`;
-it is not human playback. Product Demo Studio binds that untouched report inside
+media-studio / screencast-engine audio release gate. It runs locally and emits the
+immutable native report described by
+`packages/product-demo-studio/schemas/local-ai-listen-report.schema.json`;
+it is not human playback. `media-studio-qa` binds that untouched report inside
 `candidate-audio-perception-report.schema.json` with the model receipt and fresh
 calibration before read-only adjudication. Load `references/voice.md` for details.
 

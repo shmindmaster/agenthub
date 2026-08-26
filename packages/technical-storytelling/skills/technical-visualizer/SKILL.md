@@ -29,7 +29,8 @@ nothing — narration enough?
 5. Route composition through `media-studio-compose`. Remotion is capability
    `video.programmatic-composition` (official `remotion-dev/skills`), never vendored
    here. Mermaid/D2 for static diagrams. Product-UI truth still captures through
-   product-demo-studio.
+   `media-studio-capture` (the screencast engine under `packages/product-demo-studio`).
+   Do not load retired `product-demo*` skills.
 
 ## Output
 

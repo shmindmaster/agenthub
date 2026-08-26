@@ -1,6 +1,12 @@
-# product-demo-studio
+# product-demo-studio (internal screencast engine)
 
-Current package release: **1.8.3**. AgentHub is the canonical owner of the versioned product-video
+**Public video/audio work starts at `packages/media-studio`.** This package is the
+Playwright + Recast + four-domain review engine that media-studio invokes for
+`product-screencast` jobs. It is not a public skill pack. The `product-demo*`
+skill names are fleet-retired; their trees live under `pipeline/` so
+Sync-Capabilities does not deploy them.
+
+Current package release: **1.8.4**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
@@ -77,7 +83,8 @@ separate Product Demo Studio envelope declares `listener.kind=local-audio-model`
 native report and model receipt, and adds fresh known-good/known-bad calibration. A host-enforced
 read-only audio reviewer adjudication must bind and pass that envelope before arbitration. This
 evidence is never labeled as human playback.
-Version 1.8.3 keeps the product-screencast pipeline and bounces briefings, training films, explainers, talking-heads, and other non-screencast video to `media-studio`.
+Version 1.8.3 moved public video skills to `media-studio` and kept this package as the screencast engine.
+Version 1.8.4 stops presenting this plugin as a public video pack: host manifests declare empty `skills/`, Codex display name is Screencast Engine, and the public router is media-studio.
 Version 1.8.1 closes the calibration provenance gap: the candidate, known-good, and known-bad
 inputs now require three byte-distinct immutable native `ai.ps1 listen` reports. Both calibration
 reports bind their exact input, deterministic continuous decode, shared model receipt, identical
@@ -123,18 +130,16 @@ host copy (see `tests/Test-InstalledPluginFreshness.ps1`). Sequence:
 6. Re-deploy the updated package into each host that has a live install (reinstall/update the
    plugin in that host) — this is a separate step from the checks above, which only detect drift.
 
-## Skills
+## Public skills (media-studio)
 
-| Skill | Purpose |
-|---|---|
-| `product-demo-studio` | Router. Enforces Product Experience handoff → episode/truth architecture → timed source → deterministic state/capture → narration/composition → evidence/preflight → four reviews/arbiter → remediation → mandatory final independent review and verification → video-or-feedback. Start here. |
-| Official Remotion plugin | Optional exceptional composition fallback only when the default Recast pipeline cannot express a required visual; AgentHub does not vendor a copy. |
-| `product-demo-studio-capture` | Deterministic browser-automation capture conventions: fixed viewports, reduced motion, discover-first auth, seeded data only, capture manifests, redaction rules. |
-| `product-demo-studio-visual-assets` | Marketing/journey visual survey, non-product-UI asset generation, current model/voice verification, provenance, disclosure, and accessibility. |
-| `product-demo-studio-narration` | Provider-agnostic TTS narration: generation, segment-level regeneration, timing, narration style. |
-| `product-demo-studio-render` | Render orchestration, the video/scene catalog schema, the product-claim ledger, and the automated evidence gate that must pass before a render is accepted. |
-| `product-demo-studio-qa` | Immutable evidence package, deterministic preflight, four independent schema-valid reviews, release arbitration, remediation/rerender, and mandatory final independent review and verification. |
-| `product-demo-studio-descript` | Optional third-party editorial finishing. Any edit creates a new candidate and forces new evidence/review/final verification; publishing requires explicit task authority. |
+Agents load `media-studio`, `media-studio-capture`, `media-studio-generate`,
+`media-studio-compose`, `media-studio-qa`, `media-studio-visuals`, and
+`media-studio-descript`. Those skills invoke this package's `pipeline/`,
+`scripts/`, and `agents/`. Do not deploy or load `product-demo*` skill names.
+Screencast QA still runs four independent domain reviews, arbitration, and a
+mandatory final independent review and verification.
+
+Official Remotion composition uses `remotion-dev/skills`, not a vendored copy here.
 
 ## Agents
 
@@ -149,8 +154,9 @@ skill-only hosts:
 - decision/control: Release Arbiter, least-privilege Remediation Agent, and the mandatory terminal
   independent reviewer/verifier (`final-verifier`).
 
-Plugin-aware hosts may invoke them as `product-demo-studio:<name>`. Skill-only hosts resolve the
-same prompts from the canonical package and create equivalent isolated contexts. The old five-role
+Plugin-aware hosts may invoke review agents as `product-demo-studio:<name>`. Public video
+skills are `media-studio*`. Skill-only hosts resolve the same agent prompts from the
+canonical package and create equivalent isolated contexts. The old five-role
 review split is replaced: product truth and visual accuracy now belong to Screen/Accuracy/
 Compliance, while visual storytelling belongs to Story/Experience. No review criterion was
 dropped.
@@ -266,6 +272,7 @@ invoked from the plugin with the target repo as product input — never copied i
 - This plugin does not scaffold video infrastructure into product repos. New workspaces and
   generated evidence stay in the external AgentHub work root; accepted review packages go to the
   OneDrive destination in `registry/product-video-delivery.json`.
-- Fleet-distributed skill-only hosts resolve this directory from the `product-demo-studio`
-  capability's `canonicalSource` in the Agent Capabilities registry. They do not rely on the
-  Claude-only `CLAUDE_PLUGIN_ROOT` environment variable or duplicate the scripts into product repos.
+- Fleet-distributed skill-only hosts resolve **media-studio** skills from that
+  capability's `canonicalSource`. This package stays the engine those skills
+  invoke; they do not rely on the Claude-only `CLAUDE_PLUGIN_ROOT` environment
+  variable or duplicate the scripts into product repos.

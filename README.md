@@ -66,4 +66,4 @@ Keep only canonical source and deterministic validation here. Do not add:
 - per-product `_product-experience`, `_production`, `studio`, or video packages;
 - duplicate `portfolio-plugins`, `handoff-plugins`, `capabilities`, `adapters`, or `generated` roots.
 
-Product Demo Studio uses an external workspace under `%LOCALAPPDATA%\AgentHub\product-demo-studio` and delivers approved media to the OneDrive destination in `registry/product-video-delivery.json`.
+Media Studio is the public video/audio pack (`packages/media-studio`). Live-product screencasts still invoke the internal engine in `packages/product-demo-studio`. Runtime workspaces live under `%LOCALAPPDATA%\AgentHub\media-studio` and `%LOCALAPPDATA%\AgentHub\product-demo-studio`. Approved media delivers to the OneDrive destination in `registry/product-video-delivery.json`.

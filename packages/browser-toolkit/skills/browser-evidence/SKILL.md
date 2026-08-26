@@ -6,7 +6,8 @@ description: Use when an authorized workflow needs reproducible screenshots, acc
 # Browser evidence
 
 This skill captures observed browser evidence. Product decisions remain with Product
-Experience Engineering; demo and release decisions remain with Product Demo Studio.
+Experience Engineering; video production and release decisions remain with
+`media-studio` (live-product screencasts invoke the internal screencast engine).
 
 After resolving a provider lane, load the matching catalog:
 

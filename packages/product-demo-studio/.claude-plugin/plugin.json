@@ -5,18 +5,13 @@
     "name": "Sarosh Hussain"
   },
   "keywords": [
-    "remotion",
-    "descript",
-    "video",
-    "product-demo",
-    "marketing",
+    "screencast",
     "playwright",
-    "react",
-    "narration",
-    "tts",
+    "recast",
     "video-qa",
-    "visual-assets"
+    "media-studio"
   ],
   "license": "MIT",
-  "version": "1.8.3"
+  "skills": "./skills/",
+  "version": "1.8.4"
 }

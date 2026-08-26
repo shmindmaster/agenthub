@@ -16,7 +16,7 @@ Prefer the cheapest truthful visual:
 | Mode | When |
 | --- | --- |
 | `slide` | Briefing / training argument on type |
-| `screen` | Claim is about a live product — bounce capture to product-demo-studio |
+| `screen` | Claim is about a live product — `media-studio-capture` (Playwright + Recast). Do not load retired `product-demo*` skills. |
 | `diagram` | Structure or flow (Mermaid/D2/SVG, not diffusion) |
 | `talking-head` | Face must carry the line |
 | `motif` | Generated motion from an enrolled still |

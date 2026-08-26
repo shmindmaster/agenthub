@@ -8,7 +8,7 @@ Live-product screencasts still use the gated Playwright + Recast + four-domain e
 
 **Heavy GPU** (Motif, lipsync, music) is opt-in.
 
-Version authority: root `plugin.json` (`1.1.0`). Host projections must match.
+Version authority: root `plugin.json` (`1.1.1`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `D:\Local-AI\data\artifacts`). Private show bibles and customer recordings stay outside this repository.
 
 ## Why this exists

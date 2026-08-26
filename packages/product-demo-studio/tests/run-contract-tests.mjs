@@ -823,7 +823,7 @@ function createReviewIntegrity(root, reviewDomain, executionRecords) {
   const modelId = "synthetic-independent-reviewer-v1";
   const canonicalRubricPath = join(
     pluginDir,
-    "skills",
+    "pipeline",
     "product-demo-studio",
     "references",
     "killer-demo-playbook.md",
@@ -892,7 +892,7 @@ function createReviewIntegrity(root, reviewDomain, executionRecords) {
   writeJson(calibrationPath, {
     schemaVersion: "1.0.0",
     status: "PASS",
-    pluginVersion: "1.8.3",
+    pluginVersion: "1.8.4",
     reviewDomain,
     modelId,
     canonicalRubric,

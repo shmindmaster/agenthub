@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.8.3",
+  "capabilityVersion": "1.8.4",
   "canonicalOwner": "handoff",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",

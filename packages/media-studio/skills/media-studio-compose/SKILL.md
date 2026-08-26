@@ -24,7 +24,7 @@ Load official Remotion skills (`remotion-markup`, `remotion-render`) when editin
 | Job | Tool | How |
 | --- | --- | --- |
 | Motion slides, lower-thirds, programmatic UI, briefing boards | Remotion | Official `remotion-dev/skills` — `/remotion-create`, `/remotion-markup`, `/remotion-studio`, `/remotion-render`, `/remotion-captions`. Do not vendor those rules here. |
-| Captured product trace that needs cursor, click ripple, punch-in zoom | Recast (`playwright-recast`) | Same lane as product-demo-studio-render. Prefer bouncing a true product screencast to that pipeline. |
+| Captured product trace that needs cursor, click ripple, punch-in zoom | Recast (`playwright-recast`) | `media-studio-capture` then this compose step. Do not load retired `product-demo*` skills. |
 | Concat, mux, loudness, caption burn-in, format normalize | FFmpeg | Already on PATH. Smallest filter graph that does the job. |
 | Motif clip + voice | FFmpeg mux | Do not re-generate motion to "fit" duration; trim or hold. |
 

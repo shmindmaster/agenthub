@@ -1,6 +1,5 @@
 {
   "name": "story-series-studio",
-  "version": "1.0.0",
   "description": "Generic methodology for privacy-safe, evidence-aware technical story series — no private show bible.",
   "author": {
     "name": "Sarosh Hussain"
@@ -11,5 +10,6 @@
     "storytelling",
     "remotion",
     "drama"
-  ]
+  ],
+  "version": "1.0.1"
 }
