@@ -4,6 +4,13 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Media-studio delivery finish (2026-08-26):** `Finish-Media.ps1` is the
+  compose loudness helper. Two-pass **linear** `loudnorm` to −16 LUFS /
+  −1.5 dBTP (Apple Podcasts spoken-word / existing PDS gate). One-pass
+  dynamic loudnorm is refused. Optional FFmpeg sidechain duck for a music
+  bed. AAC-LC 48 kHz Fast Start. Not an enhancer: no DeepFilterNet,
+  Resemble Enhance, or Descript Studio Sound on owner voice.
+
 - **Fleet evidence capture (2026-08-26):** browser-toolkit owns one capture
   contract. Web stills/console/network use the host browser or Playwright MCP;
   **session video and traces use Playwright CLI** (fleet MCP does not pass

@@ -1529,7 +1529,7 @@
         "media-studio-visuals",
         "media-studio-descript"
       ],
-      "contentHash": "A8AF65AA25899B594385ADAC0AA0A60634B9A564160F9229C60251433DD4FA81",
+      "contentHash": "2AE0F624C6D0F304696F3927D2DC987EFEEC046A9C460FF4885CF40CC5AFD236",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [

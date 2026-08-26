@@ -7,7 +7,7 @@ Narrated motion slides. Measured example class: ~24 min, 1600×1000, H.264 + AAC
 1. Writer locks a screenplay: one idea per scene, spoken words canonical (no phonetic respelling).
 2. Director sets slide layout, emphasis color, hold time. Motion teaches order; decoration is refused.
 3. Generate owner voice through `ai.ps1 voice qwen-clone --voice sarosh`, identity-score, then render the house kit `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit` composition `Briefing` (do not `create-video` a new app).
-4. FFmpeg only for delivery normalize / caption burn-in.
+4. `Finish-Media.ps1` for two-pass linear loudness (−16 LUFS / −1.5 dBTP) and AAC 48 kHz. Recast/Remotion burn captions from the locked spoken words.
 
 Exact logos, numbers, and legal text are compositor-set type, never diffusion.
 
@@ -29,7 +29,7 @@ Still from Visual Bank / Klein → Motif I2V (`ai.ps1 motif --reference --prompt
 
 ## audio-only
 
-Voice and/or ACE-Step music. Do not start ComfyUI for music. Mix a bed under speech after both exist.
+Voice and/or ACE-Step music. Do not start ComfyUI for music. Mix a bed under speech with `Finish-Media.ps1 -Speech -Music` (sidechain duck), then the same two-pass loudness finish.
 
 ## product-screencast
 

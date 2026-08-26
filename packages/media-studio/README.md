@@ -8,7 +8,7 @@ Live-product screencasts still use the gated Playwright + Recast + four-domain e
 
 **Heavy GPU** (Motif, lipsync, music) is opt-in.
 
-Version authority: root `plugin.json` (`1.1.1`). Host projections must match.
+Version authority: root `plugin.json` (`1.2.0`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `D:\Local-AI\data\artifacts`). Private show bibles and customer recordings stay outside this repository.
 
 ## Why this exists
@@ -25,7 +25,7 @@ This package is the parent studio. Product Demo Studio remains the product-scree
 | Writer | `media-writer` | Screenplay, narration script, shot list |
 | Director | `media-director` | Visual plan, scene design, pointer/highlight choreography, performance |
 | Generate | `media-studio-generate` | Local-AI voice, image, motif, lipsync, portrait, music, STT |
-| Compose | `media-studio-compose` | Remotion, Recast, FFmpeg assembly |
+| Compose | `media-studio-compose` | Remotion, Recast, `Finish-Media.ps1` (two-pass linear loudnorm, optional duck, AAC 48 kHz) |
 
 Do not vendor Remotion rules. Resolve `video.programmatic-composition` to the official `remotion-dev/skills` pack.
 
