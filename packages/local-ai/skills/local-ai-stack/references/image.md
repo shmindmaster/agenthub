@@ -83,3 +83,17 @@ Quality ladder: new seed → better refs → control/mask → LoRA → model esc
 - IP-Adapter is optional, not foundation (prefer FLUX native multi-ref).
 - Post-process for size/quality; do not regenerate a good composition just to
   enlarge it.
+
+### Invoke canvas (paint-mask, not Visual Bank)
+
+Visual Bank generation stays `ai.ps1 image` / ComfyUI. For interactive
+paint-mask inpaint/outpaint, start Invoke beside it:
+
+```powershell
+& $LocalAiControl start invokeai
+```
+
+Invoke is on-demand (not in `start all` / `start media`). It uses the same
+FLUX.2 Klein 4B BF16 transformer, Qwen3 4B encoder, and F2K VAE as Comfy —
+full standalone, not the starter Q4 pack, not Klein 9B. Do not run a heavy
+Klein job in Comfy and Invoke at the same time on the 16 GB card.

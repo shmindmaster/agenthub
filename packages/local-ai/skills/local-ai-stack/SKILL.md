@@ -60,6 +60,7 @@ Proceed only for the route whose checks passed:
 - **chat + attachments** -> Open WebUI route.
 - **knowledge/legal retrieval** -> RAG route.
 - **image / motif video** -> ComfyUI route (`ai.ps1 image` / `motif`).
+- **interactive canvas edits** -> Invoke (`ai.ps1 start invokeai`). Same Klein 4B BF16 as Comfy. Do not generate in both at once. Load `references/image.md`.
 - **lipsync / portrait** -> `ai.ps1 lipsync` / `portrait` (LatentSync / LivePortrait). Load `references/video.md`.
 - **music beds** -> `ai.ps1 music` (ACE-Step resident). Do **not** start ComfyUI.
 - **voice/STT/audio perception** -> dedicated media runtime route. TTS and `listen` do not need music or Comfy.

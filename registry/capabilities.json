@@ -727,7 +727,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "846988D45184A8C6B5E9CE9FB485C85951F948A56511AA1D2ADDEC5D13E7FFB1",
+      "contentHash": "6C345A259F306A44E5D0CC67620895BA749849EF9E0CF85228F0A9BA448904F6",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the eight-host tier digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. clerk was removed from that tier on 2026-08-24 because AgentHub does not own Clerk skills (official: clerk/skills). firecrawl is now a fleet overlay (firecrawl-web-ingestion); official Firecrawl ops install from firecrawl/skills.",
@@ -919,7 +919,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "F033620DFC5C9A51ABBE49CAFCEC0D128F5F8376C8104A15215D992BBDCE51C0",
+      "contentHash": "A4BE58EDC5C3D85074D9DFEEDBB8948153C096CD7E224F48E29C61269CD31706",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
