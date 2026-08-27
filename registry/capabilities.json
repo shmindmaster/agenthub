@@ -997,9 +997,10 @@
       "canonicalSource": "packages/knowledge-access",
       "managedSkillNames": [
         "use-knowledge-access",
-        "opportunity-engine"
+        "opportunity-engine",
+        "portfolio-enrichment"
       ],
-      "contentHash": "F3D9D794972F323F4F78AE4B3560C1781E5DC744B845296F1FA366E691DEA68E",
+      "contentHash": "8E9FB5AFA9FAE726879825AE17CC4B50D28AD630B5DB0936EF10490ECD32426F",
       "hashBasis": "packages/knowledge-access",
       "status": "active-canonical",
       "hostMappings": [
@@ -1072,7 +1073,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Document-intelligence layer for D:/OneDrive - MahumTech/Documents folders 01-06 and 10. Map + exact search + read. Semantic search is Local-AI Qdrant alias knowledge on host 127.0.0.1:16333 (Docker named volume, not a second store, not Duckie :6333). Opportunity rendering is the opportunity-engine skill. Runtime engagement records live in the private repo C:/Repos/shmindmaster/portfolio-records and must not be copied here."
+      "notes": "Document-intelligence layer for D:/OneDrive - MahumTech/Documents folders 01-06 and 10. Map + exact search + read. Semantic search is Local-AI Qdrant alias knowledge on host 127.0.0.1:16333 (Docker named volume, not a second store, not Duckie :6333). Opportunity rendering is the opportunity-engine skill. Portfolio and professional-material enrichment is the portfolio-enrichment skill. Runtime engagement records live in the private repo C:/Repos/shmindmaster/portfolio-records and must not be copied here."
     },
     {
       "id": "mobile-development",

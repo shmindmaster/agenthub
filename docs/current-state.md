@@ -93,7 +93,8 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `10`. `_INDEX.md` and `AGENTS.md` sit at that Documents root; `_MAP.md`
   is a pointer. Exact search uses WSL `rga` 0.10.10 plus pandoc/poppler
   (no Windows rga build exists). Opportunity rendering is
-  `opportunity-engine`; runtime records are the private repo
+  `opportunity-engine`; portfolio and professional-material enrichment is
+  `portfolio-enrichment`. Runtime records are the private repo
   `C:\Repos\shmindmaster\portfolio-records` (three fail-closed YAML
   records as of 2026-08-21 evening; synthetic fixtures stay in the
   package). Semantic search is Local-AI Qdrant alias `knowledge` (catalog

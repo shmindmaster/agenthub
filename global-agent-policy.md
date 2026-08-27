@@ -90,6 +90,14 @@ artifact.
   claims, and render. Fail closed on unsourced numbers and uncleared client
   names.
 
+## Portfolio materials
+
+When reviewing or improving a portfolio page, product, demo, case study,
+resume, bio, or related professional asset, load `portfolio-enrichment`.
+Retrieve from Qdrant `knowledge` (`-Profile client-facing`) and RepoWise
+first. You are the writer; do not draft via a local chat LLM. Improve the
+actual asset rather than only recommending changes.
+
 ## Handoff
 
 Report the outcome, changed files, validation evidence, branch or commit when applicable, remaining risks, and the next required gate. Silence or a missing automated review is not approval.

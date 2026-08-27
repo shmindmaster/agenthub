@@ -126,4 +126,6 @@ stop unless the user has authorized the move.
 
 Full plan: `packages/knowledge-access/references/knowledge-access-plan.md`.
 Opportunity rendering (resume, bid, proposal, interview): load
-`opportunity-engine`.
+`opportunity-engine`. Portfolio pages, case studies, bios, and related
+professional materials that are not an opportunity response: load
+`portfolio-enrichment`.

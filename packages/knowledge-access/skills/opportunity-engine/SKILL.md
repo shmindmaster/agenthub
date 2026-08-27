@@ -6,7 +6,9 @@ description: Use when turning a JD, RFP, Upwork post, client brief, capability s
 # Opportunity Response Engine
 
 Companion to `use-knowledge-access`. That skill gets at the documents.
-This one turns them into something you send. You are the writer. Do
+This one turns them into something you send. Portfolio pages, case
+studies, and bios that are not an opportunity response:
+`portfolio-enrichment`. You are the writer. Do
 **not** start llama.cpp, Ollama chat, Open WebUI generation, or
 `:8787/v1/chat/completions` to draft — those are local inference
 daemons, not this pipeline.

@@ -26,6 +26,7 @@ function Report {
 $required = @(
     'skills\use-knowledge-access\SKILL.md',
     'skills\opportunity-engine\SKILL.md',
+    'skills\portfolio-enrichment\SKILL.md',
     'scripts\New-KnowledgeIndex.ps1',
     'scripts\Search-Knowledge.ps1',
     'scripts\Find-CodeInKnowledge.ps1',
@@ -63,6 +64,19 @@ foreach ($f in $fixtures) {
 $engine = Get-Content -LiteralPath (Join-Path $pkg 'skills\opportunity-engine\SKILL.md') -Raw -Encoding UTF8
 Report 'opportunity-engine fail-closed on invented specifics' ($engine -match 'invented specifics') `
     'the fail-closed sentence is gone from opportunity-engine'
+
+$enrich = Get-Content -LiteralPath (Join-Path $pkg 'skills\portfolio-enrichment\SKILL.md') -Raw -Encoding UTF8
+Report 'portfolio-enrichment uses Qdrant knowledge alias' (
+    $enrich -match '-Index knowledge' -and $enrich -match 'client-facing' -and $enrich -notmatch 'knowledge_v\d'
+) 'skill must query alias knowledge with client-facing, never a versioned collection name'
+Report 'portfolio-enrichment refuses legal, Duckie Qdrant, and local chat draft' (
+    $enrich -match 'legal' -and $enrich -match ':6333' -and
+    $enrich -match 'llama\.cpp' -and $enrich -match 'You are the writer'
+) 'skill dropped a hard exclusion or the writer rule'
+Report 'portfolio-enrichment rewrites the actual asset' (
+    $enrich -match 'Rewrite and enhance the actual asset' -and
+    $enrich -match 'credible synthesis'
+) 'skill no longer requires rewriting the asset from retrieved knowledge'
 
 $search = Get-Content -LiteralPath (Join-Path $pkg 'scripts\Search-Knowledge.ps1') -Raw -Encoding UTF8
 Report 'Search-Knowledge exposes -Semantic' ($search -match '(?m)\[switch\]\$Semantic') `
