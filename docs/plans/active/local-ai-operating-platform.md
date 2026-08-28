@@ -43,7 +43,7 @@ redundant plugin.
   both exposed independent red gates, so full AgentHub/fleet validation stops.
 - [x] Run the permitted synthetic live smoke; queued built-in voice and QA pass,
   while queued ASR correctly blocks on an external Cursor-owned GPU process.
-- [ ] Commit explicit AgentHub pathspecs and refresh RepoWise. Fleet apply remains
+- [x] Commit explicit AgentHub pathspecs and refresh RepoWise. Fleet apply remains
   prohibited by the red existing-work gates; report managed skill/MCP drift and
   unsupported hosts precisely.
 
@@ -82,6 +82,11 @@ redundant plugin.
   its staged work and registry hash were not modified.
 - `Validate-AgentHub.ps1`: fails only on `contentHash drift: product-demo-studio`;
   Local-AI package validation and its updated hash pass.
+- The AgentHub implementation commit contains only the intended Local-AI
+  canonical package, validator, plan, and registry update.
+- RepoWise single-repository status was refreshed and verified after commit.
+  Fleet apply was not run because the Product Demo Studio and broad Local-AI
+  gates are red.
 
 ## Remaining risks and rollback
 
