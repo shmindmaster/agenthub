@@ -61,11 +61,15 @@ redundant plugin.
 
 ## Validation evidence
 
-- `validation/tests/test_platform.py`: 9 passed.
+- `validation/tests/test_platform.py`: 10 passed, including deployed-artifact
+  manifest semantics for the reranker fingerprint.
 - `ai.ps1 capabilities --json`, `route --intent image --quality preview --json`,
   and `job list --json`: exit 0 with structured output.
 - `ai.ps1 doctor --json`: 0 errors before generated-doc sync; stopped services
   were warnings, not errors.
+- Final `ai.ps1 doctor --deep --json`: 0 errors, 7 warnings, 51 checks after
+  restoring the initial retrieval-only service state. Schema-v4 retrieval loader
+  compatibility passed its isolated regression and live restart check.
 - `ai.ps1 docs sync --json` and `docs check --json`: current for both runtime and
   AgentHub guide.
 - Real queued GPU voice job `20260828T061507-d16d912a2bf2`: succeeded with
