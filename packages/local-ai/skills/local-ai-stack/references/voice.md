@@ -215,3 +215,15 @@ Training and reference material is assembled by the refinery, never by hand:
 Source audio is read-only. Path denylist fails closed. Mined pools cannot reach
 Gold without provenance. New VoiceDesign personas: generate once → enroll into
 `library.json` with aliases → produce with Base clone thereafter.
+
+## Durable jobs and QA dispatch
+
+Legacy voice, ASR, and audio-understanding commands enter the durable queue and
+remain blocking for compatibility. Use explicit `job submit` when cancellation,
+retry, resume, or inspection is required. `qa <artifact-or-job-id>` dispatches
+media integrity, ASR/transcript, loudness, and relevant modality checks.
+
+Owner identity scoring is load-bearing but opt-in: the job manifest must
+explicitly carry `--owner-voice`. A clone capability or a filename alone must
+never cause owner scoring. `identity-critical` output is not deliverable until
+that explicit identity gate passes.

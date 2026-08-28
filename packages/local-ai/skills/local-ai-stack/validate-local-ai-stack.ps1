@@ -58,6 +58,47 @@ if ($Registry.policy.external_data_transmission -ne 'explicit-approval-required'
     $Failures.Add("policy.external_data_transmission must be explicit-approval-required")
 }
 
+if ([int]$Registry.schema_version -lt 4) {
+    $Failures.Add("registry.schema_version must be 4 or newer for the durable platform contract")
+}
+
+$Platform = $Registry.platform
+if (-not $Platform -or [string]::IsNullOrWhiteSpace([string]$Platform.registry_revision)) {
+    $Failures.Add('platform.registry_revision is required')
+} else {
+    $ExpectedTiers = @('preview', 'standard', 'high', 'identity-critical')
+    foreach ($tier in $ExpectedTiers) {
+        if (-not $Platform.quality_tiers.PSObject.Properties[$tier]) {
+            $Failures.Add("platform.quality_tiers missing stable tier '$tier'")
+        }
+    }
+    if ($Platform.execution_policy -ne 'local-only') {
+        $Failures.Add("platform.execution_policy must be local-only")
+    }
+    if ($Platform.job_database -ne (Join-Path $Root 'data\runtime\platform\jobs.sqlite')) {
+        $Failures.Add("platform.job_database must be under the Local-AI runtime root")
+    }
+    if ($Platform.job_artifact_root -ne (Join-Path $Root 'data\artifacts\jobs')) {
+        $Failures.Add("platform.job_artifact_root must be under the declared artifact root")
+    }
+    $RequiredGatewayEndpoints = @('/local/chat', '/local/retrieve', '/local/voice', '/local/image', '/local/asr', '/local/jobs')
+    foreach ($endpoint in $RequiredGatewayEndpoints) {
+        if ($endpoint -notin @($Platform.gateway.endpoints)) {
+            $Failures.Add("platform.gateway.endpoints missing '$endpoint'")
+        }
+    }
+    if ($Platform.gateway.cloud_fallback -ne 'forbidden') {
+        $Failures.Add('platform.gateway.cloud_fallback must be forbidden')
+    }
+}
+
+$AiSource = Get-Content -LiteralPath $AiPs1Path -Raw -Encoding UTF8
+foreach ($surface in @('capabilities', 'capability', 'doctor', 'job', 'route', 'qa', 'knowledge', 'docs')) {
+    if ($AiSource -notmatch "'$([regex]::Escape($surface))'") {
+        $Failures.Add("ai.ps1 does not expose required platform surface '$surface'")
+    }
+}
+
 # Services are derived from the registry's own `required` flag, not a list
 # frozen here. The frozen list said ollama, qdrant, retrieval, local-ai-api,
 # open-webui, comfyui. Two problems, both real as of 2026-08-04:
@@ -155,6 +196,16 @@ foreach ($capability in $declaredCapabilities) {
         if (-not $hasEntrypoint -and -not $hasFiles) {
             $Failures.Add("enabled capability '$id' declares neither an entrypoint nor required_files, so nothing can confirm it is actually reachable")
         }
+        $override = $Platform.capability_overrides.PSObject.Properties[$id].Value
+        if (-not $override) {
+            $Failures.Add("enabled capability '$id' has no platform.capability_overrides contract")
+        } else {
+            foreach ($field in @('required_services', 'resource_profile', 'privacy_classes', 'quality_tiers', 'fallback')) {
+                if (-not $override.PSObject.Properties[$field]) {
+                    $Failures.Add("platform override '$id' declares no $field")
+                }
+            }
+        }
     }
 }
 
@@ -184,6 +235,8 @@ $Result = [ordered]@{
     root = $Registry.root
     policy_single_control_plane = $Registry.policy.single_control_plane
     gpu_model = $Registry.policy.gpu_heavy_jobs
+    registry_revision = $Platform.registry_revision
+    execution_policy = $Platform.execution_policy
     legal_evidence_policy = $Registry.storage.legal_evidence_policy
     # Report what was actually checked, derived the same way the checks were.
     # These fields previously named variables that no longer existed and

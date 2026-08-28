@@ -148,3 +148,21 @@ and retiring are registry edits — neither requires changing this skill.
   fixtures unless the task explicitly authorizes a registry-scoped source.
 - Do not use `D:\AI-Platform` as a stack root or replacement registry.
 - Do not restore removed legacy pipelines, model copies, or deprecated product-demo workflows.
+
+## Durable platform operations
+
+`registry.json` schema 4 is executable. Use `capabilities`, `capability`, and
+`route` for discovery; use `doctor` for read-only diagnostics. `status` is
+listener state and `check` is the legacy runtime/files contract—do not report
+one as evidence for another.
+
+Heavy commands submit to `data\runtime\platform\jobs.sqlite` and materialize
+`job.json` under the declared artifact root. A job manifest records registry
+and model revisions, hashes, parameters, stages, artifacts, QA, timing, and
+errors while leaving large/private inputs referenced. Service and job GPU
+leases share one database. Recover a lease only when both recorded worker and
+child processes are absent. Unknown GPU occupants block and are never killed.
+
+Run `docs check` before packaging and `docs sync` only when generated regions
+are intentionally refreshed. Generated tables bind the registry revision and
+AgentHub provenance; final commit and fleet deployment receipts remain separate.

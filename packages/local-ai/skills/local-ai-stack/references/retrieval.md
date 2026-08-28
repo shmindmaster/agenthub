@@ -300,3 +300,16 @@ Do not infer scope from user folders or natural language. Resolve scope from
 - `legal_evidence_policy` must be `read-only`.
 - Stable aliases must remain canonical: `knowledge` and `legal`.
 - `storage.personal_knowledge_root` and `storage.legal_knowledge_root` are the only long-lived knowledge roots.
+
+## Retrieval observability and regression gate
+
+Use `ai.ps1 knowledge status|stale|explain|eval`. `explain` must retain query
+variants, vector and reranker scores, selected chunks, source paths, and
+model/index revisions. `eval` runs the synthetic golden set and reports
+expected-document hit rate, recall@k, and MRR. A successful process is not an
+accepted baseline: compare metrics to the retained thresholds and stop on a
+meaningful regression.
+
+Stable `/local/retrieve` and `/local/chat` gateway adapters remain loopback-only.
+They may proxy only to declared local services and never silently fall back to
+cloud.

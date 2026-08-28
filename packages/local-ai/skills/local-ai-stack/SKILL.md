@@ -1,149 +1,103 @@
 ---
 name: local-ai-stack
-description: Use when local model inference, RAG/retrieval, media generation, or legal/knowledge scope routing are required. Thin router over D:\Local-AI\ai.ps1 — load references/voice.md, image.md, video.md, music.md, retrieval.md, or ops.md only for the needed specialty.
+description: Use when local inference, RAG/retrieval, durable media jobs, Local-AI diagnostics, or knowledge/legal scope routing is required. Thin policy/router over D:\Local-AI\ai.ps1; load only the matching reference.
 ---
 
-# Local AI stack
+# Local-AI stack
 
-This is the operator skill for one user-owned Local-AI runtime. Its instructions
-are host-neutral, but the supported operator interface is Windows PowerShell.
-The skill's presence does not prove that it is installed on every agent host or
-that the runtime is currently ready.
+This is the host-neutral operator skill for the user-owned Windows runtime.
+`D:\Local-AI` is not a Git repository. Do not initialize, commit, or push it.
+AgentHub owns portable policy; the runtime `registry.json` owns executable truth.
 
-`D:\Local-AI` is a local runtime tree, not a git repository. Do not `git init`,
-commit, or push it. Canonical agent instructions for this capability live in
-this AgentHub package.
-
-## Resolve the runtime
-
-Resolve the root once. The environment override supports another machine; the
-default for this workstation is `D:\Local-AI`.
+Resolve once:
 
 ```powershell
 $LocalAiRoot = if ($env:LOCAL_AI_ROOT) { $env:LOCAL_AI_ROOT } else { 'D:\Local-AI' }
 $LocalAiControl = Join-Path $LocalAiRoot 'ai.ps1'
-$LocalAiRegistry = Join-Path $LocalAiRoot 'registry.json'
 ```
 
-After this bootstrap, resolve services, ports, models, indexes, storage roots,
-and artifacts from `$LocalAiRegistry`. Examples below describe intent; embedded
-paths or ports are not a second source of truth.
-
-## Layout
-
-```text
-models\chat | retrieve | generate
-data\catalog | artifacts | cache | secrets | runtime
-runtimes\retrieve | media | llama | python
-apps\retrieval | api
-media\   # image/voice/motif/music/transcribe scripts
-```
-
-Qdrant is the Compose service with Docker named volumes, not a folder
-under `data\`. Verified against disk 2026-08-21. This is orientation, not
-authority — the registry stays the source of truth for any path you act on.
-
-## Outcome-oriented discovery
-
-Use this skill only after layered checks:
-
-1. `& $LocalAiControl status` for current service state.
-2. `& $LocalAiControl check` for the control-plane contract, or `check deep`
-   when the requested task warrants the full deterministic smoke gate.
-3. Confirm the requested route's services, model files, and stable alias—not
-   only generic stack health.
-4. For a heavy job, inspect GPU occupancy and active jobs. Reclaim only with
-   task authority and only after identifying what it will unload.
-
-Proceed only for the route whose checks passed:
-
-- **chat + attachments** -> Open WebUI route.
-- **knowledge/legal retrieval** -> RAG route.
-- **image / motif video** -> ComfyUI route (`ai.ps1 image` / `motif`).
-- **interactive canvas edits** -> Invoke (`ai.ps1 start invokeai`). Same Klein 4B BF16 as Comfy. Do not generate in both at once. Load `references/image.md`.
-- **lipsync / portrait** -> `ai.ps1 lipsync` / `portrait` (LatentSync / LivePortrait). Load `references/video.md`.
-- **music beds** -> `ai.ps1 music` (ACE-Step resident). Do **not** start ComfyUI.
-- **voice/STT/audio perception** -> dedicated media runtime route. TTS and `listen` do not need music or Comfy.
-
-## One control interface
-
-`$LocalAiControl` is the only control plane for this capability.
+## Discover before routing
 
 ```powershell
 & $LocalAiControl status
-& $LocalAiControl check [deep]
-& $LocalAiControl start <target>
-& $LocalAiControl stop <target>
-& $LocalAiControl reclaim <minimum GiB>
-& $LocalAiControl refresh <knowledge|legal|all>
-& $LocalAiControl reindex <knowledge|legal|all> [--recreate] [--activate]
+& $LocalAiControl check
+& $LocalAiControl doctor --json
+& $LocalAiControl capabilities --json
+& $LocalAiControl capability <id> --json
+& $LocalAiControl route --intent <intent> --quality <tier> --json
 ```
 
-`refresh` is the corpus entry point: scan, build, rebuild only what changed,
-verify parity, switch the alias, retire the old collection. It embeds nothing
-when the corpus is already current. `reindex` is the low-level third stage and
-does not notice new files or move aliases.
+`status` reports listener/readiness state. `check` validates the legacy
+runtime/files contract and always emits a result. `doctor` is read-only,
+returns stable issue codes, and distinguishes warnings from errors.
 
-`start`, `stop`, `restart`, `clean`, `reclaim`, every `refresh` and `reindex`, media generation,
-`--recreate`, and `--activate` mutate shared runtime state, consume shared GPU,
-or write artifacts. Inspect the exact target and active jobs, then obtain the
-authority required by the current task. Build a replacement collection without
-`--activate`; activate only after point parity, retrieval acceptance, and
-independent review pass.
+Quality tiers are `preview`, `standard`, `high`, and
+`identity-critical`. Resolve services, ports, models, privacy classes,
+resource conflicts, defaults, and fallbacks from the registry or discovery
+output, never from prose alone.
 
-The retrieval service's local admin credentials are auto-provisioned on first
-`start retrieval` / `start core`: `ai.ps1` writes
-`data\secrets\retrieval-admin-secrets.json` under the resolved root with a
-restrictive ACL when it is absent. No manual environment variables are
-required for a local run.
+## Durable work
 
-All media and synthesis routes are also under the same interface:
+Heavy legacy commands now submit through the durable queue and remain blocking.
+For explicit control:
 
 ```powershell
-& $LocalAiControl image <single|batch>
-& $LocalAiControl voice <qwen|qwen-role|qwen-clone|qwen-*-batch|score|verify>
-& $LocalAiControl catalog ["<voice alias>"]
-& $LocalAiControl transcribe <audio-or-video-path>
-& $LocalAiControl listen <encoded-video-path> --output <immutable-native-report.json> `
-  --candidate-id <id> --source-revision <revision> --render-provenance-id <id>
-& $LocalAiControl music <batch-json>
-& $LocalAiControl motif [verify] [--reference <png> --prompt "…" --out <mp4>]
-& $LocalAiControl lipsync <video> --audio <wav>
-& $LocalAiControl portrait <source-image>
+& $LocalAiControl job submit <capability-id> --quality <tier> --wait -- <adapter-args>
+& $LocalAiControl job list --json
+& $LocalAiControl job inspect <job-id> --json
+& $LocalAiControl job cancel <job-id>
+& $LocalAiControl job retry <job-id> [--stage <stage>]
+& $LocalAiControl job resume <job-id> [--stage <stage>]
+& $LocalAiControl qa <artifact-or-job-id> --profile <tier> --json
 ```
 
-Do not add a second control script or a parallel launcher for this capability.
-**`ai.ps1 voice kokoro` is removed** and fails loudly.
+One SQLite queue and one reconciled GPU lease system serialize transient jobs
+and resident services. Unknown GPU occupants block; never kill or reclaim them
+automatically. Large/private inputs stay referenced and hashed by default.
+Owner identity QA runs only when a job explicitly carries `--owner-voice`.
 
-`ai.ps1 listen` is the only full-program audio-perception route for a system-owned
-media-studio / screencast-engine audio release gate. It runs locally and emits the
-immutable native report described by
-`packages/product-demo-studio/schemas/local-ai-listen-report.schema.json`;
-it is not human playback. `media-studio-qa` binds that untouched report inside
-`candidate-audio-perception-report.schema.json` with the model receipt and fresh
-calibration before read-only adjudication. Load `references/voice.md` for details.
+## Retrieval
+
+```powershell
+& $LocalAiControl knowledge status --json
+& $LocalAiControl knowledge stale --json
+& $LocalAiControl knowledge explain '<query>' --index knowledge --json
+& $LocalAiControl knowledge eval --json
+& $LocalAiControl refresh <knowledge|legal|all>
+```
+
+Use alias `knowledge` for project/career/business evidence and `legal` only
+for explicit legal scope. Local-AI Qdrant is `:16333`; `:6333` is another
+instance. `refresh` owns scan/build/parity/alias activation. Do not activate a
+replacement until parity and retrieval acceptance pass.
+
+## Services and gateway
+
+Use `start|stop|restart <target>` only with authority to mutate shared runtime
+state. `all` starts core services, not a transient media engine. Stable
+loopback adapters are `/local/chat`, `/local/retrieve`, `/local/voice`,
+`/local/image`, `/local/asr`, and `/local/jobs`; direct ports remain for
+compatibility and health checks. No route may silently fall back to cloud.
 
 ## Progressive disclosure
 
-Do **not** load specialist knowledge until the task needs it. After the control
-plane checks above, open only the matching reference:
-
 | Need | Load |
 | --- | --- |
-| Voice / TTS / STT / voice corpus | `references/voice.md` |
-| Image / Visual Bank | `references/image.md` |
-| Motif / lipsync / portrait / avatar | `references/video.md` |
-| Music beds / underscore | `references/music.md` |
-| RAG, chat model policy, knowledge/legal scope | `references/retrieval.md` |
-| Storage, GPU scheduling, validation, adoption | `references/ops.md` |
-| Long batch jobs | also load skill `long-running-generation` |
+| Human command map | `references/operator-guide.md` |
+| Voice, STT, identity | `references/voice.md` |
+| Image and Visual Bank | `references/image.md` |
+| Video, lipsync, portrait | `references/video.md` |
+| Music | `references/music.md` |
+| Retrieval and chat policy | `references/retrieval.md` |
+| Storage, scheduling, adoption | `references/ops.md` |
+| Long-running generation | also load `long-running-generation` |
 
-Keep one control plane: `D:\Local-AI\ai.ps1` (or `$env:LOCAL_AI_ROOT\ai.ps1`).
-Do not invent parallel launchers.
+## Guardrails
 
-## Guardrails (always)
-
-- Never centralize credentials, customer data, or private evidence in AgentHub.
-- Never write Local-AI runtime paths, corpora, or weights into this repository.
-- Never add a second control script beside `ai.ps1`.
-- Load the smallest reference set that covers the task.
+- Local-only by default; external transmission needs explicit approval.
+- Never centralize secrets, authentication state, private evidence, customer
+  data, owner voice, corpora, or weights in AgentHub.
+- Do not add a redundant Codex plugin or a second Local-AI launcher.
+- Do not phonetic-respell owner narration.
+- Keep runtime-updated, committed, fleet-deployed, and live-verified states
+  separate.
