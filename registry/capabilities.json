@@ -224,7 +224,7 @@
         "product-demo-studio-descript",
         "product-demo-studio-visual-assets"
       ],
-      "contentHash": "47C5A7AEFA33D4912535569C6ACEDF6A5BA529180CE4A177C43A0B9DB3F21E57",
+      "contentHash": "D9C040BD05510759A607112CF43F319FBBD4F59F6846126A787D38E707AC0789",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [

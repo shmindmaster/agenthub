@@ -140,6 +140,7 @@ report.checks.checksum = { status: "ok", sha256: createHash("sha256").update(rea
     const parsed = JSON.parse(stdout);
     const video = parsed.streams?.find((s) => s.codec_type === "video");
     const audio = parsed.streams?.find((s) => s.codec_type === "audio");
+    const subtitles = parsed.streams?.filter((s) => s.codec_type === "subtitle") ?? [];
     report.checks.metadata = {
       status: "ok",
       durationSeconds: Number(parsed.format?.duration ?? video?.duration ?? 0),
@@ -153,6 +154,7 @@ report.checks.checksum = { status: "ok", sha256: createHash("sha256").update(rea
       colorTransfer: video?.color_transfer ?? null,
       colorPrimaries: video?.color_primaries ?? null,
       hasAudio: Boolean(audio),
+      subtitleStreams: subtitles.length,
       audioCodec: audio?.codec_name ?? null,
       audioSampleRate: audio?.sample_rate ? Number(audio.sample_rate) : null,
       audioChannels: audio?.channels ?? null,
@@ -175,11 +177,39 @@ const durationSeconds = report.checks.metadata?.durationSeconds ?? 0;
     mdatOffset: mdat,
     enabled: moov !== -1 && mdat !== -1 && moov < mdat,
   };
-  const decoded = run("ffmpeg", ["-v", "error", "-i", videoPath, "-map", "0", "-f", "null", "-"]);
+  const decoded = run("ffmpeg", [
+    "-v", "error",
+    "-i", videoPath,
+    "-map", "0:v?",
+    "-map", "0:a?",
+    "-sn",
+    "-f", "null",
+    "-",
+  ]);
+  const subtitleStreams = report.checks.metadata?.subtitleStreams ?? 0;
+  const subtitles = subtitleStreams > 0
+    ? run("ffmpeg", [
+      "-v", "error",
+      "-i", videoPath,
+      "-map", "0:s",
+      "-c:s", "copy",
+      "-f", "null",
+      "-",
+    ])
+    : { status: 0, stderr: "" };
+  report.checks.subtitleIntegrity = {
+    status: subtitles.status === 0 && subtitles.stderr.trim() === "" ? "ok" : "error",
+    applicable: subtitleStreams > 0,
+    streams: subtitleStreams,
+    exitCode: subtitles.status,
+    diagnostics: subtitles.stderr.trim(),
+  };
   report.checks.decodeIntegrity = {
-    status: decoded.status === 0 && decoded.stderr.trim() === "" ? "ok" : "error",
-    exitCode: decoded.status,
-    diagnostics: decoded.stderr.trim(),
+    status: decoded.status === 0 && decoded.stderr.trim() === "" && subtitles.status === 0 && subtitles.stderr.trim() === ""
+      ? "ok"
+      : "error",
+    exitCode: decoded.status !== 0 ? decoded.status : subtitles.status,
+    diagnostics: [decoded.stderr.trim(), subtitles.stderr.trim()].filter(Boolean).join("\n"),
   };
 }
 

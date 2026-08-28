@@ -2281,6 +2281,45 @@ function realMediaIntegration() {
         technical.checks.metadata.colorPrimaries === "bt709",
       "real-media evidence verifies declared color metadata",
     );
+
+    const captionsPath = join(root, "captions.srt");
+    const captionedVideoPath = join(root, "candidate-captioned.mp4");
+    writeFileSync(captionsPath, "1\n00:00:00,100 --> 00:00:01,500\nSynthetic caption.\n", "utf8");
+    result = spawnSync("ffmpeg", [
+      "-v", "error",
+      "-i", videoPath,
+      "-i", captionsPath,
+      "-map", "0:v",
+      "-map", "0:a",
+      "-map", "1:0",
+      "-c:v", "copy",
+      "-c:a", "copy",
+      "-c:s", "mov_text",
+      "-movflags", "+faststart",
+      "-y",
+      captionedVideoPath,
+    ], { encoding: "utf8" });
+    assert(result.status === 0, "FFmpeg generates the embedded-caption real-media fixture");
+
+    const captionedEvidenceDir = join(root, "technical-captioned");
+    result = spawnSync(process.execPath, [
+      join(pluginDir, "scripts", "technical-checks.mjs"),
+      "--video", captionedVideoPath,
+      "--out", captionedEvidenceDir,
+      "--report-only",
+      "--json",
+    ], { encoding: "utf8" });
+    assert(result.status === 0, "technical checks accept valid media with an embedded subtitle stream");
+    if (result.status === 0) {
+      const captionedTechnical = loadJson(join(captionedEvidenceDir, "technical-report.json"));
+      assert(
+        captionedTechnical.pass === true &&
+          captionedTechnical.checks.decodeIntegrity.status === "ok" &&
+          captionedTechnical.checks.subtitleIntegrity.status === "ok" &&
+          captionedTechnical.checks.subtitleIntegrity.streams === 1,
+        "embedded subtitles are validated separately without corrupting the A/V decode gate",
+      );
+    }
     const deterministicSchemaPath = join(schemaDir, "deterministic-report.schema.json");
     const deterministicSchema = loadSchema(deterministicSchemaPath);
     for (const reportType of [

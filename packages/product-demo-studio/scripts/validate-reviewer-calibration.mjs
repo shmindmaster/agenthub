@@ -21,7 +21,7 @@ const executionReceiptValidatorPath = resolve(scriptDir, "validate-execution-rec
 const policyPath = resolve(pluginDir, "policy", "product-video-policy.json");
 const canonicalRubricPath = resolve(
   pluginDir,
-  "skills",
+  "pipeline",
   "product-demo-studio",
   "references",
   "killer-demo-playbook.md",

@@ -25,7 +25,7 @@
   },
   "reviewIntegrity": {
     "canonicalRubric": {
-      "artifactPath": "skills/product-demo-studio/references/killer-demo-playbook.md",
+      "artifactPath": "pipeline/product-demo-studio/references/killer-demo-playbook.md",
       "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
     },
     "verticalOverlay": null,

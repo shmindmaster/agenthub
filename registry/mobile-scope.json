@@ -178,6 +178,12 @@
       "note": "Private evidence and opportunity-record repository. No product or native application surface."
     },
     {
+      "productId": "ufcedge",
+      "repository": "shmindmaster/ufcedge",
+      "bucket": "noNative",
+      "note": "Private forecasting pipeline and self-contained HTML artifact. Responsive web presentation is intentional; no native application surface is planned."
+    },
+    {
       "productId": "gitpin",
       "repository": "shmindmaster/gitpin",
       "bucket": "noNative",

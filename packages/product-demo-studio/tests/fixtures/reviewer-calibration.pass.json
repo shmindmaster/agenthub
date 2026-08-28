@@ -5,7 +5,7 @@
   "reviewDomain": "story-experience",
   "modelId": "synthetic-independent-reviewer-v1",
   "canonicalRubric": {
-    "artifactPath": "skills/product-demo-studio/references/killer-demo-playbook.md",
+    "artifactPath": "pipeline/product-demo-studio/references/killer-demo-playbook.md",
     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "verticalOverlay": null,

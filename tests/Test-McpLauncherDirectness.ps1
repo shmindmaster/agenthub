@@ -146,7 +146,7 @@ foreach ($h in @($formats.hosts)) {
             # That is exactly what hid grok from this test's first run.
             $entries[$sid] = @($tokens.ToArray())
         }
-    } else {
+    } elseif ($path -like '*.json') {
         $key = [string]$h.mcpKey
         if ([string]::IsNullOrWhiteSpace($key) -or $key.StartsWith('[')) { continue }
         $json = $text | ConvertFrom-Json
@@ -162,6 +162,11 @@ foreach ($h in @($formats.hosts)) {
         }
         if ($null -eq $node) { continue }
         foreach ($p in $node.PSObject.Properties) { $entries[$p.Name] = Get-LaunchTokens $p.Value }
+    } else {
+        # YAML and other host-native formats are outside this launch-token
+        # parser. Never feed them to ConvertFrom-Json merely because they are
+        # not TOML; their own format validators own those files.
+        continue
     }
 
     foreach ($sid in $entries.Keys) {

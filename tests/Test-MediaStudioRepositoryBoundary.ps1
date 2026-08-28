@@ -71,7 +71,7 @@ Report 'retained screencast engine already treats product source as read-only' (
     $pdsRender -match 'Do not create `apps/videos`'
 ) 'the internal engine route does not preserve the external-workspace boundary'
 
-$job = Get-Content -LiteralPath (Join-Path $media 'schemas\job.schema.json') -Raw | ConvertFrom-Json
+$job = Get-Content -LiteralPath (Join-Path $media 'schemas\job.schema.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 Report 'job schema requires the read-only repository policy' (
     @($job.required) -contains 'repositoryWritePolicy' -and
     $job.properties.repositoryWritePolicy.const -eq 'read-only' -and
@@ -83,10 +83,60 @@ $versions = @(
     '.claude-plugin\plugin.json',
     '.codex-plugin\plugin.json',
     '.cursor-plugin\plugin.json'
-) | ForEach-Object { (Get-Content -LiteralPath (Join-Path $media $_) -Raw | ConvertFrom-Json).version }
+) | ForEach-Object { (Get-Content -LiteralPath (Join-Path $media $_) -Raw -Encoding UTF8 | ConvertFrom-Json).version }
 Report 'Media Studio host manifests agree on 1.3.1' (
     @($versions | Select-Object -Unique).Count -eq 1 -and $versions[0] -eq '1.3.1'
 ) "manifest versions: $($versions -join ', ')"
+
+# Enforce the boundary against the live product-repository roster as well as
+# the policy text. Keep the path rules deliberately exact: product playback
+# code is allowed, while production configuration, capture configuration, and
+# Remotion applications/dependencies are not.
+$standard = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\repo-standard.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$fleetRoot = [IO.Path]::GetFullPath(([string]$standard.fleetRoot -replace '/', '\'))
+$productionDrift = [Collections.Generic.List[string]]::new()
+$scannedProducts = 0
+foreach ($repoEntry in $standard.repos.PSObject.Properties) {
+    if ($repoEntry.Name -eq 'agenthub') { continue }
+    $productRoot = Join-Path $fleetRoot $repoEntry.Name
+    if (-not (Test-Path -LiteralPath (Join-Path $productRoot '.git'))) { continue }
+    $scannedProducts++
+    $listed = @(& git -C $productRoot ls-files --cached --others --exclude-standard 2>$null)
+    if ($LASTEXITCODE -ne 0) {
+        $productionDrift.Add("$($repoEntry.Name): git ls-files failed")
+        continue
+    }
+    foreach ($relativeRaw in $listed) {
+        $relative = ([string]$relativeRaw).Replace('\', '/')
+        if ($relative -match '(^|/)product-demo-studio\.config\.ya?ml$' -or
+            $relative -match '(^|/)playwright\.video\.config\.[^/]+$' -or
+            $relative -match '(^|/)apps/videos(/|$)' -or
+            $relative -match '(^|/)video-program(/|$)') {
+            $productionDrift.Add("$($repoEntry.Name): $relative")
+            continue
+        }
+        if ($relative -notmatch '(^|/)package\.json$') { continue }
+        $manifestPath = Join-Path $productRoot ($relative -replace '/', '\')
+        try {
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $dependencyNames = @('dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies') |
+                ForEach-Object {
+                    $group = $manifest.PSObject.Properties[$_].Value
+                    if ($null -ne $group) { $group.PSObject.Properties.Name }
+                }
+            foreach ($dependencyName in @($dependencyNames)) {
+                if ($dependencyName -eq 'remotion' -or $dependencyName -like '@remotion/*') {
+                    $productionDrift.Add("$($repoEntry.Name): $relative depends on $dependencyName")
+                }
+            }
+        } catch {
+            $productionDrift.Add("$($repoEntry.Name): cannot parse $relative")
+        }
+    }
+}
+Report 'fleet product repositories contain no repository-local media production lane' (
+    $scannedProducts -gt 0 -and $productionDrift.Count -eq 0
+) "scanned=$scannedProducts drift=$($productionDrift -join '; ')"
 
 $scratch = Join-Path ([IO.Path]::GetTempPath()) ('media-boundary-' + [guid]::NewGuid().ToString('N'))
 $product = Join-Path $scratch 'product'
@@ -118,7 +168,7 @@ try {
         $outsideOutput -match 'Product repo remains untouched' -and
         $productFiles.Count -eq 1 -and
         $productFiles[0] -eq (Join-Path $product 'sentinel.txt') -and
-        (Get-Content -LiteralPath (Join-Path $product 'sentinel.txt') -Raw) -eq 'unchanged'
+        (Get-Content -LiteralPath (Join-Path $product 'sentinel.txt') -Raw -Encoding UTF8) -eq 'unchanged'
     ) "exit=$outsideExit files=$($productFiles -join ', ')"
 } finally {
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-29T20:10:33-05:00",
+  "generatedAt": "2026-08-28T09:50:00-05:00",
   "userProfile": "C:\\Users\\SaroshHussain",
   "activeAgents": [
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.238",
+      "version": "2.1.250",
       "executable": "C:\\Users\\SaroshHussain\\.local\\bin\\claude.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.claude\\settings.json",
@@ -50,9 +50,9 @@
     {
       "id": "codex",
       "name": "OpenAI Codex",
-      "version": "0.149.0-alpha.4.3",
+      "version": "0.150.0-alpha.12.2",
       "executable": "C:\\Users\\SaroshHussain\\bin\\codex.cmd",
-      "executableNote": "Re-verified 2026-08-25: the stable managed launcher returned codex-cli 0.149.0-alpha.4.3 and resolves the current Codex Desktop content-addressed binary. Record the launcher rather than a transient bin/<hash>/ path that disappears on desktop upgrades.",
+      "executableNote": "Re-verified 2026-08-28: the stable managed launcher returned codex-cli 0.150.0-alpha.12.2 and resolves the current Codex Desktop content-addressed binary. Record the launcher rather than a transient bin/<hash>/ path that disappears on desktop upgrades.",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.codex\\config.toml",
         "instructions": "C:\\Users\\SaroshHussain\\.codex\\AGENTS.md",
@@ -76,7 +76,7 @@
     {
       "id": "qwen-code",
       "name": "Qwen Code",
-      "version": "0.21.14",
+      "version": "0.22.2",
       "executable": "qwen",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.qwen\\settings.json",
@@ -422,7 +422,7 @@
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.17.8",
+      "version": "3.17.21",
       "executable": "C:\\Users\\SaroshHussain\\bin\\cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin\\cursor.cmd",
@@ -611,7 +611,7 @@
     {
       "id": "vscode-insiders",
       "name": "VS Code Insiders",
-      "version": "1.135.0-insider",
+      "version": "1.136.0-insider",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\bin\\code-insiders.cmd",
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\mcp.json",
