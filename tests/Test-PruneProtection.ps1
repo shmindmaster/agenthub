@@ -34,6 +34,7 @@ $syncText = Get-Content -LiteralPath $syncPath -Raw -Encoding UTF8
 $conn = Get-Content -LiteralPath $connPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $mcpRegistry = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\mcps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $hostOwned = @($conn.lifecyclePolicy.hostConfiguredLocalMcpIds)
+$persistedOnDemand = @($conn.lifecyclePolicy.persistedOnDemandLocalMcpIds)
 
 Report 'the registry names at least one host-owned server' ($hostOwned.Count -gt 0) `
     'lifecyclePolicy.hostConfiguredLocalMcpIds is empty; nothing would be protected.'
@@ -115,11 +116,16 @@ if (Test-Path -LiteralPath $grokConfig) {
     $gk = @([regex]::Matches((Get-Content -LiteralPath $grokConfig -Raw -Encoding UTF8),
         '(?m)^\[mcp_servers\.([^\].]+)\]
 ?$') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
-    # Expected count comes from the registry, not a magic number: the old
-    # `-ge 5` would still pass if the canonical set shrank to five.
-    $expected = @($mcpRegistry.mcpServers | Where-Object { @($_.hosts) -contains 'grok' } | ForEach-Object { $_.id })
+    # Expected count comes from the registry and its lifecycle policy, not a
+    # magic number. hosts[] is eligibility, not deployment authority:
+    # on-demand-local servers stay out of persistent host config unless the
+    # lifecycle policy records a reviewed exception.
+    $expected = @($mcpRegistry.mcpServers | Where-Object {
+        @($_.hosts) -contains 'grok' -and
+        ([string]$_.activationMode -ne 'on-demand-local' -or $_.id -in $persistedOnDemand)
+    } | ForEach-Object { $_.id })
     $missing = @($expected | Where-Object { $_ -notin $gk })
-    Report 'grok retains every canonical server the registry scopes to it' ($missing.Count -eq 0) `
+    Report 'grok retains every persistable canonical server the registry scopes to it' ($missing.Count -eq 0) `
         "missing $($missing.Count) of $($expected.Count): $($missing -join ', '). grok carries: $($gk -join ', ')."
 }
 
