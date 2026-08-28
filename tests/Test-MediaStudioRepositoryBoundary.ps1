@@ -96,10 +96,19 @@ New-Item -ItemType Directory -Path $product -Force | Out-Null
 Set-Content -LiteralPath (Join-Path $product 'sentinel.txt') -Value 'unchanged' -NoNewline
 $scaffold = Join-Path $pds 'scripts\scaffold-video-workspace.mjs'
 try {
-    $insideOutput = & node $scaffold --repo $product --workspace $inside --dry-run 2>&1 | Out-String
-    $insideExit = $LASTEXITCODE
-    $outsideOutput = & node $scaffold --repo $product --workspace $outside --dry-run 2>&1 | Out-String
-    $outsideExit = $LASTEXITCODE
+    # Windows PowerShell converts a native process's expected stderr into an
+    # ErrorRecord. Temporarily keep that record non-terminating so the test can
+    # assert the fail-closed exit and message instead of aborting early.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $insideOutput = & node $scaffold --repo $product --workspace $inside --dry-run 2>&1 | Out-String
+        $insideExit = $LASTEXITCODE
+        $outsideOutput = & node $scaffold --repo $product --workspace $outside --dry-run 2>&1 | Out-String
+        $outsideExit = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
     $productFiles = @(Get-ChildItem -LiteralPath $product -Recurse -File | ForEach-Object FullName)
     Report 'scaffold rejects a workspace inside the product repository' (
         $insideExit -eq 2 -and $insideOutput -match 'Refusing to scaffold inside the product repository'
