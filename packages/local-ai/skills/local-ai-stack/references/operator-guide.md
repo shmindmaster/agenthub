@@ -102,13 +102,13 @@ Specialist behavior is documented in `references/ops.md`, `retrieval.md`,
 `voice.md`, `image.md`, `video.md`, and `music.md`.
 
 <!-- LOCAL-AI:GENERATED:START -->
-Generated from registry revision `2026-08-28.1` and AgentHub provenance `68bbc126a2a7a7185848ab8564946036742de5d7`. Do not edit this block.
+Generated from registry revision `2026-08-28.2` and AgentHub provenance `7ca78af8e30b4ef68337a597ea2f440d13253b3b`. Do not edit this block.
 
 ### Services
 
 | Service | Port | Required | Health |
 | --- | ---: | :---: | --- |
-| `ollama` | 11434 | yes | `http://127.0.0.1:11434/api/tags` |
+| `ollama` | 11434 | no | `http://127.0.0.1:11434/api/tags` |
 | `qdrant` | 16333 | yes | `http://127.0.0.1:16333/readyz` |
 | `retrieval` | 8790 | yes | `http://127.0.0.1:8790/health` |
 | `local-ai-api` | 8787 | yes | `http://127.0.0.1:8787/api/health` |
