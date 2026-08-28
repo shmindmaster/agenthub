@@ -13,8 +13,14 @@ $Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Re
 
 Engine procedure: `$Pds\pipeline\product-demo-studio-capture\SKILL.md` and `$Pds\scripts`. Do not copy product UI with diffusion.
 
+The product repository is read-only. Put Playwright scripts/specs, traces,
+recordings, screenshots, manifests, authentication state, and reset evidence in
+the external job workspace. Never add a capture test, fixture, config, helper,
+dependency, or generated file to the product repo. A required product or seed
+change is readiness feedback for a separate engineering task.
+
 1. Verify deployed commit, role, seed/reset, clean browser profile.
-2. Playwright CLI or Playwright Test. Preserve trace + high-resolution WebM outside the product repo.
+2. Playwright CLI or Playwright Test from the external workspace. Preserve trace + high-resolution WebM outside the product repo.
 3. Recast (`playwright-recast`) for cursor approach, click ripple, punch-in zoom. Screencast engagement is the PDS story-experience gate, not `engagement.md` and not a second overlay stack.
 4. One beat per action: start → locator → pointer lead → action → visible result hold.
 5. Validate with `$Pds\scripts\validate-storyboard.mjs` and `validate-capture-manifest.mjs`.

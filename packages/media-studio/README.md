@@ -8,8 +8,16 @@ Live-product screencasts still use the gated Playwright + Recast + four-domain e
 
 **Viewer-facing** jobs apply `skills/media-studio/references/engagement.md` (hook, contrast, pauses, ducked music bed, visual change per idea). **Draft** (`intent: draft`) skips GPU plates (Motif, lipsync, music) and records the skip. Product-screencast craft stays in the PDS killer-demo guide.
 
-Version authority: root `plugin.json` (`1.3.0`). Host projections must match.
+Version authority: root `plugin.json` (`1.3.1`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `D:\Local-AI\data\artifacts`). Private show bibles and customer recordings stay outside this repository.
+
+## Product-repository boundary
+
+Product repositories are read-only inputs. Media Studio never adds or changes
+video code, Playwright specs, Remotion apps, dependencies, configuration, seed
+fixtures, assets, evidence, media, or Git state there. The job config and all
+production source live in the external job workspace. Product defects become
+readiness feedback and require a separate engineering task.
 
 ## Why this exists
 

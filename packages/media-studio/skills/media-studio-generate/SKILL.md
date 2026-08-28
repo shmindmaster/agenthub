@@ -35,4 +35,8 @@ Start only the route you need (`voice`, `media` / Comfy, `music`). Do not start 
 
 Score every owner-voice segment before it is composed. Do not respell input to fix pronunciation.
 
-Write artifacts into the job workspace. Bind path, bytes, and SHA-256 in a generation receipt. Assembly consumes that receipt — an unrecorded copy into `selected/` is not provenance.
+Write artifacts and any generation scripts/config only into the external job
+workspace. Never copy generated plates, audio, prompts, model receipts, helper
+code, or dependencies into a product repository. Bind path, bytes, and SHA-256
+in a generation receipt. Assembly consumes that receipt — an unrecorded copy
+into `selected/` is not provenance.

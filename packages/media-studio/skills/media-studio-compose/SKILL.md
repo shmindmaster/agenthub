@@ -11,6 +11,11 @@ Load `../media-studio/references/engagement.md` (Generate / compose / QA own) fo
 
 **Rapid default:** reuse the house briefing kit, do not scaffold a new Remotion app. Honor `pauseBeforeSeconds` / `holdAfterSeconds`. A slide that does not build is unfinished — use Remotion interpolation, not a still held for the whole line.
 
+Never scaffold or edit a Remotion app, composition, package manifest,
+dependency, asset directory, or render helper in a product repository. Edit the
+shared runtime kit or the external job workspace only. If an official Remotion
+skill defaults to the current repo, point it at the external workspace first.
+
 Kit (runtime, not git): `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`  
 Composition `Briefing`, 1600×1000, 30 fps. Put scene JSON in the job workspace and optional WAV in `public/`.
 

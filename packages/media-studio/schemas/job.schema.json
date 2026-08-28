@@ -4,7 +4,7 @@
   "title": "Media studio job",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind", "title", "workspace"],
+  "required": ["kind", "title", "workspace", "repositoryWritePolicy"],
   "properties": {
     "kind": {
       "type": "string",
@@ -29,6 +29,18 @@
     "workspace": {
       "type": "string",
       "description": "Absolute path under %LOCALAPPDATA%\\AgentHub\\media-studio or D:\\Local-AI\\data\\artifacts. Never a product repo."
+    },
+    "repositoryWritePolicy": {
+      "const": "read-only",
+      "description": "Media workflows may inspect a source repository but never create, edit, delete, stage, or commit files there."
+    },
+    "sourceRepository": {
+      "type": "string",
+      "description": "Optional absolute product-repository path used strictly as read-only input."
+    },
+    "productConfig": {
+      "type": "string",
+      "description": "Optional absolute config path inside the external job workspace. A legacy repository config may be copied here but never created or updated in the repository."
     },
     "bounceTo": {
       "type": ["string", "null"],

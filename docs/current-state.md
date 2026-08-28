@@ -207,7 +207,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   bibles stay outside AgentHub.
 
 - **Local media studio (2026-08-25, craft 2026-08-26):** `packages/media-studio`
-  is the **only public** video/audio/animation pack (`1.3.0`). Rapid default: a
+  is the **only public** video/audio/animation pack (`1.3.1`). Rapid default: a
   concept or outline is enough; writer → director → Local-AI generate →
   Remotion/FFmpeg/Recast compose in one run. Viewer-facing jobs apply
   `skills/media-studio/references/engagement.md` (hook, contrast, pauses, ducked
@@ -222,7 +222,11 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `remotion-dev/skills` 4.0.517 (not vendored), installed globally under
   `~/.agents/skills` and recorded current on Claude and Codex. FFmpeg/ffprobe
   are on PATH. Local-AI motif/lipsync/portrait routes are installed and
-  documented in `local-ai-stack` `references/video.md`. Media-studio maps as
+  documented in `local-ai-stack` `references/video.md`. Product repositories
+  are read-only media inputs: job config, capture/Playwright code, Remotion
+  composition, dependencies, fixtures, assets, evidence, and generated media
+  remain in the external Media Studio workspace. Product fixes require a
+  separate explicitly authorized engineering task. Media-studio maps as
   `managed-loose-skills` on skill-only hosts (including Grok) so Sync copies
   into those skill dirs.
 

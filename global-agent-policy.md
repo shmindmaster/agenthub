@@ -59,6 +59,12 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Every owner-voice generation passes a speaker-identity gate before it is delivered, embedded in a video, or sent to anyone. Identity is measured against the owner's own recordings, not assumed from the fact that the correct route was used. Expression, emotion, and pacing are adjustable; speaker identity is the fixed constraint they are adjusted within.
 - Do not correct pronunciation by respelling input text. It measurably degrades speaker identity. Pronunciation is a dictionary layer applied at render time and shared across engines.
 
+## Media production repository boundary
+
+- A product repository is read-only input to every video, audio, animation, capture, and media-review workflow. Media agents must not create or modify source code, tests, Playwright specs, Remotion compositions, dependencies, configuration, seed fixtures, assets, manifests, evidence, generated media, or Git state in the product repository.
+- Put the complete production workspace under `%LOCALAPPDATA%\AgentHub\media-studio` or the declared `D:\Local-AI\data\artifacts` root. A legacy product-video config may be read from a repository, but it must never be created or updated there; copy or translate it into the external job workspace.
+- A media finding that requires a product change produces Product-Readiness Feedback. Product remediation is a separate, explicitly authorized engineering task with its own scope and verification; never perform it as a media-pipeline stage.
+
 ## Provider availability
 
 - Obey `registry/fleet-profile.json` dispatch policy before invoking an agent host, CLI, cloud runner, or API.

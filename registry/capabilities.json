@@ -1531,7 +1531,7 @@
         "media-studio-visuals",
         "media-studio-descript"
       ],
-      "contentHash": "522F6910A29419AF8E63DC14404C36B11EC6C25700A9CB65EC6D150377BEB3D7",
+      "contentHash": "4152785E651128ED251823D7569F415BEE3C764FDD6874176AAD3274FC8A898E",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1620,7 +1620,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25. Only public video/audio pack (1.3.0). Viewer-facing jobs apply skills/media-studio/references/engagement.md; intent:draft skips GPU plates. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 1.3.1. Only public video/audio pack. Viewer-facing jobs apply skills/media-studio/references/engagement.md; intent:draft skips GPU plates. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"

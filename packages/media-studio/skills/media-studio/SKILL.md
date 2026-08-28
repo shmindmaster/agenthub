@@ -11,6 +11,14 @@ description: Use when the user wants any video, audio, animation, briefing, trai
 
 Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\<job-id>`. Never write media into AgentHub or a product repo.
 
+**Hard repository boundary:** a product repository is read-only input. Before
+the first write, record `repositoryWritePolicy: read-only` and the absolute
+external `workspace` in `job.json`. Do not create or modify video code,
+Playwright specs, Remotion compositions, dependencies, configuration, seed
+fixtures, assets, evidence, generated media, or Git state in the product repo.
+If a product change is needed, return Product-Readiness Feedback and open a
+separate engineering task only when explicitly authorized.
+
 Screencast engine root:
 
 ```powershell
@@ -19,7 +27,7 @@ $Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Re
 
 ## Rapid path
 
-1. Infer **kind** (table). Create `job.json`. Default `intent: viewer-facing` unless the user asked for a scratch, proxy, or timing pass (`draft`).
+1. Infer **kind** (table). Create `job.json` in the external workspace and validate that the workspace is outside any source repository. Default `intent: viewer-facing` unless the user asked for a scratch, proxy, or timing pass (`draft`).
 2. Defaults: owner/internal voice `sarosh`; briefings 1600×1000 30 fps; duration ~150 wpm. Viewer-facing jobs load `references/engagement.md` before the writer. Product screencasts use the PDS killer-demo guide instead.
 3. `media-writer` → locked screenplay (`hook`, `emotionalTarget`, pauses).
 4. `media-director` → visual mode, `musicCue`, hold. `screen` only for a running product.
@@ -46,7 +54,7 @@ Owner voice: `ai.ps1 voice qwen-clone --voice sarosh` only.
 
 Same fail-closed engine, invoked from here:
 
-1. Config in the product repo: `product-demo-studio.config.yaml` (filename kept; it is product-repo config, not a skill).
+1. Config in the external job workspace: `product-demo-studio.config.yaml`. A legacy repo copy may be read once, but never created or updated; copy/translate it externally and record its source hash.
 2. Assessment first if never run (`$Pds\commands\demo-assess.md`). Feedback instead of a mediocre video is a valid outcome.
 3. `media-studio-capture` — Playwright + Recast pointer/click.
 4. `media-studio-generate` — local Sarosh, not cloud TTS.
@@ -54,6 +62,10 @@ Same fail-closed engine, invoked from here:
 6. `media-studio-qa` — four domain reviews, arbiter, final verifier.
 
 Live product with real user data → `PIPELINE_BLOCKED`.
+
+If the external workspace cannot be established without touching the product
+repository, return `PIPELINE_BLOCKED`. Do not fall back to scaffolding inside
+the repo.
 
 ## Stop
 
