@@ -294,6 +294,12 @@ try {
     Report 'nested-deferring-passes' ($outNested -notmatch 'nested-refs-root') (($outNested.Trim().Split("`n")) | Select-Object -Last 5 | Out-String)
     Report 'root-agents-not-audited-as-nested' ($outNested -notmatch 'nested-\w+:[^\\/]*AGENTS\.md') (($outNested.Trim().Split("`n")) | Select-Object -Last 5 | Out-String)
 
+    New-Item -ItemType Directory -Force (Join-Path $good 'node_modules\generated') | Out-Null
+    Set-Content -LiteralPath (Join-Path $good 'node_modules\generated\AGENTS.md') -Encoding UTF8 `
+        -Value "# Generated copy`n`nThis ignored release/dependency copy is not repository policy.`n"
+    $outIgnored = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    Report 'gitignored-nested-agents-are-not-policy' ($outIgnored -notmatch 'node_modules.+AGENTS\.md') (($outIgnored.Trim().Split("`n")) | Select-Object -Last 5 | Out-String)
+
     Set-Content -LiteralPath (Join-Path $good 'service\AGENTS.md') -Encoding UTF8 `
         -Value "# Service — local agent notes`n`nDo whatever you like in here.`n"
     $outOrphan = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String

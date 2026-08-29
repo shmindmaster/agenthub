@@ -275,7 +275,12 @@ function Invoke-RepoCheck {
     $agentsFull = if (Test-Path -LiteralPath $agentsPath) { (Get-Item -LiteralPath $agentsPath).FullName } else { $agentsPath }
     $nested = Get-ChildItem -LiteralPath $path -Recurse -File -Filter 'AGENTS.md' |
         Where-Object { $_.FullName -ne $agentsFull } |
-        Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|\.repowise)[\\/]' }
+        Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|\.repowise)[\\/]' } |
+        Where-Object {
+            $relative = $_.FullName.Substring($rootFull.Length + 1)
+            & git -C $path check-ignore --quiet -- $relative 2>$null
+            $LASTEXITCODE -ne 0
+        }
     $exemptions = @($Entry.agentsExemptions | ForEach-Object { [string]$_ -replace '/', '\' })
     foreach ($n in $nested) {
         $rel = $n.FullName.Substring($rootFull.Length + 1)

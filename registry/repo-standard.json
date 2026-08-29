@@ -59,6 +59,23 @@
     "lawli":          { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
     "lexalign":       { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
     "lienwise":       { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
+    "local-ai-platform": {
+      "tracker": "linear",
+      "trackerNote": "Linear SH- IDs; SH-2768 source/release boundary and SH-2702 job-record privacy",
+      "agentsExemptions": [
+        "src/runtime/AGENTS.md",
+        "src/runtime/apps/AGENTS.md",
+        "src/runtime/apps/tts-studio/AGENTS.md",
+        "src/runtime/apps/voice-api/AGENTS.md",
+        "src/runtime/apps/voice-lab/AGENTS.md",
+        "src/runtime/indexing/AGENTS.md",
+        "src/runtime/media/AGENTS.md",
+        "src/runtime/media/engines/AGENTS.md",
+        "src/runtime/media/qa/AGENTS.md",
+        "src/runtime/media/refinery/AGENTS.md",
+        "src/runtime/media/render/AGENTS.md"
+      ]
+    },
     "mahumtech":      { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
     "rexa":           { "tracker": "none", "trackerNote": "No external tracker; docs/plans/ for complex work" },
     "saroshhussain":  { "tracker": "none", "trackerNote": "No external tracker" },
