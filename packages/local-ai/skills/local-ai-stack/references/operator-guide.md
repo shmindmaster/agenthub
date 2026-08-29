@@ -102,7 +102,7 @@ Specialist behavior is documented in `references/ops.md`, `retrieval.md`,
 `voice.md`, `image.md`, `video.md`, and `music.md`.
 
 <!-- LOCAL-AI:GENERATED:START -->
-Generated from registry revision `2026-08-28.2` and AgentHub provenance `7ca78af8e30b4ef68337a597ea2f440d13253b3b`. Do not edit this block.
+Generated from registry revision `2026-08-28.3` and AgentHub provenance `7ca78af8e30b4ef68337a597ea2f440d13253b3b`. Do not edit this block.
 
 ### Services
 
