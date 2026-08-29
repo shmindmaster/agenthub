@@ -103,7 +103,8 @@
     {
       "id": "opencode",
       "name": "OpenCode",
-      "version": "1.18.18",
+      "version": "1.18.25",
+      "versionObserved": "2026-08-28: `opencode.cmd --version` returned `1.18.25`; recorded value updated from 1.18.18 to match the live install (npm package self-updates).",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\npm\\opencode.cmd",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.config\\opencode",
@@ -221,7 +222,8 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.80",
+      "version": "1.0.81",
+      "versionObserved": "2026-08-28: `copilot.cmd --version` returned `GitHub Copilot CLI 1.0.81`; recorded value updated from 1.0.80 to match the live install (the CLI self-updates).",
       "executable": "C:\\Users\\SaroshHussain\\bin\\copilot.cmd",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.copilot\\settings.json",
@@ -324,7 +326,8 @@
     {
       "id": "grok",
       "name": "Grok CLI",
-      "version": "1.0.5",
+      "version": "1.0.13",
+      "versionObserved": "2026-08-28: `grok --version` returned `grok 1.0.13 (5e9a58528b76) [stable]`; recorded value updated from 1.0.5 to match the live install.",
       "versionNote": "Corrected 2026-08-19. This is NOT a version bump: the previously recorded 0.2.114 belongs to a different product line entirely and was never an observation of this install. Every artifact this install owns agrees on the 1.0.x scheme of xai-org/grok-build -- the binary's own `grok --version` (returned `grok 1.0.5 (5115b46bc9) [stable]`), the previous binary grok.exe.old at 1.0.4, ~/.grok/version.json, and ~/.grok/CHANGELOG.json. Nothing on this machine contains the string 0.2.114. What product 0.2.114 actually named was NOT determined and is recorded here as unresolved rather than guessed at.",
       "executable": "C:\\Users\\SaroshHussain\\.grok\\bin\\grok.exe",
       "nativePaths": {

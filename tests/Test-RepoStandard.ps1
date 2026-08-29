@@ -87,7 +87,7 @@ Behavior exists, checks pass, docs match reality.
     foreach ($d in @('docs\product','docs\architecture','docs\development','docs\runbooks','docs\plans\active','docs\plans\completed')) {
         New-Item -ItemType Directory -Force (Join-Path $Path $d) | Out-Null
     }
-    Set-Content -LiteralPath (Join-Path $Path 'docs\README.md') -Encoding UTF8 -Value "# Documentation Map`n`n[current-state.md](./current-state.md)`n"
+    Set-Content -LiteralPath (Join-Path $Path 'docs\README.md') -Encoding UTF8 -Value "# Documentation Map`n`n[current-state.md](./current-state.md)`n[completed/](./plans/completed/)`n"
     Set-Content -LiteralPath (Join-Path $Path 'docs\current-state.md') -Encoding UTF8 -Value "# Current State`n"
     Set-Content -LiteralPath (Join-Path $Path 'docs\plans\PLANS.md') -Encoding UTF8 -Value "# Execution Plans`n"
 }
@@ -131,6 +131,10 @@ Set-Content -LiteralPath (Join-Path $good '.repowise\state.json') -Encoding UTF8
 $bad = New-FixtureRepo 'drifting'
 Set-Content -LiteralPath (Join-Path $bad '.cursorrules') -Value 'legacy rules'
 Set-Content -LiteralPath (Join-Path $bad 'error.log') -Value 'stale log'
+# A directory link whose target does not exist: the negative half of the
+# directory-link fixture below. The trailing '/' must not hide the breakage.
+New-Item -ItemType Directory -Force (Join-Path $bad 'docs') | Out-Null
+Set-Content -LiteralPath (Join-Path $bad 'docs\README.md') -Encoding UTF8 -Value "# Documentation Map`n`n[missing/](./no-such-dir/)`n"
 # .repowise deliberately absent -> indexed check must fail
 
 # --- Fixture 3: repo with an unusable .git (present as a directory, but not
@@ -153,6 +157,16 @@ try {
     $code = $LASTEXITCODE
     Report 'compliant-repo-passes' ($code -eq 0) (($out.Trim().Split("`n")) | Select-Object -Last 3 | Out-String)
 
+    # Directory links with a trailing '/' must resolve to the directory they
+    # name. Join-Path mangles a child with a trailing separator
+    # ('a\b' + 'c\' joins as 'a\b\c\'), which made links like
+    # [completed/](./plans/completed/) fail even when the directory exists --
+    # the drift agenthub's own docs/README.md carried. The compliant fixture
+    # links docs/README.md -> ./plans/completed/ and that directory exists, so
+    # any broken-link verdict here is the defect this fixture pins.
+    Report 'directory-link-to-existing-dir-not-broken' ($out -notmatch 'broken-link') `
+        "compliant repo reported a broken link for a directory link whose target exists. Output tail: $((($out.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
+
     # A git failure during the freshness check must be reported honestly --
     # never silently swallowed into the unrelated "index not at HEAD" verdict.
     $outBrokenGit = & $checker -Repo corrupt-vcs -ConfigPath $configPath 2>&1 | Out-String
@@ -174,6 +188,10 @@ try {
     Report 'drift-names-missing-agents' ($outBad -match 'root-file:AGENTS\.md') (($outBad.Trim().Split("`n")) | Select-Object -Last 6 | Out-String)
     Report 'drift-names-root-scratch' ($outBad -match 'root-scratch.*error\.log') (($outBad.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
     Report 'drift-names-repowise' ($outBad -match 'repowise-indexed') (($outBad.Trim().Split("`n")) | Select-Object -Last 8 | Out-String)
+    # Negative half of the directory-link fixture: a link to a directory that
+    # does not exist must still be named as broken, trailing '/' and all.
+    Report 'drift-names-broken-directory-link' ($outBad -match 'broken-link:.*no-such-dir') `
+        "expected the broken directory link './no-such-dir/' to be named. Output tail: $((($outBad.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
 
     # -Fix -WhatIf previews mutations without performing them
     # (SupportsShouldProcess). Run before the real -Fix below, while

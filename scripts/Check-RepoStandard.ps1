@@ -113,7 +113,12 @@ function Test-MarkdownLinks([string]$RepoPath) {
             if ($target -match '^(https?://|mailto:|#|ftp://|/)') { continue }
             $targetNoAnchor = ($target -split '#')[0]
             if ([string]::IsNullOrWhiteSpace($targetNoAnchor)) { continue }
-            $decoded = [uri]::UnescapeDataString($targetNoAnchor)
+            $decoded = [uri]::UnescapeDataString($targetNoAnchor).TrimEnd('/', '\')
+            # Markdown directory links conventionally end in '/'. Join-Path
+            # mangles a child with a trailing separator ('a\b\c\' joins as
+            # 'a\b\c\'), so the link fails even when the directory exists.
+            # Trim it; Test-MarkdownLinks fixtures in Test-RepoStandard.ps1
+            # pin this behavior.
             $resolved = Join-Path (Split-Path -Parent $file) $decoded
             if (-not (Test-Path -LiteralPath $resolved)) {
                 $broken.Add("$($file.Substring($RepoPath.Length + 1)) -> $target")
@@ -151,6 +156,14 @@ function Invoke-RepoCheck {
     foreach ($f in $forbiddenPaths) {
         if ([string]::IsNullOrWhiteSpace($f)) {
             Add-Result $Name "forbidden:<blank>" $false 'refused: blank forbiddenPaths entry resolves to the repository root' $false
+            continue
+        }
+        # Refuse BEFORE Join-Path. On Windows Join-Path concatenates an
+        # absolute second argument ("C:\repo" + "C:\abs\f" -> "C:\repo\C:\abs\f"),
+        # so the containment check below would see a path that still starts
+        # with the repo prefix, pass it, and skip the refusal entirely.
+        if ([IO.Path]::IsPathRooted($f)) {
+            Add-Result $Name "forbidden:$f" $false "refused: forbiddenPaths entry is absolute ($f)" $false
             continue
         }
         $fp = Join-Path $path $f

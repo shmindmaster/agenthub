@@ -48,6 +48,11 @@ claims, say explicitly what is unverified), `docs/product/`,
 `docs/architecture/` (+ `decisions/`), `docs/development/`,
 `docs/runbooks/`, `docs/plans/` (`PLANS.md`, `active/`, `completed/`).
 
+Local Markdown links in every repo doc are audited by the checker: a link
+target must exist, and file links (`[](.../file.md)`) must resolve to a
+file while directory links (`[](.../dir/)`, trailing slash) must resolve
+to a directory. A trailing `/` or `/.` is stripped before resolution.
+
 ## Nested AGENTS.md
 
 Only where commands, invariants, or validation genuinely differ. Must state
@@ -79,6 +84,27 @@ contract (Mission + Knowledge authority + Definition of done) is drift.
 Each repo names one: `linear` (SH- IDs), `github-issues` (OSS repos), or
 `none` (small sites/tools; `docs/plans/` covers complex work). No repo-local
 competing backlogs; plans reference tracker IDs, never duplicate status.
+
+## Deferred fleet items (2026-08-28)
+
+`Check-RepoStandard.ps1 -All` runs 504 checks across the 17 managed
+repositories. As of 2026-08-28, AgentHub itself is clean; the remaining
+failures live in five client/personal repos that have not yet been scoped.
+Each is listed here with its owning repo and the evidence that pins it, so no
+failure is unexplained. Clearing them is follow-up work owned by the named
+repo, not by the fleet checker.
+
+| Repo | Failure | Owner | Evidence / remediation |
+| --- | --- | --- | --- |
+| abacare | `root-scratch: .api.log`, `.seed.log` | abacare | Remove the two root log files (they are runtime scratch, not source). |
+| abacare | `docs-file: docs/README.md`, `docs/current-state.md`, `docs/plans/PLANS.md` missing | abacare | Create the required docs skeleton (`scripts/Check-RepoStandard.ps1 -Repo abacare -Fix` can author it). |
+| abacare | `repowise-freshness: index not at HEAD` | abacare | `repowise update --repo abacare` (or confirm the post-commit hook is installed). |
+| crewscore | `docs-dir: docs/product`, `docs/architecture`, `docs/development`, `docs/runbooks` missing | crewscore | Create the required docs directories. |
+| crewscore | `broken-link: docs\cli.md -> ./crewscore.svg` | crewscore | Add the missing SVG or fix the link target in `docs/cli.md`. |
+| lexalign | `nested-refs-root: apps\web\AGENTS.md` | lexalign | Make the nested AGENTS.md state that the root AGENTS.md applies. |
+| lexalign | `repowise-freshness: index not at HEAD` | lexalign | `repowise update --repo lexalign`. |
+| rexa | `root-scratch: vlc-help.txt` | rexa | Remove the root scratch file. |
+| saroshhussain | `root-scratch: baseline-run.log`, `test-run.log`, `verify-run.log` | saroshhussain | Remove the three root run logs. |
 
 ## Checker usage
 
