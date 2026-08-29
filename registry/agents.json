@@ -249,6 +249,9 @@
       "name": "Google Antigravity",
       "version": "1.1.13",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\agy.exe",
+      "versionProbe": "winget-package",
+      "versionPackageId": "Google.AntigravityCLI",
+      "versionProbeNote": "Added 2026-08-29: `agy.exe --version` and `--help` both block beyond the fixed 30-second deadline, so the executable is not a usable version authority. Query the installed Google.AntigravityCLI WinGet record instead, using a redirected native process with the same fixed deadline and process-tree cleanup on timeout. This reports the installed package version without launching Antigravity's CLI or GUI.",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\settings.json",
         "mcp": "C:\\Users\\SaroshHussain\\.gemini\\config\\mcp_config.json",

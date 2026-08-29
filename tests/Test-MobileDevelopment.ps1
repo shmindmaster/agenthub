@@ -60,6 +60,31 @@ function Test-ReadableSkillTree([string]$Source, [string]$Destination) {
     } catch { return $false }
 }
 
+# The deployed mobile catalog reads four registry authorities through
+# MobileDevelopment.psm1. Compare exactly those canonical files rather than
+# the whole shared registry tree: an unrelated host inventory update must not
+# be misreported as a mobile-catalog authority failure, while a change to any
+# record the catalog can actually resolve still fails this gate.
+function Test-ReadableAuthorityFiles([string]$SourceRoot, [string]$DestinationRoot, [string[]]$RelativePaths) {
+    if ($RelativePaths.Count -eq 0) { return $false }
+    try {
+        foreach ($relative in $RelativePaths) {
+            if ([string]::IsNullOrWhiteSpace($relative) -or [IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)') {
+                return $false
+            }
+            $source = Join-Path $SourceRoot ($relative -replace '/', '\\')
+            $destination = Join-Path $DestinationRoot ($relative -replace '/', '\\')
+            if (-not (Test-Path -LiteralPath $source -PathType Leaf) -or -not (Test-Path -LiteralPath $destination -PathType Leaf)) {
+                return $false
+            }
+            $sourceContent = (Get-Content -LiteralPath $source -Raw -Encoding UTF8).Replace("`r`n", "`n").Replace("`r", "`n")
+            $destinationContent = (Get-Content -LiteralPath $destination -Raw -Encoding UTF8).Replace("`r`n", "`n").Replace("`r", "`n")
+            if ($sourceContent -cne $destinationContent) { return $false }
+        }
+        return $true
+    } catch { return $false }
+}
+
 function Invoke-MobileJson([string[]]$Arguments, [string]$Entrypoint = $entrypoint) {
     $hostExe = (Get-Process -Id $PID).Path
     $old = $ErrorActionPreference
@@ -272,8 +297,14 @@ $mappedHosts = @($mobileCapability[0].hostMappings.hostId | Sort-Object -Unique)
 $deployedCatalogRoot = Join-Path (Join-Path $env:LOCALAPPDATA 'AgentHub') (([string]$mobileCapability[0].deployedCatalog.runtimeRelativeRoot) -replace '/', '\')
 $deployedCatalogPath = Join-Path $deployedCatalogRoot ([string]$mobileCapability[0].deployedCatalog.entrypoint)
 $deployedAuthorityRoot = Join-Path (Join-Path $env:LOCALAPPDATA 'AgentHub') (([string]$mobileCapability[0].deployedCatalog.authorityRuntimeRelativeRoot) -replace '/', '\')
+$catalogAuthorityFiles = @('mcps.json','mobile-development.json','mobile-scope.json','repo-standard.json')
+$moduleAuthorityFiles = @(
+    [regex]::Matches($moduleText, "Read-AgentHubJson -RelativePath 'registry/([^']+)'") |
+        ForEach-Object { $_.Groups[1].Value } |
+        Sort-Object -Unique
+)
 $deployedPackageMatchesSource = Test-ReadableSkillTree -Source $packageRoot -Destination $deployedCatalogRoot
-$deployedAuthorityMatchesSource = Test-ReadableSkillTree -Source (Join-Path $repoRoot 'registry') -Destination $deployedAuthorityRoot
+$deployedAuthorityMatchesSource = Test-ReadableAuthorityFiles -SourceRoot (Join-Path $repoRoot 'registry') -DestinationRoot $deployedAuthorityRoot -RelativePaths $catalogAuthorityFiles
 $deployedCatalog = if (Test-Path -LiteralPath $deployedCatalogPath -PathType Leaf) {
     Invoke-MobileJson -Arguments @('catalog','inspect.appium') -Entrypoint $deployedCatalogPath
 } else { [pscustomobject]@{ ExitCode = 1; Output = @('deployed catalog entrypoint is absent'); Result = $null } }
@@ -312,6 +343,8 @@ Report 'all active coding hosts receive the loose mobile skills and catalog' (
     $mobileCapability[0].deployedCatalog.authoritySource -eq 'registry' -and `
     $mobileCapability[0].deployedCatalog.authorityRuntimeRelativeRoot -eq 'registry' -and `
     (Test-Sequence @($mobileCapability[0].deployedCatalog.arguments) @('catalog')) -and `
+    (Test-Sequence $catalogAuthorityFiles @('mcps.json','mobile-development.json','mobile-scope.json','repo-standard.json')) -and `
+    (Test-Sequence $moduleAuthorityFiles $catalogAuthorityFiles) -and `
     @($mobileCapability[0].hostMappings | Where-Object { [string]$_.deploymentStatus -notmatch 'loose-skills' -or 'skills' -notin @($_.components) -or 'catalog' -notin @($_.components) }).Count -eq 0 -and `
     $mobileDeploymentFailures.Count -eq 0 -and `
     $labSkillText -notmatch [regex]::Escape('C:\Repos\shmindmaster\agenthub\packages\mobile-development') -and `

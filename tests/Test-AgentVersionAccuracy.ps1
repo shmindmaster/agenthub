@@ -32,6 +32,11 @@ for part of the fleet:
                       antigravity-ide and warp all launch a window if invoked
                       with an arbitrary flag, so this file must never run
                       them to find out their version.
+  - 'winget-package' - query the installed package record through the native
+                      Windows Package Manager, in a redirected native process
+                      with a fixed deadline and process-tree cleanup. This is
+                      for Antigravity's `agy.exe`: its own version command
+                      blocks, so it is not a truthful or safely bounded source.
   - 'none'          - there is no installed binary at all (opencode-desktop,
                       hermes, windsurf). The only thing to assert is that the
                       registry's own belief agrees: the declared executable
@@ -125,6 +130,66 @@ function Invoke-VersionProbe {
     return ($out | Out-String)
 }
 
+# Unlike Stop-Job, taskkill /T terminates the native child process tree that a
+# timed-out background job can leave behind. The only caller is winget-package,
+# which records a validated package id; no shell is involved and no service is
+# started.
+function Stop-VersionProbeProcessTree {
+    param([Parameter(Mandatory)][Diagnostics.Process]$Process)
+
+    if ($Process.HasExited) { return }
+    $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+    if (Test-Path -LiteralPath $taskkill -PathType Leaf) {
+        & $taskkill '/PID' ([string]$Process.Id) '/T' '/F' *> $null
+    }
+    if (-not $Process.HasExited) {
+        Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Run a known native executable directly, rather than through Start-Job. That
+# avoids a second PowerShell host in the timing budget and preserves separate
+# stdout/stderr while keeping the deadline fixed at the call site. Output is
+# read asynchronously so an unexpectedly verbose CLI cannot deadlock on a
+# redirected pipe before the timeout is evaluated.
+function Invoke-BoundedNativeProbe {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Arguments,
+        [int]$TimeoutSec = 30
+    )
+
+    $startInfo = [Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $Path
+    $startInfo.Arguments = $Arguments
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            return [pscustomobject]@{ State = 'error'; Output = ''; Detail = 'Process.Start returned false.' }
+        }
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        $timeoutMs = [Math]::Max(1, $TimeoutSec * 1000)
+        if (-not $process.WaitForExit($timeoutMs)) {
+            Stop-VersionProbeProcessTree -Process $process
+            $null = $process.WaitForExit(5000)
+            return [pscustomobject]@{ State = 'timeout'; Output = ''; Detail = "did not exit within ${TimeoutSec}s; terminated its native process tree." }
+        }
+        [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($stdout, $stderr))
+        return [pscustomobject]@{ State = 'complete'; Output = ($stdout.Result + $stderr.Result); Detail = $null }
+    } catch {
+        return [pscustomobject]@{ State = 'error'; Output = ''; Detail = $_.Exception.Message }
+    } finally {
+        $process.Dispose()
+    }
+}
+
 $probedCount = 0
 
 foreach ($agent in $activeAgents) {
@@ -178,6 +243,44 @@ foreach ($agent in $activeAgents) {
         $matched = $fileVersionText.Contains($recordedVersion)
         Report "id=${id}: recorded version appears in PE FileVersion (never launched)" $matched `
             "recorded version.json value was '$recordedVersion'; actual (Get-Item).VersionInfo.FileVersion was '$fileVersionText'."
+        $probedCount++
+        continue
+    }
+
+    if ($probe -eq 'winget-package') {
+        $packageProperty = $agent.PSObject.Properties['versionPackageId']
+        $packageId = if ($packageProperty) { [string]$packageProperty.Value } else { '' }
+        if ([string]::IsNullOrWhiteSpace($packageId) -or $packageId -notmatch '^[A-Za-z0-9.-]+$') {
+            Report "id=$id (versionProbe=winget-package): package id is safe and declared" $false `
+                "versionProbe is 'winget-package' but versionPackageId was '$packageId'; it must be a non-empty WinGet identifier using only letters, digits, dots, and hyphens."
+            $probedCount++
+            continue
+        }
+        $winget = Get-Command -Name 'winget.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $winget) {
+            Report "id=$id (versionProbe=winget-package): WinGet is available" $false `
+                "the authoritative package query cannot run because winget.exe is unavailable on PATH."
+            $probedCount++
+            continue
+        }
+        $arguments = "list --id $packageId --exact --accept-source-agreements --disable-interactivity"
+        $bounded = Invoke-BoundedNativeProbe -Path ([string]$winget.Source) -Arguments $arguments -TimeoutSec 30
+        if ($bounded.State -eq 'timeout') {
+            Report "id=${id}: WinGet package query completed within bounded timeout" $false `
+                "the probe $($bounded.Detail) Recorded version was '$recordedVersion'."
+            $probedCount++
+            continue
+        }
+        if ($bounded.State -ne 'complete') {
+            Report "id=${id}: WinGet package query launched" $false `
+                "the bounded probe could not run: $($bounded.Detail)"
+            $probedCount++
+            continue
+        }
+        $packageLines = @($bounded.Output -split "`r?`n" | Where-Object { $_ -match [regex]::Escape($packageId) })
+        $matched = @($packageLines | Where-Object { $_ -match ('(?<!\S)' + [regex]::Escape($recordedVersion) + '(?!\S)') }).Count -eq 1
+        Report "id=${id}: recorded version appears in bounded WinGet installed-package output" $matched `
+            "recorded version.json value was '$recordedVersion'; package '$packageId' output was: $($packageLines -join ' | ')"
         $probedCount++
         continue
     }

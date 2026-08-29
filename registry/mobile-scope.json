@@ -172,6 +172,12 @@
       "note": "Fleet control plane. No product surface."
     },
     {
+      "productId": "local-ai-platform",
+      "repository": "shmindmaster/local-ai-platform",
+      "bucket": "noNative",
+      "note": "Version-controlled source for the Local-AI runtime boundary release (SH-2768). Local infrastructure, no product surface. Runtime storage stays on D:\\Local-AI per the runtime-vs-source split."
+    },
+    {
       "productId": "portfolio-records",
       "repository": "shmindmaster/portfolio-records",
       "bucket": "noNative",
