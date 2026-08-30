@@ -157,6 +157,31 @@ try {
     $code = $LASTEXITCODE
     Report 'compliant-repo-passes' ($code -eq 0) (($out.Trim().Split("`n")) | Select-Object -Last 3 | Out-String)
 
+    # Both generated-state locations are part of the contract. A fixture with
+    # only .repowise/ must fail, and -Fix must add only the missing adapter
+    # entry without duplicating the existing RepoWise entry.
+    $goodGitignore = Join-Path $good '.gitignore'
+    $goodGi = Get-Content -LiteralPath $goodGitignore -Raw -Encoding UTF8
+    $goodGi = $goodGi -replace '(?m)^\.claude/CLAUDE\.md\r?\n?', ''
+    Set-Content -LiteralPath $goodGitignore -Value $goodGi -Encoding UTF8
+    $outMissingClaude = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    $missingClaudeCode = $LASTEXITCODE
+    Report 'missing-claude-gitignore-fails' ($missingClaudeCode -eq 1 -and $outMissingClaude -match 'gitignore-claude-adapter') `
+        "missing .claude/CLAUDE.md was not reported (exit=$missingClaudeCode)."
+    $outFixClaude = & $checker -Repo compliant -ConfigPath $configPath -Fix 2>&1 | Out-String
+    $fixClaudeCode = $LASTEXITCODE
+    $fixedGi = Get-Content -LiteralPath $goodGitignore -Raw -Encoding UTF8
+    $repowiseCount = ([regex]::Matches($fixedGi, '(?m)^\.repowise/?\r?$')).Count
+    $claudeCount = ([regex]::Matches($fixedGi, '(?m)^\.claude/CLAUDE\.md\r?$')).Count
+    Report 'fix-adds-missing-claude-without-duplicates' ($fixClaudeCode -eq 0 -and $claudeCount -eq 1 -and $repowiseCount -eq 1) `
+        "expected exit 0 and one entry for each path after -Fix; exit=$fixClaudeCode, .repowise=$repowiseCount, .claude/CLAUDE.md=$claudeCount."
+    $fixedGiBytes = [IO.File]::ReadAllBytes($goodGitignore)
+    $outFixClaudeAgain = & $checker -Repo compliant -ConfigPath $configPath -Fix 2>&1 | Out-String
+    $fixClaudeAgainCode = $LASTEXITCODE
+    $fixedGiBytesAgain = [IO.File]::ReadAllBytes($goodGitignore)
+    Report 'fix-second-run-is-idempotent' ($fixClaudeAgainCode -eq 0 -and [Convert]::ToBase64String($fixedGiBytes) -eq [Convert]::ToBase64String($fixedGiBytesAgain)) `
+        "expected second -Fix exit 0 with byte-identical .gitignore; exit=$fixClaudeAgainCode."
+
     # Directory links with a trailing '/' must resolve to the directory they
     # name. Join-Path mangles a child with a trailing separator
     # ('a\b' + 'c\' joins as 'a\b\c\'), which made links like

@@ -308,14 +308,24 @@ function Invoke-RepoCheck {
 
     $gitignorePath = Join-Path $path '.gitignore'
     $gi = if (Test-Path -LiteralPath $gitignorePath) { Get-Content -LiteralPath $gitignorePath -Raw -Encoding UTF8 } else { '' }
-    $giOk = $gi -match '(?m)^\.repowise/?\r?$'
-    $giFixed = $false
+    $giRepowiseOk = $gi -match '(?m)^\.repowise/?\r?$'
+    $giClaudeOk = $gi -match '(?m)^\.claude/CLAUDE\.md\r?$'
+    $giOk = $giRepowiseOk -and $giClaudeOk
+    $giRepowiseFixed = $false
+    $giClaudeFixed = $false
     if (-not $giOk -and $Fix -and $PSCmdlet.ShouldProcess($gitignorePath, 'Append RepoWise gitignore entries')) {
-        [IO.File]::AppendAllText($gitignorePath, "`r`n# RepoWise generated index state`r`n.repowise/`r`n.claude/CLAUDE.md`r`n", [Text.UTF8Encoding]::new($false))
-        $giFixed = $true
+        $missing = @()
+        if (-not $giRepowiseOk) { $missing += '.repowise/'; $giRepowiseFixed = $true }
+        if (-not $giClaudeOk) { $missing += '.claude/CLAUDE.md'; $giClaudeFixed = $true }
+        $prefix = if ([string]::IsNullOrWhiteSpace($gi)) { '' } else { "`r`n" }
+        $append = $prefix + "# RepoWise generated index state`r`n" + (($missing -join "`r`n") + "`r`n")
+        [IO.File]::AppendAllText($gitignorePath, $append, [Text.UTF8Encoding]::new($false))
+        $giRepowiseOk = $true
+        $giClaudeOk = $true
         $giOk = $true
     }
-    Add-Result $Name 'gitignore-repowise' $giOk $(if (-not $giOk) { '.gitignore must exclude .repowise/ and .claude/CLAUDE.md' } else { '' }) $giFixed
+    Add-Result $Name 'gitignore-repowise' $giRepowiseOk $(if (-not $giRepowiseOk) { '.gitignore must exclude .repowise/' } else { '' }) $giRepowiseFixed
+    Add-Result $Name 'gitignore-claude-adapter' $giClaudeOk $(if (-not $giClaudeOk) { '.gitignore must exclude .claude/CLAUDE.md' } else { '' }) $giClaudeFixed
 
     $statePath = Join-Path $path '.repowise\state.json'
     if (Test-Path -LiteralPath $statePath) {
