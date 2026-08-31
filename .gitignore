@@ -23,3 +23,9 @@ playwright-report/
 # RepoWise generated index state
 .repowise/
 .claude/CLAUDE.md
+
+# Opportunity-engine working output. Career/proposal evidence is retrieved from
+# the local Qdrant knowledge store at render time; it carries un-anonymized
+# client material and is not repository content.
+evidence-augmentation.json
+evidence-augmentation.md
