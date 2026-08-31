@@ -92,6 +92,87 @@ if (Test-Path -LiteralPath $workspaceFile) {
     }
     $workspaceRepos = @($ids | Select-Object -Unique)
 }
+function Remove-MarkdownInlineCode([string]$Line) {
+    # Regex backreferences over long backtick runs can catastrophically
+    # backtrack. Scan delimiters deterministically instead. A code span closes
+    # only on a later backtick run of the exact same length; unmatched runs are
+    # retained as prose.
+    $runs = [Collections.Generic.List[object]]::new()
+    $index = 0
+    while ($index -lt $Line.Length) {
+        $start = $Line.IndexOf('`', $index)
+        if ($start -lt 0) { break }
+        $end = $start + 1
+        while ($end -lt $Line.Length -and $Line[$end] -eq '`') { $end++ }
+        $runs.Add([pscustomobject]@{ Start = $start; Length = $end - $start })
+        $index = $end
+    }
+    if ($runs.Count -eq 0) { return $Line }
+
+    # Precompute the next delimiter run of the same length. The forward render
+    # then jumps across a matched span and never rescans its interior.
+    $nextSameLength = [int[]]::new($runs.Count)
+    [Array]::Fill($nextSameLength, -1)
+    $nextByLength = @{}
+    for ($runIndex = $runs.Count - 1; $runIndex -ge 0; $runIndex--) {
+        $length = [int]$runs[$runIndex].Length
+        if ($nextByLength.ContainsKey($length)) {
+            $nextSameLength[$runIndex] = [int]$nextByLength[$length]
+        }
+        $nextByLength[$length] = $runIndex
+    }
+
+    $result = [Text.StringBuilder]::new()
+    $cursor = 0
+    $runIndex = 0
+    while ($runIndex -lt $runs.Count) {
+        $run = $runs[$runIndex]
+        if ($cursor -lt $run.Start) {
+            [void]$result.Append($Line.Substring($cursor, $run.Start - $cursor))
+        }
+        $closeIndex = $nextSameLength[$runIndex]
+        if ($closeIndex -ge 0) {
+            $close = $runs[$closeIndex]
+            $cursor = $close.Start + $close.Length
+            $runIndex = $closeIndex + 1
+        } else {
+            [void]$result.Append($Line.Substring($run.Start, $run.Length))
+            $cursor = $run.Start + $run.Length
+            $runIndex++
+        }
+    }
+    if ($cursor -lt $Line.Length) {
+        [void]$result.Append($Line.Substring($cursor))
+    }
+    return $result.ToString()
+}
+function Get-MarkdownLinkText([string]$Text) {
+    # Link-looking examples in inline code and fenced code are documentation,
+    # not navigable Markdown links. Retain only prose before Test-MarkdownLinks
+    # applies its deliberately simple relative-link matcher.
+    $prose = [Text.StringBuilder]::new()
+    $fenceCharacter = ''
+    $fenceLength = 0
+    foreach ($line in [regex]::Split($Text, "\r?\n")) {
+        if ($fenceLength -gt 0) {
+            $closePattern = '^ {0,3}' + [regex]::Escape($fenceCharacter) + '{' + $fenceLength + ',}\s*$'
+            if ($line -match $closePattern) {
+                $fenceCharacter = ''
+                $fenceLength = 0
+            }
+            continue
+        }
+        if ($line -match '^ {0,3}(`{3,}|~{3,})') {
+            $fence = $Matches[1]
+            $fenceCharacter = $fence.Substring(0, 1)
+            $fenceLength = $fence.Length
+            continue
+        }
+        $lineWithoutCode = Remove-MarkdownInlineCode $line
+        [void]$prose.AppendLine($lineWithoutCode)
+    }
+    return $prose.ToString()
+}
 function Test-MarkdownLinks([string]$RepoPath) {
     # Resolve relative markdown links in root README/AGENTS and docs/**.md.
     # Only relative links are checked; http(s), mailto and pure #anchors skip.
@@ -107,12 +188,13 @@ function Test-MarkdownLinks([string]$RepoPath) {
             ForEach-Object { $mdFiles.Add($_.FullName) }
     }
     foreach ($file in $mdFiles) {
-        $text = Get-Content -LiteralPath $file -Raw -Encoding UTF8
+        $text = Get-MarkdownLinkText (Get-Content -LiteralPath $file -Raw -Encoding UTF8)
         foreach ($m in [regex]::Matches($text, '\]\(([^)\s]+)\)')) {
             $target = $m.Groups[1].Value
             if ($target -match '^(https?://|mailto:|#|ftp://|/)') { continue }
             $targetNoAnchor = ($target -split '#')[0]
             if ([string]::IsNullOrWhiteSpace($targetNoAnchor)) { continue }
+            $expectsDirectory = $targetNoAnchor.EndsWith('/') -or $targetNoAnchor.EndsWith('\')
             $decoded = [uri]::UnescapeDataString($targetNoAnchor).TrimEnd('/', '\')
             # Markdown directory links conventionally end in '/'. Join-Path
             # mangles a child with a trailing separator ('a\b\c\' joins as
@@ -120,7 +202,12 @@ function Test-MarkdownLinks([string]$RepoPath) {
             # Trim it; Test-MarkdownLinks fixtures in Test-RepoStandard.ps1
             # pin this behavior.
             $resolved = Join-Path (Split-Path -Parent $file) $decoded
-            if (-not (Test-Path -LiteralPath $resolved)) {
+            $targetIsCorrectType = if ($expectsDirectory) {
+                Test-Path -LiteralPath $resolved -PathType Container
+            } else {
+                Test-Path -LiteralPath $resolved -PathType Leaf
+            }
+            if (-not $targetIsCorrectType) {
                 $broken.Add("$($file.Substring($RepoPath.Length + 1)) -> $target")
             }
         }
@@ -139,6 +226,27 @@ function Invoke-RepoCheck {
     if (-not (Test-Path -LiteralPath (Join-Path $path '.git'))) {
         Add-Result $Name 'repo-exists' $false 'no .git directory' $false
         return
+    }
+
+    # A small number of repositories intentionally use a compact, flat docs/
+    # layout. Exemptions are exact paths from the global required-doc lists and
+    # require a human-readable reason; arbitrary paths never weaken the check.
+    $docsExemptionPaths = @()
+    $docsExemptionReason = ''
+    if ($null -ne $Entry.docsExemptions) {
+        $docsExemptionReason = [string]$Entry.docsExemptions.reason
+        $docsExemptionPaths = @($Entry.docsExemptions.paths | ForEach-Object { ([string]$_).Replace('\', '/') })
+        if ([string]::IsNullOrWhiteSpace($docsExemptionReason)) {
+            Add-Result $Name 'docs-exemptions' $false 'reason must be nonblank' $false
+            $docsExemptionPaths = @()
+        } else {
+            $allowedDocsExemptions = @($requiredDocsDirs + $requiredDocsFiles | ForEach-Object { ([string]$_).Replace('\', '/') })
+            $invalidDocsExemptions = @($docsExemptionPaths | Where-Object { $_ -notin $allowedDocsExemptions })
+            if ($invalidDocsExemptions.Count -gt 0) {
+                Add-Result $Name 'docs-exemptions' $false ("paths are not globally required docs: " + ($invalidDocsExemptions -join ', ')) $false
+                $docsExemptionPaths = @()
+            }
+        }
     }
 
     foreach ($f in $requiredRootFiles) {
@@ -197,6 +305,10 @@ function Invoke-RepoCheck {
     }
 
     foreach ($d in $requiredDocsDirs) {
+        if (([string]$d).Replace('\', '/') -in $docsExemptionPaths) {
+            Add-Result $Name "docs-dir-exemption:$d" $true $docsExemptionReason $false
+            continue
+        }
         $exists = Test-Path -LiteralPath (Join-Path $path $d)
         $fixed = $false
         if (-not $exists -and $Fix -and $PSCmdlet.ShouldProcess((Join-Path $path $d), 'Create missing docs directory')) {
@@ -207,6 +319,10 @@ function Invoke-RepoCheck {
     }
 
     foreach ($f in $requiredDocsFiles) {
+        if (([string]$f).Replace('\', '/') -in $docsExemptionPaths) {
+            Add-Result $Name "docs-file-exemption:$f" $true $docsExemptionReason $false
+            continue
+        }
         $fp = Join-Path $path $f
         $exists = Test-Path -LiteralPath $fp
         $fixed = $false
@@ -309,7 +425,7 @@ function Invoke-RepoCheck {
     $gitignorePath = Join-Path $path '.gitignore'
     $gi = if (Test-Path -LiteralPath $gitignorePath) { Get-Content -LiteralPath $gitignorePath -Raw -Encoding UTF8 } else { '' }
     $giRepowiseOk = $gi -match '(?m)^\.repowise/?\r?$'
-    $giClaudeOk = $gi -match '(?m)^\.claude/CLAUDE\.md\r?$'
+    $giClaudeOk = ($gi -match '(?m)^\.claude/\r?$') -or ($gi -match '(?m)^\.claude/CLAUDE\.md\r?$')
     $giOk = $giRepowiseOk -and $giClaudeOk
     $giRepowiseFixed = $false
     $giClaudeFixed = $false

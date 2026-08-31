@@ -48,6 +48,12 @@ claims, say explicitly what is unverified), `docs/product/`,
 `docs/architecture/` (+ `decisions/`), `docs/development/`,
 `docs/runbooks/`, `docs/plans/` (`PLANS.md`, `active/`, `completed/`).
 
+A repository may keep an intentional flat `docs/` layout only when its roster
+entry declares `docsExemptions` with an exact list of otherwise-required paths
+and a nonblank reason. The checker rejects paths outside the global required
+file/directory lists and emits each accepted exemption as a visible passing
+evidence row. This is for authoritative compact layouts, not unfinished docs.
+
 Local Markdown links in every repo doc are audited by the checker: a link
 target must exist, and file links (`[](.../file.md)`) must resolve to a
 file while directory links (`[](.../dir/)`, trailing slash) must resolve
@@ -66,7 +72,9 @@ contract (Mission + Knowledge authority + Definition of done) is drift.
   Rostered shmindmaster membership is checked against that file (path leaf
   or alias).
 - Every rostered member repo has the post-commit hook installed and gitignores
-  `.repowise/` and `.claude/CLAUDE.md`.
+  `.repowise/`. It must also ignore either the exact generated adapter
+  `.claude/CLAUDE.md` or the entire `.claude/` directory when that repository
+  deliberately treats all Claude-local state as generated and untracked.
 - Index freshness: `.repowise/state.json` `last_sync_commit` == `HEAD`
   (the hook normally maintains this). Indexes themselves live in each repo's
   `.repowise/` directory.
@@ -85,26 +93,25 @@ Each repo names one: `linear` (SH- IDs), `github-issues` (OSS repos), or
 `none` (small sites/tools; `docs/plans/` covers complex work). No repo-local
 competing backlogs; plans reference tracker IDs, never duplicate status.
 
-## Deferred fleet items (2026-08-28)
+## Fleet exceptions and deferred items (2026-08-30)
 
-`Check-RepoStandard.ps1 -All` runs 504 checks across the 17 managed
-repositories. As of 2026-08-28, AgentHub itself is clean; the remaining
-failures live in five client/personal repos that have not yet been scoped.
-Each is listed here with its owning repo and the evidence that pins it, so no
-failure is unexplained. Clearing them is follow-up work owned by the named
-repo, not by the fleet checker.
+`Check-RepoStandard.ps1 -All` currently runs 540 checks across 18 managed
+repositories. AgentHub itself is clean. Intentional exceptions remain exact,
+reasoned, and machine-visible; they are not failures.
 
 | Repo | Failure | Owner | Evidence / remediation |
 | --- | --- | --- | --- |
-| abacare | `root-scratch: .api.log`, `.seed.log` | abacare | Remove the two root log files (they are runtime scratch, not source). |
-| abacare | `docs-file: docs/README.md`, `docs/current-state.md`, `docs/plans/PLANS.md` missing | abacare | Create the required docs skeleton (`scripts/Check-RepoStandard.ps1 -Repo abacare -Fix` can author it). |
-| abacare | `repowise-freshness: index not at HEAD` | abacare | `repowise update --repo abacare` (or confirm the post-commit hook is installed). |
-| crewscore | `docs-dir: docs/product`, `docs/architecture`, `docs/development`, `docs/runbooks` missing | crewscore | Create the required docs directories. |
-| crewscore | `broken-link: docs\cli.md -> ./crewscore.svg` | crewscore | Add the missing SVG or fix the link target in `docs/cli.md`. |
-| lexalign | `nested-refs-root: apps\web\AGENTS.md` | lexalign | Make the nested AGENTS.md state that the root AGENTS.md applies. |
-| lexalign | `repowise-freshness: index not at HEAD` | lexalign | `repowise update --repo lexalign`. |
-| rexa | `root-scratch: vlc-help.txt` | rexa | Remove the root scratch file. |
-| saroshhussain | `root-scratch: baseline-run.log`, `test-run.log`, `verify-run.log` | saroshhussain | Remove the three root run logs. |
+| abacare | Intentional flat ten-document layout | AgentHub registry | Explicit, reasoned `docsExemptions`; no placeholder taxonomy is generated. |
+| crewscore | Intentional flat OSS documentation layout | AgentHub registry | Explicit, reasoned `docsExemptions`; code examples are not treated as links. |
+| lexalign | Generated `apps\web\AGENTS.md` | AgentHub registry | Exact `agentsExemptions` entry; Next.js recreates the file and identifies its generator in the file. |
+
+Three failures remain in two repositories with active unrelated work. They
+stay visible rather than being force-cleared or hidden by a broad exception.
+
+| Repo | Failure | Owner | Evidence / remediation |
+| --- | --- | --- | --- |
+| abacare | `repowise-freshness: index not at HEAD` | abacare | Refresh after its four active web-file changes are resolved or explicitly adopted. |
+| lienwise | `.gitignore` omits `.claude/CLAUDE.md`; RepoWise index is stale | lienwise | Resolve with the repository owner because `.claude/CLAUDE.md` is tracked and currently modified. |
 
 ## Checker usage
 

@@ -50,9 +50,9 @@
     {
       "id": "codex",
       "name": "OpenAI Codex",
-      "version": "0.151.0-alpha.7.1",
+      "version": "0.151.0-alpha.7.2",
       "executable": "C:\\Users\\SaroshHussain\\bin\\codex.cmd",
-      "executableNote": "Re-verified 2026-08-29: the stable managed launcher returned codex-cli 0.151.0-alpha.7.1 and resolves the current Codex Desktop content-addressed binary. Record the launcher rather than a transient bin/<hash>/ path that disappears on desktop upgrades.",
+      "executableNote": "Re-verified 2026-08-30: the stable managed launcher returned codex-cli 0.151.0-alpha.7.2 and resolves the current Codex Desktop content-addressed binary. Record the launcher rather than a transient bin/<hash>/ path that disappears on desktop upgrades.",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.codex\\config.toml",
         "instructions": "C:\\Users\\SaroshHussain\\.codex\\AGENTS.md",

@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "recordedOn": "2026-08-08",
+  "schemaVersion": 2,
+  "recordedOn": "2026-08-30",
   "purpose": "Machine-readable roster and rule parameters for the fleet repository knowledge + agent-instruction standard, enforced by scripts/Check-RepoStandard.ps1. One authored agent contract (AGENTS.md) per repo; CLAUDE.md is an @-import adapter carrying the RepoWise-managed block; docs/ holds durable curated knowledge; RepoWise (one workspace at C:/Repos covering shmindmaster, sh-pendoah, musa-dev-team, and pendoah) holds derived intelligence; the tracker named per repo is the only backlog authority.",
   "fleetRoot": "C:/Repos/shmindmaster",
   "workspace": {
@@ -50,14 +50,29 @@
   ],
   "claudeMaxAuthoredLines": 80,
   "repos": {
-    "abacare":        { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
+    "abacare": {
+      "tracker": "linear",
+      "trackerNote": "Linear SH- IDs",
+      "docsExemptions": {
+        "reason": "The repository's AGENTS.md defines an exact ten-document flat docs layout (D-001); splitting those authoritative documents into taxonomy directories would duplicate knowledge.",
+        "paths": ["docs/product", "docs/architecture", "docs/development", "docs/runbooks", "docs/plans", "docs/README.md", "docs/current-state.md", "docs/plans/PLANS.md"]
+      }
+    },
     "agenthub":       { "tracker": "none", "trackerNote": "Fleet policy repo; work tracked by drift/validation, no external backlog" },
     "coledger":       { "tracker": "linear", "trackerNote": "Linear" },
-    "crewscore":      { "tracker": "github-issues", "trackerNote": "OSS: GitHub Issues/PRs public; Linear SH- IDs for internal items", "agentsExemptions": ["examples/corpus/repo-config/AGENTS.md"] },
+    "crewscore": {
+      "tracker": "github-issues",
+      "trackerNote": "OSS: GitHub Issues/PRs public; Linear SH- IDs for internal items",
+      "agentsExemptions": ["examples/corpus/repo-config/AGENTS.md"],
+      "docsExemptions": {
+        "reason": "The small OSS CLI intentionally keeps its product, architecture, development, and runbook guidance in named flat documents linked from docs/README.md.",
+        "paths": ["docs/product", "docs/architecture", "docs/development", "docs/runbooks"]
+      }
+    },
     "gentlenext":     { "tracker": "linear", "trackerNote": "Linear" },
     "gitpin":         { "tracker": "github-issues", "trackerNote": "OSS: GitHub Issues/PRs", "agentsExemptions": [".demo\\runtime\\repositories\\atlas-api\\AGENTS.md", ".demo\\runtime\\repositories\\support-ops\\AGENTS.md", ".repocontext-index\\gitpin\\AGENTS.md"] },
     "lawli":          { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
-    "lexalign":       { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
+    "lexalign":       { "tracker": "linear", "trackerNote": "Linear SH- IDs", "agentsExemptions": ["apps/web/AGENTS.md"] },
     "lienwise":       { "tracker": "linear", "trackerNote": "Linear SH- IDs" },
     "local-ai-platform": {
       "tracker": "linear",

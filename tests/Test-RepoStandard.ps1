@@ -87,7 +87,19 @@ Behavior exists, checks pass, docs match reality.
     foreach ($d in @('docs\product','docs\architecture','docs\development','docs\runbooks','docs\plans\active','docs\plans\completed')) {
         New-Item -ItemType Directory -Force (Join-Path $Path $d) | Out-Null
     }
-    Set-Content -LiteralPath (Join-Path $Path 'docs\README.md') -Encoding UTF8 -Value "# Documentation Map`n`n[current-state.md](./current-state.md)`n[completed/](./plans/completed/)`n"
+    $docsReadme = @'
+# Documentation Map
+
+[current-state.md](./current-state.md)
+[completed/](./plans/completed/)
+
+`[inline example](./missing-inline-code.md)`
+
+```markdown
+[fenced example](./missing-fenced-code.md)
+```
+'@
+    Set-Content -LiteralPath (Join-Path $Path 'docs\README.md') -Encoding UTF8 -Value $docsReadme
     Set-Content -LiteralPath (Join-Path $Path 'docs\current-state.md') -Encoding UTF8 -Value "# Current State`n"
     Set-Content -LiteralPath (Join-Path $Path 'docs\plans\PLANS.md') -Encoding UTF8 -Value "# Execution Plans`n"
 }
@@ -157,12 +169,128 @@ try {
     $code = $LASTEXITCODE
     Report 'compliant-repo-passes' ($code -eq 0) (($out.Trim().Split("`n")) | Select-Object -Last 3 | Out-String)
 
+    # An intentional flat docs layout may exempt only paths from the global
+    # required-doc lists, and only with a nonblank reason. The exception stays
+    # visible as a passing evidence row instead of silently skipping the rule.
+    $baseConfigText = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8
+    $exemptConfig = $baseConfigText | ConvertFrom-Json
+    $exemptConfig.repos.compliant | Add-Member -NotePropertyName docsExemptions -NotePropertyValue ([pscustomobject]@{
+        reason = 'Fixture intentionally keeps product guidance in one flat document.'
+        paths = @('docs/product')
+    })
+    $exemptConfig | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configPath -Encoding UTF8
+    Remove-Item -LiteralPath (Join-Path $good 'docs\product') -Recurse -Force
+    $outExempt = & $checker -Repo compliant -ConfigPath $configPath -Format json 2>&1 | Out-String
+    $exemptCode = $LASTEXITCODE
+    $parsedExempt = $outExempt | ConvertFrom-Json
+    $exemptionEvidence = @($parsedExempt.results | Where-Object {
+        $_.Check -eq 'docs-dir-exemption:docs/product' -and $_.Passed -eq $true
+    })
+    Report 'reasoned-required-doc-exemption-passes' `
+        ($exemptCode -eq 0 -and $exemptionEvidence.Count -eq 1) `
+        "A valid docs exemption did not pass visibly (exit=$exemptCode)."
+
+    $invalidExemptConfig = $exemptConfig | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $invalidExemptConfig.repos.compliant.docsExemptions.paths = @('docs/not-a-global-requirement')
+    $invalidExemptConfig | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configPath -Encoding UTF8
+    $outInvalidExempt = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    $invalidExemptCode = $LASTEXITCODE
+    Report 'arbitrary-doc-exemption-fails-closed' `
+        ($invalidExemptCode -eq 1 -and $outInvalidExempt -match 'docs-exemptions: paths are not globally required docs') `
+        "An arbitrary docs exemption was accepted (exit=$invalidExemptCode)."
+    Set-Content -LiteralPath $configPath -Value $baseConfigText -Encoding UTF8
+    New-Item -ItemType Directory -Force (Join-Path $good 'docs\product') | Out-Null
+
+    # Markdown examples in inline code and fenced code are documentation,
+    # not links. Their deliberately missing targets must not create drift.
+    Report 'markdown-code-examples-are-not-broken-links' `
+        ($out -notmatch 'missing-inline-code|missing-fenced-code') `
+        "Markdown code examples were treated as links. Output tail: $((($out.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
+
+    # The companion negative fixture proves masking code did not suppress a
+    # genuine Markdown link in normal prose.
+    $realLinkFixture = Join-Path $good 'docs\real-link-negative.md'
+    Set-Content -LiteralPath $realLinkFixture -Encoding UTF8 -Value '[real link](./missing-real-link.md)'
+    $outRealLink = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    $realLinkCode = $LASTEXITCODE
+    Report 'real-markdown-link-remains-broken' `
+        ($realLinkCode -eq 1 -and $outRealLink -match 'broken-link:.*missing-real-link') `
+        "A real Markdown link was not reported as broken (exit=$realLinkCode)."
+    Remove-Item -LiteralPath $realLinkFixture -Force
+
+    # A four-space-indented backtick run is literal indented code, not a fenced
+    # block opener. It must not hide subsequent prose links through EOF.
+    $indentedFenceFixture = Join-Path $good 'docs\indented-fence-negative.md'
+    Set-Content -LiteralPath $indentedFenceFixture -Encoding UTF8 -Value @'
+    ```
+[real link after indented literal](./missing-after-indented-fence.md)
+'@
+    $outIndentedFence = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    $indentedFenceCode = $LASTEXITCODE
+    Report 'indented-backticks-do-not-hide-following-prose' `
+        ($indentedFenceCode -eq 1 -and $outIndentedFence -match 'missing-after-indented-fence') `
+        "Four-space-indented backticks hid a later prose link (exit=$indentedFenceCode)."
+    Remove-Item -LiteralPath $indentedFenceFixture -Force
+
+    # Long delimiter runs previously triggered catastrophic regex backtracking.
+    # The deterministic scanner must complete and still inspect later prose.
+    $longBacktickFixture = Join-Path $good 'docs\long-backticks-negative.md'
+    $longBackticks = '`' * 50000
+    Set-Content -LiteralPath $longBacktickFixture -Encoding UTF8 -Value ("prefix " + $longBackticks + " suffix`n[real link after long run](./missing-after-long-backticks.md)`n")
+    $longBacktickTimer = [Diagnostics.Stopwatch]::StartNew()
+    $outLongBackticks = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    $longBacktickTimer.Stop()
+    $longBacktickCode = $LASTEXITCODE
+    Report 'long-backtick-run-is-bounded' `
+        ($longBacktickCode -eq 1 -and $outLongBackticks -match 'missing-after-long-backticks' -and $longBacktickTimer.Elapsed.TotalSeconds -lt 10) `
+        "Long backtick scan was wrong or exceeded 10 seconds (exit=$longBacktickCode, elapsed=$($longBacktickTimer.Elapsed.TotalSeconds)s)."
+    Remove-Item -LiteralPath $longBacktickFixture -Force
+
+    # Distinct unmatched run lengths are the adversarial case for a scanner
+    # that searches the rest of the line from every opener. Keep enough runs
+    # to make quadratic rescanning observable while the run-indexed algorithm
+    # remains bounded.
+    $distinctBacktickFixture = Join-Path $good 'docs\distinct-backticks-negative.md'
+    $distinctBackticks = [Text.StringBuilder]::new('prefix ')
+    foreach ($length in 1..1000) {
+        [void]$distinctBackticks.Append(('`' * $length))
+        [void]$distinctBackticks.Append(' x ')
+    }
+    [void]$distinctBackticks.Append("`n[real link after distinct runs](./missing-after-distinct-backticks.md)`n")
+    Set-Content -LiteralPath $distinctBacktickFixture -Encoding UTF8 -Value $distinctBackticks.ToString()
+    $distinctBacktickTimer = [Diagnostics.Stopwatch]::StartNew()
+    $outDistinctBackticks = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    $distinctBacktickTimer.Stop()
+    $distinctBacktickCode = $LASTEXITCODE
+    Report 'distinct-backtick-runs-are-bounded' `
+        ($distinctBacktickCode -eq 1 -and $outDistinctBackticks -match 'missing-after-distinct-backticks' -and $distinctBacktickTimer.Elapsed.TotalSeconds -lt 10) `
+        "Distinct backtick scan was wrong or exceeded 10 seconds (exit=$distinctBacktickCode, elapsed=$($distinctBacktickTimer.Elapsed.TotalSeconds)s)."
+    Remove-Item -LiteralPath $distinctBacktickFixture -Force
+
+    # A broad .claude/ rule protects the generated adapter just as an exact
+    # .claude/CLAUDE.md rule does. It must pass and remain byte-identical under
+    # -Fix (which must not append a narrower duplicate).
+    $goodGitignore = Join-Path $good '.gitignore'
+    $goodGi = Get-Content -LiteralPath $goodGitignore -Raw -Encoding UTF8
+    $goodGi = $goodGi -replace '(?m)^\.claude/CLAUDE\.md\r?\n?', ".claude/`r`n"
+    Set-Content -LiteralPath $goodGitignore -Value $goodGi -Encoding UTF8
+    $broadGiBytes = [IO.File]::ReadAllBytes($goodGitignore)
+    $outBroadClaude = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    $broadClaudeCode = $LASTEXITCODE
+    Report 'broad-claude-gitignore-passes' ($broadClaudeCode -eq 0) `
+        "A .claude/ directory ignore must satisfy the adapter rule (exit=$broadClaudeCode)."
+    $outBroadClaudeFix = & $checker -Repo compliant -ConfigPath $configPath -Fix 2>&1 | Out-String
+    $broadClaudeFixCode = $LASTEXITCODE
+    $broadGiBytesAfterFix = [IO.File]::ReadAllBytes($goodGitignore)
+    $broadGi = Get-Content -LiteralPath $goodGitignore -Raw -Encoding UTF8
+    Report 'fix-keeps-broad-claude-gitignore-idempotent' `
+        ($broadClaudeFixCode -eq 0 -and $broadGi -notmatch '(?m)^\.claude/CLAUDE\.md\r?$' -and [Convert]::ToBase64String($broadGiBytes) -eq [Convert]::ToBase64String($broadGiBytesAfterFix)) `
+        "-Fix must leave the broad rule byte-identical without adding the exact rule (exit=$broadClaudeFixCode)."
+
     # Both generated-state locations are part of the contract. A fixture with
     # only .repowise/ must fail, and -Fix must add only the missing adapter
     # entry without duplicating the existing RepoWise entry.
-    $goodGitignore = Join-Path $good '.gitignore'
-    $goodGi = Get-Content -LiteralPath $goodGitignore -Raw -Encoding UTF8
-    $goodGi = $goodGi -replace '(?m)^\.claude/CLAUDE\.md\r?\n?', ''
+    $goodGi = $broadGi -replace '(?m)^\.claude/\r?\n?', ''
     Set-Content -LiteralPath $goodGitignore -Value $goodGi -Encoding UTF8
     $outMissingClaude = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
     $missingClaudeCode = $LASTEXITCODE
@@ -191,6 +319,21 @@ try {
     # any broken-link verdict here is the defect this fixture pins.
     Report 'directory-link-to-existing-dir-not-broken' ($out -notmatch 'broken-link') `
         "compliant repo reported a broken link for a directory link whose target exists. Output tail: $((($out.Trim() -split "`n") | Select-Object -Last 8) -join ' | ')"
+
+    # Link syntax is part of the contract: trailing slash means directory,
+    # while a link without one means file. Existing targets of the wrong type
+    # must fail instead of passing a generic Test-Path existence check.
+    $typeMismatchFixture = Join-Path $good 'docs\type-mismatch-negative.md'
+    Set-Content -LiteralPath $typeMismatchFixture -Encoding UTF8 -Value @'
+[file syntax pointing to directory](./plans/completed)
+[directory syntax pointing to file](./current-state.md/)
+'@
+    $outTypeMismatch = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    $typeMismatchCode = $LASTEXITCODE
+    Report 'markdown-link-target-type-is-enforced' `
+        ($typeMismatchCode -eq 1 -and $outTypeMismatch -match 'plans/completed' -and $outTypeMismatch -match 'current-state\.md/') `
+        "File/directory link type mismatches were not both rejected (exit=$typeMismatchCode)."
+    Remove-Item -LiteralPath $typeMismatchFixture -Force
 
     # A git failure during the freshness check must be reported honestly --
     # never silently swallowed into the unrelated "index not at HEAD" verdict.
