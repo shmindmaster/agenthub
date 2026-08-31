@@ -428,7 +428,7 @@
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.17.21",
+      "version": "3.18.9",
       "executable": "C:\\Users\\SaroshHussain\\bin\\cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin\\cursor.cmd",
