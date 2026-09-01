@@ -1,6 +1,6 @@
 ---
 name: opportunity-engine
-description: Use when turning a JD, RFP, Upwork post, client brief, capability statement, cover letter, technical pitch, or interview prep into a tailored resume, bid, proposal, rate table, or Q&A. Also for /tailor-resume, /bid, /proposal, /prep, /price, opportunity parser, portfolio match, or opportunity-response-engine. Always retrieve from Local-AI Qdrant knowledge and RepoWise first; never draft via a local chat LLM.
+description: Use when discovering, triaging, researching, tailoring, submitting, tracking, or following through on job opportunities, or when turning a JD, RFP, Upwork post, or client brief into a resume, proposal, pitch, rate table, or interview preparation. Always retrieve from Local-AI Qdrant knowledge and RepoWise first; never draft via a local chat LLM.
 ---
 
 # Opportunity Response Engine
@@ -13,10 +13,11 @@ studies, and bios that are not an opportunity response:
 `:8787/v1/chat/completions` to draft — those are local inference
 daemons, not this pipeline.
 
-Parse, augment, match, and gate are shared. Only the renderer changes.
+The shared evidence workflow is:
 
 ```
-OPPORTUNITY → AUGMENT → MATCH → RENDER → GATE
+DISCOVER → VERIFY → RANK → RESEARCH → AUGMENT → MATCH → RENDER → QA
+         → ROUTE → SUBMIT → FOLLOW THROUGH → LEARN
 ```
 
 Load `packages/knowledge-access/references/opportunity-response-engine.md`
@@ -24,6 +25,146 @@ for the full model (package-level; not deployed beside this skill).
 Load `references/opportunity-shape-library.md` before writing queries.
 Load `use-knowledge-access` before searching `01`–`06` or `10`.
 Load `use-repowise` when the opportunity needs repository/code evidence.
+
+## Standing job operating mode
+
+The objective is high-quality interviews and offers, not application volume.
+Do not center discovery on LinkedIn, Easy Apply, or any other single surface.
+
+### Discover and record coverage
+
+Search all useful sources available on the active host: installed job
+connectors, major job boards, employer career sites and ATS systems,
+executive-search firms, specialized recruiters, hiring-manager posts, employee
+or network signals, and current web discovery. Use the fleet routing policy;
+do not install, emulate, or claim access to a connector that is unavailable.
+
+For every discovery run, record each material source as `checked`,
+`unavailable`, or `unchecked`. Choose opportunities by quality and expected
+conversion, never by application convenience.
+
+### Verify and rank before heavy work
+
+Verify the live authoritative posting, employer, title, level, location,
+work arrangement, freshness, compensation components, credible total
+compensation, authorization/citizenship/clearance terms, travel, relocation,
+available routes, and duplicate state across mail, LinkedIn, FoundRole,
+trackers, ATS receipts, and local application folders.
+
+Priority contract:
+
+- Flagship companies and exceptional roles receive immediate attention.
+- Credible USD 300K-1M+ total compensation is a worldwide target.
+- USD 250K-299K is a secondary target, primarily in the United States.
+- Confirmed compensation below USD 250K is out unless the owner changes the
+  floor.
+- Easy Apply and other low-friction methods confer no priority.
+
+Reject only a confirmed sub-floor package, dead posting, duplicate submission,
+fundamental seniority mismatch, or immutable legal incompatibility. An absent
+keyword, title, technology, industry, or thin first retrieval is `UNKNOWN ->
+SEARCH DEEPER`, not proof of no experience. Clearance eligibility, active
+clearance, citizenship, work authorization, and willingness to obtain a
+clearance are separate facts and must not be collapsed.
+
+Rank surviving roles by compensation, company quality, role influence, career
+upside, strategic fit, evidence strength, hiring activity, freshness, access
+path, interview likelihood, and ability to differentiate. Application method
+is not a ranking factor.
+
+### Research serious opportunities
+
+Use official job, company, team, engineering, and candidate-policy pages as
+primary truth. For every serious role, add current research from Firecrawl,
+Exa, Tavily, and normal web sources when those capabilities are available. Use
+Context7 when current SDK, API, framework, protocol, or technical-stack facts
+affect the application. Record sources and distinguish source facts from
+inference.
+
+Research the mission, strategy, product direction, relevant organization and
+leadership, current initiatives, hiring patterns, likely recruiter or hiring
+manager, technical stack, pain points, expected outcomes, interview process,
+and language used for successful candidates. Respect employer candidate-AI
+policies; if a policy requires a candidate-written first draft, obtain one and
+limit assistance accordingly.
+
+### Resolve recurring application answers
+
+The private canonical profile is:
+
+```
+%LOCALAPPDATA%\AgentHub\runtime\opportunity-engine\application-answer-profile.yaml
+```
+
+Validate it with
+`packages/knowledge-access/scripts/validate_application_answer_profile.py`
+against `schemas/application-answer-profile.schema.yaml` before relying on it.
+It is private runtime state: never copy it into Git, OneDrive, Qdrant, RepoWise,
+an application package, or an external prompt.
+
+Resolve answers in this order:
+
+1. Current explicit owner answer.
+2. Latest verified submitted answer with equivalent scope.
+3. Confirmed canonical profile value.
+4. Verified career or supporting record.
+5. Deterministic normalization only when meaning is unchanged.
+6. Ask once when unresolved, conflicting, stale, or materially different.
+
+Semantically identical options may be normalized; adjacent legal facts may
+not. Never infer citizenship from work authorization, active clearance from
+willingness or eligibility, or one jurisdiction's sponsorship answer from
+another jurisdiction. Keep job-specific answers with the application and
+promote them to the profile only when reusable and verified.
+
+### Tailor, QA, route, and submit
+
+Create a purpose-built resume from verified history and the strongest retrieved
+evidence. Tailor the headline, summary, leadership positioning, experience
+order, bullets, technical and ATS vocabulary, projects, consulting examples,
+company value proposition, and executive-versus-hands-on balance. Augmentation
+means finding and translating stronger real evidence, never fabricating it.
+
+Retain the authoritative job snapshot and URL, research, compensation analysis,
+requirement/evidence map, claim ledger, tailored DOCX/PDF, application answers,
+change log, QA results, submission evidence, outreach notes, and interview
+material together. Before upload, check facts, confidentiality, ATS relevance,
+spelling, page count, visual rendering, and DOCX/PDF machine parseability. The
+parsed output must preserve sections, employers, titles, dates, email, phone,
+and bullets.
+
+Choose the strongest available entry route for the role: trusted referral,
+executive search, specialized or internal recruiter, hiring manager, executive
+sponsor, direct ATS, connector, specialized platform, or LinkedIn. For major
+roles, identify up to three evidence-backed human paths; do not spam.
+
+A current explicit request to apply authorizes in-scope research, tailoring,
+form completion, known answers, attachment selection, upload, and submission.
+Standing memory alone does not authorize an external action when the active
+task is only discovery, review, or preparation. If the host or browser requires
+action-time confirmation, finish every reversible step first and request one
+grouped confirmation at the final action.
+
+Immediately before submission verify the company, role, candidate details,
+answers, and exact attachment. Only a confirmation page, confirmation email,
+ATS receipt, or equivalent authoritative proof establishes `submitted`.
+Prepared, saved, attached, uploaded, or a timed-out browser action does not.
+
+Track states distinctly:
+
+```
+discovered -> triaged -> researched -> evidence_mapped -> tailored -> qa_passed
+-> submitted -> outreached -> screening -> interviewing -> final -> offered
+-> negotiating -> accepted | declined
+```
+
+Also preserve `rejected`, `closed`, `duplicate`, `withdrawn`, and `follow_up`.
+After submission, update the tracker, save the exact submitted resume, URL,
+date, and proof, monitor available mail/LinkedIn/recruiter/ATS sources, and use
+the saved evidence for responses and interviews. Track conversion by source,
+route, company, role, compensation, human path, resume version, outreach,
+freshness, and research depth; recalibrate future prioritization from observed
+results.
 
 ## Evidence sources (Qdrant + RepoWise)
 

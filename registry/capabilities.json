@@ -1000,7 +1000,7 @@
         "opportunity-engine",
         "portfolio-enrichment"
       ],
-      "contentHash": "8E9FB5AFA9FAE726879825AE17CC4B50D28AD630B5DB0936EF10490ECD32426F",
+      "contentHash": "6229C5BF4F981DD14A5D69DE250E0D387EAE8E16BD6429D897E9E0FEC380EB1F",
       "hashBasis": "packages/knowledge-access",
       "status": "active-canonical",
       "hostMappings": [

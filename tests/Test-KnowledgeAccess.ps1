@@ -30,8 +30,10 @@ $required = @(
     'scripts\New-KnowledgeIndex.ps1',
     'scripts\Search-Knowledge.ps1',
     'scripts\Find-CodeInKnowledge.ps1',
+    'scripts\validate_application_answer_profile.py',
     'schemas\opportunity.schema.yaml',
     'schemas\engagement-record.schema.yaml',
+    'schemas\application-answer-profile.schema.yaml',
     'references\knowledge-access-plan.md',
     'references\opportunity-response-engine.md'
 )
@@ -64,6 +66,80 @@ foreach ($f in $fixtures) {
 $engine = Get-Content -LiteralPath (Join-Path $pkg 'skills\opportunity-engine\SKILL.md') -Raw -Encoding UTF8
 Report 'opportunity-engine fail-closed on invented specifics' ($engine -match 'invented specifics') `
     'the fail-closed sentence is gone from opportunity-engine'
+Report 'opportunity-engine owns the complete job lifecycle' (
+    $engine -match 'DISCOVER.*VERIFY.*RANK.*RESEARCH.*AUGMENT.*MATCH.*RENDER.*QA' -and
+    $engine -match 'ROUTE.*SUBMIT.*FOLLOW THROUGH.*LEARN'
+) 'the canonical skill no longer covers discovery through learning'
+Report 'opportunity-engine is quality-first rather than LinkedIn-first' (
+    $engine -match 'Do not center discovery on LinkedIn' -and
+    $engine -match 'application convenience' -and
+    $engine -match '`checked`' -and $engine -match '`unavailable`' -and
+    $engine -match '`unchecked`'
+) 'discovery coverage or quality-first routing is missing'
+Report 'opportunity-engine preserves the compensation and geography contract' (
+    $engine -match '300K-1M\+' -and $engine -match '250K-299K' -and
+    $engine -match 'worldwide target' -and $engine -match 'below USD 250K'
+) 'standing compensation bands or geography preferences drifted'
+Report 'opportunity-engine deep research names the approved research lanes' (
+    $engine -match 'Firecrawl' -and $engine -match 'Exa' -and
+    $engine -match 'Tavily' -and $engine -match 'Context7' -and
+    $engine -match 'official job, company, team, engineering, and candidate-policy pages'
+) 'deep company research routing is incomplete'
+Report 'opportunity-engine requires machine parseability and private answer resolution' (
+    $engine -match 'DOCX/PDF machine parseability' -and
+    $engine -match 'application-answer-profile.yaml' -and
+    $engine -match 'Never infer citizenship from work authorization'
+) 'ATS parsing or the private answer-profile contract is missing'
+Report 'opportunity-engine counts only authoritative submission proof' (
+    $engine -match 'Only a confirmation page, confirmation email' -and
+    $engine -match 'Prepared, saved, attached, uploaded' -and
+    $engine -match 'accepted \| declined'
+) 'submission evidence or lifecycle states are incomplete'
+
+$pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+Report 'Python is available for application profile validation' ($null -ne $pythonCommand) `
+    'python is required by validate_application_answer_profile.py'
+if ($pythonCommand) {
+    $validator = Join-Path $pkg 'scripts\validate_application_answer_profile.py'
+    $profileFixtures = Join-Path $pkg 'fixtures\application-profiles'
+
+    & $pythonCommand.Source $validator (Join-Path $profileFixtures 'valid-synthetic.yaml') *> $null
+    Report 'application profile validator accepts the valid synthetic profile' ($LASTEXITCODE -eq 0) `
+        'valid-synthetic.yaml was rejected'
+
+    & $pythonCommand.Source $validator (Join-Path $profileFixtures 'invalid-missing-synthetic.yaml') *> $null
+    Report 'application profile validator rejects missing required state' ($LASTEXITCODE -ne 0) `
+        'invalid-missing-synthetic.yaml was accepted'
+
+    & $pythonCommand.Source $validator (Join-Path $profileFixtures 'invalid-conflict-synthetic.yaml') *> $null
+    Report 'application profile validator rejects ambiguous semantic aliases' ($LASTEXITCODE -ne 0) `
+        'invalid-conflict-synthetic.yaml was accepted'
+
+    & $pythonCommand.Source $validator (Join-Path $profileFixtures 'malformed-synthetic.yaml') *> $null
+    Report 'application profile validator rejects malformed YAML' ($LASTEXITCODE -ne 0) `
+        'malformed-synthetic.yaml was accepted'
+
+    $smokeScript = @'
+import sys, yaml
+with open(sys.argv[1], encoding="utf-8") as handle:
+    cases = yaml.safe_load(handle)["cases"]
+for case in cases:
+    if not case["live"] or case["credible_total_comp_usd"] < 250000:
+        actual = "reject"
+    elif case["flagship"] or case["credible_total_comp_usd"] >= 300000:
+        actual = "priority_worldwide"
+    elif case["country"] == "US" and case["credible_total_comp_usd"] >= 250000:
+        actual = "priority_us_secondary"
+    else:
+        actual = "hold_deeper_research"
+    if actual != case["expected"]:
+        raise SystemExit(f"{case['id']}: expected {case['expected']}, got {actual}")
+'@
+    $smokePath = Join-Path $pkg 'fixtures\opportunities\job-search-policy-smoke.yaml'
+    $smokeScript | & $pythonCommand.Source - $smokePath *> $null
+    Report 'job policy smoke cases preserve worldwide, US secondary, and reject behavior' ($LASTEXITCODE -eq 0) `
+        'a synthetic job policy case did not produce the expected lane'
+}
 
 $enrich = Get-Content -LiteralPath (Join-Path $pkg 'skills\portfolio-enrichment\SKILL.md') -Raw -Encoding UTF8
 Report 'portfolio-enrichment uses Qdrant knowledge alias' (

@@ -1,0 +1,83 @@
+schema_version: 1
+candidate:
+  name: Synthetic Candidate
+  contact_source: synthetic-fixture
+preferences:
+  compensation:
+    hard_floor_total_comp_usd: 250000
+    primary_min_total_comp_usd: 300000
+    primary_max_total_comp_usd: 1000000
+    secondary_min_total_comp_usd: 250000
+    secondary_max_total_comp_usd: 299999
+  geography:
+    primary_worldwide: true
+    secondary_primarily_us: true
+    relocation: true
+  work_modes:
+    remote: true
+    hybrid: true
+    on_site: true
+resolution_precedence:
+  - current_explicit_owner_answer
+  - latest_verified_submitted_equivalent
+  - confirmed_canonical_profile
+  - verified_career_or_supporting_record
+  - meaning_preserving_deterministic_normalization
+  - ask_once_if_unresolved_conflicting_stale_or_materially_different
+non_inference_rules:
+  - work_authorization_us_does_not_imply_citizenship_us
+  - willingness_or_eligibility_does_not_imply_active_clearance
+  - sponsorship_answer_does_not_cross_jurisdictions
+answers:
+  - key: work_authorization_us
+    value: true
+    status: confirmed
+    jurisdiction: US
+    scope: employment
+    sensitivity: legal
+    aliases: [authorized to work in the United States]
+    ask_if: [jurisdiction changes]
+    source:
+      type: owner_confirmed
+      reference: synthetic-fixture
+      verified_on: "2026-08-31"
+  - key: citizenship_us
+    value: null
+    status: unresolved
+    jurisdiction: US
+    scope: citizenship
+    sensitivity: legal
+    aliases: [United States citizen]
+    ask_if: [application requires an answer]
+    source: null
+  - key: current_security_clearance
+    value: null
+    status: unresolved
+    jurisdiction: US
+    scope: security_clearance
+    sensitivity: compliance
+    aliases: [active security clearance]
+    ask_if: [application requires a clearance level]
+    source: null
+  - key: willing_to_obtain_clearance
+    value: true
+    status: confirmed
+    jurisdiction: US
+    scope: security_clearance
+    sensitivity: compliance
+    aliases: [willing to obtain a security clearance]
+    ask_if: [requirements change]
+    source:
+      type: owner_confirmed
+      reference: synthetic-fixture
+      verified_on: "2026-08-31"
+  - key: clearance_legal_eligibility
+    value: null
+    status: unresolved
+    jurisdiction: US
+    scope: security_clearance
+    sensitivity: legal
+    aliases: [legally eligible for a security clearance]
+    ask_if: [application requires an answer]
+    source: null
+updated_at: "2026-08-31T20:00:00-05:00"

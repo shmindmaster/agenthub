@@ -73,6 +73,13 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 
 ## Opportunity evidence
 
+For job discovery, triage, research, tailoring, application, submission
+tracking, and follow-through, load `opportunity-engine`; it is the canonical
+standing workflow. Do not use LinkedIn-first ordering or application
+convenience as a priority rule. Reuse verified recurring answers from the
+private application-answer profile under `%LOCALAPPDATA%\AgentHub\runtime`,
+while keeping current-task authorization and external-action gates intact.
+
 When preparing job applications, consulting proposals, RFP responses, capability
 statements, resumes, cover letters, technical pitches, interview preparation, or
 other role/proposal materials, retrieve evidence first. You are already the

@@ -1,0 +1,126 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: Private Application Answer Profile
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - candidate
+  - preferences
+  - resolution_precedence
+  - non_inference_rules
+  - answers
+  - updated_at
+properties:
+  schema_version:
+    const: 1
+  candidate:
+    type: object
+    additionalProperties: false
+    required: [name, contact_source]
+    properties:
+      name:
+        type: string
+        minLength: 1
+      contact_source:
+        type: string
+        minLength: 1
+  preferences:
+    type: object
+    additionalProperties: false
+    required: [compensation, geography, work_modes]
+    properties:
+      compensation:
+        type: object
+        additionalProperties: false
+        required:
+          - hard_floor_total_comp_usd
+          - primary_min_total_comp_usd
+          - primary_max_total_comp_usd
+          - secondary_min_total_comp_usd
+          - secondary_max_total_comp_usd
+        properties:
+          hard_floor_total_comp_usd: {type: integer, minimum: 0}
+          primary_min_total_comp_usd: {type: integer, minimum: 0}
+          primary_max_total_comp_usd: {type: integer, minimum: 0}
+          secondary_min_total_comp_usd: {type: integer, minimum: 0}
+          secondary_max_total_comp_usd: {type: integer, minimum: 0}
+      geography:
+        type: object
+        additionalProperties: false
+        required: [primary_worldwide, secondary_primarily_us, relocation]
+        properties:
+          primary_worldwide: {type: boolean}
+          secondary_primarily_us: {type: boolean}
+          relocation: {type: boolean}
+      work_modes:
+        type: object
+        additionalProperties: false
+        required: [remote, hybrid, on_site]
+        properties:
+          remote: {type: boolean}
+          hybrid: {type: boolean}
+          on_site: {type: boolean}
+  resolution_precedence:
+    type: array
+    minItems: 6
+    maxItems: 6
+    uniqueItems: true
+    items: {type: string}
+  non_inference_rules:
+    type: array
+    minItems: 3
+    uniqueItems: true
+    items: {type: string, minLength: 1}
+  answers:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - key
+        - value
+        - status
+        - jurisdiction
+        - scope
+        - sensitivity
+        - aliases
+        - ask_if
+        - source
+      properties:
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]*$"
+        value: {}
+        status:
+          enum: [confirmed, unresolved, superseded]
+        jurisdiction:
+          type: string
+          minLength: 1
+        scope:
+          type: string
+          minLength: 1
+        sensitivity:
+          enum: [public, personal, demographic, legal, compliance, contact]
+        aliases:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        ask_if:
+          type: array
+          items: {type: string, minLength: 1}
+        source:
+          anyOf:
+            - type: "null"
+            - type: object
+              additionalProperties: false
+              required: [type, reference, verified_on]
+              properties:
+                type:
+                  enum: [owner_confirmed, verified_submission, verified_record]
+                reference: {type: string, minLength: 1}
+                verified_on: {type: string, format: date}
+  updated_at:
+    type: string
+    format: date-time

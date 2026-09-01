@@ -1,0 +1,19 @@
+cases:
+  - id: worldwide_flagship_425k
+    live: true
+    flagship: true
+    country: GB
+    credible_total_comp_usd: 425000
+    expected: priority_worldwide
+  - id: us_secondary_275k
+    live: true
+    flagship: false
+    country: US
+    credible_total_comp_usd: 275000
+    expected: priority_us_secondary
+  - id: dead_subfloor_225k
+    live: false
+    flagship: false
+    country: US
+    credible_total_comp_usd: 225000
+    expected: reject
