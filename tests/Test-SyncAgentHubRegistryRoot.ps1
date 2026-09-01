@@ -295,10 +295,31 @@ function Test-UnrebasablePathShapeFailsLoudly {
 # why behavior 2 was changed to never write the file in the first place, rather
 # than being left to restore it more carefully. ---
 $trackedRegistryPath = Join-Path $repoRoot 'registry\agents.json'
-$trackedRegistryBytesBefore = [IO.File]::ReadAllBytes($trackedRegistryPath)
+
+# Read with a bounded retry. Another process holding the file briefly is not a
+# test result either way: RepoWise re-indexes this repository continuously and
+# takes read handles on registry/, and $ErrorActionPreference is 'Stop', so a
+# single sharing violation here used to kill the script before it printed one
+# PASS line. The runner then reported "passed=0, failed=1" with no reason, which
+# is indistinguishable from this suite genuinely failing -- that is the flake.
+# A lock that outlasts the retries is still reported, loudly, as a real failure.
+function Read-TrackedRegistryBytes {
+    param([string]$Path, [int]$Attempts = 10, [int]$DelayMs = 100)
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        try { return [IO.File]::ReadAllBytes($Path) }
+        catch [IO.IOException] {
+            if ($attempt -eq $Attempts) {
+                throw "Could not read $Path after $Attempts attempts over $($Attempts * $DelayMs)ms; last error: $($_.Exception.Message)"
+            }
+            Start-Sleep -Milliseconds $DelayMs
+        }
+    }
+}
+
+$trackedRegistryBytesBefore = $null
 
 function Test-SuiteLeavesTrackedRegistryUntouched {
-    $after = [IO.File]::ReadAllBytes($trackedRegistryPath)
+    $after = Read-TrackedRegistryBytes -Path $trackedRegistryPath
     if ($trackedRegistryBytesBefore.Length -ne $after.Length) {
         return @{ Passed = $false; Detail = "registry/agents.json changed while this suite ran ($($trackedRegistryBytesBefore.Length) bytes before, $($after.Length) after). Nothing in this suite may write it -- behavior 2 works on a scratch copy precisely so an interrupted run cannot leave a canary in the checkout. Inspect `git diff registry/agents.json` before committing anything." }
     }
@@ -309,6 +330,19 @@ function Test-SuiteLeavesTrackedRegistryUntouched {
     }
     return @{ Passed = $true; Detail = $null }
 }
+
+# Everything below runs inside a guard. With $ErrorActionPreference = 'Stop',
+# any unhandled terminating error -- a locked file, a transient IO failure in a
+# fixture -- exits the script before the RESULT line, and Run-AllTests.ps1 can
+# then only say "passed=0, failed=1" with no cause. Report the error as a
+# failure with its message and still emit RESULT, so the suite stays a readable
+# signal instead of an opaque crash. This does not swallow anything: the exit
+# code is still 1 and the reason is now printed.
+try {
+
+# Snapshot inside the guard: if this read is the thing that fails, that has to
+# surface as a reported failure with a RESULT line, not a bare exception.
+$trackedRegistryBytesBefore = Read-TrackedRegistryBytes -Path $trackedRegistryPath
 
 $r1 = Test-EmptyRegistryRootFailsLoudly
 Report 'empty/wrong registry root fails loudly instead of reporting success' $r1.Passed $r1.Detail
@@ -328,6 +362,10 @@ Report 'an absolute nativePaths shape the rebasing cannot handle fails loudly' $
 # Last, so it observes every write the behaviors above could have made.
 $r6 = Test-SuiteLeavesTrackedRegistryUntouched
 Report 'the suite leaves the tracked registry/agents.json byte-identical' $r6.Passed $r6.Detail
+
+} catch {
+    Report 'the suite ran to completion without an unexpected error' $false "$($_.Exception.Message)$(if ($_.InvocationInfo) { " (at $($_.InvocationInfo.ScriptName):$($_.InvocationInfo.ScriptLineNumber))" })"
+}
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
