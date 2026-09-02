@@ -5,7 +5,16 @@ Behavior tests for the fleet-wide Sarosh communication contract.
 The capability is intentionally split across two surfaces: the complete skill
 contains the communication framework, while global-agent-policy.md makes that
 skill mandatory for every user-facing interaction. These tests keep the two
-surfaces, registry ownership, deployment reach, and privacy boundary aligned.
+surfaces, registry ownership, deployment reach, and the written/audio boundary
+aligned.
+
+The skill body is Sarosh's own authoritative text (2026-09-02), preserved
+verbatim except for the frontmatter description and a short intro paragraph
+naming `sarosh-audio-voice`. That authoritative text intentionally includes
+his real contact and signature data in section 20 (Identity) -- it is his own
+personal skill on his own machine, not third-party or customer data -- so,
+unlike an earlier draft of this test, this file does not assert the skill is
+free of contact data.
 
 Run: pwsh -NoProfile -File tests/Test-SaroshCommunication.ps1
      powershell.exe -NoProfile -File tests/Test-SaroshCommunication.ps1
@@ -45,18 +54,21 @@ $registry = if (Test-Path -LiteralPath $registryPath) {
     Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json
 } else { $null }
 
-# 1. The package exposes the intended public skill and automatic invocation.
+# 1. The package exposes the intended public skill, an explicit written-only
+#    boundary against the audio skill, and automatic invocation.
 $frontmatterOk = $skill -and
     $skill -match '(?m)^name:\s*sarosh-communication\s*$' -and
-    $skill -match '(?mi)^description:.*every user-facing interaction'
+    $skill -match '(?mi)^description:.*Use when' -and
+    $skill -match '(?mi)^description:.*sarosh-audio-voice'
 $metadataOk = $metadata -and
     $metadata -match '(?m)^\s*display_name:\s*"Sarosh Communication"\s*$' -and
     $metadata -match '(?m)^\s*allow_implicit_invocation:\s*true\s*$'
-Report 'skill identity and implicit invocation are explicit' `
+Report 'skill identity, written/audio boundary, and implicit invocation are explicit' `
     ($frontmatterOk -and $metadataOk) `
-    'expected sarosh-communication frontmatter, every-user-facing description, and allow_implicit_invocation: true'
+    'expected sarosh-communication frontmatter, a "Use when" description naming sarosh-audio-voice, and allow_implicit_invocation: true'
 
-# 2. One capability owns the skill and deploys it to the complete managed set.
+# 2. One capability owns the skill, deploys it to the complete managed set,
+#    and no longer manages a sarosh-writing skill (retired from this branch).
 $owners = if ($registry) { @($registry.capabilities | Where-Object { 'sarosh-communication' -in @($_.managedSkillNames) }) } else { @() }
 $capability = if ($owners.Count -eq 1) { $owners[0] } else { $null }
 $expectedHosts = @(
@@ -69,6 +81,7 @@ $hostSetOk = $actualHosts.Count -eq $expectedHosts.Count -and
     @(Compare-Object ($expectedHosts | Sort-Object) $actualHosts).Count -eq 0
 $mappingModesOk = $capability -and
     @($capability.hostMappings | Where-Object { $_.deploymentStatus -ne 'managed-loose-skills' }).Count -eq 0
+$noSaroshWriting = $capability -and ('sarosh-writing' -notin @($capability.managedSkillNames))
 $registryOk = $capability -and
     $owners.Count -eq 1 -and
     $capability.id -eq 'sarosh-communication' -and
@@ -77,9 +90,9 @@ $registryOk = $capability -and
     $capability.canonicalSource -eq 'packages/sarosh-communication' -and
     $capability.hashBasis -eq 'packages/sarosh-communication' -and
     $capability.status -eq 'active-canonical'
-Report 'registry has one owner and all 17 managed host mappings' `
-    ($registryOk -and $hostSetOk -and $mappingModesOk) `
-    "owners=$($owners.Count), hosts=$($actualHosts.Count), expected owner=personal-communication and managed-loose-skills"
+Report 'registry has one owner, all 17 managed host mappings, no sarosh-writing' `
+    ($registryOk -and $hostSetOk -and $mappingModesOk -and $noSaroshWriting) `
+    "owners=$($owners.Count), hosts=$($actualHosts.Count), expected owner=personal-communication, managed-loose-skills, and no sarosh-writing entry"
 
 # 3. Global instructions require the full skill for every user-facing message.
 $policyOk = $policy -and
@@ -90,57 +103,46 @@ Report 'global policy mandates the skill for every user-facing interaction' `
     $policyOk `
     'expected mandatory loading for replies, progress commentary, final task reports, and drafts'
 
-# 4. The merged skill preserves the load-bearing communication contract.
+# 4. The restored authoritative text preserves the load-bearing communication
+#    contract and its 28 numbered sections.
 $requiredPatterns = @(
     'Bottom Line.*Impact.*Action',
     'No action needed from you\.',
     'Minimum necessary content wins',
-    'Machine-generated logs and raw tool output',
-    'system, safety,\s+repository, legal, evidence, and task-specific',
     'proposed.*implemented.*tested.*reviewed.*merged.*deployed.*production-verified.*user-validated',
     '\[TK: specific information needed\]',
-    '\[TK — requires sign-off:',
+    '\[TK .{1,3} requires sign-off:',
     'A blocker stops the \*\*send\*\*, not necessarily the \*\*draft\*\*',
-    'Relational Messages'
+    'Relational Messages',
+    '(?m)^# 28\. Final Check\s*$'
 )
 $missingPatterns = @($requiredPatterns | Where-Object { -not ($skill -match "(?is)$_") })
-Report 'skill contains the merged framework and hard gates' `
+Report 'skill contains the merged framework, hard gates, and all 28 sections' `
     ($skill -and $missingPatterns.Count -eq 0) `
     "missing required contract patterns: $($missingPatterns -join ', ')"
 
-# 5. Compression cannot erase correctness, evidence, or authorization.
+# 5. The added intro paragraph preserves precedence and the no-external-send
+#    boundary without expanding beyond what was authorized.
 $precedenceOk = $skill -and
-    $skill -match '(?is)Accuracy and governing instructions outrank brevity' -and
+    $skill -match '(?is)outrank brevity' -and
     $skill -match '(?is)does not authorize an external send' -and
-    $skill -match '(?is)do not remove.*risk.*blocker.*citation.*acceptance\s+criterion'
-Report 'compression preserves correctness and authorization boundaries' `
+    $skill -match '(?is)system, safety,\s+repository, legal, evidence, and\s+task-specific'
+Report 'intro paragraph preserves precedence and authorization boundaries' `
     $precedenceOk `
-    'expected explicit precedence, external-send, and required-detail protections'
+    'expected "outrank brevity", "does not authorize an external send", and the system/safety/repository/legal/evidence/task-specific list'
 
-# 6. Mutable contact details and signatures must not become fleet policy.
-$forbiddenContactPatterns = @(
-    '(?i)mailto:',
-    '(?i)[A-Z0-9._%+-]+@(pendoah\.ai|fleekbiz\.com)',
-    '(?i)Mobile:\s*\+?\d',
-    '(?i)\+1\s*\(\d{3}\)',
-    '(?i)CTO,\s*(Pendoah|FleekBiz)',
-    '(?is)Default Pendoah sender:'
-)
-$contactLeaks = @($forbiddenContactPatterns | Where-Object { $skill -match $_ })
-Report 'fleet skill contains no fixed contact or signature data' `
-    ($skill -and $contactLeaks.Count -eq 0) `
-    "matched forbidden contact patterns: $($contactLeaks -join ', ')"
-
-# 7. Written communication and synthetic audio remain separate capabilities.
+# 6. Written communication and synthetic audio remain separate capabilities,
+#    routed to the dedicated sarosh-audio-voice skill rather than duplicating
+#    Local-AI routing detail inline.
 $separationOk = $skill -and
-    $skill -match '(?is)written communication.*not the\s+audio voice' -and
-    $skill -match '(?is)Local-AI voice id `sarosh`.*governed by `local-ai-stack`'
+    $skill -match '(?is)written communication only' -and
+    $skill -match '(?is)spoken or cloned voice is\s+a separate capability,\s+`sarosh-audio-voice`'
 Report 'written communication stays separate from owner audio voice' `
     $separationOk `
-    'expected an explicit written-text versus Local-AI audio boundary'
+    'expected an explicit written-only statement naming sarosh-audio-voice as the separate capability'
 
 Write-Host ''
-Write-Host "SCOPE: skill, UI metadata, global policy, registry, 17 host mappings, and contact-data boundary"
+Write-Host "SCOPE: skill, UI metadata, global policy, registry, 17 host mappings, and the written/audio boundary"
 Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed"
 if ($failures.Count -gt 0) { exit 1 }
 exit 0

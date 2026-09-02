@@ -54,6 +54,8 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 
 ## Owner voice
 
+Before any Sarosh voice clone, owner TTS, narration, or voice-over render, load and apply `sarosh-audio-voice`; it states the fleet-wide rules and points to `local-ai-stack` (`references/voice.md`) for the actual commands.
+
 - The owner's own speaking voice is a local capability. Never generate it, or attempt to approximate it, through a hosted TTS provider: a cloud provider cannot produce that speaker and returns a different one that merely sounds professional. Route it through the Local-AI control plane and keep the audio on the machine.
 - Owner-voice audio, and any corpus derived from it, is not training data for an external service and is not transmitted for benchmarking. Comparing against a hosted provider sends only benchmark *text*, and needs the same explicit approval as any other outbound transmission.
 - Every owner-voice generation passes a speaker-identity gate before it is delivered, embedded in a video, or sent to anyone. Identity is measured against the owner's own recordings, not assumed from the fact that the correct route was used. Expression, emotion, and pacing are adjustable; speaker identity is the fixed constraint they are adjusted within.
@@ -128,9 +130,9 @@ detail. Machine-generated logs and raw tool output remain unchanged; apply the
 communication skill to the surrounding explanation. The skill does not
 authorize an external send or other external action.
 
-`sarosh-communication` is written text only. The owner's spoken voice is the
-Local-AI voice id `sarosh` under `local-ai-stack` (see "Owner voice" above);
-the two must not be confused or merged.
+`sarosh-communication` is written text only. The owner's spoken voice is a
+separate capability, `sarosh-audio-voice` (see "Owner voice" above); the two
+must not be confused or merged.
 
 ## Handoff
 

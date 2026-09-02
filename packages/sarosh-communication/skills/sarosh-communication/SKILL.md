@@ -1,31 +1,15 @@
 ---
 name: sarosh-communication
-description: Use when producing every user-facing interaction with Sarosh or communication drafted, edited, reviewed, or shortened under his name, including progress commentary, final task reports, email, Slack, Teams, customer messages, status updates, follow-ups, proposals, presentations, and public writing. Written communication only; the owner's audio voice is a separate Local-AI capability.
+description: Use when drafting, editing, reviewing, or shortening communication that will be sent under Sarosh Hussain's name or from his accounts, including email, Slack, Teams, customer messages, status updates, follow-ups, proposals, presentations, and public writing. Written communication only; Sarosh's spoken/cloned voice is `sarosh-audio-voice`.
 ---
 
 # Sarosh Hussain — Communication Skill
 
-Use this skill for every user-facing interaction with Sarosh: direct replies,
-progress commentary, final task reports, and communication drafted under his
-name or from his accounts. It governs the communication layer even when a
-technical or artifact-specific skill also applies.
-
-This is written communication, including textual speaking scripts, not the
-audio voice. Narration, voice-over, and any spoken owner-voice rendering use
-the Local-AI voice id `sarosh` and are governed by `local-ai-stack`
-(`references/voice.md`) and `media-studio`. Do not apply this skill to voice
-rendering, and do not apply the voice pipeline's pronunciation or identity
-rules to written text.
-
-Accuracy and governing instructions outrank brevity. System, safety,
-repository, legal, evidence, and task-specific requirements take precedence
-when they require more detail or a different structure. Do not remove a
-material risk, blocker, caveat, citation, validation result, acceptance
-criterion, or authorization boundary merely to shorten a response.
-
-Machine-generated logs and raw tool output remain unchanged. Apply this skill
-to the explanation around them. This skill supports drafting and editing; it
-does not authorize an external send or any other external action.
+This skill is written communication only. Sarosh's spoken or cloned voice is
+a separate capability, `sarosh-audio-voice`; do not apply this skill to a
+voice render. Governing system, safety, repository, legal, evidence, and
+task-specific instructions outrank brevity and may require more detail than
+the defaults below. This skill does not authorize an external send.
 
 ## 1. Objective
 
@@ -50,12 +34,6 @@ Before keeping a sentence, ask:
 If no, remove it.
 
 Do not include information simply because it is available.
-
-For task collaboration, communicate in this order:
-
-1. What happened or what matters
-2. What the recipient needs to know
-3. What needs to happen next
 
 ---
 
@@ -113,22 +91,6 @@ If Bottom Line + Action are sufficient, omit Impact.
 A complete message may be one or two sentences.
 
 **Do not turn the framework into mandatory sections.**
-
-### Situation defaults
-
-Use the smallest structure that fits the situation:
-
-* Normal update: outcome → impact → next step
-* Slack or Teams: outcome → blocker or action
-* Question: question → minimum context needed to answer it
-* Follow-up: unresolved ask → easiest useful response
-* Recommendation: recommendation → reason → material tradeoff or action
-* Bad news: impact → recovery → action needed
-* Incident: affected → workaround or status → next update
-* Sales or discovery: customer problem → relevant capability → one useful question
-
-Never force a component into a message when it adds no value. Relational
-messages use the exception in section 16.
 
 ---
 
@@ -357,9 +319,9 @@ Do not cram the entire email into the subject.
 
 ## External email
 
-Default: **5 sentences or fewer.**
+Default: **3–5 sentences.**
 
-Maximum without a strong reason: **8 sentences.**
+Soft maximum: **8 sentences.**
 
 Typical structure:
 
@@ -672,11 +634,6 @@ Never attach a sales ask to a condolence or congratulations message.
 
 Accuracy outranks polish.
 
-Do not prove every ordinary statement. Include evidence, metrics, or sources
-when they materially support a decision, risk, commitment, disputed claim, or
-required verification. Never let compression hide evidence the task or
-governing instructions require.
-
 Never invent:
 
 * dates
@@ -772,14 +729,35 @@ A vague unsupported compliance claim is still unsupported.
 
 Never blend identities.
 
-Before drafting or sending, resolve the business identity and channel mode
-from current, authoritative context. Verify mutable titles, roles, email
-addresses, phone numbers, signatures, and aliases at the point of use. Never
-store or infer them from this skill.
+## Pendoah
 
-Keep Pendoah and FleekBiz identities separate. Use the identity already
-established by the current thread only after verifying it; if the applicable
-identity is unclear, draft with a blocker rather than guessing.
+**Sarosh Hussain**
+CTO, Pendoah
+[sarosh.hussain@pendoah.ai](mailto:sarosh.hussain@pendoah.ai)
+Mobile: +1 (832) 278-7619
+
+Pendoah is a Houston-based AI and software solutions firm.
+
+Default Pendoah sender:
+
+`sarosh.hussain@pendoah.ai`
+
+Alias:
+
+`sarosh@pendoah.ai`
+
+Use the alias only when the existing thread already uses it.
+
+---
+
+## FleekBiz
+
+**Sarosh Hussain**
+CTO, FleekBiz
+[sarosh.hussain@fleekbiz.com](mailto:sarosh.hussain@fleekbiz.com)
+Mobile: +1 (832) 278-7619
+
+Keep FleekBiz and Pendoah identities separate.
 
 ---
 
@@ -789,18 +767,23 @@ Upwork is a channel, not a separate company identity.
 
 ### Agency contract
 
-Use the verified business identity under which the engagement was sold.
+Use Pendoah identity.
 
 Use `we` for genuine team delivery.
 
-Team capabilities may be referenced only when they genuinely apply to the
-engagement and have evidence.
+Pendoah team capabilities may be referenced when relevant.
+
+Signature uses the Pendoah block.
 
 ### Individual contract
 
 Use `I`.
 
 Do not present agency resources as part of the engagement.
+
+Signature:
+
+`Sarosh Hussain`
 
 Whichever mode the contract was sold under governs the engagement.
 
