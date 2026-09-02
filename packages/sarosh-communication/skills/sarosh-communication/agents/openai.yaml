@@ -1,0 +1,7 @@
+interface:
+  display_name: "Sarosh Communication"
+  short_description: "Write concise, outcome-first communication"
+  default_prompt: "Use $sarosh-communication to make this message clear, concise, accurate, and actionable."
+
+policy:
+  allow_implicit_invocation: true

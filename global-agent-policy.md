@@ -111,6 +111,27 @@ Retrieve from Qdrant `knowledge` (`-Profile client-facing`) and RepoWise
 first. You are the writer; do not draft via a local chat LLM. Improve the
 actual asset rather than only recommending changes.
 
+## Sarosh communication
+
+Before producing every user-facing interaction with Sarosh, load and apply
+`sarosh-communication`. This includes direct replies, progress commentary,
+final task reports, and communication drafted, edited, reviewed, or shortened
+under his name or from his accounts: email, Slack, Teams, customer messages,
+status updates, follow-ups, proposals, presentations, and public writing. It
+governs structure, length, voice, identity, evidence gating, and compression
+on every host and in every session. A user-facing message that skips it is not
+ready to return.
+
+Specialized skills and system, safety, repository, legal, evidence, and
+task-specific requirements still govern correctness and may require more
+detail. Machine-generated logs and raw tool output remain unchanged; apply the
+communication skill to the surrounding explanation. The skill does not
+authorize an external send or other external action.
+
+`sarosh-communication` is written text only. The owner's spoken voice is the
+Local-AI voice id `sarosh` under `local-ai-stack` (see "Owner voice" above);
+the two must not be confused or merged.
+
 ## Handoff
 
 Report the outcome, changed files, validation evidence, branch or commit when applicable, remaining risks, and the next required gate. Silence or a missing automated review is not approval.

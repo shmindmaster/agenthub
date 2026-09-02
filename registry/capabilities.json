@@ -1640,8 +1640,91 @@
       "kind": "orchestrator",
       "maturity": "beta",
       "provenance": "agenthub-owned"
+    },
+    {
+      "id": "sarosh-communication",
+      "owner": "personal-communication",
+      "capabilityType": "skills",
+      "canonicalSource": "packages/sarosh-communication",
+      "managedSkillNames": [
+        "sarosh-communication"
+      ],
+      "contentHash": "BC3F98278751502467E5FBC0FC125B7AEB224D01B2333E0593B30277810EF677",
+      "hashBasis": "packages/sarosh-communication",
+      "status": "active-canonical",
+      "notes": "Fleet-wide outcome-first communication standard for every user-facing interaction with Sarosh and anything drafted under his name. Mandatory loading is enforced by global-agent-policy.md. Distinct from the owner audio voice (Local-AI voice id 'sarosh', owned by local-ai).",
+      "hostMappings": [
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ]
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00.000Z",
-  "lastCanonicalChangeAt": "2026-08-26T00:00:00.000Z"
+  "lastCanonicalChangeAt": "2026-09-02T21:54:30Z"
 }
