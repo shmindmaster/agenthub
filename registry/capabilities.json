@@ -1732,7 +1732,7 @@
       "managedSkillNames": [
         "sarosh-audio-voice"
       ],
-      "contentHash": "B109059747E25F8BA8F20CEC47E7B425C7B1023E717C8874B3BB56AC16AA692A",
+      "contentHash": "9E455F0B5A0AF9206EF5220023412C0515F833AEF06FA48F9ED316A3BC176B2F",
       "hashBasis": "packages/sarosh-audio-voice",
       "status": "active-canonical",
       "notes": "Fleet-wide rule set for Sarosh's spoken voice: local-only Qwen3-TTS clone (voice id 'sarosh'), mandatory speaker-identity gate, dictionary-layer pronunciation, and the style-bank registers. Distinct from written communication, owned by sarosh-communication.",
