@@ -36,6 +36,20 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   are retired. The AgentHub local-AI and media-studio-generate skills
   enforce the same route across managed hosts.
 
+- **Fleet-wide Sarosh expression split (2026-09-02):** AgentHub exposes three
+  composable personal skills: `sarosh-communication` for direct interactions
+  and concise messaging, `sarosh-writing` for evidence-led long-form artifacts,
+  and `sarosh-audio-voice` as a thin route into the existing Local-AI `sarosh`
+  clone and identity gates. Each has one global capability owner; none is
+  owned or deployed by a client or product repository.
+
+- **Fleet-wide Sarosh expression split (2026-09-02):** AgentHub exposes three
+  composable personal skills: `sarosh-communication` for direct interactions
+  and concise messaging, `sarosh-writing` for evidence-led long-form artifacts,
+  and `sarosh-audio-voice` as a thin route into the existing Local-AI `sarosh`
+  clone and identity gates. Each has one global capability owner; none is
+  owned or deployed by a client or product repository.
+
 - **Owner-voice output is now measured, not assumed (2026-08-15):** until this
   date the stack had no speaker-identity measurement at all, so the 2026-08-11
   selection above — and every reference change since — was a listening call on a

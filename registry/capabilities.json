@@ -1649,7 +1649,7 @@
       "managedSkillNames": [
         "sarosh-communication"
       ],
-      "contentHash": "D0C1D72A164245D1044216CC1ED1EAFC2BB8AC9CDD11D36E9D26E2954C714C07",
+      "contentHash": "5E4E729EAF433716A09FE12D1D983D3D1197210AFC4B8F9291216F289E72A5C3",
       "hashBasis": "packages/sarosh-communication",
       "status": "active-canonical",
       "notes": "Fleet-wide outcome-first standard for direct interactions and concise messages with Sarosh or under his name. Mandatory loading is enforced by global-agent-policy.md. Long-form writing and owner audio remain separate capabilities.",
@@ -1725,6 +1725,38 @@
       ]
     },
     {
+      "id": "sarosh-writing",
+      "owner": "personal-writing",
+      "capabilityType": "skills",
+      "canonicalSource": "packages/sarosh-writing",
+      "managedSkillNames": [
+        "sarosh-writing"
+      ],
+      "contentHash": "B400B0A86A38E16AA5D65980C8AD9822994F89BC233285BF5E9F8813E8148BDA",
+      "hashBasis": "packages/sarosh-writing",
+      "status": "active-canonical",
+      "notes": "Fleet-wide evidence-led long-form authorship standard for articles, proposals, reports, thought leadership, case studies, presentations, speeches, and durable documents under Sarosh's name. Concise interaction and owner audio remain separate capabilities.",
+      "hostMappings": [
+        { "hostId": "amp", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "antigravity", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "claude", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "cline", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "codex", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "copilot", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "cursor", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "devin", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "factory", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "gemini", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "grok", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "hermes", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "opencode", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "qoder", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "qwen-code", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "warp", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "windsurf", "deploymentStatus": "managed-loose-skills" }
+      ]
+    },
+    {
       "id": "sarosh-audio-voice",
       "owner": "personal-audio-voice",
       "capabilityType": "skills",
@@ -1732,7 +1764,7 @@
       "managedSkillNames": [
         "sarosh-audio-voice"
       ],
-      "contentHash": "9E455F0B5A0AF9206EF5220023412C0515F833AEF06FA48F9ED316A3BC176B2F",
+      "contentHash": "69E018239F65081C42ACD172BBAF6A9ECD407665DD1C489BEB2A8C5EFEBD4549",
       "hashBasis": "packages/sarosh-audio-voice",
       "status": "active-canonical",
       "notes": "Fleet-wide rule set for Sarosh's spoken voice: local-only Qwen3-TTS clone (voice id 'sarosh'), mandatory speaker-identity gate, dictionary-layer pronunciation, and the style-bank registers. Distinct from written communication, owned by sarosh-communication.",

@@ -89,10 +89,11 @@ Report 'registry has one owner and all 17 managed host mappings' `
 $policyOk = $policy -and
     $policy -match '(?m)^## Owner voice\s*$' -and
     $policy -match '(?is)load and apply\s+`sarosh-audio-voice`' -and
-    $policy -match '(?is)`sarosh-communication`.*owner.?s spoken voice is\s+a separate capability,\s+`sarosh-audio-voice`'
-Report 'global policy cross-references sarosh-audio-voice from Owner voice and Sarosh communication' `
+    $policy -match '(?is)generated speech in Sarosh''s voice.*`sarosh-audio-voice`' -and
+    $policy -match '(?is)Local-AI voice id `sarosh` under `local-ai-stack`'
+Report 'global policy routes owner voice through sarosh-audio-voice and Local-AI' `
     $policyOk `
-    'expected Owner voice to name sarosh-audio-voice, and the Sarosh communication section to point to it as the separate spoken-voice capability'
+    'expected Owner voice and the three-layer Sarosh policy to route audio through sarosh-audio-voice and local-ai-stack'
 
 # 4. The skill encodes the hard local-only / no-hosted-TTS boundary.
 $localOnlyOk = $skill -and
@@ -129,12 +130,27 @@ Report 'skill states the pronunciation-dictionary and no-training-data/benchmark
 # 7. Scope separation from sarosh-communication and from the media pipeline
 #    is explicit.
 $separationOk = $skill -and
-    $skill -match '(?is)Written tone, style, and structure\s+are\s+`sarosh-communication`' -and
+    $skill -match '(?is)`sarosh-writing` governs the\s+canonical script' -and
+    $skill -match '(?is)`sarosh-communication` governs the concise handoff message' -and
     $skill -match '(?is)media-studio' -and
     $skill -match '(?is)long-running-generation'
 Report 'skill states scope separation from sarosh-communication and the media pipeline' `
     $separationOk `
-    'expected an explicit split naming sarosh-communication, media-studio, and long-running-generation'
+    'expected an explicit split naming sarosh-writing, sarosh-communication, media-studio, and long-running-generation'
+
+# 8. The skill follows the shared detailed authoring pattern and exact-delivery
+#    evidence contract.
+$patternOk = $skill -and
+    $skill -match '(?m)^## 1\. Objective\s*$' -and
+    $skill -match '(?m)^## 2\. Scope and routing\s*$' -and
+    $skill -match '(?m)^## 11\. Final check\s*$' -and
+    $skill -match '(?is)Prefer:.*Avoid:' -and
+    $skill -match '(?is)both enrolled identity backends' -and
+    $skill -match '(?is)exact mixed and encoded delivery artifact' -and
+    $skill -match '(?is)full-program `ai\.ps1 listen`'
+Report 'skill follows the shared pattern and proves the exact delivery artifact' `
+    $patternOk `
+    'expected objective, routing, examples, exact-encoded proof, full-program listening, and final check'
 
 Write-Host ''
 Write-Host "SCOPE: skill, UI metadata, global policy cross-references, registry, 17 host mappings, and the local-only/identity-gate boundary"

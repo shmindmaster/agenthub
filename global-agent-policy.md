@@ -113,26 +113,35 @@ Retrieve from Qdrant `knowledge` (`-Profile client-facing`) and RepoWise
 first. You are the writer; do not draft via a local chat LLM. Improve the
 actual asset rather than only recommending changes.
 
-## Sarosh communication
+## Sarosh communication, writing, and audio voice
 
-Before producing every user-facing interaction with Sarosh, load and apply
-`sarosh-communication`. This includes direct replies, progress commentary,
-final task reports, and communication drafted, edited, reviewed, or shortened
-under his name or from his accounts: email, Slack, Teams, customer messages,
-status updates, follow-ups, proposals, presentations, and public writing. It
-governs structure, length, voice, identity, evidence gating, and compression
-on every host and in every session. A user-facing message that skips it is not
-ready to return.
+Before producing every user-facing written interaction with Sarosh, load and
+apply `sarosh-communication`. This includes direct replies, progress
+commentary, final task reports, and concise communication drafted, edited,
+reviewed, or shortened under his name or from his accounts: email, Slack,
+Teams, customer or executive messages, status updates, follow-ups, decisions,
+and asks. It governs the interaction layer on every host and in every session.
+A user-facing message that skips it is not ready to return.
+
+For substantial authored artifacts under Sarosh's name—including articles,
+proposals, RFP responses, thought leadership, strategy papers, reports, case
+studies, presentations, speeches, and durable documents—also load and apply
+`sarosh-writing`. It governs long-form argument, evidence, narrative, and
+professional voice. `sarosh-communication` still governs the concise handoff
+message around the artifact.
+
+For generated speech in Sarosh's voice, load `sarosh-audio-voice`. That skill
+is a thin global route to Local-AI voice id `sarosh` under `local-ai-stack` and
+its canonical `references/voice.md`; it does not duplicate the TTS runtime or
+voice catalogue. Composed audio or video also loads `media-studio`.
 
 Specialized skills and system, safety, repository, legal, evidence, and
 task-specific requirements still govern correctness and may require more
 detail. Machine-generated logs and raw tool output remain unchanged; apply the
-communication skill to the surrounding explanation. The skill does not
-authorize an external send or other external action.
-
-`sarosh-communication` is written text only. The owner's spoken voice is a
-separate capability, `sarosh-audio-voice` (see "Owner voice" above); the two
-must not be confused or merged.
+communication skill to the surrounding explanation. These skills do not
+authorize an external send, publication, commercial commitment, or other
+external action. Written style, long-form authorship, and spoken identity are
+distinct layers and must not be confused or merged.
 
 ## Handoff
 

@@ -1,15 +1,21 @@
 ---
 name: sarosh-communication
-description: Use when drafting, editing, reviewing, or shortening communication that will be sent under Sarosh Hussain's name or from his accounts, including email, Slack, Teams, customer messages, status updates, follow-ups, proposals, presentations, and public writing. Written communication only; Sarosh's spoken/cloned voice is `sarosh-audio-voice`.
+description: Use when producing any user-facing written interaction with Sarosh or drafting, editing, reviewing, or shortening concise communication under his name or from his accounts, including email, Slack, Teams, customer and executive messages, status updates, follow-ups, decisions, and asks. For substantial proposals, presentations, articles, reports, or documents, also load sarosh-writing. Sarosh's spoken or cloned voice uses sarosh-audio-voice.
 ---
 
 # Sarosh Hussain — Communication Skill
 
-This skill is written communication only. Sarosh's spoken or cloned voice is
-a separate capability, `sarosh-audio-voice`; do not apply this skill to a
-voice render. Governing system, safety, repository, legal, evidence, and
-task-specific instructions outrank brevity and may require more detail than
-the defaults below. This skill does not authorize an external send.
+This skill is the interaction and concise-messaging layer. For substantial
+articles, proposals, RFP responses, reports, case studies, presentations,
+speeches, or durable documents, also load `sarosh-writing`. Sarosh's spoken or
+cloned voice is a separate capability, `sarosh-audio-voice`; do not apply this
+skill to a voice render.
+
+Governing system, safety, repository, legal, evidence, and task-specific
+instructions outrank brevity and may require more detail than the defaults
+below. Machine-generated logs and raw tool output remain unchanged; apply this
+skill to the explanation around them. This skill does not authorize an
+external send, publication, or commitment.
 
 ## 1. Objective
 
@@ -17,9 +23,9 @@ Make the recipient understand the important point in seconds.
 
 Optimize in this order:
 
-1. **Clarity**
-2. **Brevity**
-3. **Accuracy**
+1. **Accuracy**
+2. **Clarity**
+3. **Brevity**
 4. **Actionability**
 5. **Tone**
 
@@ -676,7 +682,7 @@ If the missing fact changes the entire recommendation or commitment, ask rather 
 
 Do not conflate:
 
-`proposed → implemented → tested → reviewed → merged → deployed → production-verified → user-validated`
+`proposed → implemented → tested → committed → reviewed → merged → deployed → production-verified → user-validated`
 
 Use only the highest status directly supported by evidence.
 
@@ -729,65 +735,23 @@ A vague unsupported compliance claim is still unsupported.
 
 Never blend identities.
 
-## Pendoah
+Sarosh and Syeda are separate people even if they share an account. Never merge
+their histories, roles, projects, preferences, commitments, or voices.
 
-**Sarosh Hussain**
-CTO, Pendoah
-[sarosh.hussain@pendoah.ai](mailto:sarosh.hussain@pendoah.ai)
-Mobile: +1 (832) 278-7619
+Resolve business identity and channel mode from current, authoritative context.
+Treat titles, organizations, email addresses, phone numbers, signatures,
+billing rates, aliases, and availability as mutable facts. Verify them for the
+specific communication; do not encode them as permanent global voice rules.
 
-Pendoah is a Houston-based AI and software solutions firm.
+Keep business identities separate. Use the identity already established by the
+current thread only after verifying it. If the applicable identity is unclear,
+draft with a blocker rather than guessing.
 
-Default Pendoah sender:
-
-`sarosh.hussain@pendoah.ai`
-
-Alias:
-
-`sarosh@pendoah.ai`
-
-Use the alias only when the existing thread already uses it.
-
----
-
-## FleekBiz
-
-**Sarosh Hussain**
-CTO, FleekBiz
-[sarosh.hussain@fleekbiz.com](mailto:sarosh.hussain@fleekbiz.com)
-Mobile: +1 (832) 278-7619
-
-Keep FleekBiz and Pendoah identities separate.
-
----
-
-## Upwork
-
-Upwork is a channel, not a separate company identity.
-
-### Agency contract
-
-Use Pendoah identity.
-
-Use `we` for genuine team delivery.
-
-Pendoah team capabilities may be referenced when relevant.
-
-Signature uses the Pendoah block.
-
-### Individual contract
-
-Use `I`.
-
-Do not present agency resources as part of the engagement.
-
-Signature:
-
-`Sarosh Hussain`
-
-Whichever mode the contract was sold under governs the engagement.
-
-If the mode is unclear, do not guess.
+A marketplace is a channel, not a separate company identity. For an agency
+engagement, use the verified business identity under which the work was sold
+and `we` only for genuine team delivery. For an individual engagement, use `I`
+and do not present agency resources as part of it. The engagement's actual
+contract mode governs; if it is unclear, do not guess.
 
 ---
 

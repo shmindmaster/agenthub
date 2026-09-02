@@ -1,0 +1,7 @@
+interface:
+  display_name: "Sarosh Writing"
+  short_description: "Create evidence-led long-form writing"
+  default_prompt: "Use $sarosh-writing to research and shape this into a rigorous long-form artifact in Sarosh's professional voice."
+
+policy:
+  allow_implicit_invocation: true
