@@ -169,6 +169,20 @@ Report 'story-craft and scene-archetype catalogs exist' (
 Report 'job schema has deliveryProfile and craftScoreMin' (
     $job -match '"deliveryProfile"' -and $job -match '"craftScoreMin"'
 ) 'job.schema.json missing delivery or craft gate'
+Report 'job schema has programForm and webcast/teaser kinds' (
+    $job -match '"programForm"' -and $job -match '"outcome-workflow"' -and $job -match '"webcast"' -and $job -match '"teaser"'
+) 'job.schema.json missing library forms or broadcast kinds'
+$forms = Read-Pkg 'skills\media-studio\references\program-forms.md'
+$studio = Read-Pkg 'skills\media-studio\references\studio-craft.md'
+Report 'program-forms catalog exists' (
+    $forms -match 'outcome-workflow' -and $forms -match 'ai-trust' -and $forms -match 'One promise'
+) 'missing program-forms.md library'
+Report 'studio-craft exists' (
+    $studio -match 'felt not heard' -and $studio -match 'Coverage'
+) 'missing studio-craft.md'
+Report 'producer infers programForm' (
+    $producer -match 'programForm' -and $producer -match 'program-forms.md'
+) 'producer does not infer library form'
 
 $plugin = $manifest | ConvertFrom-Json
 Report 'plugin.json version is 1.4.0 or newer' (

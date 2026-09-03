@@ -24,6 +24,7 @@ Report 'scene-archetypes.json exists' (Test-Path -LiteralPath $catalogPath) 'mis
 $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $ids = @($catalog.archetypes | ForEach-Object { [string]$_.id })
 Report 'archetype catalog has at least 16 ids' ($ids.Count -ge 16) "count=$($ids.Count)"
+Report 'catalog contains chapter-card' ($ids -contains 'chapter-card') 'missing chapter-card'
 foreach ($need in @('cold-open','kinetic-statement','hero-reveal','cta-end-frame','before-after')) {
     Report "catalog contains $need" ($ids -contains $need) "missing $need"
 }

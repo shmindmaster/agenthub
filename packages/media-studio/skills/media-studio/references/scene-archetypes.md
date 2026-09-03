@@ -24,6 +24,9 @@ The house Remotion kit is this library, not one briefing slide repeated. Composi
 | `checklist-build` | Steps the viewer will steal | `checklist` |
 | `hero-reveal` | The one protected payoff | `hero` |
 | `cta-end-frame` | Designed last frame, one next step | `cta` |
+| `chapter-card` | Webcast/webinar section break | `chapter` |
+| `lower-third` | Speaker identification | `lower-third` |
+| `speaker-slide` | Face plus a claim or slide | `sidecar` |
 
 ## Rules
 

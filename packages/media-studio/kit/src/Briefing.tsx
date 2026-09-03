@@ -44,7 +44,10 @@ export type SceneArchetype =
   | "evidence-proof"
   | "checklist-build"
   | "hero-reveal"
-  | "cta-end-frame";
+  | "cta-end-frame"
+  | "chapter-card"
+  | "lower-third"
+  | "speaker-slide";
 
 export type BriefingScene = {
   id: string;

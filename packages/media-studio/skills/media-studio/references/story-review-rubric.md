@@ -25,6 +25,10 @@ Judge the **encoded file** plus screenplay, storyboard, visual bible, and captio
 | narration-vs-type | Narration does not read the slide |
 | silence-hero | Hero / reveal has silence or a ducked bed, not wall-to-wall music |
 | platform | Delivery profile (title/thumbnail/opening, mute-safe, vertical safe area) holds |
+| one-promise | The film keeps the declared `programForm` job; nav tours fail |
+| studio-picture | Picture changes with the idea; not a slide stack (`studio-craft.md`) |
+| mix | Voice on top, bed ducked, silence or sting on hero |
+| ai-control | `ai-in-action` / `ai-trust` show review and limits, not instant magic |
 
 Empty findings only when the candidate is persuasive, coherent, polished, **and** score ≥ 85.
 

@@ -64,6 +64,8 @@ export type Visual = (
   | { kind: "cta"; kicker?: string; title: string; next: string }
   | { kind: "sidecar"; claim: string; support?: string }
   | { kind: "screen-in-context"; src: string; caption?: string }
+  | { kind: "chapter"; kicker?: string; title: string }
+  | { kind: "lower-third"; name: string; title?: string }
 ) & { revealFrom?: number };
 
 export type SeqStep = { frm: number; to: number; label: string; mark?: MarkTone };
@@ -1033,6 +1035,47 @@ const Broll: FC<{ v: Extract<Visual, { kind: "broll" | "screen-in-context" }>; a
   );
 };
 
+const ChapterCard: FC<{ v: Extract<Visual, { kind: "chapter" }>; accent: string; d: number }> = ({
+  v,
+  accent,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  return (
+    <div style={{ textAlign: "center", ...rise(frame, fps, 0.15, 16) }}>
+      {v.kicker ? (
+        <div style={{ color: accent, letterSpacing: "0.28em", fontWeight: 700, fontSize: 22, marginBottom: 20 }}>{v.kicker}</div>
+      ) : null}
+      <div style={{ color: "#F3EFE4", fontFamily: SANS, fontSize: 64, fontWeight: 800, lineHeight: 1.1 }}>{v.title}</div>
+    </div>
+  );
+};
+
+const LowerThird: FC<{ v: Extract<Visual, { kind: "lower-third" }>; accent: string; d: number }> = ({
+  v,
+  accent,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  return (
+    <div
+      style={{
+        ...rise(frame, fps, 0.2, 12),
+        alignSelf: "flex-end",
+        borderLeft: `5px solid ${accent}`,
+        padding: "16px 22px",
+        background: "rgba(10,10,10,0.82)",
+        maxWidth: "70%",
+      }}
+    >
+      <div style={{ color: "#F3EFE4", fontFamily: SANS, fontSize: 32, fontWeight: 800 }}>{v.name}</div>
+      {v.title ? (
+        <div style={{ color: accent, fontFamily: SANS, fontSize: 20, marginTop: 6 }}>{v.title}</div>
+      ) : null}
+    </div>
+  );
+};
+
 const Still: FC<{ v: Extract<Visual, { kind: "still" }>; accent: string; d: number }> = ({
   v,
   accent,
@@ -1153,6 +1196,10 @@ export const VisualBody: FC<{
       return <CtaCard v={visual} accent={accent} d={d} />;
     case "sidecar":
       return <Sidecar v={visual} accent={accent} d={d} />;
+    case "chapter":
+      return <ChapterCard v={visual} accent={accent} d={d} />;
+    case "lower-third":
+      return <LowerThird v={visual} accent={accent} d={d} />;
     default:
       return null;
   }

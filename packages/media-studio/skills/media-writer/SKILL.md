@@ -7,7 +7,7 @@ description: Use when a video, briefing, training film, or explainer needs a scr
 
 From the concept or outline already in context, produce a locked screenplay in this turn. Do not ask for act structure, tone, or shot count — infer them.
 
-Load `../media-studio/references/engagement.md` and `story-craft.md` unless kind is `product-screencast` (PDS script craft).
+Load `../media-studio/references/engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md` unless kind is `product-screencast` (PDS script craft + outcome-first rules in `program-forms.md`).
 
 Handoff: this skill → `media-storyboard`. Do not generate TTS.
 
@@ -18,9 +18,9 @@ Handoff: this skill → `media-storyboard`. Do not generate TTS.
 
 ## 2. Rules
 
-1. One idea per scene. Spoken sentences stay short (~150 wpm for duration).
-2. First sentence is payoff or pain. Do not open with a greeting, logo recap, or agenda.
-3. Dramatic spine from `story-craft.md`. Exactly one `heroMoment: true`.
+1. One idea per scene. One promise per film (`program-forms.md`). Spoken sentences stay short (~150 wpm; slower for documentary / ai-trust).
+2. First sentence is payoff or pain. Do not open with a greeting, logo recap, agenda, or nav tour.
+3. Dramatic spine from `story-craft.md`. Exactly one `heroMoment: true`. Outcome-workflow / AI forms: pain → task → system acts → human reviews → result.
 4. Default truth `FACT` when the source is given; tag `DRAMATIZED` / `COMPOSITE` only when you heighten or merge.
 5. Owner-voice scripts stay canonical. Pronunciation is a Local-AI dictionary layer at render time — never respell.
 6. Do not invent metrics, customer names, or product behavior. Unsourced numbers are omitted, not guessed.

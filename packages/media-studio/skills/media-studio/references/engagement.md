@@ -2,7 +2,7 @@
 
 Load this for every **viewer-facing** media-studio job. `intent: draft` still writes for the ear (hook, one idea, pauses) but skips GPU plates (music, Motif, lipsync).
 
-This file is the home for diagnose / tools / kind defaults / ownership. Dramatic structure lives in `story-craft.md`. Archetype ids live in `scene-archetypes.md`. Scoring lives in `story-review-rubric.md`. Skills name the action they own; they do not restate those catalogs.
+This file is the home for diagnose / tools / kind defaults / ownership. Dramatic structure lives in `story-craft.md`. Studio picture/sound/voice in `studio-craft.md`. Formats in `program-forms.md`. Archetype ids live in `scene-archetypes.md`. Scoring lives in `story-review-rubric.md`. Skills name the action they own; they do not restate those catalogs.
 
 **Product screencasts** do not use this file as a second rubric. Their craft authority is `$Pds\pipeline\product-demo-studio\references\killer-demo-production-guide.md` plus the story-experience reviewer. Recast owns cursor, click ripple, and punch-in zoom. Do not invent another overlay stack.
 
@@ -21,6 +21,8 @@ A stretch is failing if any of these are true:
 - Opening is a greeting, logo reel, or agenda
 - Same visual archetype twice in a row with no reason
 - Narrated PowerPoint: every beat is a type-on-dark-field slide
+- Feature tour / settings walkthrough posing as a demo
+- Instant-perfect AI result with no human control
 
 Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 
@@ -51,7 +53,12 @@ Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 | `animation` | Motif and/or Remotion; bed unless the motion is the music | Do not regenerate motion to fit duration; trim or hold. |
 | `audio-only` | Voice + bed unless the user asked for dry speech | Duck the bed. Silence on the key line. |
 | `series-episode` | `story-series` owns drama; this studio still mixes bed and holds | Truth tags stay on every beat. |
-| `product-screencast` | PDS path | Do not apply this table. |
+| `webcast` | Bed + speaker/slide/lower-third/chapter archetypes | Broadcast feel. Chapters. Passive audience. |
+| `webinar` | Same + Q&A chapter cards | Taught session, not a slide dump. |
+| `keynote` | Talking-head coverage + slides | Change angle; do not lock one webcam. |
+| `documentary` | B-roll + slower VO + silence for image | Picture leads. Do not narrate the frame. |
+| `teaser` | One hook, one visual language | 15–45s. No intro, no denouement. |
+| `product-screencast` | PDS path | Outcome-first (`program-forms.md`). Do not apply this table's plates. |
 
 `intent: draft` (user asked for a scratch, proxy, or timing pass): TTS + stills/slides only. Record what was skipped.
 
@@ -86,6 +93,6 @@ Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 ## Generate / compose / craft critic / QA own
 
 - Generate: consume storyboard + visual bible + direction. TTS with per-beat register. Viewer-facing `musicCue: bed|sting` → `ai.ps1 music`; `silence` generates nothing. Bible B-roll via `ai.ps1 image`. Directed Motif/lipsync/portrait only. Score owner voice before compose.
-- Compose: honor pause/hold; duck the bed; Remotion **archetypes** rather than one slide grammar; Recast for `screen`. Two-pass linear loudnorm only. Viewer-facing briefing/training/explainer/series-episode **requires Remotion** unless `intent: draft`.
+- Compose: honor pause/hold; duck the bed; Remotion **archetypes** rather than one slide grammar; Recast for `screen`. Two-pass linear loudnorm only. Viewer-facing briefing/training/explainer/series-episode/webcast/webinar/keynote/documentary/teaser **requires Remotion** unless `intent: draft`.
 - Craft critic: `media-story-experience-reviewer` on the encoded file. Score < 85 fails; revise `reviseSceneIds` and rerun.
 - QA: identity, listen, captions, engagement diagnose, plus `Inspect-MediaVisualQuality.ps1`. Remit to the owner above. Non-screencast kinds do not claim PDS arbitration.

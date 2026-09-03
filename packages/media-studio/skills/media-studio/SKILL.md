@@ -1,6 +1,6 @@
 ---
 name: media-studio
-description: Use when the user wants any video, audio, animation, briefing, training clip, explainer, talking-head, or live-product screencast from a concept or outline. Single local creative studio. Orchestrates writing, direction, Local-AI generation, Playwright capture, Remotion/FFmpeg compose, and release gates. Replaces product-demo-studio as the public video pack.
+description: Use when the user wants any video, audio, animation, briefing, training clip, explainer, talking-head, webcast, webinar, keynote, documentary, teaser, or live-product screencast from a concept or outline. Single local creative studio. Orchestrates writing, direction, Local-AI generation, Playwright capture, Remotion/FFmpeg compose, and release gates. Replaces product-demo-studio as the public video pack.
 ---
 
 # Media studio — producer
@@ -27,13 +27,13 @@ $Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Re
 
 ## 1. Rapid path
 
-1. Infer **kind** (table). Create `job.json` in the external workspace and validate that the workspace is outside any source repository. Default `intent: viewer-facing` unless the user asked for a scratch, proxy, or timing pass (`draft`). Set `deliveryProfile` from `references/delivery-profiles.md`. `craftScoreMin` defaults to 85.
-2. Defaults: owner/internal voice `sarosh`; briefing-board 1600×1000 30 fps; duration ~150 wpm. Viewer-facing jobs load `references/engagement.md` and `story-craft.md` before the writer. Product screencasts use the PDS killer-demo guide instead.
+1. Infer **`programForm`** then **kind** from `references/program-forms.md`. Create `job.json` in the external workspace and validate that the workspace is outside any source repository. Default `intent: viewer-facing` unless the user asked for a scratch, proxy, or timing pass (`draft`). Set `deliveryProfile` from `references/delivery-profiles.md`. `craftScoreMin` defaults to 85. One promise per film. Recuts of a locked master set `sourceJobId`.
+2. Defaults: owner/internal voice `sarosh`; briefing-board 1600×1000 30 fps; duration ~150 wpm (slower for `documentary` / `ai-trust`). Viewer-facing jobs load `references/engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md` before the writer. Product screencasts use the PDS killer-demo guide plus outcome-first rules in `program-forms.md`.
 3. `media-writer` → locked screenplay (`hook`, `sceneRole`, `wiifm`, one hero).
 4. `media-storyboard` → timed beats, scored hook (pick internally), archetypes. Then `media-studio-visuals` → `visual-bible.json`.
 5. `media-director` → archetype, register, `sound`. `screen` only for a running product.
 6. `media-studio-generate` + `local-ai-stack` → TTS. Viewer-facing: also the directed music bed. Motif/lipsync/portrait only when direction called for that plate. `draft` skips those GPU plates and records the skip.
-7. Compose: Remotion archetype kit, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`). Viewer-facing `briefing` / `training` / `explainer` / `series-episode` **requires Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. If Remotion skills are missing, stop and say so — do not silently fall back to static slides.
+7. Compose: Remotion archetype kit, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`). Viewer-facing `briefing` / `training` / `explainer` / `series-episode` / `webcast` / `webinar` / `keynote` / `documentary` / `teaser` **requires Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. If Remotion skills are missing, stop and say so — do not silently fall back to static slides. Buyer-facing product forms use **real captured UI**, not an avatar over fake chrome.
 8. `media-story-experience-reviewer` on the encoded file. Score < `craftScoreMin` → revise `reviseSceneIds` and rerun. Then `media-studio-qa`: screencast → PDS gates. Other kinds → identity-score, `ai.ps1 listen`, engagement pass, `Inspect-MediaVisualQuality.ps1`.
 
 Owner voice: `ai.ps1 voice qwen-clone --voice sarosh` only.
@@ -52,6 +52,11 @@ Viewer-facing explainers, branded films, and series: load `technical-storytellin
 | Face + new audio | `talking-head` | voice then `ai.ps1 lipsync` |
 | Animate a still | `animation` | Motif and/or Remotion |
 | Voiceover or bed only | `audio-only` | `ai.ps1 voice` / `music` |
+| One-to-many broadcast, town hall, launch | `webcast` | Remotion speaker+slide, lower-thirds, chapters |
+| Taught session with Q&A chapters | `webinar` | Same kit; chapter cards; recorded Q&A |
+| Speaker-led argument | `keynote` | Talking-head coverage + slides, not one webcam lock |
+| Picture-led film | `documentary` | B-roll, slower VO, silence for image |
+| 15–45s hook / social | `teaser` | One promise, no intro |
 
 ## 3. product-screencast (was product-demo-studio)
 
@@ -75,12 +80,14 @@ the repo.
 - Real user data on a live product.
 - Owner voice via cloud TTS.
 - Invented metrics or customer names.
-- Remotion missing for viewer-facing briefing/training/explainer/series-episode (unless draft).
+- Remotion missing for viewer-facing briefing/training/explainer/series-episode/webcast/webinar/keynote/documentary/teaser (unless draft).
+- Feature-tour opening or a settings walkthrough posing as a demo.
 - Story-experience score below 85.
 
 ## 5. Final check
 
 - [ ] Workspace is external; `repositoryWritePolicy: read-only`
 - [ ] Crew ran writer → storyboard → visuals → director → generate → compose → critic → QA
-- [ ] Viewer-facing: engagement + story-craft loaded; Remotion used when required
+- [ ] Viewer-facing: engagement + story-craft + studio-craft loaded; Remotion used when required
+- [ ] `programForm` inferred; one promise; real UI is capture when the form is buyer-facing product
 - [ ] Critic score ≥ 85 or the job is draft

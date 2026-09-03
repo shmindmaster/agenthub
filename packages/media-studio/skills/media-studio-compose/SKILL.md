@@ -30,7 +30,7 @@ $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
 ```
 
-Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` **require Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. Do not silently emit static slides.
+Viewer-facing `briefing`, `training`, `explainer`, `series-episode`, `webcast`, `webinar`, `keynote`, `documentary`, and `teaser` **require Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. Do not silently emit static slides.
 
 Load official Remotion skills (`remotion-markup`, `remotion-render`) when editing the kit. FFmpeg mux when the picture is already stills or clips, then finish with the helper below. Recast/Motif only if those plates exist.
 

@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "composition": "Briefing",
   "nativeFrame": { "width": 1600, "height": 1000, "fps": 30 },
   "consecutiveRepeat": "forbidden-unless-intentional",
@@ -19,6 +19,9 @@
     { "id": "evidence-proof", "kit": ["proof", "table", "code"], "roleHint": ["proof"] },
     { "id": "checklist-build", "kit": ["checklist"], "roleHint": ["payoff", "cta"] },
     { "id": "hero-reveal", "kit": ["hero"], "roleHint": ["hero", "reveal"] },
-    { "id": "cta-end-frame", "kit": ["cta"], "roleHint": ["cta"] }
+    { "id": "cta-end-frame", "kit": ["cta"], "roleHint": ["cta"] },
+    { "id": "chapter-card", "kit": ["chapter"], "roleHint": ["bridge"] },
+    { "id": "lower-third", "kit": ["lower-third"], "roleHint": ["hook", "trust"] },
+    { "id": "speaker-slide", "kit": ["sidecar"], "roleHint": ["proof", "reveal"] }
   ]
 }

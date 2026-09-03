@@ -41,3 +41,19 @@ Do not load retired `product-demo*` skills. Stay in media-studio: `media-studio-
 ## series-episode
 
 `story-series` owns methodology and continuity. Tension/escalation/reveal craft is `story-craft.md`. Compose non-screencast picture here. Mix bed and holds in this studio. Remotion required unless draft.
+
+## webcast / webinar
+
+Broadcast or taught-session feel on the archetype kit (`speaker-slide`, `lower-third`, `chapter-card`). Infer `programForm` (`webinar-deep-dive` vs launch/town-hall). Lower-thirds need headroom. Chapters are real beats, not a contents slide. Remotion required unless draft.
+
+## keynote
+
+Speaker coverage plus slides. Change angle or punch-in; a single locked webcam is unfinished. Lower-third on first identification.
+
+## documentary
+
+Picture-led. Slower register, silence for image, B-roll from the visual bible. Do not narrate what the frame already shows.
+
+## teaser
+
+One promise, 15–45s. Recut from a locked master via `sourceJobId` when possible. No logo intro.
