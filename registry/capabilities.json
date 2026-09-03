@@ -162,6 +162,46 @@
         {
           "hostId": "qoder",
           "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
         }
       ]
     },
@@ -205,6 +245,46 @@
         {
           "hostId": "qoder",
           "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
         }
       ]
     },
@@ -514,6 +594,46 @@
         {
           "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
         }
       ]
     },
@@ -559,6 +679,46 @@
         },
         {
           "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
           "deploymentStatus": "managed-loose-skills"
         }
       ]
@@ -709,6 +869,46 @@
         {
           "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
         }
       ],
       "notes": "Converted 2026-08-24 from a republished Firecrawl plugin to a fleet overlay. Official scrape/crawl/cli/build/research skills and the plugin live at https://github.com/firecrawl/skills; the fleet remote MCP remains registry/mcps.json#firecrawl. This package keeps only governed ingestion constraints. Do not restore firecrawl-scrape, firecrawl-crawl, or firecrawl-cli here — those names collide with upstream."
@@ -766,6 +966,42 @@
         },
         {
           "hostId": "grok",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skill"
+        },
+        {
+          "hostId": "windsurf",
           "deploymentStatus": "managed-loose-skill"
         }
       ],
@@ -986,6 +1222,14 @@
         {
           "hostId": "antigravity",
           "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
         }
       ],
       "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) and the use-repowise loose skill. The external CLI is uv-managed machine tooling, kept on the PyPI latest by scripts/Update-RepoWise.ps1 (daily scheduled task AgentHub-Update-RepoWise). Official Claude/Codex plugins are not installed: they would register a second MCP pointed at the nearest repo instead of C:/Repos."
@@ -1070,6 +1314,10 @@
         },
         {
           "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
           "deploymentStatus": "managed-loose-skills"
         }
       ],
@@ -1264,10 +1512,11 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills"
-          ]
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills unread by cursor-agent. Junction at ~/.cursor/plugins/local/startup-series remains for Cursor IDE plugin discovery; AgentHub does not remove it."
         },
         {
           "hostId": "vscode-insiders",
@@ -1283,6 +1532,50 @@
         },
         {
           "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
           "deploymentStatus": "managed-loose-skills"
         }
       ],
@@ -1561,10 +1854,11 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills"
-          ]
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills unread by cursor-agent. Junction at ~/.cursor/plugins/local/learning-studio remains for Cursor IDE plugin discovery; AgentHub does not remove it."
         },
         {
           "hostId": "vscode-insiders",
@@ -1580,6 +1874,50 @@
         },
         {
           "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
           "deploymentStatus": "managed-loose-skills"
         }
       ],
