@@ -3,7 +3,7 @@
 Behavior tests for native-connectors.json's thirdPartyExtensions block.
 
 AgentHub owns the packages under packages/. It does not own Superpowers,
-Firecrawl, Clerk, Railway, Framer, Remotion, or Creative Writing Skills, and
+Firecrawl, Clerk, Railway, Framer, Remotion, CodeRabbit, or Creative Writing Skills, and
 the whole point of that block is to keep it that way: each host installs a
 third-party extension from that host's own official channel, and AgentHub
 records what was observed there. The failure this guards is the quiet one --
@@ -82,6 +82,7 @@ $ids = @($extensions | ForEach-Object { [string]$_.extensionId })
 Report 'superpowers remains tracked after generalization' ($ids -contains 'superpowers') 'superpowers missing'
 Report 'remotion is tracked as an official skills-package extension' ($ids -contains 'remotion') 'remotion missing'
 Report 'firecrawl official catalog is tracked rather than republished' ($ids -contains 'firecrawl') 'firecrawl missing'
+Report 'coderabbit official catalog is tracked rather than republished' ($ids -contains 'coderabbit') 'coderabbit missing'
 Report 'clerk-skills official catalog is tracked rather than republished' ($ids -contains 'clerk-skills') 'clerk-skills missing'
 Report 'railway official plugin is tracked rather than vendored' ($ids -contains 'railway') 'railway missing'
 Report 'framer-agent official installer is tracked rather than vendored' ($ids -contains 'framer-agent') 'framer-agent missing'

@@ -898,6 +898,93 @@
       "notes": "Converted 2026-08-24 from a republished Firecrawl plugin to a fleet overlay. Official scrape/crawl/cli/build/research skills and the plugin live at https://github.com/firecrawl/skills; the fleet remote MCP remains registry/mcps.json#firecrawl. This package keeps only governed ingestion constraints. Do not restore firecrawl-scrape, firecrawl-crawl, or firecrawl-cli here — those names collide with upstream."
     },
     {
+      "id": "coderabbit",
+      "owner": "fleet-intelligence",
+      "capabilityType": "skills",
+      "canonicalSource": "packages/coderabbit",
+      "managedSkillNames": [
+        "use-coderabbit"
+      ],
+      "contentHash": "557C485E12A645E754DADF03B62359EF76F0C8E9BE73B2BDA50C01323655B01E",
+      "hashBasis": "packages/coderabbit",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Fleet overlay only (use-coderabbit). Official code-review and autofix skills install from https://github.com/coderabbitai/skills; Claude plugin is coderabbit@claude-plugins-official; Codex plugin is coderabbit@openai-curated-remote. Do not vendor those names into AgentHub. CLI talks to CodeRabbit cloud; do not install the Enterprise self-hosted server."
+    },
+    {
       "id": "local-ai",
       "owner": "personal-infrastructure",
       "capabilityType": "skills+cli",
@@ -1139,7 +1226,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "A4BE58EDC5C3D85074D9DFEEDBB8948153C096CD7E224F48E29C61269CD31706",
+      "contentHash": "D340E6D08FC22C543A4A87C56951EA60F2DC226A8DBE1BE035DE03EE90B36E2D",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [

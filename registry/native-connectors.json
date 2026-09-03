@@ -798,6 +798,68 @@
         ]
       },
       {
+        "extensionId": "coderabbit",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "beta",
+        "upstream": "https://github.com/coderabbitai/skills",
+        "maintainer": "CodeRabbit",
+        "license": "MIT",
+        "capabilityKind": "skills",
+        "declaresMcpServers": false,
+        "required": false,
+        "provides": [
+          "review.coderabbit"
+        ],
+        "install": {
+          "command": "npx --yes skills add coderabbitai/skills -g --all",
+          "docs": "https://docs.coderabbit.ai/cli"
+        },
+        "note": "Official code-review and autofix skills plus host plugins. AgentHub keeps only the use-coderabbit overlay. Native Windows CLI 0.7.5 at %LOCALAPPDATA%\\Programs\\coderabbit talks to CodeRabbit cloud. Do not vendor code-review or autofix, and do not install the Enterprise self-hosted server.",
+        "observedAt": "2026-09-03",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "claude-plugins-official",
+            "installedVersion": "1.1.1",
+            "current": true,
+            "updateCommand": "claude plugin update coderabbit@claude-plugins-official",
+            "note": "Installed 2026-09-03 via claude plugin install coderabbit@claude-plugins-official. Official skills also in ~/.agents/skills (code-review, autofix). The coderabbitai/claude-plugin GitHub slug is gone; official marketplace is the channel."
+          },
+          {
+            "hostId": "codex",
+            "channel": "openai-curated-remote",
+            "installedVersion": "1.1.4",
+            "current": true,
+            "updateCommand": "codex plugin add coderabbit@openai-curated-remote",
+            "note": "Installed 2026-09-03. Plugin root ~/.codex/plugins/cache/openai-curated-remote/coderabbit/1.1.4. Official docs also point at the Codex app /plugins UI."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-skills",
+            "installedVersion": "0.1.0",
+            "current": true,
+            "updateCommand": "npx --yes skills add coderabbitai/skills -g --all",
+            "note": "Official skills in ~/.agents/skills; ~/.cursor/skills is a junction. Cursor native /add-plugin coderabbit is packaged upstream but not separately verified here. CLI is the documented Cursor path."
+          },
+          {
+            "hostId": "grok",
+            "channel": "upstream-skills",
+            "installedVersion": "0.1.0",
+            "current": true,
+            "updateCommand": "npx --yes skills add coderabbitai/skills -g --all",
+            "note": "Official skills in ~/.agents/skills; ~/.grok/skills is a junction. No Grok-native CodeRabbit plugin channel."
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native CodeRabbit plugin; official skills may reach Cline through the ~/.agents/skills junction, but that is not a plugin channel."
+          }
+        ]
+      },
+      {
         "extensionId": "clerk-skills",
         "kind": "plugin",
         "provenance": "official-upstream",
