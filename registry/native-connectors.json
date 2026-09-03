@@ -227,7 +227,7 @@
           },
           "notAccountLevel": {
             "sentry": "sentry@claude-plugins-official is installed locally; it is a normal plugin, not part of this decision.",
-            "product-demo-studio": "Not installed on Claude (checked 2026-08-25). Plugin id retained so Codex/Cursor still get review agents and the Descript MCP; public video pack is media-studio.",
+            "product-demo-studio": "Not a host plugin. Engine-only package invoked by media-studio; review agents deploy via Sync-Subagents. Descript MCP is owned by media-studio.",
             "exa": "A shared-remote server declared in registry/mcps.json with credentialPolicy environment-api-key; fleet-managed, not account-level."
           }
         },

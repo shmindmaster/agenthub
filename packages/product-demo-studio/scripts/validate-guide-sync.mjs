@@ -18,14 +18,9 @@ for (const [path, expectedHash] of expected) {
   if (actual !== expectedHash) failures.push(`${path}: expected ${expectedHash}, got ${actual}`);
 }
 
-const manifests = [
-  JSON.parse(await readFile(new URL(".claude-plugin/plugin.json", root), "utf8")),
-  JSON.parse(await readFile(new URL(".codex-plugin/plugin.json", root), "utf8")),
-  JSON.parse(await readFile(new URL(".cursor-plugin/plugin.json", root), "utf8")),
-  JSON.parse(await readFile(new URL(".qoder-plugin/plugin.json", root), "utf8"))
-];
-if (manifests.some(manifest => manifest.version !== "1.8.5")) {
-  failures.push("All host-native plugin manifests must be version 1.8.5.");
+const identity = JSON.parse(await readFile(new URL("plugin.json", root), "utf8"));
+if (identity.version !== "1.8.5") {
+  failures.push("Engine identity plugin.json must be version 1.8.5.");
 }
 const visualSkill = await readFile(new URL("pipeline/product-demo-studio-visual-assets/SKILL.md", root), "utf8");
 if (!visualSkill.includes("name: product-demo-studio-visual-assets")) {
@@ -36,4 +31,4 @@ if (failures.length) {
   console.error(failures.join("\n"));
   process.exit(1);
 }
-console.log("PASS: product-demo and visual-asset guides match the reviewed sources; host-native plugin versions and visual skill are valid.");
+console.log("PASS: product-demo and visual-asset guides match the reviewed sources; engine identity version and visual skill are valid.");

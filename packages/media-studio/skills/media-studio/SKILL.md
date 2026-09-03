@@ -1,11 +1,11 @@
 ---
 name: media-studio
-description: Use when the user wants any video, audio, animation, briefing, training clip, explainer, talking-head, webcast, webinar, keynote, documentary, teaser, or live-product screencast from a concept or outline. Single local creative studio. Orchestrates writing, direction, Local-AI generation, Playwright capture, Remotion/FFmpeg compose, and release gates. Replaces product-demo-studio as the public video pack.
+description: Use when the user wants any video, audio, animation, briefing, training clip, explainer, talking-head, webcast, webinar, keynote, documentary, teaser, or live-product screencast from a concept or outline. Infer the form from the ask and run that workflow. Single local creative studio. Orchestrates writing, direction, Local-AI generation, Playwright capture, Remotion/FFmpeg compose, and release gates. Product-demo-studio is the internal engine, not a second plugin.
 ---
 
 # Media studio — producer
 
-**This is the only public video plugin.** Product Demo Studio is the internal screencast engine (scripts, review agents, Recast). Do not load `product-demo` or `product-demo-studio-*` skills; they are retired.
+**This is the only public video plugin.** Infer `programForm` and kind from the ask — product demo, briefing, explainer, talking-head, webcast, teaser, or anything else in the kind table — then run that workflow. Do not ask the user to pick a plugin. Product Demo Studio is the internal screencast engine (scripts, review agents, Recast), not a second video pack. Do not load `product-demo` or `product-demo-studio-*` skills; they are retired.
 
 **Default: rapid.** A concept, outline, or bullets is enough. Infer the rest, run the crew, return a candidate. Rapid means infer-and-run, not skip craft.
 

@@ -1,6 +1,6 @@
 {
   "name": "media-studio",
-  "description": "Local creative studio for all video and audio: briefings, training, explainers, talking-heads, animation, and live-product screencasts. Uses Local-AI. Replaces product-demo-studio as the public skill pack.",
+  "description": "Local creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Uses Local-AI. Product-demo-studio is the internal engine, not a second plugin.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -20,5 +20,5 @@
   "commands": [
     "./commands/video.md"
   ],
-  "version": "1.5.1"
+  "version": "1.5.2"
 }

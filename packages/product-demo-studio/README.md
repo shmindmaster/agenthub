@@ -2,9 +2,9 @@
 
 **Public video/audio work starts at `packages/media-studio`.** This package is the
 Playwright + Recast + four-domain review engine that media-studio invokes for
-`product-screencast` jobs. It is not a public skill pack. The `product-demo*`
-skill names are fleet-retired; their trees live under `pipeline/` so
-Sync-Capabilities does not deploy them.
+`product-screencast` jobs. It is not a host-installable plugin and is not in
+the AgentHub marketplace. The `product-demo*` skill names are fleet-retired;
+their trees live under `pipeline/` so Sync-Capabilities does not deploy them.
 
 Current package release: **1.8.5**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
@@ -101,13 +101,11 @@ videos and evidence to the AgentHub-mapped OneDrive destination.
 
 ## Updating this canonical package
 
-Any content change to this package requires a version bump — host installs are pinned by version
-directory, so a canonical edit without a bump silently never propagates to an already-installed
-host copy (see `tests/Test-InstalledPluginFreshness.ps1`). Sequence:
+This package is the internal engine, not a host-installable plugin. Version still
+has to stay consistent across identity and policy files. Sequence:
 
 1. Edit the canonical source under this directory.
-2. Bump the version everywhere it is asserted: every `.claude-plugin/.codex-plugin/.cursor-plugin/
-   .qoder-plugin/plugin.json`, `policy/host-parity.json` and
+2. Bump the version everywhere it is asserted: root `plugin.json`, `policy/host-parity.json` and
    `policy/product-video-policy.json` (`capabilityVersion`, not `schemaVersion`), this README's
    release line, `scripts/validate-package.mjs` and `scripts/validate-guide-sync.mjs`
    (`expectedVersion`), `scripts/validate-host-parity.mjs`, and

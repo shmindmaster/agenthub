@@ -165,14 +165,19 @@ function Get-EligibleCapabilities {
         $agentFiles = @(Get-ChildItem -LiteralPath $agentsDir -Filter '*.agent.md' -File | Sort-Object Name)
         if ($agentFiles.Count -eq 0) { continue }
 
-        $manifestPath = Join-Path $packageRoot '.codex-plugin\plugin.json'
-        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
-            throw "Capability '$capId' has an agents/ directory ($agentsDir) but no .codex-plugin\plugin.json manifest to read a version from ($manifestPath). Refusing to guess a version."
+        $codexManifestPath = Join-Path $packageRoot '.codex-plugin\plugin.json'
+        $rootManifestPath = Join-Path $packageRoot 'plugin.json'
+        $parityPath = Join-Path $packageRoot 'policy\host-parity.json'
+        $version = $null
+        if (Test-Path -LiteralPath $codexManifestPath -PathType Leaf) {
+            $version = [string](Get-Content -LiteralPath $codexManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json).version
+        } elseif (Test-Path -LiteralPath $rootManifestPath -PathType Leaf) {
+            $version = [string](Get-Content -LiteralPath $rootManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json).version
+        } elseif (Test-Path -LiteralPath $parityPath -PathType Leaf) {
+            $version = [string](Get-Content -LiteralPath $parityPath -Raw -Encoding UTF8 | ConvertFrom-Json).capabilityVersion
         }
-        $manifestJson = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-        $version = [string]$manifestJson.version
         if ([string]::IsNullOrWhiteSpace($version)) {
-            throw "Capability '$capId' manifest has no version: $manifestPath"
+            throw "Capability '$capId' has an agents/ directory ($agentsDir) but no version in .codex-plugin\plugin.json, plugin.json, or policy\host-parity.json. Refusing to guess a version."
         }
 
         $result.Add([pscustomobject]@{

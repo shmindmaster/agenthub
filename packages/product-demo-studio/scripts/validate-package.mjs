@@ -32,27 +32,19 @@ function requireFiles(relativeRoot, expectedNames, { exact = false } = {}) {
   }
 }
 
-const claude = readJson(".claude-plugin/plugin.json");
-const codex = readJson(".codex-plugin/plugin.json");
-const cursor = readJson(".cursor-plugin/plugin.json");
-const qoder = readJson(".qoder-plugin/plugin.json");
 const portable = readJson("plugin.json");
-for (const [name, manifest] of [
-  ["Claude", claude],
-  ["Codex", codex],
-  ["Cursor", cursor],
-  ["Qoder", qoder],
-]) {
-  if (manifest.name !== "product-demo-studio") failures.push(`${name} manifest has wrong plugin name`);
-  if (manifest.version !== expectedVersion) failures.push(`${name} manifest version must be ${expectedVersion}`);
-}
-if (new Set([claude.version, codex.version, cursor.version, qoder.version]).size !== 1) {
-  failures.push("host-native plugin manifest versions differ");
-}
-if (portable.name !== "product-demo-studio") failures.push("portable Copilot/Antigravity manifest has wrong plugin name");
-if (portable.version !== expectedVersion) failures.push(`portable manifest version must be ${expectedVersion}`);
+if (portable.name !== "product-demo-studio") failures.push("engine identity plugin.json has wrong name");
+if (portable.version !== expectedVersion) failures.push(`engine identity plugin.json version must be ${expectedVersion}`);
 if (!Object.keys(portable).every((key) => ["$schema", "name", "version", "description"].includes(key))) {
-  failures.push("portable manifest exceeds the Antigravity schema");
+  failures.push("engine identity plugin.json exceeds the portable name/version/description schema");
+}
+for (const hostDir of [".claude-plugin", ".codex-plugin", ".cursor-plugin", ".qoder-plugin"]) {
+  if (existsSync(join(root, hostDir, "plugin.json"))) {
+    failures.push(`${hostDir}/plugin.json must not exist: this package is the internal engine, not a host plugin`);
+  }
+}
+if (existsSync(join(root, ".mcp.json"))) {
+  failures.push(".mcp.json must not exist: Descript MCP is owned by media-studio");
 }
 
 const agents = [

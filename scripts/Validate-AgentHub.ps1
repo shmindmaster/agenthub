@@ -40,8 +40,12 @@ $packageNames = @(Get-ChildItem -LiteralPath $pluginRoot -Directory | ForEach-Ob
 foreach ($packageName in $packageNames) {
   $packageRoot = Join-Path $pluginRoot $packageName
   $skills = @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'skills') -Directory -ErrorAction SilentlyContinue)
+  $isDistributedPlugin = Test-Path -LiteralPath (Join-Path $packageRoot '.claude-plugin\plugin.json')
   if ($skills.Count -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $packageRoot '.mcp.json'))) {
-    Fail "plugin has neither skills nor MCP manifest: $packageName"
+    if ($isDistributedPlugin) {
+      Fail "plugin has neither skills nor MCP manifest: $packageName"
+    }
+    continue
   }
   foreach ($skill in $skills) {
     $skillPath = Join-Path $skill.FullName 'SKILL.md'

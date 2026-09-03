@@ -1,7 +1,8 @@
 # Execution Plans
 
 Complex, multi-session work gets a resumable plan under `docs/plans/active/`.
-Completed plans move to `docs/plans/completed/`.
+Finished one-time plans are deleted. `docs/plans/completed/` stays as the
+required empty directory; do not retain landed plan files.
 
 ## When a plan is required
 

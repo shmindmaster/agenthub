@@ -56,7 +56,7 @@ foreach ($b in $bundles) {
                 $badCaps.Add("$($b.id) names registered capability '$capId' but packages/$capId is missing")
             }
         } else {
-            # Allowed while the creative-capabilities plan is landing packages.
+            # Bundle may name a capability that is registered later.
             $plannedOk.Add("$($b.id)->$capId")
         }
     }

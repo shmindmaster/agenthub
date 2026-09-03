@@ -39,4 +39,4 @@ reality. Everything else is durable knowledge, routed below.
 
 - [plans/PLANS.md](./plans/PLANS.md) — when and how to write resumable plans.
 - [plans/active/](./plans/active/) — active complex work.
-- [plans/completed/](./plans/completed/) — historical plans and outcomes.
+- [plans/completed/](./plans/completed/) — required directory; finished plans are deleted, not retained.

@@ -305,12 +305,12 @@
       },
       "owner": {
         "type": "capability",
-        "id": "product-demo-studio"
+        "id": "media-studio"
       },
       "pluginOwnersByHost": {
-        "codex": "product-demo-studio@agenthub"
+        "codex": "media-studio@agenthub"
       },
-      "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Public finishing skill is media-studio-descript. Claude uses its native Descript account connector (product-demo-studio is not installed on Claude). Codex and reviewed native plugin adapters use the product-demo-studio plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509"
+      "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Public finishing skill is media-studio-descript. Claude uses its native Descript account connector (media-studio Claude mapping sets mcpOwnership shared-registry so the plugin does not also offer Descript). Codex uses the media-studio plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509"
     },
     {
       "id": "repowise-workspace",

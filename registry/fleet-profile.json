@@ -506,7 +506,7 @@
           "mobile.ios.simulated": null
         },
         "capabilityEvidence": {
-          "browser.isolated": "code.visualstudio.com/docs/debugtest/integrated-browser: agents can open pages, take screenshots, and interact without an external MCP server. 'Pages opened by the agent use isolated ephemeral sessions, so they don't share cookies or storage with your other browser tabs.' Browser tools GA since VS Code 1.127; this host is recorded at 1.136.0-insider."
+          "browser.isolated": "code.visualstudio.com/docs/debugtest/integrated-browser: agents can open pages, take screenshots, and interact without an external MCP server. 'Pages opened by the agent use isolated ephemeral sessions, so they don't share cookies or storage with your other browser tabs.' Browser tools GA since VS Code 1.127; this host is recorded at 1.137.0-insider."
         },
         "capabilityNotEstablished": {
           "browser.authenticated": "Share with Agent can expose an already-open tab including cookies. That is a user-shared session, not established as this surface's default authenticated capability, so it stays null.",

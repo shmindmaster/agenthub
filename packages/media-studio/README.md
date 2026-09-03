@@ -1,6 +1,9 @@
 # media-studio
 
-The **public** video/audio/animation plugin. Replaces product-demo-studio as the skill pack agents load.
+The **only public** video/audio/animation plugin. Infer form from the ask
+(product demo, briefing, explainer, talking-head, and the rest) and run that
+workflow. Product-demo-studio is the internal screencast engine, not a second
+plugin.
 
 **Rapid default:** a concept, outline, or bullet list is enough. Writer → storyboard → visuals → director → Local-AI generate → Remotion/FFmpeg/Recast compose → craft critic → QA. Rapid means infer-and-run, not skip craft.
 
@@ -8,7 +11,7 @@ Live-product screencasts still use the gated Playwright + Recast + four-domain e
 
 **Viewer-facing** jobs apply `skills/media-studio/references/engagement.md` and `story-craft.md`. The screenplay carries story role, WIIFM, and tension; the storyboard carries shot plan, archetype, and sound. Score < 85 from `media-story-experience-reviewer` does not ship. `intent: draft` skips GPU plates and the critic gate. Product-screencast craft stays in the PDS killer-demo guide.
 
-Version authority: root `plugin.json` (`1.5.1`). Host projections must match.
+Version authority: root `plugin.json` (`1.5.2`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `D:\Local-AI\data\artifacts`). Private show bibles and customer recordings stay outside this repository.
 
 Canonical Remotion kit: `kit/` (scene-archetype library). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.

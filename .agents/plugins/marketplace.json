@@ -5,18 +5,6 @@
   },
   "plugins": [
     {
-      "name": "product-demo-studio",
-      "source": {
-        "source": "local",
-        "path": "./packages/product-demo-studio"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    },
-    {
       "name": "product-experience-engineering",
       "source": {
         "source": "local",

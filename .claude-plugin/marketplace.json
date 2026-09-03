@@ -6,10 +6,6 @@
   },
   "plugins": [
     {
-      "name": "product-demo-studio",
-      "source": "./packages/product-demo-studio"
-    },
-    {
       "name": "product-experience-engineering",
       "source": "./packages/product-experience-engineering"
     },
