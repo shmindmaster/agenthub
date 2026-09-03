@@ -115,6 +115,12 @@ Report 'critic fail-closed threshold is 85' (
 Report 'generate makes a viewer-facing bed unless draft or music none' (
     $generate -match 'Viewer-facing' -and $generate -match 'musicCue: bed'
 ) 'generate must produce the directed bed for viewer-facing jobs'
+Report 'generate consumes storyboard, visual bible, and per-beat register' (
+    $generate -match 'storyboard\.json' -and
+    $generate -match 'visual-bible\.json' -and
+    $generate -match 'direction\.register' -and
+    $generate -match 'silence'
+) 'generate still only knows TTS + a generic bed'
 Report 'compose requires stem finish when a bed exists' (
     $compose -match '-Speech -Music' -and $compose -match 'must' -and $compose -match 'ducks'
 ) 'compose must refuse an unducked bed'

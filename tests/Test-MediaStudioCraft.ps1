@@ -101,6 +101,22 @@ Report 'technical-visualizer maintains attention' (
 Report 'story-series points non-series films at media-studio story-craft' (
     $series -match 'story-craft.md'
 ) 'series structure was not extracted for general films'
+$music = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\local-ai\skills\local-ai-stack\references\music.md') -Raw -Encoding UTF8
+$image = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\local-ai\skills\local-ai-stack\references\image.md') -Raw -Encoding UTF8
+$tsd = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\story-series-studio\skills\technical-story-director\SKILL.md') -Raw -Encoding UTF8
+$editor = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\story-series-studio\skills\episode-editor\SKILL.md') -Raw -Encoding UTF8
+Report 'music.md maps bed, sting, and silence' (
+    $music -match 'felt not heard' -and $music -match 'musicCue: sting' -and $music -match 'silenceOnReveal'
+) 'music.md still only describes a generic bed'
+Report 'image.md has visual-bible path and refuses fake product UI' (
+    $image -match 'visual-bible' -and $image -match 'product UI'
+) 'image.md has no film B-roll contract'
+Report 'technical-story-director hands off to media-storyboard' (
+    $tsd -match 'media-storyboard' -and $tsd -match 'story-craft'
+) 'series director still jumps explainer to picture'
+Report 'episode-editor runs the media-studio crew' (
+    $editor -match 'media-storyboard' -and $editor -match 'media-studio-generate'
+) 'episode-editor still composes from the scene plan alone'
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed" -ForegroundColor Red

@@ -85,7 +85,7 @@ Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 
 ## Generate / compose / craft critic / QA own
 
-- Generate: TTS always. Viewer-facing `musicCue: bed|sting` → `ai.ps1 music`. Directed Motif/lipsync/portrait only. Score owner voice before compose.
+- Generate: consume storyboard + visual bible + direction. TTS with per-beat register. Viewer-facing `musicCue: bed|sting` → `ai.ps1 music`; `silence` generates nothing. Bible B-roll via `ai.ps1 image`. Directed Motif/lipsync/portrait only. Score owner voice before compose.
 - Compose: honor pause/hold; duck the bed; Remotion **archetypes** rather than one slide grammar; Recast for `screen`. Two-pass linear loudnorm only. Viewer-facing briefing/training/explainer/series-episode **requires Remotion** unless `intent: draft`.
 - Craft critic: `media-story-experience-reviewer` on the encoded file. Score < 85 fails; revise `reviseSceneIds` and rerun.
 - QA: identity, listen, captions, engagement diagnose, plus `Inspect-MediaVisualQuality.ps1`. Remit to the owner above. Non-screencast kinds do not claim PDS arbitration.

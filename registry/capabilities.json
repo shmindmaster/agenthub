@@ -727,7 +727,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "CA1D7B37DF3C442C0E36F00B3BECF4F9561BA629005D6A18759509E59CCB114B",
+      "contentHash": "9E8836277107D5474C21AF56C4AC0169426F54B58BBE9DCB78FB5D99A6DA6265",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the eight-host tier digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. clerk was removed from that tier on 2026-08-24 because AgentHub does not own Clerk skills (official: clerk/skills). firecrawl is now a fleet overlay (firecrawl-web-ingestion); official Firecrawl ops install from firecrawl/skills.",
@@ -1386,7 +1386,7 @@
         "privacy-fictionalizer",
         "series-continuity"
       ],
-      "contentHash": "0299CFED6C6BC61BD3847074246C164BFC39CBB54A615786D42EF5482A4CF91C",
+      "contentHash": "DC58327E9536A82A191DA5433303EFCA804EBD4B25A63EF88687B6D741154190",
       "hashBasis": "packages/story-series-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1533,7 +1533,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "984FC87A5B9071D402EC3EF388F475544D26D3CFA1B772F9B73B3E5EB8ED0088",
+      "contentHash": "188A67E6DB98AB561BE12F0DBAA63F95067079B951629BB3A4CC8B8A6FF38C7B",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1622,7 +1622,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 1.4.0. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 1.4.1. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"

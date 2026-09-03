@@ -9,7 +9,9 @@ Control plane remains `ai.ps1` / `$LocalAiControl`.
 > model-independent (`person-sarosh`, never `sarosh-flux`). FLUX.2 Klein 4B is
 > the local default via ComfyUI. Escalate technique before model. Exact logos /
 > QR / legal text = compositor. Face restoration OFF for enrolled people by
-> default. No silent cloud or oversized-model fallback.
+> default. No silent cloud or oversized-model fallback. **Never synthesize
+> product UI, metrics, customer evidence, or testimonials** — those are capture
+> or compositor type, not diffusion.
 
 Authoritative disk policy (do not fork a second catalogue into AgentHub):
 
@@ -75,6 +77,27 @@ Never invent per-model identities. Resolve via `library.json` / `VISUAL-MAP.md` 
 ```
 
 Quality ladder: new seed → better refs → control/mask → LoRA → model escalate.
+
+## Media Studio visual bible
+
+When `media-studio-generate` calls this file, the prompt comes from
+`visual-bible.json` (`brollPlan` / `imagePrompts`), not a free rewrite.
+
+1. Use the bible `prompt` and `subject`. Honor `refuse` verbatim.
+2. Problem / outcome / context / texture B-roll only. Not a fake screenshot.
+3. Exact logos, numbers, legal lines, and UI chrome stay compositor-set type.
+4. Enrolled people use `--asset` (e.g. `person-sarosh`), never a lookalike prompt.
+5. Write the still into the **external job workspace**. Bind path + SHA-256 on
+   the generation receipt.
+
+Prefer:
+
+`--preset photo-editorial --prompt "<bible prompt>" --out <job>\broll\<beat>.png`
+
+Avoid:
+
+prompting "Acme dashboard with 12.4% conversion" / inventing a product window /
+ignoring `refuse`.
 
 ### Ops
 

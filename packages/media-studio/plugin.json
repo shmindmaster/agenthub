@@ -1,6 +1,6 @@
 {
   "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "media-studio",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Local creative studio for all video and audio: briefings, training, explainers, talking-heads, animation, and live-product screencasts. Writer, storyboard, art direction, director, Local-AI generate, Remotion archetype kit, craft critic. Replaces product-demo-studio as the public skill pack."
 }
