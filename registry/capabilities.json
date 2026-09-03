@@ -1335,17 +1335,22 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills"
-          ]
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills without story-series/technical-explainer because cursor-agent reads ~/.cursor/skills, not ~/.cursor/plugins/local. Junction at ~/.cursor/plugins/local/technical-storytelling remains for Cursor IDE plugin discovery; AgentHub does not remove it."
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
         },
         {
           "hostId": "vscode-insiders",
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "gemini",
+          "hostId": "qwen-code",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1353,15 +1358,51 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
           "hostId": "copilot",
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "grok",
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-21. Shared technical explanation + visualization planning for demos, series, learning, and docs. No private show content. Remotion remains optional via external:remotion. Non-screencast composition routes through media-studio; a film visual that never changes is unfinished (media-studio engagement.md).",
+      "notes": "Added 2026-08-21. Shared technical explanation + visualization planning for demos, series, learning, and docs. No private show content. Remotion remains optional via external:remotion. Non-screencast composition routes through media-studio; a film visual that never changes is unfinished (media-studio engagement.md). Codex loads the native plugin; skill-only hosts stay managed-loose-skills.",
       "dependencies": {
         "requires": [],
         "recommends": [],
@@ -1406,17 +1447,22 @@
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "native-local-plugin",
+          "deploymentStatus": "managed-loose-skills",
           "components": [
             "skills"
-          ]
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills without story-series because cursor-agent reads ~/.cursor/skills, not ~/.cursor/plugins/local. Junction at ~/.cursor/plugins/local/story-series-studio remains for Cursor IDE plugin discovery; AgentHub does not remove it."
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
         },
         {
           "hostId": "vscode-insiders",
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "gemini",
+          "hostId": "qwen-code",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1424,15 +1470,51 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
           "hostId": "copilot",
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "grok",
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-21. Generic series methodology only — private show bibles and media stay outside AgentHub. Prefer this over startup-series for new series work. Product Demo Studio stays the product-screencast workflow; assemble non-screencast picture through media-studio.",
+      "notes": "Added 2026-08-21. Generic series methodology only — private show bibles and media stay outside AgentHub. Prefer this over startup-series for new series work. Product Demo Studio stays the product-screencast workflow; assemble non-screencast picture through media-studio. Codex loads the native plugin; skill-only hosts stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "technical-storytelling"
