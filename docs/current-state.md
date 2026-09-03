@@ -330,8 +330,9 @@ added six more: **175 passed / 4 failed** across 28 files, still the same four.
 - The checker compares the RepoWise index to `HEAD`; a repo with uncommitted
   in-flight work is fine (hook syncs on commit), but a just-committed repo
   shows stale until the hook or `repowise update --repo <name>` runs.
-- `.claude/CLAUDE.md` and `.vscode/mcp.json` are RepoWise-generated per repo;
-  they are gitignored / tool-managed respectively, never hand-maintained.
+- `.claude/CLAUDE.md` is RepoWise-generated and gitignored. `.vscode/mcp.json`
+  was removed 2026-09-02 (owner); do not recreate it as AgentHub-authored
+  state. RepoWise may write a tool-managed copy; it is not a registry surface.
 
 ## Verification
 

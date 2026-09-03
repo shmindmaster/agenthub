@@ -27,8 +27,8 @@ reality. Everything else is durable knowledge, routed below.
   requirements.
 - [development/testing.md](./development/testing.md) — test layers and the
   canonical commands.
-- [development/chrome-cdp.md](./development/chrome-cdp.md) — Chrome DevTools
-  Protocol setup reference for the browser-toolkit capability.
+- [development/chrome-cdp.md](./development/chrome-cdp.md) — Playwright MCP
+  fleet notes and chrome-devtools retirement (browser-toolkit).
 
 ## Operations
 

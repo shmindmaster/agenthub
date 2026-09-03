@@ -581,6 +581,8 @@
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: collapse the AppData copy onto the master library. ~/.agents/skills is the deploy target; %APPDATA%\\devin\\skills is a directory junction so Devin's documented path still resolves.",
         "pluginsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\cli\\plugins",
         "agentsDir": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\agents",
         "hooksDir": null,

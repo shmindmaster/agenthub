@@ -1,5 +1,9 @@
 # Plan: Creative / learning capabilities evolution
 
+**Result (2026-09-02):** Landed. Media Studio is the public pack; product-demo-studio
+remains the internal screencast engine. Remotion and Creative Writing stay
+third-party. Moved out of `plans/active/`.
+
 ## Purpose / outcome
 
 Extend AgentHub (without redesign) with portable creative and learning
