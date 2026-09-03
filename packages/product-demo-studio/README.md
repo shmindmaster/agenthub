@@ -6,7 +6,7 @@ Playwright + Recast + four-domain review engine that media-studio invokes for
 skill names are fleet-retired; their trees live under `pipeline/` so
 Sync-Capabilities does not deploy them.
 
-Current package release: **1.8.4**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.8.5**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared
@@ -84,7 +84,7 @@ native report and model receipt, and adds fresh known-good/known-bad calibration
 read-only audio reviewer adjudication must bind and pass that envelope before arbitration. This
 evidence is never labeled as human playback.
 Version 1.8.3 moved public video skills to `media-studio` and kept this package as the screencast engine.
-Version 1.8.4 stops presenting this plugin as a public video pack: host manifests declare empty `skills/`, Codex display name is Screencast Engine, and the public router is media-studio.
+Version 1.8.5 stops presenting this plugin as a public video pack: host manifests declare empty `skills/`, Codex display name is Screencast Engine, and the public router is media-studio.
 Version 1.8.1 closes the calibration provenance gap: the candidate, known-good, and known-bad
 inputs now require three byte-distinct immutable native `ai.ps1 listen` reports. Both calibration
 reports bind their exact input, deterministic continuous decode, shared model receipt, identical

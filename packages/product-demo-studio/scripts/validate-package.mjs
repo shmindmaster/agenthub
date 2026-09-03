@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const expectedVersion = "1.8.4";
+const expectedVersion = "1.8.5";
 const failures = [];
 
 function readJson(relativePath) {
@@ -113,11 +113,11 @@ requireFiles(
   [".gitattributes", "host-manifests.json", "host-parity.json", "product-video-policy.json"],
   { exact: true },
 );
-// The router is the cheap entry point; the commands are the only user-invocable
-// surface. Both are required — a host that loads the pipeline skill directly
-// pays an order of magnitude more context to answer a routing question.
+// The router is the cheap entry point. Engine procedures live under
+// pipeline/commands so they are not plugin slash commands. Public video
+// entry is media-studio /video.
 requireFiles("pipeline/product-demo", ["SKILL.md"], { exact: true });
-requireFiles("commands", ["demo-assess.md", "demo-calibrate.md", "demo-video.md"], { exact: true });
+requireFiles("pipeline/commands", ["README.md", "demo-assess.md", "demo-calibrate.md", "demo-video.md"], { exact: true });
 requireFiles("docs", ["EXECUTION.md", "USING-AGAINST-ANY-PRODUCT.md"], { exact: true });
 requireFiles("scripts", [
   "build-craft-fixtures.mjs",

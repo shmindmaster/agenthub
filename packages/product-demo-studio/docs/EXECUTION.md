@@ -22,9 +22,7 @@ node <plugin>\scripts\verify-fixtures.mjs
 
 ## 2. Calibrate — once, before trusting any verdict
 
-```
-/demo-calibrate
-```
+Load `pipeline/commands/demo-calibrate.md` (not a slash command).
 
 Two fixture sets ship with the plugin: five defective web applications for demo-worthiness, six defective masters for craft. **Both run with no product and no environment**, so the gates are provable before you point this at anything.
 
@@ -46,9 +44,7 @@ Repeat per product. Nothing is shared between repos — not persona, not seed da
 
 ## 4. Assess before you capture
 
-```
-/demo-assess --repo C:\Repos\shmindmaster\abacare
-```
+Load `pipeline/commands/demo-assess.md` with `--repo C:\Repos\shmindmaster\abacare`.
 
 Produces a demo-worthiness verdict per candidate episode and a Product-Readiness Feedback Report where any candidate failed. No capture, no narration, no render.
 
@@ -56,9 +52,8 @@ Produces a demo-worthiness verdict per candidate episode and a Product-Readiness
 
 ## 5. Produce
 
-```
-/demo-video --repo C:\Repos\shmindmaster\abacare
-```
+Public entry: media-studio `/video` (kind `product-screencast`).
+Engine procedure: load `pipeline/commands/demo-video.md` with `--repo C:\Repos\shmindmaster\abacare`.
 
 Runs the full pipeline for episodes assessment cleared. Two valid outcomes: a fully gated video, or feedback and no video. A mediocre-but-accurate video is the defect the system exists to prevent — it will not produce one, and you should not ask it to.
 
@@ -118,7 +113,7 @@ The router handles that last one: it recognizes the intent, asks which repos, an
 
 ## Known limitations
 
-- **No reviewer has run against the calibration fixtures.** Whether the gates return the expected verdicts is unproven until `/demo-calibrate` executes.
+- **No reviewer has run against the calibration fixtures.** Whether the gates return the expected verdicts is unproven until `pipeline/commands/demo-calibrate.md` executes.
 - **No manifest has been load-tested on any host.** Static presence is not parity; `policy/host-parity.json#validationScope` says so directly.
 - **`mappedHosts` lists eighteen hosts**, seven marked `documentation-not-read`. Trim it to the hosts you actually run rather than resolving rows you will never use.
 - **Antigravity's root `plugin.json` may be unnecessary.** Counter-evidence from a working install without one is recorded in `policy/host-manifests.json`. The file is harmless; the test to settle it is a five-minute install.

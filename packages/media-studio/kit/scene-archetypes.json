@@ -1,5 +1,5 @@
 {
-  "version": "1.5.0",
+  "version": "1.5.1",
   "composition": "Briefing",
   "nativeFrame": { "width": 1600, "height": 1000, "fps": 30 },
   "consecutiveRepeat": "forbidden-unless-intentional",

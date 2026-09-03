@@ -10,9 +10,9 @@ Load `pipeline/product-demo-studio/SKILL.md` and follow its state machine. It is
 ## Preconditions — check before starting, do not infer
 
 1. **Config exists** in the target repo with `environment.url`, `environment.reset`, `output_root`, brand tokens, and voice profile. Missing → copy the example, stop, ask.
-2. **Calibration has passed** at least once. Never run → say so and run `/demo-calibrate` first. Verdicts from unproven reviewers are unproven.
+2. **Calibration has passed** at least once. Never run → say so and load `pipeline/commands/demo-calibrate.md` first. Verdicts from unproven reviewers are unproven.
 3. **The environment class is established** — resettable demo environment, live deployment with demo data, or live deployment with real user data. The third is `PIPELINE_BLOCKED`.
-4. **Assessment has run** for the workflows in scope. Not run → run `/demo-assess` first and produce only episodes it cleared.
+4. **Assessment has run** for the workflows in scope. Not run → load `pipeline/commands/demo-assess.md` first and produce only episodes it cleared.
 
 ## Two valid outcomes
 

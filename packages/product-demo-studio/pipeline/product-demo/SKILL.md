@@ -12,14 +12,14 @@ Recognize the intent, confirm the two facts every path needs, dispatch. **Do not
 | What they want | Route to | Loads |
 |---|---|---|
 | Briefing, training film, explainer, talking-head, animation, or audio that is not a live-product screencast. | `media-studio` | media-studio router |
-| Is this product ready for a demo? Why isn't it? Product-readiness feedback. | `/demo-assess --repo <path>` | assessment only |
-| Make, regenerate, or re-cut a **product screencast** demo. | `/demo-video --repo <path>` | full pipeline |
-| Prove the review gates still work. Fixtures. Drift. | `/demo-calibrate` | fixtures only |
+| Is this product ready for a demo? Why isn't it? Product-readiness feedback. | load `pipeline/commands/demo-assess.md` | assessment only |
+| Make, regenerate, or re-cut a **product screencast** demo. | `media-studio` `/video` (kind `product-screencast`) | full pipeline |
+| Prove the review gates still work. Fixtures. Drift. | load `pipeline/commands/demo-calibrate.md` | fixtures only |
 | A narrow technical question — TTS provider, ffprobe check, Recast composition, Descript editing. | the matching `product-demo-studio-*` subskill directly | that subskill |
 | A composition genuinely needs Remotion and is not this screencast pipeline. | `media-studio-compose` then official Remotion skills | those skills |
 | Anything about how the system works, what the outcomes are, what a criterion means. | answer from this file or `docs/`; load nothing | nothing |
 
-**When the intent is a video but the product has never been assessed, route to `/demo-assess` first and say why.** A capture run against a product that cannot carry a demo produces a mediocre video or a wasted run. Assessment costs minutes and needs no capture, narration, or render.
+**When the intent is a video but the product has never been assessed, load `pipeline/commands/demo-assess.md` first and say why.** A capture run against a product that cannot carry a demo produces a mediocre video or a wasted run. Assessment costs minutes and needs no capture, narration, or render. Public video entry remains media-studio `/video`.
 
 ## Step 2 — Confirm two facts, infer neither
 
@@ -53,4 +53,4 @@ One plugin, any product. Nothing product-specific lives in the plugin — `produ
 
 ## Before the first run anywhere
 
-`/demo-calibrate` must have passed at least once. Verdicts from uncalibrated reviewers are unproven, and a gate nobody has tested is a gate in name only. If it has never run, say so and run it first.
+Calibration (`pipeline/commands/demo-calibrate.md`) must have passed at least once. Verdicts from uncalibrated reviewers are unproven, and a gate nobody has tested is a gate in name only. If it has never run, say so and run it first.

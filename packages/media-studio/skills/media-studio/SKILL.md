@@ -44,7 +44,7 @@ Viewer-facing explainers, branded films, and series: load `technical-storytellin
 
 | Signal | Kind | Path |
 | --- | --- | --- |
-| Live app walkthrough, demo-worthiness, pointer/click | `product-screencast` | assess (`$Pds\commands\demo-assess.md`) → capture → local voice → Recast → QA |
+| Live app walkthrough, demo-worthiness, pointer/click | `product-screencast` | assess (`$Pds\pipeline\commands\demo-assess.md`) → capture → local voice → Recast → QA |
 | Series / Receipts episode | `series-episode` | `story-series` then compose here |
 | Argument, prep, briefing | `briefing` | Remotion archetype kit + local voice + bed |
 | Exam / how-to clip | `training` | Remotion (or FFmpeg if draft) |
@@ -63,7 +63,7 @@ Viewer-facing explainers, branded films, and series: load `technical-storytellin
 Same fail-closed engine, invoked from here:
 
 1. Config in the external job workspace: `product-demo-studio.config.yaml`. A legacy repo copy may be read once, but never created or updated; copy/translate it externally and record its source hash.
-2. Assessment first if never run (`$Pds\commands\demo-assess.md`). Feedback instead of a mediocre video is a valid outcome.
+2. Assessment first if never run (`$Pds\pipeline\commands\demo-assess.md`). Feedback instead of a mediocre video is a valid outcome.
 3. `media-studio-capture` — Playwright + Recast pointer/click.
 4. `media-studio-generate` — local Sarosh, not cloud TTS.
 5. `$Pds\scripts` render/preflight.

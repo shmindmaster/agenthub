@@ -26,7 +26,7 @@ Fill in `environment.url`, `environment.reset`, `output_root`, brand tokens, and
 
 ```
 node scripts/verify-fixtures.mjs        # checksums, decode, cross-validation
-/demo-calibrate
+# then load pipeline/commands/demo-calibrate.md (not a slash command)
 ```
 
 Two fixture sets ship with the plugin: five defective web applications for demo-worthiness, six defective masters for craft. **Both run with no product and no seeded environment**, so the gates are provable on day one.
@@ -37,13 +37,11 @@ If a known-bad fixture passes, or either `clean-pass` fails, every verdict since
 
 Assessment only, no capture:
 
-```
-/demo-assess --repo <path>
-```
+Load `pipeline/commands/demo-assess.md` with `--repo <path>`.
 
 Produces a demo-worthiness verdict per candidate episode and a Product-Readiness Feedback Report where any candidate failed. **This is the highest-value half of the system and it needs no capture, narration, or render.** A report naming the specific reasons a product cannot yet carry a demo, with a buildable fix for each, is a deliverable in its own right.
 
-Full pipeline: `/demo-video --repo <path>`.
+Public full pipeline: media-studio `/video` with kind `product-screencast`. Engine procedure: `pipeline/commands/demo-video.md`.
 
 Or describe the intent in plain language — the `product-demo` router recognizes it, confirms the repo and environment, and dispatches. See [EXECUTION.md](EXECUTION.md) for a worked setup.
 
