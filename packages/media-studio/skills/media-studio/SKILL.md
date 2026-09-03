@@ -5,9 +5,37 @@ description: Use when the user wants any video, audio, animation, briefing, trai
 
 # Media studio — producer
 
-**This is the only public video plugin.** Infer `programForm` and kind from the ask — product demo, briefing, explainer, talking-head, webcast, teaser, or anything else in the kind table — then run that workflow. Do not ask the user to pick a plugin. Product Demo Studio is the internal screencast engine (scripts, review agents, Recast), not a second video pack. Do not load `product-demo` or `product-demo-studio-*` skills; they are retired.
+**This is the only public video plugin.** The user does not name skills, kinds, or pipeline steps. Infer `programForm` and kind from the ask — product demo, briefing, explainer, talking-head, webcast, teaser, or anything else in the kind table — then run the **full crew**. Do not ask them to pick a plugin. Product Demo Studio is the internal screencast engine, not a second video pack. Do not load `product-demo` or `product-demo-studio-*` skills; they are retired.
 
-**Default: rapid.** A concept, outline, or bullets is enough. Infer the rest, run the crew, return a candidate. Rapid means infer-and-run, not skip craft.
+**Default: rapid.** A sentence, path, or “make a video from this” is enough. Infer the rest, run the crew, return a candidate. Rapid means infer-and-run, **not skip craft**. A short prompt is not permission to skip curation, gap-closure, story, scenes, or QA.
+
+## 0. Intake (do not dump this on the user)
+
+A usable ask is: what it is about, plus any source (evidence folder, outline, product). Load Local-AI yourself. Do not tell the user to invoke `/local-ai-stack` or name writer/storyboard/director.
+
+**Infer, do not ask:**
+
+| Need | Default |
+| --- | --- |
+| Kind / form | Kind table + `program-forms.md` |
+| Audience | `private` if they said private/internal/for me; else infer from source |
+| Voice | `sarosh` |
+| Intent | `viewer-facing` (craft ≥ 85) unless they asked for a scratch/proxy |
+| Workspace | `%LOCALAPPDATA%\AgentHub\media-studio\<slug>` |
+| Delivery | Path they named, else `registry/product-video-delivery.json` `reviewRoot` for that product |
+| Plates | Named evidence tree; prefer `*annotated*` / markup shots over raw; do not recapture live prod |
+
+**Ask at most one question, and only if blocked:** no source at all; live production with real user data (`PIPELINE_BLOCKED` — do not offer to proceed); destination unknown and the product is not in the delivery registry. Do not ask them to choose kind, act structure, tone, duration, or which skills to load.
+
+**Always run, even when the prompt is one line:**
+
+1. **Curate** — read the source; pick plates (annotated first); drop noise.
+2. **Close gaps** — product-screencast: `$Pds\pipeline\commands\demo-assess.md` first; Product-Readiness Feedback instead of a mediocre video is a valid stop. Evidence briefing: ledger status is the truth (merged ≠ deployed); missing plates get a spoken/typed beat, not invented UI.
+3. **Write** — `media-writer` locks screenplay + narration (`story-craft.md`).
+4. **Scenes** — `media-storyboard` then `media-studio-visuals` then `media-director`.
+5. **Generate / compose / critic / QA** — Local-AI voice, Remotion/Recast/FFmpeg, score ≥ 85, then `media-studio-qa`.
+
+Do not jump to encode from screenshots. Do not ship a slide-stack of the ledger.
 
 Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\<job-id>`. Never write media into AgentHub or a product repo.
 

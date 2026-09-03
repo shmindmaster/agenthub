@@ -5,13 +5,13 @@ The **only public** video/audio/animation plugin. Infer form from the ask
 workflow. Product-demo-studio is the internal screencast engine, not a second
 plugin.
 
-**Rapid default:** a concept, outline, or bullet list is enough. Writer → storyboard → visuals → director → Local-AI generate → Remotion/FFmpeg/Recast compose → craft critic → QA. Rapid means infer-and-run, not skip craft.
+**Rapid default:** a sentence or a source path is enough. Infer kind and delivery. Still run curation, gap-closure, writer, storyboard, visuals, director, Local-AI generate, Remotion/FFmpeg/Recast, craft critic, QA. Rapid means infer-and-run, not skip craft. Ask the user only when blocked.
 
 Live-product screencasts still use the gated Playwright + Recast + four-domain engine that lives in `packages/product-demo-studio` (pipeline, scripts, agents). Those `product-demo*` **skills are retired**; `media-studio` invokes that engine.
 
 **Viewer-facing** jobs apply `skills/media-studio/references/engagement.md` and `story-craft.md`. The screenplay carries story role, WIIFM, and tension; the storyboard carries shot plan, archetype, and sound. Score < 85 from `media-story-experience-reviewer` does not ship. `intent: draft` skips GPU plates and the critic gate. Product-screencast craft stays in the PDS killer-demo guide.
 
-Version authority: root `plugin.json` (`1.5.2`). Host projections must match.
+Version authority: root `plugin.json` (`1.5.3`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `D:\Local-AI\data\artifacts`). Private show bibles and customer recordings stay outside this repository.
 
 Canonical Remotion kit: `kit/` (scene-archetype library). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.

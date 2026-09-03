@@ -6,6 +6,8 @@ Viewer-facing jobs also load `engagement.md`. Kind rows there are the plate/rhyt
 
 Designed viewer experiences on the Remotion **archetype** kit, not a stack of dark-field slides. Default profile `briefing-board` 1600×1000. Not a product screencast.
 
+Evidence-led private briefings (a ledger plus captured/annotated screens): curate plates first (markup over raw), write a dramatic spine, storyboard scenes, then compose. Do not narrate the ledger in order. Open items stay open. Do not recapture live production.
+
 1. Writer locks `screenplay.json` (`story-craft.md`: sceneRole, WIIFM, hook, one hero).
 2. Storyboard locks `storyboard.json` (shot plan, archetype, sound, 2–3 scored hooks — pick internally).
 3. Visuals locks `visual-bible.json`. Director maps archetypes and registers.
