@@ -51,9 +51,12 @@ vector index. Route before you search:
 | Anything touching a legal matter | Qdrant `legal`, via Local-AI `query.ps1` only |
 
 Search here is FTS5 keyword matching plus the symbol and call graph. An optional
-embedder (`REPOWISE_EMBEDDER=gemini` on this machine) adds hybrid wiki search;
-it is still not Qdrant `knowledge` or `legal`. An empty result is not evidence
-the code lacks the thing — try a synonym or `grep` before concluding absence.
+embedder (`REPOWISE_EMBEDDER=gemini`, model `gemini-embedding-001`) adds hybrid
+wiki search; it is still not Qdrant `knowledge` or `legal`. Do not switch to
+`gemini-embedding-2`: RepoWise 0.48.0 batches many pages in one
+`embed_content` call, and that model returns a single aggregated vector.
+An empty result is not evidence the code lacks the thing — try a synonym or
+`grep` before concluding absence.
 
 The split is deliberate and should stay. A graph traversal is not a vector
 query, and `legal` is walled off at the collection level so opportunity and
@@ -83,8 +86,10 @@ RepoWise on this fleet is a **local disk index**, not a hosted product.
   need an API key.
 - `repowise update --full` / `--docs` is optional LLM wiki generation. It
   uses a provider from the **process environment**, never a key stored in
-  AgentHub. Do not run it against `portfolio-records` or any private
-  evidence repo. Do not `--save-key`.
+  AgentHub. On this machine that is `REPOWISE_PROVIDER=gemini` /
+  `REPOWISE_MODEL=gemini-3.8-flash` (`GEMINI_API_KEY`). Do not run it
+  against `portfolio-records` or any private evidence repo. Do not
+  `--save-key`.
 - Do not add per-repo RepoWise MCP entries. Do not index
   `D:\OneDrive - MahumTech\Documents`.
 
