@@ -1,8 +1,7 @@
 #Requires -Version 5.1
 <#
 Behavior tests for the task-7b "shared skills directory" feature in
-scripts/Sync-Capabilities.ps1: several hosts (currently codex, gemini,
-cline) declare nativePaths.sharedSkillsDir pointing at the same physical
+scripts/Sync-Capabilities.ps1: several hosts declare nativePaths.sharedSkillsDir pointing at the same physical
 directory (~/.agents/skills). Deploying a per-host copy AND a shared copy
 duplicates every skill; the fix is to deploy once to the shared directory
 and skip that host's own per-host copy when a host declares one.
@@ -340,6 +339,18 @@ function Expand-HomePath([string]$Raw) {
     return [Environment]::ExpandEnvironmentVariables($x)
 }
 
+function Get-PhysicalPath([string]$Path) {
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
+    if (-not (Test-Path -LiteralPath $Path)) { return $Path }
+    $item = Get-Item -LiteralPath $Path -Force
+    $target = @($item.Target)[0]
+    if ([string]::IsNullOrWhiteSpace($target)) { return $item.FullName }
+    if (-not [IO.Path]::IsPathRooted($target)) {
+        $target = Join-Path $item.PSParentPath $target
+    }
+    return [IO.Path]::GetFullPath($target)
+}
+
 $shadowed = [Collections.Generic.List[string]]::new()
 $sharedHosts = 0
 foreach ($a in @($agents.activeAgents)) {
@@ -347,6 +358,9 @@ foreach ($a in @($agents.activeAgents)) {
     $own    = Expand-HomePath ([string]$a.nativePaths.skillsDir)
     if (-not $shared -or -not $own) { continue }
     if ($shared -eq $own) { continue }
+    # A junction from the host path onto the master library is reachability,
+    # not a stale shadow copy.
+    if ((Get-PhysicalPath $own) -eq (Get-PhysicalPath $shared)) { continue }
     $sharedHosts++
     if (-not (Test-Path -LiteralPath $own)) { continue }
     foreach ($d in @(Get-ChildItem -LiteralPath $own -Directory -ErrorAction SilentlyContinue)) {

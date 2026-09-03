@@ -15,6 +15,8 @@
         "instructionFormat": "markdown",
         "rulesDir": "C:\\Users\\SaroshHussain\\.claude\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.claude\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Claude does not natively read ~/.agents/skills. AgentHub deploys once to the master library; ~/.claude/skills is a directory junction to that library so Claude still loads the same files.",
         "agentsDir": "C:\\Users\\SaroshHussain\\.claude\\agents",
         "hooksDir": "C:\\Users\\SaroshHussain\\.claude\\hooks",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.claude\\plugins",
@@ -84,6 +86,8 @@
         "instructionHeader": "# Qwen Code Global Instructions",
         "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.qwen\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Qwen is not documented as reading ~/.agents/skills. AgentHub deploys once to the master library; ~/.qwen/skills is a directory junction to that library.",
         "agentsDir": "C:\\Users\\SaroshHussain\\.qwen\\agents",
         "extensionsDir": "C:\\Users\\SaroshHussain\\.qwen\\extensions"
       },
@@ -112,6 +116,8 @@
         "instructionHeader": "# OpenCode Global Instructions",
         "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: OpenCode natively discovers ~/.agents/skills. AgentHub deploys once there and no longer copies into ~/.config/opencode/skills.",
         "agentsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\opencode\\plugins",
         "data": "C:\\Users\\SaroshHussain\\.local\\share\\opencode",
@@ -179,7 +185,7 @@
         "acp"
       ],
       "status": "active",
-      "notes": "Gemini 3.6 Flash is selected through the dynamic model registry with HIGH thinking. Shared user-authored skills under C:\\Users\\SaroshHussain\\.agents\\skills take precedence; AgentHub-managed capabilities are deployed exactly once under C:\\Users\\SaroshHussain\\.gemini\\skills."
+      "notes": "Gemini 3.6 Flash is selected through the dynamic model registry with HIGH thinking. AgentHub-managed skills deploy once under C:\\Users\\SaroshHussain\\.agents\\skills, which Gemini reads natively. ~/.gemini/skills is retained as the documented Gemini-native path and is not a second copy."
     },
     {
       "id": "hermes",
@@ -232,6 +238,8 @@
         "instructionFormat": "markdown",
         "mcp": "C:\\Users\\SaroshHussain\\.copilot\\mcp-config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.copilot\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Copilot CLI documents personal skills at ~/.copilot/skills or ~/.agents/skills. AgentHub deploys once to the master library.",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.copilot\\installed-plugins"
       },
       "supportedCapabilities": [
@@ -259,6 +267,8 @@
         "cliSkillsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\skills",
         "cliPluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\plugins",
         "skillsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Antigravity shares Gemini's ~/.agents/skills discovery. AgentHub deploys once to the master library; ~/.gemini/config/skills is a directory junction so the Antigravity-documented path still resolves.",
         "agentsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\agents",
         "agentsDirNote": "Reverted 2026-08-04, same day it was wrongly changed. An earlier edit replaced this with the antigravity-cli plugins path because this directory does not exist on disk and nothing writes to it. That reasoning was wrong -- absence on disk is not absence from the documentation, which is the same mistake that recorded windsurf's skills directory as null. antigravity.google/docs/subagents documents two separate discovery mechanisms: Global Customizations at ~/.gemini/config/agents/<name>.md (this field) and plugin-bundled agents at plugins/<plugin>/agents (registry/subagent-formats.json). Both are valid and they are not required to agree.",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.gemini\\config\\plugins",
@@ -339,6 +349,8 @@
         "instructionHeader": "# Grok CLI Global Instructions",
         "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.grok\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Grok loads ~/.grok/skills and is not documented as reading ~/.agents/skills. AgentHub deploys once to the master library; ~/.grok/skills is a directory junction to that library.",
         "agentsDir": "C:\\Users\\SaroshHussain\\.grok\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.grok\\installed-plugins",
         "documentedPluginsDir": "C:\\Users\\SaroshHussain\\.grok\\plugins",
@@ -402,6 +414,8 @@
         "desktopInstructions": "C:\\Users\\SaroshHussain\\AppData\\Local\\AgentHub\\cline-documents\\Rules\\00-agenthub.md",
         "rulesDir": "C:\\Users\\SaroshHussain\\.cline\\data\\settings\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.cline\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Cline documents only ~/.cline/skills (not ~/.agents/skills). AgentHub deploys once to the master library; ~/.cline/skills is a directory junction to that library.",
         "agentsDir": null,
         "pluginsDir": "C:\\Users\\SaroshHussain\\.cline\\plugins",
         "hooksDir": "C:\\Users\\SaroshHussain\\.cline\\hooks",
@@ -423,7 +437,7 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Cline 3.0.51. Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; on-demand-local chrome-devtools/brave-search are intentionally not fleet-synced. VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). sharedSkillsDir (~/.agents/skills) stays omitted: Cline documents only .cline/skills and ~/.cline/skills (contrast codex/gemini which document ~/.agents/skills). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%\\Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
+      "notes": "Cline 3.0.51. Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; on-demand-local chrome-devtools/brave-search are intentionally not fleet-synced. VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%\\Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
     },
     {
       "id": "cursor",
@@ -435,6 +449,8 @@
         "mcp": "C:\\Users\\SaroshHussain\\.cursor\\mcp.json",
         "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Cursor\\User\\settings.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Cursor natively discovers ~/.agents/skills and ~/.cursor/skills. AgentHub deploys once to the master library; ~/.cursor/skills is a directory junction so cursor-agent still sees the documented Cursor path.",
         "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
         "rulesDir": "C:\\Users\\SaroshHussain\\.cursor\\rules",
         "instructions": null,
@@ -466,6 +482,8 @@
         "config": "C:\\Users\\SaroshHussain\\.cursor\\cli-config.json",
         "agentsDir": "C:\\Users\\SaroshHussain\\.cursor\\agents",
         "skillsDir": "C:\\Users\\SaroshHussain\\.cursor\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Same junction as the cursor host: ~/.cursor/skills -> ~/.agents/skills. cursor-agent reads this path.",
         "instructions": null,
         "verification": "documented-no-global-file",
         "instructionsNote": "Researched 2026-08-04 against cursor.com/docs/rules, cursor.com/docs/cli/using and cursor.com/docs/cli/reference/configuration (subjects confirmed: rules, CLI usage, CLI configuration). Cursor User Rules are global but live in GUI state under Customize > Rules with no documented file path, and the CLI reads AGENTS.md/CLAUDE.md only at the project root. The exhaustive cli-config.json key list contains no instructions field. This is a documented absence of a global FILE, not a failure to find the docs, so instructions stays null by design rather than pending discovery."
@@ -493,6 +511,8 @@
         "settings": "C:\\Users\\SaroshHussain\\.qoder\\settings.json",
         "mcp": "C:\\Users\\SaroshHussain\\.qoder\\settings.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.qoder\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Qoder documents ~/.qoder/skills, not ~/.agents/skills. AgentHub deploys once to the master library; ~/.qoder/skills is a directory junction to that library.",
         "agentsDir": "C:\\Users\\SaroshHussain\\.qoder\\agents",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.qoder\\plugins",
         "canvasDir": "C:\\Users\\SaroshHussain\\.qoder\\canvas",
@@ -537,7 +557,8 @@
         "instructionHeader": "# Amp Global Instructions",
         "instructionFormat": "markdown",
         "skillsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\skills",
-        "skillsDirNote": "Verified 2026-08-04 against ampcode.com/manual skills section. Amp's documented precedence is ~/.config/agents/skills, ~/.agents/skills, ~/.config/amp/skills, then project and .claude scopes. This entry is the third tier and is genuinely read, so the deployment here is reachable. Amp also reads the shared ~/.agents/skills at HIGHER precedence, so it could be collapsed onto sharedSkillsDir like codex, gemini and warp; left as a private copy deliberately, because per-host duplication is intended.",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "skillsDirNote": "Verified 2026-08-04 against ampcode.com/manual skills section. Amp's documented precedence is ~/.config/agents/skills, ~/.agents/skills, ~/.config/amp/skills, then project and .claude scopes. Collapsed onto sharedSkillsDir 2026-09-02: Amp already reads ~/.agents/skills at higher precedence than ~/.config/amp/skills, so the private copy was redundant.",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.config\\amp\\plugins",
         "pluginsDirNote": "Verified 2026-08-05 against ampcode.com/manual. Amp plugins are TypeScript files loaded from .amp/plugins/*.ts (project) and ~/.config/amp/plugins/*.ts (user). Distinct from the skills precedence chain recorded in sharedSkillsDir -- the manual separates them explicitly: plugins for custom tools and event-driven behavior, skills for written guidance. Path correct; absent only because no plugin is installed."
       },
@@ -599,6 +620,8 @@
         "mcp": "C:\\Users\\SaroshHussain\\.factory\\mcp.json",
         "rulesDir": "C:\\Users\\SaroshHussain\\.factory\\rules",
         "skillsDir": "C:\\Users\\SaroshHussain\\.factory\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Factory also scans ~/.agents/skills as a compatibility scope. AgentHub deploys once there and no longer copies into ~/.factory/skills.",
         "droidsDir": "C:\\Users\\SaroshHussain\\.factory\\droids",
         "pluginsDir": "C:\\Users\\SaroshHussain\\.factory\\plugins",
         "rulesDirNote": "Verified 2026-08-05 against docs.factory.ai/guides/power-user/rules-conventions. Factory separates ~/.factory/ (personal preferences across all projects) from project .factory/; ~/.factory/rules/ holds personal rule files such as style.md and tools.md, with project .factory/rules/ as the per-repo equivalent. Path correct; absent only because no personal rules are deployed."
@@ -648,6 +671,8 @@
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\mcp_config.json",
         "skillsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\skills",
+        "sharedSkillsDir": "C:\\Users\\SaroshHussain\\.agents\\skills",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Windsurf natively discovers ~/.agents/skills in addition to ~/.codeium/windsurf/skills. AgentHub deploys once to the master library.",
         "settings": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\user_settings.pb",
         "hooksFile": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\hooks.json",
         "workflowsDir": "C:\\Users\\SaroshHussain\\.codeium\\windsurf\\global_workflows",

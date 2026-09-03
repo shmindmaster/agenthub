@@ -255,20 +255,17 @@ foreach ($capability in $capabilities.capabilities) {
     }
     # A host that declares nativePaths.sharedSkillsDir wants ONE deployment
     # in that shared directory instead of a redundant copy in its own
-    # skillsDir -- currently codex and gemini both point sharedSkillsDir at
-    # ~/.agents/skills (documentation-confirmed for both: codex's USER tier
-    # is $HOME/.agents/skills per learn.chatgpt.com/docs/build-skills; gemini
-    # documents ~/.gemini/skills/ or the ~/.agents/skills/ alias at the same
-    # precedence tier per geminicli.com/docs/cli/skills). cline intentionally
-    # does NOT declare sharedSkillsDir: cline's own documentation names only
-    # .cline/skills (workspace) and ~/.cline/skills (global) -- see the note
-    # on the cline entry in registry/agents.json. $desired stays keyed
-    # purely by the physical destination path (not e.g.
-    # "$hostId::$destination"), so when two hosts resolve to the identical
-    # shared destination they collapse to the same dictionary entry instead
-    # of competing. A host with no sharedSkillsDir declared is unaffected
-    # and still gets its own copy in its own skillsDir -- the reachability
-    # rule.
+    # skillsDir. The fleet master is ~/.agents/skills. Hosts that natively
+    # read that path (codex, gemini, cursor, copilot, warp, amp, factory,
+    # opencode, windsurf, vscode-insiders) deploy only there. Hosts that do
+    # not (claude, cline, grok, qwen, qoder) still declare sharedSkillsDir
+    # so AgentHub writes once; their skillsDir is a directory junction to
+    # the master library. $desired stays keyed purely by the physical
+    # destination path (not e.g. "$hostId::$destination"), so when two
+    # hosts resolve to the identical shared destination they collapse to
+    # the same dictionary entry instead of competing. A host with no
+    # sharedSkillsDir declared is unaffected and still gets its own copy
+    # in its own skillsDir -- the reachability rule.
     $sharedSkillsDirRaw = [string]$agent.nativePaths.sharedSkillsDir
     $usesSharedDir = -not [string]::IsNullOrWhiteSpace($sharedSkillsDirRaw)
     $skillsDir = if ($usesSharedDir) { Resolve-UnderUserProfile $sharedSkillsDirRaw } else { Resolve-UnderUserProfile ([string]$agent.nativePaths.skillsDir) }
