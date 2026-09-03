@@ -51,11 +51,9 @@ vector index. Route before you search:
 | Anything touching a legal matter | Qdrant `legal`, via Local-AI `query.ps1` only |
 
 Search here is FTS5 keyword matching plus the symbol and call graph. An optional
-embedder (`REPOWISE_EMBEDDER=openai` on this machine, model
-`text-embedding-3-small` from process env `OPENAI_API_KEY`) adds hybrid wiki
-search; it is still not Qdrant `knowledge` or `legal`. An empty result is not
-evidence the code lacks the thing — try a synonym or `grep` before concluding
-absence.
+embedder (`REPOWISE_EMBEDDER=gemini` on this machine) adds hybrid wiki search;
+it is still not Qdrant `knowledge` or `legal`. An empty result is not evidence
+the code lacks the thing — try a synonym or `grep` before concluding absence.
 
 The split is deliberate and should stay. A graph traversal is not a vector
 query, and `legal` is walled off at the collection level so opportunity and
@@ -83,11 +81,6 @@ RepoWise on this fleet is a **local disk index**, not a hosted product.
 - Default update path is `--index-only` / `--no-docs`: parse files, rebuild
   the graph, refresh git/dead-code. That does not call an LLM and does not
   need an API key.
-- Optional hybrid embeddings use process env only:
-  `REPOWISE_EMBEDDER=openai`, `REPOWISE_EMBEDDING_MODEL=text-embedding-3-small`,
-  `OPENAI_API_KEY`. Wiki generation uses `REPOWISE_PROVIDER=openai` the same
-  way. Never `--save-key`. Never write the key into AgentHub, a repo, or
-  RepoWise config.
 - `repowise update --full` / `--docs` is optional LLM wiki generation. It
   uses a provider from the **process environment**, never a key stored in
   AgentHub. Do not run it against `portfolio-records` or any private
