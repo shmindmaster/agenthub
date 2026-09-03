@@ -35,9 +35,27 @@ Do not center discovery on LinkedIn, Easy Apply, or any other single surface.
 
 Search all useful sources available on the active host: installed job
 connectors, major job boards, employer career sites and ATS systems,
+**venture-capital and accelerator portfolio boards and talent networks**,
 executive-search firms, specialized recruiters, hiring-manager posts, employee
 or network signals, and current web discovery. Use the fleet routing policy;
 do not install, emulate, or claim access to a connector that is unavailable.
+
+Load `references/vc-and-accelerator-channels.md` before any discovery run that
+touches the startup ecosystem. Three rules govern that category:
+
+- **A portfolio board is an index, not an ATS.** Its Apply link goes to the
+  company's own Greenhouse/Lever/Ashby with a fund source tag appended, so
+  applying through the board is the *same application* as the company site and
+  confers no advantage.
+- **A talent network is categorically different** — one registration, then a
+  human talent partner matches you to portfolio roles over time. Prefer networks
+  over boards: boards are for discovery and dedupe, networks are the leverage.
+- **Dedupe by destination ATS URL, never by board.** A company with several
+  investors appears on every one of their investors' boards.
+
+The executive tier of this category is relationship-mediated. No firm publishes
+a joinable CTO network, so the boards are the mid-tier and a named talent
+partner's email is the executive tier.
 
 For every discovery run, record each material source as `checked`,
 `unavailable`, or `unchecked`. Choose opportunities by quality and expected

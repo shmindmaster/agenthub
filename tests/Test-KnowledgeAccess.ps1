@@ -76,6 +76,11 @@ Report 'opportunity-engine is quality-first rather than LinkedIn-first' (
     $engine -match '`checked`' -and $engine -match '`unavailable`' -and
     $engine -match '`unchecked`'
 ) 'discovery coverage or quality-first routing is missing'
+Report 'opportunity-engine includes VC and accelerator discovery channels' (
+    $engine -match 'vc-and-accelerator-channels.md' -and
+    $engine -match 'talent network' -and
+    (Test-Path -LiteralPath (Join-Path $pkg 'skills\opportunity-engine\references\vc-and-accelerator-channels.md'))
+) 'VC/accelerator channel reference is missing from the canonical skill'
 Report 'opportunity-engine preserves the compensation and geography contract' (
     $engine -match '300K-1M\+' -and $engine -match '250K-299K' -and
     $engine -match 'worldwide target' -and $engine -match 'below USD 250K'
