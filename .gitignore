@@ -23,6 +23,8 @@ playwright-report/
 # RepoWise generated index state
 .repowise/
 .claude/CLAUDE.md
+# RepoWise may rewrite these; they are not AgentHub registry state.
+.vscode/
 
 # Opportunity-engine working output. Career/proposal evidence is retrieved from
 # the local Qdrant knowledge store at render time; it carries un-anonymized
