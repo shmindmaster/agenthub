@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/visual-bible.json",
+  "title": "Media studio visual bible",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "jobTitle",
+    "motif",
+    "lighting",
+    "typography",
+    "compositionRules",
+    "graphicalLanguage",
+    "motionTreatment",
+    "texture",
+    "continuity",
+    "brollPlan"
+  ],
+  "properties": {
+    "jobTitle": { "type": "string", "minLength": 1 },
+    "motif": {
+      "type": "string",
+      "description": "One recurring visual idea the film returns to."
+    },
+    "lighting": { "type": "string" },
+    "typography": { "type": "string" },
+    "compositionRules": { "type": "string" },
+    "graphicalLanguage": {
+      "type": "string",
+      "description": "Recurring marks: accent color, rules, number treatment, card language."
+    },
+    "motionTreatment": { "type": "string" },
+    "texture": { "type": "string" },
+    "continuity": {
+      "type": "string",
+      "description": "What must stay identical across scenes so the film is one designed object."
+    },
+    "brollPlan": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["beatId", "intent", "subject", "refuse"],
+        "properties": {
+          "beatId": { "type": "string" },
+          "intent": {
+            "type": "string",
+            "enum": ["problem", "outcome", "context", "proof", "texture"]
+          },
+          "subject": { "type": "string" },
+          "prompt": { "type": "string" },
+          "refuse": {
+            "type": "string",
+            "description": "What this plate must not invent (product UI, metrics, testimonials)."
+          }
+        }
+      }
+    },
+    "imagePrompts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "prompt"],
+        "properties": {
+          "id": { "type": "string" },
+          "prompt": { "type": "string" },
+          "reference": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -25,32 +25,35 @@ Screencast engine root:
 $Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Repos\shmindmaster\agenthub' })) 'packages\product-demo-studio'
 ```
 
-## Rapid path
+## 1. Rapid path
 
-1. Infer **kind** (table). Create `job.json` in the external workspace and validate that the workspace is outside any source repository. Default `intent: viewer-facing` unless the user asked for a scratch, proxy, or timing pass (`draft`).
-2. Defaults: owner/internal voice `sarosh`; briefings 1600×1000 30 fps; duration ~150 wpm. Viewer-facing jobs load `references/engagement.md` before the writer. Product screencasts use the PDS killer-demo guide instead.
-3. `media-writer` → locked screenplay (`hook`, `emotionalTarget`, pauses).
-4. `media-director` → visual mode, `musicCue`, hold. `screen` only for a running product.
-5. `media-studio-generate` + `local-ai-stack` → TTS. Viewer-facing: also the directed music bed. Motif/lipsync/portrait only when direction called for that plate. `draft` skips those GPU plates and records the skip.
-6. Compose: briefing kit Remotion, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`).
-7. `media-studio-qa`: screencast → PDS gates. Other kinds → identity-score, `ai.ps1 listen`, engagement pass on the encoded file.
+1. Infer **kind** (table). Create `job.json` in the external workspace and validate that the workspace is outside any source repository. Default `intent: viewer-facing` unless the user asked for a scratch, proxy, or timing pass (`draft`). Set `deliveryProfile` from `references/delivery-profiles.md`. `craftScoreMin` defaults to 85.
+2. Defaults: owner/internal voice `sarosh`; briefing-board 1600×1000 30 fps; duration ~150 wpm. Viewer-facing jobs load `references/engagement.md` and `story-craft.md` before the writer. Product screencasts use the PDS killer-demo guide instead.
+3. `media-writer` → locked screenplay (`hook`, `sceneRole`, `wiifm`, one hero).
+4. `media-storyboard` → timed beats, scored hook (pick internally), archetypes. Then `media-studio-visuals` → `visual-bible.json`.
+5. `media-director` → archetype, register, `sound`. `screen` only for a running product.
+6. `media-studio-generate` + `local-ai-stack` → TTS. Viewer-facing: also the directed music bed. Motif/lipsync/portrait only when direction called for that plate. `draft` skips those GPU plates and records the skip.
+7. Compose: Remotion archetype kit, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`). Viewer-facing `briefing` / `training` / `explainer` / `series-episode` **requires Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. If Remotion skills are missing, stop and say so — do not silently fall back to static slides.
+8. `media-story-experience-reviewer` on the encoded file. Score < `craftScoreMin` → revise `reviseSceneIds` and rerun. Then `media-studio-qa`: screencast → PDS gates. Other kinds → identity-score, `ai.ps1 listen`, engagement pass, `Inspect-MediaVisualQuality.ps1`.
 
 Owner voice: `ai.ps1 voice qwen-clone --voice sarosh` only.
 
-## Kind
+Viewer-facing explainers, branded films, and series: load `technical-storytelling` and, when installed, third-party `creative-writing-skills`. Descript stays optional finishing (`media-studio-descript`).
+
+## 2. Kind
 
 | Signal | Kind | Path |
 | --- | --- | --- |
 | Live app walkthrough, demo-worthiness, pointer/click | `product-screencast` | assess (`$Pds\commands\demo-assess.md`) → capture → local voice → Recast → QA |
 | Series / Receipts episode | `series-episode` | `story-series` then compose here |
-| Argument, prep, briefing, slide-led | `briefing` | Remotion kit + local voice + bed |
-| Exam / how-to clip | `training` | Remotion or FFmpeg |
-| Technical idea, no live product required | `explainer` | Remotion + diagrams |
+| Argument, prep, briefing | `briefing` | Remotion archetype kit + local voice + bed |
+| Exam / how-to clip | `training` | Remotion (or FFmpeg if draft) |
+| Technical idea, no live product required | `explainer` | Remotion + `story-craft.md` |
 | Face + new audio | `talking-head` | voice then `ai.ps1 lipsync` |
 | Animate a still | `animation` | Motif and/or Remotion |
 | Voiceover or bed only | `audio-only` | `ai.ps1 voice` / `music` |
 
-## product-screencast (was product-demo-studio)
+## 3. product-screencast (was product-demo-studio)
 
 Same fail-closed engine, invoked from here:
 
@@ -67,9 +70,17 @@ If the external workspace cannot be established without touching the product
 repository, return `PIPELINE_BLOCKED`. Do not fall back to scaffolding inside
 the repo.
 
-## Stop
+## 4. Stop
 
 - Real user data on a live product.
 - Owner voice via cloud TTS.
 - Invented metrics or customer names.
-- Remotion missing for slides → FFmpeg stills + voice, say what was skipped.
+- Remotion missing for viewer-facing briefing/training/explainer/series-episode (unless draft).
+- Story-experience score below 85.
+
+## 5. Final check
+
+- [ ] Workspace is external; `repositoryWritePolicy: read-only`
+- [ ] Crew ran writer → storyboard → visuals → director → generate → compose → critic → QA
+- [ ] Viewer-facing: engagement + story-craft loaded; Remotion used when required
+- [ ] Critic score ≥ 85 or the job is draft

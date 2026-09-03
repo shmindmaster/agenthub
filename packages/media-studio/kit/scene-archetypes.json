@@ -1,0 +1,24 @@
+{
+  "version": "1.4.0",
+  "composition": "Briefing",
+  "nativeFrame": { "width": 1600, "height": 1000, "fps": 30 },
+  "consecutiveRepeat": "forbidden-unless-intentional",
+  "archetypes": [
+    { "id": "cold-open", "kit": ["statement", "broll"], "roleHint": ["hook"] },
+    { "id": "full-bleed-broll", "kit": ["broll", "still"], "roleHint": ["before", "tension", "payoff"] },
+    { "id": "kinetic-statement", "kit": ["statement"], "roleHint": ["hook", "bridge", "payoff"] },
+    { "id": "kinetic-number", "kit": ["stat"], "roleHint": ["proof", "hero"] },
+    { "id": "before-after", "kit": ["beforeafter"], "roleHint": ["reveal", "payoff"] },
+    { "id": "comparison", "kit": ["split"], "roleHint": ["tension", "proof"] },
+    { "id": "diagram-build", "kit": ["flow", "layers", "map"], "roleHint": ["reveal", "proof"] },
+    { "id": "timeline", "kit": ["timeline"], "roleHint": ["before", "proof"] },
+    { "id": "process-flow", "kit": ["flow", "sequence"], "roleHint": ["reveal"] },
+    { "id": "screen-in-context", "kit": ["screen-in-context"], "roleHint": ["proof", "hero"] },
+    { "id": "talking-head-sidecar", "kit": ["sidecar"], "roleHint": ["trust", "cta"] },
+    { "id": "quote-problem", "kit": ["quote"], "roleHint": ["before", "tension"] },
+    { "id": "evidence-proof", "kit": ["proof", "table", "code"], "roleHint": ["proof"] },
+    { "id": "checklist-build", "kit": ["checklist"], "roleHint": ["payoff", "cta"] },
+    { "id": "hero-reveal", "kit": ["hero"], "roleHint": ["hero", "reveal"] },
+    { "id": "cta-end-frame", "kit": ["cta"], "roleHint": ["cta"] }
+  ]
+}

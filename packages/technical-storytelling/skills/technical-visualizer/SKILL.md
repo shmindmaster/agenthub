@@ -5,7 +5,7 @@ description: Use when choosing how to show a technical idea — real screen, ter
 
 # Technical visualizer
 
-Decide the cheapest truthful visual that carries the idea:
+Decide the **simplest truthful visual that maintains attention**. A cheaper still that holds across two ideas is unfinished, not simpler.
 
 ```text
 actual screen?

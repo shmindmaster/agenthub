@@ -2,10 +2,10 @@
 <#
 Pins the viewer-facing engagement contract in packages/media-studio:
 
-- engagement.md is the single craft home
-- producer/writer/director/generate/compose/qa load it
-- rapid path no longer skips music for viewer-facing jobs
-- job and screenplay schemas carry intent, hook, pauses, musicCue
+- engagement.md is the diagnose/tools/ownership home; story-craft and archetypes are catalogs
+- producer/writer/storyboard/visuals/director/generate/compose/qa/critic load it
+- rapid path is writer → storyboard → visuals → director → generate → compose → critic → QA
+- schemas carry story roles, shot plan, sound, delivery profile, craftScoreMin
 - product-screencast stays on the PDS rubric, not a second overlay stack
 
 Run: pwsh -NoProfile -File tests/Test-MediaStudioEngagement.ps1
@@ -38,13 +38,22 @@ function Read-Pkg([string]$Relative) {
 $engagement = Read-Pkg 'skills\media-studio\references\engagement.md'
 $producer = Read-Pkg 'skills\media-studio\SKILL.md'
 $writer = Read-Pkg 'skills\media-writer\SKILL.md'
+$storyboard = Read-Pkg 'skills\media-storyboard\SKILL.md'
+$visuals = Read-Pkg 'skills\media-studio-visuals\SKILL.md'
 $director = Read-Pkg 'skills\media-director\SKILL.md'
 $generate = Read-Pkg 'skills\media-studio-generate\SKILL.md'
 $compose = Read-Pkg 'skills\media-studio-compose\SKILL.md'
 $qa = Read-Pkg 'skills\media-studio-qa\SKILL.md'
+$critic = Read-Pkg 'skills\media-story-experience-reviewer\SKILL.md'
 $capture = Read-Pkg 'skills\media-studio-capture\SKILL.md'
 $job = Read-Pkg 'schemas\job.schema.json'
 $play = Read-Pkg 'schemas\screenplay.schema.json'
+$board = Read-Pkg 'schemas\storyboard.schema.json'
+$bible = Read-Pkg 'schemas\visual-bible.schema.json'
+$review = Read-Pkg 'schemas\story-experience-review.schema.json'
+$craft = Read-Pkg 'skills\media-studio\references\story-craft.md'
+$archetypes = Read-Pkg 'skills\media-studio\references\scene-archetypes.md'
+$rubric = Read-Pkg 'skills\media-studio\references\story-review-rubric.md'
 $manifest = Read-Pkg 'plugin.json'
 
 Report 'engagement.md exists' (-not [string]::IsNullOrWhiteSpace($engagement)) 'missing skills/media-studio/references/engagement.md'
@@ -61,10 +70,13 @@ Report 'engagement.md sends product-screencast to the PDS killer-demo guide' (
 foreach ($pair in @(
         @{ Name = 'producer'; Text = $producer },
         @{ Name = 'writer'; Text = $writer },
+        @{ Name = 'storyboard'; Text = $storyboard },
+        @{ Name = 'visuals'; Text = $visuals },
         @{ Name = 'director'; Text = $director },
         @{ Name = 'generate'; Text = $generate },
         @{ Name = 'compose'; Text = $compose },
-        @{ Name = 'qa'; Text = $qa }
+        @{ Name = 'qa'; Text = $qa },
+        @{ Name = 'critic'; Text = $critic }
     )) {
     Report "$($pair.Name) loads engagement.md" (
         $pair.Text -match 'engagement\.md'
@@ -79,7 +91,27 @@ Report 'producer defaults intent to viewer-facing' (
 ) 'producer must default viewer-facing'
 Report 'producer QA step includes an engagement pass for non-screencast kinds' (
     $producer -match 'engagement pass'
-) 'producer step 7 must run an engagement pass'
+) 'producer must run an engagement pass'
+Report 'producer crew includes storyboard then visuals then critic' (
+    $producer -match 'media-storyboard' -and
+    $producer -match 'media-studio-visuals' -and
+    $producer -match 'media-story-experience-reviewer'
+) 'rapid path must insert storyboard, visuals, and craft critic'
+Report 'producer requires Remotion for viewer-facing briefing/training/explainer/series-episode' (
+    $producer -match 'requires Remotion' -and $producer -match 'intent: draft'
+) 'viewer-facing motion jobs must not silently fall back to static slides'
+Report 'writer hands off to storyboard' (
+    $writer -match 'media-storyboard'
+) 'writer must not skip to director'
+Report 'director prefers simplest truthful visual that maintains attention' (
+    $director -match 'simplest truthful visual that maintains attention'
+) 'director still prefers cheapest still'
+Report 'visuals writes visual-bible.json' (
+    $visuals -match 'visual-bible\.json'
+) 'visuals must be art direction, not only a B-roll warning'
+Report 'critic fail-closed threshold is 85' (
+    $critic -match '85' -and $rubric -match 'Below 85'
+) 'story-experience reviewer must fail below 85'
 Report 'generate makes a viewer-facing bed unless draft or music none' (
     $generate -match 'Viewer-facing' -and $generate -match 'musicCue: bed'
 ) 'generate must produce the directed bed for viewer-facing jobs'
@@ -108,10 +140,33 @@ Report 'screenplay scenes have pause, hold, emphasis, musicCue' (
     $play -match '"emphasis"' -and
     $play -match '"musicCue"'
 ) 'screenplay scene properties missing timing/music fields'
+Report 'screenplay scenes carry story and archetype fields' (
+    $play -match '"sceneRole"' -and
+    $play -match '"wiifm"' -and
+    $play -match '"visualArchetype"' -and
+    $play -match '"shotPlan"' -and
+    $play -match '"sfxCue"'
+) 'screenplay cannot express storyboard-grade beats'
+Report 'storyboard schema requires shotPlan, archetype, sound, chosenHook' (
+    $board -match '"shotPlan"' -and
+    $board -match '"visualArchetype"' -and
+    $board -match '"chosenHook"' -and
+    $board -match '"protectedHeroBeatId"'
+) 'storyboard.schema.json missing timed-craft fields'
+Report 'visual-bible and story-experience-review schemas exist' (
+    $bible -match '"motif"' -and $review -match '"reviseSceneIds"' -and $review -match '"pass"'
+) 'missing visual-bible or review schema'
+Report 'story-craft and scene-archetype catalogs exist' (
+    $craft -match 'Question' -and $craft -match 'Reveal' -and
+    $archetypes -match 'kinetic-statement' -and $archetypes -match 'hero-reveal'
+) 'missing story-craft or scene-archetype library'
+Report 'job schema has deliveryProfile and craftScoreMin' (
+    $job -match '"deliveryProfile"' -and $job -match '"craftScoreMin"'
+) 'job.schema.json missing delivery or craft gate'
 
 $plugin = $manifest | ConvertFrom-Json
-Report 'plugin.json version is 1.3.0 or newer' (
-    [version]$plugin.version -ge [version]'1.3.0'
+Report 'plugin.json version is 1.4.0 or newer' (
+    [version]$plugin.version -ge [version]'1.4.0'
 ) "plugin.json version is $($plugin.version)"
 
 if ($failures.Count -gt 0) {

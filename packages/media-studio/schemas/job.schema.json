@@ -64,6 +64,24 @@
       "type": "string",
       "enum": ["none", "bed"],
       "description": "Program-level default. Per-scene musicCue on the screenplay can silence or sting over a bed."
+    },
+    "deliveryProfile": {
+      "type": "string",
+      "enum": [
+        "briefing-board",
+        "youtube-16x9",
+        "vertical-9x16",
+        "linkedin",
+        "presentation",
+        "onboarding"
+      ],
+      "description": "Platform frame. briefing-board is the house 1600×1000 kit. See references/delivery-profiles.md."
+    },
+    "craftScoreMin": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Viewer-facing story-experience fail-closed threshold. Default 85. Draft ignores this gate."
     }
   }
 }

@@ -220,14 +220,16 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `comedy-writer`); generic craft lives in the studio packages. Private show
   bibles stay outside AgentHub.
 
-- **Local media studio (2026-08-25, craft 2026-08-26):** `packages/media-studio`
-  is the **only public** video/audio/animation pack (`1.3.1`). Rapid default: a
-  concept or outline is enough; writer → director → Local-AI generate →
-  Remotion/FFmpeg/Recast compose in one run. Viewer-facing jobs apply
-  `skills/media-studio/references/engagement.md` (hook, contrast, pauses, ducked
-  bed, visual change per idea); `intent: draft` skips GPU plates. Product
-  screencasts keep the PDS killer-demo / story-experience gate. Kinds: briefing,
-  training, explainer, talking-head, animation, audio-only, and
+- **Local media studio (2026-08-25, craft 2026-09-02):** `packages/media-studio`
+  is the **only public** video/audio/animation pack (`1.4.0`). Rapid default: a
+  concept or outline is enough; writer → storyboard → visuals → director →
+  Local-AI generate → Remotion/FFmpeg/Recast compose → craft critic → QA.
+  Viewer-facing jobs apply `engagement.md` plus `story-craft.md` and the
+  scene-archetype kit; `media-story-experience-reviewer` fails closed below 85.
+  `intent: draft` skips GPU plates and the critic gate. Remotion is required
+  for viewer-facing briefing/training/explainer/series-episode unless draft.
+  Product screencasts keep the PDS killer-demo / story-experience gate. Kinds:
+  briefing, training, explainer, talking-head, animation, audio-only, and
   `product-screencast`. `product-demo*` **skills are fleet-retired**; the
   Playwright + Recast + four-domain engine remains in
   `packages/product-demo-studio/pipeline` and is invoked by media-studio, not

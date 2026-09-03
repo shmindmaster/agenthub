@@ -5,7 +5,7 @@ description: Use when turning a technical failure, design choice, or system beha
 
 # Technical explainer
 
-Convert a technical question or incident into this structure:
+Convert a technical question or incident into this **comprehension** structure:
 
 ```text
 CORE IDEA          one sentence
@@ -16,6 +16,14 @@ MISCONCEPTION      what people commonly get wrong
 VISUAL PLAN        diagram / screen / animation intent
 TAKEAWAY           what the viewer should remember
 ```
+
+For a **viewer-facing film**, wrap that block in Media Studio `story-craft.md`:
+
+```text
+Question → Stakes → Wrong intuition → Complication → Reveal → Demonstration → Implication → Takeaway
+```
+
+Do not ship the comprehension block as sequential slides. The film still needs tension and a reveal.
 
 ## Rules
 

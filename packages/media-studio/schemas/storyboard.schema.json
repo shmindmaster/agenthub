@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/storyboard.json",
+  "title": "Media studio storyboard",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "chosenHook", "beats"],
+  "properties": {
+    "title": { "type": "string", "minLength": 1 },
+    "screenplayTitle": { "type": "string" },
+    "kind": { "type": "string" },
+    "deliveryProfile": { "type": "string" },
+    "chosenHook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "narration", "visualArchetype", "score", "why"],
+      "properties": {
+        "id": { "type": "string" },
+        "narration": { "type": "string" },
+        "visualArchetype": { "type": "string" },
+        "score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "why": { "type": "string" }
+      }
+    },
+    "rejectedHooks": {
+      "type": "array",
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "narration", "visualArchetype", "score", "whyRejected"],
+        "properties": {
+          "id": { "type": "string" },
+          "narration": { "type": "string" },
+          "visualArchetype": { "type": "string" },
+          "score": { "type": "number", "minimum": 0, "maximum": 100 },
+          "whyRejected": { "type": "string" }
+        }
+      }
+    },
+    "protectedHeroBeatId": { "type": "string" },
+    "beats": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "order",
+          "sceneRole",
+          "narration",
+          "visualArchetype",
+          "shotPlan",
+          "rhythm",
+          "sound"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "order": { "type": "integer", "minimum": 1 },
+          "sceneRole": {
+            "type": "string",
+            "enum": [
+              "hook",
+              "before",
+              "tension",
+              "reveal",
+              "proof",
+              "trust",
+              "hero",
+              "payoff",
+              "cta",
+              "bridge"
+            ]
+          },
+          "viewerQuestion": { "type": "string" },
+          "wiifm": { "type": "string" },
+          "narration": { "type": "string", "minLength": 1 },
+          "onScreen": { "type": "string" },
+          "visualMode": { "type": "string" },
+          "visualArchetype": { "type": "string" },
+          "eyeDirection": {
+            "type": "string",
+            "description": "Where the viewer's eye should go and in what order."
+          },
+          "expectedState": {
+            "type": "string",
+            "description": "What is visibly true on screen at the end of the beat."
+          },
+          "shotPlan": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["framing", "subject", "movement", "focalPoint"],
+            "properties": {
+              "framing": {
+                "type": "string",
+                "enum": ["extreme-wide", "wide", "medium", "close", "insert"]
+              },
+              "subject": { "type": "string" },
+              "movement": {
+                "type": "string",
+                "enum": ["static", "slow-push", "pull-back", "pan", "cut"]
+              },
+              "focalPoint": { "type": "string" }
+            }
+          },
+          "story": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "beforeState": { "type": "string" },
+              "tension": { "type": "string" },
+              "openLoop": { "type": "string" },
+              "payoff": { "type": "string" },
+              "proof": { "type": "string" },
+              "trustMoment": { "type": "string" }
+            }
+          },
+          "rhythm": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["energy", "pauseBefore", "holdAfter", "visualRefreshTarget"],
+            "properties": {
+              "energy": { "type": "number", "minimum": 0, "maximum": 1 },
+              "pauseBefore": { "type": "number", "minimum": 0 },
+              "holdAfter": { "type": "number", "minimum": 0 },
+              "visualRefreshTarget": { "type": "number", "minimum": 0.5 }
+            }
+          },
+          "sound": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["musicCue"],
+            "properties": {
+              "musicCue": {
+                "type": "string",
+                "enum": ["none", "bed", "sting", "silence"]
+              },
+              "sfxCue": {
+                "type": "string",
+                "enum": ["none", "impact-soft", "whoosh", "click", "riser", "accent"]
+              },
+              "silenceOnReveal": { "type": "boolean" },
+              "accentHit": { "type": "boolean" },
+              "transitionAudio": {
+                "type": "string",
+                "enum": ["none", "whoosh", "riser", "silence"]
+              }
+            }
+          },
+          "transition": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["cut", "match-cut", "fade", "hold-then-cut", "whip"]
+              },
+              "semanticReason": { "type": "string" }
+            }
+          },
+          "heroMoment": { "type": "boolean" },
+          "emphasis": { "type": "string" },
+          "durationSeconds": { "type": "number", "minimum": 0.5 },
+          "truth": {
+            "type": "string",
+            "enum": ["FACT", "DRAMATIZED", "COMPOSITE"]
+          }
+        }
+      }
+    }
+  }
+}

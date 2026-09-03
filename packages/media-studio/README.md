@@ -2,14 +2,16 @@
 
 The **public** video/audio/animation plugin. Replaces product-demo-studio as the skill pack agents load.
 
-**Rapid default:** a concept, outline, or bullet list is enough. Writer → director → Local-AI generate → Remotion/FFmpeg/Recast compose. Rapid means infer-and-run, not skip craft.
+**Rapid default:** a concept, outline, or bullet list is enough. Writer → storyboard → visuals → director → Local-AI generate → Remotion/FFmpeg/Recast compose → craft critic → QA. Rapid means infer-and-run, not skip craft.
 
 Live-product screencasts still use the gated Playwright + Recast + four-domain engine that lives in `packages/product-demo-studio` (pipeline, scripts, agents). Those `product-demo*` **skills are retired**; `media-studio` invokes that engine.
 
-**Viewer-facing** jobs apply `skills/media-studio/references/engagement.md` (hook, contrast, pauses, ducked music bed, visual change per idea). **Draft** (`intent: draft`) skips GPU plates (Motif, lipsync, music) and records the skip. Product-screencast craft stays in the PDS killer-demo guide.
+**Viewer-facing** jobs apply `skills/media-studio/references/engagement.md` and `story-craft.md`. The screenplay carries story role, WIIFM, and tension; the storyboard carries shot plan, archetype, and sound. Score < 85 from `media-story-experience-reviewer` does not ship. `intent: draft` skips GPU plates and the critic gate. Product-screencast craft stays in the PDS killer-demo guide.
 
-Version authority: root `plugin.json` (`1.3.1`). Host projections must match.
+Version authority: root `plugin.json` (`1.4.0`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `D:\Local-AI\data\artifacts`). Private show bibles and customer recordings stay outside this repository.
+
+Canonical Remotion kit: `kit/` (scene-archetype library). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.
 
 ## Product-repository boundary
 
@@ -30,12 +32,16 @@ This package is the parent studio. Product Demo Studio remains the product-scree
 | Role | Skill | Owns |
 | --- | --- | --- |
 | Producer | `media-studio` | Classify the job, pick the crew, bounce specialized pipelines |
-| Writer | `media-writer` | Screenplay, narration script, shot list |
-| Director | `media-director` | Visual plan, scene design, pointer/highlight choreography, performance |
+| Writer | `media-writer` | Screenplay, narration, story roles, WIIFM |
+| Storyboard | `media-storyboard` | Timed beats, shot plan, archetypes, scored hooks |
+| Art director | `media-studio-visuals` | Visual bible, B-roll, continuity |
+| Director | `media-director` | Performance, sound, pointer/highlight, archetype mapping |
 | Generate | `media-studio-generate` | Local-AI voice, image, motif, lipsync, portrait, music, STT |
-| Compose | `media-studio-compose` | Remotion, Recast, `Finish-Media.ps1` (two-pass linear loudnorm, duck when a bed exists, AAC 48 kHz) |
+| Compose | `media-studio-compose` | Remotion archetypes, Recast, `Finish-Media.ps1` |
+| Craft critic | `media-story-experience-reviewer` | 0–100 story/experience score; fail below 85 |
+| QA | `media-studio-qa` | Identity, listen, engagement, visual-quality inspect |
 
-Do not vendor Remotion rules. Resolve `video.programmatic-composition` to the official `remotion-dev/skills` pack.
+Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` require Remotion unless the user asked for a draft/basic cut. Do not vendor Remotion rules — resolve `video.programmatic-composition` to official `remotion-dev/skills`.
 
 ## Non-goals
 

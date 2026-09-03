@@ -85,3 +85,8 @@ green without running checks.
   still infers-and-runs; it no longer skips music/pacing/visual change for
   viewer-facing non-screencast kinds. Product-screencast craft stays in the PDS
   killer-demo guide. `intent: draft` remains the GPU skip.
+- 2026-09-02: Media Studio 1.4.0 adds `media-storyboard` and
+  `media-story-experience-reviewer`, richer screenplay/storyboard schemas, a
+  Remotion scene-archetype kit, visual-bible art direction, fail-closed craft
+  score (85), and `Inspect-MediaVisualQuality.ps1`. Remotion is required for
+  viewer-facing briefing/training/explainer/series-episode unless draft.

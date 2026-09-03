@@ -1,6 +1,6 @@
 {
   "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "technical-storytelling",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Reusable technical explanation and visualization planning for demos, series, learning, and docs."
 }

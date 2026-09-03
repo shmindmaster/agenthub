@@ -1315,7 +1315,7 @@
         "technical-explainer",
         "technical-visualizer"
       ],
-      "contentHash": "F2D816497864C176F48C182E85353C9A96DEFF31CA8640E678F86FBB6246583A",
+      "contentHash": "D0D162FC2416037E44E5B5FB8E68AE60A4353B25D2928D248A3A73EFB237C2C3",
       "hashBasis": "packages/technical-storytelling",
       "status": "active-canonical",
       "hostMappings": [
@@ -1386,7 +1386,7 @@
         "privacy-fictionalizer",
         "series-continuity"
       ],
-      "contentHash": "1418ED2628F8809B806639CE91E5A1254ABF64F66ACE38FC351ABF74007BB44C",
+      "contentHash": "0299CFED6C6BC61BD3847074246C164BFC39CBB54A615786D42EF5482A4CF91C",
       "hashBasis": "packages/story-series-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1523,15 +1523,17 @@
       "managedSkillNames": [
         "media-studio",
         "media-writer",
+        "media-storyboard",
         "media-director",
         "media-studio-generate",
         "media-studio-compose",
         "media-studio-capture",
         "media-studio-qa",
         "media-studio-visuals",
+        "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "4152785E651128ED251823D7569F415BEE3C764FDD6874176AAD3274FC8A898E",
+      "contentHash": "984FC87A5B9071D402EC3EF388F475544D26D3CFA1B772F9B73B3E5EB8ED0088",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1620,20 +1622,21 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 1.3.1. Only public video/audio pack. Viewer-facing jobs apply skills/media-studio/references/engagement.md; intent:draft skips GPU plates. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 1.4.0. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents). Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"
         ],
         "recommends": [
           "technical-storytelling",
-          "browser-toolkit"
+          "browser-toolkit",
+          "external:remotion",
+          "external:creative-writing-skills"
         ],
         "optional": [
           "product-demo-studio",
           "story-series-studio",
           "learning-studio",
-          "external:remotion",
           "elevenlabs"
         ]
       },

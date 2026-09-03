@@ -5,46 +5,49 @@ description: Use when a video needs direction, a visual plan, scene design, poin
 
 # Media director
 
-Translate the locked screenplay into what appears and how it is performed. Decide in this turn; do not present a menu of visual styles. You do not capture, generate, or release.
+Translate the locked storyboard into what appears and how it is performed. Decide in this turn; do not present a menu of visual styles. You do not capture, generate, or release.
 
-Load `../media-studio/references/engagement.md` (Director owns) unless kind is `product-screencast` (PDS + Recast).
+Load `../media-studio/references/engagement.md` and `scene-archetypes.md` unless kind is `product-screencast` (PDS + Recast).
 
-Defaults: briefing → motion slides (dark field, one headline, color-coded emphasis, **build in**, hold to speech). Explainer → diagram build or slides. Training → one idea per card. Talking-head → face plate + voice. Only use `screen` when a running product is the claim.
+Requires `storyboard.json` and `visual-bible.json` on viewer-facing jobs. If they are missing, remit to `media-storyboard` / `media-studio-visuals`.
 
-## Visual mode (per scene)
+## 1. Visual choice
 
-Prefer the cheapest truthful visual **that still changes when the idea changes**:
+Prefer the **simplest truthful visual that maintains attention**. A cheaper still that holds across two ideas fails.
 
 | Mode | When |
 | --- | --- |
-| `slide` | Briefing / training argument on type |
-| `screen` | Claim is about a live product — `media-studio-capture` (Playwright + Recast). Do not load retired `product-demo*` skills. |
+| `slide` / archetype kit | Type-led argument — pick an archetype, not "the briefing slide" |
+| `screen` | Claim is about a live product — `media-studio-capture` |
 | `diagram` | Structure or flow (Mermaid/D2/SVG, not diffusion) |
 | `talking-head` | Face must carry the line |
-| `motif` | Generated motion from an enrolled still (problem/outcome B-roll, not product UI) |
+| `motif` / `broll` | Problem, outcome, or context — not product UI |
 | `animation` | Motion itself teaches; Remotion |
 | `narration-only` | A visual would decorate |
 
 A slide or diagram that does not build across the line is a still. Call a build, a cut, Motif, or B-roll rather than holding it for a second idea.
 
-## Pointer, click, highlight
+Do not use the same `visualArchetype` twice in succession unless the storyboard marked the repeat intentional.
 
-For `screen` scenes, specify:
+## 2. Pointer, click, highlight
 
-- target locator / region
-- pointer lead → action → visible feedback → result hold
-- highlight vs zoom (one emphasis, not both unless the hold is the hero)
+For `screen` scenes, specify target, pointer lead → action → visible feedback → result hold. Recast owns cursor, click ripple, punch-in. One emphasis, not zoom plus callout plus color unless the hold is the hero.
 
-Recast (`playwright-recast`) owns cursor approach, click ripple, and punch-in zoom for captured product traces. Do not invent a second overlay stack.
+For type-led scenes, emphasis is type color, Remotion build-in, and hold time, not a fake cursor.
 
-For `slide` scenes, emphasis is type color, Remotion build-in, and hold time, not a fake cursor.
+## 3. Performance and sound
 
-## Performance
+Owner voice: name the style-bank register (`explaining`, `firm`, `serious`, …). Do not write free-text "sound excited" for that speaker.
 
-Owner voice: name the style-bank register (`explaining`, `firm`, `serious`, …) from Local-AI's Sarosh bank. Do not write free-text "sound excited" instructions for that speaker. Role voices may use `--instruction`.
+Honor storyboard `sound` (`musicCue`, `sfxCue`, `silenceOnReveal`, `transitionAudio`). Viewer-facing default is `bed` with `silence` on the hero hold.
 
-Set `musicCue` per scene (`bed` default for viewer-facing non-screencast; `silence` on the hero hold).
+## 4. Output
 
-## Output
+`direction.json` keyed by beat id: visualMode, visualArchetype, on-screen copy, highlight, action, register, duration, sound, pause/hold. Then `media-studio-generate`.
 
-`direction.json` keyed by scene id: visualMode, on-screen copy, highlight, action, register, duration, musicCue, pauseBeforeSeconds, holdAfterSeconds. Then `media-studio-generate`.
+## 5. Final check
+
+- [ ] Archetypes vary; no accidental consecutive repeat
+- [ ] Hero has silence or a ducked rest
+- [ ] Register named per beat
+- [ ] Next skill is `media-studio-generate`

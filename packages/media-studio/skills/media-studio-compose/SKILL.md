@@ -7,26 +7,34 @@ description: Use when assembled video needs FFmpeg, Recast pointer/click finishi
 
 Assemble locked plates, audio, and motion into a candidate in this turn. You do not rewrite the screenplay or waive identity gates.
 
-Load `../media-studio/references/engagement.md` (Generate / compose / QA own) for pause/hold, duck, and build-in.
+Load `../media-studio/references/engagement.md`, `scene-archetypes.md`, and `delivery-profiles.md`.
 
-**Rapid default:** reuse the house briefing kit, do not scaffold a new Remotion app. Honor `pauseBeforeSeconds` / `holdAfterSeconds`. A slide that does not build is unfinished — use Remotion interpolation, not a still held for the whole line.
+**Rapid default:** reuse the house archetype kit, do not scaffold a new Remotion app. Honor `pauseBeforeSeconds` / `holdAfterSeconds`. A slide that does not build is unfinished — use Remotion interpolation, not a still held for the whole line.
 
 Never scaffold or edit a Remotion app, composition, package manifest,
 dependency, asset directory, or render helper in a product repository. Edit the
 shared runtime kit or the external job workspace only. If an official Remotion
 skill defaults to the current repo, point it at the external workspace first.
 
-Kit (runtime, not git): `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`  
-Composition `Briefing`, 1600×1000, 30 fps. Put scene JSON in the job workspace and optional WAV in `public/`.
+## 1. Kit
+
+Canonical source: `packages/media-studio/kit`  
+Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`
+
+Sync `kit/src` into the runtime kit before render if the runtime copy is missing or older. Composition `Briefing` still hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Native frame 1600×1000 30 fps; letterbox or scale to `deliveryProfile`.
 
 ```powershell
+$Hub = if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Repos\shmindmaster\agenthub' }
+pwsh -NoProfile -File (Join-Path $Hub 'packages\media-studio\scripts\Sync-MediaStudioKit.ps1')
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
 ```
 
+Viewer-facing `briefing`, `training`, `explainer`, and `series-episode` **require Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. Do not silently emit static slides.
+
 Load official Remotion skills (`remotion-markup`, `remotion-render`) when editing the kit. FFmpeg mux when the picture is already stills or clips, then finish with the helper below. Recast/Motif only if those plates exist.
 
-## Delivery loudness (required)
+## 2. Delivery loudness (required)
 
 Do not invent an FFmpeg graph. The helper is the provider:
 
@@ -43,22 +51,29 @@ Viewer-facing jobs with a bed **must** finish from stems (`-Speech -Music`) so t
 
 Do not run DeepFilterNet, Resemble Enhance, or Descript Studio Sound on owner voice. Regenerate a bad segment. Captions stay Recast/Remotion from the locked spoken words; this helper does not burn captions.
 
-## Pick a compositor
+## 3. Pick a compositor
 
 | Job | Tool | How |
 | --- | --- | --- |
-| Motion slides, lower-thirds, programmatic UI, briefing boards | Remotion | Official `remotion-dev/skills` — `/remotion-create`, `/remotion-markup`, `/remotion-studio`, `/remotion-render`, `/remotion-captions`. Do not vendor those rules here. |
-| Captured product trace that needs cursor, click ripple, punch-in zoom | Recast (`playwright-recast`) | `media-studio-capture` then this compose step. Do not load retired `product-demo*` skills. |
-| Concat, mux, loudness, caption burn-in, format normalize | FFmpeg via `Finish-Media.ps1` | Two-pass **linear** loudnorm `I=-16:TP=-1.5:LRA=7`. Never one-pass (that mode is dynamic pumping). Music duck required when a bed exists. AAC-LC 48 kHz stereo, Fast Start. |
+| Archetype kit, lower-thirds, programmatic UI, briefing boards | Remotion | Official `remotion-dev/skills`. Do not vendor those rules here. |
+| Captured product trace that needs cursor, click ripple, punch-in zoom | Recast (`playwright-recast`) | `media-studio-capture` then this compose step. |
+| Concat, mux, loudness, caption burn-in, format normalize | FFmpeg via `Finish-Media.ps1` | Two-pass **linear** loudnorm. Music duck required when a bed exists. AAC-LC 48 kHz stereo, Fast Start. |
 | Motif clip + voice | FFmpeg mux | Do not re-generate motion to "fit" duration; trim or hold. |
 
 Remotion 2.0 skills are a **router plus sub-skills**. Load `/remotion-best-practices` only to choose; then the specific skill. Animate with `useCurrentFrame()` / `interpolate()`; CSS/Tailwind animation classes do not render. Assets in `public/` via `staticFile()`. Preview in Studio before render.
 
 Official Remotion skills are installed globally under `~/.agents/skills` and symlinked into Grok. Claude and Codex stay owner-installed (`npx skills add remotion-dev/skills`) — AgentHub must not install them there.
 
-## Delivery
+## 4. Delivery
 
 - Do not overwrite a candidate; new id + checksum each render.
 - Captions from the final spoken wording.
 - Owner-voice programs still need identity score + local `ai.ps1 listen` on the exact encoded file before anyone calls it done.
 - Output stays in the job workspace. Accepted masters may be copied to the owner's Videos tree; never into git.
+
+## 5. Final check
+
+- [ ] Kit synced from `packages/media-studio/kit`
+- [ ] Scenes carry `archetype`; consecutive repeats only if intentional
+- [ ] Bed ducked from stems
+- [ ] Profile frame matches `deliveryProfile`

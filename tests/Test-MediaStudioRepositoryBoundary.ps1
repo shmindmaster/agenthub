@@ -84,8 +84,8 @@ $versions = @(
     '.codex-plugin\plugin.json',
     '.cursor-plugin\plugin.json'
 ) | ForEach-Object { (Get-Content -LiteralPath (Join-Path $media $_) -Raw -Encoding UTF8 | ConvertFrom-Json).version }
-Report 'Media Studio host manifests agree on 1.3.1' (
-    @($versions | Select-Object -Unique).Count -eq 1 -and $versions[0] -eq '1.3.1'
+Report 'Media Studio host manifests agree on 1.4.0' (
+    @($versions | Select-Object -Unique).Count -eq 1 -and $versions[0] -eq '1.4.0'
 ) "manifest versions: $($versions -join ', ')"
 
 # Enforce the boundary against the live product-repository roster as well as

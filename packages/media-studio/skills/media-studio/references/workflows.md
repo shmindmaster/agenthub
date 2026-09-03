@@ -4,14 +4,15 @@ Viewer-facing jobs also load `engagement.md`. Kind rows there are the plate/rhyt
 
 ## briefing
 
-Narrated motion slides. Measured example class: ~24 min, 1600×1000, H.264 + AAC 48 kHz, dark field, yellow headline, color-coded bullets, owner voice, ducked bed. Not a product screencast.
+Designed viewer experiences on the Remotion **archetype** kit, not a stack of dark-field slides. Default profile `briefing-board` 1600×1000. Not a product screencast.
 
-1. Writer locks a screenplay: one idea per scene, hook in 5–8s, spoken words canonical (no phonetic respelling).
-2. Director sets slide layout, emphasis color, Remotion build-in, hold time, `musicCue`. Motion teaches order; decoration is refused.
-3. Generate owner voice through `ai.ps1 voice qwen-clone --voice sarosh`, identity-score, generate the bed unless `intent: draft`, then render the house kit `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit` composition `Briefing` (do not `create-video` a new app).
-4. `Finish-Media.ps1 -Speech -Music` for duck + two-pass linear loudness (−16 LUFS / −1.5 dBTP) and AAC 48 kHz. Recast/Remotion burn captions from the locked spoken words.
+1. Writer locks `screenplay.json` (`story-craft.md`: sceneRole, WIIFM, hook, one hero).
+2. Storyboard locks `storyboard.json` (shot plan, archetype, sound, 2–3 scored hooks — pick internally).
+3. Visuals locks `visual-bible.json`. Director maps archetypes and registers.
+4. Generate owner voice through `ai.ps1 voice qwen-clone --voice sarosh`, identity-score, generate the bed unless `intent: draft`. Render composition `Briefing` from the house kit (do not `create-video` a new app). Sync kit source from `packages/media-studio/kit` first.
+5. `Finish-Media.ps1 -Speech -Music`. Craft critic (score ≥ 85) then QA. Exact logos, numbers, and legal text are compositor-set type, never diffusion.
 
-Exact logos, numbers, and legal text are compositor-set type, never diffusion.
+Remotion is required unless `intent: draft` or the user asked for a basic/proxy cut.
 
 ## training
 
@@ -19,7 +20,7 @@ Same crew, shorter scenes, one learning outcome per clip. Pattern interrupt betw
 
 ## explainer
 
-`technical-explainer` + `technical-visualizer` choose screen vs diagram vs animation vs narration-only. This studio then writes, generates, and composes. Real UI claims still capture through product-demo-studio / Playwright. A diagram that never builds is a still — treat it as unfinished for viewer-facing.
+`technical-explainer` owns comprehension. Wrap it in `story-craft.md` (Question → Stakes → Wrong intuition → Reveal → Demonstration → Implication → Takeaway). `technical-visualizer` picks the simplest truthful visual that maintains attention. Real UI claims still capture through Playwright. A diagram that never builds is unfinished. Remotion required unless draft.
 
 ## talking-head
 
@@ -39,4 +40,4 @@ Do not load retired `product-demo*` skills. Stay in media-studio: `media-studio-
 
 ## series-episode
 
-`story-series` owns methodology. Compose non-screencast picture here. Mix bed and holds in this studio.
+`story-series` owns methodology and continuity. Tension/escalation/reveal craft is `story-craft.md`. Compose non-screencast picture here. Mix bed and holds in this studio. Remotion required unless draft.
