@@ -53,9 +53,13 @@ npx -y @playwright/cli@0.1.17 -s=<task-slug> show --annotate
    <!-- resolution-step: additional-lane -->
 
 `false` and `null` are different findings and neither is a provider: `false` means
-checked and absent, `null` means never established. A surface with no browser at all
-(the Codex CLI and Codex IDE extension are recorded that way, with the vendor sentence
-as evidence) routes to a Playwright lane rather than to nothing.
+checked and absent, `null` means never established. An unlisted surface is `null`,
+not absent. `registry/mcps.json` `hostScopeNote` is MCP deployment eligibility, not
+this matrix. A Chrome or Edge extension present on disk is not
+`browser.authenticated`; that value is true only when this surface records a
+connected session. A surface with no browser at all (the Codex CLI and Codex IDE
+extension are recorded that way, with the vendor sentence as evidence) routes to a
+Playwright lane rather than to nothing.
 
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at

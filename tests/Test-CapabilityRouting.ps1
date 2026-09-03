@@ -312,8 +312,8 @@ function Add-McpProviders {
 # an unroutable requirement: the resolution order runs out of steps and the
 # skill cannot do the thing it says it does anywhere in the fleet. Note that
 # `false` and `null` in the matrix are both non-providers, and deliberately
-# distinct findings -- browser.authenticated is recorded false for claude-cli
-# on this machine (no connected browser), and null where nothing was probed. ---
+# distinct findings -- browser.authenticated is recorded null for claude-cli
+# on this machine (extension installed, connected session not re-measured), and false where a surface was checked and has no browser at all. ---
 function Test-DeclaredCapabilitiesHaveAProvider {
     $providers = @{}
     Add-SurfaceProviders -Providers $providers
@@ -543,9 +543,10 @@ function Test-PostResolutionStepsNameNoSpecificProvider {
 # process spawned per host costs CPU and memory on sessions that never use it.
 #
 # Deliberately NOT tied to a named surface. browser.authenticated is recorded
-# false for claude-cli on measured evidence (no connected browser), and a check
-# that demanded a particular host would fail on a true reading of the fleet. The
-# claim is that the capability is natively reachable SOMEWHERE.
+# null for claude-cli (install is not a connection) and false on surfaces that
+# have no first-party browser, and a check that demanded a particular host
+# would fail on a true reading of the fleet. The claim is that the capability
+# is natively reachable SOMEWHERE.
 #
 # Per-capability, not fleet-wide: a capability that keeps its own surface
 # providers must not be named by a failure about a different one, and only

@@ -288,7 +288,7 @@
         "type": "capability",
         "id": "browser-toolkit"
       },
-      "hostScopeNote": "Only hosts with NO verified native browser, established 2026-08-19 from official docs plus local evidence. Excluded as natively capable: cursor, antigravity, vscode-insiders, cline, qoder, claude, codex, hermes, windsurf, and factory (its first-party droid-control plugin was installed rather than adding a third-party MCP). qwen-code is included despite native computer_use__* tools because those cannot read console or network without an external CDP adapter."
+      "hostScopeNote": "Only hosts with NO verified native browser, established 2026-08-19 from official docs plus local evidence, re-checked 2026-09-02. Excluded as natively capable: cursor (IDE Browser pane; cursor-agent CLI is a different host and is not in this list), antigravity, vscode-insiders, cline, qoder, claude, codex (desktop has Browser; CLI/IDE do not -- Playwright reaches Codex via the browser-toolkit plugin, not this hosts[] list), hermes, windsurf, and factory (droid-control@factory-plugins installed at user scope rather than adding a third-party MCP). Gemini default CLI has no headed browser (web_fetch / google_web_search; optional browser_agent is chrome-devtools-mcp, retired here) so it stays a Playwright host. Warp local sessions have no Computer Use, so Warp stays a Playwright host. qwen-code is included despite native computer_use__* tools because those cannot read console or network without an external CDP adapter. hostSurfaces is the capability matrix; this list is MCP deployment eligibility."
     },
     {
       "id": "descript",

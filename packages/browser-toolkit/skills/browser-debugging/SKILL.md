@@ -51,7 +51,11 @@ signals.
    <!-- resolution-step: additional-lane -->
 
 `false` and `null` are different findings and neither is a provider: `false` means
-checked and absent, `null` means never established. Resolve, do not assume.
+checked and absent, `null` means never established. An unlisted surface is `null`,
+not absent. `registry/mcps.json` `hostScopeNote` is MCP deployment eligibility, not
+this matrix. A Chrome or Edge extension present on disk is not
+`browser.authenticated`; that value is true only when this surface records a
+connected session. Resolve, do not assume.
 
 Native first is not a quality judgement. `registry/mcps.json`, `activationPolicy`
 requires a local server to be started by the capability that needs it rather than at

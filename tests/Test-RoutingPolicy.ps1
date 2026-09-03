@@ -169,7 +169,7 @@ function Test-SectionStatesTheRoutingPrinciple {
 # destination, a product name written here is a routing instruction each of
 # those surfaces would follow into nothing. ---
 $unevidencedClaims = [ordered]@{
-    'Claude in Chrome' = 'browser.authenticated is recorded false for claude-cli in registry/fleet-profile.json -- list_connected_browsers returned an empty array, so the product exists and the capability does not'
+    'Claude in Chrome' = 'browser.authenticated is recorded null for claude-cli in registry/fleet-profile.json -- the Chrome extension is installed on this machine (2026-09-02) but a connected session was not re-measured; install is not a connection, so the product exists and the capability is not established'
     'agent teams'      = 'Claude agent teams are experimental and inert unless CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, which is not set on this machine'
     'Computer Use'     = 'computer use is tier-limited here: browsers are read-only and terminals/IDEs reject typing, so it substitutes for neither a browser nor a shell'
     'macOS'            = 'this fleet runs on Windows 11; one source proposal routed to native macOS applications'
