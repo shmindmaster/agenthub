@@ -1,5 +1,7 @@
 .DS_Store
 *.log
+.env
+.env.*
 !.env.example
 node_modules/
 dist/
@@ -29,4 +31,3 @@ playwright-report/
 # client material and is not repository content.
 evidence-augmentation.json
 evidence-augmentation.md
-config.bat
