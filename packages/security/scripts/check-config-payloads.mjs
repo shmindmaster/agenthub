@@ -4,12 +4,12 @@
 // discovered the obfuscated-loader and campaign-marker signatures below on a
 // real incident. Do not fork a second copy into another repo -- point that
 // repo's pre-push hook at this file instead (see packages/security/README.md).
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { lstatSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const CONFIG_FILE_PATTERN =
-  /(^|[/\\])(?:[A-Za-z0-9_.-]+\.)?(?:config|postcss|tailwind|vite|next|eslint|playwright|vitest|jest|prisma)\.(?:mjs|cjs|js|ts)$/;
+  /(^|[/\\])(?:(?:[A-Za-z0-9_.-]+\.)?(?:config|postcss|tailwind|vite|next|eslint|playwright|vitest|jest|prisma)|\.eslintrc|\.babelrc|\.postcssrc)\.(?:mjs|cjs|js|ts)$/;
 
 // Files this signature applies to: postcss, tailwind, babel and eslint
 // configs specifically -- a createRequire shim is unremarkable in, say,
@@ -100,8 +100,8 @@ function normalized(src) {
   return src.replace(/[\s'"`+]/g, '').toLowerCase();
 }
 
-function shouldSkip(path) {
-  return path
+function shouldSkip(relativePath) {
+  return relativePath
     .split(/[\\/]/)
     .some((part) => SKIP_DIRS.has(part));
 }
@@ -110,19 +110,26 @@ function isConfigFile(path) {
   return CONFIG_FILE_PATTERN.test(path.replace(/\\/g, '/'));
 }
 
-function walk(dir, found = []) {
-  if (!statSync(dir, { throwIfNoEntry: false })) return found;
+function walk(dir, root, found = []) {
+  const rootPrefix = root + (root.endsWith('/') || root.endsWith('\\') ? '' : '/');
 
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
-    if (shouldSkip(full)) continue;
+    const rel = relative(root, full).replace(/\\/g, '/');
+    if (shouldSkip(rel)) continue;
 
     // A file can disappear between readdir and stat (tool caches, editors).
     // A vanished file cannot carry a config payload, so it is not a finding.
-    const stat = statSync(full, { throwIfNoEntry: false });
+    const stat = lstatSync(full, { throwIfNoEntry: false });
     if (!stat) continue;
+
+    // Never follow symbolic links; a directory symlink or junction could
+    // recurse, and a file symlink could smuggle a payload from outside the
+    // scan root.
+    if (stat.isSymbolicLink()) continue;
+
     if (stat.isDirectory()) {
-      walk(full, found);
+      walk(full, root, found);
     } else if (isConfigFile(full)) {
       found.push(full);
     }
@@ -133,9 +140,14 @@ function walk(dir, found = []) {
 
 export function scanConfigPayloads({ root = process.cwd() } = {}) {
   const resolvedRoot = resolve(root);
+  const rootStat = statSync(resolvedRoot, { throwIfNoEntry: false });
+  if (!rootStat || !rootStat.isDirectory()) {
+    throw new Error(`Invalid scan root: '${resolvedRoot}' does not exist or is not a directory`);
+  }
+
   const findings = [];
 
-  for (const file of walk(resolvedRoot)) {
+  for (const file of walk(resolvedRoot, resolvedRoot)) {
     let src;
     try {
       src = readFileSync(file, 'utf8');
@@ -209,7 +221,14 @@ function parseArgs(argv) {
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { root } = parseArgs(process.argv.slice(2));
-  const findings = scanConfigPayloads({ root });
+
+  let findings;
+  try {
+    findings = scanConfigPayloads({ root });
+  } catch (err) {
+    console.error(`Config payload scan aborted: ${err.message}`);
+    process.exit(2);
+  }
 
   if (findings.length > 0) {
     console.error('Config payload scan failed: suspicious obfuscated loader signatures found.');

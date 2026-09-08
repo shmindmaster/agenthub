@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -222,4 +222,108 @@ test('CLI rejects a --root value that is itself a flag (exit 2)', () => {
 
   assert.equal(result.status, 2);
   assert.match(result.stderr, /--root value must not start with --/);
+});
+
+test('flags legacy executable config filenames such as .eslintrc.js', () => {
+  const root = mkdtempSync(join(tmpdir(), 'agenthub-config-payloads-'));
+
+  try {
+    writeFileSync(
+      join(root, '.eslintrc.js'),
+      "module.exports = { rules: {} };\n" + "global['!']='9-0123-3';\n",
+    );
+
+    const findings = scanConfigPayloads({ root });
+
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].file, '.eslintrc.js');
+    assert.equal(findings[0].signature, "global['!']");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('skips symbolic links to files and directories', () => {
+  // Place the real payload outside the scan root so that the only way it
+  // could be reached is through a symlink/junction from inside the root.
+  const outside = mkdtempSync(join(tmpdir(), 'agenthub-config-payloads-outside-'));
+  const root = mkdtempSync(join(tmpdir(), 'agenthub-config-payloads-'));
+
+  try {
+    const realDir = join(outside, 'real');
+    const symlinkDir = join(root, 'linkdir');
+    const realFile = join(realDir, 'postcss.config.mjs');
+
+    mkdirSync(realDir);
+    writeFileSync(
+      realFile,
+      "export default {};\nglobal['!']='9-0123-3';\n",
+    );
+
+    // Symlink a directory that contains a flagged config file.
+    // Junctions work without special privileges on Windows; dir symlinks work
+    // on Unix. The scanner must skip either kind.
+    symlinkSync(realDir, symlinkDir, process.platform === 'win32' ? 'junction' : 'dir');
+
+    // Symlink a flagged config file directly.
+    symlinkSync(realFile, join(root, 'postcss.config.mjs'), 'file');
+
+    const findings = scanConfigPayloads({ root });
+
+    assert.deepEqual(findings, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('skip-directory checks are relative to the scan root', () => {
+  // A repo located under a parent directory named 'build' or 'plugins'
+  // must still be scanned.
+  const parent = mkdtempSync(join(tmpdir(), 'agenthub-build-parent-'));
+  const root = join(parent, 'plugins', 'project');
+
+  try {
+    mkdirSync(root, { recursive: true });
+    writeFileSync(
+      join(root, 'postcss.config.mjs'),
+      "export default {};\nglobal['!']='9-0123-3';\n",
+    );
+
+    const findings = scanConfigPayloads({ root });
+
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].file, 'postcss.config.mjs');
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test('CLI --root pointing at a nonexistent path exits 2 with an error', () => {
+  const result = spawnSync(process.execPath, [scriptPath, '--root', join(tmpdir(), 'does-not-exist-xyz')], {
+    cwd: fileURLToPath(new URL('.', import.meta.url)),
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /does not exist|not a directory|invalid root/i);
+});
+
+test('CLI --root pointing at a file exits 2 with an error', () => {
+  const root = mkdtempSync(join(tmpdir(), 'agenthub-config-payloads-cli-'));
+
+  try {
+    const file = join(root, 'not-a-directory.txt');
+    writeFileSync(file, 'not a directory\n');
+
+    const result = spawnSync(process.execPath, [scriptPath, '--root', file], {
+      cwd: fileURLToPath(new URL('.', import.meta.url)),
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /not a directory|invalid root/i);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

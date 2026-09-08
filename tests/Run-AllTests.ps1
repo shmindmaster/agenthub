@@ -1,8 +1,9 @@
 #Requires -Version 5.1
 <#
-Aggregate test runner for task-6: discovers and runs every tests/Test-*.ps1
-file plus every packages/*/tests/*.ps1 package validator, aggregates their
-results, and exits non-zero if any of them fail.
+Aggregate test runner: discovers and runs every tests/Test-*.ps1 file, every
+packages/*/tests/*.ps1 package validator, and every packages/**/*.test.mjs
+Node test file with node --test. It aggregates their results and exits
+non-zero if any of them fail.
 
 Fails loudly if it discovers zero test files -- a green runner that ran
 nothing is precisely the failure mode this task exists to prevent (this
@@ -11,10 +12,10 @@ project's defining defect, restated one level up).
 Each tests/Test-*.ps1 file follows the accumulate-and-report idiom (ends
 with "RESULT: N passed, M failed" and a matching exit code); each
 packages/*/tests/*.ps1 validator ends with a single PASS: line and exit 0,
-or throws and exits non-zero. Both are run as child processes under THIS
-runner's own host executable, so `pwsh tests/Run-AllTests.ps1` runs every
-test under pwsh and `powershell.exe tests/Run-AllTests.ps1` runs every test
-under powershell.exe.
+or throws and exits non-zero. Node test files are run with `node --test`
+and report an N-passed/M-failed summary on stdout. All are run as child
+processes under the appropriate executable, so `pwsh tests/Run-AllTests.ps1`
+runs PowerShell tests under pwsh and Node tests under node.
 
 Run: pwsh -NoProfile -File tests/Run-AllTests.ps1
      powershell.exe -NoProfile -File tests/Run-AllTests.ps1
@@ -38,14 +39,19 @@ $validatorFiles = @(
         Sort-Object FullName |
         ForEach-Object FullName
 )
-$allFiles = @($testFiles + $validatorFiles)
+$nodeTestFiles = @(
+    Get-ChildItem -LiteralPath $packagesDir -Recurse -File -Filter '*.test.mjs' -ErrorAction SilentlyContinue |
+        Sort-Object FullName |
+        ForEach-Object FullName
+)
+$allFiles = @($testFiles + $validatorFiles + $nodeTestFiles)
 
 if ($allFiles.Count -eq 0) {
-    Write-Host 'FAIL: Run-AllTests.ps1 discovered zero test files under tests/Test-*.ps1 or packages/*/tests/validate-plugin.ps1. A runner that ran nothing is not a passing test suite.' -ForegroundColor Red
+    Write-Host 'FAIL: Run-AllTests.ps1 discovered zero test files under tests/Test-*.ps1, packages/*/tests/validate-plugin.ps1, or packages/**/*.test.mjs. A runner that ran nothing is not a passing test suite.' -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Discovered $($testFiles.Count) test file(s) and $($validatorFiles.Count) package validator(s)."
+Write-Host "Discovered $($testFiles.Count) test file(s), $($validatorFiles.Count) package validator(s), and $($nodeTestFiles.Count) Node test file(s)."
 Write-Host ''
 
 $results = [Collections.Generic.List[object]]::new()
@@ -58,7 +64,11 @@ foreach ($file in $allFiles) {
     $previousEap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        $output = & $hostExe -NoProfile -File $file 2>&1 | Out-String
+        if ($file -like '*.test.mjs') {
+            $output = & node --test $file 2>&1 | Out-String
+        } else {
+            $output = & $hostExe -NoProfile -File $file 2>&1 | Out-String
+        }
     } finally {
         $ErrorActionPreference = $previousEap
     }
@@ -70,6 +80,12 @@ foreach ($file in $allFiles) {
     if ($output -match 'RESULT:\s*(\d+)\s*passed,\s*(\d+)\s*failed') {
         $filePassed = [int]$Matches[1]
         $fileFailed = [int]$Matches[2]
+    } elseif ($output -match 'pass\s+(\d+)') {
+        # Node test runner summary: "pass N" / "fail M".
+        $filePassed = [int]$Matches[1]
+        if ($output -match 'fail\s+(\d+)') {
+            $fileFailed = [int]$Matches[1]
+        }
     } elseif ($exitCode -eq 0) {
         # Package validators (validate-plugin.ps1) report a single PASS: line
         # and exit 0/1 rather than an N-passed/M-failed summary; treat the

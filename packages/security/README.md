@@ -37,31 +37,37 @@ passed.` otherwise. `--root` defaults to the current working directory.
 
 ### Install the pre-push hook in another repo
 
-Either point the target repo at this hook directly:
+Copy or symlink the hook into the target repository's own hooks directory and
+make it executable. This preserves any existing hooks and lets you chain them.
+
+```sh
+hooks_dir="$(git -C <path-to-repo> rev-parse --git-path hooks)"
+cp packages/security/hooks/pre-push "$hooks_dir/pre-push"
+chmod +x "$hooks_dir/pre-push"
+```
+
+If the repository already has a `pre-push` hook, chain the original logic from
+this one. For example, save the existing hook as `pre-push.original` and call
+it at the end of the new `pre-push`:
+
+```sh
+hooks_dir="$(git -C <path-to-repo> rev-parse --git-path hooks)"
+mv "$hooks_dir/pre-push" "$hooks_dir/pre-push.original"
+cp packages/security/hooks/pre-push "$hooks_dir/pre-push"
+chmod +x "$hooks_dir/pre-push"
+# Edit $hooks_dir/pre-push and add the following before the final exit:
+# "$hooks_dir/pre-push.original" "$@"
+```
+
+`core.hooksPath` is an option only for repositories that have **no other
+hooks**, because it replaces the entire `.git/hooks` directory:
 
 ```sh
 git -C <path-to-repo> config core.hooksPath ../agenthub/packages/security/hooks
 ```
 
 (adjust the relative path to wherever your `agenthub` checkout actually sits
-relative to the target repo), or copy the file into the target repo's own
-hooks directory:
-
-```sh
-cp packages/security/hooks/pre-push <path-to-repo>/.git/hooks/pre-push
-chmod +x <path-to-repo>/.git/hooks/pre-push
-```
-
-**Important**: `core.hooksPath` replaces the entire `.git/hooks` directory,
-so any existing pre-push hook will be overridden. To chain an existing hook,
-add a call to the original hook from within this one:
-
-```sh
-# In your local pre-push hook, before the scanner call:
-# .git/hooks/pre-push original content (if any)
-node packages/security/scripts/check-config-payloads.mjs --root "$(git rev-parse --show-toplevel)"
-# then call the original hook logic below
-```
+relative to the target repo).
 
 The hook resolves the scanner relative to the pushing repo's sibling
 `agenthub` checkout first, then falls back to `$AGENTHUB_HOME` if set. If

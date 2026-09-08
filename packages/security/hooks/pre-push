@@ -3,9 +3,12 @@
 # config-payload malware signature (see packages/security/scripts/check-config-payloads.mjs
 # in agenthub, and packages/security/README.md for install/run instructions).
 #
-# Install per repo with either:
-#   git config core.hooksPath <path-to-this-directory>
-# or by copying this file to .git/hooks/pre-push (chmod +x) in the target repo.
+# Install per repo by copying or symlinking this file into the target repo's
+# own hooks directory (git rev-parse --git-path hooks) and chaining any
+# existing pre-push logic. core.hooksPath can be used only when the repo has
+# no other hooks, because it replaces the entire hooks directory.
+
+set -e
 
 repo_root="$(git rev-parse --show-toplevel)"
 scanner="$repo_root/../agenthub/packages/security/scripts/check-config-payloads.mjs"
@@ -26,5 +29,25 @@ if ! command -v node &>/dev/null; then
   exit 1
 fi
 
-node "$scanner" --root "$repo_root"
-exit $?
+# Pre-push receives '<local ref> <local sha> <remote ref> <remote sha>' lines
+# on stdin. Scan the tree of each commit being pushed (not the worktree), so
+# the gate checks exactly what would land on the remote.
+failed=0
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+
+while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+  # Skip deleted refs (local sha is all zeros).
+  if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+    continue
+  fi
+
+  rm -rf "${tmpdir:?}"/*
+  git archive --format=tar "$local_sha" | tar -x -C "$tmpdir"
+
+  if ! node "$scanner" --root "$tmpdir"; then
+    failed=1
+  fi
+done
+
+exit "$failed"
