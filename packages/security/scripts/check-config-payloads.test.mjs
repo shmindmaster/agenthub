@@ -203,3 +203,23 @@ test('CLI defaults to the process working directory when --root is omitted', () 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('CLI rejects --root without a value (exit 2, usage on stderr)', () => {
+  const result = spawnSync(process.execPath, [scriptPath, '--root'], {
+    cwd: fileURLToPath(new URL('.', import.meta.url)),
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /--root requires a value/);
+});
+
+test('CLI rejects a --root value that is itself a flag (exit 2)', () => {
+  const result = spawnSync(process.execPath, [scriptPath, '--root', '--json'], {
+    cwd: fileURLToPath(new URL('.', import.meta.url)),
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /--root value must not start with --/);
+});

@@ -52,6 +52,17 @@ cp packages/security/hooks/pre-push <path-to-repo>/.git/hooks/pre-push
 chmod +x <path-to-repo>/.git/hooks/pre-push
 ```
 
+**Important**: `core.hooksPath` replaces the entire `.git/hooks` directory,
+so any existing pre-push hook will be overridden. To chain an existing hook,
+add a call to the original hook from within this one:
+
+```sh
+# In your local pre-push hook, before the scanner call:
+# .git/hooks/pre-push original content (if any)
+node packages/security/scripts/check-config-payloads.mjs --root "$(git rev-parse --show-toplevel)"
+# then call the original hook logic below
+```
+
 The hook resolves the scanner relative to the pushing repo's sibling
 `agenthub` checkout first, then falls back to `$AGENTHUB_HOME` if set. If
 neither location has the scanner, it warns and lets the push through rather

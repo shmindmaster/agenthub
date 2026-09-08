@@ -113,6 +113,18 @@
       "category": "Productivity"
     },
     {
+      "name": "linkedin",
+      "source": {
+        "source": "local",
+        "path": "./packages/linkedin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "media-studio",
       "source": {
         "source": "local",

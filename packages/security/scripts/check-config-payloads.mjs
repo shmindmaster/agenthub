@@ -136,7 +136,15 @@ export function scanConfigPayloads({ root = process.cwd() } = {}) {
   const findings = [];
 
   for (const file of walk(resolvedRoot)) {
-    const src = readFileSync(file, 'utf8');
+    let src;
+    try {
+      src = readFileSync(file, 'utf8');
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        continue; // file disappeared; skip it, not a finding
+      }
+      throw err; // keep other errors fatal
+    }
 
     for (const signature of MALICIOUS_SIGNATURES) {
       if (!signature.test(src, file)) continue;
@@ -183,7 +191,16 @@ function parseArgs(argv) {
   let root = process.cwd();
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--root') {
-      root = argv[i + 1];
+      if (i + 1 >= argv.length) {
+        console.error('Usage: --root requires a value');
+        process.exit(2);
+      }
+      const value = argv[i + 1];
+      if (value.startsWith('--')) {
+        console.error('Usage: --root value must not start with --');
+        process.exit(2);
+      }
+      root = value;
       i++;
     }
   }
