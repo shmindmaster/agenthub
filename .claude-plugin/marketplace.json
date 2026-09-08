@@ -44,6 +44,10 @@
     {
       "name": "media-studio",
       "source": "./packages/media-studio"
+    },
+    {
+      "name": "linkedin",
+      "source": "./packages/linkedin"
     }
   ]
 }

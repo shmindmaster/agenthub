@@ -10,5 +10,7 @@
     "playwright",
     "visual-testing"
   ],
-  "version": "2.2.1"
+  "version": "2.3.0",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
 }

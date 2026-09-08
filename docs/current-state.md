@@ -17,7 +17,21 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `--caps=devtools`). Native Windows windows and the whole desktop use
   `desktop-evidence` → `packages/browser-toolkit/scripts/Capture-Screen.ps1`
   (FFmpeg `gdigrab`). Files go to `%LOCALAPPDATA%\AgentHub\evidence\<task>\`,
-  never into a git repository. Chrome DevTools MCP stays retired.
+  never into a git repository.
+
+- **Local stdio MCP is plugin-gated (2026-09-07):** Playwright is not persisted
+  in host configs. Live inventory showed six Playwright leaves (~201 MB) plus
+  wrapper trees (~598 MB) at rest. `playwright --extension` and
+  `chrome-devtools --autoConnect` ship only in `browser-toolkit` `.mcp.json`.
+  Enable the plugin when a headed attach is needed; disable it when done.
+  Isolated Chromium-for-Testing is not the fleet MCP default.
+
+- **LinkedIn MCP is plugin-gated (2026-09-07):** `mcp-server-linkedin@4.24.0`
+  via `packages/linkedin`. Not persisted as session-start stdio. Claude/Grok
+  plugins installed-disabled; Codex plugins `enabled = false`; OpenCode writes
+  `mcp.linkedin` / `mcp.playwright` / `mcp.chrome-devtools` with
+  `enabled: false` (opencode.ai/docs/mcp-servers). Skills deploy to
+  `~/.agents/skills`. Enable only for an explicit request.
 
 - **Exa MCP authentication is environment-backed (2026-08-17):** the canonical
   remote server sends `x-api-key` from `EXA_API_KEY`; no key value is stored in

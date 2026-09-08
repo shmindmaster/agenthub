@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "linkedin",
+  "version": "1.0.0",
+  "description": "On-demand LinkedIn MCP (stickerdaniel/mcp-server-linkedin). Plugin-gated; does not run until enabled."
+}

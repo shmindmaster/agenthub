@@ -768,6 +768,7 @@ function Get-CanonicalMcpEntry {
             $entry.command = $Mcp.command
             $entry.args = @($Mcp.args)
             if ($Mcp.env) { $entry.env = ConvertTo-Hashtable $Mcp.env }
+            if ($null -ne $Mcp.startupEnabled) { $entry.enabled = [bool]$Mcp.startupEnabled }
             $entry = Resolve-WindowsHiddenStdioEntry $entry
         }
         'http' {
@@ -2334,7 +2335,10 @@ function ConvertTo-OpenCodeMcpEntry {
         if ($CanonicalEntry.args) { $cmd += @($CanonicalEntry.args) }
         $entry.command = $cmd
         if ($CanonicalEntry.ContainsKey('env')) { $entry.environment = ConvertTo-Hashtable $CanonicalEntry.env }
+        if ($CanonicalEntry.ContainsKey('enabled')) { $entry.enabled = [bool]$CanonicalEntry.enabled }
+        else { $entry.enabled = $true }
     }
+    if ($CanonicalEntry.ContainsKey('enabled')) { $entry.enabled = [bool]$CanonicalEntry.enabled }
     return $entry
 }
 
@@ -2587,6 +2591,10 @@ $onDemandLocalMcpKeys = @($mcpsReg.mcpServers | Where-Object {
 $persistedOnDemandLocalMcpKeys = @($connectorReg.lifecyclePolicy.persistedOnDemandLocalMcpIds | ForEach-Object {
     Resolve-McpAliasKey ([string]$_)
 } | Sort-Object -Unique)
+$optInDisabledLocalMcpKeys = @($connectorReg.lifecyclePolicy.optInDisabledLocalMcpIds | ForEach-Object {
+    Resolve-McpAliasKey ([string]$_)
+} | Sort-Object -Unique)
+$optInDisabledHosts = @($connectorReg.lifecyclePolicy.optInDisabledHosts | ForEach-Object { [string]$_ })
 
 # Servers the host writes and owns itself. They are not fleet-managed and must
 # survive prune: codex regenerates node_repl per session with a content-addressed
@@ -2611,6 +2619,9 @@ $candidateServers = @(($scopedCandidateServers + $persistentExceptionServers) |
         [string]$_.activationMode -ne 'on-demand-local' -or
         (Resolve-McpAliasKey ([string]$_.id)) -in $persistedOnDemandLocalMcpKeys
     })
+$optInExceptionServers = @($mcpsReg.mcpServers | Where-Object {
+    (Resolve-McpAliasKey ([string]$_.id)) -in $optInDisabledLocalMcpKeys
+})
 
 $allMcpEntries = @{}
 $mcpHostAllowlist = @{}
@@ -2640,10 +2651,19 @@ foreach ($agent in $agentsToSync) {
     $hostDrift = @{ host=$agent.id; mcp=@(); files=@(); status='ok' }
     $gatewayPlan = Get-GatewayPlanForHost -HostId $agent.id -GatewayRegistry $gatewayReg -ConnectorRegistry $connectorReg
     $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -HostConfigOverrides $mcpHostConfigOverrides -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan
+    if ($agent.id -in $optInDisabledHosts) {
+        foreach ($optInServer in $optInExceptionServers) {
+            $optId = Resolve-McpAliasKey ([string]$optInServer.id)
+            $hostMcpEntries[$optId] = Get-CanonicalMcpEntry $optInServer
+        }
+    }
     $pluginOwnedKeys = if ($pluginProvidedByHost.ContainsKey($agent.id)) { @($pluginProvidedByHost[$agent.id].Keys) } else { @() }
     # Remove stale local registrations narrowly even without -Prune so an
     # older sync or a broad scope cannot recreate process-fanout entries.
     $nonPersistedOnDemandLocalMcpKeys = @($onDemandLocalMcpKeys | Where-Object { $_ -notin $persistedOnDemandLocalMcpKeys })
+    if ($agent.id -in $optInDisabledHosts) {
+        $nonPersistedOnDemandLocalMcpKeys = @($nonPersistedOnDemandLocalMcpKeys | Where-Object { $_ -notin $optInDisabledLocalMcpKeys })
+    }
     $suppressedKeys = @($pluginOwnedKeys) + @($nonPersistedOnDemandLocalMcpKeys)
     if ($gatewayPlan) { $suppressedKeys += @($gatewayPlan.managedKeys) }
     $suppressedKeys = @($suppressedKeys | Sort-Object -Unique)

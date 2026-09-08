@@ -30,23 +30,24 @@
     "onDemandLocalMcpIds": [
       "appium-mobile",
       "playwright",
-      "repowise-workspace"
+      "repowise-workspace",
+      "chrome-devtools",
+      "linkedin"
     ],
-    "persistedOnDemandLocalMcpIds": [
-      "playwright"
-    ],
+    "persistedOnDemandLocalMcpIds": [],
     "hostConfiguredLocalMcpIds": [
       "node_repl"
     ],
     "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
-    "hostConfiguredLocalFanoutPolicy": "playwright may be registered persistently where no package activation route exists: its eight hosts take raw MCP config only, and it launches no browser until a tool needs one. appium-mobile was removed from persistedOnDemandLocalMcpIds on 2026-08-20. The previous wording said registration was 'lightweight and does not start the VM or emulators'. The second half is true and the first half is false, which is what made the claim survive: the emulators stay down, but the MCP server itself is not free. Measured immediately after a clean reboot with no mobile work running, appium-mobile held 15 live node processes totalling 2,017 MB -- 48 to 239 MB each -- and the count grew from 9 to 15 while the machine was merely being used, because every new host session spawns another. A stdio MCP server declared in a host config is started BY THE HOST when the session starts; there is no lazy path for it, so 'on-demand' is unachievable for a persisted stdio entry and the only real lever is not declaring it until it is needed.",
+    "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright and chrome-devtools ship only in the browser-toolkit plugin .mcp.json; enable the plugin when a headed browser is needed, disable when done. Same gate as appiumActivationRoute for mobile-development.",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
     "onDemandLocalCoverage": {
       "reconciledOn": "2026-08-13",
       "why": "generatedAt is bumped by this reconciliation, so it would otherwise read as a claim that onDemandLocalMcpIds covers every on-demand-local server in registry/mcps.json as of today. It does not. This block is what keeps the bumped date from overclaiming, and it is the record that the gap was seen rather than missed.",
       "added": {
-        "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers."
+        "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers.",
+        "chrome-devtools": "Reinstated 2026-09-07 as on-demand-local attach (--autoConnect) owned by browser-toolkit. Not persisted. Isolated launched-profile mode stays unused because of the shared profile-dir lock."
       },
       "notAdded": {
         "chrome-devtools-isolated": "Registered 2026-08-06 with activationMode on-demand-local. Not added here because whether it is governed as a separate lifecycle id or as part of its chrome-devtools sibling is a decision about how browser-toolkit exposes the pair, and no host exposure list in this file names it at all -- adding it to the lifecycle list alone would record a governance claim the exposures do not back.",
@@ -55,9 +56,19 @@
       },
       "nextStep": "Measure both against the deployed host configurations, then either add them here or record why each is exempt. Until then this list is complete for what it claims and explicitly incomplete for what it does not."
     },
-    "persistedOnDemandLocalMcpIdsNote": "Reviewed exceptions: on-demand-local servers that ARE written into host configs. The default is to omit them, because activationPolicy wants a local server started by the capability that needs it rather than declared everywhere. playwright was added 2026-08-19 with a specific justification: the eight hosts it targets have no native browser and no plugin format that can deliver an MCP for them (amp, copilot, devin, gemini, grok, opencode, qwen-code, warp take raw MCP config), so omitting it would leave them with no browser capability at all. The usual objection to persisting a local server -- a process per host at session start -- does not apply: Playwright does not launch a browser until a tool needs one, and its daemon measured 10-22 MB here against appium's ~93 MB.",
-    "onDemandLocalMcpIdsNote": "Refreshed 2026-08-20. railway left this list when it moved to shared-remote (https://mcp.railway.com); a stdio `railway mcp` entry is a process per host session and is not an AgentHub-managed local server any more. chrome-devtools was replaced by playwright and brave-search was removed earlier. repowise-workspace remains on-demand-local.",
-    "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json."
+    "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local servers into host configs.",
+    "onDemandLocalMcpIdsNote": "Refreshed 2026-09-07. chrome-devtools is live again as an on-demand-local attach server (--autoConnect), delivered only by the browser-toolkit plugin, never persisted. playwright is --extension attach, same plugin gate. repowise-workspace and appium-mobile stay on-demand-local and unpersisted.",
+    "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
+    "browserActivationRoute": "Browser MCP is plugin-gated. On claude: skills first (native pane); enable browser-toolkit@agenthub only when Playwright extension attach or chrome-devtools is required, then claude plugin disable browser-toolkit@agenthub. On codex: codex plugin add browser-toolkit@agenthub and codex plugin remove browser-toolkit@agenthub. On grok: grok plugin install the agenthub browser-toolkit path when needed, grok plugin disable browser-toolkit when done. Do not write playwright or chrome-devtools into host MCP config.",
+    "optInDisabledLocalMcpIds": [
+      "playwright",
+      "chrome-devtools",
+      "linkedin"
+    ],
+    "optInDisabledLocalMcpIdsNote": "On-demand-local stdio servers that hosts with an enabled=false switch may write into config without starting them. OpenCode is the verified writer (opencode.ai/docs/mcp-servers). Claude/Codex/Grok still suppress these from host MCP config and use plugin enable/disable instead. A host without an enabled=false switch must not be added here.",
+    "optInDisabledHosts": [
+      "opencode"
+    ]
   },
   "managedMarketplaces": [
     {
@@ -282,7 +293,10 @@
         "plugin-owned": [
           "descript",
           "linear",
-          "notion"
+          "notion",
+          "playwright",
+          "chrome-devtools",
+          "linkedin"
         ],
         "native-connector": [
           "github"
@@ -312,7 +326,8 @@
         "plugin-owned": [
           "appium-mobile",
           "github",
-          "notion"
+          "notion",
+          "linkedin"
         ],
         "native-connector": [
           "descript"
@@ -355,7 +370,8 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
-          "descript"
+          "descript",
+          "linkedin"
         ],
         "native-connector": [],
         "shared-gateway": [
@@ -386,9 +402,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "playwright"
-        ]
+        "local-only": []
       }
     },
     {
@@ -425,9 +439,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "playwright"
-        ]
+        "local-only": []
       }
     },
     {
@@ -445,9 +457,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "playwright"
-        ]
+        "local-only": []
       }
     },
     {
@@ -469,9 +479,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "playwright"
-        ]
+        "local-only": []
       }
     },
     {
@@ -508,9 +516,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "playwright"
-        ]
+        "local-only": []
       }
     },
     {
@@ -544,7 +550,8 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
-          "descript"
+          "descript",
+          "linkedin"
         ],
         "native-connector": [],
         "shared-gateway": [
@@ -555,9 +562,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "playwright"
-        ]
+        "local-only": []
       }
     },
     {
@@ -575,9 +580,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "playwright"
-        ]
+        "local-only": []
       }
     },
     {
@@ -631,9 +634,7 @@
           "linear",
           "notion"
         ],
-        "local-only": [
-          "playwright"
-        ]
+        "local-only": []
       }
     },
     {

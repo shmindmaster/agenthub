@@ -59,15 +59,15 @@ Do not fork the full schema; keep routing in skills and link upstream.
 
 | Item | Value |
 | --- | --- |
-| Package | `@playwright/mcp@0.0.79` |
-| Browser | Chromium, headed (no `--headless`) |
-| Registry | `registry/mcps.json` id `playwright` |
-| Profile | per-workspace `mcp-{channel}-{workspace-hash}` (not personal Chrome) |
-| Docs | `docs/development/chrome-cdp.md` (migration + owner notes) |
+| Package | `@playwright/mcp@0.0.79 --extension` plus `chrome-devtools-mcp@1.8.0 --autoConnect` |
+| Browser | Owner Chrome/Edge via Playwright Extension / Chrome 144+ remote debugging |
+| Registry | `registry/mcps.json` ids `playwright`, `chrome-devtools` (on-demand-local, not persisted) |
+| Activation | `browser-toolkit` plugin `.mcp.json` only |
+| Docs | `docs/development/chrome-cdp.md` |
 
+**Do not** persist either server in host MCP config.  
 **Do not** put `--remote-debugging-port=9222` on the Default profile TaskBar shortcut (ignored since Chrome 136).  
-**Do not** reinstate Chrome DevTools MCP tool names (`list_pages`, `take_snapshot`, …) against this server.  
-Retired ids `chrome-devtools` / `chrome-devtools-isolated` migrate to `playwright`.
+Playwright MCP tools stay `browser_*`. Chrome DevTools MCP tools stay on the `chrome-devtools` server.
 
 ## Resolution-step markers
 

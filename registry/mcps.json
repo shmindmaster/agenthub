@@ -1,12 +1,11 @@
-﻿{
+{
   "schemaVersion": 6,
   "generatedAt": "2026-08-20T00:00:00.000Z",
   "migrationAliases": {
     "repowise": "repowise-workspace",
-    "chrome-devtools-isolated": "playwright",
-    "chrome-devtools": "playwright"
+    "chrome-devtools-isolated": "chrome-devtools"
   },
-  "migrationAliasesNote": "Maps a key a host config actually carries to the canonical server id. Prune keeps only what the canonical set names after Resolve-McpAliasKey, so an unaliased drifted key is deleted rather than reconciled. Recorded 2026-08-19: .claude/settings.json carried repowise-workspace under the key 'repowise', and migrationAliases was empty, so a prune run would have removed the only working repowise registration on the machine. Verified the canonical args are safe to converge on: 'repowise mcp' defaults to stdio, so the deployed '--transport stdio' is redundant and dropping it changes nothing.",
+  "migrationAliasesNote": "Maps a key a host config actually carries to the canonical server id. Prune keeps only what the canonical set names after Resolve-McpAliasKey, so an unaliased drifted key is deleted rather than reconciled. Recorded 2026-08-19: .claude/settings.json carried repowise-workspace under the key 'repowise', and migrationAliases was empty, so a prune run would have removed the only working repowise registration on the machine. Verified the canonical args are safe to converge on: 'repowise mcp' defaults to stdio, so the deployed '--transport stdio' is redundant and dropping it changes nothing. 2026-09-07: chrome-devtools is a live canonical id again (plugin-gated attach); chrome-devtools-isolated aliases to it. Do not map chrome-devtools to playwright.",
   "activationPolicy": {
     "recordedOn": "2026-08-04",
     "preferenceOrder": [
@@ -244,7 +243,7 @@
     },
     {
       "id": "playwright",
-      "name": "Playwright MCP (headed, per-workspace profile)",
+      "name": "Playwright MCP (extension attach to personal Chrome)",
       "scope": "on-demand-desktop",
       "transport": "stdio",
       "activationMode": "on-demand-local",
@@ -252,8 +251,7 @@
       "args": [
         "-y",
         "@playwright/mcp@0.0.79",
-        "--browser",
-        "chromium"
+        "--extension"
       ],
       "env": {},
       "hosts": [
@@ -266,12 +264,12 @@
         "qwen-code",
         "warp"
       ],
-      "credentialPolicy": "per-workspace-profile-no-personal-session",
+      "credentialPolicy": "personal-chrome-via-playwright-extension",
       "providesCapabilities": [
         "browser.isolated",
         "browser.authenticated"
       ],
-      "providesCapabilitiesNote": "The fleet's browser layer, replacing chrome-devtools on 2026-08-19. Headed by default -- verified the same day by driving it to https://example.com and observing a real window titled 'Example Domain - Google Chrome for Testing', so the owner can watch and take over a run. Chosen over chrome-devtools for one decisive reason: chrome-devtools' persistent profile lives at a single path under $HOME, and Chrome permits one browser per user-data-dir, so fanning it across hosts on this one workstation means the first host to open a browser takes the lock and every other host fails at launch. Playwright partitions its profile as mcp-{channel}-{workspace-hash}, so per-host processes cannot collide. Cost is also far lower than the appium precedent: measured 10-22 MB per daemon here versus appium's ~93 MB per host. Serves browser.isolated natively; browser.authenticated via --storage-state or a signed-in workspace profile, without ever touching the owner's personal Chrome. For parallel or CI runs use --isolated, or one HTTP server (--port) that hosts dial by URL, where each client gets its own context by default.",
+      "providesCapabilitiesNote": "Plugin-gated attach to the owner personal Chrome/Edge via the official Playwright Extension (--extension). Not persisted in host MCP config (2026-09-07). Isolated Chromium-for-Testing launch (--browser chromium) is withdrawn as the fleet default because it cannot reuse logged-in sessions and was spawning a process per host session. browser.isolated for repeatable QA is the Playwright CLI / Test lane. browser.authenticated is the extension attach to the already-signed-in profile.",
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-08-19",
@@ -279,16 +277,115 @@
       },
       "localProcessPolicy": {
         "instancing": "one-process-per-host-session",
-        "declaredByHostCount": 8,
-        "note": "Pinned @playwright/mcp@0.0.79. Unlike a single-shared-process server this is safe per host, because Playwright derives its profile directory from the workspace hash, so two host sessions never contend for one directory. Browsers install to PLAYWRIGHT_BROWSERS_PATH (D:/Local-AI/cache/ms-playwright here), keeping them off C:.",
+        "declaredByHostCount": 0,
+        "note": "Pinned @playwright/mcp@0.0.79 --extension. Not written into host configs. Starts only when browser-toolkit plugin is enabled. Requires Playwright Extension mmlmfjhmonkocbjadbfplnigmagldckm in Chrome/Edge.",
         "versionPinVerifiedOn": "2026-08-19",
-        "launchNote": "Declared as npx for portability, but Sync-AgentHub's Resolve-WindowsHiddenStdioEntry resolves it to the global install and runs %APPDATA%/npm/node_modules/@playwright/mcp/cli.js under node.exe directly, preserving the --browser flag. This corrects an earlier claim that these hosts cold-fetched the package on every session start: the global install already prevented any fetch, so what npx still cost was npm's own CLI bootstrap. Measured 2026-08-20, identical handshake both ways (protocolVersion 2025-11-25, serverInfo Playwright 1.63.0-alpha-2026-08-05): 2.12s to MCP initialize through npx-cli.js against 0.48s launching cli.js directly. That 1.64s was paid once per host session on each of the eight hosts. tests/Test-McpLauncherDirectness.ps1 now asserts that no deployed entry boots npm to reach a package already installed globally; playwright was the last server on the fleet still doing so."
+        "launchNote": "Plugin .mcp.json uses the same npx args. Resolve-WindowsHiddenStdioEntry still rewrites npx to the global cli.js when a host actually starts the plugin MCP."
       },
       "owner": {
         "type": "capability",
         "id": "browser-toolkit"
       },
-      "hostScopeNote": "Only hosts with NO verified native browser, established 2026-08-19 from official docs plus local evidence, re-checked 2026-09-02. Excluded as natively capable: cursor (IDE Browser pane; cursor-agent CLI is a different host and is not in this list), antigravity, vscode-insiders, cline, qoder, claude, codex (desktop has Browser; CLI/IDE do not -- Playwright reaches Codex via the browser-toolkit plugin, not this hosts[] list), hermes, windsurf, and factory (droid-control@factory-plugins installed at user scope rather than adding a third-party MCP). Gemini default CLI has no headed browser (web_fetch / google_web_search; optional browser_agent is chrome-devtools-mcp, retired here) so it stays a Playwright host. Warp local sessions have no Computer Use, so Warp stays a Playwright host. qwen-code is included despite native computer_use__* tools because those cannot read console or network without an external CDP adapter. hostSurfaces is the capability matrix; this list is MCP deployment eligibility."
+      "hostScopeNote": "hosts[] is eligibility for the plugin MCP, not deployment. 2026-09-07: withdrawn from persistedOnDemandLocalMcpIds after live inventory showed session-start fan-out. Native-browser hosts keep using their pane. Enable browser-toolkit when a host with no pane needs headed Chrome.",
+      "startupEnabled": false
+    },
+    {
+      "id": "chrome-devtools",
+      "name": "Chrome DevTools MCP (autoConnect to running Chrome)",
+      "scope": "on-demand-desktop",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.8.0",
+        "--autoConnect",
+        "--no-usage-statistics"
+      ],
+      "env": {},
+      "hosts": [
+        "amp",
+        "copilot",
+        "devin",
+        "gemini",
+        "grok",
+        "opencode",
+        "qwen-code",
+        "warp"
+      ],
+      "credentialPolicy": "personal-chrome-via-autoconnect",
+      "providesCapabilities": [
+        "browser.authenticated",
+        "browser.isolated"
+      ],
+      "providesCapabilitiesNote": "Google chrome-devtools-mcp attach to the running Chrome (Chrome 144+ chrome://inspect remote debugging, then Allow). Plugin-gated, not persisted. --autoConnect does not take the launched-profile lock. Lighthouse, performance traces, heap, and deep network sit beside Playwright --extension rather than replacing it.",
+      "protocol": {
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-09-07",
+        "verification": "stdio initialize against chrome-devtools-mcp@1.8.0 --no-usage-statistics (no --autoConnect) returned protocolVersion 2025-11-25 and serverInfo chrome_devtools 1.8.0. Browser attach is still --autoConnect at tool time."
+      },
+      "localProcessPolicy": {
+        "instancing": "one-process-per-plugin-enable",
+        "declaredByHostCount": 0,
+        "note": "Not persisted. Starts only when browser-toolkit plugin is enabled.",
+        "versionPinVerifiedOn": "2026-09-07"
+      },
+      "owner": {
+        "type": "capability",
+        "id": "browser-toolkit"
+      },
+      "hostScopeNote": "Same eligibility list as playwright. Deployed only via packages/browser-toolkit/.mcp.json.",
+      "startupEnabled": false
+    },
+    {
+      "id": "linkedin",
+      "name": "LinkedIn MCP (mcp-server-linkedin, plugin-gated)",
+      "scope": "on-demand-desktop",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "startupEnabled": false,
+      "command": "uvx",
+      "args": [
+        "mcp-server-linkedin@4.24.0",
+        "--transport",
+        "stdio",
+        "--timeout",
+        "10000",
+        "--tool-timeout",
+        "180"
+      ],
+      "env": {
+        "UV_HTTP_TIMEOUT": "300"
+      },
+      "hosts": [
+        "amp",
+        "claude",
+        "codex",
+        "copilot",
+        "cursor",
+        "devin",
+        "gemini",
+        "grok",
+        "opencode",
+        "qwen-code",
+        "warp"
+      ],
+      "credentialPolicy": "local-linkedin-browser-session",
+      "protocol": {
+        "revision": null,
+        "verifiedOn": "2026-09-07",
+        "verification": "Package mcp-server-linkedin@4.24.0 is on PyPI. stdio initialize requires a LinkedIn browser session and cannot be established non-interactively; left null rather than assumed."
+      },
+      "localProcessPolicy": {
+        "instancing": "one-process-per-plugin-enable",
+        "declaredByHostCount": 0,
+        "note": "Not persisted as a session-start stdio server. Plugin-gated on Claude/Codex/Grok/Cursor. OpenCode writes it with enabled=false (opt-in)."
+      },
+      "owner": {
+        "type": "capability",
+        "id": "linkedin"
+      },
+      "hostScopeNote": "hosts[] is eligibility. Do not persist in host MCP config except OpenCode opt-in-disabled."
     },
     {
       "id": "descript",

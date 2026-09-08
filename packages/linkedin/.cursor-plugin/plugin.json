@@ -1,0 +1,8 @@
+{
+  "name": "linkedin",
+  "version": "1.0.0",
+  "description": "On-demand LinkedIn MCP. Enable the plugin only for an explicit LinkedIn request; disable when done.",
+  "author": {
+    "name": "Sarosh Hussain"
+  }
+}
