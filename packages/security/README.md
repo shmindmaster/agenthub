@@ -41,7 +41,7 @@ Copy or symlink the hook into the target repository's own hooks directory and
 make it executable. This preserves any existing hooks and lets you chain them.
 
 ```sh
-hooks_dir="$(git -C <path-to-repo> rev-parse --git-path hooks)"
+hooks_dir="$(git -C <path-to-repo> rev-parse --path-format=absolute --git-path hooks)"
 cp packages/security/hooks/pre-push "$hooks_dir/pre-push"
 chmod +x "$hooks_dir/pre-push"
 ```
@@ -51,7 +51,7 @@ this one. For example, save the existing hook as `pre-push.original` and call
 it at the end of the new `pre-push`:
 
 ```sh
-hooks_dir="$(git -C <path-to-repo> rev-parse --git-path hooks)"
+hooks_dir="$(git -C <path-to-repo> rev-parse --path-format=absolute --git-path hooks)"
 mv "$hooks_dir/pre-push" "$hooks_dir/pre-push.original"
 cp packages/security/hooks/pre-push "$hooks_dir/pre-push"
 chmod +x "$hooks_dir/pre-push"

@@ -80,10 +80,12 @@ foreach ($file in $allFiles) {
     if ($output -match 'RESULT:\s*(\d+)\s*passed,\s*(\d+)\s*failed') {
         $filePassed = [int]$Matches[1]
         $fileFailed = [int]$Matches[2]
-    } elseif ($output -match 'pass\s+(\d+)') {
-        # Node test runner summary: "pass N" / "fail M".
+    } elseif ($output -match '(?m)^\s*(?:\S{1,4}\s+)?pass\s+(\d+)\s*$') {
+        # Node test runner summary line only ("ℹ pass N" spec reporter or "# pass N"
+        # TAP reporter; the glyph may arrive re-encoded), anchored to the line so a
+        # test name such as "bypass 10" cannot be mistaken for the total.
         $filePassed = [int]$Matches[1]
-        if ($output -match 'fail\s+(\d+)') {
+        if ($output -match '(?m)^\s*(?:\S{1,4}\s+)?fail\s+(\d+)\s*$') {
             $fileFailed = [int]$Matches[1]
         }
     } elseif ($exitCode -eq 0) {
