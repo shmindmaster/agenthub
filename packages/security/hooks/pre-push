@@ -1,0 +1,53 @@
+#!/bin/sh
+# Fleet pre-push gate: refuse to push a config file carrying an obfuscated
+# config-payload malware signature (see packages/security/scripts/check-config-payloads.mjs
+# in agenthub, and packages/security/README.md for install/run instructions).
+#
+# Install per repo by copying or symlinking this file into the target repo's
+# own hooks directory (git rev-parse --git-path hooks) and chaining any
+# existing pre-push logic. core.hooksPath can be used only when the repo has
+# no other hooks, because it replaces the entire hooks directory.
+
+set -e
+
+repo_root="$(git rev-parse --show-toplevel)"
+scanner="$repo_root/../agenthub/packages/security/scripts/check-config-payloads.mjs"
+
+if [ ! -f "$scanner" ]; then
+  if [ -n "$AGENTHUB_HOME" ] && [ -f "$AGENTHUB_HOME/packages/security/scripts/check-config-payloads.mjs" ]; then
+    scanner="$AGENTHUB_HOME/packages/security/scripts/check-config-payloads.mjs"
+  fi
+fi
+
+if [ ! -f "$scanner" ]; then
+  echo "pre-push: config-payload-scanner not found (looked next to '$repo_root' and under \$AGENTHUB_HOME); skipping scan" >&2
+  exit 0
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-push: node is not on PATH; config-payload-scanner cannot run" >&2
+  exit 1
+fi
+
+# Pre-push receives '<local ref> <local sha> <remote ref> <remote sha>' lines
+# on stdin. Scan the tree of each commit being pushed (not the worktree), so
+# the gate checks exactly what would land on the remote.
+failed=0
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+
+while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+  # Skip deleted refs (local sha is all zeros).
+  if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+    continue
+  fi
+
+  rm -rf "${tmpdir:?}"/*
+  git archive --format=tar "$local_sha" | tar -x -C "$tmpdir"
+
+  if ! node "$scanner" --root "$tmpdir"; then
+    failed=1
+  fi
+done
+
+exit "$failed"
