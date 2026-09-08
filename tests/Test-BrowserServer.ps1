@@ -1,22 +1,18 @@
 #Requires -Version 5.1
 <#
-Behavior tests for the fleet's single browser MCP server.
+Behavior tests for fleet browser MCP servers.
 
-History this pins, because both decisions were reversed once already:
-- The registry carried TWO chrome-devtools-mcp entries differing only by profile
-  flag. They could never be merged at runtime -- the package declares
-  conflicts:['isolated','executablePath'] on autoConnect -- so they collapsed to
-  one entry using the default persistent profile (2026-08-19).
-- That entry was then replaced by Playwright MCP the same day. The reason is
-  structural, not preference: chrome-devtools keeps its persistent profile at a
-  single path under $HOME, Chrome permits one browser per user-data-dir, and
-  every host on this workstation shares one $HOME. Fanning it across hosts means
-  the first host to open a browser takes the lock and the rest fail at launch.
-  Playwright derives its profile from the workspace hash, so per-host processes
-  cannot collide.
+2026-09-07: playwright is no longer persisted in host configs. Live inventory
+showed session-start fan-out (six Playwright leaves plus npx/mise wrappers)
+with no lazy path. Both playwright (--extension) and chrome-devtools
+(--autoConnect) are on-demand-local, plugin-gated via browser-toolkit, and
+must not appear in persistedOnDemandLocalMcpIds.
 
-The browser must also stay HEADED. The whole point is that the owner can watch a
-run and take over; --headless silently removes that.
+The launched-profile chrome-devtools lock (one $HOME user-data-dir) still
+forbids persisting a launched Chrome DevTools profile. --autoConnect attach
+does not take that lock.
+
+Neither server may be --headless.
 
 Run: pwsh -NoProfile -File tests/Test-BrowserServer.ps1
 #>
@@ -37,63 +33,62 @@ function Report {
 }
 
 $mcp = Get-Content -LiteralPath $mcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$conn = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\native-connectors.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $browser = @($mcp.mcpServers | Where-Object { ($_.args -join ' ') -match 'playwright/mcp|chrome-devtools-mcp' })
+$ids = @($browser | ForEach-Object { $_.id })
 
-Report 'exactly one browser MCP server is registered' ($browser.Count -eq 1) `
-    "Found $($browser.Count): $(($browser | ForEach-Object { $_.id }) -join ', ')."
+Report 'playwright and chrome-devtools are both registered' `
+    (($ids -contains 'playwright') -and ($ids -contains 'chrome-devtools') -and $browser.Count -eq 2) `
+    "Found $($browser.Count): $($ids -join ', ')."
 
-Report 'the browser-server matcher found a server at all' ($browser.Count -gt 0) `
-    'No registry entry matched a browser MCP package; every check below would be vacuous.'
+$persisted = @($conn.lifecyclePolicy.persistedOnDemandLocalMcpIds)
+Report 'no browser MCP is persisted in host config' `
+    (('playwright' -notin $persisted) -and ('chrome-devtools' -notin $persisted)) `
+    "persistedOnDemandLocalMcpIds still names a browser server: $($persisted -join ', ')."
 
 foreach ($b in $browser) {
     $argLine = ($b.args -join ' ')
-    Report "'$($b.id)' is Playwright, not chrome-devtools" ($argLine -match 'playwright/mcp') `
-        'chrome-devtools cannot be fanned across hosts: one persistent profile dir, one browser at a time, one shared $HOME.'
+    Report "'$($b.id)' is on-demand-local" ([string]$b.activationMode -eq 'on-demand-local') `
+        "activationMode is '$($b.activationMode)'; a persisted stdio browser is session-start fan-out."
     Report "'$($b.id)' runs headed" ($argLine -notmatch '--headless') `
-        'Headless removes the owner-visible window this server was chosen to provide.'
-    Report "'$($b.id)' pins an explicit version" ($argLine -match '@playwright/mcp@\d') `
-        'An unpinned @latest changes tool surface without a recorded protocol re-verification.'
+        'Headless removes the owner-visible window.'
+    Report "'$($b.id)' pins an explicit version" ($argLine -match '@\d') `
+        'An unpinned @latest changes tool surface without a recorded pin.'
 
-    # Scope must exclude hosts with a native browser, or the fleet pays for a
-    # process it never needed. Verified 2026-08-19 from vendor docs plus local
-    # evidence for each host.
     $nativeHosts = @('cursor','antigravity','vscode-insiders','cline','claude','codex','qoder','hermes','windsurf','factory')
     $overlap = @($b.hosts | Where-Object { $_ -in $nativeHosts })
-    Report "'$($b.id)' is not registered to hosts with a native browser" ($overlap.Count -eq 0) `
+    Report "'$($b.id)' eligibility list excludes native-browser hosts" ($overlap.Count -eq 0) `
         "overlaps $($overlap.Count) native-browser host(s): $($overlap -join ', ')."
-
-    Report "'$($b.id)' targets at least one host" (@($b.hosts).Count -gt 0) `
-        'A browser server scoped to nobody provides nothing.'
 }
 
-# A routing skill naming a retired id sends an agent to a server that no longer
-# exists. Documenting the retirement is the opposite, so the carve-out keys off
-# retirement vocabulary on the same line and is deliberately narrow.
-$retirementMarkers = 'retired|migrationAlias|resolves to|replaced'
-$stale = @()
-foreach ($file in Get-ChildItem -LiteralPath $pkgRoot -Recurse -File -Include '*.md', '*.json') {
-    $routing = @(Get-Content -LiteralPath $file.FullName -Encoding UTF8 |
-        Where-Object { $_ -match 'chrome-devtools' -and $_ -notmatch $retirementMarkers })
-    if ($routing.Count -gt 0) { $stale += ('{0} ({1} line(s))' -f $file.FullName.Substring($repoRoot.Length + 1), $routing.Count) }
+$pw = @($browser | Where-Object { $_.id -eq 'playwright' })[0]
+$cd = @($browser | Where-Object { $_.id -eq 'chrome-devtools' })[0]
+if ($pw) {
+    $pwArgs = ($pw.args -join ' ')
+    Report 'playwright attaches via --extension' ($pwArgs -match '--extension') `
+        "args are '$pwArgs'; isolated --browser chromium is the session-start lane that was withdrawn."
 }
-Report 'no browser-toolkit content still routes to the retired chrome-devtools id' ($stale.Count -eq 0) `
-    "$($stale.Count) file(s) still route to chrome-devtools: $($stale -join '; ')"
+if ($cd) {
+    $cdArgs = ($cd.args -join ' ')
+    Report 'chrome-devtools attaches via --autoConnect' ($cdArgs -match '--autoConnect') `
+        "args are '$cdArgs'; launched-profile default reintroduces the user-data-dir lock."
+}
 
-# The retired ids must still RESOLVE, so a host config carrying one is migrated
-# rather than pruned as unknown.
+$pluginMcp = Join-Path $pkgRoot '.mcp.json'
+$pluginText = Get-Content -LiteralPath $pluginMcp -Raw -Encoding UTF8
+Report 'browser-toolkit plugin declares playwright' ($pluginText -match '"playwright"') 'missing playwright in packages/browser-toolkit/.mcp.json'
+Report 'browser-toolkit plugin declares chrome-devtools' ($pluginText -match '"chrome-devtools"') 'missing chrome-devtools in packages/browser-toolkit/.mcp.json'
+Report 'plugin playwright uses --extension' ($pluginText -match '--extension') 'plugin .mcp.json still launches isolated Chromium'
+Report 'plugin chrome-devtools uses --autoConnect' ($pluginText -match '--autoConnect') 'plugin .mcp.json would launch a locked profile'
+
 $aliases = @{}
 if ($mcp.migrationAliases) { foreach ($p in $mcp.migrationAliases.PSObject.Properties) { $aliases[$p.Name] = [string]$p.Value } }
-foreach ($old in @('chrome-devtools', 'chrome-devtools-isolated')) {
-    Report "retired id '$old' resolves to the current browser server" `
-        ($aliases.ContainsKey($old) -and $aliases[$old] -eq 'playwright') `
-        "migrationAliases maps it to '$($aliases[$old])'; without this, prune deletes it from any host config that still carries it."
-}
-
-# The carve-out must not be a blanket pass.
-$probe = 'Use `chrome-devtools` for QA runs.'
-Report 'a live routing line is still caught by the stale-reference check' `
-    ($probe -match 'chrome-devtools' -and $probe -notmatch $retirementMarkers) `
-    'The retirement carve-out swallowed an ordinary routing instruction.'
+Report 'chrome-devtools is a live id, not an alias to playwright' `
+    (-not $aliases.ContainsKey('chrome-devtools')) `
+    "migrationAliases still maps chrome-devtools to '$($aliases['chrome-devtools'])'."
+Report "retired id 'chrome-devtools-isolated' aliases to chrome-devtools" `
+    ($aliases.ContainsKey('chrome-devtools-isolated') -and $aliases['chrome-devtools-isolated'] -eq 'chrome-devtools') `
+    "migrationAliases maps it to '$($aliases['chrome-devtools-isolated'])'."
 
 # Provider catalog must teach the live Microsoft Playwright MCP vocabulary.
 # The 2026-08-19 server swap renamed the skill to use-playwright-mcp while the

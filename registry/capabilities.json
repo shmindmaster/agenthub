@@ -1110,7 +1110,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "3A525719C9DDEBF270E887EBD93EBDAC54FF6113DE616D48D134F465E6050838",
+      "contentHash": "AA03A81BB46556BD505044A671DBE932DF2FADDCAB022A0D9174FAE2C4AB6895",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
@@ -2232,23 +2232,74 @@
       "status": "active-canonical",
       "notes": "Fleet-wide evidence-led long-form authorship standard for articles, proposals, reports, thought leadership, case studies, presentations, speeches, and durable documents under Sarosh's name. Concise interaction and owner audio remain separate capabilities.",
       "hostMappings": [
-        { "hostId": "amp", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "antigravity", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "claude", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "cline", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "codex", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "copilot", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "cursor", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "devin", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "factory", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "gemini", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "grok", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "hermes", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "opencode", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "qoder", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "qwen-code", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "warp", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "windsurf", "deploymentStatus": "managed-loose-skills" }
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
       ]
     },
     {
@@ -2352,7 +2403,114 @@
       "hashBasis": "packages/security",
       "status": "active-canonical",
       "notes": "Ships config-payload-scanner: the fleet-shared obfuscated-config malware detector (packages/security/scripts/check-config-payloads.mjs) and its pre-push hook template (packages/security/hooks/pre-push). Adopted 2026-09-07 from subops/scripts/check-config-payloads.mjs, which is the incident history this tool's signatures come from. Not a per-host skill deployment -- every repo installs the hook per packages/security/README.md and points it at this canonical script rather than forking a copy.",
-      "hostMappings": []
+      "hostMappings": [],
+      "id": "linkedin",
+      "owner": "portfolio",
+      "capabilityType": "plugin+mcp+skills",
+      "canonicalSource": "packages/linkedin",
+      "managedSkillNames": [
+        "linkedin-mcp"
+      ],
+      "contentHash": "38DDB3888A716B86607B269A07B3E97C559AE1B3DCB467600E794DDC7EA9EA2D",
+      "hashBasis": "packages/linkedin",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated and must stay disabled until an explicit LinkedIn request."
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated and must stay disabled until an explicit LinkedIn request."
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated and must stay disabled until an explicit LinkedIn request."
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated and must stay disabled until an explicit LinkedIn request."
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "kind": "provider",
+      "maturity": "stable",
+      "provenance": "third-party-wrapped"
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00.000Z",

@@ -17,7 +17,7 @@
   "interface": {
     "displayName": "Browser Toolkit",
     "shortDescription": "Interactively test and debug real browser workflows.",
-    "longDescription": "Use an isolated headed Chromium session for agent-directed visual testing, interaction, console and network inspection, accessibility checks, and reproducible evidence. Prefer Playwright CLI for compact coding-agent capture; Playwright MCP for exploratory loops; Playwright Test for regressions.",
+    "longDescription": "Attach to the owner's Chrome/Edge via Playwright Extension and Chrome DevTools autoConnect when the plugin is enabled. Prefer Playwright CLI for compact coding-agent capture; Playwright MCP for exploratory loops; Playwright Test for regressions. Do not persist these MCP servers in host config.",
     "developerName": "Sarosh Hussain",
     "category": "Developer Tools",
     "capabilities": [
@@ -30,5 +30,5 @@
       "Check this page visually, semantically, and for accessibility."
     ]
   },
-  "version": "2.2.1"
+  "version": "2.3.0"
 }

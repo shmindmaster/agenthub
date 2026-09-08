@@ -42,43 +42,34 @@ Sibling provider catalogs (other lanes): `use-playwright-cli`,
 
 There is a single MCP id: **`playwright`**. It serves both
 `browser.authenticated` and `browser.isolated` for hosts that lack a native
-browser. Fleet config:
+browser. Fleet config (plugin `.mcp.json` only — not written into host MCP configs):
 
 ```text
-npx -y @playwright/mcp@0.0.79 --browser chromium
+npx -y @playwright/mcp@0.0.79 --extension
 ```
 
-(headed by default — do not add `--headless`).
+Requires the Playwright Extension in Chrome or Edge (id
+`mmlmfjhmonkocbjadbfplnigmagldckm`). It attaches to the owner's already-open
+tabs and logged-in sessions.
 
-Microsoft Playwright MCP partitions its user-data directory as
-`mcp-{channel}-{workspace-hash}` (see `registry/mcps.json`). That is why it can
-run as one process per host session without Chrome's single-profile lock. It is
-**not** the retired chrome-devtools path `$HOME/.cache/chrome-devtools-mcp/chrome-profile`.
+Do **not** add `--headless`. Do **not** persist this server in a host
+`mcpServers` / `mcp_servers` block: a stdio MCP in host config starts at
+session start. Enable `browser-toolkit` when a headed attach is needed;
+disable it when done. Sibling attach server: `chrome-devtools`
+(`chrome-devtools-mcp@1.8.0 --autoConnect`) for Lighthouse, traces, and heap.
 
-- **separate from the owner's personal Chrome** — QA and evidence stay clean
-- **persistent per workspace hash** — cookies can survive a close for that
-  workspace profile, so a signed-in test site is logged into once rather than
-  every session
-- **not shared across unrelated workspaces** — different workspace hashes get
-  different profiles
+Isolated Chromium-for-Testing (`--browser chromium`) is not the fleet MCP
+default. Repeatable clean-profile QA is Playwright CLI / Test.
 
-### Signing in (one time per site per workspace profile)
+### Signing in
 
-The profile starts empty. The first time a task needs a signed-in site, sign in
-inside the automation browser; the session persists for that workspace profile.
-There is no `chrome://inspect` step and no dependency on Chrome 144+
-`--autoConnect`.
+The extension reuses the personal Chrome/Edge profile. SSO and 2FA are already
+there. Do not sign into personal sites inside a separate automation profile.
 
 ### What this deliberately gives up
 
-Attaching to the page the owner is personally looking at right now. That was
-chrome-devtools `--autoConnect`, retired fleet-wide on 2026-08-19. If a task
-genuinely needs a live personal session, use Playwright MCP's extension /
-`--browser-url` attachment deliberately rather than reinstating a second
-registration. Prefer storage-state fixtures for reproducible authenticated runs.
-
-**Concurrency:** Playwright MCP is safe as one process per host session because
-profiles are workspace-partitioned. Do not assume a single shared Chrome lock.
+A clean empty Chromium that is safe to fan out across hosts. Extension attach
+is one personal browser. Enable the plugin for one session that needs it.
 
 ---
 
@@ -173,14 +164,14 @@ Fleet default args do **not** pass extra caps. Session video and traces are the
 Playwright CLI lane (`use-playwright-cli`), not an MCP cap. Do not add
 `--caps=devtools` to `registry/mcps.json` for ordinary evidence work.
 
-Microsoft Playwright MCP does **not** expose Chrome DevTools MCP names such as `list_pages`, `take_snapshot`, `fill_form`, or `lighthouse_audit`. If a task needs Lighthouse or heap-snapshot workflows, use Playwright Trace / CLI / Test lanes or a dedicated audit tool — do not invent DevTools MCP calls against `playwright`.
+Microsoft Playwright MCP does **not** expose Chrome DevTools MCP names such as `list_pages`, `take_snapshot`, `fill_form`, or `lighthouse_audit`. Lighthouse, traces, and heap are the sibling `chrome-devtools` server, not this one.
 
 ---
 
 ## Anti-patterns
 
 - Calling Chrome DevTools MCP tool names against `@playwright/mcp`.
-- Assuming the workspace profile is already signed in. Check, then sign in once.
+- Assuming a clean empty Chromium. This lane is the personal Chrome/Edge profile via `--extension`.
 - TaskBar `--remote-debugging-port=9222` on the **Default** profile (ignored since Chrome 136).
 - Clicking without a fresh `browser_snapshot`.
 - Dumping raw traces or videos into model context; save files under
@@ -191,11 +182,7 @@ Microsoft Playwright MCP does **not** expose Chrome DevTools MCP names such as `
 
 ## Minimal smoke checks
 
-1. `browser_navigate` to a known URL → title/content match.
-2. `browser_tabs` list → only pages this MCP session opened.
-3. `browser_snapshot` → structure matches the page just opened.
-4. No personal cookies or sites appear unless the task navigated there
-   deliberately.
-
-**Signed-in check**, when needed: navigate and confirm login. If not, sign in
-once — the workspace profile persists for later sessions.
+1. Playwright Extension installed and connected; pick the tab when prompted.
+2. `browser_tabs` list → the owner's open tabs, not a blank automation window.
+3. `browser_snapshot` → structure matches the selected tab.
+4. Signed-in sites the owner already uses should already be signed in.
