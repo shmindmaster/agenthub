@@ -7,7 +7,7 @@ description: Use when a media-studio screenplay needs a timed storyboard — sho
 
 Turn the locked screenplay into a designed sequence of viewer experiences. You do not generate media, rewrite claims, or release.
 
-Load `../media-studio/references/engagement.md`, `story-craft.md`, and `scene-archetypes.md` unless kind is `product-screencast` (PDS script-storyboard-generator).
+Load `../media-studio/references/engagement.md`, `story-craft.md`, and `scene-archetypes.md` unless kind is `product-screencast` (PDS script-storyboard-generator). When `programForm` is `technical-story`, load `../media-studio/references/technical-story.md` and lay the beats on its timestamp map (hook → scenario → weird behavior → what is actually happening → code reveal → fix before/after → replay → what this means), whatever the kind.
 
 Handoff: `media-writer` → **this skill** → `media-studio-visuals` → `media-director`.
 
@@ -44,6 +44,7 @@ Rules:
 4. `rhythm.visualRefreshTarget` ≤ 4.5s for type-led beats; B-roll/motif may hold longer if the frame is still moving.
 5. Hero / reveal: `sound.musicCue: silence` or `silenceOnReveal: true`.
 6. `onScreen` ≤ 4 words. Do not duplicate narration.
+7. Technical stories: every code, log, or cross-system beat names its markup in `shotPlan` (`box`, `dim`, `arrow`, `label`, `flow`) and exactly one highlight. A flow beat (`User → Web App → Tool Service → Integration → Zendesk`) precedes the code reveal when systems are crossed. The fix is one before/after beat. Plan a meaningful visual change every 5–15 s, each motivated by the story.
 
 ## 4. Output
 

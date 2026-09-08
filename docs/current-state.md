@@ -4,6 +4,29 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Technical-story format and screencast annotation layer (2026-09-08):**
+  media-studio 1.5.4 adds `references/technical-story.md` (`programForm:
+  technical-story`) — a product or engineering change told as a 5–8 minute
+  mini documentary: hook on the problem, real scenario with synthetic data,
+  the weird behavior, flow overlay, code reveal of the 5–20 lines that matter,
+  before/after, replay, what it means. Writer, storyboard, director, the PDS
+  killer-demo playbook, and `technical-story-director` link to it.
+  `kit/screencast/` carries the compositor (`compose-screencast.mjs` with
+  manifest hints `trimStart`, `trimEnd`, `speed`, `skip`, `fit`, `overlay`),
+  the transparent annotation overlay (`render-overlay.mjs`), code-reveal and
+  card renderers; `Sync-MediaStudioKit.ps1` copies them to the runtime kit,
+  which now declares `playwright`. `media-studio-capture` records the measured
+  Recast limits (`.recast-tmp` collides under concurrent renders; long
+  many-click clips need `autoZoom` off or a split), resolves the browser
+  provider from `hostSurfaces` instead of naming a host tool, and carries the
+  Duckie prod-sim operator note (`references/duckie-prod-sim.md`: sign-in
+  route, Eval Mode egress override, cost, Zendesk sim, Supabase project map —
+  identifiers only). `global-agent-policy.md` now states the delivery rules
+  (`NN - Title.mp4`, series README index, delete superseded outright, no
+  addendum clips) and the status ladder `merged to dev → in main → deployed →
+  production-verified`. PDS 1.8.6, story-series-studio 1.0.4, browser-toolkit
+  2.3.1 for the link and host-neutrality edits.
+
 - **Media-studio delivery finish (2026-08-26):** `Finish-Media.ps1` is the
   compose loudness helper. Two-pass **linear** `loudnorm` to −16 LUFS /
   −1.5 dBTP (Apple Podcasts spoken-word / existing PDS gate). One-pass

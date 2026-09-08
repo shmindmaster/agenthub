@@ -6,7 +6,7 @@ Playwright + Recast + four-domain review engine that media-studio invokes for
 the AgentHub marketplace. The `product-demo*` skill names are fleet-retired;
 their trees live under `pipeline/` so Sync-Capabilities does not deploy them.
 
-Current package release: **1.8.5**. AgentHub is the canonical owner of the versioned product-video
+Current package release: **1.8.6**. AgentHub is the canonical owner of the versioned product-video
 workflow, schemas, generation/review roles, release policy, remediation routing, and deployment
 metadata. Existing product-specific capture/render implementations are migration inputs; new
 production work lives in the external AgentHub workspace and maps evidence into this shared

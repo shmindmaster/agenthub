@@ -26,7 +26,13 @@ $files = @(
     'tsconfig.json',
     'remotion.config.ts',
     'README.md',
-    'scene-archetypes.json'
+    'scene-archetypes.json',
+    'screencast\compose-screencast.mjs',
+    'screencast\render-overlay.mjs',
+    'screencast\render-code.mjs',
+    'screencast\render-html.mjs',
+    'screencast\render-card.mjs',
+    'screencast\README.md'
 )
 foreach ($rel in $files) {
     $from = Join-Path $packageKit $rel

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "product-demo-studio",
-  "capabilityVersion": "1.8.5",
+  "capabilityVersion": "1.8.6",
   "note": "This package is the internal screencast engine invoked by media-studio. It is not a host-installable plugin. Every mapped host is not-applicable for plugin manifests. Review agents stay on disk under agents/ and are deployed as native Codex agents by Sync-Subagents.",
   "verificationVocabulary": {
     "format-verified": "Manifest path and field set read from the host's own current documentation.",

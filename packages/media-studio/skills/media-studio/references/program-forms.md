@@ -46,6 +46,7 @@ Do not invent metrics, customer names, or AI behavior. Unsourced numbers are omi
 | `welcome` | Human welcome + what happens next | 60–90s | `talking-head` |
 | `social-clip` | One striking capability | 15–45s | `teaser` |
 | `sales-enablement` | One objection (security, implementation, ROI) | 1–3 min | `explainer` or `product-screencast` |
+| `technical-story` | What changed → why → where it happens → why it matters; evidence serves the story (`technical-story.md`) | 5–8 min | `product-screencast` (or `explainer` when no product can be shown) |
 
 ## Formulas (do not skip)
 
@@ -54,6 +55,8 @@ Do not invent metrics, customer names, or AI behavior. Unsourced numbers are omi
 **AI-in-action / ai-trust:** show control. Input → draft → review → highlighted concern → human change → save. Instant-perfect-result is a fail.
 
 **Customer-story:** customer speaks → their problem on screen → the workflow → a **sourced** result on type → what that meant. Not a talking-head “we love it.”
+
+**Technical-story:** hook on the problem (not the UI) → real scenario with synthetic data → the weird behavior → what is actually happening (flow overlay) → code reveal, 5–20 lines, one highlight at a time → fix before/after → replay → what this means. Mini technical documentary, not a tutorial. Full rules in `technical-story.md`.
 
 **One promise:** a settings tour is five films, not one 16-minute clip.
 

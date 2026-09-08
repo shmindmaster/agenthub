@@ -11,7 +11,8 @@ Choose capture vs diagram vs animation for a **series** technical beat. You do n
 
 1. `technical-storytelling` (explainer + visualizer) for comprehension.
 2. Media Studio `story-craft.md` for tension / reveal (do not flatten to Core Idea → Takeaway slides).
-3. Then hand the locked explanation to **`media-studio`** kind `series-episode`: writer → `media-storyboard` → visuals → `media-director`.
+3. Media Studio `references/technical-story.md` when the beat is a product or engineering change: hook on the problem, flow overlay, code reveal of the 5–20 lines that matter, before/after, replay, what it means. Its markup rules (box, dim, arrow, label, flow) apply to the series beat too.
+4. Then hand the locked explanation to **`media-studio`** kind `series-episode`: writer → `media-storyboard` → visuals → `media-director`.
 
 Do not jump explainer → Remotion. The storyboard owns shot plan, archetype, and sound.
 

@@ -304,7 +304,7 @@
         "product-demo-studio-descript",
         "product-demo-studio-visual-assets"
       ],
-      "contentHash": "FE1494CB505D9C407F1AB3C409F0DA9B819174E36E16D45590C3EEA01CD166C6",
+      "contentHash": "F18D485FCF7D66DA9D68DDBDEE653B11C6E4B119806037E610CA2F1A7E264F89",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1110,7 +1110,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "AA03A81BB46556BD505044A671DBE932DF2FADDCAB022A0D9174FAE2C4AB6895",
+      "contentHash": "79667ED888D1D6B5E5CD8B888C8E9166F61C69D9FAE452A798D085FA5DEBA5E7",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "hostMappings": [
@@ -1791,7 +1791,7 @@
         "privacy-fictionalizer",
         "series-continuity"
       ],
-      "contentHash": "DC58327E9536A82A191DA5433303EFCA804EBD4B25A63EF88687B6D741154190",
+      "contentHash": "BA6F6D040060465C28F5367057557B9407A8C9FCEFCA7869A135023E34757672",
       "hashBasis": "packages/story-series-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -2024,7 +2024,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "D95B0E7EB5225E9F99E87F1487109EDB9A73CCDE58F06EE1F12438619B776E49",
+      "contentHash": "7324E01A570797F649B46FD0A53969616FA99FB3E362333F6F958346662431A9",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -2114,7 +2114,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 1.5.3. Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents) and is not a marketplace plugin. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 1.5.4 (2026-09-08: technical-story reference, kit/screencast compositor and annotation layer, host-neutral capture provider, Duckie prod-sim operator note). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents) and is not a marketplace plugin. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"
@@ -2516,5 +2516,5 @@
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00.000Z",
-  "lastCanonicalChangeAt": "2026-09-07T00:00:00Z"
+  "lastCanonicalChangeAt": "2026-09-08T00:00:00Z"
 }

@@ -119,6 +119,66 @@ Report 'episode-editor runs the media-studio crew' (
     $editor -match 'media-storyboard' -and $editor -match 'media-studio-generate'
 ) 'episode-editor still composes from the scene plan alone'
 
+# Technical-story format (1.5.4): one reference owns the beat map and markup
+# rules; writer, storyboard, director, the PDS playbook, and the series director
+# all point at it instead of restating it.
+$techStory = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\technical-story.md') -Raw -Encoding UTF8
+Report 'technical-story.md carries the beat map, markup rules, and the guiding principle' (
+    $techStory -match 'Show me what happened' -and
+    $techStory -match '0:00' -and $techStory -match '6:00' -and
+    $techStory -match 'Code reveal' -and $techStory -match 'before/after' -and
+    $techStory -match 'Never make an addendum' -and
+    $techStory -match 'render-overlay\.mjs'
+) 'technical-story.md is missing the owner-directed structure or rules'
+$writer = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-writer\SKILL.md') -Raw -Encoding UTF8
+$board = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-storyboard\SKILL.md') -Raw -Encoding UTF8
+$director = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-director\SKILL.md') -Raw -Encoding UTF8
+$playbook = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\product-demo-studio\pipeline\product-demo-studio\references\killer-demo-playbook.md') -Raw -Encoding UTF8
+Report 'writer, storyboard, director, PDS playbook, and series director link technical-story.md' (
+    $writer -match 'technical-story\.md' -and
+    $board -match 'technical-story\.md' -and
+    $director -match 'technical-story\.md' -and
+    $playbook -match 'technical-story\.md' -and
+    $tsd -match 'technical-story\.md'
+) 'a crew member does not route technical stories to the shared reference'
+
+# Screencast compositor and annotation layer ship with the kit and document
+# every manifest hint the compositor honors.
+$screencastReadme = Get-Content -LiteralPath (Join-Path $pkg 'kit\screencast\README.md') -Raw -Encoding UTF8
+Report 'kit/screencast README documents the manifest hints and overlay spec' (
+    $screencastReadme -match 'trimStart' -and $screencastReadme -match 'trimEnd' -and
+    $screencastReadme -match '`speed`' -and $screencastReadme -match '`skip`' -and
+    $screencastReadme -match 'fitpad' -and $screencastReadme -match '`overlay`' -and
+    $screencastReadme -match '\.recast-tmp'
+) 'screencast README does not document the compositor contract'
+$composeSource = Get-Content -LiteralPath (Join-Path $pkg 'kit\screencast\compose-screencast.mjs') -Raw -Encoding UTF8
+Report 'compose-screencast honors the overlay hint and carries no product-specific strings' (
+    $composeSource -match 'g\.clip\.overlay' -and
+    $composeSource -match "'fitpad'" -and
+    $composeSource -notmatch 'Duckie' -and $composeSource -notmatch 'prod-sim'
+) 'compositor lost the overlay path or still carries a product name'
+$kitPackage = Get-Content -LiteralPath (Join-Path $pkg 'kit\package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+Report 'kit package.json declares playwright for the screencast renderers' (
+    $null -ne $kitPackage.dependencies.playwright
+) 'runtime kit cannot resolve playwright for render-*.mjs'
+$compose = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio-compose\SKILL.md') -Raw -Encoding UTF8
+Report 'compose skill documents the hints and the delivery naming rule' (
+    $compose -match 'fit: cut\|hold\|fit\|fitpad' -and
+    $compose -match 'NN - Title\.mp4' -and
+    $compose -match '_retired'
+) 'compose skill does not carry the compositor contract or delivery rules'
+$capture = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio-capture\SKILL.md') -Raw -Encoding UTF8
+Report 'capture skill resolves the browser provider from hostSurfaces and records the Recast limits' (
+    $capture -match 'hostSurfaces' -and
+    $capture -match '\.recast-tmp' -and $capture -match 'autoZoom' -and
+    $capture -match 'references/duckie-prod-sim\.md'
+) 'capture skill names a host tool or lost the measured Recast notes'
+$duckie = Join-Path $pkg 'skills\media-studio-capture\references\duckie-prod-sim.md'
+Report 'Duckie prod-sim note exists and carries no secret-shaped values' (
+    (Test-Path -LiteralPath $duckie) -and
+    ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -notmatch '(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*\S')
+) 'Duckie operator note missing or carries a credential-shaped line'
+
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed" -ForegroundColor Red
     exit 1

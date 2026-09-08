@@ -11,6 +11,12 @@ For orchestration, `policy/product-video-policy.json` is authoritative: the guid
 human script/final-watch checkpoints are replaced by automated validation, independent review,
 iterative remediation, and terminal verification. The first human touchpoint is final presentation.
 
+When the subject is a product or engineering **change** told as a story (a fix, an incident, a new
+capability — `programForm: technical-story`), the story shape and markup rules come from Media Studio's
+`packages/media-studio/skills/media-studio/references/technical-story.md`: 5–8 minutes, hook on the
+problem, flow overlay, code reveal of the 5–20 lines that matter, before/after, replay, what it means.
+This guide still owns demo-worthiness, capture, and the release gates for that film.
+
 Before production, configure the output root, in-repo working directory, seed/reset environment,
 brand tokens, approved voice profile, and optional issue tracker. Pick the demo type
 (`sizzle-hook`, `guided-discovery-support`, `onboarding-enablement`, or `internal-handoff`) and

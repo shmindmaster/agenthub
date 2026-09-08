@@ -56,7 +56,7 @@ $Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Re
 ## 1. Rapid path
 
 1. Infer **`programForm`** then **kind** from `references/program-forms.md`. Create `job.json` in the external workspace and validate that the workspace is outside any source repository. Default `intent: viewer-facing` unless the user asked for a scratch, proxy, or timing pass (`draft`). Set `deliveryProfile` from `references/delivery-profiles.md`. `craftScoreMin` defaults to 85. One promise per film. Recuts of a locked master set `sourceJobId`.
-2. Defaults: owner/internal voice `sarosh`; briefing-board 1600×1000 30 fps; duration ~150 wpm (slower for `documentary` / `ai-trust`). Viewer-facing jobs load `references/engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md` before the writer. Product screencasts use the PDS killer-demo guide plus outcome-first rules in `program-forms.md`.
+2. Defaults: owner/internal voice `sarosh`; briefing-board 1600×1000 30 fps; duration ~150 wpm (slower for `documentary` / `ai-trust`). Viewer-facing jobs load `references/engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md` before the writer. Product screencasts use the PDS killer-demo guide plus outcome-first rules in `program-forms.md`. A product or engineering **change** told as a story (a fix, an incident, a new capability) is `programForm: technical-story`: load `references/technical-story.md` — 5–8 minutes, hook on the problem, flow overlay, code reveal of the 5–20 lines that matter, before/after, replay, what it means.
 3. `media-writer` → locked screenplay (`hook`, `sceneRole`, `wiifm`, one hero).
 4. `media-storyboard` → timed beats, scored hook (pick internally), archetypes. Then `media-studio-visuals` → `visual-bible.json`.
 5. `media-director` → archetype, register, `sound`. `screen` only for a running product.
@@ -111,6 +111,9 @@ the repo.
 - Remotion missing for viewer-facing briefing/training/explainer/series-episode/webcast/webinar/keynote/documentary/teaser (unless draft).
 - Feature-tour opening or a settings walkthrough posing as a demo.
 - Story-experience score below 85.
+- An addendum or correction clip. Re-record the affected section and re-cut the master.
+
+Delivery: file names are `NN - Title.mp4` with no product prefix; a delivered series has a `README.md` index; superseded masters and reproducible intermediates are deleted outright, never parked in `_retired` / `_old` folders. Status claims name where the film actually is: merged to dev → in main → deployed → production-verified.
 
 ## 5. Final check
 

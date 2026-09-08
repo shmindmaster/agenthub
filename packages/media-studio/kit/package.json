@@ -1,11 +1,12 @@
 {
   "name": "briefing-kit",
-  "version": "1.5.1",
-  "description": "Media Studio scene-archetype Remotion kit",
+  "version": "1.5.4",
+  "description": "Media Studio scene-archetype Remotion kit plus the screencast compositor and annotation layer",
   "repository": {},
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
+    "playwright": "1.63.0",
     "@remotion/cli": "4.0.517",
     "react": "19.2.3",
     "react-dom": "19.2.3",

@@ -33,6 +33,14 @@ npx -y @playwright/cli@0.1.17
 
 ## When to use this lane
 
+This lane is the **host-neutral** one. Hosts differ in which browser tools they
+expose (an in-app browser pane, a browser extension, a host-specific browser
+MCP, or none at all); those are resolved from `registry/fleet-profile.json`
+`hostSurfaces` by the routing skills above. The CLI is the same command on
+every host, so it is the deterministic capture path `media-studio-capture`
+uses from the external job workspace, and the path to write into any storyboard
+or manifest that another host must be able to reproduce.
+
 Prefer **Playwright CLI + skills** when:
 
 - the agent is primarily a **coding agent** balancing browser work with a large

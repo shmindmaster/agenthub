@@ -7,7 +7,7 @@ description: Use when a video needs direction, a visual plan, scene design, poin
 
 Translate the locked storyboard into what appears and how it is performed. Decide in this turn; do not present a menu of visual styles. You do not capture, generate, or release.
 
-Load `../media-studio/references/engagement.md` and `scene-archetypes.md` unless kind is `product-screencast` (PDS + Recast).
+Load `../media-studio/references/engagement.md` and `scene-archetypes.md` unless kind is `product-screencast` (PDS + Recast). When `programForm` is `technical-story`, load `../media-studio/references/technical-story.md`: the markup rules there are yours to direct per beat.
 
 Requires `storyboard.json` and `visual-bible.json` on viewer-facing jobs. If they are missing, remit to `media-storyboard` / `media-studio-visuals`.
 
@@ -34,6 +34,8 @@ Do not use the same `visualArchetype` twice in succession unless the storyboard 
 For `screen` scenes, specify target, pointer lead → action → visible feedback → result hold. Recast owns cursor, click ripple, punch-in. One emphasis, not zoom plus callout plus color unless the hold is the hero.
 
 For type-led scenes, emphasis is type color, Remotion build-in, and hold time, not a fake cursor.
+
+Technical stories mark up aggressively, on top of Recast: box the element that matters, dim the rest, arrow cause → effect, zoom, and label with the story vocabulary (`User action`, `Webhook`, `DB write`, `Async job`). When the beat crosses systems, put a tiny flow diagram on screen before the code. Write each beat's overlay spec (`boxes`, `arrows`, `notes`, `dim`) into `direction.json`; `media-studio-compose` renders it with `kit/screencast/render-overlay.mjs` and applies it through the manifest `overlay` hint. Code reveals are `render-code.mjs` cards: the 5–20 lines that matter, one highlight band per card, the commit named. Every visual change is motivated by the story; never add one to fill a quiet stretch.
 
 ## 3. Performance and sound
 

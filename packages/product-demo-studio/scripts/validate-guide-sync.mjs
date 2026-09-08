@@ -19,8 +19,8 @@ for (const [path, expectedHash] of expected) {
 }
 
 const identity = JSON.parse(await readFile(new URL("plugin.json", root), "utf8"));
-if (identity.version !== "1.8.5") {
-  failures.push("Engine identity plugin.json must be version 1.8.5.");
+if (identity.version !== "1.8.6") {
+  failures.push("Engine identity plugin.json must be version 1.8.6.");
 }
 const visualSkill = await readFile(new URL("pipeline/product-demo-studio-visual-assets/SKILL.md", root), "utf8");
 if (!visualSkill.includes("name: product-demo-studio-visual-assets")) {

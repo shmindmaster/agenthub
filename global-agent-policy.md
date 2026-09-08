@@ -19,6 +19,7 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Ask before destructive, production-affecting, externally communicating, credential-changing, or scope-expanding operations unless the task explicitly authorizes them.
 - Prefer root-cause fixes and repository-native commands. Run focused verification first and broader verification when shared contracts are affected.
 - Keep proposed, implemented, tested, committed, reviewed, merged, deployed, production-verified, and user-validated states distinct.
+- Every status claim names where the change actually is on the ladder `merged to dev → in main → deployed → production-verified`. "Done", "shipped", or "live" without the rung is not a status.
 - Use isolated worktrees only when parallel write isolation or repository policy requires them. The sole-approved-root rule and helper invocation below are load-bearing; consult them before creating or removing one.
 - `C:\wt\<repo>\<task>` is the sole approved user-created worktree root. Use a documented native root control only when it resolves to `C:\wt`. Otherwise, do not invoke the host's native worktree command, flag, isolation mode, or UI; run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\SaroshHussain\AppData\Local\AgentHub\bin\New-AgentHubWorktree.ps1" -Cwd <repository-path> -Name <task-slug>` or use manual Git under `C:\wt`. The helper consumes the AgentHub-managed `AGENTHUB_WORKTREE_ROOT`, defaults it to `C:\wt`, and rejects every other resolved root.
 
@@ -66,6 +67,8 @@ Before any Sarosh voice clone, owner TTS, narration, or voice-over render, load 
 - A product repository is read-only input to every video, audio, animation, capture, and media-review workflow. Media agents must not create or modify source code, tests, Playwright specs, Remotion compositions, dependencies, configuration, seed fixtures, assets, manifests, evidence, generated media, or Git state in the product repository.
 - Put the complete production workspace under `%LOCALAPPDATA%\AgentHub\media-studio` or the declared `D:\Local-AI\data\artifacts` root. A legacy product-video config may be read from a repository, but it must never be created or updated there; copy or translate it into the external job workspace.
 - A media finding that requires a product change produces Product-Readiness Feedback. Product remediation is a separate, explicitly authorized engineering task with its own scope and verification; never perform it as a media-pipeline stage.
+- Delivered video files are named `NN - Title.mp4` with no product prefix, and a delivered series carries a `README.md` index in its folder. When a master is superseded, delete it and every reproducible intermediate outright; do not create `_retired`, `_old`, or archive folders. A wrong section is re-recorded and the master re-cut; never deliver an addendum clip.
+- A product or engineering change told on video is a technical story: `media-studio` `references/technical-story.md` owns the shape (show what happened, explain why, show where, say why it matters).
 
 ## Provider availability
 
