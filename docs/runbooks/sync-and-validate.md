@@ -26,6 +26,14 @@ pwsh -NoProfile -File .\scripts\Sync-Capabilities.ps1 -Apply
 `-Apply` refuses to run if validation fails. Deployments write only to
 documented host user-level config locations; they never carry credentials.
 
+`Sync-Capabilities.ps1 -Apply` also quotes unmanaged `SKILL.md` frontmatter
+in `~/.agents/skills` that strict YAML parsers (Zed) reject. Standalone:
+
+```powershell
+pwsh -NoProfile -File .\scripts\Repair-SkillFrontmatterYaml.ps1          # audit
+pwsh -NoProfile -File .\scripts\Repair-SkillFrontmatterYaml.ps1 -Apply   # quote
+```
+
 ## Fleet repository-standard sweep
 
 ```powershell

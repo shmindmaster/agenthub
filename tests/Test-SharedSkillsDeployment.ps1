@@ -306,6 +306,56 @@ Report 'a host with no sharedSkillsDir declared still gets its own dedicated per
 $r3 = Test-PruneNeverTouchesUnmanagedPathInSharedDir
 Report '-Prune never touches an unmanaged sibling path inside a now-shared, multi-tenant directory' $r3.Passed $r3.Detail
 
+# Unmanaged siblings are not in the ledger, so deploy/prune never rewrite
+# them. Zed still loads every SKILL.md in the shared library. An unquoted
+# ": " in a third-party description (Railway use-railway) is invalid YAML
+# and must be quoted in place without becoming a managed skill.
+function Test-ApplyQuotesUnmanagedUnsafeFrontmatter {
+    $sharedDir = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-sharedskills-yaml-" + [guid]::NewGuid())
+    $hostA = @{ Id = 'zz-yaml-hosta'; SkillsDir = (Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-sharedskills-yha-" + [guid]::NewGuid())); SharedSkillsDir = $sharedDir }
+    $fixture = New-SharedSkillsFixture -CapabilityId 'zz-yaml-cap' -SkillName 'sample-skill' -SkillContent "---`nname: sample-skill`ndescription: Use when testing YAML repair`n---`n`nbody`n" -HostDescriptors @($hostA)
+    try {
+        $first = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($first.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "first -Apply exit code was $($first.ExitCode). Output: $($first.Output)" }
+        }
+        $effectiveSharedDir = $fixture.Hosts['zz-yaml-hosta'].SharedSkillsDir
+        $alienDir = Join-Path $effectiveSharedDir 'use-railway'
+        New-Item -ItemType Directory -Path $alienDir -Force | Out-Null
+        $alienFile = Join-Path $alienDir 'SKILL.md'
+        $unsafe = "---`nname: use-railway`ndescription: Use when working with Railway infrastructure: signing up.`n---`n`n# Use Railway`n"
+        [IO.File]::WriteAllText($alienFile, $unsafe, [Text.UTF8Encoding]::new($false))
+
+        $second = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($second.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "second -Apply exit code was $($second.ExitCode). Output: $($second.Output)" }
+        }
+        $after = [IO.File]::ReadAllText($alienFile)
+        $quoted = $after -match '(?m)^description: "Use when working with Railway infrastructure: signing up."\r?$'
+        $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $alienInLedger = $false
+        foreach ($prop in @($state.managed.PSObject.Properties)) {
+            if ($prop.Name -like '*use-railway*') { $alienInLedger = $true }
+        }
+        if (-not $quoted) {
+            return @{ Passed = $false; Detail = "unmanaged use-railway frontmatter was not quoted. Content:`n$after`nOutput: $($second.Output)" }
+        }
+        if ($alienInLedger) {
+            return @{ Passed = $false; Detail = 'quoting the unmanaged skill recorded it in managed-skills.json; YAML repair must not take ownership.' }
+        }
+        if ($second.Output -notmatch 'yaml-repaired=1') {
+            return @{ Passed = $false; Detail = "PASS line did not report yaml-repaired=1. Output: $($second.Output)" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SharedSkillsFixture -Fixture $fixture
+    }
+}
+
+$r4 = Test-ApplyQuotesUnmanagedUnsafeFrontmatter
+Report '-Apply quotes unmanaged unsafe YAML frontmatter in the shared library without taking ownership' $r4.Passed $r4.Detail
+
 # --- live end-state check, added 2026-08-20 -------------------------------
 # The three fixture tests above prove the COLLAPSE works. They cannot see the
 # residue it leaves behind: when a host that already had its own per-host copy

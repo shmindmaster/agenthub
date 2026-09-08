@@ -244,6 +244,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   reason, or if a tracked extension is ever republished from AgentHub's own
   marketplace. `hostPrivateExtensionPolicy` withholds install authority for
   claude and codex.
+- **Shared-library YAML safety (2026-09-08):** Zed loads `~/.agents/skills`
+  and refuses a skill whose frontmatter is invalid YAML (`Invalid YAML
+  frontmatter`). Railway's `use-railway` (installed by `railway setup agent`,
+  not AgentHub-owned) shipped an unquoted `description` containing `: `,
+  which is the only SKILL.md in that library that failed a YAML parse.
+  AgentHub still does not re-vendor the skill. `scripts/SkillFrontmatterYaml.ps1`
+  quotes unsafe unmanaged frontmatter in the shared library on
+  `Sync-Capabilities.ps1 -Apply`; `tests/Test-SkillAuthoringStandard.ps1`
+  forbids the same shape in AgentHub-owned skills.
 - **Capability bundles (2026-08-21)**: `registry/bundles.json` names recipes such
   as `technical-series-production` and `engaging-learning` that compose AgentHub
   packages with tracked third-party extensions. Bundles are install-planning

@@ -6,6 +6,7 @@ against docs/development/skill-authoring-standard.md.
 Hard failures (fail the run):
   - frontmatter `name` must equal the skill's own directory name
   - frontmatter `description` must start with "Use when"
+  - frontmatter values must be YAML-safe (no unquoted `: `)
 
 Reported only (never fails the run):
   - skills with no numbered sections (`## N. ...`) -- older skills predate
@@ -37,6 +38,7 @@ if ($skillFiles.Count -eq 0) {
 
 $nameMismatches = [Collections.Generic.List[string]]::new()
 $descriptionFailures = [Collections.Generic.List[string]]::new()
+$yamlUnsafe = [Collections.Generic.List[string]]::new()
 $noNumberedSections = [Collections.Generic.List[string]]::new()
 
 foreach ($file in $skillFiles) {
@@ -57,6 +59,19 @@ foreach ($file in $skillFiles) {
     $descMatch = [regex]::Match($content, '(?m)^description:\s*(.*)$')
     if (-not $descMatch.Success -or $descMatch.Groups[1].Value -notmatch '^\s*Use when\b') {
         $descriptionFailures.Add($relativePath)
+    }
+
+    $fmMatch = [regex]::Match($content, '(?s)\A---\r?\n(?<yaml>.*?)\r?\n---')
+    if ($fmMatch.Success) {
+        foreach ($line in ($fmMatch.Groups['yaml'].Value -split '\r?\n')) {
+            if ($line -match '^(?<k>[A-Za-z0-9][A-Za-z0-9_-]*):\s+(?<v>.*)$') {
+                $v = $Matches['v']
+                $alreadyQuoted = $v.TrimStart() -match '^["''>|\[{]'
+                if (-not $alreadyQuoted -and $v -match ': ') {
+                    $yamlUnsafe.Add("$relativePath ($($Matches['k']))")
+                }
+            }
+        }
     }
 
     if ($content -notmatch '(?m)^#{1,2}\s*\d+[.)]\s') {
@@ -83,6 +98,14 @@ if ($descriptionFailures.Count -gt 0) {
     $descriptionFailures | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
 } else {
     Write-Host "PASS: every skill's description starts with 'Use when'" -ForegroundColor Green
+}
+
+if ($yamlUnsafe.Count -gt 0) {
+    $hardFailed = $true
+    Write-Host "FAIL: unquoted frontmatter value contains ': ' ($($yamlUnsafe.Count)):" -ForegroundColor Red
+    $yamlUnsafe | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+} else {
+    Write-Host "PASS: every skill's frontmatter is YAML-safe (no unquoted ': ')" -ForegroundColor Green
 }
 
 Write-Host ''

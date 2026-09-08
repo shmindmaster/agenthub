@@ -13,6 +13,12 @@ that an agent can trust the shape of one it has never read before.
   triggers — task shapes, file types, or keywords an agent would actually
   see — not a vague category. `Use when reviewing a Supabase migration` beats
   `Use for database work`.
+- Frontmatter must be valid YAML. Unquoted scalars must not contain `: `
+  (colon followed by a space): Zed and other libyaml hosts reject that as
+  `mapping values are not allowed in this context` and refuse to load the
+  skill. Quote the `description` (or any other value) when it contains that
+  sequence. Host-specific keys such as `allowed-tools` are allowed when they
+  remain valid YAML.
 
 ## 2. Structure
 

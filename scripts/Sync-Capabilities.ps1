@@ -20,6 +20,10 @@ $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
 # RegistryContentHash.ps1 defines functions only -- no top-level side effects
 # -- which is why scripts/Validate-AgentHub.ps1 loads it the same way.
 . (Join-Path $PSScriptRoot 'RegistryContentHash.ps1')
+# Quotes unmanaged SKILL.md frontmatter that strict YAML parsers (Zed) reject.
+# Functions only; the pass runs after deploy/prune so it never rewrites a
+# destination this script is about to delete.
+. (Join-Path $PSScriptRoot 'SkillFrontmatterYaml.ps1')
 
 # -UserProfile has to actually move where this script writes, or it is a
 # safety promise the script does not keep. Registry skillsDir values are
@@ -337,6 +341,8 @@ if ($Apply -and $Prune) {
 }
 
 $pruned = 0
+$yamlRepaired = 0
+$yamlNeedsRepair = 0
 if ($Apply -and $Prune) {
   foreach ($destination in @($prior.managed.Keys)) {
     if ($desired.ContainsKey($destination) -or -not (Test-Path -LiteralPath $destination)) { continue }
@@ -349,6 +355,36 @@ if ($Apply -and $Prune) {
     }
     Remove-Item -LiteralPath $destination -Recurse -Force
     $pruned++
+  }
+}
+
+# Unmanaged siblings in the shared skills library (Railway's use-railway is
+# the worked example) are not in $desired, so deploy and prune never touch
+# them. Zed still loads every SKILL.md there and fails the whole skill on
+# invalid YAML. Quote unsafe unmanaged frontmatter in place; skip managed
+# destinations so this pass cannot create hash churn against canonical
+# sources. AgentHub-owned skills must be YAML-safe at source.
+$sharedRoots = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+foreach ($agent in $agents) {
+  $raw = [string]$agent.nativePaths.sharedSkillsDir
+  if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+  $dir = Resolve-UnderUserProfile $raw
+  if ([string]::IsNullOrWhiteSpace($dir)) { continue }
+  [void]$sharedRoots.Add($dir)
+}
+foreach ($dir in $sharedRoots) {
+  if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
+  $yamlResult = Repair-SkillFrontmatterYamlDirectory -SkillsRoot $dir -Apply:$Apply -SkipPaths @($desired.Keys)
+  if ($Apply) {
+    $yamlRepaired += $yamlResult.Repaired
+    foreach ($path in @($yamlResult.NeedsRepair)) {
+      Write-Host "YAML-repaired unmanaged skill frontmatter: $path"
+    }
+  } else {
+    $yamlNeedsRepair += @($yamlResult.NeedsRepair).Count
+    foreach ($path in @($yamlResult.NeedsRepair)) {
+      Write-Host "YAML-needs-repair unmanaged skill frontmatter: $path"
+    }
   }
 }
 
@@ -417,4 +453,4 @@ if ($rows.Count -eq 0 -and $pruned -eq 0) {
 }
 
 $counts = $rows | Group-Object status | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Count)" }
-Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; retired-pruned=$retiredPruned; apply=$Apply."
+Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; retired-pruned=$retiredPruned; yaml-repaired=$yamlRepaired; yaml-needs-repair=$yamlNeedsRepair; apply=$Apply."
