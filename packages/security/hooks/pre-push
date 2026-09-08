@@ -1,0 +1,25 @@
+#!/bin/sh
+# Fleet pre-push gate: refuse to push a config file carrying an obfuscated
+# config-payload malware signature (see packages/security/scripts/check-config-payloads.mjs
+# in agenthub, and packages/security/README.md for install/run instructions).
+#
+# Install per repo with either:
+#   git config core.hooksPath <path-to-this-directory>
+# or by copying this file to .git/hooks/pre-push (chmod +x) in the target repo.
+
+repo_root="$(git rev-parse --show-toplevel)"
+scanner="$repo_root/../agenthub/packages/security/scripts/check-config-payloads.mjs"
+
+if [ ! -f "$scanner" ]; then
+  if [ -n "$AGENTHUB_HOME" ] && [ -f "$AGENTHUB_HOME/packages/security/scripts/check-config-payloads.mjs" ]; then
+    scanner="$AGENTHUB_HOME/packages/security/scripts/check-config-payloads.mjs"
+  fi
+fi
+
+if [ ! -f "$scanner" ]; then
+  echo "pre-push: config-payload-scanner not found (looked next to '$repo_root' and under \$AGENTHUB_HOME); skipping scan" >&2
+  exit 0
+fi
+
+node "$scanner" --root "$repo_root"
+exit $?
