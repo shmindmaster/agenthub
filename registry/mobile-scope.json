@@ -196,6 +196,12 @@
       "note": "Open-source CLI."
     },
     {
+      "productId": "ap-study",
+      "repository": "ap-study",
+      "bucket": "noNative",
+      "note": "Local-only repository under fleetRoot with no configured Git remote. README establishes an offline web/PWA study app and explicitly excludes App Store publication. This records that existing web-only direction; any future native work requires an owner scope decision. No mobile identity is assigned."
+    },
+    {
       "productId": "mahumtech",
       "repository": "shmindmaster/mahumtech",
       "bucket": "noNative",
