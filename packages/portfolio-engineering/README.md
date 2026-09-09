@@ -1,6 +1,6 @@
 # Portfolio engineering
 
-Version 1.0.0. The `portfolio-engineering` capability owns the explicit portfolio
+Version 1.0.1. The `portfolio-engineering` capability owns the explicit portfolio
 inventory, local evidence contracts, dependency preparation and tested structural
 checks. Product repositories retain their own architecture, tracker and test/build
 commands. This package does not merge, deploy, change mail settings or send mail.

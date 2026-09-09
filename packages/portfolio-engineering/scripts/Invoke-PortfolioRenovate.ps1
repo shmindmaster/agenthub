@@ -5,7 +5,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $packageRoot = Split-Path -Parent $PSScriptRoot
-$manifest = Get-Content -LiteralPath (Join-Path $packageRoot 'portfolio.json') -Raw | ConvertFrom-Json
+$manifest = Get-Content -LiteralPath (Join-Path $packageRoot 'portfolio.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $eligible = @($manifest.repos | Where-Object { $_.dependencyAutomation -eq 'renovate-candidate' -and $_.remote } | ForEach-Object remote)
 if (@($Repositories | Where-Object { $_ -cnotin $eligible }).Count) { throw 'Every repository must be an exact allowlisted Renovate candidate.' }
 if (-not (Test-Path -LiteralPath $RenovateCommand -PathType Leaf)) { throw 'Pinned Renovate runner is missing.' }

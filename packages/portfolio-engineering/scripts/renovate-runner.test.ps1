@@ -26,7 +26,7 @@ try {
     $env:RENOVATE_ADDITIONAL_CONFIG_FILE='unapproved.cjs'
     $env:GITHUB_COM_TOKEN='unapproved-synthetic-token'
     & $runner -Repositories shmindmaster/mahumtech -RenovateCommand $stub
-    $observed=Get-Content -LiteralPath $output -Raw | ConvertFrom-Json
+    $observed=Get-Content -LiteralPath $output -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($observed.dryRun -ne 'full' -or $observed.repositories -ne 'shmindmaster/mahumtech' -or $observed.autodiscover -ne 'false' -or $observed.argsCount -ne 0) {throw 'Forced scope/dry-run contract failed'}
     if ($observed.prefix -or $observed.endpoint -or $observed.alternateConfig -or $observed.githubToken) {throw 'Inherited self-hosted overrides leaked into the child'}
     if ($env:ENV_PREFIX -ne 'TEST_' -or $env:RENOVATE_ENDPOINT -ne 'https://outside.invalid' -or $env:RENOVATE_ADDITIONAL_CONFIG_FILE -ne 'unapproved.cjs') {throw 'Inherited self-hosted settings were not restored'}
