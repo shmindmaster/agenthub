@@ -6,7 +6,7 @@
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.257",
+      "version": "2.1.259",
       "executable": "C:\\Users\\SaroshHussain\\.local\\bin\\claude.exe",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.claude\\settings.json",
@@ -47,14 +47,15 @@
         "channels",
         "headless"
       ],
-      "status": "active"
+      "status": "active",
+      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 2.1.259. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
     },
     {
       "id": "codex",
       "name": "OpenAI Codex",
-      "version": "0.153.0-alpha.5",
+      "version": "0.153.4",
       "executable": "C:\\Users\\SaroshHussain\\bin\\codex.cmd",
-      "executableNote": "Re-verified 2026-09-02: the stable managed launcher returned codex-cli 0.153.0-alpha.5 and resolves the current Codex Desktop content-addressed binary. Record the launcher rather than a transient bin/<hash>/ path that disappears on desktop upgrades.",
+      "executableNote": "The stable managed launcher resolves the current Codex Desktop content-addressed binary. Record the launcher rather than a transient bin/<hash>/ path that disappears on desktop upgrades. Current observed version is recorded in versionObserved.",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\.codex\\config.toml",
         "instructions": "C:\\Users\\SaroshHussain\\.codex\\AGENTS.md",
@@ -73,12 +74,13 @@
         "mcp",
         "plugins"
       ],
-      "status": "active"
+      "status": "active",
+      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 0.153.4. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
     },
     {
       "id": "qwen-code",
       "name": "Qwen Code",
-      "version": "0.22.2",
+      "version": "0.21.14",
       "executable": "qwen",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.qwen\\settings.json",
@@ -102,7 +104,8 @@
         "mcp",
         "extensions"
       ],
-      "status": "active"
+      "status": "active",
+      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 0.21.14. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
     },
     {
       "id": "opencode",
@@ -228,8 +231,7 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.81",
-      "versionObserved": "2026-08-28: `copilot.cmd --version` returned `GitHub Copilot CLI 1.0.81`; recorded value updated from 1.0.80 to match the live install (the CLI self-updates).",
+      "version": "1.0.83",
       "executable": "C:\\Users\\SaroshHussain\\bin\\copilot.cmd",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.copilot\\settings.json",
@@ -250,16 +252,17 @@
         "plugins",
         "acp"
       ],
-      "status": "active"
+      "status": "active",
+      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 1.0.83. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
     },
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.1.13",
+      "version": "unknown",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Microsoft\\WinGet\\Links\\agy.exe",
-      "versionProbe": "winget-package",
+      "versionProbe": "none",
       "versionPackageId": "Google.AntigravityCLI",
-      "versionProbeNote": "Added 2026-08-29: `agy.exe --version` and `--help` both block beyond the fixed 30-second deadline, so the executable is not a usable version authority. Query the installed Google.AntigravityCLI WinGet record instead, using a redirected native process with the same fixed deadline and process-tree cleanup on timeout. This reports the installed package version without launching Antigravity's CLI or GUI.",
+      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore the bounded winget-package probe when an actual installation is resolved.",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.gemini\\antigravity-cli\\settings.json",
         "mcp": "C:\\Users\\SaroshHussain\\.gemini\\config\\mcp_config.json",
@@ -287,15 +290,16 @@
         "mcp"
       ],
       "status": "active",
-      "notes": "Official Antigravity CLI 1.1.8 uses ~/.gemini/antigravity-cli/plugins and ~/.gemini/config/mcp_config.json. Desktop and IDE use ~/.gemini/config skills, agents, and plugins. The extra ~/.gemini/antigravity/mcp_config.json is synchronized temporarily as a compatibility path and is not the canonical authority."
+      "notes": "Official Antigravity CLI 1.1.8 uses ~/.gemini/antigravity-cli/plugins and ~/.gemini/config/mcp_config.json. Desktop and IDE use ~/.gemini/config skills, agents, and plugins. The extra ~/.gemini/antigravity/mcp_config.json is synchronized temporarily as a compatibility path and is not the canonical authority.",
+      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. The agy.cmd PATH shim points to the absent WinGet agy.exe link; no matching installed WinGet package files or Windows package record was found. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch."
     },
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "2.8.1",
+      "version": "unknown",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\antigravity\\Antigravity.exe",
-      "versionProbe": "file-version",
-      "versionProbeNote": "Corrected 2026-08-19: this is an Electron GUI app with no separate CLI entry point on its declared executable, so it must not be launched to check version -- doing so opens the window instead of printing to stdout. Read via (Get-Item $exe).VersionInfo.FileVersion, which returned 2.8.1, matching the recorded version.",
+      "versionProbe": "none",
+      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore file-version without launching the GUI when an actual installation is resolved.",
       "nativePaths": {
         "configHome": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity",
         "instructions": null,
@@ -309,15 +313,16 @@
       ],
       "status": "active",
       "surfaceType": "companion-desktop",
-      "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry."
+      "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry.",
+      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. The recorded Programs/antigravity GUI directory and executable are absent; no matching Windows package record was found. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch."
     },
     {
       "id": "antigravity-ide",
       "name": "Antigravity IDE",
-      "version": "2.5.5",
+      "version": "unknown",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Antigravity IDE\\Antigravity IDE.exe",
-      "versionProbe": "file-version",
-      "versionProbeNote": "Corrected 2026-08-19: this is an Electron GUI app with no separate CLI entry point on its declared executable, so it must not be launched to check version -- doing so opens the window instead of printing to stdout. Read via (Get-Item $exe).VersionInfo.FileVersion, which returned 2.5.5, matching the recorded version.",
+      "versionProbe": "none",
+      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore file-version without launching the GUI when an actual installation is resolved.",
       "nativePaths": {
         "configHome": "C:\\Users\\SaroshHussain\\.antigravity-ide",
         "settings": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Antigravity IDE\\User\\settings.json",
@@ -334,7 +339,8 @@
       ],
       "status": "active",
       "surfaceType": "companion-ide",
-      "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry."
+      "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry.",
+      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. The recorded Programs/Antigravity IDE directory and executable are absent; no matching Windows package record was found. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch."
     },
     {
       "id": "grok",
@@ -372,10 +378,10 @@
     {
       "id": "warp",
       "name": "Warp / Oz",
-      "version": "0.2026.08.12.21.54.stable_00",
+      "version": "0.2026.08.19.08.15.stable_01",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Warp\\warp.exe",
       "versionProbe": "file-version",
-      "versionProbeNote": "Added 2026-08-19: this is a GUI terminal app whose declared executable is the main window binary with no separate CLI entry point, so it must not be launched to check version. Read via (Get-Item $exe).VersionInfo.FileVersion, which returned v0.2026.08.12.21.54.stable_00 (a leading 'v' the recorded value omits, matched here by substring), matching the recorded version.",
+      "versionProbeNote": "This is a GUI terminal app whose declared executable is the main window binary with no separate CLI entry point. Read (Get-Item $exe).VersionInfo.FileVersion without launching the window; normalize the leading v. Current observed version is recorded in versionObserved.",
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\.warp\\.mcp.json",
         "worktreeTabConfig": "C:\\Users\\SaroshHussain\\.warp\\tab_configs\\agenthub_worktree.toml",
@@ -396,7 +402,8 @@
         "profiles",
         "worktrees"
       ],
-      "status": "active"
+      "status": "active",
+      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 0.2026.08.19.08.15.stable_01. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
     },
     {
       "id": "cline",
@@ -442,7 +449,7 @@
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.18.25",
+      "version": "3.19.19",
       "executable": "C:\\Users\\SaroshHussain\\bin\\cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin\\cursor.cmd",
@@ -470,12 +477,13 @@
         "plugins"
       ],
       "status": "active",
-      "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher was re-verified against Cursor 3.17.8 on 2026-08-22; native local plugins expose the canonical AgentHub packages."
+      "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher was re-verified against Cursor 3.17.8 on 2026-08-22; native local plugins expose the canonical AgentHub packages.",
+      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 3.19.19. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
     },
     {
       "id": "cursor-agent",
       "name": "Cursor Agent CLI",
-      "version": "2026.08.04-aaa8809",
+      "version": "2026.09.02-c22c1a3",
       "executable": "C:\\Users\\SaroshHussain\\bin\\cursor-agent.cmd",
       "nativePaths": {
         "vendorExecutable": "C:\\Users\\SaroshHussain\\AppData\\Local\\cursor-agent\\cursor-agent.cmd",
@@ -497,7 +505,8 @@
       ],
       "status": "active",
       "surfaceType": "companion-cli",
-      "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration."
+      "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration.",
+      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 2026.09.02-c22c1a3. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
     },
     {
       "id": "qoder",
@@ -576,7 +585,7 @@
     {
       "id": "devin",
       "name": "Devin Desktop / CLI",
-      "version": "3000.2.17",
+      "version": "unknown",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\devin\\cli\\bin\\devin.exe",
       "nativePaths": {
         "config": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\devin\\config.json",
@@ -605,15 +614,18 @@
         "mcp"
       ],
       "status": "active",
-      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes."
+      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
+      "versionProbe": "none",
+      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. Both the historical local Devin directory and the newer WinGet executable targeted by devin.cmd are absent; the PATH shim alone is not an installed CLI. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch.",
+      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore a bounded CLI version probe when an actual installation is resolved."
     },
     {
       "id": "factory",
       "name": "Factory Droid",
-      "version": "0.195.0",
-      "versionNote": "Corrected 2026-08-19: three different numbers were in play -- the binary's own `droid --version` output (0.195.0), the previously recorded value (0.183.0), and the app directory name the executable lives under, app-0.152.0. 0.195.0 is recorded here because it is the binary's own reported output; the app-0.152.0 directory-name discrepancy is unexplained and recorded rather than silently resolved by picking one number.",
+      "version": "unknown",
+      "versionNote": "Historical observation on 2026-08-19: droid --version reported 0.195.0 from app-0.152.0; the directory-name discrepancy was unexplained. This is not a current installed-version claim. The executable is now unresolved in the documented survey, so version is unknown; see executableNote.",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Factory\\app-0.152.0\\resources\\bin\\droid.exe",
-      "executableNote": "Re-resolved 2026-08-19: the recorded path still pointed at app-0.150.0 while app-0.152.0 is what is installed. Factory keeps its binary under a versioned app-<version> directory, so this value goes stale on every upgrade and must be re-resolved rather than trusted. Verified by Test-Path at the time of writing.",
+      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. The old versioned executable is absent. Factory contains a .dead marker, Update.exe and app-0.166.0/squirrel.exe only; no droid.exe. The surviving droid.cmd wrapper has no runtime to launch. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch.",
       "nativePaths": {
         "settings": "C:\\Users\\SaroshHussain\\.factory\\settings.json",
         "instructions": "C:\\Users\\SaroshHussain\\.factory\\AGENTS.md",
@@ -637,12 +649,14 @@
         "hooks"
       ],
       "status": "active",
-      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes."
+      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
+      "versionProbe": "none",
+      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore a bounded CLI version probe when an actual installation is resolved."
     },
     {
       "id": "vscode-insiders",
       "name": "VS Code Insiders",
-      "version": "1.137.0-insider",
+      "version": "unknown",
       "executable": "C:\\Users\\SaroshHussain\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\bin\\code-insiders.cmd",
       "nativePaths": {
         "mcp": "C:\\Users\\SaroshHussain\\AppData\\Roaming\\Code - Insiders\\User\\mcp.json",
@@ -661,7 +675,10 @@
         "plugins"
       ],
       "status": "active",
-      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes. Product Demo Studio remains registered as a native local plugin through chat.pluginLocations."
+      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes. Product Demo Studio remains registered as a native local plugin through chat.pluginLocations.",
+      "versionProbe": "none",
+      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. The recorded VS Code Insiders directory and executable are absent; only the separate stable VS Code installation was found. Stable VS Code is not an interchangeable declaration. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch.",
+      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore a bounded CLI version probe when an actual installation is resolved."
     },
     {
       "id": "windsurf",
