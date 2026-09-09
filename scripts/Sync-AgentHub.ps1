@@ -685,6 +685,20 @@ function Merge-McpServers {
     return $Target
 }
 
+function Resolve-WindowsNodeExecutable {
+    # Node may be managed by mise or another version manager instead of the MSI.
+    # Resolve an actual executable now so GUI hosts do not depend on their PATH.
+    $standard = Join-Path $env:ProgramFiles 'nodejs\node.exe'
+    if (Test-Path -LiteralPath $standard -PathType Leaf) { return $standard }
+    foreach ($command in @(Get-Command node.exe -CommandType Application -ErrorAction SilentlyContinue)) {
+        $candidate = [string]$command.Source
+        if ([IO.Path]::IsPathRooted($candidate) -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+            return $candidate
+        }
+    }
+    return $null
+}
+
 function Resolve-WindowsHiddenStdioEntry {
     param([hashtable]$Entry)
     if ($env:OS -ne 'Windows_NT') { return $Entry }
@@ -709,9 +723,9 @@ function Resolve-WindowsHiddenStdioEntry {
     }
 
     if ($leaf -eq 'npx' -and $joined -match 'appium-mcp') {
-        $node = Join-Path $env:ProgramFiles 'nodejs\node.exe'
+        $node = Resolve-WindowsNodeExecutable
         $js = Join-Path $env:APPDATA 'npm\node_modules\appium-mcp\dist\index.js'
-        if ((Test-Path -LiteralPath $node) -and (Test-Path -LiteralPath $js)) {
+        if ($node -and (Test-Path -LiteralPath $js)) {
             $Entry.command = $hide
             $Entry.args = @($node, $js)
         }
@@ -728,9 +742,9 @@ function Resolve-WindowsHiddenStdioEntry {
     # difference: appium takes no runtime flags and playwright does, so every
     # token after the package spec has to survive the rewrite.
     if ($leaf -eq 'npx' -and $joined -match '@playwright/mcp') {
-        $node = Join-Path $env:ProgramFiles 'nodejs\node.exe'
+        $node = Resolve-WindowsNodeExecutable
         $js = Join-Path $env:APPDATA 'npm\node_modules\@playwright\mcp\cli.js'
-        if ((Test-Path -LiteralPath $node) -and (Test-Path -LiteralPath $js)) {
+        if ($node -and (Test-Path -LiteralPath $js)) {
             $flags = @()
             $seenSpec = $false
             foreach ($a in $args) {
@@ -749,9 +763,9 @@ function Resolve-WindowsHiddenStdioEntry {
     }
 
     if ($leaf -eq 'npx') {
-        $node = Join-Path $env:ProgramFiles 'nodejs\node.exe'
-        $npxCli = Join-Path $env:ProgramFiles 'nodejs\node_modules\npm\bin\npx-cli.js'
-        if ((Test-Path -LiteralPath $node) -and (Test-Path -LiteralPath $npxCli)) {
+        $node = Resolve-WindowsNodeExecutable
+        $npxCli = if ($node) { Join-Path (Split-Path -Parent $node) 'node_modules\npm\bin\npx-cli.js' } else { $null }
+        if ($npxCli -and (Test-Path -LiteralPath $npxCli)) {
             $Entry.command = $hide
             $Entry.args = @($node, $npxCli) + $args
         }
