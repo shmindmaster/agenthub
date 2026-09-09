@@ -9,7 +9,7 @@ the wrong default. Each check below has a real failure path.
 Run: pwsh -NoProfile -File tests/Test-KnowledgeAccess.ps1
 #>
 [CmdletBinding()]
-param()
+param([string]$PythonExecutable = '')
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
@@ -31,6 +31,8 @@ $required = @(
     'scripts\Search-Knowledge.ps1',
     'scripts\Find-CodeInKnowledge.ps1',
     'scripts\validate_application_answer_profile.py',
+    'scripts\Install-ValidationRuntime.ps1',
+    'scripts\requirements.txt',
     'schemas\opportunity.schema.yaml',
     'schemas\engagement-record.schema.yaml',
     'schemas\application-answer-profile.schema.yaml',
@@ -101,10 +103,25 @@ Report 'opportunity-engine counts only authoritative submission proof' (
     $engine -match 'accepted \| declined'
 ) 'submission evidence or lifecycle states are incomplete'
 
-$pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+if (-not $PythonExecutable) {
+    $runtimePython = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'AgentHub\runtimes\knowledge-access\Scripts\python.exe' }
+    $PythonExecutable = if ($runtimePython -and (Test-Path -LiteralPath $runtimePython -PathType Leaf)) { $runtimePython } else { 'python' }
+}
+$pythonCommand = Get-Command $PythonExecutable -ErrorAction SilentlyContinue
 Report 'Python is available for application profile validation' ($null -ne $pythonCommand) `
     'python is required by validate_application_answer_profile.py'
 if ($pythonCommand) {
+    # Windows PowerShell treats redirected native stderr as an error record.
+    # The validator deliberately writes stderr for rejected synthetic fixtures;
+    # capture its exit status without terminating the remaining assertions.
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+    & $pythonCommand.Source -c 'import yaml; from jsonschema import Draft202012Validator, FormatChecker' *> $null
+    $dependenciesReady = $LASTEXITCODE -eq 0
+    Report 'application profile validation dependencies are available' $dependenciesReady `
+        'run packages/knowledge-access/scripts/Install-ValidationRuntime.ps1 or pass a provisioned -PythonExecutable'
+    if ($dependenciesReady) {
     $validator = Join-Path $pkg 'scripts\validate_application_answer_profile.py'
     $profileFixtures = Join-Path $pkg 'fixtures\application-profiles'
 
@@ -144,6 +161,10 @@ for case in cases:
     $smokeScript | & $pythonCommand.Source - $smokePath *> $null
     Report 'job policy smoke cases preserve worldwide, US secondary, and reject behavior' ($LASTEXITCODE -eq 0) `
         'a synthetic job policy case did not produce the expected lane'
+    }
+    } finally {
+        $ErrorActionPreference = $previousEap
+    }
 }
 
 $enrich = Get-Content -LiteralPath (Join-Path $pkg 'skills\portfolio-enrichment\SKILL.md') -Raw -Encoding UTF8

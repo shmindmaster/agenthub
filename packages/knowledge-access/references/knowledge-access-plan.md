@@ -54,6 +54,24 @@ explicit authorization. Repos with no remote are the only copy — move,
 never delete. New repos are created under `C:\Repos\<account>\`, never
 inside the OneDrive tree.
 
+## Local validation prerequisites
+
+The application-answer profile validator requires the dependencies pinned in
+`scripts/requirements.txt`. Provision its local Python 3.13 environment:
+
+```powershell
+pwsh -NoProfile -File packages/knowledge-access/scripts/Install-ValidationRuntime.ps1
+pwsh -NoProfile -File tests/Test-KnowledgeAccess.ps1
+```
+
+The environment lives under `%LOCALAPPDATA%\AgentHub\runtimes\knowledge-access`.
+The native test uses that interpreter when present, with `-PythonExecutable`
+available for another explicitly provisioned interpreter. Use its
+`Scripts\python.exe` for direct calls to `validate_application_answer_profile.py`.
+Installation never modifies the host-managed Python or Local-AI retrieval
+environment and starts no service. A missing dependency is a failed
+prerequisite, not evidence that an invalid profile was correctly rejected.
+
 ## Phase 1 — Map
 
 `scripts/New-KnowledgeIndex.ps1` writes `_INDEX.md`, `_maps/<root>.md`,
