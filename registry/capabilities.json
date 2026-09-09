@@ -736,7 +736,7 @@
           "DD71BF1E975AA45E953643CECD875451C4BC0992D0D0B97F71F516F9AFE3515F"
         ]
       },
-      "contentHash": "ABF022A052CF55DAA4EFB4D890D8E9051EB3E850C89E87B46FF73C3AFE551DE0",
+      "contentHash": "9095B8FA399C52B215929AE4D59181920B44B2059866D04179CB22C874E525AB",
       "hashBasis": "packages/portfolio-engineering",
       "status": "active-canonical",
       "hostMappings": [
@@ -2399,7 +2399,7 @@
       "owner": "packages/security",
       "capabilityType": "script+hook",
       "canonicalSource": "packages/security",
-      "contentHash": "0DD0181152C49DEE141DA8D650E26FB00DE15FA7B4A3BD5A250A8A22C4C75471",
+      "contentHash": "3A592A15596984200ACEF33881A4EC7D009BB1EBEA9CB7A8CCFC3AC0A21B4281",
       "hashBasis": "packages/security",
       "status": "active-canonical",
       "notes": "Ships config-payload-scanner: the fleet-shared obfuscated-config malware detector (packages/security/scripts/check-config-payloads.mjs) and its pre-push hook template (packages/security/hooks/pre-push). Adopted 2026-09-07 from subops/scripts/check-config-payloads.mjs, which is the incident history this tool's signatures come from. Not a per-host skill deployment -- every repo installs the hook per packages/security/README.md and points it at this canonical script rather than forking a copy.",

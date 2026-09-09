@@ -7,6 +7,7 @@
 import { lstatSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const CONFIG_FILE_PATTERN =
   /(^|[/\\])(?:(?:[A-Za-z0-9_.-]+\.)?(?:config|postcss|tailwind|vite|next|eslint|playwright|vitest|jest|prisma)|\.eslintrc|\.babelrc|\.postcssrc)\.(?:mjs|cjs|js|ts)$/;
@@ -173,6 +174,32 @@ export function scanConfigPayloads({ root = process.cwd() } = {}) {
   return findings;
 }
 
+// Read committed blobs without archive attributes, filters, checkout or code execution.
+export function scanCommittedConfigPayloads({ root, revision }) {
+  if (!/^[0-9a-f]{40,64}$/.test(revision)) throw new Error('Expected full commit object ID');
+  function gitRead(args) {
+    const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true, timeout: 30000, maxBuffer: 32 * 1024 * 1024 });
+    if (r.error || r.status !== 0) throw new Error('Cannot read committed configuration tree');
+    return r.stdout;
+  }
+  const findings = [];
+  for (const entry of gitRead(['ls-tree', '-r', '-z', revision]).split('\0').filter(Boolean)) {
+    const tab = entry.indexOf('\t');
+    const [mode, type, object] = entry.slice(0, tab).split(' ');
+    const file = entry.slice(tab + 1);
+    if (!isConfigFile(file)) continue;
+    if (mode === '120000') { findings.push({file, signature:'symlinked config requires explicit review', line:1}); continue; }
+    if (type !== 'blob') throw new Error('Unsupported configuration object');
+    const src = gitRead(['cat-file', 'blob', object]);
+    for (const signature of MALICIOUS_SIGNATURES) {
+      if (!signature.test(src, file)) continue;
+      findings.push({file, signature:signature.name, line:firstSuspiciousLine(src, signature.name)});
+      break;
+    }
+  }
+  return findings;
+}
+
 function firstSuspiciousLine(src, signatureName) {
   const lines = src.split('\n');
 
@@ -201,6 +228,7 @@ function firstSuspiciousLine(src, signatureName) {
 
 function parseArgs(argv) {
   let root = process.cwd();
+  let revision;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--root') {
       if (i + 1 >= argv.length) {
@@ -214,17 +242,19 @@ function parseArgs(argv) {
       }
       root = value;
       i++;
-    }
+    } else if (argv[i] === '--revision') {
+      revision = argv[++i];
+      if (!revision || !/^[0-9a-f]{40,64}$/.test(revision)) throw new Error('Usage: --revision requires a full object ID');
+    } else { throw new Error(`Unknown scanner option: ${argv[i]}`); }
   }
-  return { root };
+  return { root, revision };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { root } = parseArgs(process.argv.slice(2));
-
   let findings;
   try {
-    findings = scanConfigPayloads({ root });
+    const { root, revision } = parseArgs(process.argv.slice(2));
+    findings = revision ? scanCommittedConfigPayloads({root, revision}) : scanConfigPayloads({ root });
   } catch (err) {
     console.error(`Config payload scan aborted: ${err.message}`);
     process.exit(2);

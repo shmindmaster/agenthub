@@ -11,17 +11,18 @@
 set -e
 
 repo_root="$(git rev-parse --show-toplevel)"
-scanner="$repo_root/../agenthub/packages/security/scripts/check-config-payloads.mjs"
-
-if [ ! -f "$scanner" ]; then
-  if [ -n "$AGENTHUB_HOME" ] && [ -f "$AGENTHUB_HOME/packages/security/scripts/check-config-payloads.mjs" ]; then
-    scanner="$AGENTHUB_HOME/packages/security/scripts/check-config-payloads.mjs"
-  fi
+# Linked worktrees live under C:/wt; resolve the primary checkout via Git,
+# rather than looking for a second AgentHub alongside the worktree.
+common_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
+primary_root="$(dirname "$common_dir")"
+scanner="$primary_root/../agenthub/packages/security/scripts/check-config-payloads.mjs"
+if [ -n "$AGENTHUB_HOME" ]; then
+  scanner="$AGENTHUB_HOME/packages/security/scripts/check-config-payloads.mjs"
 fi
 
 if [ ! -f "$scanner" ]; then
-  echo "pre-push: config-payload-scanner not found (looked next to '$repo_root' and under \$AGENTHUB_HOME); skipping scan" >&2
-  exit 0
+  echo "pre-push: required config-payload-scanner not found at '$scanner'; restore AgentHub or set AGENTHUB_HOME. Push blocked." >&2
+  exit 1
 fi
 
 if ! command -v node >/dev/null 2>&1; then
@@ -35,6 +36,7 @@ fi
 failed=0
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
+cat > "$tmpdir/refs"
 
 while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
   # Skip deleted refs (local sha is all zeros).
@@ -42,12 +44,16 @@ while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
     continue
   fi
 
-  rm -rf "${tmpdir:?}"/*
-  git archive --format=tar "$local_sha" | tar -x -C "$tmpdir"
-
-  if ! node "$scanner" --root "$tmpdir"; then
+  if ! node "$scanner" --root "$repo_root" --revision "$local_sha"; then
     failed=1
   fi
-done
+done < "$tmpdir/refs"
+
+if [ "$failed" -eq 0 ]; then
+  original="$(git rev-parse --path-format=absolute --git-path hooks)/pre-push.original"
+  if [ -f "$original" ]; then
+    "$original" "$@" < "$tmpdir/refs" || failed=1
+  fi
+fi
 
 exit "$failed"

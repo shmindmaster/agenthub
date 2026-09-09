@@ -55,8 +55,8 @@ hooks_dir="$(git -C <path-to-repo> rev-parse --path-format=absolute --git-path h
 mv "$hooks_dir/pre-push" "$hooks_dir/pre-push.original"
 cp packages/security/hooks/pre-push "$hooks_dir/pre-push"
 chmod +x "$hooks_dir/pre-push"
-# Edit $hooks_dir/pre-push and add the following before the final exit:
-# "$hooks_dir/pre-push.original" "$@"
+# The new hook invokes pre-push.original with the original arguments and
+# saved stdin after the scanner passes; do not add a second invocation.
 ```
 
 `core.hooksPath` is an option only for repositories that have **no other
@@ -69,10 +69,15 @@ git -C <path-to-repo> config core.hooksPath ../agenthub/packages/security/hooks
 (adjust the relative path to wherever your `agenthub` checkout actually sits
 relative to the target repo).
 
-The hook resolves the scanner relative to the pushing repo's sibling
-`agenthub` checkout first, then falls back to `$AGENTHUB_HOME` if set. If
-neither location has the scanner, it warns and lets the push through rather
-than blocking on a missing capability.
+The hook uses `$AGENTHUB_HOME` when set, otherwise the primary checkout's
+sibling `agenthub`. Git's common directory locates that primary checkout
+even when pushing from a linked worktree under `C:/wt`. A missing scanner,
+Node runtime, or unreadable commit object blocks the push. Restore the required
+capability before retrying; a missing check is not a passing check. Committed
+config blobs are read with Git object commands, so `export-ignore` attributes
+cannot hide them. Committed config symlinks fail for explicit review. Existing
+`pre-push.original` receives the original ref input and arguments; its failure
+also blocks the push.
 
 ### Test
 
