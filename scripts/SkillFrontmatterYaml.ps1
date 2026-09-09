@@ -13,8 +13,10 @@ skills and must not rewrite AgentHub-managed copies (those are fixed at
 source via the skill authoring standard). Callers pass -SkipPaths for
 managed skill directories.
 
-Dot-source only. No top-level work.
+Dot-source only. No top-level filesystem work.
 #>
+
+$ErrorActionPreference = 'Stop'
 
 function ConvertTo-YamlDoubleQuotedScalar {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Value)
