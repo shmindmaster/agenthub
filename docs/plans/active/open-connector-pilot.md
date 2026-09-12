@@ -88,6 +88,17 @@ Products do not use it. Assessment:
   (branch `worktree-open-connector-pilot`). Container started and probed; wrapper
   verbs `start`/`status`/`probe`/`exit-test`/`mint-token` exercised; all
   throwaway tokens revoked. Not committed, not merged, not deployed.
+- 2026-09-12 (later): merged to `main` as #17 (`25eda7f`); worktree and
+  branch removed. Local main reconciled with the in-flight Slack/OSS
+  extraction work (two additive JSON conflicts in `capabilities.json` and
+  `native-connectors.json` resolved; snapshot tag
+  `backup/main-inflight-20260912`). **Still not deployed**, and not
+  deployable from this tree yet: `Validate-AgentHub.ps1` fails on
+  `media-studio` content-hash drift and the in-flight
+  `scripts/Sync-AgentHub.ps1` refactor errors in audit mode
+  (`Get-AgentHubIsolatedLocalData`: "Cannot overwrite variable Home"). Both
+  pre-date this plan; `-Apply` refuses until they are fixed. Milestones 2–3
+  unchanged.
 
 ## Decision log
 
