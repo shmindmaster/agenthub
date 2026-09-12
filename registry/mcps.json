@@ -518,6 +518,43 @@
         "id": "mcp-registry"
       },
       "notes": "Switched 2026-08-20 from stdio `railway mcp` to Remote MCP. Local CLI MCP spawned a Node+railway.exe process per host session; measured two copies from Cursor's official plugin alone (~136 MB) with no Railway work in progress. Do not configure `railway mcp` or `railway mcp proxy` -- both spawn local processes. Direct OAuth to https://mcp.railway.com spawns nothing. The use-railway skill still drives the CLI for cwd/deploy work; this server is the OAuth remote convenience path, not the capability."
+    },
+    {
+      "id": "open-connector",
+      "name": "OpenConnector (fleet SaaS action gateway)",
+      "scope": "on-demand-desktop",
+      "transport": "http",
+      "activationMode": "on-demand-local",
+      "url": "http://127.0.0.1:3400/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:OPEN_CONNECTOR_RUNTIME_TOKEN}"
+      },
+      "credentialPolicy": "environment-bearer-token",
+      "providesCapabilities": [
+        "saas.actions"
+      ],
+      "providesCapabilitiesNote": "Owner-credentialed SaaS actions (GitHub, Linear, Notion, Slack, Railway, Firecrawl, Exa, Brave Search, Descript, Context7, PostHog, Sentry, DigitalOcean) executed behind a local credential boundary and discovered through five MCP tools: list_apps, list_connections, search_actions, get_action_guide, execute_action. Actions only; no triggers or webhooks.",
+      "protocol": {
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-09-12",
+        "verification": "Probed the running container (ghcr.io/oomol-lab/open-connector v1.5.0, index digest sha256:b9e6133c9caa6d5997fe51784df99a1d43ddd509b6346a0c0245e4512136e781) at http://127.0.0.1:3400/mcp with a runtime bearer. initialize returned protocolVersion 2025-11-25 (serverInfo oomol-connect 0.1.0) whether the client offered 2025-11-25 or 2026-07-28; server/discover returned JSON-RPC -32601 'Method not found'; tools/list returned the five tools. Unauthenticated initialize returned HTTP 401. Responses are SSE-framed (event: message / data: ...) to a stateless POST."
+      },
+      "localProcessPolicy": {
+        "instancing": "single-shared-process",
+        "note": "One Docker container (agenthub-open-connector, restart unless-stopped) bound to 127.0.0.1:3400, started and stopped by packages/open-connector/scripts/Invoke-OpenConnector.ps1, never by a host. Hosts only carry an HTTP entry, so persisting it in a host config starts no process at session start -- the container is a standing local service like Docker or Postgres. Secrets and SQLite data live under %LOCALAPPDATA%\\AgentHub\\runtime\\open-connector."
+      },
+      "owner": {
+        "type": "capability",
+        "id": "open-connector"
+      },
+      "hosts": [
+        "codex",
+        "cursor",
+        "opencode",
+        "grok"
+      ],
+      "hostScopeNote": "hosts[] is eligibility, not deployment. activationMode is on-demand-local and the id is not in native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds, so AgentHub sync writes nothing until an owner review moves it there and records the host exposure. claude is deliberately excluded: it already provides first-party connectors for the same providers and the routing policy prefers the connector the running surface provides. hermes and windsurf are checked-absent in hostInventory.",
+      "notes": "Registered 2026-09-12 as a pilot from the OpenConnector fit assessment (https://claude.ai/code/artifact/1c336229-6774-4e2b-9a20-139111ae1d22). Purpose: replace per-host stdio SaaS bridges on non-Claude hosts with one shared local HTTP gateway; all eleven SaaS-facing ids in this registry have a provider in its catalog. Not a product component and not a tenant credential store: the runtime is single-owner by schema (connections keyed by service + connection name, one encryption key, one admin token, connection requests owned by 'local-admin'), which is why Lawli SH-2748, LienWise external-platforms.policy.js, and CoLedger ai-boundaries.md keep product integrations direct. Bearer is a per-host persistent runtime token minted with an explicit allowedActions list; the bootstrap token is retired after minting. Container policy defaults: explicit action allowlist, raw provider proxy blocked, private-network egress off. Existing github/linear/notion/... registrations are untouched -- this entry coexists as the non-Claude route and takes over an id only by a later, separate owner decision."
     }
   ]
 }
