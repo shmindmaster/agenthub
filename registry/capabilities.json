@@ -2513,8 +2513,48 @@
       "kind": "provider",
       "maturity": "stable",
       "provenance": "third-party-wrapped"
+    },
+    {
+      "id": "open-connector",
+      "owner": "personal-infrastructure",
+      "capabilityType": "skills+mcp",
+      "canonicalSource": "packages/open-connector",
+      "managedSkillNames": [
+        "use-open-connector"
+      ],
+      "contentHash": "896DF8D4A73A7F5FF827C7A4D1A53F2B63CBA461E82903B5ADDA8342CCE66942",
+      "hashBasis": "packages/open-connector",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "hostMappingsNote": "Pilot scope, 2026-09-12: the four installed non-Claude hosts the gateway is meant for. claude is excluded on purpose -- it already provides first-party connectors for the same providers and the routing policy prefers the connector the running surface provides. Widen only after the MCP itself is persisted for a host (native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds); a loose skill that names a route the host cannot reach is drift.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": []
+      },
+      "kind": "gateway",
+      "maturity": "pilot",
+      "provenance": "agenthub-owned",
+      "notes": "Owns the single fleet OpenConnector container (registry/mcps.json#open-connector) and the use-open-connector loose skill. Upstream runtime is oomol-lab/open-connector (Apache-2.0), pinned by image digest in packages/open-connector/docker-compose.yml. Fleet tooling for owner-credentialed SaaS actions on non-Claude hosts; not a product component and not a tenant credential store -- see the fit assessment linked from packages/open-connector/README.md and the product decisions it cites (Lawli SH-2748, LienWise external-platforms.policy.js, CoLedger ai-boundaries.md)."
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00.000Z",
-  "lastCanonicalChangeAt": "2026-09-08T00:00:00Z"
+  "lastCanonicalChangeAt": "2026-09-12T00:00:00Z"
 }

@@ -138,6 +138,17 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - `tests/Run-AllTests.ps1` runs all behavior tests and package validators.
 - Sync scripts deploy managed instructions/skills/MCP config to host user
   directories (`Sync-AgentHub.ps1`, `Sync-Capabilities.ps1`, audit by default).
+- **OpenConnector fleet gateway pilot (2026-09-12):** capability
+  `open-connector` (`packages/open-connector`) owns one self-hosted
+  oomol-lab/open-connector container (v1.5.0 by digest, `127.0.0.1:3400`,
+  SQLite under `%LOCALAPPDATA%\AgentHub\runtime\open-connector`) and the
+  `use-open-connector` loose skill. Registered in `registry/mcps.json` as
+  `on-demand-local` over HTTP with eligibility for codex, cursor, opencode,
+  grok; not persisted to any host yet, and deliberately not offered to
+  Claude, which has first-party connectors for the same providers. Fleet
+  tooling only — the runtime is single-owner by schema, so products keep
+  their own per-tenant credential stores. Plan and milestones:
+  `docs/plans/active/open-connector-pilot.md`.
 - **Knowledge-access documents layer (2026-08-21):** capability
   `knowledge-access` (`packages/knowledge-access`) is the sibling of
   RepoWise for `D:\OneDrive - MahumTech\Documents\` folders `01`–`06` and

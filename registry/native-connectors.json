@@ -32,7 +32,8 @@
       "playwright",
       "repowise-workspace",
       "chrome-devtools",
-      "linkedin"
+      "linkedin",
+      "open-connector"
     ],
     "persistedOnDemandLocalMcpIds": [],
     "hostConfiguredLocalMcpIds": [
@@ -47,7 +48,8 @@
       "why": "generatedAt is bumped by this reconciliation, so it would otherwise read as a claim that onDemandLocalMcpIds covers every on-demand-local server in registry/mcps.json as of today. It does not. This block is what keeps the bumped date from overclaiming, and it is the record that the gap was seen rather than missed.",
       "added": {
         "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers.",
-        "chrome-devtools": "Reinstated 2026-09-07 as on-demand-local attach (--autoConnect) owned by browser-toolkit. Not persisted. Isolated launched-profile mode stays unused because of the shared profile-dir lock."
+        "chrome-devtools": "Reinstated 2026-09-07 as on-demand-local attach (--autoConnect) owned by browser-toolkit. Not persisted. Isolated launched-profile mode stays unused because of the shared profile-dir lock.",
+        "open-connector": "Registered 2026-09-12 as a pilot with activationMode on-demand-local and transport http, owned by capability open-connector. Not persisted: hosts carry nothing until an owner review adds it to persistedOnDemandLocalMcpIds and records the exposure. Unlike every other id in this list it is not a host-spawned stdio process -- it is a standing Docker container on 127.0.0.1:3400 started by the owning capability's script, so persisting its HTTP entry would start no process at session start. Recorded here so the lifecycle list covers every on-demand-local server in registry/mcps.json as of this date."
       },
       "notAdded": {
         "chrome-devtools-isolated": "Registered 2026-08-06 with activationMode on-demand-local. Not added here because whether it is governed as a separate lifecycle id or as part of its chrome-devtools sibling is a decision about how browser-toolkit exposes the pair, and no host exposure list in this file names it at all -- adding it to the lifecycle list alone would record a governance claim the exposures do not back.",
