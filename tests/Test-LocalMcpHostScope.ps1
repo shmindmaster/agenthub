@@ -53,7 +53,9 @@ Report 'the inventory names at least one installed host' ($installed.Count -gt 0
 $installedSet = @{}
 foreach ($h in $installed) { if ($h) { $installedSet[[string]$h] = $true } }
 
-$intentionallyUnscoped = @('brave-search')
+# Empty since 2026-09-13: brave-search, the only unscoped on-demand-local server,
+# was retired into the open-connector gateway. Add an id here only with a reason.
+$intentionallyUnscoped = @()
 $localServers = @($mcp.mcpServers | Where-Object { $_.activationMode -eq 'on-demand-local' })
 Report 'the registry declares at least one on-demand-local server' ($localServers.Count -gt 0) `
     'No server matched activationMode on-demand-local. If that field was renamed, every scope check below silently disappears.'

@@ -36,7 +36,14 @@ services:
       # after setup (Invoke-OpenConnector.ps1 mint-token) and rotate this one.
       OOMOL_CONNECT_RUNTIME_TOKEN: "${OPEN_CONNECTOR_RUNTIME_TOKEN:?set OPEN_CONNECTOR_RUNTIME_TOKEN in the runtime env file}"
       # Execution policy. Allowlist first; widen per provider, never to "*".
-      OOMOL_CONNECT_ALLOWED_ACTIONS: "${OPEN_CONNECTOR_ALLOWED_ACTIONS:-github.*,linear.*,notion.*,slack.*,railway.*,firecrawl.*,exa.*,brave_search.*,descript.*,context7.*,posthog.*,sentry.*,digital_ocean.*}"
+      # Honest scope (see README "What it is for"): GitHub, Linear, Notion,
+      # Context7, Exa, Firecrawl, Railway, and Descript stay on their official
+      # hosted MCPs fleet-wide and are NOT routed through this gateway. Slack
+      # is AgentHub-owned (packages/slack). This allowlist covers Brave Search
+      # (replacing the retired brave-search stdio bridge), no-auth
+      # research/dev sources, and the long-tail api_key providers the owner
+      # chooses to connect that have no hosted MCP in the fleet.
+      OOMOL_CONNECT_ALLOWED_ACTIONS: "${OPEN_CONNECTOR_ALLOWED_ACTIONS:-brave_search.*,npm.*,hackernews.*,arxiv.*,crossref.*,datacite.*,pubmed.*,europe_pmc.*,biorxiv_medrxiv.*,clinicaltrials_gov.*,openfda.*,who_gho.*,quickchart.*,wttr_in.*,ossinsight.*,appledb.*,posthog.*,sentry.*,digital_ocean.*}"
       OOMOL_CONNECT_BLOCKED_ACTIONS: "${OPEN_CONNECTOR_BLOCKED_ACTIONS:-}"
       # Raw provider proxy is closed by default; open per provider when a
       # catalogued action is missing.

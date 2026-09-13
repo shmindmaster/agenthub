@@ -1,6 +1,6 @@
 {
   "schemaVersion": 6,
-  "generatedAt": "2026-08-20T00:00:00.000Z",
+  "generatedAt": "2026-09-13",
   "migrationAliases": {
     "repowise": "repowise-workspace",
     "chrome-devtools-isolated": "chrome-devtools"
@@ -209,39 +209,6 @@
       }
     },
     {
-      "id": "brave-search",
-      "name": "Brave Search",
-      "scope": "on-demand-desktop",
-      "transport": "stdio",
-      "activationMode": "on-demand-local",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@brave/brave-search-mcp-server",
-        "--transport",
-        "stdio"
-      ],
-      "env": {
-        "BRAVE_API_KEY": "${env:BRAVE_API_KEY}"
-      },
-      "credentialPolicy": "environment-local-only",
-      "protocol": {
-        "revision": "2025-11-25",
-        "verifiedOn": "2026-08-04",
-        "verification": "stdio initialize returned protocolVersion 2025-11-25 from the resolved npx package."
-      },
-      "localProcessPolicy": {
-        "instancing": "single-shared-process",
-        "declaredByHostCount": 0,
-        "note": "Declared by NO host. This read 1 with the note 'declared by devin only' until 2026-08-20; the entry's own `hosts` array is absent entirely, and no host config carries it, so the count was intent that outlived the declaration. The `npx -y` invocation resolves the latest published version at spawn time and is deliberately unpinned. The note also pointed at chrome-devtools as the pinned counterpart -- chrome-devtools was replaced fleet-wide by playwright on 2026-08-19, so that comparison now reads against registry/mcps.json's playwright entry instead.",
-        "countCorrectedOn": "2026-08-20"
-      },
-      "owner": {
-        "type": "registry",
-        "id": "mcp-registry"
-      }
-    },
-    {
       "id": "playwright",
       "name": "Playwright MCP (extension attach to personal Chrome)",
       "scope": "on-demand-desktop",
@@ -388,6 +355,60 @@
       "hostScopeNote": "hosts[] is eligibility. Do not persist in host MCP config except OpenCode opt-in-disabled."
     },
     {
+      "id": "slack",
+      "name": "AgentHub Slack (canonical Web API bridge)",
+      "scope": "on-demand-desktop",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "startupEnabled": false,
+      "command": "node",
+      "args": [
+        "mcp/slack-mcp.mjs"
+      ],
+      "env": {
+        "SLACK_USER_TOKEN": "${env:SLACK_USER_TOKEN}",
+        "SLACK_BOT_TOKEN": "${env:SLACK_BOT_TOKEN}",
+        "SLACK_BRIDGE_MODE": "${env:SLACK_BRIDGE_MODE}",
+        "SLACK_BRIDGE_ALLOW_API_WRITE": "${env:SLACK_BRIDGE_ALLOW_API_WRITE}"
+      },
+      "hosts": [
+        "amp",
+        "claude",
+        "codex",
+        "copilot",
+        "cursor",
+        "devin",
+        "gemini",
+        "grok",
+        "opencode",
+        "qwen-code",
+        "warp"
+      ],
+      "credentialPolicy": "environment-user-oauth-token",
+      "protocol": {
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-09-10",
+        "verification": "stdio initialize of packages/slack/mcp/slack-mcp.mjs with SLACK_BRIDGE_MODE=fixture returned protocolVersion 2025-11-25, tools/list matching schemas/tools.json, and _meta.slackContractHash. Live Slack Web API protocol probe is milestone 3 and is not claimed here."
+      },
+      "localProcessPolicy": {
+        "instancing": "one-process-per-plugin-enable",
+        "declaredByHostCount": 0,
+        "note": "Not persisted as a session-start stdio server. Plugin-gated on Claude/Codex/Grok/Cursor. OpenCode may write it with enabled=false. Production distribution is the AgentHub gateway once generationEnabled is proven; do not treat Slack hosted MCP as this server."
+      },
+      "owner": {
+        "type": "capability",
+        "id": "slack"
+      },
+      "pluginOwnersByHost": {
+        "claude": "slack@agenthub",
+        "codex": "slack@agenthub",
+        "cursor": "slack@agenthub",
+        "grok": "slack@agenthub"
+      },
+      "notes": "Canonical Slack contract. Implements schemas/tools.json against the Slack Web API (fixture backend when no token). Host-native Slack plugins are optional UX. This is not mcp.slack.com.",
+      "hostScopeNote": "hosts[] is eligibility. Do not persist in host MCP config except OpenCode opt-in-disabled."
+    },
+    {
       "id": "descript",
       "name": "Descript",
       "scope": "global-default",
@@ -429,12 +450,12 @@
       "providesCapabilitiesNote": "Federated code intelligence for every git repo under C:/Repos/shmindmaster, C:/Repos/sh-pendoah, C:/Repos/musa-dev-team, and C:/Repos/pendoah (wiki docs, dependency graph, git history/ownership, health, dead code, decisions, cross-repo contracts). Query per repo (repo=<alias>) or across the workspace (repo=all).",
       "protocol": {
         "revision": "2025-06-18",
-        "verifiedOn": "2026-08-21",
-        "verification": "Workspace relocated to C:/Repos/.repowise-workspace.yaml and CLI upgraded 0.39.0 -> 0.44.0 on 2026-08-21. Args are `repowise mcp C:/Repos`."
+        "verifiedOn": "2026-09-10",
+        "verification": "CLI 0.49.0 (uv tool upgrade from 0.48.0 on 2026-09-10). Args remain `repowise mcp C:/Repos`. Member-repo `.vscode/mcp.json` args are not this server."
       },
       "localProcessPolicy": {
         "instancing": "single-shared-process",
-        "note": "ONE federated workspace server covers every owned repo. Per-repo repowise MCP entries (.mcp.json or host config) are drift and are flagged by scripts/Check-RepoStandard.ps1. Started on demand by the invoking host per activationPolicy."
+        "note": "ONE federated workspace server covers every owned repo. Per-repo repowise MCP entries (.mcp.json, or .vscode/mcp.json / .cursor/mcp.json pointed at a member checkout) are drift and are flagged by scripts/Check-RepoStandard.ps1. Started on demand by the invoking host per activationPolicy."
       },
       "owner": {
         "type": "capability",
@@ -527,13 +548,13 @@
       "activationMode": "on-demand-local",
       "url": "http://127.0.0.1:3400/mcp",
       "headers": {
-        "Authorization": "Bearer ${env:OPEN_CONNECTOR_RUNTIME_TOKEN}"
+        "Authorization": "Bearer ${env:OPEN_CONNECTOR_AGENT_TOKEN}"
       },
       "credentialPolicy": "environment-bearer-token",
       "providesCapabilities": [
         "saas.actions"
       ],
-      "providesCapabilitiesNote": "Owner-credentialed SaaS actions (GitHub, Linear, Notion, Slack, Railway, Firecrawl, Exa, Brave Search, Descript, Context7, PostHog, Sentry, DigitalOcean) executed behind a local credential boundary and discovered through five MCP tools: list_apps, list_connections, search_actions, get_action_guide, execute_action. Actions only; no triggers or webhooks.",
+      "providesCapabilitiesNote": "Owner-credentialed SaaS actions behind a local credential boundary, discovered through five MCP tools: list_apps, list_connections, search_actions, get_action_guide, execute_action. Scope on this fleet: Brave Search (replaces the retired brave-search npx stdio bridge), no-auth research and developer sources (npm, Hacker News, arXiv, Crossref, DataCite, PubMed, Europe PMC, bioRxiv/medRxiv, ClinicalTrials.gov, openFDA, WHO GHO, QuickChart, wttr.in, OSS Insight, AppleDB), and long-tail api_key providers with no hosted MCP in this registry that the owner chooses to connect (PostHog, Sentry, DigitalOcean). GitHub, Linear, Notion, Context7, Exa, Firecrawl, Railway and Descript stay on their official hosted MCPs, which are already shared-remote here; Slack is AgentHub-owned (packages/slack). Actions only; no triggers or webhooks.",
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-09-12",
@@ -553,8 +574,8 @@
         "opencode",
         "grok"
       ],
-      "hostScopeNote": "hosts[] is eligibility, not deployment. activationMode is on-demand-local and the id is not in native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds, so AgentHub sync writes nothing until an owner review moves it there and records the host exposure. claude is deliberately excluded: it already provides first-party connectors for the same providers and the routing policy prefers the connector the running surface provides. hermes and windsurf are checked-absent in hostInventory.",
-      "notes": "Registered 2026-09-12 as a pilot from the OpenConnector fit assessment (https://claude.ai/code/artifact/1c336229-6774-4e2b-9a20-139111ae1d22). Purpose: replace per-host stdio SaaS bridges on non-Claude hosts with one shared local HTTP gateway; all eleven SaaS-facing ids in this registry have a provider in its catalog. Not a product component and not a tenant credential store: the runtime is single-owner by schema (connections keyed by service + connection name, one encryption key, one admin token, connection requests owned by 'local-admin'), which is why Lawli SH-2748, LienWise external-platforms.policy.js, and CoLedger ai-boundaries.md keep product integrations direct. Bearer is a per-host persistent runtime token minted with an explicit allowedActions list; the bootstrap token is retired after minting. Container policy defaults: explicit action allowlist, raw provider proxy blocked, private-network egress off. Existing github/linear/notion/... registrations are untouched -- this entry coexists as the non-Claude route and takes over an id only by a later, separate owner decision."
+      "hostScopeNote": "hosts[] is the deployed set. activationMode is on-demand-local because the process is a standing local container the owner starts, and the id is in native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds because persisting its HTTP entry starts no process at session start. Each listed host carries the entry in its MCP config as a shared-gateway exposure. claude is deliberately excluded: it already provides first-party connectors for the same providers and the routing policy prefers the connector the running surface provides. hermes and windsurf are checked-absent in hostInventory.",
+      "notes": "Registered 2026-09-12 as a pilot from the OpenConnector fit assessment (https://claude.ai/code/artifact/1c336229-6774-4e2b-9a20-139111ae1d22); persisted for codex, cursor, opencode and grok on 2026-09-13. Correction recorded the same day: the original purpose statement ('replace per-host stdio SaaS bridges') was wrong for this fleet -- github, linear, notion, context7, exa, firecrawl, railway and descript were already shared-remote HTTP on every non-Claude host with zero local processes. The only stdio SaaS bridge it could retire was brave-search (npx @brave/brave-search-mcp-server, declared by no host), which is removed from this registry on 2026-09-13 and served through the gateway's brave_search provider instead; BRAVE_API_KEY stays a User environment variable, entered into the gateway by the owner's own wrapper (packages/open-connector/scripts/Invoke-OpenConnector.ps1 connect -ApiKeyEnv BRAVE_API_KEY), never written to any repository. Not a product component and not a tenant credential store: the runtime is single-owner by schema (connections keyed by service + connection name, one encryption key, one admin token, connection requests owned by 'local-admin'), which is why Lawli SH-2748, LienWise external-platforms.policy.js and CoLedger ai-boundaries.md keep product integrations direct. Token model: the bootstrap OOMOL_CONNECT_RUNTIME_TOKEN in the runtime env file serves only the wrapper and the compose healthcheck; hosts authenticate with a minted, revocable runtime token carrying an explicit allowedActions list, stored in the User environment variable OPEN_CONNECTOR_AGENT_TOKEN -- a different name from the bootstrap so a User variable can never shadow the compose interpolation. Container policy defaults: explicit action allowlist, raw provider proxy blocked, private-network egress off."
     }
   ]
 }

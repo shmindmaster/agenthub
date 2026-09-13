@@ -4,6 +4,28 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Portable control plane (2026-09-12):** host destinations in
+  `registry/agents.json` are `{userHome}` templates (`/` separators).
+  `scripts/lib/PathBinding.ps1` is the only materializer and expands
+  `{userHome}`, `{localData}`, and `{roamingConfig}` for Windows, macOS,
+  and Linux. Personal capabilities are `visibility: private`
+  and load through `overlays/personal/` (this checkout). `policy-core.md` is
+  the public policy; `global-agent-policy.md` remains the compiled personal
+  deployment document. `scripts/Export-PublicCore.ps1` writes a public tree
+  and does not change remote visibility.
+
+- **Canonical Slack capability (2026-09-10):** `packages/slack` 1.0.0 is
+  the AgentHub-owned Slack contract (tools, schemas, identity, Web API
+  bridge). Hosts are frontends. MCP is plugin-gated / OpenCode
+  opt-in-disabled; not persisted at session start. Fixture mode proves
+  the tool inventory, lossless message shape, and write roundtrip without
+  a live workspace. Live user-OAuth and gateway routing
+  (`127.0.0.1:8811/mcp` plus a remote endpoint for cloud agents) are the
+  next gates — see `docs/plans/active/slack-canonical-capability.md`.
+  Official `slackapi/slack-skills-plugin` is tracked as optional UX
+  (`slack-skills-plugin`); AgentHub does not republish it. This is not a
+  restore of the 2026-08-05 claude.ai Slack connector.
+
 - **Technical-story format and screencast annotation layer (2026-09-08):**
   media-studio 1.5.4 adds `references/technical-story.md` (`programForm:
   technical-story`) — a product or engineering change told as a 5–8 minute
@@ -138,17 +160,32 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - `tests/Run-AllTests.ps1` runs all behavior tests and package validators.
 - Sync scripts deploy managed instructions/skills/MCP config to host user
   directories (`Sync-AgentHub.ps1`, `Sync-Capabilities.ps1`, audit by default).
-- **OpenConnector fleet gateway pilot (2026-09-12):** capability
-  `open-connector` (`packages/open-connector`) owns one self-hosted
+- **OpenConnector fleet gateway (deployed 2026-09-13):** capability
+  `open-connector` (`packages/open-connector`) runs one self-hosted
   oomol-lab/open-connector container (v1.5.0 by digest, `127.0.0.1:3400`,
-  SQLite under `%LOCALAPPDATA%\AgentHub\runtime\open-connector`) and the
-  `use-open-connector` loose skill. Registered in `registry/mcps.json` as
-  `on-demand-local` over HTTP with eligibility for codex, cursor, opencode,
-  grok; not persisted to any host yet, and deliberately not offered to
-  Claude, which has first-party connectors for the same providers. Fleet
-  tooling only — the runtime is single-owner by schema, so products keep
-  their own per-tenant credential stores. Plan and milestones:
-  `docs/plans/active/open-connector-pilot.md`.
+  SQLite and secrets under `%LOCALAPPDATA%\AgentHubuntime\open-connector`)
+  and owns the `use-open-connector` loose skill and `tests/Test-OpenConnector.ps1`.
+  Persisted as an HTTP MCP entry on codex, cursor, opencode, and grok
+  (`persistedOnDemandLocalMcpIds`, `shared-gateway` exposure); Claude keeps
+  its first-party connectors; products never use it (single-owner runtime).
+  Honest scope: Brave Search (the `brave-search` npx stdio bridge is retired
+  from `mcps.json`; `brave_search` is connected from the `BRAVE_API_KEY`
+  User variable), the 22 built-in no-auth research/dev providers, and
+  long-tail api_key providers without a hosted MCP (PostHog, Sentry,
+  DigitalOcean). GitHub, Linear, Notion, Context7, Exa, Firecrawl, Railway,
+  Descript stay on hosted MCPs, Slack stays AgentHub-owned. Hosts
+  authenticate with the minted, revocable runtime token `agent-hosts` in the
+  User variable `OPEN_CONNECTOR_AGENT_TOKEN`; the bootstrap token is
+  operator-only. Lifecycle is `packages/open-connector/scripts/Invoke-OpenConnector.ps1`
+  (`start|stop|status|probe|connect|disconnect|list-connections|mint-token|list-tokens|revoke-token|smoke|exit-test`).
+  Fit assessment: https://claude.ai/code/artifact/1c336229-6774-4e2b-9a20-139111ae1d22.
+- **Sync safety (2026-09-13):** `Sync-AgentHub.ps1 -Validate` is read-only;
+  only `-Apply` writes host configs. A bare `-Validate` used to imply
+  `-Apply` (`Test-SyncAgentHubIdempotency` now guards it). The four tests that
+  read `agents.json` paths raw after the `{userHome}` templating
+  (`Test-AgentVersionAccuracy`, `Test-DeployedEvidenceFinish`,
+  `Test-MobileDevelopment`, `Test-RetiredSkillRemoval`) and the vacuous
+  `Test-SharedSkillsDeployment` scan now bind through `PathBinding.ps1`.
 - **Knowledge-access documents layer (2026-08-21):** capability
   `knowledge-access` (`packages/knowledge-access`) is the sibling of
   RepoWise for `D:\OneDrive - MahumTech\Documents\` folders `01`–`06` and
@@ -175,8 +212,11 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `portfolio-records`, 1 sh-pendoah, 2 musa-dev-team, 42 pendoah). All 63
   indexed, 0 stale vs HEAD. Nested fixture gits are not members
   (`crewscore/.corpus-cache/*`, `duckie-app/deploy` which is
-  `duckie-deploy`). CLI 0.44.0, kept on PyPI latest by
-  `scripts/Update-RepoWise.ps1`. MCP is local stdio `repowise mcp C:/Repos`.
+  `duckie-deploy`). CLI 0.49.0 as of 2026-09-10 (was 0.48.0, behind PyPI),
+  kept on PyPI latest by `scripts/Update-RepoWise.ps1`. MCP is local stdio
+  `repowise mcp C:/Repos`. A member
+  `.vscode/mcp.json` that points at the repo instead of `C:/Repos` is
+  drift (`Check-RepoStandard.ps1` `repowise-mcp-workspace-scope`).
   **Local-only:** not signed in to a hosted RepoWise account; telemetry
   disabled 2026-08-24 (`repowise telemetry disable`); indexes stay in each
   repo's `.repowise/` plus `C:\Repos\.repowise-workspace\`; default update

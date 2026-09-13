@@ -5,8 +5,8 @@ Behavior test: a persisted MCP declaration must exist in the host's config.
 Why: three registry audits converged on one root cause -- `hosts` arrays are
 written as intent and read as fact, and nothing compared them to deployed
 configuration. Reported symptoms included repowise-workspace declaring five
-hosts, railway declaring two, and brave-search recording declaredByHostCount:1
-against zero real declarations. Test-LocalMcpHostScope only checks that a named
+hosts, railway declaring two, and brave-search (retired 2026-09-13) recording
+declaredByHostCount:1 against zero real declarations. Test-LocalMcpHostScope only checks that a named
 host EXISTS; Test-RegistryHostReferences only checks that host ids RESOLVE.
 Neither opens the host's config.
 
@@ -144,8 +144,8 @@ Report 'every native-connector exposure id is a canonical MCP server id' ($stale
 # names no hosts. Empty-hosts on shared-remote means EVERY host by convention --
 # the same convention used to reject a reported 5-server grok drift as a
 # non-finding. Until 2026-08-20 this file read that convention as 'skip', so
-# seven servers (linear, context7, notion, firecrawl, exa, descript,
-# brave-search) were asserted nowhere at all.
+# seven servers (linear, context7, notion, firecrawl, exa, descript, and the
+# since-retired brave-search) were asserted nowhere at all.
 $installedHosts = @($mcps.hostInventory.hosts | Where-Object { $_ })
 # The field is `hosts`, not `installed` -- named that way so
 # Test-RegistryHostReferences validates the ids for free. Reading the wrong name
@@ -164,8 +164,9 @@ foreach ($server in @($mcps.mcpServers)) {
 
     if ($hosts.Count -eq 0) {
         # Only shared-remote carries the all-hosts reading. An on-demand-local
-        # server with no hosts (brave-search) is declared by nobody, which is a
-        # different statement and is asserted by its declaredByHostCount instead.
+        # server with no hosts (none today; brave-search was the case until its
+        # 2026-09-13 retirement) is declared by nobody, which is a different
+        # statement and is asserted by its declaredByHostCount instead.
         if ($server.activationMode -ne 'shared-remote') { continue }
         $hosts = $installedHosts
     }
