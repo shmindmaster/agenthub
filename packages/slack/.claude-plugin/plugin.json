@@ -1,0 +1,17 @@
+{
+  "name": "slack",
+  "version": "1.0.0",
+  "description": "AgentHub canonical Slack read/write. Enable the plugin to attach the shared MCP; disable when done. Host-native Slack plugins are optional UX only.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "slack",
+    "mcp",
+    "messaging",
+    "agenthub"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

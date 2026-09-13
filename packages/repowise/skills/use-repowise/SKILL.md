@@ -106,7 +106,12 @@ per-repo repowise MCP entries.
   member repo). Official Claude/Codex marketplace plugins are not installed:
   they would register a second MCP at the nearest repo instead of `C:/Repos`.
 - **CLI:** `repowise search "<q>"`, `repowise status -w`,
-  `repowise doctor -w`, `repowise update --repo <alias>` from `C:\Repos`.
+  `repowise doctor -w`, `repowise update --repo <alias>` **from `C:\Repos`**.
+  Never `repowise update` from inside a member repo without `--no-agents`.
+  Measured 2026-09-10: `--no-agents` still writes `.vscode/mcp.json` pointed
+  at the member path. After a CLI upgrade, `repowise agents refresh
+  --scope=both C:\Repos`. A member `.vscode/mcp.json` is allowed only as
+  `repowise mcp C:/Repos`; `Check-RepoStandard.ps1` fails any other path.
 - **Human dashboard:** `repowise serve --host 127.0.0.1 --ui-port 7338` from
   `C:\Repos`. API is `http://127.0.0.1:7337`. Port 3000 is Duckie.
 - **Agent hosts wired at the workspace:** Claude Code, Claude Desktop, Codex

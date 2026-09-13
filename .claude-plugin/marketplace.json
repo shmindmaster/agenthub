@@ -48,6 +48,10 @@
     {
       "name": "linkedin",
       "source": "./packages/linkedin"
+    },
+    {
+      "name": "slack",
+      "source": "./packages/slack"
     }
   ]
 }

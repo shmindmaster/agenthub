@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/slack/message.json",
+  "title": "AgentHub Slack message",
+  "description": "Normalized Slack message. Hydration is additive: names never replace IDs. The original Slack object is always in raw.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workspace_id",
+    "channel_id",
+    "ts",
+    "author",
+    "text",
+    "raw"
+  ],
+  "properties": {
+    "workspace_id": { "type": ["string", "null"] },
+    "channel_id": { "type": "string" },
+    "ts": { "type": "string" },
+    "thread_ts": { "type": ["string", "null"] },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_id"],
+      "properties": {
+        "user_id": { "type": ["string", "null"] },
+        "display_name": { "type": ["string", "null"] },
+        "bot_id": { "type": ["string", "null"] },
+        "app_id": { "type": ["string", "null"] }
+      }
+    },
+    "text": { "type": "string" },
+    "blocks": { "type": "array" },
+    "attachments": { "type": "array" },
+    "files": { "type": "array" },
+    "reactions": { "type": "array" },
+    "metadata": { "type": "object" },
+    "subtype": { "type": ["string", "null"] },
+    "edited": { "type": ["object", "null"] },
+    "permalink": { "type": ["string", "null"] },
+    "raw": { "type": "object" }
+  }
+}

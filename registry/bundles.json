@@ -74,6 +74,26 @@
         "creative-writing-skills is recommended for viewer-facing narrative (explainers, branded films, series), not for Descript finishing.",
         "Owner voice is Local-AI qwen-clone --voice sarosh only."
       ]
+    },
+    {
+      "id": "slack-workspace",
+      "title": "Slack workspace (canonical)",
+      "summary": "One AgentHub Slack contract on every coding-agent host. Official Slack skills plugin is optional UX, not authority.",
+      "requires": [
+        "slack"
+      ],
+      "recommends": [],
+      "thirdParty": {
+        "recommends": [],
+        "optional": [
+          "slack-skills-plugin"
+        ]
+      },
+      "notes": [
+        "packages/slack owns tools, schemas, identity, and the Web API bridge.",
+        "Do not install slackapi/slack-skills-plugin to close a host MCP gap; AgentHub supplies that MCP.",
+        "Gateway distribution (127.0.0.1:8811/mcp and a remote authenticated endpoint) is the production path once generationEnabled is proven."
+      ]
     }
   ]
 }

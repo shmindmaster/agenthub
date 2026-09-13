@@ -76,8 +76,8 @@
           ]
         },
         "logPaths": [
-          "C:/Users/SaroshHussain/AppData/Local/AgentHub/reports/gateway-poc/docker-remote-gateway.stderr.log",
-          "C:/Users/SaroshHussain/AppData/Local/AgentHub/reports/gateway-poc/docker-remote-gateway.stdout.log"
+          "{localData}/AgentHub/reports/gateway-poc/docker-remote-gateway.stderr.log",
+          "{localData}/AgentHub/reports/gateway-poc/docker-remote-gateway.stdout.log"
         ],
         "notes": "The temporary exported profile snapshot is intentionally not committed. The production endpoint remains bearer-authenticated even though the local POC explicitly disabled gateway authentication."
       },
@@ -139,6 +139,16 @@
           "dockerReference": null,
           "mappingType": "unresolved",
           "proofState": "discovery-required"
+        },
+        {
+          "mcpId": "slack",
+          "dockerReference": null,
+          "mappingType": "canonical-bridge",
+          "localStdio": "packages/slack/mcp/slack-mcp.mjs",
+          "intendedLoopback": "http://127.0.0.1:8811/mcp",
+          "intendedRemote": null,
+          "proofState": "contract-defined-not-yet-gateway-routed",
+          "note": "Slack is the first serious reason to finish gateway generation. Do not set generationEnabled from this mapping. Local and cloud agents must eventually see identical tools and schemas; stdio plugin-gated delivery is the current honest path."
         }
       ],
       "profiles": [
