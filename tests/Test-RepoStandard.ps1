@@ -474,6 +474,34 @@ try {
     Report 'nested-not-deferring-fails' ($outOrphan -match 'nested-refs-root:service') (($outOrphan.Trim().Split("`n")) | Select-Object -Last 5 | Out-String)
     Remove-Item -LiteralPath (Join-Path $good 'service') -Recurse -Force
 
+    # Per-repo RepoWise MCP in .vscode/mcp.json is the 2026-09-10 miss: the
+    # checker only looked at .mcp.json, and update --repo from a member wrote
+    # args pointed at that member. Fail the member path; allow the workspace root.
+    New-Item -ItemType Directory -Force (Join-Path $good '.vscode') | Out-Null
+    $memberMcp = @"
+{ "servers": { "repowise": { "command": "repowise", "args": ["mcp", "$($good.Replace('\','/'))"] } } }
+"@
+    Set-Content -LiteralPath (Join-Path $good '.vscode\mcp.json') -Encoding UTF8 -Value $memberMcp
+    $outMemberMcp = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    Report 'vscode-mcp-member-path-fails' ($outMemberMcp -match 'repowise-mcp-workspace-scope') `
+        (($outMemberMcp.Trim().Split("`n") | Select-Object -Last 6) -join ' | ')
+
+    $wsMcp = @"
+{ "servers": { "repowise": { "command": "repowise", "args": ["mcp", "$($fixtureRoot.Replace('\','/'))"] } } }
+"@
+    Set-Content -LiteralPath (Join-Path $good '.vscode\mcp.json') -Encoding UTF8 -Value $wsMcp
+    $outWsMcp = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    Report 'vscode-mcp-workspace-path-passes' ($outWsMcp -notmatch 'repowise-mcp-workspace-scope') `
+        (($outWsMcp.Trim().Split("`n") | Select-Object -Last 6) -join ' | ')
+
+    $rootMcp = '{"mcpServers":{"repowise":{"command":"repowise","args":["mcp"]}}}'
+    Set-Content -LiteralPath (Join-Path $good '.mcp.json') -Encoding UTF8 -Value $rootMcp
+    $outRootMcp = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
+    Report 'root-mcp-json-repowise-fails' ($outRootMcp -match 'no-per-repo-repowise-mcp') `
+        (($outRootMcp.Trim().Split("`n") | Select-Object -Last 6) -join ' | ')
+    Remove-Item -LiteralPath (Join-Path $good '.mcp.json') -Force
+    Remove-Item -LiteralPath (Join-Path $good '.vscode') -Recurse -Force
+
     # JSON mode stays parseable for machine consumers.
     $jsonOut = & $checker -Repo drifting -ConfigPath $configPath -Format json 2>&1 | Out-String
     $parsed = $null

@@ -26,7 +26,8 @@ playwright-report/
 # RepoWise may rewrite these; they are not AgentHub registry state.
 .vscode/
 
-# Opportunity-engine working output. Career/proposal evidence is retrieved from
+# Optional local roots. See agenthub.profile.example.json. Never commit.
+agenthub.profile.json
 # the local Qdrant knowledge store at render time; it carries un-anonymized
 # client material and is not repository content.
 evidence-augmentation.json

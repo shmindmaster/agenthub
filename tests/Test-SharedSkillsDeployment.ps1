@@ -44,6 +44,8 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+. (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
+$liveShadowScanBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
 $syncScript = Join-Path $repoRoot 'scripts\Sync-Capabilities.ps1'
 $hostExe = (Get-Process -Id $PID).Path
 
@@ -379,6 +381,13 @@ foreach ($c in @($caps.capabilities)) {
 
 function Expand-HomePath([string]$Raw) {
     if ([string]::IsNullOrWhiteSpace($Raw)) { return $null }
+    # registry/agents.json declares skillsDir/sharedSkillsDir as {userHome}
+    # templates; PathBinding is the sole expander. A raw template string
+    # never resolves via Test-Path, which would make the live shadow scan
+    # below pass vacuously (nothing to scan) rather than fail loudly.
+    if (Test-AgentHubPathTemplate $Raw) {
+        return Resolve-AgentHubBoundPath -Declared $Raw -Context $liveShadowScanBinding
+    }
     # Not a regex-escaped -replace: escaping a REPLACEMENT operand leaves the
     # doubled backslashes in the result.
     $x = if ($Raw.StartsWith('~')) { $env:USERPROFILE + $Raw.Substring(1) } else { $Raw }

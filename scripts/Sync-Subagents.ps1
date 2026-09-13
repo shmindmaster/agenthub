@@ -93,10 +93,14 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 }
 $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
 
+. (Join-Path $PSScriptRoot 'lib\PathBinding.ps1')
+if ([string]::IsNullOrWhiteSpace($UserProfile)) {
+    $UserProfile = Get-AgentHubDefaultHome
+}
 if ([string]::IsNullOrWhiteSpace($UserProfile)) {
     throw "Could not resolve a user profile directory. Pass -UserProfile explicitly."
 }
-$UserProfile = [System.IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+$UserProfile = Get-AgentHubNormalizedDirectory $UserProfile
 
 $RegistryDir           = Join-Path $RepositoryRoot 'registry'
 $CapabilitiesFile      = Join-Path $RegistryDir 'capabilities.json'
@@ -111,8 +115,15 @@ foreach ($required in @($CapabilitiesFile, $SubagentFormatsFile)) {
 $capabilitiesReg = Get-Content -LiteralPath $CapabilitiesFile -Raw -Encoding UTF8 | ConvertFrom-Json
 $formatsReg      = Get-Content -LiteralPath $SubagentFormatsFile -Raw -Encoding UTF8 | ConvertFrom-Json
 
+. (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
+
 if (-not $capabilitiesReg.PSObject.Properties['capabilities'] -or @($capabilitiesReg.capabilities).Count -eq 0) {
     throw "Registry '$CapabilitiesFile' declares zero capabilities. Refusing to report success against what looks like an empty or wrong registry tree."
+}
+$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $RepositoryRoot
+$capabilitiesReg.capabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilitiesReg -OverlayRoot $overlayRoot)
+if (@($capabilitiesReg.capabilities).Count -eq 0) {
+    throw "Registry '$CapabilitiesFile' resolved to zero effective capabilities after overlay filtering."
 }
 if (-not $formatsReg.PSObject.Properties['hosts'] -or @($formatsReg.hosts).Count -eq 0) {
     throw "Registry '$SubagentFormatsFile' declares zero target hosts."
@@ -126,7 +137,8 @@ function Write-Utf8NoBom {
 function Expand-DestinationTemplate {
     param([string]$Template, [string]$CapabilityId)
     if ([string]::IsNullOrWhiteSpace($Template)) { return $null }
-    return $Template.Replace('{userProfile}', $UserProfile).Replace('{capabilityId}', $CapabilityId)
+    $context = New-AgentHubPathBindingContext -TargetUserProfile $UserProfile -Platform (Get-AgentHubRequestedPlatform -RepositoryRoot $RepositoryRoot)
+    return Expand-AgentHubPathTemplate -Value $Template -Context $context -ExtraTokens @{ capabilityId = $CapabilityId }
 }
 
 function ConvertTo-DisplayName {

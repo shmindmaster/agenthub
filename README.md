@@ -1,6 +1,6 @@
 # AgentHub
 
-One personal control plane for consistent skills, plugins, MCP servers, and policy across coding agents.
+One personal control plane for consistent skills, plugins, MCP servers, and policy across coding agents. The portable core exports with `scripts/Export-PublicCore.ps1`; this checkout keeps the personal overlay.
 
 ## Source of truth
 

@@ -384,26 +384,19 @@ Report 'destination paths are rebased under an overridden -UserProfile, never le
 # --- Behavior 6: an unhonourable -UserProfile redirect is refused, not silently
 # downgraded to writing the real profile.
 #
-# The rebase in Behavior 0 strips a recorded `userProfile` prefix off each
-# absolute destination. If the registry records no `userProfile`, there is
-# nothing to strip and every path is returned verbatim -- meaning the real,
-# live profile. Harmless when -UserProfile was never overridden; catastrophic
-# when it was, because the caller believes they are running against a synthetic
-# profile. This fired for real while writing Behavior 5: a fixture registry
-# omitted `userProfile` and -Apply wrote two files into the live profile.
-#
-# The assertion is deliberately two-sided -- non-zero exit AND nothing on disk
-# -- because "it errored" and "it errored before writing" are different
-# guarantees, and only the second one is worth anything here. ---
-function Test-UnhonourableUserProfileRedirectIsRefused {
+# A missing recorded userProfile is no longer a refuse: PathBinding rebases
+# destinations under the invoking profile onto -UserProfile. The isolation
+# guarantee is unchanged -- nothing is written under the live profile. ---
+function Test-MissingRegistryProfileStillIsolates {
     $fixtureRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-noprofile-root-" + [guid]::NewGuid())
     $registryDir = Join-Path $fixtureRoot 'registry'
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-noprofile-" + [guid]::NewGuid())
     New-Item -ItemType Directory -Path $registryDir -Force | Out-Null
 
-    $canary = Join-Path $env:USERPROFILE ('.agenthub-canary-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '\AGENTS.md')
+    $canaryName = '.agenthub-canary-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+    $canary = Join-Path $env:USERPROFILE ($canaryName + '\AGENTS.md')
     $canaryDir = Split-Path $canary -Parent
-    # NOTE: no `userProfile` property -- that omission is the point of the test.
+    $expected = Join-Path $userProfile ($canaryName + '\AGENTS.md')
     $stubAgents = @{
         activeAgents = @(
             @{ id = 'zz-canary'; name = 'Canary'; status = 'active'
@@ -418,10 +411,13 @@ function Test-UnhonourableUserProfileRedirectIsRefused {
     try {
         $result = Invoke-SyncInstructions -ExtraArgs @('-Apply', '-RepositoryRoot', $fixtureRoot, '-UserProfile', $userProfile)
         if (Test-Path -LiteralPath $canaryDir) {
-            return @{ Passed = $false; Detail = "-Apply wrote into the REAL user profile at $canaryDir despite -UserProfile being redirected to '$userProfile'. The registry recorded no 'userProfile', so the rebase silently returned real paths. This is the live-profile write incident this suite exists to prevent." }
+            return @{ Passed = $false; Detail = "-Apply wrote into the REAL user profile at $canaryDir despite -UserProfile being redirected to '$userProfile'." }
         }
-        if ($result.ExitCode -eq 0) {
-            return @{ Passed = $false; Detail = "-Apply exited 0 with a -UserProfile redirect the registry could not honour. It must refuse. Output: $($result.Output)" }
+        if ($result.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "-Apply exited $($result.ExitCode) instead of rebasing the invoking-profile destination onto the synthetic profile. Output: $($result.Output)" }
+        }
+        if (-not (Test-Path -LiteralPath $expected)) {
+            return @{ Passed = $false; Detail = "expected the isolated write at $expected. Output: $($result.Output)" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
@@ -434,8 +430,8 @@ function Test-UnhonourableUserProfileRedirectIsRefused {
 $r5 = Test-InstructionsReachInactiveHostsToo
 Report 'instructions reach inactive hosts too (deliberate asymmetry with Sync-Capabilities)' $r5.Passed $r5.Detail
 
-$r6 = Test-UnhonourableUserProfileRedirectIsRefused
-Report 'a -UserProfile redirect the registry cannot honour is refused, never downgraded to writing the real profile' $r6.Passed $r6.Detail
+$r6 = Test-MissingRegistryProfileStillIsolates
+Report 'a missing registry userProfile still rebases onto -UserProfile and never writes the live profile' $r6.Passed $r6.Detail
 
 $r1 = Test-RenderContractProducesExactBytes
 Report 'render contract produces exact bytes: header, blank, marker, blank, canonical body' $r1.Passed $r1.Detail

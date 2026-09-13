@@ -73,10 +73,14 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 }
 $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
 
+. (Join-Path $PSScriptRoot 'lib\PathBinding.ps1')
+if ([string]::IsNullOrWhiteSpace($UserProfile)) {
+    $UserProfile = Get-AgentHubDefaultHome
+}
 if ([string]::IsNullOrWhiteSpace($UserProfile)) {
     throw "Could not resolve a user profile directory. Pass -UserProfile explicitly."
 }
-$UserProfile = [System.IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+$UserProfile = Get-AgentHubNormalizedDirectory $UserProfile
 
 # Reroute the staging root away from the invoking user's live %LOCALAPPDATA%
 # whenever -UserProfile is overridden. Without this, a test run against a
@@ -84,29 +88,16 @@ $UserProfile = [System.IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
 # machine-wide %LOCALAPPDATA%\AgentHub -- a synthetic profile must never
 # contaminate live AgentHub runtime state merely because LOCALAPPDATA was
 # inherited from the actual process environment.
-$effectiveLocalAppData = [System.IO.Path]::GetFullPath($env:LOCALAPPDATA)
-$invokingUserProfile = if ([string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
-    $null
-} else {
-    [System.IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
-}
-if ($invokingUserProfile -and
-    -not $UserProfile.Equals($invokingUserProfile, [StringComparison]::OrdinalIgnoreCase)) {
-    $invokingLocalAppData = [System.IO.Path]::GetFullPath(
-        (Join-Path $invokingUserProfile 'AppData\Local')
-    ).TrimEnd('\')
-    if ($effectiveLocalAppData.TrimEnd('\').Equals(
-        $invokingLocalAppData,
-        [StringComparison]::OrdinalIgnoreCase
-    )) {
-        $effectiveLocalAppData = Join-Path $UserProfile 'AppData\Local'
-    }
-}
+$invokingUserProfile = Get-AgentHubNormalizedDirectory (Get-AgentHubDefaultHome)
+$requestedPlatform = Get-AgentHubRequestedPlatform -RepositoryRoot $RepositoryRoot
+$effectiveLocalAppData = Get-AgentHubIsolatedLocalData -TargetUserProfile $UserProfile -InvokingUserProfile $invokingUserProfile -LocalAppData $env:LOCALAPPDATA -Platform $requestedPlatform
 
 $RegistryDir = Join-Path $RepositoryRoot 'registry'
 $AgentsFile  = Join-Path $RegistryDir 'agents.json'
-$PolicyFile  = Join-Path $RepositoryRoot 'global-agent-policy.md'
-$StagingRoot = Join-Path $effectiveLocalAppData 'AgentHub\runtime\instructions'
+. (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
+. (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
+$PolicyFile  = Resolve-AgentHubPolicyPath -RepositoryRoot $RepositoryRoot
+$StagingRoot = Join-AgentHubPlatformPath -Platform (Get-AgentHubPlatformId $requestedPlatform) -Base $effectiveLocalAppData -Child 'AgentHub/runtime/instructions'
 
 # ---------------------------------------------------------------------------
 # Fail loudly on missing inputs -- never silently proceed against a partial
@@ -186,70 +177,19 @@ function Get-RenderedInstructionContent {
 # Registry load
 # ---------------------------------------------------------------------------
 $agentsReg = Get-Content -LiteralPath $AgentsFile -Raw -Encoding UTF8 | ConvertFrom-Json
-
-# registry/agents.json stores ABSOLUTE destination paths baked to the real
-# invoking user's profile at the time the registry was captured (e.g.
-# "C:\\Users\\SaroshHussain\\.claude\\CLAUDE.md"), recorded verbatim in
-# agentsReg.userProfile. They are NOT relative to %USERPROFILE% and are NOT
-# self-rebasing. Every destination path/dir must have that recorded prefix
-# swapped for the effective -UserProfile before it is read, compared, or
-# written -- otherwise -Apply against a synthetic test profile would still
-# write the real, live user profile regardless of -UserProfile.
-#
-# This is not a hypothetical: before this function existed, exactly that
-# happened during this task's own development -- a test run passed a
-# synthetic -UserProfile, correctly staged its preview under that profile's
-# %LOCALAPPDATA%, and then -Apply wrote 12 real, live host files anyway,
-# because the destination path itself was still the registry's absolute,
-# real-profile path. Caught, reverted, and root-caused; see
-# task-2-report.md, "Safety incident." Do not remove or weaken this
-# rebase without re-reading that section.
-# tests/Test-SyncInstructions.ps1's "Behavior 0" is the permanent regression
-# guard for exactly this; it must stay passing.
-$registryUserProfile = if ($agentsReg.PSObject.Properties['userProfile'] -and
-    -not [string]::IsNullOrWhiteSpace([string]$agentsReg.userProfile)) {
-    [System.IO.Path]::GetFullPath([string]$agentsReg.userProfile).TrimEnd('\')
-} else {
-    $null
-}
+$script:instructionPathBinding = New-AgentHubPathBindingContext -TargetUserProfile $UserProfile -InvokingUserProfile $invokingUserProfile -RegistryUserProfile (Get-AgentHubRecordedUserProfile $agentsReg) -Platform $requestedPlatform
+Import-AgentHubBoundHostCatalog -AgentsDocument $agentsReg -Context $script:instructionPathBinding | Out-Null
 
 function ConvertTo-EffectiveUserPath {
     param([string]$Path)
-    if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
-    if (-not $registryUserProfile) { return $Path }
-    if ($Path.Equals($registryUserProfile, [StringComparison]::OrdinalIgnoreCase)) {
-        return $UserProfile
-    }
-    $prefixWithSeparator = $registryUserProfile + '\'
-    if ($Path.StartsWith($prefixWithSeparator, [StringComparison]::OrdinalIgnoreCase)) {
-        return $UserProfile + $Path.Substring($registryUserProfile.Length)
-    }
-    # A registry path that does not fall under the recorded userProfile at
-    # all (should not happen for any host with a real destination) is left
-    # untouched rather than guessed at.
-    return $Path
+    return Resolve-AgentHubBoundPath -Declared $Path -Context $script:instructionPathBinding
 }
 
-# The rebase above is a no-op when the registry records no userProfile -- every
-# path is returned unchanged. That is correct when -UserProfile was not
-# overridden, because unchanged already means the invoking profile. It is
-# catastrophic when it WAS overridden: the caller asked for a synthetic profile,
-# every destination silently resolves to the real one, and -Apply writes live
-# host files while reporting success against what looks like a test run. That is
-# the same safety incident described above, reached through a different door,
-# and it was found exactly that way -- a fixture registry omitting `userProfile`
-# wrote two files into the real profile before this guard existed.
-#
-# Refuse instead. A redirect that cannot be honoured must fail, not degrade
-# into writing the thing it was redirecting away from.
-if ($invokingUserProfile -and
-    -not $UserProfile.Equals($invokingUserProfile, [StringComparison]::OrdinalIgnoreCase) -and
-    -not $registryUserProfile) {
-    throw ("-UserProfile was redirected to '$UserProfile', but $AgentsFile records no 'userProfile' " +
-           "to rebase its absolute destination paths from. Every destination would resolve to the real " +
-           "profile '$invokingUserProfile' and -Apply would write live host files. Refusing. Add a " +
-           "'userProfile' property to the registry document, or run without -UserProfile.")
-}
+# PathBinding rebases recorded absolutes from the registry profile, or from
+# the invoking profile when the registry no longer records one. A missing
+# userProfile field is therefore not a silent live write: destinations under
+# the invoking profile move to -UserProfile. UNC and forward-slash shapes
+# still throw inside Resolve-AgentHubBoundPath.
 
 # Instructions go to EVERY host, active or inactive. This differs from
 # Sync-Capabilities, which skips inactive hosts by default, and the asymmetry is

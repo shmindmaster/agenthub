@@ -80,8 +80,11 @@ contract (Mission + Knowledge authority + Definition of done) is drift.
   `.repowise/` directory.
 - One MCP registration: `repowise-workspace` in `registry/mcps.json`
   (`repowise mcp C:/Repos`). A repo-local `.mcp.json` mentioning repowise
-  is drift. (Tool-managed `.vscode/mcp.json` written by `repowise update`
-  is allowed.)
+  is drift. Tool-managed `.vscode/mcp.json` / `.cursor/mcp.json` may exist
+  but must invoke `repowise mcp C:/Repos`, never the member checkout.
+  `Check-RepoStandard.ps1` fails a member path (measured 2026-09-10 when
+  `repowise update --repo agenthub` from inside the repo wrote
+  `C:/Repos/shmindmaster/agenthub`).
 - Excluded from the workspace: `.demo-workspace` (product-demo-studio
   capture output; not a git repo — do not delete).
 - The knowledge-standard checker still applies only to rostered

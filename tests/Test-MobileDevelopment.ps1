@@ -11,10 +11,21 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+. (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
+$pathBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
 $packageRoot = Join-Path $repoRoot 'packages\mobile-development'
 $entrypoint = Join-Path $packageRoot 'mobile.ps1'
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0
+
+# registry/agents.json declares skillsDir/sharedSkillsDir as {userHome}
+# templates (the OSS-extraction refactor). PathBinding is the sole expander;
+# a raw template string must never reach Test-Path/Join-Path/Get-ChildItem.
+function Resolve-MobileNativeSkillsDir([string]$Raw) {
+    if ([string]::IsNullOrWhiteSpace($Raw)) { return $null }
+    if (Test-AgentHubPathTemplate $Raw) { return Resolve-AgentHubBoundPath -Declared $Raw -Context $pathBinding }
+    return $Raw
+}
 
 function Report([string]$Name, [bool]$Passed, [string]$Detail) {
     $script:reported++
@@ -315,9 +326,9 @@ $mobileDeploymentFailures = @(
         $resolvedAgent = @($agents.activeAgents | Where-Object id -eq $resolvedHost | Select-Object -First 1)
         $mapping = @($mobileCapability[0].hostMappings | Where-Object hostId -eq $resolvedHost)
         $skillsDir = if ($resolvedAgent.Count -eq 1 -and -not [string]::IsNullOrWhiteSpace([string]$resolvedAgent[0].nativePaths.sharedSkillsDir)) {
-            [string]$resolvedAgent[0].nativePaths.sharedSkillsDir
+            Resolve-MobileNativeSkillsDir ([string]$resolvedAgent[0].nativePaths.sharedSkillsDir)
         } elseif ($resolvedAgent.Count -eq 1) {
-            [string]$resolvedAgent[0].nativePaths.skillsDir
+            Resolve-MobileNativeSkillsDir ([string]$resolvedAgent[0].nativePaths.skillsDir)
         } else { $null }
         $skillsReadable = $true
         foreach ($skillName in @($mobileCapability[0].managedSkillNames)) {

@@ -7,8 +7,8 @@
 
 .DESCRIPTION
     Reads the central registry and deploys real files / native configuration
-    entries into each installed coding agent's documented Windows user-level
-    folders. Idempotent. Qwen extensions use managed directory junctions so its
+    entries into each installed coding agent's documented user-level folders
+    on Windows, macOS, or Linux. Idempotent. Qwen extensions use managed directory junctions so its
     native extension loader can consume the canonical skill sources without
     copying credentials or skill content.
 
@@ -23,6 +23,7 @@
 
 .PARAMETER Validate
     Validate JSON/JSONC/YAML/TOML/markdown frontmatter and MCP schemas.
+    Read-only on its own; combine with -Apply to validate and deploy.
 #>
 [CmdletBinding()]
 param(
@@ -53,28 +54,21 @@ if ([string]::IsNullOrWhiteSpace($RegistryRoot)) {
 }
 $RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot).TrimEnd('\')
 $RegistryDir       = Join-Path $RegistryRoot 'registry'
-$effectiveLocalAppData = [System.IO.Path]::GetFullPath($env:LOCALAPPDATA)
-$invokingUserProfile = if ([string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
-    $null
-} else {
-    [System.IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
+. (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
+. (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
+if ([string]::IsNullOrWhiteSpace($UserProfile)) {
+    $UserProfile = Get-AgentHubDefaultHome
 }
-$targetUserProfile = [System.IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
-if ($invokingUserProfile -and
-    -not $targetUserProfile.Equals($invokingUserProfile, [StringComparison]::OrdinalIgnoreCase)) {
-    $invokingLocalAppData = [System.IO.Path]::GetFullPath(
-        (Join-Path $invokingUserProfile 'AppData\Local')
-    ).TrimEnd('\')
-    if ($effectiveLocalAppData.TrimEnd('\').Equals(
-        $invokingLocalAppData,
-        [StringComparison]::OrdinalIgnoreCase
-    )) {
-        # A synthetic or alternate profile must not contaminate the invoking
-        # user's live AgentHub state merely because LOCALAPPDATA was inherited.
-        $effectiveLocalAppData = Join-Path $targetUserProfile 'AppData\Local'
-    }
+if ([string]::IsNullOrWhiteSpace($UserProfile)) {
+    throw "Could not resolve a user profile directory. Pass -UserProfile explicitly."
 }
-$RuntimeDir        = Join-Path $effectiveLocalAppData 'AgentHub'
+$invokingUserProfile = Get-AgentHubNormalizedDirectory (Get-AgentHubDefaultHome)
+$targetUserProfile = Get-AgentHubNormalizedDirectory $UserProfile
+# A synthetic or alternate profile must not contaminate the invoking user's
+# live AgentHub state merely because LOCALAPPDATA was inherited.
+$requestedPlatform = Get-AgentHubRequestedPlatform -RepositoryRoot $RegistryRoot
+$effectiveLocalAppData = Get-AgentHubIsolatedLocalData -TargetUserProfile $targetUserProfile -InvokingUserProfile $invokingUserProfile -LocalAppData $env:LOCALAPPDATA -Platform $requestedPlatform
+$RuntimeDir        = Join-AgentHubPlatformPath -Platform (Get-AgentHubPlatformId $requestedPlatform) -Base $effectiveLocalAppData -Child 'AgentHub'
 $StateDir          = Join-Path $RuntimeDir 'sync'
 $DriftPath         = Join-Path $StateDir 'latest-drift.json'
 $StateFile         = Join-Path $StateDir 'sync-state.json'
@@ -84,6 +78,19 @@ $McpsFile          = Join-Path $RegistryDir 'mcps.json'
 $CapabilitiesFile  = Join-Path $RegistryDir 'capabilities.json'
 $ConnectorsFile    = Join-Path $RegistryDir 'native-connectors.json'
 $GatewaysFile      = Join-Path $RegistryDir 'gateway-profiles.json'
+
+$resolvedTarget = Resolve-AgentHubTargetUserProfile -RepositoryRoot $RegistryRoot -RequestedUserProfile $UserProfile -InvokingUserProfile $invokingUserProfile
+if ($resolvedTarget -and -not $resolvedTarget.Equals($targetUserProfile, [StringComparison]::OrdinalIgnoreCase)) {
+    $targetUserProfile = $resolvedTarget
+    $UserProfile = $resolvedTarget
+    if ($invokingUserProfile -and -not $targetUserProfile.Equals($invokingUserProfile, [StringComparison]::OrdinalIgnoreCase)) {
+        $effectiveLocalAppData = Get-AgentHubIsolatedLocalData -TargetUserProfile $targetUserProfile -InvokingUserProfile $invokingUserProfile -LocalAppData $env:LOCALAPPDATA -Platform $requestedPlatform
+        $RuntimeDir = Join-AgentHubPlatformPath -Platform (Get-AgentHubPlatformId $requestedPlatform) -Base $effectiveLocalAppData -Child 'AgentHub'
+        $StateDir = Join-Path $RuntimeDir 'sync'
+        $DriftPath = Join-Path $StateDir 'latest-drift.json'
+        $StateFile = Join-Path $StateDir 'sync-state.json'
+    }
+}
 
 # registry/capabilities.json now stores canonicalSource/hashBasis as
 # repo-relative paths (e.g. "packages/clerk"), not paths hardcoded to one
@@ -155,50 +162,10 @@ function Write-Utf8NoBom {
 # host config. That has now happened twice in this repo's history under two
 # different scripts, so the rewrite happens once here, at load, rather than at
 # each of the ~20 nativePaths read sites where one omission reintroduces it.
-function ConvertTo-ProfileRebasedPaths {
-    param([Parameter(Mandatory)]$Node)
-    if ($null -eq $Node) { return }
-    foreach ($property in @($Node.PSObject.Properties)) {
-        $value = $property.Value
-        if ($value -is [string]) {
-            if ([string]::IsNullOrWhiteSpace($value)) { continue }
-            # nativePaths is not purely paths: hermes stores an instruction
-            # body template and a prose provenance note there. Only rewrite
-            # values that are actually rooted paths.
-            #
-            # A UNC or forward-slash absolute path would fall through the
-            # drive-letter test below and be left unrebased -- which, under an
-            # isolated -Apply, means writing to that literal location. Nothing
-            # in the registry has that shape today, so refuse loudly rather
-            # than let a future entry silently leak.
-            if ($value -match '^(\\\\|[A-Za-z]:/)') {
-                throw "registry/agents.json nativePaths value '$value' is an absolute path in a shape -UserProfile rebasing does not support (UNC or forward-slash). Refusing to run rather than write to it unrebased."
-            }
-            if ($value.Length -lt 3 -or $value[1] -ne ':' -or $value[2] -ne '\') { continue }
-            # A path already under the target profile is already isolated --
-            # rebasing it again would bury it one profile deeper. This matters
-            # because a scratch profile normally lives under %TEMP%, which is
-            # itself under the invoking profile, so both prefixes match.
-            if ($value.StartsWith($targetUserProfile + '\', [StringComparison]::OrdinalIgnoreCase)) { continue }
-            if ($value.StartsWith($invokingUserProfile + '\', [StringComparison]::OrdinalIgnoreCase)) {
-                $property.Value = Join-Path $targetUserProfile $value.Substring($invokingUserProfile.Length + 1)
-            }
-        } elseif ($value -is [Management.Automation.PSCustomObject]) {
-            ConvertTo-ProfileRebasedPaths -Node $value
-        } elseif ($value -is [Collections.IEnumerable]) {
-            foreach ($element in $value) {
-                if ($element -is [Management.Automation.PSCustomObject]) { ConvertTo-ProfileRebasedPaths -Node $element }
-            }
-        }
-    }
-}
-
 $agentsReg = Read-JsonFile $AgentsFile
-if ($agentsReg -and $invokingUserProfile -and
-    -not $targetUserProfile.Equals($invokingUserProfile, [StringComparison]::OrdinalIgnoreCase)) {
-    foreach ($agent in @(@($agentsReg.activeAgents) + @($agentsReg.inactiveAgents))) {
-        if ($agent -and $agent.nativePaths) { ConvertTo-ProfileRebasedPaths -Node $agent.nativePaths }
-    }
+if ($agentsReg) {
+    $pathBinding = New-AgentHubPathBindingContext -TargetUserProfile $targetUserProfile -InvokingUserProfile $invokingUserProfile -RegistryUserProfile (Get-AgentHubRecordedUserProfile $agentsReg) -LocalAppData $effectiveLocalAppData -Platform $requestedPlatform
+    Import-AgentHubBoundHostCatalog -AgentsDocument $agentsReg -Context $pathBinding | Out-Null
 }
 $mcpsReg   = Read-JsonFile $McpsFile
 $capReg    = Read-JsonFile $CapabilitiesFile
@@ -221,6 +188,11 @@ if ($activeAgentCount -eq 0) {
 $capabilityCount = @($capReg.capabilities).Count
 if ($capabilityCount -eq 0) {
     throw "Registry root '$RegistryRoot' resolved to zero capabilities in $CapabilitiesFile. Refusing to report success against what looks like an empty or wrong registry tree; pass -RegistryRoot explicitly if this is intentional."
+}
+$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $RegistryRoot
+$capReg.capabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capReg -OverlayRoot $overlayRoot)
+if (@($capReg.capabilities).Count -eq 0) {
+    throw "Registry root '$RegistryRoot' resolved to zero effective capabilities after overlay filtering. Refusing to report success against an empty work set."
 }
 
 $script:mcpMigrationAliases = @{
@@ -2595,7 +2567,11 @@ function Sync-HostMcp-Windsurf {
 # ---------------------------------------------------------------------------
 # Main sync loop
 # ---------------------------------------------------------------------------
-$whatIfMode = $Audit -or (-not $Apply -and -not $Validate)
+# Only -Apply writes. -Audit is the default and -Validate is orthogonal: it
+# checks syntax/schemas and must never imply a deploy. Until 2026-09-13 this
+# read `$Audit -or (-not $Apply -and -not $Validate)`, so a bare -Validate run
+# merged canonical MCP entries into every live host config on the machine.
+$whatIfMode = -not $Apply
 
 $onDemandLocalMcpKeys = @($mcpsReg.mcpServers | Where-Object {
     [string]$_.activationMode -eq 'on-demand-local'
@@ -2772,30 +2748,37 @@ foreach ($agent in $agentsToSync) {
 # ---------------------------------------------------------------------------
 if ($Validate -or $Apply -or $Audit) {
     $configFiles = @(
-        $UserProfile + '\.claude.json',
-        $UserProfile + '\.cursor\mcp.json',
-        $UserProfile + '\AppData\Roaming\Code - Insiders\User\mcp.json',
-        $UserProfile + '\.factory\mcp.json',
-        $UserProfile + '\.qwen\settings.json',
-        $UserProfile + '\AppData\Roaming\devin\config.json',
-        $UserProfile + '\.config\amp\settings.json',
-        $UserProfile + '\.config\opencode\opencode.json',
-        $UserProfile + '\.gemini\settings.json',
-        $UserProfile + '\.gemini\antigravity\mcp_config.json',
-        $UserProfile + '\.gemini\config\mcp_config.json',
-        $UserProfile + '\.copilot\mcp-config.json',
-        $UserProfile + '\.codeium\windsurf\mcp_config.json',
-        $UserProfile + '\.warp\.mcp.json',
-        $UserProfile + '\.cline\data\settings\cline_mcp_settings.json',
-        $UserProfile + '\.qoder\settings.json'
-    )
+        '{userHome}/.claude.json',
+        '{userHome}/.cursor/mcp.json',
+        '{roamingConfig}/Code - Insiders/User/mcp.json',
+        '{userHome}/.factory/mcp.json',
+        '{userHome}/.qwen/settings.json',
+        '{roamingConfig}/devin/config.json',
+        '{userHome}/.config/amp/settings.json',
+        '{userHome}/.config/opencode/opencode.json',
+        '{userHome}/.gemini/settings.json',
+        '{userHome}/.gemini/antigravity/mcp_config.json',
+        '{userHome}/.gemini/config/mcp_config.json',
+        '{userHome}/.copilot/mcp-config.json',
+        '{userHome}/.codeium/windsurf/mcp_config.json',
+        '{userHome}/.warp/.mcp.json',
+        '{userHome}/.cline/data/settings/cline_mcp_settings.json',
+        '{userHome}/.qoder/settings.json'
+    ) | ForEach-Object { Expand-AgentHubPathTemplate -Value $_ -Context $pathBinding }
     foreach ($f in $configFiles) {
-        if (Test-Path -LiteralPath $f) { Test-JsonParse -Path $f }
+        # Test-JsonParse returns a bool (used elsewhere via its side effect on
+        # $script:validationErrors); left uncaptured it leaks $true/$false
+        # onto stdout as a bare "True"/"False" line per file checked.
+        if (Test-Path -LiteralPath $f) { $null = Test-JsonParse -Path $f }
     }
 
-    $tomlFiles = @($UserProfile + '\.codex\config.toml', $UserProfile + '\.grok\config.toml')
+    $tomlFiles = @(
+        '{userHome}/.codex/config.toml',
+        '{userHome}/.grok/config.toml'
+    ) | ForEach-Object { Expand-AgentHubPathTemplate -Value $_ -Context $pathBinding }
     foreach ($f in $tomlFiles) {
-        if (Test-Path -LiteralPath $f) { Test-TomlParse -Path $f }
+        # Same as Test-JsonParse above: suppress the returned bool.
+        if (Test-Path -LiteralPath $f) { $null = Test-TomlParse -Path $f }
     }
 }
 

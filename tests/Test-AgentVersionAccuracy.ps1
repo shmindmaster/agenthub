@@ -62,6 +62,8 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+. (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
+$executableBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
 
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0
@@ -91,7 +93,10 @@ function Resolve-ExecutableState {
     if ($null -eq $Value) { return [pscustomobject]@{ State = 'Undeclared'; Path = $null } }
     $text = [string]$Value
     if ([string]::IsNullOrWhiteSpace($text)) { return [pscustomobject]@{ State = 'Undeclared'; Path = $null } }
-    if ($text -match '[\\/]') {
+    if ($text -match '[\\/]' -or (Test-AgentHubPathTemplate $text)) {
+        if (Test-AgentHubPathTemplate $text) {
+            $text = Resolve-AgentHubBoundPath -Declared $text -Context $executableBinding
+        }
         if (Test-Path -LiteralPath $text -PathType Leaf) { return [pscustomobject]@{ State = 'Present'; Path = $text } }
         return [pscustomobject]@{ State = 'Absent'; Path = $text }
     }

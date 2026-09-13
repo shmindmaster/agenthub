@@ -340,6 +340,36 @@ function Test-CodexEnvironmentHttpHeaders {
     }
 }
 
+# --- Behavior 5: -Validate without -Apply must not write. The whatIf gate used
+# to read `$Audit -or (-not $Apply -and -not $Validate)`, so a bare -Validate
+# run behaved exactly like -Apply and merged canonical entries into every live
+# host config on the machine (observed 2026-09-13). The fixture's stale codex
+# seed must survive untouched and the run must report drift, not updated. ---
+function Test-ValidateAloneDoesNotWrite {
+    $fixture = New-ReportingFixture
+    try {
+        $codexConfig = Join-Path $fixture.Profile 'config.toml'
+        $before = [IO.File]::ReadAllBytes($codexConfig)
+        $validateArgs = @('-Validate', '-RegistryRoot', $fixture.Root, '-UserProfile', $fixture.Profile)
+        $run = Invoke-SyncAgentHub -ExtraArgs $validateArgs
+        if ($run.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "-Validate exit code was $($run.ExitCode). Output: $($run.Output)" }
+        }
+        $after = [IO.File]::ReadAllBytes($codexConfig)
+        if (-not [Linq.Enumerable]::SequenceEqual($before, $after)) {
+            return @{ Passed = $false; Detail = 'a bare -Validate run changed the codex config bytes -- Validate implied Apply.' }
+        }
+        $statuses = Get-ReportedMcpStatuses -Fixture $fixture
+        $wrote = @($statuses | Where-Object { $_ -match '=updated$' })
+        if ($wrote.Count -gt 0) {
+            return @{ Passed = $false; Detail = "a bare -Validate run reported writes: $($wrote -join ', ')." }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-ReportingFixture -Fixture $fixture
+    }
+}
+
 $r1 = Test-SecondApplyMakesNoFurtherChanges
 Report 'second consecutive -Apply -Prune against the same synthetic host makes no further byte changes' $r1.Passed $r1.Detail
 
@@ -352,7 +382,10 @@ Report 'a first -Apply that genuinely writes new config still reports mcp=update
 $r4 = Test-CodexEnvironmentHttpHeaders
 Report 'Codex remote MCP sync writes env_http_headers without resolving the secret' $r4.Passed $r4.Detail
 
-$reported = 4
+$r5 = Test-ValidateAloneDoesNotWrite
+Report '-Validate without -Apply leaves host config bytes unchanged and reports no writes' $r5.Passed $r5.Detail
+
+$reported = 5
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
     exit 1

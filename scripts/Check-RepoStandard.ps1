@@ -473,6 +473,68 @@ function Invoke-RepoCheck {
             Add-Result $Name 'no-per-repo-repowise-mcp' $false '.mcp.json registers repowise; the fleet uses ONE workspace MCP registered in agenthub' $false
         }
     }
+
+    # Tool-managed .vscode/mcp.json (and a repo-local .cursor/mcp.json) may
+    # exist. They must invoke the workspace server at workspace.root, never
+    # the member checkout. Measured 2026-09-10: `repowise update --repo agenthub`
+    # from inside the member wrote args `mcp C:/Repos/shmindmaster/agenthub`,
+    # which is a second, narrower MCP the fleet contract forbids. .mcp.json
+    # above does not see .vscode/, so this check is the one that can fail.
+    $wsRootResolved = $null
+    try { $wsRootResolved = (Get-Item -LiteralPath $workspaceRoot).FullName.TrimEnd('\', '/') } catch { $wsRootResolved = $workspaceRoot.TrimEnd('\', '/') }
+    $repoResolved = (Get-Item -LiteralPath $path).FullName.TrimEnd('\', '/')
+    $editorMcpFiles = @(
+        (Join-Path $path '.vscode\mcp.json'),
+        (Join-Path $path '.cursor\mcp.json')
+    )
+    foreach ($editorMcp in $editorMcpFiles) {
+        if (-not (Test-Path -LiteralPath $editorMcp -PathType Leaf)) { continue }
+        $relMcp = $editorMcp.Substring($path.Length).TrimStart('\', '/').Replace('\', '/')
+        $text = Get-Content -LiteralPath $editorMcp -Raw -Encoding UTF8
+        if ($text -notmatch 'repowise') { continue }
+        $doc = $null
+        try { $doc = $text | ConvertFrom-Json } catch {
+            Add-Result $Name 'repowise-mcp-workspace-scope' $false "$relMcp is not JSON; cannot verify it points at $workspaceRoot" $false
+            continue
+        }
+        $collections = @()
+        if ($doc.PSObject.Properties['servers']) { $collections += $doc.servers }
+        if ($doc.PSObject.Properties['mcpServers']) { $collections += $doc.mcpServers }
+        $targets = [Collections.Generic.List[string]]::new()
+        foreach ($col in $collections) {
+            if ($null -eq $col) { continue }
+            foreach ($prop in $col.PSObject.Properties) {
+                $node = $prop.Value
+                $cmd = [string]$node.command
+                $argList = @($node.args | ForEach-Object { [string]$_ })
+                if ($cmd -notmatch 'repowise' -and $prop.Name -notmatch 'repowise') { continue }
+                $afterMcp = $false
+                foreach ($a in $argList) {
+                    if ($a -eq 'mcp') { $afterMcp = $true; continue }
+                    if ($afterMcp -and ($a -match '^[A-Za-z]:[\\/]' -or $a -match '^/' )) {
+                        $targets.Add($a)
+                        break
+                    }
+                }
+            }
+        }
+        if ($targets.Count -eq 0) {
+            Add-Result $Name 'repowise-mcp-workspace-scope' $false "$relMcp names repowise but has no mcp path argument" $false
+            continue
+        }
+        foreach ($target in $targets) {
+            $resolvedTarget = $target.Replace('/', '\').TrimEnd('\')
+            try { $resolvedTarget = (Get-Item -LiteralPath $target).FullName.TrimEnd('\', '/') } catch { }
+            $isWorkspace = [string]::Equals($resolvedTarget, $wsRootResolved, [StringComparison]::OrdinalIgnoreCase)
+            $isMember = [string]::Equals($resolvedTarget, $repoResolved, [StringComparison]::OrdinalIgnoreCase)
+            if ($isWorkspace) {
+                Add-Result $Name 'repowise-mcp-workspace-scope' $true '' $false
+            } else {
+                $why = if ($isMember) { "points at this repo ($target)" } else { "points at '$target'" }
+                Add-Result $Name 'repowise-mcp-workspace-scope' $false "$relMcp $why; fleet MCP is ``repowise mcp $workspaceRoot``" $false
+            }
+        }
+    }
 }
 # ---------------------------------------------------------------------------
 # Driver

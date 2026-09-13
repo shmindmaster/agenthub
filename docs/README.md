@@ -17,6 +17,8 @@ reality. Everything else is durable knowledge, routed below.
 - [architecture/overview.md](./architecture/overview.md) — the registry model,
   sync/deployment flow, and validation layers. Read before changing
   `registry/` or `scripts/`.
+- [architecture/control-plane-modules.md](./architecture/control-plane-modules.md) —
+  PathBinding, host catalog, capability overlay, and the public/personal split.
 
 ## Development
 

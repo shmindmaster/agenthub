@@ -5,12 +5,9 @@ absent from disk must say why.
 
 WHY THIS FILE EXISTS
 
-registry/agents.json declares absolute paths for each host's settings,
-instructions, skills, agents, plugins, hooks and rules directories. Some of
-those paths do not exist on disk, and an absent path is ambiguous in a way
-a present one is not: it is either a correct path for a feature nobody has
-deployed yet, or a wrong path nobody has checked. Nothing distinguishes the
-two by looking.
+registry/agents.json declares host destinations as {userHome} templates.
+This test materializes them against the invoking profile, then requires a
+note for every declared path that is absent on this machine.
 
 That ambiguity has already cost this repo once, in the opposite direction.
 gemini.agentsDirNote records it: an earlier edit changed that path "on the
@@ -33,14 +30,9 @@ this file enforces is only that the looking happened and left a trace.
 
 THIS TEST READS THE LOCAL FILESYSTEM, DELIBERATELY
 
-registry/agents.json is not portable: it carries absolute paths under a
-specific user profile and a top-level userProfile field to match. This test
-is therefore machine-local by construction, exactly like the inventory
-command it complements. On a different machine a different set of paths
-would be absent and a different set of notes required. That is correct
-behavior for a personal fleet registry, not a portability defect -- but it
-does mean this file asserts something about THIS machine, and a reader
-should not mistake a pass here for a claim about anyone else's.
+Destinations are portable templates. Materialization uses PathBinding and
+$env:USERPROFILE so the absence check still describes THIS machine. A pass
+here is not a claim about anyone else's disk.
 
 Not a Pester suite: this repo carries no Pester dependency. Same
 accumulate-and-report idiom as the rest of tests/.
@@ -53,6 +45,8 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+. (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
+$binding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
 
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0
@@ -77,6 +71,8 @@ $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') 
 # non-path scalars (instructionHeader, instructionFormat) and the *Note
 # annotations themselves, none of which name a filesystem location.
 # ---------------------------------------------------------------------------
+# A field is a path field when it is a PathBinding template or an absolute
+# Windows path. nativePaths also carries non-path scalars and *Note annotations.
 $pathFields = [Collections.Generic.List[object]]::new()
 foreach ($agent in $agents.activeAgents) {
     if (-not $agent.nativePaths) { continue }
@@ -84,13 +80,15 @@ foreach ($agent in $agents.activeAgents) {
         if ($property.Name -like '*Note') { continue }
         $value = $property.Value
         if ($value -isnot [string]) { continue }
-        if ($value -notmatch '^(?:[A-Za-z]:\\|\\\\)') { continue }
+        if (-not (Test-AgentHubBindablePathValue $value)) { continue }
+        if ($value -match '^(\\\\|[A-Za-z]:/)') { continue }
+        $materialized = Resolve-AgentHubBoundPath -Declared $value -Context $binding
         $noteProperty = $agent.nativePaths.PSObject.Properties["$($property.Name)Note"]
         $pathFields.Add([pscustomobject]@{
             HostId  = $agent.id
             Field   = $property.Name
-            Path    = $value
-            Present = (Test-Path -LiteralPath $value)
+            Path    = $materialized
+            Present = (Test-Path -LiteralPath $materialized)
             Note    = if ($noteProperty) { [string]$noteProperty.Value } else { $null }
         })
     }
@@ -175,7 +173,7 @@ function Test-ScanExaminedRealInput {
         return @{ Passed = $false; Detail = 'registry/agents.json yielded zero activeAgents; every other behavior here iterates that empty set and passes trivially.' }
     }
     if ($pathFields.Count -eq 0) {
-        return @{ Passed = $false; Detail = "found $(@($agents.activeAgents).Count) active agents but zero nativePaths fields that look like an absolute path. The path-shape filter or the schema has changed, and behaviors 1 and 3 are now asserting over nothing." }
+        return @{ Passed = $false; Detail = "found $(@($agents.activeAgents).Count) active agents but zero nativePaths fields that look like a path template or an absolute path. The path-shape filter or the schema has changed, and behaviors 1 and 3 are now asserting over nothing." }
     }
     $present = @($pathFields | Where-Object { $_.Present })
     if ($present.Count -eq 0) {

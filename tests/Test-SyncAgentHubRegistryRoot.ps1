@@ -24,6 +24,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+. (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
 $syncScript = Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1'
 $hostExe = (Get-Process -Id $PID).Path
 
@@ -222,8 +223,11 @@ function Test-UserProfileRebasesHostDestinations {
                 # instruction template and a prose note there), so filter to
                 # rooted paths rather than calling GetFullPath on everything --
                 # .NET Framework throws "Illegal characters in path" on the rest.
-                if ($candidate -is [string] -and $candidate.Length -ge 3 -and $candidate[1] -eq ':' -and $candidate[2] -eq '\') {
-                    $declared[$candidate.TrimEnd('\')] = $true
+                if ($candidate -is [string] -and (Test-AgentHubBindablePathValue $candidate)) {
+                    $materialized = Resolve-AgentHubBoundPath -Declared $candidate -Context (New-AgentHubPathBindingContext -TargetUserProfile $realProfile)
+                    if ($materialized.Length -ge 3 -and $materialized[1] -eq ':' -and $materialized[2] -eq '\') {
+                        $declared[$materialized.TrimEnd('\')] = $true
+                    }
                 }
             }
         }

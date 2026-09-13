@@ -61,6 +61,8 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+. (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
+$executableBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
 
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0
@@ -98,7 +100,10 @@ function Resolve-DeclaredExecutable {
     if ($null -eq $Value) { return 'Undeclared' }
     $text = [string]$Value
     if ([string]::IsNullOrWhiteSpace($text)) { return 'Undeclared' }
-    if ($text -match '[\\/]') {
+    if ($text -match '[\\/]' -or (Test-AgentHubPathTemplate $text)) {
+        if (Test-AgentHubPathTemplate $text) {
+            $text = Resolve-AgentHubBoundPath -Declared $text -Context $executableBinding
+        }
         if (Test-Path -LiteralPath $text -PathType Leaf) { return 'Present' }
         return 'Absent'
     }

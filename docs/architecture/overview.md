@@ -21,9 +21,12 @@ and per-host deployment:
   `gateway-profiles.json`, `product-video-delivery.json` — host format and
   delivery records. `native-connectors.json` -> `thirdPartyExtensions` is
   the inventory of official plugins and skills AgentHub does not own
-  (Superpowers, Firecrawl, Clerk, Railway, Framer, Remotion, and similar).
-  Those install from each host's official channel. AgentHub marketplace
-  entries are only for capabilities this repo authors.
+  (Superpowers, Firecrawl, Clerk, Railway, Framer, Remotion,
+  `slack-skills-plugin`, and similar). Those install from each host's
+  official channel. AgentHub marketplace entries are only for capabilities
+  this repo authors. Slack read/write is `packages/slack`: one tool
+  contract, one identity, plugin-gated until the gateway is
+  production-proven. Host-native Slack plugins are optional UX.
 
 ## Flow
 
@@ -38,7 +41,9 @@ Sync-Capabilities.ps1            Sync-AgentHub.ps1
 ```
 
 - `scripts/AgentHub.ps1` is the lifecycle entry point
-  (inventory / validate / sync / drift).
+  (inventory / validate / sync / drift). Path materialization, host
+  binding, and overlay filtering live in `scripts/lib/` — see
+  [control-plane-modules.md](./control-plane-modules.md).
 - `scripts/Check-RepoStandard.ps1` sweeps every fleet repo for the knowledge
   standard; `registry/repo-standard.json` is its roster.
 - Content hashes are recomputed with `scripts/RegistryContentHash.ps1`

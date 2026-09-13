@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "name": "full-access-unattended",
   "intent": "User-authorized local coding-agent profile with repository policy, registered MCPs, and managed capabilities available without routine permission prompts.",
-  "canonicalPolicy": "C:/Repos/shmindmaster/agenthub/AGENTS.md",
+  "canonicalPolicy": "AGENTS.md",
   "managedHosts": [
     "claude",
     "codex",
@@ -322,7 +322,7 @@
     "notes": [
       "All 21 hosts from the deleted profiles/host-autonomy-mappings.json (fc1bda6) resolve against registry/agents.json; none were dropped.",
       "registry/host-capability-contracts.json (also deleted at fc1bda6) additionally covered vscode-insiders' autonomy. It was originally excluded here because vscode-insiders was never in host-autonomy-mappings.json's 21-host list AND was marked inactive in registry/agents.json. RESOLVED 2026-08-04: vscode-insiders was reclassified active, Validate-AgentHub.ps1 immediately failed with 'active host has no autonomy profile and no exemption', and the profile was recovered from that deleted file rather than invented. Worth keeping as a worked example -- the exclusion was correctly reasoned and correctly recorded, and because it was recorded, the recovery was a lookup instead of a research task.",
-      "registry/fleet-profile.json also pins an absolute path elsewhere in this file (canonicalPolicy: 'C:/Repos/shmindmaster/agenthub/AGENTS.md') -- observed, not fixed here; queued as separate work per two other task reports."
+      "registry/fleet-profile.json canonicalPolicy is repo-relative (AGENTS.md) as of 2026-09-12; the previous absolute checkout pin was retired with the portable host catalog."
     ]
   },
   "hostSettings": {

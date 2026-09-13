@@ -24,6 +24,8 @@ $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
 # Functions only; the pass runs after deploy/prune so it never rewrites a
 # destination this script is about to delete.
 . (Join-Path $PSScriptRoot 'SkillFrontmatterYaml.ps1')
+. (Join-Path $PSScriptRoot 'lib\PathBinding.ps1')
+. (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
 
 # -UserProfile has to actually move where this script writes, or it is a
 # safety promise the script does not keep. Registry skillsDir values are
@@ -31,30 +33,30 @@ $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
 # runtime state directory whenever an override is supplied. A prior task in
 # this effort shipped a live-fleet write on exactly this gap.
 if ([string]::IsNullOrWhiteSpace($UserProfile)) {
+  $UserProfile = Get-AgentHubDefaultHome
+}
+if ([string]::IsNullOrWhiteSpace($UserProfile)) {
   throw "Could not resolve a user profile directory. Pass -UserProfile explicitly."
 }
-$UserProfile = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
-$realProfile = if ([string]::IsNullOrWhiteSpace($env:USERPROFILE)) { $null } else { [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\') }
+$UserProfile = Get-AgentHubNormalizedDirectory $UserProfile
+$realProfile = Get-AgentHubNormalizedDirectory (Get-AgentHubDefaultHome)
 $profileIsOverridden = $realProfile -and ($UserProfile -ne $realProfile)
 
 function Resolve-UnderUserProfile([string]$Path) {
-  if (-not $profileIsOverridden -or [string]::IsNullOrWhiteSpace($Path)) { return $Path }
-  $full = [IO.Path]::GetFullPath($Path)
-  if ($full.StartsWith($realProfile + '\', [StringComparison]::OrdinalIgnoreCase)) {
-    return Join-Path $UserProfile $full.Substring($realProfile.Length + 1)
-  }
-  return $full
+  if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
+  return Resolve-AgentHubBoundPath -Declared $Path -Context $script:skillPathBinding
 }
 
-$agentHubRuntimeRoot = if ($profileIsOverridden) {
-  Join-Path $UserProfile 'AppData\Local\AgentHub'
-} else {
-  Join-Path $env:LOCALAPPDATA 'AgentHub'
-}
+$requestedPlatform = Get-AgentHubRequestedPlatform -RepositoryRoot $root
+$agentHubLocalData = Get-AgentHubIsolatedLocalData -TargetUserProfile $UserProfile -InvokingUserProfile $realProfile -LocalAppData $env:LOCALAPPDATA -AlwaysIsolateOnOverride -Platform $requestedPlatform
+$agentHubRuntimeRoot = Join-AgentHubPlatformPath -Platform (Get-AgentHubPlatformId $requestedPlatform) -Base $agentHubLocalData -Child 'AgentHub'
 $runtimeRoot = Join-Path $agentHubRuntimeRoot 'sync'
 $statePath = Join-Path $runtimeRoot 'managed-skills.json'
 $capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$script:skillPathBinding = New-AgentHubPathBindingContext -TargetUserProfile $UserProfile -InvokingUserProfile $realProfile -RegistryUserProfile (Get-AgentHubRecordedUserProfile $agentsDocument) -Platform $requestedPlatform
+$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $root
+$capabilities.capabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilities -OverlayRoot $overlayRoot)
 
 # Inactive hosts are retained as inventory, not as deployment targets, matching
 # the -IncludeInactiveAgents switch Sync-AgentHub.ps1 already exposes for MCP so

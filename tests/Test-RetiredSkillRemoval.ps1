@@ -24,6 +24,8 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+. (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
+$pathBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
 
 $failures = [Collections.Generic.List[string]]::new()
 function Report {
@@ -82,8 +84,12 @@ foreach ($a in @($agents.activeAgents)) {
         # giving C:\\Users\\... . Win32 tolerates doubled separators so it never
         # failed outright, it just produced wrong paths in failure messages.
         $raw = [string]$p
-        $expanded = if ($raw.StartsWith('~')) { $env:USERPROFILE + $raw.Substring(1) } else { $raw }
-        $resolved = [Environment]::ExpandEnvironmentVariables($expanded)
+        $resolved = if (Test-AgentHubPathTemplate $raw) {
+            Resolve-AgentHubBoundPath -Declared $raw -Context $pathBinding
+        } else {
+            $expanded = if ($raw.StartsWith('~')) { $env:USERPROFILE + $raw.Substring(1) } else { $raw }
+            [Environment]::ExpandEnvironmentVariables($expanded)
+        }
         if ((Test-Path -LiteralPath $resolved) -and $resolved -notin $roots) { $roots.Add($resolved) }
     }
 }

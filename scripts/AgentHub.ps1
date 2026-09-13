@@ -88,12 +88,21 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 }
 $RepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
 
+. (Join-Path $PSScriptRoot 'lib\PathBinding.ps1')
+if ([string]::IsNullOrWhiteSpace($UserProfile)) {
+    $UserProfile = Get-AgentHubDefaultHome
+}
 if ([string]::IsNullOrWhiteSpace($UserProfile)) {
     throw "Could not resolve a user profile directory. Pass -UserProfile explicitly."
 }
-$UserProfile = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+$UserProfile = Get-AgentHubNormalizedDirectory $UserProfile
 
 $ScriptsDir = Join-Path $RepositoryRoot 'scripts'
+# Modules belong to this script, not to the tree being synced. A stub
+# -RepositoryRoot used by tests has no scripts/lib, and loading it from
+# there would make orchestration depend on the target checkout.
+. (Join-Path $PSScriptRoot 'lib\SyncOrchestrator.ps1')
+. (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
 $hostExe = (Get-Process -Id $PID).Path
 
 if ([string]::IsNullOrWhiteSpace($Command) -or $Command -notin $ValidCommands) {
@@ -149,13 +158,7 @@ function Invoke-ValidateAgentHub {
 # of -RepositoryRoot; every other parameter name is shared.
 function Get-SyncStepDefinitions {
     param([switch]$ApplyMode)
-    $modeArg = if ($ApplyMode) { '-Apply' } else { '-Audit' }
-    return @(
-        @{ Name = 'Sync-Instructions.ps1'; Relative = 'Sync-Instructions.ps1'; Args = @($modeArg, '-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
-        @{ Name = 'Sync-Subagents.ps1'; Relative = 'Sync-Subagents.ps1'; Args = @($modeArg, '-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
-        @{ Name = 'Sync-Capabilities.ps1'; Relative = 'Sync-Capabilities.ps1'; Args = @($modeArg, '-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
-        @{ Name = 'Sync-AgentHub.ps1'; Relative = 'Sync-AgentHub.ps1'; Args = @($modeArg, '-RegistryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
-    )
+    return Get-AgentHubSyncStepDefinitions -RepositoryRoot $RepositoryRoot -UserProfile $UserProfile -ApplyMode:$ApplyMode
 }
 
 # Aggregates all four Sync-* scripts honestly: success requires every known
@@ -213,29 +216,11 @@ function Invoke-Inventory {
     }
     $agentsReg = Get-Content -LiteralPath $agentsFile -Raw -Encoding UTF8 | ConvertFrom-Json
 
-    # registry/agents.json bakes nativePaths as absolute paths against the
-    # real profile that authored the registry (agentsReg.userProfile). Rebase
-    # them under -UserProfile the same way Sync-Instructions.ps1 does, so an
-    # inventory run against a synthetic -UserProfile reports synthetic paths,
-    # never the real, live profile's paths.
-    $registryUserProfile = if ($agentsReg.PSObject.Properties['userProfile'] -and
-        -not [string]::IsNullOrWhiteSpace([string]$agentsReg.userProfile)) {
-        [IO.Path]::GetFullPath([string]$agentsReg.userProfile).TrimEnd('\')
-    } else {
-        $null
-    }
-
-    function ConvertTo-EffectiveInventoryPath {
-        param([string]$Path)
-        if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
-        if (-not $registryUserProfile) { return $Path }
-        if ($Path.Equals($registryUserProfile, [StringComparison]::OrdinalIgnoreCase)) { return $UserProfile }
-        $prefixWithSeparator = $registryUserProfile + '\'
-        if ($Path.StartsWith($prefixWithSeparator, [StringComparison]::OrdinalIgnoreCase)) {
-            return $UserProfile + $Path.Substring($registryUserProfile.Length)
-        }
-        return $Path
-    }
+    # Destinations are templates or recorded absolutes. PathBinding is the
+    # only materializer, so inventory against a synthetic -UserProfile reports
+    # synthetic paths and never the live profile.
+    $binding = New-AgentHubPathBindingContext -TargetUserProfile $UserProfile -RegistryUserProfile (Get-AgentHubRecordedUserProfile $agentsReg) -Platform (Get-AgentHubRequestedPlatform -RepositoryRoot $RepositoryRoot)
+    Import-AgentHubBoundHostCatalog -AgentsDocument $agentsReg -Context $binding | Out-Null
 
     $allHosts = [Collections.Generic.List[object]]::new()
     if ($agentsReg.PSObject.Properties['activeAgents'] -and $agentsReg.activeAgents) {
@@ -265,9 +250,10 @@ function Invoke-Inventory {
                 # is never a path this can Test-Path -- classify by shape,
                 # not by a hardcoded field-name list that would silently
                 # miss a future field.
-                if ($value -notmatch '^[A-Za-z]:\\' -and $value -notmatch '^\\\\') { continue }
+                $isPosixAbsolute = $value.StartsWith('/') -and -not $value.StartsWith('//')
+                if ($value -notmatch '^[A-Za-z]:\\' -and $value -notmatch '^\\\\' -and -not $isPosixAbsolute) { continue }
                 $pathFieldFound = $true
-                $effective = ConvertTo-EffectiveInventoryPath $value
+                $effective = $value
                 $rows.Add([pscustomobject]@{
                     HostId = $hostId; Status = $entry.Status; Field = $prop.Name
                     Declared = $value; EffectivePath = $effective; Present = (Test-Path -LiteralPath $effective)

@@ -332,7 +332,7 @@ function Test-GeneratorAgreesWithComputedDrops {
     }
     $profileRoot = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-toolcoverage-" + [guid]::NewGuid())
     foreach ($hostEntry in $translatingHosts) {
-        $marker = $hostEntry.hostRootMarkerTemplate.Replace('{userProfile}', $profileRoot)
+        $marker = $hostEntry.hostRootMarkerTemplate.Replace('{userHome}', $profileRoot).Replace('{userProfile}', $profileRoot).Replace('/', '\')
         New-Item -ItemType Directory -Path $marker -Force | Out-Null
     }
     try {
