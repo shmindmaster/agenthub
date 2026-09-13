@@ -1,8 +1,16 @@
 {
-  "version": "1.5.4",
+  "version": "1.5.5",
   "composition": "Briefing",
   "nativeFrame": { "width": 1600, "height": 1000, "fps": 30 },
   "consecutiveRepeat": "forbidden-unless-intentional",
+  "cast": {
+    "host": { "speaker": "sarosh", "voice": "qwen-clone", "shareHint": "0.70-0.80" },
+    "stakeholders": [
+      { "speaker": "ryan", "voice": "qwen-role", "role": "Engineering skeptic", "card": "question" },
+      { "speaker": "vivian", "voice": "qwen-role", "role": "Product · CSM", "card": "question" },
+      { "speaker": "aiden", "voice": "qwen-role", "role": "Ops · Audience", "card": "question" }
+    ]
+  },
   "archetypes": [
     { "id": "cold-open", "kit": ["statement", "broll"], "roleHint": ["hook"] },
     { "id": "full-bleed-broll", "kit": ["broll", "still"], "roleHint": ["before", "tension", "payoff"] },

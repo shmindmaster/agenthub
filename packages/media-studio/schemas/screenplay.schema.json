@@ -59,7 +59,10 @@
         "evidence-proof",
         "checklist-build",
         "hero-reveal",
-        "cta-end-frame"
+        "cta-end-frame",
+        "chapter-card",
+        "lower-third",
+        "speaker-slide"
       ]
     },
     "scene": {
@@ -94,6 +97,11 @@
           ]
         },
         "visualArchetype": { "$ref": "#/$defs/visualArchetype" },
+        "speaker": {
+          "type": "string",
+          "enum": ["sarosh", "ryan", "Ryan", "vivian", "Vivian", "aiden", "Aiden", "joel"],
+          "description": "Host narration (omit/sarosh) or stakeholder Q&A card (ryan/vivian/aiden via qwen-role). joel is a legacy Ryan-style interviewer."
+        },
         "action": { "type": "string" },
         "highlight": { "type": "string" },
         "durationSeconds": { "type": "number", "minimum": 0.5 },

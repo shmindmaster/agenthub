@@ -35,6 +35,18 @@ Avoid:
 
 Timestamps are targets, not a grid. A 5-minute film compresses every beat; it does not drop one. The hook and "what this means" are the two beats most often cut and the two that decide whether anyone remembers the film.
 
+## 2b. Cast (multi-voice Q&A)
+
+Host is Sarosh (~70–80% of lines, `qwen-clone` style bank). Stakeholder questions use Remotion labeled question cards + `qwen-role`:
+
+| Speaker | Role on card | Typical beat |
+| --- | --- | --- |
+| `ryan` | Engineering skeptic | Mechanism / correctness objection |
+| `vivian` | Product · CSM | Customer / handoff consequence |
+| `aiden` | Ops · Audience | “What do I do Monday?” |
+
+Set `speaker` on the scene; leave host scenes as `sarosh` or omit. See `scene-archetypes.md` § Stakeholder Q&A.
+
 ## 3. Rules
 
 1. **Visual markup, aggressively.** Box the important element, dim the rest, arrows for cause → effect, zoom, labels such as `User action`, `Webhook`, `DB write`, `Async job`. When the story crosses systems, put a tiny flow diagram on screen. The compositor's annotation layer (`kit/screencast/render-overlay.mjs`) is the tool; `media-director` decides the markup per beat.

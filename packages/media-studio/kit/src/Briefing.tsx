@@ -49,6 +49,48 @@ export type SceneArchetype =
   | "lower-third"
   | "speaker-slide";
 
+/**
+ * Host narration uses `sarosh` (default / omit). Stakeholder Q&A lines use
+ * Ryan / Vivian / Aiden and render as labeled question cards. `joel` is a
+ * legacy alias for a Ryan-style interviewer card.
+ */
+export type BriefingSpeaker =
+  | "sarosh"
+  | "joel"
+  | "ryan"
+  | "Ryan"
+  | "vivian"
+  | "Vivian"
+  | "aiden"
+  | "Aiden";
+
+export type StakeholderId = "ryan" | "vivian" | "aiden" | "joel";
+
+/** Display labels for stakeholder question cards (qwen-role cast). */
+export const STAKEHOLDER_LABELS: Record<
+  StakeholderId,
+  { name: string; role: string }
+> = {
+  ryan: { name: "Ryan", role: "Engineering skeptic" },
+  vivian: { name: "Vivian", role: "Product · CSM" },
+  aiden: { name: "Aiden", role: "Ops · Audience" },
+  joel: { name: "Ryan", role: "Engineering skeptic" },
+};
+
+export const normalizeSpeaker = (
+  speaker?: string | null,
+): string | undefined => {
+  if (!speaker) return undefined;
+  return speaker.trim().toLowerCase();
+};
+
+export const isStakeholderQuestionSpeaker = (
+  speaker?: string | null,
+): speaker is StakeholderId => {
+  const id = normalizeSpeaker(speaker);
+  return id === "ryan" || id === "vivian" || id === "aiden" || id === "joel";
+};
+
 export type BriefingScene = {
   id: string;
   kicker: string;
@@ -67,12 +109,11 @@ export type BriefingScene = {
    */
   visual?: Visual;
   /**
-   * Who is talking. Only "joel" changes anything: an interviewer's line renders
-   * as a question card so the viewer never has to work out whether they are
-   * hearing a question or an answer. Absent on scenes authored before this
-   * existed, which render exactly as they always did.
+   * Who is talking. Omit or `sarosh` = host narration (answer / diagram slide).
+   * `ryan` | `vivian` | `aiden` = labeled stakeholder question card (qwen-role).
+   * `joel` = legacy interviewer card (same visual family as Ryan).
    */
-  speaker?: "joel" | "sarosh";
+  speaker?: BriefingSpeaker;
 };
 
 export type BriefingProps = {
@@ -456,10 +497,11 @@ const Statement: FC<{ scene: BriefingScene; accent: string }> = ({ scene, accent
 };
 
 /**
- * The interviewer's line. Deliberately unlike every answer scene: off-white on
- * a darker ground, a heavy left rule, no accent colour and no diagram. Over
- * forty minutes the viewer stops reading the label and just recognises the
- * shape, which is the whole point of giving a question its own card.
+ * Stakeholder / interviewer question card. Deliberately unlike every host
+ * answer scene: off-white on a darker ground, a heavy left rule, no accent
+ * colour and no diagram. Name + role sit above the short Q so the viewer
+ * never has to guess who is asking. Over a long program they stop reading
+ * the label and just recognise the shape.
  */
 const Question: FC<{ scene: BriefingScene }> = ({ scene }) => {
   const frame = useCurrentFrame();
@@ -471,6 +513,23 @@ const Question: FC<{ scene: BriefingScene }> = ({ scene }) => {
   // The words have to land at roughly the rate they are spoken, so the card is
   // still being written while the question is still being asked.
   const step = Math.max(0.05, (scene.durationSeconds * 0.86) / Math.max(1, words.length));
+
+  const stakeholderId = normalizeSpeaker(scene.speaker) as StakeholderId | undefined;
+  const stakeholder =
+    stakeholderId && STAKEHOLDER_LABELS[stakeholderId]
+      ? STAKEHOLDER_LABELS[stakeholderId]
+      : null;
+  const nameLabel = stakeholder?.name ?? null;
+  const roleLabel = scene.subtitle?.trim() || stakeholder?.role || null;
+  // When the speaker map owns the name, keep an optional eyebrow only if the
+  // author set a kicker that is not just the name or a generic QUESTION.
+  const kickerRaw = (scene.kicker ?? "").trim();
+  const kickerIsRedundant =
+    !kickerRaw ||
+    (nameLabel !== null &&
+      kickerRaw.toLowerCase() === nameLabel.toLowerCase()) ||
+    /^questions?$/i.test(kickerRaw);
+  const eyebrow = nameLabel && kickerIsRedundant ? null : kickerRaw || null;
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#070707" }}>
@@ -502,21 +561,73 @@ const Question: FC<{ scene: BriefingScene }> = ({ scene }) => {
             }}
           />
           <div style={{ flex: 1 }}>
-            <div
-              style={{
-                opacity: interpolate(frame, [0, 0.45 * fps], [0, 1], {
-                  extrapolateLeft: "clamp",
-                  extrapolateRight: "clamp",
-                }),
-                color: "#6E6A62",
-                letterSpacing: "0.34em",
-                fontSize: 21,
-                fontWeight: 700,
-                marginBottom: 30,
-              }}
-            >
-              {scene.kicker}
-            </div>
+            {eyebrow ? (
+              <div
+                style={{
+                  opacity: interpolate(frame, [0, 0.35 * fps], [0, 1], {
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                  }),
+                  color: "#6E6A62",
+                  letterSpacing: "0.34em",
+                  fontSize: 18,
+                  fontWeight: 700,
+                  marginBottom: 18,
+                }}
+              >
+                {eyebrow.toUpperCase()}
+              </div>
+            ) : null}
+            {nameLabel ? (
+              <div
+                style={{
+                  opacity: interpolate(frame, [0, 0.4 * fps], [0, 1], {
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                  }),
+                  color: "#E8E4D9",
+                  letterSpacing: "0.22em",
+                  fontSize: 28,
+                  fontWeight: 800,
+                  marginBottom: roleLabel ? 10 : 28,
+                }}
+              >
+                {nameLabel.toUpperCase()}
+              </div>
+            ) : (
+              <div
+                style={{
+                  opacity: interpolate(frame, [0, 0.45 * fps], [0, 1], {
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                  }),
+                  color: "#6E6A62",
+                  letterSpacing: "0.34em",
+                  fontSize: 21,
+                  fontWeight: 700,
+                  marginBottom: 30,
+                }}
+              >
+                {kickerRaw || "QUESTION"}
+              </div>
+            )}
+            {roleLabel ? (
+              <div
+                style={{
+                  opacity: interpolate(frame, [0.15 * fps, 0.5 * fps], [0, 1], {
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                  }),
+                  color: "#8A857A",
+                  fontSize: 22,
+                  fontWeight: 600,
+                  marginBottom: 30,
+                  letterSpacing: "0.04em",
+                }}
+              >
+                {roleLabel}
+              </div>
+            ) : null}
             <div
               style={{
                 display: "flex",
@@ -564,7 +675,10 @@ const Slide: FC<{ scene: BriefingScene; sceneIndex: number }> = ({
   const accent = scene.accent ?? FALLBACK_ACCENT;
   const span = Math.max(1, scene.durationSeconds * fps);
 
-  if (scene.speaker === "joel" || scene.archetype === "quote-problem") {
+  if (
+    isStakeholderQuestionSpeaker(scene.speaker) ||
+    scene.archetype === "quote-problem"
+  ) {
     return <Question scene={scene} />;
   }
 

@@ -8,4 +8,6 @@ Sync with `packages/media-studio/scripts/Sync-MediaStudioKit.ps1` before render.
 
 Each scene sets `archetype` from `scene-archetypes.json`. Consecutive repeats are forbidden unless intentional.
 
+Stakeholder Q&A: set `speaker` to `ryan` | `vivian` | `aiden` for labeled question cards (name + role + short Q). Omit or use `sarosh` for host narration. See `scene-archetypes.md` § Stakeholder Q&A.
+
 `screencast/` is the screencast compositor and annotation layer (`compose-screencast.mjs`, `render-overlay.mjs`, `render-code.mjs`, `render-html.mjs`, `render-card.mjs`). It needs `playwright` from this kit's `package.json`; manifest hints are documented in `screencast/README.md`.

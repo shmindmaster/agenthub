@@ -31,14 +31,24 @@ If a required file is missing, remit. Do not generate a generic bed and skip the
 
 ## 2. Voice
 
-TTS **always**. Per beat, use `direction.register` (Sarosh style-bank: `explaining`, `firm`, `serious`, …). Do not write free-text "sound excited". Do not respell.
+TTS **always**. Owner (and role) speech for viewer-facing jobs **must** go through `Generate-OwnerVoice.ps1` — never an ad-hoc one-shot generate → concat script.
 
 ```powershell
-& $LocalAiControl voice qwen-clone --voice sarosh --reference <style.wav> --ref-text <sidecar> --text "…" --out <beat>.wav
-& $LocalAiControl voice score --voice sarosh <wav>
+$Hub = if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Repos\shmindmaster\agenthub' }
+& pwsh -NoProfile -File (Join-Path $Hub 'packages\media-studio\scripts\Generate-OwnerVoice.ps1') -Job $Job
 ```
 
-Score every owner-voice segment before compose. Honor `pauseBeforeSeconds` / `holdAfterSeconds` as silence in the edit, not as padded TTS.
+That path is fail-closed: allowlisted style only (default `02_explaining` from `_identity_probe.json`) → integrity → `ai.ps1 transcribe` (Qwen3-ASR-1.7B) → dual-backend identity → retry → seed → `--premium` → STOP+LOG. Selection ledger before scene concat. Role voices (`ryan` / `vivian` / `aiden` / `joel` from each scene's `speaker`, matching the kit's stakeholder cast) get integrity + ASR only, no identity gate.
+
+If a STOP+LOG segment failed only because the ASR misread digits/numbers already present in the narration (identity passed, wording didn't), do not regenerate TTS: run `ReGate-OwnerVoice.ps1 -Job $Job`. It re-scores the existing `take.wav` files with number-normalized WER and looser integrity and writes fresh `PASS.json` receipts in place — it never re-synthesizes audio.
+
+`Generate-OwnerVoice.ps1` reads narration and `speaker` straight from `screenplay.json`; it does not parse `storyboard.json` or `visual-bible.json` itself — those still drive Sections 3 and 4 below by hand. **Known gap: it renders the whole job on one allowlisted default style, not per-beat `direction.register`.** `media-director` still names a style-bank register per beat in `direction.json` (`explaining`, `firm`, `serious`, …), but the batch script does not read or switch on it. If a beat's called register meaningfully differs from the default, generate that one segment manually — `ai.ps1 voice qwen-clone --voice sarosh --reference <register-style.wav> --ref-text <sidecar> --text "…"`, gated through `Test-SpeechIntegrity.ps1` and `ai.ps1 voice score --voice sarosh` — and splice it into `voice/selected/` before scene concat. Do not claim a beat's register was honored unless you did this by hand; the automated path always uses the default.
+
+**Banned:** inventing style IDs (`04_serious`); using `03_firm` / other styles until allowlisted; GGUF talker/ASR forks; phonetic-respelling Sarosh input; assembling identity/ASR-failing segments.
+
+Before generate: write `qa/pronunciation-risk.json` (one row per occurrence). Extend `pronunciations.json` as needed; apply dictionary at render via `pronounce.py` (verified only in production). Listen-gate every risk row before ship.
+
+Honor `pauseBeforeSeconds` / `holdAfterSeconds` as silence in the edit, not as padded TTS. Mix with `Finish-BriefingStems.ps1` (speech-only loudnorm) — never `-AllowDynamic` on TTS.
 
 ## 3. Music and silence
 
@@ -87,7 +97,7 @@ provenance.
 
 ## 7. Final check
 
-- [ ] Direction register used per beat
+- [ ] Default style used unless a beat's `direction.register` was deliberately overridden by hand and re-gated
 - [ ] Owner segments identity-scored
 - [ ] Bed generated only if a beat asked for `bed`; stings are short; silence beats have no music file
 - [ ] Bible B-roll generated with refuse honored
