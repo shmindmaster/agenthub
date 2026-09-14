@@ -2,7 +2,8 @@
 <#
 The public-core export must omit private packages, the personal overlay,
 and owner-specific path residue in the control plane. It must not push.
-It must ship the example overlay, quickstart, and package.json CLI entry.
+It must ship the example overlay, quickstart, and package.json CLI entry, and
+the exported init -> validate workflow must execute successfully without sync.
 #>
 [CmdletBinding()]
 param()
@@ -55,7 +56,10 @@ function Test-ExportOmitsPersonalSurface {
             'packages\sarosh-communication',
             'overlays\personal',
             'global-agent-policy.md',
-            'scripts\Export-PublicCore.ps1'
+            'scripts\Export-PublicCore.ps1',
+            'registry\product-video-delivery.json',
+            'registry\repo-standard.json',
+            'registry\mobile-scope.json'
         )
         $present = @($forbidden | Where-Object { Test-Path -LiteralPath (Join-Path $dest $_) })
         if ($present.Count -gt 0) {
@@ -87,14 +91,99 @@ function Test-ExportOmitsPersonalSurface {
         if ($gi -notmatch 'overlays/personal/') {
             return @{ Passed = $false; Detail = 'exported .gitignore does not ignore overlays/personal/' }
         }
+
+        # Model a recipient's Git checkout. Hash validation deliberately uses
+        # tracked files, never an untracked filesystem walk. No commit or host
+        # synchronization is needed to establish this synthetic index.
+        $gitOutput = & git -C $dest init --quiet 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            return @{ Passed = $false; Detail = "synthetic checkout init failed: $gitOutput" }
+        }
+        $gitOutput = & git -C $dest -c core.autocrlf=false add --all 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            return @{ Passed = $false; Detail = "synthetic checkout indexing failed: $gitOutput" }
+        }
+        $entry = Join-Path $dest 'scripts\AgentHub.ps1'
+        $syntheticProfile = Join-Path $dest 'synthetic-user-profile'
+        $initOutput = & pwsh -NoProfile -File $entry init -UserProfile $syntheticProfile 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            return @{ Passed = $false; Detail = "exported init failed: $initOutput" }
+        }
+        foreach ($relative in @('agenthub.profile.json', 'overlays\personal\overlay.json')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $dest $relative))) {
+                return @{ Passed = $false; Detail = "exported init did not create $relative" }
+            }
+        }
+        if (Test-Path -LiteralPath $syntheticProfile) {
+            return @{ Passed = $false; Detail = 'init wrote into the synthetic host profile' }
+        }
+        $validateOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or $validateOutput -notmatch 'PASS:') {
+            return @{ Passed = $false; Detail = "exported init -> validate failed: $validateOutput" }
+        }
+        if (Test-Path -LiteralPath $syntheticProfile) {
+            return @{ Passed = $false; Detail = 'validate wrote into the synthetic host profile' }
+        }
+
+        $capPath = Join-Path $dest 'registry\capabilities.json'
+        $publicCaps = Get-Content -LiteralPath $capPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($publicCaps.distribution -ne 'public-core') {
+            return @{ Passed = $false; Detail = 'export lacks its public-core distribution declaration' }
+        }
+
+        # A public export still runs real content-hash validation.
+        $originalHash = $publicCaps.capabilities[0].contentHash
+        $publicCaps.capabilities[0].contentHash = 'synthetic-invalid-hash'
+        $publicCaps | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $capPath -Encoding UTF8
+        $invalidOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0 -or $invalidOutput -notmatch 'contentHash drift:') {
+            return @{ Passed = $false; Detail = "public validation accepted hash drift: $invalidOutput" }
+        }
+        $publicCaps.capabilities[0].contentHash = $originalHash
+        $publicCaps | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $capPath -Encoding UTF8
+
+        # A marker cannot conceal canonical fleet inputs.
+        $compiledPolicy = Join-Path $dest 'global-agent-policy.md'
+        Set-Content -LiteralPath $compiledPolicy -Value '# Synthetic compiled policy' -Encoding UTF8
+        $mixedOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
+        Remove-Item -LiteralPath $compiledPolicy -Force
+        if ($LASTEXITCODE -eq 0 -or $mixedOutput -notmatch 'public-core distribution contains private fleet input') {
+            return @{ Passed = $false; Detail = "public marker bypassed private fleet validation: $mixedOutput" }
+        }
+
+        # No marker means canonical validation, including missing and wrong-size
+        # delivery registries. These are synthetic records, never private data.
+        $publicCaps.PSObject.Properties.Remove('distribution')
+        $publicCaps | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $capPath -Encoding UTF8
+        $missingOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0 -or $missingOutput -notmatch 'product video delivery registry must contain seven products') {
+            return @{ Passed = $false; Detail = "canonical mode accepted missing delivery registry: $missingOutput" }
+        }
+        $deliveryPath = Join-Path $dest 'registry\product-video-delivery.json'
+        @{ products = @(1..6 | ForEach-Object { @{ id = "synthetic-product-$_" } }) } |
+            ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $deliveryPath -Encoding UTF8
+        $countOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0 -or $countOutput -notmatch 'product video delivery registry must contain seven products') {
+            return @{ Passed = $false; Detail = "canonical mode accepted six delivery products: $countOutput" }
+        }
+        @{ products = @(1..7 | ForEach-Object { @{ id = "synthetic-product-$_" } }) } |
+            ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $deliveryPath -Encoding UTF8
+        $canonicalOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            return @{ Passed = $false; Detail = "canonical mode rejected seven synthetic products: $canonicalOutput" }
+        }
         return @{ Passed = $true; Detail = $null }
     } finally {
+        $scratchPrefix = [IO.Path]::GetFullPath($env:AGENTHUB_TEST_SCRATCH).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+        if (-not [IO.Path]::GetFullPath($dest).StartsWith($scratchPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Refusing cleanup outside the test scratch directory'
+        }
         Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
 $result = Test-ExportOmitsPersonalSurface
-Report 'public-core export omits private packages, overlay, and owner path residue' ([bool]$result.Passed) ([string]$result.Detail)
+Report 'public-core export preserves privacy, runs init -> validate, and retains canonical validation gates' ([bool]$result.Passed) ([string]$result.Detail)
 
 Write-Host ''
 Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed"

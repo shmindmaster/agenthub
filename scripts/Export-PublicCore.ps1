@@ -105,6 +105,9 @@ $capabilities.capabilities = @(
         -not (Test-AgentHubCapabilityPrivate $_)
     }
 )
+# Explicit export provenance distinguishes the portable distribution from a
+# canonical fleet checkout with an accidentally missing private registry.
+$capabilities | Add-Member -NotePropertyName distribution -NotePropertyValue 'public-core' -Force
 [IO.File]::WriteAllText($capabilitiesPath, ($capabilities | ConvertTo-Json -Depth 40), $utf8)
 
 function Remove-PrivateMarketplacePlugins {

@@ -32,7 +32,25 @@ $marketplace = Read-Json (Join-Path $root '.agents\plugins\marketplace.json')
 $capabilities = Read-Json (Join-Path $root 'registry\capabilities.json')
 $mcps = Read-Json (Join-Path $root 'registry\mcps.json')
 $agents = Read-Json (Join-Path $root 'registry\agents.json')
-$delivery = Read-Json (Join-Path $root 'registry\product-video-delivery.json')
+$distribution = [string]$capabilities.distribution
+$isPublicCore = $distribution -eq 'public-core'
+if ($distribution -and -not $isPublicCore) { Fail "unknown capabilities distribution: $distribution" }
+$deliveryPath = Join-Path $root 'registry\product-video-delivery.json'
+$delivery = $null
+if ($isPublicCore) {
+  # The exporter removes fleet-private inputs; a public marker must not turn
+  # validation into a bypass for a canonical checkout that still contains them.
+  foreach ($relative in @('global-agent-policy.md', 'registry\product-video-delivery.json', 'registry\repo-standard.json', 'registry\mobile-scope.json')) {
+    if (Test-Path -LiteralPath (Join-Path $root $relative)) { Fail "public-core distribution contains private fleet input: $relative" }
+  }
+  if (@($capabilities.capabilities | Where-Object { $_.visibility -eq 'private' }).Count -gt 0) {
+    Fail 'public-core distribution contains private capabilities'
+  }
+} else {
+  # Absence is not an opt-out. Canonical fleet validation still requires this
+  # registry and its established seven-product invariant below.
+  $delivery = Read-Json $deliveryPath
+}
 $pluginFormats = Read-Json (Join-Path $root 'registry\plugin-formats.json')
 
 $pluginRoot = Join-Path $root 'packages'
@@ -259,7 +277,7 @@ foreach ($mcpServer in @($mcps.mcpServers)) {
 if ($verifiedRevisionCount -eq 0) {
   Fail 'no MCP server has a verified protocol.revision; the registry records a protocol contract that was never established against any server'
 }
-if (@($delivery.products).Count -ne 7) { Fail 'product video delivery registry must contain seven products' }
+if (-not $isPublicCore -and @($delivery.products).Count -ne 7) { Fail 'product video delivery registry must contain seven products' }
 
 # Autonomy/permission model (registry/fleet-profile.json.autonomyProfiles): a host
 # marked 'interactive' must never be dispatched unattended, so this data must not
