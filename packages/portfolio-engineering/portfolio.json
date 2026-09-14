@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "owner": "portfolio-engineering",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "fleetRoot": "C:/Repos/shmindmaster",
   "outputRoot": "%LOCALAPPDATA%/AgentHub/portfolio-engineering",
   "excluded": [

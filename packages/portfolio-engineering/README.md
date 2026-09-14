@@ -1,11 +1,24 @@
 # Portfolio engineering
 
-Version 1.0.2. The `portfolio-engineering` capability owns the explicit portfolio
+Version 1.1.0. The `portfolio-engineering` capability owns the explicit portfolio
 inventory, local evidence contracts, dependency preparation and tested structural
 checks. Product repositories retain their own architecture, tracker and test/build
 commands. This package does not merge, deploy, change mail settings or send mail.
 
 ## Inventory and evidence
+
+The proposed [architecture policy](../../docs/architecture/portfolio-policy.md)
+is not activated fleet policy. `architecture.json` holds initial sharing
+declarations under this existing owner; it is not an exhaustive source audit.
+`node packages/portfolio-engineering/scripts/architecture.mjs` reports incomplete
+ownership, isolation, service targets, forbidden data sharing and dependency
+cycles. `--strict` returns nonzero for failed or blocked declarations. The
+report-only default is deliberate. Passing declarations never prove runtime
+isolation; use scoped synthetic access-denial and recovery tests separately.
+`sourceDependencies` describes source/build imports only. Published API/event
+integrations and callbacks require their own ADR and are not source imports.
+T1 entries require integer `stableReleases` and exact `consumerVersions` for
+every listed consumer; this checks declarations, not package-manager resolution.
 
 ```powershell
 node packages/portfolio-engineering/scripts/portfolio.mjs inventory

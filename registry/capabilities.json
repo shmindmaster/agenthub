@@ -126,7 +126,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin",
       "canonicalSource": "packages/digitalocean",
-      "contentHash": "08721F8B907ECA243972B01A2FAAFAA8283A02B8B10C46F07F97A90928E7D70B",
+      "contentHash": "CA8EAA90CCC0D4D8BF017622EB2E7438D7BF39D0FD7857C1155FBF35418183E6",
       "hashBasis": "packages/digitalocean",
       "status": "active-canonical",
       "hostMappings": [
@@ -710,6 +710,7 @@
     },
     {
       "id": "portfolio-engineering",
+      "notes": "Owns the product roster and proposed sharing declarations at packages/portfolio-engineering/architecture.json. Declaration checks are report-only by default and do not establish runtime isolation or policy approval.",
       "visibility": "private",
       "owner": "portfolio",
       "capabilityType": "skills",
@@ -738,7 +739,7 @@
           "DD71BF1E975AA45E953643CECD875451C4BC0992D0D0B97F71F516F9AFE3515F"
         ]
       },
-      "contentHash": "8689EA96F4B43CD2E4DC259A91E0BC45CC6CF7B2FD1B3220717F30379C851CF7",
+      "contentHash": "AABC81558F069D738125A8244F3275917BBD9C79E8BBE8B8C0007978A55905BD",
       "hashBasis": "packages/portfolio-engineering",
       "status": "active-canonical",
       "hostMappings": [

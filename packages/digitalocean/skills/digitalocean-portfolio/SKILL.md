@@ -24,8 +24,8 @@ description: Use when DigitalOcean account-wide apps, projects, repositories, DN
 ## Portfolio Defaults
 
 - Primary repos are under `C:\Repos\shmindmaster`.
-- Main production DO apps are `verigence`, `abacare`, `coledger`, `gentlenext`, `lawli`, `lexalign`, and `subops`.
-- `lienwise` is currently DNS/Railway-oriented in discovery, not a DO App Platform app.
+- Business DO apps observed ACTIVE on 2026-09-14 are `verigence`, `abacare`, `coledger`, `gentlenext`, `lawli`, `lexalign`, `subops`, `lienwise`, and `warrantygains`. ACTIVE is deployment metadata, not production workflow verification.
+- `lienwise` and `warrantygains` now have App Platform apps. Refresh provider metadata before using the historical hosting map.
 - Shared services are `sh-postgres`, `sh-valkey`, `sh-storage`, and `sh-verigence-prd`.
 - Most app domains are DO-managed zones with `www`/`api` records pointing to App Platform default ingress hosts.
 
