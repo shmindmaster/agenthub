@@ -33,9 +33,12 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   to an absolute path, `ConvertTo-OpenCodeMcpEntry` translates
   `environment` the way it already translated `headers`, and OpenCode's
   `headers`/`environment` converge on every apply instead of only when
-  absent. The plugin manifest anchors the bridge on `${CLAUDE_PLUGIN_ROOT}`
-  (documented for Claude; Codex exports the variable for hooks but inline
-  substitution in `.mcp.json` is not documented there and is unverified).
+  absent. The plugin manifest anchors the bridge on `${CLAUDE_PLUGIN_ROOT}`,
+  which only a Claude plugin install reads (`claude plugin validate` passes):
+  every slack host mapping is `managed-loose-skills`, so no host loads the
+  bridge from the manifest, and the registry suppresses the on-demand local
+  entry on every host except OpenCode. Codex does not document inline
+  substitution in `.mcp.json`; no deployed path depends on it.
   Verified by spawning the emitted command from a foreign cwd: MCP
   initialize returns protocol 2025-11-25, serverInfo 1.0.1 (now read from
   `plugin.json`, the version authority). `tests/Test-OpenCodeOptInEmission.ps1`
