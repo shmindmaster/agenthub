@@ -181,8 +181,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - **OpenConnector fleet gateway (deployed 2026-09-13):** capability
   `open-connector` (`packages/open-connector`) runs one self-hosted
   oomol-lab/open-connector container (v1.5.0 by digest, `127.0.0.1:3400`,
-  SQLite and secrets under `%LOCALAPPDATA%\AgentHubuntime\open-connector`)
+  SQLite and secrets under `%LOCALAPPDATA%\AgentHub\runtime\open-connector`)
   and owns the `use-open-connector` loose skill and `tests/Test-OpenConnector.ps1`.
+  The data directory is the state; the container is disposable. After the
+  2026-09-13 20:39 reboot the container and its compose network were absent
+  (the `stop` footprint; the reboot had cleared the Docker event log, so the
+  cause is unattributed) and `start` recreated it with the `brave_search`
+  connection, the `agent-hosts` token, and the encrypted key all intact
+  (`npm.get_package` and `brave_search.web_search` verified live). If a host
+  reports the gateway unreachable, run `status`, then `start`.
   Persisted as an HTTP MCP entry on codex, cursor, opencode, and grok
   (`persistedOnDemandLocalMcpIds`, `shared-gateway` exposure); Claude keeps
   its first-party connectors; products never use it (single-owner runtime).
