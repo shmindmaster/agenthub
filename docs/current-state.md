@@ -4,15 +4,18 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
-- **Portable control plane (2026-09-12):** host destinations in
-  `registry/agents.json` are `{userHome}` templates (`/` separators).
-  `scripts/lib/PathBinding.ps1` is the only materializer and expands
-  `{userHome}`, `{localData}`, and `{roamingConfig}` for Windows, macOS,
-  and Linux. Personal capabilities are `visibility: private`
-  and load through `overlays/personal/` (this checkout). `policy-core.md` is
-  the public policy; `global-agent-policy.md` remains the compiled personal
-  deployment document. `scripts/Export-PublicCore.ps1` writes a public tree
-  and does not change remote visibility.
+- **Portable control plane (2026-09-12; first-click shell 2026-09-14):** host
+  destinations in `registry/agents.json` are `{userHome}` templates (`/`
+  separators). `scripts/lib/PathBinding.ps1` is the only materializer and
+  expands `{userHome}`, `{localData}`, and `{roamingConfig}` for Windows,
+  macOS, and Linux. Personal capabilities are `visibility: private` and load
+  through `overlays/personal/` (this checkout). `overlays/personal.example/`
+  is the stranger template. `policy-core.md` is the public policy;
+  `global-agent-policy.md` remains the compiled personal deployment document.
+  `scripts/Export-PublicCore.ps1` derives private ids from
+  `visibility: private`, writes a public README/quickstart/`package.json` CLI
+  entry, and does not change remote visibility. `scripts/AgentHub.ps1 init`
+  and `scripts/agenthub-cli.mjs` (`npx agenthub`) scaffold overlay + profile.
 
 - **Canonical Slack capability (2026-09-10, bridge launch fixed 2026-09-13):**
   `packages/slack` 1.0.1 is the AgentHub-owned Slack contract (tools,

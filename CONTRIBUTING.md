@@ -4,14 +4,27 @@ AgentHub is a host-neutral control plane: portable registry data, one path
 binder, and an optional personal overlay. Do not add a second rebase, and
 do not put machine identity in git.
 
+## First run
+
+See [docs/development/quickstart.md](./docs/development/quickstart.md).
+
+```powershell
+pwsh -NoProfile -File .\scripts\AgentHub.ps1 init
+pwsh -NoProfile -File .\scripts\AgentHub.ps1 validate
+```
+
+Or: `npx agenthub init` then `npx agenthub validate`.
+
 ## Layout
 
 - `packages/` — capability content. Repository-relative `canonicalSource`.
 - `registry/` — parity contract. Host destinations are `{userHome}` templates (`/` separators; `{userProfile}` is an alias). OS config roots use `{roamingConfig}` and `{localData}`.
 - `scripts/lib/PathBinding.ps1` — the only path materializer.
 - `scripts/lib/CapabilityGraph.ps1` — public graph plus overlay.
-- `overlays/personal/` — this checkout's private capability list. Not part of a public export.
-- `policy-core.md` — portable policy. `global-agent-policy.md` is the compiled personal deployment document.
+- `scripts/agenthub-cli.mjs` — thin Node wrapper over `AgentHub.ps1`.
+- `overlays/personal.example/` — template for a local private overlay. Not required for public capabilities.
+- `overlays/personal/` — this machine's private capability list when present.
+- `policy-core.md` — portable policy. `global-agent-policy.md` (when present) is a compiled personal deployment document.
 - `agenthub.profile.example.json` — optional local roots. The real `agenthub.profile.json` is gitignored.
 
 ## Rules
@@ -32,4 +45,7 @@ pwsh -NoProfile -File .\tests\Test-CapabilityOverlay.ps1
 pwsh -NoProfile -File .\tests\Test-PublicCoreExport.ps1
 ```
 
-A public tree is produced by `scripts/Export-PublicCore.ps1`. That script does not push and does not change remote visibility.
+A public tree is produced by `scripts/Export-PublicCore.ps1` (or
+`npx agenthub export <dir>`). That script does not push and does not change
+remote visibility. Private package ids come from `visibility: private` in
+`registry/capabilities.json`.

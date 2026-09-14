@@ -70,8 +70,9 @@ core  —must not import—>  overlays/personal or packages/sarosh-*
 ## Overlay
 
 `overlays/personal/overlay.json` lists private capability ids this machine
-loads. `AGENTHUB_OVERLAY=off` resolves the public graph only. Absence of
-the overlay directory is the same as off.
+loads. `overlays/personal.example/` is the template for a fresh checkout.
+`AGENTHUB_OVERLAY=off` resolves the public graph only. Absence of the
+overlay directory is the same as off.
 
 A gitignored `agenthub.profile.json` (see `agenthub.profile.example.json`)
 may pin local roots. It is never required for a checkout that can use

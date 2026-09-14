@@ -22,13 +22,17 @@ New-Item -ItemType Directory -Path $Destination -Force | Out-Null
 
 . (Join-Path $repoRoot 'scripts\lib\CapabilityGraph.ps1')
 
-$overlayPath = Join-Path $repoRoot 'overlays\personal\overlay.json'
-if (-not (Test-Path -LiteralPath $overlayPath)) {
-    throw "Missing $overlayPath. The export uses it as the private-id list."
-}
-$overlay = Get-Content -LiteralPath $overlayPath -Raw -Encoding UTF8 | ConvertFrom-Json
-$privateIds = @($overlay.enabledCapabilityIds | ForEach-Object { [string]$_ })
-$privatePlugins = @($overlay.privateMarketplacePlugins | ForEach-Object { [string]$_ })
+# Private ids come from the registry visibility field — not from the personal
+# overlay — so a checkout without overlays/personal can still export, and a
+# published public tree never needs the private list as a side channel.
+$capabilitiesSource = Join-Path $repoRoot 'registry\capabilities.json'
+$capabilitiesDoc = Get-Content -LiteralPath $capabilitiesSource -Raw -Encoding UTF8 | ConvertFrom-Json
+$privateIds = @(
+    $capabilitiesDoc.capabilities |
+        Where-Object { Test-AgentHubCapabilityPrivate $_ } |
+        ForEach-Object { [string]$_.id } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+)
 
 function Copy-ExportTree {
     param([string]$Relative)
@@ -43,7 +47,7 @@ function Copy-ExportTree {
 }
 
 foreach ($name in @(
-    'LICENSE', 'CONTRIBUTING.md', 'SECURITY.md', 'README.md',
+    'LICENSE', 'CONTRIBUTING.md', 'SECURITY.md', 'package.json',
     'policy-core.md', 'agenthub.profile.example.json',
     'scripts', 'registry', 'tests', 'docs', 'packages'
 )) {
@@ -52,7 +56,8 @@ foreach ($name in @(
 
 foreach ($relative in @(
     '.agents\plugins\marketplace.json',
-    '.claude-plugin\marketplace.json'
+    '.claude-plugin\marketplace.json',
+    'overlays\personal.example'
 )) {
     Copy-ExportTree $relative
 }
@@ -67,6 +72,7 @@ foreach ($id in $privateIds) {
 foreach ($relative in @(
     'docs\current-state.md',
     'docs\architecture\overview.md',
+    'docs\architecture\portfolio-policy.md',
     'registry\repo-standard.json',
     'registry\mobile-scope.json',
     'registry\product-video-delivery.json',
@@ -86,8 +92,7 @@ Get-ChildItem -LiteralPath (Join-Path $Destination 'registry') -Filter *.json -F
 }
 
 # Execution plans are private working state (docs/plans/PLANS.md); the public
-# tree ships none. The extraction plan itself landed and was deleted on
-# 2026-09-13, so there is no longer a plan worth carrying across.
+# tree ships none.
 $planDir = Join-Path $Destination 'docs\plans\active'
 if (Test-Path -LiteralPath $planDir) {
     Get-ChildItem -LiteralPath $planDir -File | Remove-Item -Force
@@ -97,7 +102,7 @@ $capabilitiesPath = Join-Path $Destination 'registry\capabilities.json'
 $capabilities = Get-Content -LiteralPath $capabilitiesPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $capabilities.capabilities = @(
     $capabilities.capabilities | Where-Object {
-        -not ($_.PSObject.Properties['visibility'] -and [string]$_.visibility -eq 'private')
+        -not (Test-AgentHubCapabilityPrivate $_)
     }
 )
 [IO.File]::WriteAllText($capabilitiesPath, ($capabilities | ConvertTo-Json -Depth 40), $utf8)
@@ -107,11 +112,133 @@ function Remove-PrivateMarketplacePlugins {
     if (-not (Test-Path -LiteralPath $Path)) { return }
     $doc = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
     if (-not $doc.PSObject.Properties['plugins']) { return }
-    $doc.plugins = @($doc.plugins | Where-Object { [string]$_.name -notin $privatePlugins })
+    $privateSet = @{}
+    foreach ($id in $privateIds) { $privateSet[$id] = $true }
+    $doc.plugins = @(
+        $doc.plugins | Where-Object {
+            $name = [string]$_.name
+            -not $privateSet.ContainsKey($name)
+        }
+    )
     [IO.File]::WriteAllText($Path, ($doc | ConvertTo-Json -Depth 20), $utf8)
 }
 Remove-PrivateMarketplacePlugins (Join-Path $Destination '.agents\plugins\marketplace.json')
 Remove-PrivateMarketplacePlugins (Join-Path $Destination '.claude-plugin\marketplace.json')
+
+$publicReadme = @'
+# AgentHub
+
+Portable control plane for skills, plugins, MCP servers, and policy across
+coding agents — with drift detection and an optional **personal overlay** for
+what should stay private on your machine.
+
+## First five minutes
+
+Requires [PowerShell 7+](https://aka.ms/powershell) (`pwsh`) on Windows, macOS, or Linux. Node 18+ is optional for the CLI wrapper.
+
+```bash
+# optional wrapper
+npm install -g .
+
+npx agenthub init          # local overlay + profile from examples
+npx agenthub validate      # registry checks
+npx agenthub sync          # read-only drift audit
+# npx agenthub sync --apply  # deploy after validate passes
+```
+
+Or call PowerShell directly:
+
+```powershell
+pwsh -NoProfile -File .\scripts\AgentHub.ps1 init
+pwsh -NoProfile -File .\scripts\AgentHub.ps1 validate
+pwsh -NoProfile -File .\scripts\AgentHub.ps1 sync
+```
+
+Full walkthrough: [docs/development/quickstart.md](./docs/development/quickstart.md).
+
+## What this is
+
+- One **desired-state registry** (`registry/`) for capabilities, hosts, and MCPs.
+- **Validate → audit → apply** lifecycle (`scripts/AgentHub.ps1`).
+- Host destinations as `{userHome}` / `{localData}` / `{roamingConfig}` templates — see [docs/architecture/control-plane-modules.md](./docs/architecture/control-plane-modules.md).
+- **Personal overlay** (`overlays/personal.example/` → copy to `overlays/personal/`) for private capability ids and policy fragments. Core never imports those packages by default.
+- Portable policy in `policy-core.md`. Machine roots in gitignored `agenthub.profile.json`.
+
+This is not “symlink skills into every tool.” It is a host-neutral parity and policy plane: honest host formats, content-hash validation, and explicit degradation when a host cannot honor a surface.
+
+## Layout
+
+| Path | Role |
+| --- | --- |
+| `packages/` | Canonical capability content |
+| `registry/` | Parity contract |
+| `scripts/` | Validate, sync, path binding |
+| `overlays/personal.example/` | Template for a local private overlay |
+| `policy-core.md` | Portable policy |
+
+Runtime output belongs under the OS local-data root (Windows: `%LOCALAPPDATA%\AgentHub`). Do not commit credentials, customer data, or generated media.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
+'@
+[IO.File]::WriteAllText((Join-Path $Destination 'README.md'), $publicReadme.TrimStart() + "`n", $utf8)
+
+$publicDocsReadme = @'
+# Documentation
+
+Start with [development/quickstart.md](./development/quickstart.md).
+
+## Architecture
+
+- [architecture/control-plane-modules.md](./architecture/control-plane-modules.md) — path binding, host catalog, capability overlay.
+
+## Development
+
+- [development/setup.md](./development/setup.md) — environment requirements.
+- [development/testing.md](./development/testing.md) — test layers.
+- [development/skill-authoring-standard.md](./development/skill-authoring-standard.md) — skill shape.
+
+## Operations
+
+- [runbooks/sync-and-validate.md](./runbooks/sync-and-validate.md) — audit and deploy.
+
+## Product
+
+- [product/vision.md](./product/vision.md) — purpose and boundaries.
+'@
+[IO.File]::WriteAllText((Join-Path $Destination 'docs\README.md'), $publicDocsReadme.TrimStart() + "`n", $utf8)
+
+$publicSetup = @'
+# Setup
+
+## Requirements
+
+- Windows, macOS, or Linux.
+- PowerShell 7+ (`pwsh`). Windows PowerShell 5.1 works for many scripts on Windows only.
+- Git.
+- Node 18+ optional, for `npx agenthub` / `npm install -g .`.
+
+No package install step is required for the PowerShell lifecycle: this repo is
+scripts, registry JSON, and markdown.
+
+## First run
+
+```powershell
+pwsh -NoProfile -File .\scripts\AgentHub.ps1 init
+pwsh -NoProfile -File .\scripts\AgentHub.ps1 validate
+pwsh -NoProfile -File .\scripts\AgentHub.ps1 sync
+```
+
+See [quickstart.md](./quickstart.md).
+
+## Local-only files (never commit)
+
+- `agenthub.profile.json` — optional path pins (copy from `agenthub.profile.example.json`).
+- `overlays/personal/` — private capability list and policy fragment (copy from `overlays/personal.example/`).
+- OS local-data AgentHub runtime directory — drift JSON and generated workspaces.
+'@
+[IO.File]::WriteAllText((Join-Path $Destination 'docs\development\setup.md'), $publicSetup.TrimStart() + "`n", $utf8)
 
 $publicAgents = @"
 # AgentHub
@@ -119,18 +246,41 @@ $publicAgents = @"
 Portable control plane for skills, plugins, MCP servers, and policy across coding agents.
 
 - Read ``policy-core.md`` and ``docs/architecture/control-plane-modules.md``.
+- Start with ``docs/development/quickstart.md``.
 - Host destinations are ``{userHome}`` templates. ``scripts/lib/PathBinding.ps1`` materializes them for Windows, macOS, and Linux.
-- Personal identity and local roots do not belong in this tree. Use an overlay and a gitignored ``agenthub.profile.json``.
+- Personal identity and local roots do not belong in this tree. Use ``overlays/personal/`` (from ``overlays/personal.example/``) and a gitignored ``agenthub.profile.json``.
 "@
 [IO.File]::WriteAllText((Join-Path $Destination 'AGENTS.md'), $publicAgents.Replace('``', '`'), $utf8)
 
-$banned = @('SaroshHussain', 'D:\OneDrive - MahumTech', 'D:\Local-AI', 'D:/Local-AI')
+# Public checkouts should not track a filled personal overlay.
+$gitignorePath = Join-Path $Destination '.gitignore'
+$gitignoreExtra = @"
+
+# Personal overlay (copy from overlays/personal.example/). Never commit private capability lists.
+overlays/personal/
+"@
+if (Test-Path -LiteralPath (Join-Path $repoRoot '.gitignore')) {
+    $gi = [IO.File]::ReadAllText((Join-Path $repoRoot '.gitignore'))
+    if ($gi -notmatch 'overlays/personal/') {
+        $gi = $gi.TrimEnd() + "`n" + $gitignoreExtra.TrimStart() + "`n"
+    }
+    [IO.File]::WriteAllText($gitignorePath, $gi, $utf8)
+} else {
+    [IO.File]::WriteAllText($gitignorePath, $gitignoreExtra.TrimStart() + "`n", $utf8)
+}
+
+$banned = @('SaroshHussain', 'D:\OneDrive - MahumTech', 'D:\Local-AI', 'D:/Local-AI', 'MahumTech')
 $scanRoots = @(
     (Join-Path $Destination 'scripts'),
     (Join-Path $Destination 'registry'),
     (Join-Path $Destination 'policy-core.md'),
     (Join-Path $Destination 'AGENTS.md'),
-    (Join-Path $Destination 'docs\architecture\control-plane-modules.md')
+    (Join-Path $Destination 'README.md'),
+    (Join-Path $Destination 'docs\architecture\control-plane-modules.md'),
+    (Join-Path $Destination 'docs\development\quickstart.md'),
+    (Join-Path $Destination 'docs\development\setup.md'),
+    (Join-Path $Destination 'docs\README.md'),
+    (Join-Path $Destination 'package.json')
 )
 $hits = [Collections.Generic.List[string]]::new()
 foreach ($root in $scanRoots) {

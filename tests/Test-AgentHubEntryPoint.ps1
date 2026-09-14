@@ -137,12 +137,57 @@ function Test-UnknownSubcommandExitsNonZeroAndListsValidOnes {
     if ($result.ExitCode -eq 0) {
         return @{ Passed = $false; Detail = "exit code was 0 for an unknown subcommand. Output: $($result.Output)" }
     }
-    foreach ($valid in @('inventory', 'validate', 'sync', 'drift')) {
+    foreach ($valid in @('init', 'inventory', 'validate', 'sync', 'drift')) {
         if ($result.Output -notmatch [regex]::Escape($valid)) {
             return @{ Passed = $false; Detail = "expected the valid subcommand '$valid' to be named in the output. Output: $($result.Output)" }
         }
     }
     return @{ Passed = $true; Detail = $null }
+}
+
+function Test-InitScaffoldsOverlayWithoutOverwrite {
+    if ([string]::IsNullOrWhiteSpace($env:AGENTHUB_TEST_SCRATCH)) {
+        $env:AGENTHUB_TEST_SCRATCH = [IO.Path]::GetTempPath()
+    }
+    $scratch = Join-Path $env:AGENTHUB_TEST_SCRATCH ('agenthub-init-' + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $scratch -Force | Out-Null
+    try {
+        foreach ($name in @('scripts', 'overlays', 'registry')) {
+            New-Item -ItemType Directory -Path (Join-Path $scratch $name) -Force | Out-Null
+        }
+        # Minimal AgentHub.ps1 surface: run the real script against a scratch
+        # tree that has the example files init copies.
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'overlays\personal.example') `
+            -Destination (Join-Path $scratch 'overlays\personal.example') -Recurse -Force
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'agenthub.profile.example.json') `
+            -Destination (Join-Path $scratch 'agenthub.profile.example.json') -Force
+        # Point RepositoryRoot at scratch but execute the real script from the
+        # live scripts dir (init only reads examples under RepositoryRoot).
+        $result = Invoke-AgentHub -ExtraArgs @('init', '-RepositoryRoot', $scratch)
+        if ($result.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "init exited $($result.ExitCode). Output: $($result.Output)" }
+        }
+        $overlay = Join-Path $scratch 'overlays\personal\overlay.json'
+        $profile = Join-Path $scratch 'agenthub.profile.json'
+        if (-not (Test-Path -LiteralPath $overlay)) {
+            return @{ Passed = $false; Detail = 'init did not create overlays/personal/overlay.json' }
+        }
+        if (-not (Test-Path -LiteralPath $profile)) {
+            return @{ Passed = $false; Detail = 'init did not create agenthub.profile.json' }
+        }
+        Set-Content -LiteralPath $overlay -Value '{"schemaVersion":1,"id":"personal","enabledCapabilityIds":["marker"],"privateMarketplacePlugins":[]}' -Encoding UTF8
+        $result2 = Invoke-AgentHub -ExtraArgs @('init', '-RepositoryRoot', $scratch)
+        if ($result2.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "second init exited $($result2.ExitCode). Output: $($result2.Output)" }
+        }
+        $text = Get-Content -LiteralPath $overlay -Raw -Encoding UTF8
+        if ($text -notmatch 'marker') {
+            return @{ Passed = $false; Detail = 'second init overwrote an existing overlays/personal/overlay.json' }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # --- Behavior 2: 'sync' without -Apply (audit, the default) performs no
@@ -304,6 +349,9 @@ function Test-ApplyRefusedWhenValidateFails {
 
 $r1 = Test-UnknownSubcommandExitsNonZeroAndListsValidOnes
 Report 'an unknown subcommand exits non-zero and names the valid subcommands' $r1.Passed $r1.Detail
+
+$rInit = Test-InitScaffoldsOverlayWithoutOverwrite
+Report "'init' scaffolds overlay and profile without overwrite" $rInit.Passed $rInit.Detail
 
 $r2 = Test-SyncWithoutApplyPerformsNoWrites
 Report "'sync' without -Apply performs no writes under -UserProfile" $r2.Passed $r2.Detail

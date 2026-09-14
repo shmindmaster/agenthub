@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "id": "personal",
+  "description": "Copy this directory to overlays/personal/ on your machine. List private capability package ids this checkout loads. Core never imports them by default; AGENTHUB_OVERLAY=off drops them.",
+  "enabledCapabilityIds": [],
+  "privateMarketplacePlugins": []
+}

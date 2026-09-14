@@ -42,7 +42,7 @@
     replacement logic here.
 
 .PARAMETER Command
-    One of: inventory, validate, sync, drift.
+    One of: init, inventory, validate, sync, drift.
 
 .PARAMETER Apply
     Only meaningful for 'sync'. Without it, 'sync' audits (the default,
@@ -76,7 +76,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$ValidCommands = @('inventory', 'validate', 'sync', 'drift')
+$ValidCommands = @('init', 'inventory', 'validate', 'sync', 'drift')
 
 # Self-derive from this script's own on-disk location -- same idiom as
 # Validate-AgentHub.ps1 / Sync-AgentHub.ps1 / Sync-Instructions.ps1. Never
@@ -108,7 +108,58 @@ $hostExe = (Get-Process -Id $PID).Path
 if ([string]::IsNullOrWhiteSpace($Command) -or $Command -notin $ValidCommands) {
     Write-Host "FAIL: unknown subcommand '$Command'. Valid subcommands: $($ValidCommands -join ', ')." -ForegroundColor Red
     Write-Host "Dropped deliberately, not a gap: evaluate, generate, cleanup -- see this script's own help (Get-Help $($MyInvocation.MyCommand.Path) -Full) for why."
+    Write-Host "First run: pwsh -NoProfile -File .\scripts\AgentHub.ps1 init"
     exit 1
+}
+
+function Invoke-Init {
+    # Scaffold local-only files from examples. Never overwrite an existing
+    # overlay or profile, and never write host configuration.
+    $created = [Collections.Generic.List[string]]::new()
+    $skipped = [Collections.Generic.List[string]]::new()
+
+    $exampleOverlay = Join-Path $RepositoryRoot 'overlays\personal.example'
+    $personalOverlay = Join-Path $RepositoryRoot 'overlays\personal'
+    if (-not (Test-Path -LiteralPath $exampleOverlay)) {
+        throw "Missing example overlay at $exampleOverlay"
+    }
+    if (Test-Path -LiteralPath $personalOverlay) {
+        $skipped.Add('overlays/personal (already present)')
+    } else {
+        $parent = Split-Path -Parent $personalOverlay
+        if (-not (Test-Path -LiteralPath $parent)) {
+            New-Item -ItemType Directory -Path $parent -Force | Out-Null
+        }
+        Copy-Item -LiteralPath $exampleOverlay -Destination $personalOverlay -Recurse -Force
+        $created.Add('overlays/personal')
+    }
+
+    $exampleProfile = Join-Path $RepositoryRoot 'agenthub.profile.example.json'
+    $profilePath = Join-Path $RepositoryRoot 'agenthub.profile.json'
+    if (-not (Test-Path -LiteralPath $exampleProfile)) {
+        throw "Missing $exampleProfile"
+    }
+    if (Test-Path -LiteralPath $profilePath) {
+        $skipped.Add('agenthub.profile.json (already present)')
+    } else {
+        Copy-Item -LiteralPath $exampleProfile -Destination $profilePath -Force
+        $created.Add('agenthub.profile.json')
+    }
+
+    Write-Host "AgentHub init -- RepositoryRoot=$RepositoryRoot"
+    if ($created.Count -gt 0) {
+        Write-Host ("Created: {0}" -f ($created -join ', '))
+    }
+    if ($skipped.Count -gt 0) {
+        Write-Host ("Left unchanged: {0}" -f ($skipped -join ', '))
+    }
+    Write-Host ''
+    Write-Host 'Next:'
+    Write-Host '  pwsh -NoProfile -File .\scripts\AgentHub.ps1 validate'
+    Write-Host '  pwsh -NoProfile -File .\scripts\AgentHub.ps1 sync'
+    Write-Host '  # then: pwsh -NoProfile -File .\scripts\AgentHub.ps1 sync -Apply'
+    Write-Host 'Docs: docs/development/quickstart.md'
+    return 0
 }
 
 # ---------------------------------------------------------------------------
@@ -282,6 +333,12 @@ function Invoke-Inventory {
 # Dispatch
 # ---------------------------------------------------------------------------
 switch ($Command) {
+    'init' {
+        if ($Apply) {
+            throw "'init' does not accept -Apply. It only scaffolds local overlay/profile files."
+        }
+        exit (Invoke-Init)
+    }
     'validate' {
         $result = Invoke-ValidateAgentHub
         Write-Host $result.Output.TrimEnd()
