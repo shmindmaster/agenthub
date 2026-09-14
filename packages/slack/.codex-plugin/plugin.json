@@ -1,6 +1,5 @@
 {
   "name": "slack",
-  "version": "1.0.0",
   "description": "AgentHub canonical Slack read/write. Enable the plugin to attach the shared MCP; disable when done. Host-native Slack plugins are optional UX only.",
   "author": {
     "name": "Sarosh Hussain"
@@ -30,5 +29,6 @@
       "Read the complete Slack thread and keep channel_id and ts.",
       "Reply in the same Slack thread after I authorize the text."
     ]
-  }
+  },
+  "version": "1.0.1"
 }

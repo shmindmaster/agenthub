@@ -3,7 +3,7 @@
     "slack": {
       "command": "node",
       "args": [
-        "mcp/slack-mcp.mjs"
+        "${CLAUDE_PLUGIN_ROOT}/mcp/slack-mcp.mjs"
       ],
       "env": {
         "SLACK_USER_TOKEN": "${SLACK_USER_TOKEN}",

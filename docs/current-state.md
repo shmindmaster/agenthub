@@ -14,17 +14,32 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   deployment document. `scripts/Export-PublicCore.ps1` writes a public tree
   and does not change remote visibility.
 
-- **Canonical Slack capability (2026-09-10):** `packages/slack` 1.0.0 is
-  the AgentHub-owned Slack contract (tools, schemas, identity, Web API
-  bridge). Hosts are frontends. MCP is plugin-gated / OpenCode
-  opt-in-disabled; not persisted at session start. Fixture mode proves
-  the tool inventory, lossless message shape, and write roundtrip without
-  a live workspace. Live user-OAuth and gateway routing
+- **Canonical Slack capability (2026-09-10, bridge launch fixed 2026-09-13):**
+  `packages/slack` 1.0.1 is the AgentHub-owned Slack contract (tools,
+  schemas, identity, Web API bridge). Hosts are frontends. MCP is
+  plugin-gated / OpenCode opt-in-disabled; not persisted at session start.
+  Fixture mode proves the tool inventory, lossless message shape, and write
+  roundtrip without a live workspace. Live user-OAuth and gateway routing
   (`127.0.0.1:8811/mcp` plus a remote endpoint for cloud agents) are the
   next gates — see `docs/plans/active/slack-canonical-capability.md`.
   Official `slackapi/slack-skills-plugin` is tracked as optional UX
   (`slack-skills-plugin`); AgentHub does not republish it. This is not a
   restore of the 2026-08-05 claude.ai Slack connector.
+  The OpenCode opt-in entry the sync wrote was unlaunchable until
+  2026-09-13: a package-relative `mcp/slack-mcp.mjs` with no cwd, and
+  `environment` in the registry's `${env:NAME}` spelling that OpenCode
+  never expands. `registry/mcps.json` now names bundled stdio scripts
+  through a `{registryRoot}` token that `Get-CanonicalMcpEntry` expands
+  to an absolute path, `ConvertTo-OpenCodeMcpEntry` translates
+  `environment` the way it already translated `headers`, and OpenCode's
+  `headers`/`environment` converge on every apply instead of only when
+  absent. The plugin manifest anchors the bridge on `${CLAUDE_PLUGIN_ROOT}`
+  (documented for Claude; Codex exports the variable for hooks but inline
+  substitution in `.mcp.json` is not documented there and is unverified).
+  Verified by spawning the emitted command from a foreign cwd: MCP
+  initialize returns protocol 2025-11-25, serverInfo 1.0.1 (now read from
+  `plugin.json`, the version authority). `tests/Test-OpenCodeOptInEmission.ps1`
+  seeds the exact defective shape and proves convergence.
 
 - **Technical-story format and screencast annotation layer (2026-09-08):**
   media-studio 1.5.4 adds `references/technical-story.md` (`programForm:

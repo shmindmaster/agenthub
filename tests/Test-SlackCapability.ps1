@@ -69,8 +69,15 @@ Report 'skill does not send agents to official Slack MCP as owner' ($skill -notm
 
 $rootPlugin = Get-Content -LiteralPath (Join-Path $pkg 'plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $claudePlugin = Get-Content -LiteralPath (Join-Path $pkg '.claude-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-Report 'root plugin name is slack version 1.0.0' ($rootPlugin.name -eq 'slack' -and $rootPlugin.version -eq '1.0.0') 'root plugin.json'
+# Root plugin.json is the version authority (Bump-PackageVersion.ps1); a literal
+# here would fail every legitimate bump, so assert the shape and let the
+# projections below prove they follow the root.
+Report 'root plugin is named slack with a semver version' ($rootPlugin.name -eq 'slack' -and [string]$rootPlugin.version -match '^\d+\.\d+\.\d+$') "root plugin.json name=$($rootPlugin.name) version=$($rootPlugin.version)"
 Report 'claude plugin version matches root' ($claudePlugin.version -eq $rootPlugin.version -and $claudePlugin.name -eq 'slack') 'host projection diverged'
+foreach ($projection in @('.codex-plugin', '.cursor-plugin', '.qoder-plugin')) {
+    $manifest = Get-Content -LiteralPath (Join-Path $pkg "$projection\plugin.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    Report "$projection version matches root" ($manifest.version -eq $rootPlugin.version) "$projection=$($manifest.version) root=$($rootPlugin.version)"
+}
 Report 'claude plugin declares skills and mcpServers paths' (
     $claudePlugin.skills -eq './skills/' -and $claudePlugin.mcpServers -eq './.mcp.json'
 ) 'plugin components missing'

@@ -2531,7 +2531,7 @@
       "managedSkillNames": [
         "slack"
       ],
-      "contentHash": "F173A046BFC1646DB4BD6DEDA2324F9DBC9FAB3B0D38AF22D7E13E93BCC7464F",
+      "contentHash": "A5A5D15D822AD9EE44CDD08563DA65FACDF11117C44F18CB397D6F632BA8BB12",
       "hashBasis": "packages/slack",
       "status": "active-canonical",
       "notes": "AgentHub owns Slack read/write. This is not the 2026-08-05 claude.ai Slack connector and not Slack's hosted MCP. Official slackapi/slack-skills-plugin is optional UX. MCP is plugin-gated until the gateway is production-proven.",

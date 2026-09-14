@@ -745,14 +745,27 @@ function Resolve-WindowsHiddenStdioEntry {
     return $Entry
 }
 
+# A stdio server bundled in this repository (packages/<cap>/...) names its
+# script with a {registryRoot} token. The registry stays portable, and every
+# host receives an absolute path it can spawn. A bare package-relative arg is
+# not an option: hosts start stdio servers from the session's own working
+# directory (OpenCode's `local` shape has no cwd at all), which is never this
+# checkout -- the live opencode.json carried `node mcp/slack-mcp.mjs` for that
+# reason until 2026-09-13.
+function Expand-RegistryRootToken {
+    param($Value)
+    if (-not ($Value -is [string]) -or $Value -notmatch '\{registryRoot\}') { return $Value }
+    return [System.IO.Path]::GetFullPath($Value.Replace('{registryRoot}', $RegistryRoot))
+}
+
 function Get-CanonicalMcpEntry {
     param([pscustomobject]$Mcp)
     $entry = @{}
     switch ($Mcp.transport) {
         'stdio' {
             $entry.type = 'stdio'
-            $entry.command = $Mcp.command
-            $entry.args = @($Mcp.args)
+            $entry.command = Expand-RegistryRootToken $Mcp.command
+            $entry.args = @(@($Mcp.args) | ForEach-Object { Expand-RegistryRootToken $_ })
             if ($Mcp.env) { $entry.env = ConvertTo-Hashtable $Mcp.env }
             if ($null -ne $Mcp.startupEnabled) { $entry.enabled = [bool]$Mcp.startupEnabled }
             $entry = Resolve-WindowsHiddenStdioEntry $entry
@@ -2293,6 +2306,24 @@ function Sync-HostMcp-Qoder {
     return $result
 }
 
+# OpenCode expands {env:NAME}, not the shared ${env:NAME} notation, and it does
+# so anywhere in opencode.json -- remote `headers` and local `environment`
+# alike. Translate the reference; never resolve it. The environment path
+# skipped this until 2026-09-13, so every opt-in stdio entry carried the
+# registry spelling literally.
+function ConvertTo-OpenCodeEnvReferences {
+    param([hashtable]$Values)
+    $translated = @{}
+    foreach ($pair in $Values.GetEnumerator()) {
+        $translated[$pair.Key] = [regex]::Replace(
+            [string]$pair.Value,
+            '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}',
+            { param($match) '{env:' + $match.Groups[1].Value + '}' }
+        )
+    }
+    return $translated
+}
+
 function ConvertTo-OpenCodeMcpEntry {
     param([hashtable]$CanonicalEntry)
 
@@ -2301,16 +2332,7 @@ function ConvertTo-OpenCodeMcpEntry {
         $entry.type = 'remote'
         $entry.url = $CanonicalEntry.url
         if ($CanonicalEntry.ContainsKey('headers')) {
-            $headers = @{}
-            foreach ($header in (ConvertTo-Hashtable $CanonicalEntry.headers).GetEnumerator()) {
-                # OpenCode expands {env:NAME}, not the shared ${env:NAME}
-                # notation. Keep the secret in the process environment.
-                $headers[$header.Key] = [regex]::Replace(
-                    [string]$header.Value,
-                    '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}',
-                    { param($match) '{env:' + $match.Groups[1].Value + '}' }
-                )
-            }
+            $headers = ConvertTo-OpenCodeEnvReferences (ConvertTo-Hashtable $CanonicalEntry.headers)
             $entry.headers = $headers
             if ($headers.ContainsKey('Authorization')) { $entry.oauth = $false }
         }
@@ -2320,7 +2342,9 @@ function ConvertTo-OpenCodeMcpEntry {
         if ($CanonicalEntry.command) { $cmd += $CanonicalEntry.command }
         if ($CanonicalEntry.args) { $cmd += @($CanonicalEntry.args) }
         $entry.command = $cmd
-        if ($CanonicalEntry.ContainsKey('env')) { $entry.environment = ConvertTo-Hashtable $CanonicalEntry.env }
+        if ($CanonicalEntry.ContainsKey('env')) {
+            $entry.environment = ConvertTo-OpenCodeEnvReferences (ConvertTo-Hashtable $CanonicalEntry.env)
+        }
         if ($CanonicalEntry.ContainsKey('enabled')) { $entry.enabled = [bool]$CanonicalEntry.enabled }
         else { $entry.enabled = $true }
     }
@@ -2391,11 +2415,12 @@ function Sync-HostMcp-OpenCode {
             }
         }
 
-        if ($target.ContainsKey('headers')) {
-            if (-not $existing.ContainsKey('headers')) { $existing.headers = $target.headers }
-        }
-        if ($target.ContainsKey('environment')) {
-            if (-not $existing.ContainsKey('environment')) { $existing.environment = $target.environment }
+        # headers and environment are registry-owned, like type/url/command
+        # above. They used to be written only when absent, which left an
+        # entry emitted in the wrong dialect stuck that way on every later
+        # -Apply (the live slack entry, 2026-09-13).
+        foreach ($managedMap in @('headers', 'environment')) {
+            if ($target.ContainsKey($managedMap)) { $existing[$managedMap] = $target[$managedMap] }
         }
         if (-not $existing.ContainsKey('enabled')) { $existing.enabled = $true }
     }

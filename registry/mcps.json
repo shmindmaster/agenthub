@@ -363,7 +363,7 @@
       "startupEnabled": false,
       "command": "node",
       "args": [
-        "mcp/slack-mcp.mjs"
+        "{registryRoot}/packages/slack/mcp/slack-mcp.mjs"
       ],
       "env": {
         "SLACK_USER_TOKEN": "${env:SLACK_USER_TOKEN}",

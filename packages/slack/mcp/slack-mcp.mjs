@@ -1,8 +1,16 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { loadToolContract, mcpToolList, slackContractHash } from './contract.mjs';
 import { resolveBackend } from './backend.mjs';
 
 const PROTOCOL = '2025-11-25';
+// packages/slack/plugin.json is the version authority (Bump-PackageVersion.ps1);
+// serverInfo must not carry a second copy that drifts on the next bump.
+const { version: PACKAGE_VERSION } = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'plugin.json'), 'utf8'),
+);
 const contract = loadToolContract();
 const tools = mcpToolList(contract);
 const contractHash = slackContractHash(contract);
@@ -89,7 +97,7 @@ async function handle(message) {
       capabilities: { tools: { listChanged: false } },
       serverInfo: {
         name: 'agenthub-slack',
-        version: '1.0.0',
+        version: PACKAGE_VERSION,
       },
       _meta: {
         slackContractHash: contractHash,
