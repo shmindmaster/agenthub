@@ -320,9 +320,10 @@
           "hostId": "codex",
           "deploymentStatus": "engine-invoked",
           "components": [
-            "managed-native-agents"
+            "agents"
           ],
-          "reviewIsolation": "sandbox-mode-read-only-plus-host-output-post-validation-and-receipt-required"
+          "reviewIsolation": "sandbox-mode-read-only-plus-host-output-post-validation-and-receipt-required",
+          "deploymentStatusNote": "Not a host plugin. Review agents stay in packages/product-demo-studio; do not deploy product-demo-studio-* files into ~/.codex/agents."
         },
         {
           "hostId": "cursor",
@@ -351,10 +352,13 @@
         },
         {
           "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills",
-          "roleAdapter": "managed-native-markdown-agents",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
           "mcpOwnership": "shared-registry",
-          "reviewIsolation": "edit-bash-task-denied-plus-read-only-receipt-required"
+          "reviewIsolation": "edit-bash-task-denied-plus-read-only-receipt-required",
+          "deploymentStatusNote": "Not a host plugin. Review agents stay in packages/product-demo-studio; do not deploy product-demo-studio-* files into ~/.config/opencode/agents."
         },
         {
           "hostId": "amp",

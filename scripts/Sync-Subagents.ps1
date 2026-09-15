@@ -483,7 +483,7 @@ foreach ($cap in $capabilities) {
         }
 
         if (-not (Test-HostGetsNativeSubagents -Capability $cap -HostId $hostFormat.id)) {
-            $skipState = 'skipped (engine-invoked, no native subagents)'
+            $skipState = 'skipped (engine-invoked)'
             $skipAction = 'none'
             $wrapperPath = $null
             if ($hostFormat.manifestKind -and $hostFormat.manifestKind -ne 'none' -and -not [string]::IsNullOrWhiteSpace([string]$hostFormat.manifestDestinationTemplate)) {
@@ -491,6 +491,19 @@ foreach ($cap in $capabilities) {
                 if ($Apply -and $wrapperPath -and (Test-Path -LiteralPath $wrapperPath)) {
                     Remove-Item -LiteralPath $wrapperPath -Recurse -Force
                     $skipAction = 'pruned'
+                }
+            } elseif ($Apply) {
+                $sharedDir = Expand-DestinationTemplate -Template $hostFormat.destinationTemplate -CapabilityId $cap.Id
+                $wrapperPath = $sharedDir
+                if ($sharedDir -and (Test-Path -LiteralPath $sharedDir)) {
+                    $prefix = "$($cap.Id)-"
+                    $stale = @(Get-ChildItem -LiteralPath $sharedDir -File -Force | Where-Object { $_.Name.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) })
+                    foreach ($file in $stale) {
+                        $existing = [System.IO.File]::ReadAllText($file.FullName)
+                        if (-not (Test-SubagentShape -Format $hostFormat.format -Content $existing)) { continue }
+                        Remove-Item -LiteralPath $file.FullName -Force
+                        $skipAction = 'pruned'
+                    }
                 }
             }
             foreach ($agent in $agents) {

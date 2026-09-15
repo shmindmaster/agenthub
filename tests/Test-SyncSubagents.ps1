@@ -213,8 +213,8 @@ function Test-DestinationPathsAreRebasedUnderUserProfileOverride {
     New-Item -ItemType Directory -Path (Join-Path $userProfile '.codex') -Force | Out-Null
     try {
         $result = Invoke-SyncSubagents -ExtraArgs @('-Audit', '-UserProfile', $userProfile)
-        if ($result.Output -notmatch '(?m)product-demo-studio\s+codex\s+remediation-agent\s+\S+\s+\S+\s+(\S+)') {
-            return @{ Passed = $false; Detail = "could not find a product-demo-studio/codex/remediation-agent row with a path. Output: $($result.Output)" }
+        if ($result.Output -notmatch '(?m)product-experience-engineering\s+codex\s+experience-auditor\s+\S+\s+\S+\s+(\S+)') {
+            return @{ Passed = $false; Detail = "could not find a product-experience-engineering/codex/experience-auditor row with a path. Output: $($result.Output)" }
         }
         $reportedPath = $Matches[1]
         if (-not $reportedPath.StartsWith($userProfile, [StringComparison]::OrdinalIgnoreCase)) {
@@ -232,7 +232,7 @@ function Test-DestinationPathsAreRebasedUnderUserProfileOverride {
 # 'unmanaged', run exits non-zero, file left byte-identical. ---
 function Test-UnmanagedDestinationRefusesAndExitsNonZero {
     $userProfile = New-SyntheticProfile -Name 'unmanaged' -InstallCodex
-    $dest = Join-Path $userProfile '.codex\agents\product-demo-studio-episode-architect.toml'
+    $dest = Join-Path $userProfile '.codex\agents\product-experience-engineering-experience-auditor.toml'
     $handWritten = "this is not a TOML subagent file at all, just some unrelated hand-written text that happens to live at the exact generated filename`n"
     try {
         New-Item -ItemType Directory -Path (Split-Path -Parent $dest) -Force | Out-Null
@@ -242,8 +242,8 @@ function Test-UnmanagedDestinationRefusesAndExitsNonZero {
         if ($result.ExitCode -eq 0) {
             return @{ Passed = $false; Detail = "exit code was 0 (reported success) with an unmanaged destination present. Output: $($result.Output)" }
         }
-        if ($result.Output -notmatch '(?m)product-demo-studio\s+codex\s+episode-architect\s+unmanaged\b') {
-            return @{ Passed = $false; Detail = "expected an 'unmanaged' row for product-demo-studio/codex/episode-architect. Output: $($result.Output)" }
+        if ($result.Output -notmatch '(?m)product-experience-engineering\s+codex\s+experience-auditor\s+unmanaged\b') {
+            return @{ Passed = $false; Detail = "expected an 'unmanaged' row for product-experience-engineering/codex/experience-auditor. Output: $($result.Output)" }
         }
         $stillThere = [IO.File]::ReadAllText($dest)
         if ($stillThere -cne $handWritten) {
