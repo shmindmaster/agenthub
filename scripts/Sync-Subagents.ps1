@@ -193,14 +193,28 @@ function Get-EligibleCapabilities {
         }
 
         $result.Add([pscustomobject]@{
-            Id          = $capId
-            DisplayName = ConvertTo-DisplayName $capId
-            AgentsDir   = $agentsDir
-            Version     = $version
-            AgentFiles  = $agentFiles
+            Id           = $capId
+            DisplayName  = ConvertTo-DisplayName $capId
+            AgentsDir    = $agentsDir
+            Version      = $version
+            AgentFiles   = $agentFiles
+            HostMappings = @($cap.hostMappings)
         })
     }
     return $result
+}
+
+function Test-HostGetsNativeSubagents {
+    param($Capability, [string]$HostId)
+    $maps = @($Capability.HostMappings)
+    if ($maps.Count -eq 0) { return $true }
+    $mapping = $maps | Where-Object { [string]$_.hostId -eq $HostId } | Select-Object -First 1
+    if (-not $mapping) { return $true }
+    if (-not [string]::IsNullOrWhiteSpace([string]$mapping.roleAdapter)) { return $true }
+    $components = @($mapping.components)
+    if ($components -contains 'managed-native-agents') { return $true }
+    if ([string]$mapping.deploymentStatus -eq 'engine-invoked') { return $false }
+    return $true
 }
 
 # ---------------------------------------------------------------------------
@@ -468,6 +482,32 @@ foreach ($cap in $capabilities) {
             continue
         }
 
+        if (-not (Test-HostGetsNativeSubagents -Capability $cap -HostId $hostFormat.id)) {
+            $skipState = 'skipped (engine-invoked, no native subagents)'
+            $skipAction = 'none'
+            $wrapperPath = $null
+            if ($hostFormat.manifestKind -and $hostFormat.manifestKind -ne 'none' -and -not [string]::IsNullOrWhiteSpace([string]$hostFormat.manifestDestinationTemplate)) {
+                $wrapperPath = Expand-DestinationTemplate -Template $hostFormat.manifestDestinationTemplate -CapabilityId $cap.Id
+                if ($Apply -and $wrapperPath -and (Test-Path -LiteralPath $wrapperPath)) {
+                    Remove-Item -LiteralPath $wrapperPath -Recurse -Force
+                    $skipAction = 'pruned'
+                }
+            }
+            foreach ($agent in $agents) {
+                $results.Add([pscustomobject]@{
+                    Capability = $cap.Id; HostId = $hostFormat.id; Agent = $agent.Name
+                    State = $skipState; Action = $skipAction; Path = $wrapperPath; Notes = $null
+                })
+            }
+            if ($hostFormat.manifestKind -and $hostFormat.manifestKind -ne 'none') {
+                $results.Add([pscustomobject]@{
+                    Capability = $cap.Id; HostId = $hostFormat.id; Agent = "($($hostFormat.manifestFileName))"
+                    State = $skipState; Action = $skipAction; Path = $wrapperPath; Notes = $null
+                })
+            }
+            continue
+        }
+
         $destDir = Expand-DestinationTemplate -Template $hostFormat.destinationTemplate -CapabilityId $cap.Id
         $toolMap = $hostFormat.toolMap
 
@@ -560,7 +600,7 @@ $counts = @{
     drift   = @($results | Where-Object State -eq 'drift').Count
     missing = @($results | Where-Object State -eq 'missing').Count
     unmanaged = @($results | Where-Object State -eq 'unmanaged').Count
-    skipped = @($results | Where-Object State -eq 'skipped (host not installed)').Count
+    skipped = @($results | Where-Object { $_.State -like 'skipped*' }).Count
     updated = @($results | Where-Object Action -eq 'updated').Count
 }
 Write-Host ("SUMMARY: current={0} drift={1} missing={2} unmanaged={3} skipped={4} updated={5} total={6} workSet={7}" -f `

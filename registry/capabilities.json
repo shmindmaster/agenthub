@@ -379,10 +379,13 @@
         },
         {
           "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills",
-          "roleAdapter": "managed-preview-extension-agents",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
           "mcpOwnership": "shared-registry",
-          "reviewIsolation": "explicit-read-tools-plus-read-only-receipt-required"
+          "reviewIsolation": "explicit-read-tools-plus-read-only-receipt-required",
+          "deploymentStatusNote": "Not a host plugin or Gemini extension. media-studio invokes the on-disk screencast engine; do not deploy a named product-demo-studio extension."
         },
         {
           "hostId": "copilot",
@@ -395,10 +398,13 @@
         },
         {
           "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills",
-          "roleAdapter": "managed-cli-native-plugin-agents",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
           "mcpOwnership": "shared-registry",
-          "reviewIsolation": "command-policy-off-plus-read-only-receipt-required"
+          "reviewIsolation": "command-policy-off-plus-read-only-receipt-required",
+          "deploymentStatusNote": "Not a host plugin. media-studio invokes the on-disk screencast engine; do not deploy a named product-demo-studio Antigravity plugin."
         },
         {
           "hostId": "hermes",
