@@ -1,0 +1,34 @@
+{
+  "name": "slack",
+  "description": "AgentHub canonical Slack read/write. Enable the plugin to attach the shared MCP; disable when done. Host-native Slack plugins are optional UX only.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "slack",
+    "mcp",
+    "messaging",
+    "agenthub"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AgentHub Slack",
+    "shortDescription": "Same Slack tools, schemas, and identity on every coding-agent host.",
+    "longDescription": "AgentHub owns Slack read/write. Official Slack plugins are optional UX. Enable only when Slack work is in scope; disable when done so the stdio server does not sit at session start.",
+    "developerName": "Sarosh Hussain",
+    "category": "Business & Operations",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Search Slack for the original report in this thread.",
+      "Read the complete Slack thread and keep channel_id and ts.",
+      "Reply in the same Slack thread after I authorize the text."
+    ]
+  },
+  "version": "1.0.1"
+}

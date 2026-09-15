@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "PVR-SYNTHETIC-STORY-002",
+  "candidate": {
+    "candidateId": "synthetic-candidate-002",
+    "artifactPath": "evidence/candidate.mp4",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sourceRevision": "synthetic-revision-002",
+    "renderProvenanceId": "synthetic-render-002"
+  },
+  "reviewer": {
+    "domain": "story-experience",
+    "contextId": "write-enabled-context",
+    "readOnly": false,
+    "startedAt": "2026-07-29T15:05:00.000Z",
+    "completedAt": "2026-07-29T15:00:00.000Z"
+  },
+  "evidencePackage": {
+    "artifactPath": "evidence/evidence-package.json",
+    "sha256": "not-a-checksum"
+  },
+  "score": 84,
+  "checks": [],
+  "domainPass": true,
+  "findings": [],
+  "summary": "This fixture must fail.",
+  "unexpected": true
+}

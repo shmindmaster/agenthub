@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "browser-toolkit",
+  "version": "2.3.1",
+  "description": "Interactive visual browser testing with Playwright MCP, CLI, Test, and desktop-evidence capture."
+}

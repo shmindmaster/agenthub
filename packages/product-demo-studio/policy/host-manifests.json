@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0.0",
+  "capabilityId": "product-demo-studio",
+  "capabilityVersion": "1.8.6",
+  "note": "This package is the internal screencast engine invoked by media-studio. It is not a host-installable plugin. Every mapped host is not-applicable for plugin manifests. Review agents stay on disk under agents/ and are deployed as native Codex agents by Sync-Subagents.",
+  "verificationVocabulary": {
+    "format-verified": "Manifest path and field set read from the host's own current documentation.",
+    "format-unverified": "Manifest shipped but the host's documentation was not read. Treat as a proposal.",
+    "auto-detected": "Host reads the .claude-plugin/ layout natively. No manifest shipped. The translation rule and its source are recorded.",
+    "not-applicable": "No plugin manifest is shipped. media-studio is the public video plugin; this package is engine-only.",
+    "documentation-not-read": "No manifest shipped. The host's plugin format has not been established."
+  },
+  "loadTestStatus": "Plugin distribution was removed 2026-09-02. Static presence of engine files is not host-plugin parity.",
+  "hosts": [
+    { "hostId": "amp", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "antigravity", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "claude", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio@agenthub." },
+    { "hostId": "cline", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "codex", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Review agents still deploy via Sync-Subagents from agents/. Public video plugin is media-studio@agenthub." },
+    { "hostId": "copilot", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "cursor", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "devin", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "factory", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "gemini", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "grok", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "hermes", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "opencode", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "qoder", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "qwen-code", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "vscode-insiders", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "warp", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." },
+    { "hostId": "windsurf", "manifestPath": null, "format": null, "verification": "not-applicable", "source": null, "notes": "Engine-only. Public video plugin is media-studio." }
+  ],
+  "autoDetectionRisk": "None. This package no longer ships a plugin layout, so no host depends on a Claude-translation shim."
+}

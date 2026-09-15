@@ -1,0 +1,52 @@
+{
+  "fixtureId": "dead-wait",
+  "fps": 30,
+  "durationSeconds": 19,
+  "beats": [
+    {
+      "index": 0,
+      "beat": "cold-open",
+      "startsAt": 0,
+      "endsAt": 4,
+      "durationMs": 4000,
+      "isHero": false,
+      "narration": "Every month, 127 lines get matched by hand."
+    },
+    {
+      "index": 1,
+      "beat": "frozen wait, no state change",
+      "startsAt": 4,
+      "endsAt": 10.5,
+      "durationMs": 6500,
+      "isHero": false,
+      "narration": "One action."
+    },
+    {
+      "index": 2,
+      "beat": "hero reveal",
+      "startsAt": 10.5,
+      "endsAt": 14,
+      "durationMs": 3500,
+      "isHero": true,
+      "narration": "Done. Every line, every invoice."
+    },
+    {
+      "index": 3,
+      "beat": "guardrail",
+      "startsAt": 14,
+      "endsAt": 16.5,
+      "durationMs": 2500,
+      "isHero": false,
+      "narration": "Nothing posts until you say so."
+    },
+    {
+      "index": 4,
+      "beat": "close",
+      "startsAt": 16.5,
+      "endsAt": 19,
+      "durationMs": 2500,
+      "isHero": false,
+      "narration": "Close the month in an afternoon."
+    }
+  ]
+}

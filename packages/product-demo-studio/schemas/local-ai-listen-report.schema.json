@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/local-ai-listen-report.schema.json",
+  "title": "Local-AI ai.ps1 listen Native Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reportId", "status", "candidate", "decodedAudio", "model", "request", "execution", "checks", "findings", "summary", "generatedAt"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "reportId": { "type": "string", "pattern": "^LAPR-[a-f0-9]{16}$" },
+    "status": { "enum": ["PASS", "FAIL"] },
+    "candidate": { "$ref": "#/$defs/candidateReference" },
+    "decodedAudio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactPath", "sha256", "bytes", "sampleRate", "channels", "bitsPerSample", "sampleCount", "durationSeconds", "coverage", "sourceAudioStream", "sourceProbe", "decoder"],
+      "properties": {
+        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "$ref": "#/$defs/bytes" },
+        "sampleRate": { "const": 16000 },
+        "channels": { "const": 1 },
+        "bitsPerSample": { "const": 16 },
+        "sampleCount": { "type": "integer", "minimum": 1 },
+        "durationSeconds": { "type": "number", "exclusiveMinimum": 0 },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["startSample", "endSampleExclusive", "expectedSamples", "continuous"],
+          "properties": {
+            "startSample": { "const": 0 },
+            "endSampleExclusive": { "type": "integer", "minimum": 1 },
+            "expectedSamples": { "type": "integer", "minimum": 1 },
+            "continuous": { "const": true }
+          }
+        },
+        "sourceAudioStream": { "type": "object" },
+        "sourceProbe": { "type": "object" },
+        "decoder": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ffmpegPath", "ffmpegSha256", "version", "commandSha256"],
+          "properties": {
+            "ffmpegPath": { "$ref": "#/$defs/nonEmptyString" },
+            "ffmpegSha256": { "$ref": "#/$defs/sha256" },
+            "version": { "$ref": "#/$defs/nonEmptyString" },
+            "commandSha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision", "license", "receiptSha256", "torch", "transformers", "device", "peakVramBytes"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "revision": { "$ref": "#/$defs/nonEmptyString" },
+        "license": { "$ref": "#/$defs/nonEmptyString" },
+        "receiptSha256": { "$ref": "#/$defs/sha256" },
+        "torch": { "$ref": "#/$defs/nonEmptyString" },
+        "transformers": { "$ref": "#/$defs/nonEmptyString" },
+        "device": { "$ref": "#/$defs/nonEmptyString" },
+        "peakVramBytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["promptVersion", "promptSha256", "transcript", "pronunciationManifest", "generation", "modelResponse"],
+      "properties": {
+        "promptVersion": { "$ref": "#/$defs/nonEmptyString" },
+        "promptSha256": { "$ref": "#/$defs/sha256" },
+        "transcript": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/artifactReference" }] },
+        "pronunciationManifest": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/artifactReference" }] },
+        "generation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["doSample", "seed", "maxNewTokens"],
+          "properties": {
+            "doSample": { "const": false },
+            "seed": { "const": 0 },
+            "maxNewTokens": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "modelResponse": { "$ref": "#/$defs/artifactReference" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "completedAt", "durationSeconds", "localFilesOnly", "remoteInputs"],
+      "properties": {
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "durationSeconds": { "type": "number", "minimum": 0 },
+        "localFilesOnly": { "const": true },
+        "remoteInputs": { "const": false }
+      }
+    },
+    "checks": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/perceptionCheck" } },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "summary": { "$ref": "#/$defs/nonEmptyString" },
+    "generatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "safeId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "bytes": { "type": "integer", "minimum": 1 },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactPath", "sha256", "bytes"],
+      "properties": {
+        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "$ref": "#/$defs/bytes" }
+      }
+    },
+    "candidateReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateId", "artifactPath", "sha256", "bytes", "sourceRevision", "renderProvenanceId"],
+      "properties": {
+        "candidateId": { "$ref": "#/$defs/safeId" },
+        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "$ref": "#/$defs/bytes" },
+        "sourceRevision": { "$ref": "#/$defs/nonEmptyString" },
+        "renderProvenanceId": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "perceptionCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "passed", "notes"],
+      "properties": {
+        "id": { "enum": ["full-program", "pronunciation", "delivery-and-pacing", "artifacts-and-discontinuities"] },
+        "passed": { "type": "boolean" },
+        "notes": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "checkId", "severity", "startSeconds", "endSeconds", "description"],
+      "properties": {
+        "id": { "$ref": "#/$defs/safeId" },
+        "checkId": { "enum": ["full-program", "pronunciation", "delivery-and-pacing", "artifacts-and-discontinuities"] },
+        "severity": { "enum": ["BLOCKER", "WARNING"] },
+        "startSeconds": { "anyOf": [{ "type": "null" }, { "type": "number", "minimum": 0 }] },
+        "endSeconds": { "anyOf": [{ "type": "null" }, { "type": "number", "minimum": 0 }] },
+        "description": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    }
+  }
+}

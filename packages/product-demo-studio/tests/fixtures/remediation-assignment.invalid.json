@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "assignmentId": "PVA-AUDIO-SYNC-002",
+  "candidateId": "synthetic-candidate-001",
+  "domain": "narration-audio",
+  "assignedFindingIds": ["PVF-AUDIO-SYNC-001", "PVF-AUDIO-SYNC-001"],
+  "permittedFiles": [
+    "C:\\Repos\\product\\video",
+    "video/audio/timeline.json"
+  ],
+  "prohibitedFiles": [
+    "video/audio/timeline.json"
+  ],
+  "evidence": [],
+  "reproductionSteps": [],
+  "validationCommands": [],
+  "definitionOfDone": [],
+  "permissions": {
+    "writeScope": "workspace",
+    "mayApproveRelease": true,
+    "destructiveGitAllowed": true,
+    "forcePushAllowed": true,
+    "broadWorkspaceWritesAllowed": true,
+    "mayDeleteSourceEvidence": true
+  }
+}

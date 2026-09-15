@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-29T15:45:00.000Z",
+  "selectedCandidateId": "docker-mcp-gateway",
+  "policy": {
+    "activation": "Docker MCP Toolkit is installed and the remote-only gateway POC partially passed. Keep host generation disabled until the single production profile, authentication path, and duplicate-suppression contract are proven.",
+    "singleEndpoint": "One selected profile is bound to one authenticated loopback streaming endpoint.",
+    "profileIsolation": "The selected profile contains only the MCP intersection shared by every eligible non-held host. Plugin-owned, native-connector, and local-only services remain direct.",
+    "unsupported": "Only observed remote snapshot mappings are asserted. Container-backed Docker catalog servers are not eligible on this Windows host while the missing-socat failure remains."
+  },
+  "candidates": [
+    {
+      "id": "docker-mcp-gateway",
+      "implementation": "docker-mcp-gateway",
+      "installationState": "installed",
+      "toolkitState": "enabled-by-controller-2026-07-29",
+      "activationState": "partial-poc-pass",
+      "generationEnabled": false,
+      "selectedProfileId": "agenthub-shared",
+      "documentation": [
+        "https://docs.docker.com/ai/mcp-catalog-and-toolkit/profiles/",
+        "https://docs.docker.com/reference/cli/docker/mcp/gateway/run/",
+        "https://github.com/docker/mcp-gateway"
+      ],
+      "endpoint": {
+        "id": "agenthub-gateway",
+        "transport": "streaming",
+        "bindAddress": "127.0.0.1",
+        "port": 8811,
+        "path": "/mcp",
+        "url": "http://127.0.0.1:8811/mcp",
+        "authScheme": "bearer",
+        "authTokenEnvironment": "MCP_GATEWAY_AUTH_TOKEN",
+        "boundProfileId": "agenthub-shared"
+      },
+      "commandTemplate": [
+        "docker",
+        "mcp",
+        "gateway",
+        "run",
+        "--profile",
+        "{profileId}",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8811",
+        "--transport",
+        "streaming"
+      ],
+      "pocEvidence": {
+        "profileId": "agenthub-poc-remote",
+        "profileKind": "remote-snapshot",
+        "observedAt": "2026-07-29",
+        "bindUrl": "http://127.0.0.1:8811/mcp",
+        "authenticationState": "disabled-for-poc-only",
+        "remoteToolCount": 59,
+        "gatewayToolCountIncludingInternal": 67,
+        "context7ReadOnlyCall": "passed",
+        "linearInitialization": "passed",
+        "notionInitialization": "blocked-missing-oauth",
+        "firecrawlAuthenticatedLoopback": {
+          "profileId": "agenthub-poc-firecrawl",
+          "mappingType": "custom-remote-snapshot",
+          "remoteEndpoint": "https://mcp.firecrawl.dev/v2/mcp",
+          "bindUrl": "http://127.0.0.1:8812/mcp",
+          "unauthenticatedInitialize": 401,
+          "bearerAuthenticatedInitialize": 200,
+          "sessionIssued": true,
+          "toolsList": 200,
+          "gatewayToolCountIncludingInternal": 34,
+          "toolExecutionState": "not-run-no-quota-spend",
+          "shutdownState": "clean-port-freed",
+          "temporaryEvidencePaths": [
+            ".superpowers/sdd/2026-07-29-agenthub-runtime-centralization/agenthub-poc-firecrawl.yaml",
+            ".superpowers/sdd/2026-07-29-agenthub-runtime-centralization/Test-FirecrawlRemoteGateway.ps1"
+          ]
+        },
+        "logPaths": [
+          "{localData}/AgentHub/reports/gateway-poc/docker-remote-gateway.stderr.log",
+          "{localData}/AgentHub/reports/gateway-poc/docker-remote-gateway.stdout.log"
+        ],
+        "notes": "The temporary exported profile snapshot is intentionally not committed. The production endpoint remains bearer-authenticated even though the local POC explicitly disabled gateway authentication."
+      },
+      "windowsRuntimeConstraint": {
+        "state": "blocked",
+        "scope": "docker-catalog-container-backed-servers",
+        "observedFailure": "missing socat",
+        "decision": "Use proven remote snapshots where available; do not route container-backed mappings on Windows until separately remediated and revalidated."
+      },
+      "serverMappings": [
+        {
+          "mcpId": "github",
+          "dockerReference": null,
+          "mappingType": "unresolved",
+          "proofState": "discovery-required"
+        },
+        {
+          "mcpId": "linear",
+          "dockerReference": "linear",
+          "mappingType": "remote-snapshot",
+          "profileId": "agenthub-poc-remote",
+          "proofState": "read-only-poc-passed"
+        },
+        {
+          "mcpId": "context7",
+          "dockerReference": "context7",
+          "mappingType": "remote-snapshot",
+          "profileId": "agenthub-poc-remote",
+          "proofState": "read-only-call-passed"
+        },
+        {
+          "mcpId": "notion",
+          "dockerReference": "notion-remote",
+          "mappingType": "remote-snapshot",
+          "profileId": "agenthub-poc-remote",
+          "proofState": "blocked-missing-oauth"
+        },
+        {
+          "mcpId": "firecrawl",
+          "dockerReference": "mcp/firecrawl",
+          "mappingType": "custom-remote-snapshot",
+          "profileId": "agenthub-poc-firecrawl",
+          "catalogImplementation": "container-image",
+          "catalogSecretId": "firecrawl.api_key",
+          "catalogWindowsState": "blocked-missing-socat",
+          "remoteEndpoint": "https://mcp.firecrawl.dev/v2/mcp",
+          "remoteAuth": "Authorization bearer",
+          "proofState": "poc-passed-remote",
+          "toolExecutionState": "not-run-no-quota-spend"
+        },
+        {
+          "mcpId": "exa",
+          "dockerReference": null,
+          "mappingType": "unresolved",
+          "proofState": "discovery-required"
+        },
+        {
+          "mcpId": "descript",
+          "dockerReference": null,
+          "mappingType": "unresolved",
+          "proofState": "discovery-required"
+        },
+        {
+          "mcpId": "slack",
+          "dockerReference": null,
+          "mappingType": "canonical-bridge",
+          "localStdio": "packages/slack/mcp/slack-mcp.mjs",
+          "intendedLoopback": "http://127.0.0.1:8811/mcp",
+          "intendedRemote": null,
+          "proofState": "contract-defined-not-yet-gateway-routed",
+          "note": "Slack is the first serious reason to finish gateway generation. Do not set generationEnabled from this mapping. Local and cloud agents must eventually see identical tools and schemas; stdio plugin-gated delivery is the current honest path."
+        }
+      ],
+      "profiles": [
+        {
+          "id": "agenthub-shared",
+          "activationState": "poc-pending",
+          "mcpServerIds": [
+            "exa",
+            "firecrawl"
+          ],
+          "hostMappings": [
+            {
+              "hostId": "codex",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "claude",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "vscode-insiders",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "cursor",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "cursor-agent",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "amp",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "factory",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "qwen-code",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "opencode",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "opencode-desktop",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "gemini",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "hermes",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "copilot",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "antigravity",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "antigravity-desktop",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "antigravity-ide",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "grok",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "warp",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "cline",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "qoder",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "devin",
+              "state": "poc-pending"
+            },
+            {
+              "hostId": "windsurf",
+              "state": "poc-pending"
+            }
+          ]
+        }
+      ],
+      "activationGuard": {
+        "forbidUntilProductionProfilesPass": [
+          "write-user-or-host-config",
+          "enable-generated-gateway-endpoint",
+          "route-provider-held-host",
+          "route-container-backed-server-on-windows"
+        ],
+        "requiredEvidence": [
+          "exact remote snapshot mapping for every enabled MCP",
+          "authenticated loopback /mcp contract",
+          "profile tool inventory and duplicate suppression",
+          "read-only health check for every profile",
+          "OAuth authorization for OAuth-backed mappings"
+        ]
+      }
+    }
+  ]
+}

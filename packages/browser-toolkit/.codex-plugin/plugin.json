@@ -1,0 +1,34 @@
+{
+  "name": "browser-toolkit",
+  "description": "Interactive visual browser testing, Playwright MCP/CLI/Test provider catalogs, debugging, and evidence capture.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "browser-testing",
+    "playwright",
+    "visual-testing",
+    "accessibility",
+    "performance"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Browser Toolkit",
+    "shortDescription": "Interactively test and debug real browser workflows.",
+    "longDescription": "Attach to the owner's Chrome/Edge via Playwright Extension and Chrome DevTools autoConnect when the plugin is enabled. Prefer Playwright CLI for compact coding-agent capture; Playwright MCP for exploratory loops; Playwright Test for regressions. Do not persist these MCP servers in host config.",
+    "developerName": "Sarosh Hussain",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Interactively test this workflow and inspect the rendered UI.",
+      "Debug this browser failure using console and network evidence.",
+      "Check this page visually, semantically, and for accessibility."
+    ]
+  },
+  "version": "2.3.1"
+}

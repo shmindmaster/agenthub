@@ -1,0 +1,585 @@
+﻿#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Fleet repository-standard checker. Reports (and optionally repairs) drift
+    from the shmindmaster repository knowledge + agent-instruction standard.
+
+.DESCRIPTION
+    The standard (registry/repo-standard.json is the machine-readable roster):
+      - README.md for humans, AGENTS.md as the ONLY authored agent contract.
+      - CLAUDE.md is a thin adapter: '@AGENTS.md' + '@.claude/CLAUDE.md'
+        (RepoWise-managed block). Never hand-duplicated rules.
+      - docs/ taxonomy: README.md router, current-state.md, product/,
+        architecture/, development/, runbooks/, plans/PLANS.md.
+      - Nested AGENTS.md files state the root applies and carry local deltas
+        only; they never restate the root contract.
+      - Forbidden legacy instruction surfaces (GEMINI.md, .cursorrules,
+        .windsurfrules, .github/copilot-instructions.md,
+        docs/ai/REPO_AGENT_RULES.md, scratch state files) do not exist.
+      - RepoWise: repo is a member of the fleet workspace, post-commit hook
+        installed, .repowise/ gitignored, index present and not stale.
+      - One MCP registration: the fleet workspace server in
+        registry/mcps.json. Per-repo repowise MCP entries are drift.
+      - Tracker authority is explicit in AGENTS.md.
+
+    Modes:
+      check (default)  report drift, exit 1 if any FAIL.
+      -Fix             repair deterministic drift only: create missing docs
+                       skeleton files, delete forbidden legacy files, add
+                       .gitignore entries. Never writes authored content
+                       (AGENTS.md sections, prose docs) and never deletes
+                       unlisted files.
+
+    Run: pwsh -NoProfile -File scripts/Check-RepoStandard.ps1 -All
+         pwsh -NoProfile -File scripts/Check-RepoStandard.ps1 -Repo abacare
+         pwsh -NoProfile -File scripts/Check-RepoStandard.ps1 -All -Fix
+#>
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [string]$Repo,
+    [switch]$All,
+    [switch]$Fix,
+    [ValidateSet('table','json')]
+    [string]$Format = 'table',
+    [string]$ConfigPath
+)
+
+$ErrorActionPreference = 'Stop'
+$repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
+    $ConfigPath = Join-Path $repoRoot 'registry\repo-standard.json'
+}
+
+$config = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$fleetRoot = [string]$config.fleetRoot
+if ([string]::IsNullOrWhiteSpace($fleetRoot)) { throw "repo-standard.json declares no fleetRoot" }
+
+$results = [Collections.Generic.List[object]]::new()
+function Add-Result([string]$RepoName, [string]$Check, [bool]$Passed, [string]$Detail, [bool]$Fixed) {
+    $script:results.Add([pscustomobject]@{
+        Repo   = $RepoName
+        Check  = $Check
+        Passed = $Passed
+        Fixed  = $Fixed
+        Detail = $Detail
+    })
+}
+
+$requiredRootFiles = @($config.requiredRootFiles)
+$requiredDocsFiles = @($config.requiredDocsFiles)
+$requiredDocsDirs  = @($config.requiredDocsDirs)
+$forbiddenPaths    = @($config.forbiddenPaths)
+$rootMdAllowlist   = @($config.rootMarkdownAllowlist)
+$agentsAnchors     = @($config.agentsAnchors)
+$claudeMaxLines    = [int]$config.claudeMaxAuthoredLines
+$workspaceFileName = [string]$config.workspace.file
+if ([string]::IsNullOrWhiteSpace($workspaceFileName)) { $workspaceFileName = '.repowise-workspace.yaml' }
+$workspaceRoot = [string]$config.workspace.root
+if ([string]::IsNullOrWhiteSpace($workspaceRoot)) { $workspaceRoot = $fleetRoot }
+$workspaceFile     = Join-Path $workspaceRoot $workspaceFileName
+
+$workspaceRepos = @()
+if (Test-Path -LiteralPath $workspaceFile) {
+    $workspaceText = Get-Content -LiteralPath $workspaceFile -Raw -Encoding UTF8
+    $ids = [Collections.Generic.List[string]]::new()
+    foreach ($m in [regex]::Matches($workspaceText, '(?m)^\s*-\s+path:\s*(\S+)\s*$')) {
+        $p = $m.Groups[1].Value.Trim("`"'")
+        $ids.Add($p)
+        $ids.Add(([IO.Path]::GetFileName($p.Replace('/', '\'))))
+    }
+    foreach ($m in [regex]::Matches($workspaceText, '(?m)^\s+alias:\s*(\S+)\s*$')) {
+        $ids.Add($m.Groups[1].Value.Trim("`"'"))
+    }
+    $workspaceRepos = @($ids | Select-Object -Unique)
+}
+function Remove-MarkdownInlineCode([string]$Line) {
+    # Regex backreferences over long backtick runs can catastrophically
+    # backtrack. Scan delimiters deterministically instead. A code span closes
+    # only on a later backtick run of the exact same length; unmatched runs are
+    # retained as prose.
+    $runs = [Collections.Generic.List[object]]::new()
+    $index = 0
+    while ($index -lt $Line.Length) {
+        $start = $Line.IndexOf('`', $index)
+        if ($start -lt 0) { break }
+        $end = $start + 1
+        while ($end -lt $Line.Length -and $Line[$end] -eq '`') { $end++ }
+        $runs.Add([pscustomobject]@{ Start = $start; Length = $end - $start })
+        $index = $end
+    }
+    if ($runs.Count -eq 0) { return $Line }
+
+    # Precompute the next delimiter run of the same length. The forward render
+    # then jumps across a matched span and never rescans its interior.
+    $nextSameLength = [int[]]::new($runs.Count)
+    [Array]::Fill($nextSameLength, -1)
+    $nextByLength = @{}
+    for ($runIndex = $runs.Count - 1; $runIndex -ge 0; $runIndex--) {
+        $length = [int]$runs[$runIndex].Length
+        if ($nextByLength.ContainsKey($length)) {
+            $nextSameLength[$runIndex] = [int]$nextByLength[$length]
+        }
+        $nextByLength[$length] = $runIndex
+    }
+
+    $result = [Text.StringBuilder]::new()
+    $cursor = 0
+    $runIndex = 0
+    while ($runIndex -lt $runs.Count) {
+        $run = $runs[$runIndex]
+        if ($cursor -lt $run.Start) {
+            [void]$result.Append($Line.Substring($cursor, $run.Start - $cursor))
+        }
+        $closeIndex = $nextSameLength[$runIndex]
+        if ($closeIndex -ge 0) {
+            $close = $runs[$closeIndex]
+            $cursor = $close.Start + $close.Length
+            $runIndex = $closeIndex + 1
+        } else {
+            [void]$result.Append($Line.Substring($run.Start, $run.Length))
+            $cursor = $run.Start + $run.Length
+            $runIndex++
+        }
+    }
+    if ($cursor -lt $Line.Length) {
+        [void]$result.Append($Line.Substring($cursor))
+    }
+    return $result.ToString()
+}
+function Get-MarkdownLinkText([string]$Text) {
+    # Link-looking examples in inline code and fenced code are documentation,
+    # not navigable Markdown links. Retain only prose before Test-MarkdownLinks
+    # applies its deliberately simple relative-link matcher.
+    $prose = [Text.StringBuilder]::new()
+    $fenceCharacter = ''
+    $fenceLength = 0
+    foreach ($line in [regex]::Split($Text, "\r?\n")) {
+        if ($fenceLength -gt 0) {
+            $closePattern = '^ {0,3}' + [regex]::Escape($fenceCharacter) + '{' + $fenceLength + ',}\s*$'
+            if ($line -match $closePattern) {
+                $fenceCharacter = ''
+                $fenceLength = 0
+            }
+            continue
+        }
+        if ($line -match '^ {0,3}(`{3,}|~{3,})') {
+            $fence = $Matches[1]
+            $fenceCharacter = $fence.Substring(0, 1)
+            $fenceLength = $fence.Length
+            continue
+        }
+        $lineWithoutCode = Remove-MarkdownInlineCode $line
+        [void]$prose.AppendLine($lineWithoutCode)
+    }
+    return $prose.ToString()
+}
+function Test-MarkdownLinks([string]$RepoPath) {
+    # Resolve relative markdown links in root README/AGENTS and docs/**.md.
+    # Only relative links are checked; http(s), mailto and pure #anchors skip.
+    $broken = [Collections.Generic.List[string]]::new()
+    $mdFiles = [Collections.Generic.List[string]]::new()
+    foreach ($f in @('README.md','AGENTS.md')) {
+        $p = Join-Path $RepoPath $f
+        if (Test-Path -LiteralPath $p) { $mdFiles.Add($p) }
+    }
+    $docsDir = Join-Path $RepoPath 'docs'
+    if (Test-Path -LiteralPath $docsDir) {
+        Get-ChildItem -LiteralPath $docsDir -Recurse -File -Filter '*.md' |
+            ForEach-Object { $mdFiles.Add($_.FullName) }
+    }
+    foreach ($file in $mdFiles) {
+        $text = Get-MarkdownLinkText (Get-Content -LiteralPath $file -Raw -Encoding UTF8)
+        foreach ($m in [regex]::Matches($text, '\]\(([^)\s]+)\)')) {
+            $target = $m.Groups[1].Value
+            if ($target -match '^(https?://|mailto:|#|ftp://|/)') { continue }
+            $targetNoAnchor = ($target -split '#')[0]
+            if ([string]::IsNullOrWhiteSpace($targetNoAnchor)) { continue }
+            $expectsDirectory = $targetNoAnchor.EndsWith('/') -or $targetNoAnchor.EndsWith('\')
+            $decoded = [uri]::UnescapeDataString($targetNoAnchor).TrimEnd('/', '\')
+            # Markdown directory links conventionally end in '/'. Join-Path
+            # mangles a child with a trailing separator ('a\b\c\' joins as
+            # 'a\b\c\'), so the link fails even when the directory exists.
+            # Trim it; Test-MarkdownLinks fixtures in Test-RepoStandard.ps1
+            # pin this behavior.
+            $resolved = Join-Path (Split-Path -Parent $file) $decoded
+            $targetIsCorrectType = if ($expectsDirectory) {
+                Test-Path -LiteralPath $resolved -PathType Container
+            } else {
+                Test-Path -LiteralPath $resolved -PathType Leaf
+            }
+            if (-not $targetIsCorrectType) {
+                $broken.Add("$($file.Substring($RepoPath.Length + 1)) -> $target")
+            }
+        }
+    }
+    return $broken
+}
+function Invoke-RepoCheck {
+    # SupportsShouldProcess here (rather than only on the top-level script)
+    # is what makes $PSCmdlet.ShouldProcess available at each mutating call
+    # site below. It cascades correctly: the ambient $WhatIfPreference set
+    # by the top-level script's own -WhatIf switch is visible to this
+    # function without needing to be passed explicitly.
+    [CmdletBinding(SupportsShouldProcess)]
+    param([string]$Name, [object]$Entry)
+    $path = Join-Path $fleetRoot $Name
+    if (-not (Test-Path -LiteralPath (Join-Path $path '.git'))) {
+        Add-Result $Name 'repo-exists' $false 'no .git directory' $false
+        return
+    }
+
+    # A small number of repositories intentionally use a compact, flat docs/
+    # layout. Exemptions are exact paths from the global required-doc lists and
+    # require a human-readable reason; arbitrary paths never weaken the check.
+    $docsExemptionPaths = @()
+    $docsExemptionReason = ''
+    if ($null -ne $Entry.docsExemptions) {
+        $docsExemptionReason = [string]$Entry.docsExemptions.reason
+        $docsExemptionPaths = @($Entry.docsExemptions.paths | ForEach-Object { ([string]$_).Replace('\', '/') })
+        if ([string]::IsNullOrWhiteSpace($docsExemptionReason)) {
+            Add-Result $Name 'docs-exemptions' $false 'reason must be nonblank' $false
+            $docsExemptionPaths = @()
+        } else {
+            $allowedDocsExemptions = @($requiredDocsDirs + $requiredDocsFiles | ForEach-Object { ([string]$_).Replace('\', '/') })
+            $invalidDocsExemptions = @($docsExemptionPaths | Where-Object { $_ -notin $allowedDocsExemptions })
+            if ($invalidDocsExemptions.Count -gt 0) {
+                Add-Result $Name 'docs-exemptions' $false ("paths are not globally required docs: " + ($invalidDocsExemptions -join ', ')) $false
+                $docsExemptionPaths = @()
+            }
+        }
+    }
+
+    foreach ($f in $requiredRootFiles) {
+        $exists = Test-Path -LiteralPath (Join-Path $path $f)
+        Add-Result $Name "root-file:$f" $exists $(if (-not $exists) { 'missing' } else { '' }) $false
+    }
+
+    # forbiddenPaths is config data and $path is a SIBLING repository, so a
+    # bad entry here runs Remove-Item -Recurse -Force somewhere unintended.
+    # Demonstrated 2026-08-19: a blank entry makes Join-Path return the repo
+    # root, and -Fix deleted the fixture repo. A ".." or absolute entry
+    # escapes the repo entirely. Same containment pattern as
+    # Sync-AgentHub.ps1 refusing to prune outside its managed runtime.
+    $repoFull = [IO.Path]::GetFullPath($path).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    foreach ($f in $forbiddenPaths) {
+        if ([string]::IsNullOrWhiteSpace($f)) {
+            Add-Result $Name "forbidden:<blank>" $false 'refused: blank forbiddenPaths entry resolves to the repository root' $false
+            continue
+        }
+        # Refuse BEFORE Join-Path. On Windows Join-Path concatenates an
+        # absolute second argument ("C:\repo" + "C:\abs\f" -> "C:\repo\C:\abs\f"),
+        # so the containment check below would see a path that still starts
+        # with the repo prefix, pass it, and skip the refusal entirely.
+        if ([IO.Path]::IsPathRooted($f)) {
+            Add-Result $Name "forbidden:$f" $false "refused: forbiddenPaths entry is absolute ($f)" $false
+            continue
+        }
+        $fp = Join-Path $path $f
+        $fpFull = try { [IO.Path]::GetFullPath($fp) } catch { $null }
+        if (-not $fpFull -or -not $fpFull.StartsWith($repoFull + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            Add-Result $Name "forbidden:$f" $false "refused: resolves outside the repository ($fpFull)" $false
+            continue
+        }
+        if (Test-Path -LiteralPath $fp) {
+            $item = Get-Item -LiteralPath $fp -Force
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                # -Recurse -Force deletes THROUGH a junction, into the target.
+                Add-Result $Name "forbidden:$f" $false 'refused: path is a reparse point' $false
+                continue
+            }
+            $fixed = $false
+            if ($Fix -and $PSCmdlet.ShouldProcess($fp, 'Remove forbidden path')) {
+                Remove-Item -LiteralPath $fp -Recurse -Force
+                $fixed = -not (Test-Path -LiteralPath $fp)
+            }
+            Add-Result $Name "forbidden:$f" $fixed 'present' $fixed
+        }
+    }
+
+    $rootTextAllowlist = @('robots.txt', 'llms.txt')
+    $rootDocs = Get-ChildItem -LiteralPath $path -File |
+        Where-Object { $_.Extension -in '.txt', '.out', '.log' } |
+        Where-Object { $_.Name -notin $rootTextAllowlist -and $_.Name -notin $forbiddenPaths }
+    foreach ($f in $rootDocs) {
+        Add-Result $Name 'root-scratch' $false $f.Name $false
+    }
+
+    foreach ($d in $requiredDocsDirs) {
+        if (([string]$d).Replace('\', '/') -in $docsExemptionPaths) {
+            Add-Result $Name "docs-dir-exemption:$d" $true $docsExemptionReason $false
+            continue
+        }
+        $exists = Test-Path -LiteralPath (Join-Path $path $d)
+        $fixed = $false
+        if (-not $exists -and $Fix -and $PSCmdlet.ShouldProcess((Join-Path $path $d), 'Create missing docs directory')) {
+            New-Item -ItemType Directory -Force (Join-Path $path $d) | Out-Null
+            $fixed = Test-Path -LiteralPath (Join-Path $path $d)
+        }
+        Add-Result $Name "docs-dir:$d" ($exists -or $fixed) $(if (-not $exists) { 'missing' } else { '' }) $fixed
+    }
+
+    foreach ($f in $requiredDocsFiles) {
+        if (([string]$f).Replace('\', '/') -in $docsExemptionPaths) {
+            Add-Result $Name "docs-file-exemption:$f" $true $docsExemptionReason $false
+            continue
+        }
+        $fp = Join-Path $path $f
+        $exists = Test-Path -LiteralPath $fp
+        $fixed = $false
+        if (-not $exists -and $Fix -and $PSCmdlet.ShouldProcess($fp, 'Create missing docs file')) {
+            $parent = Split-Path -Parent $fp
+            if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Force $parent | Out-Null }
+            $leaf = Split-Path -Leaf $fp
+            $template = switch ($leaf) {
+                'README.md'        { "# Documentation Map`r`n`r`nStart with [current-state.md](./current-state.md) for verified repository reality.`r`n" }
+                'current-state.md' { "# Current State`r`n`r`n> Bootstrap pending: this file must record verified reality, not intent. Update on first real task.`r`n" }
+                'PLANS.md'         { "# Execution Plans`r`n`r`nComplex, multi-session work gets a resumable plan under ``docs/plans/active/``. Completed plans move to ``docs/plans/completed/``. A plan records: purpose, verified current behavior, target behavior, progress, discoveries, decisions, milestones with validation, risks, and final evidence.`r`n" }
+                default            { "# Placeholder`r`n" }
+            }
+            [IO.File]::WriteAllText($fp, $template, [Text.UTF8Encoding]::new($false))
+            $fixed = Test-Path -LiteralPath $fp
+        }
+        Add-Result $Name "docs-file:$f" ($exists -or $fixed) $(if (-not $exists) { 'missing' } else { '' }) $fixed
+    }
+    $agentsPath = Join-Path $path 'AGENTS.md'
+    if (Test-Path -LiteralPath $agentsPath) {
+        $agentsText = Get-Content -LiteralPath $agentsPath -Raw -Encoding UTF8
+        $agentSignals = @(
+            @{ Id = 'mission';   Pattern = '(?im)^#{1,6}\s*(Mission|Purpose|Purpose and current outcome|What this is|Product direction|.+repository guide)\b' },
+            @{ Id = 'authority'; Pattern = '(?im)(Knowledge authority|source of truth|canonical source|code and runtime configuration win when documentation drifts|Executable code.*describe.*reality|GitHub\s+`?main`?\s+owns code|This file is the repository-specific source of truth)' },
+            @{ Id = 'start';     Pattern = '(?im)^#{1,6}\s*(Start here|Read first|First-read context|Operating rules)\b' },
+            @{ Id = 'repowise';  Pattern = '(?im)\bRepoWise\b|(?im)\brepowise\b' },
+            @{ Id = 'commands';  Pattern = '(?im)^#{1,6}\s*(Canonical commands|Commands|Command map|Windows-first commands|Command contract)\b' },
+            @{ Id = 'tracker';   Pattern = '(?im)^#{1,6}\s*Tracker\b|(?im)\bLinear\b.*\b(outcome|outcomes|acceptance|track|tracks)\b|(?im)\bGitHub Issues\b|(?im)\bNo external tracker\b|(?im)\bLinear owns\b' },
+            @{ Id = 'done';      Pattern = '(?im)^#{1,6}\s*(Definition of done|Completion criteria|Verification and completion)\b|(?im)\bA change is complete when\b' },
+            @{ Id = 'safety';    Pattern = '(?im)^#{1,6}\s*(Safety|Sensitive areas|Secrets and safety|Hard boundaries|Hard constraints|Core constraints)\b' }
+        )
+        foreach ($signal in $agentSignals) {
+            $has = $agentsText -match $signal.Pattern
+            Add-Result $Name "agents-signal:$($signal.Id)" $has $(if (-not $has) { 'signal missing' } else { '' }) $false
+        }
+        $lineCount = ($agentsText -split "`n").Count
+        Add-Result $Name 'agents-length' ($lineCount -le 400) $(if ($lineCount -gt 400) { "$lineCount lines exceeds 400-line contract ceiling" } else { '' }) $false
+        $tracker = [string]$Entry.tracker
+        $trackerPattern = switch ($tracker) {
+            'linear' { '(?im)\bLinear\b' }
+            'github-issues' { '(?im)\bGitHub Issues\b|\bGitHub\b' }
+            default { '(?im)\bNo external tracker\b|\btracker\b|\bnone\b' }
+        }
+        $hasTracker = $agentsText -match $trackerPattern
+        Add-Result $Name 'tracker-section' $hasTracker $(if (-not $hasTracker) { "AGENTS.md must name its tracker authority (declared: $tracker)" } else { '' }) $false
+    }
+
+    $claudePath = Join-Path $path 'CLAUDE.md'
+    if (Test-Path -LiteralPath $claudePath) {
+        $claudeText = Get-Content -LiteralPath $claudePath -Raw -Encoding UTF8
+        $imports = ($claudeText -match '(?m)^@AGENTS\.md\s*$')
+        Add-Result $Name 'claude-imports-agents' $imports $(if (-not $imports) { 'CLAUDE.md must import @AGENTS.md' } else { '' }) $false
+        $authored = $claudeText
+        if ($authored -match '(?s)<!--\s*REPOWISE:START.*$') { $authored = ($authored -split '(?s)<!--\s*REPOWISE:START')[0] }
+        $authoredLines = @($authored -split "`n" | Where-Object { $_ -match '\S' -and $_ -notmatch '^\s*(#|@|<!--)' })
+        Add-Result $Name 'claude-no-duplication' ($authoredLines.Count -le $claudeMaxLines) $(if ($authoredLines.Count -gt $claudeMaxLines) { "$($authoredLines.Count) authored content lines in CLAUDE.md; rules belong in AGENTS.md" } else { '' }) $false
+    }
+
+    # Canonicalize before comparing. $path is built from the configured fleetRoot,
+    # which may be spelled differently than the filesystem's own answer -- an 8.3
+    # short root (C:\Users\SAROSH~1\...), a substituted drive, a symlink. Get-ChildItem
+    # always returns the long form, so a raw string compare left the root AGENTS.md
+    # failing the -ne test and audited as if it were nested, with $rel sliced at the
+    # wrong offset ("iant\AGENTS.md"). Get-Item expands 8.3; Resolve-Path does not.
+    $rootFull = (Get-Item -LiteralPath $path).FullName.TrimEnd('\', '/')
+    $agentsFull = if (Test-Path -LiteralPath $agentsPath) { (Get-Item -LiteralPath $agentsPath).FullName } else { $agentsPath }
+    $nested = Get-ChildItem -LiteralPath $path -Recurse -File -Filter 'AGENTS.md' |
+        Where-Object { $_.FullName -ne $agentsFull } |
+        Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|\.repowise)[\\/]' } |
+        Where-Object {
+            $relative = $_.FullName.Substring($rootFull.Length + 1)
+            & git -C $path check-ignore --quiet -- $relative 2>$null
+            $LASTEXITCODE -ne 0
+        }
+    $exemptions = @($Entry.agentsExemptions | ForEach-Object { [string]$_ -replace '/', '\' })
+    foreach ($n in $nested) {
+        $rel = $n.FullName.Substring($rootFull.Length + 1)
+        if ($rel -in $exemptions) { continue }
+        $nText = Get-Content -LiteralPath $n.FullName -Raw -Encoding UTF8
+        # Any of: "root AGENTS.md", "root file/contract (still) applies", or a link
+        # up to the root AGENTS.md. The rule is that the nested file defers to the
+        # root -- not that it defers in one exact phrasing.
+        $refsRoot = ($nText -match '(?i)root\s+AGENTS\.md') -or
+                    ($nText -match '(?i)root\s+(file|contract)\s+(still\s+)?applies') -or
+                    ($nText -match '(?i)\]\(\s*(\.\./)+AGENTS\.md\s*\)')
+        Add-Result $Name "nested-refs-root:$rel" $refsRoot $(if (-not $refsRoot) { 'nested AGENTS.md must state the root AGENTS.md applies' } else { '' }) $false
+        $dupes = (($nText -match '(?im)^#+\s*Mission') -and ($nText -match 'Knowledge authority') -and ($nText -match 'Definition of done'))
+        Add-Result $Name "nested-no-duplication:$rel" (-not $dupes) $(if ($dupes) { 'nested AGENTS.md restates the root contract' } else { '' }) $false
+    }
+
+    $broken = Test-MarkdownLinks $path
+    foreach ($b in $broken) { Add-Result $Name 'broken-link' $false $b $false }
+    $inWorkspace = $workspaceRepos -contains $Name
+    Add-Result $Name 'repowise-membership' $inWorkspace $(if (-not $inWorkspace) { "not in $workspaceFileName" } else { '' }) $false
+
+    $hookPath = Join-Path $path '.git\hooks\post-commit'
+    $hookOk = (Test-Path -LiteralPath $hookPath) -and ((Get-Content -LiteralPath $hookPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue) -match 'repowise')
+    Add-Result $Name 'repowise-hook' $hookOk $(if (-not $hookOk) { 'run: repowise hook install -w from C:\Repos' } else { '' }) $false
+
+    $gitignorePath = Join-Path $path '.gitignore'
+    $gi = if (Test-Path -LiteralPath $gitignorePath) { Get-Content -LiteralPath $gitignorePath -Raw -Encoding UTF8 } else { '' }
+    $giRepowiseOk = $gi -match '(?m)^\.repowise/?\r?$'
+    $giClaudeOk = ($gi -match '(?m)^\.claude/\r?$') -or ($gi -match '(?m)^\.claude/CLAUDE\.md\r?$')
+    $giOk = $giRepowiseOk -and $giClaudeOk
+    $giRepowiseFixed = $false
+    $giClaudeFixed = $false
+    if (-not $giOk -and $Fix -and $PSCmdlet.ShouldProcess($gitignorePath, 'Append RepoWise gitignore entries')) {
+        $missing = @()
+        if (-not $giRepowiseOk) { $missing += '.repowise/'; $giRepowiseFixed = $true }
+        if (-not $giClaudeOk) { $missing += '.claude/CLAUDE.md'; $giClaudeFixed = $true }
+        $prefix = if ([string]::IsNullOrWhiteSpace($gi)) { '' } else { "`r`n" }
+        $append = $prefix + "# RepoWise generated index state`r`n" + (($missing -join "`r`n") + "`r`n")
+        [IO.File]::AppendAllText($gitignorePath, $append, [Text.UTF8Encoding]::new($false))
+        $giRepowiseOk = $true
+        $giClaudeOk = $true
+        $giOk = $true
+    }
+    Add-Result $Name 'gitignore-repowise' $giRepowiseOk $(if (-not $giRepowiseOk) { '.gitignore must exclude .repowise/' } else { '' }) $giRepowiseFixed
+    Add-Result $Name 'gitignore-claude-adapter' $giClaudeOk $(if (-not $giClaudeOk) { '.gitignore must exclude .claude/CLAUDE.md' } else { '' }) $giClaudeFixed
+
+    $statePath = Join-Path $path '.repowise\state.json'
+    if (Test-Path -LiteralPath $statePath) {
+        try {
+            $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $syncCommit = [string]$state.last_sync_commit
+            # Never discard git's stderr into $null: a failed `git rev-parse`
+            # (corrupt .git, git missing from PATH, etc.) must surface as its
+            # own failure, not silently collapse $head to an empty string and
+            # get misdiagnosed as ordinary staleness ("index not at HEAD") --
+            # a signal only tracks what it claims to watch when git actually ran.
+            $head = (git -C $path rev-parse HEAD 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+                throw "git rev-parse HEAD failed (exit $LASTEXITCODE): $head"
+            }
+            $stale = ($syncCommit -ne $head)
+            Add-Result $Name 'repowise-freshness' (-not $stale) $(if ($stale) { "index not at HEAD; run repowise update --repo $Name" } else { '' }) $false
+        } catch {
+            Add-Result $Name 'repowise-freshness' $false "unable to verify freshness: $($_.Exception.Message)" $false
+        }
+    } else {
+        Add-Result $Name 'repowise-indexed' $false 'no .repowise/state.json; run repowise update --repo <name>' $false
+    }
+
+    $mcpPath = Join-Path $path '.mcp.json'
+    if (Test-Path -LiteralPath $mcpPath) {
+        $mcpText = Get-Content -LiteralPath $mcpPath -Raw -Encoding UTF8
+        if ($mcpText -match 'repowise') {
+            Add-Result $Name 'no-per-repo-repowise-mcp' $false '.mcp.json registers repowise; the fleet uses ONE workspace MCP registered in agenthub' $false
+        }
+    }
+
+    # Tool-managed .vscode/mcp.json (and a repo-local .cursor/mcp.json) may
+    # exist. They must invoke the workspace server at workspace.root, never
+    # the member checkout. Measured 2026-09-10: `repowise update --repo agenthub`
+    # from inside the member wrote args `mcp C:/Repos/shmindmaster/agenthub`,
+    # which is a second, narrower MCP the fleet contract forbids. .mcp.json
+    # above does not see .vscode/, so this check is the one that can fail.
+    $wsRootResolved = $null
+    try { $wsRootResolved = (Get-Item -LiteralPath $workspaceRoot).FullName.TrimEnd('\', '/') } catch { $wsRootResolved = $workspaceRoot.TrimEnd('\', '/') }
+    $repoResolved = (Get-Item -LiteralPath $path).FullName.TrimEnd('\', '/')
+    $editorMcpFiles = @(
+        (Join-Path $path '.vscode\mcp.json'),
+        (Join-Path $path '.cursor\mcp.json')
+    )
+    foreach ($editorMcp in $editorMcpFiles) {
+        if (-not (Test-Path -LiteralPath $editorMcp -PathType Leaf)) { continue }
+        $relMcp = $editorMcp.Substring($path.Length).TrimStart('\', '/').Replace('\', '/')
+        $text = Get-Content -LiteralPath $editorMcp -Raw -Encoding UTF8
+        if ($text -notmatch 'repowise') { continue }
+        $doc = $null
+        try { $doc = $text | ConvertFrom-Json } catch {
+            Add-Result $Name 'repowise-mcp-workspace-scope' $false "$relMcp is not JSON; cannot verify it points at $workspaceRoot" $false
+            continue
+        }
+        $collections = @()
+        if ($doc.PSObject.Properties['servers']) { $collections += $doc.servers }
+        if ($doc.PSObject.Properties['mcpServers']) { $collections += $doc.mcpServers }
+        $targets = [Collections.Generic.List[string]]::new()
+        foreach ($col in $collections) {
+            if ($null -eq $col) { continue }
+            foreach ($prop in $col.PSObject.Properties) {
+                $node = $prop.Value
+                $cmd = [string]$node.command
+                $argList = @($node.args | ForEach-Object { [string]$_ })
+                if ($cmd -notmatch 'repowise' -and $prop.Name -notmatch 'repowise') { continue }
+                $afterMcp = $false
+                foreach ($a in $argList) {
+                    if ($a -eq 'mcp') { $afterMcp = $true; continue }
+                    if ($afterMcp -and ($a -match '^[A-Za-z]:[\\/]' -or $a -match '^/' )) {
+                        $targets.Add($a)
+                        break
+                    }
+                }
+            }
+        }
+        if ($targets.Count -eq 0) {
+            Add-Result $Name 'repowise-mcp-workspace-scope' $false "$relMcp names repowise but has no mcp path argument" $false
+            continue
+        }
+        foreach ($target in $targets) {
+            $resolvedTarget = $target.Replace('/', '\').TrimEnd('\')
+            try { $resolvedTarget = (Get-Item -LiteralPath $target).FullName.TrimEnd('\', '/') } catch { }
+            $isWorkspace = [string]::Equals($resolvedTarget, $wsRootResolved, [StringComparison]::OrdinalIgnoreCase)
+            $isMember = [string]::Equals($resolvedTarget, $repoResolved, [StringComparison]::OrdinalIgnoreCase)
+            if ($isWorkspace) {
+                Add-Result $Name 'repowise-mcp-workspace-scope' $true '' $false
+            } else {
+                $why = if ($isMember) { "points at this repo ($target)" } else { "points at '$target'" }
+                Add-Result $Name 'repowise-mcp-workspace-scope' $false "$relMcp $why; fleet MCP is ``repowise mcp $workspaceRoot``" $false
+            }
+        }
+    }
+}
+# ---------------------------------------------------------------------------
+# Driver
+# ---------------------------------------------------------------------------
+$roster = $config.repos.PSObject.Properties
+$targets = @()
+if ($All) {
+    $targets = @($roster | ForEach-Object { $_.Name })
+} elseif (-not [string]::IsNullOrWhiteSpace($Repo)) {
+    $targets = @($Repo)
+} else {
+    throw 'Pass -Repo <name> or -All.'
+}
+if ($targets.Count -eq 0) { throw 'roster is empty; a checker that checks nothing passes nothing.' }
+
+foreach ($name in $targets) {
+    $entry = $roster | Where-Object { $_.Name -eq $name } | Select-Object -First 1
+    if ($null -eq $entry) { Add-Result $name 'roster-membership' $false 'not in repo-standard.json roster' $false; continue }
+    Invoke-RepoCheck $name $entry.Value
+}
+
+$failed = @($results | Where-Object { -not $_.Passed })
+$fixedCount = @($results | Where-Object { $_.Fixed }).Count
+
+if ($Format -eq 'json') {
+    [pscustomobject]@{
+        fleet   = $fleetRoot
+        repos   = $targets
+        checks  = $results.Count
+        failed  = $failed.Count
+        fixed   = $fixedCount
+        results = $results
+    } | ConvertTo-Json -Depth 5
+} else {
+    $results | Group-Object Repo | ForEach-Object {
+        $repoFailed = @($_.Group | Where-Object { -not $_.Passed })
+        $marker = if ($repoFailed.Count -eq 0) { 'PASS' } else { 'FAIL' }
+        Write-Output ("{0,-18} {1} ({2} checks, {3} failed)" -f $_.Name, $marker, $_.Group.Count, $repoFailed.Count)
+        foreach ($f in $repoFailed) {
+            Write-Output ("    {0}: {1} {2}" -f $f.Check, $f.Detail, $(if ($f.Fixed) { '[FIXED]' } else { '' }))
+        }
+    }
+    Write-Output ''
+    Write-Output ("RESULT: {0} repos checked, {1} checks, {2} failures, {3} auto-fixed" -f $targets.Count, $results.Count, $failed.Count, $fixedCount)
+}
+
+if ($failed.Count -gt 0) { exit 1 }
+exit 0

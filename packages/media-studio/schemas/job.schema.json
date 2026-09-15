@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/job.json",
+  "title": "Media studio job",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "title", "workspace", "repositoryWritePolicy"],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "briefing",
+        "training",
+        "explainer",
+        "talking-head",
+        "animation",
+        "audio-only",
+        "product-screencast",
+        "series-episode",
+        "webcast",
+        "webinar",
+        "keynote",
+        "documentary",
+        "teaser"
+      ]
+    },
+    "programForm": {
+      "type": "string",
+      "enum": [
+        "hero",
+        "product-overview",
+        "outcome-workflow",
+        "role-demo",
+        "feature-tutorial",
+        "customer-story",
+        "before-after",
+        "ai-in-action",
+        "ai-trust",
+        "integration-demo",
+        "onboarding",
+        "help-center",
+        "release",
+        "personalized-sales",
+        "competitive-demo",
+        "webinar-deep-dive",
+        "founder-vision",
+        "welcome",
+        "social-clip",
+        "sales-enablement"
+      ],
+      "description": "Buyer-library or named format. See references/program-forms.md. Infer from the brief."
+    },
+    "sourceJobId": {
+      "type": "string",
+      "description": "Parent job id when this film is a recut of a locked master. Do not re-fake product UI."
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "audience": { "type": "string" },
+    "durationSeconds": { "type": "number", "minimum": 1 },
+    "voice": {
+      "type": "string",
+      "description": "Local-AI voice library id (sarosh, role-*, narrator-*). Never a cloud speaker for owner voice."
+    },
+    "workspace": {
+      "type": "string",
+      "description": "Absolute path under %LOCALAPPDATA%\\AgentHub\\media-studio or D:\\Local-AI\\data\\artifacts. Never a product repo."
+    },
+    "repositoryWritePolicy": {
+      "const": "read-only",
+      "description": "Media workflows may inspect a source repository but never create, edit, delete, stage, or commit files there."
+    },
+    "sourceRepository": {
+      "type": "string",
+      "description": "Optional absolute product-repository path used strictly as read-only input."
+    },
+    "productConfig": {
+      "type": "string",
+      "description": "Optional absolute config path inside the external job workspace. A legacy repository config may be copied here but never created or updated in the repository."
+    },
+    "bounceTo": {
+      "type": ["string", "null"],
+      "enum": ["story-series-studio", null],
+      "description": "Only series methodology leaves this studio. Product screencasts stay here and invoke the internal engine."
+    },
+    "truth": {
+      "type": "string",
+      "enum": ["FACT", "DRAMATIZED", "COMPOSITE"]
+    },
+    "intent": {
+      "type": "string",
+      "enum": ["draft", "viewer-facing"],
+      "description": "viewer-facing (default) applies references/engagement.md. draft skips GPU plates but still writes for the ear."
+    },
+    "emotionalTarget": {
+      "type": "string",
+      "description": "One feeling at the payoff (relief, confidence, clarity). Empty means the writer must still infer one."
+    },
+    "music": {
+      "type": "string",
+      "enum": ["none", "bed"],
+      "description": "Program-level default. Per-scene musicCue on the screenplay can silence or sting over a bed."
+    },
+    "deliveryProfile": {
+      "type": "string",
+      "enum": [
+        "briefing-board",
+        "youtube-16x9",
+        "vertical-9x16",
+        "linkedin",
+        "presentation",
+        "onboarding",
+        "webcast"
+      ],
+      "description": "Platform frame. briefing-board is the house 1600×1000 kit. See references/delivery-profiles.md."
+    },
+    "craftScoreMin": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Viewer-facing story-experience fail-closed threshold. Default 85. Draft ignores this gate."
+    }
+  }
+}

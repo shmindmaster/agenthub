@@ -1,0 +1,55 @@
+{
+  "fixtureId": "three-heroes",
+  "note": "stateChangeToCutMs is the hold on each beat. Hero beats under 1000ms fail results-land.",
+  "beats": [
+    {
+      "index": 0,
+      "beat": "cold-open",
+      "isHero": false,
+      "stateChangeToCutMs": 3500
+    },
+    {
+      "index": 1,
+      "beat": "action",
+      "isHero": false,
+      "stateChangeToCutMs": 2000
+    },
+    {
+      "index": 2,
+      "beat": "reveal 1",
+      "isHero": true,
+      "stateChangeToCutMs": 2500
+    },
+    {
+      "index": 3,
+      "beat": "reveal 2",
+      "isHero": true,
+      "stateChangeToCutMs": 2500
+    },
+    {
+      "index": 4,
+      "beat": "reveal 3",
+      "isHero": true,
+      "stateChangeToCutMs": 2500
+    },
+    {
+      "index": 5,
+      "beat": "guardrail",
+      "isHero": false,
+      "stateChangeToCutMs": 2000
+    },
+    {
+      "index": 6,
+      "beat": "close",
+      "isHero": false,
+      "stateChangeToCutMs": 2500
+    }
+  ],
+  "heroCount": 3,
+  "heroPositionRatio": [
+    0.314,
+    0.457,
+    0.6
+  ],
+  "longestStaticStretchMs": 3500
+}

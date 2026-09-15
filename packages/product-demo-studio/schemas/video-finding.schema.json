@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/video-finding.schema.json",
+  "title": "Product Video Finding",
+  "description": "The canonical evidence-backed finding vocabulary shared by all product-video reviewers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "category",
+    "severity",
+    "fixClassification",
+    "location",
+    "expectedBehavior",
+    "observedBehavior",
+    "impact",
+    "evidence",
+    "concreteFix",
+    "automatedValidation",
+    "confidence"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^PVF-[A-Z0-9][A-Z0-9-]*-[0-9]{3,}$"
+    },
+    "category": {
+      "enum": [
+        "story-experience",
+        "screen-accuracy-compliance",
+        "audio-captions-synchronization",
+        "technical-frame-integrity"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "blocker",
+        "critical",
+        "major",
+        "minor",
+        "info"
+      ]
+    },
+    "fixClassification": {
+      "enum": [
+        "story-script",
+        "product-seed-data",
+        "capture-playwright",
+        "remotion-composition",
+        "narration-audio",
+        "captions",
+        "export-pipeline",
+        "infrastructure-assets"
+      ]
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "startTimestampMs",
+        "endTimestampMs",
+        "startFrame",
+        "endFrame",
+        "fps"
+      ],
+      "properties": {
+        "startTimestampMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "endTimestampMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "startFrame": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "endFrame": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "expectedBehavior": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "observedBehavior": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "impact": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidenceReference"
+      }
+    },
+    "concreteFix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "steps"
+      ],
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        }
+      }
+    },
+    "automatedValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "expectedResult"
+      ],
+      "properties": {
+        "command": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "expectedResult": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "artifactPath",
+        "sha256",
+        "description"
+      ],
+      "properties": {
+        "artifactId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "artifactPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "description": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    }
+  }
+}

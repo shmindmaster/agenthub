@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "1.0.0",
+  "decisionId": "PVD-SYNTHETIC-002",
+  "candidate": {
+    "candidateId": "synthetic-candidate-001",
+    "artifactPath": "evidence/candidate.mp4",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 23,
+    "sourceRevision": "synthetic-revision-001",
+    "renderProvenanceId": "synthetic-render-001"
+  },
+  "arbiter": {
+    "contextId": "isolated-arbiter-context-002",
+    "readOnly": true,
+    "executionReceipt": {
+      "receipt": {
+        "artifactPath": "execution-receipt.arbiter-remediate.json",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 1
+      }
+    }
+  },
+  "policy": {
+    "artifactPath": "policy/product-video-policy.json",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "policyVersion": "1.0.0"
+  },
+  "preflight": {
+    "artifactPath": "preflight-report.json",
+    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "editorialAudit": {
+    "artifactPath": "editorial-audit.json",
+    "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "bytes": 1
+  },
+  "candidateAudioApproval": {
+    "perceptionReport": {
+      "artifactPath": "candidate-audio-perception-report.json",
+      "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "bytes": 1
+    },
+    "adjudication": {
+      "artifactPath": "audio-perception-adjudication.json",
+      "sha256": "1212121212121212121212121212121212121212121212121212121212121212",
+      "bytes": 1
+    }
+  },
+  "reviewReports": [
+    {"domain": "story-experience", "reportPath": "reviews/story.json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "status": "COMPLETE", "score": 92, "passed": true, "findingCount": 0, "blockerFindings": 0, "criticalFindings": 0},
+    {"domain": "screen-accuracy-compliance", "reportPath": "reviews/screen.json", "sha256": "2222222222222222222222222222222222222222222222222222222222222222", "status": "COMPLETE", "score": 100, "passed": true, "findingCount": 0, "blockerFindings": 0, "criticalFindings": 0},
+    {"domain": "audio-captions-synchronization", "reportPath": "reviews/audio.json", "sha256": "3333333333333333333333333333333333333333333333333333333333333333", "status": "COMPLETE", "score": 94, "passed": false, "findingCount": 1, "blockerFindings": 0, "criticalFindings": 0},
+    {"domain": "technical-frame-integrity", "reportPath": "reviews/technical.json", "sha256": "4444444444444444444444444444444444444444444444444444444444444444", "status": "COMPLETE", "score": 100, "passed": true, "findingCount": 0, "blockerFindings": 0, "criticalFindings": 0}
+  ],
+  "releaseChecks": {
+    "accuracy": true,
+    "compliance": true,
+    "privacy": true,
+    "technicalIntegrity": true,
+    "browserPlayback": true,
+    "claims": true,
+    "checksums": true,
+    "provenance": true,
+    "captions": true,
+    "synchronization": false,
+    "visualIntegrity": true
+  },
+  "findingDispositions": [
+    {
+      "findingId": "PVF-AUDIO-SYNC-001",
+      "disposition": "accepted",
+      "rationale": "The frame timeline and word timestamps independently reproduce the synchronization defect.",
+      "evidenceArtifactIds": ["sync-report"]
+    }
+  ],
+  "evidenceValidation": {
+    "allReportsValidated": true,
+    "unsupportedFindingsRejected": true,
+    "overlapsDeduplicated": true,
+    "contradictionsResolved": true
+  },
+  "decision": "REMEDIATE",
+  "remediationPlan": {
+    "attempt": 1,
+    "findingFamilyFingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+    "priorDecisions": [],
+    "findingIds": ["PVF-AUDIO-SYNC-001"],
+    "assignmentPaths": ["remediation/audio-sync-001.json"]
+  },
+  "rationale": "One accepted synchronization finding is reproducible and routes to a scoped narration-audio assignment.",
+  "decidedAt": "2026-07-29T15:10:00.000Z"
+}

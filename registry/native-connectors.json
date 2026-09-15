@@ -1,0 +1,1309 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-13",
+  "authority": {
+    "capabilitiesRegistry": "registry/capabilities.json",
+    "mcpRegistry": "registry/mcps.json",
+    "installedState": [
+      "{userHome}/.claude/plugins/installed_plugins.json",
+      "{userHome}/.codex/plugins/cache"
+    ],
+    "policy": "Installed native connectors and plugin-owned MCPs suppress generated direct duplicates. Shared-remote MCPs may be persisted across hosts because they create no local server process. On-demand-local MCPs are removed from host configuration unless lifecyclePolicy.persistedOnDemandLocalMcpIds records a reviewed exception -- and note that 'on-demand' names an intent, not a mechanism: a host starts every stdio server named in its config at session start, so there is no lazy path for a persisted stdio entry. Skills-only plugins must not declare MCP servers owned by registry/mcps.json. Package-cache presence alone is not activation proof; only observed installed/runtime-owned surfaces are classified as owners.",
+    "retiredExceptionNote": "This policy previously ended the exception sentence with: 'The appium-mobile exception may persist its provider registration but never starts the VM or emulators.' That was false, and it is the sentence that licensed the leak -- appium-mobile was measured on 2026-08-19 holding 15 node processes totalling 2,017 MB at rest, 48-239 MB each and climbing, with no mobile work in progress. Registering a stdio server in a host config IS starting it. appium-mobile was removed from persistedOnDemandLocalMcpIds and gated behind `claude plugin enable mobile-development@agenthub`; see lifecyclePolicy.appiumActivationRoute. Kept here rather than deleted because the wording, not the entry, was the failure mode."
+  },
+  "hostPrivateExtensionPolicy": {
+    "hosts": [
+      "claude",
+      "codex"
+    ],
+    "authority": "user-managed",
+    "fleetParityRequired": false,
+    "agentHubMayInstallOrRemove": false,
+    "agentHubMayCopyToOtherHosts": false,
+    "inventoryMode": "canonical-conflict-and-resource-observation-only",
+    "conflictPolicy": "A host-private extension is outside fleet parity unless it claims a canonical capability or MCP identity, creates a duplicate canonical registration in the same host, or violates a machine resource or safety boundary.",
+    "runtimePolicy": "Host-private child processes may be observed for aggregate resource evidence but are not AgentHub-managed MCP runtime drift and are never terminated by AgentHub."
+  },
+  "lifecyclePolicy": {
+    "defaultHostConfiguration": "shared-remote-only-persisted",
+    "sharedRemoteTransport": "http",
+    "onDemandLocalMcpIds": [
+      "appium-mobile",
+      "playwright",
+      "repowise-workspace",
+      "chrome-devtools",
+      "linkedin",
+      "slack",
+      "open-connector"
+    ],
+    "persistedOnDemandLocalMcpIds": [
+      "open-connector"
+    ],
+    "hostConfiguredLocalMcpIds": [
+      "node_repl"
+    ],
+    "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
+    "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright and chrome-devtools ship only in the browser-toolkit plugin .mcp.json; enable the plugin when a headed browser is needed, disable when done. Same gate as appiumActivationRoute for mobile-development.",
+    "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
+    "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
+    "onDemandLocalCoverage": {
+      "reconciledOn": "2026-08-13",
+      "why": "generatedAt is bumped by this reconciliation, so it would otherwise read as a claim that onDemandLocalMcpIds covers every on-demand-local server in registry/mcps.json as of today. It does not. This block is what keeps the bumped date from overclaiming, and it is the record that the gap was seen rather than missed.",
+      "added": {
+        "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers.",
+        "chrome-devtools": "Reinstated 2026-09-07 as on-demand-local attach (--autoConnect) owned by browser-toolkit. Not persisted. Isolated launched-profile mode stays unused because of the shared profile-dir lock.",
+        "slack": "Registered 2026-09-10 as the AgentHub-owned Slack Web API bridge (packages/slack). on-demand-local, plugin-gated, not persisted. Not Slack hosted MCP and not the retired claude.ai Slack connector.",
+        "open-connector": "Registered 2026-09-12 with activationMode on-demand-local and transport http, owned by capability open-connector. Persisted 2026-09-13 for codex, cursor, opencode and grok (see persistedOnDemandLocalMcpIds). Unlike every other id in this list it is not a host-spawned stdio process -- it is a standing Docker container on 127.0.0.1:3400 started by the owning capability's script, so persisting its HTTP entry starts no process at session start. Recorded here so the lifecycle list covers every on-demand-local server in registry/mcps.json as of this date."
+      },
+      "notAdded": {
+        "chrome-devtools-isolated": "Registered 2026-08-06 with activationMode on-demand-local. Not added here because whether it is governed as a separate lifecycle id or as part of its chrome-devtools sibling is a decision about how browser-toolkit exposes the pair, and no host exposure list in this file names it at all -- adding it to the lifecycle list alone would record a governance claim the exposures do not back.",
+        "repowise-workspace": "Registered 2026-08-07 with activationMode on-demand-local but scope global-default and 18 declared hosts, unlike every id currently in this list. localFanoutPolicy says an on-demand-local id is never persisted in host configuration; a global-default server with 18 hosts is the shape that normally IS persisted. Which of the two is correct was not measured against the deployed host configs, and recording it either way without that measurement is the assumption this registry exists to forbid.",
+        "railway": "Was on-demand-local stdio from 2026-08-19 to 2026-08-20. Moved to shared-remote https://mcp.railway.com (OAuth, no local process) on 2026-08-20 after Cursor's official plugin spawned two `railway mcp` process trees. No longer belongs in this on-demand-local coverage list."
+      },
+      "nextStep": "Measure both against the deployed host configurations, then either add them here or record why each is exempt. Until then this list is complete for what it claims and explicitly incomplete for what it does not.",
+      "retired": {
+        "brave-search": "Removed from registry/mcps.json on 2026-09-13. It was an on-demand-local npx stdio bridge (@brave/brave-search-mcp-server, unpinned) declared by no host and carried by no host config since at least 2026-08-20, so removal changed no deployment. Brave Search is now served by the open-connector gateway's brave_search provider under the same BRAVE_API_KEY User environment variable. It was never in onDemandLocalMcpIds, which is why it appears here rather than as a removal from that list."
+      }
+    },
+    "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. 2026-09-13: open-connector added as the one exception, and it is a different shape -- transport http to a standing Docker container on 127.0.0.1:3400 that only the owner's wrapper starts. A host carrying its entry spawns nothing at session start; the fan-out this list guards against cannot occur. Exposure recorded as shared-gateway on codex, cursor, opencode and grok.",
+    "onDemandLocalMcpIdsNote": "Refreshed 2026-09-10. chrome-devtools is live as an on-demand-local attach server (--autoConnect), delivered only by the browser-toolkit plugin, never persisted. playwright is --extension attach, same plugin gate. slack is the AgentHub Slack bridge, plugin-gated, never persisted. repowise-workspace, appium-mobile, and linkedin stay on-demand-local and unpersisted.",
+    "slackActivationRoute": "Slack MCP is plugin-gated. On claude: install slack@agenthub when absent, then claude plugin enable slack@agenthub; cleanup is claude plugin disable slack@agenthub. On codex: codex plugin add slack@agenthub and codex plugin remove slack@agenthub. On grok: grok plugin install the agenthub slack path when needed, grok plugin disable slack when done. OpenCode may write mcp.slack with enabled=false. Do not write slack into host MCP config as a session-start stdio server. Native slackapi/slack-skills-plugin is optional UX, not read/write authority.",
+    "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
+    "browserActivationRoute": "Browser MCP is plugin-gated. On claude: skills first (native pane); enable browser-toolkit@agenthub only when Playwright extension attach or chrome-devtools is required, then claude plugin disable browser-toolkit@agenthub. On codex: codex plugin add browser-toolkit@agenthub and codex plugin remove browser-toolkit@agenthub. On grok: grok plugin install the agenthub browser-toolkit path when needed, grok plugin disable browser-toolkit when done. Do not write playwright or chrome-devtools into host MCP config.",
+    "optInDisabledLocalMcpIds": [
+      "playwright",
+      "chrome-devtools",
+      "linkedin",
+      "slack"
+    ],
+    "optInDisabledLocalMcpIdsNote": "On-demand-local stdio servers that hosts with an enabled=false switch may write into config without starting them. OpenCode is the verified writer (opencode.ai/docs/mcp-servers). Claude/Codex/Grok still suppress these from host MCP config and use plugin enable/disable instead. A host without an enabled=false switch must not be added here.",
+    "optInDisabledHosts": [
+      "opencode"
+    ]
+  },
+  "managedMarketplaces": [
+    {
+      "hostId": "codex",
+      "name": "agenthub",
+      "sourcePath": "C:/Repos/shmindmaster/agenthub",
+      "manifestPath": ".agents/plugins/marketplace.json"
+    }
+  ],
+  "ownerActionRequired": {
+    "recordedOn": "2026-08-05",
+    "rationale": "An action the owner authorized that AgentHub cannot perform is state, not a footnote. Recorded here it survives the session that discovered it, carries the evidence for why the limit is real, and can be audited later; left in a chat transcript it is indistinguishable from work quietly skipped.",
+    "boundary": "This list is only for actions AgentHub genuinely cannot perform. It is not a queue, not a backlog, and not somewhere to defer work. tests/Test-OwnerActions.ps1 fails the build on any entry that claims AgentHub could perform the action and has not, so the cheapest way out of this file is to do the work rather than record it.",
+    "completionPolicy": "An entry stays after completion with completedOn set, because the record of what the owner had to do by hand is the useful part. Never delete an entry to mark it done.",
+    "actions": [
+      {
+        "id": "claude-ai-connector-removals",
+        "action": "disconnect account connectors",
+        "targets": [
+          "Tavily",
+          "Atlassian",
+          "Asana",
+          "Slack",
+          "Figma"
+        ],
+        "surface": "claude.ai account connector settings",
+        "authorizedOn": "2026-08-04",
+        "authorization": "Owner instruction, verbatim: 'I feel comfortable getting rid of tavily as they have very low allowance and we have alternate liek exa, brave and firecrawl already?' and 'remove Atlassian, Asana, Slack and Figma as well'.",
+        "fleetSideStatus": "complete",
+        "fleetSideEvidence": "None of the five is registered in registry/mcps.json, which declares twelve servers as of 2026-08-20 (appium-mobile, brave-search, context7, descript, exa, firecrawl, github, linear, notion, playwright, railway, repowise-workspace), and none appears in any host exposure list in this file. The fleet-side removal the owner asked for is done; what remains is outside the fleet. This sentence said 'nine servers' in the present tense until 2026-08-20, when it had been false for some time -- unlike the counts under measuredOn/blockerVerifiedOn below, which are dated observations and correctly still read nine and fifteen for 2026-08-05.",
+        "agentHubCanPerform": true,
+        "blockedBy": "RESOLVED 2026-08-05. Retained for the record: no authenticated browser surface reached claude.ai account settings from this machine, and entering credentials to obtain one was prohibited. The owner authenticating the session themselves was the route through, and it was available the whole time -- worth remembering next time a limit looks absolute, because 'AgentHub cannot authenticate' was true while 'this can never be done from here' was not.",
+        "blockerVerifiedOn": "2026-08-05",
+        "blockerVerification": "Claude in Chrome list_connected_browsers returned an empty array on 2026-08-04 and again on 2026-08-05. The in-app browser carries no claude.ai session, and authenticating one would require entering the owner's credentials, which is prohibited regardless of authorization. Verified twice rather than assumed, because a capability limit asserted without testing was wrong once already in this work.",
+        "apiProbe": {
+          "attemptedOn": "2026-08-05",
+          "result": "inconclusive",
+          "detail": "Probed for a programmatic route before concluding this needs a browser at all. The connector-registry MCP exposes list_connectors and search_mcp_registry but no disconnect or remove operation, so there is no write path even in principle. Both reads returned empty -- including a registry SEARCH for 'atlassian' and 'slack', which cannot legitimately be empty. So the empty connector list is evidence the integration could not enumerate, NOT evidence that zero connectors are installed. Recorded so the next reader does not mistake this for a clean inventory, and does not repeat the probe believing it untried."
+        },
+        "ownerStep": "claude.ai -> Settings -> Connectors -> select the connector -> Disconnect. Disconnecting also revokes nothing at the provider; see oauth-grant-revocation.",
+        "completedOn": "2026-08-05",
+        "localSurfaceProof": {
+          "measuredOn": "2026-08-05",
+          "why": "The earlier blockers recorded that no route REACHES claude.ai. This records something stronger and more useful: the five connectors are not present on the local surface at all, so there is nothing here to disconnect even in principle. That reframes the entry from 'AgentHub is blocked' to 'AgentHub is complete and the remainder belongs to a different system'.",
+          "claudeMcpList": "9 servers: sentry, github, notion, descript, chrome-devtools, context7, exa, firecrawl, linear. None of Tavily, Atlassian, Asana, Slack or Figma appears. This matches registry/mcps.json's declared nine exactly.",
+          "claudePluginList": "15 plugins, all enabled, all from claude-plugins-official or agenthub. None of the bundles that carry the five servers (engineering, marketing, small-business, design, litigation-legal, adobe-for-creativity) is installed locally.",
+          "conclusion": "The bundles are account-level: claude.ai injects them into a session rather than installing them on this machine. `claude plugin disable` cannot act on them because `claude plugin list` cannot see them -- checked, not assumed, because that same CLI turned out to have the answer once before when a limit was asserted without testing it.",
+          "browserRoutesRetested": "Both retested live on 2026-08-05, not carried forward from the earlier attempt. The in-app browser at claude.ai/settings/connectors redirects to the sign-in page ('Continue with Google / email / SSO'), carrying no session. claude-in-chrome list_connected_browsers returned [] for the third separate time. The only remaining route is entering the owner's credentials, which is prohibited regardless of authorization."
+        },
+        "ownerClickPath": "claude.ai -> Settings -> Connectors, then Disconnect on each. For a server that arrives via an account-level plugin bundle rather than as a standalone connector, the control is on the bundle, so consult bundleContents in this file first: removing a bundle to drop one server also drops the others listed beside it.",
+        "completion": {
+          "howItUnblocked": "The owner signed in to claude.ai in the in-app browser. That single act converted every recorded blocker at once: the blocker was never the settings UI, it was the absence of an authenticated session, and the owner supplying one is not the same as AgentHub entering credentials -- which remained, and remains, prohibited.",
+          "performedByAgentHub": [
+            "Figma"
+          ],
+          "alreadyDoneBeforeArrival": {
+            "Tavily": "absent from the connector table entirely",
+            "Asana": "absent from the connector table entirely",
+            "Atlassian": "present in the Popular-for-Engineering rail showing a Connect button, i.e. not connected",
+            "Slack": "present in the Popular-for-Engineering rail showing a Connect button, i.e. not connected"
+          },
+          "method": "claude.ai Settings is a modal dialog, not a route: direct navigation to /settings/connectors and /settings both redirect to the home page, and the Connectors tab must be clicked inside the dialog. Recorded because the redirect looks exactly like a permissions failure and would otherwise be rediscovered as one. Figma was removed via its detail panel -> More options -> Remove -> confirm.",
+          "verification": "Re-read the connector table after the removal. The rows now run Exa -> GitHub Integration with nothing between them, where Figma previously sat. Verified by reading the table back, not by trusting that the dialog closed.",
+          "residualNotClaimed": "Removing a connector on claude.ai does not revoke the OAuth grant on Figma's side. That is the separate provider-side action tracked in this file and is NOT claimed as done here. A removal here and a revocation there are different acts against different systems, and collapsing them is precisely the kind of overstatement this registry exists to prevent."
+        }
+      },
+      {
+        "id": "oauth-grant-revocation",
+        "action": "revoke the OAuth grant for a connector the owner removed",
+        "targets": [
+          "Figma"
+        ],
+        "surface": "the provider's own account security / connected-applications page",
+        "authorizedOn": "2026-08-04",
+        "authorization": "Owner instruction, verbatim: 'remove Atlassian, Asana, Slack and Figma as well'. A removal whose grant is still live leaves an authorization standing against the owner's account, so the grant is part of what was asked for.",
+        "scopeCorrection": {
+          "correctedOn": "2026-08-05",
+          "was": "targets were Linear, Notion and Descript; authorization read 'Follows from the owner's connector reduction: a disconnected connector whose grant is still live remains an outstanding authorization against the owner's account.'",
+          "why": "That sentence is an inference, not an instruction, and every other entry in this file quotes the owner verbatim. The entry manufactured its own authorization and then sat beside genuinely authorized ones, where the difference is invisible. Worse, the inference was false on its facts: the owner never asked for Linear, Notion or Descript to be removed, and claude mcp list on 2026-08-05 shows Linear and Notion CONNECTED and in active use in the same session that was treating their revocation as unfinished work. Acting on this entry would have broken two working integrations to satisfy a completion condition.",
+          "lesson": "An ownerActionRequired entry is a claim that the owner wants something. Deriving one from a related request is how a to-do list grows items nobody asked for -- and an entry that cannot quote its instruction should not be able to look like one that can."
+        },
+        "fleetSideStatus": "not-applicable",
+        "fleetSideEvidence": "Figma is not registered in registry/mcps.json and never was; it reached sessions through an account-level plugin bundle, per account-level-plugin-servers in this file. This entry is grant hygiene at the provider, not deregistration here.",
+        "agentHubCanPerform": false,
+        "blockedBy": "No authenticated figma.com session exists on this machine, and entering the owner's credentials is prohibited.",
+        "blockerVerifiedOn": "2026-08-05",
+        "blockerVerification": "Probed, not assumed. Navigated the in-app browser to figma.com/settings on 2026-08-05; it resolved to 'Login | Figma'. This replaces an earlier claim that the blocker was 'a property of the protocol rather than a probe result, because probing would mean authenticating as the owner' -- which was wrong twice over: loading a settings page is not authenticating, and the same reasoning had already produced eight refusals on the connector removals before the owner simply signed in and the work took four minutes.",
+        "ownerStep": "Sign in at figma.com, then Settings -> Security -> Authorized applications (or the connected-apps equivalent) and revoke the Claude authorization. If a session is signed in to the in-app browser, AgentHub can drive this the same way it removed the connector on claude.ai -- the missing piece is the session, not the capability.",
+        "completedOn": null
+      },
+      {
+        "id": "account-level-plugin-servers",
+        "action": "review claude.ai account-level plugins that inject MCP servers",
+        "targets": [
+          "engineering",
+          "marketing",
+          "small-business",
+          "design",
+          "litigation-legal",
+          "adobe-for-creativity"
+        ],
+        "surface": "claude.ai account settings",
+        "authorizedOn": "2026-08-20",
+        "authorization": "Owner instruction, verbatim: 'Atlassian should have been removed'. This is the authorization the entry lacked. Until 2026-08-20 authorizedOn and authorization were both null and correctly so -- the 2026-08-04 instruction named the SERVER Atlassian, and dropping the engineering bundle is a different act with different casualties, so nobody had authorized it. The owner has now named the outcome directly. Scoped to engineering only; the other five bundles remain unauthorized and must not be swept along with it.",
+        "authorizationScope": {
+          "authorized": [
+            "engineering"
+          ],
+          "stillUnauthorized": [
+            "marketing",
+            "small-business",
+            "design",
+            "litigation-legal",
+            "adobe-for-creativity"
+          ],
+          "collateral": "Dropping engineering also drops Datadog and PagerDuty. Neither is authenticated and neither is registered in registry/mcps.json, so the cost is believed to be nil -- but that is an inference about what the owner uses, not a fact about what the owner wants, so it is stated to them rather than decided for them.",
+          "allOrNothingUnverified": "The claim that a bundle cannot be reduced to a subset comes from bundleContents.caveat, observed 2026-08-05 and NOT re-verified since -- reaching the UI to re-check it is the same blocked surface. If claude.ai has since added a per-server toggle, removing the whole bundle would be destroying Datadog and PagerDuty for no reason. Check for a per-server control before dropping the bundle."
+        },
+        "misreportedOn": "2026-08-20",
+        "misreport": "A session summary listed Atlassian among roughly 27 connectors that merely needed OAuth authorization. That framing was wrong in kind, not degree: it presented a removal the owner had asked for as a login the owner had not gotten around to, which is the opposite instruction. The tell was available in this file the whole time -- Atlassian appears under a removal entry, and a server slated for removal should never be reported as one awaiting sign-in. Any future summary that enumerates unauthenticated servers must first subtract everything named in ownerActionRequired.",
+        "fleetSideStatus": "out-of-scope",
+        "fleetSideEvidence": "These are not fleet capabilities and are not registered here. They are recorded because they present MCP servers -- including Atlassian, Slack, and Figma, three of the five the owner asked to remove -- into a Claude session through a path this registry does not manage, so a reader comparing the session's tool list against registry/mcps.json would otherwise find an unexplained surplus.",
+        "agentHubCanPerform": false,
+        "blockedBy": "Same claude.ai account surface as claude-ai-connector-removals, and no local installation exists to remove.",
+        "blockerVerifiedOn": "2026-08-20",
+        "blockerVerification": "Re-verified 2026-08-20, not carried forward. claude plugin list now reports 18 plugins (was 15 on 2026-08-05) and still contains none of these six; none has a directory under .claude/plugins/cache and none appears in known_marketplaces.json. There is nothing locally installed to remove, which is what makes this account-level rather than a fleet drift. .claude.json does carry an engineering@inline key, which looks like a local switch and is not one -- it sits in the usage-statistics block alongside lastUsedAt and usageCount, so deleting it erases telemetry and the bundle returns. Checked before concluding, because a key named for the thing you want to remove is exactly what a local switch would look like.",
+        "sessionRouteRecheckedOn": "2026-08-20",
+        "sessionRouteRecheck": "The route that worked for Figma on 2026-08-05 -- the owner signing in to the in-app browser -- no longer exists. Opened claude.ai/settings/connectors in the in-app browser on 2026-08-20: it redirects to claude.ai and renders the sign-in page (email field plus a Continue button), so that session did not persist. Entering the owner credentials to restore it stays prohibited regardless of authorization, so the authorization recorded above does not make this performable -- it makes it a precise instruction waiting for a session.",
+        "bundleContents": {
+          "recordedOn": "2026-08-05",
+          "source": "Observed in a Claude Code session on 2026-08-05: every server the host reported as awaiting authorization, grouped by the plugin namespace it was presented under.",
+          "caveat": "This lists the servers observed awaiting authorization, which is not necessarily everything a bundle carries -- an already-authorized server would not have appeared. Treat it as a floor, not an inventory.",
+          "bundles": {
+            "engineering": [
+              "atlassian",
+              "datadog",
+              "pagerduty"
+            ],
+            "marketing": [
+              "ahrefs",
+              "amplitude",
+              "amplitude-eu",
+              "figma",
+              "klaviyo",
+              "similarweb",
+              "supermetrics"
+            ],
+            "small-business": [
+              "canva",
+              "docusign",
+              "hubspot",
+              "paypal",
+              "quickbooks",
+              "slack",
+              "square",
+              "stripe"
+            ],
+            "design": [
+              "intercom"
+            ],
+            "litigation-legal": [
+              "Google Drive"
+            ],
+            "adobe-for-creativity": [
+              "Adobe for creativity"
+            ]
+          },
+          "notAccountLevel": {
+            "sentry": "sentry@claude-plugins-official is installed locally; it is a normal plugin, not part of this decision.",
+            "product-demo-studio": "Not a host plugin. Engine-only package invoked by media-studio; review agents deploy via Sync-Subagents. Descript MCP is owned by media-studio.",
+            "exa": "A shared-remote server declared in registry/mcps.json with credentialPolicy environment-api-key; fleet-managed, not account-level."
+          }
+        },
+        "ownerStep": "Decide per bundle in claude.ai settings, using bundleContents above -- a bundle is all-or-nothing. The three that matter for the owner's stated goal: engineering carries Atlassian but also Datadog and PagerDuty; marketing carries Figma but also six analytics and SEO servers; small-business carries Slack but also Stripe, QuickBooks, PayPal and four more. Dropping a bundle to remove one server removes every other server in it.",
+        "completedOn": null
+      }
+    ],
+    "notActions": {
+      "recordedOn": "2026-08-05",
+      "rationale": "Things that were once listed as owner actions and should not have been. Kept so the same inference is not made again from the same starting facts.",
+      "entries": [
+        {
+          "targets": [
+            "Linear",
+            "Notion"
+          ],
+          "claimWas": "revoke OAuth grants at the provider",
+          "whyNot": "Never requested by the owner, and both are live: claude mcp list on 2026-08-05 reports Linear and Notion as Connected, and both are registered in registry/mcps.json as intended. Revoking would break working integrations to close an item nobody opened."
+        },
+        {
+          "targets": [
+            "Descript"
+          ],
+          "claimWas": "revoke OAuth grants at the provider",
+          "whyNot": "Never requested by the owner. It is registered in registry/mcps.json as intended and currently reports 'Needs authentication', so there may be no live grant to revoke at all -- but that is a reason to leave it alone, not a reason to act."
+        }
+      ]
+    }
+  },
+  "bundledServerSuppressions": [],
+  "skillsOnlyPlugins": [],
+  "skillsOnlyPluginsNote": "Emptied 2026-08-24. firecrawl@agenthub was an AgentHub republish of official Firecrawl skills with the MCP stripped so registry/mcps.json kept ownership. AgentHub no longer publishes that plugin. Codex may still have a leftover firecrawl@agenthub install; hostPrivateExtensionPolicy withholds AgentHub from removing it. Replace it with official firecrawl/skills (npx skills add firecrawl/skills) or the Firecrawl Codex plugin. The fleet Firecrawl MCP remains https://mcp.firecrawl.dev/v2/mcp.",
+  "exposureModes": [
+    "plugin-owned",
+    "native-connector",
+    "shared-gateway",
+    "local-only",
+    "provider-held"
+  ],
+  "providerHeldBasis": {
+    "state": "discovery-required",
+    "recordedOn": "2026-08-20",
+    "finding": "18 host entries carry providerHeld: false and 4 carry null, and no host has a non-empty provider-held exposure list. Nothing in this repo records how any of the 18 false values was established, and nothing explains why those 4 differ from the other 18.",
+    "whyNotSilentlyChanged": "By this registry's own convention false means checked-and-absent and null means not established, so the 18 false values are an assertion that a check was performed. Flipping them to null would assert the opposite -- that no check ever happened -- and that is equally unevidenced. Neither value can be written honestly until someone determines, per host, whether its provider holds connectors server-side. Recorded as discovery-required rather than guessed in either direction.",
+    "resolves": "Registry audit finding: providerHeld: false on 18 hosts with no supporting evidence."
+  },
+  "hosts": [
+    {
+      "hostId": "codex",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "descript",
+          "linear",
+          "notion",
+          "playwright",
+          "chrome-devtools",
+          "linkedin",
+          "slack"
+        ],
+        "native-connector": [
+          "github"
+        ],
+        "shared-gateway": [
+          "context7",
+          "exa",
+          "firecrawl",
+          "github",
+          "open-connector"
+        ],
+        "local-only": [
+          "appium-mobile"
+        ]
+      },
+      "evidence": [
+        "Installed Codex plugin MCP manifests own Chrome DevTools, Descript, Linear, and Notion.",
+        "The installed Firecrawl plugin is skills-only and contains no MCP manifest; registry/mcps.json retains the Firecrawl service contract.",
+        "Installed Codex app connectors own GitHub.",
+        "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03 and are no longer registered on any host.",
+        "open-connector added to shared-gateway exposure on 2026-09-13: an HTTP entry for the local gateway at http://127.0.0.1:3400/mcp with a bearer read from the User environment variable OPEN_CONNECTOR_AGENT_TOKEN, written by Sync-AgentHub.ps1 -Apply. No process is spawned by the host."
+      ],
+      "exposureNote": "github added to codex's shared-gateway exposure on 2026-08-20. mcps.json listed codex among github's hosts, but codex had no delivery route for it in any mode -- not in config.toml, not plugin-owned, not gateway -- so the declaration was unreachable. Caught by Test-DeclaredVsDeployedMcp, which compares declared hosts against the host's actual config; no prior test opened a config file. github is shared-remote over HTTP, so this costs a config line and no process."
+    },
+    {
+      "hostId": "claude",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "appium-mobile",
+          "github",
+          "notion",
+          "linkedin",
+          "slack"
+        ],
+        "native-connector": [
+          "descript"
+        ],
+        "shared-gateway": [
+          "context7",
+          "exa",
+          "firecrawl",
+          "linear"
+        ],
+        "local-only": []
+      },
+      "evidence": [
+        "Claude installed_plugins.json and package manifests own GitHub and Notion. chrome-devtools was removed from this list on 2026-08-20: it stopped being a canonical id in registry/mcps.json when playwright replaced it fleet-wide on 2026-08-19, and it was the only exposure id left on any host that no longer resolves. It is NOT replaced by playwright here -- playwright's hosts are the ones with no verified native browser, which excludes claude; browser-toolkit reaches claude as managed loose skills instead. Test-DeclaredVsDeployedMcp now asserts every exposure id is a canonical server id, which is the check that would have caught this.",
+        "Claude account connectors own Descript; Product Demo Studio suppresses its bundled Descript MCP on Claude so the connector is not loaded twice.",
+        "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03. Any residual Adobe or Canva tools in a Claude session come from claude.ai account connectors, which are not managed by this registry and must be removed in claude.ai connector settings.",
+        "Measured 2026-08-05: ~/.claude/plugins/installed_plugins.json lists 15 locally installed plugins, and none of engineering, marketing, small-business, design, litigation-legal, or adobe-for-creativity is among them; none has a directory under plugins/cache and none appears in known_marketplaces.json. Servers presented to a Claude session under those plugin names are therefore account-level, delivered by claude.ai rather than by any local installation this registry can reach. See ownerActionRequired."
+      ]
+    },
+    {
+      "hostId": "vscode-insiders",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "descript"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "cursor",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "descript",
+          "linkedin",
+          "slack"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion",
+          "open-connector"
+        ],
+        "local-only": []
+      },
+      "evidence": [
+        "open-connector added to shared-gateway exposure on 2026-09-13: an HTTP entry for the local gateway at http://127.0.0.1:3400/mcp with a bearer read from the User environment variable OPEN_CONNECTOR_AGENT_TOKEN, written by Sync-AgentHub.ps1 -Apply. No process is spawned by the host."
+      ]
+    },
+    {
+      "hostId": "cursor-agent",
+      "inheritsHostId": "cursor"
+    },
+    {
+      "hostId": "amp",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "factory",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "descript"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "qwen-code",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "descript"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "opencode",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "open-connector"
+        ],
+        "local-only": []
+      },
+      "evidence": [
+        "open-connector added to shared-gateway exposure on 2026-09-13: an HTTP entry for the local gateway at http://127.0.0.1:3400/mcp with a bearer read from the User environment variable OPEN_CONNECTOR_AGENT_TOKEN, written by Sync-AgentHub.ps1 -Apply. No process is spawned by the host."
+      ]
+    },
+    {
+      "hostId": "opencode-desktop",
+      "inheritsHostId": "opencode"
+    },
+    {
+      "hostId": "gemini",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "hermes",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "copilot",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "github"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "antigravity",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "antigravity-desktop",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "hostId": "antigravity-ide",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "hostId": "grok",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "descript",
+          "linkedin",
+          "slack"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion",
+          "open-connector"
+        ],
+        "local-only": []
+      },
+      "evidence": [
+        "open-connector added to shared-gateway exposure on 2026-09-13: an HTTP entry for the local gateway at http://127.0.0.1:3400/mcp with a bearer read from the User environment variable OPEN_CONNECTOR_AGENT_TOKEN, written by Sync-AgentHub.ps1 -Apply. No process is spawned by the host."
+      ]
+    },
+    {
+      "hostId": "warp",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "cline",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "qoder",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [
+          "context7",
+          "descript"
+        ],
+        "native-connector": [],
+        "shared-gateway": [
+          "exa",
+          "firecrawl",
+          "github",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "devin",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    },
+    {
+      "hostId": "windsurf",
+      "providerHeld": false,
+      "exposures": {
+        "plugin-owned": [],
+        "native-connector": [],
+        "shared-gateway": [
+          "context7",
+          "descript",
+          "exa",
+          "firecrawl",
+          "linear",
+          "notion"
+        ],
+        "local-only": []
+      }
+    }
+  ],
+  "thirdPartyExtensions": {
+    "policy": {
+      "authority": "upstream-maintainer",
+      "agentHubOwnership": "none",
+      "inventoryMode": "channel-and-currency-observation-only",
+      "rule": "AgentHub does not vendor, fork, mirror, or re-host a third-party extension (plugin, skills pack, or host-native module). Each host installs it from that host's own official channel and updates it with that host's own command. This block records which channel each host uses and what was last observed there, so a host silently falling behind is detectable; it does not grant AgentHub install authority, which hostPrivateExtensionPolicy withholds for claude and codex.",
+      "whyNotAMarketplaceEntry": "Adding a third-party extension to .claude-plugin/marketplace.json would make AgentHub the publisher of code it does not own, pin it to whatever revision AgentHub last copied, and cut the host off from the upstream release stream. The official per-host channel is what keeps it current.",
+      "renamedFrom": "thirdPartyPlugins",
+      "renamedOn": "2026-08-21",
+      "renameNote": "Generalized from plugins-only tracking so Remotion skills packages and similar non-plugin distributions share the same provenance system."
+    },
+    "extensions": [
+      {
+        "extensionId": "superpowers",
+        "kind": "plugin",
+        "provenance": "community-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/obra/superpowers",
+        "maintainer": "Jesse Vincent",
+        "license": "MIT",
+        "capabilityKind": "skills-and-hooks",
+        "declaresMcpServers": false,
+        "required": false,
+        "provides": [
+          "workflow.superpowers"
+        ],
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "claude-plugins-official",
+            "installedVersion": "6.3.0",
+            "current": true,
+            "updateCommand": "claude plugin update superpowers@claude-plugins-official",
+            "note": "Observed 2026-08-24 in ~/.claude/plugins/installed_plugins.json (installPath cache/claude-plugins-official/superpowers/6.3.0, lastUpdated 2026-08-18)."
+          },
+          {
+            "hostId": "codex",
+            "channel": "openai-curated-remote",
+            "installedVersion": "6.2.0",
+            "current": false,
+            "updateCommand": "Codex app -> Plugins -> Superpowers",
+            "note": "Last observed live copy is 6.2.0; upstream latest is v6.3.0 (2026-08-12). A stale 6.1.1 also sits in the claude-plugins-official cache under ~/.codex."
+          },
+          {
+            "hostId": "antigravity",
+            "channel": "upstream-git",
+            "installedVersion": "6.2.0",
+            "current": false,
+            "updateCommand": "agy plugin install https://github.com/obra/superpowers",
+            "note": "Installed 2026-08-08 at 6.2.0. Upstream latest is v6.3.0; reinstall-as-update per upstream docs."
+          },
+          {
+            "hostId": "grok",
+            "channel": "upstream-git",
+            "installedVersion": "6.2.0",
+            "current": false,
+            "updateCommand": "grok plugin update superpowers",
+            "note": "Clone last observed at v6.2.0. Upstream latest is v6.3.0. A 2026-08-08 update attempt failed with a file lock (os error 32) because a grok session held the directory — retry when no grok session is running."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "cursor-public",
+            "installedVersion": "6.1.1",
+            "current": false,
+            "updateCommand": "Cursor in-app plugin UI",
+            "note": "Pinned to upstream commit d884ae0 (v6.1.1). cursor-agent's CLI exposes only marketplace add/list/remove/update, and marketplace update needs account auth that is not present in this environment, so the bump is an in-app owner action."
+          },
+          {
+            "hostId": "qoder",
+            "channel": "qoder-marketplace",
+            "installedVersion": "5.1.0",
+            "current": false,
+            "updateCommand": "Qoder in-app plugin UI",
+            "note": "Four minor versions behind. The qoder CLI is an editor launcher with no plugin subcommand, so this is an in-app owner action."
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "Not installed. Cline consumes loose skills rather than plugins; upstream documents no Cline install path, so this is a deliberate gap, not drift."
+          }
+        ],
+        "upstreamMarketplace": {
+          "name": "superpowers-dev",
+          "note": "The manifest in obra/superpowers self-describes as a development marketplace. Upstream's README points Claude Code at Anthropic's official marketplace first and at obra/superpowers-marketplace second; the development marketplace is not the distribution channel."
+        }
+      },
+      {
+        "extensionId": "firecrawl",
+        "kind": "plugin",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/firecrawl/skills",
+        "maintainer": "Firecrawl",
+        "license": "ISC",
+        "capabilityKind": "skills-and-mcp",
+        "declaresMcpServers": true,
+        "required": false,
+        "provides": [
+          "web.firecrawl"
+        ],
+        "install": {
+          "command": "npx skills add firecrawl/skills",
+          "docs": "https://github.com/firecrawl/skills"
+        },
+        "note": "Official core/build/workflow skills plus Claude/Cursor/Codex plugin packaging. AgentHub keeps only the firecrawl-web-ingestion overlay and the shared-remote MCP at https://mcp.firecrawl.dev/v2/mcp. Do not republish firecrawl-scrape or firecrawl-crawl from AgentHub.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add firecrawl/skills",
+            "note": "Official plugin also ships .claude-plugin/; prefer that or npx skills add over any AgentHub marketplace copy."
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-plugin",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add firecrawl/skills",
+            "note": "A leftover firecrawl@agenthub skills-only install may still be present. Replace it with official firecrawl/skills. MCP stays registry-owned (shared-remote)."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-plugin",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add firecrawl/skills",
+            "note": "Official repo ships .cursor-plugin/."
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native Firecrawl plugin channel; use official skills install if the host gains Agent Skills support."
+          }
+        ]
+      },
+      {
+        "extensionId": "coderabbit",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "beta",
+        "upstream": "https://github.com/coderabbitai/skills",
+        "maintainer": "CodeRabbit",
+        "license": "MIT",
+        "capabilityKind": "skills",
+        "declaresMcpServers": false,
+        "required": false,
+        "provides": [
+          "review.coderabbit"
+        ],
+        "install": {
+          "command": "npx --yes skills add coderabbitai/skills -g --all",
+          "docs": "https://docs.coderabbit.ai/cli"
+        },
+        "note": "Official code-review and autofix skills plus host plugins. AgentHub keeps only the use-coderabbit overlay. Native Windows CLI 0.7.5 at %LOCALAPPDATA%\\Programs\\coderabbit talks to CodeRabbit cloud. Do not vendor code-review or autofix, and do not install the Enterprise self-hosted server.",
+        "observedAt": "2026-09-03",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "claude-plugins-official",
+            "installedVersion": "1.1.1",
+            "current": true,
+            "updateCommand": "claude plugin update coderabbit@claude-plugins-official",
+            "note": "Installed 2026-09-03 via claude plugin install coderabbit@claude-plugins-official. Official skills also in ~/.agents/skills (code-review, autofix). The coderabbitai/claude-plugin GitHub slug is gone; official marketplace is the channel."
+          },
+          {
+            "hostId": "codex",
+            "channel": "openai-curated-remote",
+            "installedVersion": "1.1.4",
+            "current": true,
+            "updateCommand": "codex plugin add coderabbit@openai-curated-remote",
+            "note": "Installed 2026-09-03. Plugin root ~/.codex/plugins/cache/openai-curated-remote/coderabbit/1.1.4. Official docs also point at the Codex app /plugins UI."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-skills",
+            "installedVersion": "0.1.0",
+            "current": true,
+            "updateCommand": "npx --yes skills add coderabbitai/skills -g --all",
+            "note": "Official skills in ~/.agents/skills; ~/.cursor/skills is a junction. Cursor native /add-plugin coderabbit is packaged upstream but not separately verified here. CLI is the documented Cursor path."
+          },
+          {
+            "hostId": "grok",
+            "channel": "upstream-skills",
+            "installedVersion": "0.1.0",
+            "current": true,
+            "updateCommand": "npx --yes skills add coderabbitai/skills -g --all",
+            "note": "Official skills in ~/.agents/skills; ~/.grok/skills is a junction. No Grok-native CodeRabbit plugin channel."
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native CodeRabbit plugin; official skills may reach Cline through the ~/.agents/skills junction, but that is not a plugin channel."
+          }
+        ]
+      },
+      {
+        "extensionId": "clerk-skills",
+        "kind": "plugin",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/clerk/skills",
+        "maintainer": "Clerk",
+        "license": "MIT",
+        "capabilityKind": "skills",
+        "declaresMcpServers": false,
+        "required": false,
+        "provides": [
+          "auth.clerk"
+        ],
+        "install": {
+          "command": "npx skills add clerk/skills",
+          "docs": "https://github.com/clerk/skills"
+        },
+        "note": "AgentHub previously republished a subset of these skills as clerk@agenthub. That package is gone. Install official clerk/skills (or clerk-skills on Codex).",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add clerk/skills"
+          },
+          {
+            "hostId": "codex",
+            "channel": "clerk-skills-marketplace",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "codex plugin marketplace add clerk/skills",
+            "note": "Then install clerk-skills from the Clerk Skills marketplace."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-plugin",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add clerk/skills",
+            "note": "Official Cursor plugin lives at https://github.com/clerk/cursor-plugin and vendors clerk/skills as a submodule."
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native Clerk plugin; official skills install is the documented path."
+          }
+        ]
+      },
+      {
+        "extensionId": "railway",
+        "kind": "plugin",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/railwayapp/railway-skills",
+        "maintainer": "Railway",
+        "license": "MIT",
+        "capabilityKind": "skills-and-mcp",
+        "declaresMcpServers": true,
+        "required": false,
+        "provides": [
+          "deploy.railway"
+        ],
+        "install": {
+          "command": "railway setup agent",
+          "docs": "https://docs.railway.com/ai/agent-skills"
+        },
+        "note": "AgentHub previously vendored use-railway as managed-loose-skills and would have downgraded hosts from 1.3.7 to 1.3.6 on the next Apply. That package is gone. Keep the fleet remote MCP at https://mcp.railway.com; do not spawn railway mcp stdio.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "claude-plugins-official",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "/plugin install railway@claude-plugins-official"
+          },
+          {
+            "hostId": "codex",
+            "channel": "openai-curated-remote",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "Codex app -> Plugins -> Railway"
+          },
+          {
+            "hostId": "cursor",
+            "channel": "cursor-public",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "/add-plugin railway"
+          },
+          {
+            "hostId": "grok",
+            "channel": "xai-plugin-marketplace",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "grok -> /plugins -> Marketplace -> railway"
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native Railway plugin; railway setup agent covers documented agent targets."
+          }
+        ]
+      },
+      {
+        "extensionId": "framer-agent",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://www.framer.com/agents/external/",
+        "maintainer": "Framer",
+        "license": "See upstream",
+        "install": {
+          "command": "npx @framer/agent@latest setup",
+          "docs": "https://www.framer.com/agents/external/"
+        },
+        "provides": [
+          "design.framer"
+        ],
+        "required": false,
+        "note": "Official installer writes framer and framer-code-components into host skill directories. AgentHub previously copied those skills and would overwrite official updates on Sync -Apply. That package is gone.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-cli",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx @framer/agent@latest setup"
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-cli",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx @framer/agent@latest setup"
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-cli",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx @framer/agent@latest setup"
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "Official setup documents ~/.agents/skills and ~/.claude/skills; no separate Cline path verified."
+          }
+        ]
+      },
+      {
+        "extensionId": "elevenlabs-skills",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/elevenlabs/skills",
+        "maintainer": "ElevenLabs",
+        "license": "MIT",
+        "install": {
+          "command": "npx skills add elevenlabs/skills",
+          "docs": "https://github.com/elevenlabs/skills"
+        },
+        "provides": [
+          "audio.elevenlabs"
+        ],
+        "required": false,
+        "note": "Official product skills (TTS, STT, agents, music, dubbing). AgentHub packages/elevenlabs is a fleet overlay: owner-voice stays local and the bundled CLI is the non-owner route. Do not replace that overlay with a vendored copy of this catalog.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add elevenlabs/skills"
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add elevenlabs/skills"
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add elevenlabs/skills"
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native ElevenLabs channel; official skills install if the host supports Agent Skills."
+          }
+        ]
+      },
+      {
+        "extensionId": "do-app-platform-skills",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/digitalocean-labs/do-app-platform-skills",
+        "maintainer": "DigitalOcean",
+        "license": "MIT",
+        "install": {
+          "command": "npx skills add digitalocean-labs/do-app-platform-skills",
+          "docs": "https://github.com/digitalocean-labs/do-app-platform-skills"
+        },
+        "provides": [
+          "cloud.app-platform-design"
+        ],
+        "required": false,
+        "note": "Official App Platform design/migration/networking skills. AgentHub packages/digitalocean stays: it is the fleet doctl overlay plus the portfolio app map, not a copy of this catalog.",
+        "observedAt": "2026-08-24",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add digitalocean-labs/do-app-platform-skills"
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add digitalocean-labs/do-app-platform-skills"
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add digitalocean-labs/do-app-platform-skills"
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native DigitalOcean App Platform skills channel."
+          }
+        ]
+      },
+      {
+        "extensionId": "remotion",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/remotion-dev/skills",
+        "maintainer": "Remotion",
+        "license": "See upstream",
+        "install": {
+          "command": "npx skills add remotion-dev/skills",
+          "docs": "https://www.remotion.dev/docs"
+        },
+        "provides": [
+          "video.programmatic-composition"
+        ],
+        "required": false,
+        "note": "AgentHub packages request video.programmatic-composition; hosts resolve to Remotion upstream skills (remotion-best-practices is a router over create/markup/studio/render/captions). Do not vendor Remotion rules into AgentHub. Install: npx skills add remotion-dev/skills. Official plugins also exist for Claude, Codex, and Cursor (remotion.dev/plugins). Installed 2026-08-25 globally to ~/.agents/skills and Grok (~/.grok/skills symlink) plus Cursor junctions. Claude and Codex remain owner-installed (hostPrivateExtensionPolicy).",
+        "observedAt": "2026-08-25",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-skills",
+            "installedVersion": "4.0.517",
+            "current": true,
+            "updateCommand": "npx skills add remotion-dev/skills -g -y -a claude-code --skill *",
+            "note": "Owner authorized 2026-08-25. Symlinked from ~/.agents/skills into Claude Code."
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-skills",
+            "installedVersion": "4.0.517",
+            "current": true,
+            "updateCommand": "npx skills add remotion-dev/skills -g -y -a codex --skill *",
+            "note": "Owner authorized 2026-08-25. Universal install into ~/.agents/skills (Codex USER tier)."
+          },
+          {
+            "hostId": "grok",
+            "channel": "upstream-skills",
+            "installedVersion": "4.0.517",
+            "current": true,
+            "updateCommand": "npx skills add remotion-dev/skills -g -y -a grok --skill *",
+            "note": "Symlinked from ~/.agents/skills into ~/.grok/skills on 2026-08-25."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-skills",
+            "installedVersion": "4.0.517",
+            "current": true,
+            "updateCommand": "npx skills add remotion-dev/skills -g -y -a cursor --skill *",
+            "note": "Canonical files in ~/.agents/skills; junctioned into ~/.cursor/skills. Observed 2026-08-25."
+          },
+          {
+            "hostId": "cline",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "No verified Cline-native Remotion channel yet; deliberate gap until documented."
+          }
+        ]
+      },
+      {
+        "extensionId": "creative-writing-skills",
+        "kind": "skills-package",
+        "provenance": "community-upstream",
+        "maturity": "beta",
+        "upstream": "https://github.com/haowjy/creative-writing-skills",
+        "maintainer": "haowjy",
+        "license": "See upstream",
+        "install": {
+          "command": null,
+          "docs": "https://github.com/haowjy/creative-writing-skills"
+        },
+        "provides": [
+          "writing.creative-enhancement"
+        ],
+        "required": false,
+        "note": "Optional writers-room enhancement on Claude. story-series-studio must not hard-depend on it.",
+        "observedAt": "2026-08-21",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-git",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "Install from https://github.com/haowjy/creative-writing-skills via the host skills/plugin path the owner prefers",
+            "note": "Optional. First-class design is Claude/Meridian-centered; not a universal production substrate."
+          },
+          {
+            "hostId": "codex",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "Not a required Codex dependency; deliberate optional gap."
+          },
+          {
+            "hostId": "cursor",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "Not required on Cursor; AgentHub-owned story methodology is sufficient."
+          }
+        ]
+      },
+      {
+        "extensionId": "slack-skills-plugin",
+        "kind": "plugin",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/slackapi/slack-skills-plugin",
+        "maintainer": "Slack",
+        "license": "See upstream",
+        "capabilityKind": "skills-and-mcp",
+        "declaresMcpServers": true,
+        "required": false,
+        "provides": [
+          "slack.official-skills"
+        ],
+        "install": {
+          "command": "npx skills add slackapi/slack-skills-plugin",
+          "docs": "https://docs.slack.dev/ai/slack-skills-plugin/"
+        },
+        "note": "Optional UX. AgentHub owns Slack read/write (packages/slack). Official plugin currently wires MCP on Claude and Cursor only; Codex is skills-only; npx skills installs skills, not MCP. Do not republish as slack@agenthub. Do not install it to close a host MCP gap.",
+        "observedAt": "2026-09-10",
+        "hostChannels": [
+          {
+            "hostId": "claude",
+            "channel": "upstream-plugin",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "Install slackapi/slack-skills-plugin from the host's official channel if optional UX is wanted",
+            "note": "Official plugin can attach Slack hosted MCP. Fleet Slack authority remains packages/slack."
+          },
+          {
+            "hostId": "cursor",
+            "channel": "upstream-plugin",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "Install slackapi/slack-skills-plugin from the Cursor plugin channel if optional UX is wanted",
+            "note": "Official plugin can attach Slack hosted MCP. Not the AgentHub contract."
+          },
+          {
+            "hostId": "codex",
+            "channel": "upstream-skills",
+            "installedVersion": null,
+            "current": false,
+            "updateCommand": "npx skills add slackapi/slack-skills-plugin",
+            "note": "Official Codex surface is skills-only; MCP is not wired in that plugin. AgentHub slack@agenthub supplies the MCP contract."
+          },
+          {
+            "hostId": "gemini",
+            "channel": null,
+            "installedVersion": null,
+            "current": false,
+            "note": "npx skills installs skills only, not MCP. Deliberate gap; AgentHub slack capability is the MCP."
+          }
+        ]
+      }
+    ]
+  }
+}

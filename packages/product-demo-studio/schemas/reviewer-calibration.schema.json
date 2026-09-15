@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/reviewer-calibration.schema.json",
+  "title": "Product Video Reviewer Calibration Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "pluginVersion",
+    "reviewDomain",
+    "modelId",
+    "canonicalRubric",
+    "verticalOverlay",
+    "inputContractVersion",
+    "completedAt",
+    "fixtures"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "status": { "const": "PASS" },
+    "pluginVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "reviewDomain": { "$ref": "#/$defs/reviewDomain" },
+    "modelId": { "$ref": "#/$defs/nonEmptyString" },
+    "canonicalRubric": { "$ref": "#/$defs/artifactReference" },
+    "verticalOverlay": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/artifactReference" }
+      ]
+    },
+    "inputContractVersion": { "const": "review-report.schema/1.0.0" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "fixtures": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": { "$ref": "#/$defs/fixtureResult" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reviewDomain": {
+      "enum": [
+        "story-experience",
+        "screen-accuracy-compliance",
+        "audio-captions-synchronization",
+        "technical-frame-integrity"
+      ]
+    },
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactPath", "sha256"],
+      "properties": {
+        "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "fixtureResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "expectedVerdict", "reviewReport"],
+      "properties": {
+        "id": { "$ref": "#/$defs/fixtureId" },
+        "expectedVerdict": { "enum": ["PASS", "FAIL"] },
+        "reviewReport": { "$ref": "#/$defs/artifactReference" }
+      }
+    },
+    "fixtureId": {
+      "enum": ["buried-hero", "feature-rung", "no-hold", "dead-wait", "three-heroes", "clean-pass"]
+    }
+  }
+}

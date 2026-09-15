@@ -1,0 +1,1727 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-13",
+  "retiredFleetSkills": [
+    {
+      "name": "repocontext",
+      "retiredOn": "2026-08-20",
+      "supersededBy": "repowise",
+      "reason": "The skill's entire contract is 'exactly eight read-only, job-oriented tools' served by an MCP server named repocontext. No such server exists anywhere on the fleet, so the skill names tools that cannot be called.",
+      "evidence": "registry/mcps.json declares twelve servers and repocontext is not among them. All 17 readable host MCP configs were enumerated and none registers it -- codex's config mentions the string only in a stale [projects.'c:\\repos\\shmindmaster\\repocontext'] trust entry, which is a project-trust row, not a server. Both routes the skill documents are dead: the local stdio route runs `pnpm --dir C:/Repos/shmindmaster/repocontext mcp:serve` and that directory does not exist (C:/Repos/shmindmaster holds 18 repos, none named repocontext), and the remote route needs a REPOCONTEXT_MCP_TOKEN no host holds. Deployed to 14 hosts at retirement.",
+      "whyFleetScoped": "repowise supersedes it but maps to 8 hosts, only 5 of which overlap the 14 carrying repocontext. A capability-scoped retirement would have cleaned 5, left 9, and reported success.",
+      "corroboratingResidue": "A whole-disk sweep (not just the skills directories) also found ~/.gemini/antigravity/mcp/repocontext and ~/.gemini/antigravity-ide/mcp/repocontext. These are antigravity's own tool-description caches, holding exactly the eight tools the skill documents -- repo.compare, repo.inspect, repo.read, repo.search, wiki.analyze, wiki.catalog, wiki.get, wiki.search -- each with parameters: null. They are stale caches from when repocontext WAS registered, and antigravity's live mcp_config.json does not list it, so they corroborate the retirement rather than contradicting it. Deliberately NOT swept: they are a host's internal cache, not a managed skill, and are the host's to regenerate.",
+      "sweptDirectories": 13
+    },
+    {
+      "name": "firecrawl-cli",
+      "retiredOn": "2026-08-24",
+      "supersededBy": "external:firecrawl/skills",
+      "reason": "AgentHub-authored CLI wrapper that duplicated official firecrawl/cli skills (`firecrawl`, firecrawl-scrape, firecrawl-search, firecrawl-crawl). Official catalog is https://github.com/firecrawl/skills; AgentHub must not ship a second copy under a colliding or near-colliding name.",
+      "whyFleetScoped": "The name is AgentHub-unique, so fleet retirement can sweep deployed copies without deleting an official skill of the same name."
+    },
+    {
+      "name": "firecrawl-codex-research",
+      "retiredOn": "2026-08-24",
+      "supersededBy": "external:firecrawl/skills",
+      "reason": "Thin research router over official Firecrawl search/scrape/crawl. Official core and index skills own that work.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "firecrawl-product-integration",
+      "retiredOn": "2026-08-24",
+      "supersededBy": "external:firecrawl/skills",
+      "reason": "Duplicated official firecrawl-build / firecrawl-build-* SDK integration skills.",
+      "whyFleetScoped": "AgentHub-unique name; safe to sweep everywhere."
+    },
+    {
+      "name": "product-demo",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio",
+      "reason": "Public video router is media-studio. product-demo was capturing briefings and other non-screencast work.",
+      "whyFleetScoped": "Deployed as loose skills on shared ~/.agents/skills plus per-host dirs; capability-scoped retirement on product-demo-studio would miss hosts that only have the shared copy."
+    },
+    {
+      "name": "product-demo-studio",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio",
+      "reason": "Public pipeline skill retired; screencast engine remains in packages/product-demo-studio/pipeline for media-studio to invoke.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-capture",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-capture",
+      "reason": "Renamed into media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-narration",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-generate",
+      "reason": "Narration is Local-AI generate in media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-render",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-compose",
+      "reason": "Composition is media-studio-compose.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-qa",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-qa",
+      "reason": "Renamed into media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-descript",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-descript",
+      "reason": "Renamed into media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "product-demo-studio-visual-assets",
+      "retiredOn": "2026-08-25",
+      "supersededBy": "media-studio-visuals",
+      "reason": "Renamed into media-studio.",
+      "whyFleetScoped": "Same shared-dir spread as product-demo."
+    }
+  ],
+  "surfaceAliases": [
+    {
+      "surfaceId": "cursor-agent",
+      "inheritsHostId": "cursor"
+    },
+    {
+      "surfaceId": "opencode-desktop",
+      "inheritsHostId": "opencode"
+    },
+    {
+      "surfaceId": "antigravity-desktop",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "surfaceId": "antigravity-ide",
+      "inheritsHostId": "antigravity"
+    },
+    {
+      "surfaceId": "devin-desktop",
+      "inheritsHostId": "devin"
+    },
+    {
+      "surfaceId": "factory-desktop",
+      "inheritsHostId": "factory"
+    },
+    {
+      "surfaceId": "warp-oz",
+      "inheritsHostId": "warp"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "digitalocean",
+      "owner": "portfolio",
+      "capabilityType": "skill-pack-plugin",
+      "canonicalSource": "packages/digitalocean",
+      "contentHash": "CA8EAA90CCC0D4D8BF017622EB2E7438D7BF39D0FD7857C1155FBF35418183E6",
+      "hashBasis": "packages/digitalocean",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ]
+    },
+    {
+      "id": "elevenlabs",
+      "owner": "portfolio",
+      "capabilityType": "skill-pack-plugin+cli",
+      "canonicalSource": "packages/elevenlabs",
+      "contentHash": "778052597F1CDA328FFA186E0BA086EBA335D8E214BB3C345C7C94F60AEF6C8F",
+      "hashBasis": "packages/elevenlabs",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ]
+    },
+    {
+      "id": "product-demo-studio",
+      "owner": "handoff",
+      "capabilityType": "engine+agents",
+      "canonicalSource": "packages/product-demo-studio",
+      "managedSkillNames": [],
+      "retiredSkillNames": [
+        "product-demo",
+        "product-demo-studio",
+        "product-demo-studio-capture",
+        "product-demo-studio-narration",
+        "product-demo-studio-render",
+        "product-demo-studio-qa",
+        "product-demo-studio-descript",
+        "product-demo-studio-visual-assets"
+      ],
+      "contentHash": "F18D485FCF7D66DA9D68DDBDEE653B11C6E4B119806037E610CA2F1A7E264F89",
+      "hashBasis": "packages/product-demo-studio",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
+          "reviewIsolation": "shell-free-role-tools-plus-read-only-receipt-required",
+          "deploymentStatusNote": "Not a host plugin. media-studio is the public video pack; this package is the on-disk screencast engine and review-agent source."
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "managed-native-agents"
+          ],
+          "reviewIsolation": "sandbox-mode-read-only-plus-host-output-post-validation-and-receipt-required"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
+          "reviewIsolation": "readonly-agent-tools-plus-receipt-required"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
+          "reviewIsolation": "tool-limited-only-read-only-receipt-required"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "tool-limited-parent-yolo-not-release-eligible"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills",
+          "roleAdapter": "managed-native-markdown-agents",
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "edit-bash-task-denied-plus-read-only-receipt-required"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills",
+          "runtimeState": "inactive"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
+          "runtimeState": "inactive-configured"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills",
+          "roleAdapter": "managed-preview-extension-agents",
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "explicit-read-tools-plus-read-only-receipt-required"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "tool-limited-only-external-read-only-boundary-required"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills",
+          "roleAdapter": "managed-cli-native-plugin-agents",
+          "mcpOwnership": "shared-registry",
+          "reviewIsolation": "command-policy-off-plus-read-only-receipt-required"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
+          "reviewIsolation": "windows-native-read-only-enforcement-unverified"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills",
+          "roleCapability": "fixed-read-only-research-subagent-only",
+          "runtimeParity": "blocked-for-generation-and-mcp-dependent-review"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "engine-invoked",
+          "components": [
+            "agents"
+          ],
+          "reviewIsolation": "tool-limited-plus-read-only-receipt-required"
+        }
+      ],
+      "dependencies": {
+        "requires": [],
+        "recommends": [
+          "browser-toolkit",
+          "local-ai"
+        ],
+        "optional": [
+          "external:remotion",
+          "elevenlabs",
+          "media-studio"
+        ]
+      },
+      "kind": "orchestrator",
+      "maturity": "stable",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "product-experience-engineering",
+      "owner": "handoff",
+      "capabilityType": "plugin+hooks",
+      "canonicalSource": "packages/product-experience-engineering",
+      "contentHash": "E8F2722585732191E2E0C0FC9C1B041EF47FE99C337E39A5C8B500D8BEAD5F47",
+      "hashBasis": "packages/product-experience-engineering",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-plugin-installed"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "native-local-plugin",
+          "components": [
+            "skills",
+            "agents"
+          ]
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "native-extension-junction"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "preprovisioned-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "native-local-plugin"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-observed-path"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "native-local-plugin"
+        }
+      ]
+    },
+    {
+      "id": "firecrawl",
+      "owner": "portfolio",
+      "capabilityType": "skills",
+      "canonicalSource": "packages/firecrawl",
+      "managedSkillNames": [
+        "firecrawl-web-ingestion"
+      ],
+      "contentHash": "AAE7859ED2C4775278DC7A1D1495D4641B2B2F5C98ADA62D9A6C833A4FFF6639",
+      "hashBasis": "packages/firecrawl",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Converted 2026-08-24 from a republished Firecrawl plugin to a fleet overlay. Official scrape/crawl/cli/build/research skills and the plugin live at https://github.com/firecrawl/skills; the fleet remote MCP remains registry/mcps.json#firecrawl. This package keeps only governed ingestion constraints. Do not restore firecrawl-scrape, firecrawl-crawl, or firecrawl-cli here — those names collide with upstream."
+    },
+    {
+      "id": "coderabbit",
+      "owner": "fleet-intelligence",
+      "capabilityType": "skills",
+      "canonicalSource": "packages/coderabbit",
+      "managedSkillNames": [
+        "use-coderabbit"
+      ],
+      "contentHash": "557C485E12A645E754DADF03B62359EF76F0C8E9BE73B2BDA50C01323655B01E",
+      "hashBasis": "packages/coderabbit",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Fleet overlay only (use-coderabbit). Official code-review and autofix skills install from https://github.com/coderabbitai/skills; Claude plugin is coderabbit@claude-plugins-official; Codex plugin is coderabbit@openai-curated-remote. Do not vendor those names into AgentHub. CLI talks to CodeRabbit cloud; do not install the Enterprise self-hosted server."
+    },
+    {
+      "id": "browser-toolkit",
+      "owner": "browser-quality",
+      "capabilityType": "plugin+mcp+skills",
+      "canonicalSource": "packages/browser-toolkit",
+      "managedSkillNames": [
+        "browser-debugging",
+        "browser-evidence",
+        "desktop-evidence",
+        "interactive-browser-testing",
+        "use-playwright-cli",
+        "use-playwright-mcp",
+        "use-playwright-test"
+      ],
+      "retiredSkillNames": [
+        "browser-audit",
+        "use-chrome-devtools-mcp"
+      ],
+      "retiredSkills": [
+        {
+          "name": "ui-verify",
+          "contentHash": "19E15F4745FD39172A67534369B12469897014EE84B45EC2A5998C5EBEE6AD9C",
+          "reason": "Merged into browser-debugging; exact loose copies are superseded."
+        }
+      ],
+      "contentHash": "79667ED888D1D6B5E5CD8B888C8E9166F61C69D9FAE452A798D085FA5DEBA5E7",
+      "hashBasis": "packages/browser-toolkit",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Loose skills, not the plugin, since 2026-08-20 -- and this is the SECOND capability to hit this exact failure. The plugin is disabled on claude because claude ships its own browser surface, so routing to a native capability beats spawning a local server. But the plugin was also claude's only source for browser-debugging, browser-evidence, interactive-browser-testing and use-playwright-mcp, so disabling it left claude with NO browser guidance at all while this mapping still read native-plugin-installed. Skills carry no process cost and are useful with a native browser -- their first resolution step is to use the host's own browser -- so they deploy independently of the MCP. The same split already applies to mobile-development; the general rule is that a plugin bundling skills+MCP cannot be disabled to gate the MCP without first moving its skills to loose deployment."
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills",
+            "mcp"
+          ]
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-08-26. Cursor's local plugin is a junction at ~/.cursor/plugins/local/browser-toolkit (live package, including desktop-evidence), but cursor-agent reads ~/.cursor/skills and did not receive new skills while this mapping was native-local-plugin. Same split as claude: skills deploy independently of the plugin so a missing or stale plugin cannot strand Capture-Screen/desktop-evidence. The junction remains for Cursor IDE plugin discovery; AgentHub does not remove it."
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-08-26. native-local-plugin left ~/.qoder/skills with no browser-toolkit skills and no plugin directory on disk, so desktop-evidence was unreachable. Skills-only mapping; Qoder has no verified plugin copy to refresh."
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-native-skills-and-mcp"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-native-mcp"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "provides": [
+        "browser.isolated",
+        "browser.authenticated"
+      ],
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": []
+      },
+      "kind": "orchestrator",
+      "maturity": "stable",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "repowise",
+      "owner": "fleet-intelligence",
+      "capabilityType": "skills+mcp",
+      "canonicalSource": "packages/repowise",
+      "managedSkillNames": [
+        "use-repowise"
+      ],
+      "contentHash": "54C36CCB60A1F646A51570A711AE33721B887CC97BBE07FCB6134419E1D33931",
+      "hashBasis": "packages/repowise",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) and the use-repowise loose skill. The external CLI is uv-managed machine tooling, kept on the PyPI latest by scripts/Update-RepoWise.ps1 (daily scheduled task AgentHub-Update-RepoWise). Official Claude/Codex plugins are not installed: they would register a second MCP pointed at the nearest repo instead of C:/Repos."
+    },
+    {
+      "id": "mobile-development",
+      "owner": "mobile-quality",
+      "capabilityType": "plugin+mcp+skills",
+      "canonicalSource": "packages/mobile-development",
+      "managedSkillNames": [
+        "mobile-device-lab",
+        "mobile-platform-standard"
+      ],
+      "contentHash": "026605A3845863A239A7950BCF2B4DA569A91A551298A22098402B978C272EF2",
+      "hashBasis": "packages/mobile-development",
+      "status": "active-canonical",
+      "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
+      "deployedCatalog": {
+        "syncOwner": "scripts/Sync-Capabilities.ps1",
+        "runtimeRelativeRoot": "capabilities/mobile-development",
+        "entrypoint": "mobile.ps1",
+        "arguments": [
+          "catalog"
+        ],
+        "authoritySource": "registry",
+        "authorityRuntimeRelativeRoot": "registry"
+      },
+      "hostMappings": [
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Both skills stay loosely readable and route catalog/lifecycle commands through the AgentHub-managed runtime package. Appium remains absent from default host configuration and is enabled only for a new mobile task through that deployed mobile.ps1 entrypoint."
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Both skills stay loosely readable and route catalog/lifecycle commands through the AgentHub-managed runtime package. Appium remains absent from default host configuration and is installed only for a new mobile task through that deployed mobile.ps1 entrypoint."
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "catalog"
+          ]
+        }
+      ],
+      "notes": "Canonical owner of the closed mobile-development contract, both recognizable loose skills, the source public contract at packages/mobile-development/mobile.ps1, the AgentHub-managed deployed runtime package, and registry/mcps.json#appium-mobile. Guest runtime expectations live in registry/mobile-development.json; product eligibility and identity remain solely in registry/mobile-scope.json.",
+      "hostScopeNote": "All active coding hosts receive both loose skills and resolve the catalog through the fleet-managed package under %LOCALAPPDATA%/AgentHub/capabilities/mobile-development, independent of a repository checkout or native marketplace state. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration."
+    },
+    {
+      "id": "technical-storytelling",
+      "owner": "personal-media",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/technical-storytelling",
+      "managedSkillNames": [
+        "technical-explainer",
+        "technical-visualizer"
+      ],
+      "contentHash": "D0D162FC2416037E44E5B5FB8E68AE60A4353B25D2928D248A3A73EFB237C2C3",
+      "hashBasis": "packages/technical-storytelling",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills without story-series/technical-explainer because cursor-agent reads ~/.cursor/skills, not ~/.cursor/plugins/local. Junction at ~/.cursor/plugins/local/technical-storytelling remains for Cursor IDE plugin discovery; AgentHub does not remove it."
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Added 2026-08-21. Shared technical explanation + visualization planning for demos, series, learning, and docs. No private show content. Remotion remains optional via external:remotion. Non-screencast composition routes through media-studio; a film visual that never changes is unfinished (media-studio engagement.md). Codex loads the native plugin; skill-only hosts stay managed-loose-skills.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": [
+          "external:remotion"
+        ]
+      },
+      "kind": "provider",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "story-series-studio",
+      "owner": "personal-media",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/story-series-studio",
+      "managedSkillNames": [
+        "story-series",
+        "dramatize-real-incident",
+        "technical-story-director",
+        "episode-editor",
+        "privacy-fictionalizer",
+        "series-continuity"
+      ],
+      "contentHash": "BA6F6D040060465C28F5367057557B9407A8C9FCEFCA7869A135023E34757672",
+      "hashBasis": "packages/story-series-studio",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills without story-series because cursor-agent reads ~/.cursor/skills, not ~/.cursor/plugins/local. Junction at ~/.cursor/plugins/local/story-series-studio remains for Cursor IDE plugin discovery; AgentHub does not remove it."
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Added 2026-08-21. Generic series methodology only — private show bibles and media stay outside AgentHub. Prefer this over startup-series for new series work. Product Demo Studio stays the product-screencast workflow; assemble non-screencast picture through media-studio. Codex loads the native plugin; skill-only hosts stay managed-loose-skills.",
+      "dependencies": {
+        "requires": [
+          "technical-storytelling"
+        ],
+        "recommends": [
+          "browser-toolkit",
+          "local-ai"
+        ],
+        "optional": [
+          "external:remotion",
+          "external:superpowers",
+          "external:creative-writing-skills"
+        ]
+      },
+      "kind": "orchestrator",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "learning-studio",
+      "owner": "personal-learning",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/learning-studio",
+      "managedSkillNames": [
+        "engaging-exam-coach"
+      ],
+      "contentHash": "73B3BE22393597AE75343C14799C7ED199AA195B91429F8211331614ED4966C1",
+      "hashBasis": "packages/learning-studio",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ],
+          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills unread by cursor-agent. Junction at ~/.cursor/plugins/local/learning-studio remains for Cursor IDE plugin discovery; AgentHub does not remove it."
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Added 2026-08-21. Attention-friendly exam/training coach. Domain packs are data, not baked into the skill. Remotion optional.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [
+          "technical-storytelling"
+        ],
+        "optional": [
+          "external:remotion"
+        ]
+      },
+      "kind": "provider",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "media-studio",
+      "owner": "personal-media",
+      "capabilityType": "plugin+skills",
+      "canonicalSource": "packages/media-studio",
+      "managedSkillNames": [
+        "media-studio",
+        "media-writer",
+        "media-storyboard",
+        "media-director",
+        "media-studio-generate",
+        "media-studio-compose",
+        "media-studio-capture",
+        "media-studio-qa",
+        "media-studio-visuals",
+        "media-story-experience-reviewer",
+        "media-studio-descript"
+      ],
+      "contentHash": "0EF93888C1CE97AEDA9FA8A5685045FD6A78832003B51863D52540C2B14347E4",
+      "hashBasis": "packages/media-studio",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ],
+          "mcpOwnership": "shared-registry"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills"
+          ]
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "notes": "Added 2026-08-25; current public pack 1.5.4 (2026-09-08: technical-story reference, kit/screencast compositor and annotation layer, host-neutral capture provider, Duckie prod-sim operator note). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents) and is not a marketplace plugin. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "dependencies": {
+        "requires": [
+          "local-ai"
+        ],
+        "recommends": [
+          "technical-storytelling",
+          "browser-toolkit",
+          "external:remotion",
+          "external:creative-writing-skills"
+        ],
+        "optional": [
+          "product-demo-studio",
+          "story-series-studio",
+          "learning-studio",
+          "elevenlabs"
+        ]
+      },
+      "kind": "orchestrator",
+      "maturity": "beta",
+      "provenance": "agenthub-owned"
+    },
+    {
+      "id": "security",
+      "owner": "packages/security",
+      "capabilityType": "script+hook",
+      "canonicalSource": "packages/security",
+      "contentHash": "3A592A15596984200ACEF33881A4EC7D009BB1EBEA9CB7A8CCFC3AC0A21B4281",
+      "hashBasis": "packages/security",
+      "status": "active-canonical",
+      "notes": "Ships config-payload-scanner: the fleet-shared obfuscated-config malware detector (packages/security/scripts/check-config-payloads.mjs) and its pre-push hook template (packages/security/hooks/pre-push). Adopted 2026-09-07 from subops/scripts/check-config-payloads.mjs, which is the incident history this tool's signatures come from. Not a per-host skill deployment -- every repo installs the hook per packages/security/README.md and points it at this canonical script rather than forking a copy.",
+      "hostMappings": []
+    },
+    {
+      "id": "slack",
+      "owner": "packages/slack",
+      "capabilityType": "plugin+mcp+skills",
+      "canonicalSource": "packages/slack",
+      "managedSkillNames": [
+        "slack"
+      ],
+      "contentHash": "A5A5D15D822AD9EE44CDD08563DA65FACDF11117C44F18CB397D6F632BA8BB12",
+      "hashBasis": "packages/slack",
+      "status": "active-canonical",
+      "notes": "AgentHub owns Slack read/write. This is not the 2026-08-05 claude.ai Slack connector and not Slack's hosted MCP. Official slackapi/slack-skills-plugin is optional UX. MCP is plugin-gated until the gateway is production-proven.",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated (slack@agenthub); enable only when Slack work is in scope. Native Slack plugin is optional UX, not authority."
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated. Official Codex Slack plugin is skills-only; AgentHub supplies the missing MCP contract."
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated. Cursor's official Slack plugin does not own fleet identity or schemas."
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qwen-code",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "qoder",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated (slack@agenthub)."
+        },
+        {
+          "hostId": "hermes",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP may be written enabled=false on OpenCode; do not persist a session-start stdio server."
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "kind": "provider",
+      "maturity": "beta",
+      "provenance": "agenthub-canonical"
+    },
+    {
+      "id": "open-connector",
+      "owner": "personal-infrastructure",
+      "capabilityType": "skills+mcp",
+      "canonicalSource": "packages/open-connector",
+      "managedSkillNames": [
+        "use-open-connector"
+      ],
+      "contentHash": "683376C48C6DB87CF66BE40FD3A825E3AC7D29E632E84DD94A0B1F393523CA68",
+      "hashBasis": "packages/open-connector",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "hostMappingsNote": "Pilot scope, 2026-09-12: the four installed non-Claude hosts the gateway is meant for. claude is excluded on purpose -- it already provides first-party connectors for the same providers and the routing policy prefers the connector the running surface provides. Widen only after the MCP itself is persisted for a host (native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds); a loose skill that names a route the host cannot reach is drift.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": []
+      },
+      "kind": "gateway",
+      "maturity": "beta",
+      "provenance": "agenthub-owned",
+      "notes": "Self-hosted OpenConnector (ghcr.io/oomol-lab/open-connector v1.5.0, digest-pinned) as the fleet's shared SaaS action gateway for non-Claude hosts. Persisted 2026-09-13 on codex, cursor, opencode and grok as an HTTP MCP entry; one Docker container on 127.0.0.1:3400, secrets and SQLite under %LOCALAPPDATA%\\AgentHub\\runtime\\open-connector. Scope: Brave Search (replacing the retired brave-search stdio bridge), no-auth research and developer sources, and long-tail api_key providers without a hosted MCP. GitHub, Linear, Notion, Context7, Exa, Firecrawl, Railway and Descript stay on official hosted MCPs; Slack stays AgentHub-owned. Hosts authenticate with a minted, revocable runtime token in the User environment variable OPEN_CONNECTOR_AGENT_TOKEN; the bootstrap token serves only the wrapper and healthcheck. Products never use it (Lawli SH-2748, LienWise external-platforms.policy.js, CoLedger ai-boundaries.md)."
+    }
+  ],
+  "lastValidatedAt": "2026-08-26T00:00:00Z",
+  "lastCanonicalChangeAt": "2026-09-13T00:00:00Z",
+  "distribution": "public-core"
+}

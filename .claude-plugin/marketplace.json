@@ -1,0 +1,49 @@
+{
+  "name": "agenthub",
+  "description": "Lean shared AgentHub capability catalog.",
+  "owner": {
+    "name": "MahumTech"
+  },
+  "plugins": [
+    {
+      "name": "product-experience-engineering",
+      "source": "./packages/product-experience-engineering"
+    },
+    {
+      "name": "digitalocean",
+      "source": "./packages/digitalocean"
+    },
+    {
+      "name": "elevenlabs",
+      "source": "./packages/elevenlabs"
+    },
+    {
+      "name": "browser-toolkit",
+      "source": "./packages/browser-toolkit"
+    },
+    {
+      "name": "mobile-development",
+      "source": "./packages/mobile-development"
+    },
+    {
+      "name": "technical-storytelling",
+      "source": "./packages/technical-storytelling"
+    },
+    {
+      "name": "story-series-studio",
+      "source": "./packages/story-series-studio"
+    },
+    {
+      "name": "learning-studio",
+      "source": "./packages/learning-studio"
+    },
+    {
+      "name": "media-studio",
+      "source": "./packages/media-studio"
+    },
+    {
+      "name": "slack",
+      "source": "./packages/slack"
+    }
+  ]
+}

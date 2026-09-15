@@ -1,0 +1,703 @@
+{
+  "schemaVersion": 2,
+  "name": "full-access-unattended",
+  "intent": "User-authorized local coding-agent profile with repository policy, registered MCPs, and managed capabilities available without routine permission prompts.",
+  "canonicalPolicy": "AGENTS.md",
+  "managedHosts": [
+    "claude",
+    "codex",
+    "cursor",
+    "qwen-code",
+    "opencode",
+    "amp",
+    "devin",
+    "factory",
+    "windsurf",
+    "gemini",
+    "copilot",
+    "hermes",
+    "grok",
+    "antigravity",
+    "warp",
+    "cline",
+    "qoder",
+    "vscode-insiders"
+  ],
+  "launchDefaults": {
+    "gemini": [
+      "--yolo",
+      "--skip-trust"
+    ],
+    "copilot": [
+      "--allow-all",
+      "--autopilot",
+      "--no-ask-user",
+      "--allow-all-mcp-server-instructions"
+    ],
+    "devin": [
+      "--permission-mode",
+      "dangerous",
+      "--respect-workspace-trust",
+      "false"
+    ],
+    "agy": [
+      "--dangerously-skip-permissions"
+    ],
+    "cline": [
+      "--auto-approve",
+      "true"
+    ],
+    "qoder": [
+      "--dangerously-skip-permissions"
+    ]
+  },
+  "autonomyProfiles": {
+    "schemaVersion": 1,
+    "purpose": "Per-host permission model recovered from the deleted profiles/host-autonomy-mappings.json (git show fc1bda6:profiles/host-autonomy-mappings.json; AGENTS.md:20 forbids recreating profiles/, so the data lives here instead). A host whose defaultProfile is 'interactive' must never be dispatched unattended.",
+    "knownDefaultProfiles": [
+      "repo-autonomous",
+      "interactive"
+    ],
+    "flagsOwnedByLaunchDefaults": "When a profile below carries launchDefaultsKey, that key's array in the sibling launchDefaults object (directly, or via aliases[] for a non-hostId key like agy) is the single authoritative source for that host's CLI flags. This section intentionally does not restate those flags, so there is exactly one place that can be wrong about them.",
+    "aliases": [
+      {
+        "launchDefaultsKey": "agy",
+        "hostId": "antigravity",
+        "evidence": "registry/agents.json activeAgents[antigravity].executable resolves to ...WinGet\\Links\\agy.exe, and launchDefaults.agy (['--dangerously-skip-permissions']) is byte-identical to the deleted host-autonomy-mappings.json antigravity.native.flags. Treated as established, not merely flagged.",
+        "note": "The launchDefaults key itself is left as 'agy' -- renaming it is out of scope for this task; registry/fleet-profile.json's separately-reported absolute-path pinning is likewise left as-is here."
+      }
+    ],
+    "profiles": [
+      {
+        "hostId": "codex",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "approval_policy": "never",
+          "sandbox_mode": "danger-full-access"
+        }
+      },
+      {
+        "hostId": "claude",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "permissionMode": "bypassPermissions"
+        }
+      },
+      {
+        "hostId": "cursor-agent",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "flags": [
+            "--yolo",
+            "--sandbox",
+            "disabled",
+            "--approve-mcps"
+          ]
+        }
+      },
+      {
+        "hostId": "qwen-code",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "approvalMode": "yolo",
+          "permissions": "allow-all",
+          "managedAutoMemory": true,
+          "managedAutoDream": true,
+          "subagents": [
+            "scout",
+            "implementer",
+            "reviewer",
+            "verifier"
+          ],
+          "headless": {
+            "promptFlag": "--prompt",
+            "structuredOutput": [
+              "json",
+              "stream-json"
+            ]
+          },
+          "lsp": {
+            "flag": "--experimental-lsp",
+            "projectConfig": ".lsp.json"
+          },
+          "hooks": "default-enabled; SessionStart command hook re-applies the MCP OAuth refresh hotfix (scripts/Repair-QwenCodeMcpOAuth.js; personal mirror ~/.qwen/scripts/repair-mcp-oauth-hotfix.js) after qwen-code npm updates"
+        }
+      },
+      {
+        "hostId": "opencode",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "permission": "allow",
+          "acpCommand": [
+            "acp"
+          ]
+        },
+        "note": "registry/host-capability-contracts.json (deleted, fc1bda6) additionally listed a '--auto' flag not present here. Retained host-autonomy-mappings.json's value as the source of record; flagged for owner review since opencode is active."
+      },
+      {
+        "hostId": "gemini",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "gemini",
+        "native": {
+          "acpFlags": [
+            "--acp"
+          ],
+          "sandbox": false
+        }
+      },
+      {
+        "hostId": "copilot",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "copilot",
+        "native": {
+          "acpFlags": [
+            "--acp"
+          ],
+          "stayInAutopilot": true
+        },
+        "note": "Current launchDefaults.copilot carries an extra flag, '--allow-all-mcp-server-instructions', that the deleted host-autonomy-mappings.json native.flags did not have. Per task-3 reconciliation rule the current value wins; it is live via launchDefaults and intentionally not restated here."
+      },
+      {
+        "hostId": "antigravity",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "agy",
+        "native": {
+          "settings": {
+            "permissions": "wildcard-policy-supported"
+          }
+        },
+        "note": "See aliases[] above -- this host's launch flags live under launchDefaults.agy, not launchDefaults.antigravity."
+      },
+      {
+        "hostId": "devin",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "devin",
+        "native": {}
+      },
+      {
+        "hostId": "grok",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "permission_mode": "always-approve",
+          "yolo": true
+        }
+      },
+      {
+        "hostId": "cursor",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "ide"
+        },
+        "note": "Cross-source conflict: host-autonomy-mappings.json (deleted) said 'interactive'; registry/host-capability-contracts.json (deleted, state: configured) said 'repo-autonomous' with a worktreePolicy constraint of 'AgentHub C:\\wt helper only'. Retained the conservative 'interactive' value here. Flagged for owner review -- fleet-profile.json.dispatchPolicy.cursor already reauthorizes Cursor surfaces (2026-07-30), so the owner may want repo-autonomous instead; that reauthorization governs whether Cursor may be dispatched at all, not what its default autonomy should be, so this task did not treat it as resolving the conflict."
+      },
+      {
+        "hostId": "opencode-desktop",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "desktop"
+        }
+      },
+      {
+        "hostId": "antigravity-desktop",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "desktop"
+        }
+      },
+      {
+        "hostId": "antigravity-ide",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "ide"
+        }
+      },
+      {
+        "hostId": "factory",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "surface": "desktop-and-cli",
+          "interactionMode": "auto",
+          "autonomyLevel": "high"
+        },
+        "note": "registry/host-capability-contracts.json (deleted, fc1bda6) described this host's autonomy differently: flags ['exec','--auto','high'] plus unsafeOnlyInIsolatedSandbox: true. Retained host-autonomy-mappings.json's value; factory is currently inactive in registry/agents.json, so this is lower risk."
+      },
+      {
+        "hostId": "amp",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "cli",
+          "headlessConstraint": "paid-tier-required"
+        }
+      },
+      {
+        "hostId": "windsurf",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "configured-only",
+          "reason": "Do not emit settings without a current official Windows schema."
+        }
+      },
+      {
+        "hostId": "hermes",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "cli",
+          "acpCommand": [
+            "acp"
+          ],
+          "reason": "No verified universal bypass contract in the managed Windows installation."
+        }
+      },
+      {
+        "hostId": "warp",
+        "defaultProfile": "interactive",
+        "native": {
+          "surface": "desktop-and-cloud-cli",
+          "implementation": "UI permission profile and per-task controls"
+        }
+      },
+      {
+        "hostId": "cline",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "cline",
+        "native": {
+          "equivalent": "--auto-approve true",
+          "acpFlags": [
+            "--acp",
+            "--auto-approve",
+            "true"
+          ],
+          "administrativeCommandsExcluded": [
+            "auth",
+            "config",
+            "plugin",
+            "skill",
+            "connect",
+            "mcp",
+            "doctor",
+            "history",
+            "hook",
+            "schedule",
+            "hub",
+            "dashboard",
+            "update",
+            "kanban"
+          ]
+        }
+      },
+      {
+        "hostId": "qoder",
+        "defaultProfile": "repo-autonomous",
+        "launchDefaultsKey": "qoder",
+        "native": {
+          "permissionMode": "bypass_permissions",
+          "tools": "default",
+          "acpFlags": [
+            "--acp"
+          ],
+          "administrativeCommandsExcluded": [
+            "login",
+            "mcp",
+            "plugins",
+            "skills",
+            "hooks",
+            "agents",
+            "update",
+            "status",
+            "feedback",
+            "rollback"
+          ]
+        }
+      },
+      {
+        "hostId": "vscode-insiders",
+        "defaultProfile": "repo-autonomous",
+        "native": {
+          "implementation": "workspace-and-user-policy"
+        },
+        "note": "Added 2026-08-04 when vscode-insiders was reclassified active. NOT invented for the occasion: recovered verbatim from the deleted registry/host-capability-contracts.json (git show fc1bda6:registry/host-capability-contracts.json), whose vscode-insiders contract records autonomy.profile 'repo-autonomous' and implementation 'workspace-and-user-policy'. The note below explains why it was previously excluded."
+      }
+    ],
+    "exemptions": [],
+    "notes": [
+      "All 21 hosts from the deleted profiles/host-autonomy-mappings.json (fc1bda6) resolve against registry/agents.json; none were dropped.",
+      "registry/host-capability-contracts.json (also deleted at fc1bda6) additionally covered vscode-insiders' autonomy. It was originally excluded here because vscode-insiders was never in host-autonomy-mappings.json's 21-host list AND was marked inactive in registry/agents.json. RESOLVED 2026-08-04: vscode-insiders was reclassified active, Validate-AgentHub.ps1 immediately failed with 'active host has no autonomy profile and no exemption', and the profile was recovered from that deleted file rather than invented. Worth keeping as a worked example -- the exclusion was correctly reasoned and correctly recorded, and because it was recorded, the recovery was a lookup instead of a research task.",
+      "registry/fleet-profile.json canonicalPolicy is repo-relative (AGENTS.md) as of 2026-09-12; the previous absolute checkout pin was retired with the portable host catalog."
+    ]
+  },
+  "hostSettings": {
+    "qwen-code": {
+      "requiredModelGeneration": {
+        "qwen3.8-max-preview": {
+          "thinkingMandatory": true,
+          "extra_body": {
+            "enable_thinking": true
+          }
+        }
+      }
+    }
+  },
+  "dispatchPolicy": {
+    "cursor": {
+      "enabled": true,
+      "scope": "ide-agent, local-cli, cloud-background-agent, api",
+      "reason": "Owner explicitly reauthorized all Cursor surfaces on 2026-07-30. Health checks remain read-only and must not consume a paid run."
+    }
+  },
+  "hostSurfaces": {
+    "recordedOn": "2026-09-02",
+    "purpose": "A host is not one uniform capability target. Codex CLI, the Codex IDE extension and the ChatGPT desktop app are the same registered host reading the same ~/.codex config, but they do NOT expose the same tools -- routing a task to the built-in Browser succeeds on one and silently has nowhere to go on another. This records which surface actually offers which capability, so a skill can request an outcome and resolve a provider instead of naming a tool that may not exist where it runs.",
+    "modelNote": "Deliberately NOT modelled as extra entries in registry/agents.json. Hosts are split there when their surfaces read DIFFERENT paths -- antigravity-ide and cursor-agent each have their own config file, which is what earns them a host entry. Every Claude surface reads ~/.claude and every Codex surface reads ~/.codex, so splitting them would duplicate 11 and 12 capability mappings that deploy to identical destinations and add nothing. What differs is capability availability, and that lives here.",
+    "knownCapabilities": [
+      "browser.isolated",
+      "browser.authenticated",
+      "computer.gui",
+      "mobile.android.local",
+      "mobile.ios.simulated"
+    ],
+    "capabilityMeanings": {
+      "browser.isolated": "A browser the agent drives itself with a throwaway or per-workspace profile, carrying no signed-in session. Suits localhost and public pages. This is the capability that scales across hosts, because no two sessions contend for one profile directory -- Playwright MCP partitions automatically as mcp-{channel}-{workspace-hash}, and --isolated removes the on-disk profile entirely.",
+      "browser.authenticated": "A browser carrying a signed-in session, so already-authenticated sites work without logging in each run. Updated 2026-09-07: the fleet path is plugin-gated attach to the owner's Chrome/Edge (Playwright MCP --extension, or chrome-devtools-mcp --autoConnect after chrome://inspect remote debugging and Allow). These are not persisted in host MCP config; enable browser-toolkit when needed. A launched chrome-devtools user-data-dir still cannot fan out across hosts and is not the fleet default. Native host panes (Claude in-app Browser, Cursor IDE Browser, ChatGPT @Browser) remain first when the surface actually has one.",
+      "computer.gui": "First-party control of native desktop applications.",
+      "mobile.android.local": "Driving an Android emulator or attached device on the Windows host. On this fleet the provider is the appium-mobile MCP through its embedded UiAutomator2. Does not cover a physical iPhone or any real-hardware claim.",
+      "mobile.ios.simulated": "Driving an iOS Simulator inside the VMware macOS guest, reached as a remote Appium client because Xcode and simctl do not exist on Windows. On this fleet the provider is the appium-mobile MCP with remoteServerUrl set to the guest. Does not cover a physical iPhone or any real-hardware claim."
+    },
+    "surfaces": [
+      {
+        "hostId": "codex",
+        "surfaceId": "codex-cli",
+        "capabilities": {
+          "browser.isolated": false,
+          "browser.authenticated": false,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "learn.chatgpt.com/docs/browser states verbatim: 'Browser isn't available in Codex CLI or the Codex IDE extension. Open the ChatGPT desktop app to use the built-in browser.'",
+          "browser.authenticated": "The same quoted sentence. What the documentation withholds from this surface is Browser itself, so it covers the authenticated variant and the isolated one alike."
+        },
+        "capabilityNotEstablished": {
+          "computer.gui": "Computer Use was not probed from this surface. The documented evidence here covers Browser availability only and says nothing about first-party control of native desktop applications. Recorded false until 2026-08-05 on the strength of that Browser sentence, which is the assumption this table exists to forbid; demoted to null rather than backfilled with a finding nobody made.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Re-read learn.chatgpt.com/docs/browser on 2026-09-02. The page still states verbatim: 'Browser isn't available in Codex CLI or the Codex IDE extension. Open the ChatGPT desktop app to use the built-in browser.' MCP remains available on this surface, so structured integrations are the route here, not browser automation."
+      },
+      {
+        "hostId": "codex",
+        "surfaceId": "codex-ide",
+        "capabilities": {
+          "browser.isolated": false,
+          "browser.authenticated": false,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "The documented sentence quoted in codex-cli names this surface explicitly: 'Browser isn't available in Codex CLI or the Codex IDE extension.'",
+          "browser.authenticated": "The same documented sentence. It names the IDE extension and withholds Browser from it entirely, not one variant of it."
+        },
+        "capabilityNotEstablished": {
+          "computer.gui": "Computer Use was not probed from this surface. The documented sentence this surface relies on is about Browser availability, so it establishes nothing about first-party control of native desktop applications. Recorded false until 2026-08-05; demoted to null for the same reason as codex-cli.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Re-read learn.chatgpt.com/docs/browser on 2026-09-02. The same documented sentence still names the IDE extension explicitly."
+      },
+      {
+        "hostId": "codex",
+        "surfaceId": "codex-desktop",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "learn.chatgpt.com/docs/browser, re-read 2026-09-02, states Browser is available in ChatGPT on the web and in the ChatGPT desktop app, and that the built-in browser uses a profile separate from the regular browser."
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "2026-09-02 disk probe: ChatGPT/Codex extension hehggadaopoacecdllhhajmbjkdcmajg is installed on Chrome Default and Edge Default. That is the product on disk, not a live Computer Use / @Chrome / @Edge session from the ChatGPT desktop app. Connection was not probed this visit, so it stays null rather than assumed.",
+          "computer.gui": "Computer Use is documented on the desktop app (learn.chatgpt.com/docs/browser, 'Computer Use in the browser') but was not live-probed from this machine this visit, so it is recorded null rather than assumed.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Re-read learn.chatgpt.com/docs/browser on 2026-09-02: Browser is available in ChatGPT on the web and in the ChatGPT desktop app; the built-in browser uses a separate profile. Chrome/Edge extension is present on disk; a connected Computer Use session was not probed, so authenticated and computer.gui stay null."
+      },
+      {
+        "hostId": "claude",
+        "surfaceId": "claude-cli",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": true,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "Measured live 2026-08-04: the in-app Browser pane opened and navigated. The isolated pane is independent of Claude in Chrome.",
+          "computer.gui": "Available, with documented tier limits: browsers are read-only and terminals/IDEs reject typing, so it cannot substitute for either browser capability. 2026-08-04 live measurement; not re-probed 2026-09-02."
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "2026-08-04 list_connected_browsers empty is stale as evidence-of-absence. 2026-09-02 disk probe: Claude in Chrome extension fcoeoabgfenejglbffodgkkbkcdhcgfn is installed on Chrome Default (absent from Chrome Profile 1 and Edge Default); native messaging host present for Chrome and Edge; ~/.claude.json records cachedChromeExtensionInstalled and completed onboarding. Install is not a connected session. list_connected_browsers was not re-run this visit, so the capability is not established rather than assumed true or kept as a stale false.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. This surface reaches the mobile lab through the appium-mobile MCP, which is a provider in registry/mcps.json rather than a first-party surface capability; a true here would claim the surface offers Android device control itself, and that was never established.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. Same reason as mobile.android.local, and the iOS half is additionally a remote client to the VMware macOS guest rather than anything this surface provides."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "browser.isolated remains the 2026-08-04 live in-app pane measurement. browser.authenticated demoted from false to null: Claude in Chrome is installed on Chrome Default as of 2026-09-02, but a connected session was not re-measured. computer.gui remains the 2026-08-04 measurement with documented tier limits."
+      },
+      {
+        "hostId": "cursor",
+        "surfaceId": "cursor-ide",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "cursor.com/docs/agent/browser: Agent controls a browser as a separate window or inline pane, with screenshots, console, and network, and no extra install. 'The browser context is isolated per workspace, ensuring that different projects maintain separate storage and cookie states.'"
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "Workspace cookies persist per Cursor workspace. That is still an isolated profile, not the owner's personal Chrome. A connected Chrome/Edge extension was not probed, so authenticated stays null.",
+          "computer.gui": "Cursor changelog mentions self-hosted machines that can click, type, take screenshots, and drive the browser. That worker path was not probed from this IDE surface.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Official Cursor Browser page documents a native in-product pane, screenshots, console, network, and per-workspace isolation. No extra install. Authenticated personal-Chrome attach was not probed."
+      },
+      {
+        "hostId": "cursor-agent",
+        "surfaceId": "cursor-agent",
+        "capabilities": {
+          "browser.isolated": false,
+          "browser.authenticated": false,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "cursor.com/docs/cli/using lists CLI tools as file operations, searching, running shell commands, and web access. The headed Browser pane is documented at cursor.com/docs/agent/browser as a Cursor IDE layout, not this CLI. cursor.com/docs/cli/mcp demonstrates screenshots via Playwright MCP rather than a first-party pane.",
+          "browser.authenticated": "The same CLI pages withhold a headed browser from this surface entirely, so they cover the authenticated variant and the isolated one alike."
+        },
+        "capabilityNotEstablished": {
+          "computer.gui": "CLI changelog mentions --computer-use on self-hosted workers, which is a different surface. Local cursor-agent Computer Use was not probed.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Cursor CLI docs do not give this surface the IDE Browser pane. Playwright remains the fallback where this host has it; the IDE host (cursor) is the native-browser surface."
+      },
+      {
+        "hostId": "vscode-insiders",
+        "surfaceId": "vscode-insiders",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "code.visualstudio.com/docs/debugtest/integrated-browser: agents can open pages, take screenshots, and interact without an external MCP server. 'Pages opened by the agent use isolated ephemeral sessions, so they don't share cookies or storage with your other browser tabs.' Browser tools GA since VS Code 1.127; this host is recorded at 1.137.0-insider."
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "Share with Agent can expose an already-open tab including cookies. That is a user-shared session, not established as this surface's default authenticated capability, so it stays null.",
+          "computer.gui": "Integrated browser is not first-party control of native desktop applications. computer.gui was not probed.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Official VS Code integrated-browser docs: agent browser tools without external MCP, agent-opened pages use isolated ephemeral sessions. Authenticated share-tab is a different mode and was not taken as the default."
+      },
+      {
+        "hostId": "cline",
+        "surfaceId": "cline-cli",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "docs.cline.bot/cline-overview: Cline 'can read and write files, run terminal commands, use a browser' in the editor and the terminal. docs.cline.bot/tools-reference/browser-automation documents a controlled Chrome instance, screenshots after each action, console logs, and a fixed 900x600 viewport. The registered host is the CLI; the product page does not withhold Browser from CLI the way Codex docs withhold it from Codex CLI."
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "Cline 3.10 local Chrome via remote debugging is an attach to a running Chrome, not this isolated instance. Connection was not probed.",
+          "computer.gui": "Not probed. Browser automation is not first-party desktop-app control.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Official Cline overview and browser-automation pages document a controlled Chrome browser with screenshots. ClineCore SDK built-ins list fetch_web rather than a headed browser; that is an SDK subset, not a documented CLI withholding. Authenticated local-Chrome attach stays null."
+      },
+      {
+        "hostId": "antigravity-ide",
+        "surfaceId": "antigravity-ide",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "antigravity.google/docs/ide/browser: Browser Subagent captures screenshots and action videos. antigravity.google/docs/ide/separate-chrome-profile: the agent 'operates on a separate Chrome profile' that 'will not share any of the cookies or sign-in information from your normal browsing profile.'"
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "Sign-ins persist inside that isolated Antigravity Chrome profile. That is not the owner's personal Chrome. A personal-Chrome attach was not probed.",
+          "computer.gui": "Browser Subagent is not first-party control of native desktop applications. computer.gui was not probed on this surface.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Official Antigravity IDE browser docs: isolated Chrome profile, screenshots, action videos. The CLI host (antigravity) is a different surface and is not asserted here."
+      },
+      {
+        "hostId": "qoder",
+        "surfaceId": "qoder-ide",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": true,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "docs.qoder.com/user-guide/chat/browser-agent: Browser Agent is built into Qoder IDE Agent Mode (/browser). Built-in browser is 'a lightweight browser panel built into the IDE -- no additional setup required' and takes screenshots as visual feedback.",
+          "computer.gui": "docs.qoder.com/user-guide/chat/computer-use-agent: Computer Use is a Qoder IDE capability on macOS 14+ and Windows 10+. It takes screenshots and drives mouse and keyboard. For web apps the same page says prefer Browser Agent first."
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "Browser Agent can switch to local Chrome for complex or extension-backed pages. That attach was not probed, so authenticated stays null.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Official Qoder IDE docs: built-in Browser Agent pane with screenshots, and Computer Use on Windows 10+. The optional local-Chrome path is not treated as authenticated without a connection probe. This is the IDE surface; the CLI is not separately asserted."
+      },
+      {
+        "hostId": "factory",
+        "surfaceId": "factory",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "docs.factory.ai/cli/features/droid-control: agent-browser is a 'Playwright-backed CLI with Chrome DevTools Protocol support' that navigates, fills forms, clicks, and captures screenshots. Live 2026-09-02: droid plugin list --scope user shows droid-control@factory-plugins installed and active (131c72e)."
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "docs.factory.ai/guides/skills/browser is a separate CDP-on-9222 skill against a local Chrome. That is not the droid-control agent-browser path and was not probed as a connected session.",
+          "computer.gui": "droid-control documents desktop-control via cua-driver. cua-driver is not on PATH on this machine (2026-09-02), so first-party native desktop control is not established.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Factory droid-control is installed at user scope. Official docs give it an isolated Playwright-backed browser. cua-driver is absent, so computer.gui stays null. Playwright MCP is not added; this plugin is the native path."
+      },
+      {
+        "hostId": "warp",
+        "surfaceId": "warp-local",
+        "capabilities": {
+          "browser.isolated": false,
+          "browser.authenticated": false,
+          "computer.gui": false,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "docs.warp.dev/agents/capabilities/computer-use/ states verbatim: 'Computer Use is only available in Warp's sandboxed cloud environments, not in local interactive terminal sessions.' Browser use is a subsection of Computer Use.",
+          "browser.authenticated": "The same sentence withholds Computer Use, including browser, from local sessions entirely.",
+          "computer.gui": "The same sentence withholds Computer Use from local interactive terminal sessions."
+        },
+        "capabilityNotEstablished": {
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Official Warp Computer Use page withholds the capability from local interactive terminal sessions. Local Warp therefore stays a Playwright MCP host."
+      },
+      {
+        "hostId": "warp",
+        "surfaceId": "warp-cloud",
+        "capabilities": {
+          "browser.isolated": true,
+          "browser.authenticated": null,
+          "computer.gui": true,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "docs.warp.dev/agents/capabilities/computer-use/: Computer Use runs in a containerized sandbox. 'Browser-based tasks need no extra setup: every Computer Use environment includes a bundled Chromium browser.' The sandbox 'does not have access to your local machine, credentials, or sensitive data outside the sandbox environment.'",
+          "computer.gui": "The same page: agents take screenshots, record annotated video, click, type, and interact with applications inside that isolated sandbox."
+        },
+        "capabilityNotEstablished": {
+          "browser.authenticated": "The sandbox does not use the owner's personal browser profile. A signed-in cloud-browser session was not probed.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Official Warp docs: Computer Use with bundled Chromium is a cloud-sandbox surface, not local Warp. Warp app setting 'Computer use in Cloud Agents' is off by default; that is a local toggle, not absence of the product capability."
+      },
+      {
+        "hostId": "grok",
+        "surfaceId": "grok-cli",
+        "capabilities": {
+          "browser.isolated": false,
+          "browser.authenticated": false,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "Grok CLI has no first-party headed browser. 2026-09-02 this session: the connected browser provider is Playwright MCP (browser_take_screenshot and the rest of @playwright/mcp). Optional marketplace Chrome DevTools plugin is not the fleet path (chrome-devtools retired 2026-08-19).",
+          "browser.authenticated": "The same finding: this surface has no first-party browser at all, so it cannot carry a signed-in first-party session."
+        },
+        "capabilityNotEstablished": {
+          "computer.gui": "First-party native desktop control was not probed on Grok CLI.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Live Grok CLI session has Playwright MCP and no in-app headed browser. Playwright is the fleet fallback on this host."
+      },
+      {
+        "hostId": "gemini",
+        "surfaceId": "gemini-cli",
+        "capabilities": {
+          "browser.isolated": false,
+          "browser.authenticated": false,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "capabilityEvidence": {
+          "browser.isolated": "geminicli.com/docs/reference/tools/: default Web tools are google_web_search and web_fetch only. Optional browser_agent (geminicli.com/docs/core/subagents/) is disabled by default and launches bundled chrome-devtools-mcp against Chrome 144+, which this fleet retired on 2026-08-19. It is not a first-party headed browser and is not enabled here.",
+          "browser.authenticated": "The default CLI has no first-party browser. Optional browser_agent persistent mode would be a chrome-devtools profile, not an established fleet capability."
+        },
+        "capabilityNotEstablished": {
+          "computer.gui": "First-party native desktop control was not probed on Gemini CLI.",
+          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
+          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
+        },
+        "verifiedOn": "2026-09-02",
+        "verification": "Official Gemini CLI tools: web_fetch and google_web_search, no headed browser. Optional browser_agent is retired chrome-devtools-mcp and stays disabled. Gemini remains a Playwright MCP host."
+      }
+    ],
+    "note": "null means not established, never 'assumed false'. Every true and every false must carry its own sentence under this surface's capabilityEvidence, keyed by the capability it backs -- one shared paragraph cannot answer for three capabilities, which is how a false about GUI control once rode on evidence that only discussed browsers. A null carries no writing cost at all: registry/mcps.json requires a null protocol revision to say why, and this table deliberately does not, because charging the honest value a cost that false does not pay is the incentive being inverted here. A capabilityNotEstablished entry is optional, is never read as evidence, and must name a capability this surface still records as null. Enforced by tests/Test-HostSurfaces.ps1."
+  },
+  "notes": [
+    "OAuth consent and provider login remain provider-controlled.",
+    "Active and inactive installation evidence is maintained only in registry/agents.json."
+  ]
+}

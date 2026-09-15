@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Mobile Lab Smoke",
+    "slug": "agenthub-mobile-lab-smoke",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "test.agenthub.mobilelab.smoke",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "test.agenthub.mobilelab.smoke"
+    }
+  }
+}

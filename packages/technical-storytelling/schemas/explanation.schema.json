@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/technical-storytelling/explanation.schema.json",
+  "type": "object",
+  "required": ["core_idea", "plain_explanation", "takeaway"],
+  "properties": {
+    "core_idea": {"type": "string", "minLength": 1},
+    "plain_explanation": {"type": "string", "minLength": 1},
+    "analogy": {"type": "string"},
+    "real_example": {"type": "string"},
+    "misconception": {"type": "string"},
+    "visual_plan": {"type": "string"},
+    "takeaway": {"type": "string", "minLength": 1},
+    "truth": {"type": "string", "enum": ["FACT", "DRAMATIZED", "COMPOSITE"]}
+  },
+  "additionalProperties": false
+}

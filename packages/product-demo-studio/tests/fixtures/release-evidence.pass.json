@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "3.0.0",
+  "candidateId": "synthetic-candidate-001",
+  "assetPath": "publication/candidate.mp4",
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "bytes": 23,
+  "arbiterDecision": {
+    "artifactPath": "publication/release-decision.json",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "bytes": 100
+  },
+  "finalVerification": {
+    "artifactPath": "publication/final-verification.json",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "bytes": 100
+  }
+}

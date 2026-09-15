@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "candidateId": "synthetic-candidate-001",
+  "reportType": "technicalDelivery",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "render-errors",
+      "passed": false,
+      "evidenceArtifactIds": []
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 1
+  },
+  "generatedAt": "not-a-date",
+  "unknown": true
+}

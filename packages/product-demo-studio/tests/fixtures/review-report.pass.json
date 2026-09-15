@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "PVR-SYNTHETIC-STORY-001",
+  "status": "COMPLETE",
+  "candidate": {
+    "candidateId": "synthetic-candidate-001",
+    "artifactPath": "evidence/candidate.mp4",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sourceRevision": "synthetic-revision-001",
+    "renderProvenanceId": "synthetic-render-001"
+  },
+  "reviewer": {
+    "domain": "story-experience",
+    "contextId": "isolated-review-context-001",
+    "readOnly": true,
+    "executionReceipt": {
+      "receipt": {
+        "artifactPath": "execution-receipt.review-story-pass.json",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 1
+      }
+    },
+    "startedAt": "2026-07-29T15:00:00.000Z",
+    "completedAt": "2026-07-29T15:05:00.000Z"
+  },
+  "reviewIntegrity": {
+    "canonicalRubric": {
+      "artifactPath": "pipeline/product-demo-studio/references/killer-demo-playbook.md",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "verticalOverlay": null,
+    "calibrationRecord": {
+      "artifactPath": "evidence/reviewer-calibration.json",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    "modelId": "synthetic-reviewer-model",
+    "generatorReasoningReceived": false,
+    "priorReviewsReceived": false
+  },
+  "evidencePackage": {
+    "artifactPath": "evidence/evidence-package.json",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "score": 92,
+  "checks": [
+    {
+      "id": "hook",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "before-state",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "outcome",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "hero-moment",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "wiifm",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "emotional-payoff",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "pacing",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "visual-direction",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "result-holds",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "ending",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    },
+    {
+      "id": "story-product-alignment",
+      "passed": true,
+      "evidenceArtifactIds": ["story-report"]
+    }
+  ],
+  "domainPass": true,
+  "findings": [],
+  "summary": "The synthetic episode has a clear before-state, protected hero moment, visible payoff, and evidence-backed ending."
+}

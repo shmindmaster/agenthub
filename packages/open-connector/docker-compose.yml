@@ -1,0 +1,69 @@
+# OpenConnector -- fleet agent-host SaaS action gateway (pilot).
+#
+# One shared local process for every non-Claude agent host on this machine.
+# Bound to loopback only. Secrets and data live under
+# %LOCALAPPDATA%\AgentHub\runtime\open-connector, never in this repository.
+#
+# Start / stop / probe through scripts/Invoke-OpenConnector.ps1 in this
+# package; it supplies the env file and data directory. Direct invocation:
+#   docker compose --env-file "%LOCALAPPDATA%\AgentHub\runtime\open-connector\.env" \
+#     -f packages/open-connector/docker-compose.yml up -d
+#
+# Image is pinned by digest. sha256:b9e6133c... is the v1.5.0 multi-arch index
+# (org.opencontainers.image.version=v1.5.0, revision 0eeed9dc, built
+# 2026-09-04). Bump deliberately: run `migrate` before `up` when the release
+# notes list pending migrations.
+services:
+  open-connector:
+    image: ghcr.io/oomol-lab/open-connector@sha256:b9e6133c9caa6d5997fe51784df99a1d43ddd509b6346a0c0245e4512136e781
+    container_name: agenthub-open-connector
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OPEN_CONNECTOR_PORT:-3400}:3000"
+    volumes:
+      - "${OPEN_CONNECTOR_DATA_DIR:?set OPEN_CONNECTOR_DATA_DIR in the runtime env file}:/app/data"
+    environment:
+      HOST: 0.0.0.0
+      OOMOL_CONNECT_DATA_DIR: /app/data
+      # Public origin used for OAuth redirect URLs. Must match the host-side
+      # port, not the container port.
+      OOMOL_CONNECT_ORIGIN: "http://localhost:${OPEN_CONNECTOR_PORT:-3400}"
+      # Required. Without it credentials are stored in plaintext.
+      OOMOL_CONNECT_ENCRYPTION_KEY: "${OPEN_CONNECTOR_ENCRYPTION_KEY:?set OPEN_CONNECTOR_ENCRYPTION_KEY in the runtime env file}"
+      # Gates /api/*, /docs and the web console.
+      OOMOL_CONNECT_ADMIN_TOKEN: "${OPEN_CONNECTOR_ADMIN_TOKEN:?set OPEN_CONNECTOR_ADMIN_TOKEN in the runtime env file}"
+      # Bootstrap bearer for /v1 and /mcp. Mint per-host persistent tokens
+      # after setup (Invoke-OpenConnector.ps1 mint-token) and rotate this one.
+      OOMOL_CONNECT_RUNTIME_TOKEN: "${OPEN_CONNECTOR_RUNTIME_TOKEN:?set OPEN_CONNECTOR_RUNTIME_TOKEN in the runtime env file}"
+      # Execution policy. Allowlist first; widen per provider, never to "*".
+      # Honest scope (see README "What it is for"): GitHub, Linear, Notion,
+      # Context7, Exa, Firecrawl, Railway, and Descript stay on their official
+      # hosted MCPs fleet-wide and are NOT routed through this gateway. Slack
+      # is AgentHub-owned (packages/slack). This allowlist covers Brave Search
+      # (replacing the retired brave-search stdio bridge), no-auth
+      # research/dev sources, and the long-tail api_key providers the owner
+      # chooses to connect that have no hosted MCP in the fleet.
+      OOMOL_CONNECT_ALLOWED_ACTIONS: "${OPEN_CONNECTOR_ALLOWED_ACTIONS:-brave_search.*,npm.*,hackernews.*,arxiv.*,crossref.*,datacite.*,pubmed.*,europe_pmc.*,biorxiv_medrxiv.*,clinicaltrials_gov.*,openfda.*,who_gho.*,quickchart.*,wttr_in.*,ossinsight.*,appledb.*,posthog.*,sentry.*,digital_ocean.*}"
+      OOMOL_CONNECT_BLOCKED_ACTIONS: "${OPEN_CONNECTOR_BLOCKED_ACTIONS:-}"
+      # Raw provider proxy is closed by default; open per provider when a
+      # catalogued action is missing.
+      OOMOL_CONNECT_ALLOWED_PROXIES: "${OPEN_CONNECTOR_ALLOWED_PROXIES:-}"
+      OOMOL_CONNECT_BLOCKED_PROXIES: "${OPEN_CONNECTOR_BLOCKED_PROXIES:-*}"
+      # Never let a provider executor reach loopback, link-local, metadata
+      # or RFC 1918 targets from this box.
+      OOMOL_CONNECT_ALLOW_PRIVATE_NETWORK: "false"
+      OOMOL_CONNECT_ALLOWED_CUSTOM_OAUTH: "${OPEN_CONNECTOR_ALLOWED_CUSTOM_OAUTH:-}"
+      OOMOL_CONNECT_RUN_LIMIT: "${OPEN_CONNECTOR_RUN_LIMIT:-20000}"
+      OOMOL_CONNECT_LOG_LEVEL: "${OPEN_CONNECTOR_LOG_LEVEL:-info}"
+      # SQLite under /app/data by default. Set OPEN_CONNECTOR_DATABASE_URL to
+      # a postgres:// URL to switch; run `migrate` first.
+      OOMOL_CONNECT_DATABASE_URL: "${OPEN_CONNECTOR_DATABASE_URL:-}"
+    healthcheck:
+      # /v1/health is behind the runtime bearer once OOMOL_CONNECT_RUNTIME_TOKEN
+      # is set (verified 2026-09-12: unauthenticated GET returns 401), so the
+      # probe reads the token from the container's own environment.
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/v1/health',{headers:{authorization:'Bearer '+process.env.OOMOL_CONNECT_RUNTIME_TOKEN}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

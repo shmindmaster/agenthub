@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "1.0.0",
+  "set": "craft",
+  "note": "Craft-domain calibration fixtures. Rendered masters for the four video review domains. Regenerate with build-craft-fixtures.mjs; checksums must match or a fixture has drifted.",
+  "fixtureIds": [
+    "clean-pass",
+    "no-hold",
+    "buried-hero",
+    "three-heroes",
+    "dead-wait",
+    "feature-rung"
+  ],
+  "fixtures": [
+    {
+      "id": "clean-pass",
+      "expectedVerdict": "PASS",
+      "plantedDefect": "None. Correct arc, one hero held 4.0s, identity-rung payoff.",
+      "mustTrip": [],
+      "durationSeconds": 17,
+      "artifacts": {
+        "master": {
+          "artifactPath": "fixtures/craft/clean-pass/clean-pass.mp4",
+          "sha256": "d247396b198e9c5eab1896b24556e774e19d2224dd756945748fd7e5b3d83195"
+        },
+        "storyboard": {
+          "artifactPath": "fixtures/craft/clean-pass/storyboard.json",
+          "sha256": "c177e6c097fc9930ba613b96455a3bf31fad07a1fa7868fd59659d1cbb86b290"
+        },
+        "transcript": {
+          "artifactPath": "fixtures/craft/clean-pass/transcript.srt",
+          "sha256": "bd3b28eec88d3372313b8f08870890cba8c02f285558edfff17ec2df2d589268"
+        },
+        "timingDeltas": {
+          "artifactPath": "fixtures/craft/clean-pass/timing-deltas.json",
+          "sha256": "1c8cbbab5c6f30c51013fd402fb5b952df2f6d3e8f8dae62b5d3e6687edd6e99"
+        },
+        "expectedCriteria": {
+          "artifactPath": "fixtures/craft/clean-pass/expected-criteria.json",
+          "sha256": "ad856bf966cb18544b95a8025353c0a0ba5dba14ec2a42e543d51baea9bc48a7"
+        }
+      }
+    },
+    {
+      "id": "no-hold",
+      "expectedVerdict": "FAIL",
+      "plantedDefect": "Hero shot cut 600ms after the reveal. Nothing else changed.",
+      "mustTrip": [
+        {
+          "criterion": "results-land",
+          "classification": "capture-fixable",
+          "severity": "degrades"
+        }
+      ],
+      "durationSeconds": 13.6,
+      "artifacts": {
+        "master": {
+          "artifactPath": "fixtures/craft/no-hold/no-hold.mp4",
+          "sha256": "6d1e7d9d008e9e0ddca1563e9b2b532bd92adba8e91102871887c567a28ada19"
+        },
+        "storyboard": {
+          "artifactPath": "fixtures/craft/no-hold/storyboard.json",
+          "sha256": "7d5259b9934dd495056cb8a8a083e431891df04f6132c046bc0a368969a77629"
+        },
+        "transcript": {
+          "artifactPath": "fixtures/craft/no-hold/transcript.srt",
+          "sha256": "8146fc969e3fc492fc559cd68bfbf61edc6f2a4b63aa5605304b458ac7a7704a"
+        },
+        "timingDeltas": {
+          "artifactPath": "fixtures/craft/no-hold/timing-deltas.json",
+          "sha256": "905ccc750ad0789fb05db56fe7d7af52576159aa2286d3bcd95cf698989d8752"
+        },
+        "expectedCriteria": {
+          "artifactPath": "fixtures/craft/no-hold/expected-criteria.json",
+          "sha256": "fe9eff7a49fd3443e0514dc3c4555f04e81f1431974dd170852331b240f81f00"
+        }
+      }
+    },
+    {
+      "id": "buried-hero",
+      "expectedVerdict": "FAIL",
+      "plantedDefect": "Hero at 37% of runtime, followed by two feature beats. Never the payoff.",
+      "mustTrip": [
+        {
+          "criterion": "hero-moment-staged",
+          "classification": "capture-fixable",
+          "severity": "blocks"
+        }
+      ],
+      "durationSeconds": 16.7,
+      "artifacts": {
+        "master": {
+          "artifactPath": "fixtures/craft/buried-hero/buried-hero.mp4",
+          "sha256": "5efb1c25bdf5d2f0a7b6e4c426f2be7ee7e053c17b7231edbdcd80aa0986d59d"
+        },
+        "storyboard": {
+          "artifactPath": "fixtures/craft/buried-hero/storyboard.json",
+          "sha256": "0a8b01eb93b7ea683317d0cd18824195c0d615dfdec400b64b5774ae284f205a"
+        },
+        "transcript": {
+          "artifactPath": "fixtures/craft/buried-hero/transcript.srt",
+          "sha256": "3105f725c49b61d0e017b58ed4a715c7ee93a2cff07a01b384ccd684f852ad16"
+        },
+        "timingDeltas": {
+          "artifactPath": "fixtures/craft/buried-hero/timing-deltas.json",
+          "sha256": "52e825a33b3440c75daaff8fa8023e826a0cf830b9fc3e3edee5b5f8e8163776"
+        },
+        "expectedCriteria": {
+          "artifactPath": "fixtures/craft/buried-hero/expected-criteria.json",
+          "sha256": "a1208cdfd084223865e2c29df70bd1fd75e5a3a2139843945bd3f7e44def82d7"
+        }
+      }
+    },
+    {
+      "id": "three-heroes",
+      "expectedVerdict": "FAIL",
+      "plantedDefect": "Three competing reveals of equal weight. No single protected hero.",
+      "mustTrip": [
+        {
+          "criterion": "single-hero",
+          "classification": "capture-fixable",
+          "severity": "blocks"
+        }
+      ],
+      "durationSeconds": 17.5,
+      "artifacts": {
+        "master": {
+          "artifactPath": "fixtures/craft/three-heroes/three-heroes.mp4",
+          "sha256": "2d627df1e5d71864f9c05771658b5027be042f344b8c27eac9a5a771835e38cb"
+        },
+        "storyboard": {
+          "artifactPath": "fixtures/craft/three-heroes/storyboard.json",
+          "sha256": "9f1ffd534e901e9983b6bbc6ec5d692c8fcb75b0fe2b5bfbb186a27d96f72298"
+        },
+        "transcript": {
+          "artifactPath": "fixtures/craft/three-heroes/transcript.srt",
+          "sha256": "64cc6a99cbb8b39b9e7219e97f872f9eef760ec3b9b8da1cd95c5ee244cec415"
+        },
+        "timingDeltas": {
+          "artifactPath": "fixtures/craft/three-heroes/timing-deltas.json",
+          "sha256": "02e6edcacd6a0875142566637e040abc62e4c61d9841f4e575b5fc3c0013ab6a"
+        },
+        "expectedCriteria": {
+          "artifactPath": "fixtures/craft/three-heroes/expected-criteria.json",
+          "sha256": "9fac5334cb8e029b294d864c38b245adf418b65335f9fdf2a6eb16ca20df7848"
+        }
+      }
+    },
+    {
+      "id": "dead-wait",
+      "expectedVerdict": "FAIL",
+      "plantedDefect": "6.5s on a single frame with no visible state change. Uncut in the master.",
+      "mustTrip": [
+        {
+          "criterion": "bounded-waits",
+          "classification": "product-fix-required",
+          "severity": "blocks"
+        }
+      ],
+      "durationSeconds": 19,
+      "artifacts": {
+        "master": {
+          "artifactPath": "fixtures/craft/dead-wait/dead-wait.mp4",
+          "sha256": "7c2290dddd1c5c6996849ed0d0ab4c0ad90a1a7ec4552f31625cfdf097bff164"
+        },
+        "storyboard": {
+          "artifactPath": "fixtures/craft/dead-wait/storyboard.json",
+          "sha256": "ce159ea63b9eedee546ae5f463dc5461542f1b4de1d2987a9469b6c3f53143d2"
+        },
+        "transcript": {
+          "artifactPath": "fixtures/craft/dead-wait/transcript.srt",
+          "sha256": "5b5472f38b0eb025beacf9051b72e298eb528eafa75b9bf4a885fa65329ee530"
+        },
+        "timingDeltas": {
+          "artifactPath": "fixtures/craft/dead-wait/timing-deltas.json",
+          "sha256": "836dd66746e40d698a5010053af1bf84a3c02c1f4e28ddb524d8655f2fff73fe"
+        },
+        "expectedCriteria": {
+          "artifactPath": "fixtures/craft/dead-wait/expected-criteria.json",
+          "sha256": "6c817f12c4a24bde71bbfeb21ff76f43862196e98e4e7baabfa1decf932a2b36"
+        }
+      }
+    },
+    {
+      "id": "feature-rung",
+      "expectedVerdict": "FAIL",
+      "plantedDefect": "Same visuals as clean-pass. Payoff lands on the feature rung, not outcome or identity.",
+      "mustTrip": [
+        {
+          "criterion": "wiifm-rung",
+          "classification": "capture-fixable",
+          "severity": "degrades"
+        }
+      ],
+      "durationSeconds": 17,
+      "artifacts": {
+        "master": {
+          "artifactPath": "fixtures/craft/feature-rung/feature-rung.mp4",
+          "sha256": "026f25bb482e894b1ae37a3d2b01a8437668dc89061a8e41fbe12573c168e770"
+        },
+        "storyboard": {
+          "artifactPath": "fixtures/craft/feature-rung/storyboard.json",
+          "sha256": "4477ff85b0f78f745307c57f930d142c1f82c64f4015eb1553523b6cc32b20ad"
+        },
+        "transcript": {
+          "artifactPath": "fixtures/craft/feature-rung/transcript.srt",
+          "sha256": "40689133a2987a7aac39c3ca2a202e3655404f6a003638d7cdf0d491d3f843f5"
+        },
+        "timingDeltas": {
+          "artifactPath": "fixtures/craft/feature-rung/timing-deltas.json",
+          "sha256": "23e993317c4e87891bea629e999c15dba28efdc13eedc9267bef138700fceb55"
+        },
+        "expectedCriteria": {
+          "artifactPath": "fixtures/craft/feature-rung/expected-criteria.json",
+          "sha256": "133b501f16fac2999c00958cda31554d42f1df448a12562b59d83688c8199709"
+        }
+      }
+    }
+  ]
+}

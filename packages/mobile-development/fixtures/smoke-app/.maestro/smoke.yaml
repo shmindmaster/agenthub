@@ -1,0 +1,11 @@
+appId: test.agenthub.mobilelab.smoke
+---
+- launchApp:
+    clearState: true
+- assertVisible: Mobile Lab Smoke
+- tapOn:
+    id: message-input
+- inputText: hello-maestro
+- tapOn:
+    id: submit-message
+- assertVisible: "Echo: hello-maestro"

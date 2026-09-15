@@ -1,0 +1,36 @@
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+coverage/
+backups/
+Thumbs.db
+desktop.ini
+__pycache__/
+*.mp4
+*.webm
+*.wav
+*.srt
+test-results/
+playwright-report/
+
+# Subagent-driven-development scratch (ledger, briefs, review packages).
+.superpowers/
+
+# RepoWise generated index state
+.repowise/
+.claude/CLAUDE.md
+# RepoWise may rewrite these; they are not AgentHub registry state.
+.vscode/
+
+# Optional local roots. See agenthub.profile.example.json. Never commit.
+agenthub.profile.json
+# the local Qdrant knowledge store at render time; it carries un-anonymized
+# client material and is not repository content.
+evidence-augmentation.json
+evidence-augmentation.md
+# Personal overlay (copy from overlays/personal.example/). Never commit private capability lists.
+overlays/personal/

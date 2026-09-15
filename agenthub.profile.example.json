@@ -1,0 +1,6 @@
+{
+  "userProfile": null,
+  "localAppData": null,
+  "platform": null,
+  "notes": "Copy to agenthub.profile.json (gitignored) only when this machine must pin roots that differ from USERPROFILE/HOME and LOCALAPPDATA. platform, if set, is windows, darwin, or linux. Null fields are ignored. Never commit the real file. A -UserProfile argument that differs from the invoking profile always wins, so tests stay isolated."
+}

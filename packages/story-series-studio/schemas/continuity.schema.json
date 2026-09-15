@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "series_id",
+    "facts"
+  ],
+  "properties": {
+    "series_id": {
+      "type": "string"
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "open_threads": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

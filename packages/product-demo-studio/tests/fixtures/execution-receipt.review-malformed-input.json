@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "receiptId": "PVE-REVIEW-MALFORMED-099",
+  "immutable": true,
+  "role": "reviewer",
+  "domain": "story-experience",
+  "contextId": "isolated-review-context-099",
+  "candidateId": "synthetic-candidate-001",
+  "hostId": "codex-test-fixture",
+  "mechanism": "os-filesystem-read-only-sandbox",
+  "readOnly": true,
+  "writeTools": [],
+  "permittedReadOnlyTools": [
+    "filesystem-read",
+    "filesystem-search",
+    "checksum"
+  ],
+  "startedAt": "2026-07-29T15:00:00.000Z",
+  "completedAt": "2026-07-29T15:00:01.000Z",
+  "issuedAt": "2026-07-29T15:00:02.000Z"
+}

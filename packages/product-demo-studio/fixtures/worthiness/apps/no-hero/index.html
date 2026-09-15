@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Northwind Ledger — Preferences</title><style>
+*{box-sizing:border-box} body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+margin:0;background:#f4f6f9;color:#12161c}
+header{background:#fff;border-bottom:1px solid #e2e6ec;padding:16px 32px;display:flex;
+justify-content:space-between;align-items:center}
+header b{font-size:17px} .who{color:#5b6472;font-size:13px}
+main{max-width:940px;margin:0 auto;padding:36px 32px}
+h1{font-size:26px;margin:0 0 6px} .sub{color:#5b6472;margin:0 0 28px}
+.card{background:#fff;border:1px solid #e2e6ec;border-radius:12px;padding:26px;margin-bottom:20px}
+button{padding:12px 22px;border:0;border-radius:9px;background:#2563eb;color:#fff;
+font-size:15px;font-weight:600;cursor:pointer}
+button:disabled{background:#9db5e8;cursor:default}
+button.ghost{background:#fff;color:#2563eb;border:1px solid #c7d6f5}
+table{border-collapse:collapse;width:100%} th,td{text-align:left;padding:9px 12px;
+border-bottom:1px solid #eef1f5} th{color:#5b6472;font-weight:600;font-size:13px}
+.hero{font-size:44px;font-weight:700;letter-spacing:-1px;margin:8px 0}
+.ok{color:#067a5b} .muted{color:#5b6472}
+.guard{background:#fff8e6;border:1px solid #f0dca8;border-radius:9px;padding:16px;
+display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px}
+.bar{height:8px;background:#e6ebf2;border-radius:99px;overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;background:#2563eb;width:0;transition:width .18s linear}
+.hidden{display:none}
+</style></head><body>
+<header><b>Northwind Ledger</b><span class="who">Dana Whitfield · Controller</span></header>
+<main>
+<h1>Notification preferences</h1><p class="sub">Choose how Northwind Ledger contacts you.</p>
+<div class="card">
+  <table><tbody>
+  <tr><td>Invoice due reminders</td><td style="text-align:right"><input type="checkbox" checked></td></tr>
+  <tr><td>Weekly close summary</td><td style="text-align:right"><input type="checkbox" checked></td></tr>
+  <tr><td>Bank feed disconnects</td><td style="text-align:right"><input type="checkbox"></td></tr>
+  <tr><td>Product announcements</td><td style="text-align:right"><input type="checkbox"></td></tr>
+  </tbody></table>
+  <p style="margin:22px 0 0"><button id="go">Save preferences</button></p>
+</div>
+<div class="card hidden" id="result">
+  <div class="hero ok" style="font-size:22px">Preferences saved</div>
+  <p class="muted" style="margin:0">Your notification settings have been updated.</p>
+  <div class="guard"><span>Changes apply to your account only. An admin can override at the workspace level.</span>
+  <button class="ghost">View audit log</button></div>
+</div>
+</main>
+<script>
+// It simply contains nothing worth building a video around.
+const go=document.getElementById('go'),result=document.getElementById('result');
+go.onclick=()=>{result.classList.remove('hidden');};
+</script></body></html>

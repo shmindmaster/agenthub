@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "slack": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp/slack-mcp.mjs"
+      ],
+      "env": {
+        "SLACK_USER_TOKEN": "${SLACK_USER_TOKEN}",
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+        "SLACK_BRIDGE_MODE": "${SLACK_BRIDGE_MODE}",
+        "SLACK_BRIDGE_ALLOW_API_WRITE": "${SLACK_BRIDGE_ALLOW_API_WRITE}"
+      }
+    }
+  }
+}

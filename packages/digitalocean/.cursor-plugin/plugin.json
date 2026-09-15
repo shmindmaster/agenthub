@@ -1,0 +1,8 @@
+{
+  "name": "digitalocean",
+  "description": "Operate the DigitalOcean portfolio across App Platform, Droplets, DNS, managed databases, Spaces, inference, and incidents via the authenticated doctl CLI.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "version": "1.0.2"
+}

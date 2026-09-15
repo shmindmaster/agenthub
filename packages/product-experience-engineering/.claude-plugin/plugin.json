@@ -1,0 +1,25 @@
+{
+  "name": "product-experience-engineering",
+  "description": "Audit and remediate product experiences, then issue an evidence-backed demo-readiness handoff before video production.",
+  "author": {
+    "name": "MahumTech"
+  },
+  "keywords": [
+    "product-experience",
+    "user-experience",
+    "frontend",
+    "workflow-design",
+    "usability",
+    "accessibility",
+    "agentic-ai",
+    "demo-readiness"
+  ],
+  "skills": "./skills/",
+  "agents": [
+    "./agents/experience-auditor.agent.md",
+    "./agents/experience-designer.agent.md",
+    "./agents/experience-implementer.agent.md",
+    "./agents/experience-validator.agent.md"
+  ],
+  "version": "1.4.5"
+}

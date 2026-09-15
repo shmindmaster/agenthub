@@ -1,0 +1,211 @@
+{
+  "workspace_id": "T0FIXTURE",
+  "team_name": "AgentHub Fixture",
+  "domain": "agenthub-fixture",
+  "_clock": 1789052000,
+  "identity": {
+    "user": {
+      "user_id": "U0SAROSH",
+      "user_name": "sarosh.fixture",
+      "bot_id": null,
+      "app_id": null
+    },
+    "bot": {
+      "user_id": "U0AGENTBOT",
+      "user_name": "agenthub-bot",
+      "bot_id": "B0AGENT",
+      "app_id": "A0AGENT"
+    }
+  },
+  "users": [
+    {
+      "id": "U0SAROSH",
+      "team_id": "T0FIXTURE",
+      "name": "sarosh.fixture",
+      "real_name": "Sarosh Fixture",
+      "is_bot": false,
+      "deleted": false,
+      "profile": {
+        "display_name": "Sarosh",
+        "real_name": "Sarosh Fixture",
+        "email": "sarosh.fixture@example.test"
+      }
+    },
+    {
+      "id": "U0CASEY",
+      "team_id": "T0FIXTURE",
+      "name": "casey.engineer",
+      "real_name": "Casey Engineer",
+      "is_bot": false,
+      "deleted": false,
+      "profile": {
+        "display_name": "Casey",
+        "real_name": "Casey Engineer",
+        "email": "casey.engineer@example.test"
+      }
+    },
+    {
+      "id": "U0CUSTOMER",
+      "team_id": "T0FIXTURE",
+      "name": "ada.customer",
+      "real_name": "Ada Customer",
+      "is_bot": false,
+      "deleted": false,
+      "profile": {
+        "display_name": "Ada",
+        "real_name": "Ada Customer",
+        "email": "ada.customer@example.test"
+      }
+    },
+    {
+      "id": "U0AGENTBOT",
+      "team_id": "T0FIXTURE",
+      "name": "agenthub-bot",
+      "real_name": "AgentHub Bot",
+      "is_bot": true,
+      "deleted": false,
+      "profile": {
+        "display_name": "AgentHub",
+        "real_name": "AgentHub Bot"
+      }
+    }
+  ],
+  "channels": [
+    {
+      "id": "C0REPORTS",
+      "name": "customer-reports",
+      "is_private": false,
+      "is_im": false,
+      "is_mpim": false,
+      "is_archived": false,
+      "topic": { "value": "Synthetic customer reports" },
+      "purpose": { "value": "Fixture channel for Slack contract tests" }
+    },
+    {
+      "id": "C0ENG",
+      "name": "engineering",
+      "is_private": false,
+      "is_im": false,
+      "is_mpim": false,
+      "is_archived": false,
+      "topic": { "value": "Fixture engineering" },
+      "purpose": { "value": "Synthetic engineering discussion" }
+    }
+  ],
+  "messages": {
+    "C0REPORTS": [
+      {
+        "type": "message",
+        "user": "U0CUSTOMER",
+        "bot_id": null,
+        "app_id": null,
+        "text": "Checkout failed on synthetic order ORD-9999 after applying the promo code.",
+        "ts": "1789051234.123456",
+        "team": "T0FIXTURE",
+        "blocks": [
+          {
+            "type": "section",
+            "text": { "type": "mrkdwn", "text": "*Checkout failed* on synthetic order `ORD-9999`." }
+          }
+        ],
+        "attachments": [
+          { "id": 1, "fallback": "order details", "text": "promo=SYNTHETIC" }
+        ],
+        "files": [
+          { "id": "F0SHOT", "name": "checkout-error.png", "mimetype": "image/png" }
+        ],
+        "reactions": [
+          { "name": "eyes", "users": ["U0CASEY"], "count": 1 }
+        ],
+        "metadata": { "event_type": "customer_report", "event_payload": { "order_id": "ORD-9999" } },
+        "subtype": null,
+        "edited": null
+      },
+      {
+        "type": "message",
+        "user": "U0CASEY",
+        "bot_id": null,
+        "app_id": null,
+        "text": "I am looking at this now.",
+        "ts": "1789051300.000001",
+        "thread_ts": "1789051234.123456",
+        "team": "T0FIXTURE",
+        "blocks": [],
+        "attachments": [],
+        "files": [],
+        "reactions": [],
+        "metadata": {},
+        "subtype": null,
+        "edited": { "user": "U0CASEY", "ts": "1789051305.000000" }
+      },
+      {
+        "type": "message",
+        "user": "U0AGENTBOT",
+        "bot_id": "B0TICKET",
+        "app_id": "A0TICKET",
+        "text": "Ticket SYN-42 created.",
+        "ts": "1789051400.000002",
+        "thread_ts": "1789051234.123456",
+        "team": "T0FIXTURE",
+        "blocks": [],
+        "attachments": [],
+        "files": [],
+        "reactions": [],
+        "metadata": {},
+        "subtype": "bot_message",
+        "edited": null
+      },
+      {
+        "type": "message",
+        "user": "U0SAROSH",
+        "bot_id": null,
+        "app_id": null,
+        "text": "Casey owns this. Correlate with GitHub PR when one exists.",
+        "ts": "1789051500.000003",
+        "thread_ts": "1789051234.123456",
+        "team": "T0FIXTURE",
+        "blocks": [],
+        "attachments": [],
+        "files": [],
+        "reactions": [],
+        "metadata": {},
+        "subtype": null,
+        "edited": null
+      }
+    ],
+    "C0ENG": []
+  },
+  "files": [
+    {
+      "id": "F0SHOT",
+      "name": "checkout-error.png",
+      "title": "Synthetic checkout screenshot",
+      "mimetype": "image/png",
+      "url_private": "https://files.agenthub-fixture.test/F0SHOT"
+    }
+  ],
+  "pins": {
+    "C0REPORTS": ["1789051234.123456"]
+  },
+  "bookmarks": {
+    "C0REPORTS": [
+      { "id": "Bk001", "title": "Fixture runbook", "link": "https://example.test/runbook", "channel_id": "C0REPORTS" }
+    ]
+  },
+  "canvases": [
+    {
+      "id": "F0CANVAS",
+      "title": "Incident notes",
+      "document": { "type": "markdown", "body": "Synthetic canvas. Order ORD-9999." }
+    }
+  ],
+  "lists": [
+    {
+      "id": "F0LIST",
+      "title": "Follow-ups",
+      "items": [
+        { "id": "Rec0", "title": "Confirm Casey still owns ORD-9999" }
+      ]
+    }
+  ]
+}

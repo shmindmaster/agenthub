@@ -1,0 +1,16 @@
+{
+  "name": "browser-toolkit",
+  "description": "Interactive visual browser testing with Playwright MCP, CLI, and Test provider catalogs for debugging and evidence capture.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "browser-testing",
+    "playwright",
+    "visual-testing"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "version": "2.3.1"
+}

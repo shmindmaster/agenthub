@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/slack/identity.json",
+  "title": "AgentHub Slack identity",
+  "description": "One AgentHub Slack identity is shared by every host. actor_mode is intentional, never inferred from the coding-agent surface.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actor_mode"],
+  "properties": {
+    "actor_mode": {
+      "type": "string",
+      "enum": ["user", "agent_bot"],
+      "default": "user"
+    },
+    "user_id": { "type": ["string", "null"] },
+    "bot_id": { "type": ["string", "null"] },
+    "team_id": { "type": ["string", "null"] },
+    "team_name": { "type": ["string", "null"] },
+    "user_name": { "type": ["string", "null"] }
+  }
+}

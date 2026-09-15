@@ -1,0 +1,20 @@
+{
+  "name": "agenthub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Portable control plane for skills, plugins, MCP servers, and policy across coding agents",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "agenthub": "./scripts/agenthub-cli.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "agenthub": "node ./scripts/agenthub-cli.mjs",
+    "init": "node ./scripts/agenthub-cli.mjs init",
+    "validate": "node ./scripts/agenthub-cli.mjs validate",
+    "sync": "node ./scripts/agenthub-cli.mjs sync"
+  }
+}

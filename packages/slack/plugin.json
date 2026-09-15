@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "slack",
+  "version": "1.0.1",
+  "description": "AgentHub canonical Slack capability. Same tools, schemas, and identity on every coding-agent host. Plugin-gated MCP; not a session-start process."
+}

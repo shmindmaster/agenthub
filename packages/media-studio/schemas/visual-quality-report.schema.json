@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/visual-quality-report.json",
+  "title": "Media studio visual quality inspection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["video", "pass", "metrics", "suspects"],
+  "properties": {
+    "video": { "type": "string" },
+    "pass": { "type": "boolean" },
+    "contactSheet": { "type": "string" },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durationSeconds",
+        "sampledFrames",
+        "shotChanges",
+        "longestStaticSeconds",
+        "duplicateStretchSeconds",
+        "visualModeCount"
+      ],
+      "properties": {
+        "durationSeconds": { "type": "number" },
+        "sampledFrames": { "type": "integer" },
+        "shotChanges": { "type": "integer" },
+        "longestStaticSeconds": { "type": "number" },
+        "duplicateStretchSeconds": { "type": "number" },
+        "visualModeCount": { "type": "integer" },
+        "meanSceneSeconds": { "type": "number" },
+        "captionOverlapSuspects": { "type": "integer" }
+      }
+    },
+    "suspects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "startSeconds", "endSeconds", "detail"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "static-stretch",
+              "duplicate-visual",
+              "long-scene",
+              "caption-overlap",
+              "undiverse-modes",
+              "undesigned-first-frame",
+              "undesigned-last-frame"
+            ]
+          },
+          "startSeconds": { "type": "number" },
+          "endSeconds": { "type": "number" },
+          "detail": { "type": "string" }
+        }
+      }
+    }
+  }
+}

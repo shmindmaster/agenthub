@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "auditId": "not-canonical",
+  "candidate": {},
+  "auditor": { "role": "owner", "contextId": "" },
+  "fullPlayback": { "continuous": false, "mediaDurationSeconds": 45, "startedAt": "bad", "completedAt": "bad" },
+  "phaseChecks": [],
+  "findings": [],
+  "status": "PASS",
+  "generatedAt": "bad"
+}

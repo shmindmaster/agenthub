@@ -1,0 +1,41 @@
+{
+  "fixtureId": "no-hold",
+  "note": "stateChangeToCutMs is the hold on each beat. Hero beats under 1000ms fail results-land.",
+  "beats": [
+    {
+      "index": 0,
+      "beat": "cold-open + before-state",
+      "isHero": false,
+      "stateChangeToCutMs": 4500
+    },
+    {
+      "index": 1,
+      "beat": "action",
+      "isHero": false,
+      "stateChangeToCutMs": 2500
+    },
+    {
+      "index": 2,
+      "beat": "hero reveal",
+      "isHero": true,
+      "stateChangeToCutMs": 600
+    },
+    {
+      "index": 3,
+      "beat": "guardrail",
+      "isHero": false,
+      "stateChangeToCutMs": 3000
+    },
+    {
+      "index": 4,
+      "beat": "close",
+      "isHero": false,
+      "stateChangeToCutMs": 3000
+    }
+  ],
+  "heroCount": 1,
+  "heroPositionRatio": [
+    0.515
+  ],
+  "longestStaticStretchMs": 4500
+}

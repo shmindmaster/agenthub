@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/product-video/review-delivery.schema.json",
+  "title": "Product Video Private Review Delivery",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "classification",
+    "candidate",
+    "sourceRepository",
+    "delivery",
+    "gates",
+    "files",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "classification": {
+      "const": "review-only"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateId", "artifact"],
+      "properties": {
+        "candidateId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "artifact": {
+          "$ref": "#/$defs/file"
+        }
+      }
+    },
+    "sourceRepository": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["productId", "reviewRoot", "packagePath", "immutable"],
+      "properties": {
+        "productId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "reviewRoot": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "packagePath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "immutable": {
+          "const": true
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["arbiterDecision", "finalVerification"],
+      "properties": {
+        "arbiterDecision": {
+          "$ref": "#/$defs/file"
+        },
+        "finalVerification": {
+          "$ref": "#/$defs/file"
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "$ref": "#/$defs/file"
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relativePath", "sha256", "bytes"],
+      "properties": {
+        "relativePath": {
+          "type": "string",
+          "pattern": "^[^/\\\\]+$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "$ref": "#/$defs/bytes"
+        }
+      }
+    }
+  }
+}

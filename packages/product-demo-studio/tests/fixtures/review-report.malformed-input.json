@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "PVR-SYNTHETIC-STORY-099",
+  "status": "MALFORMED_INPUT",
+  "candidate": {
+    "candidateId": "synthetic-candidate-001",
+    "artifactPath": "evidence/candidate.mp4",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sourceRevision": "synthetic-revision-001",
+    "renderProvenanceId": "synthetic-render-001"
+  },
+  "reviewer": {
+    "domain": "story-experience",
+    "contextId": "isolated-review-context-099",
+    "readOnly": true,
+    "executionReceipt": {
+      "receipt": {
+        "artifactPath": "execution-receipt.review-malformed-input.json",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 1
+      }
+    },
+    "startedAt": "2026-07-29T15:00:00.000Z",
+    "completedAt": "2026-07-29T15:00:01.000Z"
+  },
+  "reviewIntegrity": {
+    "canonicalRubric": {
+      "artifactPath": "pipeline/product-demo-studio/references/killer-demo-playbook.md",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "verticalOverlay": null,
+    "calibrationRecord": {
+      "artifactPath": "evidence/reviewer-calibration.json",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    "modelId": "synthetic-reviewer-model",
+    "generatorReasoningReceived": false,
+    "priorReviewsReceived": false
+  },
+  "evidencePackage": {
+    "artifactPath": "evidence/evidence-package.json",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "summary": "Review could not start because the immutable frame evidence was missing.",
+  "missingEvidence": [
+    "frames/contact-sheet.png"
+  ],
+  "reason": "Required visual evidence is unavailable; a completed review would be fabricated."
+}

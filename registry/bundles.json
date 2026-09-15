@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "description": "Capability bundles (recipes) compose AgentHub packages and tracked third-party extensions for a job. Bundles are install-planning metadata; they are not mega-plugins and do not vendor upstream code.",
+  "bundles": [
+    {
+      "id": "technical-series-production",
+      "title": "Technical series production",
+      "summary": "Produce a fictionalized technical story series with evidence-bound capture, explanation, and optional Remotion composition.",
+      "requires": [
+        "story-series-studio",
+        "technical-storytelling",
+        "browser-toolkit"
+      ],
+      "recommends": [
+        "local-ai"
+      ],
+      "thirdParty": {
+        "recommends": [
+          "superpowers",
+          "remotion"
+        ],
+        "optional": [
+          "creative-writing-skills"
+        ]
+      },
+      "notes": [
+        "story-series-studio and technical-storytelling are registered AgentHub packages.",
+        "media-studio is the public video pack; live-product screencasts invoke the internal engine in packages/product-demo-studio.",
+        "startup-series remains a Receipts-specific overlay that requires the generic studio packages."
+      ]
+    },
+    {
+      "id": "engaging-learning",
+      "title": "Engaging learning",
+      "summary": "Attention-friendly exam coaching with optional visual explainers.",
+      "requires": [
+        "learning-studio",
+        "technical-storytelling"
+      ],
+      "recommends": [],
+      "thirdParty": {
+        "recommends": [],
+        "optional": [
+          "remotion"
+        ]
+      },
+      "notes": [
+        "learning-studio and technical-storytelling are registered AgentHub packages.",
+        "Remotion/animations are optional enhancements, not required to answer a question."
+      ]
+    },
+    {
+      "id": "local-media-production",
+      "title": "Local media production",
+      "summary": "Writer/storyboard/director crew for briefings, training, explainers, talking-heads, animation, and audio on Local-AI, with Remotion archetype composition for viewer-facing films and Recast pointer finishing for screencasts.",
+      "requires": [
+        "media-studio",
+        "local-ai"
+      ],
+      "recommends": [
+        "technical-storytelling",
+        "browser-toolkit"
+      ],
+      "thirdParty": {
+        "recommends": [
+          "remotion",
+          "creative-writing-skills"
+        ],
+        "optional": []
+      },
+      "notes": [
+        "media-studio is the public pack and covers product screencasts plus briefings, training, explainers, talking-heads, animation, and audio. The gated Playwright/Recast engine remains packages/product-demo-studio.",
+        "Remotion is required at runtime for viewer-facing briefing, training, explainer, and series-episode jobs unless intent is draft or the user asked for a basic/proxy cut. Do not vendor Remotion rules; install official remotion-dev/skills.",
+        "creative-writing-skills is recommended for viewer-facing narrative (explainers, branded films, series), not for Descript finishing.",
+        "Owner voice is Local-AI qwen-clone --voice sarosh only."
+      ]
+    },
+    {
+      "id": "slack-workspace",
+      "title": "Slack workspace (canonical)",
+      "summary": "One AgentHub Slack contract on every coding-agent host. Official Slack skills plugin is optional UX, not authority.",
+      "requires": [
+        "slack"
+      ],
+      "recommends": [],
+      "thirdParty": {
+        "recommends": [],
+        "optional": [
+          "slack-skills-plugin"
+        ]
+      },
+      "notes": [
+        "packages/slack owns tools, schemas, identity, and the Web API bridge.",
+        "Do not install slackapi/slack-skills-plugin to close a host MCP gap; AgentHub supplies that MCP.",
+        "Gateway distribution (127.0.0.1:8811/mcp and a remote authenticated endpoint) is the production path once generationEnabled is proven."
+      ]
+    }
+  ]
+}

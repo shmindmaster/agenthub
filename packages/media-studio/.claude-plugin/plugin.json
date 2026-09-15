@@ -1,0 +1,24 @@
+{
+  "name": "media-studio",
+  "description": "Local creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Uses Local-AI. Product-demo-studio is the internal engine, not a second plugin.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "video",
+    "audio",
+    "animation",
+    "briefing",
+    "training",
+    "remotion",
+    "local-ai",
+    "screenplay",
+    "director"
+  ],
+  "skills": "./skills/",
+  "commands": [
+    "./commands/video.md"
+  ],
+  "version": "1.5.5"
+}
