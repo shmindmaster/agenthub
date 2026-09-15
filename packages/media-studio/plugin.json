@@ -1,6 +1,6 @@
 {
   "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "media-studio",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Local creative studio for all video and audio. Infer the form from the ask: briefings, training, explainers, talking-heads, animation, and live-product screencasts. Writer, storyboard, art direction, director, Local-AI generate, Remotion archetype kit, craft critic. Product-demo-studio is the internal screencast engine, not a second plugin."
 }

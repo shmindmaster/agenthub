@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/capture-plan.json",
+  "title": "Media studio capture plan",
+  "description": "Interaction-first capture plan. product-picture.md is the contract. PNG plates are diagnostic, not the picture of a screen beat.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["scenes"],
+  "properties": {
+    "captureOrigin": { "type": "string" },
+    "session": { "type": "string" },
+    "liveRunNeeded": { "type": "boolean" },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["sceneId", "kind"],
+        "properties": {
+          "sceneId": { "type": "string", "minLength": 1 },
+          "kind": {
+            "type": "string",
+            "enum": ["interaction", "overlay", "code-reveal", "card", "hold"],
+            "description": "hold is last-frame of the preceding WebM, not a PNG and not a skipped interaction."
+          },
+          "trace": {
+            "type": "string",
+            "description": "Playwright trace.zip path. Metadata only; never the encoded picture."
+          },
+          "route": { "type": "string" },
+          "locator": {
+            "type": "string",
+            "description": "Playwright locator or named control for an interaction beat."
+          },
+          "action": {
+            "type": "string",
+            "description": "Click, type, select, submit, wait-for-result."
+          },
+          "expectedResult": {
+            "type": "string",
+            "description": "Visible product response that proves the action."
+          },
+          "clip": {
+            "type": "string",
+            "description": "Relative path to a WebM/MP4 under capture/. Not a PNG for interaction."
+          },
+          "recast": { "type": "boolean" },
+          "overlay": { "type": "string" },
+          "liveRunNeeded": { "type": "boolean" },
+          "plateName": {
+            "type": "string",
+            "description": "Diagnostic still or poster only. Never the encoded picture of an interaction beat."
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "kind": { "const": "interaction" } }, "required": ["kind"] },
+            "then": {
+              "required": ["action", "expectedResult", "clip"]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

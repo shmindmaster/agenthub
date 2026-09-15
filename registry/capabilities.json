@@ -303,7 +303,7 @@
         "product-demo-studio-descript",
         "product-demo-studio-visual-assets"
       ],
-      "contentHash": "F18D485FCF7D66DA9D68DDBDEE653B11C6E4B119806037E610CA2F1A7E264F89",
+      "contentHash": "396EC852DAE019C140E3DC9DB840168C1AD94A88D1391C5483AEC39D59F390B6",
       "hashBasis": "packages/product-demo-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1002,7 +1002,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "9E8836277107D5474C21AF56C4AC0169426F54B58BBE9DCB78FB5D99A6DA6265",
+      "contentHash": "F54E32819527860253FAA7C138982CD1D3DCD98B3B7B1605517ECC0B2E77F225",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the eight-host tier digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. clerk was removed from that tier on 2026-08-24 because AgentHub does not own Clerk skills (official: clerk/skills). firecrawl is now a fleet overlay (firecrawl-web-ingestion); official Firecrawl ops install from firecrawl/skills.",
@@ -1797,7 +1797,7 @@
         "privacy-fictionalizer",
         "series-continuity"
       ],
-      "contentHash": "BA6F6D040060465C28F5367057557B9407A8C9FCEFCA7869A135023E34757672",
+      "contentHash": "671CC290043E9F9D1EB1A5694913D01AB45C0769903752DD46DD919361F825B8",
       "hashBasis": "packages/story-series-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -2030,7 +2030,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "0EF93888C1CE97AEDA9FA8A5685045FD6A78832003B51863D52540C2B14347E4",
+      "contentHash": "CA32178B3742B4523041CF26A56EE6E8F873BCF6F8312B653DFA785F7A8E731F",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -2120,7 +2120,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 1.5.4 (2026-09-08: technical-story reference, kit/screencast compositor and annotation layer, host-neutral capture provider, Duckie prod-sim operator note). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents) and is not a marketplace plugin. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents) and is not a marketplace plugin. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"

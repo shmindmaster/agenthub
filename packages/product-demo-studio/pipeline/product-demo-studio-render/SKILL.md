@@ -10,10 +10,10 @@ Render from immutable capture, narration, storyboard, truth-sheet, and claim inp
 ## Default stack
 
 - Playwright CLI or Playwright Test captures a high-resolution WebM plus trace.
-- Recast consumes the capture for pacing, cursor, click feedback, animated punch-in zoom, captions, and voice timing.
-- `page.setContent()` supplies designed title and end cards without a compositor.
+- Recast consumes the capture for pacing, cursor, click feedback, animated punch-in zoom, captions, and voice timing. Required on pointer beats (`product-picture.md`). If Windows ffmpeg `autoZoom` fails, split the take or render without `autoZoom` — do not fall back to PNG stills.
+- `page.setContent()` supplies designed title and end cards without a compositor (≤8s).
 - FFmpeg performs the smallest required caption burn-in and delivery normalization.
-- Remotion is reserved for concepts that genuinely require a custom composition.
+- Remotion is reserved for concepts that genuinely require a custom composition, not the product picture.
 
 Run `../../scripts/scaffold-video-workspace.mjs --repo <product-repo> --product <name>` once per external workspace. Keep all paths relative inside that workspace for Windows compatibility. Never overwrite a candidate; every render receives a new ID and checksum.
 

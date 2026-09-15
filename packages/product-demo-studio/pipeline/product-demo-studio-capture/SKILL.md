@@ -1,6 +1,6 @@
 ---
 name: product-demo-studio-capture
-description: Use when a real product workflow needs deterministic screen capture, walkthrough recording, screenshots, demo evidence, or reproducible UI plates for external finishing.
+description: Use when a real product workflow needs deterministic Playwright WebM capture and Recast pointer/click/zoom plates for external finishing. PNG stills are diagnostic only; they are not the encoded picture.
 ---
 
 # Product Demo Capture
@@ -18,5 +18,5 @@ Capture the real product at a controlled viewport with coherent synthetic state.
 
 Validate storyboards with `../../scripts/validate-storyboard.mjs`, capture manifests with `../../scripts/validate-capture-manifest.mjs`, and the bound craft report with `../../scripts/validate-craft-contracts.mjs`. A passing script contract is necessary but does not replace playback review.
 
-Use the source WebM, not trace screenshots, for the final video. Trace frames are metadata fallback only. Keep all capture files outside the product repository.
+Use the source WebM, not trace screenshots, for the final video. Trace frames are metadata fallback only. Recast is required on pointer beats (`product-picture.md`). Keep all capture files outside the product repository.
 

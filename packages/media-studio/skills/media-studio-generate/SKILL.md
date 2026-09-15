@@ -69,7 +69,7 @@ Mix later with `Finish-Media.ps1 -Speech -Music` so the bed ducks. Do not mux an
 
 For each `visual-bible.brollPlan` / `imagePrompts` row, run `ai.ps1 image` with that prompt. Honor `refuse` (never product UI, metrics, testimonials). Specialist: `references/image.md`.
 
-Motif / lipsync / portrait **only** when `direction` called for that plate.
+Motif / lipsync / portrait **only** when `direction` called for that plate. Never Motif or image-to-video a product screenshot (`references/video.md`, `product-picture.md`).
 
 ## 5. Commands
 

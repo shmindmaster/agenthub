@@ -26,19 +26,19 @@ Do not invent metrics, customer names, or AI behavior. Unsourced numbers are omi
 
 | `programForm` | Promise | Length | Default `kind` |
 | --- | --- | --- | --- |
-| `hero` | Problem → solution → result | 30–60s | `teaser` or `explainer` |
+| `hero` | Problem → solution → result | 30–60s | `product-screencast` recut, or `teaser` from that capture |
 | `product-overview` | Real product, major workflows | 2–5 min | `product-screencast` |
 | `outcome-workflow` | Pain → task → AI does it → human reviews → result | 1–3 min | `product-screencast` |
 | `role-demo` | One persona's job only | 2–5 min | `product-screencast` |
-| `feature-tutorial` | One task, named as an outcome | 1–3 min | `training` |
+| `feature-tutorial` | One task, named as an outcome | 1–3 min | `product-screencast` |
 | `customer-story` | Problem → workflow → evidence → what changed | 2–5 min | `documentary` + capture plates |
-| `before-after` | Old steps vs new path | 30–90s | `explainer` or `product-screencast` |
+| `before-after` | Old steps vs new path | 30–90s | `product-screencast` |
 | `ai-in-action` | Input → draft → concern → edit → save | 1–3 min | `product-screencast` |
-| `ai-trust` | Data in, controls, accuracy limits, human approval, what it cannot do | 2–5 min | `explainer` + `screen` where claims are UI |
+| `ai-trust` | Data in, controls, accuracy limits, human approval, what it cannot do | 2–5 min | `product-screencast` for UI claims; `explainer` only when no product can be shown |
 | `integration-demo` | This product with that system | 1–3 min | `product-screencast` |
-| `onboarding` | First successful outcome | 2–5 min | `training` |
-| `help-center` | One support question | 30s–3 min | `training` |
-| `release` | One new capability, shown | 30s–2 min | `product-screencast` or `teaser` |
+| `onboarding` | First successful outcome | 2–5 min | `product-screencast` |
+| `help-center` | One support question | 30s–3 min | `product-screencast` |
+| `release` | One new capability, shown | 30s–2 min | `product-screencast` or `teaser` recut from capture |
 | `personalized-sales` | Recorded for one account | 1–3 min | `talking-head` + capture |
 | `competitive-demo` | Replaces the current workflow | 2–4 min | `product-screencast` |
 | `webinar-deep-dive` | Complex case, chapters, Q&A | 15–30 min | `webinar` |
@@ -50,7 +50,7 @@ Do not invent metrics, customer names, or AI behavior. Unsourced numbers are omi
 
 ## Formulas (do not skip)
 
-**Outcome-workflow / role-demo / product-overview (buyer-facing):** start with the cost, then **show** the work. Real UI + cursor + zoom + narration. Occasional presenter. Not an AI avatar walking a fake dashboard. Not “Welcome to Acme, on the left is the nav.”
+**Outcome-workflow / role-demo / product-overview / feature-tutorial / onboarding / help-center (buyer-facing):** start with the cost, then **show** the work. Real UI + cursor + zoom + visible result (`product-picture.md`). Occasional presenter. Not an AI avatar walking a fake dashboard. Not Ken Burns on a screenshot. Not “Welcome to Acme, on the left is the nav.”
 
 **AI-in-action / ai-trust:** show control. Input → draft → review → highlighted concern → human change → save. Instant-perfect-result is a fail.
 

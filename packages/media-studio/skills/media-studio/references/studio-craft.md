@@ -11,7 +11,7 @@ Goal: the encoded file should feel directed, not templated. A narrated slide dec
 3. Shot plan is real: framing, subject, movement, focalPoint. Slow push on before-state; hold or silence on reveal.
 4. Texture over void. Full-bleed B-roll, grain, or a designed field — not a forever-black card with type.
 5. Recurring motif from `visual-bible.json`. The same visual language returns; it is not a new template per scene.
-6. Real product UI is **capture** (`visualMode: screen`). Do not fake dashboards, metrics, or customer quotes in diffusion.
+6. Real product UI is **capture** (`visualMode: screen`, `product-picture.md`). Do not fake dashboards, metrics, or customer quotes in diffusion. Do not Ken Burns a product screenshot.
 7. First and last frames are designed and stable. Lower-thirds need headroom; do not crop a chin.
 
 Prefer:

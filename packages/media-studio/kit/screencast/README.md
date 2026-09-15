@@ -4,11 +4,11 @@ Shared tooling for screencast-led films (product screencasts, technical stories)
 
 | Script | Produces |
 | --- | --- |
-| `compose-screencast.mjs <jobRoot> <base>` | `output/<base>-silent.mp4` — the silent picture, aligned to `story/narration-timeline.json`, from `capture/manifest.json` clips |
+| `compose-screencast.mjs <jobRoot> <base>` | `output/<base>-silent.mp4` — the silent picture, aligned to `story/narration-timeline.json`, from `capture/manifest.json` clips. Runs `validate-product-picture.mjs` first when that script is resolvable. |
 | `render-overlay.mjs <out.png> '<spec>'` | Transparent 1600×1000 annotation PNG: dim-with-cutout box, outline, labels, arrows, notes |
 | `render-code.mjs <out.png> '<spec>'` | Code-reveal card: real source excerpt with line numbers and highlight bands, provenance in the footer |
 | `render-html.mjs <out.png> <file.html>` | Typeset card or flow diagram from an HTML body |
-| `render-card.mjs <out.png> '<spec>'` | Title / end / number card; auto-used for narration segments with no clip |
+| `render-card.mjs <out.png> '<spec>'` | Title / end / number card; auto-used only for non-`screen` beats with no clip |
 
 Frame is 1600×1000 30 fps (`briefing-board`); letterbox or scale to the delivery profile afterwards, then finish loudness with `Finish-Media.ps1`.
 
@@ -24,7 +24,7 @@ Frame is 1600×1000 30 fps (`briefing-board`); letterbox or scale to the deliver
 | `fit` | `cut` \| `hold` \| `fit` \| `fitpad` | `cut`: play from the start, stop at the narration end (default when the clip is longer). `hold`: play, then freeze the last frame (default when shorter). `fit`: retime the clip to the narration length. `fitpad`: like hold, explicit. |
 | `overlay` | `overlays/S07.png` | Transparent PNG from `render-overlay.mjs`, composited over the scaled frame for this clip's segments. One overlay per clip; split a clip when the markup changes mid-beat. |
 
-A segment with no clip holds the previous clip's last frame. A `.png` clip is a card, looped for the segment. Segments without any clip and no card get an auto card from the storyboard beat (`kicker`, `title`, `subtitle`, `footer`) or `job.json` (`title`, `cardFooter`).
+A segment with no clip holds the previous clip's last frame **only when that frame is already product video**. A `.png` clip is a card, looped for the segment. Segments without any clip and no card get an auto card from the storyboard beat (`kicker`, `title`, `subtitle`, `footer`) or `job.json` (`title`, `cardFooter`) **only when `visualMode` is not `screen`**. On `product-screencast`, omitted `visualMode` defaults to `screen`; missing clip or a PNG on a screen beat throws (`product-picture.md`).
 
 ## Overlay spec (`render-overlay.mjs`)
 

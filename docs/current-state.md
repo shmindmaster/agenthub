@@ -47,6 +47,19 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `plugin.json`, the version authority). `tests/Test-OpenCodeOptInEmission.ps1`
   seeds the exact defective shape and proves convergence.
 
+- **Product-picture contract (2026-09-15):** media-studio 1.5.6. A running
+  product as the subject is `kind: product-screencast`; the encoded picture is
+  Playwright WebM + Recast (pointer lead → click → visible result → hold), not
+  Ken Burns stills mixed with Remotion cards. `references/product-picture.md`
+  is the single contract. `scripts/validate-product-picture.mjs` fails closed
+  on PNG screen beats, auto-cards, kind/form mismatch, screen duration under
+  70%, and card cutaways over 8s. `compose-screencast.mjs` runs that validator
+  then throws instead of auto-carding a screen beat. Remotion `screen-in-context`
+  no longer scale-interpolates. `product-video-policy.json` `pointerFinishing`
+  is `playwright-recast@0.19.2` (the `windows-spike-blocked` skip label is
+  gone). Series director and episode editor route live product to this
+  contract. Local-AI `video.md` refuses Motif/I2V of a product screenshot.
+
 - **Technical-story format and screencast annotation layer (2026-09-08):**
   media-studio 1.5.4 adds `references/technical-story.md` (`programForm:
   technical-story`) — a product or engineering change told as a 5–8 minute

@@ -7,7 +7,7 @@ description: Use when assembled video needs FFmpeg, Recast pointer/click finishi
 
 Assemble locked plates, audio, and motion into a candidate in this turn. You do not rewrite the screenplay or waive identity gates.
 
-Load `../media-studio/references/engagement.md`, `scene-archetypes.md`, and `delivery-profiles.md`.
+Load `../media-studio/references/engagement.md`, `scene-archetypes.md`, and `delivery-profiles.md`. Product-screencast and `visualMode: screen` also load `product-picture.md` and run `scripts/validate-product-picture.mjs` before encode.
 
 **Rapid default:** reuse the house archetype kit, do not scaffold a new Remotion app. Honor `pauseBeforeSeconds` / `holdAfterSeconds`. A slide that does not build is unfinished — use Remotion interpolation, not a still held for the whole line.
 
@@ -56,7 +56,7 @@ Do not run DeepFilterNet, Resemble Enhance, or Descript Studio Sound on owner vo
 | Job | Tool | How |
 | --- | --- | --- |
 | Archetype kit, lower-thirds, programmatic UI, briefing boards | Remotion | Official `remotion-dev/skills`. Do not vendor those rules here. |
-| Captured product trace that needs cursor, click ripple, punch-in zoom | Recast (`playwright-recast`) | `media-studio-capture` then this compose step. |
+| Captured product trace that needs cursor, click ripple, punch-in zoom | Recast (`playwright-recast`) then `compose-screencast.mjs` | `media-studio-capture` then this compose step. PNG stills and auto-cards on `screen` beats fail (`product-picture.md`). |
 | Concat, mux, loudness, caption burn-in, format normalize | FFmpeg via `Finish-Media.ps1` | Two-pass **linear** loudnorm. Music duck required when a bed exists. AAC-LC 48 kHz stereo, Fast Start. |
 | Motif clip + voice | FFmpeg mux | Do not re-generate motion to "fit" duration; trim or hold. |
 
@@ -71,7 +71,7 @@ node (Join-Path $kit 'screencast\render-code.mjs') <job>\capture\clips\S09-code.
 node (Join-Path $kit 'screencast\compose-screencast.mjs') <job> <base>
 ```
 
-`capture/manifest.json` `clips[]` hints, applied per clip by the compositor: `segments` (segment or scene ids), `trimStart` / `trimEnd` (seconds), `speed` (>1 = faster, for real waits), `skip` (`[[a,b],...]` seconds to drop), `fit: cut|hold|fit|fitpad`, and `overlay` (a transparent 1600×1000 PNG from `render-overlay.mjs`, composited over the scaled frame for that clip's segments). One overlay per clip; split the clip when the markup changes. Full table: `kit/screencast/README.md`.
+`capture/manifest.json` `clips[]` hints, applied per clip by the compositor: `segments` (segment or scene ids), `trimStart` / `trimEnd` (seconds), `speed` (>1 = faster, for real waits), `skip` (`[[a,b],...]` seconds to drop), `fit: cut|hold|fit|fitpad`, and `overlay` (a transparent 1600×1000 PNG from `render-overlay.mjs`, composited over the scaled frame for that clip's segments). One overlay per clip; split the clip when the markup changes. Full table: `kit/screencast/README.md`. Auto-card is forbidden on `visualMode: screen`; a PNG clip on a screen beat throws.
 
 The overlay is markup (dim, box, outline, arrow, label, note, flow diagram), directed per beat by `media-director` for technical stories. It is not a second engagement rubric and it does not replace Recast's cursor, click ripple, and punch-in. Recast renders are sequential per clips directory (`.recast-tmp` collides); long many-click clips render without `autoZoom` or are split and joined here through `segments`.
 

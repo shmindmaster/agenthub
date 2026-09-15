@@ -1,6 +1,6 @@
 # Technical story (product / engineering change films)
 
-Load this for any film whose subject is a product or engineering change — a fix, a new capability, an incident, a behavior nobody expected. Set `programForm: technical-story` on `job.json`. Kind is `product-screencast` when the picture is a running product (the normal case), `explainer` when no product can be shown. Screencast craft, capture, and QA gates stay with the PDS killer-demo guide; this file is the **story shape and markup rules** for this form. It does not replace `story-craft.md` — it is the concrete instance of that spine for this subject.
+Load this for any film whose subject is a product or engineering change — a fix, a new capability, an incident, a behavior nobody expected. Set `programForm: technical-story` on `job.json`. Kind is `product-screencast` when the picture is a running product (the normal case), `explainer` when no product can be shown. Screencast craft, capture, and QA gates stay with the PDS killer-demo guide plus `product-picture.md` (WebM + Recast; overlays and code cards serve the product, they do not replace it). This file is the **story shape and markup rules** for this form. It does not replace `story-craft.md` — it is the concrete instance of that spine for this subject.
 
 Guiding principle, in the owner's words:
 

@@ -1,6 +1,6 @@
 # Viewer engagement
 
-Load this for every **viewer-facing** media-studio job. `intent: draft` still writes for the ear (hook, one idea, pauses) but skips GPU plates (music, Motif, lipsync).
+Load this for every **viewer-facing** media-studio job. `intent: draft` still writes for the ear (hook, one idea, pauses) but skips GPU plates (music, Motif, lipsync). Product-screencast picture rules live in `product-picture.md`.
 
 This file is the home for diagnose / tools / kind defaults / ownership. Dramatic structure lives in `story-craft.md`. Studio picture/sound/voice in `studio-craft.md`. Formats in `program-forms.md`. Archetype ids live in `scene-archetypes.md`. Scoring lives in `story-review-rubric.md`. Skills name the action they own; they do not restate those catalogs.
 
@@ -21,6 +21,7 @@ A stretch is failing if any of these are true:
 - Opening is a greeting, logo reel, or agenda
 - Same visual archetype twice in a row with no reason
 - Narrated PowerPoint: every beat is a type-on-dark-field slide
+- Ken Burns / scale-pan on a product screenshot, or a slide stack mixed with frozen UI (`product-picture.md`)
 - Feature tour / settings walkthrough posing as a demo
 - Instant-perfect AI result with no human control
 

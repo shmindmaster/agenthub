@@ -31,7 +31,7 @@ The house Remotion kit is this library, not one briefing slide repeated. Composi
 
 ## Stakeholder Q&A (`speaker`)
 
-Cast for Duckie studio technical-story films (kind `briefing`, Remotion 1600×1000):
+Cast for stakeholder Q&A cards (Remotion 1600×1000). Technical-story films whose picture is a running product are `kind: product-screencast` (`product-picture.md`); these cards are the ≤8s exception, not the program:
 
 | `speaker` | Voice | On-screen card |
 | --- | --- | --- |

@@ -13,10 +13,14 @@ Live-product screencasts still use the gated Playwright + Recast + four-domain e
 
 **Technical stories** (`programForm: technical-story`) are product or engineering changes told as 5–8 minute mini documentaries: `skills/media-studio/references/technical-story.md` holds the beat map and markup rules; `kit/screencast/` holds the compositor, annotation overlay, code-reveal and card renderers with their manifest hints. Product-specific capture notes live under `skills/media-studio-capture/references/`.
 
-Version authority: root `plugin.json` (`1.5.4`). Host projections must match.
+**Product picture** (`skills/media-studio/references/product-picture.md`): when the subject is a running product, the encoded film is Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards. `scripts/validate-product-picture.mjs` fails closed. Host projections must match `plugin.json`.
+
+Version authority: root `plugin.json` (`1.5.6`). Host projections must match.
 Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and `D:\Local-AI\data\artifacts`). Private show bibles and customer recordings stay outside this repository.
 
 Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` compositor tooling). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.
+
+Pre-capture screenplay lint: `scripts/write-story-review.py <jobRoot>` (optional; the sync script copies it to `_shared\tools` when present). It is not a craft pass and does not authorize compose or delivery. Product-screencast still requires `validate-product-picture.mjs` and PDS review of the encoded file (`product-picture.md`).
 
 ## Product-repository boundary
 

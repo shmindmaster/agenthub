@@ -84,6 +84,24 @@ try {
         Report 'short changing fixture is not a 6s static fail' (
             $cutCode -eq 0 -and $cutJson.pass -eq $true -and [int]$cutJson.metrics.shotChanges -ge 1
         ) "exit=$cutCode pass=$($cutJson.pass) shots=$($cutJson.metrics.shotChanges) suspects=$($cutJson.suspects | ConvertTo-Json -Compress)"
+
+        $stillPng = Join-Path $scratchRoot 'pattern.png'
+        & $ffmpeg.Source -hide_banner -loglevel error -y -f lavfi -i testsrc=s=320x180:d=1 -frames:v 1 $stillPng
+        $kenMp4 = Join-Path $scratchRoot 'kenburns.mp4'
+        & $ffmpeg.Source -hide_banner -loglevel error -y -loop 1 -i $stillPng -vf "zoompan=z='min(zoom+0.0015,1.4)':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=320x180:fps=20" -t 8 $kenMp4
+        $kenReport = Join-Path $scratchRoot 'ken.json'
+        $ErrorActionPreference = 'Continue'
+        & pwsh -NoProfile -File $inspect -Video $kenMp4 -Output $kenReport -StaticSeconds 2
+        $kenCode = $LASTEXITCODE
+        $ErrorActionPreference = $prev
+        $kenJson = if (Test-Path -LiteralPath $kenReport) {
+            Get-Content -LiteralPath $kenReport -Raw -Encoding UTF8 | ConvertFrom-Json
+        } else { $null }
+        $kenKinds = @($kenJson.suspects | ForEach-Object kind)
+        Report 'ken-burns fixture is flagged' (
+            $kenCode -eq 2 -and $kenJson -and -not $kenJson.pass -and
+            ($kenKinds -contains 'ken-burns-on-still' -or $kenKinds -contains 'static-stretch')
+        ) "exit=$kenCode pass=$($kenJson.pass) suspects=$($kenJson.suspects | ConvertTo-Json -Compress)"
     }
 }
 finally {
@@ -115,6 +133,9 @@ Report 'image.md has visual-bible path and refuses fake product UI' (
 Report 'technical-story-director hands off to media-storyboard' (
     $tsd -match 'media-storyboard' -and $tsd -match 'story-craft'
 ) 'series director still jumps explainer to picture'
+Report 'technical-story-director routes live product to product-picture' (
+    $tsd -match 'product-picture.md' -and $tsd -match 'product-screencast'
+) 'series director can still pick a Remotion slide stack for a running product'
 Report 'episode-editor runs the media-studio crew' (
     $editor -match 'media-storyboard' -and $editor -match 'media-studio-generate'
 ) 'episode-editor still composes from the scene plan alone'
@@ -157,6 +178,11 @@ Report 'compose-screencast honors the overlay hint and carries no product-specif
     $composeSource -match "'fitpad'" -and
     $composeSource -notmatch 'Duckie' -and $composeSource -notmatch 'prod-sim'
 ) 'compositor lost the overlay path or still carries a product name'
+Report 'compose-screencast fails closed on screen stills' (
+    $composeSource -match 'product-picture' -and
+    $composeSource -match 'isScreenBeat' -and
+    $composeSource -match 'validate-product-picture'
+) 'compositor does not fail closed on PNG screen beats or skip the validator'
 $kitPackage = Get-Content -LiteralPath (Join-Path $pkg 'kit\package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 Report 'kit package.json declares playwright for the screencast renderers' (
     $null -ne $kitPackage.dependencies.playwright

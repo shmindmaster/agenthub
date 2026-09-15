@@ -42,4 +42,14 @@ foreach ($rel in $files) {
     Copy-Item -LiteralPath $from -Destination $to -Force
 }
 
-Write-Host "Synced kit source -> $RuntimeKit"
+
+# Optional screenplay lint (not a craft pass). Product-screencast still needs product-picture.
+$gate = Join-Path $PSScriptRoot 'write-story-review.py'
+if (Test-Path -LiteralPath $gate) {
+    $sharedTools = Join-Path (Split-Path -Parent $RuntimeKit) '_shared\tools'
+    New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null
+    Copy-Item -LiteralPath $gate -Destination (Join-Path $sharedTools 'write-story-review.py') -Force
+    Write-Host "Synced kit source -> $RuntimeKit (+ write-story-review.py -> $sharedTools)"
+} else {
+    Write-Host "Synced kit source -> $RuntimeKit"
+}

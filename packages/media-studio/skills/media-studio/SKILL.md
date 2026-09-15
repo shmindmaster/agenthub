@@ -17,7 +17,7 @@ A usable ask is: what it is about, plus any source (evidence folder, outline, pr
 
 | Need | Default |
 | --- | --- |
-| Kind / form | Kind table + `program-forms.md` |
+| Kind / form | Kind table + `program-forms.md`. A running product as the subject is `product-screencast` (`product-picture.md`) |
 | Audience | `private` if they said private/internal/for me; else infer from source |
 | Voice | `sarosh` |
 | Intent | `viewer-facing` (craft ≥ 85) unless they asked for a scratch/proxy |
@@ -30,12 +30,12 @@ A usable ask is: what it is about, plus any source (evidence folder, outline, pr
 **Always run, even when the prompt is one line:**
 
 1. **Curate** — read the source; pick plates (annotated first); drop noise.
-2. **Close gaps** — product-screencast: `$Pds\pipeline\commands\demo-assess.md` first; Product-Readiness Feedback instead of a mediocre video is a valid stop. Evidence briefing: ledger status is the truth (merged ≠ deployed); missing plates get a spoken/typed beat, not invented UI.
+2. **Close gaps** — product-screencast: `$Pds\pipeline\commands\demo-assess.md` first; Product-Readiness Feedback instead of a mediocre video is a valid stop. Load `references/product-picture.md`. Evidence briefing: ledger status is the truth (merged ≠ deployed); missing plates get a spoken/typed beat, not invented UI.
 3. **Write** — `media-writer` locks screenplay + narration (`story-craft.md`).
 4. **Scenes** — `media-storyboard` then `media-studio-visuals` then `media-director`.
 5. **Generate / compose / critic / QA** — Local-AI voice, Remotion/Recast/FFmpeg, score ≥ 85, then `media-studio-qa`.
 
-Do not jump to encode from screenshots. Do not ship a slide-stack of the ledger.
+Do not jump to encode from screenshots. Do not ship a slide-stack of the ledger. Do not Ken Burns a product PNG and call it a screencast.
 
 Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\<job-id>`. Never write media into AgentHub or a product repo.
 
@@ -56,13 +56,13 @@ $Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Re
 ## 1. Rapid path
 
 1. Infer **`programForm`** then **kind** from `references/program-forms.md`. Create `job.json` in the external workspace and validate that the workspace is outside any source repository. Default `intent: viewer-facing` unless the user asked for a scratch, proxy, or timing pass (`draft`). Set `deliveryProfile` from `references/delivery-profiles.md`. `craftScoreMin` defaults to 85. One promise per film. Recuts of a locked master set `sourceJobId`.
-2. Defaults: owner/internal voice `sarosh`; briefing-board 1600×1000 30 fps; duration ~150 wpm (slower for `documentary` / `ai-trust`). Viewer-facing jobs load `references/engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md` before the writer. Product screencasts use the PDS killer-demo guide plus outcome-first rules in `program-forms.md`. A product or engineering **change** told as a story (a fix, an incident, a new capability) is `programForm: technical-story`: load `references/technical-story.md` — 5–8 minutes, hook on the problem, flow overlay, code reveal of the 5–20 lines that matter, before/after, replay, what it means.
+2. Defaults: owner/internal voice `sarosh`; briefing-board 1600×1000 30 fps; duration ~150 wpm (slower for `documentary` / `ai-trust`). Viewer-facing jobs load `references/engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md` before the writer. If a running product is the subject, `kind` is `product-screencast` even when the ask said briefing, tutorial, or walkthrough — load `references/product-picture.md`. Product screencasts use the PDS killer-demo guide plus outcome-first rules in `program-forms.md`. A product or engineering **change** told as a story (a fix, an incident, a new capability) is `programForm: technical-story`: load `references/technical-story.md` — 5–8 minutes, hook on the problem, flow overlay, code reveal of the 5–20 lines that matter, before/after, replay, what it means.
 3. `media-writer` → locked screenplay (`hook`, `sceneRole`, `wiifm`, one hero).
 4. `media-storyboard` → timed beats, scored hook (pick internally), archetypes. Then `media-studio-visuals` → `visual-bible.json`.
 5. `media-director` → archetype, register, `sound`. `screen` only for a running product.
 6. `media-studio-generate` + `local-ai-stack` → TTS. Viewer-facing: also the directed music bed. Motif/lipsync/portrait only when direction called for that plate. `draft` skips those GPU plates and records the skip.
-7. Compose: Remotion archetype kit, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`). Viewer-facing `briefing` / `training` / `explainer` / `series-episode` / `webcast` / `webinar` / `keynote` / `documentary` / `teaser` **requires Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. If Remotion skills are missing, stop and say so — do not silently fall back to static slides. Buyer-facing product forms use **real captured UI**, not an avatar over fake chrome.
-8. `media-story-experience-reviewer` on the encoded file. Score < `craftScoreMin` → revise `reviseSceneIds` and rerun. Then `media-studio-qa`: screencast → PDS gates. Other kinds → identity-score, `ai.ps1 listen`, engagement pass, `Inspect-MediaVisualQuality.ps1`.
+7. Compose: Remotion archetype kit, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`). Product-screencast: run `scripts/validate-product-picture.mjs` before encode. Viewer-facing `briefing` / `training` / `explainer` / `series-episode` / `webcast` / `webinar` / `keynote` / `documentary` / `teaser` **requires Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. If Remotion skills are missing, stop and say so — do not silently fall back to static slides. Buyer-facing product forms use **real captured UI** with pointer, click, zoom, and visible result (`product-picture.md`), not an avatar over fake chrome and not Ken Burns on a screenshot.
+8. Product-screencast craft review is the PDS story-experience agent on the **encoded** file — `media-story-experience-reviewer` refuses that kind. Other kinds: `media-story-experience-reviewer` on the encoded file. Score < `craftScoreMin` → revise `reviseSceneIds` and rerun. Then `media-studio-qa`: screencast → PDS gates + product-picture. Other kinds → identity-score, `ai.ps1 listen`, engagement pass, `Inspect-MediaVisualQuality.ps1`.
 
 Owner voice: `ai.ps1 voice qwen-clone --voice sarosh` only.
 
@@ -72,7 +72,7 @@ Viewer-facing explainers, branded films, and series: load `technical-storytellin
 
 | Signal | Kind | Path |
 | --- | --- | --- |
-| Live app walkthrough, demo-worthiness, pointer/click | `product-screencast` | assess (`$Pds\pipeline\commands\demo-assess.md`) → capture → local voice → Recast → QA |
+| Running product, workflow, demo, tutorial-in-the-app, pointer/click | `product-screencast` | assess (`$Pds\pipeline\commands\demo-assess.md`) → `product-picture.md` → capture (WebM + Recast) → local voice → compose → PDS QA |
 | Series / Receipts episode | `series-episode` | `story-series` then compose here |
 | Argument, prep, briefing | `briefing` | Remotion archetype kit + local voice + bed |
 | Exam / how-to clip | `training` | Remotion (or FFmpeg if draft) |
@@ -92,10 +92,10 @@ Same fail-closed engine, invoked from here:
 
 1. Config in the external job workspace: `product-demo-studio.config.yaml`. A legacy repo copy may be read once, but never created or updated; copy/translate it externally and record its source hash.
 2. Assessment first if never run (`$Pds\pipeline\commands\demo-assess.md`). Feedback instead of a mediocre video is a valid outcome.
-3. `media-studio-capture` — Playwright + Recast pointer/click.
-4. `media-studio-generate` — local Sarosh, not cloud TTS.
-5. `$Pds\scripts` render/preflight.
-6. `media-studio-qa` — four domain reviews, arbiter, final verifier.
+3. `media-studio-capture` — Playwright WebM + Recast pointer/click. PNG plates are diagnostic only.
+4. `media-studio-generate` — local Sarosh, not cloud TTS. Never Motif a product screenshot.
+5. `$Pds\scripts` render/preflight and `validate-product-picture.mjs`.
+6. `media-studio-qa` — four domain reviews, arbiter, final verifier. Story review on the encoded file only.
 
 Live product with real user data → `PIPELINE_BLOCKED`.
 
@@ -110,7 +110,8 @@ the repo.
 - Invented metrics or customer names.
 - Remotion missing for viewer-facing briefing/training/explainer/series-episode/webcast/webinar/keynote/documentary/teaser (unless draft).
 - Feature-tour opening or a settings walkthrough posing as a demo.
-- Story-experience score below 85.
+- Product-screencast whose picture is Ken Burns stills, auto-cards, or a slide stack (`product-picture.md`).
+- Story-experience score below 85. A pre-capture text-only score is not a pass.
 - An addendum or correction clip. Re-record the affected section and re-cut the master.
 
 Delivery: file names are `NN - Title.mp4` with no product prefix; a delivered series has a `README.md` index; superseded masters and reproducible intermediates are deleted outright, never parked in `_retired` / `_old` folders. Status claims name where the film actually is: merged to dev → in main → deployed → production-verified.
@@ -120,5 +121,5 @@ Delivery: file names are `NN - Title.mp4` with no product prefix; a delivered se
 - [ ] Workspace is external; `repositoryWritePolicy: read-only`
 - [ ] Crew ran writer → storyboard → visuals → director → generate → compose → critic → QA
 - [ ] Viewer-facing: engagement + story-craft + studio-craft loaded; Remotion used when required
-- [ ] `programForm` inferred; one promise; real UI is capture when the form is buyer-facing product
+- [ ] `programForm` inferred; one promise; real UI is capture + Recast when the form is a running product (`product-picture.md`)
 - [ ] Critic score ≥ 85 or the job is draft

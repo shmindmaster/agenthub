@@ -1,7 +1,8 @@
 #Requires -Version 5.1
 <#
 Measure likely-boring stretches on an encoded video: static frame runs,
-duplicate hashes, shot changes, first/last frame presence.
+duplicate hashes, Ken Burns on a still (tiny grayscale hash frozen while
+full-frame hashes change), shot changes, first/last frame presence.
 
 Outputs JSON matching schemas/visual-quality-report.schema.json.
 Flags suspects for the story-experience reviewer; does not score craft.
@@ -82,6 +83,61 @@ try {
             detail = "identical frames for $([math]::Round($tailSec, 1))s"
         })
         $dupSeconds += $tailSec
+    }
+
+    # Ken Burns / slow pan-zoom on a still: 8x8 grayscale MAD stays tiny while
+    # 320px hashes change (product-picture.md). True static is already flagged
+    # above because both layers freeze.
+    $rawPath = Join-Path $work 'tiny.gray'
+    & $ffmpeg.Source -hide_banner -loglevel error -y -i $videoPath -vf "fps=$SampleFps,scale=8:8:flags=area,format=gray" -f rawvideo $rawPath
+    if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $rawPath)) {
+        $raw = [IO.File]::ReadAllBytes($rawPath)
+        $cell = 64
+        $tinyCount = [int][Math]::Floor($raw.Length / $cell)
+        $n = [Math]::Min($hashes.Count, $tinyCount)
+        $madLimit = 8.0
+        function Get-TinyMad([byte[]]$Bytes, [int]$Left, [int]$Right) {
+            $sum = 0
+            $offL = $Left * 64
+            $offR = $Right * 64
+            for ($k = 0; $k -lt 64; $k++) {
+                $sum += [Math]::Abs([int]$Bytes[$offL + $k] - [int]$Bytes[$offR + $k])
+            }
+            return $sum / 64.0
+        }
+        $tinyRun = 1
+        $fullChanged = $false
+        for ($i = 1; $i -lt $n; $i++) {
+            $stable = (Get-TinyMad $raw ($i - 1) $i) -lt $madLimit
+            if ($hashes[$i] -ne $hashes[$i - 1]) { $fullChanged = $true }
+            if ($stable) {
+                $tinyRun++
+            } else {
+                $runSec = $tinyRun / $SampleFps
+                if ($runSec -ge $StaticSeconds -and $fullChanged) {
+                    $start = ($i - $tinyRun) / $SampleFps
+                    $end = $i / $SampleFps
+                    $suspects.Add([pscustomobject]@{
+                        kind = 'ken-burns-on-still'
+                        startSeconds = [math]::Round($start, 2)
+                        endSeconds = [math]::Round($end, 2)
+                        detail = "8x8 MAD under $madLimit for $([math]::Round($runSec, 1))s while full-frame hashes changed"
+                    })
+                }
+                $tinyRun = 1
+                $fullChanged = $false
+            }
+        }
+        $tailTiny = $tinyRun / $SampleFps
+        if ($tailTiny -ge $StaticSeconds -and $fullChanged) {
+            $start = ($n - $tinyRun) / $SampleFps
+            $suspects.Add([pscustomobject]@{
+                kind = 'ken-burns-on-still'
+                startSeconds = [math]::Round($start, 2)
+                endSeconds = [math]::Round($duration, 2)
+                detail = "8x8 MAD under $madLimit for $([math]::Round($tailTiny, 1))s while full-frame hashes changed"
+            })
+        }
     }
 
     # First/last-frame design is a critic judgment. This script only flags

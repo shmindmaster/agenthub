@@ -20,7 +20,7 @@ Produce one of two honest outcomes: a professionally finished, fully gated video
 
 ## Production rules
 
-- Capture with Playwright CLI or Playwright Test. Finish normal demos with Recast for cursor, click, animated zoom, pacing, and voice timing. Use `page.setContent()` for title and end cards. Use FFmpeg only for delivery normalization and caption burn-in.
+- Capture with Playwright CLI or Playwright Test. Finish with Recast for cursor, click, animated zoom, pacing, and voice timing (`product-picture.md`). Title/end cards only via `page.setContent()` or Remotion cards ≤8s. Use FFmpeg only for delivery normalization and caption burn-in. Do not encode a screenshot montage.
 - Use coherent synthetic data and dedicated accounts. Never show credentials, customer data, unrelated tabs, notifications, or unstable environments.
 - Keep pointer motion purposeful, focus visible, result holds long enough to read, and narration behind the action it describes.
 - Use the private review-delivery lane only after the immutable candidate, evidence, four reviews, arbiter decision, and final verification agree on the same bytes.

@@ -6,6 +6,8 @@ Score 0–100. **Below 85 is a fail.** Remit deficient scenes and rerun. Do not 
 
 Judge the **encoded file** plus screenplay, storyboard, visual bible, and captions. A criterion without evidence is `MALFORMED_INPUT`, never pass.
 
+`write-story-review.py` may lint the screenplay before capture. That score is not a craft pass. Product-screencast still requires `product-picture.md` (WebM + Recast) and this rubric's encoded-file reviewer (PDS for screencasts).
+
 ## Checks
 
 | Id | Pass |

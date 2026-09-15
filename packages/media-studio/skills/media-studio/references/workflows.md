@@ -38,7 +38,7 @@ Voice and/or ACE-Step music. Do not start ComfyUI for music. Mix a bed under spe
 
 ## product-screencast
 
-Do not load retired `product-demo*` skills. Stay in media-studio: `media-studio-capture` (Playwright + Recast), `media-studio-generate` (local voice), `$Pds\scripts` render/preflight, `media-studio-qa`. Keep `product-demo-studio.config.yaml` in the external job workspace; a legacy repo copy is read-only input and must not be created or updated. All capture and composition code stays external. Engagement is the PDS story-experience gate, not `engagement.md`.
+Do not load retired `product-demo*` skills. Stay in media-studio: `product-picture.md`, `media-studio-capture` (Playwright WebM + Recast), `media-studio-generate` (local voice; never Motif a screenshot), `validate-product-picture.mjs`, `$Pds\scripts` render/preflight, `media-studio-qa`. Keep `product-demo-studio.config.yaml` in the external job workspace; a legacy repo copy is read-only input and must not be created or updated. All capture and composition code stays external. Engagement is the PDS story-experience gate on the encoded file, not `engagement.md` and not a pre-capture text score.
 
 ## series-episode
 

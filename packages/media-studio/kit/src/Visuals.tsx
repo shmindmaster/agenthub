@@ -1001,6 +1001,17 @@ const Broll: FC<{ v: Extract<Visual, { kind: "broll" | "screen-in-context" }>; a
   const { fps } = useVideoConfig();
   const span = Math.max(1, d * fps);
   const framed = v.kind === "screen-in-context";
+  // product-picture.md: Recast punch-in is the only zoom on product UI.
+  // Ken Burns on screen-in-context turns a screenshot into fake motion.
+  const motion = framed
+    ? {}
+    : {
+        scale: interpolate(frame, [0, span], [1, 1.06], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+          easing: Easing.linear,
+        }),
+      };
   return (
     <div>
       <Caption text={v.caption} accent={accent} />
@@ -1023,11 +1034,7 @@ const Broll: FC<{ v: Extract<Visual, { kind: "broll" | "screen-in-context" }>; a
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             }),
-            scale: interpolate(frame, [0, span], [1, 1.06], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-              easing: Easing.linear,
-            }),
+            ...motion,
           }}
         />
       </div>

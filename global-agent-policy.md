@@ -68,7 +68,7 @@ Before any Sarosh voice clone, owner TTS, narration, or voice-over render, load 
 - Put the complete production workspace under `%LOCALAPPDATA%\AgentHub\media-studio` or the declared `D:\Local-AI\data\artifacts` root. A legacy product-video config may be read from a repository, but it must never be created or updated there; copy or translate it into the external job workspace.
 - A media finding that requires a product change produces Product-Readiness Feedback. Product remediation is a separate, explicitly authorized engineering task with its own scope and verification; never perform it as a media-pipeline stage.
 - Delivered video files are named `NN - Title.mp4` with no product prefix, and a delivered series carries a `README.md` index in its folder. When a master is superseded, delete it and every reproducible intermediate outright; do not create `_retired`, `_old`, or archive folders. A wrong section is re-recorded and the master re-cut; never deliver an addendum clip.
-- A product or engineering change told on video is a technical story: `media-studio` `references/technical-story.md` owns the shape (show what happened, explain why, show where, say why it matters).
+- A product or engineering change told on video is a technical story: `media-studio` `references/technical-story.md` owns the shape (show what happened, explain why, show where, say why it matters). When the picture is a running product, `references/product-picture.md` owns the picture: Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards.
 
 ## Provider availability
 

@@ -157,6 +157,9 @@ function Invoke-CloneBatch {
   $psi.FileName = (Get-Process -Id $PID).Path
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
+  # Replies are UTF-8 JSON lines; the console code page (ibm437) would mangle any non-ASCII in them.
+  # The job list goes as a file on purpose: a StandardInput pipe best-fit-maps typographic quotes.
+  $psi.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
   $psi.RedirectStandardError = $false
   foreach ($a in @(
       '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $LocalAi,

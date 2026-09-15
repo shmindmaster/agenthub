@@ -94,7 +94,8 @@
             "animation",
             "narration-only",
             "broll"
-          ]
+          ],
+          "description": "On product-screencast, default is screen. slide/diagram are title, CTA, or short code/flow cutaways ≤8s (product-picture.md)."
         },
         "visualArchetype": { "$ref": "#/$defs/visualArchetype" },
         "speaker": {

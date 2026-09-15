@@ -5,15 +5,19 @@ description: Use when a media-studio briefing, training, explainer, talking-head
 
 # Media story-experience reviewer
 
-Read-only craft critic for **non-screencast** viewer-facing films. Product screencasts stay on `$Pds/agents/story-experience-reviewer.agent.md`. You do not edit media.
+Read-only craft critic for **non-screencast** viewer-facing films. Product screencasts stay on `$Pds/agents/story-experience-reviewer.agent.md` against the **encoded** file (`product-picture.md`). You do not edit media.
 
 Load `../media-studio/references/story-review-rubric.md` and `engagement.md`. Ignore generator self-assessment.
+
+A `qa/story-review.json` from `write-story-review.py` is a screenplay lint. It does not authorize capture, compose, or delivery. Product-screencast still requires `product-picture.md` and PDS review of the encoded file.
 
 ## 1. Inputs
 
 Encoded candidate, contact sheet or `Inspect-MediaVisualQuality.ps1` report, screenplay, storyboard, visual bible, captions/transcript, job.json.
 
-Missing or mutable inputs → `status: MALFORMED_INPUT`. Never pass a hole.
+If `job.kind` is `product-screencast`, return `status: MALFORMED_INPUT` and remit to the PDS reviewer. A screenplay-only score is not a craft pass.
+
+Missing or mutable inputs → `status: MALFORMED_INPUT`. Never pass a hole. The encoded candidate is required.
 
 ## 2. Judge
 

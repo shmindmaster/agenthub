@@ -22,7 +22,7 @@ Non-screencast picture is **Media Studio** (`kind: series-episode`). After the e
 
 Do not compose slides from the scene plan alone. Do not skip the storyboard.
 
-Live-product beats stay on the PDS capture engine invoked from `media-studio`.
+Live-product beats stay on the PDS capture engine invoked from `media-studio` (`product-picture.md`: WebM + Recast). Do not assemble a series episode from PNG plates and Remotion cards and call it a product film.
 
 ## 2. Final check
 

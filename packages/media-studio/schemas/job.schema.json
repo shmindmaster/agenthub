@@ -46,7 +46,8 @@
         "founder-vision",
         "welcome",
         "social-clip",
-        "sales-enablement"
+        "sales-enablement",
+        "technical-story"
       ],
       "description": "Buyer-library or named format. See references/program-forms.md. Infer from the brief."
     },

@@ -1,6 +1,6 @@
 ---
 name: media-studio-capture
-description: Use when a live product workflow needs deterministic screen capture, walkthrough recording, screenshots, or Recast pointer/click/zoom plates for a media-studio screencast.
+description: Use when a live product workflow needs deterministic Playwright WebM capture and Recast pointer/click/zoom finishing for a media-studio screencast. Product screens in the encoded film are WebM + Recast, not Ken Burns PNGs. Diagnostic stills are posters only.
 ---
 
 # Media studio capture
@@ -11,7 +11,7 @@ Capture the real product. This is the screencast lane of media-studio (Playwrigh
 $Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Repos\shmindmaster\agenthub' })) 'packages\product-demo-studio'
 ```
 
-Engine procedure: `$Pds\pipeline\product-demo-studio-capture\SKILL.md` and `$Pds\scripts`. Do not copy product UI with diffusion.
+Engine procedure: `$Pds\pipeline\product-demo-studio-capture\SKILL.md` and `$Pds\scripts`. Contract: `../media-studio/references/product-picture.md`. Do not copy product UI with diffusion. PNG plates are diagnostic or posters; they are not the picture of a `screen` beat.
 
 The product repository is read-only. Put Playwright scripts/specs, traces,
 recordings, screenshots, manifests, authentication state, and reset evidence in
@@ -31,9 +31,9 @@ Hosts do not share one browser tool. Resolve the provider, never a tool name:
 
 1. Verify deployed commit, role, seed/reset, clean browser profile. Product-specific sign-in routes, navigation tricks, and environment overrides live in this skill's `references/` (for example `references/duckie-prod-sim.md`); read the product's note before the first take.
 2. Playwright CLI or Playwright Test from the external workspace. Preserve trace + high-resolution WebM outside the product repo.
-3. Recast (`playwright-recast`) for cursor approach, click ripple, punch-in zoom. Screencast engagement is the PDS story-experience gate, not `engagement.md` and not a second overlay stack. Annotation markup for a technical story (dim, box, arrow, label, flow) is the compositor's layer (`media-studio-compose`), applied after Recast.
-4. One beat per action: start → locator → pointer lead → action → visible result hold.
-5. Validate with `$Pds\scripts\validate-storyboard.mjs` and `validate-capture-manifest.mjs`.
+3. Recast (`playwright-recast`) is required on pointer beats: cursor approach, click ripple, punch-in zoom. Source WebM without Recast is only the fallback when Recast's ffmpeg render fails (see §3). Screencast engagement is the PDS story-experience gate, not `engagement.md` and not a second overlay stack. Annotation markup for a technical story (dim, box, arrow, label, flow) is the compositor's layer (`media-studio-compose`), applied after Recast.
+4. One beat per action: start → locator → pointer lead → action → visible result hold. Write that into `story/capture-plan.json` (`schemas/capture-plan.schema.json`). An `interaction` row needs `action`, `expectedResult`, and a WebM/MP4 `clip` — not `plateName: *.png` alone.
+5. Validate with `$Pds\scripts\validate-storyboard.mjs`, `validate-capture-manifest.mjs`, and `packages/media-studio/scripts/validate-product-picture.mjs`.
 
 ## 3. Recast engine notes (measured)
 
@@ -46,4 +46,5 @@ Hosts do not share one browser tool. Resolve the provider, never a tool name:
 - [ ] Provider resolved from `hostSurfaces`; deterministic takes are Playwright CLI/Test from the external workspace
 - [ ] Trace, WebM, storage state, manifest all outside the product repo
 - [ ] Renders serialized per clips directory; long many-click clips split or rendered without `autoZoom`
-- [ ] Storyboard and capture manifest validate
+- [ ] Storyboard, capture manifest, and product-picture validate
+- [ ] Screen beats are WebM/MP4 + Recast, not PNG stills

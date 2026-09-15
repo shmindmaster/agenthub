@@ -172,8 +172,24 @@ Report 'job schema has deliveryProfile and craftScoreMin' (
 Report 'job schema has programForm and webcast/teaser kinds' (
     $job -match '"programForm"' -and $job -match '"outcome-workflow"' -and $job -match '"webcast"' -and $job -match '"teaser"'
 ) 'job.schema.json missing library forms or broadcast kinds'
+$picture = Read-Pkg 'skills\media-studio\references\product-picture.md'
 $forms = Read-Pkg 'skills\media-studio\references\program-forms.md'
 $studio = Read-Pkg 'skills\media-studio\references\studio-craft.md'
+Report 'product-picture.md is the single interaction contract' (
+    $picture -match 'start → locator → pointer lead → action → visible product response → result hold' -and
+    $picture -match 'validate-product-picture' -and
+    $picture -match 'defaults to `screen`' -and
+    $producer -match 'product-picture.md' -and
+    $capture -match 'product-picture.md' -and
+    $compose -match 'product-picture.md' -and
+    $qa -match 'validate-product-picture' -and
+    $qa -notmatch 'Inspect-MediaVisualQuality.ps1 on the encoded file \(`ken-burns-on-still`' -and
+    $critic -match 'MALFORMED_INPUT'
+) 'product-picture contract missing from the crew or the critic still scores screencasts from text'
+Report 'feature-tutorial and onboarding default to product-screencast' (
+    $forms -match '`feature-tutorial`[^\n]+`product-screencast`' -and
+    $forms -match '`onboarding`[^\n]+`product-screencast`'
+) 'program-forms still default tutorials to Remotion training'
 Report 'program-forms catalog exists' (
     $forms -match 'outcome-workflow' -and $forms -match 'ai-trust' -and $forms -match 'One promise'
 ) 'missing program-forms.md library'

@@ -17,6 +17,7 @@ Capability `video.motif-q8`. Image-to-video on the 16 GB card via Q8 GGUF.
 
 Defaults from the runner: 640×368 (divisible by 16), 49 frames, 16 fps, 20 steps.
 Exact logos, UI chrome, and legal text are compositor work — never Motif.
+**Never Motif / image-to-video a product screenshot.** Product motion is Playwright WebM + Recast (`media-studio` `product-picture.md`). A Ken Burns or I2V still is not a screencast.
 
 ## Lipsync
 

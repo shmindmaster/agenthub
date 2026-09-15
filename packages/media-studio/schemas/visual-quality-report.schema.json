@@ -42,6 +42,7 @@
             "type": "string",
             "enum": [
               "static-stretch",
+              "ken-burns-on-still",
               "duplicate-visual",
               "long-scene",
               "caption-overlap",

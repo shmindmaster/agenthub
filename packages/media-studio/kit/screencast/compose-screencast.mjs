@@ -16,6 +16,21 @@ import { fileURLToPath } from 'node:url';
 const [jobRoot, base] = process.argv.slice(2);
 if (!jobRoot || !base) { console.error('usage: node compose-screencast.mjs <jobRoot> <base>'); process.exit(2); }
 const here = path.dirname(fileURLToPath(import.meta.url));
+function findProductPictureValidator() {
+  const candidates = [
+    path.join(here, '..', '..', 'scripts', 'validate-product-picture.mjs'),
+    process.env.AGENTHUB_ROOT ? path.join(process.env.AGENTHUB_ROOT, 'packages', 'media-studio', 'scripts', 'validate-product-picture.mjs') : null,
+  ].filter(Boolean);
+  return candidates.find((p) => fs.existsSync(p)) || null;
+}
+const productPictureValidator = findProductPictureValidator();
+if (productPictureValidator) {
+  try {
+    execFileSync(process.execPath, [productPictureValidator, jobRoot], { stdio: 'inherit' });
+  } catch {
+    process.exit(1);
+  }
+}
 const W = 1600, H = 1000, FPS = 30;
 const tl = JSON.parse(fs.readFileSync(path.join(jobRoot, 'story', 'narration-timeline.json'), 'utf8'));
 const man = JSON.parse(fs.readFileSync(path.join(jobRoot, 'capture', 'manifest.json'), 'utf8'));
@@ -49,16 +64,28 @@ for (const c of clips) {
   }
 }
 // Card-only segments: render a typeset card from the storyboard beat when no clip exists.
+// product-picture.md: auto-card is forbidden on visualMode=screen (default on product-screencast).
+const CARD_MODES = new Set(['slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
 const sbPath = path.join(jobRoot, 'story', 'storyboard.json');
 const sb = fs.existsSync(sbPath) ? JSON.parse(fs.readFileSync(sbPath, 'utf8')) : null;
 const beats = sb ? (sb.beats || sb.scenes || []) : [];
 const job = (() => { try { return JSON.parse(fs.readFileSync(path.join(jobRoot, 'job.json'), 'utf8')); } catch { return {}; } })();
 const jobTitle = job.title || '';
+const beatFor = (segId) => beats.find((x) => x.id === segId || (x.segments || []).includes(segId)) || {};
+const beatMode = (segId) => {
+  const mode = beatFor(segId).visualMode;
+  if (mode) return mode;
+  return job.kind === 'product-screencast' ? 'screen' : 'slide';
+};
+const isScreenBeat = (segId) => !CARD_MODES.has(beatMode(segId));
 for (const seg of tl.segments) {
   if (bySeg.has(seg.id)) continue;
+  if (isScreenBeat(seg.id)) {
+    throw new Error(`product-picture: segment ${seg.id} is visualMode=${beatMode(seg.id)} with no captured clip. Capture WebM (Playwright + Recast). Auto-card is forbidden on screen beats.`);
+  }
   const png = path.join(jobRoot, 'capture', 'clips', `${seg.id}-card.png`);
   if (!fs.existsSync(png)) {
-    const b = beats.find((x) => x.id === seg.id || (x.segments || []).includes(seg.id)) || {};
+    const b = beatFor(seg.id);
     const spec = { kicker: b.kicker || jobTitle, title: b.title || (seg.text.split(/[.!?]/)[0] || '').slice(0, 90), subtitle: b.subtitle || '', footer: b.footer || job.cardFooter || '' };
     execFileSync('node', [path.join(here, 'render-card.mjs'), png, JSON.stringify(spec)], { stdio: 'ignore' });
   }
@@ -95,7 +122,10 @@ groups.forEach((g, i) => {
     src = path.join(tmp, `extras-${i}.mp4`);
     execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listP, '-c', 'copy', src]);
   }
-  const isImage = /\.(png|jpg)$/i.test(src);
+  const isImage = /\.(png|jpe?g|webp)$/i.test(src);
+  if (isImage && g.segments.some((s) => isScreenBeat(s.id))) {
+    throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} is a screen beat with a still (${src}). Product screens require WebM/MP4 + Recast.`);
+  }
   // Per-clip edit hints from the manifest: trimStart (s), trimEnd (s), speed (>1 = faster, applied to the
   // whole clip; use for real wait time such as a production query), skip: [[a,b],...] (seconds to drop).
   const hints = g.clip || {};

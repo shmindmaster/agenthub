@@ -2,12 +2,12 @@
 
 Use these patterns in the external AgentHub workspace when a product needs scripted Playwright
 capture or a compositor adapter. The default capture owner is pinned Microsoft Playwright
-CLI/core. `playwright-recast` can supply trace parsing, cursor approach, click effects, auto zoom,
-wait compression, narration/caption timing, and MP4 output, but it is experimental until the
-documented Windows FFmpeg path failures are fixed and the full spike gate passes. Do not
-reimplement mechanics already supplied by the selected finisher. Only stable hooks
-independently useful to product tests may live in the product repository, and only with explicit
-authorization.
+CLI/core. `playwright-recast` is the required pointer/click/punch-in finisher on captured
+WebM (`media-studio` `product-picture.md`). Long many-click clips can fail Recast's ffmpeg
+`autoZoom` on Windows — split the take or render without `autoZoom`. That is not permission
+to encode PNG stills or skip the cursor overlay and click ripple. Do not reimplement
+mechanics already supplied by the selected finisher. Only stable hooks independently useful
+to product tests may live in the product repository, and only with explicit authorization.
 
 ## Patterns worth retaining
 

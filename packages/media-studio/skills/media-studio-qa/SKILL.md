@@ -17,6 +17,8 @@ $Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Re
 
 Follow `$Pds\pipeline\product-demo-studio-qa\SKILL.md`. Scripts and agents stay in that package. Story, pacing, music, and zoom for this kind are that gate — do not apply a second engagement rubric.
 
+Also run `packages/media-studio/scripts/validate-product-picture.mjs` on the job root. Freeze, WebM-vs-still, zoom, and story/pacing stay on the PDS scripts and encoded-file reviewer. Do **not** use `Inspect-MediaVisualQuality.ps1` as this kind's craft gate (that helper is Other kinds). A pre-capture `story-experience-review.json` scored from the screenplay is not a craft pass. `media-story-experience-reviewer` must not be used for this kind.
+
 ## 2. Other kinds
 
 Briefings, training, explainers, talking-heads, animation, and audio-only do **not** run the four-domain screencast gate. For those:
