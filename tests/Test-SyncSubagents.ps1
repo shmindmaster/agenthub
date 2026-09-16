@@ -316,7 +316,7 @@ function Test-HostNotInstalledIsSkippedCleanlyWithoutCreatingDirectories {
         if ($result.ExitCode -ne 0) {
             return @{ Passed = $false; Detail = "exit code was $($result.ExitCode) for a profile with zero hosts installed. Output: $($result.Output)" }
         }
-        if ($result.Output -notmatch '(?m)product-demo-studio\s+codex\s+episode-architect\s+skipped \(host not installed\)') {
+        if ($result.Output -notmatch '(?m)product-experience-engineering\s+codex\s+experience-auditor\s+skipped \(host not installed\)') {
             return @{ Passed = $false; Detail = "expected a 'skipped (host not installed)' row for codex. Output: $($result.Output)" }
         }
         if (Test-Path -LiteralPath (Join-Path $userProfile '.codex')) {

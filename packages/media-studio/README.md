@@ -2,14 +2,13 @@
 
 The **only public** video/audio/animation plugin. Infer form from the ask
 (product demo, briefing, explainer, talking-head, and the rest) and run that
-workflow. Product-demo-studio is the internal screencast engine, not a second
-plugin.
+workflow. Live-product screencasts are this pack (Playwright WebM + Recast), not a second plugin.
 
 **Rapid default:** a sentence or a source path is enough. Infer kind and delivery. Still run curation, gap-closure, writer, storyboard, visuals, director, Local-AI generate, Remotion/FFmpeg/Recast, craft critic, QA. Rapid means infer-and-run, not skip craft. Ask the user only when blocked.
 
-Live-product screencasts still use the gated Playwright + Recast + four-domain engine that lives in `packages/product-demo-studio` (pipeline, scripts, agents). Those `product-demo*` **skills are retired**; `media-studio` invokes that engine.
+Live-product screencasts use Playwright WebM + Recast in this pack (`kit/screencast/record-job.mjs`, `scripts/validate-product-picture.mjs`). Retired `product-demo*` skills must not be loaded.
 
-**Viewer-facing** jobs apply `skills/media-studio/references/engagement.md` and `story-craft.md`. The screenplay carries story role, WIIFM, and tension; the storyboard carries shot plan, archetype, and sound. Score < 85 from `media-story-experience-reviewer` does not ship. `intent: draft` skips GPU plates and the critic gate. Product-screencast craft stays in the PDS killer-demo guide.
+**Viewer-facing** jobs apply `skills/media-studio/references/engagement.md` and `story-craft.md`. The screenplay carries story role, WIIFM, and tension; the storyboard carries shot plan, archetype, and sound. Score < 85 from `media-story-experience-reviewer` does not ship. `intent: draft` skips GPU plates and the critic gate. Product-screencast craft uses `killer-demo-production-guide.md` plus product-picture.
 
 **Technical stories** (`programForm: technical-story`) are product or engineering changes told as 5–8 minute mini documentaries: `skills/media-studio/references/technical-story.md` holds the beat map and markup rules; `kit/screencast/` holds the compositor, annotation overlay, code-reveal and card renderers with their manifest hints. Product-specific capture notes live under `skills/media-studio-capture/references/`.
 
@@ -20,7 +19,7 @@ Runtime media stays outside AgentHub (`%LOCALAPPDATA%\AgentHub\media-studio` and
 
 Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` compositor tooling). Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. Sync with `scripts/Sync-MediaStudioKit.ps1`.
 
-Pre-capture screenplay lint: `scripts/write-story-review.py <jobRoot>` (optional; the sync script copies it to `_shared\tools` when present). It is not a craft pass and does not authorize compose or delivery. Product-screencast still requires `validate-product-picture.mjs` and PDS review of the encoded file (`product-picture.md`).
+Pre-capture screenplay lint: `scripts/write-story-review.py <jobRoot>` (optional; the sync script copies it to `_shared\tools` when present). It is not a craft pass and does not authorize compose or delivery. Product-screencast still requires `validate-product-picture.mjs` and encoded-file review (`product-picture.md`).
 
 ## Product-repository boundary
 

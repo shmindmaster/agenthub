@@ -12,7 +12,8 @@
     "react-dom": "19.2.3",
     "remotion": "4.0.517",
     "@remotion/tailwind-v4": "4.0.517",
-    "tailwindcss": "4.0.0"
+    "tailwindcss": "4.0.0",
+    "playwright-recast": "0.21.0"
   },
   "devDependencies": {
     "@remotion/eslint-config-flat": "4.0.517",

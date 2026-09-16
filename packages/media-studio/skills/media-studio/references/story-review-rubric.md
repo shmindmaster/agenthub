@@ -1,12 +1,26 @@
 # Story-experience rubric (non-screencast)
 
-Used by `media-story-experience-reviewer`. Product screencasts stay on `$Pds/agents/story-experience-reviewer.agent.md`.
+Used by `media-story-experience-reviewer` on the encoded file, including product screencasts.
 
 Score 0–100. **Below 85 is a fail.** Remit deficient scenes and rerun. Do not deliver.
 
 Judge the **encoded file** plus screenplay, storyboard, visual bible, and captions. A criterion without evidence is `MALFORMED_INPUT`, never pass.
 
-`write-story-review.py` may lint the screenplay before capture. That score is not a craft pass. Product-screencast still requires `product-picture.md` (WebM + Recast) and this rubric's encoded-file reviewer (PDS for screencasts).
+`write-story-review.py` may lint the screenplay before capture. That score is not a craft pass. Product-screencast still requires `product-picture.md` (WebM + Recast) and this rubric's encoded-file reviewer.
+
+## Before capture
+
+The encoded critics cannot run before the master exists, so every kind first passes
+`scripts/write-story-review.py <jobRoot>` on `story/screenplay.json` + `story/storyboard.json`. It computes
+the mechanical checks below (hook, one-hero, silence-hero, before-state, archetype-diversity,
+designed-frames, filler, narration-vs-type, type-density, platform) and reads audience, outcome, wiifm,
+progressive, one-idea, one-promise, studio-picture (and trust when the scene labels cannot prove it)
+from `qa/story-judgments.json`, a writer-recorded verdict with a scene-cited evidence line per check. No
+judgments file means `MALFORMED_INPUT` and no score. The arithmetic below applies unchanged, plus one
+rule of the tool's own, named in its `reason`: a failed check this rubric gives no arithmetic for (trust,
+designed-frames, platform, a failed judgment) costs 15. Below 85 the scenes it names are revised and it
+runs again before capture. It writes `qa/story-review.json`; the encoded critic later supersedes it with
+`qa/story-experience-review.json`, which is the only craft pass.
 
 ## Checks
 

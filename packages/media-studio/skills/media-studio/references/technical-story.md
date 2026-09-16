@@ -1,6 +1,6 @@
 # Technical story (product / engineering change films)
 
-Load this for any film whose subject is a product or engineering change — a fix, a new capability, an incident, a behavior nobody expected. Set `programForm: technical-story` on `job.json`. Kind is `product-screencast` when the picture is a running product (the normal case), `explainer` when no product can be shown. Screencast craft, capture, and QA gates stay with the PDS killer-demo guide plus `product-picture.md` (WebM + Recast; overlays and code cards serve the product, they do not replace it). This file is the **story shape and markup rules** for this form. It does not replace `story-craft.md` — it is the concrete instance of that spine for this subject.
+Load this for any film whose subject is a product or engineering change — a fix, a new capability, an incident, a behavior nobody expected. Set `programForm: technical-story` on `job.json`. Kind is `product-screencast` when the picture is a running product (the normal case), `explainer` when no product can be shown. Screencast craft, capture, and QA gates stay with `killer-demo-production-guide.md` plus `product-picture.md` (WebM + Recast; overlays and code cards serve the product, they do not replace it). This file is the **story shape and markup rules** for this form. It does not replace `story-craft.md` — it is the concrete instance of that spine for this subject.
 
 Guiding principle, in the owner's words:
 
@@ -69,7 +69,7 @@ Set `speaker` on the scene; leave host scenes as `sarosh` or omit. See `scene-ar
 | `media-director` | Specifies the overlay per beat for the compositor; picks the 5–20 lines; sets the flow-diagram nodes when systems are crossed. |
 | `media-studio-capture` | Local prod-sim, synthetic personas, deterministic replays; product-specific operator notes live in that skill's `references/`. |
 | `media-studio-compose` | Applies overlays per segment (`overlay` hint), code cards, flow cards; manifest hints `trimStart`, `trimEnd`, `speed`, `skip`, `fit`. |
-| `media-studio-qa` | PDS gates plus: hook is a problem; one highlighted section at a time; no narrated chrome; no addendum. |
+| `media-studio-qa` | product-picture plus: hook is a problem; one highlighted section at a time; no narrated chrome; no addendum. |
 
 ## 5. Final check
 

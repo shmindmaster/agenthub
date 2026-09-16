@@ -11,7 +11,7 @@
   },
   "workspacePolicy": {
     "environmentOverride": "AGENTHUB_PRODUCT_VIDEO_WORK_ROOT",
-    "defaultRoot": "%LOCALAPPDATA%/AgentHub/product-demo-studio",
+    "defaultRoot": "%LOCALAPPDATA%/AgentHub/media-studio",
     "targetRepositoriesReadOnlyByDefault": true,
     "generatedRepositoryFoldersAllowed": false,
     "acceptedOutputsDestination": "product.reviewRoot"

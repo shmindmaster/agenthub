@@ -154,7 +154,7 @@ Report 'technical-story.md carries the beat map, markup rules, and the guiding p
 $writer = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-writer\SKILL.md') -Raw -Encoding UTF8
 $board = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-storyboard\SKILL.md') -Raw -Encoding UTF8
 $director = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-director\SKILL.md') -Raw -Encoding UTF8
-$playbook = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\product-demo-studio\pipeline\product-demo-studio\references\killer-demo-playbook.md') -Raw -Encoding UTF8
+$playbook = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\killer-demo-playbook.md') -Raw -Encoding UTF8
 Report 'writer, storyboard, director, PDS playbook, and series director link technical-story.md' (
     $writer -match 'technical-story\.md' -and
     $board -match 'technical-story\.md' -and

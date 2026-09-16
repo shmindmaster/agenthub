@@ -1,5 +1,5 @@
 ---
-description: From a concept, outline, or bullets, produce a briefing, training film, explainer, talking-head, animation, audio, or live-product screencast locally. Single media-studio entry. Product-demo-studio skills are retired.
+description: From a concept, outline, or bullets, produce a briefing, training film, explainer, talking-head, animation, audio, or live-product screencast locally. Single media-studio entry.
 argument-hint: "<concept or --kind briefing|training|explainer|talking-head|animation|audio-only|product-screencast|webcast|webinar|keynote|documentary|teaser>"
 ---
 

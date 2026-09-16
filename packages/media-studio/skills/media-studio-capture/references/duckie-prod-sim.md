@@ -32,7 +32,17 @@ Product-specific capture knowledge for the Duckie local production simulator. Id
 - Targeted local sync follows the deep-dive `env/sync_org.py` pattern (one org, explicit tables) rather than a full dump.
 - The claude.ai Supabase connector is signed into a **different account**; do not rely on it for Duckie.
 
-## 5. Final check
+## 5. The kit recording lane (2026-09-15)
+
+The wave-1 recut of the Duckie series shipped screenshots looped under narration (one held for 100 s) because the job kit had a still-plate path (`capture-static.mjs`, now deleted) and never called `validate-product-picture.mjs`. The lane that satisfies `product-picture.md` on this product lives in the runtime kit, `%LOCALAPPDATA%\AgentHub\media-studio\_shared\capture-lib\` (not git):
+
+- `record-job.mjs <jobRoot> [S05 …]` records one Playwright take per screen beat from `<jobRoot>/capture/scenes.mjs` (1600×1000 @2×, trace + WebM) and finishes it with `playwright-recast` (cursor approach, click ripple, punch-in). Output: `capture/clips/<id>.webm`, `capture/beats/<id>.json`, `capture/recordings.json` (take length vs narration length; a take under 0.7× is flagged `short`). A Recast failure retries without autoZoom, then keeps the raw WebM with `recast: "fallback"` written down.
+- `sim-helpers.mjs` holds the shared Duckie interactions (`go`, `hoverHold`, `pointAt`, `approachAndClick`, `typeText`, `search`, `openAgent`, `pickModel`, `saveDialog`, `dialog`, `dialogScroll`, `cancel`, `smoothScroll`, `hold`), paced to the PDS guide.
+- `_shared/tools/build-manifest.py` exits 1 on a screen scene with only a PNG or no clip; `run-job-pipeline.sh` runs `validate-product-picture.mjs` after the manifest and fails a product-screencast whose longest static run exceeds 10 s; the delivery queue runs the validator again before `deliver`.
+- Callouts: `capture/callouts/<scene>.json` (`layers[]` with `from`, `to`, `boxes`, `arrows`, `notes`, `dim`, frame pixels) render through `render-overlay.mjs` and apply as time-windowed overlays; the as-of chip follows the storyboard's `asOfChip`.
+- Session: `_capture/state.json` from `mint-session.mjs`; when a route bounces to `/login`, re-mint before the first take. `diagnostic-screens.mjs` (route screenshots) is for posters and locator checks only.
+
+## 6. Final check
 
 - [ ] Storage state came from the sign-in endpoint, not typed credentials
 - [ ] Override file is in the external workspace and reverted after the session

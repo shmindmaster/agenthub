@@ -83,7 +83,7 @@ It CANNOT see, and does not claim to:
     covered once it is added, not while it sits untracked in a worktree.
   - commands built as text and run through Invoke-Expression or a
     scriptblock created from a string (this repo has none in scope)
-  - reads inside non-.ps1 files -- packages/product-demo-studio's .mjs
+  - reads inside non-.ps1 files -- packages/media-studio's .mjs
     tooling is Node, which always decodes UTF-8, so it does not have this
     defect
   - .NET reads ([IO.File]::ReadAllText / ReadAllBytes). Those are already

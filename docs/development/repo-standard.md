@@ -85,7 +85,7 @@ contract (Mission + Knowledge authority + Definition of done) is drift.
   `Check-RepoStandard.ps1` fails a member path (measured 2026-09-10 when
   `repowise update --repo agenthub` from inside the repo wrote
   `C:/Repos/shmindmaster/agenthub`).
-- Excluded from the workspace: `.demo-workspace` (product-demo-studio
+- Excluded from the workspace: `.demo-workspace` (media-studio
   capture output; not a git repo — do not delete).
 - The knowledge-standard checker still applies only to rostered
   shmindmaster repos; client trees are indexed, not standardized.

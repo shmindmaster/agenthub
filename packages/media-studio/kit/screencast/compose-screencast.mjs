@@ -18,19 +18,26 @@ if (!jobRoot || !base) { console.error('usage: node compose-screencast.mjs <jobR
 const here = path.dirname(fileURLToPath(import.meta.url));
 function findProductPictureValidator() {
   const candidates = [
+    path.join(here, 'validate-product-picture.mjs'),
     path.join(here, '..', '..', 'scripts', 'validate-product-picture.mjs'),
     process.env.AGENTHUB_ROOT ? path.join(process.env.AGENTHUB_ROOT, 'packages', 'media-studio', 'scripts', 'validate-product-picture.mjs') : null,
+    path.join('C:', 'Repos', 'shmindmaster', 'agenthub', 'packages', 'media-studio', 'scripts', 'validate-product-picture.mjs'),
   ].filter(Boolean);
   return candidates.find((p) => fs.existsSync(p)) || null;
 }
+// product-picture.md: the gate is not optional. A compositor that cannot find its validator must stop,
+// not compose unchecked (that silent skip is how stills-and-slides cuts shipped before 2026-09-15).
 const productPictureValidator = findProductPictureValidator();
-if (productPictureValidator) {
-  try {
-    execFileSync(process.execPath, [productPictureValidator, jobRoot], { stdio: 'inherit' });
-  } catch {
-    process.exit(1);
-  }
+if (!productPictureValidator) {
+  throw new Error('product-picture validator not resolvable (looked beside this script, in ../../scripts, and under AGENTHUB_ROOT). Run Sync-MediaStudioKit.ps1 or set AGENTHUB_ROOT; do not compose without the gate.');
 }
+try {
+  execFileSync(process.execPath, [productPictureValidator, jobRoot], { stdio: 'inherit' });
+} catch {
+  process.exit(1);
+}
+const HOLD_PAD_MAX = 2.0;     // seconds a screen clip may be frozen to reach the narration length
+const RESULT_HOLD_MAX = 6.0;  // unless the storyboard beat declares resultHoldSeconds up to this
 const W = 1600, H = 1000, FPS = 30;
 const tl = JSON.parse(fs.readFileSync(path.join(jobRoot, 'story', 'narration-timeline.json'), 'utf8'));
 const man = JSON.parse(fs.readFileSync(path.join(jobRoot, 'capture', 'manifest.json'), 'utf8'));
@@ -107,7 +114,9 @@ for (const seg of tl.segments) {
 
 const parts = [];
 const rows = [];
+const mapGroups = [];
 let prevFile = null;
+let prevClipFile = null;
 groups.forEach((g, i) => {
   const out = path.join(tmp, `part-${String(i).padStart(3, '0')}.mp4`);
   const dur = g.duration.toFixed(3);
@@ -143,6 +152,17 @@ groups.forEach((g, i) => {
   }
   const srcDur = isImage ? 0 : probe(src);
   const fit = g.clip?.fit || (srcDur > g.duration ? 'cut' : 'hold');
+  if (!isImage && g.clip && (fit === 'hold' || fit === 'fitpad') && g.segments.some((s) => isScreenBeat(s.id))) {
+    const pad = g.duration - srcDur;
+    const declared = Math.max(0, ...g.segments.map((s) => Number(beatFor(s.id).resultHoldSeconds || 0)));
+    if (pad > HOLD_PAD_MAX && !(declared >= pad && declared <= RESULT_HOLD_MAX)) {
+      throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} would freeze ${srcDur.toFixed(1)}s of footage for ${pad.toFixed(1)}s to cover ${g.duration.toFixed(1)}s of narration (max ${HOLD_PAD_MAX}s or a declared resultHoldSeconds ≤ ${RESULT_HOLD_MAX}s). Re-pace the take, cut the words, or split the beat.`);
+    }
+  }
+  if (!isImage && g.clip && fit === 'fit' && srcDur > 0 && g.segments.some((s) => isScreenBeat(s.id))) {
+    const r = g.duration / srcDur;
+    if (r < 0.8 || r > 1.25) throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} fit would retime product footage ${r.toFixed(2)}x (allowed 0.8–1.25x); that misrepresents the product's speed.`);
+  }
   let vf = `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2,fps=${FPS},format=yuv420p`;
   let args;
   if (isImage) args = ['-loop', '1', '-t', dur, '-i', src, '-vf', vf];
@@ -160,6 +180,8 @@ groups.forEach((g, i) => {
   }
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-r', String(FPS), out]);
   parts.push(out); prevFile = src;
+  mapGroups.push({ segments: g.segments.map((s) => s.id), startSeconds: g.start, needSeconds: Number(g.duration.toFixed(3)), clipId: g.clip ? g.clip.id : null, file: g.clip ? g.clip.file : (prevClipFile || null), heldFromPrevious: !g.clip, srcSeconds: Number(srcDur.toFixed(3)), fit: g.clip ? fit : 'hold-prev', trimStart: Number(hints.trimStart || 0), speed: Number(hints.speed || 1), overlay: g.clip?.overlay || null, isImage });
+  if (g.clip) prevClipFile = g.clip.file;
   rows.push(`${g.segments.map((s) => s.id).join('+').padEnd(16)} ${(g.clip ? g.clip.id : '(hold prev)').padEnd(28)} need=${g.duration.toFixed(1).padStart(6)}s clip=${srcDur.toFixed(1).padStart(6)}s ${fit}${g.clip && g.clip.overlay ? ' +overlay' : ''}`);
 });
 const list = path.join(tmp, 'concat.txt');
@@ -167,5 +189,7 @@ fs.writeFileSync(list, parts.map((p) => `file '${p.replace(/\\/g, '/')}'`).join(
 const outFile = path.join(jobRoot, 'output', `${base}-silent.mp4`);
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', `fade=t=in:st=0:d=0.5,fade=t=out:st=${(tl.durationSeconds - 0.8).toFixed(2)}:d=0.8,format=yuv420p`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-movflags', '+faststart', outFile]);
 const finalDur = probe(outFile);
+// Compose map: validate-encoded-picture.mjs uses it to bind every encoded segment back to its receipt-bound clip.
+fs.writeFileSync(path.join(jobRoot, 'output', `${base}-compose-map.json`), JSON.stringify({ generator: 'media-studio/compose-screencast', base, silent: outFile, timelineSeconds: tl.durationSeconds, pictureSeconds: finalDur, groups: mapGroups }, null, 2));
 console.log(rows.join('\n'));
 console.log(JSON.stringify({ ok: true, out: outFile, pictureSeconds: finalDur, timelineSeconds: tl.durationSeconds, delta: +(finalDur - tl.durationSeconds).toFixed(2) }));

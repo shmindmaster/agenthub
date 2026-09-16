@@ -6,7 +6,7 @@
   "workspace": {
     "file": ".repowise-workspace.yaml",
     "root": "C:/Repos",
-    "note": "Single RepoWise workspace over C:/Repos. Member paths are relative to that root (shmindmaster/<repo>, sh-pendoah/<repo>, musa-dev-team/<repo>, pendoah/<product>/<repo>). .demo-workspace is not a git repo (product-demo-studio capture output). The fleet knowledge standard still applies only to rostered shmindmaster repos."
+    "note": "Single RepoWise workspace over C:/Repos. Member paths are relative to that root (shmindmaster/<repo>, sh-pendoah/<repo>, musa-dev-team/<repo>, pendoah/<product>/<repo>). .demo-workspace is not a git repo (media-studio capture output). The fleet knowledge standard still applies only to rostered shmindmaster repos."
   },
   "excluded": [
     { "name": ".demo-workspace", "reason": "Removed 2026-08-21. Was Product Demo Studio working media (not a git repo). work_dir now lives under %LOCALAPPDATA%\\AgentHub\\demo-workspace." }

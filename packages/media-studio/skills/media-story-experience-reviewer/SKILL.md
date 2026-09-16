@@ -5,17 +5,40 @@ description: Use when a media-studio briefing, training, explainer, talking-head
 
 # Media story-experience reviewer
 
-Read-only craft critic for **non-screencast** viewer-facing films. Product screencasts stay on `$Pds/agents/story-experience-reviewer.agent.md` against the **encoded** file (`product-picture.md`). You do not edit media.
+Read-only craft critic for viewer-facing films against the **encoded** file. Product screencasts also require `product-picture.md`. You do not edit media.
 
 Load `../media-studio/references/story-review-rubric.md` and `engagement.md`. Ignore generator self-assessment.
 
-A `qa/story-review.json` from `write-story-review.py` is a screenplay lint. It does not authorize capture, compose, or delivery. Product-screencast still requires `product-picture.md` and PDS review of the encoded file.
+A `qa/story-review.json` from `write-story-review.py` is a screenplay lint. It does not authorize capture, compose, or delivery. Product-screencast still requires `product-picture.md` and this review of the encoded file.
+
+## 0. Before capture
+
+This skill cannot run before capture: it judges the encoded file. The writer's
+pre-capture gate for **every** kind, product screencasts included, is the plugin's
+`scripts/write-story-review.py` (the media-studio kit keeps its working copy at
+`%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools\`):
+
+```text
+python write-story-review.py <jobRoot> [--min 85] [--print]
+```
+
+It computes the mechanical rubric checks from `story/screenplay.json` + `story/storyboard.json` (hook,
+hero, silence, before-state, repeats, designed frames, filler vocabulary, narration reading the card,
+type density) and reads the judgment checks (audience, outcome, wiifm, progressive, one-idea,
+one-promise, studio-picture, trust when the labels cannot prove it) from `qa/story-judgments.json`,
+which the writer records with a scene-cited evidence line per check. A missing judgments file is
+`MALFORMED_INPUT`, never a pass. It writes `qa/story-review.json` (this skill's schema) and a provenance
+sidecar; nobody hand-writes a score. The rubric arithmetic is unchanged; the tool adds one rule of its
+own, named in `reason`: a failed check the rubric gives no arithmetic for costs 15. Below 85 the writer
+revises the scenes it names and reruns it before any capture starts. When the master exists, the encoded
+critic runs on the file and supersedes
+`qa/story-review.json` with `qa/story-experience-review.json`; that review, not the gate, is the craft pass.
 
 ## 1. Inputs
 
 Encoded candidate, contact sheet or `Inspect-MediaVisualQuality.ps1` report, screenplay, storyboard, visual bible, captions/transcript, job.json.
 
-If `job.kind` is `product-screencast`, return `status: MALFORMED_INPUT` and remit to the PDS reviewer. A screenplay-only score is not a craft pass.
+If `job.kind` is `product-screencast`, also require a passing `validate-product-picture.mjs` result. A screenplay-only score is not a craft pass.
 
 Missing or mutable inputs → `status: MALFORMED_INPUT`. Never pass a hole. The encoded candidate is required.
 

@@ -8,7 +8,7 @@ Do not invent metrics, customer names, or AI behavior. Unsourced numbers are omi
 
 | Kind | Use | Default profile | Notes |
 | --- | --- | --- | --- |
-| `product-screencast` | Real UI, cursor, zoom | PDS | Outcome-first. No feature tour. |
+| `product-screencast` | Real UI, cursor, zoom | Recast + product-picture | Outcome-first. No feature tour. |
 | `briefing` | Argument on the archetype kit | `briefing-board` | Not a webcast. |
 | `training` | One skill per clip | `onboarding` | ≤ ~3 min unless the user asked longer. |
 | `explainer` | Idea, no live product required | `youtube-16x9` | `story-craft.md` spine. |

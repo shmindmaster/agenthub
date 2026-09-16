@@ -4,7 +4,7 @@ Load this for every **viewer-facing** media-studio job. `intent: draft` still wr
 
 This file is the home for diagnose / tools / kind defaults / ownership. Dramatic structure lives in `story-craft.md`. Studio picture/sound/voice in `studio-craft.md`. Formats in `program-forms.md`. Archetype ids live in `scene-archetypes.md`. Scoring lives in `story-review-rubric.md`. Skills name the action they own; they do not restate those catalogs.
 
-**Product screencasts** do not use this file as a second rubric. Their craft authority is `$Pds\pipeline\product-demo-studio\references\killer-demo-production-guide.md` plus the story-experience reviewer. Recast owns cursor, click ripple, and punch-in zoom. Do not invent another overlay stack. The annotation layer (`kit/screencast/render-overlay.mjs`: dim, box, arrow, label, flow diagram) is story markup for `technical-story.md`, directed per beat and composited over Recast's output; it is not an engagement rubric and not a second cursor system.
+**Product screencasts** do not use this file as a second rubric. Their craft authority is `killer-demo-production-guide.md` plus the story-experience reviewer on the encoded file. Recast owns cursor, click ripple, and punch-in zoom. Do not invent another overlay stack. The annotation layer (`kit/screencast/render-overlay.mjs`: dim, box, arrow, label, flow diagram) is story markup for `technical-story.md`, directed per beat and composited over Recast's output; it is not an engagement rubric and not a second cursor system.
 
 Goal: the viewer keeps watching. Important moments feel important. Polish is intentional, not decorative.
 

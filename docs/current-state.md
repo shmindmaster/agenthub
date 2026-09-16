@@ -286,7 +286,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   content, filenames, and commit messages across the whole history — verified
   independently here. Fleet references (`repo-standard.json`,
   `mobile-scope.json`, the DigitalOcean portfolio/DNS skills, the
-  product-demo-studio compatibility table, the product-experience-engineering
+  product-experience-engineering
   leak guard, and the RepoWise workspace) now say `lienwise`. The freeze exit
   condition was met, so it moved to `include` (P1). **Pre-rewrite SHAs are
   dead**: any other checkout needs `git fetch && git reset --hard origin/main`.
@@ -366,12 +366,11 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   scene-archetype kit; `media-story-experience-reviewer` fails closed below 85.
   `intent: draft` skips GPU plates and the critic gate. Remotion is required
   for viewer-facing briefing/training/explainer/series-episode unless draft.
-  Product screencasts keep the PDS killer-demo / story-experience gate. Kinds:
+  Product screencasts use Playwright WebM + Recast in media-studio
+  (`record-job.mjs`, `validate-product-picture.mjs`). Kinds:
   briefing, training, explainer, talking-head, animation, audio-only, and
-  `product-screencast`. `product-demo*` **skills are fleet-retired**; the
-  Playwright + Recast + four-domain engine remains in
-  `packages/product-demo-studio/pipeline` and is invoked by media-studio, not
-  loaded as a public skill. Owner voice remains
+  `product-screencast`. `product-demo*` skills and the
+  `packages/product-demo-studio` package are gone. Owner voice remains
   `ai.ps1 voice qwen-clone --voice sarosh`. Remotion is official
   `remotion-dev/skills` 4.0.517 (not vendored), installed globally under
   `~/.agents/skills` and recorded current on Claude and Codex. FFmpeg/ffprobe

@@ -161,7 +161,7 @@ if (@($pluginFormats.hosts | Where-Object id -eq 'opencode').manifest) {
   Fail 'OpenCode must not be assigned a capability-bundle manifest'
 }
 
-foreach ($packageName in @('product-demo-studio','product-experience-engineering')) {
+foreach ($packageName in @('product-experience-engineering')) {
   $agentFiles = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot "$packageName\agents") -File -ErrorAction SilentlyContinue)
   if ($agentFiles.Count -eq 0) { Fail "subagent-driven package has no agents: $packageName" }
   foreach ($agentFile in $agentFiles) {

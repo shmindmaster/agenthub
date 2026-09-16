@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 Pins the product-picture contract: validator fails PNG screen beats, auto-cards,
-kind/form mismatch, and sub-70% screen duration; compose-screencast forbids
+kind/form mismatch, unreceipted clips, and sub-70% screen duration; compose-screencast forbids
 auto-card on screen; kit does not Ken Burns screen-in-context.
 
 Run: pwsh -NoProfile -File tests/Test-MediaStudioProductPicture.ps1
@@ -42,11 +42,17 @@ $videoMd = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\local-ai\skil
 Report 'Local-AI video.md refuses Motif of product screenshots' (
     $videoMd -match 'Never Motif / image-to-video a product screenshot'
 ) 'video.md still allows I2V of product UI'
-$policy = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\product-demo-studio\policy\product-video-policy.json') -Raw -Encoding UTF8
-Report 'PDS policy requires Recast pointer finishing' (
-    $policy -match '"pointerFinishing"\s*:\s*"playwright-recast@0.19.2"' -and
+$policy = Get-Content -LiteralPath (Join-Path $pkg 'policy\product-video-policy.json') -Raw -Encoding UTF8
+Report 'product video policy requires Recast pointer finishing' (
+    $policy -match '"pointerFinishing"\s*:\s*"playwright-recast@\d+\.\d+\.\d+"' -and
     $policy -notmatch 'windows-spike-blocked'
 ) 'Recast is still labeled spike-blocked so agents skip cursor/click/zoom'
+$kitPkg = Get-Content -LiteralPath (Join-Path $pkg 'kit\package.json') -Raw -Encoding UTF8
+Report 'runtime kit declares playwright-recast' ($kitPkg -match '"playwright-recast"\s*:\s*"0\.21\.0"') 'kit/package.json does not pin playwright-recast 0.21.0, so record-job.mjs cannot finish takes'
+Report 'record-job.mjs exists in the kit' (Test-Path -LiteralPath (Join-Path $pkg 'kit\screencast\record-job.mjs')) 'missing kit/screencast/record-job.mjs'
+Report 'validate-encoded-picture.mjs exists' (Test-Path -LiteralPath (Join-Path $pkg 'scripts\validate-encoded-picture.mjs')) 'missing scripts/validate-encoded-picture.mjs'
+Report 'compose-screencast fails closed without its validator' ($compose -match 'validator not resolvable') 'compositor still skips silently when the validator is missing'
+Report 'compose-screencast caps hidden freezes' ($compose -match 'HOLD_PAD_MAX') 'compositor still freezes a short clip across a long paragraph'
 
 $scratch = Join-Path $env:TEMP ("ms-picture-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $scratch | Out-Null
@@ -72,6 +78,14 @@ try {
     }
 
     $okDir = Join-Path $scratch 'ok'
+    # The passing case carries a real moving clip and a record-job receipt bound to its sha256;
+    # since 2026-09-15 the gate ffprobes the clip and refuses unreceipted footage.
+    New-Item -ItemType Directory -Force -Path (Join-Path $okDir 'capture\clips') | Out-Null
+    $okClip = Join-Path $okDir 'capture\clips\S02.webm'
+    & ffmpeg -hide_banner -loglevel error -y -f lavfi -i 'testsrc2=size=1600x1000:rate=30:duration=20' -c:v libvpx-vp9 -b:v 800k -pix_fmt yuv420p $okClip 2>&1 | Out-Null
+    $okSha = (Get-FileHash -LiteralPath $okClip -Algorithm SHA256).Hash.ToLowerInvariant()
+    @{ schemaVersion = '1.0.0'; generator = 'media-studio/record-job'; clips = @{ S02 = @{ file = 'clips/S02.webm'; sha256 = $okSha; recast = 'full'; valid = $true; events = @{ pointerMoves = 20; clicks = 1; keystrokes = 0; scrolls = 0; expectations = 1; expectationsObserved = 1; expectationsFailed = @() } } } } |
+        ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $okDir 'capture/receipt.json') -Encoding utf8
     Write-Job $okDir 'product-screencast' 'role-demo' @{
         title = 't'
         chosenHook = @{ id = 'h'; narration = 'n'; visualArchetype = 'cold-open'; score = 90; why = 'w' }

@@ -9,7 +9,7 @@ Art direction for the job. You do not generate TTS, compose the program, or inve
 
 Load `../media-studio/references/engagement.md` and `scene-archetypes.md`. Local images: `ai.ps1 image` / Visual Bank (`local-ai-stack` `references/image.md`). Exact logos and legal text are compositor type.
 
-Screencast visual contract (kind `product-screencast`): `$Pds\pipeline\product-demo-studio\references\Visual-Asset-Guide.md` plus `../media-studio/references/product-picture.md`. Product UI is captured video, not a bible still.
+Screencast visual contract (kind `product-screencast`): `../media-studio/references/Visual-Asset-Guide.md` plus `../media-studio/references/product-picture.md`. Product UI is captured video, not a bible still.
 
 Handoff: `media-storyboard` → **this skill** → `media-director`.
 

@@ -7,7 +7,7 @@ description: Use when a video needs direction, a visual plan, scene design, poin
 
 Translate the locked storyboard into what appears and how it is performed. Decide in this turn; do not present a menu of visual styles. You do not capture, generate, or release.
 
-Load `../media-studio/references/engagement.md` and `scene-archetypes.md` unless kind is `product-screencast` (PDS + Recast + `product-picture.md`). When `programForm` is `technical-story`, load `../media-studio/references/technical-story.md`: the markup rules there are yours to direct per beat.
+Load `../media-studio/references/engagement.md` and `scene-archetypes.md` unless kind is `product-screencast` (Recast + `product-picture.md`). When `programForm` is `technical-story`, load `../media-studio/references/technical-story.md`: the markup rules there are yours to direct per beat.
 
 Requires `storyboard.json` and `visual-bible.json` on viewer-facing jobs. If they are missing, remit to `media-storyboard` / `media-studio-visuals`.
 

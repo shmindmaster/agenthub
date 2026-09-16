@@ -7,7 +7,7 @@ description: Use when a video, briefing, training film, or explainer needs a scr
 
 From the concept or outline already in context, produce a locked screenplay in this turn. Do not ask for act structure, tone, or shot count — infer them.
 
-Load `../media-studio/references/engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md` unless kind is `product-screencast` (PDS script craft + outcome-first rules in `program-forms.md` + `product-picture.md`). When `programForm` is `technical-story` (a product or engineering change told as a 5–8 minute story), also load `../media-studio/references/technical-story.md` for the beat order and the what → why → consequence rule, whatever the kind.
+Load `../media-studio/references/engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md` unless kind is `product-screencast` (outcome-first rules in `program-forms.md` + `product-picture.md`). When `programForm` is `technical-story` (a product or engineering change told as a 5–8 minute story), also load `../media-studio/references/technical-story.md` for the beat order and the what → why → consequence rule, whatever the kind.
 
 Handoff: this skill → `media-storyboard`. Do not generate TTS.
 

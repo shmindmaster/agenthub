@@ -11,7 +11,6 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $media = Join-Path $repoRoot 'packages\media-studio'
-$pds = Join-Path $repoRoot 'packages\product-demo-studio'
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0
 
@@ -33,9 +32,7 @@ $compose = Read-Text (Join-Path $media 'skills\media-studio-compose\SKILL.md')
 $generate = Read-Text (Join-Path $media 'skills\media-studio-generate\SKILL.md')
 $workflows = Read-Text (Join-Path $media 'skills\media-studio\references\workflows.md')
 $command = Read-Text (Join-Path $media 'commands\video.md')
-$pdsMain = Read-Text (Join-Path $pds 'pipeline\product-demo-studio\SKILL.md')
-$pdsCapture = Read-Text (Join-Path $pds 'pipeline\product-demo-studio-capture\SKILL.md')
-$pdsRender = Read-Text (Join-Path $pds 'pipeline\product-demo-studio-render\SKILL.md')
+$recordJob = Read-Text (Join-Path $media 'kit\screencast\record-job.mjs')
 
 Report 'global policy makes product repositories read-only for media' (
     $policy -match '## Media production repository boundary' -and
@@ -53,9 +50,10 @@ Report 'producer forbids every media write class in the product repo' (
 
 Report 'active product config is external, not created in the repo' (
     $producer -notmatch 'Config in the product repo' -and
-    $producer -match 'Config in the external job workspace' -and
+    $producer -match 'job\.json' -and
+    $producer -match 'external workspace' -and
     $workflows -notmatch 'Product-repo config filename stays' -and
-    $workflows -match 'legacy repo copy is read-only input'
+    $workflows -match 'legacy .+ is read-only input'
 ) 'active Media Studio guidance still creates or maintains config in the product repo'
 
 Report 'capture, generate, compose, and command keep code and artifacts external' (
@@ -65,11 +63,11 @@ Report 'capture, generate, compose, and command keep code and artifacts external
     $command -match 'Treat every product repository as read-only'
 ) 'one or more public entry points omit the no-write rule'
 
-Report 'retained screencast engine already treats product source as read-only' (
-    $pdsMain -match 'Product repositories are read-only inputs' -and
-    $pdsCapture -match 'external workspace' -and
-    $pdsRender -match 'Do not create `apps/videos`'
-) 'the internal engine route does not preserve the external-workspace boundary'
+Report 'screencast recorder treats product source as read-only' (
+    $capture -match 'external job workspace' -and
+    $recordJob -match 'product repository is read-only' -and
+    $recordJob -match 'repositoryWritePolicy: read-only'
+) 'capture does not preserve the external-workspace boundary'
 
 $job = Get-Content -LiteralPath (Join-Path $media 'schemas\job.schema.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 Report 'job schema requires the read-only repository policy' (
@@ -145,7 +143,7 @@ $inside = Join-Path $product '.media-workspace'
 $outside = Join-Path $scratch 'external-media-workspace'
 New-Item -ItemType Directory -Path $product -Force | Out-Null
 Set-Content -LiteralPath (Join-Path $product 'sentinel.txt') -Value 'unchanged' -NoNewline
-$scaffold = Join-Path $pds 'scripts\scaffold-video-workspace.mjs'
+$scaffold = Join-Path $media 'scripts\scaffold-video-workspace.mjs'
 try {
     # Windows PowerShell converts a native process's expected stderr into an
     # ErrorRecord. Temporarily keep that record non-terminating so the test can

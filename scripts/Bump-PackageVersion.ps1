@@ -13,7 +13,7 @@
   and update the capability entry after content changes, as today.
 
 .EXAMPLE
-  pwsh -NoProfile -File scripts/Bump-PackageVersion.ps1 -Package product-demo-studio -Version 1.7.5
+  pwsh -NoProfile -File scripts/Bump-PackageVersion.ps1 -Package media-studio -Version 1.5.7
 #>
 [CmdletBinding()]
 param(

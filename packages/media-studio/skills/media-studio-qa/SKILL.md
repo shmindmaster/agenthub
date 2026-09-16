@@ -9,15 +9,9 @@ Load `../media-studio/references/engagement.md` (Generate / compose / craft crit
 
 ## 1. product-screencast
 
-Fail-closed release. Replaces retired `product-demo-studio-qa`.
+Fail-closed release.
 
-```powershell
-$Pds = Join-Path ($(if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Repos\shmindmaster\agenthub' })) 'packages\product-demo-studio'
-```
-
-Follow `$Pds\pipeline\product-demo-studio-qa\SKILL.md`. Scripts and agents stay in that package. Story, pacing, music, and zoom for this kind are that gate — do not apply a second engagement rubric.
-
-Also run `packages/media-studio/scripts/validate-product-picture.mjs` on the job root. Freeze, WebM-vs-still, zoom, and story/pacing stay on the PDS scripts and encoded-file reviewer. Do **not** use `Inspect-MediaVisualQuality.ps1` as this kind's craft gate (that helper is Other kinds). A pre-capture `story-experience-review.json` scored from the screenplay is not a craft pass. `media-story-experience-reviewer` must not be used for this kind.
+Run `packages/media-studio/scripts/validate-product-picture.mjs` on the job root. Story, pacing, music, and zoom for this kind are that gate plus `media-story-experience-reviewer` on the **encoded** file — do not apply a second engagement rubric. Do **not** use `Inspect-MediaVisualQuality.ps1` as this kind's craft gate (that helper is Other kinds). A pre-capture `story-experience-review.json` scored from the screenplay is not a craft pass.
 
 ## 2. Other kinds
 
@@ -29,7 +23,7 @@ Briefings, training, explainers, talking-heads, animation, and audio-only do **n
 4. Engagement pass on the **encoded** file (not the screenplay): walk every scene and list stretches that are slow, repetitive, visually static, or emotionally flat per `engagement.md` Diagnose first. Missing hook, wall-to-wall static, rushed payoff, unducked bed, or narration that reads the slide is a fail — remit to writer, storyboard, director, generate, or compose.
 5. Run `Inspect-MediaVisualQuality.ps1` on the encoded file. Suspects (static stretch, duplicate visual, undesigned first/last frame) go to the critic or director. Metrics flag; they do not replace judgment.
 
-Do not ship and do not pretend the file passed Product Demo Studio arbitration.
+Do not ship a product-screencast that failed product-picture or encoded-file review.
 
 ## 3. Final check
 

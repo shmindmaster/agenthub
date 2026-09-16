@@ -44,7 +44,7 @@
       "name": "product-demo-studio",
       "retiredOn": "2026-08-25",
       "supersededBy": "media-studio",
-      "reason": "Public pipeline skill retired; screencast engine remains in packages/product-demo-studio/pipeline for media-studio to invoke.",
+      "reason": "Package deleted 2026-09-15. Screencast capture, Recast, and product-picture live in packages/media-studio.",
       "whyFleetScoped": "Same shared-dir spread as product-demo."
     },
     {
@@ -286,176 +286,6 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ]
-    },
-    {
-      "id": "product-demo-studio",
-      "owner": "handoff",
-      "capabilityType": "engine+agents",
-      "canonicalSource": "packages/product-demo-studio",
-      "managedSkillNames": [],
-      "retiredSkillNames": [
-        "product-demo",
-        "product-demo-studio",
-        "product-demo-studio-capture",
-        "product-demo-studio-narration",
-        "product-demo-studio-render",
-        "product-demo-studio-qa",
-        "product-demo-studio-descript",
-        "product-demo-studio-visual-assets"
-      ],
-      "contentHash": "396EC852DAE019C140E3DC9DB840168C1AD94A88D1391C5483AEC39D59F390B6",
-      "hashBasis": "packages/product-demo-studio",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "reviewIsolation": "shell-free-role-tools-plus-read-only-receipt-required",
-          "deploymentStatusNote": "Not a host plugin. media-studio is the public video pack; this package is the on-disk screencast engine and review-agent source."
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "reviewIsolation": "sandbox-mode-read-only-plus-host-output-post-validation-and-receipt-required",
-          "deploymentStatusNote": "Not a host plugin. Review agents stay in packages/product-demo-studio; do not deploy product-demo-studio-* files into ~/.codex/agents."
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "reviewIsolation": "readonly-agent-tools-plus-receipt-required"
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "reviewIsolation": "tool-limited-only-read-only-receipt-required"
-        },
-        {
-          "hostId": "qwen-code",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "mcpOwnership": "shared-registry",
-          "reviewIsolation": "tool-limited-parent-yolo-not-release-eligible"
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "mcpOwnership": "shared-registry",
-          "reviewIsolation": "edit-bash-task-denied-plus-read-only-receipt-required",
-          "deploymentStatusNote": "Not a host plugin. Review agents stay in packages/product-demo-studio; do not deploy product-demo-studio-* files into ~/.config/opencode/agents."
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "preprovisioned-loose-skills"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills",
-          "runtimeState": "inactive"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "runtimeState": "inactive-configured"
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "preprovisioned-loose-skills"
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "mcpOwnership": "shared-registry",
-          "reviewIsolation": "explicit-read-tools-plus-read-only-receipt-required",
-          "deploymentStatusNote": "Not a host plugin or Gemini extension. media-studio invokes the on-disk screencast engine; do not deploy a named product-demo-studio extension."
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "mcpOwnership": "shared-registry",
-          "reviewIsolation": "tool-limited-only-external-read-only-boundary-required"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "mcpOwnership": "shared-registry",
-          "reviewIsolation": "command-policy-off-plus-read-only-receipt-required",
-          "deploymentStatusNote": "Not a host plugin. media-studio invokes the on-disk screencast engine; do not deploy a named product-demo-studio Antigravity plugin."
-        },
-        {
-          "hostId": "hermes",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "reviewIsolation": "windows-native-read-only-enforcement-unverified"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills",
-          "roleCapability": "fixed-read-only-research-subagent-only",
-          "runtimeParity": "blocked-for-generation-and-mcp-dependent-review"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "engine-invoked",
-          "components": [
-            "agents"
-          ],
-          "reviewIsolation": "tool-limited-plus-read-only-receipt-required"
-        }
-      ],
-      "dependencies": {
-        "requires": [],
-        "recommends": [
-          "browser-toolkit",
-          "local-ai"
-        ],
-        "optional": [
-          "external:remotion",
-          "elevenlabs",
-          "media-studio"
-        ]
-      },
-      "kind": "orchestrator",
-      "maturity": "stable",
-      "provenance": "agenthub-owned"
     },
     {
       "id": "product-experience-engineering",
@@ -1695,7 +1525,7 @@
         "technical-explainer",
         "technical-visualizer"
       ],
-      "contentHash": "D0D162FC2416037E44E5B5FB8E68AE60A4353B25D2928D248A3A73EFB237C2C3",
+      "contentHash": "A52CBED739F3DD5AB0EEB373DCFE4CB4926C85969786DE5EB5637A761C9DB66A",
       "hashBasis": "packages/technical-storytelling",
       "status": "active-canonical",
       "hostMappings": [
@@ -2040,7 +1870,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "CA32178B3742B4523041CF26A56EE6E8F873BCF6F8312B653DFA785F7A8E731F",
+      "contentHash": "50F22AF65A919A82A3639BD128BC5DEB17DBD043DD4CCAE189CF6FE39D72E7F2",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -2130,7 +1960,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo* skills retired 2026-08-25; screencast engine remains packages/product-demo-studio (pipeline/scripts/agents) and is not a marketplace plugin. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"
@@ -2142,7 +1972,6 @@
           "external:creative-writing-skills"
         ],
         "optional": [
-          "product-demo-studio",
           "story-series-studio",
           "learning-studio",
           "elevenlabs"
@@ -2690,6 +2519,6 @@
       "notes": "Self-hosted OpenConnector (ghcr.io/oomol-lab/open-connector v1.5.0, digest-pinned) as the fleet's shared SaaS action gateway for non-Claude hosts. Persisted 2026-09-13 on codex, cursor, opencode and grok as an HTTP MCP entry; one Docker container on 127.0.0.1:3400, secrets and SQLite under %LOCALAPPDATA%\\AgentHub\\runtime\\open-connector. Scope: Brave Search (replacing the retired brave-search stdio bridge), no-auth research and developer sources, and long-tail api_key providers without a hosted MCP. GitHub, Linear, Notion, Context7, Exa, Firecrawl, Railway and Descript stay on official hosted MCPs; Slack stays AgentHub-owned. Hosts authenticate with a minted, revocable runtime token in the User environment variable OPEN_CONNECTOR_AGENT_TOKEN; the bootstrap token serves only the wrapper and healthcheck. Products never use it (Lawli SH-2748, LienWise external-platforms.policy.js, CoLedger ai-boundaries.md)."
     }
   ],
-  "lastValidatedAt": "2026-08-26T00:00:00.000Z",
+  "lastValidatedAt": "2026-08-26T00:00:00Z",
   "lastCanonicalChangeAt": "2026-09-13T00:00:00Z"
 }

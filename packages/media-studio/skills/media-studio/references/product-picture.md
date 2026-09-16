@@ -47,4 +47,4 @@ Missing `visualMode` on a `product-screencast` beat **defaults to `screen`**, no
 - `media-story-experience-reviewer` refuses `kind: product-screencast` (`MALFORMED_INPUT`). PDS story review runs on the **encoded** file only. A pre-capture text score is not a craft pass.
 - Motif / image-to-video of a product screenshot is refused (`local-ai-stack` `references/video.md`).
 - Card / `slide` / `diagram` beats on a `product-screencast` are each ≤8s.
-- Recast (`playwright-recast@0.19.2`) is required pointer finishing (`product-video-policy.json` `pointerFinishing`). If Windows ffmpeg `autoZoom` fails on a long many-click clip, split the take or render without `autoZoom`. That is not permission to encode PNGs.
+- Recast (`playwright-recast@0.21.0`) is required pointer finishing (`product-video-policy.json` `pointerFinishing`). If Windows ffmpeg `autoZoom` fails on a long many-click clip, split the take or render without `autoZoom`. That is not permission to encode PNGs.
