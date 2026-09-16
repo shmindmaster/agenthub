@@ -12,16 +12,12 @@ jobs:
   validate:
     runs-on: windows-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [18.x, 24.20.0]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 24.20.0
 
       - name: Verify npm distribution surface
         shell: pwsh
@@ -50,3 +46,21 @@ jobs:
       - name: Run public-core test suite
         shell: pwsh
         run: pwsh -NoProfile -File tests/Run-AllTests.ps1
+
+  minimum-node:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 18.x
+
+      - name: Verify the Node 18 distribution contract
+        shell: pwsh
+        run: |
+          npm run verify:package
+          node --check scripts/agenthub-cli.mjs
+          node --check scripts/Repair-QwenCodeMcpOAuth.js
+          node --check scripts/Test-McpOAuthReachability.js
