@@ -599,7 +599,11 @@ function Invoke-PronunciationListen([string[]]$Scenes, [int]$Round) {
     Write-Host ("  LISTEN {0} ({1:n1}s, {2} segments, {3} risk rows)" -f $sceneId, $cursor, $sceneSegs.Count, $bases.Count)
     # ai.ps1 takes the audio path as the positional target and prepends --input itself.
     $listenArgs = @('listen', $sceneWav, '--output', $reportPath, '--candidate-id', "$sceneId-r$Round", '--transcript', $transcriptPath, '--pronunciation-manifest', $slicePath)
-    if ($cursor -gt 90) { $listenArgs += @('--timeline', $timelinePath) }
+    # Always ground the listen with the timeline. audio_review gates its long-form chunking on the decoded
+    # DURATION, not on this flag, so a short scene is unaffected by passing it -- but without it the listener's
+    # claims cannot be checked against what the script actually says at the moment they point to, and a claim
+    # naming a phrase from a later sentence blocks the release with nothing to contradict it.
+    $listenArgs += @('--timeline', $timelinePath)
     # A listen that never ran is not a verdict on the speech. The lane fails for its own reasons
     # -- GPU_OCCUPIED_UNKNOWN while another lane holds the card, a crashed adapter -- and treating
     # that as "every segment failed" sends good takes back to TTS and burns the round budget, the
