@@ -161,8 +161,23 @@ if (@($pluginFormats.hosts | Where-Object id -eq 'opencode').manifest) {
   Fail 'OpenCode must not be assigned a capability-bundle manifest'
 }
 
-foreach ($packageName in @('product-demo-studio','product-experience-engineering')) {
-  $agentFiles = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot "$packageName\agents") -File -ErrorAction SilentlyContinue)
+foreach ($packageName in $packageNames) {
+  $packageRoot = Join-Path $pluginRoot $packageName
+  $declaresAgents = $false
+  foreach ($manifestPath in @(
+    (Join-Path $packageRoot '.claude-plugin\plugin.json'),
+    (Join-Path $packageRoot '.codex-plugin\plugin.json')
+  )) {
+    if (-not (Test-Path -LiteralPath $manifestPath)) { continue }
+    $manifest = Read-Json $manifestPath
+    if ($manifest.PSObject.Properties.Name -contains 'agents') {
+      $declaresAgents = $true
+      break
+    }
+  }
+  if (-not $declaresAgents) { continue }
+
+  $agentFiles = @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'agents') -File -ErrorAction SilentlyContinue)
   if ($agentFiles.Count -eq 0) { Fail "subagent-driven package has no agents: $packageName" }
   foreach ($agentFile in $agentFiles) {
     if ($agentFile.Name -notlike '*.agent.md') { Fail "non-portable agent filename: $($agentFile.FullName)" }
