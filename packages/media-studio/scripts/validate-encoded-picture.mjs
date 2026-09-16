@@ -28,7 +28,14 @@ const CARD_MAX_SECONDS = 8;
 const SCREEN_DURATION_MIN = 0.7;
 const BIND_MAX_HAMMING = Number(flag('--bind-hamming', 12));
 const BIND_MAX_HAMMING_OVERLAY = BIND_MAX_HAMMING + 6;
-const STATIC_DIFF = 0.6; // mean abs gray diff (0–255) below which two consecutive 2 fps frames count as identical
+// Dead-screen metric. Two consecutive 2 fps frames count as identical when fewer than STATIC_CHANGED_FRACTION of the
+// pixels of a 160x100 gray thumbnail moved by more than CHANGED_PIXEL_DELTA levels. A frozen screenshot moves ~0 pixels
+// (x264 noise stays under the delta); a cursor alone moves ~0.04%; a toast, an expanded row, a scroll or a punch-in moves
+// 1% or more. The earlier mean-difference on a 32x20 thumbnail could not see a toast, a tally change or a ripple at all
+// and called a live capture surface dead for 16 s (film 01, 2026-09-15).
+const STATIC_W = 160, STATIC_H = 100;
+const CHANGED_PIXEL_DELTA = 16;
+const STATIC_CHANGED_FRACTION = 0.003;
 const FPS = 2;
 const SMALL_W = 32, SMALL_H = 20;
 const CARD_MODES = new Set(['card', 'slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
@@ -62,6 +69,7 @@ function dhash(gray9x8) { // 9x8 gray -> 64-bit as BigInt
 }
 function hamming(a, b) { let x = a ^ b, n = 0; while (x) { n += Number(x & 1n); x >>= 1n; } return n; }
 const meanDiff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
+const changedFraction = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > CHANGED_PIXEL_DELTA) n++; return n / a.length; };
 const meanLuma = (a) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s / a.length; };
 
 if (!existsSync(candidate)) { fail(`candidate not found: ${candidate}`); finish(); }
@@ -116,7 +124,7 @@ const report = {
   generator: 'media-studio/validate-encoded-picture',
   candidate: { path: candidate, sha256: createHash('sha256').update(readFileSync(candidate)).digest('hex'), bytes: statSync(candidate).size, durationSeconds: Number(duration.toFixed(3)) },
   timelineSeconds: Number(tl.durationSeconds || 0),
-  thresholds: { maxStaticSeconds: MAX_STATIC, resultHoldMax: RESULT_HOLD_MAX, bindMaxHamming: BIND_MAX_HAMMING, staticDiff: STATIC_DIFF, fps: FPS },
+  thresholds: { maxStaticSeconds: MAX_STATIC, resultHoldMax: RESULT_HOLD_MAX, bindMaxHamming: BIND_MAX_HAMMING, staticThumb: `${STATIC_W}x${STATIC_H}`, changedPixelDelta: CHANGED_PIXEL_DELTA, staticChangedFraction: STATIC_CHANGED_FRACTION, fps: FPS },
   segments: [],
   staticRuns: [],
   screenRatio: null,
@@ -126,8 +134,8 @@ const report = {
 if (Math.abs(duration - Number(tl.durationSeconds || 0)) > 1.0) fail(`candidate is ${duration.toFixed(2)}s but the narration timeline is ${Number(tl.durationSeconds).toFixed(2)}s`);
 
 // 3. dead-screen scan on the decoded candidate
-const frames = grayFrames(candidate, SMALL_W, SMALL_H, FPS);
-const staticFlags = frames.map((f, i) => (i === 0 ? false : meanDiff(frames[i - 1], f) < STATIC_DIFF));
+const frames = grayFrames(candidate, STATIC_W, STATIC_H, FPS);
+const staticFlags = frames.map((f, i) => (i === 0 ? false : changedFraction(frames[i - 1], f) < STATIC_CHANGED_FRACTION));
 const runs = [];
 let runStart = null;
 for (let i = 0; i < staticFlags.length; i++) {

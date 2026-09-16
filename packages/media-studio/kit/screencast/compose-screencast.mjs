@@ -147,7 +147,13 @@ groups.forEach((g, i) => {
   // whole clip; use for real wait time such as a production query), skip: [[a,b],...] (seconds to drop).
   const hints = g.clip || {};
   if (!isImage && ((hints.skip && hints.skip.length) || hints.trimStart || hints.trimEnd || hints.speed)) {
-    const t0 = Number(hints.trimStart || 0), t1 = hints.trimEnd ? Number(hints.trimEnd) : probe(src);
+    // The manifest's trimStart was chosen against the narration alone; the slot also carries the pause after the beat.
+    // Never trim away footage the slot needs: shrink the head trim first, so the take's own tail is used before any hold.
+    const fullSrc = probe(src);
+    let trimStart = Number(hints.trimStart || 0);
+    const t1 = hints.trimEnd ? Number(hints.trimEnd) : fullSrc;
+    if (!hints.speed && !(hints.skip && hints.skip.length) && t1 - trimStart < g.duration) trimStart = Math.max(0, Number((t1 - g.duration).toFixed(3)));
+    const t0 = trimStart;
     const keep = [];
     let cur = t0;
     for (const [a, b] of (hints.skip || []).slice().sort((x, y) => x[0] - y[0])) { if (a > cur) keep.push([cur, Math.min(a, t1)]); cur = Math.max(cur, b); }
@@ -160,6 +166,12 @@ groups.forEach((g, i) => {
   }
   const srcDur = isImage ? 0 : probe(src);
   const fit = g.clip?.fit || (srcDur > g.duration ? 'cut' : 'hold');
+  // A 'cut' whose footage still ends before the slot does (a take paced to the words, then the pause after them) may hold
+  // its last frame for at most HOLD_PAD_MAX; anything longer is the frozen-footage defect and fails like a hold would.
+  const cutShortfall = !isImage && g.clip && fit === 'cut' && srcDur < g.duration ? Number((g.duration - srcDur).toFixed(3)) : 0;
+  if (cutShortfall > HOLD_PAD_MAX && g.segments.some((s) => isScreenBeat(s.id))) {
+    throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} has ${srcDur.toFixed(1)}s of footage for a ${g.duration.toFixed(1)}s slot; the last frame would freeze for ${cutShortfall.toFixed(1)}s (max ${HOLD_PAD_MAX}s). Re-pace the take or trim the words.`);
+  }
   if (!isImage && g.clip && (fit === 'hold' || fit === 'fitpad') && g.segments.some((s) => isScreenBeat(s.id))) {
     const pad = g.duration - srcDur;
     const declared = Math.max(0, ...g.segments.map((s) => Number(beatFor(s.id).resultHoldSeconds || 0)));
@@ -177,7 +189,7 @@ groups.forEach((g, i) => {
   else if (!g.clip) args = ['-sseof', '-0.1', '-i', src, '-vf', `${vf},tpad=stop_mode=clone:stop_duration=${dur}`, '-t', dur]; // hold previous last frame
   else if ((fit === 'fitpad' || fit === 'hold') && srcDur < g.duration) args = ['-i', src, '-vf', `${vf},tpad=stop_mode=clone:stop_duration=${(g.duration - srcDur + 0.5).toFixed(3)}`, '-t', dur];
   else if (fit === 'fit' && srcDur > 0) args = ['-i', src, '-vf', `setpts=PTS*${(g.duration / srcDur).toFixed(4)},${vf}`, '-t', dur]; // fit: retime the clip to the narration
-  else args = ['-i', src, '-vf', vf, '-t', dur]; // cut: play from the start, stop at the narration end
+  else args = ['-i', src, '-vf', `${vf},tpad=stop_mode=clone:stop_duration=${(cutShortfall + 0.5).toFixed(3)}`, '-t', dur]; // cut: play from the start, stop at the slot end; the clone only fills a sub-2 s tail so every part is exactly its slot
   if (g.clip && g.clip.overlay) {
     // annotation overlay (transparent PNG, 1600x1000, from render-overlay.mjs): apply after scaling so the boxes align with the frame
     const ov = path.join(jobRoot, 'capture', g.clip.overlay);
