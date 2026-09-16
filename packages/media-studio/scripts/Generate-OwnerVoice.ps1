@@ -560,7 +560,9 @@ function Invoke-PronunciationListen([string[]]$Scenes, [int]$Round) {
     @{ segments = @($spans | ForEach-Object { @{ id = $_.id; text = $_.text; audioStartSeconds = $_.start; audioEndSeconds = $_.end } }) } |
       ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $timelinePath -Encoding utf8
     $reportPath = Join-Path $listenDir ("{0}.listen-r{1}.json" -f $sceneId, $Round)
-    Remove-Item -LiteralPath $reportPath -Force -ErrorAction SilentlyContinue
+    # A fresh run reuses the same report name per scene and round; audio_review refuses to overwrite a stale
+    # model-response sidecar from an earlier run, which read as "listen produced no report" and failed every segment.
+    foreach ($stale in @($reportPath, "$reportPath.model-response.txt")) { Remove-Item -LiteralPath $stale -Force -ErrorAction SilentlyContinue }
     Write-Host ("  LISTEN {0} ({1:n1}s, {2} segments, {3} risk rows)" -f $sceneId, $cursor, $sceneSegs.Count, $bases.Count)
     # ai.ps1 takes the audio path as the positional target and prepends --input itself.
     $listenArgs = @('listen', $sceneWav, '--output', $reportPath, '--candidate-id', "$sceneId-r$Round", '--transcript', $transcriptPath, '--pronunciation-manifest', $slicePath)
