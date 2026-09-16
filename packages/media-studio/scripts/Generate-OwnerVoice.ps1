@@ -562,7 +562,8 @@ function Invoke-PronunciationListen([string[]]$Scenes, [int]$Round) {
     $reportPath = Join-Path $listenDir ("{0}.listen-r{1}.json" -f $sceneId, $Round)
     Remove-Item -LiteralPath $reportPath -Force -ErrorAction SilentlyContinue
     Write-Host ("  LISTEN {0} ({1:n1}s, {2} segments, {3} risk rows)" -f $sceneId, $cursor, $sceneSegs.Count, $bases.Count)
-    $listenArgs = @('listen', '--input', $sceneWav, '--output', $reportPath, '--candidate-id', "$sceneId-r$Round", '--transcript', $transcriptPath, '--pronunciation-manifest', $slicePath)
+    # ai.ps1 takes the audio path as the positional target and prepends --input itself.
+    $listenArgs = @('listen', $sceneWav, '--output', $reportPath, '--candidate-id', "$sceneId-r$Round", '--transcript', $transcriptPath, '--pronunciation-manifest', $slicePath)
     if ($cursor -gt 90) { $listenArgs += @('--timeline', $timelinePath) }
     & $LocalAi @listenArgs 2>&1 | Tee-Object -FilePath (Join-Path $listenDir ("{0}.listen-r{1}.log" -f $sceneId, $Round)) | Out-Null
     if (-not (Test-Path -LiteralPath $reportPath)) {
