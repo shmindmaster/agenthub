@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Validates one or more capture manifests against the shape documented in
-// skills/product-demo-studio-capture/SKILL.md. Accepts a single manifest object, a JSON array of
+// skills/media-studio-capture/SKILL.md. Accepts a single manifest object, a JSON array of
 // manifests, or an object with a top-level "captures" array.
 // Usage: node validate-capture-manifest.mjs <path-to-manifest.json>
 import { readFileSync } from "node:fs";

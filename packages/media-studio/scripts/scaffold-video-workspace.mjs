@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Creates the smallest supported Product Demo Studio work area. The product
+// Creates the smallest supported media-studio work area. The product
 // repository is read-only input; traces, narration, caches, evidence, and video
 // outputs stay in this external workspace.
 //
@@ -28,7 +28,7 @@ const repoRoot = resolve(repoPath);
 const productName = flag("--product") ?? basename(repoRoot);
 const productSlug = productName.replace(/[^A-Za-z0-9]/g, "");
 const defaultWorkRoot = process.env.AGENTHUB_PRODUCT_VIDEO_WORK_ROOT
-  ?? join(process.env.LOCALAPPDATA ?? tmpdir(), "AgentHub", "product-demo-studio");
+  ?? join(process.env.LOCALAPPDATA ?? tmpdir(), "AgentHub", "media-studio");
 const workspaceRoot = resolve(flag("--workspace") ?? join(defaultWorkRoot, productSlug));
 const repoRelativeWorkspace = relative(repoRoot, workspaceRoot);
 
