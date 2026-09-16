@@ -42,12 +42,16 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function Wait-Gpu([string]$Stage, [int]$MaxMinutes = 40, [int]$BusyMiB = 2500) {
+function Wait-Gpu([string]$Stage, [int]$MaxMinutes = 40, [int]$BusyMiB = 512) {
   # The TTS, ASR, identity and listen lanes each want the card to themselves; a Voxtral listen or a Remotion render
   # from another job makes ASR return nothing (every segment "wer=1") and would send a clean round back to TTS.
   # Key on VRAM, not on the compute-app count. The resident Local-AI retrieve service holds a CUDA context for the
   # life of the box, so "zero compute apps" never arrives and the wait deadlocks on an idle card. A real generation
   # lane takes gigabytes; a card carrying only resident services sits at a few hundred MiB.
+  # BusyMiB matches the platform's unmanaged-observer ceiling in registry.json. That is deliberate: the platform
+  # refuses a job with GPU_OCCUPIED_UNKNOWN whenever an unmanaged context is present AND the whole card is above
+  # that ceiling, so a looser number here would report "free" and then hand off to a call certain to be refused --
+  # which is exactly what happened when a TTS worker lingered at 4 GB and every listen came back with no report.
   $deadline = (Get-Date).AddMinutes($MaxMinutes)
   while ((Get-Date) -lt $deadline) {
     $usedMiB = $null
