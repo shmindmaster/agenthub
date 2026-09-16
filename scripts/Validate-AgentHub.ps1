@@ -164,22 +164,34 @@ if (@($pluginFormats.hosts | Where-Object id -eq 'opencode').manifest) {
 foreach ($packageName in $packageNames) {
   $packageRoot = Join-Path $pluginRoot $packageName
   $declaresAgents = $false
+  $agentFilesByPath = @{}
   foreach ($manifestPath in @(
     (Join-Path $packageRoot '.claude-plugin\plugin.json'),
     (Join-Path $packageRoot '.codex-plugin\plugin.json')
   )) {
     if (-not (Test-Path -LiteralPath $manifestPath)) { continue }
     $manifest = Read-Json $manifestPath
-    if ($manifest.PSObject.Properties.Name -contains 'agents') {
-      $declaresAgents = $true
-      break
+    if (-not $manifest -or $manifest.PSObject.Properties.Name -notcontains 'agents') { continue }
+    $declaresAgents = $true
+    foreach ($agentDeclaration in @($manifest.agents)) {
+      $declaredPath = Join-Path $packageRoot ([string]$agentDeclaration)
+      if (-not (Test-Path -LiteralPath $declaredPath)) {
+        Fail "agent declaration does not exist: $manifestPath -> $agentDeclaration"
+        continue
+      }
+      $item = Get-Item -LiteralPath $declaredPath
+      $declaredFiles = if ($item.PSIsContainer) {
+        @(Get-ChildItem -LiteralPath $declaredPath -File -Recurse)
+      } else {
+        @($item)
+      }
+      foreach ($agentFile in $declaredFiles) { $agentFilesByPath[$agentFile.FullName] = $agentFile }
     }
   }
   if (-not $declaresAgents) { continue }
+  if ($agentFilesByPath.Count -eq 0) { Fail "subagent-driven package has no agents: $packageName"; continue }
 
-  $agentFiles = @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'agents') -File -ErrorAction SilentlyContinue)
-  if ($agentFiles.Count -eq 0) { Fail "subagent-driven package has no agents: $packageName" }
-  foreach ($agentFile in $agentFiles) {
+  foreach ($agentFile in $agentFilesByPath.Values) {
     if ($agentFile.Name -notlike '*.agent.md') { Fail "non-portable agent filename: $($agentFile.FullName)" }
   }
 }
