@@ -292,7 +292,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "E8F2722585732191E2E0C0FC9C1B041EF47FE99C337E39A5C8B500D8BEAD5F47",
+      "contentHash": "FFEFDEBECFEB5A29D311254BAAABDE0D348A87A4EA23FFBA2D66AC7163E9D5FB",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
@@ -777,7 +777,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "026605A3845863A239A7950BCF2B4DA569A91A551298A22098402B978C272EF2",
+      "contentHash": "E99C6FEAF05C0D1FDA72CC2D1324AC9F415834D4CB02B1B204B9E35170FB59F0",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",

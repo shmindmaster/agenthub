@@ -1,0 +1,34 @@
+name: Validate public core
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Validate registry and packages
+        shell: pwsh
+        run: ./scripts/Validate-AgentHub.ps1
+
+      - name: Run portable registry tests
+        shell: pwsh
+        run: |
+          $tests = @(
+            'tests/Test-RegistryHostReferences.ps1',
+            'tests/Test-RegistryContentHash.ps1',
+            'tests/Test-MarkdownFrontmatterValidation.ps1',
+            'tests/Test-SkillFrontmatterYaml.ps1'
+          )
+          foreach ($test in $tests) {
+            & pwsh -NoProfile -File $test
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

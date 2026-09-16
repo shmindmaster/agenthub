@@ -161,10 +161,37 @@ if (@($pluginFormats.hosts | Where-Object id -eq 'opencode').manifest) {
   Fail 'OpenCode must not be assigned a capability-bundle manifest'
 }
 
-foreach ($packageName in @('product-demo-studio','product-experience-engineering')) {
-  $agentFiles = @(Get-ChildItem -LiteralPath (Join-Path $pluginRoot "$packageName\agents") -File -ErrorAction SilentlyContinue)
-  if ($agentFiles.Count -eq 0) { Fail "subagent-driven package has no agents: $packageName" }
-  foreach ($agentFile in $agentFiles) {
+foreach ($packageName in $packageNames) {
+  $packageRoot = Join-Path $pluginRoot $packageName
+  $declaresAgents = $false
+  $agentFilesByPath = @{}
+  foreach ($manifestPath in @(
+    (Join-Path $packageRoot '.claude-plugin\plugin.json'),
+    (Join-Path $packageRoot '.codex-plugin\plugin.json')
+  )) {
+    if (-not (Test-Path -LiteralPath $manifestPath)) { continue }
+    $manifest = Read-Json $manifestPath
+    if (-not $manifest -or $manifest.PSObject.Properties.Name -notcontains 'agents') { continue }
+    $declaresAgents = $true
+    foreach ($agentDeclaration in @($manifest.agents)) {
+      $declaredPath = Join-Path $packageRoot ([string]$agentDeclaration)
+      if (-not (Test-Path -LiteralPath $declaredPath)) {
+        Fail "agent declaration does not exist: $manifestPath -> $agentDeclaration"
+        continue
+      }
+      $item = Get-Item -LiteralPath $declaredPath
+      $declaredFiles = if ($item.PSIsContainer) {
+        @(Get-ChildItem -LiteralPath $declaredPath -File -Recurse)
+      } else {
+        @($item)
+      }
+      foreach ($agentFile in $declaredFiles) { $agentFilesByPath[$agentFile.FullName] = $agentFile }
+    }
+  }
+  if (-not $declaresAgents) { continue }
+  if ($agentFilesByPath.Count -eq 0) { Fail "subagent-driven package has no agents: $packageName"; continue }
+
+  foreach ($agentFile in $agentFilesByPath.Values) {
     if ($agentFile.Name -notlike '*.agent.md') { Fail "non-portable agent filename: $($agentFile.FullName)" }
   }
 }
@@ -337,9 +364,18 @@ if (-not (Test-Path -LiteralPath $subagentFormatsFile)) {
   }
 }
 
-$stale = @(rg -l --hidden --glob '!node_modules/**' --glob '!tests/validate.ps1' `
-  'packages/(handoff-plugins/plugins|portfolio-plugins)|agenthub[/\\]capabilities[/\\]|agenthub[/\\](reports|state|generated)[/\\]' `
-  $root 2>$null)
+$stalePattern = 'packages/(handoff-plugins/plugins|portfolio-plugins)|agenthub[/\\]capabilities[/\\]|agenthub[/\\](reports|state|generated)[/\\]'
+$textExtensions = @('.json', '.md', '.mjs', '.js', '.ps1', '.psm1', '.sh', '.toml', '.ts', '.tsx', '.txt', '.yaml', '.yml')
+$stale = @(
+  Get-ChildItem -LiteralPath $root -File -Recurse -Force | Where-Object {
+    $normalized = $_.FullName.Replace('\', '/')
+    $textExtensions -contains $_.Extension.ToLowerInvariant() -and
+      $normalized -notmatch '/node_modules/' -and
+      $normalized -notmatch '/tests/validate\.ps1$'
+  } | Where-Object {
+    Select-String -LiteralPath $_.FullName -Pattern $stalePattern -CaseSensitive -Quiet
+  } | ForEach-Object FullName
+)
 if ($stale.Count -gt 0) { Fail "stale legacy paths remain: $($stale -join ', ')" }
 
 if ($errors.Count -gt 0) {
@@ -348,7 +384,6 @@ if ($errors.Count -gt 0) {
 }
 
 Write-Output "PASS: $($packageNames.Count) capability packages, $($catalogNames.Count) installable plugins, $(@($mcps.mcpServers).Count) MCP servers, $(@($agents.activeAgents).Count) active agents."
-# Terminate explicitly. The stale-path scan above is the last native command, and
-# `rg` exits 1 when it finds nothing -- the passing case. Without this, a clean
-# validation inherits that 1 and every caller reads PASS as a failure.
+# Terminate explicitly so every caller receives the validation result rather
+# than inheriting an incidental status from an earlier native command.
 exit 0
