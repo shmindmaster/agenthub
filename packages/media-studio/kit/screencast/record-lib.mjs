@@ -83,10 +83,13 @@ export async function startRecording(id, opts = {}) {
 }
 
 /** Stop tracing and video; return paths. */
-export async function finishRecording(rec) {
+export async function finishRecording(rec, opts = {}) {
   const tracePath = path.join(rec.rawDir, 'trace.zip');
   await rec.context.tracing.stop({ path: tracePath });
   const video = rec.page.video();
+  // Multi-take product flows keep per-device state (a capture tally, a persona, a draft) in web storage; saving it
+  // lets the next take continue exactly where this one ended, which is what a viewer sees as one session.
+  if (opts.saveStatePath) { try { await rec.context.storageState({ path: opts.saveStatePath }); } catch (e) { console.log('  storageState not saved:', String(e.message).split(/\r?\n/)[0]); } }
   await rec.context.close();
   await rec.browser.close();
   let webm = null;

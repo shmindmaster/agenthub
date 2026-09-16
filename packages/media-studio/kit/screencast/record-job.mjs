@@ -2,10 +2,10 @@
 // This is the only path that produces the picture of a `screen` beat (product-picture.md); PNG stills are
 // diagnostic. Runs from the external job workspace; the product repository is read-only.
 //
-// Usage: node record-job.mjs <jobRoot> [S05 S06 ...] [--no-recast] [--headed]
+// Usage: node record-job.mjs <jobRoot> [S05 S06 ...] [--no-recast] [--headed] [--fresh]
 // Reads  <jobRoot>/capture/scenes.mjs:
 //   export const order = ['S05', ...];                      // default recording order
-//   export const options = { baseUrl, storageState?, viewport?, deviceScaleFactor?, recast?: { S05: { autoZoom: false } } };
+//   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, recast?: { S05: { autoZoom: false } } };
 //   export const scenes = { async S05(h, ctx) {...} };      // one function per screen beat; h = record-lib helpers
 //   ctx = { page, beats, id, jobRoot, targetSeconds }       // targetSeconds = narration length of the beat, or null
 // Writes <jobRoot>/capture/clips/<id>.webm                  (Recast: cursor approach, click ripple, punch-in zoom)
@@ -41,6 +41,12 @@ const options = mod.options || {};
 if (!options.baseUrl) throw new Error('capture/scenes.mjs must export options.baseUrl');
 const storageState = options.storageState ? path.resolve(cap, options.storageState) : null;
 if (storageState && !fs.existsSync(storageState)) throw new Error('storageState not found: ' + storageState);
+// options.carryState: each take saves its web storage (capture tallies, persona, drafts) and the next take starts
+// from it, so a workflow split into beats still reads as one continuous session. The first take starts clean
+// (or from options.storageState). `--fresh` discards a carried state left by an earlier run.
+const carryPath = path.join(cap, '_carried-state.json');
+if (flags.has('--fresh') && fs.existsSync(carryPath)) fs.unlinkSync(carryPath);
+const carryState = options.carryState === true;
 
 // Narration length per scene so a take can be paced to the words.
 const targets = {};
@@ -74,15 +80,16 @@ for (const id of ids) {
   if (!scenes[id]) { console.log('no scene function for', id); recordings.takes[id] = { error: 'no scene function' }; save(); continue; }
   console.log('=== recording', id, targets[id] ? `(narration ${targets[id].toFixed(1)} s)` : '');
   fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
+  const takeState = carryState && fs.existsSync(carryPath) ? carryPath : storageState;
   const rec = await startRecording(id, {
-    storageState, baseUrl: options.baseUrl, viewport: options.viewport, deviceScaleFactor: options.deviceScaleFactor,
+    storageState: takeState, baseUrl: options.baseUrl, viewport: options.viewport, deviceScaleFactor: options.deviceScaleFactor,
     headless: !flags.has('--headed'), colorScheme: options.colorScheme, timezoneId: options.timezoneId, extraHTTPHeaders: options.extraHTTPHeaders,
   });
   const t0 = Date.now();
   const take = { startedAt: new Date(t0).toISOString(), targetSeconds: targets[id] ? Number(targets[id].toFixed(1)) : null };
   try { await scenes[id](rec.h, { page: rec.page, beats: rec.beats, id, jobRoot, targetSeconds: targets[id] || null }); }
   catch (e) { take.error = e.message.split('\n')[0]; console.log('  scene error:', take.error); await rec.page.screenshot({ path: path.join(rec.rawDir, 'error.png') }).catch(() => {}); }
-  const fin = await finishRecording(rec);
+  const fin = await finishRecording(rec, carryState ? { saveStatePath: carryPath } : {});
   take.rawSeconds = Number(((Date.now() - t0) / 1000).toFixed(1));
   fs.writeFileSync(path.join(cap, 'beats', `${id}.json`), JSON.stringify({ id, marks: fin.beats, expectations: fin.expectations }, null, 2));
   const out = path.resolve('clips', `${id}.webm`);

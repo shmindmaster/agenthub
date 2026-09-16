@@ -292,7 +292,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "E8F2722585732191E2E0C0FC9C1B041EF47FE99C337E39A5C8B500D8BEAD5F47",
+      "contentHash": "",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "hostMappings": [
@@ -1870,7 +1870,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "50F22AF65A919A82A3639BD128BC5DEB17DBD043DD4CCAE189CF6FE39D72E7F2",
+      "contentHash": "",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
