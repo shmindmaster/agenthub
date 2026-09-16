@@ -42,18 +42,25 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function Wait-Gpu([string]$Stage, [int]$MaxMinutes = 40) {
+function Wait-Gpu([string]$Stage, [int]$MaxMinutes = 40, [int]$BusyMiB = 2500) {
   # The TTS, ASR, identity and listen lanes each want the card to themselves; a Voxtral listen or a Remotion render
   # from another job makes ASR return nothing (every segment "wer=1") and would send a clean round back to TTS.
+  # Key on VRAM, not on the compute-app count. The resident Local-AI retrieve service holds a CUDA context for the
+  # life of the box, so "zero compute apps" never arrives and the wait deadlocks on an idle card. A real generation
+  # lane takes gigabytes; a card carrying only resident services sits at a few hundred MiB.
   $deadline = (Get-Date).AddMinutes($MaxMinutes)
   while ((Get-Date) -lt $deadline) {
-    $apps = @()
-    try { $apps = @(& nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>$null | Where-Object { $_ -and $_.Trim() }) } catch { return }
-    if ($apps.Count -eq 0) { return }
-    Write-Host ("  gpu busy before {0} ({1} compute app(s)); waiting" -f $Stage, $apps.Count)
+    $usedMiB = $null
+    try {
+      $raw = (& nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>$null | Select-Object -First 1)
+      if ($raw) { $usedMiB = [int]($raw.ToString().Trim()) }
+    } catch { return }
+    if ($null -eq $usedMiB) { return }
+    if ($usedMiB -lt $BusyMiB) { return }
+    Write-Host ("  gpu busy before {0} ({1} MiB in use; free below {2} MiB); waiting" -f $Stage, $usedMiB, $BusyMiB)
     Start-Sleep -Seconds 15
   }
-  throw ("STOP+LOG ({0}): the GPU never freed within {1} minutes" -f $Stage, $MaxMinutes)
+  throw ("STOP+LOG ({0}): the GPU never freed within {1} minutes (still above {2} MiB)" -f $Stage, $MaxMinutes, $BusyMiB)
 }
 
 function Get-Sha256([string]$Path) {
