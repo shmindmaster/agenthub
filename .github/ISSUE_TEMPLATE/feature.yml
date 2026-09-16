@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose a bounded AgentHub capability or contract change
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the user or operator problem without prescribing an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Verifiable outcome
+      description: What observable result would demonstrate that the change works?
+    validations:
+      required: true
+  - type: input
+    id: hosts
+    attributes:
+      label: Affected hosts
+      description: Name each host or use "host-neutral".
+    validations:
+      required: true
+  - type: textarea
+    id: ownership
+    attributes:
+      label: Capability ownership and existing alternatives
+      description: Identify the current registry owner and any first-party or upstream capability already covering this need.
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Public/private boundary and permissions
+      description: Explain data, path, credential, and authorization implications.
+    validations:
+      required: true
+  - type: textarea
+    id: degradation
+    attributes:
+      label: Unsupported or degraded behavior
+      description: State what must remain explicitly unsupported rather than emulated.
+    validations:
+      required: true

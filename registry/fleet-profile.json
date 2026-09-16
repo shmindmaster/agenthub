@@ -120,7 +120,7 @@
             "flag": "--experimental-lsp",
             "projectConfig": ".lsp.json"
           },
-          "hooks": "default-enabled; SessionStart command hook re-applies the MCP OAuth refresh hotfix (scripts/Repair-QwenCodeMcpOAuth.js; personal mirror ~/.qwen/scripts/repair-mcp-oauth-hotfix.js) after qwen-code npm updates"
+          "hooks": "default-enabled; SessionStart command hook re-applies the MCP OAuth refresh hotfix (scripts/Repair-QwenCodeMcpOAuth.mjs; personal mirror ~/.qwen/scripts/repair-mcp-oauth-hotfix.mjs) after qwen-code npm updates"
         }
       },
       {

@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 <#
-Behavior tests for scripts/Repair-QwenCodeMcpOAuth.js, the guard that keeps
+Behavior tests for scripts/Repair-QwenCodeMcpOAuth.mjs, the guard that keeps
 the qwen-code MCP OAuth refresh hotfix alive across npm updates.
 
 THE DEFECT
@@ -36,7 +36,7 @@ param()
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$scriptPath = Join-Path $repoRoot 'scripts\Repair-QwenCodeMcpOAuth.js'
+$scriptPath = Join-Path $repoRoot 'scripts\Repair-QwenCodeMcpOAuth.mjs'
 
 $passed = 0
 $failed = 0
@@ -268,6 +268,39 @@ try {
     Assert-True ($r.ExitCode -eq 0) "--check exits 0 for missing install (got $($r.ExitCode))"
     $noInstallStatus = try { ($r.Output | ConvertFrom-Json).status } catch { '' }
     Assert-True ($noInstallStatus -eq 'no-install') "--check reports status no-install (got '$noInstallStatus')"
+
+    # Behavior 7: without an override, the utility discovers a standalone
+    # installation before falling back to an npm-global location.
+    $standaloneRoot = if ($env:OS -eq 'Windows_NT') {
+        Join-Path $scratch 'local-app-data\qwen-code\qwen-code'
+    } else {
+        Join-Path $scratch '.local/lib/qwen-code'
+    }
+    $standaloneChunks = Join-Path $standaloneRoot 'chunks'
+    New-Item -ItemType Directory -Path $standaloneChunks -Force | Out-Null
+    Copy-Item -LiteralPath $fileChunkPath -Destination (Join-Path $standaloneChunks 'chunk-STANDALONE01.js')
+    $previousInstallDir = $env:QWEN_CODE_INSTALL_DIR
+    $previousLocalAppData = $env:LOCALAPPDATA
+    $previousAppData = $env:APPDATA
+    $previousHome = $env:HOME
+    try {
+        Remove-Item Env:QWEN_CODE_INSTALL_DIR -ErrorAction SilentlyContinue
+        if ($env:OS -eq 'Windows_NT') {
+            $env:LOCALAPPDATA = Join-Path $scratch 'local-app-data'
+            $env:APPDATA = Join-Path $scratch 'app-data'
+        } else {
+            $env:HOME = $scratch
+        }
+        $autoOutput = & node $scriptPath --check 2>&1 | Out-String
+        $autoExit = $LASTEXITCODE
+        $autoResult = try { $autoOutput | ConvertFrom-Json } catch { $null }
+        Assert-True ($autoExit -eq 0 -and $autoResult.status -eq 'healthy' -and $autoResult.path -eq $standaloneChunks) 'standalone qwen-code install is discovered without an override'
+    } finally {
+        $env:QWEN_CODE_INSTALL_DIR = $previousInstallDir
+        $env:LOCALAPPDATA = $previousLocalAppData
+        $env:APPDATA = $previousAppData
+        $env:HOME = $previousHome
+    }
 } finally {
     Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
 }

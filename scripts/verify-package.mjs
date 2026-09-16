@@ -29,7 +29,7 @@ const paths = new Set(report.files.map((entry) => entry.path.replaceAll("\\", "/
 const required = [
   "scripts/agenthub-cli.mjs",
   "scripts/AgentHub.ps1",
-  "scripts/Repair-QwenCodeMcpOAuth.js",
+  "scripts/Repair-QwenCodeMcpOAuth.mjs",
   "scripts/Validate-AgentHub.ps1",
   "registry/agents.json",
   "registry/capabilities.json",
@@ -56,5 +56,5 @@ if (missing.length || leaked.length) {
 }
 
 process.stdout.write(
-  `PASS: ${report.entryCount} files, ${report.size} packed bytes, required CLI/registry files present, private/runtime paths excluded.\n`,
+  `PASS: ${report.entryCount} files, ${report.size} packed bytes, source-bundle CLI/registry files present, private/runtime paths excluded; npm publication remains disabled.\n`,
 );

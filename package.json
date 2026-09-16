@@ -1,6 +1,7 @@
 {
   "name": "agenthub",
   "version": "0.1.0",
+  "private": true,
   "description": "Assurance layer for capability ownership, policy parity, and drift across mixed coding-agent fleets",
   "author": "Sarosh Hussain",
   "license": "Apache-2.0",
@@ -13,9 +14,6 @@
     "url": "https://github.com/shmindmaster/agenthub/issues"
   },
   "type": "module",
-  "bin": {
-    "agenthub": "./scripts/agenthub-cli.mjs"
-  },
   "engines": {
     "node": ">=18"
   },
@@ -42,9 +40,6 @@
     "SECURITY.md",
     "LICENSE"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "keywords": [
     "ai-agents",
     "coding-agents",

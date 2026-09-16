@@ -77,7 +77,7 @@ function Test-ExportOmitsPersonalSurface {
         if ($readme -match 'SaroshHussain|D:\\Local-AI|MahumTech') {
             return @{ Passed = $false; Detail = 'exported README still contains personal residue' }
         }
-        if ($readme -notmatch 'npx agenthub init') {
+        if ($readme -notmatch 'node \./scripts/agenthub-cli\.mjs init') {
             return @{ Passed = $false; Detail = 'exported README missing first-click init command' }
         }
         $marketplace = Join-Path $dest '.agents\plugins\marketplace.json'

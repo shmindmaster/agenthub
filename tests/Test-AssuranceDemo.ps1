@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+#Requires -Version 7.4
 [CmdletBinding()]
 param()
 
@@ -29,6 +29,15 @@ try {
     Assert-True ($approved.approval.inputSha256 -eq $approved.inputSha256 -and $approved.approval.decisionId -eq $approved.decisionId) 'trusted approval is bound to the decision ID and proposal digest'
     Assert-True ((Test-Path -LiteralPath $target) -and ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -eq $approved.execution.observedSha256)) 'receipt hash matches the written artifact'
     Assert-True ($approved.inputSha256 -match '^[a-f0-9]{64}$' -and $approved.policySha256 -match '^[a-f0-9]{64}$') 'receipt binds the input and policy by digest'
+
+    $existingRoot = Join-Path ([IO.Path]::GetTempPath()) ("agenthub-assurance-existing/{0}" -f [guid]::NewGuid().ToString('n'))
+    New-Item -ItemType Directory -Path $existingRoot -Force | Out-Null
+    $sentinel = Join-Path $existingRoot 'sentinel.txt'
+    Set-Content -LiteralPath $sentinel -Value 'unchanged' -Encoding utf8NoBOM
+    $rejectedExistingRoot = $false
+    try { & $scriptPath -Scenario approved -OutputRoot $existingRoot | Out-Null } catch { $rejectedExistingRoot = $_.Exception.Message -match 'must not already exist' }
+    Assert-True ($rejectedExistingRoot -and (Get-Content -LiteralPath $sentinel -Raw).Trim() -eq 'unchanged') 'caller-supplied existing output roots are rejected without touching existing content'
+    Remove-Item -LiteralPath $existingRoot -Recurse -Force
 } finally {
     if (Test-Path -LiteralPath $tempRoot) { Remove-Item -LiteralPath $tempRoot -Recurse -Force }
 }

@@ -6,7 +6,7 @@ This offline demo makes the product boundary visible:
 
 The proposed action is untrusted JSON. AgentHub validates its typed contract, loads approval from a separate trusted store bound to the decision ID and proposal digest, applies policy outside the model, performs only an authorized synthetic file write in a temporary workspace, and records the observed final state in a hash-linked receipt.
 
-Run the three-act demo:
+Run the four-outcome demo:
 
 ```powershell
 pwsh -NoProfile -File ./examples/assurance-loop/Invoke-AssuranceDemo.ps1

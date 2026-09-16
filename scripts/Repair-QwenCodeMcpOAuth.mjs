@@ -1,4 +1,4 @@
-// Repair-QwenCodeMcpOAuth.js -- AgentHub guard for the qwen-code MCP OAuth
+// Repair-QwenCodeMcpOAuth.mjs -- AgentHub guard for the qwen-code MCP OAuth
 // refresh hotfix.
 //
 // THE DEFECT
@@ -36,11 +36,11 @@
 // as shape-drift for manual review instead of guessed at.
 //
 // MODES
-//   node Repair-QwenCodeMcpOAuth.js            patch mode (SessionStart hook,
+//   node Repair-QwenCodeMcpOAuth.mjs           patch mode (SessionStart hook,
 //                                              sync apply, manual repair):
 //                                              patches when needed; stdout is
 //                                              Qwen hook output JSON.
-//   node Repair-QwenCodeMcpOAuth.js --check    read-only audit for sync:
+//   node Repair-QwenCodeMcpOAuth.mjs --check   read-only audit for sync:
 //                                              stdout is one status JSON line.
 //
 // EXIT CODES
@@ -59,6 +59,7 @@
 // the two diverge.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 const HOTFIX_MARKER = 'HOTFIX: return expired credentials';
@@ -78,10 +79,10 @@ const KEYCHAIN_STORAGE_PATTERN =
 const DEFINITION_SHAPE = /getCredentials\(serverName\)\s*\{/;
 
 const HOTFIX_NOTE_FILE =
-  '$1\n    // HOTFIX: return expired credentials so MCPOAuthProvider.getValidToken can\n    // reach its refresh-token branch; the upstream early-return here breaks\n    // OAuth refresh (Linear/Notion) whenever encrypted file storage is used.\n    // Re-applied by AgentHub scripts/Repair-QwenCodeMcpOAuth.js.';
+  '$1\n    // HOTFIX: return expired credentials so MCPOAuthProvider.getValidToken can\n    // reach its refresh-token branch; the upstream early-return here breaks\n    // OAuth refresh (Linear/Notion) whenever encrypted file storage is used.\n    // Re-applied by AgentHub scripts/Repair-QwenCodeMcpOAuth.mjs.';
 
 const HOTFIX_NOTE_KEYCHAIN =
-  '$1\n      // HOTFIX: return expired credentials so MCPOAuthProvider.getValidToken can\n      // reach its refresh-token branch; the upstream early-return here breaks\n      // OAuth refresh whenever keychain storage is used.\n      // Re-applied by AgentHub scripts/Repair-QwenCodeMcpOAuth.js.';
+  '$1\n      // HOTFIX: return expired credentials so MCPOAuthProvider.getValidToken can\n      // reach its refresh-token branch; the upstream early-return here breaks\n      // OAuth refresh whenever keychain storage is used.\n      // Re-applied by AgentHub scripts/Repair-QwenCodeMcpOAuth.mjs.';
 
 const checkMode = process.argv.includes('--check');
 
@@ -139,14 +140,23 @@ function scan(chunksDir) {
 }
 
 function main() {
-  const baseDir =
-    process.env.QWEN_CODE_INSTALL_DIR ||
-    path.join(process.env.APPDATA || '', 'npm', 'node_modules', '@qwen-code', 'qwen-code');
-  const chunksDir = path.join(baseDir, 'chunks');
+  const candidates = process.env.QWEN_CODE_INSTALL_DIR
+    ? [process.env.QWEN_CODE_INSTALL_DIR]
+    : process.platform === 'win32'
+      ? [
+          path.join(process.env.LOCALAPPDATA || '', 'qwen-code', 'qwen-code'),
+          path.join(process.env.APPDATA || '', 'npm', 'node_modules', '@qwen-code', 'qwen-code'),
+        ]
+      : [
+          path.join(os.homedir(), '.local', 'lib', 'qwen-code'),
+          path.join(os.homedir(), '.npm-global', 'lib', 'node_modules', '@qwen-code', 'qwen-code'),
+        ];
+  const baseDir = candidates.find((candidate) => fs.existsSync(path.join(candidate, 'chunks')));
+  const chunksDir = baseDir ? path.join(baseDir, 'chunks') : null;
 
-  if (!fs.existsSync(chunksDir)) {
+  if (!chunksDir) {
     if (checkMode) {
-      emit({ status: 'no-install' });
+      emit({ status: 'no-install', checked: candidates });
       return 0;
     }
     emit({});
@@ -157,14 +167,14 @@ function main() {
 
   if (checkMode) {
     if (r.needPatch.length > 0) {
-      emit({ status: 'patch-needed', files: r.needPatch });
+      emit({ status: 'patch-needed', path: chunksDir, files: r.needPatch });
       return 3;
     }
     if (r.suspect.length > 0) {
-      emit({ status: 'shape-drift', files: r.suspect });
+      emit({ status: 'shape-drift', path: chunksDir, files: r.suspect });
       return 2;
     }
-    emit({ status: 'healthy', files: r.healthy });
+    emit({ status: 'healthy', path: chunksDir, files: r.healthy });
     return 0;
   }
 
@@ -186,7 +196,7 @@ function main() {
           'WARNING: the qwen-code MCP OAuth refresh hotfix could not be applied automatically ' +
           `(unrecognized token-storage shape in chunks: ${r.suspect.join(', ')}). Linear/Notion MCP ` +
           'OAuth may fall back to re-authentication loops. Review getCredentials in the installed ' +
-          'qwen-code chunks and update AgentHub scripts/Repair-QwenCodeMcpOAuth.js patterns.'
+          'qwen-code chunks and update AgentHub scripts/Repair-QwenCodeMcpOAuth.mjs patterns.'
       }
     });
     return 2;

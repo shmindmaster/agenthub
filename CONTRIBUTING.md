@@ -13,7 +13,8 @@ pwsh -NoProfile -File .\scripts\AgentHub.ps1 init
 pwsh -NoProfile -File .\scripts\AgentHub.ps1 validate
 ```
 
-Or: `npx agenthub init` then `npx agenthub validate`.
+Or: `node ./scripts/agenthub-cli.mjs init` then
+`node ./scripts/agenthub-cli.mjs validate`.
 
 ## Layout
 
@@ -46,6 +47,6 @@ pwsh -NoProfile -File .\tests\Test-PublicCoreExport.ps1
 ```
 
 A public tree is produced by `scripts/Export-PublicCore.ps1` (or
-`npx agenthub export <dir>`). That script does not push and does not change
+`node ./scripts/agenthub-cli.mjs export <dir>`). That script does not push and does not change
 remote visibility. Private package ids come from `visibility: private` in
 `registry/capabilities.json`.

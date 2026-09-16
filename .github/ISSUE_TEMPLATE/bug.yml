@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a reproducible AgentHub defect
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and the result you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include commands, synthetic fixtures, and exact output. Remove secrets and private paths.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: AgentHub revision
+      description: Commit SHA or release tag.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, PowerShell version, Node version, and affected host(s).
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Public/private boundary impact
+      description: State whether the issue could expose private overlays, identity, credentials, or local paths.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation attempted
+      description: List the checks run and any unsupported or degraded behavior.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, customer data, and private fleet configuration from this report.
+          required: true

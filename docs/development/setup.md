@@ -3,9 +3,10 @@
 ## Requirements
 
 - Windows, macOS, or Linux.
-- PowerShell 7+ (`pwsh`). Windows PowerShell 5.1 works for many scripts on Windows only.
+- PowerShell 7.4+ (`pwsh`). Individual scripts may declare a lower compatible
+  floor, but the full validation suite and assurance demo require 7.4+.
 - Git.
-- Node 18+ optional, for `npx agenthub` / `npm install -g .`.
+- Node 18+ optional, for `node ./scripts/agenthub-cli.mjs ...`.
 
 No package install step is required for the PowerShell lifecycle: this repo is
 scripts, registry JSON, and markdown.

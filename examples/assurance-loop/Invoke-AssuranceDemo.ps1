@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+#Requires -Version 7.4
 [CmdletBinding()]
 param(
     [ValidateSet('all', 'invalid', 'traversal', 'unapproved', 'approved')]
@@ -100,6 +100,9 @@ function Invoke-Scenario([string]$Name, [string]$RunRoot) {
     }
 }
 
+if ($OutputRoot -and (Test-Path -LiteralPath $OutputRoot)) {
+    throw 'OutputRoot must not already exist. The demo creates and owns a fresh bounded workspace.'
+}
 if (-not $OutputRoot) { $OutputRoot = Join-Path ([IO.Path]::GetTempPath()) ("agenthub-assurance-demo/{0}" -f [guid]::NewGuid().ToString('n')) }
 $OutputRoot = [IO.Path]::GetFullPath($OutputRoot)
 New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null

@@ -3,7 +3,7 @@
 //
 // WHY THIS EXISTS
 // qwen-code's "Failed to discover OAuth configuration from MCP server" fires
-// BEFORE any token exchange, so the Repair-QwenCodeMcpOAuth.js hotfix cannot
+// BEFORE any token exchange, so the Repair-QwenCodeMcpOAuth.mjs hotfix cannot
 // be the cause and re-patching cannot fix it. The usual real cause is that the
 // server URL is unreachable from this egress. This probe classifies why.
 //

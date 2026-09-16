@@ -26,8 +26,9 @@ failure. A discovered-empty run fails loudly by design.
 
 ## Conventions
 
-- Tests are PowerShell 5.1-compatible and use the accumulate-and-report
-  idiom (`Report` function + `RESULT` line).
+- The full public suite and assurance demo require PowerShell 7.4+. Individual
+  core scripts that declare `#Requires -Version 5.1` retain their documented
+  Windows PowerShell compatibility and are still exercised independently.
 - Result output goes through `Write-Output`, not only `Write-Host`, so
   parent-process capture (Run-AllTests, CI) can parse it.
 - Registry JSON is read with `-Encoding UTF8`; hashes normalize line endings

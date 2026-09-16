@@ -1,22 +1,22 @@
 # Quickstart (public core)
 
-Get from clone to a useful drift audit in a few minutes. PowerShell 7+
+Get from clone to a useful drift audit in a few minutes. PowerShell 7.4+
 (`pwsh`) is required on Windows, macOS, and Linux.
 
-## 1. Install the CLI wrapper (optional)
-
-From the repository root:
+## 1. Clone the source
 
 ```bash
-npm install -g .
-# or, without a global install:
-node ./scripts/agenthub-cli.mjs --help
+git clone https://github.com/shmindmaster/agenthub.git
+cd agenthub
 ```
+
+The npm package is intentionally private. Use the source-clone wrapper or call
+the PowerShell lifecycle directly.
 
 ## 2. Initialize a local overlay
 
 ```bash
-npx agenthub init
+node ./scripts/agenthub-cli.mjs init
 # equivalent:
 pwsh -NoProfile -File ./scripts/AgentHub.ps1 init
 ```
@@ -32,14 +32,14 @@ Public capabilities load without an overlay.
 ## 3. Validate, then audit
 
 ```bash
-npx agenthub validate
-npx agenthub sync
+node ./scripts/agenthub-cli.mjs validate
+node ./scripts/agenthub-cli.mjs sync
 ```
 
 `sync` without `--apply` is read-only drift. When the audit looks right:
 
 ```bash
-npx agenthub sync --apply
+node ./scripts/agenthub-cli.mjs sync --apply
 ```
 
 ## 4. Private vs public
@@ -56,7 +56,7 @@ Turn the overlay off for a public-only graph:
 ```bash
 # PowerShell
 $env:AGENTHUB_OVERLAY = 'off'
-npx agenthub validate
+node ./scripts/agenthub-cli.mjs validate
 ```
 
 ## Starter path

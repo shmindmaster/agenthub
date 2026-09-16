@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+#Requires -Version 7.4
 <#
 Aggregate test runner. The internal distribution discovers every
 tests/Test-*.ps1 file. The public-core distribution runs an explicit portable
@@ -20,7 +20,6 @@ processes under the appropriate executable, so `pwsh tests/Run-AllTests.ps1`
 runs PowerShell tests under pwsh and Node tests under node.
 
 Run: pwsh -NoProfile -File tests/Run-AllTests.ps1
-     powershell.exe -NoProfile -File tests/Run-AllTests.ps1
 #>
 [CmdletBinding()]
 param()
@@ -37,11 +36,14 @@ if ($isPublicCore) {
     $portableTestNames = @(
         'Test-AgentHubEntryPoint.ps1',
         'Test-AssuranceDemo.ps1',
+        'Test-CapabilityOwnership.ps1',
         'Test-MarkdownFrontmatterValidation.ps1',
+        'Test-PathBinding.ps1',
         'Test-QwenOAuthRepair.ps1',
         'Test-RegistryContentHash.ps1',
         'Test-RegistryHostReferences.ps1',
         'Test-SkillFrontmatterYaml.ps1'
+        'Test-SyncCapabilities.ps1'
     )
     $testFiles = @($portableTestNames | ForEach-Object {
         $path = Join-Path $testsDir $_

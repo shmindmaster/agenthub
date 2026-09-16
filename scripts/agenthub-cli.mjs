@@ -32,15 +32,12 @@ Options:
   --apply              Only for sync
   -h, --help           Show this help
 
-Requires PowerShell 7+ (pwsh) on Windows, macOS, and Linux.
+Requires PowerShell 7.4+ (pwsh) on Windows, macOS, and Linux.
 Docs: docs/development/quickstart.md
 `;
 
 function findShell() {
-  const candidates =
-    process.platform === "win32"
-      ? ["pwsh.exe", "pwsh", "powershell.exe"]
-      : ["pwsh", "powershell"];
+  const candidates = process.platform === "win32" ? ["pwsh.exe", "pwsh"] : ["pwsh"];
   return candidates[0];
 }
 
@@ -55,7 +52,7 @@ function run(shell, args) {
     child.on("error", (err) => {
       if (err.code === "ENOENT") {
         console.error(
-          `Could not find '${shell}'. Install PowerShell 7+ (https://aka.ms/powershell) and ensure 'pwsh' is on PATH.`
+          `Could not find '${shell}'. Install PowerShell 7.4+ (https://aka.ms/powershell) and ensure 'pwsh' is on PATH.`
         );
         resolve(127);
         return;

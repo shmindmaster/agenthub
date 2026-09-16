@@ -1822,20 +1822,16 @@ function Sync-QwenCapabilityExtensions {
 # chunks; every npm update restores the upstream expired-token defect
 # (getCredentials returns null for expired tokens, so MCPOAuthProvider never
 # reaches the refresh branch) and Linear/Notion fall back to browser
-# re-authentication loops. scripts/Repair-QwenCodeMcpOAuth.js removes the
+# re-authentication loops. scripts/Repair-QwenCodeMcpOAuth.mjs removes the
 # early-return again. Audit reports drift when the installed bundle needs the
 # patch; Apply runs the patch. A missing qwen-code install or node.exe is
 # 'unsupported-path', not drift: this guard protects an installation, it does
 # not create one.
 function Sync-QwenOAuthBundleGuard {
     param([switch]$WhatIf)
-    $scriptPath = Join-Path $RegistryRoot 'scripts\Repair-QwenCodeMcpOAuth.js'
-    $chunksDir = Join-Path $env:APPDATA 'npm\node_modules\@qwen-code\qwen-code\chunks'
+    $scriptPath = Join-Path $RegistryRoot 'scripts\Repair-QwenCodeMcpOAuth.mjs'
     if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
-        return @{ status='unsupported-path'; note='scripts/Repair-QwenCodeMcpOAuth.js missing' }
-    }
-    if (-not (Test-Path -LiteralPath $chunksDir -PathType Container)) {
-        return @{ status='unsupported-path'; note='qwen-code npm install not found' }
+        return @{ status='unsupported-path'; note='scripts/Repair-QwenCodeMcpOAuth.mjs missing' }
     }
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
         return @{ status='unsupported-path'; note='node not on PATH' }
@@ -1848,19 +1844,23 @@ function Sync-QwenOAuthBundleGuard {
     try {
         $checkOutput = & node $scriptPath --check 2>&1 | Out-String
         $code = $LASTEXITCODE
-        if ($code -eq 0) { return @{ status='unchanged'; path=$chunksDir } }
+        $check = try { $checkOutput | ConvertFrom-Json } catch { $null }
+        if ($code -eq 0 -and $check.status -eq 'no-install') {
+            return @{ status='unsupported-path'; note='qwen-code install not found in supported standalone or npm locations' }
+        }
+        if ($code -eq 0) { return @{ status='unchanged'; path=$check.path } }
         if ($code -ne 3) {
-            return @{ status='drift'; path=$chunksDir; note="Repair-QwenCodeMcpOAuth.js --check exited $code : $($checkOutput.Trim())" }
+            return @{ status='drift'; path=$check.path; note="Repair-QwenCodeMcpOAuth.mjs --check exited $code : $($checkOutput.Trim())" }
         }
         if ($WhatIf) {
-            return @{ status='drift'; path=$chunksDir; note='MCP OAuth refresh hotfix missing from qwen-code bundle' }
+            return @{ status='drift'; path=$check.path; note='MCP OAuth refresh hotfix missing from qwen-code bundle' }
         }
         $patchOutput = & node $scriptPath 2>&1 | Out-String
         $code = $LASTEXITCODE
         if ($code -ne 0) {
-            throw "Repair-QwenCodeMcpOAuth.js failed (exit $code): $($patchOutput.Trim())"
+            throw "Repair-QwenCodeMcpOAuth.mjs failed (exit $code): $($patchOutput.Trim())"
         }
-        return @{ status='updated'; path=$chunksDir }
+        return @{ status='updated'; path=$check.path }
     } finally {
         $ErrorActionPreference = $previousEap
     }

@@ -1,6 +1,6 @@
 # Governance
 
-AgentHub Core is an Apache-2.0 public project maintained by Sarosh Hussain. Technical direction is currently maintainer-led. The repository does not claim a broader maintainer council or independent adoption that does not yet exist.
+AgentHub is an Apache-2.0 public project maintained by Sarosh Hussain. Technical direction is currently maintainer-led. The repository does not claim a broader maintainer council or independent adoption that does not yet exist.
 
 ## Decision process
 

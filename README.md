@@ -28,20 +28,20 @@ to validate ownership, host support, policy, and resulting drift. See
 
 ## First five minutes
 
-Requires [PowerShell 7+](https://aka.ms/powershell) (`pwsh`) on Windows, macOS, or Linux. Node 18+ is optional for the CLI wrapper.
+Requires [PowerShell 7.4+](https://aka.ms/powershell) (`pwsh`) on Windows, macOS, or Linux. Node 18+ is optional for the CLI wrapper.
 
-The repository is installable from source today. The npm distribution surface
-is now bounded and verified, but no npm release should be inferred until a
-release appears on the registry.
+AgentHub is supported from a source clone today. The package is intentionally
+marked private until installed-state, external-state, and non-Git validation
+have a dedicated distribution design and clean-room test.
 
 ```bash
-# optional wrapper
-npm install -g github:shmindmaster/agenthub
+git clone https://github.com/shmindmaster/agenthub.git
+cd agenthub
 
-agenthub init          # local overlay + profile from examples
-agenthub validate      # registry checks
-agenthub sync          # read-only drift audit
-# agenthub sync --apply  # deploy after validate passes
+node ./scripts/agenthub-cli.mjs init
+node ./scripts/agenthub-cli.mjs validate
+node ./scripts/agenthub-cli.mjs sync
+# node ./scripts/agenthub-cli.mjs sync --apply
 ```
 
 Or call PowerShell directly:
