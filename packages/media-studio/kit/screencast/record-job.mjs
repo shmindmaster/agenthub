@@ -38,6 +38,11 @@ const mod = await import(pathToFileURL(path.join(cap, 'scenes.mjs')).href);
 const scenes = mod.scenes || {};
 const order = mod.order || Object.keys(scenes);
 const options = mod.options || {};
+// options/covers: one continuous take may carry several narration segments when the product keeps its state in
+// memory between them (a live tally that a reload would reset). `export const covers = { S04: ['S04','S05','S06'] }`
+// records one clip for S04 whose receipt and manifest entry span those segments; the scene paces each part with
+// ctx.targets[segmentId].
+const covers = mod.covers || {};
 if (!options.baseUrl) throw new Error('capture/scenes.mjs must export options.baseUrl');
 const storageState = options.storageState ? path.resolve(cap, options.storageState) : null;
 if (storageState && !fs.existsSync(storageState)) throw new Error('storageState not found: ' + storageState);
@@ -55,6 +60,8 @@ if (fs.existsSync(tlPath)) {
   const tl = JSON.parse(fs.readFileSync(tlPath, 'utf8').replace(/^﻿/, ''));
   for (const s of tl.segments || []) { const sc = s.scene || String(s.id).replace(/[a-z]$/, ''); targets[sc] = (targets[sc] || 0) + Number(s.durationSeconds || 0); }
 }
+const segmentTargets = { ...targets };
+for (const [id, segs] of Object.entries(covers)) targets[id] = segs.reduce((n, s) => n + (segmentTargets[s] || 0), 0);
 
 const sha256 = (f) => createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 const probe = (f) => { try { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString()); } catch { return 0; } };
@@ -87,7 +94,7 @@ for (const id of ids) {
   });
   const t0 = Date.now();
   const take = { startedAt: new Date(t0).toISOString(), targetSeconds: targets[id] ? Number(targets[id].toFixed(1)) : null };
-  try { await scenes[id](rec.h, { page: rec.page, beats: rec.beats, id, jobRoot, targetSeconds: targets[id] || null }); }
+  try { await scenes[id](rec.h, { page: rec.page, beats: rec.beats, id, jobRoot, targetSeconds: targets[id] || null, targets: segmentTargets, covers: covers[id] || [id] }); }
   catch (e) { take.error = e.message.split('\n')[0]; console.log('  scene error:', take.error); await rec.page.screenshot({ path: path.join(rec.rawDir, 'error.png') }).catch(() => {}); }
   const fin = await finishRecording(rec, carryState ? { saveStatePath: carryPath } : {});
   take.rawSeconds = Number(((Date.now() - t0) / 1000).toFixed(1));
@@ -96,11 +103,15 @@ for (const id of ids) {
   const opts = (options.recast || {})[id] || {};
   if (flags.has('--no-recast')) { fs.copyFileSync(fin.webm, out); take.recast = 'skipped'; }
   else {
-    try { await renderRecast(fin.rawDir, out, { ...opts, resolution: options.viewport }); take.recast = opts.autoZoom === false ? 'noZoom' : 'full'; }
+    // Relative paths: Recast writes its cursor clip into .recast-tmp beside the output and passes that path to ffmpeg's
+    // movie filter with only backslashes escaped, so an absolute Windows path breaks on the drive colon. cwd is capture/.
+    const rawRel = path.relative(process.cwd(), fin.rawDir);
+    const outRel = path.join('clips', `${id}.webm`);
+    try { await renderRecast(rawRel, outRel, { ...opts, resolution: options.viewport }); take.recast = opts.autoZoom === false ? 'noZoom' : 'full'; }
     catch (e) {
       console.log('  recast failed:', e.message.split('\n')[0]);
       fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
-      try { await renderRecast(fin.rawDir, out, { ...opts, autoZoom: false, resolution: options.viewport }); take.recast = 'noZoom'; take.recastNote = e.message.split('\n')[0]; }
+      try { await renderRecast(rawRel, outRel, { ...opts, autoZoom: false, resolution: options.viewport }); take.recast = 'noZoom'; take.recastNote = e.message.split('\n')[0]; }
       catch (e2) { fs.copyFileSync(fin.webm, out); take.recast = 'fallback'; take.recastNote = e2.message.split('\n')[0]; console.log('  raw webm copied (recast fallback)'); }
     }
   }
@@ -114,6 +125,7 @@ for (const id of ids) {
   recordings.takes[id] = take;
   receipt.clips[id] = {
     file: `clips/${id}.webm`,
+    segments: covers[id] || [id],
     sha256: sha256(out),
     bytes: fs.statSync(out).size,
     clipSeconds: take.clipSeconds,

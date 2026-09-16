@@ -79,8 +79,12 @@ const beats = sb ? (sb.beats || sb.scenes || []) : [];
 const job = (() => { try { return JSON.parse(fs.readFileSync(path.join(jobRoot, 'job.json'), 'utf8')); } catch { return {}; } })();
 const jobTitle = job.title || '';
 const beatFor = (segId) => beats.find((x) => x.id === segId || (x.segments || []).includes(segId)) || {};
+// visualMode: storyboard beat first, then the screenplay scene (exact id, then the id with the beat suffix stripped).
+// The storyboards this kit writes carry no visualMode, so without the screenplay every card and code reveal read as a
+// screen beat without a clip (Duckie job 13, 2026-09-15). Unknown stays the kind's default so the gate still fails closed.
+const screenplayModes = (() => { try { return new Map((JSON.parse(fs.readFileSync(path.join(jobRoot, 'story', 'screenplay.json'), 'utf8')).scenes || []).map((s) => [s.id, s.visualMode])); } catch { return new Map(); } })();
 const beatMode = (segId) => {
-  const mode = beatFor(segId).visualMode;
+  const mode = beatFor(segId).visualMode || screenplayModes.get(segId) || screenplayModes.get(String(segId).replace(/[a-z]+$/, ''));
   if (mode) return mode;
   return job.kind === 'product-screencast' ? 'screen' : 'slide';
 };
@@ -111,6 +115,10 @@ for (const seg of tl.segments) {
   if (last && last.clip === clip && clip) { last.segments.push(seg); last.duration += seg.durationSeconds; }
   else groups.push({ clip, segments: [seg], duration: seg.durationSeconds, start: seg.startSeconds });
 }
+// A pause between segments (pauseBeforeSeconds in the timeline) is picture time too: the product stays on screen while
+// the voice breathes. Each group therefore runs until the next group starts (the last one to the end of the timeline),
+// otherwise the picture finishes ahead of the narration by the sum of the pauses and drifts out of sync on the way.
+groups.forEach((g, i) => { const next = groups[i + 1]; g.duration = Number(((next ? next.start : tl.durationSeconds) - g.start).toFixed(3)); });
 
 const parts = [];
 const rows = [];

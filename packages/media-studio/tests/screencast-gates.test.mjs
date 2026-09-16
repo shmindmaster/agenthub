@@ -207,3 +207,51 @@ test('encoded gate: a card spliced where the capture belongs fails source bindin
   assert.notEqual(r.code, 0);
   assert.match(r.out, /does not match any frame of the captured clip/);
 });
+
+test('compose: a pause between segments is picture time, so the picture runs the full timeline', { skip: !ffmpegAvailable }, () => {
+  const root = join(scratch, 'compose-pause');
+  writeJob(root, { screenSeconds: 16, cardSeconds: 6 });
+  // Re-time the timeline with a 0.6 s pause before S02: S01 0-6, S02 6.6-22.6, total 22.6.
+  writeFileSync(join(root, 'story', 'narration-timeline.json'), JSON.stringify({
+    durationSeconds: 22.6,
+    segments: [
+      { id: 'S01', scene: 'S01', text: 'hook', startSeconds: 0, durationSeconds: 6, endSeconds: 6 },
+      { id: 'S02', scene: 'S02', text: 'hero', startSeconds: 6.6, durationSeconds: 16, endSeconds: 22.6 },
+    ],
+  }));
+  const clip = join(root, 'capture', 'clips', 'S02.webm');
+  movingClip(clip, 17);
+  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  const r = run(compose, [root, 'p']);
+  assert.equal(r.code, 0, r.out);
+  const map = JSON.parse(readFileSync(join(root, 'output', 'p-compose-map.json'), 'utf8'));
+  const s01 = map.groups.find((g) => g.segments[0] === 'S01');
+  assert.equal(s01.needSeconds, 6.6, 'the pause after S01 belongs to its picture');
+  assert.ok(Math.abs(map.pictureSeconds - 22.6) < 0.35, `picture ${map.pictureSeconds}s should run the whole 22.6 s timeline`);
+});
+
+test('encoded gate: a static run straddling a pause is judged as the neighbouring beat, not as a card', { skip: !ffmpegAvailable }, () => {
+  const root = join(scratch, 'encoded-pause');
+  writeJob(root, { screenSeconds: 16, cardSeconds: 6 });
+  writeFileSync(join(root, 'story', 'narration-timeline.json'), JSON.stringify({
+    durationSeconds: 22.6,
+    segments: [
+      { id: 'S01', scene: 'S01', text: 'hook', startSeconds: 0, durationSeconds: 6, endSeconds: 6 },
+      { id: 'S02', scene: 'S02', text: 'hero', startSeconds: 6.6, durationSeconds: 16, endSeconds: 22.6 },
+    ],
+  }));
+  const clip = join(root, 'capture', 'clips', 'S02.webm');
+  movingClip(clip, 16);
+  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  const card = join(root, 'capture', 'clips', 'S01-card.png');
+  ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', card]);
+  // Card 0-6.6 (the pause is held on the card), then the moving capture 6.6-22.6.
+  const good = join(root, 'output', 'good.mp4');
+  ff(['-loop', '1', '-t', '6.6', '-i', card, '-i', clip, '-filter_complex', '[0:v]fps=30,format=yuv420p[a];[1:v]fps=30,format=yuv420p[b];[a][b]concat=n=2:v=1:a=0[v]', '-map', '[v]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', good]);
+  writeFileSync(join(root, 'output', 'good-compose-map.json'), JSON.stringify({ groups: [{ segments: ['S01'], clipId: 'S01-card', file: 'clips/S01-card.png', isImage: true }, { segments: ['S02'], clipId: 'S02', file: 'clips/S02.webm', fit: 'cut' }] }));
+  const ok = run(encodedValidator, [root, good, '--out', 'qa/encoded-pause.json']);
+  assert.equal(ok.code, 0, ok.out);
+  const rep = JSON.parse(readFileSync(join(root, 'qa', 'encoded-pause.json'), 'utf8'));
+  assert.ok(rep.staticRuns.every((r) => r.segment !== null), 'every static run is attributed to a segment');
+  assert.ok(!ok.out.includes('card held'), 'no false card-held error from the pause');
+});

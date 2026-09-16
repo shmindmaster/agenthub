@@ -322,7 +322,7 @@ try {
     $pass2Json = ConvertFrom-LoudnormOutput -Lines $pass2.Output
     $plan.normalizationType = [string]$pass2Json.normalization_type
     if ($plan.normalizationType -and $plan.normalizationType -ne 'linear' -and -not $AllowDynamic) {
-        throw "loudnorm pass 2 used normalization_type='$($plan.normalizationType)' rather than linear. Refusing dynamic compression of the program. Pass -AllowDynamic only for a non-TTS live mix that cannot linear-scale."
+        throw "loudnorm pass 2 used normalization_type='$($plan.normalizationType)' rather than linear (measured I=$($measured.input_i) LUFS, TP=$($measured.input_tp) dBTP, LRA=$($measured.input_lra) LU against I=$Integrated, TP=$TruePeak, LRA=$LoudnessRange). Refusing dynamic compression of the program. A TTS stem whose peak-to-loudness ratio exceeds $([math]::Round($TruePeak - $Integrated, 1)) dB cannot linear-scale: precondition the speech with a fixed gain plus a true-peak limiter first (the way Finish-BriefingStems.ps1 does), or raise -LoudnessRange when only LRA blocks the linear pass. Pass -AllowDynamic only for a non-TTS live mix that cannot linear-scale."
     }
 
     $outDir = Split-Path -Parent $Output

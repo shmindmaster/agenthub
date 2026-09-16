@@ -79,7 +79,11 @@ const beats = board ? (board.beats || board.scenes || []) : [];
 const beatById = new Map();
 for (const b of beats) { if (b.id) beatById.set(b.id, b); for (const sid of b.segments || []) beatById.set(sid, b); }
 const beatFor = (id) => beatById.get(id) || beatById.get(String(id).replace(/[a-z]$/, '')) || null;
-const beatMode = (id) => beatFor(id)?.visualMode || (job.kind === 'product-screencast' ? 'screen' : 'slide');
+// visualMode: storyboard beat first, then the screenplay scene (exact id, then the id with the beat suffix stripped).
+// The storyboards this kit writes carry no visualMode, so without the screenplay every card and code reveal read as a
+// screen beat without a clip (Duckie job 13, 2026-09-15). Unknown stays the kind's default so the gate still fails closed.
+const screenplayModes = new Map(((readJson('story/screenplay.json') || {}).scenes || []).map((s) => [s.id, s.visualMode]));
+const beatMode = (id) => beatFor(id)?.visualMode || screenplayModes.get(id) || screenplayModes.get(String(id).replace(/[a-z]+$/, '')) || (job.kind === 'product-screencast' ? 'screen' : 'slide');
 const isScreen = (id) => !CARD_MODES.has(beatMode(id));
 
 // Segment -> source clip mapping: prefer the compose map written by compose-screencast.mjs, else deal like compose.
@@ -134,7 +138,10 @@ for (let i = 0; i < staticFlags.length; i++) {
     runStart = null;
   }
 }
-const segAt = (t) => tl.segments.find((s) => t >= s.startSeconds && t < s.startSeconds + s.durationSeconds) || null;
+// A time inside a pause between two segments belongs to the nearest segment: the pause is the preceding beat's picture,
+// not a card, so a static run that straddles a pause is judged by that beat's rules.
+const segAt = (t) => tl.segments.find((s) => t >= s.startSeconds && t < s.startSeconds + s.durationSeconds)
+  || tl.segments.reduce((best, s) => { const d = t < s.startSeconds ? s.startSeconds - t : t - (s.startSeconds + s.durationSeconds); return !best || d < best.d ? { s, d } : best; }, null)?.s || null;
 for (const r of runs) {
   const mid = (r.startSeconds + r.endSeconds) / 2;
   const seg = segAt(mid);

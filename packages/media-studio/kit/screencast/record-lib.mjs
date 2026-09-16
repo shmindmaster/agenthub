@@ -137,7 +137,9 @@ export function bindHelpers(page, log, beats, opts = {}) {
     const sy = log.pointer.y ?? clamp(ty - 160, 8, page.viewportSize().height - 8);
     const dist = Math.hypot(tx - sx, ty - sy);
     const ms = o.ms || clamp(TIMING.pointerMoveMsMin + (dist / 900) * (TIMING.pointerMoveMsMax - TIMING.pointerMoveMsMin), TIMING.pointerMoveMsMin, TIMING.pointerMoveMsMax);
-    const steps = o.steps || Math.max(8, Math.round(ms / 33));
+    // Three real pointer positions per approach: Recast interpolates the eased path between trace keyframes, and every
+    // mouse.move becomes a keyframe in its ffmpeg expression (a 100-move take overflowed the Windows command line).
+    const steps = o.steps || 3;
     const per = ms / steps;
     for (let i = 1; i <= steps; i++) {
       const e = easeInOutCubic(i / steps);
@@ -155,7 +157,11 @@ export function bindHelpers(page, log, beats, opts = {}) {
   async function click(locator, o = {}) {
     const { x, y, box } = await approach(locator, o);
     if (o.hoverDwell) await wait(o.hoverDwell);
-    await page.mouse.down(); await wait(60); await page.mouse.up();
+    // A locator click, not page.mouse.click: Recast's click ripple, held cursor approach and auto-zoom all key on trace
+    // actions whose method is 'click' with a recorded point. mouse.click is method 'mouse.click' and none of the three see
+    // it (the take then carries a cursor from the move keyframes but no ripple and no punch-in). The pointer is already
+    // on the element centre, so the click lands where the approach ended; force skips a second actionability wait.
+    await locator.first().click({ delay: 60, force: true, position: { x: box.width / 2, y: box.height / 2 }, timeout: 8000 });
     log.push('click', { x: Math.round(x), y: Math.round(y), label: o.label || null });
     if (o.label) beats.mark(o.label, { box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } });
     await wait(o.hold ?? TIMING.clickHoldMs);

@@ -82,7 +82,11 @@ const beats = board ? (board.beats || board.scenes || []) : [];
 const beatById = new Map();
 for (const b of beats) { if (b.id) beatById.set(b.id, b); for (const sid of b.segments || []) beatById.set(sid, b); }
 const beatFor = (id) => beatById.get(id) || beatById.get(String(id).replace(/[a-z]$/, '')) || null;
-const beatMode = (id) => beatFor(id)?.visualMode || 'screen';
+// visualMode: storyboard beat first, then the screenplay scene (exact id, then the id with the beat suffix stripped).
+// The storyboards this kit writes carry no visualMode, so without the screenplay every card and code reveal read as a
+// screen beat without a clip (Duckie job 13, 2026-09-15). Unknown stays the kind's default so the gate still fails closed.
+const screenplayModes = new Map(((readJson('story/screenplay.json') || {}).scenes || []).map((s) => [s.id, s.visualMode]));
+const beatMode = (id) => beatFor(id)?.visualMode || screenplayModes.get(id) || screenplayModes.get(String(id).replace(/[a-z]+$/, '')) || 'screen';
 const isScreenMode = (mode) => mode === 'screen' || !CARD_MODES.has(mode);
 
 const rawClips = manifest ? (manifest.composeClips || manifest.clips || manifest.entries || manifest.captures || []) : [];
