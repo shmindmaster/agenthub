@@ -13,13 +13,16 @@
 ## Canonical commands
 
 ```powershell
-pwsh -NoProfile -File .\tests\Run-AllTests.ps1     # everything
+pwsh -NoProfile -File .\tests\Run-AllTests.ps1     # distribution-appropriate suite
 pwsh -NoProfile -File .\tests\Test-RepoStandard.ps1  # checker fixtures only
 ```
 
-`Run-AllTests.ps1` discovers `tests/Test-*.ps1` plus package validators,
-aggregates, and exits non-zero on any failure. A discovered-empty run fails
-loudly by design.
+`Run-AllTests.ps1` discovers `tests/Test-*.ps1` in the internal distribution.
+The public-core distribution uses an explicit portable list so tests that
+require private overlays, local fleet state, or export tooling are not
+misrepresented as public failures. Both distributions include package
+validators and Node tests, aggregate their results, and exit non-zero on any
+failure. A discovered-empty run fails loudly by design.
 
 ## Conventions
 

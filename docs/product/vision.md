@@ -1,7 +1,9 @@
 # AgentHub — Product Vision
 
-AgentHub is one personal control plane for consistent skills, plugins, MCP
-servers, and policy across all coding-agent hosts in the fleet.
+AgentHub is an assurance layer for consistent skills, plugins, MCP servers,
+and policy across a mixed coding-agent fleet. It complements package managers
+and host-native installers; it does not compete to become another universal
+package format.
 
 ## Purpose
 

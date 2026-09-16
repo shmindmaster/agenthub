@@ -1,0 +1,8 @@
+{
+  "policyVersion": 1,
+  "allowedActions": ["workspace.write"],
+  "allowedDirectory": "workspace",
+  "blockedExtensions": [".exe", ".dll", ".ps1", ".sh"],
+  "maxWriteBytes": 4096,
+  "writesRequireApproval": true
+}

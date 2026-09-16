@@ -1,0 +1,11 @@
+{
+  "approvals": [
+    {
+      "decisionId": "demo-write-request",
+      "inputSha256": "4991ed474037b91fc6897c85bb683aa8a1f63cf37b034a0e3a22d4c592e545dd",
+      "granted": true,
+      "actor": "demo-owner",
+      "grantedAt": "2026-09-15T12:00:00Z"
+    }
+  ]
+}

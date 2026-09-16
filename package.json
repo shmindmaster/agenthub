@@ -1,9 +1,17 @@
 {
   "name": "agenthub",
   "version": "0.1.0",
-  "private": true,
-  "description": "Portable control plane for skills, plugins, MCP servers, and policy across coding agents",
+  "description": "Assurance layer for capability ownership, policy parity, and drift across mixed coding-agent fleets",
+  "author": "Sarosh Hussain",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/shmindmaster/agenthub#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shmindmaster/agenthub.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shmindmaster/agenthub/issues"
+  },
   "type": "module",
   "bin": {
     "agenthub": "./scripts/agenthub-cli.mjs"
@@ -11,10 +19,49 @@
   "engines": {
     "node": ">=18"
   },
+  "files": [
+    "scripts/**/*.ps1",
+    "scripts/**/*.js",
+    "scripts/**/*.mjs",
+    "packages/**/*",
+    "!packages/**/node_modules/**",
+    "!packages/**/build/**",
+    "!packages/**/dist/**",
+    "!packages/**/package-lock.json",
+    "registry/**/*",
+    "examples/**/*",
+    "overlays/personal.example/**/*",
+    "agenthub.profile.example.json",
+    "policy-core.md",
+    "docs/**/*",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "GOVERNANCE.md",
+    "README.md",
+    "ROADMAP.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "ai-agents",
+    "coding-agents",
+    "mcp",
+    "policy-as-code",
+    "configuration-drift",
+    "agent-skills",
+    "codex",
+    "claude-code",
+    "cursor"
+  ],
   "scripts": {
     "agenthub": "node ./scripts/agenthub-cli.mjs",
     "init": "node ./scripts/agenthub-cli.mjs init",
     "validate": "node ./scripts/agenthub-cli.mjs validate",
-    "sync": "node ./scripts/agenthub-cli.mjs sync"
+    "sync": "node ./scripts/agenthub-cli.mjs sync",
+    "demo:assurance": "pwsh -NoProfile -File ./examples/assurance-loop/Invoke-AssuranceDemo.ps1",
+    "verify:package": "node ./scripts/verify-package.mjs"
   }
 }

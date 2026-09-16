@@ -1,23 +1,47 @@
-# AgentHub
+# AgentHub — assurance for mixed coding-agent fleets
 
-Portable control plane for skills, plugins, MCP servers, and policy across
-coding agents — with drift detection and an optional **personal overlay** for
-what should stay private on your machine.
+AgentHub makes capability ownership, policy parity, and configuration drift
+inspectable across coding agents. It keeps host-native skills, plugins, MCP
+servers, and instructions aligned without pretending every host supports the
+same surface.
 
 **Public-good thesis:** agent policy and capability configuration should be portable across hosts while operator-specific identity, paths, and private extensions stay local and user-controlled.
+
+## Where AgentHub fits
+
+AgentHub is not a replacement for an agent package manager. Tools such as
+[Microsoft APM](https://github.com/microsoft/apm) and
+[AgentStack](https://github.com/Tarekkharsa/agentstack) focus on installing or
+rendering portable agent dependencies. AgentHub focuses on the assurance layer
+around a mixed fleet:
+
+- one declared owner for each capability;
+- explicit `true` / `false` / `null` host-support evidence instead of guessed parity;
+- content-hash drift detection between canonical packages and deployed copies;
+- policy that can only narrow authority, with local private overlays kept out of public exports;
+- validate → audit → apply, where audit is the default and an invalid registry cannot deploy.
+
+The intended interoperability path is to track third-party packages at their
+upstream source, let the appropriate installer deliver them, and use AgentHub
+to validate ownership, host support, policy, and resulting drift. See
+[product positioning](./docs/product/positioning.md).
 
 ## First five minutes
 
 Requires [PowerShell 7+](https://aka.ms/powershell) (`pwsh`) on Windows, macOS, or Linux. Node 18+ is optional for the CLI wrapper.
 
+The repository is installable from source today. The npm distribution surface
+is now bounded and verified, but no npm release should be inferred until a
+release appears on the registry.
+
 ```bash
 # optional wrapper
-npm install -g .
+npm install -g github:shmindmaster/agenthub
 
-npx agenthub init          # local overlay + profile from examples
-npx agenthub validate      # registry checks
-npx agenthub sync          # read-only drift audit
-# npx agenthub sync --apply  # deploy after validate passes
+agenthub init          # local overlay + profile from examples
+agenthub validate      # registry checks
+agenthub sync          # read-only drift audit
+# agenthub sync --apply  # deploy after validate passes
 ```
 
 Or call PowerShell directly:
@@ -27,6 +51,18 @@ pwsh -NoProfile -File .\scripts\AgentHub.ps1 init
 pwsh -NoProfile -File .\scripts\AgentHub.ps1 validate
 pwsh -NoProfile -File .\scripts\AgentHub.ps1 sync
 ```
+
+## See the assurance loop in 60 seconds
+
+```powershell
+npm run demo:assurance
+```
+
+The offline demo rejects invalid model output, blocks an unapproved write,
+then executes the approved synthetic action in a temporary workspace and
+records the observed SHA-256 state. It makes the boundary concrete: **the
+model proposes; software decides; the executor acts; evidence records what
+happened.** See [`examples/assurance-loop`](./examples/assurance-loop/README.md).
 
 Full walkthrough: [docs/development/quickstart.md](./docs/development/quickstart.md).
 
