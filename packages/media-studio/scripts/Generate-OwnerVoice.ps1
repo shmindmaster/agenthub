@@ -42,6 +42,20 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function Wait-Gpu([string]$Stage, [int]$MaxMinutes = 40) {
+  # The TTS, ASR, identity and listen lanes each want the card to themselves; a Voxtral listen or a Remotion render
+  # from another job makes ASR return nothing (every segment "wer=1") and would send a clean round back to TTS.
+  $deadline = (Get-Date).AddMinutes($MaxMinutes)
+  while ((Get-Date) -lt $deadline) {
+    $apps = @()
+    try { $apps = @(& nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>$null | Where-Object { $_ -and $_.Trim() }) } catch { return }
+    if ($apps.Count -eq 0) { return }
+    Write-Host ("  gpu busy before {0} ({1} compute app(s)); waiting" -f $Stage, $apps.Count)
+    Start-Sleep -Seconds 15
+  }
+  throw ("STOP+LOG ({0}): the GPU never freed within {1} minutes" -f $Stage, $MaxMinutes)
+}
+
 function Get-Sha256([string]$Path) {
   return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
@@ -387,7 +401,15 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
       @{ schema = 'local-ai/stt-batch/1'; jobs = $asrJobs } | ConvertTo-Json -Depth 5 |
         Set-Content -LiteralPath $manifest -Encoding utf8
       Write-Host ("  ASR batch {0} clips" -f $asrJobs.Count)
-      & $LocalAi transcribe $manifest --batch 2>&1 | Tee-Object -FilePath (Join-Path $receiptDir ("asr-r{0}.log" -f $round)) | Out-Null
+      $asrAttempt = 0
+      do {
+        $asrAttempt++
+        Wait-Gpu -Stage 'ASR'
+        & $LocalAi transcribe $manifest --batch 2>&1 | Tee-Object -FilePath (Join-Path $receiptDir ("asr-r{0}-a{1}.log" -f $round, $asrAttempt)) | Out-Null
+        $asrWritten = @($asrJobs | Where-Object { Test-Path -LiteralPath $_.out }).Count
+        if ($asrWritten -eq 0) { Write-Warning ("ASR batch wrote no transcripts ({0} clips, attempt {1}); the ASR lane failed, this is not a speech verdict" -f $asrJobs.Count, $asrAttempt); Start-Sleep -Seconds 20 }
+      } while ($asrWritten -eq 0 -and $asrAttempt -lt 2)
+      if ($asrWritten -eq 0) { throw ("STOP+LOG (asr): the ASR lane returned nothing for {0} clips after {1} attempts; fix the lane (GPU, runtime) instead of regenerating speech" -f $asrJobs.Count, $asrAttempt) }
     }
   }
 
