@@ -16,6 +16,7 @@ __pycache__/
 *.srt
 test-results/
 playwright-report/
+packages/media-studio/kit/build/
 
 # Subagent-driven-development scratch (ledger, briefs, review packages).
 .superpowers/

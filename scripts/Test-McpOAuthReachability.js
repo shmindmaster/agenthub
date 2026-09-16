@@ -37,15 +37,13 @@
 //
 // stdout is one JSON document. Read-only; changes nothing.
 
-'use strict';
-
-const fs = require('fs');
-const net = require('net');
-const os = require('os');
-const path = require('path');
-const dns = require('dns');
-const tls = require('tls');
-const { URL } = require('url');
+import dns from 'node:dns';
+import fs from 'node:fs';
+import net from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
+import tls from 'node:tls';
+import { URL } from 'node:url';
 
 const CONTROL_SNI = 'example.com';
 const TIMEOUT_MS = 10000;

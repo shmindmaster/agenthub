@@ -12,23 +12,41 @@ jobs:
   validate:
     runs-on: windows-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18.x, 24.20.0]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Verify npm distribution surface
+        shell: pwsh
+        run: npm run verify:package
+
+      - name: Validate Media Studio dependency surface
+        shell: pwsh
+        working-directory: packages/media-studio/kit
+        run: |
+          npm ci
+          npm audit --audit-level=moderate
+          npm run lint
+          npm run build
+
+      - name: Validate mobile smoke dependency surface
+        shell: pwsh
+        working-directory: packages/mobile-development/fixtures/smoke-app
+        run: |
+          npm ci
+          npm audit --audit-level=moderate
 
       - name: Validate registry and packages
         shell: pwsh
         run: ./scripts/Validate-AgentHub.ps1
 
-      - name: Run portable registry tests
+      - name: Run public-core test suite
         shell: pwsh
-        run: |
-          $tests = @(
-            'tests/Test-RegistryHostReferences.ps1',
-            'tests/Test-RegistryContentHash.ps1',
-            'tests/Test-MarkdownFrontmatterValidation.ps1',
-            'tests/Test-SkillFrontmatterYaml.ps1'
-          )
-          foreach ($test in $tests) {
-            & pwsh -NoProfile -File $test
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+        run: pwsh -NoProfile -File tests/Run-AllTests.ps1

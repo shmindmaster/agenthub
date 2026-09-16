@@ -58,10 +58,8 @@
 // Edit the canonical copy in the agenthub repository and re-sync; do not let
 // the two diverge.
 
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
 const HOTFIX_MARKER = 'HOTFIX: return expired credentials';
 

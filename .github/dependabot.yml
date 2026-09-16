@@ -1,5 +1,21 @@
 version: 2
 updates:
+  - package-ecosystem: npm
+    directory: /packages/media-studio/kit
+    schedule:
+      interval: weekly
+    groups:
+      media-kit:
+        patterns:
+          - "*"
+  - package-ecosystem: npm
+    directory: /packages/mobile-development/fixtures/smoke-app
+    schedule:
+      interval: weekly
+    groups:
+      mobile-smoke:
+        patterns:
+          - "*"
   - package-ecosystem: github-actions
     directory: /
     schedule:

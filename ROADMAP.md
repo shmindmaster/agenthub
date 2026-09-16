@@ -1,6 +1,12 @@
 # Roadmap
 
-AgentHub Core is a public, host-neutral control plane for skills, plugins, MCP servers, and policy. The roadmap separates what exists today from proposed work so that a public repository or funding application does not turn plans into shipped claims.
+AgentHub is a public, host-neutral assurance layer for skills, plugins, MCP
+servers, and policy. It is deliberately not another dependency installer:
+package managers can deliver capabilities, while AgentHub records who owns
+them, what each host can actually express, which policy applies, and whether
+deployed state has drifted. The roadmap separates what exists today from
+proposed work so a public repository or funding application does not turn plans
+into shipped claims.
 
 ## Current public core
 
@@ -20,6 +26,8 @@ The items below are proposed maintenance work. They are not funded, released, or
 3. **Local overlay hardening.** Expand tests proving that personal identity, local roots, credentials, and private capability ids stay outside public exports and host-neutral policy.
 4. **Interoperability documentation and demo.** Publish a small reproducible example that transports one public capability and policy rule across multiple hosts, then detects an intentional drift without exposing personal configuration.
 5. **Release and maintenance policy.** Add a public release procedure, compatibility statement, changelog discipline, and issue templates for host adapters and policy portability.
+6. **Package-manager interoperability.** Add synthetic APM/AgentStack import fixtures and document the boundary between dependency delivery and AgentHub assurance. Do not fork their package formats or claim compatibility before executable fixtures pass.
+7. **Machine-verifiable conformance evidence.** Produce a versioned, privacy-safe report for capability ownership, host support, policy checks, and drift. A report records observed state; it is not a security certification.
 
 ## Validation gates
 

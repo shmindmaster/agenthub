@@ -243,7 +243,7 @@ const Flow: FC<{ v: Extract<Visual, { kind: "flow" }>; accent: string; d: number
 
 /* ----------------------------------------------------------------- split -- */
 
-const Split: FC<{ v: Extract<Visual, { kind: "split" }>; accent: string; d: number }> = ({ v, accent, d }) => {
+const Split: FC<{ v: Extract<Visual, { kind: "split" }>; accent: string; d: number }> = ({ v, d }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const from = v.revealFrom ?? 0;
@@ -301,7 +301,7 @@ const chunk = (text: string, n: number) => {
 
 /* ------------------------------------------------------------------ stat -- */
 
-const Stat: FC<{ v: Extract<Visual, { kind: "stat" }>; accent: string; d: number }> = ({ v, accent, d }) => {
+const Stat: FC<{ v: Extract<Visual, { kind: "stat" }>; accent: string; d: number }> = ({ v, d }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const from = v.revealFrom ?? 0;

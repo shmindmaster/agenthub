@@ -1,9 +1,11 @@
 #Requires -Version 5.1
 <#
-Aggregate test runner: discovers and runs every tests/Test-*.ps1 file, every
-packages/*/tests/*.ps1 package validator, and every packages/**/*.test.mjs
-Node test file with node --test. It aggregates their results and exits
-non-zero if any of them fail.
+Aggregate test runner. The internal distribution discovers every
+tests/Test-*.ps1 file. The public-core distribution runs an explicit portable
+suite because the export intentionally omits private overlays, local fleet
+state, and export tooling. Both distributions discover package validators and
+packages/**/*.test.mjs Node tests. The runner aggregates results and exits
+non-zero if any selected test fails.
 
 Fails loudly if it discovers zero test files -- a green runner that ran
 nothing is precisely the failure mode this task exists to prevent (this
@@ -29,11 +31,30 @@ $testsDir = Join-Path $repoRoot 'tests'
 $packagesDir = Join-Path $repoRoot 'packages'
 $hostExe = (Get-Process -Id $PID).Path
 
-$testFiles = @(
-    Get-ChildItem -LiteralPath $testsDir -File -Filter 'Test-*.ps1' |
-        Sort-Object Name |
-        ForEach-Object FullName
-)
+$capabilities = Get-Content -LiteralPath (Join-Path $repoRoot 'registry/capabilities.json') -Raw | ConvertFrom-Json
+$isPublicCore = $capabilities.distribution -eq 'public-core'
+if ($isPublicCore) {
+    $portableTestNames = @(
+        'Test-AgentHubEntryPoint.ps1',
+        'Test-AssuranceDemo.ps1',
+        'Test-MarkdownFrontmatterValidation.ps1',
+        'Test-QwenOAuthRepair.ps1',
+        'Test-RegistryContentHash.ps1',
+        'Test-RegistryHostReferences.ps1',
+        'Test-SkillFrontmatterYaml.ps1'
+    )
+    $testFiles = @($portableTestNames | ForEach-Object {
+        $path = Join-Path $testsDir $_
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Portable public-core test is missing: $_" }
+        $path
+    })
+} else {
+    $testFiles = @(
+        Get-ChildItem -LiteralPath $testsDir -File -Filter 'Test-*.ps1' |
+            Sort-Object Name |
+            ForEach-Object FullName
+    )
+}
 $validatorFiles = @(
     Get-ChildItem -LiteralPath $packagesDir -Recurse -File -Filter 'validate-plugin.ps1' -ErrorAction SilentlyContinue |
         Sort-Object FullName |
@@ -52,6 +73,7 @@ if ($allFiles.Count -eq 0) {
 }
 
 Write-Host "Discovered $($testFiles.Count) test file(s), $($validatorFiles.Count) package validator(s), and $($nodeTestFiles.Count) Node test file(s)."
+if ($isPublicCore) { Write-Host 'Distribution: public-core (portable suite; private overlay and local-fleet tests are intentionally excluded).' }
 Write-Host ''
 
 $results = [Collections.Generic.List[object]]::new()
