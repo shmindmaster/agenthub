@@ -596,12 +596,30 @@ function Invoke-PronunciationListen([string[]]$Scenes, [int]$Round) {
     # ai.ps1 takes the audio path as the positional target and prepends --input itself.
     $listenArgs = @('listen', $sceneWav, '--output', $reportPath, '--candidate-id', "$sceneId-r$Round", '--transcript', $transcriptPath, '--pronunciation-manifest', $slicePath)
     if ($cursor -gt 90) { $listenArgs += @('--timeline', $timelinePath) }
-    & $LocalAi @listenArgs 2>&1 | Tee-Object -FilePath (Join-Path $listenDir ("{0}.listen-r{1}.log" -f $sceneId, $Round)) | Out-Null
+    # A listen that never ran is not a verdict on the speech. The lane fails for its own reasons
+    # -- GPU_OCCUPIED_UNKNOWN while another lane holds the card, a crashed adapter -- and treating
+    # that as "every segment failed" sends good takes back to TTS and burns the round budget, the
+    # same way an empty ASR batch used to. Wait for the card and retry; only then give up, and give
+    # up as a lane failure rather than a speech verdict.
+    $listenLog = Join-Path $listenDir ("{0}.listen-r{1}.log" -f $sceneId, $Round)
+    $listenAttempt = 0
+    do {
+      $listenAttempt++
+      if ($listenAttempt -gt 1) { Wait-Gpu -Stage ("listen {0}" -f $sceneId) }
+      & $LocalAi @listenArgs 2>&1 | Tee-Object -FilePath $listenLog | Out-Null
+      if (-not (Test-Path -LiteralPath $reportPath)) {
+        $why = (Select-String -LiteralPath $listenLog -Pattern '"code":\s*"([A-Z_]+)"' -ErrorAction SilentlyContinue |
+                Select-Object -Last 1).Matches.Groups[1].Value
+        Write-Warning ("listen produced no report for {0} (attempt {1}{2}); this is a lane failure, not a speech verdict" -f `
+          $sceneId, $listenAttempt, $(if ($why) { ", $why" } else { "" }))
+        # The sidecar from the failed attempt would be read as stale on the retry.
+        foreach ($stale in @($reportPath, "$reportPath.model-response.txt")) { Remove-Item -LiteralPath $stale -Force -ErrorAction SilentlyContinue }
+        Start-Sleep -Seconds 20
+      }
+    } while (-not (Test-Path -LiteralPath $reportPath) -and $listenAttempt -lt 3)
     if (-not (Test-Path -LiteralPath $reportPath)) {
-      Write-Warning "listen produced no report for $sceneId (see log); treating every segment as failed"
-      foreach ($sg in $sceneSegs) { $redo.Add($sg.id) }
-      $results += [ordered]@{ scene = $sceneId; round = $Round; status = 'NO_REPORT'; report = $null; redo = @($sceneSegs | ForEach-Object { $_.id }) }
-      continue
+      throw ("STOP+LOG (listen): the listen lane returned no report for {0} after {1} attempts; fix the lane (GPU, runtime) instead of regenerating speech. Log: {2}" -f `
+        $sceneId, $listenAttempt, $listenLog)
     }
     $rep = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $sceneRedo = @()
