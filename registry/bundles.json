@@ -25,7 +25,7 @@
       },
       "notes": [
         "story-series-studio and technical-storytelling are registered AgentHub packages.",
-        "media-studio is the public video pack; live-product screencasts invoke the internal engine in packages/product-demo-studio.",
+        "media-studio is the public video pack, including live-product screencasts (Playwright WebM + Recast).",
         "startup-series remains a Receipts-specific overlay that requires the generic studio packages."
       ]
     },
@@ -69,7 +69,7 @@
         "optional": []
       },
       "notes": [
-        "media-studio is the public pack and covers product screencasts plus briefings, training, explainers, talking-heads, animation, and audio. The gated Playwright/Recast engine remains packages/product-demo-studio.",
+        "media-studio is the public pack and covers product screencasts plus briefings, training, explainers, talking-heads, animation, and audio. Playwright WebM + Recast live in packages/media-studio.",
         "Remotion is required at runtime for viewer-facing briefing, training, explainer, and series-episode jobs unless intent is draft or the user asked for a basic/proxy cut. Do not vendor Remotion rules; install official remotion-dev/skills.",
         "creative-writing-skills is recommended for viewer-facing narrative (explainers, branded films, series), not for Descript finishing.",
         "Owner voice is Local-AI qwen-clone --voice sarosh only."

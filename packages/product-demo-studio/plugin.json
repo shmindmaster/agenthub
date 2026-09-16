@@ -1,6 +1,0 @@
-{
-  "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "product-demo-studio",
-  "version": "1.8.6",
-  "description": "Internal screencast engine (Playwright, Recast, review agents, release gates) invoked by media-studio. Not a host-installable plugin."
-}
