@@ -352,9 +352,18 @@ if (-not (Test-Path -LiteralPath $subagentFormatsFile)) {
   }
 }
 
-$stale = @(rg -l --hidden --glob '!node_modules/**' --glob '!tests/validate.ps1' `
-  'packages/(handoff-plugins/plugins|portfolio-plugins)|agenthub[/\\]capabilities[/\\]|agenthub[/\\](reports|state|generated)[/\\]' `
-  $root 2>$null)
+$stalePattern = 'packages/(handoff-plugins/plugins|portfolio-plugins)|agenthub[/\\]capabilities[/\\]|agenthub[/\\](reports|state|generated)[/\\]'
+$textExtensions = @('.json', '.md', '.mjs', '.js', '.ps1', '.psm1', '.sh', '.toml', '.ts', '.tsx', '.txt', '.yaml', '.yml')
+$stale = @(
+  Get-ChildItem -LiteralPath $root -File -Recurse -Force | Where-Object {
+    $normalized = $_.FullName.Replace('\', '/')
+    $textExtensions -contains $_.Extension.ToLowerInvariant() -and
+      $normalized -notmatch '/node_modules/' -and
+      $normalized -notmatch '/tests/validate\.ps1$'
+  } | Where-Object {
+    Select-String -LiteralPath $_.FullName -Pattern $stalePattern -CaseSensitive -Quiet
+  } | ForEach-Object FullName
+)
 if ($stale.Count -gt 0) { Fail "stale legacy paths remain: $($stale -join ', ')" }
 
 if ($errors.Count -gt 0) {
@@ -363,7 +372,6 @@ if ($errors.Count -gt 0) {
 }
 
 Write-Output "PASS: $($packageNames.Count) capability packages, $($catalogNames.Count) installable plugins, $(@($mcps.mcpServers).Count) MCP servers, $(@($agents.activeAgents).Count) active agents."
-# Terminate explicitly. The stale-path scan above is the last native command, and
-# `rg` exits 1 when it finds nothing -- the passing case. Without this, a clean
-# validation inherits that 1 and every caller reads PASS as a failure.
+# Terminate explicitly so every caller receives the validation result rather
+# than inheriting an incidental status from an earlier native command.
 exit 0
