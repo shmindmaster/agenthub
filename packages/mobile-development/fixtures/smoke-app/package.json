@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "expo": "~57.0.12",
-    "react": "19.2.3",
+    "react": "19.3.0",
     "react-native": "0.86.2"
   },
   "overrides": {
