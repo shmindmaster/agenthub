@@ -10,6 +10,11 @@
     3. Batch ASR (ai.ps1 transcribe / Qwen3-ASR-1.7B)
     4. Batch identity (ai.ps1 voice score --voice sarosh <dir>)
     5. Select only dual-pass; retry fail set with new seed then --premium
+    6. Pronunciation-risk manifest (ai.ps1 voice pronunciation-risk) before generation; a heteronym
+       whose reading cannot be inferred stops the run until the writer records an override
+    7. Per-scene ai.ps1 listen (Voxtral, local) on the concatenated scene audio with the canonical
+       transcript and the scene's slice of the risk manifest; a pronunciation, pacing or artifact
+       finding regenerates the localized segment and listens again (ListenMaxRounds)
 
   Never reuses a WAV that lacks a PASS receipt. Never invents style IDs.
   Canonical narration is never phonetic-respelled.
@@ -27,7 +32,11 @@ param(
   [double]$AsrWerMax = 0.38,
   [switch]$SkipAsr,
   [switch]$SkipIdentity,
-  [switch]$QuarantineAllAttempts
+  [switch]$QuarantineAllAttempts,
+  [switch]$SkipPronunciationListen,
+  [string]$PronunciationLexicon,
+  [string]$PronunciationOverrides,
+  [int]$ListenMaxRounds = 2
 )
 
 Set-StrictMode -Version Latest
@@ -268,6 +277,33 @@ foreach ($id in $ids) {
 
 Write-Host ("Plan: {0} segments  style={1}  chunk={2}" -f $segments.Count, $DefaultStyle, $ChunkSize)
 
+# --- Pronunciation risk (before any audio exists) ---
+# The manifest is what `ai.ps1 listen` judges against. Without it the listener hears fluent speech and
+# reports nothing, which is how the 2026-08-31 ABACare candidates passed with "record"/"records"
+# and "content"/"content-approval" unexamined. Canonical text is never respelled here.
+$qaDir = Join-Path $Job 'qa'
+New-Item -ItemType Directory -Force -Path $qaDir | Out-Null
+$riskSegmentsPath = Join-Path $Job 'voice\narration-segments.json'
+@{ segments = @($segments | ForEach-Object { @{ id = $_.id; sceneId = $_.sceneId; speaker = $_.speaker; text = $_.text } }) } |
+  ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $riskSegmentsPath -Encoding utf8
+$riskPath = Join-Path $qaDir 'pronunciation-risk.json'
+$riskArgs = @('voice', 'pronunciation-risk', '--segments', $riskSegmentsPath, '--out', $riskPath, '--script-id', (Split-Path $Job -Leaf), '--fail-on', 'FAIL')
+if ($PronunciationLexicon) { $riskArgs += @('--lexicon', $PronunciationLexicon) }
+if ($PronunciationOverrides) { $riskArgs += @('--overrides', $PronunciationOverrides) }
+& $LocalAi @riskArgs | Out-Host
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $riskPath)) {
+  throw "STOP: pronunciation-risk manifest failed ($riskPath). A heteronym reading could not be inferred: add -PronunciationOverrides ({sceneSegmentId:{term:readingId}}) or reword, then rerun."
+}
+$risk = Get-Content -LiteralPath $riskPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$riskySegIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+foreach ($rs in @($risk.segments)) {
+  foreach ($o in @($rs.occurrences)) {
+    if ($o.riskClass -eq 'heteronym' -or $o.status -ne 'verified') { [void]$riskySegIds.Add([string]$rs.segmentId) }
+  }
+}
+$riskyScenes = @($segments | Where-Object { $riskySegIds.Contains($_.id) } | ForEach-Object { $_.sceneId } | Select-Object -Unique)
+Write-Host ("Pronunciation risk: status={0} occurrences={1} unverified={2} listen-scenes={3}" -f $risk.coverage.status, $risk.coverage.occurrenceCount, @($risk.coverage.unverifiedTerms).Count, $riskyScenes.Count)
+
 function Get-PendingOwner {
   param([object[]]$All, [int]$Round)
   $pending = @()
@@ -284,6 +320,7 @@ function Get-PendingOwner {
   return @($pending)
 }
 
+function Invoke-GenerationRounds {
 for ($round = 1; $round -le $MaxRounds; $round++) {
   $premium = ($round -ge 3)
   $pending = @(Get-PendingOwner -All $segments -Round $round)
@@ -424,33 +461,46 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
   }
 }
 
-# Final ledger + scene concat
-$ledgerSegs = @()
-$failed = @()
-foreach ($s in $segments) {
-  if (Test-PassReceipt $s.dir) {
-    $ledgerSegs += (Get-Content (Join-Path $s.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json)
-  } else {
-    $failed += $s.id
+}
+
+function Get-FailedSegments {
+  return @($segments | Where-Object { -not (Test-PassReceipt $_.dir) } | ForEach-Object { $_.id })
+}
+
+function Write-Ledger([object]$Listen) {
+  $ledgerSegs = @()
+  foreach ($s in $segments) {
+    if (Test-PassReceipt $s.dir) { $ledgerSegs += (Get-Content (Join-Path $s.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json) }
+  }
+  [ordered]@{
+    job = (Split-Path $Job -Leaf)
+    generatedAt = (Get-Date).ToUniversalTime().ToString('o')
+    defaultStyle = $DefaultStyle
+    allowlist = $allow
+    pronunciationRisk = @{ path = $riskPath; status = $risk.coverage.status; sha256 = (Get-Sha256 $riskPath) }
+    pronunciationListen = $Listen
+    segments = $ledgerSegs
+    failed = @(Get-FailedSegments)
+  } | ConvertTo-Json -Depth 8 | Set-Content $ledgerPath -Encoding utf8
+}
+
+function Assert-AllPassed([string]$Stage) {
+  $failedNow = @(Get-FailedSegments)
+  if ($failedNow.Count -gt 0) {
+    Write-Ledger $null
+    $failLog = Join-Path $Job 'voice\FAILED_SEGMENTS.log'
+    $failedNow | Set-Content $failLog
+    throw ("STOP+LOG ({0}): {1} segments failed after {2} rounds: {3}" -f $Stage, $failedNow.Count, $MaxRounds, ($failedNow -join ', '))
   }
 }
-[ordered]@{
-  job = (Split-Path $Job -Leaf)
-  generatedAt = (Get-Date).ToUniversalTime().ToString('o')
-  defaultStyle = $DefaultStyle
-  allowlist = $allow
-  segments = $ledgerSegs
-  failed = $failed
-} | ConvertTo-Json -Depth 8 | Set-Content $ledgerPath -Encoding utf8
 
-if ($failed.Count -gt 0) {
-  $failLog = Join-Path $Job 'voice\FAILED_SEGMENTS.log'
-  $failed | Set-Content $failLog
-  throw ("STOP+LOG: {0} segments failed after {1} rounds: {2}" -f $failed.Count, $MaxRounds, ($failed -join ', '))
-}
+Invoke-GenerationRounds
+Assert-AllPassed 'generate'
 
 # Concat per scene
+function Invoke-SceneConcat([string[]]$Only) {
 foreach ($id in $ids) {
+  if ($Only -and $Only.Count -and ($Only -notcontains $id)) { continue }
   $parts = @($segments | Where-Object { $_.sceneId -eq $id } | ForEach-Object { Join-Path $selectedRoot "$($_.id).wav" })
   if ($parts.Count -eq 0) { continue }
   $sr = ffprobe -v error -select_streams a:0 -show_entries stream=sample_rate -of csv=p=0 -- $parts[0]
@@ -467,5 +517,110 @@ foreach ($id in $ids) {
   ffmpeg -y -hide_banner -loglevel error -f concat -safe 0 -i $list $sceneWav
   Write-Host "wrote $sceneWav"
 }
+}
+Invoke-SceneConcat @()
 
-Write-Host "Generate-OwnerVoice complete ledger=$ledgerPath segments=$($ledgerSegs.Count)"
+# --- Pronunciation listen per scene (local Voxtral, grounded in transcript + risk slice) ---
+function Get-WavSeconds([string]$Path) {
+  return [double](ffprobe -v error -show_entries format=duration -of csv=p=0 -- $Path)
+}
+
+function Invoke-PronunciationListen([string[]]$Scenes, [int]$Round) {
+  $listenDir = Join-Path $Job 'voice\listen'
+  New-Item -ItemType Directory -Force -Path $listenDir | Out-Null
+  $redo = [System.Collections.Generic.List[string]]::new()
+  $results = @()
+  foreach ($sceneId in $Scenes) {
+    $sceneSegs = @($segments | Where-Object { $_.sceneId -eq $sceneId })
+    if ($sceneSegs.Count -eq 0) { continue }
+    $sceneWav = Join-Path $Job "voice\$sceneId.wav"
+    if (-not (Test-Path -LiteralPath $sceneWav)) { continue }
+    # Offsets of each segment inside the scene concat (0.18 s gap between segments).
+    $cursor = 0.0
+    $spans = @()
+    foreach ($sg in $sceneSegs) {
+      $d = Get-WavSeconds (Join-Path $selectedRoot "$($sg.id).wav")
+      $spans += [pscustomobject]@{ id = $sg.id; start = $cursor; end = ($cursor + $d); text = $sg.text }
+      $cursor += $d + 0.18
+    }
+    $transcriptPath = Join-Path $listenDir "$sceneId.transcript.txt"
+    [IO.File]::WriteAllText($transcriptPath, (($sceneSegs | ForEach-Object { $_.text }) -join "`n"), [Text.UTF8Encoding]::new($false))
+    $segIdSet = [System.Collections.Generic.HashSet[string]]::new([string[]]@($sceneSegs | ForEach-Object { $_.id }), [StringComparer]::OrdinalIgnoreCase)
+    $sliceSegments = @($risk.segments | Where-Object { $segIdSet.Contains([string]$_.segmentId) })
+    $bases = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($rs in $sliceSegments) { foreach ($o in @($rs.occurrences)) { [void]$bases.Add([string]$o.dictionaryBase) } }
+    $slice = [ordered]@{
+      schemaVersion = $risk.schemaVersion; generator = $risk.generator; scriptId = $risk.scriptId; sceneId = $sceneId
+      dictionary = @($risk.dictionary | Where-Object { $bases.Contains([string]$_.term) })
+      segments = $sliceSegments
+    }
+    $slicePath = Join-Path $listenDir "$sceneId.pronunciation-manifest.json"
+    $slice | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $slicePath -Encoding utf8
+    $timelinePath = Join-Path $listenDir "$sceneId.timeline.json"
+    @{ segments = @($spans | ForEach-Object { @{ id = $_.id; text = $_.text; audioStartSeconds = $_.start; audioEndSeconds = $_.end } }) } |
+      ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $timelinePath -Encoding utf8
+    $reportPath = Join-Path $listenDir ("{0}.listen-r{1}.json" -f $sceneId, $Round)
+    Remove-Item -LiteralPath $reportPath -Force -ErrorAction SilentlyContinue
+    Write-Host ("  LISTEN {0} ({1:n1}s, {2} segments, {3} risk rows)" -f $sceneId, $cursor, $sceneSegs.Count, $bases.Count)
+    $listenArgs = @('listen', '--input', $sceneWav, '--output', $reportPath, '--candidate-id', "$sceneId-r$Round", '--transcript', $transcriptPath, '--pronunciation-manifest', $slicePath)
+    if ($cursor -gt 90) { $listenArgs += @('--timeline', $timelinePath) }
+    & $LocalAi @listenArgs 2>&1 | Tee-Object -FilePath (Join-Path $listenDir ("{0}.listen-r{1}.log" -f $sceneId, $Round)) | Out-Null
+    if (-not (Test-Path -LiteralPath $reportPath)) {
+      Write-Warning "listen produced no report for $sceneId (see log); treating every segment as failed"
+      foreach ($sg in $sceneSegs) { $redo.Add($sg.id) }
+      $results += [ordered]@{ scene = $sceneId; round = $Round; status = 'NO_REPORT'; report = $null; redo = @($sceneSegs | ForEach-Object { $_.id }) }
+      continue
+    }
+    $rep = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $sceneRedo = @()
+    if ($rep.status -ne 'PASS') {
+      foreach ($f in @($rep.findings)) {
+        $hit = $null
+        if ($null -ne $f.startSeconds) {
+          $t = [double]$f.startSeconds
+          $hit = @($spans | Where-Object { $t -ge ($_.start - 0.25) -and $t -le ($_.end + 0.25) } | Select-Object -First 1)[0]
+        }
+        if ($hit) { $sceneRedo += $hit.id } else { $sceneRedo += @($spans | ForEach-Object { $_.id }) }
+      }
+      $sceneRedo = @($sceneRedo | Select-Object -Unique)
+      foreach ($x in $sceneRedo) { $redo.Add($x) }
+    }
+    $results += [ordered]@{ scene = $sceneId; round = $Round; status = $rep.status; report = $reportPath; reportSha256 = (Get-Sha256 $reportPath); findings = @($rep.findings | ForEach-Object { [ordered]@{ checkId = $_.checkId; severity = $_.severity; startSeconds = $_.startSeconds; description = $_.description } }); redo = $sceneRedo }
+    Write-Host ("    {0} -> {1}{2}" -f $sceneId, $rep.status, $(if ($sceneRedo.Count) { "  redo: " + ($sceneRedo -join ',') } else { '' }))
+  }
+  return [pscustomobject]@{ redo = @($redo | Select-Object -Unique); results = $results }
+}
+
+$listenSummary = [ordered]@{ skipped = [bool]$SkipPronunciationListen; rounds = @(); finalStatus = $null }
+if (-not $SkipPronunciationListen -and $riskyScenes.Count -gt 0) {
+  $scenesToListen = @($riskyScenes)
+  for ($lr = 1; $lr -le $ListenMaxRounds; $lr++) {
+    $lres = Invoke-PronunciationListen -Scenes $scenesToListen -Round $lr
+    $listenSummary.rounds += [ordered]@{ round = $lr; scenes = $scenesToListen; results = $lres.results; redo = $lres.redo }
+    if ($lres.redo.Count -eq 0) { $listenSummary.finalStatus = 'PASS'; break }
+    if ($lr -eq $ListenMaxRounds) {
+      $listenSummary.finalStatus = 'FAIL'
+      $listenSummary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $qaDir 'pronunciation-listen.json') -Encoding utf8
+      Write-Ledger $listenSummary
+      throw ("STOP+LOG (listen): pronunciation/delivery findings persist after {0} listen rounds in segments: {1}. Reword, add a dictionary entry, or record an override; do not ship." -f $ListenMaxRounds, ($lres.redo -join ', '))
+    }
+    Write-Host ("  regenerating {0} segments after listen findings: {1}" -f $lres.redo.Count, ($lres.redo -join ', '))
+    foreach ($segId in $lres.redo) {
+      $sg = @($segments | Where-Object { $_.id -eq $segId })[0]
+      Remove-Item -LiteralPath (Join-Path $sg.dir 'PASS.json') -Force -ErrorAction SilentlyContinue
+      Remove-Item -LiteralPath $sg.wav -Force -ErrorAction SilentlyContinue
+      Remove-Item -LiteralPath (Join-Path $selectedRoot "$($sg.id).wav") -Force -ErrorAction SilentlyContinue
+      $sg.seed = 5000 + $lr * 331 + ([int]($sg.id -replace '\D', '0') % 900)
+    }
+    Invoke-GenerationRounds
+    Assert-AllPassed "regenerate-after-listen-r$lr"
+    $scenesToListen = @($segments | Where-Object { $lres.redo -contains $_.id } | ForEach-Object { $_.sceneId } | Select-Object -Unique)
+    Invoke-SceneConcat $scenesToListen
+  }
+} elseif ($riskyScenes.Count -eq 0) {
+  $listenSummary.finalStatus = 'NOT_NEEDED'
+}
+$listenSummary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $qaDir 'pronunciation-listen.json') -Encoding utf8
+Write-Ledger $listenSummary
+
+Write-Host ("Generate-OwnerVoice complete ledger={0} segments={1} pronunciationListen={2}" -f $ledgerPath, $segments.Count, $listenSummary.finalStatus)

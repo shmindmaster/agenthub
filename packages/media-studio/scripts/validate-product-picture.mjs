@@ -31,7 +31,7 @@ const PRODUCT_FORMS = new Set([
   'product-overview', 'outcome-workflow', 'role-demo', 'feature-tutorial', 'ai-in-action', 'integration-demo',
   'competitive-demo', 'technical-story', 'onboarding', 'help-center', 'before-after', 'release',
 ]);
-const CARD_MODES = new Set(['slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
+const CARD_MODES = new Set(['card', 'slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
 
 const args = process.argv.slice(2);
 const jobRoot = args.find((a) => !a.startsWith('--'));

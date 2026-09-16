@@ -72,7 +72,7 @@ for (const c of clips) {
 }
 // Card-only segments: render a typeset card from the storyboard beat when no clip exists.
 // product-picture.md: auto-card is forbidden on visualMode=screen (default on product-screencast).
-const CARD_MODES = new Set(['slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
+const CARD_MODES = new Set(['card', 'slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
 const sbPath = path.join(jobRoot, 'story', 'storyboard.json');
 const sb = fs.existsSync(sbPath) ? JSON.parse(fs.readFileSync(sbPath, 'utf8')) : null;
 const beats = sb ? (sb.beats || sb.scenes || []) : [];

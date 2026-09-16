@@ -31,7 +31,7 @@ const BIND_MAX_HAMMING_OVERLAY = BIND_MAX_HAMMING + 6;
 const STATIC_DIFF = 0.6; // mean abs gray diff (0–255) below which two consecutive 2 fps frames count as identical
 const FPS = 2;
 const SMALL_W = 32, SMALL_H = 20;
-const CARD_MODES = new Set(['slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
+const CARD_MODES = new Set(['card', 'slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 
 const candidate = resolve(candidateArg);

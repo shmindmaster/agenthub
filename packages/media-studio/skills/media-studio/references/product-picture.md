@@ -4,7 +4,14 @@ Single home for “the product is the picture.” Skills point here; they do not
 
 Applies when `job.kind` is `product-screencast`, when `programForm` defaults to that kind (`program-forms.md`), or when a beat is `visualMode: screen`. A running product as the subject wins over “briefing”, “tutorial”, “walkthrough”, or “explainer.” If nothing on screen can act, the job is a `briefing` — do not label frozen screens a screencast.
 
-Validator: `packages/media-studio/scripts/validate-product-picture.mjs <jobRoot>`. Compose and QA run it. Fail closed.
+Validators, both fail closed:
+
+| Gate | Runs | Proves |
+| --- | --- | --- |
+| `scripts/validate-product-picture.mjs <jobRoot>` | `compose-screencast.mjs` runs it first and refuses to compose if it cannot find it | Every screen beat maps to a real clip on disk (ffprobe) that `kit/screencast/record-job.mjs` recorded from a live Playwright session: `capture/receipt.json` binds the clip's sha256 to pointer motion, actions, observed product responses and Recast status. No receipt, no pointer motion, a still, a re-encoded plate, a Recast fallback nobody accepted, or a clip that would be frozen more than 2 s to reach the narration length all fail. `intent: draft` relaxes only the Recast requirement. |
+| `scripts/validate-encoded-picture.mjs <jobRoot> <candidate.mp4>` | QA, on the exact encoded candidate | Every encoded screen segment perceptually matches a frame of its receipt-bound clip (dHash); no run of near-identical frames longer than 6 s inside a screen beat (a beat may declare `resultHoldSeconds` ≤ 8); cards ≤ 8 s; ≥70% screen; designed first and last frames. Writes `qa/encoded-picture.json` bound to the candidate's sha256. |
+
+Capture is `kit/screencast/record-job.mjs <jobRoot>` driving `<jobRoot>/capture/scenes.mjs` through the helpers in `record-lib.mjs` (`go`, `approach`, `click`, `typeText`, `pointAt`, `hoverHold`, `smoothScroll`, `expect`, `hold`). Every helper call is logged to the receipt; `h.expect(locator, label)` is the proof that the product responded. Takes recorded by an older recorder can be bound after the fact with `scripts/backfill-capture-receipt.mjs` from their Playwright trace; that receipt is marked `trace-backfill` and is accepted with a warning, not silently.
 
 ## Beat grammar
 
@@ -40,11 +47,14 @@ Missing `visualMode` on a `product-screencast` beat **defaults to `screen`**, no
 
 ## Gates that must not pass a stills-and-slides cut
 
-- `compose-screencast.mjs` does not auto-card a `screen` beat. No clip → throw.
-- A `.png` clip on a `screen` beat → throw.
+- `compose-screencast.mjs` throws when its validator is not resolvable (beside it, `../../scripts`, or `AGENTHUB_ROOT`). A silent skip is how the 2026-08 ABACare cuts shipped.
+- `compose-screencast.mjs` does not auto-card a `screen` beat. No clip → throw. A `.png` clip on a `screen` beat → throw.
+- `fit: hold` may pad a screen clip by at most 2 s; a longer gap needs the storyboard beat's `resultHoldSeconds` (≤ 6 s). `fit: fit` may retime product footage only 0.8–1.25x. `speed` > 1 needs `speedReason`. The 2026-08-31 ABACare 250-01 cold open was a 3.3 s take frozen across 37 s of narration; none of these rules existed.
+- A screen clip without a matching `capture/receipt.json` entry fails. `animate-stills.mjs`, a looped PNG, or a hand-typed manifest cannot produce one.
 - Ken Burns on `screen-in-context` is off in the Remotion kit. Recast punch-in is the only zoom on product UI.
+- `validate-encoded-picture.mjs` on the candidate: dead screen > 6 s in a screen beat fails; a segment whose frames do not come from the receipt-bound clip fails.
 - `Inspect-MediaVisualQuality.ps1` flags `ken-burns-on-still` (tiny grayscale hash frozen while full-frame hashes change).
-- `media-story-experience-reviewer` refuses `kind: product-screencast` (`MALFORMED_INPUT`). PDS story review runs on the **encoded** file only. A pre-capture text score is not a craft pass.
+- `media-story-experience-reviewer` refuses `kind: product-screencast` (`MALFORMED_INPUT`). Story review runs on the **encoded** file only. A pre-capture text score is not a craft pass.
 - Motif / image-to-video of a product screenshot is refused (`local-ai-stack` `references/video.md`).
 - Card / `slide` / `diagram` beats on a `product-screencast` are each ≤8s.
-- Recast (`playwright-recast@0.21.0`) is required pointer finishing (`product-video-policy.json` `pointerFinishing`). If Windows ffmpeg `autoZoom` fails on a long many-click clip, split the take or render without `autoZoom`. That is not permission to encode PNGs.
+- Recast (`playwright-recast@0.21.0`, declared in `kit/package.json`) is required pointer finishing (`policy/product-video-policy.json` `pointerFinishing`). If its ffmpeg render fails on a long many-click clip, `record-job.mjs` retries without `autoZoom`, then records `recast: fallback`; the validator accepts a fallback only when `job.json` says `recastFallbackAllowed: true` with a reason. Split the take instead.
