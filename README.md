@@ -4,6 +4,8 @@ Portable control plane for skills, plugins, MCP servers, and policy across
 coding agents — with drift detection and an optional **personal overlay** for
 what should stay private on your machine.
 
+**Public-good thesis:** agent policy and capability configuration should be portable across hosts while operator-specific identity, paths, and private extensions stay local and user-controlled.
+
 ## First five minutes
 
 Requires [PowerShell 7+](https://aka.ms/powershell) (`pwsh`) on Windows, macOS, or Linux. Node 18+ is optional for the CLI wrapper.
@@ -52,4 +54,4 @@ Runtime output belongs under the OS local-data root (Windows: `%LOCALAPPDATA%\Ag
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) and [SECURITY.md](./SECURITY.md).
+See [ROADMAP.md](./ROADMAP.md), [GOVERNANCE.md](./GOVERNANCE.md), [CONTRIBUTING.md](./CONTRIBUTING.md), and [SECURITY.md](./SECURITY.md).
