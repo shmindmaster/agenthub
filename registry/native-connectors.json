@@ -91,8 +91,8 @@
       "manifestPath": ".agents/plugins/marketplace.json",
       "remoteAuthority": {
         "source": "github",
-        "repo": "shmindmaster/agenthub",
-        "note": "Published catalog authority is GitHub. Codex Sync keeps sourcePath on the local checkout so undeployed package edits can be validated before push; Claude and Cursor install/update the marketplace from the GitHub remote after push. Do not leave Claude known_marketplaces on a directory source."
+        "repo": "shmindmaster/agenthub-internal",
+        "note": "Personal AgentHub origin is agenthub-internal. Codex Sync keeps sourcePath on the local checkout so undeployed package edits can be validated before push. Claude known_marketplaces must use source=directory at that checkout (not the public shmindmaster/agenthub mirror). Shared-remote MCP servers stay URL-based; do not invent a second local stdio copy."
       }
     }
   ],
