@@ -738,7 +738,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Converted 2026-08-24 from a republished Firecrawl plugin to a fleet overlay. Official scrape/crawl/cli/build/research skills and the plugin live at https://github.com/firecrawl/skills; the fleet remote MCP remains registry/mcps.json#firecrawl. This package keeps only governed ingestion constraints. Do not restore firecrawl-scrape, firecrawl-crawl, or firecrawl-cli here — those names collide with upstream."
+      "notes": "Converted 2026-08-24 from a republished Firecrawl plugin to a fleet overlay. Official scrape/crawl/cli/build/research skills and the plugin live at https://github.com/firecrawl/skills; the fleet remote MCP remains registry/mcps.json#firecrawl. This package keeps only governed ingestion constraints. Do not restore firecrawl-scrape, firecrawl-crawl, or firecrawl-cli here ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â those names collide with upstream."
     },
     {
       "id": "coderabbit",
@@ -842,7 +842,7 @@
         "registryEnvironmentOverride": "LOCAL_AI_REGISTRY",
         "defaultRoot": "D:\\Local-AI"
       },
-      "contentHash": "F54E32819527860253FAA7C138982CD1D3DCD98B3B7B1605517ECC0B2E77F225",
+      "contentHash": "E019DD34401ADDF388784CEC4822F0D4AF7E180186E2FC8D290A2F2EF45E323E",
       "hashBasis": "packages/local-ai",
       "status": "active-canonical",
       "hostMappingsNote": "Widened 2026-08-04 from codex-only to the eight-host tier digitalocean, elevenlabs, campaign-production and prompt-os already use. local-ai had a single mapping, which read as a deliberate scope but was not one: the runtime at D:\\Local-AI is machine-local and driven interactively, and the operator skill was reaching exactly one of the twenty-two hosts. clerk was removed from that tier on 2026-08-24 because AgentHub does not own Clerk skills (official: clerk/skills). firecrawl is now a fleet overlay (firecrawl-web-ingestion); official Firecrawl ops install from firecrawl/skills.",
@@ -1065,26 +1065,41 @@
     {
       "id": "repowise",
       "owner": "fleet-intelligence",
-      "capabilityType": "skills+mcp",
+      "capabilityType": "plugin+mcp+skills",
       "canonicalSource": "packages/repowise",
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "54C36CCB60A1F646A51570A711AE33721B887CC97BBE07FCB6134419E1D33931",
+      "contentHash": "148FD8D49546032AFEDBC673EA3B39289890CD73371BE283182E893C6893A1D2",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
         {
           "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Loose skills always; MCP only when `claude plugin enable repowise@agenthub`. Same split as browser-toolkit ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â disabling the plugin gates the stdio process without stranding CLI guidance."
         },
         {
           "hostId": "codex",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "native-plugin-installed",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Install-disabled by default. `codex plugin add repowise@agenthub` when MCP tools are needed; remove when done."
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills"
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Loose skills always. MCP via the AgentHub repowise plugin only ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â never persist C:/Repos/.cursor/mcp.json. Measured 2026-09-17: the workspace-open fallback spawned multiple `repowise mcp` process trees at session start."
         },
         {
           "hostId": "vscode-insiders",
@@ -1147,7 +1162,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) and the use-repowise loose skill. The external CLI is uv-managed machine tooling, kept on the PyPI latest by scripts/Update-RepoWise.ps1 (daily scheduled task AgentHub-Update-RepoWise). Official Claude/Codex plugins are not installed: they would register a second MCP pointed at the nearest repo instead of C:/Repos."
+      "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) delivered only by packages/repowise plugin .mcp.json, plus the use-repowise loose skill and CLI. The external CLI is uv-managed machine tooling, kept on the PyPI latest by scripts/Update-RepoWise.ps1 (daily scheduled task AgentHub-Update-RepoWise). Official Claude/Codex RepoWise marketplace plugins are not installed: they would register a second MCP pointed at the nearest repo instead of C:/Repos."
     },
     {
       "id": "knowledge-access",
@@ -1724,7 +1739,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-21. Generic series methodology only — private show bibles and media stay outside AgentHub. Prefer this over startup-series for new series work. Product Demo Studio stays the product-screencast workflow; assemble non-screencast picture through media-studio. Codex loads the native plugin; skill-only hosts stay managed-loose-skills.",
+      "notes": "Added 2026-08-21. Generic series methodology only ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â private show bibles and media stay outside AgentHub. Prefer this over startup-series for new series work. Product Demo Studio stays the product-screencast workflow; assemble non-screencast picture through media-studio. Codex loads the native plugin; skill-only hosts stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "technical-storytelling"
@@ -1870,7 +1885,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "DD3E622969E83459FF0978A86EEECC46E55AB7C558CEE52F53A8EA22A11027BD",
+      "contentHash": "47E0A1DE492F4F710C1339894A20BD3537B112D1863CA1033626B5F3DC4A9EEC",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1960,7 +1975,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask — product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, …) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer → storyboard → visuals → director → generate → compose → craft critic (score ≥ 85) → QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ storyboard ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ visuals ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ director ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ generate ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ compose ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ craft critic (score ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€šÃ‚Â¥ 85) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"

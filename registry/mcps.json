@@ -461,6 +461,12 @@
         "type": "capability",
         "id": "repowise"
       },
+      "pluginOwnersByHost": {
+        "claude": "repowise@agenthub",
+        "codex": "repowise@agenthub",
+        "cursor": "repowise@agenthub",
+        "grok": "repowise@agenthub"
+      },
       "hosts": [
         "claude",
         "codex",
@@ -474,7 +480,7 @@
       ],
       "experimentalFlagsEnabled": [],
       "notes": "Local-only workspace at C:/Repos/.repowise-workspace.yaml covering git repos under shmindmaster, sh-pendoah, musa-dev-team, and pendoah (63 members as of 2026-08-24, including portfolio-records). Nested fixture gits (crewscore .corpus-cache, duckie-app/deploy which is duckie-deploy) are not members. Indexes stay on disk. Telemetry off; hosted login forbidden. .demo-workspace is not a git repo and is not a member. Post-commit hooks keep member indexes fresh; `repowise status -w` / `doctor -w` from C:/Repos report workspace health. Dashboard: `repowise serve` from C:/Repos. CLI is uv-managed and kept on the PyPI latest by scripts/Update-RepoWise.ps1.",
-      "hostScopeNote": "hosts[] is eligibility, not deployment. activationMode is on-demand-local and the id is not in native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds, so AgentHub sync does not write this stdio server into host configs. Claude Desktop is wired by RepoWise's own install (keep args at C:/Repos). Other hosts use the use-repowise skill plus CLI. warp curates its own list. hermes and windsurf are checked-absent."
+      "hostScopeNote": "hosts[] is eligibility, not deployment. activationMode is on-demand-local and the id is not in native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds, so AgentHub sync does not write this stdio server into host configs. Delivery is plugin-gated (repowise@agenthub .mcp.json) — enable when code-intelligence tools are needed, disable when done. Do not persist C:/Repos/.cursor/mcp.json or any host MCP entry for this server; a persisted stdio entry starts at session start and fans out. Official RepoWise marketplace plugins are forbidden (second MCP at nearest repo). Claude Desktop may still be wired by RepoWise's own install (keep args at C:/Repos). Other hosts use the use-repowise skill plus CLI when the plugin is off. warp curates its own list. hermes and windsurf are checked-absent."
     },
     {
       "id": "appium-mobile",

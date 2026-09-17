@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "repowise",
+  "version": "1.0.0",
+  "description": "Fleet RepoWise workspace MCP pinned at C:/Repos. Plugin-gated; not a session-start process. Official RepoWise marketplace plugins are forbidden — they register a second MCP at the nearest repo."
+}

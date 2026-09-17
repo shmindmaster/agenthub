@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "repowise-workspace": {
+      "command": "repowise",
+      "args": [
+        "mcp",
+        "C:/Repos"
+      ]
+    }
+  }
+}

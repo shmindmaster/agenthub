@@ -52,6 +52,10 @@
     {
       "name": "slack",
       "source": "./packages/slack"
+    },
+    {
+      "name": "repowise",
+      "source": "./packages/repowise"
     }
   ]
 }

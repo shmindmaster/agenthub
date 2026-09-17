@@ -50,13 +50,13 @@ vector index. Route before you search:
 | What have we done, built, proposed, or written about X | Qdrant `knowledge`, via `use-knowledge-access` |
 | Anything touching a legal matter | Qdrant `legal`, via Local-AI `query.ps1` only |
 
-Search here is FTS5 keyword matching plus the symbol and call graph. An optional
-embedder (`REPOWISE_EMBEDDER=gemini`, model `gemini-embedding-001`) adds hybrid
-wiki search; it is still not Qdrant `knowledge` or `legal`. Do not switch to
-`gemini-embedding-2`: RepoWise 0.48.0 batches many pages in one
-`embed_content` call, and that model returns a single aggregated vector.
-An empty result is not evidence the code lacks the thing — try a synonym or
-`grep` before concluding absence.
+Search here is FTS5 plus the symbol/call graph. Hybrid wiki search uses the
+OpenAI embedder (`REPOWISE_EMBEDDER=openai`,
+`REPOWISE_EMBEDDING_MODEL=text-embedding-3-small`, key `OPENAI_API_KEY` in the
+process environment — never stored in AgentHub). After changing embedder, rebuild
+vectors with `repowise reindex --embedder openai` from `C:\Repos`. This is still
+not Qdrant `knowledge` or `legal`. An empty result is not absence — try a
+synonym or `grep`.
 
 The split is deliberate and should stay. A graph traversal is not a vector
 query, and `legal` is walled off at the collection level so opportunity and
@@ -74,22 +74,21 @@ RepoWise on this fleet is a **local disk index**, not a hosted product.
 - Indexes live in each repo's `.repowise/` (`wiki.db`, `knowledge-graph.json`,
   `state.json`). The workspace graph lives in `C:\Repos\.repowise-workspace\`.
   Those directories are gitignored.
-- The agent surface is local stdio: `repowise mcp C:/Repos` (`repowise-workspace`
-  in `registry/mcps.json`). Do not point it at a remote URL.
+- The agent surface is local stdio: `repowise mcp C:/Repos`
+  (`repowise-workspace`), delivered only by enabling `repowise@agenthub`.
+  Do not point it at a remote URL. Do not persist it in host MCP config.
 - `repowise whoami` must stay **Not signed in**. Do not `repowise login` or
   paste an `rw_live_` token. A hosted account would send repository
   intelligence off the machine.
 - Telemetry must stay **disabled** (`repowise telemetry disable`). Status is
   `repowise telemetry status`.
-- Default update path is `--index-only` / `--no-docs`: parse files, rebuild
-  the graph, refresh git/dead-code. That does not call an LLM and does not
-  need an API key.
-- `repowise update --full` / `--docs` is optional LLM wiki generation. It
-  uses a provider from the **process environment**, never a key stored in
-  AgentHub. On this machine that is `REPOWISE_PROVIDER=gemini` /
-  `REPOWISE_MODEL=gemini-3.8-flash` (`GEMINI_API_KEY`). Do not run it
-  against `portfolio-records` or any private evidence repo. Do not
-  `--save-key`.
+- Default update path is `--index-only` / `--no-docs`: parse, graph, git.
+  No LLM, no key.
+- Hybrid search/reindex uses OpenAI embeddings (`OPENAI_API_KEY`). Optional
+  wiki prose (`--full` / `--docs`) still uses `REPOWISE_PROVIDER` /
+  `REPOWISE_MODEL` from the process environment, never a key in AgentHub.
+  Do not run `--full` against `portfolio-records` or private evidence. Do
+  not `--save-key`.
 - Do not add per-repo RepoWise MCP entries. Do not index
   `D:\OneDrive - MahumTech\Documents`.
 
@@ -100,12 +99,15 @@ the PyPI latest with `scripts/Update-RepoWise.ps1 -Apply` (daily scheduled
 task `AgentHub-Update-RepoWise`). Do not install a second copy. Do not add
 per-repo repowise MCP entries.
 
-- **MCP:** `repowise mcp C:/Repos` (stdio). Registry id `repowise-workspace`.
-  After a CLI upgrade, refresh wiring with
-  `repowise agents refresh --scope=both C:\Repos` (never `agents add` per
-  member repo). Official Claude/Codex marketplace plugins are not installed:
-  they would register a second MCP at the nearest repo instead of `C:/Repos`.
-- **CLI:** `repowise search "<q>"`, `repowise status -w`,
+- **MCP (plugin-gated):** `repowise@agenthub` owns `.mcp.json` with
+  `repowise mcp C:/Repos` (registry id `repowise-workspace`). Enable the
+  plugin only when MCP tools are needed; disable when done
+  (`native-connectors.json` `repowiseActivationRoute`). Never persist this
+  stdio server in host config or `C:/Repos/.cursor/mcp.json` — a persisted
+  entry starts at session start and fans out across agent sessions.
+  Official Claude/Codex RepoWise marketplace plugins are forbidden: they
+  register a second MCP at the nearest repo instead of `C:/Repos`.
+- **CLI (always available):** `repowise search "<q>"`, `repowise status -w`,
   `repowise doctor -w`, `repowise update --repo <alias>` **from `C:\Repos`**.
   Never `repowise update` from inside a member repo without `--no-agents`.
   Measured 2026-09-10: `--no-agents` still writes `.vscode/mcp.json` pointed
@@ -114,10 +116,9 @@ per-repo repowise MCP entries.
   `repowise mcp C:/Repos`; `Check-RepoStandard.ps1` fails any other path.
 - **Human dashboard:** `repowise serve --host 127.0.0.1 --ui-port 7338` from
   `C:\Repos`. API is `http://127.0.0.1:7337`. Port 3000 is Duckie.
-- **Agent hosts wired at the workspace:** Claude Code, Claude Desktop, Codex
-  (hooks + 18 prompts), Cursor (`.cursor/mcp.json` + rules), VS Code, OpenCode,
-  Hermes. Distill markers in `AGENTS.md` / Cursor rules. Post-commit hooks on
-  every member.
+- **Agent hosts:** skills + CLI everywhere; MCP only while `repowise@agenthub`
+  is enabled. Distill markers in `AGENTS.md` / Cursor rules. Post-commit
+  hooks on every member.
 
 ### MCP tools (call these instead of grep/read for exploration)
 

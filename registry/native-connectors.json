@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-13",
+  "generatedAt": "2026-09-17",
   "authority": {
     "capabilitiesRegistry": "registry/capabilities.json",
     "mcpRegistry": "registry/mcps.json",
@@ -43,38 +43,40 @@
       "node_repl"
     ],
     "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
-    "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright and chrome-devtools ship only in the browser-toolkit plugin .mcp.json; enable the plugin when a headed browser is needed, disable when done. Same gate as appiumActivationRoute for mobile-development.",
+    "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright and chrome-devtools ship only in the browser-toolkit plugin .mcp.json; enable the plugin when a headed browser is needed, disable when done. Same gate as appiumActivationRoute for mobile-development and repowiseActivationRoute for repowise-workspace.",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
     "onDemandLocalCoverage": {
-      "reconciledOn": "2026-08-13",
+      "reconciledOn": "2026-09-17",
       "why": "generatedAt is bumped by this reconciliation, so it would otherwise read as a claim that onDemandLocalMcpIds covers every on-demand-local server in registry/mcps.json as of today. It does not. This block is what keeps the bumped date from overclaiming, and it is the record that the gap was seen rather than missed.",
       "added": {
         "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers.",
         "chrome-devtools": "Reinstated 2026-09-07 as on-demand-local attach (--autoConnect) owned by browser-toolkit. Not persisted. Isolated launched-profile mode stays unused because of the shared profile-dir lock.",
         "slack": "Registered 2026-09-10 as the AgentHub-owned Slack Web API bridge (packages/slack). on-demand-local, plugin-gated, not persisted. Not Slack hosted MCP and not the retired claude.ai Slack connector.",
-        "open-connector": "Registered 2026-09-12 with activationMode on-demand-local and transport http, owned by capability open-connector. Persisted 2026-09-13 for codex, cursor, opencode and grok (see persistedOnDemandLocalMcpIds). Unlike every other id in this list it is not a host-spawned stdio process -- it is a standing Docker container on 127.0.0.1:3400 started by the owning capability's script, so persisting its HTTP entry starts no process at session start. Recorded here so the lifecycle list covers every on-demand-local server in registry/mcps.json as of this date."
+        "open-connector": "Registered 2026-09-12 with activationMode on-demand-local and transport http, owned by capability open-connector. Persisted 2026-09-13 for codex, cursor, opencode and grok (see persistedOnDemandLocalMcpIds). Unlike every other id in this list it is not a host-spawned stdio process -- it is a standing Docker container on 127.0.0.1:3400 started by the owning capability's script, so persisting its HTTP entry starts no process at session start. Recorded here so the lifecycle list covers every on-demand-local server in registry/mcps.json as of this date.",
+        "repowise-workspace": "Resolved 2026-09-17. Measured: C:/Repos/.cursor/mcp.json persisted the stdio server as a workspace-open fallback and Cursor agent sessions each spawned a `repowise mcp C:/Repos` process tree (multiple hundred MB aggregate) with no plugin enable step. Correct shape matches browser-toolkit: plugin-gated .mcp.json on packages/repowise, never persisted in host or workspace MCP config. scope remains global-default for eligibility; activationMode stays on-demand-local; not in persistedOnDemandLocalMcpIds."
       },
       "notAdded": {
         "chrome-devtools-isolated": "Registered 2026-08-06 with activationMode on-demand-local. Not added here because whether it is governed as a separate lifecycle id or as part of its chrome-devtools sibling is a decision about how browser-toolkit exposes the pair, and no host exposure list in this file names it at all -- adding it to the lifecycle list alone would record a governance claim the exposures do not back.",
-        "repowise-workspace": "Registered 2026-08-07 with activationMode on-demand-local but scope global-default and 18 declared hosts, unlike every id currently in this list. localFanoutPolicy says an on-demand-local id is never persisted in host configuration; a global-default server with 18 hosts is the shape that normally IS persisted. Which of the two is correct was not measured against the deployed host configs, and recording it either way without that measurement is the assumption this registry exists to forbid.",
         "railway": "Was on-demand-local stdio from 2026-08-19 to 2026-08-20. Moved to shared-remote https://mcp.railway.com (OAuth, no local process) on 2026-08-20 after Cursor's official plugin spawned two `railway mcp` process trees. No longer belongs in this on-demand-local coverage list."
       },
-      "nextStep": "Measure both against the deployed host configurations, then either add them here or record why each is exempt. Until then this list is complete for what it claims and explicitly incomplete for what it does not.",
+      "nextStep": "chrome-devtools-isolated remains the only open coverage question. Measure browser-toolkit exposure lists, then either add it here or record why it is exempt.",
       "retired": {
         "brave-search": "Removed from registry/mcps.json on 2026-09-13. It was an on-demand-local npx stdio bridge (@brave/brave-search-mcp-server, unpinned) declared by no host and carried by no host config since at least 2026-08-20, so removal changed no deployment. Brave Search is now served by the open-connector gateway's brave_search provider under the same BRAVE_API_KEY User environment variable. It was never in onDemandLocalMcpIds, which is why it appears here rather than as a removal from that list."
       }
     },
     "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. 2026-09-13: open-connector added as the one exception, and it is a different shape -- transport http to a standing Docker container on 127.0.0.1:3400 that only the owner's wrapper starts. A host carrying its entry spawns nothing at session start; the fan-out this list guards against cannot occur. Exposure recorded as shared-gateway on codex, cursor, opencode and grok.",
-    "onDemandLocalMcpIdsNote": "Refreshed 2026-09-10. chrome-devtools is live as an on-demand-local attach server (--autoConnect), delivered only by the browser-toolkit plugin, never persisted. playwright is --extension attach, same plugin gate. slack is the AgentHub Slack bridge, plugin-gated, never persisted. repowise-workspace, appium-mobile, and linkedin stay on-demand-local and unpersisted.",
+    "onDemandLocalMcpIdsNote": "Refreshed 2026-09-17. chrome-devtools is live as an on-demand-local attach server (--autoConnect), delivered only by the browser-toolkit plugin, never persisted. playwright is --extension attach, same plugin gate. slack is the AgentHub Slack bridge, plugin-gated, never persisted. repowise-workspace is plugin-gated (repowise@agenthub), never persisted. appium-mobile and linkedin stay on-demand-local and unpersisted.",
     "slackActivationRoute": "Slack MCP is plugin-gated. On claude: install slack@agenthub when absent, then claude plugin enable slack@agenthub; cleanup is claude plugin disable slack@agenthub. On codex: codex plugin add slack@agenthub and codex plugin remove slack@agenthub. On grok: grok plugin install the agenthub slack path when needed, grok plugin disable slack when done. OpenCode may write mcp.slack with enabled=false. Do not write slack into host MCP config as a session-start stdio server. Native slackapi/slack-skills-plugin is optional UX, not read/write authority.",
     "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
     "browserActivationRoute": "Browser MCP is plugin-gated. On claude: skills first (native pane); enable browser-toolkit@agenthub only when Playwright extension attach or chrome-devtools is required, then claude plugin disable browser-toolkit@agenthub. On codex: codex plugin add browser-toolkit@agenthub and codex plugin remove browser-toolkit@agenthub. On grok: grok plugin install the agenthub browser-toolkit path when needed, grok plugin disable browser-toolkit when done. Do not write playwright or chrome-devtools into host MCP config.",
+    "repowiseActivationRoute": "RepoWise MCP is plugin-gated. Skills (use-repowise) and CLI stay available without the process. On claude: install `repowise@agenthub` when absent, then `claude plugin enable repowise@agenthub` only for MCP tool calls; cleanup is `claude plugin disable repowise@agenthub`. On codex: `codex plugin add repowise@agenthub` / `codex plugin remove repowise@agenthub`. On cursor: install the AgentHub repowise plugin when MCP is needed; do not write `C:/Repos/.cursor/mcp.json` or any host MCP entry. Official RepoWise marketplace plugins are forbidden. Never persist this stdio server.",
     "optInDisabledLocalMcpIds": [
       "playwright",
       "chrome-devtools",
       "linkedin",
-      "slack"
+      "slack",
+      "repowise-workspace"
     ],
     "optInDisabledLocalMcpIdsNote": "On-demand-local stdio servers that hosts with an enabled=false switch may write into config without starting them. OpenCode is the verified writer (opencode.ai/docs/mcp-servers). Claude/Codex/Grok still suppress these from host MCP config and use plugin enable/disable instead. A host without an enabled=false switch must not be added here.",
     "optInDisabledHosts": [
@@ -86,7 +88,12 @@
       "hostId": "codex",
       "name": "agenthub",
       "sourcePath": "C:/Repos/shmindmaster/agenthub",
-      "manifestPath": ".agents/plugins/marketplace.json"
+      "manifestPath": ".agents/plugins/marketplace.json",
+      "remoteAuthority": {
+        "source": "github",
+        "repo": "shmindmaster/agenthub",
+        "note": "Published catalog authority is GitHub. Codex Sync keeps sourcePath on the local checkout so undeployed package edits can be validated before push; Claude and Cursor install/update the marketplace from the GitHub remote after push. Do not leave Claude known_marketplaces on a directory source."
+      }
     }
   ],
   "ownerActionRequired": {

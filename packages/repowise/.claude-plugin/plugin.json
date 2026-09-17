@@ -1,0 +1,16 @@
+{
+  "name": "repowise",
+  "description": "Fleet RepoWise workspace MCP pinned at C:/Repos. Enable only when code-intelligence tools are needed; disable when done.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "repowise",
+    "code-intelligence",
+    "workspace"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "version": "1.0.0"
+}
