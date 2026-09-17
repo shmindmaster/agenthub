@@ -70,6 +70,27 @@ function Get-AgentHubGitTrackedRelativeFiles {
     return @($joined -split [string][char]0 | Where-Object { $_.Length -gt 0 })
 }
 
+function Get-AgentHubFilesystemRelativeFiles {
+    param([Parameter(Mandatory)][string]$Path)
+    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\')
+    $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force -ErrorAction SilentlyContinue |
+        Where-Object {
+            $full = $_.FullName
+            # Skip common junk; keep everything else so hash matches disk content.
+            $name = $_.Name
+            if ($name -eq '.DS_Store' -or $name -eq 'Thumbs.db') { return $false }
+            if ($full -match '\\node_modules\\|\\\.git\\|\\__pycache__\\') { return $false }
+            return $true
+        })
+    $rel = foreach ($file in $files) {
+        $full = $file.FullName
+        if (-not $full.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        $suffix = $full.Substring($root.Length).TrimStart('\', '/')
+        ($suffix -replace '\\', '/')
+    }
+    return @($rel | Where-Object { $_.Length -gt 0 })
+}
+
 function Get-AgentHubRegistryHashBasisValue {
     param([Parameter(Mandatory)][string]$Path)
 
@@ -79,9 +100,21 @@ function Get-AgentHubRegistryHashBasisValue {
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return $null }
 
     $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\')
-    [string[]]$relativePaths = @(Get-AgentHubGitTrackedRelativeFiles -Path $root)
-    if ($relativePaths.Count -eq 0) {
-        throw "Get-AgentHubRegistryHashBasisValue found zero git-tracked files under '$root'. Refusing to hash an empty work set silently -- this usually means the path is wrong or the directory is entirely gitignored."
+    $normalized = $root.Replace('/', '\')
+    $isPersonalOverlayPackage = $normalized -match '(?i)[\\/]overlays[\\/]personal[\\/]packages([\\/]|$)'
+    [string[]]$relativePaths = @()
+    if ($isPersonalOverlayPackage) {
+        # Personal overlay packages are gitignored by design (public-first).
+        # Hash the on-disk tree; do not require git tracking.
+        $relativePaths = @(Get-AgentHubFilesystemRelativeFiles -Path $root)
+        if ($relativePaths.Count -eq 0) {
+            throw "Get-AgentHubRegistryHashBasisValue found zero files under personal overlay package '$root'."
+        }
+    } else {
+        $relativePaths = @(Get-AgentHubGitTrackedRelativeFiles -Path $root)
+        if ($relativePaths.Count -eq 0) {
+            throw "Get-AgentHubRegistryHashBasisValue found zero git-tracked files under '$root'. Refusing to hash an empty work set silently -- this usually means the path is wrong or the directory is entirely gitignored."
+        }
     }
     [Array]::Sort($relativePaths, [System.StringComparer]::Ordinal)
     $inventory = @(

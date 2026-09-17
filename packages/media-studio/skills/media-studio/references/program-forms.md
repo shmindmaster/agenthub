@@ -50,7 +50,7 @@ Do not invent metrics, customer names, or AI behavior. Unsourced numbers are omi
 
 ## Formulas (do not skip)
 
-**Outcome-workflow / role-demo / product-overview / feature-tutorial / onboarding / help-center (buyer-facing):** start with the cost, then **show** the work. Real UI + cursor + zoom + visible result (`product-picture.md`). Occasional presenter. Not an AI avatar walking a fake dashboard. Not Ken Burns on a screenshot. Not “Welcome to Acme, on the left is the nav.”
+**Outcome-workflow / role-demo / product-overview / feature-tutorial / onboarding / help-center (buyer-facing):** start with the cost, then **show** the work (`product-picture.md`): config that drives it → action → response → result. Real UI + cursor + zoom. Not an avatar on fake chrome, Ken Burns, or a nav tour.
 
 **AI-in-action / ai-trust:** show control. Input → draft → review → highlighted concern → human change → save. Instant-perfect-result is a fail.
 

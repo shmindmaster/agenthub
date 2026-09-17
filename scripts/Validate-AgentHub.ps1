@@ -9,6 +9,7 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
 $errors = [Collections.Generic.List[string]]::new()
 . (Join-Path $root 'scripts\RegistryContentHash.ps1')
+. (Join-Path $root 'scripts\lib\CapabilityGraph.ps1')
 
 function Fail([string]$Message) { $script:errors.Add($Message) }
 function Read-Json([string]$Path) {
@@ -54,16 +55,31 @@ if ($isPublicCore) {
 $pluginFormats = Read-Json (Join-Path $root 'registry\plugin-formats.json')
 
 $pluginRoot = Join-Path $root 'packages'
-$packageNames = @(Get-ChildItem -LiteralPath $pluginRoot -Directory | ForEach-Object Name | Sort-Object)
+$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $root
+$packageNames = @(Get-ChildItem -LiteralPath $pluginRoot -Directory -ErrorAction SilentlyContinue | ForEach-Object Name | Sort-Object)
+# Public-first: private package trees must not remain under packages/.
 foreach ($packageName in $packageNames) {
-  $packageRoot = Join-Path $pluginRoot $packageName
-  $skills = @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'skills') -Directory -ErrorAction SilentlyContinue)
-  $isDistributedPlugin = Test-Path -LiteralPath (Join-Path $packageRoot '.claude-plugin\plugin.json')
-  if ($skills.Count -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $packageRoot '.mcp.json'))) {
-    if ($isDistributedPlugin) {
-      Fail "plugin has neither skills nor MCP manifest: $packageName"
+  $capHit = @($capabilities.capabilities | Where-Object { [string]$_.id -eq $packageName -and (Test-AgentHubCapabilityPrivate $_) })
+  if ($capHit.Count -gt 0) {
+    Fail "private capability '$packageName' is still tracked under packages/. Move it to overlays/personal/packages/$packageName."
+  }
+}
+$overlayPackagesRoot = Join-Path $root 'overlays\personal\packages'
+if (Test-Path -LiteralPath $overlayPackagesRoot) {
+  foreach ($overlayPkg in @(Get-ChildItem -LiteralPath $overlayPackagesRoot -Directory -ErrorAction SilentlyContinue)) {
+    if (Test-Path -LiteralPath (Join-Path $pluginRoot $overlayPkg.Name)) {
+      Fail "private package '$($overlayPkg.Name)' exists under both packages/ and overlays/personal/packages/. Keep only the overlay copy."
     }
-    continue
+  }
+}
+function Test-AgentHubSkillPackageTree([string]$PackageRoot, [string]$PackageName) {
+  $skills = @(Get-ChildItem -LiteralPath (Join-Path $PackageRoot 'skills') -Directory -ErrorAction SilentlyContinue)
+  $isDistributedPlugin = Test-Path -LiteralPath (Join-Path $PackageRoot '.claude-plugin\plugin.json')
+  if ($skills.Count -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $PackageRoot '.mcp.json'))) {
+    if ($isDistributedPlugin) {
+      Fail "plugin has neither skills nor MCP manifest: $PackageName"
+    }
+    return
   }
   foreach ($skill in $skills) {
     $skillPath = Join-Path $skill.FullName 'SKILL.md'
@@ -74,6 +90,14 @@ foreach ($packageName in $packageNames) {
     if ($skillName -ne $skill.Name) { Fail "skill frontmatter name mismatch: $skillPath" }
     if (-not $description.StartsWith('Use when')) { Fail "skill description must start with 'Use when': $skillPath" }
     if ($description.Length -gt 500) { Fail "skill description exceeds 500 characters: $skillPath" }
+  }
+}
+foreach ($packageName in $packageNames) {
+  Test-AgentHubSkillPackageTree -PackageRoot (Join-Path $pluginRoot $packageName) -PackageName $packageName
+}
+if ($overlayRoot -and (Test-Path -LiteralPath $overlayPackagesRoot)) {
+  foreach ($overlayPkg in @(Get-ChildItem -LiteralPath $overlayPackagesRoot -Directory -ErrorAction SilentlyContinue)) {
+    Test-AgentHubSkillPackageTree -PackageRoot $overlayPkg.FullName -PackageName $overlayPkg.Name
   }
 }
 
@@ -201,9 +225,21 @@ function Test-RegistryRelativePath {
   return $resolved
 }
 
-foreach ($capability in $capabilities.capabilities) {
-  $expectedRoot = [IO.Path]::GetFullPath((Join-Path $pluginRoot $capability.id))
-  if (-not (Test-Path -LiteralPath $expectedRoot)) { Fail "registered capability missing: $($capability.id)"; continue }
+# Core registry must not carry private rows — those live in the personal overlay.
+foreach ($capability in @($capabilities.capabilities)) {
+  if (Test-AgentHubCapabilityPrivate $capability) {
+    Fail "core registry still lists private capability '$($capability.id)'. Move the row to overlays/personal/capabilities.json."
+  }
+}
+$effectiveCapabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilities -OverlayRoot $overlayRoot)
+foreach ($capability in $effectiveCapabilities) {
+  try {
+    $expectedRoot = Resolve-AgentHubPackageRoot -RepositoryRoot $root -Capability $capability -OverlayRoot $overlayRoot
+  } catch {
+    Fail $_.Exception.Message
+    continue
+  }
+  if (-not (Test-Path -LiteralPath $expectedRoot)) { Fail "registered capability missing: $($capability.id) ($expectedRoot)"; continue }
   $resolvedSource = Test-RegistryRelativePath -Value ([string]$capability.canonicalSource) -Root $root -FieldName 'canonicalSource' -CapabilityId $capability.id
   if ($resolvedSource -and $resolvedSource -ne $expectedRoot) { Fail "canonicalSource mismatch: $($capability.id)" }
   $resolvedHashBasis = Test-RegistryRelativePath -Value ([string]$capability.hashBasis) -Root $root -FieldName 'hashBasis' -CapabilityId $capability.id

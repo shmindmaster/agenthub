@@ -38,7 +38,7 @@ For every scene produce a beat with required storyboard fields: `sceneRole`, `vi
 
 Rules:
 
-1. Picture first, name the result after it appears.
+1. Picture first, name the result after it appears. On `product-screencast`, each software beat is screen → control → action → visible response (`product-picture.md`). Set `startState` ≠ `expectedState` and `provesClaim`. Do not collapse a workflow into start → result.
 2. Exactly one `heroMoment: true`. Record `protectedHeroBeatId`.
 3. Do not repeat `visualArchetype` on consecutive beats unless the continuation is intentional (`revealFrom` / checklist).
 4. `rhythm.visualRefreshTarget` ≤ 4.5s for type-led beats; B-roll/motif may hold longer if the frame is still moving.

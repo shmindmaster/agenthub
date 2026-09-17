@@ -1,7 +1,7 @@
-{
+﻿{
   "schemaVersion": 1,
   "id": "personal",
-  "description": "Copy this directory to overlays/personal/ on your machine. List private capability package ids this checkout loads. Core never imports them by default; AGENTHUB_OVERLAY=off drops them.",
+  "description": "Copy this directory to overlays/personal/ on your machine. Put private packages under packages/<id>/, list their ids here, and keep private capability rows in capabilities.json. Core never imports them by default; AGENTHUB_OVERLAY=off drops them. Public packages (including RepoWise) stay under the tracked packages/ tree.",
   "enabledCapabilityIds": [],
   "privateMarketplacePlugins": []
 }

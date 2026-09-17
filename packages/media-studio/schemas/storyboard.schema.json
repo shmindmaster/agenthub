@@ -100,6 +100,12 @@
             "type": "string",
             "description": "What is visibly true on screen at the end of the beat."
           },
+          "startState": { "type": "string" },
+          "provesClaim": { "type": "string" },
+          "causalRole": {
+            "type": "string",
+            "enum": ["start", "configuration", "action", "system-response", "result"]
+          },
           "shotPlan": {
             "type": "object",
             "additionalProperties": false,

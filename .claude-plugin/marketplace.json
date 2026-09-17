@@ -26,10 +26,6 @@
       "source": "./packages/mobile-development"
     },
     {
-      "name": "startup-series",
-      "source": "./packages/startup-series"
-    },
-    {
       "name": "technical-storytelling",
       "source": "./packages/technical-storytelling"
     },
@@ -44,10 +40,6 @@
     {
       "name": "media-studio",
       "source": "./packages/media-studio"
-    },
-    {
-      "name": "linkedin",
-      "source": "./packages/linkedin"
     },
     {
       "name": "slack",

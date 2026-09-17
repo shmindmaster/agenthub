@@ -41,6 +41,23 @@
             "type": "string",
             "description": "Visible product response that proves the action."
           },
+          "startState": {
+            "type": "string",
+            "description": "What is visibly true before the action. Must differ from resultState."
+          },
+          "resultState": {
+            "type": "string",
+            "description": "What is visibly true after the product responds."
+          },
+          "provesClaim": {
+            "type": "string",
+            "description": "The narration claim this take proves on screen."
+          },
+          "causalRole": {
+            "type": "string",
+            "enum": ["start", "configuration", "action", "system-response", "result"]
+          },
+          "dependsOnSceneId": { "type": "string" },
           "clip": {
             "type": "string",
             "description": "Relative path to a WebM/MP4 under capture/. Not a PNG for interaction."
@@ -57,7 +74,7 @@
           {
             "if": { "properties": { "kind": { "const": "interaction" } }, "required": ["kind"] },
             "then": {
-              "required": ["action", "expectedResult", "clip"]
+              "required": ["action", "expectedResult", "clip", "startState", "resultState", "provesClaim"]
             }
           }
         ]

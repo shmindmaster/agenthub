@@ -1,6 +1,0 @@
-# Enterprise AI architecture: end-to-end design across a fragmented estate.
-end to end architecture for a system spanning data, application and integration layers
-modernizing a legacy estate onto a current reference architecture
-designing a multi tenant platform with shared services and per tenant isolation
-architecture decision records and target state design reviewed by stakeholders
-integration architecture connecting enterprise systems of record to new capability

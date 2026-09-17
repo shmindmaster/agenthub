@@ -1,3 +1,0 @@
-# Local profile validation dependencies; retrieval uses its own provisioned runtime.
-PyYAML==6.0.3
-jsonschema==4.26.0

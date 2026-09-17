@@ -228,6 +228,15 @@ if (plan?.scenes) {
     if (!scene.clip) fail(`capture-plan ${scene.sceneId} interaction missing video clip`);
     if (scene.clip && isImageName(scene.clip)) fail(`capture-plan ${scene.sceneId} interaction clip is a still (${scene.clip})`);
     if (scene.plateName && /\.(png|jpg|jpeg|webp)$/i.test(scene.plateName) && !scene.clip) fail(`capture-plan ${scene.sceneId} names a PNG plate with no video clip; plates are diagnostic only`);
+    const startState = typeof scene.startState === 'string' ? scene.startState.trim() : '';
+    const resultState = typeof scene.resultState === 'string' ? scene.resultState.trim() : '';
+    const provesClaim = typeof scene.provesClaim === 'string' ? scene.provesClaim.trim() : '';
+    if (!startState) fail(`capture-plan ${scene.sceneId} interaction missing startState`);
+    if (!resultState) fail(`capture-plan ${scene.sceneId} interaction missing resultState`);
+    if (!provesClaim) fail(`capture-plan ${scene.sceneId} interaction missing provesClaim; a take that proves no spoken claim is decoration`);
+    if (startState && resultState && startState.toLowerCase() === resultState.toLowerCase()) {
+      fail(`capture-plan ${scene.sceneId} startState and resultState are identical; the beat must show a visible change`);
+    }
   }
 }
 

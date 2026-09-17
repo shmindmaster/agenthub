@@ -1,6 +1,0 @@
-# Advisory and analyst research: the deliverable is a written recommendation.
-written advisory deliverable comparing vendors and technology options for an executive decision
-market sizing, demand analysis and commoditization assessment of a technology category
-structured assessment and recommendation report delivered to a client executive audience
-capability maturity assessment with findings, gaps and a prioritized roadmap
-briefing an executive audience on a technology shift and its implications

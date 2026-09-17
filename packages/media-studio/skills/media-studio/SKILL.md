@@ -9,6 +9,8 @@ description: Use when the user wants any video, audio, animation, briefing, trai
 
 **Default: rapid.** A sentence, path, or “make a video from this” is enough. Infer the rest, run the crew, return a candidate. Rapid means infer-and-run, **not skip craft**. A short prompt is not permission to skip curation, gap-closure, story, scenes, or QA.
 
+**Reuse before regenerate.** Recut > recapture > rewrite. On a miss, rerun only `reviseSceneIds` / the failing take. Keep receipt-bound clips that still prove the claim. Do not regen TTS, the bed, or the whole encode for an unchanged scene — remux. Start Local-AI once (`voice` for TTS; Comfy only if a plate needs it). One GPU job at a time.
+
 ## 0. Intake (do not dump this on the user)
 
 A usable ask is: what it is about, plus any source (evidence folder, outline, product). Load Local-AI yourself. Do not tell the user to invoke `/local-ai-stack` or name writer/storyboard/director.
@@ -82,12 +84,13 @@ Viewer-facing explainers, branded films, and series: load `technical-storytellin
 
 ## 3. product-screencast
 
-1. Job config is `job.json` in the external workspace. A legacy `product-demo-studio.config.yaml` in a product repo may be read once, then translated out; never create or update one in the product repo.
-2. Product-Readiness Feedback instead of a mediocre video is a valid outcome.
-3. `media-studio-capture` — Playwright WebM + Recast via `kit/screencast/record-job.mjs`. PNG plates are diagnostic only.
-4. `media-studio-generate` — local Sarosh, not cloud TTS. Never Motif a product screenshot.
-5. `scripts/validate-product-picture.mjs` before encode.
-6. `media-studio-qa` — product-picture + encoded-file review. Story review on the encoded file only.
+The picture is the demo (`product-picture.md`): muted viewer follows start → configure → act → response → result.
+
+1. `job.json` in the external workspace. A legacy in-repo `product-demo-studio.config.yaml` is read-only input.
+2. Product-Readiness Feedback instead of a mediocre video is valid.
+3. Writer / storyboard / director lock the causal chain; capture is Playwright WebM + Recast (`record-job.mjs`), one session.
+4. Generate speaks the locked narration locally. Never Motif a screenshot.
+5. `validate-product-picture.mjs` then `media-studio-qa` (mute test). Story review on the encoded file only.
 
 Live product with real user data → `PIPELINE_BLOCKED`.
 
@@ -102,7 +105,7 @@ the repo.
 - Invented metrics or customer names.
 - Remotion missing for viewer-facing briefing/training/explainer/series-episode/webcast/webinar/keynote/documentary/teaser (unless draft).
 - Feature-tour opening or a settings walkthrough posing as a demo.
-- Product-screencast whose picture is Ken Burns stills, auto-cards, or a slide stack (`product-picture.md`).
+- Product-screencast whose picture is Ken Burns stills, auto-cards, a slide stack, or a jump from start screen to final result (`product-picture.md`).
 - Story-experience score below 85. A pre-capture text-only score is not a pass.
 - An addendum or correction clip. Re-record the affected section and re-cut the master.
 
@@ -114,4 +117,5 @@ Delivery: file names are `NN - Title.mp4` with no product prefix; a delivered se
 - [ ] Crew ran writer → storyboard → visuals → director → generate → compose → critic → QA
 - [ ] Viewer-facing: engagement + story-craft + studio-craft loaded; Remotion used when required
 - [ ] `programForm` inferred; one promise; real UI is capture + Recast when the form is a running product (`product-picture.md`)
+- [ ] Product-screencast mute test: configuration → action → response → result is on screen
 - [ ] Critic score ≥ 85 or the job is draft

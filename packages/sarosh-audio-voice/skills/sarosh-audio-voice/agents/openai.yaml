@@ -1,7 +1,0 @@
-interface:
-  display_name: "Sarosh Audio Voice"
-  short_description: "Generate and verify Sarosh's local voice"
-  default_prompt: "Use $sarosh-audio-voice to render and validate this spoken delivery with Sarosh's local voice clone."
-
-policy:
-  allow_implicit_invocation: true

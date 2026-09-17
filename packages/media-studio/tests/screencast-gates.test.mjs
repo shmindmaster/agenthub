@@ -57,7 +57,7 @@ function writeJob(root, { screenSeconds = 16, cardSeconds = 6, clipFile = 'clips
     ],
   }));
   writeFileSync(join(root, 'capture', 'manifest.json'), JSON.stringify({ clips: [{ id: 'S02', file: clipFile, segments: ['S02'], ...extraClip }] }));
-  if (plan) writeFileSync(join(root, 'story', 'capture-plan.json'), JSON.stringify({ scenes: [{ sceneId: 'S01', kind: 'card' }, { sceneId: 'S02', kind: 'interaction', action: 'click Submit', expectedResult: 'toast', clip: clipFile }] }));
+  if (plan) writeFileSync(join(root, 'story', 'capture-plan.json'), JSON.stringify({ scenes: [{ sceneId: 'S01', kind: 'card' }, { sceneId: 'S02', kind: 'interaction', action: 'click Submit', expectedResult: 'toast', startState: 'form ready', resultState: 'toast visible', provesClaim: 'submit sends the request', clip: clipFile }] }));
   if (receipt) writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(receipt));
 }
 const goodReceipt = (file, hash, over = {}) => ({
@@ -138,6 +138,24 @@ test('plan gate: intent=draft no longer skips the picture rules', { skip: !ffmpe
   const r = run(validator, [root]);
   assert.notEqual(r.code, 0);
   assert.doesNotMatch(r.out, /skipped/);
+});
+
+test('plan gate: interaction missing provesClaim or identical start/result fails', { skip: !ffmpegAvailable }, () => {
+  const root = join(scratch, 'nochain');
+  writeJob(root);
+  const clip = join(root, 'capture', 'clips', 'S02.webm');
+  movingClip(clip, 12);
+  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  writeFileSync(join(root, 'story', 'capture-plan.json'), JSON.stringify({
+    scenes: [
+      { sceneId: 'S01', kind: 'card' },
+      { sceneId: 'S02', kind: 'interaction', action: 'click Submit', expectedResult: 'toast', startState: 'form ready', resultState: 'form ready', clip: 'clips/S02.webm' },
+    ],
+  }));
+  const r = run(validator, [root]);
+  assert.notEqual(r.code, 0, r.out);
+  assert.match(r.out, /missing provesClaim/);
+  assert.match(r.out, /startState and resultState are identical/);
 });
 
 test('plan gate: Recast fallback fails unless the job allows it with a reason', { skip: !ffmpegAvailable }, () => {

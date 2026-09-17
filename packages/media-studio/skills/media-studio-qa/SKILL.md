@@ -14,9 +14,9 @@ Fail-closed release. All four gates run on artifacts, and the last two on the ex
 1. `scripts/validate-product-picture.mjs <jobRoot>` — plan and clips: receipt-bound live captures, pointer motion, observed responses, Recast, no hidden freeze, ≥70% screen.
 2. `scripts/validate-encoded-picture.mjs <jobRoot> <candidate.mp4>` — the file a viewer will watch: every screen segment binds to its captured clip (dHash), no dead screen > 6 s in a screen beat, cards ≤ 8 s, designed first/last frames. Writes `qa/encoded-picture.json` bound to the candidate sha256. Missing or failing → do not ship.
 3. Voice: `qa/pronunciation-risk.json` (from `ai.ps1 voice pronunciation-risk`, written by `Generate-OwnerVoice.ps1`) with `coverage.status` PASS or REVIEW, and `qa/pronunciation-listen.json` with `finalStatus: PASS` (per-scene `ai.ps1 listen` grounded in transcript + risk slice). Then identity-score and `ai.ps1 listen` on the **encoded** candidate with `--transcript` and `--pronunciation-manifest qa/pronunciation-risk.json` (and `--timeline` above 90 s); the report must say `releaseEligible: true`. An ungrounded listen report is diagnostic only.
-4. Story and craft on the encoded file: hook in the first 10 s, one promise, one hero moment, conversational narration that adds meaning the screen does not already show, pointer visible where an action happens, result on screen before or as it is spoken, no feature-tour opening, no long title cards. Record the review as `qa/story-experience-review.json` (score, per-scene notes, `reviseSceneIds`). Score < 85 or any visual/pronunciation failure above → revise and rerun; the score cannot rescue a failed gate.
+4. Story and craft on the encoded file: hook in the first 10 s, one promise, one hero moment, conversational narration that adds meaning the screen does not already show, pointer visible where an action happens, result on screen before or as it is spoken, no feature-tour opening, no long title cards. Record the review as `qa/story-experience-review.json` (score, per-scene notes, `reviseSceneIds`). Score < 85 or any visual/pronunciation failure above → revise **those scenes only** and remux; do not restart writer → capture → TTS. The score cannot rescue a failed gate.
 
-Screen accuracy: every spoken claim about what the product did must be visible in the encoded frames of that beat (`qa/screen-accuracy.json`: beat, claim, timestamp, verdict). Do **not** use `Inspect-MediaVisualQuality.ps1` as this kind's craft gate (that helper is Other kinds), and do not use `media-story-experience-reviewer` for this kind.
+Screen accuracy: every spoken product claim is visible in that beat's frames (`qa/screen-accuracy.json`). Mute test: `product-picture.md`. Do **not** use `Inspect-MediaVisualQuality.ps1` or `media-story-experience-reviewer` for this kind.
 
 ## 2. Other kinds
 
@@ -34,5 +34,6 @@ Do not ship a product-screencast that failed product-picture or encoded-file rev
 
 - [ ] Encoded file, not a proxy clip; `qa/encoded-picture.json` present and ok for screencasts
 - [ ] Critic pass on viewer-facing jobs
+- [ ] Product-screencast mute test and screen-accuracy pass; configuration claims have on-screen proof
 - [ ] Visual-quality report present
 - [ ] Diagnose-first list is empty or remitted

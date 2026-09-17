@@ -1,8 +1,0 @@
-schema_version: 1
-candidate:
-  name: Synthetic Candidate
-  contact_source: synthetic-fixture
-resolution_precedence: []
-non_inference_rules: []
-answers: []
-updated_at: "2026-08-31T20:00:00-05:00"

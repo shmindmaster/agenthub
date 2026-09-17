@@ -24,8 +24,8 @@ Handoff: this skill → `media-storyboard`. Do not generate TTS.
 4. Default truth `FACT` when the source is given; tag `DRAMATIZED` / `COMPOSITE` only when you heighten or merge.
 5. Owner-voice scripts stay canonical. Pronunciation is a Local-AI dictionary layer at render time — never respell.
 6. Do not invent metrics, customer names, or product behavior. Unsourced numbers are omitted, not guessed.
-7. On `product-screencast`, every beat is `visualMode: screen` unless it is a title, CTA, or 5–20 line code reveal (`product-picture.md`). Omitted `visualMode` defaults to `screen`. Do not map only the “must be shown as a running app” claims to `screen` and dump the rest on slides. Leave `visualArchetype` for the storyboard.
-8. Do not narrate visible chrome. Name the result after it appears. Never narrate what the viewer can already see.
+7. On `product-screencast`, default `visualMode: screen` (`product-picture.md`). Write the causal chain as scenes; fill `uiProof` on every product claim. Do not jump start → payoff.
+8. Do not narrate chrome. Name the result after it appears. If VO names a config or integration, a scene must show it. Local-AI speaks this locked text.
 9. Technical stories: the hook is the problem, not the UI. Every code, log, or diagram beat says what happened, why, and the consequence — then the human consequence (a customer waiting, a bill, an agent who cannot act). Code beats follow product behavior → question → code → explanation → product result.
 
 Prefer:

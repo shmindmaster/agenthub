@@ -45,6 +45,7 @@ For every workflow provide:
 - seeded synthetic fixture plus reset command;
 - persona and permissions;
 - one named hero moment;
+- capturable causal chain in one session (config → action → visible response → result; media-studio `product-picture.md`);
 - capture-fixable rough edges with exact camera/edit treatment;
 - still product-fix-required defects that forbid recording;
 - assessed revision, environment, limitations, and confidence.

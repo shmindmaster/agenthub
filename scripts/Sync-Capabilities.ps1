@@ -232,10 +232,8 @@ function Register-ManagedTree {
 }
 
 foreach ($capability in $capabilities.capabilities) {
-  # canonicalSource is repo-relative (e.g. "packages/clerk"); resolve it
-  # against the repository root this script is actually running from, not
-  # the process's current working directory.
-  $sourceRoot = [IO.Path]::GetFullPath((Join-Path $root ([string]$capability.canonicalSource)))
+  # canonicalSource is repo-relative (packages/<id> or overlays/personal/packages/<id>).
+  $sourceRoot = Resolve-AgentHubPackageRoot -RepositoryRoot $root -Capability $capability -OverlayRoot $overlayRoot
   $skillsRoot = Join-Path $sourceRoot 'skills'
   $skills = if (Test-Path -LiteralPath $skillsRoot) { @(Get-ChildItem -LiteralPath $skillsRoot -Directory) } else { @() }
   if ($capability.deployedCatalog) {
@@ -308,7 +306,10 @@ foreach ($capability in $capabilities.capabilities) {
 # capability mapping.
 $shippedAnywhere = @{}
 foreach ($capability in $capabilities.capabilities) {
-  $r = Join-Path ([IO.Path]::GetFullPath((Join-Path $root ([string]$capability.canonicalSource)))) 'skills'
+  try {
+    $pkgRoot = Resolve-AgentHubPackageRoot -RepositoryRoot $root -Capability $capability -OverlayRoot $overlayRoot
+  } catch { continue }
+  $r = Join-Path $pkgRoot 'skills'
   if (Test-Path -LiteralPath $r) {
     foreach ($s in @(Get-ChildItem -LiteralPath $r -Directory)) { $shippedAnywhere[$s.Name] = $capability.id }
   }

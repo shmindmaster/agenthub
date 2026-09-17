@@ -104,6 +104,18 @@
           "description": "Host narration (omit/sarosh) or stakeholder Q&A card (ryan/vivian/aiden via qwen-role). joel is a legacy Ryan-style interviewer."
         },
         "action": { "type": "string" },
+        "uiProof": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "On product-screencast, the on-screen proof of this spoken claim (product-picture.md).",
+          "properties": {
+            "screen": { "type": "string" },
+            "control": { "type": "string" },
+            "action": { "type": "string" },
+            "systemResponse": { "type": "string" },
+            "result": { "type": "string" }
+          }
+        },
         "highlight": { "type": "string" },
         "durationSeconds": { "type": "number", "minimum": 0.5 },
         "pauseBeforeSeconds": { "type": "number", "minimum": 0 },

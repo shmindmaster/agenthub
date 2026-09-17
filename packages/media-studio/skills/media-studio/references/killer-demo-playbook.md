@@ -158,6 +158,7 @@ Fail closed after full-playback and representative-frame review unless all are t
 - voice is conversational, varied, correctly pronounced, and not wall-to-wall;
 - final frames are stable, legible at delivery size, and free of occlusion;
 - encoded before/action/result pixels exhibit the promised causal state change; freshly rehashing a static render cannot make it truthful;
+- the picture is an end-to-end demonstration (`product-picture.md`): configuration that drives the behavior is shown, intermediate states are not skipped, and a muted viewer can still follow start → action → response → outcome;
 - every decoded frame of the declared final hold is stable, including against brief localized cursor, pulse, toast, or overlay motion between sparse checkpoints;
 - the declared emotional target is actually supported by pace, music, silence, and wording;
 - the close gives exactly one takeaway or next step and ends on a designed frame.

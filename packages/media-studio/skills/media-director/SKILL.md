@@ -31,7 +31,7 @@ Do not use the same `visualArchetype` twice in succession unless the storyboard 
 
 ## 2. Pointer, click, highlight
 
-For `screen` scenes, specify target, pointer lead → action → visible feedback → result hold. Recast owns cursor, click ripple, punch-in. One emphasis, not zoom plus callout plus color unless the hold is the hero.
+For `screen` scenes, specify target, pointer lead → action → visible feedback → result hold (`product-picture.md`). Recast owns cursor, ripple, punch-in. Wide → punch-in on the control → hold through the native response. Config beat before the run it causes.
 
 For type-led scenes, emphasis is type color, Remotion build-in, and hold time, not a fake cursor.
 

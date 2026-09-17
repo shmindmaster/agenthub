@@ -1,6 +1,0 @@
-# Internal platform engineering: many teams build on a shared thing you own.
-shared internal platform that many engineering teams build on, with standards, golden paths and onboarding governance
-driving migration of business units onto a single standard platform and measuring adoption
-rationalizing a fragmented application portfolio into a governed standard
-leading engineers who build shared infrastructure other teams depend on
-establishing and publishing technical standards through a governing body

@@ -32,3 +32,7 @@ agenthub.profile.json
 # client material and is not repository content.
 evidence-augmentation.json
 evidence-augmentation.md
+
+# Personal overlay (packages + private capability rows). Never commit.
+overlays/personal/
+

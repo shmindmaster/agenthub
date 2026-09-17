@@ -25,6 +25,25 @@ The compositor overlay (`render-overlay.mjs`) owns dim / box / arrow / label / f
 
 A `hold` is the last frame of the preceding WebM, or a storyboard-declared result hold on that video. It is not a PNG still and not `interaction.kind: none` posing as the picture.
 
+## End-to-end demonstration
+
+The picture **proves** the workflow. A muted viewer must still follow:
+
+`start → control → configure/act → system response → UI change → outcome`
+
+Do not cut start → result. Keep the states that cause the outcome (hover, menu, input, save, loading, notification, data update).
+
+- **Cause on screen.** If a model, connector, permission, trigger, prompt, source, or flag drives later behavior, show it being set in this session, then the run, then the result. VO is not proof.
+- **Right screen.** The frame contains the thing being said. Same-product chrome, a pretty dashboard, or the wrong settings page fails.
+- **Operate.** Pointer lead → hover → click → native response. Recast owns cursor/ripple/punch-in. Native loading/toast is the proof. Every shot establishes context, shows an action, exposes config, shows system behavior, or proves an outcome — else cut it.
+- **Frame.** Wide to establish → punch-in on the control → hold through the response → pull back when context is needed. One snap-to-region per beat. Readable labels and results; dense UI is a zoom.
+- **One session.** Same user, workspace, selections, and data unless the flow changes them. Setup and runtime: configure → save → initiate → execute → response → result.
+- **Sync.** Picture matches the current sentence. Name the result after it appears. Holds cover the wait; Local-AI speaks the locked script and does not rewrite it.
+
+Scene: `context → correct screen → control → action → visible response → hold on the change → next`.
+
+**Mute test** (every software scene, before encode): right screen, readable UI, action visible, response visible, driving config shown, intermediates kept, framing on the change, cursor intentional, VO in sync, states connect. Any no → recut.
+
 ## Allowed picture
 
 | Beat | Picture | Forbidden |
@@ -43,7 +62,7 @@ Missing `visualMode` on a `product-screencast` beat **defaults to `screen`**, no
 
 ## Capture plan
 
-`story/capture-plan.json` matches `schemas/capture-plan.schema.json`. Every `interaction` row names `locator`, `action`, `expectedResult`, and a video `clip` (source WebM). Keep the Playwright `trace` as metadata; do not encode trace JPEGs. `plateName: *.png` is not a capture for an interaction or hold row. `hold` is not a substitute for interaction on a workflow beat.
+`story/capture-plan.json` matches `schemas/capture-plan.schema.json`. Every `interaction` row names `locator`, `action`, `expectedResult`, `startState`, `resultState`, `provesClaim`, and a video `clip` (source WebM). `startState` and `resultState` must differ — that is the visible change. `provesClaim` is the narration claim this take proves on screen. `causalRole` (`start` | `configuration` | `action` | `system-response` | `result`) and `dependsOnSceneId` connect setup to runtime. Keep the Playwright `trace` as metadata; do not encode trace JPEGs. `plateName: *.png` is not a capture for an interaction or hold row. `hold` is not a substitute for interaction on a workflow beat.
 
 ## Gates that must not pass a stills-and-slides cut
 
