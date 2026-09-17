@@ -2,9 +2,18 @@
 
 ## Mission
 
-AgentHub is the personal source of truth for cross-agent skill, plugin, MCP,
+AgentHub is the **public** source of truth for cross-agent skill, plugin, MCP,
 and policy parity, and the owner of the fleet repository standard
 (`registry/repo-standard.json` + `scripts/Check-RepoStandard.ps1`).
+
+**Public-first:** this checkout tracks only public packages under `packages/`.
+Private capability packages and registry rows live in the gitignored
+`overlays/personal/` tree on the operator machine (same shape strangers get
+after `init`). There is no second AgentHub control-plane repo.
+
+**RepoWise** is a tracked public package (`packages/repowise`) and stays
+enabled for fleet code intelligence — do not treat it as a private overlay
+item or disable it as part of overlay work.
 
 Optimize in this order:
 
@@ -45,13 +54,18 @@ contract:
 
 | Path | Role |
 | --- | --- |
-| `packages/<name>/` | Canonical capability content (skill packs, plugins) |
-| `registry/` | Parity contract: agents, capabilities, MCPs, fleet profile, repo standard |
+| `packages/<name>/` | **Public** capability content (skill packs, plugins) — includes RepoWise |
+| `overlays/personal.example/` | Template for a local private overlay |
+| `overlays/personal/` | **Gitignored** local override: `packages/`, `capabilities.json`, `overlay.json` |
+| `registry/` | Public parity contract (no private capability rows) |
 | `scripts/` | Lifecycle: sync, validate, hash, checker |
 | `tests/` | Behavior tests for registry, sync, and scripts |
 | `docs/` | Curated durable knowledge — see `docs/README.md` |
-| `.agents/plugins/marketplace.json` | Canonical local plugin catalog |
+| `.agents/plugins/marketplace.json` | Public plugin catalog |
 | `.claude-plugin/marketplace.json` | Claude-format compatibility projection |
+
+Remote: `github.com/shmindmaster/agenthub` (public). The old `agenthub-internal`
+mirror is archived. Do not recreate a second control-plane checkout.
 
 ## Canonical commands
 

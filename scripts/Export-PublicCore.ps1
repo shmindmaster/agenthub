@@ -1,7 +1,14 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Write a public-core tree. Does not push and does not change remote visibility.
+    Residue audit: write a stripped public-core tree from this checkout.
+
+.DESCRIPTION
+    Day-to-day AgentHub is already public-first (2026-09-17): private packages
+    live under gitignored overlays/personal/, not under packages/. This script
+    remains as a safety export/audit for publishing a clean tree; it is not a
+    dual-repo sync workflow. Prefer pushing this repository's main to
+    github.com/shmindmaster/agenthub.
 
 .PARAMETER Destination
     Empty or new directory that will receive the export.

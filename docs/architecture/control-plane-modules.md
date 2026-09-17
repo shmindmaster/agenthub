@@ -30,9 +30,11 @@ must not invent a second rebase.
 3. **Host catalog.** `scripts/lib/HostCatalog.ps1` loads `agents.json` and
    binds every path-shaped field before a writer reads it.
 4. **Capability graph.** `scripts/lib/CapabilityGraph.ps1` loads
-   `capabilities.json` and applies the personal overlay. Core never imports
-   a personal package; the overlay names which private ids this machine
-   loads.
+   `capabilities.json` and merges `overlays/personal/capabilities.json` when
+   the personal overlay is present. Private packages resolve under
+   `overlays/personal/packages/<id>/`. Public packages (including RepoWise)
+   stay under `packages/<id>/`. Core never imports a personal package id that
+   the overlay has not enabled.
 5. **Sync orchestration.** `scripts/lib/SyncOrchestrator.ps1` names the
    validate-then-sync step list. `scripts/AgentHub.ps1` delegates; it does
    not reimplement writers.

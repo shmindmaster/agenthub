@@ -4,18 +4,18 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
-- **Portable control plane (2026-09-12; first-click shell 2026-09-14):** host
-  destinations in `registry/agents.json` are `{userHome}` templates (`/`
-  separators). `scripts/lib/PathBinding.ps1` is the only materializer and
-  expands `{userHome}`, `{localData}`, and `{roamingConfig}` for Windows,
-  macOS, and Linux. Personal capabilities are `visibility: private` and load
-  through `overlays/personal/` (this checkout). `overlays/personal.example/`
-  is the stranger template. `policy-core.md` is the public policy;
-  `global-agent-policy.md` remains the compiled personal deployment document.
-  `scripts/Export-PublicCore.ps1` derives private ids from
-  `visibility: private`, writes a public README/quickstart/`package.json` CLI
-  entry, and does not change remote visibility. `scripts/AgentHub.ps1 init`
-  and `scripts/agenthub-cli.mjs` (`npx agenthub`) scaffold overlay + profile.
+- **Public-first control plane (2026-09-17):** Sole product remote is
+  `github.com/shmindmaster/agenthub`. Tracked `packages/` and
+  `registry/capabilities.json` carry only public capabilities. Private
+  packages and capability rows live under gitignored `overlays/personal/`
+  (`packages/<id>/`, `capabilities.json`, `overlay.json`).
+  `scripts/lib/CapabilityGraph.ps1` merges the overlay when present.
+  Validate fails if a private tree remains under `packages/`. RepoWise stays
+  a public package. `agenthub-internal` is archived; do not use a second
+  AgentHub checkout as a control plane. Host destinations in
+  `registry/agents.json` remain `{userHome}` templates. `policy-core.md` is
+  the public policy; `global-agent-policy.md` is personal deployment output.
+  `scripts/AgentHub.ps1 init` scaffolds overlay + profile for strangers.
 
 - **Canonical Slack capability (2026-09-10, bridge launch fixed 2026-09-13):**
   `packages/slack` 1.0.1 is the AgentHub-owned Slack contract (tools,
