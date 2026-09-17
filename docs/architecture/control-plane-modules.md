@@ -50,6 +50,7 @@ PathBinding  <—  HostCatalog  <—  Sync-* scripts
 CapabilityGraph  <—  Sync-* scripts
 overlays/personal  —depends on—>  core registry
 core  —must not import—>  overlays/personal or packages/sarosh-*
+private packages live only under overlays/personal/packages/
 ```
 
 ## PathBinding contract
