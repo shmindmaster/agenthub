@@ -94,6 +94,7 @@ Get-ChildItem -LiteralPath (Join-Path $Destination 'registry') -Filter *.json -F
     $text = [IO.File]::ReadAllText($_.FullName)
     $text = $text.Replace('C:/Users/SaroshHussain', '{userProfile}').Replace('C:\Users\SaroshHussain', '{userProfile}').Replace('C:\\Users\\SaroshHussain', '{userProfile}')
     $text = $text.Replace('D:/OneDrive - MahumTech', '{documentsRoot}').Replace('D:\OneDrive - MahumTech', '{documentsRoot}').Replace('D:\\OneDrive - MahumTech', '{documentsRoot}')
+    $text = $text.Replace('D:/OneDrive - Maya Modest LLC', '{documentsRoot}').Replace('D:\OneDrive - Maya Modest LLC', '{documentsRoot}').Replace('D:\\OneDrive - Maya Modest LLC', '{documentsRoot}')
     $text = $text.Replace('D:/Local-AI', '{localRuntimeRoot}').Replace('D:\Local-AI', '{localRuntimeRoot}').Replace('D:\\Local-AI', '{localRuntimeRoot}')
     [IO.File]::WriteAllText($_.FullName, $text, $utf8)
 }
@@ -279,7 +280,7 @@ if (Test-Path -LiteralPath (Join-Path $repoRoot '.gitignore')) {
     [IO.File]::WriteAllText($gitignorePath, $gitignoreExtra.TrimStart() + "`n", $utf8)
 }
 
-$banned = @('SaroshHussain', 'D:\OneDrive - MahumTech', 'D:\Local-AI', 'D:/Local-AI', 'MahumTech')
+$banned = @('SaroshHussain', 'D:\OneDrive - MahumTech', 'D:\OneDrive - Maya Modest LLC', 'D:\Local-AI', 'D:/Local-AI', 'MahumTech')
 $scanRoots = @(
     (Join-Path $Destination 'scripts'),
     (Join-Path $Destination 'registry'),

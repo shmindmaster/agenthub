@@ -63,7 +63,7 @@ query, and `legal` is walled off at the collection level so opportunity and
 resume work cannot reach legal matters. Do not fold these into one store.
 
 Scope boundary: RepoWise covers git repos under `C:\Repos`. It must never be
-pointed at `D:\OneDrive - MahumTech\Documents`, which is not a git root and
+pointed at `D:\OneDrive - Maya Modest LLC\Documents`, which is not a git root and
 carries a client-name output gate. See `docs/architecture/overview.md` in
 agenthub for the full contract.
 
@@ -90,7 +90,7 @@ RepoWise on this fleet is a **local disk index**, not a hosted product.
   Do not run `--full` against `portfolio-records` or private evidence. Do
   not `--save-key`.
 - Do not add per-repo RepoWise MCP entries. Do not index
-  `D:\OneDrive - MahumTech\Documents`.
+  `D:\OneDrive - Maya Modest LLC\Documents`.
 
 ## Access
 
