@@ -193,7 +193,8 @@ function Get-MobileRuntimeProcessMatch {
             }
             $nameMatches -and $pathMatches -and [string]$_.CommandLine -match $avdPattern
         })
-        $avdConfigPath = Join-Path ([Environment]::GetFolderPath('UserProfile')) ".android\avd\$avdName.avd\config.ini"
+        $avdHome = if ($env:ANDROID_AVD_HOME) { $env:ANDROID_AVD_HOME } else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.android\avd' }
+        $avdConfigPath = Join-Path $avdHome "$avdName.avd\config.ini"
         if (-not $PSBoundParameters.ContainsKey('AvdConfigText')) {
             $AvdConfigText = if (Test-Path -LiteralPath $avdConfigPath -PathType Leaf) { Get-Content -LiteralPath $avdConfigPath -Raw -Encoding UTF8 } else { '' }
         }
