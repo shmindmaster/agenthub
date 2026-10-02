@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "RepoWise",
     "shortDescription": "Federated code intelligence for every git repo under C:/Repos.",
-    "longDescription": "Starts one stdio MCP (`repowise mcp C:/Repos`) when the plugin is enabled. Never persist this server in host MCP config — a persisted stdio entry starts at session start and fans out across hosts. Official RepoWise marketplace plugins are forbidden because they register a second MCP at the nearest repo instead of C:/Repos.",
+    "longDescription": "Connects to the one shared RepoWise server at http://127.0.0.1:7339/mcp (logon task RepoWise-Shared); enabling the plugin starts no process. Never persist a stdio repowise entry in host MCP config — it starts at session start and fans out across hosts. Official RepoWise marketplace plugins are forbidden because they register a second MCP at the nearest repo instead of C:/Repos.",
     "developerName": "Sarosh Hussain",
     "category": "Developer Tools",
     "capabilities": [
@@ -27,5 +27,5 @@
       "Where is this symbol defined and who owns it?"
     ]
   },
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

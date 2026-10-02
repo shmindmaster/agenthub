@@ -74,9 +74,13 @@ RepoWise on this fleet is a **local disk index**, not a hosted product.
 - Indexes live in each repo's `.repowise/` (`wiki.db`, `knowledge-graph.json`,
   `state.json`). The workspace graph lives in `C:\Repos\.repowise-workspace\`.
   Those directories are gitignored.
-- The agent surface is local stdio: `repowise mcp C:/Repos`
-  (`repowise-workspace`), delivered only by enabling `repowise@agenthub`.
-  Do not point it at a remote URL. Do not persist it in host MCP config.
+- The agent surface is ONE shared local server, `repowise mcp C:/Repos
+  --transport streamable-http --port 7339 --host 127.0.0.1`
+  (`repowise-workspace`), started once per logon by the task
+  `RepoWise-Shared` (`packages/repowise/scripts/Start-RepoWiseShared.ps1`).
+  Hosts reach it at `http://127.0.0.1:7339/mcp` through `repowise@agenthub`.
+  Never bind it beyond loopback, never point hosts at a hosted RepoWise URL,
+  and never add a stdio entry to host MCP config.
 - `repowise whoami` must stay **Not signed in**. Do not `repowise login` or
   paste an `rw_live_` token. A hosted account would send repository
   intelligence off the machine.
@@ -99,12 +103,15 @@ the PyPI latest with `scripts/Update-RepoWise.ps1 -Apply` (daily scheduled
 task `AgentHub-Update-RepoWise`). Do not install a second copy. Do not add
 per-repo repowise MCP entries.
 
-- **MCP (plugin-gated):** `repowise@agenthub` owns `.mcp.json` with
-  `repowise mcp C:/Repos` (registry id `repowise-workspace`). Enable the
-  plugin only when MCP tools are needed; disable when done
-  (`native-connectors.json` `repowiseActivationRoute`). Never persist this
-  stdio server in host config or `C:/Repos/.cursor/mcp.json` — a persisted
-  entry starts at session start and fans out across agent sessions.
+- **MCP (plugin-gated):** `repowise@agenthub` owns `.mcp.json`, an HTTP
+  entry for `http://127.0.0.1:7339/mcp` (registry id `repowise-workspace`).
+  Enabling it starts no process; the shared server is already running.
+  If tools fail to connect, check the server, not the host:
+  `Get-NetTCPConnection -LocalPort 7339 -State Listen`, then run
+  `Start-RepoWiseShared.ps1` (log under
+  `%LOCALAPPDATA%\AgentHub\runtime\repowise-shared`). Never persist a stdio
+  `repowise mcp` entry in host config or `C:/Repos/.cursor/mcp.json` — on
+  2026-10-02 that fanned out to 8 copies at ~220 MB each.
   Official Claude/Codex RepoWise marketplace plugins are forbidden: they
   register a second MCP at the nearest repo instead of `C:/Repos`.
 - **CLI (always available):** `repowise search "<q>"`, `repowise status -w`,
