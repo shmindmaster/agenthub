@@ -67,7 +67,7 @@ Set `speaker` on the scene; leave host scenes as `sarosh` or omit. See `scene-ar
 | `media-writer` | Hook = problem, not feature. Every technical beat carries what/why/consequence and its human consequence. `truth: FACT` on every code/log claim. |
 | `media-storyboard` | Beats follow §2. Each code/log/diagram beat names the markup (`box`, `dim`, `arrow`, `label`, `flow`) and the single highlight. Before/after is one beat with two states. |
 | `media-director` | Specifies the overlay per beat for the compositor; picks the 5–20 lines; sets the flow-diagram nodes when systems are crossed. |
-| `media-studio-capture` | Local prod-sim, synthetic personas, deterministic replays; product-specific operator notes live in that skill's `references/`. |
+| `media-studio-capture` | Duckie production (read-only) or the Zendesk partner sandbox, synthetic personas, deterministic replays; product-specific operator notes live in that skill's `references/`. |
 | `media-studio-compose` | Applies overlays per segment (`overlay` hint), code cards, flow cards; manifest hints `trimStart`, `trimEnd`, `speed`, `skip`, `fit`. |
 | `media-studio-qa` | product-picture plus: hook is a problem; one highlighted section at a time; no narrated chrome; no addendum. |
 
