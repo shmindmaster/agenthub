@@ -1,7 +1,5 @@
 .DS_Store
 *.log
-.env
-.env.*
 !.env.example
 node_modules/
 dist/
@@ -24,7 +22,6 @@ playwright-report/
 .repowise/
 .claude/CLAUDE.md
 # RepoWise may rewrite these; they are not AgentHub registry state.
-.vscode/
 
 # Optional local roots. See agenthub.profile.example.json. Never commit.
 agenthub.profile.json
@@ -36,3 +33,4 @@ evidence-augmentation.md
 # Personal overlay (packages + private capability rows). Never commit.
 overlays/personal/
 
+config.bat

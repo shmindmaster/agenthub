@@ -11,6 +11,10 @@
   "engines": {
     "node": ">=18"
   },
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "node-fetch": "^3.3.2"
+  },
   "scripts": {
     "agenthub": "node ./scripts/agenthub-cli.mjs",
     "init": "node ./scripts/agenthub-cli.mjs init",

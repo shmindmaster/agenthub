@@ -1,11 +1,8 @@
 {
   "mcpServers": {
     "repowise-workspace": {
-      "command": "repowise",
-      "args": [
-        "mcp",
-        "C:/Repos"
-      ]
+      "type": "http",
+      "url": "http://127.0.0.1:7339/mcp"
     }
   }
 }

@@ -7,6 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import { scanConfigPayloads } from './check-config-payloads.mjs';
+import { createRequire } from 'module';
+
+var require = createRequire(import.meta.url);
+var module = { exports: {} };
 
 const scriptPath = fileURLToPath(new URL('./check-config-payloads.mjs', import.meta.url));
 
