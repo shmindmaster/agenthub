@@ -23,7 +23,9 @@ pwsh -NoProfile -File .\scripts\AgentHub.ps1 sync
 ## This fleet checkout (optional tooling)
 
 - `repowise` CLI (`uv tool install repowise`) for the code-intelligence layer.
-  Keep it current with `pwsh -NoProfile -File scripts/Update-RepoWise.ps1 -Apply -RegisterSchedule`.
+  Keep it current by running `pwsh -NoProfile -File scripts/Update-RepoWise.ps1 -Apply`
+  when needed. There is no scheduled updater; `-RemoveSchedule` deletes the
+  retired `AgentHub-Update-RepoWise` task left by older checkouts.
 - Local AI runtimes and document-intelligence roots are private-overlay
   concerns (`local-ai`, `knowledge-access`); they are not required for the
   public core.

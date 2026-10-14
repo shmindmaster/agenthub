@@ -79,7 +79,36 @@ Report 'apply-behind-does-not-claim-current' ($applyBehind.Output -notmatch 'PAS
 
 Report 'does-not-pin-a-version-in-the-script' ($raw -notmatch '0\.44\.0') 'script hardcodes 0.44.0; latest must come from PyPI'
 Report 'uses-uv-tool-upgrade' ($raw -match 'tool'', ''upgrade'', ''repowise') 'missing uv tool upgrade'
-Report 'registers-named-task' ($raw -match 'AgentHub-Update-RepoWise') 'missing scheduled task name'
+
+# Owner direction 2026-10-13: no scheduled agent jobs. The updater may only
+# delete its retired task, never create one.
+Report 'never-creates-a-scheduled-task' ($raw -notmatch '/Create|Register-ScheduledTask') 'updater still contains a task-creation path'
+$register = Invoke-Updater -UpdaterArgs @('-RegisterSchedule')
+Report 'register-schedule-is-refused' ($register.ExitCode -ne 0 -and $register.Output -match 'retired') "exit=$($register.ExitCode) output=$($register.Output)"
+
+$schLog = Join-Path $scratch 'schtasks.log'
+$schPresent = Join-Path $scratch 'schtasks-present.cmd'
+@(
+    '@echo off'
+    "echo %*>> `"$schLog`""
+    'exit /b 0'
+) | Set-Content -LiteralPath $schPresent -Encoding ASCII
+$removed = Invoke-Updater -UpdaterArgs @('-RemoveSchedule', '-SchtasksExe', $schPresent)
+$schText = if (Test-Path -LiteralPath $schLog) { Get-Content -LiteralPath $schLog -Raw -Encoding UTF8 } else { '' }
+Report 'remove-schedule-deletes-named-task' ($removed.ExitCode -eq 0 -and $schText -match '/Delete /TN AgentHub-Update-RepoWise /F') "exit=$($removed.ExitCode) log=$schText output=$($removed.Output)"
+Report 'remove-schedule-does-not-probe-pypi' ($removed.Output -notmatch 'installed=') $removed.Output
+
+Remove-Item -LiteralPath $schLog -Force -ErrorAction SilentlyContinue
+$schAbsent = Join-Path $scratch 'schtasks-absent.cmd'
+@(
+    '@echo off'
+    "echo %*>> `"$schLog`""
+    'exit /b 1'
+) | Set-Content -LiteralPath $schAbsent -Encoding ASCII
+$absent = Invoke-Updater -UpdaterArgs @('-RemoveSchedule', '-SchtasksExe', $schAbsent)
+$schText = if (Test-Path -LiteralPath $schLog) { Get-Content -LiteralPath $schLog -Raw -Encoding UTF8 } else { '' }
+Report 'remove-schedule-absent-is-pass' ($absent.ExitCode -eq 0 -and $absent.Output -match 'absent') "exit=$($absent.ExitCode) output=$($absent.Output)"
+Report 'remove-schedule-absent-skips-delete' ($schText -notmatch '/Delete') $schText
 
 Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $stateFile -Force -ErrorAction SilentlyContinue

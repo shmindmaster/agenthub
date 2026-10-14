@@ -49,6 +49,7 @@ function run(shell, args) {
     const child = spawn(shell, args, {
       stdio: "inherit",
       shell: false,
+      windowsHide: true,
       cwd: repoRoot,
       env: process.env,
     });

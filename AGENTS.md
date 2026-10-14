@@ -73,7 +73,7 @@ mirror is archived. Do not recreate a second control-plane checkout.
 pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1          # registry validation
 pwsh -NoProfile -File .\tests\Run-AllTests.ps1                 # full test suite
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All    # fleet standard check
-pwsh -NoProfile -File .\scripts\Update-RepoWise.ps1 -Apply -RegisterSchedule  # keep CLI on PyPI latest
+pwsh -NoProfile -File .\scripts\Update-RepoWise.ps1 -Apply   # manual: CLI to PyPI latest (no scheduled task)
 pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Audit -Validate   # drift audit
 pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Apply -Validate   # deploy managed state
 ```
@@ -90,6 +90,10 @@ pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Apply -Validate   # deploy ma
   `reports`, `roles`, `standards`, `state`, `templates`, nested plugin roots,
   or dated audit documents. (`docs/` is permitted: it carries the curated
   taxonomy required by the fleet standard since 2026-08-08.)
+- No script here registers a scheduled task, Run key, or auto-start service,
+  and every subprocess it launches is windowless (owner direction 2026-10-13;
+  see `global-agent-policy.md` -> Engineering behavior). Local services start
+  when the capability that needs them is used; updates run manually.
 - Runtime output belongs under `%LOCALAPPDATA%\AgentHub`. Local AI runtimes,
   models, caches, and media live only under `D:\Local-AI`.
 
