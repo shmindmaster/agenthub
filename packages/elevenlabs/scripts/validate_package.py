@@ -10,7 +10,7 @@ import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "1.0.0"
+EXPECTED_VERSION = "1.1.0"
 MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
@@ -26,6 +26,10 @@ REQUIRED_TTS_FLAGS = (
     "--text-normalization",
     "--previous-text",
     "--next-text",
+    "--previous-request-id",
+    "--next-request-id",
+    "--output-format",
+    "--pronunciation-dictionary",
 )
 
 
@@ -51,8 +55,11 @@ def main() -> int:
     else:
         if portable.get("name") != "elevenlabs":
             failures.append("plugin.json: plugin name must be elevenlabs")
-        if set(portable) - {"name", "description"}:
-            failures.append("plugin.json: must stay within the Antigravity manifest schema")
+        # Root plugin.json is the portable version authority (scripts/Bump-PackageVersion.ps1).
+        if set(portable) - {"$schema", "name", "version", "description"}:
+            failures.append("plugin.json: must stay within the portable Agent Plugins manifest fields")
+        if portable.get("version") != EXPECTED_VERSION:
+            failures.append(f"plugin.json: version must be {EXPECTED_VERSION}")
 
     result = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "elevenlabs_cli.py"), "tts", "--help"],
@@ -66,9 +73,26 @@ def main() -> int:
         if flag not in result.stdout:
             failures.append(f"canonical TTS adapter is missing {flag}")
 
+    help_result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "elevenlabs_cli.py"), "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if "models" not in help_result.stdout:
+        failures.append("elevenlabs_cli.py is missing the read-only models subcommand")
+
     narration_skill = (ROOT / "skills" / "elevenlabs-tts" / "SKILL.md").read_text(encoding="utf-8")
     if "shared CLI owns the provider request" not in narration_skill:
         failures.append("ElevenLabs TTS skill does not declare canonical provider ownership")
+
+    # Loose-skill hosts receive SKILL.md without the package scripts/ directory, so a bare
+    # relative `scripts/elevenlabs_cli.py` does not resolve there. Every skill that invokes
+    # the CLI must name the resolvable package path.
+    for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
+        text = skill_md.read_text(encoding="utf-8")
+        if "elevenlabs_cli.py" in text and "packages/elevenlabs/scripts/elevenlabs_cli.py" not in text.replace("\\", "/"):
+            failures.append(f"{skill_md.parent.name}: invokes elevenlabs_cli.py without the resolvable package path")
 
     if failures:
         print(f"elevenlabs package validation FAILED ({len(failures)}):", file=sys.stderr)

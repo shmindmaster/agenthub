@@ -6,6 +6,7 @@ param(
   [switch]$Prune,
   [switch]$AdoptExisting,
   [switch]$IncludeInactiveAgents,
+  [string[]]$CapabilityId,
   [string]$RepositoryRoot,
   [string]$UserProfile = $env:USERPROFILE
 )
@@ -176,6 +177,13 @@ $prior = if (Test-Path -LiteralPath $statePath) {
 if (-not $prior.ContainsKey('managed')) { $prior.managed = @{} }
 $priorHashesAreLegacy = $priorSchemaVersion -lt $StateSchemaVersion
 $desired = @{}
+if ($CapabilityId) {
+  foreach ($id in $CapabilityId) {
+    if ($id -notin @($capabilities.capabilities.id)) { throw "Unknown capability: $id" }
+  }
+  if ($Prune) { throw 'Scoped capability sync cannot prune fleet state.' }
+  if ($priorHashesAreLegacy) { throw 'Run a full sync to migrate the legacy ledger before scoped sync.' }
+}
 $retiredDestinations = @{}
 $rows = [Collections.Generic.List[object]]::new()
 $failures = [Collections.Generic.List[string]]::new()
@@ -232,6 +240,7 @@ function Register-ManagedTree {
 }
 
 foreach ($capability in $capabilities.capabilities) {
+  if ($CapabilityId -and $capability.id -notin $CapabilityId) { continue }
   # canonicalSource is repo-relative (packages/<id> or overlays/personal/packages/<id>).
   $sourceRoot = Resolve-AgentHubPackageRoot -RepositoryRoot $root -Capability $capability -OverlayRoot $overlayRoot
   $skillsRoot = Join-Path $sourceRoot 'skills'
@@ -376,6 +385,7 @@ foreach ($agent in $agents) {
   [void]$sharedRoots.Add($dir)
 }
 foreach ($dir in $sharedRoots) {
+  if ($CapabilityId) { continue }
   if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
   $yamlResult = Repair-SkillFrontmatterYamlDirectory -SkillsRoot $dir -Apply:$Apply -SkipPaths @($desired.Keys)
   if ($Apply) {
@@ -416,6 +426,11 @@ foreach ($dir in $sharedRoots) {
 #                               prune path can only reach through this ledger.
 #   - everything else         -> recorded as deployed.
 $managedAfterRun = @{}
+if ($CapabilityId) {
+  foreach ($destination in $prior.managed.Keys) {
+    $managedAfterRun[$destination] = $prior.managed[$destination]
+  }
+}
 foreach ($destination in $desired.Keys) {
   if ($refused.ContainsKey($destination)) {
     if ($prior.managed.ContainsKey($destination)) { $managedAfterRun[$destination] = $prior.managed[$destination] }
