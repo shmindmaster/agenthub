@@ -474,7 +474,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "appium-mcp@1.92.4"
+        "appium-mcp@1.97.1"
       ],
       "env": {
         "ANDROID_HOME": "${env:ANDROID_HOME}",
@@ -489,7 +489,7 @@
       "protocol": {
         "revision": "2025-11-25",
         "verifiedOn": "2026-08-19",
-        "verification": "stdio initialize against appium-mcp@1.92.4 returned protocolVersion 2025-11-25 and serverInfo 'MCP Appium' 1.92.4, re-verified 2026-08-19 when the pin moved from 1.92.0. The 1.92.0 record additionally exercised concurrent Android (UiAutomator2, emulator-5554) and iOS (XCUITest, iPhone 17 / iOS 26.5) sessions with screenshots from each; that device-level run has NOT been repeated against 1.92.4, so this line claims the handshake only."
+        "verification": "stdio initialize against appium-mcp@1.92.4 returned protocolVersion 2025-11-25 and serverInfo 'MCP Appium' 1.92.4, re-verified 2026-08-19 when the pin moved from 1.92.0. The 1.92.0 record additionally exercised concurrent Android (UiAutomator2, emulator-5554) and iOS (XCUITest, iPhone 17 / iOS 26.5) sessions with screenshots from each; that device-level run has NOT been repeated against 1.92.4, so this line claims the handshake only. Pin moved to 1.97.1 on 2026-10-13 (npm dist-tag latest; engines.node >=22). The handshake and device runs have NOT been repeated against 1.97.1, so revision and verifiedOn above still describe 1.92.4."
       },
       "localProcessPolicy": {
         "instancing": "single-shared-process",

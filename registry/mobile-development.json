@@ -28,14 +28,22 @@
       "runtimeKeySuffix": "iOS-26-5"
     },
     "guestAppium": {
-      "version": "3.6.0",
+      "version": "3.8.0",
       "port": 4723,
       "bindAddress": "0.0.0.0",
       "statusPath": "/status",
       "sessionDiscoveryPath": "/appium/sessions"
     },
     "xcuitest": {
-      "version": "12.3.1"
+      "version": "12.18.1"
+    },
+    "xcode": {
+      "maxCompatibleVersion": "26.6",
+      "guestArchitecture": "x86_64",
+      "ceilingReason": "Xcode 27 installs and runs only on Apple silicon; this guest is x86_64",
+      "source": "https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes.md",
+      "checkedOn": "2026-10-13",
+      "note": "A ceiling, not an install instruction: the parent owns the guest Xcode install, and setup-appium-guest.sh only reports a difference. Xcode 27 also requires macOS 26.6+, but meeting that floor does not make it installable on this architecture. Re-check the source before acting on this."
     }
   },
   "agentSurface": {
@@ -217,7 +225,13 @@
         "vmrunPaths": [
           "C:/Program Files/VMware/VMware Workstation/vmrun.exe",
           "C:/Program Files (x86)/VMware/VMware Workstation/vmrun.exe"
-        ]
+        ],
+        "hostServices": [
+          { "name": "VMAuthdService", "displayName": "VMware Authorization Service", "role": "Authorizes and launches virtual machines; vmrun start depends on it." },
+          { "name": "VMnetDHCP", "displayName": "VMware DHCP Service", "role": "Leases the guest's VMnet8 address and writes the lease file the guest-address resolver reads." },
+          { "name": "VMware NAT Service", "displayName": "VMware NAT Service", "role": "Provides VMnet8 NAT so the guest can reach the network." }
+        ],
+        "hostServicesEvidence": "Reproduced 2026-10-13: all three Stopped with Manual start type and no vmware-vmx process; vmrun start answered 'Unknown error' (exit -1). After the three were started, vmrun start succeeded and the guest answered SSH. Which single service was causal was not isolated."
       }
     },
     {

@@ -179,6 +179,46 @@ longer gates on `vmrun list`: if SSH reaches the guest while `vmrun` claims
 nothing is running, it says so and continues, naming the VMX channel rather
 than the guest.
 
+`Start-MobileLab.ps1` treats `vmrun list` the same way: it is one witness, not
+the guest. Before starting anything it asks, in order, whether the guest
+answers SSH right now, whether `vmrun list` shows the VMX, and whether the
+canonical `vmware-vmx` process is alive. Any yes means it does not call
+`vmrun start`, so a healthy guest behind a degraded VMX channel is never
+restarted. The decision lives in `Invoke-MobileLabGuestBringUp`
+(`MobileLabGuest.psm1`) and its JSON output records it as `guestBringUp`.
+
+### VMware host services: a stopped one looks like "Unknown error"
+
+The guest cannot power on while the VMware host services are stopped, and
+`vmrun start` reports that only as `Error: Unknown error` (exit -1).
+Reproduced 2026-10-13: `VMAuthdService`, `VMnetDHCP`, and `VMware NAT Service`
+were all Stopped with Manual start type and no `vmware-vmx` process was
+running. Starting all three fixed it. Which one was causal was not
+isolated, so the lab requires all three. The registry owns the list
+(`registry/mobile-development.json` → `vmware-workstation.discovery.hostServices`).
+
+- `mobile.ps1 start ios` checks them only when the guest is down. If one is
+  not running or not installed, startup stops before calling vmrun and names
+  each service with its status and start type, followed by the exact elevated
+  commands (or, for an unregistered service, the installer's Repair option).
+  If vmrun still fails, the error now includes vmrun's own output and exit
+  code. They are no longer discarded.
+- `mobile.ps1 check runtime ios` and `Test-MobileLab.ps1` only report them
+  (`vmwareHostServices`). They never start or reconfigure a service.
+- `-RepairVmwareServices` is the one explicit repair:
+
+  ```powershell
+  # from an elevated PowerShell, only when startup reported stopped services
+  pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" start ios -RepairVmwareServices -Json
+  ```
+
+  It is bounded on purpose. It touches only registry-declared services that
+  are installed and not running. It changes a Manual service to Automatic
+  so the next reboot does not repeat the failure, then starts it. It refuses
+  a Disabled service, because disabling is an administrator decision. Without
+  an elevated session it fails before changing anything, and it never
+  self-elevates. Routine startup never uses it.
+
 To check by hand, or to route around a broken VMX channel deliberately:
 
 ```powershell
@@ -232,6 +272,17 @@ if that is empty, the flag is a trap.
 
 Let the driver install WDA once. Only consider the flag afterwards, and only if
 `listapps` shows it present.
+
+`setup-appium-guest.sh` fails closed. It exits non-zero, naming the step, when
+an Appium or XCUITest install does not land exactly on the registry pin, when
+the doctor times out, reports required fixes, fails to run, or runs no checks,
+and when the WDA build fails. It prebuilds WDA only when the xcuitest version,
+the WebDriverAgent source version, or the Xcode build differs from the last
+successful build (`~/mobile-lab/state/wda-build.key`); `--force-wda` rebuilds
+anyway. It never kills or shuts down a runner or Simulator it did not start.
+To retire a stale runner, use `cleanup-wda-guest.sh <udid>`, which stops only
+Appium-owned runners for that Simulator, never `pkill` or
+`simctl shutdown all`.
 
 The device name and platform version are not preferences. Resolve the current
 expectation with `mobile.ps1 catalog device.ios-simulator -Json`; the decision

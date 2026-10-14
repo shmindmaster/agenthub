@@ -32,6 +32,14 @@ Bring up Android only; do not start the macOS guest.
 
 .PARAMETER TimeoutMinutes
 Overall budget for each wait phase. Default 15.
+
+.PARAMETER RepairVmwareServices
+Explicit, bounded repair. Only when the guest is down AND a registry-declared
+VMware host service (VMAuthdService, VMnetDHCP, VMware NAT Service) is
+installed but not running: set a Manual one to Automatic and start it. Needs an
+elevated PowerShell and fails before changing anything without one; never
+self-elevates; never overrides a Disabled service. Without this switch, stopped
+services are reported with the exact commands and nothing is changed.
 #>
 [CmdletBinding()]
 param(
@@ -39,7 +47,8 @@ param(
     [switch]$SkipAndroid,
     [switch]$SkipIos,
     [switch]$Json,
-    [int]$TimeoutMinutes = 15
+    [int]$TimeoutMinutes = 15,
+    [switch]$RepairVmwareServices
 )
 
 $ErrorActionPreference = 'Stop'
@@ -94,6 +103,7 @@ function Get-CanonicalEmulatorIds {
 
 $script:Stages = [System.Collections.Generic.List[object]]::new()
 $script:Facts = [ordered]@{}
+$script:CurrentStage = $null
 function Add-Stage {
     param([string]$Name, [bool]$Ready, [string]$Evidence, [string]$Remedy = '')
     $script:Stages.Add([pscustomobject]@{ stage = $Name; ready = $Ready; evidence = $Evidence; remedy = $Remedy })
@@ -109,6 +119,8 @@ function Emit-Result {
         iosRuntime = $script:Facts.iosRuntime
         guestAppiumUrl = $script:Facts.guestAppiumUrl
         guestIp = $script:Facts.guestIp
+        guestBringUp = $script:Facts.guestBringUp
+        vmwareHostServices = $script:Facts.vmwareHostServices
         failedStage = $FailedStage
         error = $ErrorMessage
         remediation = $Remedy
@@ -188,14 +200,24 @@ if ($vmxText -match '(?m)^vhv\.enable\s*=\s*"TRUE"') {
     throw "Canonical VMX has vhv.enable=TRUE. Nested virtualization is out of scope; stop and obtain owner approval before changing the VM configuration."
 }
 
-$running = @(& $vmrun list)
-if ($running -contains $Vmx) {
-    Say '  already running' 'Green'
-}
-else {
-    Say '  starting (headless)'
-    & $vmrun -T ws start $Vmx nogui | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "vmrun start failed with exit $LASTEXITCODE" }
+# `vmrun list` is one witness, not the guest (see MobileLabGuest.psm1). Live
+# SSH and the canonical vmware-vmx process are asked first, so a healthy guest
+# behind a degraded VMX channel is never restarted; stopped VMware host
+# services are named instead of surfacing as vmrun's bare "Unknown error".
+# Without this, a VMware failure would be attributed to the previous stage.
+$script:CurrentStage = 'macos-guest'
+$bringUp = Invoke-MobileLabGuestBringUp -Vmx $Vmx -VmrunPath $vmrun -SshHost 'macvm' `
+    -TestVmxProcess { [bool](Get-MobileRuntimeProcessMatch -Platform ios).ios.ready } `
+    -GetServiceState { Get-MobileVmwareServiceState } `
+    -RepairServices { param($State) foreach ($action in @(Repair-MobileVmwareServices -State $State)) { Say "  repaired: $action" 'Yellow' } } `
+    -RepairServicesAllowed:$RepairVmwareServices
+$script:CurrentStage = $null
+$script:Facts.guestBringUp = [ordered]@{ action = $bringUp.action; started = $bringUp.started; vmrunListed = $bringUp.vmrunListed; vmxProcess = $bringUp.vmxProcess; controlChannel = $bringUp.controlChannel; servicesRepaired = $bringUp.servicesRepaired }
+if ($bringUp.serviceState) { $script:Facts.vmwareHostServices = $bringUp.serviceState.summary }
+switch ($bringUp.action) {
+    'already-reachable' { Say "  already running: $($bringUp.evidence)" 'Green' }
+    'already-running' { Say "  already running: $($bringUp.evidence)" 'Green' }
+    default { Say '  started (headless)' }
 }
 
 # One resolution step, not two. `getGuestIPAddress` used to answer this alone
@@ -280,7 +302,7 @@ exit 0
 }
 catch {
     $message = $_.Exception.Message
-    $stage = if ($script:Stages.Count) { $script:Stages[$script:Stages.Count - 1].stage } else { 'startup' }
+    $stage = if ($script:CurrentStage) { $script:CurrentStage } elseif ($script:Stages.Count) { $script:Stages[$script:Stages.Count - 1].stage } else { 'startup' }
     $remedy = if ($message -match 'Remediation:\s*(.+)$') { $Matches[1] } else { 'Run Test-MobileLab.ps1 -Json to identify the first broken layer, apply its remediation, and rerun startup.' }
     Add-Stage $stage $false $message $remedy
     Say "MOBILE LAB START FAILED: $message" 'Red'

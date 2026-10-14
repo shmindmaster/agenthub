@@ -6,11 +6,22 @@ param(
     [string]$LeaseId,
     [ValidateRange(1, 720)]
     [int]$TimeoutMinutes = 120,
-    [switch]$Json
+    [switch]$Json,
+    # Test isolation only. Production callers never pass this, so every real
+    # lease contends on the canonical Global mutex. The pattern admits only the
+    # canonical name or a per-run Local test name. It is case-sensitive and
+    # anchored with \A...\z because Win32 mutex names are case-sensitive and
+    # PowerShell's default match is neither: a lower-cased canonical name, or
+    # the canonical name plus a trailing newline, would otherwise pass and open
+    # a different kernel object that never contends with the real lease.
+    # Without the override, a live lab owner holding the real lease makes the
+    # behavior tests fail for a reason unrelated to the code under test.
+    [ValidatePattern('(?-i)\A(Global\\AgentHub\.MobileDeviceLab\.ForegroundMutation|Local\\AgentHub\.MobileDeviceLab\.Test\.[0-9a-f]{32})\z')]
+    [string]$MutexName = 'Global\AgentHub.MobileDeviceLab.ForegroundMutation'
 )
 
 $ErrorActionPreference = 'Stop'
-$mutexName = 'Global\AgentHub.MobileDeviceLab.ForegroundMutation'
+$mutexName = $MutexName
 $leaseRoot = Join-Path $env:LOCALAPPDATA 'AgentHub\mobile-lab\leases'
 
 function Write-LeaseResult {
@@ -69,7 +80,7 @@ try {
         $LeaseId = [guid]::NewGuid().ToString('N')
         $paths = Get-LeasePaths $LeaseId
         $hostExe = if ($PSVersionTable.PSEdition -eq 'Core') { Join-Path $PSHOME 'pwsh.exe' } else { Join-Path $PSHOME 'powershell.exe' }
-        $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, '-Action', 'Hold', '-LeaseId', $LeaseId, '-TimeoutMinutes', [string]$TimeoutMinutes)
+        $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, '-Action', 'Hold', '-LeaseId', $LeaseId, '-TimeoutMinutes', [string]$TimeoutMinutes, '-MutexName', $mutexName)
         $holder = Start-Process -FilePath $hostExe -ArgumentList $arguments -WindowStyle Hidden -PassThru
         $deadline = [DateTime]::UtcNow.AddSeconds(15)
         while ([DateTime]::UtcNow -lt $deadline -and -not (Test-Path -LiteralPath $paths.Status)) {

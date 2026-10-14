@@ -260,7 +260,17 @@ elseif (-not $reachable) {
     # left with "not running" and no idea which addresses were ruled out.
     $vmEvidence = "vmrun evidence: $vmEvidence -- and no address was SSH-reachable. $resolveError"
 }
-Write-Stage 'vmware: the macOS guest is running' $vmUp $vmEvidence "Start it: & `"$vmrun`" -T ws start <path\to\macos.vmx> nogui"
+# Read-only: report VMware host services so a stopped one is named here rather
+# than surfacing later as vmrun's bare "Unknown error". This gate never starts
+# or reconfigures them.
+$vmRemedy = 'Start it: pwsh -NoProfile -File <mobile.ps1> start ios -Json'
+if (-not $vmUp) {
+    $serviceState = Get-MobileVmwareServiceState
+    $script:Facts['vmwareHostServices'] = $serviceState.summary
+    $vmEvidence = "$vmEvidence VMware host services: $($serviceState.summary)."
+    if (-not $serviceState.ready) { $vmRemedy = "$($serviceState.remediation) Then: $vmRemedy" }
+}
+Write-Stage 'vmware: the macOS guest is running' $vmUp $vmEvidence $vmRemedy
 if (-not $vmUp) { Stop-Gate 'macOS VM' }
 
 $guestIp = $reachable.address

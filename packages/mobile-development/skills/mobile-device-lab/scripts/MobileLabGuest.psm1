@@ -314,4 +314,163 @@ function Resolve-MobileLabGuestAddress {
            "A stale cache is not a cause -- every candidate here was probed, not assumed.")
 }
 
-Export-ModuleMember -Function Resolve-MobileLabGuestAddress, Test-MobileLabGuestSsh, Get-MobileLabLeaseAddresses, Get-MobileLabSshConfigAddress, Get-MobileLabCachedAddress, Set-MobileLabCachedAddress, Get-MobileLabVmrunAddress, Get-MobileLabAddressCachePath
+function Invoke-MobileLabVmrunStart {
+    <#
+    .SYNOPSIS
+        Run `vmrun start` and return its exit code AND its output.
+    .DESCRIPTION
+        The output is the only diagnosis vmrun gives. Discarding it (the old
+        `| Out-Null`) left "exit -1" as the whole error report. Native stderr
+        is merged under 'Continue' so Windows PowerShell 5.1 does not turn the
+        first stderr line into a terminating error before the code is read.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string] $VmrunPath,
+        [Parameter(Mandatory)][string] $Vmx
+    )
+
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = @(& $VmrunPath -T ws start $Vmx nogui 2>&1 | ForEach-Object { "$_" })
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousEap
+    }
+    [pscustomobject]@{ ExitCode = $code; Output = $output }
+}
+
+function Get-MobileLabVmrunList {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string] $VmrunPath)
+
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { @(& $VmrunPath list 2>&1 | ForEach-Object { "$_" }) }
+    catch { @("vmrun list failed: $($_.Exception.Message)") }
+    finally { $ErrorActionPreference = $previousEap }
+}
+
+function Invoke-MobileLabGuestBringUp {
+    <#
+    .SYNOPSIS
+        Decide whether the macOS guest needs starting, and start it if so.
+    .DESCRIPTION
+        `vmrun list` is one witness, not the guest. Measured 2026-08-17 it
+        reported zero running VMs while the guest served SSH; measured
+        2026-10-13 vmrun start failed with "Unknown error" because the VMware
+        host services were stopped. So the decision asks, in order:
+
+          1. does the guest answer SSH right now?   -> never start it
+          2. does vmrun list it, or is the canonical
+             vmware-vmx process alive?              -> it is up or booting
+          3. are the VMware host services running?  -> if not, name them and
+                                                       stop, unless the caller
+                                                       explicitly allowed repair
+          4. vmrun start, keeping its exit code and output
+
+        Every dependency is a script block so the decision is testable without
+        a VM. Callers in Start-MobileLab.ps1 wire the live implementations.
+    .OUTPUTS
+        [pscustomobject] action (already-reachable | already-running | started),
+        started, vmrunListed, vmxProcess, controlChannel, guestAddress,
+        servicesRepaired, serviceState, evidence
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string] $Vmx,
+        [string] $VmrunPath,
+        [string] $SshHost = 'macvm',
+        [scriptblock] $ProbeGuest,
+        [scriptblock] $ListRunning,
+        [scriptblock] $TestVmxProcess = { $false },
+        [scriptblock] $GetServiceState = { $null },
+        [scriptblock] $StartVm,
+        [scriptblock] $RepairServices,
+        [switch] $RepairServicesAllowed
+    )
+
+    # One quick sweep with vmrun skipped: this only decides "do not start a
+    # healthy guest". The caller's full resolver still waits for a booting one.
+    $probe = if ($ProbeGuest) { & $ProbeGuest } else {
+        try { Resolve-MobileLabGuestAddress -Vmx $Vmx -SshHost $SshHost -SkipVmrun -TimeoutSeconds 1 -ProbeTimeoutSeconds 3 } catch { $null }
+    }
+    $listLines = if ($ListRunning) { @(& $ListRunning) } elseif ($VmrunPath) { @(Get-MobileLabVmrunList -VmrunPath $VmrunPath) } else { @() }
+    $normalizedVmx = $Vmx.Replace('/', '\').Trim()
+    $listed = [bool](@($listLines | Where-Object { ([string]$_).Trim().Replace('/', '\') -ieq $normalizedVmx }).Count)
+    $listSummary = (@($listLines | Where-Object { "$_".Trim() }) -join ' | ')
+
+    $result = [ordered]@{
+        action = $null
+        started = $false
+        vmrunListed = $listed
+        vmxProcess = $null
+        controlChannel = 'unknown'
+        guestAddress = $null
+        servicesRepaired = $false
+        serviceState = $null
+        evidence = $null
+    }
+
+    if ($probe -and $probe.address) {
+        $result.action = 'already-reachable'
+        $result.guestAddress = [string]$probe.address
+        $result.controlChannel = if ($listed) { 'healthy' } else { 'degraded' }
+        $result.evidence = if ($listed) {
+            "guest answered SSH at $($probe.address) (via $($probe.source)) and vmrun lists it"
+        } else {
+            "guest answered SSH at $($probe.address) (via $($probe.source)) while vmrun list reported '$listSummary'; trusting SSH -- the VMX control channel is degraded, the guest is not, so it was not restarted"
+        }
+        return [pscustomobject]$result
+    }
+
+    $vmxProcess = [bool](& $TestVmxProcess)
+    $result.vmxProcess = $vmxProcess
+    if ($listed -or $vmxProcess) {
+        $result.action = 'already-running'
+        $result.controlChannel = if ($listed) { 'healthy' } else { 'degraded' }
+        $result.evidence = "guest not yet answering SSH; vmrunListed=$listed vmxProcess=$vmxProcess -- treating it as booting and not starting a second instance"
+        return [pscustomobject]$result
+    }
+
+    $state = & $GetServiceState
+    $result.serviceState = $state
+    # The lab requires all three declared services. Which one was causal on
+    # 2026-10-13 was not isolated, so the message states the observed failure,
+    # not a proven cause. A missing service blocks as well as a stopped one.
+    $blocking = @()
+    if ($state) { $blocking = @(@($state.notRunning) + @($state.missing)) }
+    if ($blocking.Count) {
+        if (-not $RepairServicesAllowed) {
+            throw ("VMware host services the lab requires are not all running ($($state.summary)). With all three stopped, vmrun start failed with only 'Unknown error' (reproduced 2026-10-13), so startup stops here instead. " +
+                   "Nothing was started or changed. Remediation: $($state.remediation)")
+        }
+        if (-not $RepairServices) { throw 'RepairServicesAllowed was set without a RepairServices implementation.' }
+        & $RepairServices $state | Out-Null
+        $result.servicesRepaired = $true
+        $state = & $GetServiceState
+        $result.serviceState = $state
+        if ($state -and (@($state.notRunning).Count -or @($state.missing).Count)) {
+            throw "VMware host services are still not running after repair ($($state.summary)). Remediation: $($state.remediation)"
+        }
+    }
+
+    $start = if ($StartVm) { & $StartVm } else { Invoke-MobileLabVmrunStart -VmrunPath $VmrunPath -Vmx $Vmx }
+    if ([int]$start.ExitCode -ne 0) {
+        $said = (@($start.Output | ForEach-Object { "$_".Trim() } | Where-Object { $_ }) -join ' | ')
+        if (-not $said) { $said = '<no output>' }
+        $serviceText = if ($state) { "VMware host services: $($state.summary)." } else { 'VMware host service state was not checked.' }
+        $remedy = if ($state -and $state.remediation) { $state.remediation } else {
+            "Run '& `"$VmrunPath`" -T ws start `"$Vmx`" nogui' by hand to see whether the VMware GUI reports more; check that no other process holds the VMX lock (*.lck beside the VMX); then rerun startup."
+        }
+        throw "vmrun start failed (exit $($start.ExitCode)): $said. $serviceText Remediation: $remedy"
+    }
+
+    $result.action = 'started'
+    $result.started = $true
+    $result.evidence = "vmrun start succeeded; vmrun list had reported '$listSummary'"
+    [pscustomobject]$result
+}
+
+Export-ModuleMember -Function Resolve-MobileLabGuestAddress, Test-MobileLabGuestSsh, Get-MobileLabLeaseAddresses, Get-MobileLabSshConfigAddress, Get-MobileLabCachedAddress, Set-MobileLabCachedAddress, Get-MobileLabVmrunAddress, Get-MobileLabAddressCachePath, Invoke-MobileLabVmrunStart, Get-MobileLabVmrunList, Invoke-MobileLabGuestBringUp

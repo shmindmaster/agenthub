@@ -131,11 +131,29 @@ Windows** - it needs no VMware USB passthrough, which is the fiddly part of the
 alternatives. Set up and verified 2026-08-11:
 
 ```powershell
-winget install --id 9NP83LWLPZ9K --source msstore   # Apple Devices - supplies usbmuxd
 py -m pip install --user --no-deps pymobiledevice3  # plus its pinned deps, see below
 py -m pymobiledevice3 usbmux list                   # [] == socket live, no device attached
 py -m pymobiledevice3 apps install <path-to-ipa>    # with the phone plugged in and trusted
 ```
+
+`usbmuxd` on Windows comes from Apple, in one of two installed forms. Either
+one serves the socket; check for the form that is actually installed, and treat
+`usbmux list` answering as the readiness signal, not the presence of a
+particular package:
+
+| Form | Install | What is running when it works |
+| --- | --- | --- |
+| Apple Devices app (Microsoft Store MSIX) | `winget install --id 9NP83LWLPZ9K --source msstore` | `AppleMobileDeviceProcess` and `AppleMobileDeviceLauncher` processes, after the app has been launched once. No Windows service. |
+| Apple Mobile Device Support (installed with iTunes from Apple's website) | Already present on hosts that installed it | The Windows service `Apple Mobile Device Service` (AMDS), Running. Apple documents restarting it in [support.apple.com/102347](https://support.apple.com/en-us/102347). |
+
+```powershell
+Get-AppxPackage -Name '*AppleDevices*'                       # MSIX form
+Get-Service -Name 'Apple Mobile Device Service' -ErrorAction SilentlyContinue  # service form
+```
+
+Observed on this workstation 2026-10-13: the service form, Running, and no
+Apple Devices MSIX. The 2026-08-11 setup below used the MSIX form. Neither is
+the only correct one.
 
 Two traps, both already paid for:
 
@@ -147,13 +165,15 @@ Two traps, both already paid for:
   omitting `pyimg4` and `lzfse`. The CLI imports them lazily; `apps install`
   works without them. This does not arise in the macOS guest, where `pyimg4`
   does not require `lzfse`.
-- **Installing Apple Devices is not enough - it must be launched once.** The
-  MSIX package registers no service at install time. Until the app runs,
-  `usbmux list` fails with `Failed to connect to usbmuxd socket`. After launch,
-  `AppleMobileDeviceProcess` and `AppleMobileDeviceLauncher` are running and
-  the socket answers. There is no Windows *service* and nothing under
-  `C:\Program Files\Common Files\Apple` - checking for either reports a
-  correctly working setup as broken.
+- **MSIX form: installing Apple Devices is not enough - it must be launched
+  once.** The MSIX package registers no service at install time. Until the
+  app runs, `usbmux list` fails with `Failed to connect to usbmuxd socket`.
+  After launch, `AppleMobileDeviceProcess` and `AppleMobileDeviceLauncher` are
+  running and the socket answers. In this form there is no Windows service and
+  nothing under `C:\Program Files\Common Files\Apple`, so a check that
+  requires either reports a working MSIX setup as broken. The reverse is
+  also true: a check that requires the MSIX reports a working
+  `Apple Mobile Device Service` host as broken.
 
 App install rides `installation_proxy` over lockdown, so it should not need the
 `sudo tunneld` RemoteXPC tunnel that iOS 17+ *developer* services require -
@@ -251,6 +271,21 @@ Google Play requires new apps and updates to target Android 16 / API 36 from
 **2026-08-31**. Expo SDK 57 already compiles against API 36, so a
 standard-conformant project needs no action - but verify with `expo-doctor`
 rather than assuming.
+
+The baseline tracks the npm `latest` tag of `expo`, not prereleases. Checked
+2026-10-13: `latest` = 57.0.28, `next` = 58.0.9 (prerelease). Move the
+baseline only when a new SDK reaches `latest`, and re-check the tag rather than
+trusting this date. The same check found `eas-cli` `latest` = 24.13.0
+(`engines.node` `^20.18.3 || >=22.0.0`). Install EAS CLI at a stated version,
+not `@latest`, so a re-run does not silently move a build.
+
+iOS builds here run in an x86_64 macOS guest, which caps Xcode at 26.6. Apple's
+Xcode 27 release notes say Xcode 27 "will only install and run on Apple silicon
+Macs" and requires macOS Tahoe 26.6 or later
+([source](https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes.md)).
+Meeting the macOS floor does not help on Intel. Do not plan Xcode 27 work on
+this guest; it needs Apple-silicon hardware or a cloud build. The ceiling is
+recorded in `registry/mobile-development.json` → `expectations.xcode`.
 
 ## References
 

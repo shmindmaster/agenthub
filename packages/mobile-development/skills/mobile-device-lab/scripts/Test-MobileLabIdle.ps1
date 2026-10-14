@@ -9,7 +9,10 @@ param(
     [switch]$LeaseOnly,
     [switch]$HostOnly,
     [switch]$IgnoreLabLease,
-    [switch]$Json
+    [switch]$Json,
+    # Test isolation only; see Enter-MobileLabLease.ps1 -MutexName.
+    [ValidatePattern('(?-i)\A(Global\\AgentHub\.MobileDeviceLab\.ForegroundMutation|Local\\AgentHub\.MobileDeviceLab\.Test\.[0-9a-f]{32})\z')]
+    [string]$MutexName = 'Global\AgentHub.MobileDeviceLab.ForegroundMutation'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -66,7 +69,7 @@ try {
     }
     else {
         if (-not $IgnoreLabLease) {
-            $leaseProbe = [Threading.Mutex]::new($false, 'Global\AgentHub.MobileDeviceLab.ForegroundMutation')
+            $leaseProbe = [Threading.Mutex]::new($false, $MutexName)
             $leaseAcquired = $false
             try {
                 try { $leaseAcquired = $leaseProbe.WaitOne(0) }

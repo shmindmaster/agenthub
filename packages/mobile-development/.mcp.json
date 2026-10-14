@@ -4,7 +4,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "appium-mcp@1.92.4"
+        "appium-mcp@1.97.1"
       ],
       "env": {
         "ANDROID_HOME": "${ANDROID_HOME}",

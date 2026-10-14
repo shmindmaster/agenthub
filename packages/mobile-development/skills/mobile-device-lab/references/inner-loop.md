@@ -268,7 +268,12 @@ correct address the entire time; the resolver now finds it in about 0.2s.
 `Test-MobileLab.ps1` no longer gates on `vmrun list` either. If SSH reaches the
 guest while `vmrun` claims nothing is running, it says so explicitly and
 continues, naming the VMX channel as the degraded component rather than the
-guest.
+guest. `Start-MobileLab.ps1` likewise probes SSH and the `vmware-vmx` process
+before deciding to start, so it never restarts a guest that is answering.
+
+If the guest really is down and `vmrun start` says only `Unknown error`, check
+the VMware host services first. The starter now names them; see
+"VMware host services" in `SKILL.md`.
 
 To check by hand:
 
@@ -286,10 +291,17 @@ Get-MobileLabLeaseAddresses                 # what VMware's own DHCP handed out
 - **Debug is not a substitute for Release** when the subject is startup time,
   Hermes bytecode behaviour, or anything gated on `__DEV__`. Release-only
   faults in this RN line are real and current.
-- **The guest has a dated ceiling.** macOS 26 Tahoe is the last macOS
-  supporting Intel, and Xcode 27 will not install on Intel at all. The first
-  Expo SDK requiring Xcode 27 ends this VM, and no build flag helps — the
-  blocker is the Xcode binary's own architecture.
+- **The guest has a dated ceiling, and Xcode 27 is past it.** macOS 26 Tahoe
+  is the last macOS supporting Intel. Checked 2026-10-13 against Apple's
+  primary sources: the Xcode 27 release notes say "Xcode 27 will only install
+  and run on Apple silicon Macs", and the Xcode system-requirements page lists
+  macOS Tahoe 26.6 or later for Xcode 27. This guest is x86_64, so meeting the
+  26.6 floor does not make Xcode 27 installable here. The guest stays on the
+  Xcode 26.x line, and Xcode 26.6 is the newest version it can run
+  (`registry/mobile-development.json` → `expectations.xcode`). The
+  first Expo SDK that requires Xcode 27 ends this VM, and no build flag helps,
+  because the blocker is the Xcode binary's own architecture. Re-check both
+  Apple pages before acting on this.
 - **Maestro's per-run startup cost against an Appium/WDA session is not
   measured**, here or anywhere published. If that number matters to a decision,
   time it locally rather than reading a comparison page.

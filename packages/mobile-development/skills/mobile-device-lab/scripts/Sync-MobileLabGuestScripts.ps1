@@ -75,6 +75,8 @@ try {
     $guestEnvironment = @(
         "APPIUM_VERSION=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.guestAppium.version))"
         "XCUITEST_VERSION=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.xcuitest.version))"
+        "XCODE_MAX_COMPATIBLE=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.xcode.maxCompatibleVersion))"
+        "XCODE_CEILING_REASON=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.xcode.ceilingReason))"
         "APPIUM_PORT=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.guestAppium.port))"
         "APPIUM_BIND_ADDRESS=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.guestAppium.bindAddress))"
         "IOS_DEVICE_NAME=$(ConvertTo-ShellSingleQuoted ([string]$contract.expectations.ios.deviceName))"

@@ -125,7 +125,7 @@ function Get-MobileDevelopmentPackageRoot {
 
 function Get-MobileDevelopmentExpectation {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][ValidateSet('android', 'ios', 'guestAppium', 'xcuitest')][string]$Name)
+    param([Parameter(Mandatory)][ValidateSet('android', 'ios', 'guestAppium', 'xcuitest', 'xcode')][string]$Name)
     (Get-MobileDevelopmentContract).expectations.$Name
 }
 
@@ -152,13 +152,128 @@ function Get-MobileVmxFacts {
     [pscustomobject]@{ path = $vmx; exists = $true; vcpu = $vcpu; memoryMb = $memory }
 }
 
+function Get-MobileVmwareServiceState {
+    <#
+    .SYNOPSIS
+        Read-only state of the Windows services the macOS guest depends on.
+    .DESCRIPTION
+        With these services stopped, vmrun start answers only "Unknown error",
+        which names nothing. This reader turns that into named services, their
+        status and start type, and the exact commands that fix them. It never
+        starts or reconfigures anything; Repair-MobileVmwareServices does that,
+        and only when an operator asks for it.
+    .PARAMETER Services
+        Synthetic service objects (Name, Status, StartType) for tests. When
+        omitted, Get-Service is queried for each registry-declared name.
+    #>
+    [CmdletBinding()]
+    param([object[]]$Services)
+
+    $declared = @((Get-MobileDevelopmentResource -Id 'vmware-workstation').discovery.hostServices)
+    $rows = foreach ($spec in $declared) {
+        $name = [string]$spec.name
+        # @() around the whole if: an if-expression unrolls a one-element
+        # array, and Windows PowerShell 5.1 gives a bare PSCustomObject no
+        # .Count, which would misreport every synthetic service as missing.
+        $found = @(if ($PSBoundParameters.ContainsKey('Services')) {
+            $Services | Where-Object { [string]$_.Name -eq $name } | Select-Object -First 1
+        } else {
+            Get-Service -Name $name -ErrorAction SilentlyContinue | Select-Object -First 1
+        })
+        $present = ($found.Count -eq 1 -and $null -ne $found[0])
+        [pscustomobject]@{
+            name = $name
+            displayName = [string]$spec.displayName
+            role = [string]$spec.role
+            present = $present
+            status = if ($present) { [string]$found[0].Status } else { 'NotInstalled' }
+            startType = if ($present) { [string]$found[0].StartType } else { $null }
+        }
+    }
+    $rows = @($rows)
+    $missing = @($rows | Where-Object { -not $_.present } | ForEach-Object name)
+    $notRunning = @($rows | Where-Object { $_.present -and $_.status -ne 'Running' } | ForEach-Object name)
+    $disabled = @($rows | Where-Object { $_.present -and $_.startType -eq 'Disabled' } | ForEach-Object name)
+
+    $steps = [Collections.Generic.List[string]]::new()
+    $fixable = @($rows | Where-Object { $_.present -and $_.status -ne 'Running' -and $_.startType -ne 'Disabled' })
+    if ($fixable.Count) {
+        $commands = @($fixable | ForEach-Object { "Set-Service -Name '$($_.name)' -StartupType Automatic; Start-Service -Name '$($_.name)'" }) -join '; '
+        $steps.Add("From an elevated PowerShell run: $commands -- or rerun 'mobile.ps1 start ios -RepairVmwareServices' from an elevated PowerShell.")
+    }
+    if ($disabled.Count) {
+        $steps.Add("$($disabled -join ', ') is Disabled, which is a deliberate administrator setting; the owner must re-enable it (-RepairVmwareServices will not override Disabled).")
+    }
+    if ($missing.Count) {
+        $steps.Add("$($missing -join ', ') is not registered on this host; run the VMware Workstation installer's Repair option.")
+    }
+
+    [pscustomobject]@{
+        ready = ($missing.Count -eq 0 -and $notRunning.Count -eq 0)
+        services = $rows
+        notRunning = $notRunning
+        missing = $missing
+        disabled = $disabled
+        summary = (@($rows | ForEach-Object { if ($_.present) { '{0}={1}/{2}' -f $_.name, $_.status, $_.startType } else { '{0}=NotInstalled' -f $_.name } }) -join ', ')
+        remediation = ($steps -join ' ')
+    }
+}
+
+function Repair-MobileVmwareServices {
+    <#
+    .SYNOPSIS
+        Explicit, bounded repair of the registry-declared VMware host services.
+    .DESCRIPTION
+        Runs only when an operator passes -RepairVmwareServices to
+        Start-MobileLab.ps1. It touches only services that are declared in
+        registry/mobile-development.json, installed, and not running. A Manual
+        service becomes Automatic so the next host reboot does not reproduce
+        the failure; a Disabled service is refused because disabling is an
+        administrator decision. It never self-elevates: without an elevated
+        session it fails with the commands to run, before changing anything.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][object]$State,
+        [scriptblock]$IsElevated = {
+            ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        },
+        [scriptblock]$SetAutomatic = { param($Name) Set-Service -Name $Name -StartupType Automatic -ErrorAction Stop },
+        [scriptblock]$StartByName = { param($Name) Start-Service -Name $Name -ErrorAction Stop }
+    )
+
+    $declared = @((Get-MobileDevelopmentResource -Id 'vmware-workstation').discovery.hostServices | ForEach-Object { [string]$_.name })
+    $targets = @($State.services | Where-Object { $_.name -in $declared -and $_.present -and $_.status -ne 'Running' })
+    if ($targets.Count -eq 0) { return @() }
+
+    $disabled = @($targets | Where-Object { $_.startType -eq 'Disabled' } | ForEach-Object name)
+    if ($disabled.Count) {
+        throw "Refusing to repair: $($disabled -join ', ') is Disabled. Disabling is an administrator decision; the owner must re-enable it. Nothing was changed."
+    }
+    if (-not [bool](& $IsElevated)) {
+        throw "Repairing VMware host services needs an elevated PowerShell, and this one is not elevated. Nothing was changed. Remediation: $($State.remediation)"
+    }
+
+    $actions = [Collections.Generic.List[string]]::new()
+    foreach ($target in $targets) {
+        if ($target.startType -eq 'Manual') {
+            & $SetAutomatic $target.name
+            $actions.Add("$($target.name): start type Manual -> Automatic")
+        }
+        & $StartByName $target.name
+        $actions.Add("$($target.name): started")
+    }
+    @($actions)
+}
+
 function Get-MobileRuntimeProcessMatch {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][ValidateSet('android', 'ios', 'both')][string]$Platform,
         [object[]]$Processes,
         [string]$AndroidSdkRoot,
-        [AllowEmptyString()][string]$AvdConfigText
+        [AllowEmptyString()][string]$AvdConfigText,
+        [object[]]$VmwareServices
     )
 
     if (-not $PSBoundParameters.ContainsKey('Processes')) {
@@ -222,11 +337,16 @@ function Get-MobileRuntimeProcessMatch {
             if ([string]$_.Name -ine 'vmware-vmx.exe' -or -not [string]$_.CommandLine) { return $false }
             ([string]$_.CommandLine).Replace('/', '\') -match $vmxTokenPattern
         })
+        # Reported, not gated: a running guest no longer needs vmrun, but a
+        # stopped one cannot start while these are down, so the operator sees
+        # the cause next to "no VM process" instead of discovering it later.
+        $serviceState = if ($PSBoundParameters.ContainsKey('VmwareServices')) { Get-MobileVmwareServiceState -Services $VmwareServices } else { Get-MobileVmwareServiceState }
         $result.ios = [ordered]@{
             ready = ($vm.Count -gt 0)
             vmProcesses = @($vm | ForEach-Object ProcessId)
             canonicalVmxPath = $canonicalVmx
             vmx = $vmxFacts
+            vmwareHostServices = $serviceState
             expectation = Get-MobileDevelopmentExpectation -Name ios
             note = 'Guest SSH, Simulator, and Appium readiness require a non-starting network probe after the canonical guest is already running.'
         }
@@ -258,4 +378,4 @@ function Get-MobileRuntimeHealthInvocation {
     }
 }
 
-Export-ModuleMember -Function Read-AgentHubJson, Get-MobileDevelopmentContract, Get-MobileScopeContract, Get-MobileScopeProduct, Resolve-MobileProductTarget, Get-AppiumMcpAuthority, Get-MobileDevelopmentRepoRoot, Get-MobileDevelopmentPackageRoot, Get-MobileDevelopmentExpectation, Get-MobileDevelopmentResource, Get-MobileVmxFacts, Get-MobileRuntimeProcessMatch, Get-MobileRuntimeHealthInvocation
+Export-ModuleMember -Function Read-AgentHubJson, Get-MobileDevelopmentContract, Get-MobileScopeContract, Get-MobileScopeProduct, Resolve-MobileProductTarget, Get-AppiumMcpAuthority, Get-MobileDevelopmentRepoRoot, Get-MobileDevelopmentPackageRoot, Get-MobileDevelopmentExpectation, Get-MobileDevelopmentResource, Get-MobileVmxFacts, Get-MobileVmwareServiceState, Repair-MobileVmwareServices, Get-MobileRuntimeProcessMatch, Get-MobileRuntimeHealthInvocation

@@ -5,13 +5,19 @@ Every "rejected" row below was rejected on measured evidence from this machine;
 the reasoning is kept so a later session does not re-litigate it or, worse,
 silently re-adopt the discarded option.
 
+Each decision is a dated measurement, not a timeless ban. Versions, support
+tables, and host state move. When a toolchain, host, or vendor requirement
+changes, re-measure and record the new date. Do not cite an old row as
+proof of the present, and do not re-adopt a rejected option without new
+evidence.
+
 ## The shape
 
 ```
 WINDOWS HOST                                  VMware guest (VMX authority in registry)
   active coding host                           guest expectations from registry
     -> appium-mcp (pin in mcps.json) ----+        Appium (registry expectation)
-         |                              |          XCUITest 12.3.1
+         |                              |          XCUITest (registry expectation)
          | embedded UiAutomator2        |            WebDriverAgent (prebuilt)
          v                              |              iOS 26.5 Simulator
        adb -> Android emulator          |                iPhone 17
@@ -30,7 +36,7 @@ recommendation is right and is adopted unchanged.
 | Android emulator native on Windows | `emulator -accel-check` → `WHPX(10.0.26200) is installed and usable`; `adb devices` → `emulator-5554 device` |
 | iOS Simulator inside the macOS VM | `xcrun simctl boot "iPhone 17"` → Booted; screenshot renders |
 | iOS driven remotely via `remoteServerUrl` | `/status` from Windows → `ready: true` |
-| `appium@3.6.0`, `xcuitest@12.3.1` | `appium driver doctor xcuitest` → **0 required fixes** |
+| Pinned guest Appium and XCUITest (`registry/mobile-development.json` → `expectations`) | Measured 2026-08 with `appium@3.6.0` and `xcuitest@12.3.1`: `appium driver doctor xcuitest` → **0 required fixes**. The pins moved to `appium@3.8.0` and `xcuitest@12.18.1` (npm `latest`) on 2026-10-13. The doctor has not yet been re-run in the guest against them; that is a live gate, not a recorded result. |
 | Prebuilt WebDriverAgent | `** TEST BUILD SUCCEEDED **`, `Debug-iphonesimulator`, 3.5 min |
 | `ffmpeg` in the guest | 8.1.2 via brew — backs `appium_screen_recording`, i.e. video evidence |
 | Appium 3 session discovery on the private guest service | Deep validation must fail closed when another Appium session owns the Simulator. Appium 3 replaced `GET /sessions` with guarded `GET /appium/sessions`, so launchd enables only `*:session_discovery`; the server remains confined to the VMware NAT network. |
@@ -45,6 +51,8 @@ working installs for nothing:
 ```
 appium@3.6.0      engines.node = ^20.19.0 || ^22.12.0 || >=24.0.0
 appium-mcp@1.92.0 engines.node = >=22   # measured 2026-08-10; historical
+appium@3.8.0      engines.node = ^20.19.0 || ^22.12.0 || >=24.0.0   # npm, 2026-10-13
+appium-mcp@1.97.1 engines.node = >=22                               # npm, 2026-10-13
 Windows           v26.7.0   ✓ satisfies >=22
 macOS guest       v24.19.0  ✓ satisfies >=24.0.0
 ```
@@ -56,7 +64,7 @@ macOS guest       v24.19.0  ✓ satisfies >=24.0.0
    iOS 26 SDK that Rexa's `expo-glass-effect` requires.
 2. **Unnecessary anyway.** The driver's own support table covers what is
    installed: iOS ≥ 26.4 needs driver ≥ 10.23.2, Xcode 26.0–26.6 needs
-   ≥ 9.5.0. Installed driver is 12.3.1.
+   ≥ 9.5.0. The driver then was 12.3.1; the pin is now 12.18.1 (registry).
 
 Corollary: `Automation_iPhone_15` / iOS 18.5 cannot be created. The only
 runtime present is iOS 26.5, whose devices are the iPhone 17 family. The
@@ -271,6 +279,59 @@ finds it in ~0.2s.
 guest and `vmrun` claims nothing runs, it reports the VMX channel as degraded
 and continues, rather than stopping at stage one and naming the wrong
 component.
+
+`Start-MobileLab.ps1` followed on 2026-10-13. It had still gated `vmrun start`
+on `vmrun list` alone, so a healthy guest behind a degraded channel would be
+sent a second start. It now asks SSH first, then `vmrun list` and the
+canonical `vmware-vmx` process, and starts only when all three say the guest
+is down.
+
+## Swallowed driver installs, ambiguous doctor results, and generic WDA kills — rejected, found 2026-10-13
+
+`setup-appium-guest.sh` ran `appium driver install xcuitest@<pin> || appium
+driver update xcuitest --unsafe || true`. A failed install therefore reported
+success, and the fallback `update --unsafe` resolves to the newest release
+rather than the pin. The doctor step ran `wait "$doctor_pid"; doctor_rc=$?`
+under `set -e`, so a failing doctor exited the script before printing its
+output or a reason. A crash looked the same as a required fix. The
+timeout remedy was `pkill -f 'xcodebuild.*WebDriverAgent'; xcrun simctl
+shutdown all`, which also kills runners and Simulators that belong to another
+agent's session. The WDA prebuild was skipped whenever any
+`WebDriverAgent-*` product existed, so a driver or Xcode change kept a product
+built from a different WebDriverAgent.
+
+Adopted: every install and uninstall is checked, and the installed version is
+re-read from `appium driver list --installed --json` and compared exactly. An
+off-pin driver is uninstalled and the pin installed; `update` is never used.
+The doctor result is reported as one of four outcomes: timed out, N required
+fixes, failed to run, or no checks run. Only a clean, checked run passes. On a
+timeout the script lists WDA runners with their parent processes, read-only,
+and points to `cleanup-wda-guest.sh <udid>`, which stops only Appium-owned
+runners for that Simulator. The only process the script ever terminates is
+its own doctor child. The WDA build is keyed on xcuitest version, WebDriverAgent
+source version, and Xcode build, and rebuilt when any of them moves. An unknown
+version never matches. `tests/Test-MobileLabGuestSetup.ps1` runs the real
+script against stub binaries for each of these; 19 of its 23 cases fail
+against the previous script (2026-10-13). The four that pass cover behavior the
+old script already had, registry facts, and the guard's own self-test.
+
+## Hiding vmrun's output and VMware host-service state — rejected, reproduced 2026-10-13
+
+`VMAuthdService`, `VMnetDHCP`, and `VMware NAT Service` were all Stopped with
+Manual start type, and no `vmware-vmx` process was running. `vmrun start` answered
+`Error: Unknown error` (exit -1). The starter piped that to `Out-Null` and
+threw only "vmrun start failed with exit -1", which named neither the cause
+nor a fix. Once the three services were started, `vmrun start` succeeded and
+SSH reported macOS 26.7.
+
+Adopted: the registry declares the services
+(`vmware-workstation.discovery.hostServices`). Read-only paths report them.
+Startup refuses to call vmrun while one is stopped and names the elevated
+commands. A vmrun failure keeps vmrun's own output. Repair is an explicit
+`-RepairVmwareServices` switch, bounded to those services, never
+self-elevating, and never overriding Disabled. Elevating silently on every
+routine startup was rejected: it hides a host misconfiguration that the
+operator should fix durably.
 
 The cache is deliberately **not** an authority — it is probed like every other
 candidate and written only after a probe succeeds, so a stale entry costs one

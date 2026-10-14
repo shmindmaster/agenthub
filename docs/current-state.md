@@ -175,7 +175,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   fixing pronunciation in a dictionary layer rather than by swapping engines.
 
 - **Mobile development is one canonical capability (updated 2026-08-20):**
-  `packages/mobile-development` version 2.0.4 owns the public `mobile.ps1`
+  `packages/mobile-development` version 2.0.5 owns the public `mobile.ps1`
   entrypoint and both loose skills. Every active coding host receives the
   skills and catalog discovery. Appium remains absent from persistent MCP
   configuration and may be activated only for Claude or Codex; both native
@@ -183,6 +183,19 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   and identity remain in `registry/mobile-scope.json`, the Appium pin remains
   in `registry/mcps.json`, and VM hardware remains live VMX state. Fleet sync
   and live synthetic smoke are separate acceptance gates.
+- **Mobile guest bring-up (2.0.5, 2026-10-13):** `Start-MobileLab.ps1` no
+  longer decides from `vmrun list` alone. It probes SSH and the canonical
+  `vmware-vmx` process first, names stopped VMware host services
+  (`vmware-workstation.discovery.hostServices`) instead of surfacing vmrun's
+  bare "Unknown error", and keeps vmrun's output on failure. Repair is only
+  the explicit, elevated, bounded `-RepairVmwareServices`; read-only checks
+  only report service state. The same release makes `setup-appium-guest.sh`
+  fail closed (exact pin re-read, no `update` fallback, four distinct doctor
+  outcomes, no generic `pkill`/`simctl shutdown all`), rebuilds WDA only on an
+  xcuitest/WebDriverAgent/Xcode-build change, moves the pins to Appium 3.8.0,
+  XCUITest 12.18.1 and appium-mcp 1.97.1, and records the x86_64 guest's
+  Xcode 26.6 ceiling. Implemented and tested in source; the guest doctor run
+  against the new pins and fleet deployment are still pending.
 - **Current host evidence (2026-08-20):** Codex, Qoder, and Factory are active.
   OpenCode Desktop, Hermes, and Windsurf remain unverified on this workstation.
   Mobile skills/catalog are deployed to active coding surfaces, while native
