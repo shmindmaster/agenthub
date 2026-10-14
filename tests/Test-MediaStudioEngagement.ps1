@@ -128,7 +128,7 @@ Report 'qa engagement pass inspects the encoded file' (
     $qa -match 'encoded' -and $qa -match 'Diagnose first'
 ) 'non-screencast QA must walk the encoded file against Diagnose first'
 Report 'capture keeps screencast engagement on the PDS gate' (
-    $capture -match 'PDS story-experience' -and $capture -match 'not `engagement.md`'
+    $capture -match 'product-picture\.md' -and $capture -match 'media-story-experience-reviewer' -and $capture -match 'not `engagement.md` and not a second overlay stack'
 ) 'capture must not apply engagement.md as a second overlay stack'
 
 Report 'job schema has intent draft|viewer-facing' (
