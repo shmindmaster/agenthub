@@ -491,7 +491,7 @@
     {
       "id": "cursor-agent",
       "name": "Cursor Agent CLI",
-      "version": "2026.09.15-d2fe57e",
+      "version": "2026.10.14-0f9edde",
       "executable": "{userHome}/bin/cursor-agent.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/cursor-agent/cursor-agent.cmd",
@@ -514,7 +514,7 @@
       "status": "active",
       "surfaceType": "companion-cli",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration.",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported 2026.09.15-d2fe57e. The official update command failed unauthenticated and was not retried, so no upgrade or downgrade was performed by this inventory correction.",
+      "versionObserved": "2026-10-14: the full-suite read-only version probe reported 2026.10.14-0f9edde. This supersedes the earlier same-day 2026.09.15-d2fe57e observation. A final native help probe confirmed print and text-output flags; no login, inference run, installer or updater was invoked by this repair.",
       "headlessDispatchNote": "2026-10-14: native headless contract verified; prior smoke failed authentication. Owner action: run agent login in the owner terminal; dispatcher alias cursor-agent login is equivalent. Do not authenticate automatically."
     },
     {
