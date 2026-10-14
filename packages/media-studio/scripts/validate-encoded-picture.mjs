@@ -15,7 +15,8 @@
 import { existsSync, readFileSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { extname, join, resolve, dirname } from 'node:path';
+import { basename, extname, join, resolve, dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const argv = process.argv.slice(2);
 const pos = argv.filter((a) => !a.startsWith('--'));
@@ -50,7 +51,9 @@ const run = (args, opts = {}) => execFileSync('ffmpeg', ['-hide_banner', '-logle
 function probeDuration(p) {
   try { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', p]).toString()) || 0; } catch { return 0; }
 }
-const SCALE_PAD = 'scale=1600:1000:force_original_aspect_ratio=decrease,pad=1600:1000:(ow-iw)/2:(oh-ih)/2';
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const helper = existsSync(join(scriptDir, 'campaign-contract.mjs')) ? join(scriptDir, 'campaign-contract.mjs') : join(scriptDir, '..', 'kit', 'screencast', 'campaign-contract.mjs');
+const { CAMPAIGN_FORMS, frameFor, sourcePictureFilter, sourceRegionError } = await import(pathToFileURL(helper).href);
 function grayFrames(file, w, h, fps, extra = []) {
   const buf = run(['-i', file, '-vf', `${extra.length ? extra.join(',') + ',' : ''}fps=${fps},scale=${w}:${h}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1']);
   const n = Math.floor(buf.length / (w * h));
@@ -74,12 +77,14 @@ const meanLuma = (a) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i
 
 if (!existsSync(candidate)) { fail(`candidate not found: ${candidate}`); finish(); }
 const job = readJson('job.json') || {};
+const deliveryFrame = frameFor(job);
 const tl = readJson('story/narration-timeline.json');
 const board = readJson('story/storyboard.json') || readJson('storyboard.json');
 const manifest = readJson('capture/manifest.json');
 const receipt = readJson('capture/receipt.json');
-const base = extname(candidate) ? candidate.slice(candidate.lastIndexOf(/[\\/]/.test(candidate) ? Math.max(candidate.lastIndexOf('\\'), candidate.lastIndexOf('/')) : 0) + 1).replace(/\.[^.]+$/, '') : '';
-const composeMap = readJson(`output/${base}-compose-map.json`) || readJson(`output/${base.replace(/-final$|-master$/, '')}-compose-map.json`);
+const base = basename(candidate, extname(candidate));
+const composeMap = readJson(`output/${base}-compose-map.json`) || readJson(`output/${base.replace(/-final$|-master$|-silent$/, '')}-compose-map.json`);
+if (Object.hasOwn(CAMPAIGN_FORMS, job.programForm) && deliveryFrame.height > deliveryFrame.width && !composeMap) fail('portrait campaign requires a compose map preserving sourceRegion.');
 if (!tl) { fail('missing story/narration-timeline.json'); finish(); }
 if (!manifest) { fail('missing capture/manifest.json'); finish(); }
 
@@ -97,7 +102,7 @@ const isScreen = (id) => !CARD_MODES.has(beatMode(id));
 // Segment -> source clip mapping: prefer the compose map written by compose-screencast.mjs, else deal like compose.
 const segSource = new Map();
 if (composeMap?.groups) {
-  for (const g of composeMap.groups) for (const sid of g.segments) segSource.set(sid, g);
+  for (const g of composeMap.groups) for (const sid of g.segments) segSource.set(sid, { ...g, overlay: g.overlay || (composeMap.timedGraphics || []).some((graphic) => graphic.startSeconds <= g.startSeconds + g.needSeconds / 2 && graphic.endSeconds >= g.startSeconds + g.needSeconds / 2) });
 } else {
   const rawClips = manifest.composeClips || manifest.clips || manifest.entries || manifest.captures || [];
   const clips = rawClips.map((c) => ({ ...c, id: c.id || c.scenario || c.storyboardSegmentId, file: c.file || c.clip || c.video || c.output, segments: c.segments || [c.storyboardSegmentId] }));
@@ -105,13 +110,13 @@ if (composeMap?.groups) {
   for (const s of tl.segments) { const sc = s.scene || String(s.id).replace(/[a-z]$/, ''); if (!segsByScene.has(sc)) segsByScene.set(sc, []); segsByScene.get(sc).push(s.id); }
   const q = new Map();
   for (const c of clips) for (const key of c.segments || []) {
-    if (tl.segments.some((s) => s.id === key)) { segSource.set(key, { clipId: c.id, file: c.file, overlay: c.overlay || null }); continue; }
+    if (tl.segments.some((s) => s.id === key)) { segSource.set(key, { clipId: c.id, file: c.file, overlay: c.overlay || null, sourceRegion: c.sourceRegion || null }); continue; }
     const scene = String(key).replace(/[a-z]$/, '');
     const targets = segsByScene.get(scene) || segsByScene.get(key) || [];
     if (!targets.length) continue;
     const n = q.get(scene) || 0; q.set(scene, n + 1);
     const t = targets[Math.min(n, targets.length - 1)];
-    if (!segSource.has(t)) segSource.set(t, { clipId: c.id, file: c.file, overlay: c.overlay || null });
+    if (!segSource.has(t)) segSource.set(t, { clipId: c.id, file: c.file, overlay: c.overlay || null, sourceRegion: c.sourceRegion || null });
   }
   // a segment with no clip holds the previous clip
   let prev = null;
@@ -167,13 +172,15 @@ for (const r of runs) {
 // 2. source binding per screen segment + card/ratio accounting
 let screenSeconds = 0, totalSeconds = 0;
 const clipHashCache = new Map();
-function clipHashes(file) {
-  if (clipHashCache.has(file)) return clipHashCache.get(file);
+const sameRegion = (a, b) => (!a && !b) || (!!a && !!b && ['x', 'y', 'width', 'height'].every((key) => a[key] === b[key]));
+function clipHashes(file, sourceRegion) {
+  const key = `${file}:${JSON.stringify(sourceRegion || null)}`;
+  if (clipHashCache.has(key)) return clipHashCache.get(key);
   const abs = resolve(jobRoot, 'capture', file);
-  if (!existsSync(abs)) { clipHashCache.set(file, null); return null; }
-  const fr = grayFrames(abs, 9, 8, FPS, [SCALE_PAD]);
+  if (!existsSync(abs)) { clipHashCache.set(key, null); return null; }
+  const fr = grayFrames(abs, 9, 8, FPS, [sourcePictureFilter(sourceRegion, deliveryFrame)]);
   const hs = fr.map(dhash);
-  clipHashCache.set(file, hs);
+  clipHashCache.set(key, hs);
   return hs;
 }
 for (const seg of tl.segments) {
@@ -187,7 +194,12 @@ for (const seg of tl.segments) {
   if (!src || !src.file) { fail(`segment ${seg.id} is a screen beat with no source clip in the compose map / manifest`); continue; }
   if (IMAGE_EXT.has(extname(src.file).toLowerCase())) { fail(`segment ${seg.id} screen beat is composed from a still (${src.file})`); continue; }
   if (receipt && !Object.values(receipt.clips || {}).some((e) => e.file === src.file || src.file.endsWith(e.file))) fail(`segment ${seg.id}: source ${src.file} is not a receipt-bound capture`);
-  const hs = clipHashes(src.file);
+  const manifestClips = manifest.composeClips || manifest.clips || manifest.entries || manifest.captures || [];
+  const manifestClip = manifestClips.find((clip) => (clip.file || clip.clip || clip.video || clip.output) === src.file || (clip.id || clip.scenario || clip.storyboardSegmentId) === src.clipId);
+  if (sourceRegionError(src.sourceRegion)) { fail(`segment ${seg.id}: invalid sourceRegion in compose map`); continue; }
+  if (composeMap?.groups && !sameRegion(src.sourceRegion, manifestClip?.sourceRegion)) { fail(`segment ${seg.id}: compose-map sourceRegion differs from capture manifest`); continue; }
+  if (Object.hasOwn(CAMPAIGN_FORMS, job.programForm) && deliveryFrame.height > deliveryFrame.width && !src.sourceRegion) { fail(`segment ${seg.id}: portrait campaign requires an explicit sourceRegion`); continue; }
+  const hs = clipHashes(src.file, src.sourceRegion);
   if (!hs || !hs.length) { fail(`segment ${seg.id}: cannot decode source clip ${src.file}`); continue; }
   const mid = seg.startSeconds + Math.min(dur / 2, Math.max(0.5, dur / 2));
   const fr = grayFrameAt(candidate, Math.min(mid, duration - 0.2), 9, 8);

@@ -30,6 +30,7 @@ const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 const PRODUCT_FORMS = new Set([
   'product-overview', 'outcome-workflow', 'role-demo', 'feature-tutorial', 'ai-in-action', 'integration-demo',
   'competitive-demo', 'technical-story', 'onboarding', 'help-center', 'before-after', 'release',
+  'campaign-flagship', 'campaign-comparison', 'campaign-short', 'campaign-outreach',
 ]);
 const CARD_MODES = new Set(['card', 'slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
 

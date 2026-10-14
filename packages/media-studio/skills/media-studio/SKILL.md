@@ -41,6 +41,15 @@ Do not jump to encode from screenshots. Do not ship a slide-stack of the ledger.
 
 Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\<job-id>`. Never write media into AgentHub or a product repo.
 
+Executable gates are shared across hosts. A native plugin may resolve `scripts/`
+inside its installed package. Loose-skill hosts (including Cursor and Grok) use
+`%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools` for capture and release
+validators, owner-voice and finishing helpers, and `RELEASE-EVIDENCE.md` for
+their evidence contract. Do not
+resolve `scripts/` against the product repository or assume a loose skill includes
+package-level scripts. AgentHub deploys these tools with `Sync-MediaStudioKit.ps1`;
+a missing tool blocks capture/release until that deployment is repaired.
+
 **Hard repository boundary:** a product repository is read-only input. Before
 the first write, record `repositoryWritePolicy: read-only` and the absolute
 external `workspace` in `job.json`. Do not create or modify video code,
@@ -57,8 +66,8 @@ separate engineering task only when explicitly authorized.
 4. `media-storyboard` → timed beats, scored hook (pick internally), archetypes. Then `media-studio-visuals` → `visual-bible.json`.
 5. `media-director` → archetype, register, `sound`. `screen` only for a running product.
 6. `media-studio-generate` + `local-ai-stack` → TTS. Viewer-facing: also the directed music bed. Motif/lipsync/portrait only when direction called for that plate. `draft` skips those GPU plates and records the skip.
-7. Compose: Remotion archetype kit, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`). Product-screencast: run `scripts/validate-product-picture.mjs` before encode. Viewer-facing `briefing` / `training` / `explainer` / `series-episode` / `webcast` / `webinar` / `keynote` / `documentary` / `teaser` **requires Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. If Remotion skills are missing, stop and say so — do not silently fall back to static slides. Buyer-facing product forms use **real captured UI** with pointer, click, zoom, and visible result (`product-picture.md`), not an avatar over fake chrome and not Ken Burns on a screenshot.
-8. Craft review is `media-story-experience-reviewer` on the **encoded** file. Product-screencast also runs `scripts/validate-product-picture.mjs`. Score < `craftScoreMin` → revise `reviseSceneIds` and rerun. Then `media-studio-qa`.
+7. Compose: Remotion archetype kit, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`). Product-screencast: run `scripts/validate-demo-scenario.mjs` before recording and `scripts/validate-product-picture.mjs` before encode. Viewer-facing `briefing` / `training` / `explainer` / `series-episode` / `webcast` / `webinar` / `keynote` / `documentary` / `teaser` **requires Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. If Remotion skills are missing, stop and say so — do not silently fall back to static slides. Buyer-facing product forms use **real captured UI** with pointer, click, zoom, and visible result (`product-picture.md`), not an avatar over fake chrome and not Ken Burns on a screenshot.
+8. Craft review is `media-story-experience-reviewer` on the **encoded** file. Product-screencast also runs `scripts/validate-product-picture.mjs` and `scripts/validate-viewer-release.mjs <jobRoot> <candidate.mp4>` after each recut. Score < `craftScoreMin` → revise `reviseSceneIds` and rerun. Then `media-studio-qa`.
 
 Owner voice: `ai.ps1 voice qwen-clone --voice sarosh` only.
 

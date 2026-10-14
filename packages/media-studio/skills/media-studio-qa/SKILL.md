@@ -9,10 +9,11 @@ Load `../media-studio/references/engagement.md` (Generate / compose / craft crit
 
 ## 1. product-screencast
 
-Fail-closed release. All four gates run on artifacts, and the last two on the exact encoded candidate; a numeric craft score never overrides them.
+Fail-closed release. Gates run on source artifacts and the exact encoded candidate; a numeric craft score never overrides them. Native plugins resolve `scripts/` inside their installed package. Loose-skill hosts use `%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools`; its `RELEASE-EVIDENCE.md` defines the evidence contract. Missing executables block release.
 
+0. `scripts/validate-demo-scenario.mjs <jobRoot>` **before recording** — source-hashed synthetic scenario proof: persona, pain, hero action, visible outcome, coherent generic entity continuity, and CTA. Do not record a hard-coded or unverified authenticated path. A readiness handoff must prove the product resolves the intended workflow.
 1. `scripts/validate-product-picture.mjs <jobRoot>` — plan and clips: receipt-bound live captures, pointer motion, observed responses, Recast, no hidden freeze, ≥70% screen.
-2. `scripts/validate-encoded-picture.mjs <jobRoot> <candidate.mp4>` — the file a viewer will watch: every screen segment binds to its captured clip (dHash), no dead screen > 6 s in a screen beat, cards ≤ 8 s, designed first/last frames. Writes `qa/encoded-picture.json` bound to the candidate sha256. Missing or failing → do not ship.
+2. `scripts/validate-encoded-picture.mjs <jobRoot> <candidate.mp4>` — the file a viewer will watch: every screen segment binds to its captured clip (dHash), no dead screen > 6 s in a screen beat, cards ≤ 8 s, designed first/last frames. Writes `qa/encoded-picture.json` bound to the candidate SHA-256 and byte count. The viewer-release gate reads that exact PASS report and rejects lax static/source-binding thresholds; missing or failing → do not ship.
 3. Voice: `qa/pronunciation-risk.json` (from `ai.ps1 voice pronunciation-risk`, written by `Generate-OwnerVoice.ps1`) with `coverage.status` PASS or REVIEW, and `qa/pronunciation-listen.json` with `finalStatus: PASS` (per-scene `ai.ps1 listen` grounded in transcript + risk slice). Then identity-score and `ai.ps1 listen` on the **encoded** candidate with `--transcript` and `--pronunciation-manifest qa/pronunciation-risk.json` (and `--timeline` above 90 s); the report must say `releaseEligible: true`. An ungrounded listen report is diagnostic only.
 4. Story and craft on the encoded file: hook in the first 10 s, one promise, one hero moment, conversational narration that adds meaning the screen does not already show, pointer visible where an action happens, result on screen before or as it is spoken, no feature-tour opening, no long title cards. Record the review as `qa/story-experience-review.json` (score, per-scene notes, `reviseSceneIds`). Score < 85 or any visual/pronunciation failure above → revise **those scenes only** and remux; do not restart writer → capture → TTS. The score cannot rescue a failed gate.
 
@@ -28,7 +29,9 @@ Briefings, training, explainers, talking-heads, animation, and audio-only do **n
 4. Engagement pass on the **encoded** file (not the screenplay): walk every scene and list stretches that are slow, repetitive, visually static, or emotionally flat per `engagement.md` Diagnose first. Missing hook, wall-to-wall static, rushed payoff, unducked bed, or narration that reads the slide is a fail — remit to writer, storyboard, director, generate, or compose.
 5. Run `Inspect-MediaVisualQuality.ps1` on the encoded file. Suspects (static stretch, duplicate visual, undesigned first/last frame) go to the critic or director. Metrics flag; they do not replace judgment.
 
-Do not ship a product-screencast that failed product-picture or encoded-file review.
+5. `scripts/validate-viewer-release.mjs <jobRoot> <candidate.mp4>` after **every** recut — it requires the exact candidate SHA on captions, loudness, authored-script pronunciation, visual/title/action-result reviews, and CTA and, when applicable, series evidence. Captions must be readable rather than paragraph blocks; ASR cannot be its own pronunciation reference.
+
+Do not ship a product-screencast that failed scenario, product-picture, exact-candidate, or encoded-file review.
 
 ## 3. Final check
 

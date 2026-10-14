@@ -28,10 +28,13 @@ $files = @(
     'README.md',
     'scene-archetypes.json',
     'screencast\compose-screencast.mjs',
+    'screencast\campaign-contract.mjs',
     'screencast\render-overlay.mjs',
     'screencast\render-code.mjs',
     'screencast\render-html.mjs',
     'screencast\render-card.mjs',
+    'screencast\record-job.mjs',
+    'screencast\record-lib.mjs',
     'screencast\README.md'
 )
 foreach ($rel in $files) {
@@ -42,22 +45,29 @@ foreach ($rel in $files) {
     Copy-Item -LiteralPath $from -Destination $to -Force
 }
 
-# Product-picture gates travel with the compositor so compose-screencast.mjs can always resolve them
-# (a missing validator is a hard stop, never a silent skip). The plan gate and the encoded gate are copied
+# Capture and product-picture gates travel with the compositor so each host resolves the same scripts.
+# A missing validator is a hard stop, never a silent skip. The existing scripts are copied
 # beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
-$gateScripts = @('validate-product-picture.mjs', 'validate-encoded-picture.mjs')
-$sharedTools = Join-Path (Split-Path -Parent $RuntimeKit) '_shared\tools'
+$gateScripts = @('validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-viewer-release.mjs')
+$sharedTools = Join-Path (Join-Path (Split-Path -Parent $RuntimeKit) '_shared') 'tools'
 New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null
 foreach ($name in $gateScripts) {
     $from = Join-Path $PSScriptRoot $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical gate missing: $from" }
-    Copy-Item -LiteralPath $from -Destination (Join-Path $RuntimeKit (Join-Path 'screencast' $name)) -Force
+    Copy-Item -LiteralPath $from -Destination (Join-Path (Join-Path $RuntimeKit 'screencast') $name) -Force
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
 }
-foreach ($name in @('compose-screencast.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs')) {
-    $from = Join-Path $packageKit (Join-Path 'screencast' $name)
-    if (Test-Path -LiteralPath $from) { Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force }
+foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs')) {
+    $from = Join-Path (Join-Path $packageKit 'screencast') $name
+    if (-not (Test-Path -LiteralPath $from)) { throw "Canonical screencast tool missing: $from" }
+    Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
 }
+Copy-Item -LiteralPath (Join-Path $packageKit 'screencast\campaign-contract.mjs') -Destination (Join-Path $sharedTools 'campaign-contract.mjs') -Force
+foreach ($name in @('Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Generate-OwnerVoice.ps1', 'ReGate-OwnerVoice.ps1', 'Test-SpeechIntegrity.ps1')) {
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $sharedTools $name) -Force
+}
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\plugin.json') -Destination (Join-Path $sharedTools 'plugin.json') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\RELEASE-EVIDENCE.md') -Destination (Join-Path $sharedTools 'RELEASE-EVIDENCE.md') -Force
 # animate-stills.mjs turned screenshots into "footage" for the 2026-08/09 ABACare cuts. It has no place in a
 # product-screencast; the receipt requirement already rejects its output, and the file is removed from the kit.
 $stills = Join-Path $sharedTools 'animate-stills.mjs'

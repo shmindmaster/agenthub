@@ -23,8 +23,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$Hub = if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Repos\shmindmaster\agenthub' }
-$Finish = Join-Path $Hub 'packages\media-studio\scripts\Finish-Media.ps1'
+$Finish = Join-Path $PSScriptRoot 'Finish-Media.ps1'
 if (-not (Test-Path $Finish)) { throw "Finish-Media.ps1 not found: $Finish" }
 
 if (-not $Scratch) { $Scratch = Join-Path ([IO.Path]::GetTempPath()) ('briefing-stems-' + [guid]::NewGuid().ToString('N')) }

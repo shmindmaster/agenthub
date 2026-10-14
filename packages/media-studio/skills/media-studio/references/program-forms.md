@@ -47,6 +47,10 @@ Do not invent metrics, customer names, or AI behavior. Unsourced numbers are omi
 | `social-clip` | One striking capability | 15–45s | `teaser` |
 | `sales-enablement` | One objection (security, implementation, ROI) | 1–3 min | `explainer` or `product-screencast` |
 | `technical-story` | What changed → why → where it happens → why it matters; evidence serves the story (`technical-story.md`) | 5–8 min | `product-screencast` (or `explainer` when no product can be shown) |
+| `campaign-flagship` | One product outcome, full action and result | 60–70s | `product-screencast` |
+| `campaign-comparison` | A sourced before/after workflow comparison | 60–80s | `product-screencast` |
+| `campaign-short` | One proof moment cut from a locked master | 10–20s | `product-screencast` |
+| `campaign-outreach` | One audience-specific outcome and CTA | 70–80s | `product-screencast` |
 
 ## Formulas (do not skip)
 
@@ -61,5 +65,7 @@ Do not invent metrics, customer names, or AI behavior. Unsourced numbers are omi
 **One promise:** a settings tour is five films, not one 16-minute clip.
 
 **Derivatives:** one locked master may cut to shorter forms. Set `sourceJobId` on the child job. Do not re-fake product UI for a social clip — recut the capture.
+
+**Campaign forms:** use the same product-screencast capture and encoded gates. Set an explicit `deliveryProfile`: `youtube-16x9` (1920×1080), `vertical-9x16` (1080×1920), or `linkedin-4x5` (1080×1350). Portrait clips declare a bounded `sourceRegion` in the capture manifest to frame the relevant UI intentionally; the encoded gate matches the same crop to the receipt-bound source. Graphics and portrait captions live in declared safe regions, clear of visible controls. `job.campaign` records either one scenario and record across the film or separately labeled vignettes, every dated claim with a hashed evidence file, and every media asset with origin and rights. A child job also records `sourceJobId`, the exact parent candidate hash, and hashes of reused source assets. Use `story/timed-graphics.json` for timed PNG overlays and review their timing and visible controls on the encoded candidate. A vignette label must cover each assigned segment's opening and never overlap another vignette. The contract is executable in `kit/screencast/campaign-contract.mjs` and `scripts/validate-viewer-release.mjs`.
 
 **Refuse:** feature-tour openings, logo intros, menu walkthroughs, hiding AI mistakes, invented proof.

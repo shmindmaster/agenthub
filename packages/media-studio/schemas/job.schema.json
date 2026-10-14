@@ -47,13 +47,35 @@
         "welcome",
         "social-clip",
         "sales-enablement",
-        "technical-story"
+        "technical-story",
+        "campaign-flagship",
+        "campaign-comparison",
+        "campaign-short",
+        "campaign-outreach"
       ],
       "description": "Buyer-library or named format. See references/program-forms.md. Infer from the brief."
     },
     "sourceJobId": {
       "type": "string",
       "description": "Parent job id when this film is a recut of a locked master. Do not re-fake product UI."
+    },
+    "campaign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["continuity", "claims", "assets"],
+      "properties": {
+        "continuity": {
+          "oneOf": [
+            { "type": "object", "additionalProperties": false, "required": ["mode", "recordId", "scenarioId"], "properties": { "mode": { "const": "single-record" }, "recordId": { "type": "string", "minLength": 1 }, "scenarioId": { "type": "string", "minLength": 1 } } },
+            { "type": "object", "additionalProperties": false, "required": ["mode", "vignettes"], "properties": { "mode": { "const": "labeled-vignettes" }, "vignettes": { "type": "array", "minItems": 2, "items": { "type": "object", "additionalProperties": false, "required": ["id", "label", "recordId", "segmentIds"], "properties": { "id": { "type": "string" }, "label": { "type": "string" }, "recordId": { "type": "string" }, "segmentIds": { "type": "array", "minItems": 1, "items": { "type": "string" } } } } } } }
+          ]
+        },
+        "claims": { "type": "array", "minItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["id", "text", "asOf", "segmentIds", "evidence"], "properties": { "id": { "type": "string" }, "text": { "type": "string", "minLength": 1 }, "asOf": { "type": "string", "format": "date" }, "segmentIds": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "evidence": { "$ref": "#/$defs/hashedFile" } } } },
+        "assets": { "type": "array", "minItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["id", "path", "sha256", "origin", "rights"], "properties": { "id": { "type": "string" }, "path": { "type": "string" }, "sha256": { "$ref": "#/$defs/sha256" }, "origin": { "enum": ["captured-ui", "authored-graphic", "licensed", "generated"] }, "rights": { "type": "string", "minLength": 1 } } } },
+        "protectedRegions": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["x", "y", "width", "height"], "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "width": { "type": "number", "exclusiveMinimum": 0 }, "height": { "type": "number", "exclusiveMinimum": 0 } } } },
+        "captionRegion": { "type": "object", "additionalProperties": false, "required": ["x", "y", "width", "height"], "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "width": { "type": "number", "exclusiveMinimum": 0 }, "height": { "type": "number", "exclusiveMinimum": 0 } } },
+        "derivative": { "type": "object", "additionalProperties": false, "required": ["parentJobId", "parentCandidate", "sourceAssets"], "properties": { "parentJobId": { "type": "string" }, "parentCandidate": { "$ref": "#/$defs/hashedFile" }, "sourceAssets": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/hashedFile" } } } }
+      }
     },
     "title": { "type": "string", "minLength": 1 },
     "audience": { "type": "string" },
@@ -108,6 +130,7 @@
         "youtube-16x9",
         "vertical-9x16",
         "linkedin",
+        "linkedin-4x5",
         "presentation",
         "onboarding",
         "webcast"
@@ -120,5 +143,13 @@
       "maximum": 100,
       "description": "Viewer-facing story-experience fail-closed threshold. Default 85. Draft ignores this gate."
     }
-  }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+    "hashedFile": { "type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": { "path": { "type": "string", "minLength": 1 }, "sha256": { "$ref": "#/$defs/sha256" } } }
+  },
+  "allOf": [
+    { "if": { "properties": { "programForm": { "enum": ["campaign-flagship", "campaign-comparison", "campaign-short", "campaign-outreach"] } }, "required": ["programForm"] }, "then": { "required": ["campaign", "deliveryProfile"], "properties": { "kind": { "const": "product-screencast" } } } },
+    { "if": { "properties": { "programForm": { "enum": ["campaign-flagship", "campaign-comparison", "campaign-short", "campaign-outreach"] } }, "required": ["programForm", "sourceJobId"] }, "then": { "properties": { "campaign": { "required": ["derivative"] } } } }
+  ]
 }

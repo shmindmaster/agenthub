@@ -405,10 +405,11 @@ professional. The owner's speech also never leaves the machine.
 D:\Local-AI\ai.ps1 voice qwen-clone --voice sarosh --text "..." --out <segment.wav>
 ```
 
-From Node, use `scripts/generate-narration.mjs --provider local`, which selects
-this route automatically when the Local-AI control plane is present and handles
-the PowerShell invocation correctly (`ai.ps1` must be called with the call
-operator, not `pwsh -File`).
+For viewer-facing jobs, use the deployed `Generate-OwnerVoice.ps1` in
+`%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools` as directed by
+`media-studio-generate`. It handles Local-AI invocation, segment integrity,
+speaker identity, and pronunciation gates. There is no `generate-narration.mjs`
+entry point in this package.
 
 Every owner-voice segment is scored against an enrolled speaker profile before
 it ships — `ai.ps1 voice score --voice sarosh <file>` — on two independent
