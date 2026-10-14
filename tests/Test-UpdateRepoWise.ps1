@@ -88,10 +88,17 @@ Report 'register-schedule-is-refused' ($register.ExitCode -ne 0 -and $register.O
 
 $schLog = Join-Path $scratch 'schtasks.log'
 $schPresent = Join-Path $scratch 'schtasks-present.cmd'
+$presenceFile = Join-Path $scratch 'present.flag'
+Set-Content -LiteralPath $presenceFile -Value 'present' -Encoding ASCII
 @(
     '@echo off'
     "echo %*>> `"$schLog`""
+    "if not exist `"$presenceFile`" goto absent"
+    "if /I `"%1`"==`"/Delete`" del `"$presenceFile`""
     'exit /b 0'
+    ':absent'
+    'echo ERROR: The system cannot find the file specified.'
+    'exit /b 1'
 ) | Set-Content -LiteralPath $schPresent -Encoding ASCII
 $removed = Invoke-Updater -UpdaterArgs @('-RemoveSchedule', '-SchtasksExe', $schPresent)
 $schText = if (Test-Path -LiteralPath $schLog) { Get-Content -LiteralPath $schLog -Raw -Encoding UTF8 } else { '' }
@@ -103,12 +110,31 @@ $schAbsent = Join-Path $scratch 'schtasks-absent.cmd'
 @(
     '@echo off'
     "echo %*>> `"$schLog`""
+    'echo ERROR: The system cannot find the file specified.'
     'exit /b 1'
 ) | Set-Content -LiteralPath $schAbsent -Encoding ASCII
 $absent = Invoke-Updater -UpdaterArgs @('-RemoveSchedule', '-SchtasksExe', $schAbsent)
 $schText = if (Test-Path -LiteralPath $schLog) { Get-Content -LiteralPath $schLog -Raw -Encoding UTF8 } else { '' }
 Report 'remove-schedule-absent-is-pass' ($absent.ExitCode -eq 0 -and $absent.Output -match 'absent') "exit=$($absent.ExitCode) output=$($absent.Output)"
 Report 'remove-schedule-absent-skips-delete' ($schText -notmatch '/Delete') $schText
+
+Remove-Item -LiteralPath $schLog -Force -ErrorAction SilentlyContinue
+$schDenied = Join-Path $scratch 'schtasks-denied.cmd'
+@('@echo off', "echo %*>> `"$schLog`"", 'echo ERROR: Access is denied.', 'exit /b 1') |
+    Set-Content -LiteralPath $schDenied -Encoding ASCII
+$denied = Invoke-Updater -UpdaterArgs @('-RemoveSchedule', '-SchtasksExe', $schDenied)
+Report 'query-access-denied-fails' ($denied.ExitCode -ne 0) $denied.Output
+Report 'query-access-denied-never-claims-absent' ($denied.Output -notmatch 'PASS:.*absent') $denied.Output
+$deniedLog = Get-Content -LiteralPath $schLog -Raw
+Report 'query-access-denied-skips-delete' ($deniedLog -notmatch '/Delete') $deniedLog
+
+$notRemoved = Invoke-Updater -UpdaterArgs @('-RemoveSchedule', '-SchtasksExe', $stub)
+Report 'query-unclassified-failure-is-not-absence' ($notRemoved.ExitCode -ne 0 -and $notRemoved.Output -notmatch 'PASS:.*absent') $notRemoved.Output
+
+$schUnchanged = Join-Path $scratch 'schtasks-unchanged.cmd'
+@('@echo off', 'exit /b 0') | Set-Content -LiteralPath $schUnchanged -Encoding ASCII
+$unchanged = Invoke-Updater -UpdaterArgs @('-RemoveSchedule', '-SchtasksExe', $schUnchanged)
+Report 'delete-success-with-task-still-present-fails' ($unchanged.ExitCode -ne 0 -and $unchanged.Output -notmatch 'PASS:.*removed') $unchanged.Output
 
 Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $stateFile -Force -ErrorAction SilentlyContinue

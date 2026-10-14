@@ -144,14 +144,21 @@ function Invoke-Upgrade([string]$UvPath, [bool]$AlreadyInstalled) {
 
 function Remove-UpdateTask {
     $exe = if (-not [string]::IsNullOrWhiteSpace($SchtasksExe)) { $SchtasksExe } else { Join-Path $env:WINDIR 'System32\schtasks.exe' }
-    $null = & $exe /Query /TN $TaskName 2>&1
+    $query = & $exe /Query /TN $TaskName 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
+        if ($query -notmatch '(?i)cannot find the (?:file|task) specified|does not exist') {
+            throw "Could not establish whether scheduled task $TaskName exists: $($query.Trim())"
+        }
         Write-Host "PASS: scheduled task $TaskName is absent."
         return
     }
     $out = & $exe /Delete /TN $TaskName /F 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         throw "schtasks /Delete $TaskName failed (exit $LASTEXITCODE): $out"
+    }
+    $after = & $exe /Query /TN $TaskName 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0 -or $after -notmatch '(?i)cannot find the (?:file|task) specified|does not exist') {
+        throw "Scheduled task removal could not be verified: $($after.Trim())"
     }
     Write-Host "PASS: removed scheduled task $TaskName."
 }

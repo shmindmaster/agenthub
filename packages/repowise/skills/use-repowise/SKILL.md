@@ -76,8 +76,13 @@ RepoWise on this fleet is a **local disk index**, not a hosted product.
   Those directories are gitignored.
 - The agent surface is ONE shared local server, `repowise mcp C:/Repos
   --transport streamable-http --port 7339 --host 127.0.0.1`
-  (`repowise-workspace`), started once per logon by the task
-  `RepoWise-Shared` (`packages/repowise/scripts/Start-RepoWiseShared.ps1`).
+  (`repowise-workspace`), started on demand by
+  `packages/repowise/scripts/Start-RepoWiseShared.ps1`. If
+  `127.0.0.1:7339` refuses connections, run that script from the agent
+  shell; it launches repowise hidden and exits if the port is already
+  served. Never register a logon or scheduled task for it (owner direction
+  2026-10-13: Task Scheduler `powershell.exe` opens a window and takes
+  focus). The `repowise` CLI works without the server.
   Hosts reach it at `http://127.0.0.1:7339/mcp` through `repowise@agenthub`.
   Never bind it beyond loopback, never point hosts at a hosted RepoWise URL,
   and never add a stdio entry to host MCP config.
@@ -99,8 +104,8 @@ RepoWise on this fleet is a **local disk index**, not a hosted product.
 ## Access
 
 CLI on this machine is uv-managed (`uv tool install repowise`). Keep it on
-the PyPI latest with `scripts/Update-RepoWise.ps1 -Apply` (daily scheduled
-task `AgentHub-Update-RepoWise`). Do not install a second copy. Do not add
+the PyPI latest by running `scripts/Update-RepoWise.ps1 -Apply` manually;
+there is no scheduled updater. Do not install a second copy. Do not add
 per-repo repowise MCP entries.
 
 - **MCP (plugin-gated):** `repowise@agenthub` owns `.mcp.json`, an HTTP

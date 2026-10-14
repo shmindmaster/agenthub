@@ -9,7 +9,9 @@
   because RepoWise resolves its embedder once at startup and falls back to a
   mock embedder for the life of the process if 8790 is down.
 
-  Runs from the per-user logon task "RepoWise-Shared". Safe to run
+  Started on demand by the capability or operator that needs it; never from
+  a logon or scheduled task (owner direction 2026-10-13: a Task Scheduler
+  powershell.exe action opens a console window and takes focus). Safe to run
   repeatedly: exits if the port is already served.
 #>
 [CmdletBinding()]

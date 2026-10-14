@@ -689,7 +689,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "448809590E8BB2C245E0A24EB402480C694EE47416044C3190D7204C178E9348",
+      "contentHash": "84A23F89707852E44CEB45DEBE7D84CA34956014AA978A9E7A8A79C586A62085",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -781,7 +781,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) delivered only by packages/repowise plugin .mcp.json, plus the use-repowise loose skill and CLI. The external CLI is uv-managed machine tooling, kept on the PyPI latest by scripts/Update-RepoWise.ps1 (daily scheduled task AgentHub-Update-RepoWise). Official Claude/Codex RepoWise marketplace plugins are not installed: they would register a second MCP pointed at the nearest repo instead of C:/Repos."
+      "notes": "Fleet code-intelligence layer. Owns the single RepoWise workspace MCP (registry/mcps.json#repowise-workspace) delivered only by packages/repowise plugin .mcp.json, plus the use-repowise loose skill and CLI. The external CLI is uv-managed machine tooling, kept on the PyPI latest by scripts/Update-RepoWise.ps1 on explicit or capability-invoked demand. Scheduled updates are retired. Official Claude/Codex RepoWise marketplace plugins are not installed: they would register a second MCP pointed at the nearest repo instead of C:/Repos."
     },
     {
       "id": "mobile-development",
