@@ -14,6 +14,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const pkg = resolve(here, '..');
 const validator = join(pkg, 'scripts', 'validate-product-picture.mjs');
 const encodedValidator = join(pkg, 'scripts', 'validate-encoded-picture.mjs');
+const releaseValidator = join(pkg, 'scripts', 'validate-viewer-release.mjs');
 const compose = join(pkg, 'kit', 'screencast', 'compose-screencast.mjs');
 const ff = (args) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], { stdio: ['ignore', 'ignore', 'inherit'] });
 const sha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
@@ -173,6 +174,7 @@ test('compose: refuses to run when the product-picture validator is not resolvab
   const kitCopy = join(scratch, 'kit-no-validator');
   mkdirSync(kitCopy, { recursive: true });
   cpSync(compose, join(kitCopy, 'compose-screencast.mjs'));
+  cpSync(join(pkg, 'kit', 'screencast', 'campaign-contract.mjs'), join(kitCopy, 'campaign-contract.mjs'));
   const root = join(scratch, 'compose-nogate');
   writeJob(root);
   const r = spawnSync(process.execPath, [join(kitCopy, 'compose-screencast.mjs'), root, 'x'], { encoding: 'utf8', env: { ...process.env, AGENTHUB_ROOT: join(scratch, 'nowhere') } });
@@ -180,6 +182,54 @@ test('compose: refuses to run when the product-picture validator is not resolvab
   // Either the hard-coded repo path resolves (dev machine) and the gate runs, or it must throw — never compose silently.
   assert.ok(r.status !== 0, out);
   assert.match(out, /validator not resolvable|product-picture/);
+});
+
+test('portrait campaign composes a bounded source reframe with timed graphic and binds the encoded source', { skip: !ffmpegAvailable, timeout: 180000 }, () => {
+  const root = join(scratch, 'portrait-reframe');
+  for (const dir of ['story', 'capture/clips', 'capture/graphics', 'evidence', 'output']) mkdirSync(join(root, dir), { recursive: true });
+  const clip = join(root, 'capture', 'clips', 'S01.webm');
+  ff(['-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=30:duration=10', '-c:v', 'libvpx', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '650k', '-pix_fmt', 'yuv420p', clip]);
+  const label = join(root, 'capture', 'graphics', 'label.png');
+  ff(['-f', 'lavfi', '-i', 'color=c=yellow@0.6:s=200x80:d=1,format=rgba', '-frames:v', '1', label]);
+  const claim = join(root, 'evidence', 'claim.json'); writeFileSync(claim, '{"synthetic":true}');
+  const region = { x: 0.275, y: 0, width: 0.45, height: 1 };
+  const jobData = { kind: 'product-screencast', programForm: 'campaign-short', deliveryProfile: 'linkedin-4x5', intent: 'viewer-facing', campaign: {
+    continuity: { mode: 'single-record', recordId: 'record-01', scenarioId: 'synthetic-01' },
+    claims: [{ id: 'claim-01', text: 'An approval is visible.', asOf: '2026-09-22', segmentIds: ['S01'], evidence: { path: 'evidence/claim.json', sha256: sha(claim) } }],
+    assets: [{ id: 'ui', path: 'capture/clips/S01.webm', sha256: sha(clip), origin: 'captured-ui', rights: 'synthetic capture' }, { id: 'label', path: 'capture/graphics/label.png', sha256: sha(label), origin: 'authored-graphic', rights: 'synthetic graphic' }],
+    protectedRegions: [{ x: 550, y: 400, width: 350, height: 300 }], captionRegion: { x: 80, y: 930, width: 500, height: 100 },
+  } };
+  writeFileSync(join(root, 'job.json'), JSON.stringify(jobData));
+  writeFileSync(join(root, 'story', 'narration-timeline.json'), JSON.stringify({ durationSeconds: 10, segments: [{ id: 'S01', scene: 'S01', text: 'Approve the plan.', startSeconds: 0, durationSeconds: 10 }] }));
+  writeFileSync(join(root, 'story', 'storyboard.json'), JSON.stringify({ scenarioId: 'synthetic-01', beats: [{ id: 'S01', visualMode: 'screen', durationSeconds: 10 }] }));
+  writeFileSync(join(root, 'story', 'capture-plan.json'), JSON.stringify({ scenes: [{ sceneId: 'S01', kind: 'interaction', action: 'click Approve', expectedResult: 'approved state', startState: 'pending', resultState: 'approved', provesClaim: 'approval visible', clip: 'clips/S01.webm' }] }));
+  writeFileSync(join(root, 'story', 'timed-graphics.json'), JSON.stringify({ overlays: [{ assetId: 'label', x: 80, y: 180, width: 200, height: 80, startSeconds: 1, endSeconds: 3 }] }));
+  writeFileSync(join(root, 'capture', 'manifest.json'), JSON.stringify({ clips: [{ id: 'S01', file: 'clips/S01.webm', segments: ['S01'], sourceRegion: region }] }));
+  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify({ schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: { S01: { file: 'clips/S01.webm', sha256: sha(clip), recast: 'full', valid: true, events: { pointerMoves: 10, clicks: 1, expectationsObserved: 1 } } } }));
+  writeFileSync(join(root, 'evidence', 'demo-scenario-proof.json'), JSON.stringify({ scenarioId: 'synthetic-01', continuity: { entities: [{ type: 'client', id: 'record-01' }] } }));
+  const composed = run(compose, [root, 'portrait']); assert.equal(composed.code, 0, composed.out);
+  const mapPath = join(root, 'output', 'portrait-compose-map.json');
+  assert.deepEqual(JSON.parse(readFileSync(mapPath, 'utf8')).groups[0].sourceRegion, region);
+  const candidate = join(root, 'output', 'portrait-final.mp4'); cpSync(join(root, 'output', 'portrait-silent.mp4'), candidate);
+  const encoded = run(encodedValidator, [root, candidate, '--out', 'qa/portrait-encoded.json']);
+  assert.equal(encoded.code, 0, encoded.out);
+  const report = JSON.parse(readFileSync(join(root, 'qa', 'portrait-encoded.json'), 'utf8'));
+  assert.equal(report.segments[0].bound, true);
+  cpSync(join(root, 'qa', 'portrait-encoded.json'), join(root, 'qa', 'encoded-picture.json'));
+  const candidateSha = sha(candidate), scriptPath = join(root, 'story', 'screenplay.txt'), captionsPath = join(root, 'qa', 'captions.srt'), analyzerPath = join(root, 'qa', 'loudness.json');
+  writeFileSync(scriptPath, 'Approve the plan after the result appears.');
+  writeFileSync(captionsPath, '1\n00:00:00,000 --> 00:00:02,000\nApprove the plan.\n');
+  writeFileSync(analyzerPath, JSON.stringify({ tool: 'ffmpeg-loudnorm', candidateSha256: candidateSha, integratedLufs: -16, truePeakDbtp: -1.5 }));
+  const pass = { status: 'PASS', candidateSha256: candidateSha };
+  writeFileSync(join(root, 'qa', 'viewer-release-evidence.json'), JSON.stringify({ candidate: { sha256: candidateSha }, captions: { ...pass, path: 'qa/captions.srt', sha256: sha(captionsPath), placementReviewed: true, region: jobData.campaign.captionRegion }, audio: { ...pass, integratedLufs: -16, truePeakDbtp: -1.5, analyzerReport: { path: 'qa/loudness.json', sha256: sha(analyzerPath) } }, pronunciation: { ...pass, reference: 'authored-script', scriptPath: 'story/screenplay.txt', scriptSha256: sha(scriptPath), releaseEligible: true }, encodedVisualReview: pass, titleReview: { ...pass, titleCount: 1 }, actionResultReview: { ...pass, events: [{ segmentId: 'S01', actionAtSeconds: 0, resultVisibleAtSeconds: 1, spokenResultAtSeconds: 1.5 }] }, storyReview: { ...pass, cta: 'Review the workflow' }, timedGraphicReview: { ...pass, controlsVisible: true, timingReviewed: true } }));
+  const release = run(releaseValidator, [root, candidate]); assert.equal(release.code, 0, release.out);
+  const map = JSON.parse(readFileSync(mapPath, 'utf8')); map.groups[0].sourceRegion.x = 0.1; writeFileSync(mapPath, JSON.stringify(map));
+  const wrongRegion = run(encodedValidator, [root, candidate, '--out', 'qa/portrait-bad.json']);
+  assert.notEqual(wrongRegion.code, 0); assert.match(wrongRegion.out, /differs from capture manifest/);
+  const manifestPath = join(root, 'capture', 'manifest.json');
+  writeFileSync(manifestPath, JSON.stringify({ clips: [{ id: 'S01', file: 'clips/S01.webm', segments: ['S01'] }] }));
+  const missingRegion = run(compose, [root, 'portrait-missing']);
+  assert.notEqual(missingRegion.code, 0); assert.match(missingRegion.out, /requires an explicit sourceRegion/);
 });
 
 test('encoded gate: a master built from the capture passes; a master with a dead 16s screen fails', { skip: !ffmpegAvailable }, () => {
@@ -239,6 +289,7 @@ test('compose: a pause between segments is picture time, so the picture runs the
   }));
   const clip = join(root, 'capture', 'clips', 'S02.webm');
   movingClip(clip, 17);
+  ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', join(root, 'capture', 'clips', 'S01-card.png')]);
   writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
   const r = run(compose, [root, 'p']);
   assert.equal(r.code, 0, r.out);

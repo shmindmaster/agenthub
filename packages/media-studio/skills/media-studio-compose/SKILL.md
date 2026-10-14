@@ -21,13 +21,25 @@ skill defaults to the current repo, point it at the external workspace first.
 Canonical source: `packages/media-studio/kit`  
 Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`
 
-Sync `kit/src` into the runtime kit before render if the runtime copy is missing or older. Composition `Briefing` still hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Native frame 1600×1000 30 fps; letterbox or scale to `deliveryProfile`.
+Use the deployed runtime kit only when its package manifest matches this skill's 1.5.11 release. AgentHub's `Sync-MediaStudioKit.ps1` deploys that kit and the shared finishing helper; a loose skill does not include package-level scripts. If the kit is missing or stale, stop and sync from a verified 1.5.11 package source (native plugin cache or reviewed AgentHub checkout), then rerun the version check. Never resolve a source by defaulting to an unverified AgentHub checkout. Composition `Briefing` still hosts the program; each scene sets `archetype` from `scene-archetypes.md`. The briefing board remains 1600×1000 at 30 fps. The screencast compositor renders directly to `deliveryProfile`; portrait campaign clips require a bounded manifest `sourceRegion` so the important UI is intentionally framed. It applies timed campaign graphics only inside safe areas away from declared product controls and captions.
 
 ```powershell
-$Hub = if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Repos\shmindmaster\agenthub' }
-pwsh -NoProfile -File (Join-Path $Hub 'packages\media-studio\scripts\Sync-MediaStudioKit.ps1')
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
+$kitManifest = Join-Path $kit 'package.json'
+if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '1.5.11') {
+    throw 'Media Studio 1.5.11 runtime kit is missing or stale. Sync from a verified 1.5.11 package source before rendering.'
+}
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
+```
+
+To repair a missing kit, set `MEDIA_STUDIO_PACKAGE_ROOT` to the actual installed native plugin package or reviewed source package. Verify its `plugin.json` version before invoking its sync script; on a loose-skill host with no package source, ask AgentHub to deploy the kit instead of guessing a checkout path.
+
+```powershell
+$package = $env:MEDIA_STUDIO_PACKAGE_ROOT
+if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '1.5.11') {
+    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 1.5.11 package.'
+}
+pwsh -NoProfile -File (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1')
 ```
 
 Viewer-facing `briefing`, `training`, `explainer`, `series-episode`, `webcast`, `webinar`, `keynote`, `documentary`, and `teaser` **require Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. Do not silently emit static slides.
@@ -39,8 +51,12 @@ Load official Remotion skills (`remotion-markup`, `remotion-render`) when editin
 Do not invent an FFmpeg graph. The helper is the provider:
 
 ```powershell
-$Hub = if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Repos\shmindmaster\agenthub' }
-$Finish = Join-Path $Hub 'packages\media-studio\scripts\Finish-Media.ps1'
+$tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
+$toolsManifest = Join-Path $tools 'plugin.json'
+$Finish = Join-Path $tools 'Finish-Media.ps1'
+if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '1.5.11' -or -not (Test-Path -LiteralPath $Finish)) {
+    throw 'Media Studio 1.5.11 finishing helper is missing or stale in the deployed shared tools.'
+}
 pwsh -NoProfile -File $Finish -Action finish -Program <job>\candidate.mp4 -Output <job>\candidate-finished.mp4
 pwsh -NoProfile -File $Finish -Action finish -Speech <job>\voice.wav -Music <job>\bed.wav -Video <job>\picture.mp4 -Output <job>\candidate-finished.mp4
 ```

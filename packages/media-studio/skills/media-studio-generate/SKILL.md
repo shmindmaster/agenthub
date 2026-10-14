@@ -33,14 +33,22 @@ If a required file is missing, remit. Do not generate a generic bed and skip the
 
 TTS **always**. Owner (and role) speech for viewer-facing jobs **must** go through `Generate-OwnerVoice.ps1` — never an ad-hoc one-shot generate → concat script.
 
+Use the AgentHub-deployed shared tools on native-plugin and loose-skill hosts. Their `plugin.json` must match this skill's 1.5.11 release. Missing or stale tools block generation until AgentHub syncs the kit from a verified 1.5.11 package; do not default to a checkout of unknown version.
+
 ```powershell
-$Hub = if ($env:AGENTHUB_ROOT) { $env:AGENTHUB_ROOT } else { 'C:\Repos\shmindmaster\agenthub' }
-& pwsh -NoProfile -File (Join-Path $Hub 'packages\media-studio\scripts\Generate-OwnerVoice.ps1') -Job $Job
+$tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
+$manifest = Join-Path $tools 'plugin.json'
+$generator = Join-Path $tools 'Generate-OwnerVoice.ps1'
+$integrity = Join-Path $tools 'Test-SpeechIntegrity.ps1'
+if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '1.5.11' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
+    throw 'Media Studio 1.5.11 voice tools are missing or stale. Deploy them from a verified package before generation.'
+}
+& pwsh -NoProfile -File $generator -Job $Job
 ```
 
 That path is fail-closed: allowlisted style only (default `02_explaining` from `_identity_probe.json`) → integrity → `ai.ps1 transcribe` (Qwen3-ASR-1.7B) → dual-backend identity → retry → seed → `--premium` → STOP+LOG. Selection ledger before scene concat. Role voices (`ryan` / `vivian` / `aiden` / `joel` from each scene's `speaker`, matching the kit's stakeholder cast) get integrity + ASR only, no identity gate.
 
-If a STOP+LOG segment failed only because the ASR misread digits/numbers already present in the narration (identity passed, wording didn't), do not regenerate TTS: run `ReGate-OwnerVoice.ps1 -Job $Job`. It re-scores the existing `take.wav` files with number-normalized WER and looser integrity and writes fresh `PASS.json` receipts in place — it never re-synthesizes audio.
+If a STOP+LOG segment failed only because the ASR misread digits/numbers already present in the narration (identity passed, wording didn't), do not regenerate TTS: run `pwsh -NoProfile -File (Join-Path $tools 'ReGate-OwnerVoice.ps1') -Job $Job` after the same deployed-version check. It re-scores the existing `take.wav` files with number-normalized WER and looser integrity and writes fresh `PASS.json` receipts in place — it never re-synthesizes audio.
 
 `Generate-OwnerVoice.ps1` reads narration and `speaker` straight from `screenplay.json`; it does not parse `storyboard.json` or `visual-bible.json` itself — those still drive Sections 3 and 4 below by hand. **Known gap: it renders the whole job on one allowlisted default style, not per-beat `direction.register`.** `media-director` still names a style-bank register per beat in `direction.json` (`explaining`, `firm`, `serious`, …), but the batch script does not read or switch on it. If a beat's called register meaningfully differs from the default, generate that one segment manually — `ai.ps1 voice qwen-clone --voice sarosh --reference <register-style.wav> --ref-text <sidecar> --text "…"`, gated through `Test-SpeechIntegrity.ps1` and `ai.ps1 voice score --voice sarosh` — and splice it into `voice/selected/` before scene concat. Do not claim a beat's register was honored unless you did this by hand; the automated path always uses the default.
 
@@ -48,7 +56,7 @@ If a STOP+LOG segment failed only because the ASR misread digits/numbers already
 
 Pronunciation is a gate inside `Generate-OwnerVoice.ps1`, not a note: before any audio it runs `ai.ps1 voice pronunciation-risk` over the canonical segments and writes `qa/pronunciation-risk.json` (heteronyms with a part-of-speech reading per occurrence — `resume`/`résumé`, `record`/`records`, `content` — plus stress-shift clinical terms, names, acronyms, codes, symbols). A heteronym whose reading cannot be inferred stops the run (`coverage.status: FAIL`); record the reading with `-PronunciationOverrides <json>` (`{ "S05_02": { "record": "verb" } }`) or reword. Pass the product lexicon with `-PronunciationLexicon` (ABACare: `skills/media-studio-capture/references/abacare-lexicon.json`). After the takes pass integrity, ASR and identity, the script runs per-scene `ai.ps1 listen` on the concatenated scene audio with the canonical transcript and that scene's slice of the manifest; any pronunciation, pacing or artifact finding regenerates the localized segment with a new seed and listens again (`-ListenMaxRounds`, default 2), then STOP+LOG. `qa/pronunciation-listen.json` and the selection ledger record every report by sha256. Extend `pronunciations.json` when a term keeps failing; never respell the canonical narration.
 
-Honor `pauseBeforeSeconds` / `holdAfterSeconds` as edit silence, not padded TTS — on `product-screencast` that silence is the product responding. Speak the locked `narration.md` / `screenplay.json`. Do not rewrite it with a local chat LLM. Mix with `Finish-BriefingStems.ps1` (speech-only loudnorm) — never `-AllowDynamic` on TTS. Local TTS stems (Qwen3) land near -21.5 LUFS with peaks at about -1.6 dBTP, a peak-to-loudness ratio of ~19 dB, so a bare linear pass to -16 LUFS / -1.5 dBTP is impossible and `Finish-Media.ps1` refuses the dynamic fallback. Every finish path (briefing stems and product-screencast mux alike) preconditions the speech first: fixed gain plus a true-peak limiter (`alimiter=limit=0.8413:attack=5:release=50:level=disabled`), then the two-pass linear loudnorm; pass `-LoudnessRange 11` when only LRA blocks the linear pass.
+Honor `pauseBeforeSeconds` / `holdAfterSeconds` as edit silence, not padded TTS — on `product-screencast` that silence is the product responding. Speak the locked `narration.md` / `screenplay.json`. Mix with `(Join-Path $tools 'Finish-BriefingStems.ps1')` (speech-only loudnorm) — never `-AllowDynamic` on TTS. Its `Finish-Media.ps1` dependency is deployed beside it. Local TTS stems (Qwen3) land near -21.5 LUFS with peaks at about -1.6 dBTP, a peak-to-loudness ratio of ~19 dB, so a bare linear pass to -16 LUFS / -1.5 dBTP is impossible and `Finish-Media.ps1` refuses the dynamic fallback. Every finish path (briefing stems and product-screencast mux alike) preconditions the speech first: fixed gain plus a true-peak limiter (`alimiter=limit=0.8413:attack=5:release=50:level=disabled`), then the two-pass linear loudnorm; pass `-LoudnessRange 11` when only LRA blocks the linear pass.
 
 ## 3. Music and silence
 

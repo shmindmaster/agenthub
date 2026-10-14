@@ -7,7 +7,7 @@ description: Use when a live product workflow needs deterministic Playwright Web
 
 Capture the real product. This is the screencast lane of media-studio (Playwright + Recast).
 
-Engine: `packages/media-studio/kit/screencast/record-job.mjs` (and `record-lib.mjs`). Contract: `../media-studio/references/product-picture.md`. Do not copy product UI with diffusion. PNG plates are diagnostic or posters; they are not the picture of a `screen` beat.
+Engine: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit\screencast\record-job.mjs` (and its adjacent `record-lib.mjs`). Contract: `../media-studio/references/product-picture.md`. Native plugins also contain the package source; loose-skill hosts use the deployed runtime kit and `%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools` for capture validators. Do not copy product UI with diffusion. PNG plates are diagnostic or posters; they are not the picture of a `screen` beat.
 
 The product repository is read-only. Put Playwright scripts/specs, traces,
 recordings, screenshots, manifests, authentication state, and reset evidence in
@@ -27,15 +27,18 @@ Hosts do not share one browser tool. Resolve the provider, never a tool name:
 
 1. Verify deployed commit, role, seed/reset, clean browser profile. Product-specific sign-in routes, navigation tricks, seed/reset commands, and environment overrides live in this skill's `references/` (`references/duckie-capture.md`, `references/abacare-local.md`); read the product's note before the first take.
 2. Write `<jobRoot>/capture/scenes.mjs`: `export const options = { baseUrl, storageState?, viewport?, deviceScaleFactor?, recast?: { S05: { autoZoom: false } } }`, `export const order = [...]`, and one `async S05(h, ctx)` per screen beat. Drive the product only through the helpers `h.go`, `h.approach`, `h.click`, `h.typeText`, `h.pointAt`, `h.hoverHold`, `h.smoothScroll`, `h.expect`, `h.hold` (`kit/screencast/record-lib.mjs`). Every helper call is logged into the receipt; `h.expect(locator, 'label')` is the recorded proof that the product responded, so every interaction beat ends with one. Timing is the PDS production guide (eased pointer 400–600 ms, settle ≥250 ms, hold ≥500 ms) and is built into the helpers; do not add `page.waitForTimeout` padding to reach a narration length — re-pace the beat or split it.
-3. Record: `node <kit>/screencast/record-job.mjs <jobRoot> [S05 ...]` where `<kit>` is `packages/media-studio/kit` (repo) or `%LOCALAPPDATA%\AgentHub\media-studioriefing-kit` (synced). It records one Playwright take per beat (1600×1000 @2×, trace + WebM), finishes it with Recast (cursor approach, click ripple, punch-in), and writes `capture/clips/<id>.webm`, `capture/beats/<id>.json`, `capture/recordings.json`, and the hash-bound `capture/receipt.json`. A take flagged `SHORT` or `INVALID` is re-recorded, never padded.
+3. Record: `node <kit>\screencast\record-job.mjs <jobRoot> [S05 ...]` where `<kit>` is the deployed `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`. It records one Playwright take per beat (1600×1000 @2×, trace + WebM), finishes it with Recast (cursor approach, click ripple, punch-in), and writes `capture/clips/<id>.webm`, `capture/beats/<id>.json`, `capture/recordings.json`, and the hash-bound `capture/receipt.json`. A take flagged `SHORT` or `INVALID` is re-recorded, never padded.
 4. One beat per action (`product-picture.md`). `story/capture-plan.json` interaction rows need `action`, `expectedResult`, `startState` ≠ `resultState`, `provesClaim`, and a WebM `clip`. Same session (`carryState`) for config then runtime. Do not skip loading/submit/response. Re-record only beats that fail mute test; keep the rest.
-5. Validate with `scripts/validate-storyboard.mjs`, `scripts/validate-capture-manifest.mjs`, and `scripts/validate-product-picture.mjs <jobRoot>` (clip on disk, receipt-bound, pointer motion, Recast status, no hidden freeze). Takes from an older recorder can be bound with `scripts/backfill-capture-receipt.mjs` from their Playwright trace; the validator accepts those with a warning.
+5. Validate with `validate-storyboard.mjs`, `validate-capture-manifest.mjs`, and `validate-product-picture.mjs <jobRoot>` from the deployed shared tools (or the native plugin's `scripts/`) (clip on disk, receipt-bound, pointer motion, Recast status, no hidden freeze). Takes from an older recorder can be bound with the adjacent `backfill-capture-receipt.mjs` from their Playwright trace; the validator accepts those with a warning.
 
 ## 3. Recast engine notes (measured)
 
 - Recast writes a `.recast-tmp` folder **inside the output clips directory**. Two renders into the same directory at once collide with `EPERM`. Render **sequentially per output directory**, or give each concurrent render its own directory.
 - Recast's ffmpeg render can fail on long clips with many clicks (a 117 s clip with ~40 clicks failed). Fall back to a render **without `autoZoom`**, or split the recording into shorter takes and let the compositor join them.
 - Trace frames are metadata fallback only; the final picture is the source WebM.
+- Punch-in zoom needs subtitle cues: Recast `autoZoom` only zooms inside a cue, and empty-text cues are dropped. `renderRecast` writes `raw/<id>/zoom-cues.srt` (one cue per click, to the next click or 2.5 s) and feeds it to `subtitlesFromSrt`; cue text is never burned in. Before 2026-10-14 every take rendered with zero cues and no punch-in. Check the record log for `Zoom: zoompan` and the contact sheet for the punch-in.
+- Recast warns when it upscales for zoom (`Source 1280x800 is upscaled 1.40x`). Record at the 1600x1000 default or larger when text must stay sharp inside a punch-in.
+- Run `record-job.mjs` with the resolved `D:\Local-AI\data\artifacts\media-studio\...` job path, not the `%LOCALAPPDATA%\AgentHub\media-studio` link: Node 26 `mkdirSync(..., { recursive: true })` fails with ENOENT through that link (measured 2026-10-14).
 
 ## 4. Final check
 

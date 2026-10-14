@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenthub.local/schemas/media-studio/timed-graphics.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["overlays"],
+  "properties": {
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["assetId", "x", "y", "width", "height", "startSeconds", "endSeconds"],
+        "properties": {
+          "assetId": { "type": "string", "minLength": 1 },
+          "x": { "type": "integer", "minimum": 0 },
+          "y": { "type": "integer", "minimum": 0 },
+          "width": { "type": "integer", "minimum": 1 },
+          "height": { "type": "integer", "minimum": 1 },
+          "startSeconds": { "type": "number", "minimum": 0 },
+          "endSeconds": { "type": "number", "exclusiveMinimum": 0 },
+          "vignetteId": { "type": "string" },
+          "visibleLabel": { "type": "string" }
+        }
+      }
+    }
+  }
+}

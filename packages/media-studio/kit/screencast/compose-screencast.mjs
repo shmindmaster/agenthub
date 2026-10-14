@@ -7,11 +7,12 @@
 //   job.json                       optional; `title` and `cardFooter` feed auto cards
 // Per-clip hints (see README.md): trimStart, trimEnd, speed, skip, fit: cut|hold|fit|fitpad, overlay.
 // A segment with no clip holds the previous clip's last frame. A png is a card, looped.
-// Output: output/<base>-silent.mp4 (1600x1000, 30 fps, yuv420p). Prints a per-segment coverage table.
+// Output: output/<base>-silent.mp4 at the job delivery profile, 30 fps, yuv420p.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CAMPAIGN_FORMS, frameFor, sourcePictureFilter, sourceRegionError, validateCampaign } from './campaign-contract.mjs';
 
 const [jobRoot, base] = process.argv.slice(2);
 if (!jobRoot || !base) { console.error('usage: node compose-screencast.mjs <jobRoot> <base>'); process.exit(2); }
@@ -38,9 +39,14 @@ try {
 }
 const HOLD_PAD_MAX = 2.0;     // seconds a screen clip may be frozen to reach the narration length
 const RESULT_HOLD_MAX = 6.0;  // unless the storyboard beat declares resultHoldSeconds up to this
-const W = 1600, H = 1000, FPS = 30;
 const tl = JSON.parse(fs.readFileSync(path.join(jobRoot, 'story', 'narration-timeline.json'), 'utf8'));
 const man = JSON.parse(fs.readFileSync(path.join(jobRoot, 'capture', 'manifest.json'), 'utf8'));
+const job = (() => { try { return JSON.parse(fs.readFileSync(path.join(jobRoot, 'job.json'), 'utf8')); } catch { return {}; } })();
+const { width: W, height: H, fps: FPS, profile } = frameFor(job);
+const graphicsPath = path.join(jobRoot, 'story', 'timed-graphics.json');
+const graphics = fs.existsSync(graphicsPath) ? JSON.parse(fs.readFileSync(graphicsPath, 'utf8')).overlays : [];
+const contractErrors = validateCampaign(jobRoot, job, tl, graphics);
+if (contractErrors.length) throw new Error(`campaign contract: ${contractErrors.join(' ')}`);
 // Accept both shapes: { clips:[{id,file,segments}] } and the validator-shaped { captures:[{storyboardSegmentId, segments, clip?}] }.
 // A job may pre-assemble one exact-length plate per scene (manifest.composeClips); it wins over the raw capture record.
 const rawClips = man.composeClips || man.clips || man.entries || man.captures || [];
@@ -50,6 +56,11 @@ const clips = rawClips.map((c) => {
   if (!file) for (const ext of ['webm', 'mp4', 'png']) { if (fs.existsSync(path.join(jobRoot, 'capture', 'clips', `${id}.${ext}`))) { file = `clips/${id}.${ext}`; break; } }
   return { ...c, id, file, segments: c.segments || [c.storyboardSegmentId] };
 }).filter((c) => c.file);
+for (const clip of clips) {
+  const regionError = sourceRegionError(clip.sourceRegion);
+  if (regionError) throw new Error(`clip ${clip.id}: ${regionError}`);
+  if (Object.hasOwn(CAMPAIGN_FORMS, job.programForm) && H > W && !/\.(png|jpe?g|webp)$/i.test(clip.file) && !clip.sourceRegion) throw new Error(`clip ${clip.id}: portrait campaign requires an explicit sourceRegion for intentional framing.`);
+}
 // Map clips to timeline segments. A clip may name a segment id (S06a / S12), a scene id (S06) that
 // spans several paragraph segments, or several of either. When several clips name one scene they
 // are dealt to that scene's segments in order; leftovers attach to the last segment as extra sources.
@@ -76,7 +87,6 @@ const CARD_MODES = new Set(['card', 'slide', 'diagram', 'talking-head', 'motif',
 const sbPath = path.join(jobRoot, 'story', 'storyboard.json');
 const sb = fs.existsSync(sbPath) ? JSON.parse(fs.readFileSync(sbPath, 'utf8')) : null;
 const beats = sb ? (sb.beats || sb.scenes || []) : [];
-const job = (() => { try { return JSON.parse(fs.readFileSync(path.join(jobRoot, 'job.json'), 'utf8')); } catch { return {}; } })();
 const jobTitle = job.title || '';
 const beatFor = (segId) => beats.find((x) => x.id === segId || (x.segments || []).includes(segId)) || {};
 // visualMode: storyboard beat first, then the screenplay scene (exact id, then the id with the beat suffix stripped).
@@ -98,7 +108,7 @@ for (const seg of tl.segments) {
   if (!fs.existsSync(png)) {
     const b = beatFor(seg.id);
     const spec = { kicker: b.kicker || jobTitle, title: b.title || (seg.text.split(/[.!?]/)[0] || '').slice(0, 90), subtitle: b.subtitle || '', footer: b.footer || job.cardFooter || '' };
-    execFileSync('node', [path.join(here, 'render-card.mjs'), png, JSON.stringify(spec)], { stdio: 'ignore' });
+    execFileSync('node', [path.join(here, 'render-card.mjs'), png, JSON.stringify({ ...spec, width: W, height: H })], { stdio: 'ignore' });
   }
   const card = { id: `${seg.id}-card`, file: `clips/${seg.id}-card.png`, segments: [seg.id], autoCard: true };
   clips.push(card); bySeg.set(seg.id, card);
@@ -131,6 +141,7 @@ groups.forEach((g, i) => {
   let src = g.clip ? path.join(jobRoot, 'capture', g.clip.file) : prevFile;
   if (!src) throw new Error(`segment ${g.segments[0].id} has no clip and nothing precedes it`);
   if (g.clip && g.clip.extras && g.clip.extras.length) {
+    if (g.clip.sourceRegion || g.clip.extras.some((extra) => extra.sourceRegion)) throw new Error(`clip ${g.clip.id}: sourceRegion with extra clips is unsupported; split the segments into separate manifest clips.`);
     // pre-concatenate the clip and its extras into one source so the slot plays them in order
     const srcs = [g.clip, ...g.clip.extras].map((c) => path.join(jobRoot, 'capture', c.file));
     const listP = path.join(tmp, `extras-${i}.txt`);
@@ -183,7 +194,9 @@ groups.forEach((g, i) => {
     const r = g.duration / srcDur;
     if (r < 0.8 || r > 1.25) throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} fit would retime product footage ${r.toFixed(2)}x (allowed 0.8–1.25x); that misrepresents the product's speed.`);
   }
-  let vf = `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2,fps=${FPS},format=yuv420p`;
+  const sourceRegion = g.clip?.sourceRegion || (!g.clip ? (mapGroups.at(-1)?.sourceRegion || null) : null);
+  if (sourceRegion && g.clip?.overlay) throw new Error(`clip ${g.clip.id}: sourceRegion cannot be combined with a legacy full-frame annotation overlay; use a timed campaign graphic.`);
+  let vf = `${sourcePictureFilter(sourceRegion, { width: W, height: H })},fps=${FPS},format=yuv420p`;
   let args;
   if (isImage) args = ['-loop', '1', '-t', dur, '-i', src, '-vf', vf];
   else if (!g.clip) args = ['-sseof', '-0.1', '-i', src, '-vf', `${vf},tpad=stop_mode=clone:stop_duration=${dur}`, '-t', dur]; // hold previous last frame
@@ -200,16 +213,30 @@ groups.forEach((g, i) => {
   }
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-r', String(FPS), out]);
   parts.push(out); prevFile = src;
-  mapGroups.push({ segments: g.segments.map((s) => s.id), startSeconds: g.start, needSeconds: Number(g.duration.toFixed(3)), clipId: g.clip ? g.clip.id : null, file: g.clip ? g.clip.file : (prevClipFile || null), heldFromPrevious: !g.clip, srcSeconds: Number(srcDur.toFixed(3)), fit: g.clip ? fit : 'hold-prev', trimStart: Number(hints.trimStart || 0), speed: Number(hints.speed || 1), overlay: g.clip?.overlay || null, isImage });
+  mapGroups.push({ segments: g.segments.map((s) => s.id), startSeconds: g.start, needSeconds: Number(g.duration.toFixed(3)), clipId: g.clip ? g.clip.id : null, file: g.clip ? g.clip.file : (prevClipFile || null), heldFromPrevious: !g.clip, sourceRegion, srcSeconds: Number(srcDur.toFixed(3)), fit: g.clip ? fit : 'hold-prev', trimStart: Number(hints.trimStart || 0), speed: Number(hints.speed || 1), overlay: g.clip?.overlay || null, isImage });
   if (g.clip) prevClipFile = g.clip.file;
   rows.push(`${g.segments.map((s) => s.id).join('+').padEnd(16)} ${(g.clip ? g.clip.id : '(hold prev)').padEnd(28)} need=${g.duration.toFixed(1).padStart(6)}s clip=${srcDur.toFixed(1).padStart(6)}s ${fit}${g.clip && g.clip.overlay ? ' +overlay' : ''}`);
 });
 const list = path.join(tmp, 'concat.txt');
 fs.writeFileSync(list, parts.map((p) => `file '${p.replace(/\\/g, '/')}'`).join('\n'));
 const outFile = path.join(jobRoot, 'output', `${base}-silent.mp4`);
-execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', `fade=t=in:st=0:d=0.5,fade=t=out:st=${(tl.durationSeconds - 0.8).toFixed(2)}:d=0.8,format=yuv420p`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-movflags', '+faststart', outFile]);
+const baseFile = graphics?.length ? path.join(tmp, 'picture-before-graphics.mp4') : outFile;
+execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-vf', `fade=t=in:st=0:d=0.5,fade=t=out:st=${(tl.durationSeconds - 0.8).toFixed(2)}:d=0.8,format=yuv420p`, '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-movflags', '+faststart', baseFile]);
+if (graphics.length) {
+  const assets = new Map(job.campaign.assets.map((asset) => [asset.id, asset]));
+  const inputs = graphics.flatMap((graphic) => ['-loop', '1', '-i', path.resolve(jobRoot, assets.get(graphic.assetId).path)]);
+  const filters = [];
+  let source = '[0:v]';
+  graphics.forEach((graphic, index) => {
+    const overlay = `[g${index}]`, next = `[v${index}]`;
+    filters.push(`[${index + 1}:v]scale=${graphic.width}:${graphic.height},format=rgba${overlay}`);
+    filters.push(`${source}${overlay}overlay=${graphic.x}:${graphic.y}:enable='between(t,${graphic.startSeconds},${graphic.endSeconds})':eof_action=pass${next}`);
+    source = next;
+  });
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', baseFile, ...inputs, '-filter_complex', filters.join(';'), '-map', source, '-t', String(tl.durationSeconds), '-an', '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-r', String(FPS), '-pix_fmt', 'yuv420p', '-movflags', '+faststart', outFile]);
+}
 const finalDur = probe(outFile);
 // Compose map: validate-encoded-picture.mjs uses it to bind every encoded segment back to its receipt-bound clip.
-fs.writeFileSync(path.join(jobRoot, 'output', `${base}-compose-map.json`), JSON.stringify({ generator: 'media-studio/compose-screencast', base, silent: outFile, timelineSeconds: tl.durationSeconds, pictureSeconds: finalDur, groups: mapGroups }, null, 2));
+fs.writeFileSync(path.join(jobRoot, 'output', `${base}-compose-map.json`), JSON.stringify({ generator: 'media-studio/compose-screencast', base, silent: outFile, deliveryProfile: profile, width: W, height: H, timelineSeconds: tl.durationSeconds, pictureSeconds: finalDur, timedGraphics: graphics, groups: mapGroups }, null, 2));
 console.log(rows.join('\n'));
 console.log(JSON.stringify({ ok: true, out: outFile, pictureSeconds: finalDur, timelineSeconds: tl.durationSeconds, delta: +(finalDur - tl.durationSeconds).toFixed(2) }));
