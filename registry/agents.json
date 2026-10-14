@@ -457,7 +457,7 @@
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.24.12",
+      "version": "3.24.18",
       "executable": "{userHome}/bin/cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
@@ -486,7 +486,7 @@
       ],
       "status": "active",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher was re-verified against Cursor 3.17.8 on 2026-08-22; native local plugins expose the canonical AgentHub packages.",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported 3.24.12 (37b865941ccb31e2fc90c685157534efca87f960, x64). No installer was run. No upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: the full-suite read-only version probe reported 3.24.18 from the declared cursor.cmd launcher. This supersedes the earlier same-day 3.24.12 observation. No installer or updater was invoked by this repair."
     },
     {
       "id": "cursor-agent",
@@ -564,8 +564,8 @@
     {
       "id": "amp",
       "name": "Sourcegraph Amp",
-      "version": "0.0.1791936083-ga8cf1c",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported 0.0.1791936083-ga8cf1c, released 2026-10-14T00:01:23.000Z. Already current that day, so the updater was not run. No upgrade or downgrade was performed by this inventory correction.",
+      "version": "0.0.1791979242-g144271",
+      "versionObserved": "2026-10-14: the repair's bounded read-only version probe reported 0.0.1791979242-g144271, released 2026-10-14T12:00:42.000Z. This supersedes the earlier same-day observation of 0.0.1791936083-ga8cf1c. No updater was invoked by this repair.",
       "executable": "{userHome}/.amp/bin/amp.exe",
       "executableNote": "Corrected 2026-08-11: the declaration read the WinGet shim path %LOCALAPPDATA%/Microsoft/WinGet/Links/amp.exe, which does not exist. Amp is installed at %USERPROFILE%/.amp/bin/amp.exe and that is what `amp` resolves to on PATH. A WinGet Links shim is written only for packages installed through WinGet, so the old path recorded an installation method this host never used rather than a path that later moved.",
       "nativePaths": {

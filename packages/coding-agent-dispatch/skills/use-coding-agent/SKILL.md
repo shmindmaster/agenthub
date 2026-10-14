@@ -25,8 +25,9 @@ Claude reads the same files through the `~/.claude/skills` junction.
 pwsh -NoProfile -File "$env:USERPROFILE\.agents\skills\use-coding-agent\Invoke-CodingAgent.ps1" -List
 ```
 
-A row is `id`, `callable|routed|refused`, and a short reason. `cursor` is
-routed to `cursor-agent`; `windsurf` routes to the local `devin` CLI.
+A row is `id`, `callable|routed|refused`, and a short reason. `cursor` has a
+configured alias to `cursor-agent`, currently refused by its interactive
+autonomy profile; `windsurf` routes to the local `devin` CLI.
 Aliases enforce their own policy and the target's policy and autonomy profile.
 Refused rows stay refused. Help verification establishes a command contract;
 authentication, allowance and smoke evidence establish readiness separately.
@@ -42,7 +43,7 @@ Owner gates recorded in this repair:
 
 | Host | Required step before enabling |
 | --- | --- |
-| Cursor / Cursor Agent | Owner runs `agent login` in their own terminal, then one authorized smoke. |
+| Cursor Agent | Owner runs `agent login` in their own terminal, then one authorized smoke. Use `cursor-agent` directly; the Cursor IDE alias also requires an approved unattended autonomy profile. |
 | Factory | Owner opens `droid` and runs `/login`, then one authorized smoke. |
 | Hermes | Restore the missing executable through official installation/setup; verify help and smoke. |
 | Qoder | Owner runs `qodercli login`; confirm allowance and run one smoke before enabling. |

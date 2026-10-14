@@ -10,7 +10,8 @@ including every GUI.
 
 Verified local command contracts: Claude, Codex, Cursor Agent, Qwen Code,
 Gemini, Grok, OpenCode, Antigravity CLI, Factory Droid, Cline, Copilot, Amp,
-Devin, Qoder and Warp/Oz. `cursor` routes to Cursor Agent; `windsurf` routes
+Devin, Qoder and Warp/Oz. `cursor` has a configured alias to Cursor Agent,
+currently refused by its interactive autonomy profile; `windsurf` routes
 to Devin. Readiness is additionally gated by `dispatchPolicy` and each
 host's autonomy profile. Devin (`swe-2-medium`) and OpenCode (`opencode/big-pickle`) passed bounded
 live smokes on explicitly free models; the Windsurf alias shares Devin's command.
