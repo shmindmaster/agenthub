@@ -209,7 +209,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin+cli",
       "canonicalSource": "packages/elevenlabs",
-      "contentHash": "778052597F1CDA328FFA186E0BA086EBA335D8E214BB3C345C7C94F60AEF6C8F",
+      "contentHash": "FBC37765E86FE0985CA26B046B2ABAA1BBADBB647B58D379C10F8B2CA107019C",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
