@@ -188,7 +188,7 @@ export function parseShotList(input, { words = {} } = {}) {
     shots.push(out);
   });
   if (errors.length) throw new ShotListError(errors);
-  return { schemaVersion: SCHEMA_VERSION, repo: doc.repo || null, ref, viewport, title: doc.title || '', shots };
+  return { schemaVersion: SCHEMA_VERSION, repo: doc.repo || null, ref, refLabel: typeof doc.refLabel === 'string' ? doc.refLabel : null, viewport, title: doc.title || '', shots };
 }
 
 /** Files a parsed shot list needs read, deduplicated by ref + path. */

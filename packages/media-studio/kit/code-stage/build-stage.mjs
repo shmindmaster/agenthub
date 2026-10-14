@@ -55,7 +55,8 @@ export function buildStage(shotDoc, { words = {}, monaco = {}, fps = null } = {}
     viewport: parsed.viewport,
     fps,
     ...monaco,
-    refLabel: firstCommit ? `${parsed.ref} · ${firstCommit.slice(0, 7)}` : parsed.ref,
+    // Status-bar branch item: a pinned sha shows as the short commit; refLabel (e.g. "main") names the branch it came from.
+    refLabel: firstCommit ? `${parsed.refLabel || (firstCommit.startsWith(parsed.ref) ? '' : parsed.ref) || 'HEAD'} · ${firstCommit.slice(0, 7)}` : parsed.ref,
     tree,
     files,
     shots: parsed.shots.map((s) => s.kind === 'code'
