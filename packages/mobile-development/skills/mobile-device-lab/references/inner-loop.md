@@ -112,6 +112,11 @@ app bug and gets debugged as one.
 
 ### 3. Edit and reload
 
+Metro runs hidden on the host and writes its output under
+`%LOCALAPPDATA%\AgentHub\mobile-lab\logs`. The launcher reports both log paths
+and the process ID. Read these logs when bundling fails; no terminal needs to
+open or take keyboard focus.
+
 Edit on Windows. The app reloads. There is no sync step, because Metro is
 serving the files being edited.
 

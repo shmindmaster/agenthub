@@ -65,6 +65,7 @@ if (-not $bash) {
 
 $fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('agenthub-guest-setup-' + [guid]::NewGuid().ToString('N'))
 $stubDir = Join-Path $fixtureRoot 'stubs'
+$bootstrapScript = Join-Path $fixtureRoot 'bootstrap.sh'
 $utf8 = [Text.UTF8Encoding]::new($false)
 function Write-Lf([string]$Path, [string]$Text) {
     [IO.File]::WriteAllText($Path, $Text.Replace("`r`n", "`n"), $utf8)
@@ -192,7 +193,10 @@ function Invoke-Setup {
     try {
         # Stubs go first INSIDE bash: Git bash puts /usr/bin (its own ps)
         # ahead of anything prepended on the Windows side.
-        $output = @(& $bash --noprofile --norc -c 'PATH="$(cygpath -u "$STUB_BIN"):$PATH"; export PATH; exec bash "$@"' setup $setupScript @Arguments 2>&1 | ForEach-Object { "$_" })
+        # A file avoids Windows PowerShell 5.1 stripping embedded quotes from
+        # bash -c, which otherwise corrupts the command substitution before
+        # the real setup script can run.
+        $output = @(& $bash --noprofile --norc $bootstrapScript $setupScript @Arguments 2>&1 | ForEach-Object { "$_" })
         $code = $LASTEXITCODE
     }
     finally {
@@ -204,6 +208,7 @@ function Invoke-Setup {
 
 try {
     New-Item -ItemType Directory -Force -Path $stubDir | Out-Null
+    Write-Lf $bootstrapScript 'PATH="$(cygpath -u "$STUB_BIN"):$PATH"; export PATH; exec bash "$@"'
     foreach ($name in $stubs.Keys) { Write-Lf (Join-Path $stubDir $name) $stubs[$name] }
 
     # -------------------------------------------------------------- happy path

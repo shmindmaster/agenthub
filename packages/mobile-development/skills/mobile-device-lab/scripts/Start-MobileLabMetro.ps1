@@ -82,7 +82,7 @@ function Say { param([string]$Message, [string]$Colour = 'Gray') Write-Host $Mes
 $result = [ordered]@{
     ok = $false; projectPath = $null; port = $Port; hostAddress = $null
     metroUrl = $null; guestAddress = $null; guestReachedMetro = $false
-    androidReverse = $false; deepLink = $null; error = ''
+    androidReverse = $false; deepLink = $null; logPath = $null; errorLogPath = $null; processId = $null; error = ''
 }
 
 function Emit-Result {
@@ -147,14 +147,23 @@ try {
         $env:REACT_NATIVE_PACKAGER_HOSTNAME = $hostAddress
         $env:EXPO_PACKAGER_HOSTNAME = $hostAddress
 
-        # A separate window, not a job: Metro is long-lived and its log is the
-        # thing you read when a bundle fails to build. Burying it in a
-        # background job hides exactly the output that matters.
-        $npx = (Get-Command npx -ErrorAction SilentlyContinue)
-        if (-not $npx) { throw "npx not found on PATH. Install Node.js." }
-        Start-Process -FilePath $npx.Source `
-            -ArgumentList @('expo', 'start', '--dev-client', '--host', 'lan', '--port', "$Port") `
-            -WorkingDirectory $ProjectPath | Out-Null
+        # Run the installed CLI directly: no shell window, focus change, or
+        # implicit npx install. Persistent logs remain available after this
+        # caller exits, including when startup fails.
+        $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $node) { throw "node not found on PATH. Install Node.js." }
+        $expoCli = Join-Path $ProjectPath 'node_modules\expo\bin\cli'
+        if (-not (Test-Path -LiteralPath $expoCli -PathType Leaf)) { throw 'The installed Expo CLI is missing. Install the project dependencies first.' }
+        $logRoot = Join-Path $env:LOCALAPPDATA 'AgentHub\mobile-lab\logs'
+        New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+        $result.logPath = Join-Path $logRoot "metro-$Port.stdout.log"
+        $result.errorLogPath = Join-Path $logRoot "metro-$Port.stderr.log"
+        $metro = Start-Process -FilePath $node.Source `
+            -ArgumentList @(('"' + $expoCli + '"'), 'start', '--dev-client', '--host', 'lan', '--port', "$Port") `
+            -WorkingDirectory $ProjectPath -WindowStyle Hidden `
+            -RedirectStandardOutput $result.logPath -RedirectStandardError $result.errorLogPath -PassThru
+        $result.processId = $metro.Id
+        Say "Metro logs: $($result.logPath); $($result.errorLogPath)"
 
         Say "waiting for Metro to answer $statusUri"
         $deadline = (Get-Date).AddSeconds($ReadyTimeoutSeconds)
@@ -167,7 +176,7 @@ try {
             Start-Sleep -Seconds 3
         }
         if (-not $serving) {
-            throw "Metro did not answer $statusUri within ${ReadyTimeoutSeconds}s. Read the Metro window for the real error -- a failed dependency resolution looks like a hang from out here."
+            throw "Metro did not answer $statusUri within ${ReadyTimeoutSeconds}s. Inspect $($result.logPath) and $($result.errorLogPath) for the startup error."
         }
         Say "Metro serving at $metroUrl" 'Green'
     }
