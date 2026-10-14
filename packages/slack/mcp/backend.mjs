@@ -596,14 +596,17 @@ export function createWebApiBackend() {
   };
 }
 
+// `source` tells the write gate how the backend was chosen: an explicit
+// fixture is a deliberate demo; a fallback fixture (no token, no mode) must
+// never accept a write that the caller believes reached Slack.
 export function resolveBackend() {
   const mode = (process.env.SLACK_BRIDGE_MODE || '').toLowerCase();
-  if (mode === 'fixture') return createFixtureBackend();
-  if (process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN) return createWebApiBackend();
+  if (mode === 'fixture') return Object.assign(createFixtureBackend(), { source: 'explicit-fixture' });
+  if (process.env.SLACK_USER_TOKEN || process.env.SLACK_BOT_TOKEN) return Object.assign(createWebApiBackend(), { source: 'webapi' });
   if (mode === 'webapi') {
     throw new Error('SLACK_BRIDGE_MODE=webapi requires SLACK_USER_TOKEN or SLACK_BOT_TOKEN');
   }
-  return createFixtureBackend();
+  return Object.assign(createFixtureBackend(), { source: 'fallback-fixture' });
 }
 
 export { READ_METHODS };
