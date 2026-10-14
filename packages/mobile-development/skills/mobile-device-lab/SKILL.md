@@ -99,9 +99,10 @@ reports persistent log paths under `%LOCALAPPDATA%\AgentHub\mobile-lab\logs`.
 A startup also deploys the canonical `scripts/guest/*.sh` set as LF-only UTF-8
 before polling Appium; if the launch-agent definition changed, it restarts only
 Appium and waits for readiness. Do not maintain a second guest-side copy.
-A host reboot stops both, and nothing else restarts them — Appium itself does
-come back inside the guest on its own (verified: guest rebooted, Appium serving
-again 170s later, no human action), but only once the guest is running.
+A host or guest reboot stops the lab. Nothing restarts it automatically.
+Appium uses a manually loaded launchd definition under `~/mobile-lab/state`,
+with no login/reboot trigger and no automatic restart. Invoking the capability
+loads and starts it explicitly, and retires its former auto-loaded LaunchAgent.
 
 `Test-MobileLab.ps1` reports `PASS`/`FAIL` per layer, stops at the first broken
 one, and exits non-zero, so it names the layer to fix instead of leaving you to

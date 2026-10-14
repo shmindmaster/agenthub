@@ -1,17 +1,19 @@
 #!/bin/bash
 # Start Appium in the macOS guest so it survives the ssh session that started
-# it, and comes back after a guest reboot.
+# it. It starts only when this capability is explicitly invoked.
 #
 # A plain `ssh macvm 'appium &'` does NOT survive -- the process dies with the
-# channel. This installs a launchd LaunchAgent instead, which is what makes the
-# lab available without a human starting anything.
+# channel. A manually loaded launchd job preserves the process without a
+# login/reboot trigger or an automatic restart policy.
 #
 # Run from Windows:  ssh macvm 'bash ~/mobile-lab/start-appium-guest.sh'
 
 set -euo pipefail
 
 LABEL="dev.shmindmaster.appium"
-PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+STATE_DIR="$HOME/mobile-lab/state"
+PLIST="${STATE_DIR}/${LABEL}.plist"
+LEGACY_PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
 LOG_DIR="$HOME/Library/Logs/mobile-lab"
 FACTS="$HOME/mobile-lab/mobile-development.env"
 [ -f "$FACTS" ] || { echo "FATAL: canonical mobile-development.env is missing; rerun mobile.ps1 start ios" >&2; exit 1; }
@@ -20,7 +22,7 @@ FACTS="$HOME/mobile-lab/mobile-development.env"
 PORT="${APPIUM_PORT:?APPIUM_PORT missing from mobile-development.env}"
 BIND_ADDRESS="${APPIUM_BIND_ADDRESS:?APPIUM_BIND_ADDRESS missing from mobile-development.env}"
 
-mkdir -p "$HOME/Library/LaunchAgents" "$LOG_DIR"
+mkdir -p "$STATE_DIR" "$LOG_DIR"
 
 APPIUM_BIN="$(command -v appium)" || { echo "FATAL: appium not on PATH; run setup-appium-guest.sh first"; exit 1; }
 NODE_BIN="$(command -v node)"
@@ -53,8 +55,8 @@ cat > "$PLIST" <<PLIST_EOF
     <string>${NODE_DIR}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>HOME</key><string>${HOME}</string>
   </dict>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
+  <key>RunAtLoad</key><false/>
+  <key>KeepAlive</key><false/>
   <key>StandardOutPath</key><string>${LOG_DIR}/appium.log</string>
   <key>StandardErrorPath</key><string>${LOG_DIR}/appium.err.log</string>
   <key>ProcessType</key><string>Interactive</string>
@@ -66,6 +68,8 @@ echo "wrote $PLIST"
 
 UID_NUM="$(id -u)"
 launchctl bootout "gui/${UID_NUM}/${LABEL}" 2>/dev/null || true
+# Retire only our old auto-loaded definition; other LaunchAgents are untouched.
+rm -f "$LEGACY_PLIST"
 bootstrapped=0
 # bootout can return before launchd has fully removed the old job. An immediate
 # bootstrap then intermittently fails with error 5 even though the plist is
@@ -82,8 +86,9 @@ if [ "$bootstrapped" -ne 1 ]; then
   exit 1
 fi
 launchctl enable "gui/${UID_NUM}/${LABEL}"
+launchctl kickstart "gui/${UID_NUM}/${LABEL}"
 
-echo "launchd agent bootstrapped: ${LABEL}"
+echo "on-demand launchd job started: ${LABEL} (no login/reboot or restart trigger)"
 echo "logs: ${LOG_DIR}/appium.log"
 echo
 echo "Cold start takes minutes on this guest. Poll rather than assume:"

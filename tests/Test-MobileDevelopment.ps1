@@ -273,7 +273,7 @@ $claudeManifest = Read-Json 'packages\mobile-development\.claude-plugin\plugin.j
 $codexManifest = Read-Json 'packages\mobile-development\.codex-plugin\plugin.json'
 Report 'generic, Claude, and Codex manifests share one mobile-development identity and version' (
     $manifest.name -eq 'mobile-development' -and $claudeManifest.name -eq $manifest.name -and $codexManifest.name -eq $manifest.name -and `
-    $manifest.version -eq '2.0.6' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
+    $manifest.version -eq '2.0.7' -and $claudeManifest.version -eq $manifest.version -and $codexManifest.version -eq $manifest.version
 ) "generic=$($manifest.name)@$($manifest.version) claude=$($claudeManifest.name)@$($claudeManifest.version) codex=$($codexManifest.name)@$($codexManifest.version)"
 $retainedHostManifestDirs = @(Get-ChildItem -LiteralPath $packageRoot -Force -Directory | Where-Object Name -match '^\..+-plugin$' | Select-Object -ExpandProperty Name | Sort-Object)
 Report 'unsupported legacy host manifests are absent' (
@@ -649,10 +649,13 @@ $vmwareStartupOutput = @(& $hostExe -NoProfile -File (Join-Path $repoRoot 'tests
 $vmwareStartupExit = $LASTEXITCODE
 $guestSetupOutput = @(& $hostExe -NoProfile -File (Join-Path $repoRoot 'tests\Test-MobileLabGuestSetup.ps1') 2>&1)
 $guestSetupExit = $LASTEXITCODE
+$guestStartOutput = @(& node (Join-Path $repoRoot 'tests\Test-MobileLabGuestStart.mjs') 2>&1)
+$guestStartExit = $LASTEXITCODE
 Report 'lease busy/idle/contender behavior is executable' ($exclusivityExit -eq 0) "exit=$exclusivityExit output=$($exclusivityOutput -join ' ')"
 Report 'Appium session cleanup behavior is executable' ($cleanupExit -eq 0) "exit=$cleanupExit output=$($cleanupOutput -join ' ')"
 Report 'guest bring-up and VMware host-service diagnosis behavior is executable' ($vmwareStartupExit -eq 0) "exit=$vmwareStartupExit output=$($vmwareStartupOutput -join ' ')"
 Report 'guest Appium setup fails closed and rebuilds WDA only on a version change' ($guestSetupExit -eq 0) "exit=$guestSetupExit output=$($guestSetupOutput -join ' ')"
+Report 'guest Appium starts only on demand and retires its legacy automatic job' ($guestStartExit -eq 0) "exit=$guestStartExit output=$($guestStartOutput -join ' ')"
 Report 'guest helper sync stages LF-only scripts plus generated registry facts' (
     $syncGuestText -match 'Replace\("`r`n", "`n"\)' -and `
     $syncGuestText -match "guestEnvironmentName = 'mobile-development\.env'" -and `
