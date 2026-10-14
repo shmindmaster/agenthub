@@ -75,7 +75,8 @@
         "plugins"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared launcher reported `codex-cli 0.162.0-alpha.17.2`. No upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: bounded read-only probe of the declared launcher reported `codex-cli 0.162.0-alpha.17.2`. No upgrade or downgrade was performed by this inventory correction.",
+      "headlessDispatchNote": "codex exec --skip-git-repo-check - reads stdin, including in a scratch cwd without a repository. The installed shim selects cli-api; establish included allowance or explicitly authorize a credit budget before live dispatch."
     },
     {
       "id": "qwen-code",
@@ -105,7 +106,8 @@
         "extensions"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: bounded read-only probe of the bare command `qwen` reported 0.25.1, and `qwen update` reported the same version. No upgrade was performed by this inventory correction. The executable stays the bare name `qwen`, which resolves to ~/bin/qwen.cmd."
+      "versionObserved": "2026-10-14: bounded read-only probe of the bare command `qwen` reported 0.25.1, and `qwen update` reported the same version. No upgrade was performed by this inventory correction. The executable stays the bare name `qwen`, which resolves to ~/bin/qwen.cmd.",
+      "headlessDispatchNote": "Qwen Code 0.25.1 supports positional one-shot prompts; shim supplies --yolo. Current qwen3.8-max Token Plan route returned HTTP 403; authenticated catalog membership does not establish model entitlement. No credential or model setting was changed."
     },
     {
       "id": "opencode",
@@ -137,7 +139,8 @@
         "hooks"
       ],
       "status": "active",
-      "notes": "Global skill path follows the official OpenCode ~/.config/opencode/skills contract."
+      "notes": "Global skill path follows the official OpenCode ~/.config/opencode/skills contract.",
+      "headlessDispatchNote": "OpenCode 1.19.0 run --auto --dir <cwd> --model opencode/big-pickle <prompt> is headless; local model metadata reports zero input/output/cache pricing for that pinned model. Read dispatchPolicy for current smoke readiness."
     },
     {
       "id": "opencode-desktop",
@@ -189,7 +192,8 @@
         "acp"
       ],
       "status": "active",
-      "notes": "Gemini 3.6 Flash is selected through the dynamic model registry with HIGH thinking. AgentHub-managed skills deploy once under {userHome}/.agents/skills, which Gemini reads natively. ~/.gemini/skills is retained as the documented Gemini-native path and is not a second copy."
+      "notes": "The managed model registry selects Gemini 3.6 Flash with HIGH thinking; local settings inspected during this repair instead named gemini-3.8-flash-high. The existing transport failure prevents an inference-readiness claim. AgentHub-managed skills deploy once under {userHome}/.agents/skills, which Gemini reads natively. ~/.gemini/skills is retained as the documented Gemini-native path and is not a second copy.",
+      "headlessDispatchNote": "Gemini 0.64.0 --prompt is headless. Pointer prompts also use --include-directories for their runtime prompt file. Prior crash report ends in TypeError: fetch failed sending request after workspace-policy denials; no nested transport cause was saved."
     },
     {
       "id": "hermes",
@@ -227,7 +231,8 @@
         "acp"
       ],
       "status": "unverified",
-      "notes": "Native Windows installation. The former Ubuntu installation was migrated and removed."
+      "notes": "Native Windows installation. The former Ubuntu installation was migrated and removed.",
+      "headlessDispatchNote": "2026-10-14: declared hermes.exe absent; no hermes command on PATH. Owner action: restore the configured Hermes installation so the declared executable resolves, then verify native headless help and one authorized smoke before enabling dispatch."
     },
     {
       "id": "copilot",
@@ -404,7 +409,8 @@
         "worktrees"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported PE FileVersion v0.2026.10.07.08.29.stable_00. The recorded value omits the leading v so it matches FileVersion by substring. The window was not launched. No upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported PE FileVersion v0.2026.10.07.08.29.stable_00. The recorded value omits the leading v so it matches FileVersion by substring. The window was not launched. No upgrade or downgrade was performed by this inventory correction.",
+      "headlessDispatchNote": "Warp Oz v0.2026.10.07.08.29: WARP_CLI_MODE=1 agent run --prompt <text> -C <cwd> --output-format text. This is a local CLI contract; cloud tasks remain prohibited."
     },
     {
       "id": "cline",
@@ -508,7 +514,8 @@
       "status": "active",
       "surfaceType": "companion-cli",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration.",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported 2026.09.15-d2fe57e. The official update command failed unauthenticated and was not retried, so no upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported 2026.09.15-d2fe57e. The official update command failed unauthenticated and was not retried, so no upgrade or downgrade was performed by this inventory correction.",
+      "headlessDispatchNote": "2026-10-14: native headless contract verified; prior smoke failed authentication. Owner action: run agent login in the owner terminal; dispatcher alias cursor-agent login is equivalent. Do not authenticate automatically."
     },
     {
       "id": "qoder",
@@ -551,7 +558,8 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Qoder CLI 1.0.45. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills."
+      "notes": "Qoder CLI 1.0.45. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills.",
+      "headlessDispatchNote": "qodercli 1.0.45 -p --dangerously-skip-permissions --tools default -w <cwd> -o text <prompt> is headless. status reports Account: Not logged in; owner runs qodercli login, verifies included allowance, then one smoke before enabling."
     },
     {
       "id": "amp",
@@ -583,7 +591,8 @@
         "mcp"
       ],
       "status": "active",
-      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes."
+      "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
+      "headlessDispatchNote": "amp 0.0.1791979242 --help: -x reads stdin and exits; --dangerously-allow-all --no-notifications --no-ide. Billing eligibility must be established separately from its free interactive allowance."
     },
     {
       "id": "devin",
@@ -619,8 +628,9 @@
       "status": "active",
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
       "versionProbe": "cli",
-      "executableNote": "Corrected 2026-10-14. The old path %LOCALAPPDATA%\\devin\\cli\\bin\\devin.exe from the 2026-09-09 survey is not the live binary. The installed CLI is the WinGet executable %LOCALAPPDATA%\\Microsoft\\WinGet\\Links\\devin.exe. `devin --version` returned devin 3000.11.3 (9c803229faa4). The ~/bin/devin.cmd shim already injects fleet permission flags, so the registry points at the WinGet executable and not that shim. Dispatch still refuses Devin because its headless prompt contract was not verified. No upgrade or downgrade was performed by this inventory correction.",
-      "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because the WinGet executable exists and `devin --version` returned 3000.11.3 within the bounded probe."
+      "executableNote": "Corrected 2026-10-14. The old path %LOCALAPPDATA%\\devin\\cli\\bin\\devin.exe from the 2026-09-09 survey is not the live binary. The installed CLI is the WinGet executable %LOCALAPPDATA%\\Microsoft\\WinGet\\Links\\devin.exe. `devin --version` returned devin 3000.11.3 (9c803229faa4). The ~/bin/devin.cmd shim already injects fleet permission flags, so the registry points at the WinGet executable and not that shim. This repair verified the local print/prompt-file contract and a bounded smoke on the free swe-2-medium model. No upgrade or downgrade was performed by this inventory correction.",
+      "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because the WinGet executable exists and `devin --version` returned 3000.11.3 within the bounded probe.",
+      "headlessDispatchNote": "--permission-mode dangerous --respect-workspace-trust false -p --prompt-file <file>; devin 3000.11.3 --help verified 2026-10-14. Local execution only; --cloud is not dispatched."
     },
     {
       "id": "factory",
@@ -654,7 +664,8 @@
       "status": "active",
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
       "versionProbe": "cli",
-      "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because %USERPROFILE%\\bin\\droid.exe exists and `droid --version` returned 0.241.1 within the bounded probe."
+      "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because %USERPROFILE%\\bin\\droid.exe exists and `droid --version` returned 0.241.1 within the bounded probe.",
+      "headlessDispatchNote": "Droid 0.241.1 exec -f is headless. Prior smoke failed authentication. Owner action: open droid in the owner terminal and run /login; do not authenticate automatically."
     },
     {
       "id": "vscode-insiders",
@@ -716,7 +727,8 @@
       ],
       "status": "unverified",
       "installationExpectation": "in-use-executable-not-located",
-      "notes": "Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%/Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch."
+      "notes": "Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%/Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch.",
+      "headlessDispatchNote": "Windsurf routes to the installed Devin CLI; dispatch and autonomy restrictions on Devin also apply."
     }
   ],
   "inactiveAgents": []
