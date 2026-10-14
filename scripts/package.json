@@ -1,0 +1,4 @@
+{
+  "//": "Repair-QwenCodeMcpOAuth.js and Test-McpOAuthReachability.js are CommonJS; the root package.json sets \"type\": \"module\" for agenthub-cli.mjs, which made node reject their require() calls.",
+  "type": "commonjs"
+}
