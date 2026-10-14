@@ -10,6 +10,19 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+
+function Read-LocalAiReference([string]$Name) {
+    foreach ($rel in @(
+        "overlays\personal\packages\local-ai\skills\local-ai-stack\references\$Name",
+        "packages\local-ai\skills\local-ai-stack\references\$Name"
+    )) {
+        $path = Join-Path $repoRoot $rel
+        if (Test-Path -LiteralPath $path) {
+            return Get-Content -LiteralPath $path -Raw -Encoding UTF8
+        }
+    }
+    return $null
+}
 $pkg = Join-Path $repoRoot 'packages\media-studio'
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0
@@ -120,16 +133,20 @@ Report 'technical-visualizer maintains attention' (
 Report 'story-series points non-series films at media-studio story-craft' (
     $series -match 'story-craft.md'
 ) 'series structure was not extracted for general films'
-$music = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\local-ai\skills\local-ai-stack\references\music.md') -Raw -Encoding UTF8
-$image = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\local-ai\skills\local-ai-stack\references\image.md') -Raw -Encoding UTF8
+$music = Read-LocalAiReference 'music.md'
+$image = Read-LocalAiReference 'image.md'
+if ($null -eq $music -or $null -eq $image) {
+    Write-Host 'SKIP: Local-AI music.md/image.md (private local-ai package is not in this checkout)'
+} else {
+    Report 'music.md maps bed, sting, and silence' (
+        $music -match 'felt not heard' -and $music -match 'musicCue: sting' -and $music -match 'silenceOnReveal'
+    ) 'music.md still only describes a generic bed'
+    Report 'image.md has visual-bible path and refuses fake product UI' (
+        $image -match 'visual-bible' -and $image -match 'product UI'
+    ) 'image.md has no film B-roll contract'
+}
 $tsd = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\story-series-studio\skills\technical-story-director\SKILL.md') -Raw -Encoding UTF8
 $editor = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\story-series-studio\skills\episode-editor\SKILL.md') -Raw -Encoding UTF8
-Report 'music.md maps bed, sting, and silence' (
-    $music -match 'felt not heard' -and $music -match 'musicCue: sting' -and $music -match 'silenceOnReveal'
-) 'music.md still only describes a generic bed'
-Report 'image.md has visual-bible path and refuses fake product UI' (
-    $image -match 'visual-bible' -and $image -match 'product UI'
-) 'image.md has no film B-roll contract'
 Report 'technical-story-director hands off to media-storyboard' (
     $tsd -match 'media-storyboard' -and $tsd -match 'story-craft'
 ) 'series director still jumps explainer to picture'
@@ -197,10 +214,10 @@ $capture = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio-capture
 Report 'capture skill resolves the browser provider from hostSurfaces and records the Recast limits' (
     $capture -match 'hostSurfaces' -and
     $capture -match '\.recast-tmp' -and $capture -match 'autoZoom' -and
-    $capture -match 'references/duckie-prod-sim\.md'
+    $capture -match 'references/duckie-capture\.md'
 ) 'capture skill names a host tool or lost the measured Recast notes'
-$duckie = Join-Path $pkg 'skills\media-studio-capture\references\duckie-prod-sim.md'
-Report 'Duckie prod-sim note exists and carries no secret-shaped values' (
+$duckie = Join-Path $pkg 'skills\media-studio-capture\references\duckie-capture.md'
+Report 'Duckie capture note exists and carries no secret-shaped values' (
     (Test-Path -LiteralPath $duckie) -and
     ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -notmatch '(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*\S')
 ) 'Duckie operator note missing or carries a credential-shaped line'

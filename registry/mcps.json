@@ -61,10 +61,7 @@
       "transport": "http",
       "activationMode": "shared-remote",
       "url": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-        "Authorization": "Bearer ${env:GITHUB_MCP_SHMINDMASTER_TOKEN}"
-      },
-      "credentialPolicy": "environment-bearer-token",
+      "credentialPolicy": "oauth",
       "protocol": {
         "revision": "2026-07-28",
         "supportedRevisions": [
@@ -82,23 +79,13 @@
         "id": "mcp-registry"
       },
       "hosts": [
-        "claude",
-        "codex",
-        "qwen-code",
-        "opencode",
-        "gemini",
         "copilot",
-        "antigravity",
-        "grok",
-        "warp",
-        "cline",
-        "qoder"
+        "vscode-insiders"
       ],
       "pluginOwnersByHost": {
-        "claude": "github@claude-plugins-official",
         "copilot": "built-in:github-mcp-server"
       },
-      "notes": "Canonical personal GitHub MCP owner. The remote endpoint is GitHub-hosted; authentication is intentionally pinned to the shmindmaster account through an environment reference. Native automatic multi-account routing is not available in the released server, so do not add duplicate account servers without a reviewed routing design. Official: https://github.com/github/github-mcp-server/tree/main/docs/installation-guides",
+      "notes": "Canonical personal GitHub MCP owner. The remote endpoint is GitHub-hosted. OAuth only, since 2026-10-02: the owner retired every GitHub token environment variable after the 2026-09-23 force-push compromise. GitHub's authorization server (https://github.com/login/oauth) publishes no dynamic client registration endpoint, so OAuth to this endpoint works only in hosts that ship a pre-registered GitHub OAuth client: Copilot (built-in server) and VS Code Insiders. The official installation-guides table marks Claude Code, Claude Desktop, Cursor, Gemini CLI, OpenCode, Cline and Windsurf as PAT-only. Those hosts, plus Codex, Qwen Code, Antigravity, Grok, Warp and Qoder, do GitHub work through the gh CLI, which holds OAuth tokens for shmindmaster, sh-pendoah and sarosh-pendoah in the Windows keyring (gh auth switch / gh auth token --user). Do not re-add a bearer-token header or a GITHUB_*_TOKEN variable to restore MCP access in those hosts. Official: https://github.com/github/github-mcp-server/tree/main/docs/installation-guides",
       "hostScopeNote": "hermes removed 2026-08-19: hostInventory.notInstalled records it as checked-and-absent, so declaring a server to it cannot buy capability. shared-remote costs only a config line, which is why the scope test exempts it and did not catch this."
     },
     {

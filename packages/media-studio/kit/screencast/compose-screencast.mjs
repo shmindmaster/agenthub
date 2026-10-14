@@ -81,7 +81,7 @@ const jobTitle = job.title || '';
 const beatFor = (segId) => beats.find((x) => x.id === segId || (x.segments || []).includes(segId)) || {};
 // visualMode: storyboard beat first, then the screenplay scene (exact id, then the id with the beat suffix stripped).
 // The storyboards this kit writes carry no visualMode, so without the screenplay every card and code reveal read as a
-// screen beat without a clip (Duckie job 13, 2026-09-15). Unknown stays the kind's default so the gate still fails closed.
+// screen beat without a clip (job 13, 2026-09-15). Unknown stays the kind's default so the gate still fails closed.
 const screenplayModes = (() => { try { return new Map((JSON.parse(fs.readFileSync(path.join(jobRoot, 'story', 'screenplay.json'), 'utf8')).scenes || []).map((s) => [s.id, s.visualMode])); } catch { return new Map(); } })();
 const beatMode = (segId) => {
   const mode = beatFor(segId).visualMode || screenplayModes.get(segId) || screenplayModes.get(String(segId).replace(/[a-z]+$/, ''));

@@ -80,12 +80,29 @@ function Normalize-ForAsr([string]$Text) {
   # Spelled tip SHA used in #17 narration
   $t = $t.Replace('c-zero-one-b-one-three-five-eight', 'c01b1358')
   $t = $t.Replace('c zero one b one three five eight', 'c01b1358')
-  # Brand aliases ASR often invents
-  foreach ($b in @('avon state', 'avante stay', 'avante', 'avant stay', 'avantstay')) {
+  # Brand aliases ASR often invents (possessive/plural first so trailing s does not stick)
+  foreach ($b in @("avantstay's", 'avantstays', 'novants', 'novant', 'avon state', 'avante stay', 'avante', 'avant stay', 'avantstay')) {
     $t = $t.Replace($b, 'avantstay')
   }
   $t = $t.Replace('field op slack', 'field ops slack')
   $t = $t.Replace('exclude tag', 'exclude-tag')
+  # Spoken decimals ASR often emits as digits (normalize both sides before punctuation strip)
+  foreach ($pair in @(
+      @('twenty-two point nine percent', '22 9'),
+      @('twenty two point nine percent', '22 9'),
+      @('thirty-eight point two percent', '38 2'),
+      @('thirty eight point two percent', '38 2'),
+      @('eighty-one point six percent', '81 6'),
+      @('eighty one point six percent', '81 6'),
+      @('22.9%', '22 9'),
+      @('22.9 percent', '22 9'),
+      @('38.2%', '38 2'),
+      @('38.2 percent', '38 2'),
+      @('81.6%', '81 6'),
+      @('81.6 percent', '81 6')
+    )) {
+    $t = $t.Replace($pair[0], $pair[1])
+  }
   $numberWords = [ordered]@{
     'seventeen thousand five hundred thirty nine' = '17539'
     'seventeen thousand five hundred thirty-nine' = '17539'
@@ -96,8 +113,12 @@ function Normalize-ForAsr([string]$Text) {
     'two hundred sixty-three' = '263'
     'sixty seven' = '67'
     'sixty-seven' = '67'
+    'thirty eight' = '38'
+    'thirty-eight' = '38'
     'thirty two' = '32'
     'thirty-two' = '32'
+    'twenty three' = '23'
+    'twenty-three' = '23'
     'eighty six' = '86'
     'eighty-six' = '86'
     'fifty six' = '56'
@@ -110,6 +131,12 @@ function Normalize-ForAsr([string]$Text) {
     'twenty-eight' = '28'
     'four twenty twos' = '422s'
     'four-twenty-twos' = '422s'
+    'thirteenth' = '13'
+    'fourteenth' = '14'
+    'fifteenth' = '15'
+    '15th' = '15'
+    'eighth' = '8'
+    '8th' = '8'
     'thirteen' = '13'
     'fourteen' = '14'
     'eleven' = '11'
@@ -616,8 +643,9 @@ function Invoke-PronunciationListen([string[]]$Scenes, [int]$Round) {
       if ($listenAttempt -gt 1) { Wait-Gpu -Stage ("listen {0}" -f $sceneId) }
       & $LocalAi @listenArgs 2>&1 | Tee-Object -FilePath $listenLog | Out-Null
       if (-not (Test-Path -LiteralPath $reportPath)) {
-        $why = (Select-String -LiteralPath $listenLog -Pattern '"code":\s*"([A-Z_]+)"' -ErrorAction SilentlyContinue |
-                Select-Object -Last 1).Matches.Groups[1].Value
+        $whyMatch = Select-String -LiteralPath $listenLog -Pattern '"code":\s*"([A-Z_]+)"' -ErrorAction SilentlyContinue |
+                Select-Object -Last 1
+        $why = if ($whyMatch) { $whyMatch.Matches.Groups[1].Value } else { $null }
         Write-Warning ("listen produced no report for {0} (attempt {1}{2}); this is a lane failure, not a speech verdict" -f `
           $sceneId, $listenAttempt, $(if ($why) { ", $why" } else { "" }))
         # The sidecar from the failed attempt would be read as stale on the retry.

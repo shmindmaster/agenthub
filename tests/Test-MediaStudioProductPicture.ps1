@@ -12,6 +12,19 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $pkg = Join-Path $repoRoot 'packages\media-studio'
+
+function Read-LocalAiReference([string]$Name) {
+    foreach ($rel in @(
+        "overlays\personal\packages\local-ai\skills\local-ai-stack\references\$Name",
+        "packages\local-ai\skills\local-ai-stack\references\$Name"
+    )) {
+        $path = Join-Path $repoRoot $rel
+        if (Test-Path -LiteralPath $path) {
+            return Get-Content -LiteralPath $path -Raw -Encoding UTF8
+        }
+    }
+    return $null
+}
 $validator = Join-Path $pkg 'scripts\validate-product-picture.mjs'
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0
@@ -38,10 +51,14 @@ Report 'screen-in-context does not Ken Burns' (
     $visuals -match 'framed' -and
     $visuals -match 'Ken Burns on screen-in-context'
 ) 'Visuals.tsx still scale-interpolates product screenshots'
-$videoMd = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\local-ai\skills\local-ai-stack\references\video.md') -Raw -Encoding UTF8
-Report 'Local-AI video.md refuses Motif of product screenshots' (
-    $videoMd -match 'Never Motif / image-to-video a product screenshot'
-) 'video.md still allows I2V of product UI'
+$videoMd = Read-LocalAiReference 'video.md'
+if ($null -eq $videoMd) {
+    Write-Host 'SKIP: Local-AI video.md (private local-ai package is not in this checkout)'
+} else {
+    Report 'Local-AI video.md refuses Motif of product screenshots' (
+        $videoMd -match 'Never Motif / image-to-video a product screenshot'
+    ) 'video.md still allows I2V of product UI'
+}
 $policy = Get-Content -LiteralPath (Join-Path $pkg 'policy\product-video-policy.json') -Raw -Encoding UTF8
 Report 'product video policy requires Recast pointer finishing' (
     $policy -match '"pointerFinishing"\s*:\s*"playwright-recast@\d+\.\d+\.\d+"' -and
@@ -51,6 +68,18 @@ $kitPkg = Get-Content -LiteralPath (Join-Path $pkg 'kit\package.json') -Raw -Enc
 Report 'runtime kit declares playwright-recast' ($kitPkg -match '"playwright-recast"\s*:\s*"0\.21\.0"') 'kit/package.json does not pin playwright-recast 0.21.0, so record-job.mjs cannot finish takes'
 Report 'record-job.mjs exists in the kit' (Test-Path -LiteralPath (Join-Path $pkg 'kit\screencast\record-job.mjs')) 'missing kit/screencast/record-job.mjs'
 Report 'validate-encoded-picture.mjs exists' (Test-Path -LiteralPath (Join-Path $pkg 'scripts\validate-encoded-picture.mjs')) 'missing scripts/validate-encoded-picture.mjs'
+$pictureMd = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\product-picture.md') -Raw -Encoding UTF8
+Report 'product-picture requires end-to-end demonstration' (
+    $pictureMd -match 'End-to-end demonstration' -and
+    $pictureMd -match 'Mute test' -and
+    $pictureMd -match 'provesClaim'
+) 'product-picture.md still treats product UI as illustration instead of a causal demo'
+$planSchema = Get-Content -LiteralPath (Join-Path $pkg 'schemas\capture-plan.schema.json') -Raw -Encoding UTF8
+Report 'capture-plan interaction requires causal fields' (
+    $planSchema -match '"startState"' -and
+    $planSchema -match '"resultState"' -and
+    $planSchema -match '"provesClaim"'
+) 'capture-plan.schema.json still lets an interaction omit start/result/claim'
 Report 'compose-screencast fails closed without its validator' ($compose -match 'validator not resolvable') 'compositor still skips silently when the validator is missing'
 Report 'compose-screencast caps hidden freezes' ($compose -match 'HOLD_PAD_MAX') 'compositor still freezes a short clip across a long paragraph'
 
@@ -104,7 +133,7 @@ try {
     } @{
         scenes = @(
             @{ sceneId = 'S01'; kind = 'card' }
-            @{ sceneId = 'S02'; kind = 'interaction'; action = 'click Submit'; expectedResult = 'toast appears'; clip = 'clips/S02.webm' }
+            @{ sceneId = 'S02'; kind = 'interaction'; action = 'click Submit'; expectedResult = 'toast appears'; startState = 'form ready'; resultState = 'toast appears'; provesClaim = 'submit sends the request'; clip = 'clips/S02.webm' }
         )
     }
     $prev = $ErrorActionPreference

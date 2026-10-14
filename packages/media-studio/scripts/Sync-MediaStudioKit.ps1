@@ -44,18 +44,18 @@ foreach ($rel in $files) {
 
 # Product-picture gates travel with the compositor so compose-screencast.mjs can always resolve them
 # (a missing validator is a hard stop, never a silent skip). The plan gate and the encoded gate are copied
-# beside the kit's screencast tools; _shared	ools gets the same canonical compositor so no stale copy survives.
+# beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
 $gateScripts = @('validate-product-picture.mjs', 'validate-encoded-picture.mjs')
-$sharedTools = Join-Path (Split-Path -Parent $RuntimeKit) '_shared	ools'
+$sharedTools = Join-Path (Split-Path -Parent $RuntimeKit) '_shared\tools'
 New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null
 foreach ($name in $gateScripts) {
     $from = Join-Path $PSScriptRoot $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical gate missing: $from" }
-    Copy-Item -LiteralPath $from -Destination (Join-Path $RuntimeKit ('screencast' + $name)) -Force
+    Copy-Item -LiteralPath $from -Destination (Join-Path $RuntimeKit (Join-Path 'screencast' $name)) -Force
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
 }
 foreach ($name in @('compose-screencast.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs')) {
-    $from = Join-Path $packageKit ('screencast' + $name)
+    $from = Join-Path $packageKit (Join-Path 'screencast' $name)
     if (Test-Path -LiteralPath $from) { Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force }
 }
 # animate-stills.mjs turned screenshots into "footage" for the 2026-08/09 ABACare cuts. It has no place in a

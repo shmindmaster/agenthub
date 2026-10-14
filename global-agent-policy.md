@@ -11,7 +11,16 @@ This policy is compiled into host-native instruction files. Agent homes are depl
 - Read the applicable repository `AGENTS.md` before making changes. Repository instructions may narrow this policy but must not silently broaden authorization.
 - Preserve existing work. Inspect status, branches, worktrees, and active pull requests before writing.
 - Never expose or centralize credentials, authentication state, private evidence, customer data, or regulated data.
-- `D:\Local-AI` is a local runtime, not a git project. Do not `git init`, commit, or push it. Operator policy and skills for that stack live in AgentHub (`packages/local-ai`).
+  This includes diagnostic output: never echo an environment variable's raw value, a config file holding a
+  key, or a request header. Print the variable's name and whether it is set, and mask any value to its last
+  four characters. A troubleshooting script that dumped the user-level environment on 2026-09-18 printed a
+  live `OPENAI_API_KEY` into a session transcript and forced a rotation.
+- `D:\Local-AI` is a deployed runtime, not a git project. Do not `git init`, commit, or push it.
+  Its canonical source is `C:\Repos\shmindmaster\local-ai-platform` (`src/runtime/**`), deployed by
+  `scripts\Deploy-LocalAIRelease.ps1`. **Patch the source, never the deployed copy.** A fix applied
+  under `D:\Local-AI` survives only until the next deploy overwrites it, silently: on 2026-09-17 a
+  runtime-only patch was erased by an unrelated deploy, every embedding call began failing with 422,
+  and `repowise reindex` reported success while writing zero vectors for a full day.
 
 ## Engineering behavior
 
@@ -118,6 +127,39 @@ actual asset rather than only recommending changes.
 
 ## Sarosh communication, writing, and audio voice
 
+### Recipient-specific substance comes before drafting
+
+For every email or professional message under Sarosh's name, first determine
+what the recipient is trying to accomplish and what response would advance
+that conversation. Where capability, credibility or selection matters, retrieve
+and choose the most persuasive relevant experience from his full career before
+writing. Do not default to the latest resume, current company, familiar team
+counts or a generic leadership summary. Research and story selection are the
+agent's responsibility, not a recall assignment for Sarosh.
+
+Develop alternative angles when the best case is unclear; compare direct and
+transferable experience by the recipient's needs, decisions and intended
+outcomes. Lead with the strongest applicable responsibility and concrete
+example, explain its relevance naturally, and make the next step clear.
+Simple scheduling or factual replies should still answer the actual request;
+do not turn every email into a sales pitch. Reviews and records support this
+work but cannot substitute for substantive research and persuasive synthesis.
+
+Use the best available relevant example: prefer a direct match; otherwise
+choose the strongest transferable match and explain the connection. Do not
+stall waiting for a perfect match, fall back to generic claims, or treat an
+imperfect industry match as a weakness. This selection rule applies across
+tasks, not just recruiting. Continue targeted research when it could improve
+the result, while progressing with the strongest supported case available.
+
+Treat current owner confirmations as authority and missing search results as
+unknown. Frame established experience confidently and connect transferable
+work explicitly. Do not invent transactions, achievements, metrics or outcomes
+on the assumption evidence can be found later. The objective is the strongest
+credible case for this recipient, not an unsupported claim of being better
+qualified than every other candidate. Existing confidentiality, timing and
+external-action authorization boundaries remain in force.
+
 Before producing every user-facing written interaction with Sarosh, load and
 apply `sarosh-communication`. This includes direct replies, progress
 commentary, final task reports, and concise communication drafted, edited,
@@ -149,3 +191,133 @@ distinct layers and must not be confused or merged.
 ## Handoff
 
 Report the outcome, changed files, validation evidence, branch or commit when applicable, remaining risks, and the next required gate. Silence or a missing automated review is not approval.
+
+## Career positioning and natural communication
+
+For executive and engineering-management materials, lead with the candidate's
+team, delivery and operating responsibility, then supported business outcomes.
+Code, evaluation systems and public tools are supporting evidence. Read the
+career workspace AGENTS.md, current claim matrix and release manifest; never
+reuse a historical application file or builder as an approved template. Current
+owner corrections override stale generated materials. Verify the exact final
+DOCX/PDF, inspect rendered pages and record hashes before attachment. Preserve
+submitted originals and distinguish historical advances from current status.
+
+Apply sarosh-communication in natural prose. Do not mechanically output a
+framework, canned hook, ceremonial summary or repeated three-part construction.
+Read the result aloud and rewrite it if it sounds like a generated pitch.
+
+## Role-specific positioning — owner direction, September 19, 2026
+
+Sarosh's explicit confirmation is sufficient factual authority. Record it as
+OWNER_CONFIRMED with date and attribution; do not require independent proof.
+Research uncovers and strengthens stories, rather than making him prove them.
+Current owner corrections supersede stale resumes, claim holds and index results.
+
+Read the entire JD first and determine what would make Sarosh unusually compelling
+for that exact role. His 23+ years and cumulative work history extend far beyond
+any resume. Missing from a resume or search is unknown, never proof he has not
+done it. Search prior conversations, knowledge/Qdrant, OneDrive, RepoWise/repos,
+applications, interviews, project history, Linear and other available context.
+Research company/hiring-manager priorities and tone when useful. Choose the best
+mix of technical depth, leadership and business impact for the JD, not the mix
+in the last resume. CTO experience and growth-stage results are available stories,
+not a fixed opening for every role.
+
+When a detail would materially strengthen the story, explain exactly which
+experience, responsibility, metric, scale, architecture, team or result would
+help and why; let Sarosh confirm or fill it. Do not repeatedly ask for confirmed
+facts. Clearly separate proposed metrics and external benchmarks from his
+accomplishments; never invent or insert unconfirmed numbers in final materials.
+
+Never send a generic, weak or materially incomplete resume. Each final must answer
+why Sarosh, why this role/company, and what he has built, led, scaled, improved
+or commercialized. Preserve submitted originals and exact-file QA. Carry new
+confirmations into career records and relevant guidance/backlogs; keep retrieval
+stores current and verify refresh completion. Full career contract:
+`D:/OneDrive - Maya Modest LLC/Documents/04_Career_and_Public_Profile/ROLE_SPECIFIC_POSITIONING.md`.
+
+## Career representation — owner correction, September 22, 2026
+
+For every role Sarosh chooses to pursue, build the strongest affirmative case
+from his full career. Never assume that he lacks an experience, skill, industry,
+technology, sales responsibility, or leadership remit because a resume, title,
+search result, or index does not mention it. Missing evidence is UNKNOWN, never
+absence. Do not invent weaknesses, volunteer disqualifiers, assign unsupported
+fit percentages, or dismiss applications as hedges. Do not make him repeatedly
+confirm facts he has already supplied.
+
+Decades of presales architecture and product-plus-services selling, persuasion,
+objection handling, and winning difficult commercial conversations are
+OWNER_CONFIRMED by Sarosh on September 22. Jackson onsite is accepted for the
+TekDeft State of Mississippi Director 165756 pursuit. Current owner corrections
+outrank all historical drafts, sent-message wording, claim holds and retrieval.
+
+Before releasing any career message or application, account for every material
+JD requirement in an internal requirement-to-experience map. Use confirmed
+experience and the best transferable examples. Research missing specifics;
+ask one focused question only when the answer materially matters. An unresolved
+detail is a preparation task, not a limitation to insert into external copy.
+Mandatory application answers remain accurate; neither invent nor deny a
+specific credential, quota, title, date, metric or legal status.
+
+Run the career workspace's `validate_career_release.py` on exact final resumes
+and `--kind message` on the exact message text before any send, paste into an
+external composer, attachment or submission. Save its report and file hashes.
+Known self-disqualifying phrases must fail review and be rewritten; never
+bypass the check or treat a passing keyword scan as full factual/fit review.
+Then reread the final against the JD, owner confirmations and prior conversation.
+Preparation and external-send authorization remain separate. Preserve originals.
+
+These rules apply equally to Codex, Claude and all agents using this shared
+policy. A newly deployed policy is not assumed to have changed an already
+running session's loaded context: explicitly load the updated career contract
+before continuing career work in that session. No claim of universal model
+compliance or guaranteed hiring success is implied by policy deployment.
+
+## Career production workflow and PDF review — September 22, 2026
+
+Before career work on any host, explicitly read the career workspace's
+AGENTS.md, ROLE_SPECIFIC_POSITIONING.md, CAREER_CHRONOLOGY.md, current claim
+matrix and CURRENT_RESUME_RELEASE.md. The full ordered workflow is in
+ROLE_SPECIFIC_POSITIONING.md under "Required production sequence".
+Read these on disk in already-running sessions too; cached instructions,
+memory, LinkedIn text and historical artifacts do not override newer owner
+corrections. The global rules route to those private career records rather
+than copying private correspondence or detailed career evidence into policy.
+
+Refresh the complete relevant Gmail/LinkedIn conversation and full JD before
+drafting. Preserve what was actually asked, answered, sent and attached.
+Build an affirmative requirement-to-experience map and reconcile every known
+role against the chronology. Default to reverse chronological employment
+history; retain distinct employers, actual titles and dates. Show concurrent
+work and additional CTO engagements clearly without inventing dates. Tailor
+the summary, selection of evidence and bullets, not employer order. Do not
+silently drop roles or collapse multiple employers into a fictional composite.
+
+Write the strongest specific case for the exact opportunity: responsibilities,
+leadership, technical depth, commercial impact and outcomes appropriate to
+the role. Use the owner's confirmed experience without repeatedly asking him
+to prove it. Search the full career for missing specifics; UNKNOWN never
+becomes a deficit in external copy. Answer recruiter questions directly,
+in natural language, with verified terms and an appropriate next step.
+
+For every PDF, inspect every complete rendered page for large unused areas,
+unbalanced pagination, legible typography, paragraph spacing, orphaned headings
+and accidental hard page breaks. Successful export, a page count and absence
+of clipping are insufficient. Repair the source, regenerate and re-inspect;
+do not fill space with invented achievements, irrelevant material or artificial
+stretching. Intentional covers or sparse designs are assessed in context.
+Resume release checks additionally flag excessive trailing whitespace; do not
+bypass that check to preserve a poor template.
+
+Release only after separate factual, chronology, requirement-coverage, voice,
+layout and exact-file checks. Run validate_career_release.py on the final
+DOCX/PDF and --kind message on each exact outbound message; record hashes
+and reports. The checks supplement judgment and are not send interceptors.
+Preserve sent originals, verify recipient/thread/attachment at point of use,
+respect existing authorization, and verify actual sent/submitted state.
+Propagate corrections into the career records and authorized memory; record
+index refresh and policy deployment separately from active-session compliance.
+
+
