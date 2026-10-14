@@ -67,7 +67,8 @@ const sha256 = (f) => createHash('sha256').update(fs.readFileSync(f)).digest('he
 const probe = (f) => { try { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString()); } catch { return 0; } };
 const here = path.dirname(fileURLToPath(import.meta.url));
 let recastVersion = null;
-try { recastVersion = JSON.parse(fs.readFileSync(path.join(here, 'node_modules', 'playwright-recast', 'package.json'), 'utf8')).version; } catch { /* resolved below */ }
+// The kit's node_modules sits one level above screencast/; playwright-recast does not export its package.json.
+for (const dir of [path.join(here, '..', 'node_modules'), path.join(here, 'node_modules')]) { if (recastVersion) break; try { recastVersion = JSON.parse(fs.readFileSync(path.join(dir, 'playwright-recast', 'package.json'), 'utf8')).version; } catch { /* next */ } }
 if (!recastVersion) { try { const p = fileURLToPath(await import.meta.resolve('playwright-recast/package.json')); recastVersion = JSON.parse(fs.readFileSync(p, 'utf8')).version; } catch { recastVersion = null; } }
 let playwrightVersion = null;
 try { playwrightVersion = JSON.parse(fs.readFileSync(fileURLToPath(await import.meta.resolve('playwright/package.json')), 'utf8')).version; } catch { playwrightVersion = null; }

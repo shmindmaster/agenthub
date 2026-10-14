@@ -104,10 +104,40 @@ export async function finishRecording(rec, opts = {}) {
   return { tracePath, webm, rawDir: rec.rawDir, beats: rec.beats.toJSON(), events: rec.log.events, expectations: rec.log.expectations, summary: rec.log.summary() };
 }
 
+/**
+ * Zoom windows for Recast autoZoom, one per click, written as an SRT beside the raw take.
+ * Recast's autoZoom only zooms inside a subtitle cue (zoom end = min(next user action, cue end)), and
+ * generateSubtitles drops every action whose text is empty, so `.subtitles(() => '')` produced zero cues and
+ * no punch-in on any take (measured 2026-10-14: subtitlesCount 0, frames unzoomed through both clicks). A cue
+ * runs from just before each click (typeText clicks the field first, so typing is covered) to the next click
+ * or `holdSeconds` later. Cue text is never burned in (burnSubtitles stays off).
+ */
+export function writeZoomCues(rawDir, holdSeconds = 2.5) {
+  const eventsPath = path.join(rawDir, 'events.json');
+  if (!fs.existsSync(eventsPath)) return null;
+  const clicks = JSON.parse(fs.readFileSync(eventsPath, 'utf8')).events.filter((e) => e.type === 'click').map((e) => e.t);
+  const cues = [];
+  let prevEnd = 0;
+  clicks.forEach((t, i) => {
+    const start = Math.max(prevEnd, t - 0.3, 0);
+    const end = Math.min(clicks[i + 1] ?? Infinity, t + holdSeconds);
+    if (end - start >= 0.6) { cues.push([start, end]); prevEnd = end; }
+  });
+  if (!cues.length) return null;
+  const ts = (x) => { const ms = Math.round(x * 1000); const p = (n, w = 2) => String(n).padStart(w, '0'); return `${p(Math.floor(ms / 3600000))}:${p(Math.floor(ms / 60000) % 60)}:${p(Math.floor(ms / 1000) % 60)},${p(ms % 1000, 3)}`; };
+  const srt = cues.map(([a, b], i) => `${i + 1}\n${ts(a)} --> ${ts(b)}\nzoom\n`).join('\n');
+  const out = path.join(rawDir, 'zoom-cues.srt');
+  fs.writeFileSync(out, srt);
+  return out;
+}
+
 /** Recast finishing: cursor approach, click ripple, punch-in zoom. Requires playwright-recast in the kit. */
 export async function renderRecast(rawDir, outFile, opts = {}) {
   const { Recast } = await import('playwright-recast');
-  let r = Recast.from(rawDir).parse().subtitles(() => '')
+  const cues = opts.autoZoom !== false ? writeZoomCues(rawDir, opts.zoomHoldSeconds) : null;
+  let r = Recast.from(rawDir).parse();
+  r = cues ? r.subtitlesFromSrt(cues) : r.subtitles(() => '');
+  r = r
     .cursorOverlay({ approachMs: 500, postArrivalHoldMs: 300, ...(opts.cursor || {}) })
     .clickEffect({ radius: 28, duration: 350, opacity: 0.55, ...(opts.click || {}) });
   if (opts.autoZoom !== false) {
