@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>code-stage editor</title>
+<!--
+  VS Code-faithful editor surface for code walkthrough captures (Dark Modern palette). Served only to a headless
+  Playwright page by kit/code-stage/driver.mjs through page.route on http://code-stage.localhost/ (a secure context,
+  so crypto.subtle can verify the rendered lines against the receipt). It never edits anything: the editor is read-only
+  and every file comes from stage.json, which build-stage.mjs wrote from git objects at a resolved commit.
+-->
+<style>
+:root{
+  --bg:#1f1f1f; --chrome:#181818; --border:#2b2b2b; --fg:#cccccc; --muted:#9d9d9d; --accent:#0078d4;
+  --sel:#04395e; --hl:rgba(245,197,24,.16); --hl-edge:#f5c518; --tree-active:#37373d;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:13px "Segoe UI","Segoe UI Variable Text",system-ui,sans-serif;overflow:hidden}
+#app{display:grid;grid-template-rows:35px minmax(0,1fr) 22px;height:100vh;overflow:hidden}
+#title{background:var(--chrome);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative}
+#title .menu{position:absolute;left:10px;display:flex;gap:14px;color:var(--fg);font-size:13px;align-items:center}
+#title .menu .logo{width:16px;height:16px;border-radius:3px;background:linear-gradient(135deg,#3ba7f0,#0065a9)}
+#title .cc{width:520px;height:24px;border:1px solid #3c3c3c;background:#262626;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--muted)}
+#title .win{position:absolute;right:0;top:0;display:flex}
+#title .win span{width:46px;height:35px;display:flex;align-items:center;justify-content:center;color:var(--fg)}
+#main{display:grid;grid-template-columns:48px var(--side,250px) minmax(0,1fr);min-height:0;overflow:hidden}
+#activity{background:var(--chrome);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding-top:4px}
+#activity .codicon{font-size:24px;color:#868686;width:48px;height:48px;display:flex;align-items:center;justify-content:center;position:relative}
+#activity .codicon.on{color:#d7d7d7}
+#activity .codicon.on::before{position:relative}
+#activity .codicon.on::after{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent)}
+#side{background:var(--chrome);border-right:1px solid var(--border);display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+#side .hdr{height:35px;display:flex;align-items:center;padding:0 20px;font-size:11px;letter-spacing:.04em;color:var(--fg)}
+#side .root{height:22px;display:flex;align-items:center;gap:2px;padding-left:2px;font-weight:700;font-size:11px;letter-spacing:.02em}
+#tree{flex:1;overflow:hidden;position:relative}
+#tree .row{height:22px;display:flex;align-items:center;white-space:nowrap;cursor:pointer;color:var(--fg);padding-right:8px}
+#tree .row .tw{width:16px;flex:none;display:flex;justify-content:center;color:var(--fg)}
+#tree .row .ic{width:16px;flex:none;margin-right:6px;font:700 9px/16px Consolas,monospace;text-align:center;border-radius:2px}
+#tree .row.active{background:var(--tree-active);outline:1px solid var(--accent);outline-offset:-1px}
+#tree .row.ref{color:#e2c08d}
+#editor-area{display:grid;grid-template-rows:35px 22px minmax(0,1fr);min-width:0;min-height:0;overflow:hidden}
+#tabs{background:var(--chrome);display:flex;border-bottom:1px solid var(--border);overflow:hidden}
+.tab{height:35px;display:flex;align-items:center;gap:6px;padding:0 10px 0 12px;border-right:1px solid var(--border);color:var(--muted);background:var(--chrome);white-space:nowrap;cursor:pointer}
+.tab.active{background:var(--bg);color:#fff;box-shadow:inset 0 1px 0 var(--accent);border-bottom:1px solid var(--bg);margin-bottom:-1px}
+.tab .x{opacity:.0;font-size:14px}.tab.active .x{opacity:.8}
+#crumbs{background:var(--bg);display:flex;align-items:center;gap:2px;padding-left:14px;color:var(--muted);white-space:nowrap;overflow:hidden}
+#crumbs .codicon{font-size:14px;color:#7a7a7a}
+#crumbs .sym{color:var(--fg)}
+#crumbs .sym .codicon{color:#b180d7}
+#ed-wrap{position:relative;min-height:0;overflow:hidden}
+#ed{position:absolute;inset:0}
+#overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.band{position:absolute;left:0;right:14px;background:var(--hl);border-left:3px solid var(--hl-edge);transform-origin:left center;transform:scaleX(0);transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s;opacity:.0}
+.band.on{transform:scaleX(1);opacity:1}
+.band.dim{opacity:.45}
+.band.ghost{display:none!important}
+.anchor{position:fixed;width:12px;height:12px;margin:-6px 0 0 -6px;pointer-events:none}
+#anchors{position:fixed;inset:0;pointer-events:none;z-index:5}
+.callout{display:flex;align-items:center;gap:10px;height:100%;padding-left:6px;opacity:0;transform:translateY(-6px);transition:opacity .35s,transform .35s}
+.callout.on{opacity:1;transform:none}
+.callout .pill{background:#2b2410;border:1px solid var(--hl-edge);border-left:4px solid var(--hl-edge);color:#fff4c2;border-radius:6px;padding:5px 12px;font:600 15px "Segoe UI",system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.45)}
+.callout .codicon{color:var(--hl-edge);font-size:16px}
+#status{background:var(--chrome);border-top:1px solid var(--border);display:flex;align-items:center;font-size:12px;color:var(--fg)}
+#status .remote{background:var(--accent);color:#fff;height:22px;width:36px;display:flex;align-items:center;justify-content:center}
+#status .it{padding:0 8px;display:flex;align-items:center;gap:4px;height:22px}
+#status .sp{flex:1}
+#status .codicon{font-size:14px}
+#verified{position:absolute;width:1px;height:1px;opacity:0}
+.monaco-editor .cs-cursorline{background:rgba(255,255,255,.04)}
+</style>
+</head>
+<body>
+<div id="anchors"></div>
+<div id="app">
+  <div id="title">
+    <div class="menu"><div class="logo"></div><span>File</span><span>Edit</span><span>Selection</span><span>View</span><span>Go</span><span>Run</span><span>&hellip;</span></div>
+    <div class="cc"><span class="codicon codicon-search"></span><span id="cc-name"></span></div>
+    <div class="win"><span class="codicon codicon-layout-sidebar-left"></span><span class="codicon codicon-chrome-minimize"></span><span class="codicon codicon-chrome-maximize"></span><span class="codicon codicon-chrome-close"></span></div>
+  </div>
+  <div id="main">
+    <div id="activity">
+      <span class="codicon codicon-files on"></span><span class="codicon codicon-search"></span><span class="codicon codicon-source-control"></span><span class="codicon codicon-debug-alt"></span><span class="codicon codicon-extensions"></span>
+    </div>
+    <div id="side">
+      <div class="hdr">EXPLORER</div>
+      <div class="root"><span class="codicon codicon-chevron-down"></span><span id="root-name"></span></div>
+      <div id="tree"></div>
+    </div>
+    <div id="editor-area">
+      <div id="tabs"></div>
+      <div id="crumbs"></div>
+      <div id="ed-wrap"><div id="ed"></div><div id="overlay"></div></div>
+    </div>
+  </div>
+  <div id="status">
+    <div class="remote"><span class="codicon codicon-remote"></span></div>
+    <div class="it"><span class="codicon codicon-git-branch"></span><span id="st-ref"></span></div>
+    <div class="it"><span class="codicon codicon-error"></span>0 <span class="codicon codicon-warning"></span>0</div>
+    <div class="sp"></div>
+    <div class="it" id="st-pos">Ln 1, Col 1</div>
+    <div class="it" id="st-indent">Spaces: 4</div>
+    <div class="it">UTF-8</div>
+    <div class="it" id="st-eol">LF</div>
+    <div class="it" id="st-lang"></div>
+    <div class="it"><span class="codicon codicon-bell"></span></div>
+  </div>
+</div>
+<script>
+(async function () {
+  const qs = new URLSearchParams(location.search);
+  const shotId = qs.get('shot');
+  const stage = await (await fetch('/stage.json')).json();
+  const shot = stage.shots.find((s) => s.id === shotId);
+  if (!shot) throw new Error('no shot ' + shotId);
+  const files = stage.files; // { path: { text, language, commit } }
+  const LANG = { py: ['python', 'Python', '#3572a5', 'py'], ts: ['typescript', 'TypeScript', '#3178c6', 'TS'], tsx: ['typescript', 'TypeScript JSX', '#3178c6', 'TSX'],
+    js: ['javascript', 'JavaScript', '#cbcb41', 'JS'], mjs: ['javascript', 'JavaScript', '#cbcb41', 'JS'], jsx: ['javascript', 'JavaScript JSX', '#cbcb41', 'JSX'],
+    json: ['json', 'JSON', '#cbcb41', '{}'], md: ['markdown', 'Markdown', '#519aba', 'M'], sql: ['sql', 'SQL', '#e37933', 'SQL'], yml: ['yaml', 'YAML', '#a074c4', 'Y'], yaml: ['yaml', 'YAML', '#a074c4', 'Y'],
+    css: ['css', 'CSS', '#519aba', '#'], html: ['html', 'HTML', '#e37933', '<>'], go: ['go', 'Go', '#519aba', 'GO'], rs: ['rust', 'Rust', '#dea584', 'RS'], cs: ['csharp', 'C#', '#178600', 'C#'],
+    java: ['java', 'Java', '#b07219', 'J'], sh: ['shell', 'Shell Script', '#89e051', '$'], ps1: ['powershell', 'PowerShell', '#012456', 'PS'], toml: ['ini', 'TOML', '#9c4221', 'T'] };
+  const langOf = (p) => LANG[(p.split('.').pop() || '').toLowerCase()] || ['plaintext', 'Plain Text', '#6d8086', '≡'];
+  const $ = (s) => document.querySelector(s);
+  $('#cc-name').textContent = stage.tree.root;
+  $('#root-name').textContent = stage.tree.root.toUpperCase();
+  $('#st-ref').textContent = shot.refLabel || stage.refLabel || '';
+  document.title = stage.tree.root;
+
+  // ---- explorer: every directory on the shot's paths, listed at the commit (folders first, VS Code order)
+  const shotFiles = [shot.file, ...(shot.crossRefs || []).map((x) => x.file)];
+  const expanded = new Set(stage.tree.expanded.filter((d) => shotFiles.some((f) => f.startsWith(d + '/'))));
+  const tree = $('#tree');
+  function addRows(dir, depth) {
+    for (const e of stage.tree.listing[dir] || []) {
+      const p = dir ? dir + '/' + e.name : e.name;
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.dataset.path = p;
+      row.style.paddingLeft = (8 + depth * 8) + 'px';
+      if (e.type === 'dir') {
+        row.innerHTML = `<span class="tw codicon codicon-chevron-${expanded.has(p) ? 'down' : 'right'}"></span><span></span>`;
+        row.lastChild.textContent = e.name;
+        tree.appendChild(row);
+        if (expanded.has(p)) addRows(p, depth + 1);
+      } else {
+        const [, , color, glyph] = langOf(e.name);
+        row.innerHTML = `<span class="tw"></span><span class="ic"></span><span class="nm"></span>`;
+        row.querySelector('.ic').textContent = glyph; row.querySelector('.ic').style.color = color;
+        row.querySelector('.nm').textContent = e.name;
+        if (files[p]) { row.dataset.file = p; row.addEventListener('click', () => openFile(p)); }
+        if ((shot.crossRefs || []).some((x) => x.file === p)) row.classList.add('ref');
+        tree.appendChild(row);
+      }
+    }
+  }
+  addRows('', 0);
+  function revealInTree(p) {
+    tree.querySelectorAll('.row.active').forEach((r) => r.classList.remove('active'));
+    const row = tree.querySelector(`.row[data-path="${CSS.escape(p)}"]`);
+    if (!row) return;
+    row.classList.add('active');
+    const top = row.offsetTop - tree.clientHeight * 0.4;
+    tree.scrollTop = Math.max(0, top);
+  }
+
+  // ---- Monaco
+  const monacoBase = stage.monacoBase; // "/monaco/vs" (local) or a pinned CDN URL
+  await new Promise((res, rej) => { const s = document.createElement('script'); s.src = monacoBase + '/loader.js'; s.onload = res; s.onerror = () => rej(new Error('monaco loader failed')); document.head.appendChild(s); });
+  // No web workers: tokenization is Monarch on the main thread; language services stay off so no squiggles appear.
+  window.MonacoEnvironment = { getWorker() { throw new Error('workers disabled in code-stage'); } };
+  require.config({ paths: { vs: monacoBase } });
+  const monaco = await new Promise((res) => require(['vs/editor/editor.main'], () => res(window.monaco)));
+  for (const d of [monaco.languages.typescript.typescriptDefaults, monaco.languages.typescript.javascriptDefaults]) {
+    d.setDiagnosticsOptions({ noSemanticValidation: true, noSyntaxValidation: true, noSuggestionDiagnostics: true });
+  }
+  monaco.editor.defineTheme('dark-modern', { base: 'vs-dark', inherit: true, rules: [], colors: {
+    'editor.background': '#1f1f1f', 'editor.foreground': '#cccccc', 'editorLineNumber.foreground': '#6e7681', 'editorLineNumber.activeForeground': '#cccccc',
+    'editor.lineHighlightBackground': '#ffffff08', 'editor.lineHighlightBorder': '#ffffff00', 'editorIndentGuide.background1': '#404040',
+    'minimap.background': '#1f1f1f', 'editorOverviewRuler.border': '#010409', 'scrollbarSlider.background': '#79797966', 'editor.selectionBackground': '#264f78' } });
+  const models = {};
+  const modelFor = (p) => models[p] || (models[p] = monaco.editor.createModel(files[p].text, langOf(p)[0], monaco.Uri.parse('file:///' + stage.tree.root + '/' + p)));
+  const editor = monaco.editor.create($('#ed'), {
+    model: modelFor(shot.file), theme: 'dark-modern', readOnly: true, domReadOnly: true, fontFamily: 'Consolas, "Cascadia Mono", "Courier New", monospace',
+    fontSize: stage.fontSize || 15, lineHeight: stage.lineHeight || 22, minimap: { enabled: true, renderCharacters: true, scale: 1 }, scrollBeyondLastLine: true,
+    renderValidationDecorations: 'off', glyphMargin: false, folding: true, lineNumbersMinChars: 4, renderLineHighlight: 'line', automaticLayout: true,
+    scrollbar: { verticalScrollbarSize: 14, horizontalScrollbarSize: 10 }, guides: { indentation: true }, stickyScroll: { enabled: false },
+    occurrencesHighlight: 'off', selectionHighlight: false, matchBrackets: 'never', hover: { enabled: false }, contextmenu: false, links: false, cursorBlinking: 'solid',
+  });
+  window.editor = editor;
+
+  // ---- tabs + breadcrumbs + status
+  const open = [];
+  let active = null;
+  function symbolAt(p, line) {
+    const lines = files[p].text.split(/\r?\n/);
+    // A decorator line (@router.post) belongs to the def right below it.
+    for (let n = Math.min(lines.length, /^\s*@/.test(lines[line - 1] || '') ? line + 1 : line); n >= 1; n--) {
+      const t = lines[n - 1];
+      let m = /^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)/.exec(t) || /^\s*class\s+([A-Za-z_]\w*)/.exec(t) || /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/.exec(t) || /^\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(/.exec(t);
+      if (m) return m[1];
+    }
+    return null;
+  }
+  function renderTabs() {
+    const tabs = $('#tabs'); tabs.innerHTML = '';
+    for (const p of open) {
+      const [, , color, glyph] = langOf(p);
+      const t = document.createElement('div'); t.className = 'tab' + (p === active ? ' active' : ''); t.dataset.path = p;
+      t.innerHTML = `<span class="ic" style="font:700 9px Consolas,monospace;color:${color}"></span><span class="nm"></span><span class="x codicon codicon-close"></span>`;
+      t.querySelector('.ic').textContent = glyph; t.querySelector('.nm').textContent = p.split('/').pop();
+      t.addEventListener('click', () => openFile(p));
+      tabs.appendChild(t);
+    }
+  }
+  function renderCrumbs(p, line) {
+    const c = $('#crumbs'); c.innerHTML = '';
+    const parts = p.split('/');
+    parts.forEach((seg, i) => {
+      if (i) { const ch = document.createElement('span'); ch.className = 'codicon codicon-chevron-right'; c.appendChild(ch); }
+      const s = document.createElement('span'); s.textContent = seg; if (i === parts.length - 1) s.style.color = 'var(--fg)'; c.appendChild(s);
+    });
+    const sym = symbolAt(p, line);
+    if (sym) {
+      const ch = document.createElement('span'); ch.className = 'codicon codicon-chevron-right'; c.appendChild(ch);
+      const s = document.createElement('span'); s.className = 'sym'; s.innerHTML = '<span class="codicon codicon-symbol-method"></span> '; s.appendChild(document.createTextNode(sym)); c.appendChild(s);
+    }
+    $('#st-lang').textContent = langOf(p)[1];
+    $('#st-eol').textContent = /\r\n/.test(files[p].text) ? 'CRLF' : 'LF';
+    $('#st-indent').textContent = 'Spaces: ' + (/\n( {2})(?! )\S/.test(files[p].text) && !/\n {4}\S/.test(files[p].text) ? 2 : (/\.(tsx?|jsx?|json|ya?ml)$/.test(p) ? 2 : 4));
+  }
+  editor.onDidChangeCursorPosition((e) => { $('#st-pos').textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`; if (active) renderCrumbs(active, e.position.lineNumber); });
+
+  // ---- overlay: highlight bands, pointer anchors, callouts (view zones push the code down like an inline hint)
+  const overlay = $('#overlay');
+  const bands = []; // {id, file, a, b, el, anchor}
+  let zones = [];
+  function place() {
+    const scrollTop = editor.getScrollTop();
+    const layout = editor.getLayoutInfo();
+    for (const b of bands) {
+      const show = b.file === active;
+      b.el.style.display = b.anchor.style.display = show ? '' : 'none';
+      if (!show) continue;
+      const top = editor.getTopForLineNumber(b.a) - scrollTop;
+      const bottom = editor.getTopForLineNumber(b.b) - scrollTop + editor.getOption(monaco.editor.EditorOption.lineHeight);
+      b.el.style.top = top + 'px'; b.el.style.height = (bottom - top) + 'px';
+      b.el.style.left = layout.contentLeft - 4 + 'px'; b.el.style.right = (layout.minimap.minimapWidth + 14) + 'px';
+      const model = editor.getModel();
+      const len = model.getLineMaxColumn(b.a); const first = model.getLineFirstNonWhitespaceColumn(b.a) || 1;
+      const pos = editor.getScrolledVisiblePosition({ lineNumber: b.a, column: Math.max(first, Math.round(first + (len - first) * 0.35)) });
+      const box = document.getElementById('ed').getBoundingClientRect();
+      if (pos) { b.anchor.style.left = (box.left + pos.left) + 'px'; b.anchor.style.top = (box.top + pos.top + pos.height / 2) + 'px'; }
+    }
+    for (const el of [document.scrollingElement, document.body, document.getElementById('app'), document.getElementById('main'), document.getElementById('ed-wrap'), overlay]) if (el && (el.scrollTop || el.scrollLeft)) { el.scrollTop = 0; el.scrollLeft = 0; }
+    requestAnimationFrame(place);
+  }
+  function addBand(id, file, a, b) {
+    const el = document.createElement('div'); el.className = 'band'; el.id = 'band-' + id; overlay.appendChild(el);
+    const anchor = document.createElement('div'); anchor.className = 'anchor'; anchor.id = 'anchor-' + id; document.getElementById('anchors').appendChild(anchor);
+    bands.push({ id, file, a, b, el, anchor });
+  }
+  shot.highlight.forEach((h, i) => addBand('h' + i, shot.file, h[0], h[1]));
+  (shot.crossRefs || []).forEach((x, i) => x.highlight.forEach((h, k) => addBand(`x${i}-${k}`, x.file, h[0], h[1])));
+  (shot.pointer || []).forEach((pt, k) => { addBand('p' + k, shot.file, pt.line, pt.line); bands[bands.length - 1].el.classList.add('ghost'); });
+  requestAnimationFrame(place);
+
+  function easeScrollTo(target, ms = 900) {
+    return new Promise((res) => {
+      const from = editor.getScrollTop(); const t0 = performance.now();
+      const step = (now) => { const k = Math.min(1, (now - t0) / ms); const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; editor.setScrollTop(from + (target - from) * e); if (k < 1) requestAnimationFrame(step); else res(); };
+      requestAnimationFrame(step);
+    });
+  }
+  function rangeTop(a, b) {
+    const lh = editor.getOption(monaco.editor.EditorOption.lineHeight);
+    const h = editor.getLayoutInfo().height;
+    const mid = (editor.getTopForLineNumber(a) + editor.getTopForLineNumber(b) + lh) / 2;
+    return Math.max(0, mid - h * 0.45);
+  }
+  function openFile(p, { initialTop } = {}) {
+    if (!open.includes(p)) open.push(p);
+    active = p;
+    editor.setModel(modelFor(p));
+    zones.forEach((z) => editor.changeViewZones((acc) => acc.removeZone(z.zone))); zones = [];
+    renderTabs(); revealInTree(p);
+    const span = p === shot.file ? shot.lines : ((shot.crossRefs || []).find((x) => x.file === p) || {}).lines;
+    if (initialTop != null) editor.setScrollTop(initialTop);
+    else if (p === shot.file && shot.startLine) editor.setScrollTop(editor.getTopForLineNumber(shot.startLine) - 4);
+    else if (span) editor.setScrollTop(Math.max(0, rangeTop(span[0], span[1]) - 260));
+    renderCrumbs(p, span ? span[0] : 1);
+    document.body.dataset.active = p;
+  }
+  function callout(file, line, text, id) {
+    if (active !== file) openFile(file);
+    const dom = document.createElement('div');
+    dom.innerHTML = `<div class="callout" id="callout-${id}"><span class="codicon codicon-arrow-up"></span><span class="pill"></span></div>`;
+    dom.querySelector('.pill').textContent = text;
+    editor.changeViewZones((acc) => { zones.push({ zone: acc.addZone({ afterLineNumber: line, heightInPx: 40, domNode: dom }) }); });
+    requestAnimationFrame(() => requestAnimationFrame(() => dom.querySelector('.callout').classList.add('on')));
+  }
+
+  // ---- render verification: sha256 of the rendered model lines must equal the receipt's range hashes
+  async function sha(t) { const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, '0')).join(''); }
+  const checks = [{ file: shot.file, lines: shot.lines, want: shot.rangeSha256 }, ...(shot.crossRefs || []).map((x) => ({ file: x.file, lines: x.lines, want: x.rangeSha256 }))];
+  const results = [];
+  for (const c of checks) {
+    const m = modelFor(c.file); const rows = [];
+    for (let n = c.lines[0]; n <= c.lines[1]; n++) rows.push(m.getLineContent(n));
+    const got = await sha(rows.join('\n'));
+    results.push({ file: c.file, lines: c.lines, ok: got === c.want, got });
+  }
+  const v = document.createElement('div'); v.id = 'verified'; v.dataset.ok = results.every((r) => r.ok) ? '1' : '0'; v.dataset.results = JSON.stringify(results); document.body.appendChild(v);
+
+  window.codeStage = {
+    async reveal() { const [a, b] = shot.lines; await easeScrollTo(rangeTop(a, b)); editor.setPosition({ lineNumber: a, column: 1 }); renderCrumbs(active, a); },
+    highlight(id) { for (const b of bands) { if (b.file !== active) continue; if (b.id === id) b.el.classList.add('on'); else if (b.el.classList.contains('on')) b.el.classList.add('dim'); } },
+    callout(id) { const c = id === 'main' ? { file: shot.file, ...shot.callout } : { file: shot.crossRefs[+id].file, ...shot.crossRefs[+id].callout }; callout(c.file, c.line, c.text, id); },
+    prepareRef(i) { const row = tree.querySelector(`.row[data-path="${CSS.escape(shot.crossRefs[i].file)}"]`); if (row) { const r = row.offsetTop, h = tree.clientHeight; if (r < tree.scrollTop + 22 || r > tree.scrollTop + h - 44) tree.scrollTop = Math.max(0, r - h * 0.5); } },
+    async openRef(i) { const x = shot.crossRefs[i]; openFile(x.file); await easeScrollTo(rangeTop(x.lines[0], x.lines[1]), 700); editor.setPosition({ lineNumber: x.lines[0], column: 1 }); renderCrumbs(active, x.lines[0]); },
+    verification: results,
+  };
+
+  openFile(shot.file);
+  await document.fonts.ready;
+  await new Promise((r) => setTimeout(r, 250));
+  const ready = document.createElement('div'); ready.id = 'cs-ready'; ready.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0'; document.body.appendChild(ready);
+})().catch((e) => { const d = document.createElement('pre'); d.id = 'cs-error'; d.textContent = String(e && e.stack || e); d.style.cssText = 'position:fixed;inset:40px;color:#f88;z-index:9'; document.body.appendChild(d); });
+</script>
+</body>
+</html>
