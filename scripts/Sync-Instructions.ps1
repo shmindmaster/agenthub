@@ -51,6 +51,7 @@
 param(
     [switch]$Audit,
     [switch]$Apply,
+    [switch]$QuietOverlayResolution,
     [string]$RepositoryRoot,
     [string]$UserProfile = $env:USERPROFILE
 )
@@ -96,7 +97,7 @@ $RegistryDir = Join-Path $RepositoryRoot 'registry'
 $AgentsFile  = Join-Path $RegistryDir 'agents.json'
 . (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
 . (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
-$PolicyFile  = Resolve-AgentHubPolicyPath -RepositoryRoot $RepositoryRoot
+$PolicyFile  = Resolve-AgentHubPolicyPath -RepositoryRoot $RepositoryRoot -ReportPrimaryCheckout:(-not $QuietOverlayResolution)
 $StagingRoot = Join-AgentHubPlatformPath -Platform (Get-AgentHubPlatformId $requestedPlatform) -Base $effectiveLocalAppData -Child 'AgentHub/runtime/instructions'
 
 # ---------------------------------------------------------------------------

@@ -55,7 +55,7 @@ if ($isPublicCore) {
 $pluginFormats = Read-Json (Join-Path $root 'registry\plugin-formats.json')
 
 $pluginRoot = Join-Path $root 'packages'
-$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $root
+$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $root -ReportPrimaryCheckout
 $packageNames = @(Get-ChildItem -LiteralPath $pluginRoot -Directory -ErrorAction SilentlyContinue | ForEach-Object Name | Sort-Object)
 # Public-first: private package trees must not remain under packages/.
 foreach ($packageName in $packageNames) {
@@ -64,8 +64,8 @@ foreach ($packageName in $packageNames) {
     Fail "private capability '$packageName' is still tracked under packages/. Move it to overlays/personal/packages/$packageName."
   }
 }
-$overlayPackagesRoot = Join-Path $root 'overlays\personal\packages'
-if (Test-Path -LiteralPath $overlayPackagesRoot) {
+$overlayPackagesRoot = if ($overlayRoot) { Join-Path $overlayRoot 'packages' } else { $null }
+if ($overlayPackagesRoot -and (Test-Path -LiteralPath $overlayPackagesRoot)) {
   foreach ($overlayPkg in @(Get-ChildItem -LiteralPath $overlayPackagesRoot -Directory -ErrorAction SilentlyContinue)) {
     if (Test-Path -LiteralPath (Join-Path $pluginRoot $overlayPkg.Name)) {
       Fail "private package '$($overlayPkg.Name)' exists under both packages/ and overlays/personal/packages/. Keep only the overlay copy."
@@ -204,7 +204,8 @@ function Test-RegistryRelativePath {
     [string]$Value,
     [string]$Root,
     [string]$FieldName,
-    [string]$CapabilityId
+    [string]$CapabilityId,
+    [string]$OverlayRoot
   )
   if ([string]::IsNullOrWhiteSpace($Value)) {
     Fail "$FieldName is missing: $CapabilityId"
@@ -221,6 +222,17 @@ function Test-RegistryRelativePath {
       $resolved.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase))) {
     Fail "$FieldName escapes the repository root: $CapabilityId ($Value)"
     return $null
+  }
+  $normalizedValue = $Value.Replace('\', '/')
+  if ($OverlayRoot -and $normalizedValue.StartsWith('overlays/personal/', [StringComparison]::OrdinalIgnoreCase)) {
+    $overlayRelative = $normalizedValue.Substring('overlays/personal/'.Length).Replace('/', [IO.Path]::DirectorySeparatorChar)
+    $resolved = [IO.Path]::GetFullPath((Join-Path $OverlayRoot $overlayRelative))
+    $overlayFull = [IO.Path]::GetFullPath($OverlayRoot).TrimEnd('\', '/')
+    $overlayPrefix = $overlayFull + $sep
+    if (-not $resolved.StartsWith($overlayPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+      Fail "$FieldName escapes the personal overlay: $CapabilityId ($Value)"
+      return $null
+    }
   }
   return $resolved
 }
@@ -240,9 +252,9 @@ foreach ($capability in $effectiveCapabilities) {
     continue
   }
   if (-not (Test-Path -LiteralPath $expectedRoot)) { Fail "registered capability missing: $($capability.id) ($expectedRoot)"; continue }
-  $resolvedSource = Test-RegistryRelativePath -Value ([string]$capability.canonicalSource) -Root $root -FieldName 'canonicalSource' -CapabilityId $capability.id
+  $resolvedSource = Test-RegistryRelativePath -Value ([string]$capability.canonicalSource) -Root $root -FieldName 'canonicalSource' -CapabilityId $capability.id -OverlayRoot $overlayRoot
   if ($resolvedSource -and $resolvedSource -ne $expectedRoot) { Fail "canonicalSource mismatch: $($capability.id)" }
-  $resolvedHashBasis = Test-RegistryRelativePath -Value ([string]$capability.hashBasis) -Root $root -FieldName 'hashBasis' -CapabilityId $capability.id
+  $resolvedHashBasis = Test-RegistryRelativePath -Value ([string]$capability.hashBasis) -Root $root -FieldName 'hashBasis' -CapabilityId $capability.id -OverlayRoot $overlayRoot
   if ($resolvedHashBasis -and $resolvedHashBasis -ne $expectedRoot) { Fail "hashBasis must cover the complete package: $($capability.id)" }
   $actualHash = Get-AgentHubRegistryHashBasisValue -Path $expectedRoot
   if ($actualHash -ne $capability.contentHash) { Fail "contentHash drift: $($capability.id)" }

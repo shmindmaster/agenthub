@@ -72,7 +72,7 @@ function New-StubDelegatedScript {
     )
     $lines = New-Object System.Collections.Generic.List[string]
     $lines.Add('[CmdletBinding()]')
-    $lines.Add('param([switch]$Audit,[switch]$Apply,[switch]$Prune,[string]$RepositoryRoot,[string]$RegistryRoot,[string]$UserProfile)')
+    $lines.Add('param([switch]$Audit,[switch]$Apply,[switch]$Prune,[switch]$QuietOverlayResolution,[string]$RepositoryRoot,[string]$RegistryRoot,[string]$UserProfile)')
     $lines.Add("Write-Host 'STUB EXECUTED: $(Split-Path -Leaf $Path)'")
     if ($MarkerPath) {
         # Only a real deploy (-Apply) is a write worth catching here -- an

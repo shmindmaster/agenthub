@@ -6,6 +6,7 @@ param(
   [switch]$Prune,
   [switch]$AdoptExisting,
   [switch]$IncludeInactiveAgents,
+  [switch]$QuietOverlayResolution,
   [string[]]$CapabilityId,
   [string]$RepositoryRoot,
   [string]$UserProfile = $env:USERPROFILE
@@ -56,7 +57,7 @@ $statePath = Join-Path $runtimeRoot 'managed-skills.json'
 $capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $script:skillPathBinding = New-AgentHubPathBindingContext -TargetUserProfile $UserProfile -InvokingUserProfile $realProfile -RegistryUserProfile (Get-AgentHubRecordedUserProfile $agentsDocument) -Platform $requestedPlatform
-$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $root
+$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $root -ReportPrimaryCheckout:(-not $QuietOverlayResolution)
 $capabilities.capabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilities -OverlayRoot $overlayRoot)
 
 # Inactive hosts are retained as inventory, not as deployment targets, matching

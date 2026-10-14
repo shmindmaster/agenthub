@@ -13,18 +13,73 @@ Public-first layout:
 #>
 
 function Get-AgentHubOverlayRoot {
-    param([Parameter(Mandatory)][string]$RepositoryRoot)
-    if ($env:AGENTHUB_OVERLAY -eq 'off') { return $null }
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [switch]$PassThru,
+        [switch]$ReportPrimaryCheckout
+    )
+    $checked = [Collections.Generic.List[string]]::new()
+    $resolution = [pscustomobject]@{ Root = $null; Source = 'absent'; Checked = @() }
+    if ($env:AGENTHUB_OVERLAY -eq 'off') {
+        $resolution.Source = 'off'
+        return $(if ($PassThru) { $resolution } else { $null })
+    }
     if (-not [string]::IsNullOrWhiteSpace($env:AGENTHUB_OVERLAY)) {
         $explicit = [System.IO.Path]::GetFullPath($env:AGENTHUB_OVERLAY).TrimEnd('\')
         if (-not (Test-Path -LiteralPath $explicit)) {
             throw "AGENTHUB_OVERLAY is '$explicit' but that directory does not exist. Pass a real overlay or AGENTHUB_OVERLAY=off."
         }
-        return $explicit
+        $resolution.Root = $explicit
+        $resolution.Source = 'AGENTHUB_OVERLAY'
+        $resolution.Checked = @($explicit)
+        return $(if ($PassThru) { $resolution } else { $resolution.Root })
     }
     $default = Join-Path $RepositoryRoot 'overlays\personal'
-    if (Test-Path -LiteralPath $default) { return $default }
-    return $null
+    $checked.Add($default)
+    if (Test-Path -LiteralPath $default) {
+        $resolution.Root = $default
+        $resolution.Source = 'checkout'
+    } else {
+        $primary = Get-AgentHubPrimaryCheckoutRoot -RepositoryRoot $RepositoryRoot
+        if ($primary) {
+            $primaryOverlay = Join-Path $primary 'overlays\personal'
+            if (-not $primaryOverlay.Equals($default, [StringComparison]::OrdinalIgnoreCase)) {
+                $checked.Add($primaryOverlay)
+            }
+            if (Test-Path -LiteralPath $primaryOverlay) {
+                $resolution.Root = $primaryOverlay
+                $resolution.Source = 'primary-checkout'
+                if ($ReportPrimaryCheckout) {
+                    Write-Host "OVERLAY: $primaryOverlay (primary checkout)"
+                }
+            }
+        }
+    }
+    $resolution.Checked = @($checked.ToArray())
+    if ($PassThru) { return $resolution }
+    return $resolution.Root
+}
+
+function Get-AgentHubPrimaryCheckoutRoot {
+    param([Parameter(Mandatory)][string]$RepositoryRoot)
+    try {
+        $dotGit = Join-Path $RepositoryRoot '.git'
+        if (-not (Test-Path -LiteralPath $dotGit -PathType Leaf)) { return $null }
+        $line = [IO.File]::ReadAllText($dotGit).Trim()
+        if ($line -notmatch '^gitdir:\s*(.+)$') { return $null }
+        $gitDir = $Matches[1].Trim()
+        if (-not [IO.Path]::IsPathRooted($gitDir)) { $gitDir = Join-Path $RepositoryRoot $gitDir }
+        $gitDir = [IO.Path]::GetFullPath($gitDir)
+        $commonFile = Join-Path $gitDir 'commondir'
+        if (-not (Test-Path -LiteralPath $commonFile -PathType Leaf)) { return $null }
+        $common = [IO.File]::ReadAllText($commonFile).Trim()
+        if (-not [IO.Path]::IsPathRooted($common)) { $common = Join-Path $gitDir $common }
+        $common = [IO.Path]::GetFullPath($common).TrimEnd('\', '/')
+        if ((Split-Path -Leaf $common) -ne '.git') { return $null }
+        return Split-Path -Parent $common
+    } catch {
+        return $null
+    }
 }
 
 function Get-AgentHubOverlayManifest {
@@ -137,27 +192,36 @@ function Resolve-AgentHubPackageRoot {
             "packages/$id"
         }
     }
-    $resolved = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot ($source -replace '/', '\')))
-    $rootFull = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
+    $source = $source -replace '\\', '/'
     $sep = [IO.Path]::DirectorySeparatorChar
-    $rootPrefix = $rootFull + $sep
-    if (-not ($resolved.Equals($rootFull, [StringComparison]::OrdinalIgnoreCase) -or
-        $resolved.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase))) {
-        throw "canonicalSource for '$id' escapes the repository root: $source"
-    }
     if (Test-AgentHubCapabilityPrivate $Capability) {
         $publicTwin = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot "packages\$id"))
         if (Test-Path -LiteralPath $publicTwin) {
             throw "Private capability '$id' still has a tracked packages/$id tree. Move it to overlays/personal/packages/$id."
         }
-        $expectedPrefix = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'overlays\personal\packages')) + $sep
-        if (-not $resolved.StartsWith($expectedPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        if ($source -notmatch '^overlays/personal/packages/') {
             throw "Private capability '$id' canonicalSource must be under overlays/personal/packages/ (got '$source')."
         }
         if (-not $OverlayRoot) {
             throw "Private capability '$id' requires overlays/personal (or AGENTHUB_OVERLAY)."
         }
+        $relativeSource = $source -replace '^overlays/personal/', ''
+        $relativePath = $relativeSource.Replace('/', [IO.Path]::DirectorySeparatorChar)
+        $resolved = [IO.Path]::GetFullPath((Join-Path $OverlayRoot $relativePath))
+        $overlayFull = [IO.Path]::GetFullPath($OverlayRoot).TrimEnd('\', '/')
+        $expectedPrefix = [IO.Path]::GetFullPath((Join-Path $overlayFull 'packages')) + $sep
+        if (-not $resolved.StartsWith($expectedPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "canonicalSource for '$id' escapes the personal overlay: $source"
+        }
     } else {
+        $relativePath = $source.Replace('/', [IO.Path]::DirectorySeparatorChar)
+        $resolved = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot $relativePath))
+        $rootFull = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
+        $rootPrefix = $rootFull + $sep
+        if (-not ($resolved.Equals($rootFull, [StringComparison]::OrdinalIgnoreCase) -or
+            $resolved.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase))) {
+            throw "canonicalSource for '$id' escapes the repository root: $source"
+        }
         $expectedPrefix = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'packages')) + $sep
         $expectedExact = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'packages'))
         if (-not ($resolved.Equals($expectedExact, [StringComparison]::OrdinalIgnoreCase) -or
@@ -169,10 +233,13 @@ function Resolve-AgentHubPackageRoot {
 }
 
 function Resolve-AgentHubPolicyPath {
-    param([Parameter(Mandatory)][string]$RepositoryRoot)
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [switch]$ReportPrimaryCheckout
+    )
     $compiled = Join-Path $RepositoryRoot 'global-agent-policy.md'
     $core = Join-Path $RepositoryRoot 'policy-core.md'
-    $overlay = Get-AgentHubOverlayRoot -RepositoryRoot $RepositoryRoot
+    $overlay = Get-AgentHubOverlayRoot -RepositoryRoot $RepositoryRoot -ReportPrimaryCheckout:$ReportPrimaryCheckout
     if ($overlay -and (Test-Path -LiteralPath $compiled)) { return $compiled }
     if (Test-Path -LiteralPath $core) { return $core }
     if (Test-Path -LiteralPath $compiled) { return $compiled }
