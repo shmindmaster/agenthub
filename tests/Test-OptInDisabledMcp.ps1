@@ -12,6 +12,7 @@ Run: pwsh -NoProfile -File tests/Test-OptInDisabledMcp.ps1
 param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+. (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
 $failures = [Collections.Generic.List[string]]::new()
 $passed = 0
 function Report([string]$Name, [bool]$Ok, [string]$Detail) {
@@ -50,15 +51,25 @@ if ($sl) {
     Report 'slack MCP launches the AgentHub bridge' (($sl.args -join ' ') -match 'slack-mcp\.mjs') ($sl.args -join ' ')
 }
 
-$pluginMcp = Get-Content (Join-Path $repoRoot 'packages\linkedin\.mcp.json') -Raw -Encoding UTF8
-Report 'linkedin plugin declares mcp id linkedin' ($pluginMcp -match '"linkedin"') 'packages/linkedin/.mcp.json'
+# linkedin is a PRIVATE plugin since the public-first split (871b7f3): its
+# package lives in the gitignored personal overlay and it is catalogued by
+# overlay.json privateMarketplacePlugins, never by the public marketplaces.
+$overlay = Resolve-AgentHubTestOverlay -RepositoryRoot $repoRoot
+if ($overlay.Root) {
+    $pluginMcp = Get-Content (Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/linkedin/.mcp.json') -Raw -Encoding UTF8
+    Report 'linkedin plugin declares mcp id linkedin' ($pluginMcp -match '"linkedin"') 'overlays/personal/packages/linkedin/.mcp.json'
+    $overlayManifest = Get-Content (Join-Path $overlay.Root 'overlay.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    Report 'overlay catalogs linkedin as a private marketplace plugin' (@($overlayManifest.privateMarketplacePlugins) -contains 'linkedin') 'missing from overlay.json privateMarketplacePlugins'
+} else {
+    Write-Host "SKIP: linkedin plugin manifest checks -- $($overlay.Reason)"
+}
 $slackPluginMcp = Get-Content (Join-Path $repoRoot 'packages\slack\.mcp.json') -Raw -Encoding UTF8
 Report 'slack plugin declares mcp id slack' ($slackPluginMcp -match '"slack"') 'packages/slack/.mcp.json'
 $catalog = Get-Content (Join-Path $repoRoot '.agents\plugins\marketplace.json') -Raw -Encoding UTF8
-Report 'agenthub marketplace catalogs linkedin' ($catalog -match '"linkedin"') 'missing from .agents/plugins/marketplace.json'
+Report 'public agenthub marketplace does not leak private linkedin' ($catalog -notmatch '"linkedin"') 'private plugin listed in .agents/plugins/marketplace.json'
 Report 'agenthub marketplace catalogs slack' ($catalog -match '"slack"') 'missing from .agents/plugins/marketplace.json'
 $claudeCat = Get-Content (Join-Path $repoRoot '.claude-plugin\marketplace.json') -Raw -Encoding UTF8
-Report 'claude marketplace catalogs linkedin' ($claudeCat -match '"linkedin"') 'missing from .claude-plugin/marketplace.json'
+Report 'public claude marketplace does not leak private linkedin' ($claudeCat -notmatch '"linkedin"') 'private plugin listed in .claude-plugin/marketplace.json'
 Report 'claude marketplace catalogs slack' ($claudeCat -match '"slack"') 'missing from .claude-plugin/marketplace.json'
 
 $sync = Get-Content (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') -Raw -Encoding UTF8

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { loadToolContract, mcpToolList, slackContractHash } from './contract.mjs';
 import { resolveBackend } from './backend.mjs';
+import { assertWriteAllowed } from './write-gate.mjs';
 
 const PROTOCOL = '2025-11-25';
 // packages/slack/plugin.json is the version authority (Bump-PackageVersion.ps1);
@@ -32,6 +33,8 @@ function toolResult(payload) {
 }
 
 async function callTool(name, args = {}) {
+  // Approval is enforced here, before any backend is touched (write-gate.mjs).
+  assertWriteAllowed(name, args, backend);
   switch (name) {
     case 'slack_search':
       return backend.search(args);
@@ -102,6 +105,7 @@ async function handle(message) {
       _meta: {
         slackContractHash: contractHash,
         backend: backend.mode,
+        backendSource: backend.source,
       },
     });
   }

@@ -1,6 +1,7 @@
 #Requires -Version 5.1
 <#
-Behavior tests for packages/knowledge-access.
+Behavior tests for the private knowledge-access package
+(overlays/personal/packages/knowledge-access).
 
 The fail-closed gate is the load-bearing one: a fixture that ships a
 numeric claim without a locatable citation would teach every renderer
@@ -13,7 +14,15 @@ param([string]$PythonExecutable = '')
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$pkg = Join-Path $repoRoot 'packages\knowledge-access'
+. (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
+# knowledge-access is a private package in the gitignored personal overlay.
+$overlay = Resolve-AgentHubTestOverlay -RepositoryRoot $repoRoot
+if (-not $overlay.Root) {
+    Write-Host "SKIP: knowledge-access is a private overlay package -- $($overlay.Reason)"
+    Write-Host 'RESULT: 0 passed, 0 failed'
+    exit 0
+}
+$pkg = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/knowledge-access'
 
 $failures = [Collections.Generic.List[string]]::new()
 $passed = 0

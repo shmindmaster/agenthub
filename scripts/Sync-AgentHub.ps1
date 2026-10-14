@@ -2723,7 +2723,20 @@ foreach ($agent in $agentsToSync) {
             $hostDrift.files += Sync-QwenOAuthBundleGuard -WhatIf:$whatIfMode
         }
         'devin' {
-            $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.config -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
+            # Devin CLI v3000.3+ keeps user MCP servers in a dedicated
+            # mcp_config.json beside config.json (%APPDATA%\devin on Windows,
+            # ~/.config/devin elsewhere) and migrates any config.json
+            # mcpServers into it on startup
+            # (https://docs.devin.ai/cli/extensibility/mcp/configuration,
+            # checked 2026-10-14). Writing config.json therefore deployed into
+            # a key the host empties on its next launch. An explicit
+            # nativePaths.mcp wins; otherwise the documented sibling file.
+            $devinMcpPath = if ($agent.nativePaths.PSObject.Properties['mcp'] -and -not [string]::IsNullOrWhiteSpace([string]$agent.nativePaths.mcp)) {
+                [string]$agent.nativePaths.mcp
+            } else {
+                Join-Path (Split-Path -Parent ([string]$agent.nativePaths.config)) 'mcp_config.json'
+            }
+            $r = Sync-HostMcp-JsonFile -Path $devinMcpPath -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
         'amp' {
@@ -2779,6 +2792,7 @@ if ($Validate -or $Apply -or $Audit) {
         '{userHome}/.factory/mcp.json',
         '{userHome}/.qwen/settings.json',
         '{roamingConfig}/devin/config.json',
+        '{roamingConfig}/devin/mcp_config.json',
         '{userHome}/.config/amp/settings.json',
         '{userHome}/.config/opencode/opencode.json',
         '{userHome}/.gemini/settings.json',

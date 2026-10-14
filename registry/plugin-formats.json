@@ -130,8 +130,9 @@
       "documentation": "https://docs.devin.ai/product-guides/plugins",
       "globalSkillsDir": "%APPDATA%/devin/skills",
       "subagents": "unverified",
-      "mcpPath": "%APPDATA%/devin/config.json",
+      "mcpPath": "%APPDATA%/devin/mcp_config.json",
       "mcpKey": "mcpServers",
+      "mcpPathNote": "Corrected 2026-10-14 against https://docs.devin.ai/cli/extensibility/mcp/configuration: since Devin CLI v3000.3 user MCP servers live in %APPDATA%/devin/mcp_config.json (~/.config/devin/mcp_config.json elsewhere), and config.json mcpServers entries are migrated there on startup. The installed CLI 3000.11.3 had done exactly that on 2026-10-14 02:11, leaving config.json with no mcpServers.",
       "verifiedAgainst": "https://docs.devin.ai/product-guides/plugins"
     },
     {

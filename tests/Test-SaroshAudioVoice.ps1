@@ -18,7 +18,17 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$skillRoot = Join-Path $repoRoot 'packages\sarosh-audio-voice\skills\sarosh-audio-voice'
+. (Join-Path $repoRoot 'scripts\lib\CapabilityGraph.ps1')
+. (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
+# Private package: it lives in the gitignored personal overlay, never under
+# packages/. Resolve the overlay from its documented location, or skip.
+$overlay = Resolve-AgentHubTestOverlay -RepositoryRoot $repoRoot
+if (-not $overlay.Root) {
+    Write-Host "SKIP: sarosh-audio-voice is a private overlay package -- $($overlay.Reason)"
+    Write-Host 'RESULT: 0 passed, 0 failed'
+    exit 0
+}
+$skillRoot = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/sarosh-audio-voice/skills/sarosh-audio-voice'
 $skillPath = Join-Path $skillRoot 'SKILL.md'
 $metadataPath = Join-Path $skillRoot 'agents\openai.yaml'
 $policyPath = Join-Path $repoRoot 'global-agent-policy.md'
@@ -45,7 +55,7 @@ $skill = Read-Utf8 $skillPath
 $metadata = Read-Utf8 $metadataPath
 $policy = Read-Utf8 $policyPath
 $registry = if (Test-Path -LiteralPath $registryPath) {
-    Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Get-AgentHubMergedCapabilitiesDocument -OverlayRoot $overlay.Root -CapabilitiesDocument (Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json)
 } else { $null }
 
 # 1. Skill identity and trigger description are explicit.
@@ -78,8 +88,8 @@ $registryOk = $capability -and
     $owners.Count -eq 1 -and
     $capability.id -eq 'sarosh-audio-voice' -and
     $capability.capabilityType -eq 'skills' -and
-    $capability.canonicalSource -eq 'packages/sarosh-audio-voice' -and
-    $capability.hashBasis -eq 'packages/sarosh-audio-voice' -and
+    $capability.canonicalSource -eq 'overlays/personal/packages/sarosh-audio-voice' -and
+    $capability.hashBasis -eq 'overlays/personal/packages/sarosh-audio-voice' -and
     $capability.status -eq 'active-canonical'
 Report 'registry has one owner and all 17 managed host mappings' `
     ($registryOk -and $hostSetOk -and $mappingModesOk) `

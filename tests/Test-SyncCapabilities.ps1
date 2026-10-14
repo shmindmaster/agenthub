@@ -674,7 +674,7 @@ function Test-ScopedSyncPreservesUnselectedCapability {
     $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-selected' -HostId 'zz-host' -SkillName 'zz-selected-skill' -SkillContent "---`nname: zz-selected-skill`ndescription: fixture`n---`nVersion one"
     try {
         $registryPath = Join-Path $fixture.RegistryDir 'capabilities.json'
-        $document = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+        $document = Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $other = @{ id='zz-other'; owner='test'; capabilityType='skill-pack'; canonicalSource='packages/zz-other'; hostMappings=@(@{hostId='zz-host'; deploymentStatus='managed'}) }
         $document.capabilities = @($document.capabilities) + @($other)
         $document | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $registryPath -Encoding UTF8
@@ -689,12 +689,12 @@ function Test-ScopedSyncPreservesUnselectedCapability {
         $otherFile = Join-Path $otherDestination 'SKILL.md'
         $original = [IO.File]::ReadAllText($otherFile)
         $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
-        $before = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+        $before = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
         $priorOther = $before.managed.PSObject.Properties[$otherDestination].Value | ConvertTo-Json -Compress
         Set-Content -LiteralPath $otherSource -Value 'Unselected source changed' -Encoding UTF8
         Set-Content -LiteralPath (Join-Path $fixture.Root 'packages\zz-selected\skills\zz-selected-skill\SKILL.md') -Value "---`nname: zz-selected-skill`ndescription: fixture`n---`nVersion two" -Encoding UTF8
         $result = Invoke-SyncCapabilities -ExtraArgs ($args + @('-CapabilityId','zz-selected')) -LocalAppData $fixture.LocalAppData
-        $after = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+        $after = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
         $afterOther = $after.managed.PSObject.Properties[$otherDestination].Value | ConvertTo-Json -Compress
         $passed = $result.ExitCode -eq 0 -and [IO.File]::ReadAllText($otherFile) -eq $original -and $priorOther -eq $afterOther -and [IO.File]::ReadAllText((Join-Path $fixture.Destination 'SKILL.md')) -match 'Version two'
         return @{Passed=$passed; Detail="exit=$($result.ExitCode); unselected ledger retained=$($priorOther -eq $afterOther); $($result.Output)"}
@@ -713,7 +713,7 @@ function Test-ScopedSyncRejectsUnsafeRequests {
             $result = Invoke-SyncCapabilities -ExtraArgs ($args + $request) -LocalAppData $fixture.LocalAppData
             if ($result.ExitCode -eq 0 -or [IO.File]::ReadAllText($statePath) -ne $before) { return @{Passed=$false; Detail="unsafe scoped request mutated state: $($request -join ' ')"} }
         }
-        $legacy = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+        $legacy = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
         $legacy.schemaVersion = 1
         $legacy | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $statePath -Encoding UTF8
         $before = [IO.File]::ReadAllText($statePath)

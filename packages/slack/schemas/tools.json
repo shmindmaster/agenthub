@@ -8,6 +8,7 @@
     {
       "name": "slack_search",
       "description": "Search messages and files. Returns canonical objects with IDs preserved.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -23,6 +24,7 @@
     {
       "name": "slack_channels",
       "description": "List conversations the authenticated actor can see.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -37,6 +39,7 @@
     {
       "name": "slack_users",
       "description": "List or lookup users. Never drop user_id when a display name is present.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -52,6 +55,7 @@
     {
       "name": "slack_messages",
       "description": "Read channel history. Pagination must be reproducible from cursor.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -69,6 +73,7 @@
     {
       "name": "slack_thread",
       "description": "Read a complete thread by channel_id + ts.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -83,12 +88,14 @@
     },
     {
       "name": "slack_post",
-      "description": "Post a new message. Requires explicit user authorization for the destination.",
+      "description": "Post a new message. Requires explicit user authorization for the destination. Requires approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["channel_id", "text"],
+        "required": ["channel_id", "text", "approved"],
         "properties": {
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact destination and action. The server refuses the write otherwise." },
           "channel_id": { "type": "string", "minLength": 1 },
           "text": { "type": "string" },
           "blocks": { "type": "array" },
@@ -100,12 +107,14 @@
     },
     {
       "name": "slack_reply",
-      "description": "Reply in a thread. Requires channel_id and thread_ts.",
+      "description": "Reply in a thread. Requires channel_id and thread_ts. Requires approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["channel_id", "thread_ts", "text"],
+        "required": ["channel_id", "thread_ts", "text", "approved"],
         "properties": {
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact destination and action. The server refuses the write otherwise." },
           "channel_id": { "type": "string", "minLength": 1 },
           "thread_ts": { "type": "string", "minLength": 1 },
           "text": { "type": "string" },
@@ -116,12 +125,14 @@
     },
     {
       "name": "slack_update",
-      "description": "Edit an existing message.",
+      "description": "Edit an existing message. Requires approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": false, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["channel_id", "ts", "text"],
+        "required": ["channel_id", "ts", "text", "approved"],
         "properties": {
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact destination and action. The server refuses the write otherwise." },
           "channel_id": { "type": "string", "minLength": 1 },
           "ts": { "type": "string", "minLength": 1 },
           "text": { "type": "string" },
@@ -132,12 +143,14 @@
     },
     {
       "name": "slack_delete",
-      "description": "Delete a message. Irreversible. Requires explicit user authorization.",
+      "description": "Delete a message. Irreversible. Requires explicit user authorization. Requires approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": false, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["channel_id", "ts"],
+        "required": ["channel_id", "ts", "approved"],
         "properties": {
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact destination and action. The server refuses the write otherwise." },
           "channel_id": { "type": "string", "minLength": 1 },
           "ts": { "type": "string", "minLength": 1 },
           "actor_mode": { "type": "string", "enum": ["user", "agent_bot"] }
@@ -146,12 +159,14 @@
     },
     {
       "name": "slack_react",
-      "description": "Add an emoji reaction to a message.",
+      "description": "Add an emoji reaction to a message. Requires approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["channel_id", "ts", "name"],
+        "required": ["channel_id", "ts", "name", "approved"],
         "properties": {
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact destination and action. The server refuses the write otherwise." },
           "channel_id": { "type": "string", "minLength": 1 },
           "ts": { "type": "string", "minLength": 1 },
           "name": { "type": "string", "minLength": 1 },
@@ -161,12 +176,14 @@
     },
     {
       "name": "slack_unreact",
-      "description": "Remove an emoji reaction from a message.",
+      "description": "Remove an emoji reaction from a message. Requires approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["channel_id", "ts", "name"],
+        "required": ["channel_id", "ts", "name", "approved"],
         "properties": {
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact destination and action. The server refuses the write otherwise." },
           "channel_id": { "type": "string", "minLength": 1 },
           "ts": { "type": "string", "minLength": 1 },
           "name": { "type": "string", "minLength": 1 },
@@ -177,6 +194,7 @@
     {
       "name": "slack_file_get",
       "description": "Get file metadata and, when available, content. Preserves file_id.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -188,12 +206,14 @@
     },
     {
       "name": "slack_file_upload",
-      "description": "Upload a file to a channel or thread. Requires explicit user authorization.",
+      "description": "Upload a file to a channel or thread. Requires explicit user authorization. Requires approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["filename", "content_base64"],
+        "required": ["filename", "content_base64", "approved"],
         "properties": {
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact destination and action. The server refuses the write otherwise." },
           "filename": { "type": "string", "minLength": 1 },
           "content_base64": { "type": "string", "minLength": 1 },
           "channel_id": { "type": "string" },
@@ -207,6 +227,7 @@
     {
       "name": "slack_permalink",
       "description": "Get a permalink for a message.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -220,6 +241,7 @@
     {
       "name": "slack_channel_info",
       "description": "Get conversation metadata by channel_id.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -232,6 +254,7 @@
     {
       "name": "slack_user_info",
       "description": "Get a user by user_id. Display names are additive.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -244,6 +267,7 @@
     {
       "name": "slack_whoami",
       "description": "Return the AgentHub Slack identity currently in use.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -254,12 +278,14 @@
     },
     {
       "name": "slack_pin",
-      "description": "Pin a message in a channel.",
+      "description": "Pin a message in a channel. Requires approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["channel_id", "ts"],
+        "required": ["channel_id", "ts", "approved"],
         "properties": {
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact destination and action. The server refuses the write otherwise." },
           "channel_id": { "type": "string", "minLength": 1 },
           "ts": { "type": "string", "minLength": 1 },
           "actor_mode": { "type": "string", "enum": ["user", "agent_bot"] }
@@ -268,12 +294,14 @@
     },
     {
       "name": "slack_unpin",
-      "description": "Unpin a message in a channel.",
+      "description": "Unpin a message in a channel. Requires approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["channel_id", "ts"],
+        "required": ["channel_id", "ts", "approved"],
         "properties": {
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact destination and action. The server refuses the write otherwise." },
           "channel_id": { "type": "string", "minLength": 1 },
           "ts": { "type": "string", "minLength": 1 },
           "actor_mode": { "type": "string", "enum": ["user", "agent_bot"] }
@@ -282,12 +310,14 @@
     },
     {
       "name": "slack_bookmarks",
-      "description": "List, add, or remove channel bookmarks.",
+      "description": "List, add, or remove channel bookmarks. add and remove require approved=true (enforced by the server).",
+      "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": false, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
         "required": ["channel_id", "action"],
         "properties": {
+          "approved": { "type": "boolean", "description": "Required (true) for action add or remove, set only after the user approved that exact change. Not needed for list." },
           "channel_id": { "type": "string", "minLength": 1 },
           "action": { "type": "string", "enum": ["list", "add", "remove"] },
           "bookmark_id": { "type": "string" },
@@ -300,6 +330,7 @@
     {
       "name": "slack_canvas_get",
       "description": "Read a Slack canvas by id. Returns structured content plus raw.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -312,6 +343,7 @@
     {
       "name": "slack_list_items",
       "description": "Read Slack list items by list_id.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -326,6 +358,7 @@
     {
       "name": "slack_api_read",
       "description": "Escape hatch for a read-only Slack Web API method on the allowlist.",
+      "annotations": { "readOnlyHint": true, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -339,6 +372,7 @@
     {
       "name": "slack_api_write",
       "description": "Controlled escape hatch for a Slack Web API write. Requires approved=true and SLACK_BRIDGE_ALLOW_API_WRITE=true.",
+      "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": false, "openWorldHint": true },
       "inputSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -346,7 +380,7 @@
         "properties": {
           "method": { "type": "string", "minLength": 1 },
           "params": { "type": "object" },
-          "approved": { "type": "boolean" },
+          "approved": { "type": "boolean", "const": true, "description": "Set true only after the user approved this exact Slack API write." },
           "actor_mode": { "type": "string", "enum": ["user", "agent_bot"] }
         }
       }

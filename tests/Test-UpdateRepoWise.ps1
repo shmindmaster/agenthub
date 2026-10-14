@@ -125,7 +125,7 @@ $schDenied = Join-Path $scratch 'schtasks-denied.cmd'
 $denied = Invoke-Updater -UpdaterArgs @('-RemoveSchedule', '-SchtasksExe', $schDenied)
 Report 'query-access-denied-fails' ($denied.ExitCode -ne 0) $denied.Output
 Report 'query-access-denied-never-claims-absent' ($denied.Output -notmatch 'PASS:.*absent') $denied.Output
-$deniedLog = Get-Content -LiteralPath $schLog -Raw
+$deniedLog = Get-Content -LiteralPath $schLog -Raw -Encoding UTF8
 Report 'query-access-denied-skips-delete' ($deniedLog -notmatch '/Delete') $deniedLog
 
 $notRemoved = Invoke-Updater -UpdaterArgs @('-RemoveSchedule', '-SchtasksExe', $stub)

@@ -5,11 +5,21 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$skillRoot = Join-Path $repoRoot 'packages\sarosh-writing\skills\sarosh-writing'
+. (Join-Path $repoRoot 'scripts\lib\CapabilityGraph.ps1')
+. (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
+# Private package: it lives in the gitignored personal overlay, never under
+# packages/. Resolve the overlay from its documented location, or skip.
+$overlay = Resolve-AgentHubTestOverlay -RepositoryRoot $repoRoot
+if (-not $overlay.Root) {
+    Write-Host "SKIP: sarosh-writing is a private overlay package -- $($overlay.Reason)"
+    Write-Host 'RESULT: 0 passed, 0 failed'
+    exit 0
+}
+$skillRoot = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/sarosh-writing/skills/sarosh-writing'
 $skill = Get-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Raw -Encoding UTF8
 $metadata = Get-Content -LiteralPath (Join-Path $skillRoot 'agents\openai.yaml') -Raw -Encoding UTF8
 $policy = Get-Content -LiteralPath (Join-Path $repoRoot 'global-agent-policy.md') -Raw -Encoding UTF8
-$registry = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$registry = Get-AgentHubMergedCapabilitiesDocument -OverlayRoot $overlay.Root -CapabilitiesDocument (Get-Content -LiteralPath (Join-Path $repoRoot 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json)
 
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0
@@ -56,7 +66,7 @@ $expectedHosts = @('amp','antigravity','claude','cline','codex','copilot','curso
 $actualHosts = if ($owners.Count -eq 1) { @($owners[0].hostMappings | ForEach-Object { [string]$_.hostId } | Sort-Object -Unique) } else { @() }
 $registryOk = $owners.Count -eq 1 -and $owners[0].id -eq 'sarosh-writing' -and
     $owners[0].owner -eq 'personal-writing' -and
-    $owners[0].canonicalSource -eq 'packages/sarosh-writing' -and
+    $owners[0].canonicalSource -eq 'overlays/personal/packages/sarosh-writing' -and
     $actualHosts.Count -eq $expectedHosts.Count -and
     @(Compare-Object $expectedHosts $actualHosts).Count -eq 0
 Report 'registry has one writing owner and all 17 host mappings' $registryOk "owners=$($owners.Count), hosts=$($actualHosts.Count)"
