@@ -40,19 +40,19 @@ try {
     }
     if ((Get-FileHash -LiteralPath (Join-Path $package 'plugin.json')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $shared 'plugin.json')).Hash) { throw 'Shared tools release manifest is stale' }
     $checks++
-    $stemsHelper = Get-Content -LiteralPath (Join-Path $shared 'Finish-BriefingStems.ps1') -Raw
+    $stemsHelper = Get-Content -LiteralPath (Join-Path $shared 'Finish-BriefingStems.ps1') -Raw -Encoding utf8
     if ($stemsHelper -notmatch '\$PSScriptRoot.+Finish-Media.ps1' -or $stemsHelper -match 'AGENTHUB_ROOT') { throw 'Briefing stem helper does not resolve its adjacent finishing dependency' }
     $checks++
-    $packageVersion = (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version
-    $runtimeVersion = (Get-Content -LiteralPath (Join-Path $runtimeKit 'package.json') -Raw | ConvertFrom-Json).version
+    $packageVersion = (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw -Encoding utf8 | ConvertFrom-Json).version
+    $runtimeVersion = (Get-Content -LiteralPath (Join-Path $runtimeKit 'package.json') -Raw -Encoding utf8 | ConvertFrom-Json).version
     if ($runtimeVersion -ne $packageVersion) { throw "Runtime kit version $runtimeVersion does not match package $packageVersion" }
     $checks++
-    $composeGuide = Get-Content -LiteralPath (Join-Path $package 'skills\media-studio-compose\SKILL.md') -Raw
+    $composeGuide = Get-Content -LiteralPath (Join-Path $package 'skills\media-studio-compose\SKILL.md') -Raw -Encoding utf8
     if ($composeGuide -match 'C:\\Repos\\shmindmaster\\agenthub' -or $composeGuide -notmatch 'MEDIA_STUDIO_PACKAGE_ROOT' -or $composeGuide -notmatch 'Finish-Media.ps1' -or $composeGuide -notmatch [regex]::Escape("'$packageVersion'")) {
         throw 'Compose guide does not describe verified package and deployed finishing paths'
     }
     $checks++
-    $generateGuide = Get-Content -LiteralPath (Join-Path $package 'skills\media-studio-generate\SKILL.md') -Raw
+    $generateGuide = Get-Content -LiteralPath (Join-Path $package 'skills\media-studio-generate\SKILL.md') -Raw -Encoding utf8
     if ($generateGuide -match 'C:\\Repos\\shmindmaster\\agenthub' -or $generateGuide -notmatch 'Generate-OwnerVoice.ps1' -or $generateGuide -notmatch 'Test-SpeechIntegrity.ps1' -or $generateGuide -notmatch [regex]::Escape("'$packageVersion'")) {
         throw 'Generate guide does not describe deployed owner-voice helpers'
     }
