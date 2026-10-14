@@ -6,12 +6,14 @@
 .DESCRIPTION
     RepoWise is uv-managed machine tooling (`uv tool install repowise`), not
     AgentHub package content. This script is the fleet control for that CLI:
-    compare the installed version to PyPI, upgrade when behind, and optionally
-    register a current-user scheduled task so the check runs without an agent
-    session.
+    compare the installed version to PyPI and upgrade when behind. Updates are
+    manual or capability-invoked: by owner direction (2026-10-13) no scheduled
+    job runs this script, because a Task Scheduler powershell.exe action opens
+    a console window and takes keyboard focus.
 
     Audit (default) never writes. Apply upgrades (or installs if missing).
-    RegisterSchedule is idempotent and points at THIS script on disk.
+    RemoveSchedule deletes the retired AgentHub-Update-RepoWise task if an
+    older checkout registered it.
 
 .PARAMETER Audit
     Report installed vs PyPI. Exit 1 if missing or behind. Default if neither
@@ -20,9 +22,12 @@
 .PARAMETER Apply
     Install or upgrade to the PyPI latest via `uv tool`.
 
+.PARAMETER RemoveSchedule
+    Delete the retired current-user scheduled task AgentHub-Update-RepoWise if
+    it exists. Does not require -Apply. Never creates a task.
+
 .PARAMETER RegisterSchedule
-    Create or replace the current-user scheduled task AgentHub-Update-RepoWise
-    (daily 06:00 local and at logon). Does not require -Apply.
+    Retired. Fails without creating anything; run -Apply manually instead.
 
 .PARAMETER InstalledVersion
     Test override. Skip probing the live CLI.
@@ -32,15 +37,20 @@
 
 .PARAMETER UvExe
     Test override. Path to uv. Live runs resolve uv themselves.
+
+.PARAMETER SchtasksExe
+    Test override. Path to schtasks. Live runs use System32\schtasks.exe.
 #>
 [CmdletBinding()]
 param(
     [switch]$Audit,
     [switch]$Apply,
+    [switch]$RemoveSchedule,
     [switch]$RegisterSchedule,
     [string]$InstalledVersion,
     [string]$LatestVersion,
     [string]$UvExe,
+    [string]$SchtasksExe,
     [string]$StateFile
 )
 
@@ -51,7 +61,7 @@ if ([string]::IsNullOrWhiteSpace($StateFile)) {
     $StateFile = Join-Path $env:LOCALAPPDATA 'AgentHub\repowise-cli.json'
 }
 
-if (-not $Audit -and -not $Apply -and -not $RegisterSchedule) { $Audit = $true }
+if (-not $Audit -and -not $Apply -and -not $RemoveSchedule -and -not $RegisterSchedule) { $Audit = $true }
 
 function Get-RepoWiseVersionFromText([string]$Text) {
     if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
@@ -132,37 +142,27 @@ function Invoke-Upgrade([string]$UvPath, [bool]$AlreadyInstalled) {
     Write-Host $out.TrimEnd()
 }
 
-function Register-UpdateTask {
-    $scriptPath = $PSCommandPath
-    if ([string]::IsNullOrWhiteSpace($scriptPath)) {
-        $scriptPath = $MyInvocation.MyCommand.Path
-    }
-    $scriptPath = [IO.Path]::GetFullPath($scriptPath)
-    # Prefer Windows PowerShell for the task: the Store pwsh path changes on
-    # every app update and would silently stop the daily upgrade.
-    $winps = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    $hostExe = if (Test-Path -LiteralPath $winps) { $winps } else { $null }
-    if (-not $hostExe) {
-        $pwsh = Get-Command -Name pwsh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($pwsh) { $hostExe = $pwsh.Source }
-    }
-    if (-not $hostExe) { throw "powershell.exe was not found; cannot register the scheduled task." }
-
-    $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Apply"
-    $tr = "`"$hostExe`" $arg"
-    # schtasks current-user create does not need elevation; Register-ScheduledTask
-    # with a custom principal was Access Denied on this machine.
-    $create = & schtasks.exe /Create /TN $TaskName /SC DAILY /ST 06:00 /F /TR $tr 2>&1 | Out-String
+function Remove-UpdateTask {
+    $exe = if (-not [string]::IsNullOrWhiteSpace($SchtasksExe)) { $SchtasksExe } else { Join-Path $env:WINDIR 'System32\schtasks.exe' }
+    $null = & $exe /Query /TN $TaskName 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw "schtasks /Create failed (exit $LASTEXITCODE): $create"
+        Write-Host "PASS: scheduled task $TaskName is absent."
+        return
     }
-    Write-Host "PASS: scheduled task $TaskName daily 06:00 -> $tr"
+    $out = & $exe /Delete /TN $TaskName /F 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        throw "schtasks /Delete $TaskName failed (exit $LASTEXITCODE): $out"
+    }
+    Write-Host "PASS: removed scheduled task $TaskName."
 }
 
 $installed = $null
 $latest = $null
 $exit = 0
 try {
+    if ($RegisterSchedule) {
+        throw "-RegisterSchedule is retired (owner direction 2026-10-13: no scheduled agent jobs). Run -Apply manually; use -RemoveSchedule to delete an old $TaskName task."
+    }
     if ($Audit -or $Apply) {
         $installed = Get-InstalledRepoWiseVersion
         $latest = Get-LatestRepoWiseVersion
@@ -204,7 +204,7 @@ try {
         }
     }
 
-    if ($RegisterSchedule) { Register-UpdateTask }
+    if ($RemoveSchedule) { Remove-UpdateTask }
 } catch {
     Write-Host "FAIL: $($_.Exception.Message)"
     $exit = 1
