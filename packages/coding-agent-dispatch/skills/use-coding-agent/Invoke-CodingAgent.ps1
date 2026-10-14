@@ -7,7 +7,20 @@
   Claude and Codex are the primary orchestrators. Any host that can run this
   script can call a host whose headless command was verified on this machine
   on 2026-10-14. Hosts without that evidence are refused. Cursor routes to
-  cursor-agent. GUI hosts are refused.
+  cursor-agent and Windsurf routes to the local Devin CLI. GUI hosts are refused.
+
+  Remote cloud agents are refused. A local headless contract does not
+  authorize a hosted computer, background agent, or paid-credit run.
+
+  Argument-style hosts take the prompt on the command line. A prompt that is
+  long, multi-line, quoted, or given with -PromptFile is written to a file
+  under %LOCALAPPDATA%\AgentHub\runtime\coding-agent-dispatch and the host
+  receives a one-line pointer to that file. Every host therefore accepts
+  -PromptFile.
+
+  The claude host bills the Anthropic API: the child gets ANTHROPIC_API_KEY
+  from the User environment when the caller's process does not carry it
+  (owner direction 2026-10-14). Only the variable name is ever printed.
 
   Paths come from registry/agents.json. Flags that a ~/bin shim already
   applies are not repeated. This script does not invent a flag, open a
@@ -33,6 +46,7 @@
 
 .PARAMETER TimeoutSec
   Kill the child and its process tree after this many seconds. Default 1800.
+
 #>
 [CmdletBinding()]
 param(
@@ -46,6 +60,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 
 function Find-AgentHubRoot {
     if (-not [string]::IsNullOrWhiteSpace($env:AGENTHUB_ROOT)) {
@@ -75,8 +90,12 @@ function Write-Refusal {
 function Format-WindowsArgument {
     param([string]$Value)
     if ($null -eq $Value) { return '""' }
-    if ($Value -notmatch '[\s"]') { return $Value }
-    return '"' + ($Value.Replace('\', '\\').Replace('"', '\"')) + '"'
+    if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') { return $Value }
+    # CommandLineToArgvW quoting: double only backslashes before quotes and
+    # the closing quote, never ordinary path separators.
+    $escaped = [regex]::Replace($Value, '(\\*)"', { param($m) $m.Groups[1].Value + $m.Groups[1].Value + '\"' })
+    $escaped = [regex]::Replace($escaped, '(\\+)$', '$1$1')
+    return '"' + $escaped + '"'
 }
 
 function Join-WindowsArguments {
@@ -92,7 +111,8 @@ $script:ArgumentPromptLimit = 6000
 function Test-ArgumentPrompt {
     param([string]$Text)
     if ($Text.Length -gt $script:ArgumentPromptLimit) { return $false }
-    if ($Text -match '[\r\n"]') { return $false }
+    # Batch shims must never receive shell syntax or variable expansion.
+    if ($Text -match '[\r\n"&|<>^%!()]') { return $false }
     if ($Text.StartsWith('-')) { return $false }
     return $true
 }
@@ -113,7 +133,10 @@ function Get-DispatchTable {
             Mode = 'stdin'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('exec'); Stdin = $PromptText; PromptFile = $null }
+                # The shim selects a profile; cwd may legitimately be a
+                # scratch directory. Do not initialize a repository there.
+                $args = @('exec', '--skip-git-repo-check', '-')
+                @{ Args = $args; Stdin = $PromptText; PromptFile = $null }
             }
         }
         'cursor-agent' = @{
@@ -134,7 +157,11 @@ function Get-DispatchTable {
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('--prompt', $PromptText); Stdin = $null; PromptFile = $null }
+                $args = @('--prompt', $PromptText)
+                # Gemini restricts read_file to workspace roots. A pointer
+                # prompt must explicitly admit its runtime prompt directory.
+                if ($File) { $args += @('--include-directories', (Split-Path -Parent $File)) }
+                @{ Args = $args; Stdin = $null; PromptFile = $null }
             }
         }
         'grok' = @{
@@ -150,15 +177,20 @@ function Get-DispatchTable {
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('run', '--auto', '--dir', $Work, $PromptText); Stdin = $null; PromptFile = $null }
+                $args = @('run', '--auto', '--dir', $Work)
+                if ($fleet.dispatchPolicy.opencode.model) { $args += @('--model', [string]$fleet.dispatchPolicy.opencode.model) }
+                $args += $PromptText
+                @{ Args = $args; Stdin = $null; PromptFile = $null }
             }
         }
         'antigravity' = @{
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                # Binary string, 2026-10-14: Usage: agy --print "your prompt here"
-                @{ Args = @('--print', '--dangerously-skip-permissions', $PromptText); Stdin = $null; PromptFile = $null }
+                # 2026-10-14 live run: agy ignores a prompt left as a separate
+                # argument after --print and asks for --print='prompt'. Attach
+                # the prompt to the flag and keep the permission flag before it.
+                @{ Args = @('--dangerously-skip-permissions', ('--print=' + $PromptText)); Stdin = $null; PromptFile = $null }
             }
         }
         'factory' = @{
@@ -182,6 +214,46 @@ function Get-DispatchTable {
                 @{ Args = @('-p', $PromptText, '-C', $Work); Stdin = $null; PromptFile = $null }
             }
         }
+        'amp' = @{
+            Mode = 'stdin'
+            Build = {
+                param($PromptText, $Work, $File)
+                # amp --help 2026-10-14: -x/--execute reads the prompt from stdin
+                # and prints the last assistant message. --dangerously-allow-all
+                # disables command confirmation (amp.dangerouslyAllowAll).
+                @{ Args = @('-x', '--dangerously-allow-all', '--no-notifications', '--no-ide'); Stdin = $PromptText; PromptFile = $null }
+            }
+        }
+        'devin' = @{
+            Mode = 'file'
+            Build = {
+                param($PromptText, $Work, $File)
+                # devin --help 2026-10-14: -p is non-interactive, --prompt-file loads
+                # the prompt. Flags are launchDefaults.devin; the registry points at
+                # the WinGet devin.exe, not the ~/bin shim that already adds them.
+                $args = @('--permission-mode', 'dangerous', '--respect-workspace-trust', 'false', '-p', '--prompt-file', $File)
+                if ($fleet.dispatchPolicy.devin.model) { $args += @('--model', [string]$fleet.dispatchPolicy.devin.model) }
+                @{ Args = $args; Stdin = $null; PromptFile = $File }
+            }
+        }
+        'qoder' = @{
+            Mode = 'argument'
+            Build = {
+                param($PromptText, $Work, $File)
+                # qodercli --help 2026-10-14: -p prints and exits, -w sets the cwd,
+                # -o sets the output format. Flags mirror the ~/bin/qodercli.cmd shim.
+                @{ Args = @('-p', '--dangerously-skip-permissions', '--tools', 'default', '-w', $Work, '-o', 'text', $PromptText); Stdin = $null; PromptFile = $null }
+            }
+        }
+        'warp' = @{
+            Mode = 'argument'
+            Build = {
+                param($PromptText, $Work, $File)
+                # warp.exe with WARP_CLI_MODE=1 is the oz CLI (oz.cmd sets the same
+                # variable). `agent run --prompt` runs one task, -C sets the cwd.
+                @{ Args = @('agent', 'run', '--prompt', $PromptText, '-C', $Work, '--output-format', 'text'); Stdin = $null; PromptFile = $null; Env = @{ WARP_CLI_MODE = '1' } }
+            }
+        }
     }
 }
 
@@ -201,7 +273,30 @@ foreach ($profile in @($fleet.autonomyProfiles.profiles)) {
     if ([string]$profile.defaultProfile -eq 'interactive') { $interactive[[string]$profile.hostId] = $true }
 }
 $table = Get-DispatchTable
-$routes = @{ 'cursor' = 'cursor-agent' }
+$routes = @{ 'cursor' = 'cursor-agent'; 'windsurf' = 'devin' }
+$dispatchPolicy = $fleet.dispatchPolicy
+
+function Get-UserScopedValue {
+    param([string]$Name)
+    $value = [Environment]::GetEnvironmentVariable($Name, 'Process')
+    if ([string]::IsNullOrEmpty($value)) { $value = [Environment]::GetEnvironmentVariable($Name, 'User') }
+    return $value
+}
+
+function Test-PolicyDisabled {
+    param([string]$Id)
+    if ($null -eq $dispatchPolicy) { return $false }
+    $entry = $dispatchPolicy.PSObject.Properties[$Id]
+    if ($null -eq $entry) { return $false }
+    return ($entry.Value.enabled -eq $false)
+}
+
+function Get-PolicyRefusal {
+    param([string]$Id)
+    if (-not (Test-PolicyDisabled $Id)) { return $null }
+    $policy = $dispatchPolicy.PSObject.Properties[$Id].Value
+    return ((@('dispatchPolicy disables this host', [string]$policy.reason, [string]$policy.ownerAction) | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('.') }) -join '. ')
+}
 
 function Resolve-DeclaredExecutable {
     param([string]$Declared)
@@ -222,9 +317,21 @@ function Resolve-DeclaredExecutable {
 function Get-HostRow {
     param($Agent)
     $id = [string]$Agent.id
+    $refusal = Get-PolicyRefusal $id
+    if ($refusal) {
+        return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = $refusal }
+    }
+    if ($interactive.ContainsKey($id)) {
+        return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = 'interactive autonomy profile; establish an unattended contract and update autonomyProfiles before dispatch' }
+    }
     if ($routes.ContainsKey($id)) {
         $target = $routes[$id]
         $targetAgent = Get-AgentRecord -Agents $agents -Id $target
+        if (-not $targetAgent) { return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = "route target $target is not registered" } }
+        $targetRow = Get-HostRow $targetAgent
+        if ($targetRow.State -eq 'refused') {
+            return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = "routes to ${target}: $($targetRow.Detail)" }
+        }
         $exe = Resolve-DeclaredExecutable -Declared ([string]$targetAgent.executable)
         if (-not $exe) {
             return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = "routes to $target but that executable is absent" }
@@ -241,9 +348,6 @@ function Get-HostRow {
     $surface = [string]$Agent.surfaceType
     if ($surface -eq 'companion-desktop' -or $surface -eq 'companion-ide') {
         return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = 'GUI host is not dispatched' }
-    }
-    if ($interactive.ContainsKey($id)) {
-        return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = 'interactive host is not dispatched unattended' }
     }
     if ($id -eq 'vscode-insiders' -or $id -eq 'warp') {
         return [pscustomobject]@{ Id = $id; State = 'refused'; Detail = 'GUI host is not dispatched' }
@@ -263,6 +367,9 @@ if ([string]::IsNullOrWhiteSpace($HostId)) {
     Write-Refusal 3 'Pass -HostId, or -List to see which hosts are callable.'
 }
 $requested = $HostId.Trim()
+if ($requested -in @('devin-cloud', 'jules', 'cursor-cloud', 'copilot-agent')) {
+    Write-Refusal 3 "refused ${requested}: hosted cloud execution is disabled; owner must authorize this specific task, model, cadence, stop condition and cost budget before enabling a verified cloud adapter"
+}
 $agent = Get-AgentRecord -Agents $agents -Id $requested
 if (-not $agent) { Write-Refusal 3 "refused ${requested}: unknown host" }
 
@@ -298,13 +405,11 @@ if ($TimeoutSec -lt 1) { Write-Refusal 3 '-TimeoutSec must be at least 1.' }
 
 $contract = $table[$targetId]
 if (-not $contract) { Write-Refusal 3 "refused ${targetId}: no verified headless contract" }
-if ($contract.Mode -eq 'argument' -and -not (Test-ArgumentPrompt $Prompt)) {
-    Write-Refusal 3 "refused ${targetId}: this host takes the prompt as an argument. Use a prompt under $script:ArgumentPromptLimit characters, with no quotes or newlines, that does not start with a dash. claude, codex, grok, and factory accept the full text."
-}
+$pointer = $contract.Mode -eq 'argument' -and ($PromptFile -or -not (Test-ArgumentPrompt $Prompt))
 
 $runDir = Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch'
 $promptFile = $null
-if ($contract.Mode -eq 'file') {
+if ($contract.Mode -eq 'file' -or $pointer) {
     if (-not $ShowCommand) {
         New-Item -ItemType Directory -Force -Path $runDir | Out-Null
         $promptFile = Join-Path $runDir ("prompt-{0}-{1}.txt" -f $targetId, ([guid]::NewGuid().ToString('n')))
@@ -313,6 +418,7 @@ if ($contract.Mode -eq 'file') {
         $promptFile = Join-Path $runDir 'prompt-show.txt'
     }
 }
+if ($pointer) { $Prompt = "Read the task from this UTF-8 file and carry it out: $promptFile" }
 
 $built = & $contract.Build $Prompt $Cwd $promptFile
 if ($row.State -eq 'routed') { Write-Output ("routed: {0} -> {1}" -f $requested, $targetId) }
@@ -324,7 +430,7 @@ if ($ShowCommand) {
 }
 
 New-Item -ItemType Directory -Force -Path $runDir | Out-Null
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$stamp = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('n').Substring(0, 8)
 $stdoutPath = Join-Path $runDir "$stamp-$targetId.out"
 $stderrPath = Join-Path $runDir "$stamp-$targetId.err"
 $isBatch = $executable -match '\.(cmd|bat)$'
@@ -335,6 +441,18 @@ $psi.WorkingDirectory = $Cwd
 $psi.RedirectStandardOutput = $true
 $psi.RedirectStandardError = $true
 $psi.RedirectStandardInput = $true
+$psi.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+$psi.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+$psi.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
+foreach ($name in @('ANTHROPIC_API_KEY', 'DEVIN_API_KEY')) {
+    if (($name -eq 'ANTHROPIC_API_KEY' -and $targetId -eq 'claude') -or ($name -eq 'DEVIN_API_KEY' -and $targetId -eq 'devin')) {
+        $value = Get-UserScopedValue $name
+        if ($value) { $psi.EnvironmentVariables[$name] = $value }
+    }
+}
+if ($built.Env) {
+    foreach ($name in $built.Env.Keys) { $psi.EnvironmentVariables[$name] = [string]$built.Env[$name] }
+}
 if ($isBatch) {
     $psi.FileName = Join-Path $env:SystemRoot 'System32\cmd.exe'
     $inner = (Format-WindowsArgument $executable) + ' ' + (Join-WindowsArguments $built.Args)
@@ -348,16 +466,27 @@ $process = [Diagnostics.Process]::new()
 $process.StartInfo = $psi
 try {
     if (-not $process.Start()) { Write-Refusal 2 "refused ${targetId}: process did not start" }
-    if ($built.Stdin) {
-        $process.StandardInput.Write($built.Stdin)
-    }
-    $process.StandardInput.Close()
+    $timer = [Diagnostics.Stopwatch]::StartNew()
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
-    $finished = $process.WaitForExit($TimeoutSec * 1000)
+    $inputTask = if ($built.Stdin) { $process.StandardInput.WriteAsync([string]$built.Stdin) } else { $null }
+    # Bounded stdin prevents a non-reading child from defeating TimeoutSec.
+    $inputFinished = -not $inputTask -or $inputTask.Wait($TimeoutSec * 1000)
+    if ($inputFinished) { $process.StandardInput.Close() }
+    $remaining = [Math]::Max(0, $TimeoutSec * 1000 - [int]$timer.ElapsedMilliseconds)
+    $finished = $process.WaitForExit($remaining)
     if (-not $finished) {
         $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
-        & $taskkill '/PID' ([string]$process.Id) '/T' '/F' *> $null
+        $killInfo = [Diagnostics.ProcessStartInfo]::new()
+        $killInfo.FileName = $taskkill
+        $killInfo.Arguments = "/PID $($process.Id) /T /F"
+        $killInfo.UseShellExecute = $false
+        $killInfo.CreateNoWindow = $true
+        $killInfo.RedirectStandardOutput = $true
+        $killInfo.RedirectStandardError = $true
+        $killer = [Diagnostics.Process]::Start($killInfo)
+        $null = $killer.WaitForExit(5000)
+        $killer.Dispose()
         $null = $process.WaitForExit(5000)
         [Console]::Error.WriteLine("timeout ${targetId} after ${TimeoutSec}s; process tree killed")
         $exitCode = 4
@@ -365,7 +494,7 @@ try {
         $exitCode = $process.ExitCode
         if ($exitCode -in 2, 3, 4) { $exitCode = 1 }
     }
-    try { [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($stdoutTask, $stderrTask)) } catch {}
+    try { $null = [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($stdoutTask, $stderrTask), 5000) } catch {}
     $stdoutText = if ($stdoutTask.Status -eq 'RanToCompletion') { $stdoutTask.Result } else { '' }
     $stderrText = if ($stderrTask.Status -eq 'RanToCompletion') { $stderrTask.Result } else { '' }
     [IO.File]::WriteAllText($stdoutPath, $stdoutText, [Text.UTF8Encoding]::new($false))
