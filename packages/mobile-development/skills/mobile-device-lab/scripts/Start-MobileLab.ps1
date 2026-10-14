@@ -158,7 +158,7 @@ if (-not $SkipAndroid) {
         $avds = @(& $emulatorExe -list-avds | Where-Object { $_ -and $_.Trim() })
         if ($avds -notcontains $Avd) { throw "Canonical AVD '$Avd' not found. Available: $($avds -join ', ')" }
         Say "  booting canonical AVD '$Avd'"
-        Start-Process -FilePath $emulatorExe -ArgumentList @('-avd', $Avd) -WindowStyle Minimized | Out-Null
+        Start-Process -FilePath $emulatorExe -ArgumentList @('-avd', $Avd, '-no-window') -WindowStyle Hidden | Out-Null
         if (-not (Wait-Until -What "emulator '$Avd'" -TimeoutSec $timeoutSec -Condition {
                     @(Get-CanonicalEmulatorIds -AdbPath $adb).Count -gt 0
                 })) { throw "Android emulator failed to attach as API $expectedApi. Verify the canonical AVD's system image." }
@@ -252,7 +252,10 @@ Add-Stage 'guest-helper-sync' $true "changed=$($syncResult.changed); appiumResta
 $appiumUrl = "http://$($script:guestIp):$($guestAppiumExpectation.port)"
 $script:Facts.guestAppiumUrl = $appiumUrl
 if (-not (Wait-Until -What "appium at $appiumUrl" -TimeoutSec $timeoutSec -Condition {
-            try { [bool](Invoke-RestMethod -Uri "$appiumUrl$($guestAppiumExpectation.statusPath)" -TimeoutSec 10).value.ready } catch { $false }
+            try {
+                $appiumStatus = Invoke-RestMethod -Uri "$appiumUrl$($guestAppiumExpectation.statusPath)" -TimeoutSec 10
+                [bool]$appiumStatus.value.ready -and [string]$appiumStatus.value.build.version -eq [string]$guestAppiumExpectation.version
+            } catch { $false }
         })) {
     Say '  Appium did not answer. Is the launchd agent installed?' 'Yellow'
     Say "    ssh macvm 'bash ~/mobile-lab/start-appium-guest.sh'" 'Cyan'

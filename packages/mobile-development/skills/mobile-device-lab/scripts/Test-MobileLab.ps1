@@ -384,13 +384,13 @@ $statusOk = $false
 $statusEvidence = ''
 try {
     $status = Invoke-RestMethod -Uri "$appiumUrl$($guestAppiumExpectation.statusPath)" -TimeoutSec 30
-    $statusOk = [bool]$status.value.ready
+    $statusOk = ([bool]$status.value.ready -and [string]$status.value.build.version -eq [string]$guestAppiumExpectation.version)
     $statusEvidence = "$appiumUrl -- ready=$($status.value.ready) v$($status.value.build.version)"
 }
 catch {
     $statusEvidence = "$appiumUrl -- $($_.Exception.Message)"
 }
-Write-Stage 'appium: server reachable from Windows' $statusOk $statusEvidence 'Start it in the guest (see scripts/guest/), then allow up to ~6 min for cold start.'
+Write-Stage 'appium: pinned server reachable from Windows' $statusOk $statusEvidence 'After the lab is idle, rerun scripts/guest/start-appium-guest.sh to replace a stale server process, then allow up to ~6 min for cold start.'
 if (-not $statusOk) { Stop-Gate 'Appium server' }
 
 $script:Facts['iosRuntime'] = "iOS $($iosExpectation.platformVersion)"
@@ -477,7 +477,10 @@ if ($Deep) {
     $androidAfter = @(& $adb devices | Where-Object { $_ -match ('^' + [regex]::Escape([string]$script:Facts['androidDeviceId']) + '\s+device$') })
     $simulatorAfter = Invoke-Guest -Command 'xcrun simctl list devices booted | grep Booted | head -1' -TimeoutSec 120
     $appiumAfter = $false
-    try { $appiumAfter = [bool](Invoke-RestMethod -Uri "$appiumUrl$($guestAppiumExpectation.statusPath)" -TimeoutSec 15).value.ready } catch { }
+    try {
+        $appiumAfterStatus = Invoke-RestMethod -Uri "$appiumUrl$($guestAppiumExpectation.statusPath)" -TimeoutSec 15
+        $appiumAfter = ([bool]$appiumAfterStatus.value.ready -and [string]$appiumAfterStatus.value.build.version -eq [string]$guestAppiumExpectation.version)
+    } catch { }
     $postDeepReady = ($androidAfter.Count -gt 0 -and $simulatorAfter.ExitCode -eq 0 -and $simulatorAfter.Stdout -match [regex]::Escape([string]$script:Facts['iosDeviceId']) -and $appiumAfter -and $mcpSessionsCleaned)
     Write-Stage 'deep: lab remains ready after session cleanup' $postDeepReady "android=$($androidAfter -join '; '); ios=$($simulatorAfter.Stdout); appium=$appiumAfter; sessionsCleaned=$($mcpResult.sessionsCleaned)" 'Rerun Start-MobileLab.ps1 -Json, then repeat -Deep; inspect host memory pressure if the emulator exited.'
     if (-not $postDeepReady) { Stop-Gate 'post-deep readiness' }

@@ -92,7 +92,10 @@ pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-developmen
 pwsh -NoProfile -File "$env:LOCALAPPDATA\AgentHub\capabilities\mobile-development\mobile.ps1" check runtime both -Deep -Json
 ```
 
-`Start-MobileLab.ps1` boots the emulator and the macOS guest and waits for each.
+`Start-MobileLab.ps1` boots the Android emulator headlessly and the macOS guest
+and waits for each. Appium still provides interaction and screenshots without
+opening a device window or taking keyboard focus. Metro also runs hidden and
+reports persistent log paths under `%LOCALAPPDATA%\AgentHub\mobile-lab\logs`.
 A startup also deploys the canonical `scripts/guest/*.sh` set as LF-only UTF-8
 before polling Appium; if the launch-agent definition changed, it restarts only
 Appium and waits for readiness. Do not maintain a second guest-side copy.

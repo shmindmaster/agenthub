@@ -77,6 +77,23 @@ try {
     }
 
     if ($Action -eq 'Acquire') {
+        # Reject an existing owner without launching a second PowerShell.
+        # The holder still performs the authoritative acquisition, closing
+        # the race between this inexpensive probe and its startup.
+        $probe = [Threading.Mutex]::new($false, $mutexName)
+        $probeAcquired = $false
+        try {
+            try { $probeAcquired = $probe.WaitOne(0) }
+            catch [Threading.AbandonedMutexException] { $probeAcquired = $true }
+            if (-not $probeAcquired) {
+                Write-LeaseResult -Ok $false -State 'busy' -Id $null -HolderPid $null -ErrorMessage 'The mobile-lab foreground lease is already held.'
+                exit 1
+            }
+        }
+        finally {
+            if ($probeAcquired) { $probe.ReleaseMutex() }
+            $probe.Dispose()
+        }
         $LeaseId = [guid]::NewGuid().ToString('N')
         $paths = Get-LeasePaths $LeaseId
         $hostExe = if ($PSVersionTable.PSEdition -eq 'Core') { Join-Path $PSHOME 'pwsh.exe' } else { Join-Path $PSHOME 'powershell.exe' }
@@ -88,7 +105,12 @@ try {
             Start-Sleep -Milliseconds 100
             $holder.Refresh()
         }
-        if (-not (Test-Path -LiteralPath $paths.Status)) { throw "Lease holder did not initialize (pid=$($holder.Id))." }
+        if (-not (Test-Path -LiteralPath $paths.Status)) {
+            # A slow holder may start after our timeout. Leave its release
+            # signal first so it cannot retain an unreported lease.
+            [IO.File]::WriteAllText($paths.Release, $LeaseId, [Text.UTF8Encoding]::new($false))
+            throw "Lease holder did not initialize (pid=$($holder.Id))."
+        }
         $status = Get-Content -LiteralPath $paths.Status -Raw -Encoding UTF8 | ConvertFrom-Json
         if (-not $status.ok -or -not $status.active) {
             Write-LeaseResult -Ok $false -State 'busy' -Id $LeaseId -HolderPid $null -ErrorMessage 'The mobile-lab foreground lease is already held.'
