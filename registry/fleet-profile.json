@@ -386,10 +386,10 @@
       "verifiedOn": "2026-10-14"
     },
     "gemini": {
-      "enabled": false,
-      "reason": "Prior run exhausted transport retries; current smoke and included allowance remain unverified.",
-      "ownerAction": "Verify API connectivity and included allowance, then run one bounded smoke.",
-      "verifiedOn": "2026-10-14"
+      "enabled": true,
+      "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 14 s, returned ok; bills GOOGLE_API_KEY (API route, not the Google AI Pro plan).",
+      "verifiedOn": "2026-10-14",
+      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     },
     "warp": {
       "enabled": false,
@@ -436,28 +436,29 @@
       "verifiedOn": "2026-10-14"
     },
     "antigravity": {
-      "enabled": false,
-      "reason": "Native headless help verified; configured provider/model allowance and live smoke remain unverified.",
-      "ownerAction": "Confirm included allowance for this CLI and its configured model (or explicitly authorize a task credit budget), then run one bounded dispatcher smoke before enabling.",
-      "verifiedOn": "2026-10-14"
+      "enabled": true,
+      "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 9 s, returned ok; G1 credits stay off.",
+      "verifiedOn": "2026-10-14",
+      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     },
     "cline": {
-      "enabled": false,
-      "reason": "Native headless help verified; configured provider/model allowance and live smoke remain unverified.",
-      "ownerAction": "Confirm included allowance for this CLI and its configured model (or explicitly authorize a task credit budget), then run one bounded dispatcher smoke before enabling.",
-      "verifiedOn": "2026-10-14"
+      "enabled": true,
+      "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 8 s, returned ok.",
+      "verifiedOn": "2026-10-14",
+      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
+      "knownIssue": "2026-10-14: after a useful 127-line review, cline called submit_and_exit, wrote the report, then did not exit; the dispatcher killed it at the 1500 s timeout (exit 4). Treat the report file as the result and check it before trusting exit 4."
     },
     "copilot": {
-      "enabled": false,
-      "reason": "Native headless help verified; configured provider/model allowance and live smoke remain unverified.",
-      "ownerAction": "Confirm included allowance for this CLI and its configured model (or explicitly authorize a task credit budget), then run one bounded dispatcher smoke before enabling.",
-      "verifiedOn": "2026-10-14"
+      "enabled": true,
+      "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 24 s; consumed 1.21 Copilot AI credits (Copilot Pro allowance).",
+      "verifiedOn": "2026-10-14",
+      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     },
     "grok": {
-      "enabled": false,
-      "reason": "Native headless help verified; configured provider/model allowance and live smoke remain unverified.",
-      "ownerAction": "Confirm included allowance for this CLI and its configured model (or explicitly authorize a task credit budget), then run one bounded dispatcher smoke before enabling.",
-      "verifiedOn": "2026-10-14"
+      "enabled": true,
+      "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 11 s, returned ok.",
+      "verifiedOn": "2026-10-14",
+      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     }
   },
   "hostSurfaces": {
