@@ -177,7 +177,9 @@ function gateFixture(name, v = {}) {
   const cut = v.cuts || [0, 3, 8, 12, 15];
   const total = cut.at(-1);
   const speech = [[0.5, 2.5], [3.4, 6.6], [8.4, 10.6], [12.4, 14.0]];
-  const dur = (i) => (cut[i + 1] - cut[i]).toFixed(3);
+  // pictureShift moves every internal cut of the encoded picture while the cue sheet keeps the planned times.
+  const pcut = cut.map((t, i) => (i === 0 || i === cut.length - 1 ? t : t + (v.pictureShift || 0)));
+  const dur = (i) => (pcut[i + 1] - pcut[i]).toFixed(3);
   const sources = [`color=c=blue:s=320x200:r=30:d=${dur(0)}`, `testsrc2=s=320x200:r=30:d=${dur(1)}`, `mandelbrot=s=320x200:r=30`, `color=c=0x303030:s=320x200:r=30:d=${dur(3)}`];
   const args = [];
   sources.forEach((s, i) => { if (i === 2) args.push('-f', 'lavfi', '-t', dur(2), '-i', s); else args.push('-f', 'lavfi', '-i', s); });
@@ -236,6 +238,15 @@ test('sync gate fails a screen that appears after the first content word', { ski
   const r = gate(f); assert.equal(r.code, 1, r.out);
   const hit = failing(r.report, 'screen-on'); assert.equal(hit.length, 1); assert.equal(hit[0].beat, 'S02');
   assert.match(hit[0].message, /after the first content word/);
+});
+
+test('sync gate fails a picture uniformly early against the edit decision list (an unpadded 0.6 s lead-in)', { skip: !hasFfmpeg, timeout: 180000 }, () => {
+  const r = gate(gateFixture('gate-uniform-early', { pictureShift: -0.6 })); assert.equal(r.code, 1, r.out);
+  assert.ok(r.report.errors.some((e) => /uniformly 600 ms early against the edit decision list \(3 of 3 scene cuts agree/.test(e)), r.report.errors.join('\n'));
+  // each cut alone sits outside the per-beat match window, which is why the global check exists
+  assert.deepEqual(failing(r.report, 'screen-on'), []);
+  const late = gate(gateFixture('gate-uniform-late', { pictureShift: 0.3 })); assert.equal(late.code, 1, late.out);
+  assert.ok(late.report.errors.some((e) => /uniformly 300 ms late/.test(e)), late.report.errors.join('\n'));
 });
 
 test('sync gate fails a click that lands early or late of its spoken verb, with the measured offset', { skip: !hasFfmpeg, timeout: 180000 }, () => {

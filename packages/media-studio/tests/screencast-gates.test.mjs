@@ -185,6 +185,34 @@ test('compose: refuses to run when the product-picture validator is not resolvab
   assert.match(out, /validator not resolvable|product-picture/);
 });
 
+test('compose pads the narration lead-in so picture time is timeline time and the first action lands on its planned time', { skip: !ffmpegAvailable, timeout: 180000 }, () => {
+  // The first line starts 0.6 s in (the voice's lead-in silence, kept in the speech stem). S01's clip changes scene at
+  // clip time 2.0 s (its "action"), so on the program timeline that change belongs at 0.6 + 2.0 = 2.6 s, and S02 at 5.0 s.
+  const root = join(scratch, 'lead-in');
+  for (const dir of ['story', 'capture/clips', 'output']) mkdirSync(join(root, dir), { recursive: true });
+  const lead = 0.6, total = 9;
+  const s01 = join(root, 'capture', 'clips', 'S01.webm'), s02 = join(root, 'capture', 'clips', 'S02.webm');
+  ff(['-f', 'lavfi', '-i', 'testsrc2=size=1600x1000:rate=30:duration=2', '-f', 'lavfi', '-i', 'mandelbrot=size=1600x1000:rate=30', '-filter_complex', '[1:v]trim=duration=3,setpts=PTS-STARTPTS[m];[0:v][m]concat=n=2:v=1:a=0,format=yuv420p[v]', '-map', '[v]', '-c:v', 'libvpx', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '1M', s01]);
+  movingClip(s02, 4);
+  writeFileSync(join(root, 'job.json'), JSON.stringify({ kind: 'product-screencast', title: 't', workspace: root, repositoryWritePolicy: 'read-only', programForm: 'role-demo', intent: 'viewer-facing' }));
+  writeFileSync(join(root, 'story', 'storyboard.json'), JSON.stringify({ beats: [{ id: 'S01', visualMode: 'screen', durationSeconds: 4.4 }, { id: 'S02', visualMode: 'screen', durationSeconds: 4 }] }));
+  writeFileSync(join(root, 'story', 'narration-timeline.json'), JSON.stringify({ durationSeconds: total, segments: [{ id: 'S01', scene: 'S01', text: 'open', startSeconds: lead, durationSeconds: 5 - lead }, { id: 'S02', scene: 'S02', text: 'send', startSeconds: 5, durationSeconds: 4 }] }));
+  writeFileSync(join(root, 'story', 'capture-plan.json'), JSON.stringify({ scenes: ['S01', 'S02'].map((id) => ({ sceneId: id, kind: 'interaction', action: 'click', expectedResult: 'r', startState: 'a', resultState: 'b', provesClaim: 'c', clip: `clips/${id}.webm` })) }));
+  writeFileSync(join(root, 'capture', 'manifest.json'), JSON.stringify({ clips: [{ id: 'S01', file: 'clips/S01.webm', segments: ['S01'] }, { id: 'S02', file: 'clips/S02.webm', segments: ['S02'] }] }));
+  const rc = (file, p) => goodReceipt(file, sha(p)).clips.S02;
+  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify({ schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: { S01: rc('clips/S01.webm', s01), S02: rc('clips/S02.webm', s02) } }));
+  const composed = run(compose, [root, 'lead']); assert.equal(composed.code, 0, composed.out);
+  const map = JSON.parse(readFileSync(join(root, 'output', 'lead-compose-map.json'), 'utf8'));
+  assert.equal(map.leadInSeconds, lead);
+  assert.ok(Math.abs(map.pictureSeconds - total) <= 2 / 30, `picture ${map.pictureSeconds}s vs timeline ${total}s`);
+  const scan = spawnSync('ffmpeg', ['-hide_banner', '-i', join(root, 'output', 'lead-silent.mp4'), '-an', '-vf', "scale=320:-2,select='gt(scene,0.3)',showinfo", '-f', 'null', '-'], { windowsHide: true, encoding: 'utf8' });
+  const cuts = [...scan.stderr.matchAll(/pts_time:([\d.]+)/g)].map((m) => Number(m[1]));
+  for (const planned of [lead + 2, 5]) {
+    const near = cuts.reduce((best, t) => (Math.abs(t - planned) < Math.abs(best - planned) ? t : best), Infinity);
+    assert.ok(Math.abs(near - planned) <= 1.5 / 30, `scene change planned at ${planned}s, nearest encoded cut ${near}s (cuts: ${cuts.join(', ')})`);
+  }
+});
+
 test('portrait campaign composes a bounded source reframe with timed graphic and binds the encoded source', { skip: !ffmpegAvailable, timeout: 180000 }, () => {
   const root = join(scratch, 'portrait-reframe');
   for (const dir of ['story', 'capture/clips', 'capture/graphics', 'evidence', 'output']) mkdirSync(join(root, dir), { recursive: true });
