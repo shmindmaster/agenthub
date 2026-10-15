@@ -1298,7 +1298,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "16DBB3857376D0C11646F3A2E9EFEBCDAFD2C07C70A268215FCD970990145588",
+      "contentHash": "DF4CC3EECB7183A12D0458A17426B8BF21A315EEFEFEB36CADCB5014610325AE",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [

@@ -57,7 +57,7 @@ foreach ($rel in $files) {
 # Capture and product-picture gates travel with the compositor so each host resolves the same scripts.
 # A missing validator is a hard stop, never a silent skip. The existing scripts are copied
 # beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
-$gateScripts = @('validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'validate-viewer-release.mjs')
+$gateScripts = @('validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs')
 $sharedTools = Join-Path (Join-Path (Split-Path -Parent $RuntimeKit) '_shared') 'tools'
 New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null
 foreach ($name in $gateScripts) {
