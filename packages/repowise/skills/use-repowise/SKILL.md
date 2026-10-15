@@ -77,15 +77,19 @@ RepoWise on this fleet is a **local disk index**, not a hosted product.
 - The agent surface is ONE shared local server, `repowise mcp C:/Repos
   --transport streamable-http --port 7339 --host 127.0.0.1`
   (`repowise-workspace`), started on demand by
-  `packages/repowise/scripts/Start-RepoWiseShared.ps1`. If
-  `127.0.0.1:7339` refuses connections, run that script from the agent
-  shell; it launches repowise hidden and exits if the port is already
-  served. Never register a logon or scheduled task for it (owner direction
-  2026-10-13: Task Scheduler `powershell.exe` opens a window and takes
-  focus). The `repowise` CLI works without the server.
-  Hosts reach it at `http://127.0.0.1:7339/mcp` through `repowise@agenthub`.
-  Never bind it beyond loopback, never point hosts at a hosted RepoWise URL,
-  and never add a stdio entry to host MCP config.
+  `packages/repowise/scripts/Start-RepoWiseShared.ps1`. Hosts reach it
+  through the `repowise@agenthub` plugin's stdio bridge
+  (`scripts/repowise_bridge.py`), which runs that launcher hidden when it
+  finds 7339 down, so reconnecting the host is normally all a dead server
+  needs. The launcher fails closed: it starts retrieval through
+  `D:\Local-AI\ai.ps1` if the embedder (8790) is down, and exits 2 without
+  starting RepoWise if the embedder still is not ready — a RepoWise started
+  without it serves mock vectors for its whole life. Never register a logon
+  or scheduled task for it (owner direction 2026-10-13: Task Scheduler
+  `powershell.exe` opens a window and takes focus). The `repowise` CLI
+  works without the server. Never bind it beyond loopback, never point
+  hosts at a hosted RepoWise URL, and never add a `repowise mcp` stdio
+  entry to host MCP config.
 - `repowise whoami` must stay **Not signed in**. Do not `repowise login` or
   paste an `rw_live_` token. A hosted account would send repository
   intelligence off the machine.
@@ -108,15 +112,21 @@ the PyPI latest by running `scripts/Update-RepoWise.ps1 -Apply` manually;
 there is no scheduled updater. Do not install a second copy. Do not add
 per-repo repowise MCP entries.
 
-- **MCP (plugin-gated):** `repowise@agenthub` owns `.mcp.json`, an HTTP
-  entry for `http://127.0.0.1:7339/mcp` (registry id `repowise-workspace`).
-  Enabling it starts no process; the shared server is already running.
-  If tools fail to connect, check the server, not the host:
-  `Get-NetTCPConnection -LocalPort 7339 -State Listen`, then run
-  `Start-RepoWiseShared.ps1` (log under
-  `%LOCALAPPDATA%\AgentHub\runtime\repowise-shared`). Never persist a stdio
-  `repowise mcp` entry in host config or `C:/Repos/.cursor/mcp.json` — on
-  2026-10-02 that fanned out to 8 copies at ~220 MB each.
+- **MCP (plugin-gated):** `repowise@agenthub` owns the entry (registry id
+  `repowise-workspace`): `.mcp.json` for Claude and Cursor, `mcp.codex.json`
+  for Codex. Each launches `pyw -3 scripts/repowise_bridge.py`, a small
+  stdlib proxy to `http://127.0.0.1:7339/mcp` that starts the shared server
+  when it is down and re-opens its session when the server restarts. If
+  the handshake finds the server down it answers from the last cached
+  tool list while the server starts; a call made while the launcher has
+  failed closed returns an error naming the launcher log. If tools still
+  fail, read `%LOCALAPPDATA%\AgentHub\runtime\repowise-shared\launcher.log`
+  (exit 2 = embedder not ready; FAIL-CLOSED line says why) and
+  `bridge.log` beside it, then reconnect the host or run
+  `Start-RepoWiseShared.ps1` hidden. Never persist a stdio `repowise mcp`
+  entry in host config or `C:/Repos/.cursor/mcp.json` — on 2026-10-02 that
+  fanned out to 8 copies at ~220 MB each; the bridge is not that, it
+  forwards to the one server.
   Official Claude/Codex RepoWise marketplace plugins are forbidden: they
   register a second MCP at the nearest repo instead of `C:/Repos`.
 - **CLI (always available):** `repowise search "<q>"`, `repowise status -w`,
