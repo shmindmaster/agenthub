@@ -1,0 +1,360 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/shmindmaster/agenthub/packages/product-experience-engineering/kits/execution-controls/schemas/receipt.schema.json",
+  "title": "receipt/v1",
+  "type": "object",
+  "required": [
+    "receiptVersion",
+    "receiptId",
+    "tenantId",
+    "occurredAt",
+    "kind",
+    "engine",
+    "input",
+    "outcome",
+    "replayKey",
+    "prevReceiptHash",
+    "receiptHash"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "receiptVersion": {
+      "const": "receipt/v1"
+    },
+    "receiptId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kind": {
+      "enum": [
+        "model_call",
+        "rule_check",
+        "retrieval",
+        "tool_call",
+        "decision"
+      ]
+    },
+    "engine": {
+      "enum": [
+        "model",
+        "rules",
+        "model+rules",
+        "human"
+      ]
+    },
+    "subject": {
+      "type": "object",
+      "required": [
+        "type",
+        "id",
+        "revision"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": [
+        "hash"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "hash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "promptName": {
+          "type": "string"
+        },
+        "promptRevision": {
+          "type": "string"
+        },
+        "policyRevision": {
+          "type": "string"
+        },
+        "rulePackRevision": {
+          "type": "string"
+        }
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "required": [
+        "queryHash",
+        "documents"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "dataSourceId": {
+          "type": "string"
+        },
+        "queryHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "topK": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "hash"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "hash": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "revision": {
+                "type": "string"
+              },
+              "score": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "retrievalHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "model": {
+      "type": "object",
+      "required": [
+        "provider",
+        "requestModel"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "requestModel": {
+          "type": "string"
+        },
+        "responseModel": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "responseId": {
+          "type": "string"
+        },
+        "finishReasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "usage": {
+          "type": "object",
+          "required": [],
+          "additionalProperties": false,
+          "properties": {
+            "inputTokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "outputTokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cacheReadInputTokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cacheWriteInputTokens": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "tool": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "callId": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "ref",
+          "hash"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "span": {
+            "type": "object",
+            "required": [
+              "start",
+              "end"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "succeeded",
+            "failed",
+            "refused",
+            "fallback"
+          ]
+        },
+        "code": {
+          "type": "string"
+        },
+        "outputHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "fallbackEngine": {
+          "enum": [
+            "model",
+            "rules",
+            "model+rules",
+            "human"
+          ]
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "required": [
+        "capsuleId",
+        "proposalHash",
+        "decision",
+        "actorId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "capsuleId": {
+          "type": "string"
+        },
+        "proposalHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "decision": {
+          "enum": [
+            "approve",
+            "reject"
+          ]
+        },
+        "actorId": {
+          "type": "string"
+        }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "required": [
+        "traceId",
+        "spanId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "traceId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "spanId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        }
+      }
+    },
+    "replayKey": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "prevReceiptHash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "receiptHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

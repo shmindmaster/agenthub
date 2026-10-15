@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/shmindmaster/agenthub/packages/product-experience-engineering/kits/execution-controls/schemas/audit-row.schema.json",
+  "title": "approval-audit/v1 row",
+  "type": "object",
+  "required": [
+    "auditVersion",
+    "tenantId",
+    "capsuleId",
+    "action",
+    "subjectType",
+    "subjectId",
+    "subjectRevision",
+    "presentedHash",
+    "proposalHash",
+    "decision",
+    "actorId",
+    "idempotencyKey",
+    "outcome",
+    "code",
+    "status",
+    "at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "auditVersion": {
+      "const": "approval-audit/v1"
+    },
+    "tenantId": {
+      "type": "string"
+    },
+    "capsuleId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "action": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "subjectType": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "subjectId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "subjectRevision": {
+      "type": [
+        "integer",
+        "string",
+        "null"
+      ]
+    },
+    "presentedHash": {
+      "type": "string"
+    },
+    "proposalHash": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "decision": {
+      "enum": [
+        "approve",
+        "reject"
+      ]
+    },
+    "actorId": {
+      "type": "string"
+    },
+    "idempotencyKey": {
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "applied",
+        "rejected",
+        "replayed",
+        "refused"
+      ]
+    },
+    "code": {
+      "enum": [
+        "capsule_not_found",
+        "actor_mismatch",
+        "proposal_tampered",
+        "proposal_hash_mismatch",
+        "actor_not_authorized",
+        "self_approval_forbidden",
+        "idempotency_key_reused",
+        "already_decided",
+        "proposal_expired",
+        "stale_proposal",
+        null
+      ]
+    },
+    "status": {
+      "type": "integer"
+    },
+    "at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+    }
+  }
+}

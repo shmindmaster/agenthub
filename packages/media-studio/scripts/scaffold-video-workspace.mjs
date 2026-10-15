@@ -5,7 +5,7 @@
 //
 // Usage: node scaffold-video-workspace.mjs --repo <path> [--product <Name>]
 //        [--workspace <path>] [--dry-run] [--install]
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
@@ -139,7 +139,57 @@ write(
   `# ${productName} demo production\n\nThis is an external, disposable production workspace. The product repository remains read-only.\n\n## Capture\n\nUse \`pnpm exec playwright-cli\` for agent-operated sessions. It owns mouse/keyboard interaction,\ntrace capture, WebM recording, chapters, and optional action annotations. Use \`@playwright/test\`\nonly when the same capture must be deterministically rerun. Store any episode script here, never in\nthe product repository.\n\n## Inputs and outputs\n\n- \`traces/\`: Playwright \`trace.zip\` plus its sibling high-resolution WebM. The WebM is the video\n  source; trace screenshots are metadata fallback only.\n- \`narration/\`: optional SRT and audio sources.\n- \`output/\`: disposable render candidates.\n- \`evidence/\`: Product Demo Studio validation and review evidence. Create \`source-scenario.json\` and \`demo-scenario-proof.json\`, then run \`validate-demo-scenario.mjs\` before recording.\n\nRun \`pnpm render -- traces output/${productSlug}-demo.mp4 narration/demo.srt --burn-captions\`. The\nthin adapter uses Recast for cursor/click/animated zoom and voice timing, keeps paths relative for\nWindows compatibility, embeds captions first, and uses one FFmpeg pass to burn the synchronized\ncaption track when requested. Install \`@elevenlabs/elevenlabs-js\` here only when ElevenLabs is\nselected; OpenAI is the minimal installed provider. After each recut, create candidate-bound \`qa/viewer-release-evidence.json\` and run \`validate-viewer-release.mjs\`; a missing, stale, or ASR-grounded review is not a pass. After the release gate passes, package the\naccepted candidate into the product's mapped OneDrive review root. Do not copy this workspace into\nthe product repository.\n`,
 );
 
-for (const directory of ["traces", "narration", "output", "evidence", "qa", "story"]) {
+// A product that follows demo-harness/v1 (product-experience-engineering
+// kits/demo-harness) gets a capture skeleton prefilled from its harness file.
+// The harness is read, never written; the skeleton lives in this workspace.
+const harnessPath = join(repoRoot, "demo", "harness.json");
+if (existsSync(harnessPath)) {
+  const harness = JSON.parse(readFileSync(harnessPath, "utf8"));
+  const testId = harness.syntheticLabel?.testId ?? "synthetic-data-label";
+  write(
+    join(workspaceRoot, "capture", "scenes.mjs"),
+    `// Capture skeleton for ${productName}, generated from the product's demo/harness.json (read-only).
+// record-job.mjs drives these scenes and finishes each take with Recast (product-picture.md).
+//
+// Before every take, in the product repository:
+//   1. reset the demo tenant:  ${harness.reset?.full ?? "(no reset command declared)"}
+//   2. bring the stack up hidden: node <agenthub>/packages/product-experience-engineering/scripts/demo-stack.mjs up --repo <product>
+//   3. record the build on screen: GET ${(harness.versionEndpoints ?? []).map((endpoint) => endpoint.url).join(", ") || "(no version endpoint declared)"}
+//      and copy its gitSha into job.json as deployedSha.
+// Claims in narration come only from the "Demonstrate now" table in ${harness.truthTable ?? "the truth table"}.
+
+export const harness = ${JSON.stringify({
+      product: harness.product,
+      demoTenant: harness.demoTenant,
+      reset: harness.reset,
+      versionEndpoints: harness.versionEndpoints,
+      syntheticLabel: harness.syntheticLabel,
+      truthTable: harness.truthTable,
+    }, null, 2)};
+
+export const options = {
+  baseUrl: ${JSON.stringify(harness.baseUrl)},
+  viewport: { width: 1600, height: 1000 },
+  deviceScaleFactor: 2,
+};
+
+export const order = ["S01"];
+
+export const scenes = {
+  // One function per screen beat. Drive the product only through the helpers
+  // (h.go, h.approach, h.click, h.typeText, h.pointAt, h.hoverHold, h.smoothScroll,
+  // h.expect, h.hold) and end every interaction beat with h.expect(...).
+  async S01(h, ctx) {
+    await h.go("/");
+    await h.expect(ctx.page.getByTestId(${JSON.stringify(testId)}), "synthetic-data label visible");
+    // Hero moment: config -> action -> visible response -> result.
+  },
+};
+`,
+  );
+}
+
+for (const directory of ["traces", "narration", "output", "evidence", "qa", "story", "capture"]) {
   write(join(workspaceRoot, directory, ".gitkeep"), "");
 }
 
