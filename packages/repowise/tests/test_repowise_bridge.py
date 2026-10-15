@@ -27,6 +27,19 @@ sys.path.insert(0, str(BRIDGE.parent))
 import repowise_bridge  # noqa: E402
 
 
+def kill_listener(port: int) -> None:
+    """Stop whatever process listens on 127.0.0.1:<port> (test ports only)."""
+    if os.name != "nt":
+        return
+    out = subprocess.run(["netstat", "-ano", "-p", "tcp"], capture_output=True, text=True,
+                         creationflags=0x08000000).stdout
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 5 and parts[1] == f"127.0.0.1:{port}" and parts[3] == "LISTENING":
+            subprocess.run(["taskkill", "/PID", parts[4], "/T", "/F"], capture_output=True,
+                           creationflags=0x08000000)
+
+
 def free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -113,6 +126,11 @@ class BridgeTests(unittest.TestCase):
         for s in self.servers:
             s.kill()
             s.wait()
+        # A server the bridge's launcher started is detached from this test
+        # (breakaway, new process group), so it is not in self.servers. Left
+        # running, every suite run leaked about three of them; on 2026-10-15
+        # 25 had piled up on a machine already out of memory.
+        kill_listener(self.port)
 
     def start_server(self, *flags: str) -> None:
         self.servers.append(subprocess.Popen([sys.executable, "-I", str(FAKE), "--port", str(self.port), *flags]))
