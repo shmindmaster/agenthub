@@ -63,7 +63,7 @@
       {
         "launchDefaultsKey": "agy",
         "hostId": "antigravity",
-        "evidence": "registry/agents.json activeAgents[antigravity].executable resolves to ...WinGet\\Links\\agy.exe, and launchDefaults.agy (['--dangerously-skip-permissions']) is byte-identical to the deleted host-autonomy-mappings.json antigravity.native.flags. Treated as established, not merely flagged.",
+        "evidence": "registry/agents.json activeAgents[antigravity].executable resolves to %LOCALAPPDATA%\\agy\\bin\\agy.exe (the WinGet Links\\agy.exe shim is absent), and launchDefaults.agy (['--dangerously-skip-permissions']) is byte-identical to the deleted host-autonomy-mappings.json antigravity.native.flags. Treated as established, not merely flagged. Corrected 2026-10-14.",
         "note": "The launchDefaults key itself is left as 'agy' -- renaming it is out of scope for this task; registry/fleet-profile.json's separately-reported absolute-path pinning is likewise left as-is here."
       }
     ],
