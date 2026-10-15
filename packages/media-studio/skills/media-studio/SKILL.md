@@ -16,6 +16,17 @@ ASR, pronunciation and exact encoded release gates. Read `references/content-con
 paid REST TTS requires the shared ledger; other paid content routes remain disabled
 pending metered adapters. Real product UI remains captured evidence.
 
+**Owner standard (2026-10-15), adding to everything above:**
+- **Product honesty before film.** Write the pain, buyer, competitors and native-platform overlap, usage and a one-line "who cares" into the job's plan. A weak product is rebuilt, repositioned or retired, not polished on film.
+- **Voice first, word-level sync.** Lock and render the narration first and take word timings from local ASR. Each scene lasts as long as its narration span: retime or recapture the picture, never squeeze the voice.
+  - The screen is visible by the line's first content word.
+  - The action lands within ±300 ms of the spoken verb.
+  - The result holds for at least 1.5 s.
+  - A/V drift is at most 40 ms.
+- **Live presenter feel.** The cursor moves purposefully to real controls and the real UI responds, with one emphasis per beat. Static, dashboard and diagram beats get a guided cursor, highlight or progressive trace on the element being named. Never a freeze, and no motion for its own sake.
+- **Cue sheet and sync gate.** `plan/cue-sheet.json` maps narration → screen → cursor/action → result → camera → transition. `qa/sync.json` is bound to the exact encoded candidate. Then watch and listen to the whole file. Never claim sync or visual quality is verified from a render alone; report limitations.
+- **Local-first voice for every asset**, hero cuts and dialogue included. ElevenLabs is only a per-line fallback after a failed story review or audio gate.
+
 ## 0. Intake (do not dump this on the user)
 
 A usable ask is: what it is about, plus any source (evidence folder, outline, product). Resolve the selected provider yourself. Do not tell the user to invoke `/local-ai-stack` or name writer/storyboard/director.

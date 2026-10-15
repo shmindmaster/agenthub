@@ -82,6 +82,16 @@ Before any Sarosh voice clone, owner TTS, narration, or voice-over render, load 
 - Delivered video files are named `NN - Title.mp4` with no product prefix, and a delivered series carries a `README.md` index in its folder. When a master is superseded, delete it and every reproducible intermediate outright; do not create `_retired`, `_old`, or archive folders. A wrong section is re-recorded and the master re-cut; never deliver an addendum clip.
 - A product or engineering change told on video is a technical story: `media-studio` `references/technical-story.md` owns the shape (show what happened, explain why, show where, say why it matters). When the picture is a running product, `references/product-picture.md` owns the picture: Playwright WebM + Recast (pointer, click, zoom, visible result), not Ken Burns stills mixed with Remotion cards.
 
+## Video and content quality — owner standard, October 15, 2026
+
+These additions apply to every host making video or demo content and sit on top of the rules above; load `media-studio` for the workflow.
+
+- Product honesty comes before film. Record the real pain, buyer, competitor and native-platform overlap, usage, and a one-line reason anyone should care. A weak product is rebuilt, repositioned, retired, or repurposed into a vertical rather than polished on film.
+- Narration and picture are one coordinated experience: voice first, so each scene lasts as long as its narration. The named screen is visible by the line's first content word, the named action lands within about 300 ms of its spoken verb, the result holds at least 1.5 seconds, and narration never describes what has not happened or has already gone.
+- Demonstrations feel like a skilled presenter working live. The cursor moves purposefully to real controls and the real UI responds, with one emphasis per beat. Static, dashboard, and diagram scenes use a guided cursor, highlight, or progressive trace on the element being named, never an accidental freeze or motion for its own sake.
+- Every film has a timestamped cue sheet (narration, screen, cursor or action, resulting state, camera, transition) and a sync check bound to the exact encoded file. Then the whole file is watched and heard. A successful render is not verification, and remaining limitations are reported.
+- Local narration and transcription come first for every asset; paid speech is a per-line fallback after a failed review, at the lowest adequate model.
+
 ## Provider availability
 
 - Obey `registry/fleet-profile.json` dispatch policy before invoking an agent host, CLI, cloud runner, or API.
