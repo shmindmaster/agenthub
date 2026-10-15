@@ -5,7 +5,7 @@
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.259",
+      "version": "2.1.300",
       "executable": "{userHome}/.local/bin/claude.exe",
       "nativePaths": {
         "settings": "{userHome}/.claude/settings.json",
@@ -48,14 +48,14 @@
         "headless"
       ],
       "status": "active",
-      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 2.1.259. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: verified installed launcher/file version 2.1.300. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "codex",
       "name": "OpenAI Codex",
-      "version": "0.154.0-alpha.6.2",
+      "version": "0.162.1",
       "executable": "{userHome}/bin/codex.cmd",
-      "executableNote": "The stable managed launcher resolves the current Codex Desktop content-addressed binary. Record the launcher rather than a transient bin/<hash>/ path that disappears on desktop upgrades. Current observed version is recorded in versionObserved.",
+      "executableNote": "Managed launcher prefers the installed stable CLI junction and uses the desktop-bundled binary only as a fallback; verified 0.162.1.",
       "nativePaths": {
         "config": "{userHome}/.codex/config.toml",
         "instructions": "{userHome}/.codex/AGENTS.md",
@@ -75,12 +75,12 @@
         "plugins"
       ],
       "status": "active",
-      "versionObserved": "2026-09-13: bounded read-only probe of the declared executable reported `codex-cli 0.154.0-alpha.6.2`; recorded value updated to match the live install. No upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: verified installed launcher/file version 0.162.1. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "qwen-code",
       "name": "Qwen Code",
-      "version": "0.21.14",
+      "version": "0.25.1",
       "executable": "qwen",
       "nativePaths": {
         "settings": "{userHome}/.qwen/settings.json",
@@ -105,13 +105,13 @@
         "extensions"
       ],
       "status": "active",
-      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 0.21.14. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: bounded read-only probe of the bare command `qwen` reported 0.25.1, and `qwen update` reported the same version. No upgrade was performed by this inventory correction. The executable stays the bare name `qwen`, which resolves to ~/bin/qwen.cmd."
     },
     {
       "id": "opencode",
       "name": "OpenCode",
-      "version": "1.18.25",
-      "versionObserved": "2026-08-28: `opencode.cmd --version` returned `1.18.25`; recorded value updated from 1.18.18 to match the live install (npm package self-updates).",
+      "version": "1.19.0",
+      "versionObserved": "2026-10-14: `opencode.cmd --version` returned 1.19.0, and `opencode upgrade` reported that 1.19.0 is already installed. It also offered OpenCode 2 via `opencode upgrade --major`. That major upgrade was not run.",
       "executable": "{userHome}/AppData/Roaming/npm/opencode.cmd",
       "nativePaths": {
         "config": "{userHome}/.config/opencode",
@@ -165,7 +165,8 @@
     {
       "id": "gemini",
       "name": "Gemini CLI",
-      "version": "0.56.0",
+      "version": "0.64.0",
+      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported 0.64.0. `npm view @google/gemini-cli version` returned the same version, so no upgrade was performed.",
       "executable": "{userHome}/bin/gemini.cmd",
       "nativePaths": {
         "settings": "{userHome}/.gemini/settings.json",
@@ -231,7 +232,7 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.83",
+      "version": "1.0.98",
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
@@ -253,16 +254,16 @@
         "acp"
       ],
       "status": "active",
-      "versionObserved": "2026-09-09: bounded read-only probe of the declared executable reported 1.0.83. This records the installed runtime; no upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: verified installed launcher/file version 1.0.98. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "unknown",
-      "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/agy.exe",
-      "versionProbe": "none",
+      "version": "1.3.5",
+      "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
+      "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
-      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore the bounded winget-package probe when an actual installation is resolved.",
+      "versionProbeNote": "Corrected 2026-10-14. The WinGet Links\\agy.exe path is absent. The installed CLI is %LOCALAPPDATA%\\agy\\bin\\agy.exe and `agy --version` returned 1.3.5 within the bounded probe, so versionProbe is cli. versionPackageId remains recorded and is not the probe.",
       "nativePaths": {
         "settings": "{userHome}/.gemini/antigravity-cli/settings.json",
         "mcp": "{userHome}/.gemini/config/mcp_config.json",
@@ -290,16 +291,16 @@
         "mcp"
       ],
       "status": "active",
-      "notes": "Official Antigravity CLI 1.1.8 uses ~/.gemini/antigravity-cli/plugins and ~/.gemini/config/mcp_config.json. Desktop and IDE use ~/.gemini/config skills, agents, and plugins. The extra ~/.gemini/antigravity/mcp_config.json is synchronized temporarily as a compatibility path and is not the canonical authority.",
-      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. The agy.cmd PATH shim points to the absent WinGet agy.exe link; no matching installed WinGet package files or Windows package record was found. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch."
+      "notes": "Installed CLI on 2026-10-14 is 1.3.5 at %LOCALAPPDATA%\\agy\\bin\\agy.exe. Path layout was documented against Antigravity CLI 1.1.8 and still uses ~/.gemini/antigravity-cli/plugins and ~/.gemini/config/mcp_config.json. Desktop and IDE use ~/.gemini/config skills, agents, and plugins. The extra ~/.gemini/antigravity/mcp_config.json is synchronized temporarily as a compatibility path and is not the canonical authority.",
+      "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded the WinGet Links\\agy.exe shim, which is still absent. The real CLI is %LOCALAPPDATA%\\agy\\bin\\agy.exe. `agy --version` returned 1.3.5 and the updater reported that build as current. No upgrade or downgrade was performed by this inventory correction."
     },
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "unknown",
+      "version": "2.23.1",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
-      "versionProbe": "none",
-      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore file-version without launching the GUI when an actual installation is resolved.",
+      "versionProbe": "file-version",
+      "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction.",
       "nativePaths": {
         "configHome": "{userHome}/AppData/Roaming/Antigravity",
         "instructions": null,
@@ -314,7 +315,7 @@
       "status": "active",
       "surfaceType": "companion-desktop",
       "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry.",
-      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. The recorded Programs/antigravity GUI directory and executable are absent; no matching Windows package record was found. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch."
+      "executableNote": "2026-10-14: declared launch path verified after manual update; version 2.23.1. GUI surfaces use file metadata or their documented console launcher without opening an editor."
     },
     {
       "id": "antigravity-ide",
@@ -345,8 +346,8 @@
     {
       "id": "grok",
       "name": "Grok CLI",
-      "version": "1.0.30",
-      "versionObserved": "2026-09-13: bounded read-only probe of the declared executable reported `grok 1.0.30 (04b7ffed98c6) [stable]`; recorded value updated to match the live install. No upgrade or downgrade was performed by this inventory correction.",
+      "version": "1.0.52",
+      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported `grok 1.0.52 (0920c8169e27) [stable]`. `grok update` reported already up to date at 1.0.52 and was not followed by a package-manager upgrade. No upgrade or downgrade was performed by this inventory correction.",
       "versionNote": "Corrected 2026-08-19. This is NOT a version bump: the previously recorded 0.2.114 belongs to a different product line entirely and was never an observation of this install. Every artifact this install owns agrees on the 1.0.x scheme of xai-org/grok-build -- the binary's own `grok --version` (returned `grok 1.0.5 (5115b46bc9) [stable]`), the previous binary grok.exe.old at 1.0.4, ~/.grok/version.json, and ~/.grok/CHANGELOG.json. Nothing on this machine contains the string 0.2.114. What product 0.2.114 actually named was NOT determined and is recorded here as unresolved rather than guessed at.",
       "executable": "{userHome}/.grok/bin/grok.exe",
       "nativePaths": {
@@ -378,7 +379,7 @@
     {
       "id": "warp",
       "name": "Warp / Oz",
-      "version": "0.2026.09.02.08.27.stable_01",
+      "version": "0.2026.10.07.08.29.stable_00",
       "executable": "{userHome}/AppData/Local/Programs/Warp/warp.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "This is a GUI terminal app whose declared executable is the main window binary with no separate CLI entry point. Read (Get-Item $exe).VersionInfo.FileVersion without launching the window; normalize the leading v. Current observed version is recorded in versionObserved.",
@@ -403,12 +404,13 @@
         "worktrees"
       ],
       "status": "active",
-      "versionObserved": "2026-09-13: bounded read-only probe of the declared executable reported `PE FileVersion v0.2026.09.02.08.27.stable_01`; recorded value updated to match the live install. No upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported PE FileVersion v0.2026.10.07.08.29.stable_00. The recorded value omits the leading v so it matches FileVersion by substring. The window was not launched. No upgrade or downgrade was performed by this inventory correction."
     },
     {
       "id": "cline",
       "name": "Cline CLI / ACP / Kanban",
-      "version": "3.0.55",
+      "version": "3.0.71",
+      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported 3.0.71. `cline update` reported already on cline 3.0.71 and kanban 0.1.70. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/.local/bin/cline.cmd",
       "executableNote": "Corrected 2026-08-11: the declaration read {userHome}/bin/cline.cmd, which does not exist. Cline installs to %USERPROFILE%/.local/bin, the same root `claude` uses, and ships both cline.cmd and cline.ps1 there; PowerShell's Get-Command resolves the .ps1 first, so a check that compares against Get-Command output alone will disagree with this declaration even though both are the same install. .cmd is declared because it is the form callable from any shell.",
       "nativePaths": {
@@ -444,12 +446,12 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Cline 3.0.51. Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; on-demand-local chrome-devtools is intentionally not fleet-synced (brave-search was retired into the open-connector gateway on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
+      "notes": "Cline 3.0.71 (observed 2026-10-14). Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; on-demand-local chrome-devtools is intentionally not fleet-synced (brave-search was retired into the open-connector gateway on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
     },
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.20.17",
+      "version": "3.24.18",
       "executable": "{userHome}/bin/cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
@@ -478,12 +480,12 @@
       ],
       "status": "active",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher was re-verified against Cursor 3.17.8 on 2026-08-22; native local plugins expose the canonical AgentHub packages.",
-      "versionObserved": "2026-09-13: bounded read-only probe of the declared executable reported `3.20.17`; recorded value updated to match the live install. No upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: verified installed launcher/file version 3.24.18. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "cursor-agent",
       "name": "Cursor Agent CLI",
-      "version": "2026.09.10-fd3934a",
+      "version": "2026.10.14-941492e",
       "executable": "{userHome}/bin/cursor-agent.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/cursor-agent/cursor-agent.cmd",
@@ -506,15 +508,15 @@
       "status": "active",
       "surfaceType": "companion-cli",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration.",
-      "versionObserved": "2026-09-13: bounded read-only probe of the declared executable reported `2026.09.10-fd3934a`; recorded value updated to match the live install. No upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: verified installed launcher/file version 2026.10.14-941492e. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "qoder",
       "name": "Qoder CLI / Desktop / JetBrains / QoderWork",
-      "version": "1.0.45",
-      "versionNote": "Corrected 2026-08-19. The previously recorded 1.1.5 was HIGHER than the installed 1.0.45, so it was never a real observation of this product -- `qodercli --version` on the actual installed binary returns 1.0.45, consistent with executableNote's independent `qodercli status` finding of Version: 1.0.45.",
-      "executable": "{userHome}/.qodersec/bin/qodercli.exe",
-      "executableNote": "Re-resolved 2026-08-19 by running the binary: `qodercli status` returned Version: 1.0.45. The previous value pointed at ~/.qoder/bin/qodercli/qodercli.exe, which does not exist; the installed binary lives under ~/.qodersec/bin/. The stale ~/bin/qodercli.cmd shim pointed at the same wrong path and was repaired at the same time.",
+      "version": "1.1.71",
+      "versionNote": "2026-10-14: official npm Qoder CLI 1.1.71 replaces the legacy native 1.0.45 installation; ACP initialize reports the same version.",
+      "executable": "{userHome}/AppData/Roaming/npm/qodercli.cmd",
+      "executableNote": "Official npm qodercli.cmd is the canonical executable. User CLI and ACP wrappers resolve this installation; both version and ACP initialize verified 1.1.71.",
       "nativePaths": {
         "configHome": "{userHome}/.qoder",
         "settings": "{userHome}/.qoder/settings.json",
@@ -530,8 +532,8 @@
         "instructionFormat": "markdown",
         "verification": "documented-feature-inferred-windows-path",
         "instructionsNote": "Added 2026-08-04 from docs.qoder.com/cli/using-cli, Memory section (subject confirmed: memory and context files, not MCP or plugins). Qoder CLI documents a three-tier hierarchy whose user level is ~/.qoder/AGENTS.md, explicitly applying to all projects. The Windows form is inferred from this host's existing configHome, which already resolves ~/.qoder to that directory and demonstrably exists. Distinct from .qoder/rules, which is project-scoped only. HTML-comment survival is not vendor-documented; the agenthub:managed marker is standard Markdown and inert in prompt context.",
-        "agentsDirNote": "Verified 2026-08-11 against docs.qoder.com/en/cli/subagent: subagent configuration is saved to the user-level path ~/.qoder/agents/<agentName>.md, and project-level subagents take precedence over user-level ones when names collide. Path correct. Created when the first user-level subagent is generated, so absence is the documented default state. Absent for a second and more serious reason that the other two qoder notes inherit: QODER IS NOT INSTALLED on this host. The declared executable ~/.qoder/bin/qodercli/qodercli.exe does not exist and ~/.qoder/bin is missing, while an orphaned wrapper still on PATH at ~/bin/qodercli.cmd points at that exact path and fails with 'The system cannot find the path specified.' The declared path is right and the product is gone -- the wrapper's survival is what makes `qodercli` look installed. The only contents of ~/.qoder are settings.json and skills/, both written by agenthub's own sync.",
-        "pluginsDirNote": "COULD NOT ESTABLISH from official docs, checked 2026-08-11. docs.qoder.com/cli/plugins documents installation via `qodercli plugins install`, and names ~/.qoder/, ~/.qoder/commands/ and ~/.qoder/skills/, but never states where an installed plugin lands on disk and names no marketplace or cache directory. ~/.qoder/plugins is therefore INFERRED from the sibling directory names -- precisely the inference hermes.pluginsDirNote deliberately refused, deriving its path from a documented HERMES_HOME mapping instead. Treat as unverified: do not sync into it, and do not read its absence as evidence in either direction. It cannot be settled by observation here because Qoder is not installed (see agentsDirNote); settling it needs a host with Qoder present and a plugin actually installed through the CLI, then this note replaced with that finding.",
+        "agentsDirNote": "Verified 2026-08-11 against docs.qoder.com/en/cli/subagent: subagent configuration is saved to the user-level path ~/.qoder/agents/<agentName>.md, and project-level subagents take precedence over user-level ones when names collide. Path correct. Created when the first user-level subagent is generated, so an empty agents directory is the documented default state. Corrected 2026-10-14: the CLI is installed. qodercli --version on ~/.qodersec/bin/qodercli.exe returned 1.0.45. --help initially exited 42; after authentication, native 1.0.45 help verified --print, --cwd and --permission-mode auto. The dispatcher now supports headless tasks with the configured model. The old ~/.qoder/bin/qodercli/qodercli.exe path remains absent. The 2026-08-11 claim that Qoder was not installed referred to that old path.",
+        "pluginsDirNote": "COULD NOT ESTABLISH from official docs, checked 2026-08-11. docs.qoder.com/cli/plugins documents installation via `qodercli plugins install`, and names ~/.qoder/, ~/.qoder/commands/ and ~/.qoder/skills/, but never states where an installed plugin lands on disk and names no marketplace or cache directory. ~/.qoder/plugins is therefore INFERRED from the sibling directory names -- precisely the inference hermes.pluginsDirNote deliberately refused, deriving its path from a documented HERMES_HOME mapping instead. Treat as unverified: do not sync into it, and do not read its absence as evidence in either direction. Corrected 2026-10-14: the CLI is installed at ~/.qodersec/bin/qodercli.exe (see agentsDirNote). This plugins directory is still not settled, because settling it needs a plugin actually installed through the CLI, then this note replaced with that finding.",
         "canvasDirNote": "Probably WRONG, checked 2026-08-11 -- recorded as a correction rather than as a gap, because the two are different findings and only one of them is someone's next task. docs.qoder.com places Canvas under Desktop > Extensions, making it a Desktop application feature rather than a CLI one, and describes /canvas as producing a .canvas.tsx file rendered in a Canvas preview: a project artifact, not user-level state. No Qoder page names a ~/.qoder/canvas directory, and none of the pages that do enumerate ~/.qoder contents (using-cli, plugins, subagent) list it. So unlike pluginsDir this is not merely unverified -- the documented design points away from a user-level canvas directory existing at all. Kept rather than deleted, because deleting a declared path on the mistaken basis that a directory absent from disk must be wrong is the exact error gemini.agentsDirNote exists to record. A host with Qoder Desktop installed can settle it by observation; replace this note with that."
       },
       "supportedCapabilities": [
@@ -554,9 +556,10 @@
     {
       "id": "amp",
       "name": "Sourcegraph Amp",
-      "version": "0.0.1787184152-g4608ac",
+      "version": "0.0.1792022479-ge66e24",
+      "versionObserved": "2026-10-14: verified installed launcher/file version 0.0.1792022479-ge66e24. Manual forward update and launcher reconciliation; active sessions preserved.",
       "executable": "{userHome}/.amp/bin/amp.exe",
-      "executableNote": "Corrected 2026-08-11: the declaration read the WinGet shim path %LOCALAPPDATA%/Microsoft/WinGet/Links/amp.exe, which does not exist. Amp is installed at %USERPROFILE%/.amp/bin/amp.exe and that is what `amp` resolves to on PATH. A WinGet Links shim is written only for packages installed through WinGet, so the old path recorded an installation method this host never used rather than a path that later moved.",
+      "executableNote": "2026-10-14: declared launch path verified after manual update; version 0.0.1792022479-ge66e24. GUI surfaces use file metadata or their documented console launcher without opening an editor.",
       "nativePaths": {
         "settings": "{userHome}/.config/amp/settings.json",
         "mcp": "{userHome}/.config/amp/settings.json",
@@ -585,8 +588,8 @@
     {
       "id": "devin",
       "name": "Devin Desktop / CLI",
-      "version": "unknown",
-      "executable": "{userHome}/AppData/Local/devin/cli/bin/devin.exe",
+      "version": "3000.11.3",
+      "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
       "nativePaths": {
         "config": "{roamingConfig}/devin/config.json",
         "skillsDir": "{roamingConfig}/devin/skills",
@@ -615,17 +618,17 @@
       ],
       "status": "active",
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
-      "versionProbe": "none",
-      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. Both the historical local Devin directory and the newer WinGet executable targeted by devin.cmd are absent; the PATH shim alone is not an installed CLI. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch.",
-      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore a bounded CLI version probe when an actual installation is resolved."
+      "versionProbe": "cli",
+      "executableNote": "Corrected 2026-10-14. The old path %LOCALAPPDATA%\\devin\\cli\\bin\\devin.exe from the 2026-09-09 survey is not the live binary. The installed CLI is the WinGet executable %LOCALAPPDATA%\\Microsoft\\WinGet\\Links\\devin.exe. `devin --version` returned devin 3000.11.3 (9c803229faa4). The ~/bin/devin.cmd shim already injects fleet permission flags, so the registry points at the WinGet executable and not that shim. Dispatch still refuses Devin because its headless prompt contract was not verified. No upgrade or downgrade was performed by this inventory correction.",
+      "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because the WinGet executable exists and `devin --version` returned 3000.11.3 within the bounded probe."
     },
     {
       "id": "factory",
       "name": "Factory Droid",
-      "version": "unknown",
-      "versionNote": "Historical observation on 2026-08-19: droid --version reported 0.195.0 from app-0.152.0; the directory-name discrepancy was unexplained. This is not a current installed-version claim. The executable is now unresolved in the documented survey, so version is unknown; see executableNote.",
-      "executable": "{userHome}/AppData/Local/Factory/app-0.152.0/resources/bin/droid.exe",
-      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. The old versioned executable is absent. Factory contains a .dead marker, Update.exe and app-0.166.0/squirrel.exe only; no droid.exe. The surviving droid.cmd wrapper has no runtime to launch. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch.",
+      "version": "0.241.1",
+      "versionNote": "Corrected 2026-10-14. The 2026-08-19 observation of 0.195.0 from app-0.152.0 is historical. The live binary is %USERPROFILE%\\bin\\droid.exe and `droid --version` returned 0.241.1. `droid update` reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
+      "executable": "{userHome}/bin/droid.exe",
+      "executableNote": "Corrected 2026-10-14. The versioned Factory\\app-0.152.0\\resources\\bin\\droid.exe path is absent. The installed CLI is %USERPROFILE%\\bin\\droid.exe. `droid --version` returned 0.241.1.",
       "nativePaths": {
         "settings": "{userHome}/.factory/settings.json",
         "instructions": "{userHome}/.factory/AGENTS.md",
@@ -650,13 +653,13 @@
       ],
       "status": "active",
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
-      "versionProbe": "none",
-      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore a bounded CLI version probe when an actual installation is resolved."
+      "versionProbe": "cli",
+      "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because %USERPROFILE%\\bin\\droid.exe exists and `droid --version` returned 0.241.1 within the bounded probe."
     },
     {
       "id": "vscode-insiders",
       "name": "VS Code Insiders",
-      "version": "1.138.0-insider",
+      "version": "1.143.0-insider",
       "executable": "{userHome}/AppData/Local/Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd",
       "nativePaths": {
         "mcp": "{roamingConfig}/Code - Insiders/User/mcp.json",
@@ -677,9 +680,9 @@
       "status": "active",
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes. Product Demo Studio remains registered as a native local plugin through chat.pluginLocations.",
       "versionProbe": "cli",
-      "executableNote": "Checked 2026-09-09: executable not located in surveyed installed-product locations. The recorded VS Code Insiders directory and executable are absent; only the separate stable VS Code installation was found. Stable VS Code is not an interchangeable declaration. Survey covered the declared path, PATH resolution and wrapper targets, LocalAppData Programs/WinGet/Factory/Devin, user bin/.local/bin, both Program Files roots, HKCU/HKLM uninstall keys and current-user AppX records. This does not assert absence on every disk; configured capability ownership is preserved. Locate a real installation and restore its safe version probe before dispatch.",
-      "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore a bounded CLI version probe when an actual installation is resolved.",
-      "versionObserved": "2026-09-13: `code-insiders.cmd --version` returned 1.138.0-insider (60ac69b364809ee6976d6dc3ed74cc7628f637da, x64). versionProbe moved from none to cli because the declared launcher exists and answers --version; the earlier 'none' record was stale."
+      "executableNote": "2026-10-14: declared launch path verified after manual update; version 1.143.0-insider. GUI surfaces use file metadata or their documented console launcher without opening an editor.",
+      "versionProbeNote": "versionProbe stays cli. The declared launcher exists and `code-insiders.cmd --version` prints and exits. Corrected 2026-10-14 from the stale note that said the executable was absent.",
+      "versionObserved": "2026-10-14: verified installed launcher/file version 1.143.0-insider. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "windsurf",
