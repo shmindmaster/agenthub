@@ -104,6 +104,25 @@ test("scaffold generates parseable release-gate instructions in an external work
   assert.match(readme, /viewer-release-evidence\.json/);
 });
 
+test("scaffold prefills a capture skeleton from a demo-harness/v1 product without touching the product", () => {
+  const product = join(scratch, "harness-product"); const output = join(scratch, "harness-scaffolded");
+  mkdirSync(join(product, "demo"), { recursive: true });
+  const harness = { harnessVersion: "demo-harness/v1", product: "fixture-app", demoTenant: { id: "t-demo", name: "Fixture Demo Org" },
+    reset: { full: "pnpm demo:reset", beat: null }, services: [], baseUrl: "http://127.0.0.1:5173",
+    versionEndpoints: [{ service: "api", url: "http://127.0.0.1:8000/api/version" }],
+    syntheticLabel: { testId: "synthetic-data-label", text: "Synthetic demo data" }, truthTable: "docs/demo/TRUTH_TABLE.md" };
+  const harnessFile = join(product, "demo", "harness.json"); writeFileSync(harnessFile, JSON.stringify(harness));
+  const before = sha(harnessFile);
+  const result = run(scaffold, ["--repo", product, "--workspace", output]);
+  assert.equal(result.code, 0, result.output);
+  const scenes = readFileSync(join(output, "capture", "scenes.mjs"), "utf8");
+  assert.match(scenes, /baseUrl: "http:\/\/127\.0\.0\.1:5173"/);
+  assert.match(scenes, /getByTestId\("synthetic-data-label"\)/);
+  assert.match(scenes, /pnpm demo:reset/);
+  assert.match(scenes, /api\/version/);
+  assert.equal(sha(harnessFile), before);
+});
+
 test('campaign release probes exact encoded profile and duration', { skip: spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' }).status !== 0 }, () => {
   const root = join(scratch, 'campaign-encoded'); job(root); const candidate = release(root);
   mkdirSync(join(root, 'capture'));

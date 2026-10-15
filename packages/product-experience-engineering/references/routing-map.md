@@ -14,5 +14,7 @@ Load only the material needed for the current task.
 | Validate an implementation | `05`, `06` | `02` for AI behavior; `08` when verifying external standards |
 | Design a greenfield application | `00`, `01`, `03`, `04`, `05`, `07` | `02` when AI is material to the experience |
 | Define outcome measurement | `01`, `04`, `06` | Existing telemetry and research plans |
+| Implement an approval boundary or AI provenance | `02`, `kits/execution-controls/spec/approval-capsule.md`, `kits/execution-controls/spec/receipt.md` | The kit README for vendoring and the adversarial suite |
+| Make a product demo-runnable | `kits/demo-harness/README.md` | `artifact-contracts` for the readiness handoff |
 
 The numbered files live in `product-experience-system/`. Treat them as generally applicable product-experience guidance, not a fixed checklist. Preserve repository-native conventions when they meet the intent; document deviations when they do not.

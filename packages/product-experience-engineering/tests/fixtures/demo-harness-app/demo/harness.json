@@ -1,0 +1,20 @@
+{
+  "harnessVersion": "demo-harness/v1",
+  "product": "fixture-app",
+  "demoTenant": { "id": "00000000-0000-4000-8000-000000000d30", "name": "Fixture Demo Org" },
+  "reset": { "full": "npm run demo:reset", "beat": null },
+  "services": [
+    {
+      "name": "api",
+      "command": "node server.mjs",
+      "readyUrl": "http://127.0.0.1:47613/health",
+      "env": { "DEMO_PORT": "47613" },
+      "readyTimeoutSeconds": 30
+    }
+  ],
+  "baseUrl": "http://127.0.0.1:47613",
+  "versionEndpoints": [{ "service": "api", "url": "http://127.0.0.1:47613/api/version" }],
+  "syntheticLabel": { "testId": "synthetic-data-label", "text": "Synthetic demo data" },
+  "truthTable": "docs/demo/TRUTH_TABLE.md",
+  "smokeSpec": "tests/demo-harness.spec.ts"
+}
