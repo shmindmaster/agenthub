@@ -54,7 +54,6 @@ if (Test-Path -LiteralPath $rootManifestPath) {
 } else {
     $rootManifest = [pscustomobject]@{ name = $Package }
 }
-$previousVersion = [string]$rootManifest.version
 $rootHash = @{}
 foreach ($p in $rootManifest.PSObject.Properties) { $rootHash[$p.Name] = $p.Value }
 $rootHash['$schema'] = $schema
@@ -120,20 +119,19 @@ Set-ReleaseVersionLines 'kit/package.json' 1 { param($t) $t -match "(?m)^\{\s*("
 Set-ReleaseVersionLines 'kit/package-lock.json' 2 { param($t) $t -match "^\{\s*""name""\s*:\s*""[^""]*"",\s*""version""\s*:\s*""$v""" -and $t -match """packages""\s*:\s*\{\s*""""\s*:\s*\{[^{}]*?""version""\s*:\s*""$v""" }
 Set-ReleaseVersionLines 'kit/scene-archetypes.json' 1 { param($t) $t -match "^\{\s*""version""\s*:\s*""$v""" }
 
-# Skills that pin the release they verify against (media-studio-compose checks the runtime kit with -ne '<version>').
-# Only the previous release's own pins are rewritten: quoted '<old>', "<old> release", "verified <old>", "Studio <old>".
-if ($previousVersion -and $previousVersion -ne $Version) {
-    $old = [regex]::Escape($previousVersion)
-    $pins = [regex]"('$old')|($old(?= release))|((?<=verified )$old)|((?<=Studio )$old)"
-    foreach ($skill in @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'skills') -Filter 'SKILL.md' -Recurse -File -ErrorAction SilentlyContinue)) {
-        $raw = [IO.File]::ReadAllText($skill.FullName)
-        if (-not $pins.IsMatch($raw)) { continue }
-        $next = $pins.Replace($raw, { param($m) $m.Value.Replace($previousVersion, $Version) })
-        [IO.File]::WriteAllText($skill.FullName, $next, [Text.UTF8Encoding]::new($false))
-        $rel = $skill.FullName.Substring($packageRoot.Length).TrimStart('\', '/') -replace '\\', '/'
-        $updated += $rel
-        Write-Host "updated release pins in $Package/$rel -> $Version"
-    }
+# Skills that pin the release they verify against (media-studio-compose and -generate check the deployed kit and tools
+# with -ne '<version>'). Every pin phrase is rewritten whatever version it carries, so a pin left stale by an earlier
+# bump is caught too: -ne '<v>', "skill's <v> release", "verified <v> package", "Media Studio <v>".
+$semver = '\d+\.\d+\.\d+'
+$pins = [regex]"((?<=-ne ')$semver(?='))|((?<=skill's )$semver(?= release))|((?<=verified )$semver(?= package))|((?<=Media Studio )$semver)"
+foreach ($skill in @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'skills') -Filter 'SKILL.md' -Recurse -File -ErrorAction SilentlyContinue)) {
+    $raw = [IO.File]::ReadAllText($skill.FullName)
+    $next = $pins.Replace($raw, $Version)
+    if ($next -eq $raw) { continue }
+    [IO.File]::WriteAllText($skill.FullName, $next, [Text.UTF8Encoding]::new($false))
+    $rel = $skill.FullName.Substring($packageRoot.Length).TrimStart('\', '/') -replace '\\', '/'
+    $updated += $rel
+    Write-Host "updated release pins in $Package/$rel -> $Version"
 }
 
 Write-Host ""
