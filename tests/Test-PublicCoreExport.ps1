@@ -156,21 +156,21 @@ function Test-ExportOmitsPersonalSurface {
         $publicCaps.PSObject.Properties.Remove('distribution')
         $publicCaps | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $capPath -Encoding UTF8
         $missingOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
-        if ($LASTEXITCODE -eq 0 -or $missingOutput -notmatch 'product video delivery registry must contain seven products') {
+        if ($LASTEXITCODE -eq 0 -or $missingOutput -notmatch 'product video delivery registry must contain eight products') {
             return @{ Passed = $false; Detail = "canonical mode accepted missing delivery registry: $missingOutput" }
         }
         $deliveryPath = Join-Path $dest 'registry\product-video-delivery.json'
-        @{ products = @(1..6 | ForEach-Object { @{ id = "synthetic-product-$_" } }) } |
+        @{ products = @(1..7 | ForEach-Object { @{ id = "synthetic-product-$_" } }) } |
             ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $deliveryPath -Encoding UTF8
         $countOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
-        if ($LASTEXITCODE -eq 0 -or $countOutput -notmatch 'product video delivery registry must contain seven products') {
-            return @{ Passed = $false; Detail = "canonical mode accepted six delivery products: $countOutput" }
+        if ($LASTEXITCODE -eq 0 -or $countOutput -notmatch 'product video delivery registry must contain eight products') {
+            return @{ Passed = $false; Detail = "canonical mode accepted seven delivery products: $countOutput" }
         }
-        @{ products = @(1..7 | ForEach-Object { @{ id = "synthetic-product-$_" } }) } |
+        @{ products = @(1..8 | ForEach-Object { @{ id = "synthetic-product-$_" } }) } |
             ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $deliveryPath -Encoding UTF8
         $canonicalOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) {
-            return @{ Passed = $false; Detail = "canonical mode rejected seven synthetic products: $canonicalOutput" }
+            return @{ Passed = $false; Detail = "canonical mode rejected eight synthetic products: $canonicalOutput" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {

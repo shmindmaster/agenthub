@@ -49,7 +49,7 @@ if ($isPublicCore) {
   }
 } else {
   # Absence is not an opt-out. Canonical fleet validation still requires this
-  # registry and its established seven-product invariant below.
+  # registry and its established eight-product invariant below (Heatlot added 2026-10-15).
   $delivery = Read-Json $deliveryPath
 }
 $pluginFormats = Read-Json (Join-Path $root 'registry\plugin-formats.json')
@@ -325,7 +325,7 @@ foreach ($mcpServer in @($mcps.mcpServers)) {
 if ($verifiedRevisionCount -eq 0) {
   Fail 'no MCP server has a verified protocol.revision; the registry records a protocol contract that was never established against any server'
 }
-if (-not $isPublicCore -and @($delivery.products).Count -ne 7) { Fail 'product video delivery registry must contain seven products' }
+if (-not $isPublicCore -and @($delivery.products).Count -ne 8) { Fail 'product video delivery registry must contain eight products' }
 
 # Autonomy/permission model (registry/fleet-profile.json.autonomyProfiles): a host
 # marked 'interactive' must never be dispatched unattended, so this data must not
