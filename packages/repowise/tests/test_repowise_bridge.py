@@ -195,13 +195,21 @@ class BridgeTests(unittest.TestCase):
         # dead one: answer the handshake from cache, run no launcher, and let
         # the first real call complete once the server answers.
         cache = {"initialize": {"protocolVersion": "2025-06-18", "capabilities": {"tools": {}},
-                                "serverInfo": {"name": "cached", "version": "0"}}}
+                                "serverInfo": {"name": "cached", "version": "0"}},
+                 "tools/list": {"tools": [{"name": "list_repos", "inputSchema": {"type": "object"}}]}}
         (self.tmp / "bridge-cache.json").write_text(json.dumps(cache), encoding="utf-8")
         self.start_server("--slow-init", "3")
         self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp,
                                      {"REPOWISE_BRIDGE_HANDSHAKE_WAIT": "1"})
         reply = self.handshake()
         self.assertEqual(reply["result"]["serverInfo"]["name"], "cached")
+        # With no upstream session yet, tools/list must not pay a second cold
+        # session open: hosts time the tool fetch tighter than that.
+        started = time.monotonic()
+        self.harness.send({"jsonrpc": "2.0", "id": "tl", "method": "tools/list"})
+        listed, _ = self.harness.recv_id("tl")
+        self.assertEqual(listed["result"]["tools"][0]["name"], "list_repos")
+        self.assertLess(time.monotonic() - started, 2.0, "tools/list must come straight from cache while the session opens")
         self.harness.send({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "list_repos", "arguments": {}}})
         reply, _ = self.harness.recv_id(2)
         self.assertFalse(reply["result"]["isError"])

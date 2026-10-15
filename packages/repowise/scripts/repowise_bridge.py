@@ -518,6 +518,8 @@ class Bridge:
             os.environ.get("REPOWISE_BRIDGE_URL", DEFAULT_URL), self.write, self.launcher, self.log
         )
         self._pool = ThreadPoolExecutor(max_workers=8)
+        self._warm_lock = threading.Lock()
+        self._warming = False
 
     def write(self, message: dict) -> None:
         line = json.dumps(message, separators=(",", ":")).encode("utf-8") + b"\n"
@@ -563,6 +565,17 @@ class Bridge:
             return
         # Only the first page of a list: a cursor request would overwrite it.
         cacheable = method in CACHED_METHODS and not (message.get("params") or {}).get("cursor")
+        if cacheable and method != "initialize" and not self.upstream.session_id:
+            # initialize was answered from cache, so no upstream session exists
+            # yet, and opening one costs a cold RepoWise several seconds. Hosts
+            # time the tool fetch tighter than that (seen 2026-10-15: "tools
+            # fetch failed — Request timed out"). Answer from cache now and open
+            # the session in the background for the calls that follow.
+            cached = self.cache.get(method)
+            if cached is not None:
+                self.write({"jsonrpc": "2.0", "id": message_id, "result": cached})
+                self._schedule_warm_up()
+                return
         if wait is None:
             wait = self.handshake_wait if cacheable else self.call_wait
         deadline = time.monotonic() + wait
@@ -618,6 +631,25 @@ class Bridge:
             self.handle_initialize(message)
             return
         self._pool.submit(self._guarded, message)
+
+    def _schedule_warm_up(self) -> None:
+        # Single flight: tools/list, prompts/list and resources/list can all
+        # arrive before a session exists, and stacked warm-ups would each hold
+        # a worker and queue on the session lock ahead of real calls.
+        with self._warm_lock:
+            if self._warming:
+                return
+            self._warming = True
+        self._pool.submit(self._warm_session)
+
+    def _warm_session(self) -> None:
+        try:
+            self.upstream.ensure_session(time.monotonic() + self.call_wait)
+        except Exception as exc:  # noqa: BLE001 - the next real call retries and reports
+            self.log(f"background session warm-up failed: {type(exc).__name__}: {exc}")
+        finally:
+            with self._warm_lock:
+                self._warming = False
 
     def _guarded(self, message: dict) -> None:
         try:
