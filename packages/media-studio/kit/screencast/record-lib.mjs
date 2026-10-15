@@ -144,7 +144,7 @@ export async function renderRecast(rawDir, outFile, opts = {}) {
     r = r.autoZoom({ clickLevel: 1.35, inputLevel: 1.4, idleLevel: 1.0, centerBias: 0.25, ...(opts.zoom || {}) });
   }
   const size = opts.resolution || { width: 1600, height: 1000 };
-  await r.render({ format: 'webm', resolution: size, fps: 30 }).toFile(outFile);
+  await r.render({ format: 'webm', resolution: size, fps: opts.fps || 30 }).toFile(outFile);
   return outFile;
 }
 

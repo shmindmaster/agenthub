@@ -22,9 +22,14 @@ Stdio server, protocol 2025-11-25:
 node mcp/slack-mcp.mjs
 ```
 
-`SLACK_BRIDGE_MODE=fixture` (default when no token is set) uses
-`fixtures/workspace.json`. Live mode uses the Slack Web API with
-`SLACK_USER_TOKEN` / optional `SLACK_BOT_TOKEN`.
+`SLACK_BRIDGE_MODE=fixture` uses `fixtures/workspace.json`. With no token
+and no mode set, reads fall back to the fixture but writes are refused. Live
+mode uses the Slack Web API with `SLACK_USER_TOKEN` / optional
+`SLACK_BOT_TOKEN`.
+
+Every write tool requires `approved=true`, enforced by the server
+(`mcp/write-gate.mjs`); `slack_api_write` additionally requires
+`SLACK_BRIDGE_ALLOW_API_WRITE=true`. Tools carry MCP `annotations`.
 
 Current fleet delivery is plugin-gated / OpenCode opt-in-disabled so the
 server is not started at session start. Production distribution is the

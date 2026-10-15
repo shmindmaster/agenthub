@@ -51,9 +51,12 @@ the actor.
 
 ## 4. Writes
 
-Reads are the default. Post, reply, edit, delete, react, upload, pin, and
-`slack_api_write` need the user to authorize the exact destination and action.
-`slack_api_write` also needs `approved=true` and `SLACK_BRIDGE_ALLOW_API_WRITE=true`.
+Reads are the default. Post, reply, edit, delete, react, unreact, upload,
+pin, unpin, bookmark add/remove, and `slack_api_write` need the user to
+authorize the exact destination and action. After that approval, pass
+`approved=true`: the server refuses every write without it, and refuses all
+writes when no token is configured unless `SLACK_BRIDGE_MODE=fixture` was set
+on purpose. `slack_api_write` also needs `SLACK_BRIDGE_ALLOW_API_WRITE=true`.
 
 ## 5. Official Slack MCP / plugin
 

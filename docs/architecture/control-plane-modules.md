@@ -77,6 +77,16 @@ loads. `overlays/personal.example/` is the template for a fresh checkout.
 `AGENTHUB_OVERLAY=off` resolves the public graph only. Absence of the
 overlay directory is the same as off.
 
+The overlay is gitignored, so a linked worktree under `C:\wt` never contains
+it. Production resolution does not look past the checkout: a sync or
+`Sync-Instructions` run from a worktree resolves the public graph and
+`policy-core.md` unless `AGENTHUB_OVERLAY` points at the primary checkout's
+`overlays/personal`. Tests that assert private-package facts resolve the
+overlay with `tests/lib/PrivateOverlay.ps1`: `AGENTHUB_OVERLAY`, then
+`<checkout>/overlays/personal`, then the primary checkout that owns the
+worktree (read from `.git` -> `commondir`). When none exists they print one
+`SKIP:` line naming every location checked.
+
 A gitignored `agenthub.profile.json` (see `agenthub.profile.example.json`)
 may pin local roots. It is never required for a checkout that can use
 `$env:USERPROFILE` (Windows) or `$env:HOME` (macOS and Linux). An optional

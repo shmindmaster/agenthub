@@ -31,6 +31,8 @@ Hosts do not share one browser tool. Resolve the provider, never a tool name:
 4. One beat per action (`product-picture.md`). `story/capture-plan.json` interaction rows need `action`, `expectedResult`, `startState` ≠ `resultState`, `provesClaim`, and a WebM `clip`. Same session (`carryState`) for config then runtime. Do not skip loading/submit/response. Re-record only beats that fail mute test; keep the rest.
 5. Validate with `validate-storyboard.mjs`, `validate-capture-manifest.mjs`, and `validate-product-picture.mjs <jobRoot>` from the deployed shared tools (or the native plugin's `scripts/`) (clip on disk, receipt-bound, pointer motion, Recast status, no hidden freeze). Takes from an older recorder can be bound with the adjacent `backfill-capture-receipt.mjs` from their Playwright trace; the validator accepts those with a warning.
 
+Screencast engagement is `product-picture.md` plus the `media-story-experience-reviewer` story-experience pass on the encoded file, not `engagement.md` and not a second overlay stack. Annotation markup (dim, box, arrow, label, flow) is the compositor's layer, applied after Recast.
+
 ## 3. Recast engine notes (measured)
 
 - Recast writes a `.recast-tmp` folder **inside the output clips directory**. Two renders into the same directory at once collide with `EPERM`. Render **sequentially per output directory**, or give each concurrent render its own directory.

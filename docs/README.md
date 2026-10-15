@@ -32,6 +32,8 @@ stranger-safe first run. For this private fleet checkout, also use
 
 - [runbooks/sync-and-validate.md](./runbooks/sync-and-validate.md) — drift
   audit, deploy, validate, and fleet standard sweep procedures.
+- [runbooks/demo-profile.md](./runbooks/demo-profile.md) — throwaway profile
+  for an on-camera audit -> apply -> audit, with home paths cropped to `~`.
 
 ## Execution
 

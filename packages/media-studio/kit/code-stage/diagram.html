@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>code-stage diagram</title>
+<!--
+  Component / flow diagram for code walkthroughs, built on the word: each node and edge appears when the driver calls
+  diagram.reveal(id) on its narration cue, and the gate node is lit on its cue. Hand SVG + HTML (technical-visualizer:
+  diagram for structure/flow; visual bible: container first, 1-3 word chips, one hero lit in its own colour, finished
+  board holds >= 2 s). Served by kit/code-stage/driver.mjs; data from stage.json.
+-->
+<style>
+:root{--bg:#0d1017;--panel:#121722;--line:#2a3344;--fg:#e8ecf3;--muted:#8f9bb0;--accent:#5aa9ff;--hero:#f5c518}
+*{box-sizing:border-box}
+html,body{margin:0;width:100vw;height:100vh;background:var(--bg);color:var(--fg);font-family:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,sans-serif;overflow:hidden}
+.bar{position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--accent)}
+.kicker{position:absolute;left:64px;top:46px;font-size:17px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.title{position:absolute;left:64px;top:76px;font-size:36px;font-weight:700;max-width:1100px}
+.footer{position:absolute;left:64px;right:64px;bottom:34px;font-size:15px;color:#7d879a;border-top:1px solid #222a37;padding-top:12px;display:flex;justify-content:space-between}
+#board{position:absolute;left:48px;right:48px;top:200px;height:420px;border:1px solid var(--line);border-radius:16px;background:var(--panel);opacity:0;transition:opacity .5s}
+#board.on{opacity:1}
+svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.edge{stroke:#56627a;stroke-width:3;fill:none;stroke-dasharray:var(--len);stroke-dashoffset:var(--len);transition:stroke-dashoffset .5s ease-out}
+.edge.on{stroke-dashoffset:0}
+.edge.hot{stroke:var(--hero)}
+.node{position:absolute;border:2px solid #3a4560;background:#182030;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px;opacity:0;transform:translateY(14px) scale(.96);transition:opacity .4s,transform .4s cubic-bezier(.2,.8,.2,1),background .4s,border-color .4s,box-shadow .4s;cursor:pointer}
+.node.on{opacity:1;transform:none}
+.node .lb{font-size:24px;font-weight:700}
+.node .sb{font-size:14.5px;color:var(--muted);margin-top:6px;line-height:1.3}
+.node.dim{opacity:.55}
+.node.lit{border-color:var(--hero);background:#2b2410;box-shadow:0 0 0 6px rgba(245,197,24,.12),0 0 46px rgba(245,197,24,.35);opacity:1}
+.node.lit .lb{color:#fff4c2}
+.node .chip{position:absolute;top:-34px;left:50%;transform:translateX(-50%);background:var(--hero);color:#0d1017;font-size:13px;font-weight:800;letter-spacing:.08em;padding:4px 10px;border-radius:6px;white-space:nowrap;opacity:0;transition:opacity .35s}
+.node.lit .chip{opacity:1}
+.step{position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);font:600 13px Consolas,monospace;color:#5f6b80}
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<div class="kicker" id="kicker"></div>
+<div class="title" id="title"></div>
+<div id="board"><svg id="svg"></svg></div>
+<div class="footer"><span id="footer"></span><span id="src"></span></div>
+<script>
+(async function () {
+  const shotId = new URLSearchParams(location.search).get('shot');
+  const stage = await (await fetch('/stage.json')).json();
+  const shot = stage.shots.find((s) => s.id === shotId);
+  document.getElementById('kicker').textContent = shot.kicker || '';
+  document.getElementById('title').textContent = shot.title || '';
+  document.getElementById('footer').textContent = shot.footer || '';
+  document.getElementById('src').textContent = 'DIAGRAM · built from the code shown';
+  const board = document.getElementById('board');
+  const W = board.clientWidth, H = board.clientHeight;
+  const n = shot.nodes.length, gap = 46, pad = 34;
+  const w = Math.floor((W - pad * 2 - gap * (n - 1)) / n), h = 150, y = Math.round(H / 2 - h / 2);
+  const pos = {};
+  shot.nodes.forEach((node, i) => {
+    const x = pad + i * (w + gap);
+    pos[node.id] = { x, y, w, h };
+    const el = document.createElement('div');
+    el.className = 'node'; el.id = 'node-' + node.id;
+    el.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+    el.innerHTML = `<div class="chip">HUMAN GATE</div><div class="lb"></div><div class="sb"></div><div class="step"></div>`;
+    el.querySelector('.lb').textContent = node.label; el.querySelector('.sb').textContent = node.sub || ''; el.querySelector('.step').textContent = String(i + 1).padStart(2, '0');
+    if (shot.lit === node.id && shot.litChip) el.querySelector('.chip').textContent = shot.litChip;
+    el.addEventListener('click', () => el.classList.add('focus'));
+    board.appendChild(el);
+  });
+  const svg = document.getElementById('svg');
+  svg.innerHTML = '<defs><marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#56627a"/></marker><marker id="ahh" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#f5c518"/></marker></defs>';
+  shot.edges.forEach((e) => {
+    const a = pos[e.from], b = pos[e.to];
+    const x1 = a.x + a.w + 4, x2 = b.x - 6, yy = a.y + a.h / 2;
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', `M${x1},${yy} L${x2},${yy}`); p.setAttribute('class', 'edge');
+    p.id = `edge-${e.from}-${e.to}`; p.style.setProperty('--len', String(Math.abs(x2 - x1) + 2));
+    svg.appendChild(p);
+  });
+  window.diagram = {
+    reveal(id) {
+      board.classList.add('on');
+      document.getElementById('node-' + id).classList.add('on');
+      for (const e of shot.edges) if (e.to === id) { const p = document.getElementById(`edge-${e.from}-${e.to}`); p.classList.add('on'); setTimeout(() => { if (!p.getAttribute('marker-end')) p.setAttribute('marker-end', 'url(#ah)'); }, 420); }
+    },
+    lit() {
+      for (const nd of shot.nodes) { const el = document.getElementById('node-' + nd.id); if (nd.id === shot.lit) el.classList.add('lit'); else el.classList.add('dim'); }
+      for (const e of shot.edges) if (e.from === shot.lit || e.to === shot.lit) { const p = document.getElementById(`edge-${e.from}-${e.to}`); p.classList.add('hot'); p.setAttribute('marker-end', 'url(#ahh)'); }
+    },
+  };
+  // container first: the board frame shows before the first node (visual bible: never open on an empty field mid-idea)
+  setTimeout(() => board.classList.add('on'), 60);
+  await document.fonts.ready;
+  const ready = document.createElement('div'); ready.id = 'cs-ready'; ready.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0'; document.body.appendChild(ready);
+})();
+</script>
+</body>
+</html>

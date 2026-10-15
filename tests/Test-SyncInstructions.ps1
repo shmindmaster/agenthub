@@ -24,6 +24,17 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $syncScript = Join-Path $repoRoot 'scripts\Sync-Instructions.ps1'
 $hostExe = (Get-Process -Id $PID).Path
+. (Join-Path $repoRoot 'scripts\lib\CapabilityGraph.ps1')
+# The canonical body Sync-Instructions deploys is whatever
+# Resolve-AgentHubPolicyPath selects for this checkout: the compiled
+# global-agent-policy.md when the personal overlay is resolvable, otherwise
+# the portable policy-core.md (public-first split, 871b7f3). Hard-coding
+# global-agent-policy.md here made the render contract fail in every linked
+# worktree, where the gitignored overlay is absent and the renderer
+# correctly deploys policy-core.md. The child process inherits this
+# process's AGENTHUB_OVERLAY, so both sides resolve the same file.
+$canonicalPolicyPath = Resolve-AgentHubPolicyPath -RepositoryRoot $repoRoot
+Write-Host "POLICY: $canonicalPolicyPath"
 
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0
@@ -100,7 +111,7 @@ function Test-DestinationPathsAreRebasedUnderUserProfileOverride {
 # --- Behavior 1: the render contract. -Audit against a fresh synthetic
 # profile reports Claude 'missing'; -Apply then writes bytes that are
 # EXACTLY <instructionHeader>\n\n<!-- agenthub:managed -->\n\n<canonical
-# body>, byte for byte against the real global-agent-policy.md; a second
+# body>, byte for byte against the resolved canonical policy; a second
 # -Audit then reports Claude 'current'. ---
 function Test-RenderContractProducesExactBytes {
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-render-contract-" + [guid]::NewGuid())
@@ -125,7 +136,7 @@ function Test-RenderContractProducesExactBytes {
             # value has to be normalized the same way or this assertion passes
             # in an LF checkout and fails in a CRLF worktree -- the very defect
             # the normalization removed.
-            [IO.File]::ReadAllText((Join-Path $repoRoot 'global-agent-policy.md')).Replace("`r`n", "`n")
+            [IO.File]::ReadAllText($canonicalPolicyPath).Replace("`r`n", "`n")
         $actual = [IO.File]::ReadAllText($claudeDest)
         if ($actual -cne $expected) {
             return @{ Passed = $false; Detail = "rendered bytes did not match the render contract exactly. First 200 chars expected=[$($expected.Substring(0,[Math]::Min(200,$expected.Length)))] actual=[$($actual.Substring(0,[Math]::Min(200,$actual.Length)))]" }
@@ -165,7 +176,7 @@ function Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd {
             return @{ Passed = $false; Detail = "expected Hermes file was not written: $hermesDest. Output: $($apply.Output)" }
         }
 
-        $policyBody = [IO.File]::ReadAllText((Join-Path $repoRoot 'global-agent-policy.md')).Replace("`r`n", "`n")
+        $policyBody = [IO.File]::ReadAllText($canonicalPolicyPath).Replace("`r`n", "`n")
         $expectedPersona = 'You are Hermes Agent, an intelligent AI assistant created by Nous Research. Be helpful, knowledgeable, direct, targeted, and efficient. Admit uncertainty when appropriate and prioritize genuine usefulness.'
         $expected = "# Hermes Agent`n`n$expectedPersona`n`n$policyBody`n<!-- agenthub:managed -->`n"
         $actual = [IO.File]::ReadAllText($hermesDest)

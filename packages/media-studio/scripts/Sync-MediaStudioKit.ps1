@@ -35,7 +35,15 @@ $files = @(
     'screencast\render-card.mjs',
     'screencast\record-job.mjs',
     'screencast\record-lib.mjs',
-    'screencast\README.md'
+    'screencast\README.md',
+    'code-stage\shotlist.mjs',
+    'code-stage\source.mjs',
+    'code-stage\driver.mjs',
+    'code-stage\build-stage.mjs',
+    'code-stage\verify-receipt.mjs',
+    'code-stage\editor.html',
+    'code-stage\diagram.html',
+    'code-stage\README.md'
 )
 foreach ($rel in $files) {
     $from = Join-Path $packageKit $rel

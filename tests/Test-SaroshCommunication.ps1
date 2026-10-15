@@ -15,7 +15,17 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$skillRoot = Join-Path $repoRoot 'packages\sarosh-communication\skills\sarosh-communication'
+. (Join-Path $repoRoot 'scripts\lib\CapabilityGraph.ps1')
+. (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
+# Private package: it lives in the gitignored personal overlay, never under
+# packages/. Resolve the overlay from its documented location, or skip.
+$overlay = Resolve-AgentHubTestOverlay -RepositoryRoot $repoRoot
+if (-not $overlay.Root) {
+    Write-Host "SKIP: sarosh-communication is a private overlay package -- $($overlay.Reason)"
+    Write-Host 'RESULT: 0 passed, 0 failed'
+    exit 0
+}
+$skillRoot = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/sarosh-communication/skills/sarosh-communication'
 $skillPath = Join-Path $skillRoot 'SKILL.md'
 $metadataPath = Join-Path $skillRoot 'agents\openai.yaml'
 $policyPath = Join-Path $repoRoot 'global-agent-policy.md'
@@ -42,7 +52,7 @@ $skill = Read-Utf8 $skillPath
 $metadata = Read-Utf8 $metadataPath
 $policy = Read-Utf8 $policyPath
 $registry = if (Test-Path -LiteralPath $registryPath) {
-    Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Get-AgentHubMergedCapabilitiesDocument -OverlayRoot $overlay.Root -CapabilitiesDocument (Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json)
 } else { $null }
 
 # 1. The package exposes the intended public skill, an explicit written-only
@@ -79,8 +89,8 @@ $registryOk = $capability -and
     $capability.id -eq 'sarosh-communication' -and
     $capability.owner -eq 'personal-communication' -and
     $capability.capabilityType -eq 'skills' -and
-    $capability.canonicalSource -eq 'packages/sarosh-communication' -and
-    $capability.hashBasis -eq 'packages/sarosh-communication' -and
+    $capability.canonicalSource -eq 'overlays/personal/packages/sarosh-communication' -and
+    $capability.hashBasis -eq 'overlays/personal/packages/sarosh-communication' -and
     $capability.status -eq 'active-canonical'
 Report 'registry has one owner, all 17 managed host mappings, no sarosh-writing' `
     ($registryOk -and $hostSetOk -and $mappingModesOk -and $noSaroshWriting) `
@@ -97,7 +107,11 @@ Report 'global policy routes communication, writing, and audio separately' `
     'expected mandatory loading for replies, progress commentary, final task reports, and drafts'
 
 # 4. The restored authoritative text preserves the load-bearing communication
-#    contract and its 28 numbered sections.
+#    contract and its numbered sections. The framework started at 28 sections
+#    and grows (evidence ladder, recruiter outreach, and sending were added
+#    2026-10-06), so the contract is: sections numbered 1..N with no gap, N
+#    never below the original 28, and the last one is the Final Check.
+#    Section 1 (Objective) has always been a level-2 heading under the title.
 $requiredPatterns = @(
     'Bottom Line.*Impact.*Action',
     'No action needed from you\.',
@@ -108,13 +122,17 @@ $requiredPatterns = @(
     '\[TK: specific information needed\]',
     '\[TK .{1,3} requires sign-off:',
     'A blocker stops the \*\*send\*\*, not necessarily the \*\*draft\*\*',
-    'Relational Messages',
-    '(?m)^# 28\. Final Check\s*$'
+    'Relational Messages'
 )
 $missingPatterns = @($requiredPatterns | Where-Object { -not ($skill -match "(?is)$_") })
-Report 'skill contains the merged framework, hard gates, and all 28 sections' `
-    ($skill -and $missingPatterns.Count -eq 0) `
-    "missing required contract patterns: $($missingPatterns -join ', ')"
+$sectionNumbers = if ($skill) { @([regex]::Matches($skill, '(?m)^#{1,2} (\d+)\. ') | ForEach-Object { [int]$_.Groups[1].Value }) } else { @() }
+$lastSection = if ($sectionNumbers.Count -gt 0) { $sectionNumbers[-1] } else { 0 }
+$sectionsContiguous = $sectionNumbers.Count -gt 0 -and (($sectionNumbers -join ',') -eq ((1..$lastSection) -join ','))
+$finalCheckLast = $skill -and $skill -match "(?m)^# $lastSection\. Final Check\s*$"
+$sectionsOk = $sectionsContiguous -and $lastSection -ge 28 -and $finalCheckLast
+Report 'skill contains the merged framework, hard gates, and every numbered section through Final Check' `
+    ($skill -and $missingPatterns.Count -eq 0 -and $sectionsOk) `
+    "missing required contract patterns: $($missingPatterns -join ', '); sections=$($sectionNumbers -join ',') (need 1..N with no gap, N >= 28, and '# N. Final Check' last)"
 
 # 5. The added intro paragraph preserves precedence and the no-external-send
 #    boundary without expanding beyond what was authorized.
