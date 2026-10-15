@@ -96,6 +96,18 @@ foreach ($hostDir in $hostDirs) {
     Write-Host "updated $Package/$hostDir/plugin.json -> $Version"
 }
 
+# A deployable kit (media-studio) ships kit/package.json to the runtime, and Test-MediaStudioKitDeployment requires its
+# version to equal the package version. Only the top-level "version" line changes, so the manifest keeps its layout.
+$kitManifestPath = Join-Path $packageRoot 'kit/package.json'
+if (Test-Path -LiteralPath $kitManifestPath) {
+    $kitRaw = [IO.File]::ReadAllText($kitManifestPath)
+    $kitPattern = [regex]'(?m)^(\s*"version"\s*:\s*")[^"]*(")'
+    if (-not $kitPattern.IsMatch($kitRaw)) { throw "kit/package.json has no version field: $kitManifestPath" }
+    [IO.File]::WriteAllText($kitManifestPath, $kitPattern.Replace($kitRaw, "`${1}$Version`${2}", 1), [Text.UTF8Encoding]::new($false))
+    $updated += 'kit/package.json'
+    Write-Host "updated $Package/kit/package.json -> $Version"
+}
+
 Write-Host ""
 Write-Host "Version authority is packages/$Package/plugin.json ($Version)."
 Write-Host "Updated: $($updated -join ', ')"
