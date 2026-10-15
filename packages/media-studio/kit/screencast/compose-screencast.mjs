@@ -153,6 +153,8 @@ if (voiceFirst) {
 // the voice breathes. Each group therefore runs until the next group starts (the last one to the end of the timeline),
 // otherwise the picture finishes ahead of the narration by the sum of the pauses and drifts out of sync on the way.
 groups.forEach((g, i) => { const next = groups[i + 1]; g.duration = Number(((next ? next.start : tl.durationSeconds) - g.start).toFixed(3)); });
+// Picture time is timeline time: the first part also carries [0, groups[0].start) as a clone of its first frame.
+const leadIn = groups.length ? Math.max(0, Number(Number(groups[0].start || 0).toFixed(3))) : 0;
 
 const parts = [];
 const rows = [];
@@ -254,6 +256,14 @@ groups.forEach((g, i) => {
     args.push('-filter_complex', `[0:v]${baseVf}[b];[b][1:v]overlay=0:0:format=auto,format=yuv420p[v]`, '-map', '[v]');
   }
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-r', String(FPS), out]);
+  if (i === 0 && leadIn > 0) {
+    // The narration timeline starts its first line at groups[0].start (the voice's lead-in silence), and the speech stem keeps
+    // that silence. Every later slot is placed on the timeline, so the picture must cover [0, start) too: hold the first frame
+    // for the lead-in, otherwise the whole picture plays early by the lead-in and every action leads its spoken word.
+    const led = path.join(tmp, 'part-000-lead.mp4');
+    execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', out, '-vf', `tpad=start_mode=clone:start_duration=${leadIn.toFixed(3)},format=yuv420p`, '-t', (leadIn + g.duration).toFixed(3), '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-r', String(FPS), led]);
+    fs.renameSync(led, out);
+  }
   parts.push(out); prevFile = src;
   mapGroups.push({ segments: g.segments.map((s) => s.id), startSeconds: g.start, needSeconds: Number(g.duration.toFixed(3)), clipId: g.clip ? g.clip.id : null, file: g.clip ? g.clip.file : (prevClipFile || null), heldFromPrevious: !g.clip, sourceRegion, srcSeconds: Number(srcDur.toFixed(3)), fit: g.clip ? fit : 'hold-prev', trimStart: Number(hints.trimStart || 0), speed: Number(hints.speed || 1), edit: isImage || !g.clip ? null : effEdit, extras: !!(g.clip && g.clip.extras && g.clip.extras.length), overlay: g.clip?.overlay || null, isImage });
   if (g.clip) prevClipFile = g.clip.file;
@@ -279,6 +289,6 @@ if (graphics.length) {
 }
 const finalDur = probe(outFile);
 // Compose map: validate-encoded-picture.mjs uses it to bind every encoded segment back to its receipt-bound clip.
-fs.writeFileSync(path.join(jobRoot, 'output', `${base}-compose-map.json`), JSON.stringify({ generator: 'media-studio/compose-screencast', base, voiceFirst, cueSheetSha256: voiceFirst ? createHash('sha256').update(fs.readFileSync(cuePath)).digest('hex') : null, silent: outFile, deliveryProfile: profile, width: W, height: H, timelineSeconds: tl.durationSeconds, pictureSeconds: finalDur, timedGraphics: graphics, groups: mapGroups }, null, 2));
+fs.writeFileSync(path.join(jobRoot, 'output', `${base}-compose-map.json`), JSON.stringify({ generator: 'media-studio/compose-screencast', base, voiceFirst, cueSheetSha256: voiceFirst ? createHash('sha256').update(fs.readFileSync(cuePath)).digest('hex') : null, silent: outFile, deliveryProfile: profile, width: W, height: H, timelineSeconds: tl.durationSeconds, pictureSeconds: finalDur, leadInSeconds: leadIn, timedGraphics: graphics, groups: mapGroups }, null, 2));
 console.log(rows.join('\n'));
 console.log(JSON.stringify({ ok: true, out: outFile, pictureSeconds: finalDur, timelineSeconds: tl.durationSeconds, delta: +(finalDur - tl.durationSeconds).toFixed(2) }));

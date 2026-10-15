@@ -135,9 +135,14 @@ if (candidateSha && cueSheet && probe && video) {
   // ---- per-beat narration/picture checks
   let narratedActions = 0;
   performed.add('screen-on'); performed.add('action-timing'); performed.add('result-hold'); performed.add('narration-order');
+  const edlDeltas = [];
   for (const b of beats) {
     const words = b.narration?.words || [];
     rec(b.beat);
+    if (beats.indexOf(b) > 0 && b.screen.changes_from_previous && b.screen.kind !== 'hold') {
+      const wide = cuts.filter((t) => Math.abs(t - b.screen.visible_from) <= 1.0).sort((x, y) => Math.abs(x - b.screen.visible_from) - Math.abs(y - b.screen.visible_from))[0];
+      if (wide !== undefined) edlDeltas.push({ beat: b.beat, delta: wide - b.screen.visible_from });
+    }
     if (!words.length) { finding(b.beat, 'screen-on', 'warn', 'beat has no narration words; not checked.'); continue; }
     const fcw = b.narration.firstContentWord || { start: words[0].start };
     // screen visible by the first content word
@@ -184,6 +189,17 @@ if (candidateSha && cueSheet && probe && video) {
         if (Number.isFinite(named) && Number.isFinite(visible) && named < visible - 0.1) finding(b.beat, 'narration-order', 'fail', `the line names "${b.result.keyword.w}" at ${named.toFixed(2)}s, ${((visible - named) * 1000).toFixed(0)} ms before the picture shows the result (${visible.toFixed(2)}s).`);
         if (Number.isFinite(named) && named > b.screen.visible_until) finding(b.beat, 'narration-order', 'fail', `the line names "${b.result.keyword.w}" after the screen is gone.`);
       }
+    }
+  }
+  // A picture that runs uniformly early or late against the edit decision list (for example a lead-in the compositor did not
+  // pad) moves every cut by the same amount. Each cut can then fall outside the per-beat match window and only warn, so
+  // check the offset across all beats: most cuts agreeing on one non-zero offset means the cue sheet does not describe the file.
+  if (edlDeltas.length >= 3) {
+    const sorted = edlDeltas.map((d) => d.delta).sort((x, y) => x - y);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const agreeing = edlDeltas.filter((d) => Math.abs(d.delta - median) <= 0.1);
+    if (Math.abs(median) > 0.1 && agreeing.length * 3 >= edlDeltas.length * 2) {
+      fail(`the encoded picture is uniformly ${Math.abs(median * 1000).toFixed(0)} ms ${median < 0 ? 'early' : 'late'} against the edit decision list (${agreeing.length} of ${edlDeltas.length} scene cuts agree: ${agreeing.slice(0, 5).map((d) => `${d.beat} ${(d.delta * 1000).toFixed(0)} ms`).join(', ')}); every action is off its spoken word by the same amount. Check the compositor lead-in and rebuild the cue sheet from this file's compose map.`);
     }
   }
   if (!narratedActions) fail('the cue sheet has no narrated action: a product screencast must tie at least one cursor action to a spoken word (label the click, e.g. h.click(loc, { label: "Approve" }), and name it in the line).');
