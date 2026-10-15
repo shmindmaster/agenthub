@@ -10,13 +10,15 @@ import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "1.1.0"
+EXPECTED_VERSION = "1.2.0"
 MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
     ".cursor-plugin/plugin.json",
 )
 REQUIRED_TTS_FLAGS = (
+    "--dry-run",
+    "--max-credits",
     "--stability",
     "--similarity-boost",
     "--style",

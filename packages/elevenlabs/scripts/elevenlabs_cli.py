@@ -9,6 +9,8 @@ import json
 import mimetypes
 import os
 import pathlib
+import math
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -18,7 +20,7 @@ import uuid
 BASE_URL = "https://api.elevenlabs.io/v1"
 
 
-DEFAULT_TTS_MODEL = "eleven_v4"
+DEFAULT_TTS_MODEL = "eleven_flash_v2_5"
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_192"
 MAX_STITCH_IDS = 3
 MAX_DICTIONARY_LOCATORS = 3
@@ -36,12 +38,14 @@ def _request_full(path: str, method: str = "GET", body: bytes | None = None, con
         with urllib.request.urlopen(req, timeout=timeout) as response:
             return response.status, response.headers.get_content_type(), response.read(), response.headers
     except urllib.error.HTTPError as exc:
-        # The error body carries the API's validation detail (never the key); keep it short.
+        # Error messages may echo submitted text or account details. Emit only a code.
         try:
-            detail = exc.read().decode("utf-8", "replace")[:400]
+            detail = json.loads(exc.read()).get("detail", {})
+            code = detail.get("status", "") if isinstance(detail, dict) else ""
+            code = code if re.fullmatch(r"[a-zA-Z0-9_\-]{1,80}", str(code)) else ""
         except Exception:  # noqa: BLE001 - detail is best-effort only
-            detail = ""
-        raise RuntimeError(f"ElevenLabs API returned HTTP {exc.code}" + (f": {detail}" if detail else "")) from None
+            code = ""
+        raise RuntimeError(f"ElevenLabs API returned HTTP {exc.code}" + (f" ({code})" if code else "")) from None
     except urllib.error.URLError as exc:
         raise RuntimeError("ElevenLabs API request failed") from exc
 
@@ -64,11 +68,87 @@ def health(_: argparse.Namespace) -> int:
     return 0
 
 
+def _get_json(path: str):
+    return json.loads(request(path)[2])
+
+
+def _account_summary(data: dict) -> dict:
+    used, limit = data.get("character_count"), data.get("character_limit")
+    return {
+        **{key: data.get(key) for key in (
+            "tier", "status", "character_count", "character_limit",
+            "next_character_count_reset_unix", "can_extend_character_limit",
+            "voice_count", "voice_slots_used", "voice_limit", "professional_voice_count",
+            "professional_voice_slots_used", "professional_voice_limit",
+            "can_use_instant_voice_cloning", "can_use_professional_voice_cloning",
+        )},
+        "credits_remaining": max(0, limit - used) if isinstance(used, (int, float)) and isinstance(limit, (int, float)) else None,
+    }
+
+
+def account(_: argparse.Namespace) -> int:
+    print(json.dumps(_account_summary(_get_json("/user/subscription"))))
+    return 0
+
+
+def _voice_summary(data: dict) -> dict:
+    tuning = data.get("fine_tuning") or {}
+    verification = data.get("voice_verification") or {}
+    return {
+        "voice_id": data.get("voice_id"), "name": data.get("name"),
+        "category": data.get("category"),
+        "model_states": tuning.get("state"),
+        "high_quality_base_model_ids": data.get("high_quality_base_model_ids"),
+        "requires_verification": verification.get("requires_verification"),
+        "is_verified": verification.get("is_verified"),
+        "sample_count": len(data["samples"]) if isinstance(data.get("samples"), list) else None,
+    }
+
+
+def voice_status(args: argparse.Namespace) -> int:
+    print(json.dumps(_voice_summary(_get_json("/voices/" + urllib.parse.quote(args.voice_id, safe="")))))
+    return 0
+
+
+def tts_preflight(voice_id: str, model_id: str, text: str, max_credits: float | None) -> dict:
+    if model_id == "eleven_v4_turbo":
+        raise RuntimeError("eleven_v4_turbo requires Text to Dialogue WebSocket, which this REST adapter does not implement")
+    summary = _account_summary(_get_json("/user/subscription"))
+    if summary["status"] != "active":
+        raise RuntimeError("An active subscription must be established before generation")
+    voice = _voice_summary(_get_json("/voices/" + urllib.parse.quote(voice_id, safe="")))
+    if voice["requires_verification"] is True:
+        raise RuntimeError("Voice requires owner verification; generation stopped")
+    if voice["category"] == "professional":
+        state = (voice["model_states"] or {}).get(model_id)
+        if state != "fine_tuned":
+            raise RuntimeError("Professional clone is not established as fine_tuned on the requested model; select a ready model explicitly")
+    model = next((m for m in _get_json("/models") if m.get("model_id") == model_id and m.get("can_do_text_to_speech")), None)
+    if model is None:
+        raise RuntimeError("Requested TTS model is absent from the live model inventory")
+    maximum = model.get("maximum_text_length_per_request") or model.get("max_characters_request_subscribed_user")
+    if maximum and len(text) > maximum:
+        raise RuntimeError("Text exceeds this model's request limit; segment the locked script")
+    rate = model.get("model_rates", {}).get("character_cost_multiplier")
+    estimate = math.ceil(len(text) * rate) if isinstance(rate, (int, float)) and math.isfinite(rate) and rate > 0 else None
+    if max_credits is not None and (not math.isfinite(max_credits) or max_credits <= 0):
+        raise RuntimeError("--max-credits must be a positive finite number")
+    if estimate is None or summary["credits_remaining"] is None:
+        raise RuntimeError("Credit estimate or remaining quota is unknown; inspect the provider's current metering before spending")
+    if estimate > summary["credits_remaining"]:
+        raise RuntimeError("Estimated credits exceed remaining quota; billing changes are not automatic")
+    if max_credits is not None and estimate > max_credits:
+        raise RuntimeError("Estimated credits exceed --max-credits")
+    return {"voice_id": voice_id, "model_id": model_id, "text_characters": len(text),
+            "estimated_credits": estimate, "credits_remaining": summary["credits_remaining"],
+            "text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
+
+
 def voices(_: argparse.Namespace) -> int:
     _, _, raw = request("/voices")
     data = json.loads(raw)
     voices = [{"voice_id": v.get("voice_id"), "name": v.get("name")} for v in data.get("voices", [])]
-    print(json.dumps({"count": len(voices), "voices": voices}, ensure_ascii=False))
+    print(json.dumps({"returned_count": len(voices), "scope": "GET /voices response", "voices": voices}, ensure_ascii=False))
     return 0
 
 
@@ -83,6 +163,7 @@ def models(_: argparse.Namespace) -> int:
             "can_do_text_to_speech": m.get("can_do_text_to_speech"),
             "maximum_text_length_per_request": m.get("maximum_text_length_per_request"),
             "languages": len(m.get("languages") or []),
+            "model_rates": m.get("model_rates"),
         })
     print(json.dumps({"count": len(rows), "models": rows}, ensure_ascii=False))
     return 0
@@ -114,8 +195,27 @@ def tts(args: argparse.Namespace) -> int:
         if ids and len(ids) > MAX_STITCH_IDS:
             raise RuntimeError(f"{flag} accepts at most {MAX_STITCH_IDS} request ids")
     model_id = args.model_id or os.environ.get("ELEVENLABS_MODEL_TTS_DEFAULT", DEFAULT_TTS_MODEL)
+    if not args.dry_run and not (args.model_id or os.environ.get("ELEVENLABS_MODEL_TTS_DEFAULT")):
+        raise RuntimeError("Paid generation requires an explicitly selected --model-id or ELEVENLABS_MODEL_TTS_DEFAULT")
     output_format = args.output_format or os.environ.get("ELEVENLABS_OUTPUT_FORMAT", DEFAULT_OUTPUT_FORMAT)
     locators = _dictionary_locators(args.pronunciation_dictionary)
+    preflight = tts_preflight(voice_id, model_id, args.text, args.max_credits)
+    if args.dry_run:
+        print(json.dumps({"dry_run": True, **preflight}))
+        return 0
+    if args.max_credits is None:
+        raise RuntimeError("Paid generation requires an explicit --max-credits budget")
+    output = pathlib.Path(args.output).expanduser()
+    if output.exists() or output.with_suffix(output.suffix + ".provenance.json").exists():
+        raise RuntimeError("Output or receipt already exists; reuse it or choose a new take path")
+    # Resolve a usable local destination before consuming provider credits.
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with output.open("xb"):
+            pass
+        output.unlink()
+    except OSError:
+        raise RuntimeError("Output destination is not writable; no generation was requested") from None
     if model_id.startswith("eleven_v4") and (args.style is not None or args.speed is not None):
         # 2026-10-13 live A/B: v4 accepted style/use_speaker_boost silently with no measurable change.
         print("warning: eleven_v4 exposes only stability and similarity; --style/--speed have no verified effect", file=sys.stderr)
@@ -146,11 +246,18 @@ def tts(args: argparse.Namespace) -> int:
     payload = json.dumps(payload_object).encode("utf-8")
     query = urllib.parse.urlencode({"output_format": output_format})
     _, content_type, raw, headers = _request_full(
-        f"/text-to-speech/{voice_id}?{query}", method="POST", body=payload, content_type="application/json", timeout=300
+        f"/text-to-speech/{urllib.parse.quote(voice_id, safe='')}?{query}", method="POST", body=payload, content_type="application/json", timeout=300
     )
-    output = pathlib.Path(args.output).expanduser()
-    output.parent.mkdir(parents=True, exist_ok=True)
+    if not raw or not (content_type.startswith("audio/") or content_type == "application/octet-stream"):
+        raise RuntimeError("Provider returned no audio; no delivery artifact was written")
     output.write_bytes(raw)
+    receipt = {"provider": "elevenlabs", **preflight, "output": str(output.resolve()),
+               "output_bytes": len(raw), "output_sha256": hashlib.sha256(raw).hexdigest(),
+               "request_id": headers.get("request-id"), "output_format": output_format,
+               "context_text_sha256": {k: hashlib.sha256(v.encode("utf-8")).hexdigest()
+                                       for k, v in payload_object.items() if k in ("previous_text", "next_text")},
+               "request_parameters": {k: v for k, v in payload_object.items() if k not in ("text", "previous_text", "next_text")}}
+    output.with_suffix(output.suffix + ".provenance.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({
         "ok": True,
         "output": str(output),
@@ -235,6 +342,11 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     p_health = sub.add_parser("health")
     p_health.set_defaults(func=health)
+    p_account = sub.add_parser("account", help="Read-only credit and subscription summary; no identity or billing details")
+    p_account.set_defaults(func=account)
+    p_voice_status = sub.add_parser("voice-status", help="Read-only clone readiness; never downloads recordings")
+    p_voice_status.add_argument("--voice-id", required=True)
+    p_voice_status.set_defaults(func=voice_status)
     p_voices = sub.add_parser("voices")
     p_voices.set_defaults(func=voices)
     p_models = sub.add_parser("models", help="Read-only: list models available to this account (GET /v1/models)")
@@ -244,6 +356,8 @@ def main() -> int:
     p_tts.add_argument("--output", required=True)
     p_tts.add_argument("--voice-id")
     p_tts.add_argument("--model-id")
+    p_tts.add_argument("--dry-run", action="store_true", help="Check credits and model/clone readiness without generating")
+    p_tts.add_argument("--max-credits", type=float, help="Refuse a request above this estimated credit budget")
     p_tts.add_argument("--stability", type=float)
     p_tts.add_argument("--similarity-boost", type=float)
     p_tts.add_argument("--style", type=float)

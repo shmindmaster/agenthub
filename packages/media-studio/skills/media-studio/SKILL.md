@@ -1,6 +1,6 @@
 ---
 name: media-studio
-description: Use when the user wants any video, audio, animation, briefing, training clip, explainer, talking-head, webcast, webinar, keynote, documentary, teaser, or live-product screencast from a concept or outline. Infer the form from the ask and run that workflow. Single local creative studio. Orchestrates writing, direction, Local-AI generation, Playwright capture, Remotion/FFmpeg compose, and release gates.
+description: Use when the user wants any video, audio, animation, briefing, training clip, explainer, talking-head, webcast, webinar, keynote, documentary, teaser, or live-product screencast from a concept or outline. Infer the form from the ask and run that workflow. Single creative production studio. Orchestrates writing, direction, ElevenLabs/Local-AI generation, Playwright capture, Remotion/FFmpeg compose, and release gates.
 ---
 
 # Media studio — producer
@@ -9,11 +9,15 @@ description: Use when the user wants any video, audio, animation, briefing, trai
 
 **Default: rapid.** A sentence, path, or “make a video from this” is enough. Infer the rest, run the crew, return a candidate. Rapid means infer-and-run, **not skip craft**. A short prompt is not permission to skip curation, gap-closure, story, scenes, or QA.
 
-**Reuse before regenerate.** Recut > recapture > rewrite. On a miss, rerun only `reviseSceneIds` / the failing take. Keep receipt-bound clips that still prove the claim. Do not regen TTS, the bed, or the whole encode for an unchanged scene — remux. Start Local-AI once (`voice` for TTS; Comfy only if a plate needs it). One GPU job at a time.
+**Reuse before regenerate.** Recut > recapture > rewrite. On a miss, rerun only `reviseSceneIds` / the failing take. Keep receipt-bound clips that still prove the claim. Do not regen TTS, the bed, or the whole encode for an unchanged scene — remux. Select by cost, latency, quality and privacy: use adequate local tools or authorized provider APIs; reserve ElevenLabs for justified value. Load `elevenlabs-api` for paid planning and cost controls. Start Local-AI only for a selected local route (`voice` for identity/ASR or local TTS; Comfy only if a plate needs it). One GPU job at a time.
+
+Load `sarosh-audio-voice` for owner speech. Hosted sources retain all identity,
+ASR, pronunciation and exact encoded release gates; use `elevenlabs-api` for
+images, video, music and editing. Real product UI remains captured evidence.
 
 ## 0. Intake (do not dump this on the user)
 
-A usable ask is: what it is about, plus any source (evidence folder, outline, product). Load Local-AI yourself. Do not tell the user to invoke `/local-ai-stack` or name writer/storyboard/director.
+A usable ask is: what it is about, plus any source (evidence folder, outline, product). Resolve the selected provider yourself. Do not tell the user to invoke `/local-ai-stack` or name writer/storyboard/director.
 
 **Infer, do not ask:**
 
@@ -35,7 +39,7 @@ A usable ask is: what it is about, plus any source (evidence folder, outline, pr
 2. **Close gaps** — product-screencast: Product-Readiness Feedback instead of a mediocre video is a valid stop. Load `references/product-picture.md`. Evidence briefing: ledger status is the truth (merged ≠ deployed); missing plates get a spoken/typed beat, not invented UI.
 3. **Write** — `media-writer` locks screenplay + narration (`story-craft.md`).
 4. **Scenes** — `media-storyboard` then `media-studio-visuals` then `media-director`.
-5. **Generate / compose / critic / QA** — Local-AI voice, Remotion/Recast/FFmpeg, score ≥ 85, then `media-studio-qa`.
+5. **Generate / compose / critic / QA** — provider-routed voice, Remotion/Recast/FFmpeg, score ≥ 85, then `media-studio-qa`.
 
 Do not jump to encode from screenshots. Do not ship a slide-stack of the ledger. Do not Ken Burns a product PNG and call it a screencast.
 
@@ -77,9 +81,9 @@ Viewer-facing explainers, branded films, and series: load `technical-storytellin
 
 | Signal | Kind | Path |
 | --- | --- | --- |
-| Running product, workflow, demo, tutorial-in-the-app, pointer/click | `product-screencast` | `product-picture.md` → capture (WebM + Recast) → local voice → compose → product-picture + QA |
+| Running product, workflow, demo, tutorial-in-the-app, pointer/click | `product-screencast` | `product-picture.md` → capture (WebM + Recast) → gated voice → compose → product-picture + QA |
 | Series / Receipts episode | `series-episode` | `story-series` then compose here |
-| Argument, prep, briefing | `briefing` | Remotion archetype kit + local voice + bed |
+| Argument, prep, briefing | `briefing` | Remotion archetype kit + gated voice + bed |
 | Exam / how-to clip | `training` | Remotion (or FFmpeg if draft) |
 | Technical idea, no live product required | `explainer` | Remotion + `story-craft.md` |
 | Face + new audio | `talking-head` | voice then `ai.ps1 lipsync` |
@@ -98,7 +102,7 @@ The picture is the demo (`product-picture.md`): muted viewer follows start → c
 1. `job.json` in the external workspace. A legacy in-repo `product-demo-studio.config.yaml` is read-only input.
 2. Product-Readiness Feedback instead of a mediocre video is valid.
 3. Writer / storyboard / director lock the causal chain; capture is Playwright WebM + Recast (`record-job.mjs`), one session.
-4. Generate speaks the locked narration locally. Never Motif a screenshot.
+4. Generate speaks the locked narration through the approved provider route. Never Motif a screenshot.
 5. `validate-product-picture.mjs` then `media-studio-qa` (mute test). Story review on the encoded file only.
 
 Live product with real user data → `PIPELINE_BLOCKED`.
@@ -110,7 +114,7 @@ the repo.
 ## 4. Stop
 
 - Real user data on a live product.
-- Owner voice via cloud TTS.
+- Owner speech without an approved existing clone and passing identity evidence; new private corpus uploads or verification without authority.
 - Invented metrics or customer names.
 - Remotion missing for viewer-facing briefing/training/explainer/series-episode/webcast/webinar/keynote/documentary/teaser (unless draft).
 - Feature-tour opening or a settings walkthrough posing as a demo.

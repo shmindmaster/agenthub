@@ -58,3 +58,9 @@ locations, not independent policy authorities.
 ## Handoff
 
 Report the outcome, changed files, validation evidence, branch or commit when applicable, remaining risks, and the next required gate. Silence or a missing automated review is not approval.
+
+## Cost-aware provider routing
+
+Choose by task fit, total cost, latency, quality and privacy. Reuse accepted outputs first; use adequate Local-AI or already-authorized Anthropic, OpenAI, DeepSeek and other provider routes where suitable. Configured credentials do not establish entitlement or free usage. LLM APIs do not automatically replace speech, music or video. Reserve ElevenLabs for its lowest-cost adequate model or a justified quality/capability/speed benefit; once selected, prefer the host-native connector and existing specialist skills. Check workspace, allowance, reset, permissions, model and clone readiness; cap previews and the whole job before spending. Do not change billing, enable overages, upload private recordings or mutate a clone without authority.
+
+Batch independent deferrable work only when the provider supports the required endpoint and discount; do not delay interactive work for batch savings. Keep stable prompt prefixes, use supported cache controls, and measure actual cache reads, writes, latency and billed cost. Cache media by complete request and dictionary/reference versions, retain validation receipts, deduplicate in-flight work, and regenerate only failing segments. Local warm-model reuse saves latency, not provider charges. Poll/recover an existing run before retrying a chargeable POST. Load elevenlabs-api's cost-controls reference for provider details; preserve privacy and source/final quality gates throughout.

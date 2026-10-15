@@ -209,7 +209,7 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin+cli",
       "canonicalSource": "packages/elevenlabs",
-      "contentHash": "FBC37765E86FE0985CA26B046B2ABAA1BBADBB647B58D379C10F8B2CA107019C",
+      "contentHash": "529DFA717E0C4B69E41D7E4A320FAA283CB90D3CC4816DFA94BD64F545F05309",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
@@ -1298,7 +1298,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "8DE2AFF2F57C0ED0BC0C58E458427183D34301CA7EE71DAA015E6B2327E4B66A",
+      "contentHash": "08114F72C9EF5B0C682C3F2AF0DB4A9E09F3B0B9086B8483208313AADC2EBD1C",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [

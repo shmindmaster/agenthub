@@ -1,15 +1,15 @@
 ---
 name: media-studio-generate
-description: Use when a video or audio job needs local generation — owner or role voice, images, motif clips, lipsync, portrait, music beds, stings, or transcription — through the Local-AI control plane.
+description: Use when a video or audio job needs provider-routed generation — owner or role voice, images, motif clips, lipsync, portrait, music beds, stings, or transcription — through ElevenLabs or the Local-AI control plane.
 ---
 
 # Media studio generate
 
-Load `local-ai-stack` first and resolve `$LocalAiControl`. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
+Choose by cost, latency, quality and privacy. Reuse accepted assets first; use adequate local tools or authorized provider APIs. Load `elevenlabs-api` and its cost-controls reference before paid planning; spend ElevenLabs credits only for justified value, using the host-native connector once selected. Load `local-ai-stack` and resolve `$LocalAiControl` when local generation or validation is needed. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
 
 Load `../media-studio/references/engagement.md`. Viewer-facing jobs consume **locked** `storyboard.json`, `visual-bible.json`, and `direction.json`. Do not invent plates the director did not call.
 
-Owner voice is local-only. Never ElevenLabs or another hosted TTS for Sarosh.
+Owner speech loads `sarosh-audio-voice`: local speech is eligible when adequate; the approved existing hosted clone is permitted when ready and worth its cost. Both require identity gates. No new private recordings, clone replacement or verification is implied.
 
 ```powershell
 & $LocalAiControl status
@@ -31,17 +31,27 @@ If a required file is missing, remit. Do not generate a generic bed and skip the
 
 ## 2. Voice
 
-TTS **always**. Owner (and role) speech for viewer-facing jobs **must** go through `Generate-OwnerVoice.ps1` — never an ad-hoc one-shot generate → concat script.
+Use `elevenlabs-tts` for hosted speech. Lock segments, check credits and clone/model
+readiness and whole-job/preview budgets; reuse an accepted matching preview or
+generate one small preview. Save provider receipts under the job
+workspace; run local integrity, ASR, pronunciation and dual-backend identity gates
+before selecting owner takes. Decode and gate exact delivery spans again.
+`Generate-OwnerVoice.ps1` implements the **local backend only**. Its local receipt
+format is not a hosted adapter: never fabricate its PASS receipts for hosted audio.
+If the selected assembly path requires those local receipts, keep that path local
+until a verified provider receipt adapter exists; report that limitation explicitly.
 
-Use the AgentHub-deployed shared tools on native-plugin and loose-skill hosts. Their `plugin.json` must match this skill's 1.5.12 release. Missing or stale tools block generation until AgentHub syncs the kit from a verified 1.5.12 package; do not default to a checkout of unknown version.
+For local viewer-facing owner/role speech use `Generate-OwnerVoice.ps1`:
+
+Use the AgentHub-deployed shared tools on native-plugin and loose-skill hosts. Their `plugin.json` must match this skill's 1.5.14 release. Missing or stale tools block generation until AgentHub syncs the kit from a verified 1.5.14 package; do not default to a checkout of unknown version.
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $manifest = Join-Path $tools 'plugin.json'
 $generator = Join-Path $tools 'Generate-OwnerVoice.ps1'
 $integrity = Join-Path $tools 'Test-SpeechIntegrity.ps1'
-if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '1.5.12' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
-    throw 'Media Studio 1.5.12 voice tools are missing or stale. Deploy them from a verified package before generation.'
+if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '1.5.14' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
+    throw 'Media Studio 1.5.14 voice tools are missing or stale. Deploy them from a verified package before generation.'
 }
 & pwsh -NoProfile -File $generator -Job $Job
 ```
@@ -64,22 +74,26 @@ Viewer-facing jobs also generate the directed music (`musicCue: bed` or `sting`)
 
 | Storyboard `sound.musicCue` | Generate |
 | --- | --- |
-| `bed` | one ACE-Step bed for the program (`ai.ps1 music`) |
-| `sting` | a **short** ACE-Step sting (2–4s hit), not a second full bed |
+| `bed` | one accepted bed or adequate local `ai.ps1 music`; ElevenLabs when its benefit justifies credits |
+| `sting` | a **short** ElevenLabs SFX or local sting (2–4s hit), not a second full bed |
 | `silence` | **no** music on that beat. Do not fill the gap. |
 | `none` | skip |
 
-`silenceOnReveal: true` on a beat overrides a program bed for that hold — compose ducks to true quiet. There is **no** separate SFX engine: `sfxCue` `whoosh` / `riser` / `impact-soft` / `accent` maps to a sting; `click` is Recast on `screen` beats; else sting. Specialist: `local-ai-stack` `references/music.md`.
+`silenceOnReveal: true` on a beat overrides a program bed for that hold — compose ducks to true quiet. The local fallback has **no** separate SFX engine: `sfxCue` `whoosh` / `riser` / `impact-soft` / `accent` maps to a sting; `click` is Recast on `screen` beats; else sting. Specialist: `local-ai-stack` `references/music.md`.
 
 Mix later with `Finish-Media.ps1 -Speech -Music` so the bed ducks. Do not mux an unducked bed.
 
 ## 4. Pictures the bible called for
 
-For each `visual-bible.brollPlan` / `imagePrompts` row, run `ai.ps1 image` with that prompt. Honor `refuse` (never product UI, metrics, testimonials). Specialist: `references/image.md`.
+For each `visual-bible.brollPlan` / `imagePrompts` row, reuse accepted plates or select an adequate local `ai.ps1 image` route. Use a live supported hosted image/video model when its quality or delivery benefit justifies cost. Honor `refuse` (never product UI, metrics, testimonials). Specialist: `references/image.md`.
 
 Motif / lipsync / portrait **only** when `direction` called for that plate. Never Motif or image-to-video a product screenshot (`references/video.md`, `product-picture.md`).
 
-## 5. Commands
+For cloud music, SFX, dubbing, lipsync, video, editing and composition load only
+the matching official ElevenLabs specialist and live node schema. Start a short
+preview, poll its run ID, reuse accepted assets and retain model/cost/hash receipts.
+
+## 5. Local generation commands
 
 | Need | Command | Specialist |
 | --- | --- | --- |
