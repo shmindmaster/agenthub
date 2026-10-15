@@ -347,24 +347,26 @@
         "plugin-owned": [
           "appium-mobile",
           "github",
-          "notion",
           "linkedin",
           "slack"
         ],
         "native-connector": [
-          "descript"
+          "descript",
+          "linear",
+          "notion",
+          "railway"
         ],
         "shared-gateway": [
           "context7",
           "exa",
-          "firecrawl",
-          "linear"
+          "firecrawl"
         ],
         "local-only": []
       },
       "evidence": [
         "Claude installed_plugins.json and package manifests own GitHub and Notion. chrome-devtools was removed from this list on 2026-08-20: it stopped being a canonical id in registry/mcps.json when playwright replaced it fleet-wide on 2026-08-19, and it was the only exposure id left on any host that no longer resolves. It is NOT replaced by playwright here -- playwright's hosts are the ones with no verified native browser, which excludes claude; browser-toolkit reaches claude as managed loose skills instead. Test-DeclaredVsDeployedMcp now asserts every exposure id is a canonical server id, which is the check that would have caught this.",
-        "Claude account connectors own Descript; Product Demo Studio suppresses its bundled Descript MCP on Claude so the connector is not loaded twice.",
+        "Claude account connectors own Descript, Linear, Notion, and Railway (measured 2026-10-14: each connected as a claude.ai connector while the direct user-scope linear and railway entries and the Notion plugin server sat unauthenticated). The direct entries are suppressed here so Sync removes them from ~/.claude.json. Correction 2026-10-14: the media-studio plugin was NOT suppressing its bundled Descript MCP on Claude -- Claude auto-loads the package root .mcp.json regardless of mcpOwnership, and plugin:media-studio:descript appeared beside the connector. It is now blocked host-side by a deniedMcpServers entry in ~/.claude/settings.json, which Sync does not manage.",
+        "claude.ai account plugins (small-business, marketing, engineering, design, exa, adobe-for-creativity) bundle their own copies of Gmail, Google Calendar, Google Drive, Slack, Notion, Canva, Datadog, Stripe, Atlassian, Figma, Exa, and Adobe. On 2026-10-14 the owner approved blocking each duplicate by scoped name (plugin:<plugin>:<server>) in ~/.claude/settings.json deniedMcpServers, keeping the plugins' skills. Verified with claude mcp list that the scoped name matches and a bare name does not. Exa, Context7, and Firecrawl claude.ai connectors were switched off for Code sessions so the keyed shared-gateway entries are the single source.",
         "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03. Any residual Adobe or Canva tools in a Claude session come from claude.ai account connectors, which are not managed by this registry and must be removed in claude.ai connector settings.",
         "Measured 2026-08-05: ~/.claude/plugins/installed_plugins.json lists 15 locally installed plugins, and none of engineering, marketing, small-business, design, litigation-legal, or adobe-for-creativity is among them; none has a directory under plugins/cache and none appears in known_marketplaces.json. Servers presented to a Claude session under those plugin names are therefore account-level, delivered by claude.ai rather than by any local installation this registry can reach. See ownerActionRequired."
       ]

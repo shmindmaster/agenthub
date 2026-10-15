@@ -35,8 +35,9 @@ for part of the fleet:
   - 'winget-package' - query the installed package record through the native
                       Windows Package Manager, in a redirected native process
                       with a fixed deadline and process-tree cleanup. This is
-                      for Antigravity's `agy.exe`: its own version command
-                      blocks, so it is not a truthful or safely bounded source.
+                      a CLI whose own version command blocks. Antigravity's old
+                      WinGet agy.exe blocked; the 2026-10-14 binary at
+                      %LOCALAPPDATA%\agy\bin\agy.exe answers --version and uses cli.
   - 'none'          - there is no installed binary at all (opencode-desktop,
                       hermes, windsurf). The only thing to assert is that the
                       registry's own belief agrees: the declared executable
