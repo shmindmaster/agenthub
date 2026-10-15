@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "repowise-workspace": {
-      "type": "http",
-      "url": "http://127.0.0.1:7339/mcp"
+      "command": "pyw",
+      "args": [
+        "-3",
+        "${CLAUDE_PLUGIN_ROOT}/scripts/repowise_bridge.py"
+      ]
     }
   }
 }

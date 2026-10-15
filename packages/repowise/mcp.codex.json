@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "repowise-workspace": {
+      "type": "stdio",
+      "command": "pyw",
+      "args": [
+        "-3",
+        "./scripts/repowise_bridge.py"
+      ],
+      "cwd": "."
+    }
+  }
+}
