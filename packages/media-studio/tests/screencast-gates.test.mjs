@@ -16,15 +16,15 @@ const validator = join(pkg, 'scripts', 'validate-product-picture.mjs');
 const encodedValidator = join(pkg, 'scripts', 'validate-encoded-picture.mjs');
 const releaseValidator = join(pkg, 'scripts', 'validate-viewer-release.mjs');
 const compose = join(pkg, 'kit', 'screencast', 'compose-screencast.mjs');
-const ff = (args) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], { stdio: ['ignore', 'ignore', 'inherit'] });
+const ff = (args) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-threads', '2', ...args], { windowsHide: true, timeout: 120000, stdio: ['ignore', 'ignore', 'inherit'] });
 const sha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
 const run = (script, args, env = {}) => {
-  const r = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { ...process.env, AGENTHUB_ROOT: '', ...env } });
+  const r = spawnSync(process.execPath, [script, ...args], { windowsHide: true, encoding: 'utf8', env: { ...process.env, AGENTHUB_ROOT: '', ...env } });
   return { code: r.status, out: (r.stdout || '') + (r.stderr || '') };
 };
 
 function hasFfmpeg() {
-  try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); execFileSync('ffprobe', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; }
+  try { execFileSync('ffmpeg', ['-version'], { windowsHide: true, timeout: 10000, stdio: 'ignore' }); execFileSync('ffprobe', ['-version'], { windowsHide: true, timeout: 10000, stdio: 'ignore' }); return true; } catch { return false; }
 }
 
 /** A moving synthetic clip: testsrc2 (changes every frame) at the delivery frame. */
@@ -323,4 +323,47 @@ test('encoded gate: a static run straddling a pause is judged as the neighbourin
   const rep = JSON.parse(readFileSync(join(root, 'qa', 'encoded-pause.json'), 'utf8'));
   assert.ok(rep.staticRuns.every((r) => r.segment !== null), 'every static run is attributed to a segment');
   assert.ok(!ok.out.includes('card held'), 'no false card-held error from the pause');
+});
+
+test('encoded gate: a repeated source file binds by clip id, not by file order', { skip: !ffmpegAvailable }, () => {
+  const root = join(scratch, 'encoded-samefile');
+  writeJob(root, { screenSeconds: 16, cardSeconds: 6 });
+  const clip = join(root, 'capture', 'clips', 'S02.webm');
+  movingClip(clip, 16);
+  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  // Two distinct edits reuse one source video, each with its own clip id and crop. The wrong (first) clip shares
+  // the file, so a file-first match binds S02 to the other clip's sourceRegion.
+  const full = { x: 0, y: 0, width: 1, height: 1 };
+  const leftHalf = { x: 0, y: 0, width: 0.5, height: 1 };
+  writeFileSync(join(root, 'capture', 'manifest.json'), JSON.stringify({ clips: [
+    { id: 'S02-b', file: 'clips/S02.webm', segments: ['S02-b'], sourceRegion: leftHalf },
+    { id: 'S02', file: 'clips/S02.webm', segments: ['S02'], sourceRegion: full },
+  ] }));
+  const card = join(root, 'capture', 'clips', 'S01-card.png');
+  ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', card]);
+  const good = join(root, 'output', 'good.mp4');
+  ff(['-loop', '1', '-t', '6', '-i', card, '-i', clip, '-filter_complex', '[0:v]fps=30,format=yuv420p[a];[1:v]fps=30,format=yuv420p[b];[a][b]concat=n=2:v=1:a=0[v]', '-map', '[v]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', good]);
+  const mapPath = join(root, 'output', 'good-compose-map.json');
+  writeFileSync(mapPath, JSON.stringify({ groups: [{ segments: ['S01'], clipId: 'S01-card', file: 'clips/S01-card.png', isImage: true }, { segments: ['S02'], clipId: 'S02', file: 'clips/S02.webm', fit: 'cut', sourceRegion: full }] }));
+  // The compose map agrees with the manifest clip that carries clip id S02: it must pass, not fail on the file twin.
+  const ok = run(encodedValidator, [root, good, '--out', 'qa/encoded-samefile.json']);
+  assert.equal(ok.code, 0, ok.out);
+  assert.equal(JSON.parse(readFileSync(join(root, 'qa', 'encoded-samefile.json'), 'utf8')).ok, true);
+  // A compose map whose crop matches the file twin (not clip id S02) contradicts the manifest: reject by identity.
+  const map = JSON.parse(readFileSync(mapPath, 'utf8')); map.groups[1].sourceRegion = leftHalf; writeFileSync(mapPath, JSON.stringify(map));
+  const mismatch = run(encodedValidator, [root, good, '--out', 'qa/encoded-samefile-b.json']);
+  assert.notEqual(mismatch.code, 0);
+  assert.match(mismatch.out, /differs from capture manifest/);
+  map.groups[1].sourceRegion = full;
+  map.groups[1].clipId = 'unknown';
+  writeFileSync(mapPath, JSON.stringify(map));
+  const ambiguous = run(encodedValidator, [root, good]);
+  assert.notEqual(ambiguous.code, 0);
+  assert.match(ambiguous.out, /does not resolve by clip id/);
+  map.groups[1].clipId = 'S02';
+  map.groups[1].file = 'clips/wrong.webm';
+  writeFileSync(mapPath, JSON.stringify(map));
+  const wrongFile = run(encodedValidator, [root, good]);
+  assert.notEqual(wrongFile.code, 0);
+  assert.match(wrongFile.out, /different source file/);
 });

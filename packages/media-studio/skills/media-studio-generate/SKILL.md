@@ -43,15 +43,15 @@ until a verified provider receipt adapter exists; report that limitation explici
 
 For local viewer-facing owner/role speech use `Generate-OwnerVoice.ps1`:
 
-Use the AgentHub-deployed shared tools on native-plugin and loose-skill hosts. Their `plugin.json` must match this skill's 1.5.14 release. Missing or stale tools block generation until AgentHub syncs the kit from a verified 1.5.14 package; do not default to a checkout of unknown version.
+Use the AgentHub-deployed shared tools on native-plugin and loose-skill hosts. Their `plugin.json` must match this skill's 1.5.15 release. Missing or stale tools block generation until AgentHub syncs the kit from a verified 1.5.15 package; do not default to a checkout of unknown version.
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $manifest = Join-Path $tools 'plugin.json'
 $generator = Join-Path $tools 'Generate-OwnerVoice.ps1'
 $integrity = Join-Path $tools 'Test-SpeechIntegrity.ps1'
-if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '1.5.14' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
-    throw 'Media Studio 1.5.14 voice tools are missing or stale. Deploy them from a verified package before generation.'
+if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '1.5.15' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
+    throw 'Media Studio 1.5.15 voice tools are missing or stale. Deploy them from a verified package before generation.'
 }
 & pwsh -NoProfile -File $generator -Job $Job
 ```
