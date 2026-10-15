@@ -1573,8 +1573,51 @@
       "maturity": "beta",
       "provenance": "agenthub-owned",
       "notes": "Self-hosted OpenConnector (ghcr.io/oomol-lab/open-connector v1.5.0, digest-pinned) as the fleet's shared SaaS action gateway for non-Claude hosts. Persisted 2026-09-13 on codex, cursor, opencode and grok as an HTTP MCP entry; one Docker container on 127.0.0.1:3400, secrets and SQLite under %LOCALAPPDATA%\\AgentHub\\runtime\\open-connector. Scope: Brave Search (replacing the retired brave-search stdio bridge), no-auth research and developer sources, and long-tail api_key providers without a hosted MCP. GitHub, Linear, Notion, Context7, Exa, Firecrawl, Railway and Descript stay on official hosted MCPs; Slack stays AgentHub-owned. Hosts authenticate with a minted, revocable runtime token in the User environment variable OPEN_CONNECTOR_AGENT_TOKEN; the bootstrap token serves only the wrapper and healthcheck. Products never use it (Lawli SH-2748, LienWise external-platforms.policy.js, CoLedger ai-boundaries.md)."
+    },
+    {
+      "id": "coding-agent-dispatch",
+      "owner": "personal-infrastructure",
+      "capabilityType": "skills",
+      "canonicalSource": "packages/coding-agent-dispatch",
+      "managedSkillNames": [
+        "use-coding-agent"
+      ],
+      "contentHash": "9464D417C2AAE0FDAE44383C4777A6F1B1AC918438F4AEDB9C5E791F2F00D78C",
+      "hashBasis": "packages/coding-agent-dispatch",
+      "status": "active-canonical",
+      "hostMappings": [
+        { "hostId": "claude", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "codex", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "qwen-code", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "opencode", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "gemini", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "hermes", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "copilot", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "antigravity", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "grok", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "warp", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "cline", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "cursor", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "cursor-agent", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "qoder", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "amp", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "devin", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "factory", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "vscode-insiders", "deploymentStatus": "managed-loose-skills" },
+        { "hostId": "windsurf", "deploymentStatus": "managed-loose-skills" }
+      ],
+      "hostMappingsNote": "2026-10-14: every host that already receives the shared skill library. Claude and Codex are the primary orchestrators. The callable set is Invoke-CodingAgent.ps1 -List, not this host list. GUI and unverified hosts stay refused inside the script.",
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": []
+      },
+      "kind": "tool",
+      "maturity": "beta",
+      "provenance": "agenthub-owned",
+      "notes": "Windowless dispatcher so one coding agent can call another. Claude and Codex are the primary orchestrators and can call any host -List marks callable. The same skill is deployed to the other coding hosts, so they can call the same script. Flags are only the headless commands verified on 2026-10-14. Cursor routes to cursor-agent. GUI hosts, interactive hosts, and CLIs without a verified prompt contract are refused."
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",
-  "lastCanonicalChangeAt": "2026-09-13T00:00:00Z"
+  "lastCanonicalChangeAt": "2026-10-14T00:00:00Z"
 }

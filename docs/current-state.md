@@ -4,6 +4,16 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Coding-agent dispatch (2026-10-14, prepared; deployment pending):** `packages/coding-agent-dispatch`
+  owns the `use-coding-agent` skill and `Invoke-CodingAgent.ps1`. Claude and
+  Codex are the primary orchestrators. Any host that has the skill can call
+  the same script. `-List` is the callable set. Devin and OpenCode passed
+  bounded smokes on explicitly free models; other hosts have explicit gates.
+  A host without a verified headless command is refused, including GUI hosts. Deploy with
+  `Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`. The
+  orchestrator doors are `agents/claude/coding-agent.md` and
+  `agents/codex/coding-agent.toml`, copied into `~/.claude/agents` and
+  `~/.codex/agents`.
 - **Public-first control plane (2026-09-17):** Sole product remote is
   `github.com/shmindmaster/agenthub`. Tracked `packages/` and
   `registry/capabilities.json` carry only public capabilities. Private

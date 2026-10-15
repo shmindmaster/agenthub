@@ -63,7 +63,7 @@
       {
         "launchDefaultsKey": "agy",
         "hostId": "antigravity",
-        "evidence": "registry/agents.json activeAgents[antigravity].executable resolves to ...WinGet\\Links\\agy.exe, and launchDefaults.agy (['--dangerously-skip-permissions']) is byte-identical to the deleted host-autonomy-mappings.json antigravity.native.flags. Treated as established, not merely flagged.",
+        "evidence": "registry/agents.json activeAgents[antigravity].executable resolves to %LOCALAPPDATA%\\agy\\bin\\agy.exe (the WinGet Links\\agy.exe shim is absent), and launchDefaults.agy (['--dangerously-skip-permissions']) is byte-identical to the deleted host-autonomy-mappings.json antigravity.native.flags. Treated as established, not merely flagged. Corrected 2026-10-14.",
         "note": "The launchDefaults key itself is left as 'agy' -- renaming it is out of scope for this task; registry/fleet-profile.json's separately-reported absolute-path pinning is likewise left as-is here."
       }
     ],
@@ -223,19 +223,19 @@
       },
       {
         "hostId": "amp",
-        "defaultProfile": "interactive",
+        "defaultProfile": "repo-autonomous",
         "native": {
-          "surface": "cli",
-          "headlessConstraint": "paid-tier-required"
-        }
+          "surface": "local-headless-cli"
+        },
+        "note": "2026-10-14 owner-authorized fleet repair: verified native headless help; dispatchPolicy independently gates auth, billing and smoke evidence. No remote/cloud execution is authorized."
       },
       {
         "hostId": "windsurf",
-        "defaultProfile": "interactive",
+        "defaultProfile": "repo-autonomous",
         "native": {
-          "surface": "configured-only",
-          "reason": "Do not emit settings without a current official Windows schema."
-        }
+          "surface": "alias-to-devin"
+        },
+        "note": "2026-10-14 owner-authorized fleet repair: verified native headless help; dispatchPolicy independently gates auth, billing and smoke evidence. No remote/cloud execution is authorized."
       },
       {
         "hostId": "hermes",
@@ -250,11 +250,11 @@
       },
       {
         "hostId": "warp",
-        "defaultProfile": "interactive",
+        "defaultProfile": "repo-autonomous",
         "native": {
-          "surface": "desktop-and-cloud-cli",
-          "implementation": "UI permission profile and per-task controls"
-        }
+          "surface": "local-headless-cli"
+        },
+        "note": "2026-10-14 owner-authorized fleet repair: verified native headless help; dispatchPolicy independently gates auth, billing and smoke evidence. No remote/cloud execution is authorized."
       },
       {
         "hostId": "cline",
@@ -342,6 +342,122 @@
       "enabled": true,
       "scope": "ide-agent, local-cli, cloud-background-agent, api",
       "reason": "Owner explicitly reauthorized all Cursor surfaces on 2026-07-30. Health checks remain read-only and must not consume a paid run."
+    },
+    "cursor-agent": {
+      "enabled": false,
+      "reason": "Authentication required in the prior live smoke.",
+      "ownerAction": "Run agent login in your own terminal, then rerun one authorized smoke.",
+      "verifiedOn": "2026-10-14"
+    },
+    "factory": {
+      "enabled": false,
+      "reason": "Authentication failed in the prior live smoke.",
+      "ownerAction": "Open droid in your own terminal and run /login, then rerun one authorized smoke.",
+      "verifiedOn": "2026-10-14"
+    },
+    "hermes": {
+      "enabled": false,
+      "reason": "Declared executable and PATH command are absent.",
+      "ownerAction": "Restore the configured Hermes installation so {userHome}/AppData/Local/hermes/hermes-agent/venv/Scripts/hermes.exe resolves; verify its native headless help and one authorized smoke before enabling.",
+      "verifiedOn": "2026-10-14"
+    },
+    "amp": {
+      "enabled": false,
+      "reason": "Headless help verified; free allowance does not establish execute-mode billing eligibility.",
+      "ownerAction": "Verify included execute allowance or explicitly authorize a task credit budget, then run one smoke.",
+      "verifiedOn": "2026-10-14"
+    },
+    "claude": {
+      "enabled": false,
+      "reason": "Headless help verified; User ANTHROPIC_API_KEY would use API billing. Included allowance is not established.",
+      "ownerAction": "Verify included allowance or explicitly authorize a task credit budget, then run one smoke.",
+      "verifiedOn": "2026-10-14"
+    },
+    "codex": {
+      "enabled": false,
+      "reason": "Headless help verified; installed shim selects cli-api. Included allowance is not established.",
+      "ownerAction": "Verify included allowance or explicitly authorize a task credit budget, then run one smoke.",
+      "verifiedOn": "2026-10-14"
+    },
+    "qwen-code": {
+      "enabled": false,
+      "reason": "Prior live smoke returned HTTP 403 for qwen3.8-max; model eligibility is not proven by the catalog.",
+      "ownerAction": "Select an eligible Token Plan model in Qwen settings and verify included allowance before one smoke.",
+      "verifiedOn": "2026-10-14"
+    },
+    "gemini": {
+      "enabled": false,
+      "reason": "Prior run exhausted transport retries; current smoke and included allowance remain unverified.",
+      "ownerAction": "Verify API connectivity and included allowance, then run one bounded smoke.",
+      "verifiedOn": "2026-10-14"
+    },
+    "warp": {
+      "enabled": false,
+      "reason": "Local Oz headless help verified; authentication, included allowance and smoke remain unverified.",
+      "ownerAction": "Verify Oz account access and included allowance, then authorize one local smoke; do not use cloud execution.",
+      "verifiedOn": "2026-10-14"
+    },
+    "devin-cloud": {
+      "enabled": false,
+      "reason": "Hosted cloud execution is prohibited; no cloud adapter has been verified.",
+      "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget before implementing and enabling a cloud adapter."
+    },
+    "jules": {
+      "enabled": false,
+      "reason": "Hosted cloud execution is prohibited; no cloud adapter has been verified.",
+      "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget before implementing and enabling a cloud adapter."
+    },
+    "cursor-cloud": {
+      "enabled": false,
+      "reason": "Hosted cloud execution is prohibited; no cloud adapter has been verified.",
+      "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget before implementing and enabling a cloud adapter."
+    },
+    "copilot-agent": {
+      "enabled": false,
+      "reason": "Hosted cloud execution is prohibited; no cloud adapter has been verified.",
+      "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget before implementing and enabling a cloud adapter."
+    },
+    "devin": {
+      "enabled": true,
+      "model": "swe-2-medium",
+      "reason": "2026-10-14: devin models list marks swe-2-medium Free; bounded local print smoke exited 0 and returned ok. Pinned to that free model.",
+      "verifiedOn": "2026-10-14"
+    },
+    "opencode": {
+      "enabled": true,
+      "model": "opencode/big-pickle",
+      "reason": "2026-10-14: installed metadata reports zero input/output/cache prices for opencode/big-pickle; bounded dispatcher smoke exited 0 and returned ok. Pinned to that free model.",
+      "verifiedOn": "2026-10-14"
+    },
+    "qoder": {
+      "enabled": false,
+      "reason": "qodercli status reports Account: Not logged in. Native headless help verified.",
+      "ownerAction": "Run qodercli login in your own terminal; confirm included allowance or authorize a task credit budget, then one smoke before enabling.",
+      "verifiedOn": "2026-10-14"
+    },
+    "antigravity": {
+      "enabled": false,
+      "reason": "Native headless help verified; configured provider/model allowance and live smoke remain unverified.",
+      "ownerAction": "Confirm included allowance for this CLI and its configured model (or explicitly authorize a task credit budget), then run one bounded dispatcher smoke before enabling.",
+      "verifiedOn": "2026-10-14"
+    },
+    "cline": {
+      "enabled": false,
+      "reason": "Native headless help verified; configured provider/model allowance and live smoke remain unverified.",
+      "ownerAction": "Confirm included allowance for this CLI and its configured model (or explicitly authorize a task credit budget), then run one bounded dispatcher smoke before enabling.",
+      "verifiedOn": "2026-10-14"
+    },
+    "copilot": {
+      "enabled": false,
+      "reason": "Native headless help verified; configured provider/model allowance and live smoke remain unverified.",
+      "ownerAction": "Confirm included allowance for this CLI and its configured model (or explicitly authorize a task credit budget), then run one bounded dispatcher smoke before enabling.",
+      "verifiedOn": "2026-10-14"
+    },
+    "grok": {
+      "enabled": false,
+      "reason": "Native headless help verified; configured provider/model allowance and live smoke remain unverified.",
+      "ownerAction": "Confirm included allowance for this CLI and its configured model (or explicitly authorize a task credit budget), then run one bounded dispatcher smoke before enabling.",
+      "verifiedOn": "2026-10-14"
     }
   },
   "hostSurfaces": {
@@ -581,7 +697,8 @@
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
         },
         "verifiedOn": "2026-09-02",
-        "verification": "Official Qoder IDE docs: built-in Browser Agent pane with screenshots, and Computer Use on Windows 10+. The optional local-Chrome path is not treated as authenticated without a connection probe. This is the IDE surface; the CLI is not separately asserted."
+        "verification": "Official Qoder IDE docs: built-in Browser Agent pane with screenshots, and Computer Use on Windows 10+. The optional local-Chrome path is not treated as authenticated without a connection probe. This is the IDE surface; the CLI is not separately asserted.",
+        "dispatchNote": "This IDE row is not the qodercli print surface. CLI dispatch uses the separately recorded qoder-cli surface."
       },
       {
         "hostId": "factory",
@@ -625,7 +742,8 @@
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
         },
         "verifiedOn": "2026-09-02",
-        "verification": "Official Warp Computer Use page withholds the capability from local interactive terminal sessions. Local Warp therefore stays a Playwright MCP host."
+        "verification": "Official Warp Computer Use page withholds the capability from local interactive terminal sessions. Local Warp therefore stays a Playwright MCP host.",
+        "dispatchNote": "WARP_CLI_MODE=1 exposes Oz agent run. Local headless help verified 2026-10-14; no cloud smoke performed."
       },
       {
         "hostId": "warp",
@@ -692,6 +810,71 @@
         },
         "verifiedOn": "2026-09-02",
         "verification": "Official Gemini CLI tools: web_fetch and google_web_search, no headed browser. Optional browser_agent is retired chrome-devtools-mcp and stays disabled. Gemini remains a Playwright MCP host."
+      },
+      {
+        "hostId": "devin",
+        "surfaceId": "devin-cli",
+        "capabilities": {
+          "browser.isolated": null,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "verifiedOn": "2026-10-14",
+        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
+      },
+      {
+        "hostId": "qoder",
+        "surfaceId": "qoder-cli",
+        "capabilities": {
+          "browser.isolated": null,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "verifiedOn": "2026-10-14",
+        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
+      },
+      {
+        "hostId": "amp",
+        "surfaceId": "amp-cli",
+        "capabilities": {
+          "browser.isolated": null,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "verifiedOn": "2026-10-14",
+        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
+      },
+      {
+        "hostId": "opencode",
+        "surfaceId": "opencode-cli",
+        "capabilities": {
+          "browser.isolated": null,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "verifiedOn": "2026-10-14",
+        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
+      },
+      {
+        "hostId": "qwen-code",
+        "surfaceId": "qwen-cli",
+        "capabilities": {
+          "browser.isolated": null,
+          "browser.authenticated": null,
+          "computer.gui": null,
+          "mobile.android.local": null,
+          "mobile.ios.simulated": null
+        },
+        "verifiedOn": "2026-10-14",
+        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
       }
     ],
     "note": "null means not established, never 'assumed false'. Every true and every false must carry its own sentence under this surface's capabilityEvidence, keyed by the capability it backs -- one shared paragraph cannot answer for three capabilities, which is how a false about GUI control once rode on evidence that only discussed browsers. A null carries no writing cost at all: registry/mcps.json requires a null protocol revision to say why, and this table deliberately does not, because charging the honest value a cost that false does not pay is the incentive being inverted here. A capabilityNotEstablished entry is optional, is never read as evidence, and must name a capability this surface still records as null. Enforced by tests/Test-HostSurfaces.ps1."
