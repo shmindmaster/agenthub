@@ -233,6 +233,96 @@ class BridgeTests(unittest.TestCase):
         reply, _ = self.harness.recv_id(1)
         self.assertIn("error", reply)
 
+    def test_relaunches_after_fail_closed_cooldown(self) -> None:
+        # Review finding: a fail-closed launch used to be final for the
+        # bridge's whole life, even after the embedder came back.
+        flip = self.tmp / "second-launch.txt"
+        script = (
+            "import os, sys, subprocess\n"
+            f"flag = {str(flip)!r}\n"
+            "if not os.path.exists(flag):\n"
+            "    open(flag, 'w').close(); sys.exit(2)\n"
+            f"os.execv(sys.executable, [sys.executable, '-I', {str(FAKE)!r}, '--port', '{self.port}', '--marker', {str(self.marker)!r}])\n"
+        )
+        launcher = [sys.executable, "-I", "-c", script]
+        self.harness = BridgeHarness(self.port, launcher, self.tmp, {
+            "REPOWISE_BRIDGE_RELAUNCH_COOLDOWN": "1", "REPOWISE_BRIDGE_RELAUNCH_INTERVAL": "0.5"})
+        self.harness.send(INIT)
+        first, _ = self.harness.recv_id(1)
+        self.assertIn("error", first, "first launch fails closed")
+        time.sleep(1.5)
+        self.harness.send({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "list_repos", "arguments": {}}})
+        reply, _ = self.harness.recv_id(2)
+        self.assertFalse(reply["result"]["isError"], "after the cooldown the bridge must launch again")
+        self.assertTrue(self.marker.exists())
+
+    def test_holds_calls_while_launcher_is_probing(self) -> None:
+        # Review finding: the port listens before the launcher has confirmed
+        # the server is not on the mock embedder; real calls must wait.
+        self.start_server()
+        sleeper = subprocess.Popen([sys.executable, "-I", "-c", "import time; time.sleep(60)"])
+        self.servers.append(sleeper)
+        state = self.tmp / "launcher.state.json"
+        state.write_text(json.dumps({"pid": sleeper.pid, "state": "starting"}), encoding="utf-8")
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp)
+        self.handshake()
+        self.harness.send({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "list_repos", "arguments": {}}})
+        with self.assertRaises((AssertionError, queue.Empty), msg="the call must not be answered while the probe runs"):
+            self.harness.recv_id(2, timeout=2)
+        state.write_text(json.dumps({"pid": sleeper.pid, "state": "ready"}), encoding="utf-8")
+        reply, _ = self.harness.recv_id(2)
+        self.assertFalse(reply["result"]["isError"])
+
+    def test_probe_gate_times_out_with_a_clear_error(self) -> None:
+        self.start_server()
+        sleeper = subprocess.Popen([sys.executable, "-I", "-c", "import time; time.sleep(60)"])
+        self.servers.append(sleeper)
+        (self.tmp / "launcher.state.json").write_text(json.dumps({"pid": sleeper.pid, "state": "starting"}), encoding="utf-8")
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp, {"REPOWISE_BRIDGE_CALL_WAIT": "2"})
+        self.handshake()
+        self.harness.send({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "list_repos", "arguments": {}}})
+        reply, _ = self.harness.recv_id(2)
+        self.assertIn("still being verified", reply["error"]["message"])
+
+    def test_stale_launcher_state_from_a_dead_pid_is_ignored(self) -> None:
+        self.start_server()
+        (self.tmp / "launcher.state.json").write_text(json.dumps({"pid": 999999, "state": "starting"}), encoding="utf-8")
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp, {"REPOWISE_BRIDGE_CALL_WAIT": "5"})
+        self.handshake()
+        self.harness.send({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "list_repos", "arguments": {}}})
+        reply, _ = self.harness.recv_id(2)
+        self.assertFalse(reply["result"]["isError"])
+
+    def test_tool_call_is_not_resent_after_connection_drops_mid_call(self) -> None:
+        # Review finding: a reset after the server began a call used to be
+        # retried on a new session, running a write tool twice.
+        calls = self.tmp / "calls.txt"
+        os.environ["FAKE_MCP_CALL_LOG"] = str(calls)
+        os.environ["FAKE_MCP_DROP_CALL"] = "1"
+        try:
+            self.start_server()
+        finally:
+            os.environ.pop("FAKE_MCP_CALL_LOG", None)
+            os.environ.pop("FAKE_MCP_DROP_CALL", None)
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp)
+        self.handshake()
+        self.harness.send({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "update_decision_records", "arguments": {}}})
+        reply, _ = self.harness.recv_id(2)
+        self.assertIn("not resent", reply["error"]["message"])
+        self.assertEqual(calls.read_text(encoding="utf-8").count("call"), 1, "the server must see the call exactly once")
+
+    def test_cursor_pages_do_not_overwrite_the_cached_first_page(self) -> None:
+        self.start_server()
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp)
+        self.handshake()
+        self.harness.send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        self.harness.recv_id(2)
+        before = json.loads((self.tmp / "bridge-cache.json").read_text(encoding="utf-8"))["tools/list"]
+        self.harness.send({"jsonrpc": "2.0", "id": 3, "method": "tools/list", "params": {"cursor": "page-2"}})
+        self.harness.recv_id(3)
+        after = json.loads((self.tmp / "bridge-cache.json").read_text(encoding="utf-8"))["tools/list"]
+        self.assertEqual(before, after)
+
     def test_ping_is_answered_locally(self) -> None:
         self.harness = BridgeHarness(self.port, [sys.executable, "-I", "-c", "import sys; sys.exit(2)"], self.tmp)
         self.harness.send({"jsonrpc": "2.0", "id": 9, "method": "ping"})

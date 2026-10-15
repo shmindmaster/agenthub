@@ -96,7 +96,9 @@ function Invoke-Launcher {
     finally { Remove-Item Env:\FAKE_MCP_MARKER, Env:\FAKE_MCP_DEGRADED -ErrorAction SilentlyContinue }
     $logPath = Join-Path $runtime 'launcher.log'
     $logText = if (Test-Path -LiteralPath $logPath) { Get-Content -LiteralPath $logPath -Raw } else { '' }
-    [pscustomobject]@{ Code = $code; Log = $logText }
+    $statePath = Join-Path $runtime 'launcher.state.json'
+    $state = if (Test-Path -LiteralPath $statePath) { [string](Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).state } else { '' }
+    [pscustomobject]@{ Code = $code; Log = $logText; State = $state }
 }
 
 $embedderPort = Get-FreePort
@@ -123,6 +125,7 @@ try {
     $r = Invoke-Launcher -Port $port -EmbedderUrl $liveEmbedder
     Report 'launcher starts repowise when the embedder is ready' ($r.Code -eq 0 -and (Test-Listening $port)) "exit=$($r.Code) log=$($r.Log)"
     Report 'launcher verifies the started server is not degraded' ($r.Log -match 'embedder probe: not degraded') $r.Log
+    Report 'launcher marks a verified server ready for bridges' ($r.State -eq 'ready') "state=$($r.State)"
 
     # 2d. Port already served: exit 0 without touching anything, embedder or not.
     Remove-Item -LiteralPath $marker -Force
@@ -137,6 +140,7 @@ try {
     Report 'launcher exits 2 when the server reports embedder_degraded' ($r.Code -eq 2 -and $r.Log -match 'embedder_degraded=true') "exit=$($r.Code) log=$($r.Log)"
     Start-Sleep -Seconds 1
     Report 'launcher stops a degraded server' (-not (Test-Listening $port2)) "port $port2 still served"
+    Report 'launcher marks a degraded launch failed, not starting' ($r.State -eq 'failed') "state=$($r.State)"
     Stop-PortOwner $port2
 }
 finally {

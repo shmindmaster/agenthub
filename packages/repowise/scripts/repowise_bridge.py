@@ -48,6 +48,9 @@ from typing import Any, Callable
 
 DEFAULT_URL = "http://127.0.0.1:7339/mcp"
 CACHED_METHODS = ("initialize", "tools/list", "prompts/list", "resources/list")
+# Requests with possible side effects (RepoWise has write tools such as
+# update_decision_records): never resent after the connection dropped mid-call.
+NOT_RESENT_METHODS = ("tools/call",)
 INTERNAL_ID_PREFIX = "repowise-bridge-"
 
 # Windows process creation flags. CREATE_NO_WINDOW gives the launcher a console
@@ -64,8 +67,17 @@ class UpstreamDown(Exception):
     """Nothing answered at the endpoint; safe to retry, nothing was executed."""
 
 
+class UpstreamLost(UpstreamDown):
+    """The connection dropped after the request was sent. The server may have
+    run it, so a request with side effects must not be resent."""
+
+
 class SessionExpired(Exception):
     """The server no longer knows our session id (it restarted)."""
+
+    def __init__(self, sent_session: str | None = None) -> None:
+        super().__init__("session expired")
+        self.sent_session = sent_session
 
 
 class UpstreamSlow(Exception):
@@ -109,6 +121,52 @@ def launcher_command() -> list[str]:
     return default_launcher_command()
 
 
+def pid_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return False
+            return code.value == 259  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def wait_for_launch_probe(deadline: float, log: Callable[[str], None]) -> None:
+    """Block while any launcher is between starting RepoWise and confirming it
+    is not on a mock embedder (launcher.state.json says "starting" and its pid
+    is alive). The port is already listening in that window, so connecting is
+    not proof the server is fit to answer real queries."""
+    path = runtime_dir() / "launcher.state.json"
+    logged = False
+    while True:
+        try:
+            state = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            return
+        if state.get("state") != "starting" or not pid_alive(int(state.get("pid") or 0)):
+            return
+        if not logged:
+            log(f"waiting for launcher pid {state.get('pid')} to finish its embedder probe")
+            logged = True
+        if time.monotonic() >= deadline:
+            raise TimeoutError("RepoWise shared server is still being verified by its launcher; try again shortly")
+        time.sleep(0.5)
+
+
 def spawn_flags(breakaway: bool) -> int:
     flags = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
     if breakaway:
@@ -141,6 +199,13 @@ class Launcher:
         self._lock = threading.Lock()
         self._process: subprocess.Popen | None = None
         self.last_exit: int | None = None
+        self._finished_at: float | None = None
+        # A fail-closed exit is reported for this long, then a later request
+        # may launch again (the embedder may have come up meanwhile).
+        self.failure_cooldown = _env_float("REPOWISE_BRIDGE_RELAUNCH_COOLDOWN", 30.0)
+        # Never respawn more often than this, even after a clean exit that
+        # still left the port down.
+        self.min_interval = _env_float("REPOWISE_BRIDGE_RELAUNCH_INTERVAL", 10.0)
 
     def running(self) -> bool:
         with self._lock:
@@ -153,14 +218,23 @@ class Launcher:
         if code is None:
             return True
         self.last_exit = code
+        self._finished_at = time.monotonic()
         self._log(f"launcher pid {self._process.pid} exited {code}")
         self._process = None
         return False
 
     def failed(self) -> bool:
-        """The last launch finished non-zero and nothing is running now."""
+        """The last launch finished non-zero recently and nothing is running."""
         with self._lock:
-            return not self._poll_locked() and self.last_exit not in (None, 0)
+            if self._poll_locked() or self.last_exit in (None, 0) or self._finished_at is None:
+                return False
+            return time.monotonic() - self._finished_at < self.failure_cooldown
+
+    def may_start(self) -> bool:
+        with self._lock:
+            if self._poll_locked():
+                return False
+            return self._finished_at is None or time.monotonic() - self._finished_at >= self.min_interval
 
     def start(self) -> None:
         with self._lock:
@@ -219,12 +293,13 @@ class Upstream:
         delivered to the client as they come.
         """
         body = json.dumps(message).encode("utf-8")
+        sent_session = self.session_id
         request = urllib.request.Request(self.url, data=body, headers=self._headers(), method="POST")
         try:
             response = urllib.request.urlopen(request, timeout=max(timeout, 1.0))
         except urllib.error.HTTPError as exc:
-            if exc.code == 404 and self.session_id:
-                raise SessionExpired() from exc
+            if exc.code == 404 and sent_session:
+                raise SessionExpired(sent_session) from exc
             if exc.code in (502, 503, 504):
                 raise UpstreamDown(f"http {exc.code}") from exc
             detail = exc.read(512).decode("utf-8", "replace")
@@ -232,16 +307,25 @@ class Upstream:
         except urllib.error.URLError as exc:
             if isinstance(exc.reason, (socket.timeout, TimeoutError)):
                 raise UpstreamSlow(str(exc.reason)) from exc
+            if isinstance(exc.reason, ConnectionRefusedError):
+                raise UpstreamDown(str(exc.reason)) from exc
+            if isinstance(exc.reason, (ConnectionResetError, ConnectionAbortedError)):
+                raise UpstreamLost(str(exc.reason)) from exc
             raise UpstreamDown(str(exc.reason)) from exc
         except (socket.timeout, TimeoutError) as exc:
             raise UpstreamSlow(str(exc)) from exc
-        except (ConnectionRefusedError, ConnectionResetError) as exc:
+        except ConnectionRefusedError as exc:
             raise UpstreamDown(str(exc)) from exc
+        except (ConnectionResetError, ConnectionAbortedError) as exc:
+            # Includes http.client.RemoteDisconnected: the request was sent.
+            raise UpstreamLost(str(exc)) from exc
 
         try:
             return self._read_response(response, message)
         except (socket.timeout, TimeoutError) as exc:
             raise UpstreamSlow(str(exc)) from exc
+        except (ConnectionResetError, ConnectionAbortedError) as exc:
+            raise UpstreamLost(str(exc)) from exc
 
     def _read_response(self, response: Any, message: dict) -> tuple[dict | None, dict[str, str]]:
         with response:
@@ -328,7 +412,7 @@ class Upstream:
                 self._slow = False
                 if self._launcher.failed():
                     raise TimeoutError(self._down_reason())
-                if not self._launcher.running():
+                if self._launcher.may_start():
                     self._launcher.start()
                 time.sleep(min(1.0, max(deadline - time.monotonic(), 0)))
 
@@ -341,20 +425,36 @@ class Upstream:
             return f"RepoWise shared server did not start: launcher exited {code} (fail-closed); see {log}"
         return f"RepoWise shared server at {self.url} is not reachable; see {log}"
 
+    def _drop_session(self, sent: str | None) -> None:
+        # Only the session this request used: a concurrent request may already
+        # have opened a fresh one, and dropping that would re-initialize again.
+        with self._session_lock:
+            if self.session_id == sent:
+                self.session_id = None
+
     def forward(self, message: dict, deadline: float) -> dict | None:
         while True:
             self.ensure_session(deadline)
+            # A server whose launcher is still probing it may be running on mock
+            # vectors; hold real traffic until the probe has passed.
+            wait_for_launch_probe(deadline, self._log)
+            sent = self.session_id
             try:
                 reply, _ = self.post(message, max(deadline - time.monotonic(), 1.0))
                 return reply
-            except SessionExpired:
+            except SessionExpired as exc:
                 self._log("session expired upstream; re-initializing")
-                with self._session_lock:
-                    self.session_id = None
+                self._drop_session(exc.sent_session)
+            except UpstreamLost as exc:
+                self._drop_session(sent)
+                if message.get("method") in NOT_RESENT_METHODS:
+                    raise TimeoutError(
+                        f"connection to RepoWise was lost during {message.get('method')}; not resent because it may already have run ({exc})"
+                    ) from exc
+                self._log("upstream connection lost; retrying")
             except UpstreamDown:
                 self._log("upstream down mid-session; restarting")
-                with self._session_lock:
-                    self.session_id = None
+                self._drop_session(sent)
             except UpstreamSlow as exc:
                 # The request reached the server and may have run; never resend it.
                 raise TimeoutError(f"RepoWise shared server did not answer {message.get('method')} in time ({exc})") from exc
@@ -461,7 +561,8 @@ class Bridge:
         if method == "ping":
             self.write({"jsonrpc": "2.0", "id": message_id, "result": {}})
             return
-        cacheable = method in CACHED_METHODS
+        # Only the first page of a list: a cursor request would overwrite it.
+        cacheable = method in CACHED_METHODS and not (message.get("params") or {}).get("cursor")
         if wait is None:
             wait = self.handshake_wait if cacheable else self.call_wait
         deadline = time.monotonic() + wait
@@ -539,14 +640,20 @@ class Bridge:
             for item in message if isinstance(message, list) else [message]:
                 if isinstance(item, dict):
                     self.dispatch(item)
-        self._pool.shutdown(wait=True)
+        # The host is gone; do not keep this process alive for up to the call
+        # wait just to finish answering nobody.
+        self._pool.shutdown(wait=False, cancel_futures=True)
         self.upstream.close()
         self.log("stdin closed; exiting")
         return 0
 
 
 def main() -> int:
-    return Bridge(sys.stdin.buffer, sys.stdout.buffer).run()
+    code = Bridge(sys.stdin.buffer, sys.stdout.buffer).run()
+    sys.stdout.flush()
+    # Executor workers are joined at interpreter exit, which would keep this
+    # process alive until an in-flight call to a host that is gone finishes.
+    os._exit(code)
 
 
 if __name__ == "__main__":

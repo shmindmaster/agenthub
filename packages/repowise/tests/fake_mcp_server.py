@@ -85,6 +85,16 @@ def build_handler(degraded: bool, json_mode: bool, slow_init: float = 0.0):
                     self._sse([reply])
                 return
             if method == "tools/call":
+                call_log = os.environ.get("FAKE_MCP_CALL_LOG")
+                if call_log:
+                    with open(call_log, "a", encoding="utf-8") as handle:
+                        handle.write("call\n")
+                if os.environ.get("FAKE_MCP_DROP_CALL") == "1":
+                    # The server ran the call, then the connection died
+                    # before the response: what a crash mid-call looks like.
+                    self.close_connection = True
+                    self.connection.close()
+                    return
                 meta = {"embedder_degraded": degraded}
                 text = json.dumps({"repos": ["fixture"], "_meta": meta})
                 reply = {"jsonrpc": "2.0", "id": msg["id"], "result": {

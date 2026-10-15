@@ -48,6 +48,15 @@ $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
 $log = Join-Path $RuntimeDir 'launcher.log'
 function Write-Log([string]$m) { "[$(Get-Date -Format s)] launcher[$PID] $m" | Add-Content -Path $log -Encoding UTF8 }
+# Bridges read this to hold real traffic while a freshly started server is
+# listening but not yet confirmed off the mock embedder.
+$stateFile = Join-Path $RuntimeDir 'launcher.state.json'
+$launchStarted = $false
+$launchReady = $false
+function Set-LaunchState([string]$State) {
+    try { @{ pid = $PID; state = $State; at = (Get-Date -Format o) } | ConvertTo-Json -Compress | Set-Content -LiteralPath $stateFile -Encoding UTF8 }
+    catch { Write-Log "could not write launcher state: $($_.Exception.Message)" }
+}
 # A launcher that dies on an unhandled error must still say why; the bridge
 # that started it may already be gone, so this log is the only witness.
 trap {
@@ -118,7 +127,10 @@ function Test-ServerHealthy {
         $null = Invoke-WebRequest -Uri $url -Method Post -Body '{"jsonrpc":"2.0","method":"notifications/initialized"}' -ContentType 'application/json' -Headers $headers -TimeoutSec 30 -UseBasicParsing
         $call = '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_repos","arguments":{}}}'
         $r = Invoke-WebRequest -Uri $url -Method Post -Body $call -ContentType 'application/json' -Headers $headers -TimeoutSec 120 -UseBasicParsing
-        $content = [string]$r.Content
+        # Windows PowerShell hands back byte[] for content types it does not
+        # treat as text (text/event-stream); decoding it keeps the probe from
+        # silently becoming inconclusive.
+        $content = if ($r.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($r.Content) } else { [string]$r.Content }
         try { $null = Invoke-WebRequest -Uri $url -Method Delete -Headers $headers -TimeoutSec 5 -UseBasicParsing } catch { }
         if ($content -match '\\?"embedder_degraded\\?"\s*:\s*true') { return $false }
         if ($content -match '\\?"embedder_degraded\\?"\s*:\s*false') { return $true }
@@ -154,6 +166,8 @@ try {
 
     if (-not (Test-Path -LiteralPath $RepoWiseExe)) { Write-Log "FAIL: $RepoWiseExe missing"; exit 3 }
     Write-Log "starting $RepoWiseExe mcp $Workspace on 127.0.0.1:$Port"
+    Set-LaunchState 'starting'
+    $launchStarted = $true
     $p = Start-Process -FilePath $RepoWiseExe `
         -ArgumentList 'mcp', $Workspace, '--transport', 'streamable-http', '--port', "$Port", '--host', '127.0.0.1' `
         -WorkingDirectory ($Workspace -replace '/', '\') -WindowStyle Hidden -PassThru `
@@ -182,9 +196,12 @@ try {
         }
         Write-Log "embedder probe: $(if ($healthy) { 'not degraded' } else { 'inconclusive' })"
     }
+    Set-LaunchState 'ready'
+    $launchReady = $true
     exit 0
 }
 finally {
+    if ($launchStarted -and -not $launchReady) { Set-LaunchState 'failed' }
     if ($owned) { $mutex.ReleaseMutex() }
     $mutex.Dispose()
 }
