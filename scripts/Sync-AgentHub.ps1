@@ -35,6 +35,7 @@ param(
     [string]$ScopeProfile = 'global-default',
     [switch]$IncludeDeprecated,
     [switch]$IncludeInactiveAgents,
+    [switch]$QuietOverlayResolution,
     [string]$RegistryRoot,
     [string]$UserProfile = $env:USERPROFILE
 )
@@ -189,7 +190,7 @@ $capabilityCount = @($capReg.capabilities).Count
 if ($capabilityCount -eq 0) {
     throw "Registry root '$RegistryRoot' resolved to zero capabilities in $CapabilitiesFile. Refusing to report success against what looks like an empty or wrong registry tree; pass -RegistryRoot explicitly if this is intentional."
 }
-$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $RegistryRoot
+$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $RegistryRoot -ReportPrimaryCheckout:(-not $QuietOverlayResolution)
 $capReg.capabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capReg -OverlayRoot $overlayRoot)
 if (@($capReg.capabilities).Count -eq 0) {
     throw "Registry root '$RegistryRoot' resolved to zero effective capabilities after overlay filtering. Refusing to report success against an empty work set."

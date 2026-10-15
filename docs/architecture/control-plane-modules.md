@@ -75,17 +75,17 @@ private packages live only under overlays/personal/packages/
 `overlays/personal/overlay.json` lists private capability ids this machine
 loads. `overlays/personal.example/` is the template for a fresh checkout.
 `AGENTHUB_OVERLAY=off` resolves the public graph only. Absence of the
-overlay directory is the same as off.
+overlay directory is the same as off. `Get-AgentHubOverlayRoot` checks an
+explicit `AGENTHUB_OVERLAY` first, then the current checkout, then (for a
+linked worktree) its primary checkout, using `.git` -> `gitdir:` ->
+`commondir` without spawning Git. Private package sources are rebased onto
+that resolved overlay root.
 
 The overlay is gitignored, so a linked worktree under `C:\wt` never contains
-it. Production resolution does not look past the checkout: a sync or
-`Sync-Instructions` run from a worktree resolves the public graph and
-`policy-core.md` unless `AGENTHUB_OVERLAY` points at the primary checkout's
-`overlays/personal`. Tests that assert private-package facts resolve the
-overlay with `tests/lib/PrivateOverlay.ps1`: `AGENTHUB_OVERLAY`, then
-`<checkout>/overlays/personal`, then the primary checkout that owns the
-worktree (read from `.git` -> `commondir`). When none exists they print one
-`SKIP:` line naming every location checked.
+it. Sync and validate runs report the primary-checkout overlay path when
+they resolve it there. Tests that assert private-package facts use the same
+production resolver through `tests/lib/PrivateOverlay.ps1`; when no overlay
+exists, they print one `SKIP:` line naming every location checked.
 
 A gitignored `agenthub.profile.json` (see `agenthub.profile.example.json`)
 may pin local roots. It is never required for a checkout that can use

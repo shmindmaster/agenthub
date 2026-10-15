@@ -74,6 +74,7 @@
 param(
     [switch]$Audit,
     [switch]$Apply,
+    [switch]$QuietOverlayResolution,
     [string]$RepositoryRoot,
     [string]$UserProfile = $env:USERPROFILE
 )
@@ -120,7 +121,7 @@ $formatsReg      = Get-Content -LiteralPath $SubagentFormatsFile -Raw -Encoding 
 if (-not $capabilitiesReg.PSObject.Properties['capabilities'] -or @($capabilitiesReg.capabilities).Count -eq 0) {
     throw "Registry '$CapabilitiesFile' declares zero capabilities. Refusing to report success against what looks like an empty or wrong registry tree."
 }
-$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $RepositoryRoot
+$overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $RepositoryRoot -ReportPrimaryCheckout:(-not $QuietOverlayResolution)
 $capabilitiesReg.capabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilitiesReg -OverlayRoot $overlayRoot)
 if (@($capabilitiesReg.capabilities).Count -eq 0) {
     throw "Registry '$CapabilitiesFile' resolved to zero effective capabilities after overlay filtering."
