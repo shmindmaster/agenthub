@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/shmindmaster/agenthub/packages/product-experience-engineering/kits/demo-harness/deployed-version.schema.json",
+  "title": "deployed-version/v1",
+  "type": "object",
+  "required": ["schema", "service", "gitSha", "environment"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "deployed-version/v1" },
+    "service": { "type": "string", "minLength": 1 },
+    "version": { "type": "string" },
+    "gitSha": { "type": "string", "pattern": "^([0-9a-f]{40}|unknown)$" },
+    "builtAt": { "type": ["string", "null"] },
+    "environment": { "type": "string", "minLength": 1 }
+  }
+}

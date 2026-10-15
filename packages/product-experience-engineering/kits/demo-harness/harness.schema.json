@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/shmindmaster/agenthub/packages/product-experience-engineering/kits/demo-harness/harness.schema.json",
+  "title": "demo-harness/v1",
+  "type": "object",
+  "required": ["harnessVersion", "product", "demoTenant", "reset", "services", "baseUrl", "versionEndpoints", "syntheticLabel", "truthTable"],
+  "additionalProperties": false,
+  "properties": {
+    "harnessVersion": { "const": "demo-harness/v1" },
+    "product": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "demoTenant": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": { "id": { "type": "string", "minLength": 1 }, "name": { "type": "string", "minLength": 1 } }
+    },
+    "reset": {
+      "type": "object",
+      "required": ["full"],
+      "additionalProperties": false,
+      "properties": { "full": { "type": "string", "minLength": 1 }, "beat": { "type": ["string", "null"] } }
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "command", "readyUrl"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "cwd": { "type": "string" },
+          "command": { "type": "string", "minLength": 1 },
+          "readyUrl": { "type": "string", "pattern": "^http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?/" },
+          "env": { "type": "object", "additionalProperties": { "type": "string" } },
+          "readyTimeoutSeconds": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "baseUrl": { "type": "string", "pattern": "^https?://" },
+    "versionEndpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["service", "url"],
+        "additionalProperties": false,
+        "properties": { "service": { "type": "string" }, "url": { "type": "string", "pattern": "^https?://" } }
+      }
+    },
+    "syntheticLabel": {
+      "type": "object",
+      "required": ["testId", "text"],
+      "additionalProperties": false,
+      "properties": { "testId": { "const": "synthetic-data-label" }, "text": { "type": "string", "pattern": "Synthetic" } }
+    },
+    "truthTable": { "type": "string", "minLength": 1 },
+    "smokeSpec": { "type": "string" }
+  }
+}

@@ -28,6 +28,8 @@ Start from the requested AI capability, affected user outcome, repository eviden
 
 Load `02` from `../../references/product-experience-system/`, then add `01`, `04`, `05`, or `07` according to the artifact being produced. Follow [artifact contracts](../../references/artifact-contracts.md).
 
+When an approval or an AI step is consequential, implement it with the [execution-controls kit](../../kits/execution-controls/README.md) instead of a product-local pattern: the [approval capsule](../../kits/execution-controls/spec/approval-capsule.md) for the approval boundary (payload hash, revision, session-bound actor, idempotent locked apply, audit row, adversarial suite) and the [receipt](../../kits/execution-controls/spec/receipt.md) for provenance, replay and OpenTelemetry GenAI spans.
+
 ## Autonomy test
 
 | Consequence and reversibility | Default interaction |

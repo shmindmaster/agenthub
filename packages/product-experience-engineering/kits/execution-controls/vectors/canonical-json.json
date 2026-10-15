@@ -1,0 +1,17 @@
+{
+  "vectorVersion": "canonical-json/v1",
+  "about": "Canonical JSON (RFC 8785 restricted to integers) and its sha256. 'canonical' is the exact text; 'hash' is sha256: + hex of its UTF-8 bytes. Cases with 'error' must be refused.",
+  "cases": [
+    { "name": "empty_object", "input": {}, "canonical": "{}", "hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a" },
+    { "name": "empty_array", "input": [], "canonical": "[]" },
+    { "name": "key_order", "input": { "b": 1, "a": 2, "A": 3, "aa": 4, "_": 5 }, "canonical": "{\"A\":3,\"_\":5,\"a\":2,\"aa\":4,\"b\":1}" },
+    { "name": "nested", "input": { "z": { "y": [3, 2, { "b": true, "a": null }] }, "a": false }, "canonical": "{\"a\":false,\"z\":{\"y\":[3,2,{\"a\":null,\"b\":true}]}}" },
+    { "name": "integers", "input": [0, -1, 9007199254740991, -9007199254740991], "canonical": "[0,-1,9007199254740991,-9007199254740991]" },
+    { "name": "escapes", "input": { "s": "quote\" backslash\\ slash/ tab\t nl\n cr\r bs\b ff\f nul\u0000 us\u001f del\u007f" }, "canonical": "{\"s\":\"quote\\\" backslash\\\\ slash/ tab\\t nl\\n cr\\r bs\\b ff\\f nul\\u0000 us\\u001f del\u007f\"}" },
+    { "name": "unicode_is_not_escaped", "input": { "name": "Aïsha Raḥmān 😀  " }, "canonical": "{\"name\":\"Aïsha Raḥmān 😀  \"}" },
+    { "name": "utf16_key_order", "input": { "ﬁ": 1, "😀": 2, "é": 3 }, "canonical": "{\"é\":3,\"😀\":2,\"ﬁ\":1}" },
+    { "name": "money_as_string", "input": { "amount": "120.00", "currency": "USD" }, "canonical": "{\"amount\":\"120.00\",\"currency\":\"USD\"}" },
+    { "name": "float_refused", "input": { "score": 0.5 }, "error": "non-integer number" },
+    { "name": "unsafe_integer_refused", "input": [9007199254740993], "error": "integer outside the safe range" }
+  ]
+}

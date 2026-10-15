@@ -72,6 +72,10 @@ node ../../scripts/validate-demo-readiness-handoff.mjs _product-experience/demo-
 
 The two context options are optional, but supply them whenever the caller knows the checked-out revision and expected Markdown handoff path. A mismatch fails validation.
 
+## Demo harness
+
+The product side of a demo follows the [demo harness contract](../../kits/demo-harness/README.md): `demo/harness.json`, a one-command reset with a fingerprint, the visible synthetic-data label, a "Demonstrate now / Build next / Do not claim" truth table, a deployed-SHA endpoint, and a product-owned smoke spec. Check it with `node ../../scripts/validate-demo-harness.mjs <repo>` and bring the stack up windowless with `node ../../scripts/demo-stack.mjs up --repo <repo>` (run it as a background command; `down` stops everything). A missing harness item is a remediation, not a capture workaround. When the hero moment is an approval or an AI decision, it uses the [execution-controls kit](../../kits/execution-controls/README.md) so the guardrail on screen is the real one.
+
 ## Reference routing
 
 Read the complete [Product Experience Audit & Remediation Guide](../../references/product-experience-audit-remediation-guide.md). It is the synchronized authoritative guide supplied for this workflow. Use [application surface coverage](../../references/application-surface-coverage.md) and load specialized numbered references only when the workflow needs more depth. Do not replace the guide with the older read-only UI/UX audit route.

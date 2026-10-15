@@ -1,0 +1,459 @@
+{
+  "vectorVersion": "approval-cases/v1",
+  "about": "Shared decision vectors for approval-capsule/v1. Every implementation must produce the expected outcome, status, code and audit outcome for every case, and the expected base proposal hash. Merge rules: objects merge recursively, arrays and scalars replace, null deletes the key. The token $proposalHash is replaced by the hash of the case's (untampered) proposal. priorRequests are decided first, against the case's proposal, and the records they produce become priorDecisions.",
+  "base": {
+    "proposalInput": {
+      "capsuleId": "cap-0001",
+      "tenantId": "tenant-demo",
+      "subject": {
+        "type": "project",
+        "id": "proj-42",
+        "revision": 7
+      },
+      "action": "project.status.update",
+      "payload": {
+        "status": "at_risk",
+        "note": "Vendor slip of 9 days",
+        "evidence": [
+          "ev-1",
+          "ev-2"
+        ]
+      },
+      "proposedBy": {
+        "kind": "agent",
+        "id": "review-agent"
+      },
+      "createdAt": "2026-10-14T15:00:00Z",
+      "expiresAt": "2026-10-15T15:00:00Z",
+      "policyRevision": "policy-2026.10"
+    },
+    "principal": {
+      "id": "user-approver",
+      "tenantId": "tenant-demo",
+      "roles": [
+        "delivery_lead"
+      ]
+    },
+    "policy": {
+      "approverRoles": [
+        "delivery_lead",
+        "owner"
+      ]
+    },
+    "currentRevision": 7,
+    "now": "2026-10-14T16:00:00Z",
+    "request": {
+      "proposalHash": "$proposalHash",
+      "decision": "approve",
+      "idempotencyKey": "idem-1"
+    }
+  },
+  "expectedBaseProposalHash": "sha256:b676f4b8d74ae10e6e138bd91f033bbefe1315ac6634d55dc554277dce1e6f43",
+  "cases": [
+    {
+      "name": "approve_applies",
+      "expect": {
+        "outcome": "apply",
+        "status": 200,
+        "audit": "applied"
+      }
+    },
+    {
+      "name": "reject_records",
+      "request": {
+        "decision": "reject"
+      },
+      "expect": {
+        "outcome": "reject",
+        "status": 200,
+        "audit": "rejected"
+      }
+    },
+    {
+      "name": "other_tenant_is_not_found",
+      "principal": {
+        "tenantId": "tenant-other"
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 404,
+        "code": "capsule_not_found",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "tenant_check_precedes_actor_check",
+      "principal": {
+        "tenantId": "tenant-other"
+      },
+      "request": {
+        "claimedActorId": "user-someone-else"
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 404,
+        "code": "capsule_not_found",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "forged_actor_in_body",
+      "request": {
+        "claimedActorId": "user-someone-else"
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 403,
+        "code": "actor_mismatch",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "claimed_actor_matching_session_is_accepted",
+      "request": {
+        "claimedActorId": "user-approver"
+      },
+      "expect": {
+        "outcome": "apply",
+        "status": 200,
+        "audit": "applied"
+      }
+    },
+    {
+      "name": "stored_payload_tampered",
+      "storedProposalPatch": {
+        "payload": {
+          "status": "on_track"
+        }
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 409,
+        "code": "proposal_tampered",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "stored_revision_tampered",
+      "storedProposalPatch": {
+        "subject": {
+          "revision": 8
+        }
+      },
+      "currentRevision": 8,
+      "expect": {
+        "outcome": "refuse",
+        "status": 409,
+        "code": "proposal_tampered",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "presented_hash_is_not_the_proposal",
+      "request": {
+        "proposalHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 409,
+        "code": "proposal_hash_mismatch",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "role_without_approval_right",
+      "principal": {
+        "roles": [
+          "viewer"
+        ]
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 403,
+        "code": "actor_not_authorized",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "second_listed_role_is_enough",
+      "principal": {
+        "roles": [
+          "viewer",
+          "owner"
+        ]
+      },
+      "expect": {
+        "outcome": "apply",
+        "status": 200,
+        "audit": "applied"
+      }
+    },
+    {
+      "name": "self_approval_forbidden",
+      "proposalInput": {
+        "proposedBy": {
+          "kind": "user",
+          "id": "user-approver"
+        }
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 403,
+        "code": "self_approval_forbidden",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "self_approval_allowed_by_policy",
+      "proposalInput": {
+        "proposedBy": {
+          "kind": "user",
+          "id": "user-approver"
+        }
+      },
+      "policy": {
+        "allowSelfApproval": true
+      },
+      "expect": {
+        "outcome": "apply",
+        "status": 200,
+        "audit": "applied"
+      }
+    },
+    {
+      "name": "proposer_may_withdraw_by_rejecting",
+      "proposalInput": {
+        "proposedBy": {
+          "kind": "user",
+          "id": "user-approver"
+        }
+      },
+      "request": {
+        "decision": "reject"
+      },
+      "expect": {
+        "outcome": "reject",
+        "status": 200,
+        "audit": "rejected"
+      }
+    },
+    {
+      "name": "agent_proposer_with_same_id_is_not_self",
+      "proposalInput": {
+        "proposedBy": {
+          "kind": "agent",
+          "id": "user-approver"
+        }
+      },
+      "expect": {
+        "outcome": "apply",
+        "status": 200,
+        "audit": "applied"
+      }
+    },
+    {
+      "name": "replay_same_key_returns_prior_record",
+      "priorRequests": [
+        {}
+      ],
+      "expect": {
+        "outcome": "replay",
+        "status": 200,
+        "audit": "replayed",
+        "recordKey": "idem-1"
+      }
+    },
+    {
+      "name": "same_key_different_body",
+      "priorRequests": [
+        {
+          "request": {
+            "decision": "reject"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "refuse",
+        "status": 422,
+        "code": "idempotency_key_reused",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "same_key_different_actor",
+      "priorRequests": [
+        {
+          "principal": {
+            "id": "user-other-lead"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "refuse",
+        "status": 422,
+        "code": "idempotency_key_reused",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "reapprove_with_new_key_is_idempotent",
+      "priorRequests": [
+        {
+          "request": {
+            "idempotencyKey": "idem-0"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "replay",
+        "status": 200,
+        "audit": "replayed",
+        "recordKey": "idem-0"
+      }
+    },
+    {
+      "name": "reject_after_approve_conflicts",
+      "priorRequests": [
+        {
+          "request": {
+            "idempotencyKey": "idem-0"
+          }
+        }
+      ],
+      "request": {
+        "decision": "reject"
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 409,
+        "code": "already_decided",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "approve_after_reject_conflicts",
+      "priorRequests": [
+        {
+          "request": {
+            "idempotencyKey": "idem-0",
+            "decision": "reject"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "refuse",
+        "status": 409,
+        "code": "already_decided",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "replay_survives_later_staleness",
+      "priorRequests": [
+        {}
+      ],
+      "currentRevision": 8,
+      "expect": {
+        "outcome": "replay",
+        "status": 200,
+        "audit": "replayed",
+        "recordKey": "idem-1"
+      }
+    },
+    {
+      "name": "expired_proposal",
+      "now": "2026-10-15T15:00:00Z",
+      "expect": {
+        "outcome": "refuse",
+        "status": 410,
+        "code": "proposal_expired",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "expired_proposal_can_still_be_rejected",
+      "now": "2026-10-16T00:00:00Z",
+      "request": {
+        "decision": "reject"
+      },
+      "expect": {
+        "outcome": "reject",
+        "status": 200,
+        "audit": "rejected"
+      }
+    },
+    {
+      "name": "no_expiry_never_expires",
+      "proposalInput": {
+        "expiresAt": null
+      },
+      "now": "2036-01-01T00:00:00Z",
+      "expect": {
+        "outcome": "apply",
+        "status": 200,
+        "audit": "applied"
+      }
+    },
+    {
+      "name": "stale_revision",
+      "currentRevision": 8,
+      "expect": {
+        "outcome": "refuse",
+        "status": 409,
+        "code": "stale_proposal",
+        "audit": "refused"
+      }
+    },
+    {
+      "name": "stale_proposal_can_still_be_rejected",
+      "currentRevision": 8,
+      "request": {
+        "decision": "reject"
+      },
+      "expect": {
+        "outcome": "reject",
+        "status": 200,
+        "audit": "rejected"
+      }
+    },
+    {
+      "name": "string_and_number_revisions_compare_as_text",
+      "proposalInput": {
+        "subject": {
+          "revision": "7"
+        }
+      },
+      "expect": {
+        "outcome": "apply",
+        "status": 200,
+        "audit": "applied"
+      }
+    },
+    {
+      "name": "etag_style_revision",
+      "proposalInput": {
+        "subject": {
+          "revision": "W/\"a1b2\""
+        }
+      },
+      "currentRevision": "W/\"a1b2\"",
+      "expect": {
+        "outcome": "apply",
+        "status": 200,
+        "audit": "applied"
+      }
+    },
+    {
+      "name": "capsule_version_is_bound",
+      "storedProposalPatch": {
+        "capsuleVersion": "evil"
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 409,
+        "code": "proposal_tampered",
+        "audit": "refused"
+      }
+    }
+  ]
+}

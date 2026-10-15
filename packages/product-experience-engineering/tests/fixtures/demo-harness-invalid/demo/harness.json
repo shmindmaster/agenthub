@@ -1,0 +1,11 @@
+{
+  "harnessVersion": "demo-harness/v1",
+  "product": "Fixture App",
+  "demoTenant": { "id": "x", "name": "x" },
+  "reset": { "full": "pnpm demo:reset" },
+  "services": [{ "name": "api", "command": "node server.mjs", "readyUrl": "https://example.com/health", "env": { "OPENAI_API_KEY": "placeholder" } }],
+  "baseUrl": "http://127.0.0.1:1",
+  "versionEndpoints": [],
+  "syntheticLabel": { "testId": "demo-banner", "text": "Demo" },
+  "truthTable": "docs/demo/TRUTH_TABLE.md"
+}

@@ -1,0 +1,292 @@
+{
+  "vectorVersion": "receipts/v1",
+  "about": "A synthetic receipt chain: retrieval, a successful model call, a failed model call, the rule-based fallback, and the human decision. Build each receipt with the previous one as prev. expected[i] pins receiptHash, replayKey, retrievalHash and the OpenTelemetry span name and attributes.",
+  "chain": [
+    {
+      "receiptId": "rcpt-0001",
+      "tenantId": "tenant-demo",
+      "occurredAt": "2026-10-14T15:00:00.250Z",
+      "durationMs": 180,
+      "kind": "retrieval",
+      "engine": "rules",
+      "subject": {
+        "type": "project",
+        "id": "proj-42",
+        "revision": 7
+      },
+      "input": {
+        "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "policyRevision": "policy-2026.10"
+      },
+      "retrieval": {
+        "dataSourceId": "project-evidence",
+        "queryHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "topK": 2,
+        "documents": [
+          {
+            "id": "ev-1",
+            "hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "revision": "3",
+            "score": "0.91"
+          },
+          {
+            "id": "ev-2",
+            "hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "revision": "1",
+            "score": "0.77"
+          }
+        ]
+      },
+      "outcome": {
+        "status": "succeeded",
+        "outputHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      }
+    },
+    {
+      "receiptId": "rcpt-0002",
+      "tenantId": "tenant-demo",
+      "occurredAt": "2026-10-14T15:00:03.100Z",
+      "durationMs": 2840,
+      "kind": "model_call",
+      "engine": "model",
+      "subject": {
+        "type": "project",
+        "id": "proj-42",
+        "revision": 7
+      },
+      "input": {
+        "hash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "promptName": "delivery-review",
+        "promptRevision": "review-v7",
+        "policyRevision": "policy-2026.10"
+      },
+      "model": {
+        "provider": "anthropic",
+        "requestModel": "claude-haiku-5-5",
+        "responseModel": "claude-haiku-5-5",
+        "operation": "chat",
+        "responseId": "msg_synthetic_0002",
+        "finishReasons": [
+          "end_turn"
+        ],
+        "usage": {
+          "inputTokens": 1840,
+          "outputTokens": 312,
+          "cacheReadInputTokens": 1536
+        }
+      },
+      "evidence": [
+        {
+          "ref": "ev-1",
+          "hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "span": {
+            "start": 120,
+            "end": 188
+          }
+        }
+      ],
+      "outcome": {
+        "status": "succeeded",
+        "outputHash": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "trace": {
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "spanId": "00f067aa0ba902b7"
+      }
+    },
+    {
+      "receiptId": "rcpt-0003",
+      "tenantId": "tenant-demo",
+      "occurredAt": "2026-10-14T15:00:33.400Z",
+      "durationMs": 30000,
+      "kind": "model_call",
+      "engine": "model",
+      "subject": {
+        "type": "project",
+        "id": "proj-43",
+        "revision": 2
+      },
+      "input": {
+        "hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "promptName": "delivery-review",
+        "promptRevision": "review-v7",
+        "policyRevision": "policy-2026.10"
+      },
+      "model": {
+        "provider": "anthropic",
+        "requestModel": "claude-haiku-5-5",
+        "operation": "chat"
+      },
+      "outcome": {
+        "status": "failed",
+        "code": "timeout"
+      }
+    },
+    {
+      "receiptId": "rcpt-0004",
+      "tenantId": "tenant-demo",
+      "occurredAt": "2026-10-14T15:00:33.420Z",
+      "durationMs": 12,
+      "kind": "rule_check",
+      "engine": "rules",
+      "subject": {
+        "type": "project",
+        "id": "proj-43",
+        "revision": 2
+      },
+      "input": {
+        "hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "rulePackRevision": "delivery-rules-2026.10",
+        "policyRevision": "policy-2026.10"
+      },
+      "outcome": {
+        "status": "fallback",
+        "fallbackEngine": "rules",
+        "outputHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+      }
+    },
+    {
+      "receiptId": "rcpt-0005",
+      "tenantId": "tenant-demo",
+      "occurredAt": "2026-10-14T16:00:00.000Z",
+      "kind": "decision",
+      "engine": "human",
+      "subject": {
+        "type": "project",
+        "id": "proj-42",
+        "revision": 7
+      },
+      "input": {
+        "hash": "sha256:b676f4b8d74ae10e6e138bd91f033bbefe1315ac6634d55dc554277dce1e6f43"
+      },
+      "approval": {
+        "capsuleId": "cap-0001",
+        "proposalHash": "sha256:b676f4b8d74ae10e6e138bd91f033bbefe1315ac6634d55dc554277dce1e6f43",
+        "decision": "approve",
+        "actorId": "user-approver"
+      },
+      "outcome": {
+        "status": "succeeded",
+        "outputHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  ],
+  "expected": [
+    {
+      "receiptHash": "sha256:ca73839320198bca803a6c8355546b80a32f874a9498191b4efe1c7bea3e62cb",
+      "replayKey": "sha256:ded80d6aefcb2a542a43e58f82b16d0a29fb100f99a02cb664446460f26d774d",
+      "retrievalHash": "sha256:b452933ccc1258e96694f51b57615a5951b359c2f1247882c99bccc28dda356c",
+      "spanName": "retrieval project-evidence",
+      "spanAttributes": {
+        "gen_ai.operation.name": "retrieval",
+        "gen_ai.data_source.id": "project-evidence",
+        "gen_ai.retrieval.top_k": 2,
+        "app.receipt.id": "rcpt-0001",
+        "app.receipt.hash": "sha256:ca73839320198bca803a6c8355546b80a32f874a9498191b4efe1c7bea3e62cb",
+        "app.receipt.kind": "retrieval",
+        "app.receipt.engine": "rules",
+        "app.receipt.replay_key": "sha256:ded80d6aefcb2a542a43e58f82b16d0a29fb100f99a02cb664446460f26d774d",
+        "app.receipt.outcome": "succeeded",
+        "app.receipt.input_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "app.receipt.output_hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "app.receipt.policy_revision": "policy-2026.10",
+        "app.receipt.retrieval_hash": "sha256:b452933ccc1258e96694f51b57615a5951b359c2f1247882c99bccc28dda356c",
+        "app.tenant.id": "tenant-demo"
+      }
+    },
+    {
+      "receiptHash": "sha256:62d4f6fc4ae52a5ff9a668576830d48badaef7ba69632336a483225508bef7e6",
+      "replayKey": "sha256:a37738fd12f48c4e0a1c3c6a618847af63fa8010200a5f3ed62989e2eef79e2a",
+      "retrievalHash": null,
+      "spanName": "chat claude-haiku-5-5",
+      "spanAttributes": {
+        "gen_ai.operation.name": "chat",
+        "gen_ai.provider.name": "anthropic",
+        "gen_ai.request.model": "claude-haiku-5-5",
+        "gen_ai.response.model": "claude-haiku-5-5",
+        "gen_ai.response.id": "msg_synthetic_0002",
+        "gen_ai.response.finish_reasons": [
+          "end_turn"
+        ],
+        "gen_ai.usage.input_tokens": 1840,
+        "gen_ai.usage.output_tokens": 312,
+        "gen_ai.usage.cache_read.input_tokens": 1536,
+        "gen_ai.prompt.name": "delivery-review",
+        "gen_ai.prompt.version": "review-v7",
+        "app.receipt.id": "rcpt-0002",
+        "app.receipt.hash": "sha256:62d4f6fc4ae52a5ff9a668576830d48badaef7ba69632336a483225508bef7e6",
+        "app.receipt.kind": "model_call",
+        "app.receipt.engine": "model",
+        "app.receipt.replay_key": "sha256:a37738fd12f48c4e0a1c3c6a618847af63fa8010200a5f3ed62989e2eef79e2a",
+        "app.receipt.outcome": "succeeded",
+        "app.receipt.input_hash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "app.receipt.output_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "app.receipt.policy_revision": "policy-2026.10",
+        "app.tenant.id": "tenant-demo"
+      }
+    },
+    {
+      "receiptHash": "sha256:65beb5c760bc5f990e87ccf503ede504344f12adc4e3337b29a06fa795cb0779",
+      "replayKey": "sha256:b354c55abfad41ad2e0a167e69b581857bb3b5b41294afc17c50a893b8c602ee",
+      "retrievalHash": null,
+      "spanName": "chat claude-haiku-5-5",
+      "spanAttributes": {
+        "gen_ai.operation.name": "chat",
+        "gen_ai.provider.name": "anthropic",
+        "gen_ai.request.model": "claude-haiku-5-5",
+        "gen_ai.prompt.name": "delivery-review",
+        "gen_ai.prompt.version": "review-v7",
+        "app.receipt.id": "rcpt-0003",
+        "app.receipt.hash": "sha256:65beb5c760bc5f990e87ccf503ede504344f12adc4e3337b29a06fa795cb0779",
+        "app.receipt.kind": "model_call",
+        "app.receipt.engine": "model",
+        "app.receipt.replay_key": "sha256:b354c55abfad41ad2e0a167e69b581857bb3b5b41294afc17c50a893b8c602ee",
+        "app.receipt.outcome": "failed",
+        "app.receipt.input_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "app.receipt.policy_revision": "policy-2026.10",
+        "app.tenant.id": "tenant-demo",
+        "error.type": "timeout"
+      }
+    },
+    {
+      "receiptHash": "sha256:0835254a6c68aaa770eaf476377699e334863febd7cb6db50a547ead64abc441",
+      "replayKey": "sha256:ae6c6b3c7b535c02ac6281cacb17f22881add12b3c505b61c0bce94449a7aa61",
+      "retrievalHash": null,
+      "spanName": "rule_check",
+      "spanAttributes": {
+        "app.receipt.id": "rcpt-0004",
+        "app.receipt.hash": "sha256:0835254a6c68aaa770eaf476377699e334863febd7cb6db50a547ead64abc441",
+        "app.receipt.kind": "rule_check",
+        "app.receipt.engine": "rules",
+        "app.receipt.replay_key": "sha256:ae6c6b3c7b535c02ac6281cacb17f22881add12b3c505b61c0bce94449a7aa61",
+        "app.receipt.outcome": "fallback",
+        "app.receipt.input_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "app.receipt.output_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "app.receipt.policy_revision": "policy-2026.10",
+        "app.receipt.rule_pack_revision": "delivery-rules-2026.10",
+        "app.receipt.fallback_engine": "rules",
+        "app.tenant.id": "tenant-demo"
+      }
+    },
+    {
+      "receiptHash": "sha256:9eca5393aa5eab0b5a81bb48cdbad8b9e70411fcb4490231a771896c66a82d8b",
+      "replayKey": "sha256:1d0af48b844c983326b82e7f3f85266d8fbf429b3560122ec91cf8835d39f750",
+      "retrievalHash": null,
+      "spanName": "decision",
+      "spanAttributes": {
+        "app.receipt.id": "rcpt-0005",
+        "app.receipt.hash": "sha256:9eca5393aa5eab0b5a81bb48cdbad8b9e70411fcb4490231a771896c66a82d8b",
+        "app.receipt.kind": "decision",
+        "app.receipt.engine": "human",
+        "app.receipt.replay_key": "sha256:1d0af48b844c983326b82e7f3f85266d8fbf429b3560122ec91cf8835d39f750",
+        "app.receipt.outcome": "succeeded",
+        "app.receipt.input_hash": "sha256:b676f4b8d74ae10e6e138bd91f033bbefe1315ac6634d55dc554277dce1e6f43",
+        "app.receipt.output_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "app.tenant.id": "tenant-demo",
+        "app.approval.capsule_id": "cap-0001",
+        "app.approval.proposal_hash": "sha256:b676f4b8d74ae10e6e138bd91f033bbefe1315ac6634d55dc554277dce1e6f43",
+        "app.approval.decision": "approve"
+      }
+    }
+  ]
+}

@@ -292,9 +292,10 @@
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "99ECE9A03E763043DDEBE1FECD7A2D1771B45F66BC405F2436C46A5AA0D62EC6",
+      "contentHash": "BEF3A187FF324192E3C87ABCD47B14E4B970A9972593F337196BB4B2CB515EF5",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
+      "notes": "2026-10-14: owner of the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors; adversarial suite for adopters) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, Demonstrate now / Build next / Do not claim truth table, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
       "hostMappings": [
         {
           "hostId": "claude",
@@ -1297,7 +1298,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "9C85C6FD857AB49AB9E9BE0E7091438D00BE0663A46333419558C8BFF17D1C73",
+      "contentHash": "B55E6613874391D8F94E06411A498B0E3AB5C1E69A9C2CF04A5F06D1ECD51CB5",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
