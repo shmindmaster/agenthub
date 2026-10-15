@@ -189,6 +189,24 @@ class BridgeTests(unittest.TestCase):
         self.assertIn("result", reply)
         self.assertFalse(self.marker.exists(), "an expired session alone must not run the launcher")
 
+    def test_slow_server_is_not_treated_as_down(self) -> None:
+        # Seen 2026-10-14: a freshly started repowise took longer than the
+        # handshake wait to answer initialize. That is a busy server, not a
+        # dead one: answer the handshake from cache, run no launcher, and let
+        # the first real call complete once the server answers.
+        cache = {"initialize": {"protocolVersion": "2025-06-18", "capabilities": {"tools": {}},
+                                "serverInfo": {"name": "cached", "version": "0"}}}
+        (self.tmp / "bridge-cache.json").write_text(json.dumps(cache), encoding="utf-8")
+        self.start_server("--slow-init", "3")
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp,
+                                     {"REPOWISE_BRIDGE_HANDSHAKE_WAIT": "1"})
+        reply = self.handshake()
+        self.assertEqual(reply["result"]["serverInfo"]["name"], "cached")
+        self.harness.send({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "list_repos", "arguments": {}}})
+        reply, _ = self.harness.recv_id(2)
+        self.assertFalse(reply["result"]["isError"])
+        self.assertFalse(self.marker.exists(), "a slow but listening server must not run the launcher")
+
     def test_fail_closed_launcher_errors_fast_and_handshake_uses_cache(self) -> None:
         cache = {"initialize": {"protocolVersion": "2025-06-18", "capabilities": {"tools": {}},
                                 "serverInfo": {"name": "cached", "version": "0"}},

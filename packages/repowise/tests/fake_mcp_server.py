@@ -16,11 +16,12 @@ import argparse
 import json
 import os
 import sys
+import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
-def build_handler(degraded: bool, json_mode: bool):
+def build_handler(degraded: bool, json_mode: bool, slow_init: float = 0.0):
     sessions: set[str] = set()
 
     class Handler(BaseHTTPRequestHandler):
@@ -59,6 +60,8 @@ def build_handler(degraded: bool, json_mode: bool):
             method = msg.get("method")
             sid = self.headers.get("Mcp-Session-Id")
             if method == "initialize":
+                if slow_init:
+                    time.sleep(slow_init)  # a cold repowise loading its workspace
                 new = uuid.uuid4().hex
                 sessions.add(new)
                 result = {
@@ -101,6 +104,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--degraded", action="store_true")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--marker")
+    parser.add_argument("--slow-init", type=float, default=0.0)
     args, _unknown = parser.parse_known_args(argv)
     # The launcher test runs this file in place of repowise.exe, whose argv it
     # cannot extend, so it takes these two switches from the environment too.
@@ -109,7 +113,7 @@ def main(argv: list[str]) -> int:
     if args.marker:
         with open(args.marker, "a", encoding="utf-8") as handle:
             handle.write("started\n")
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), build_handler(args.degraded, args.json))
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), build_handler(args.degraded, args.json, args.slow_init))
     server.serve_forever()
     return 0
 

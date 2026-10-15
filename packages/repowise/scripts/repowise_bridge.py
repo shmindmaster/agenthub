@@ -68,6 +68,12 @@ class SessionExpired(Exception):
     """The server no longer knows our session id (it restarted)."""
 
 
+class UpstreamSlow(Exception):
+    """Connected, but no answer in time. The server is up (a cold RepoWise
+    loads every workspace repo on its first session), so this must never run
+    the launcher, and a request that may have executed must not be resent."""
+
+
 def _env_float(name: str, default: float) -> float:
     try:
         return float(os.environ.get(name, ""))
@@ -147,7 +153,7 @@ class Launcher:
         if code is None:
             return True
         self.last_exit = code
-        self._log(f"launcher exited {code}")
+        self._log(f"launcher pid {self._process.pid} exited {code}")
         self._process = None
         return False
 
@@ -192,6 +198,7 @@ class Upstream:
         self.protocol: str | None = None
         self.init_params: dict | None = None
         self._internal = 0
+        self._slow = False
 
     # ----------------------------------------------------------- transport
     def _headers(self) -> dict[str, str]:
@@ -223,13 +230,20 @@ class Upstream:
             detail = exc.read(512).decode("utf-8", "replace")
             raise RuntimeError(f"upstream http {exc.code}: {detail}") from exc
         except urllib.error.URLError as exc:
-            reason = exc.reason
-            if isinstance(reason, (ConnectionRefusedError, ConnectionResetError, socket.timeout, TimeoutError, OSError)):
-                raise UpstreamDown(str(reason)) from exc
-            raise UpstreamDown(str(exc)) from exc
+            if isinstance(exc.reason, (socket.timeout, TimeoutError)):
+                raise UpstreamSlow(str(exc.reason)) from exc
+            raise UpstreamDown(str(exc.reason)) from exc
+        except (socket.timeout, TimeoutError) as exc:
+            raise UpstreamSlow(str(exc)) from exc
         except (ConnectionRefusedError, ConnectionResetError) as exc:
             raise UpstreamDown(str(exc)) from exc
 
+        try:
+            return self._read_response(response, message)
+        except (socket.timeout, TimeoutError) as exc:
+            raise UpstreamSlow(str(exc)) from exc
+
+    def _read_response(self, response: Any, message: dict) -> tuple[dict | None, dict[str, str]]:
         with response:
             headers = {k.lower(): v for k, v in response.headers.items()}
             if response.status == 202 or "id" not in message:
@@ -307,7 +321,11 @@ class Upstream:
                 raise TimeoutError(self._down_reason())
             try:
                 return attempt(min(remaining, 120.0))
+            except UpstreamSlow:
+                self._slow = True
+                continue
             except UpstreamDown:
+                self._slow = False
                 if self._launcher.failed():
                     raise TimeoutError(self._down_reason())
                 if not self._launcher.running():
@@ -317,6 +335,8 @@ class Upstream:
     def _down_reason(self) -> str:
         code = self._launcher.last_exit
         log = runtime_dir() / "launcher.log"
+        if self._slow:
+            return f"RepoWise shared server at {self.url} is up but did not answer in time"
         if code not in (None, 0):
             return f"RepoWise shared server did not start: launcher exited {code} (fail-closed); see {log}"
         return f"RepoWise shared server at {self.url} is not reachable; see {log}"
@@ -335,6 +355,9 @@ class Upstream:
                 self._log("upstream down mid-session; restarting")
                 with self._session_lock:
                     self.session_id = None
+            except UpstreamSlow as exc:
+                # The request reached the server and may have run; never resend it.
+                raise TimeoutError(f"RepoWise shared server did not answer {message.get('method')} in time ({exc})") from exc
             if time.monotonic() >= deadline:
                 raise TimeoutError(self._down_reason())
 
@@ -385,7 +408,10 @@ class Bridge:
         runtime = runtime_dir()
         self.log = Log(runtime / "bridge.log")
         self.cache = Cache(runtime / "bridge-cache.json")
-        self.handshake_wait = _env_float("REPOWISE_BRIDGE_HANDSHAKE_WAIT", 20.0)
+        # Hosts give the whole handshake (initialize, then tools/list) about 30 s.
+        # Each cached step waits this long for a live answer before using the
+        # cache, so both together stay well inside that budget.
+        self.handshake_wait = _env_float("REPOWISE_BRIDGE_HANDSHAKE_WAIT", 4.0)
         self.call_wait = _env_float("REPOWISE_BRIDGE_CALL_WAIT", 300.0)
         self.launcher = Launcher(launcher_command(), self.log)
         self.upstream = Upstream(

@@ -48,6 +48,13 @@ $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
 $log = Join-Path $RuntimeDir 'launcher.log'
 function Write-Log([string]$m) { "[$(Get-Date -Format s)] launcher[$PID] $m" | Add-Content -Path $log -Encoding UTF8 }
+# A launcher that dies on an unhandled error must still say why; the bridge
+# that started it may already be gone, so this log is the only witness.
+trap {
+    Write-Log "FAIL: unhandled $($_.Exception.GetType().Name) at line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
+    break
+}
+Write-Log "start (PowerShell $($PSVersionTable.PSVersion), parent $((Get-CimInstance Win32_Process -Filter "ProcessId=$PID" -ErrorAction SilentlyContinue).ParentProcessId))"
 
 function Test-PortServed {
     [bool](Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
@@ -85,6 +92,9 @@ function Start-Embedder {
     $p = Start-Process -FilePath $shellPath -PassThru -WindowStyle Hidden `
         -ArgumentList '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', "`"$LocalAiCli`"", 'start', 'retrieval' `
         -RedirectStandardOutput $out -RedirectStandardError "$out.err"
+    # Windows PowerShell reports no ExitCode unless the handle was opened
+    # while the process was still running.
+    $null = $p.Handle
     if (-not $p.WaitForExit(($EmbedderWaitSeconds + 120) * 1000)) {
         Write-Log 'ai.ps1 start retrieval still running past the wait; continuing to poll the embedder'
         return
