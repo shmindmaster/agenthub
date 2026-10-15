@@ -5,7 +5,7 @@
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.299",
+      "version": "2.1.300",
       "executable": "{userHome}/.local/bin/claude.exe",
       "nativePaths": {
         "settings": "{userHome}/.claude/settings.json",
@@ -48,14 +48,14 @@
         "headless"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: `claude update` installed 2.1.299. The probe immediately before that update reported 2.1.296. The recorded value matches `claude.exe --version` after the update."
+      "versionObserved": "2026-10-14: verified installed launcher/file version 2.1.300. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "codex",
       "name": "OpenAI Codex",
-      "version": "0.162.0-alpha.17.2",
+      "version": "0.162.1",
       "executable": "{userHome}/bin/codex.cmd",
-      "executableNote": "The stable managed launcher resolves the current Codex Desktop content-addressed binary. Record the launcher rather than a transient bin/<hash>/ path that disappears on desktop upgrades. Current observed version is recorded in versionObserved.",
+      "executableNote": "Stable launcher prefers the installed Codex CLI junction, then the Desktop bundled CLI. CLI and Desktop versions are independent.",
       "nativePaths": {
         "config": "{userHome}/.codex/config.toml",
         "instructions": "{userHome}/.codex/AGENTS.md",
@@ -75,7 +75,7 @@
         "plugins"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared launcher reported `codex-cli 0.162.0-alpha.17.2`. No upgrade or downgrade was performed by this inventory correction.",
+      "versionObserved": "2026-10-14: verified installed launcher/file version 0.162.1. Manual forward update and launcher reconciliation; active sessions preserved.",
       "headlessDispatchNote": "codex exec --skip-git-repo-check - reads stdin, including in a scratch cwd without a repository. The installed shim selects cli-api; establish included allowance or explicitly authorize a credit budget before live dispatch."
     },
     {
@@ -237,7 +237,7 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.97",
+      "version": "1.0.98",
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
@@ -259,7 +259,7 @@
         "acp"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported GitHub Copilot CLI 1.0.97. The official update command reported the same version as current. No upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: verified installed launcher/file version 1.0.98. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "antigravity",
@@ -302,7 +302,7 @@
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "2.23.0",
+      "version": "2.23.1",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction.",
@@ -452,7 +452,7 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Cline 3.0.71 (observed 2026-10-14). Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; on-demand-local chrome-devtools is intentionally not fleet-synced (brave-search was retired into the open-connector gateway on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
+      "notes": "Cline 3.0.71 (observed 2026-10-14). Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion \u2014 same set as gemini and registry allowlist; on-demand-local chrome-devtools is intentionally not fleet-synced (brave-search was retired into the open-connector gateway on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
     },
     {
       "id": "cursor",
@@ -486,12 +486,12 @@
       ],
       "status": "active",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher was re-verified against Cursor 3.17.8 on 2026-08-22; native local plugins expose the canonical AgentHub packages.",
-      "versionObserved": "2026-10-14: the full-suite read-only version probe reported 3.24.18 from the declared cursor.cmd launcher. This supersedes the earlier same-day 3.24.12 observation. No installer or updater was invoked by this repair."
+      "versionObserved": "2026-10-14: verified installed launcher/file version 3.24.18. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "cursor-agent",
       "name": "Cursor Agent CLI",
-      "version": "2026.10.14-0f9edde",
+      "version": "2026.10.14-941492e",
       "executable": "{userHome}/bin/cursor-agent.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/cursor-agent/cursor-agent.cmd",
@@ -514,16 +514,16 @@
       "status": "active",
       "surfaceType": "companion-cli",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration.",
-      "versionObserved": "2026-10-14: the full-suite read-only version probe reported 2026.10.14-0f9edde. This supersedes the earlier same-day 2026.09.15-d2fe57e observation. A final native help probe confirmed print and text-output flags; no login, inference run, installer or updater was invoked by this repair.",
+      "versionObserved": "2026-10-14: verified installed launcher/file version 2026.10.14-941492e. Manual forward update and launcher reconciliation; active sessions preserved.",
       "headlessDispatchNote": "2026-10-14: native headless contract verified; prior smoke failed authentication. Owner action: run agent login in the owner terminal; dispatcher alias cursor-agent login is equivalent. Do not authenticate automatically."
     },
     {
       "id": "qoder",
       "name": "Qoder CLI / Desktop / JetBrains / QoderWork",
-      "version": "1.0.45",
-      "versionNote": "Corrected 2026-08-19. The previously recorded 1.1.5 was HIGHER than the installed 1.0.45, so it was never a real observation of this product -- `qodercli --version` on the actual installed binary returns 1.0.45, consistent with executableNote's independent `qodercli status` finding of Version: 1.0.45.",
-      "executable": "{userHome}/.qodersec/bin/qodercli.exe",
-      "executableNote": "Re-resolved 2026-08-19 by running the binary: `qodercli status` returned Version: 1.0.45. The previous value pointed at ~/.qoder/bin/qodercli/qodercli.exe, which does not exist; the installed binary lives under ~/.qodersec/bin/. The stale ~/bin/qodercli.cmd shim pointed at the same wrong path and was repaired at the same time.",
+      "version": "1.1.71",
+      "versionNote": "2026-10-14: official npm CLI and PATH launcher report 1.1.71; ACP initialize reports agentVersion 1.1.71. Historical native 1.0.45 is not the selected launcher.",
+      "executable": "{userHome}/AppData/Roaming/npm/qodercli.cmd",
+      "executableNote": "2026-10-14: selected official npm qodercli.cmd. User bin launcher and qoder-acp.cmd forward here. Historical ~/.qodersec/bin/qodercli.exe is not the selected route.",
       "nativePaths": {
         "configHome": "{userHome}/.qoder",
         "settings": "{userHome}/.qoder/settings.json",
@@ -558,14 +558,14 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Qoder CLI 1.0.45. Full autonomy uses --dangerously-skip-permissions; ACP uses --acp. User-level MCP and skills are managed through ~/.qoder/settings.json and ~/.qoder/skills.",
-      "headlessDispatchNote": "qodercli 1.0.45 -p --dangerously-skip-permissions --tools default -w <cwd> -o text <prompt> is headless. status reports Account: Not logged in; owner runs qodercli login, verifies included allowance, then one smoke before enabling."
+      "notes": "Qoder CLI 1.1.71. ACP initialize verified protocol 1. Full autonomy flags remain controlled by dispatch policy; authentication, included allowance and useful worker smoke are separate readiness checks.",
+      "headlessDispatchNote": "Headless and ACP transport contracts exist; do not infer model entitlement from ACP initialize. Follow fleet readiness gates before paid or included-model execution."
     },
     {
       "id": "amp",
       "name": "Sourcegraph Amp",
-      "version": "0.0.1791979242-g144271",
-      "versionObserved": "2026-10-14: the repair's bounded read-only version probe reported 0.0.1791979242-g144271, released 2026-10-14T12:00:42.000Z. This supersedes the earlier same-day observation of 0.0.1791936083-ga8cf1c. No updater was invoked by this repair.",
+      "version": "0.0.1792022479-ge66e24",
+      "versionObserved": "2026-10-14: verified installed launcher/file version 0.0.1792022479-ge66e24. Manual forward update and launcher reconciliation; active sessions preserved.",
       "executable": "{userHome}/.amp/bin/amp.exe",
       "executableNote": "Corrected 2026-08-11: the declaration read the WinGet shim path %LOCALAPPDATA%/Microsoft/WinGet/Links/amp.exe, which does not exist. Amp is installed at %USERPROFILE%/.amp/bin/amp.exe and that is what `amp` resolves to on PATH. A WinGet Links shim is written only for packages installed through WinGet, so the old path recorded an installation method this host never used rather than a path that later moved.",
       "nativePaths": {
@@ -670,7 +670,7 @@
     {
       "id": "vscode-insiders",
       "name": "VS Code Insiders",
-      "version": "1.142.0-insider",
+      "version": "1.143.0-insider",
       "executable": "{userHome}/AppData/Local/Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd",
       "nativePaths": {
         "mcp": "{roamingConfig}/Code - Insiders/User/mcp.json",
@@ -693,7 +693,7 @@
       "versionProbe": "cli",
       "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded this launcher as absent. code-insiders.cmd is present. It is an editor, not a headless dispatch target. `code-insiders.cmd --version` returned 1.142.0-insider. No installer was run.",
       "versionProbeNote": "versionProbe stays cli. The declared launcher exists and `code-insiders.cmd --version` prints and exits. Corrected 2026-10-14 from the stale note that said the executable was absent.",
-      "versionObserved": "2026-10-14: `code-insiders.cmd --version` returned 1.142.0-insider (dab4f45f6cbfbd55ff3de3ac3a328fb7d6d2f642, x64). No upgrade or downgrade was performed by this inventory correction."
+      "versionObserved": "2026-10-14: verified installed launcher/file version 1.143.0-insider. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "windsurf",
