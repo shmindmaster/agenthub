@@ -13,7 +13,10 @@
 //                                  or story/narration-words.json, the same payload with program-absolute times.
 //                                  Segment-level timing only -> precision "segment"; no ASR at all -> authored text spread
 //                                  across the segment, precision "estimate". Both are flagged and the sync gate refuses them.
-//   capture/receipt.json           clips[id].actions (record-job.mjs): click / type / point events with tStart, label, x, y
+//   capture/receipt.json           clips[id].actions (record-job.mjs): click / type / point events with tStart, label, x, y,
+//                                  on the raw recording clock; clips[id].recastHeadTrimSeconds maps them onto the clip
+//                                  (sync-lib clipClock). A Recast clip without it is refused: its events would be off by
+//                                  the blank lead-in Recast trimmed (0.4-2.5 s measured on Revolva).
 //   capture/manifest.json          clip -> segment mapping and trim/speed/skip hints (plan mode)
 //   output/<base>-compose-map.json optional; when present the cue sheet is "mapped": action times are program times
 //                                  through the real edit decision list. Run compose, then this script again.
@@ -45,6 +48,7 @@ const readJson = (rel) => { const p = join(root, rel); return existsSync(p) ? JS
 const sha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
 const ref = (p) => (p && existsSync(p) ? { path: relative(root, p).replace(/\\/g, '/'), sha256: sha(p) } : null);
 const warnings = [];
+const errors = [];
 
 const timelinePath = join(root, 'story', 'narration-timeline.json');
 if (!existsSync(timelinePath)) { console.error('story/narration-timeline.json is required: lock and render the narration first (voice-first).'); process.exit(1); }
@@ -129,6 +133,9 @@ const beats = segs.map((seg, i) => {
   const cps = cpScenes.find((s) => s.sceneId === seg.id || s.sceneId === sceneOf(seg)) || {};
   const clipRec = g.clipId && receipt?.clips?.[g.clipId] ? receipt.clips[g.clipId] : null;
   if (g.kind === 'screen' && !clipRec) warnings.push(`${seg.id}: no capture receipt for clip ${g.clipId}; no actions can be timed`);
+  // Receipt times are on the raw recording clock; the clip starts after Recast's blank lead-in trim.
+  const clock = L.clipClock(clipRec);
+  if (clipRec && clock.offset === null && ((clipRec.actions || []).length || (clipRec.expectations || []).length)) errors.push(`${seg.id}: clip ${g.clipId}: ${clock.source}`);
   const toProgram = (ts) => { if (!Number.isFinite(ts) || !g.mappable) return null; const t = L.clipToSlot(g.edit, ts); return t === null ? null : round(g.start + t); };
   const beatEnd = slotEnd;
   const beatStart = slotStart;
@@ -136,7 +143,7 @@ const beats = segs.map((seg, i) => {
 
   // actions
   const events = (clipRec?.actions || []).filter((e) => ['click', 'type', 'point'].includes(e.type));
-  const owned = events.map((e) => ({ e, clipTime: Number(e.tStart ?? e.t), program: toProgram(Number(e.tStart ?? e.t)) })).filter((x) => g.segments.length === 1 || (x.program !== null ? inBeat(x.program) : g.segments[0] === seg.id));
+  const owned = events.map((e) => { const clipTime = L.toClipTime(clipRec, e.tStart ?? e.t); return { e, clipTime, program: toProgram(clipTime) }; }).filter((x) => x.clipTime !== null).filter((x) => g.segments.length === 1 || (x.program !== null ? inBeat(x.program) : g.segments[0] === seg.id));
   const planned = Array.isArray(cp.actions) ? cp.actions : null;
   const actions = [];
   const take = (x, spec) => {
@@ -163,12 +170,13 @@ const beats = segs.map((seg, i) => {
   const expectations = (clipRec?.expectations || []).filter((x) => x.observed);
   let result = null;
   const resSpec = cp.result;
-  const exp = resSpec ? expectations.find((x) => String(x.label).toLowerCase().includes(String(resSpec.label || '').toLowerCase())) : expectations.map((x) => ({ x, program: toProgram(x.observedAt) })).filter((y) => g.segments.length === 1 || inBeat(y.program)).map((y) => y.x).at(-1);
+  const exp = resSpec ? expectations.find((x) => String(x.label).toLowerCase().includes(String(resSpec.label || '').toLowerCase())) : expectations.map((x) => ({ x, program: toProgram(L.toClipTime(clipRec, x.observedAt)) })).filter((y) => g.segments.length === 1 || inBeat(y.program)).map((y) => y.x).at(-1);
   if (exp || resSpec) {
     const label = resSpec?.label ?? exp?.label ?? null;
     const keywords = resSpec?.keywords?.length ? resSpec.keywords : L.keywordsFromLabel(label);
     const kw = L.findKeywordWord(bw.words, keywords, { last: true });
-    result = { label, clip_time: exp ? L.round(exp.observedAt) : null, visible_at: exp && mapped ? toProgram(exp.observedAt) : null, keywords, keyword: kw ? { w: kw.w, start: kw.start, end: kw.end, matched: kw.keyword } : null };
+    const expClip = exp ? L.toClipTime(clipRec, exp.observedAt) : null;
+    result = { label, clip_time: expClip, visible_at: expClip !== null && mapped ? toProgram(expClip) : null, keywords, keyword: kw ? { w: kw.w, start: kw.start, end: kw.end, matched: kw.keyword } : null };
   }
   const prevGroup = i > 0 ? groupFor(segs[i - 1]) : null;
   const cameraDefault = clipRec?.recast === 'full' ? 'Recast punch-in on clicks' : clipRec?.recast ? `Recast ${clipRec.recast}` : 'static';
@@ -179,6 +187,7 @@ const beats = segs.map((seg, i) => {
     slot_start: slotStart,
     slot_end: slotEnd,
     narration: { text: seg.text, words: bw.words, precision: bw.precision, source: bw.source, firstContentWord: fcw[i] },
+    clip_clock: clipRec ? { offset_seconds: clock.offset, source: clock.source } : null,
     screen: { clip: g.clipId, kind: g.kind, file: g.file, visible_from: slotStart, visible_until: g.until, changes_from_previous: !prevGroup || prevGroup.clipId !== g.clipId || prevGroup.start !== g.start },
     actions,
     result,
@@ -201,9 +210,12 @@ const sheet = {
   precision: { allWordLevel: degraded.length === 0, degradedBeats: degraded },
   edl: mapped ? composeMap.groups.map((g) => ({ segments: g.segments, clip: g.clipId, startSeconds: g.startSeconds, needSeconds: g.needSeconds, fit: g.fit, edit: g.edit || null })) : null,
   warnings,
+  errors,
   beats,
 };
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, JSON.stringify(sheet, null, 2));
 const acts = beats.reduce((n, b) => n + b.actions.filter((a) => a.narrated).length, 0);
-console.log(JSON.stringify({ ok: true, out: relative(root, outPath).replace(/\\/g, '/'), mode: sheet.mode, beats: beats.length, narratedActions: acts, allWordLevel: sheet.precision.allWordLevel, warnings }, null, 2));
+console.log(JSON.stringify({ ok: errors.length === 0, out: relative(root, outPath).replace(/\\/g, '/'), mode: sheet.mode, beats: beats.length, narratedActions: acts, allWordLevel: sheet.precision.allWordLevel, errors, warnings }, null, 2));
+// Fail closed: an event time on an unknown clock would place every action off by the clip's head trim (up to 3 s).
+if (errors.length) process.exit(1);

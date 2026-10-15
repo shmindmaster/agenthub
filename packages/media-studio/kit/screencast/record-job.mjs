@@ -67,6 +67,14 @@ const sha256 = (f) => createHash('sha256').update(fs.readFileSync(f)).digest('he
 const probe = (f) => { try { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString()); } catch { return 0; } };
 const here = path.dirname(fileURLToPath(import.meta.url));
 let recastVersion = null;
+// Recast trims the blank lead-in off the head of every render (playwright-recast render/renderer.js detectBlankLeadIn,
+// up to 3 s). Receipt events are logged on the raw recording clock, so the trim is measured with the same function on
+// the same raw WebM and recorded per clip; sync-lib clipClock() subtracts it. Missing it, the sync tooling refuses the clip.
+let detectBlankLeadIn = null;
+for (const dir of [path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'node_modules'), path.join(path.dirname(fileURLToPath(import.meta.url)), 'node_modules')]) {
+  const f = path.join(dir, 'playwright-recast', 'dist', 'render', 'renderer.js');
+  if (!detectBlankLeadIn && fs.existsSync(f)) { try { ({ detectBlankLeadIn } = await import(pathToFileURL(f).href)); } catch { detectBlankLeadIn = null; } }
+}
 // The kit's node_modules sits one level above screencast/; playwright-recast does not export its package.json.
 for (const dir of [path.join(here, '..', 'node_modules'), path.join(here, 'node_modules')]) { if (recastVersion) break; try { recastVersion = JSON.parse(fs.readFileSync(path.join(dir, 'playwright-recast', 'package.json'), 'utf8')).version; } catch { /* next */ } }
 if (!recastVersion) { try { const p = fileURLToPath(await import.meta.resolve('playwright-recast/package.json')); recastVersion = JSON.parse(fs.readFileSync(p, 'utf8')).version; } catch { recastVersion = null; } }
@@ -118,6 +126,21 @@ for (const id of ids) {
   }
   for (const ext of ['png', 'jpg']) { const p = path.resolve('clips', `${id}.${ext}`); if (fs.existsSync(p)) fs.unlinkSync(p); }
   take.clipSeconds = Number(probe(out).toFixed(1));
+  // Head trim: Recast's detector on the raw WebM; the raw-minus-clip length is the cross-check (Recast trims only the head).
+  const lengthDelta = Number(Math.max(0, probe(fin.webm) - probe(out)).toFixed(3));
+  if (take.recast === 'skipped' || take.recast === 'fallback') { take.headTrim = { seconds: 0, method: `raw copy (${take.recast})`, lengthDelta }; }
+  else {
+    let detected = null;
+    if (detectBlankLeadIn) {
+      const tmp = path.resolve('clips', `.trim-probe-${id}`);
+      fs.mkdirSync(tmp, { recursive: true });
+      try { detected = Number(detectBlankLeadIn(fin.webm, tmp).toFixed(3)); } catch { detected = null; } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+    }
+    take.headTrim = detected !== null
+      ? { seconds: detected, method: 'playwright-recast detectBlankLeadIn on the raw WebM', lengthDelta }
+      : { seconds: lengthDelta, method: 'raw minus clip length (detector unavailable)', lengthDelta };
+    if (Math.abs(take.headTrim.seconds - lengthDelta) > 0.15) console.log(`  head trim ${take.headTrim.seconds}s disagrees with raw-minus-clip ${lengthDelta}s; recorded both`);
+  }
   take.ratio = take.targetSeconds ? Number((take.clipSeconds / take.targetSeconds).toFixed(2)) : null;
   take.short = take.ratio !== null && take.ratio < 0.85;
   take.events = fin.summary;
@@ -138,9 +161,13 @@ for (const id of ids) {
     recast: take.recast,
     recastNote: take.recastNote || null,
     events: fin.summary,
-    // Timestamped action log (seconds into the raw WebM; Recast keeps that timeline). build-cue-sheet.mjs maps these
-    // through the compose edit decision list to program time and the sync gate checks them against the spoken words.
+    // Timestamped action log, in seconds into the raw WebM. Recast trims the blank lead-in off the head, so an event at
+    // t plays at t - recastHeadTrimSeconds in clips/<id>.webm. build-cue-sheet.mjs applies that (sync-lib clipClock),
+    // maps the result through the compose edit decision list, and the sync gate checks it against the spoken words.
     actionClock: 'recording-start',
+    recastHeadTrimSeconds: take.headTrim.seconds,
+    recastHeadTrimMethod: take.headTrim.method,
+    rawMinusClipSeconds: take.headTrim.lengthDelta,
     actions: fin.events,
     expectations: fin.expectations,
     beats: fin.beats,

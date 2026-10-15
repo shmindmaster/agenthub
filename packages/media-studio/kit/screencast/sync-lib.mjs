@@ -102,6 +102,28 @@ export function keptRanges(edit) {
   return keep;
 }
 
+/**
+ * The clock offset between a clip's logged event times and the clip file itself, in seconds.
+ * record-lib logs actions, marks and expectations on the raw recording clock ("recording-start"). Recast then trims
+ * the blank lead-in off the head of the raw WebM (playwright-recast detectBlankLeadIn, up to 3 s), so a click logged
+ * at t plays at t - recastHeadTrimSeconds in the clip. Returns { offset, source }; offset is null when the receipt
+ * cannot say (a Recast render with no recorded trim), and callers must refuse to time events from it.
+ */
+export function clipClock(clipRec) {
+  if (!clipRec) return { offset: null, source: 'no capture receipt' };
+  if (clipRec.actionClock === 'clip') return { offset: 0, source: 'actions logged on the clip clock' };
+  if (Number.isFinite(clipRec.recastHeadTrimSeconds)) return { offset: Number(clipRec.recastHeadTrimSeconds), source: `recastHeadTrimSeconds (${clipRec.recastHeadTrimMethod || 'recorded'})` };
+  if (clipRec.recast === 'skipped' || clipRec.recast === 'fallback') return { offset: 0, source: `raw WebM copied (recast ${clipRec.recast})` };
+  return { offset: null, source: `recast "${clipRec.recast ?? 'unknown'}" render with no recastHeadTrimSeconds: re-record with the current kit or run scripts/backfill-head-trim.mjs` };
+}
+
+/** Event time on the clip clock, or null when the clip clock is unknown or the event has no time. */
+export function toClipTime(clipRec, rawSeconds) {
+  const { offset } = clipClock(clipRec);
+  const t = Number(rawSeconds);
+  return offset === null || !Number.isFinite(t) ? null : round(Math.max(0, t - offset));
+}
+
 /** Seconds into the slot at which source time `ts` plays, or null when the edit drops it. */
 export function clipToSlot(edit, ts) {
   const sp = Number(edit.speed || 1);
