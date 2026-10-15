@@ -33,7 +33,7 @@ When they disagree, investigate rather than silently choosing one.
 
 1. This file (`AGENTS.md`).
 2. `docs/README.md` → `docs/current-state.md`.
-3. `global-agent-policy.md` — the canonical compiled global policy.
+3. `global-agent-policy.md` — the public global policy (an overlay host's effective policy is `overlays/personal/global-agent-policy.md`).
 4. `docs/development/repo-standard.md` when touching any other fleet repo.
 5. `registry/` entries relevant to the capability you are changing.
 6. RepoWise workspace context before broad exploration.

@@ -26,14 +26,14 @@ $syncScript = Join-Path $repoRoot 'scripts\Sync-Instructions.ps1'
 $hostExe = (Get-Process -Id $PID).Path
 . (Join-Path $repoRoot 'scripts\lib\CapabilityGraph.ps1')
 # The canonical body Sync-Instructions deploys is whatever
-# Resolve-AgentHubPolicyPath selects for this checkout: the compiled
-# global-agent-policy.md when the personal overlay is resolvable, otherwise
-# the portable policy-core.md (public-first split, 871b7f3). Hard-coding
-# global-agent-policy.md here made the render contract fail in every linked
-# worktree, where the gitignored overlay is absent and the renderer
-# correctly deploys policy-core.md. The child process inherits this
-# process's AGENTHUB_OVERLAY, so both sides resolve the same file.
-$canonicalPolicyPath = Resolve-AgentHubPolicyPath -RepositoryRoot $repoRoot
+# Resolve-AgentHubPolicyPath selects for this checkout: the overlay's
+# global-agent-policy.md when a personal overlay is resolvable (including from
+# a linked worktree's primary checkout), otherwise the tracked public
+# global-agent-policy.md. The child process inherits this process's
+# AGENTHUB_OVERLAY / AGENTHUB_OVERLAY_REQUIRED, so both sides resolve the same
+# file. -LocalAppData '' keeps the machine-wide overlay-required marker out of
+# the parent's resolution, mirroring the child's synthetic -UserProfile data root.
+$canonicalPolicyPath = Resolve-AgentHubPolicyPath -RepositoryRoot $repoRoot -LocalAppData ''
 Write-Host "POLICY: $canonicalPolicyPath"
 
 $failures = [Collections.Generic.List[string]]::new()
@@ -461,6 +461,81 @@ Report 'second consecutive -Apply against the same profile reports zero updates'
 
 $r4 = Test-EmptyWorkSetFailsLoudly
 Report 'zero real destinations in the work set fails loudly instead of reporting success' $r4.Passed $r4.Detail
+
+# --- Fail-closed: a machine marked as an overlay host must refuse to deploy
+# when no overlay policy resolves, instead of shipping the public policy over
+# the owner's rules. Exercised with a synthetic profile and AGENTHUB_OVERLAY=off,
+# so nothing real is touched. ---
+function Test-OverlayHostWithoutOverlayRefusesToDeploy {
+    $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-failclosed-" + [guid]::NewGuid())
+    $prevOverlay = $env:AGENTHUB_OVERLAY; $prevReq = $env:AGENTHUB_OVERLAY_REQUIRED
+    try {
+        $env:AGENTHUB_OVERLAY = 'off'; $env:AGENTHUB_OVERLAY_REQUIRED = '1'
+        $apply = Invoke-SyncInstructions -ExtraArgs @('-Apply', '-UserProfile', $userProfile)
+        if ($apply.ExitCode -eq 0) {
+            return @{ Passed = $false; Detail = "-Apply succeeded on an overlay-required machine with no overlay. Output: $($apply.Output)" }
+        }
+        if ($apply.Output -notmatch 'overlay host') {
+            return @{ Passed = $false; Detail = "refusal did not explain the overlay-host rule. Output: $($apply.Output)" }
+        }
+        if (Test-Path -LiteralPath (Join-Path $userProfile '.claude\CLAUDE.md')) {
+            return @{ Passed = $false; Detail = 'a host file was written despite the refusal' }
+        }
+        # And the opt-in is real: without the requirement the same run deploys the public policy.
+        Remove-Item Env:AGENTHUB_OVERLAY_REQUIRED -ErrorAction SilentlyContinue
+        $open = Invoke-SyncInstructions -ExtraArgs @('-Apply', '-UserProfile', $userProfile)
+        if ($open.ExitCode -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $userProfile '.claude\CLAUDE.md'))) {
+            return @{ Passed = $false; Detail = "public clone (no overlay, not required) could not deploy. Output: $($open.Output)" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        if ($null -eq $prevOverlay) { Remove-Item Env:AGENTHUB_OVERLAY -ErrorAction SilentlyContinue } else { $env:AGENTHUB_OVERLAY = $prevOverlay }
+        if ($null -eq $prevReq) { Remove-Item Env:AGENTHUB_OVERLAY_REQUIRED -ErrorAction SilentlyContinue } else { $env:AGENTHUB_OVERLAY_REQUIRED = $prevReq }
+        Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Test-OverlayRequiredMarkerAndPolicyResolution {
+    $scratch = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-marker-" + [guid]::NewGuid())
+    $prevOverlay = $env:AGENTHUB_OVERLAY; $prevReq = $env:AGENTHUB_OVERLAY_REQUIRED
+    try {
+        Remove-Item Env:AGENTHUB_OVERLAY_REQUIRED -ErrorAction SilentlyContinue
+        $local = Join-Path $scratch 'local'; New-Item -ItemType Directory -Path (Join-Path $local 'AgentHub') -Force | Out-Null
+        if (Test-AgentHubOverlayRequired -LocalAppData $local) { return @{ Passed = $false; Detail = 'required without a marker' } }
+        Set-Content -LiteralPath (Join-Path $local 'AgentHub\overlay-required') -Value 'x'
+        if (-not (Test-AgentHubOverlayRequired -LocalAppData $local)) { return @{ Passed = $false; Detail = 'marker file was not honored' } }
+
+        # Synthetic repo: a public policy and an overlay carrying its own policy.
+        $repo = Join-Path $scratch 'repo'; $ov = Join-Path $repo 'overlays\personal'
+        New-Item -ItemType Directory -Path $ov -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $repo 'global-agent-policy.md') -Value '# public'
+        Set-Content -LiteralPath (Join-Path $ov 'overlay.json') -Value '{}'
+        Remove-Item Env:AGENTHUB_OVERLAY -ErrorAction SilentlyContinue
+        # Overlay without a policy file on a required machine: refuse.
+        $threw = $false
+        try { Resolve-AgentHubPolicyPath -RepositoryRoot $repo -LocalAppData $local | Out-Null } catch { $threw = $true }
+        if (-not $threw) { return @{ Passed = $false; Detail = 'overlay without policy resolved the public file on a required machine' } }
+        # Overlay policy present wins over the public file.
+        Set-Content -LiteralPath (Join-Path $ov 'global-agent-policy.md') -Value '# private'
+        $got = Resolve-AgentHubPolicyPath -RepositoryRoot $repo -LocalAppData $local
+        if ((Split-Path -Parent $got) -ne $ov) { return @{ Passed = $false; Detail = "overlay policy not preferred: $got" } }
+        # Not required, overlay absent: public file.
+        $env:AGENTHUB_OVERLAY = 'off'
+        $pub = Resolve-AgentHubPolicyPath -RepositoryRoot $repo -LocalAppData (Join-Path $scratch 'nomarker')
+        if ((Split-Path -Parent $pub) -ne $repo) { return @{ Passed = $false; Detail = "public fallback not used: $pub" } }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        if ($null -eq $prevOverlay) { Remove-Item Env:AGENTHUB_OVERLAY -ErrorAction SilentlyContinue } else { $env:AGENTHUB_OVERLAY = $prevOverlay }
+        if ($null -eq $prevReq) { Remove-Item Env:AGENTHUB_OVERLAY_REQUIRED -ErrorAction SilentlyContinue } else { $env:AGENTHUB_OVERLAY_REQUIRED = $prevReq }
+        Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+$r7 = Test-OverlayHostWithoutOverlayRefusesToDeploy
+Report 'fail-closed: an overlay-required machine with no overlay refuses -Apply and writes nothing' $r7.Passed $r7.Detail
+
+$r8 = Test-OverlayRequiredMarkerAndPolicyResolution
+Report 'policy resolution prefers the overlay policy, honors the overlay-required marker, and falls back to the public file only when not required' $r8.Passed $r8.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

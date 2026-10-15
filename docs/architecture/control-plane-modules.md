@@ -38,10 +38,23 @@ must not invent a second rebase.
 5. **Sync orchestration.** `scripts/lib/SyncOrchestrator.ps1` names the
    validate-then-sync step list. `scripts/AgentHub.ps1` delegates; it does
    not reimplement writers.
-6. **Policy split.** `policy-core.md` is the portable policy. The personal
-   overlay contributes `overlays/personal/policy-fragment.md`. This
-   checkout's compiled deployment document remains
-   `global-agent-policy.md` and is not part of a public export.
+6. **Policy split.** The tracked `global-agent-policy.md` is the public,
+   generic policy (no owner identity, career material or personal paths);
+   `policy-core.md` is the smaller portable core used by public exports. A
+   machine with owner-specific rules keeps the complete effective policy in
+   the gitignored `overlays/personal/global-agent-policy.md`, which replaces
+   the public file whenever an overlay resolves (including from a linked
+   worktree's primary checkout). `Resolve-AgentHubPolicyPath` implements the
+   order: overlay policy, else public policy.
+   **Fail closed:** a machine is an overlay host when
+   `AGENTHUB_OVERLAY_REQUIRED=1` or the marker file
+   `%LOCALAPPDATA%\AgentHub\overlay-required` exists. On an overlay host,
+   if no overlay policy resolves, `Sync-Instructions` (audit and apply)
+   throws instead of resolving the public policy, so a sync from a checkout
+   without the overlay can never strip owner rules from every host.
+   `tests/Test-PublicRepoPrivacy.ps1` keeps private material out of tracked
+   files (generic patterns, plus `overlays/personal/privacy-denylist.txt`
+   when present).
 
 ## Dependency direction
 

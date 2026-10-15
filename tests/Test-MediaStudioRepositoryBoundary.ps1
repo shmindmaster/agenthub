@@ -25,7 +25,8 @@ function Read-Text([string]$Path) {
     return [IO.File]::ReadAllText($Path)
 }
 
-$policy = Read-Text (Join-Path $repoRoot 'global-agent-policy.md')
+. (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
+$policy = Read-Text (Get-AgentHubTestEffectivePolicy -RepositoryRoot $repoRoot).Path
 $producer = Read-Text (Join-Path $media 'skills\media-studio\SKILL.md')
 $capture = Read-Text (Join-Path $media 'skills\media-studio-capture\SKILL.md')
 $compose = Read-Text (Join-Path $media 'skills\media-studio-compose\SKILL.md')

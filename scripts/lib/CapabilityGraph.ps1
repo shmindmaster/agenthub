@@ -232,16 +232,51 @@ function Resolve-AgentHubPackageRoot {
     return $resolved
 }
 
+function Test-AgentHubOverlayRequired {
+    <#
+    Fail-closed switch. A machine that deploys owner-specific policy is marked
+    as an overlay host in either of two ways:
+      - environment AGENTHUB_OVERLAY_REQUIRED=1, or
+      - the marker file <LocalAppData>\AgentHub\overlay-required exists.
+    On such a machine the public policy must never be deployed in place of the
+    overlay policy: a sync that cannot resolve the overlay must stop.
+    #>
+    param([string]$LocalAppData = $env:LOCALAPPDATA)
+    if ($env:AGENTHUB_OVERLAY_REQUIRED -eq '1') { return $true }
+    if (-not [string]::IsNullOrWhiteSpace($LocalAppData)) {
+        $marker = Join-Path $LocalAppData 'AgentHub\overlay-required'
+        if (Test-Path -LiteralPath $marker -PathType Leaf) { return $true }
+    }
+    return $false
+}
+
 function Resolve-AgentHubPolicyPath {
+    <#
+    Effective policy resolution:
+      1. <overlay>/global-agent-policy.md, when an overlay resolves (including
+         from a linked worktree's primary checkout) and carries that file;
+      2. otherwise, if this machine is marked as an overlay host
+         (Test-AgentHubOverlayRequired), throw: never deploy public policy
+         over owner policy;
+      3. otherwise the tracked public global-agent-policy.md, then policy-core.md.
+    #>
     param(
         [Parameter(Mandatory)][string]$RepositoryRoot,
-        [switch]$ReportPrimaryCheckout
+        [switch]$ReportPrimaryCheckout,
+        [string]$LocalAppData = $env:LOCALAPPDATA
     )
-    $compiled = Join-Path $RepositoryRoot 'global-agent-policy.md'
+    $public = Join-Path $RepositoryRoot 'global-agent-policy.md'
     $core = Join-Path $RepositoryRoot 'policy-core.md'
     $overlay = Get-AgentHubOverlayRoot -RepositoryRoot $RepositoryRoot -ReportPrimaryCheckout:$ReportPrimaryCheckout
-    if ($overlay -and (Test-Path -LiteralPath $compiled)) { return $compiled }
+    if ($overlay) {
+        $private = Join-Path $overlay 'global-agent-policy.md'
+        if (Test-Path -LiteralPath $private -PathType Leaf) { return $private }
+    }
+    if (Test-AgentHubOverlayRequired -LocalAppData $LocalAppData) {
+        $why = if ($overlay) { "overlay '$overlay' has no global-agent-policy.md" } else { 'no personal overlay resolved' }
+        throw "This machine is marked as an overlay host (AGENTHUB_OVERLAY_REQUIRED=1 or an overlay-required marker under AgentHub local data) but $why. Refusing to resolve the public policy, which would strip owner rules from every host. Run from the primary checkout, set AGENTHUB_OVERLAY to the overlay directory, or restore overlays/personal/global-agent-policy.md."
+    }
+    if (Test-Path -LiteralPath $public) { return $public }
     if (Test-Path -LiteralPath $core) { return $core }
-    if (Test-Path -LiteralPath $compiled) { return $compiled }
-    throw "No policy file under '$RepositoryRoot'. Expected policy-core.md or global-agent-policy.md."
+    throw "No policy file under '$RepositoryRoot'. Expected global-agent-policy.md or policy-core.md."
 }

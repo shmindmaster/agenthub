@@ -36,3 +36,21 @@ function Resolve-AgentHubTestOverlayPath {
     )
     return Join-Path $OverlayRoot ($RelativeToOverlay -replace '/', '\')
 }
+
+# The policy a machine actually deploys: the overlay's global-agent-policy.md
+# when an overlay resolves and carries one, otherwise the tracked public
+# global-agent-policy.md. Mirrors scripts/lib/CapabilityGraph.ps1
+# Resolve-AgentHubPolicyPath without its fail-closed throw (a test must still
+# be able to read the public policy). IsOverlay tells the caller whether
+# owner-specific assertions can apply.
+function Get-AgentHubTestEffectivePolicy {
+    param([Parameter(Mandatory)][string]$RepositoryRoot)
+    $overlay = Resolve-AgentHubTestOverlay -RepositoryRoot $RepositoryRoot
+    if ($overlay.Root) {
+        $private = Join-Path $overlay.Root 'global-agent-policy.md'
+        if (Test-Path -LiteralPath $private -PathType Leaf) {
+            return [pscustomobject]@{ Path = $private; IsOverlay = $true }
+        }
+    }
+    return [pscustomobject]@{ Path = (Join-Path $RepositoryRoot 'global-agent-policy.md'); IsOverlay = $false }
+}

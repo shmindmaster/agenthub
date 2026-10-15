@@ -18,7 +18,7 @@ if (-not $overlay.Root) {
 $skillRoot = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/sarosh-writing/skills/sarosh-writing'
 $skill = Get-Content -LiteralPath (Join-Path $skillRoot 'SKILL.md') -Raw -Encoding UTF8
 $metadata = Get-Content -LiteralPath (Join-Path $skillRoot 'agents\openai.yaml') -Raw -Encoding UTF8
-$policy = Get-Content -LiteralPath (Join-Path $repoRoot 'global-agent-policy.md') -Raw -Encoding UTF8
+$policy = Get-Content -LiteralPath (Get-AgentHubTestEffectivePolicy -RepositoryRoot $repoRoot).Path -Raw -Encoding UTF8
 $registry = Get-AgentHubMergedCapabilitiesDocument -OverlayRoot $overlay.Root -CapabilitiesDocument (Get-Content -LiteralPath (Join-Path $repoRoot 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json)
 
 $failures = [Collections.Generic.List[string]]::new()
@@ -71,7 +71,7 @@ $registryOk = $owners.Count -eq 1 -and $owners[0].id -eq 'sarosh-writing' -and
     @(Compare-Object $expectedHosts $actualHosts).Count -eq 0
 Report 'registry has one writing owner and all 17 host mappings' $registryOk "owners=$($owners.Count), hosts=$($actualHosts.Count)"
 
-$forbidden = @('(?i)mailto:', '(?i)[A-Z0-9._%+-]+@(pendoah\.ai|fleekbiz\.com)', '(?i)Mobile:\s*\+?\d')
+$forbidden = @('(?i)mailto:', '(?i)[A-Z0-9._%+-]+@(?!example\.(com|org|net|test|invalid)\b)[A-Z0-9-]+(\.[A-Z0-9-]+)*\.[A-Z]{2,}', '(?i)Mobile:\s*\+?\d')
 $leaks = @($forbidden | Where-Object { $skill -match $_ })
 Report 'writing skill contains no fixed contact data' ($leaks.Count -eq 0) "matched: $($leaks -join ', ')"
 
