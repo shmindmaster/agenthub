@@ -24,7 +24,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   a public package. `agenthub-internal` is archived; do not use a second
   AgentHub checkout as a control plane. Host destinations in
   `registry/agents.json` remain `{userHome}` templates. `policy-core.md` is
-  the public policy; `global-agent-policy.md` is personal deployment output.
+  the portable core; `global-agent-policy.md` is the generic public policy, and owner-specific policy lives only in `overlays/personal/global-agent-policy.md`.
   `scripts/AgentHub.ps1 init` scaffolds overlay + profile for strangers.
 
 - **Canonical Slack capability (2026-09-10, bridge launch fixed 2026-09-13):**
@@ -166,7 +166,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   Three findings that were invisible before it existed. Retro-scoring 148
   already-delivered brief segments found **6 below the floor**, one at 0.205
   against a floor of 0.505, inside audio that had already gone out. Phonetic
-  respelling — the leading candidate fix for the Sarosh/Pendoah mispronunciation
+  respelling — the leading candidate fix for a proper-noun mispronunciation
   — was the only orthography variant to **fail** the identity floor on both
   backends, so respelling to fix a vowel changes the speaker. And the canonical
   route itself had never worked from a non-PowerShell caller: `ai.ps1` is an

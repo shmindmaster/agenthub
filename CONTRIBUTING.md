@@ -24,7 +24,7 @@ Or: `npx agenthub init` then `npx agenthub validate`.
 - `scripts/agenthub-cli.mjs` — thin Node wrapper over `AgentHub.ps1`.
 - `overlays/personal.example/` — template for a local private overlay. Not required for public capabilities.
 - `overlays/personal/` — this machine's private capability list when present.
-- `policy-core.md` — portable policy. `global-agent-policy.md` (when present) is a compiled personal deployment document.
+- `policy-core.md` — portable policy. `global-agent-policy.md` is the generic public policy; owner-specific policy lives only in `overlays/personal/global-agent-policy.md` (gitignored), which replaces it on an overlay host.
 - `agenthub.profile.example.json` — optional local roots. The real `agenthub.profile.json` is gitignored.
 
 ## Rules

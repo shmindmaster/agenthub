@@ -137,7 +137,7 @@ RepoWise stays SQLite because a graph traversal is not a vector query.
 
 - **Index freshness is not triggered by content change.** OneDrive edits do
   not schedule a Local-AI reindex, so recently authored material is absent
-  from retrieval until a build runs. Root `04_Career_and_Public_Profile` is
+  from retrieval until a build runs. The most actively edited root is
   the sharpest case: heavily edited, and a rounding error in the index.
 - **The three indexing stages are separate commands.** `ai.ps1 reindex` only
   syncs catalog to Qdrant. Picking up new or changed files needs

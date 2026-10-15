@@ -48,8 +48,10 @@ Runtime output belongs under the OS local-data root (`%LOCALAPPDATA%\AgentHub` o
 
 ## This checkout (private fleet)
 
-This repository may also carry a filled `overlays/personal/` and compiled
-`global-agent-policy.md`. Those are not part of a public-core export.
+This repository may also carry a filled `overlays/personal/`, including
+`overlays/personal/global-agent-policy.md` (owner-specific policy; the tracked
+`global-agent-policy.md` is the generic public policy). Those are not part of
+a public-core export.
 
 **Public tree:** [github.com/shmindmaster/agenthub-core](https://github.com/shmindmaster/agenthub-core)
 

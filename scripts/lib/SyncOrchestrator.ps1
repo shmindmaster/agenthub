@@ -11,10 +11,11 @@ function Get-AgentHubSyncStepDefinitions {
         [switch]$ApplyMode
     )
     $modeArg = if ($ApplyMode) { '-Apply' } else { '-Audit' }
+    $quietOverlayArg = if ($ApplyMode) { @('-QuietOverlayResolution') } else { @() }
     return @(
-        @{ Name = 'Sync-Instructions.ps1'; Relative = 'Sync-Instructions.ps1'; Args = @($modeArg, '-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
-        @{ Name = 'Sync-Subagents.ps1'; Relative = 'Sync-Subagents.ps1'; Args = @($modeArg, '-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
-        @{ Name = 'Sync-Capabilities.ps1'; Relative = 'Sync-Capabilities.ps1'; Args = @($modeArg, '-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
-        @{ Name = 'Sync-AgentHub.ps1'; Relative = 'Sync-AgentHub.ps1'; Args = @($modeArg, '-RegistryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
+        @{ Name = 'Sync-Instructions.ps1'; Relative = 'Sync-Instructions.ps1'; Args = @($modeArg) + $quietOverlayArg + @('-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
+        @{ Name = 'Sync-Subagents.ps1'; Relative = 'Sync-Subagents.ps1'; Args = @($modeArg) + @('-QuietOverlayResolution') + @('-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
+        @{ Name = 'Sync-Capabilities.ps1'; Relative = 'Sync-Capabilities.ps1'; Args = @($modeArg) + @('-QuietOverlayResolution') + @('-RepositoryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
+        @{ Name = 'Sync-AgentHub.ps1'; Relative = 'Sync-AgentHub.ps1'; Args = @($modeArg) + @('-QuietOverlayResolution') + @('-RegistryRoot', $RepositoryRoot, '-UserProfile', $UserProfile) }
     )
 }

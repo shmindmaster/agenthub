@@ -66,7 +66,8 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 # tests/Test-FileEncodingDiscipline.ps1 enforces it repo-wide.
 $scopePath    = Join-Path $repoRoot 'registry\mobile-scope.json'
 $standardPath = Join-Path $repoRoot 'registry\repo-standard.json'
-$policyPath   = Join-Path $repoRoot 'global-agent-policy.md'
+. (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
+$policyPath   = (Get-AgentHubTestEffectivePolicy -RepositoryRoot $repoRoot).Path
 
 $scope    = Get-Content -LiteralPath $scopePath    -Raw -Encoding UTF8 | ConvertFrom-Json
 $standard = Get-Content -LiteralPath $standardPath -Raw -Encoding UTF8 | ConvertFrom-Json

@@ -92,7 +92,7 @@ function Test-PolicyCoreHasNoOwnerIdentity {
     if ($fragment -notmatch 'sarosh-communication') {
         return @{ Passed = $false; Detail = 'personal fragment does not route sarosh-communication' }
     }
-    $compiled = Get-Content -LiteralPath (Join-Path $repoRoot 'global-agent-policy.md') -Raw -Encoding UTF8
+    $compiled = Get-Content -LiteralPath (Join-Path $OverlayRoot 'global-agent-policy.md') -Raw -Encoding UTF8
     if ($compiled -notmatch 'sarosh-communication') {
         return @{ Passed = $false; Detail = 'compiled personal policy no longer routes sarosh-communication; this machine would deploy a weaker policy' }
     }

@@ -28,7 +28,7 @@ if (-not $overlay.Root) {
 $skillRoot = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/sarosh-communication/skills/sarosh-communication'
 $skillPath = Join-Path $skillRoot 'SKILL.md'
 $metadataPath = Join-Path $skillRoot 'agents\openai.yaml'
-$policyPath = Join-Path $repoRoot 'global-agent-policy.md'
+$policyPath = (Get-AgentHubTestEffectivePolicy -RepositoryRoot $repoRoot).Path
 $registryPath = Join-Path $repoRoot 'registry\capabilities.json'
 
 $failures = [Collections.Generic.List[string]]::new()
@@ -157,10 +157,10 @@ Report 'communication stays separate from long-form writing and owner audio' `
 #    into fleet policy.
 $forbiddenContactPatterns = @(
     '(?i)mailto:',
-    '(?i)[A-Z0-9._%+-]+@(pendoah\.ai|fleekbiz\.com)',
+    '(?i)[A-Z0-9._%+-]+@(?!example\.(com|org|net|test|invalid)\b)[A-Z0-9-]+(\.[A-Z0-9-]+)*\.[A-Z]{2,}',
     '(?i)Mobile:\s*\+?\d',
     '(?i)\+1\s*\(\d{3}\)',
-    '(?is)Default Pendoah sender:'
+    '(?is)Default [A-Za-z]+ sender:'
 )
 $contactLeaks = @($forbiddenContactPatterns | Where-Object { $skill -match $_ })
 $mutableIdentityOk = $skill -match '(?is)Treat titles, organizations, email addresses, phone numbers, signatures,\s+billing rates, aliases, and availability as mutable facts'

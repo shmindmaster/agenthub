@@ -24,7 +24,8 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-$policyPath = Join-Path $repoRoot 'global-agent-policy.md'
+. (Join-Path $PSScriptRoot 'lib\PrivateOverlay.ps1')
+$policyPath = (Get-AgentHubTestEffectivePolicy -RepositoryRoot $repoRoot).Path
 
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0

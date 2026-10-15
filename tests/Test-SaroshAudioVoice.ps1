@@ -31,7 +31,8 @@ if (-not $overlay.Root) {
 $skillRoot = Resolve-AgentHubTestOverlayPath -OverlayRoot $overlay.Root -RelativeToOverlay 'packages/sarosh-audio-voice/skills/sarosh-audio-voice'
 $skillPath = Join-Path $skillRoot 'SKILL.md'
 $metadataPath = Join-Path $skillRoot 'agents\openai.yaml'
-$policyPath = Join-Path $repoRoot 'global-agent-policy.md'
+# Owner voice lives only in the overlay's effective policy (this test already skipped without an overlay).
+$policyPath = (Get-AgentHubTestEffectivePolicy -RepositoryRoot $repoRoot).Path
 $registryPath = Join-Path $repoRoot 'registry\capabilities.json'
 
 $failures = [Collections.Generic.List[string]]::new()
