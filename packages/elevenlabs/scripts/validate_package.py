@@ -10,7 +10,7 @@ import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "1.2.0"
+EXPECTED_VERSION = "2.0.0"
 MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
@@ -18,6 +18,8 @@ MANIFESTS = (
 )
 REQUIRED_TTS_FLAGS = (
     "--dry-run",
+    "--cache-workspace",
+    "--cache-revision",
     "--max-credits",
     "--stability",
     "--similarity-boost",
@@ -65,6 +67,7 @@ def main() -> int:
 
     result = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "elevenlabs_cli.py"), "tts", "--help"],
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         check=False,
         capture_output=True,
         text=True,
@@ -77,6 +80,7 @@ def main() -> int:
 
     help_result = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "elevenlabs_cli.py"), "--help"],
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         check=False,
         capture_output=True,
         text=True,

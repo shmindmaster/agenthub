@@ -12,8 +12,9 @@ description: Use when the user wants any video, audio, animation, briefing, trai
 **Reuse before regenerate.** Recut > recapture > rewrite. On a miss, rerun only `reviseSceneIds` / the failing take. Keep receipt-bound clips that still prove the claim. Do not regen TTS, the bed, or the whole encode for an unchanged scene — remux. Select by cost, latency, quality and privacy: use adequate local tools or authorized provider APIs; reserve ElevenLabs for justified value. Load `elevenlabs-api` for paid planning and cost controls. Start Local-AI only for a selected local route (`voice` for identity/ASR or local TTS; Comfy only if a plate needs it). One GPU job at a time.
 
 Load `sarosh-audio-voice` for owner speech. Hosted sources retain all identity,
-ASR, pronunciation and exact encoded release gates; use `elevenlabs-api` for
-images, video, music and editing. Real product UI remains captured evidence.
+ASR, pronunciation and exact encoded release gates. Read `references/content-controls.md`:
+paid REST TTS requires the shared ledger; other paid content routes remain disabled
+pending metered adapters. Real product UI remains captured evidence.
 
 ## 0. Intake (do not dump this on the user)
 
@@ -73,7 +74,9 @@ separate engineering task only when explicitly authorized.
 7. Compose: Remotion archetype kit, FFmpeg mux (duck the bed), or Recast for a captured product trace (`media-studio-capture`). Product-screencast: run `scripts/validate-demo-scenario.mjs` before recording and `scripts/validate-product-picture.mjs` before encode. Viewer-facing `briefing` / `training` / `explainer` / `series-episode` / `webcast` / `webinar` / `keynote` / `documentary` / `teaser` **requires Remotion** unless `intent: draft` or the user asked for a basic/proxy cut. If Remotion skills are missing, stop and say so — do not silently fall back to static slides. Buyer-facing product forms use **real captured UI** with pointer, click, zoom, and visible result (`product-picture.md`), not an avatar over fake chrome and not Ken Burns on a screenshot.
 8. Craft review is `media-story-experience-reviewer` on the **encoded** file. Product-screencast also runs `scripts/validate-product-picture.mjs` and `scripts/validate-viewer-release.mjs <jobRoot> <candidate.mp4>` after each recut. Score < `craftScoreMin` → revise `reviseSceneIds` and rerun. Then `media-studio-qa`: product-screencast → capture, product-picture, and encoded-picture gates; other kinds → identity score, full-program `ai.ps1 listen`, the engagement pass on the encoded file (`engagement.md` Diagnose first), and `Inspect-MediaVisualQuality.ps1`.
 
-Owner voice: `ai.ps1 voice qwen-clone --voice sarosh` only.
+Owner voice loads `sarosh-audio-voice`. Local voice remains eligible; paid hosted
+speech requires the shared ledger in `references/content-controls.md`. Generated
+pending speech is for QA; acceptance and encoded-delivery gates still apply.
 
 Viewer-facing explainers, branded films, and series: load `technical-storytelling` and, when installed, third-party `creative-writing-skills`. Descript stays optional finishing (`media-studio-descript`).
 

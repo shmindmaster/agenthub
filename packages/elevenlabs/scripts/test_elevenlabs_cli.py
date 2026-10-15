@@ -9,6 +9,7 @@ from unittest.mock import patch
 import urllib.error
 
 import elevenlabs_cli as cli
+import governed_elevenlabs as governed
 
 
 class SpendingBoundaries(unittest.TestCase):
@@ -17,6 +18,18 @@ class SpendingBoundaries(unittest.TestCase):
         self.voice = {"category": "professional", "fine_tuning": {"state": {"ready": "fine_tuned"}}}
         self.model = {"model_id": "ready", "can_do_text_to_speech": True,
                       "model_rates": {"character_cost_multiplier": .5}}
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.root = pathlib.Path(folder.name)
+        self.ledger = governed.new_ledger(self.root / "runtime")
+        self.ledger.configure("elevenlabs/credits", 20)
+        self.patch = patch.object(governed, "new_ledger", return_value=self.ledger)
+        self.patch.start()
+        self.addCleanup(self.patch.stop)
+        self.env = patch.dict(cli.os.environ, {"ELEVENLABS_API_KEY": "synthetic-credential"})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+
 
     def metadata(self, path):
         return {"/user/subscription": self.subscription, "/voices/fixture": self.voice,
@@ -82,7 +95,10 @@ class SpendingBoundaries(unittest.TestCase):
 
     def invoke(self, target, extra=("--max-credits", "10")):
         argv = ["cli", "tts", "--voice-id", "fixture", "--model-id", "ready",
-                "--text", "hello", "--output", str(target), *extra]
+                "--text", "hello", "--output", str(target),
+                "--stability", "0.5", "--similarity-boost", "0.75", "--style", "0",
+                "--speed", "1", "--use-speaker-boost", "--text-normalization", "auto",
+                *([] if "--governed" in extra else ["--cache-workspace", "fixture-project", "--cache-revision", "locked-voice-model-v1"]), *extra]
         with patch.object(cli.sys, "argv", argv), patch.object(cli, "_get_json", side_effect=self.metadata), contextlib.redirect_stdout(io.StringIO()):
             return cli.main()
 
@@ -130,6 +146,52 @@ class SpendingBoundaries(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(self.invoke(pathlib.Path(folder)/"take.mp3", ["--previous-text", "hello", "--previous-request-id", "fixture"]), 2)
             get.assert_not_called()
+
+
+class GovernedRouting(unittest.TestCase):
+    """Exercise the actual adapter with an isolated synthetic ledger and HTTP stub."""
+    setUp = SpendingBoundaries.setUp
+    invoke = SpendingBoundaries.invoke
+    metadata = SpendingBoundaries.metadata
+
+    def governed(self, target, revision="locked-voice-model-v1"):
+        return self.invoke(target, ["--governed", "--cache-workspace", "fixture-project",
+                                   "--cache-revision", revision, "--max-credits", "10"])
+
+    def test_exact_repeat_reuses_pending_bytes_without_second_post(self):
+        with patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", b"synthetic audio", {"request-id": "fixture-request"})) as post:
+            a, b = self.root / "a.mp3", self.root / "b.mp3"
+            self.assertEqual(self.governed(a), 0)
+            self.assertEqual(self.governed(b), 0)
+            self.assertEqual(a.read_bytes(), b.read_bytes())
+            receipt = json.loads(b.with_suffix(".mp3.provenance.json").read_text())
+            self.assertEqual(receipt["acceptance_state"], "pending")
+            self.assertTrue(receipt["reused"])
+            self.assertEqual(post.call_count, 1)
+            self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
+
+    def test_revision_change_invalidates_and_reserves_separately(self):
+        with patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", b"synthetic audio", {})) as post:
+            self.assertEqual(self.governed(self.root / "a.mp3"), 0)
+            self.assertEqual(self.governed(self.root / "b.mp3", "v2"), 0)
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(self.governed(self.root / "c.mp3", "v3"), 2)
+            self.assertEqual(post.call_count, 2)
+
+    def test_ambiguous_failure_never_retries_or_releases_budget(self):
+        with patch.object(cli, "_request_full", side_effect=RuntimeError("synthetic lost response")) as post:
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(self.governed(self.root / "a.mp3"), 2)
+                self.assertEqual(self.governed(self.root / "b.mp3"), 2)
+            self.assertEqual(post.call_count, 1)
+            self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
+
+    def test_unversioned_dictionary_and_missing_revision_never_post(self):
+        with patch.object(cli, "_request_full") as post, contextlib.redirect_stderr(io.StringIO()):
+            extra = ["--governed", "--cache-workspace", "fixture", "--max-credits", "10"]
+            self.assertEqual(self.invoke(self.root / "a.mp3", extra), 2)
+            self.assertEqual(self.invoke(self.root / "b.mp3", extra + ["--cache-revision", "v1", "--pronunciation-dictionary", "unversioned"]), 2)
+            post.assert_not_called()
 
 
 if __name__ == "__main__":

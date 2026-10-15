@@ -5,7 +5,7 @@ description: Use when a video or audio job needs provider-routed generation — 
 
 # Media studio generate
 
-Choose by cost, latency, quality and privacy. Reuse accepted assets first; use adequate local tools or authorized provider APIs. Load `elevenlabs-api` and its cost-controls reference before paid planning; spend ElevenLabs credits only for justified value, using the host-native connector once selected. Load `local-ai-stack` and resolve `$LocalAiControl` when local generation or validation is needed. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
+Choose by cost, latency, quality and privacy. Reuse accepted assets first. Load `elevenlabs-api` and `../media-studio/references/content-controls.md` before paid planning. Paid ElevenLabs TTS requires its shared governed CLI; unsupported paid modalities remain disabled. Native connectors and SDK examples must not bypass the ledger. Use adequate authorized local generation otherwise. Load `local-ai-stack` and resolve `$LocalAiControl` for local generation or validation. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
 
 Load `../media-studio/references/engagement.md`. Viewer-facing jobs consume **locked** `storyboard.json`, `visual-bible.json`, and `direction.json`. Do not invent plates the director did not call.
 
@@ -43,15 +43,15 @@ until a verified provider receipt adapter exists; report that limitation explici
 
 For local viewer-facing owner/role speech use `Generate-OwnerVoice.ps1`:
 
-Use the AgentHub-deployed shared tools on native-plugin and loose-skill hosts. Their `plugin.json` must match this skill's 1.5.13 release. Missing or stale tools block generation until AgentHub syncs the kit from a verified 1.5.13 package; do not default to a checkout of unknown version.
+Use the AgentHub-deployed shared tools on native-plugin and loose-skill hosts. Their `plugin.json` must match this skill's 1.6.0 release. Missing or stale tools block generation until AgentHub syncs the kit from a verified 1.6.0 package; do not default to a checkout of unknown version.
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $manifest = Join-Path $tools 'plugin.json'
 $generator = Join-Path $tools 'Generate-OwnerVoice.ps1'
 $integrity = Join-Path $tools 'Test-SpeechIntegrity.ps1'
-if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '1.5.13' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
-    throw 'Media Studio 1.5.13 voice tools are missing or stale. Deploy them from a verified package before generation.'
+if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '1.6.0' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
+    throw 'Media Studio 1.6.0 voice tools are missing or stale. Deploy them from a verified package before generation.'
 }
 & pwsh -NoProfile -File $generator -Job $Job
 ```
@@ -74,8 +74,8 @@ Viewer-facing jobs also generate the directed music (`musicCue: bed` or `sting`)
 
 | Storyboard `sound.musicCue` | Generate |
 | --- | --- |
-| `bed` | one accepted bed or adequate local `ai.ps1 music`; ElevenLabs when its benefit justifies credits |
-| `sting` | a **short** ElevenLabs SFX or local sting (2–4s hit), not a second full bed |
+| `bed` | one accepted bed or adequate local `ai.ps1 music`; paid cloud music is disabled pending a metered adapter |
+| `sting` | an accepted short SFX or local sting (2–4s hit); paid cloud SFX is disabled pending a metered adapter |
 | `silence` | **no** music on that beat. Do not fill the gap. |
 | `none` | skip |
 
@@ -85,13 +85,13 @@ Mix later with `Finish-Media.ps1 -Speech -Music` so the bed ducks. Do not mux an
 
 ## 4. Pictures the bible called for
 
-For each `visual-bible.brollPlan` / `imagePrompts` row, reuse accepted plates or select an adequate local `ai.ps1 image` route. Use a live supported hosted image/video model when its quality or delivery benefit justifies cost. Honor `refuse` (never product UI, metrics, testimonials). Specialist: `references/image.md`.
+For each `visual-bible.brollPlan` / `imagePrompts` row, reuse accepted plates or select an adequate local `ai.ps1 image` route. Paid hosted image/video generation is disabled pending a metered shared adapter. Honor `refuse` (never product UI, metrics, testimonials). Specialist: `references/image.md`.
 
 Motif / lipsync / portrait **only** when `direction` called for that plate. Never Motif or image-to-video a product screenshot (`references/video.md`, `product-picture.md`).
 
-For cloud music, SFX, dubbing, lipsync, video, editing and composition load only
-the matching official ElevenLabs specialist and live node schema. Start a short
-preview, poll its run ID, reuse accepted assets and retain model/cost/hash receipts.
+Cloud music, SFX, dubbing, lipsync, video and editing need metered shared adapters
+before paid generation. Specialist skills may describe schemas but do not enable
+these routes. Use existing accepted assets or adequate authorized local tools.
 
 ## 5. Local generation commands
 

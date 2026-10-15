@@ -5,6 +5,14 @@ description: Use when ElevenLabs speech, images, video, music, dubbing, Studio, 
 
 # ElevenLabs routing
 
+**Governed paid route:** every paid content operation must use the shared CLI
+ledger. Only REST single-voice TTS is currently metered; other paid modalities
+fail closed. Native connectors, Flows and SDK snippets must not bypass it. Read
+`packages/media-studio/skills/media-studio/references/content-controls.md`.
+An unset shared ceiling disables purchases. Never configure or raise it without
+an owner-approved aggregate amount. This overrides the discovery order below
+for paid operations; metadata discovery remains read-only.
+
 Choose the least costly route that meets the task's quality, privacy and latency
 needs. Reuse accepted assets first; use adequate Local-AI or authorized provider
 APIs where suitable. Reserve ElevenLabs credits for a justified quality, capability
@@ -12,11 +20,11 @@ or delivery-speed benefit. Load `references/cost-controls.md` before paid planni
 then the relevant specialist and `references/capabilities.md` for the modality.
 
 1. Resolve the actual host surface against `registry/fleet-profile.json`.
-   Prefer its already-connected ElevenLabs plugin/MCP. Discover its live tools,
+   For read-only discovery, use its already-connected ElevenLabs plugin/MCP if enabled. Discover its live tools,
    workspace, models and node schemas; tool presence is availability evidence,
    not proof a paid generation succeeded. Preserve explicit workspace/link IDs.
-2. If no native connection can perform the operation, use the official hosted
-   OAuth MCP documented at https://elevenlabs.io/mcp. Confirm the host's native
+2. For connector discovery only, the official hosted
+   OAuth MCP is documented at https://elevenlabs.io/mcp. Confirm the host's native
    management surface before changing configuration. Owner sign-in may be needed;
    never copy API keys into OAuth headers or install a duplicate local server.
    The upstream local `elevenlabs-mcp` is deprecated in favor of the hosted MCP:

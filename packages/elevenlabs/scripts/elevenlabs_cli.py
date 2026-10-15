@@ -26,7 +26,9 @@ MAX_STITCH_IDS = 3
 MAX_DICTIONARY_LOCATORS = 3
 
 
-def _request_full(path: str, method: str = "GET", body: bytes | None = None, content_type: str | None = None, timeout: int = 30):
+def _request_full(path: str, method: str = "GET", body: bytes | None = None, content_type: str | None = None, timeout: int = 30, on_headers=None, governed_submission=False):
+    if method != "GET" and not (governed_submission and method == "POST" and path.startswith("/text-to-speech/")):
+        raise RuntimeError("Paid/unmetered requests require the shared broker; this route is disabled")
     key = os.environ.get("ELEVENLABS_API_KEY")
     if not key:
         raise RuntimeError("ELEVENLABS_API_KEY is not set")
@@ -36,6 +38,8 @@ def _request_full(path: str, method: str = "GET", body: bytes | None = None, con
     req = urllib.request.Request(BASE_URL + path, data=body, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
+            if on_headers:
+                on_headers(response.headers)
             return response.status, response.headers.get_content_type(), response.read(), response.headers
     except urllib.error.HTTPError as exc:
         # Error messages may echo submitted text or account details. Emit only a code.
@@ -199,8 +203,8 @@ def tts(args: argparse.Namespace) -> int:
         raise RuntimeError("Paid generation requires an explicitly selected --model-id or ELEVENLABS_MODEL_TTS_DEFAULT")
     output_format = args.output_format or os.environ.get("ELEVENLABS_OUTPUT_FORMAT", DEFAULT_OUTPUT_FORMAT)
     locators = _dictionary_locators(args.pronunciation_dictionary)
-    preflight = tts_preflight(voice_id, model_id, args.text, args.max_credits)
     if args.dry_run:
+        preflight = tts_preflight(voice_id, model_id, args.text, args.max_credits)
         print(json.dumps({"dry_run": True, **preflight}))
         return 0
     if args.max_credits is None:
@@ -243,30 +247,15 @@ def tts(args: argparse.Namespace) -> int:
         **({"language_code": args.language_code} if args.language_code else {}),
         **({"seed": args.seed} if args.seed is not None else {}),
     }
-    payload = json.dumps(payload_object).encode("utf-8")
-    query = urllib.parse.urlencode({"output_format": output_format})
-    _, content_type, raw, headers = _request_full(
-        f"/text-to-speech/{urllib.parse.quote(voice_id, safe='')}?{query}", method="POST", body=payload, content_type="application/json", timeout=300
-    )
-    if not raw or not (content_type.startswith("audio/") or content_type == "application/octet-stream"):
-        raise RuntimeError("Provider returned no audio; no delivery artifact was written")
-    output.write_bytes(raw)
-    receipt = {"provider": "elevenlabs", **preflight, "output": str(output.resolve()),
-               "output_bytes": len(raw), "output_sha256": hashlib.sha256(raw).hexdigest(),
-               "request_id": headers.get("request-id"), "output_format": output_format,
-               "context_text_sha256": {k: hashlib.sha256(v.encode("utf-8")).hexdigest()
-                                       for k, v in payload_object.items() if k in ("previous_text", "next_text")},
-               "request_parameters": {k: v for k, v in payload_object.items() if k not in ("text", "previous_text", "next_text")}}
-    output.with_suffix(output.suffix + ".provenance.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({
-        "ok": True,
-        "output": str(output),
-        "content_type": content_type,
-        "model_id": model_id,
-        "output_format": output_format,
-        # Keep this for request stitching; ids older than about two hours are not usable.
-        "request_id": headers.get("request-id"),
-    }))
+    import governed_elevenlabs
+    raw, receipt = governed_elevenlabs.generate(sys.modules[__name__], args, voice_id, model_id, output_format, payload_object)
+    receipt["output"] = str(output.resolve())
+    # Save the receipt first; a failed local save remains recoverable without repurchasing.
+    with output.with_suffix(output.suffix + ".provenance.json").open("x", encoding="utf-8") as handle:
+        handle.write(json.dumps(receipt, indent=2) + "\n")
+    with output.open("xb") as handle:
+        handle.write(raw)
+    print(json.dumps({"ok": True, "output": str(output), "acceptance_state": receipt["acceptance_state"], "reused": receipt["reused"]}))
     return 0
 
 
@@ -298,43 +287,8 @@ def is_evidence_drive(path: pathlib.Path) -> bool:
 
 
 def transcribe(args: argparse.Namespace) -> int:
-    input_path = pathlib.Path(args.input).expanduser().resolve()
-    if is_evidence_drive(input_path):
-        raise RuntimeError("Refusing cloud transcription for G:\\ evidence. Use an approved local workflow.")
-    if not args.approve_cloud:
-        raise RuntimeError("Cloud transcription requires --approve-cloud for this explicit non-sensitive input.")
-    if not input_path.is_file():
-        raise RuntimeError("Input file does not exist or is not a regular file")
+    raise RuntimeError("Paid STT is disabled until a conservative shared metering adapter is configured; use an authorized local route")
 
-    model_id = args.model_id or os.environ.get("ELEVENLABS_MODEL_STT_DEFAULT", "scribe_v2")
-    fields = {"model_id": model_id}
-    if args.language_code:
-        fields["language_code"] = args.language_code
-    if args.diarize:
-        fields["diarize"] = "true"
-    if args.tag_audio_events:
-        fields["tag_audio_events"] = "true"
-    body, content_type = multipart_file(fields, "file", input_path)
-    _, _, raw = request("/speech-to-text", method="POST", body=body, content_type=content_type)
-    data = json.loads(raw)
-
-    output = pathlib.Path(args.output).expanduser()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    provenance = {
-        "input_name": input_path.name,
-        "input_sha256": hashlib.sha256(input_path.read_bytes()).hexdigest(),
-        "input_bytes": input_path.stat().st_size,
-        "provider": "elevenlabs",
-        "model_id": model_id,
-        "cloud_approved": True,
-        "output": str(output),
-    }
-    output.with_suffix(output.suffix + ".provenance.json").write_text(
-        json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
-    )
-    print(json.dumps({"ok": True, "output": str(output), "model_id": model_id, "cloud_approved": True}))
-    return 0
 
 
 def main() -> int:
@@ -358,6 +312,9 @@ def main() -> int:
     p_tts.add_argument("--model-id")
     p_tts.add_argument("--dry-run", action="store_true", help="Check credits and model/clone readiness without generating")
     p_tts.add_argument("--max-credits", type=float, help="Refuse a request above this estimated credit budget")
+    p_tts.add_argument("--governed", action="store_true", help="Compatibility flag; all paid TTS is governed")
+    p_tts.add_argument("--cache-workspace", help="Authorized project/access boundary, required for paid TTS")
+    p_tts.add_argument("--cache-revision", help="Locked voice/model/reference revision, required for paid TTS")
     p_tts.add_argument("--stability", type=float)
     p_tts.add_argument("--similarity-boost", type=float)
     p_tts.add_argument("--style", type=float)
@@ -386,11 +343,23 @@ def main() -> int:
     p_transcribe.add_argument("--tag-audio-events", action="store_true")
     p_transcribe.add_argument("--approve-cloud", action="store_true", help="Confirm this file is approved for cloud transcription")
     p_transcribe.set_defaults(func=transcribe)
+    p_reconcile = sub.add_parser("reconcile", help="Read-only history recovery/settlement; never resubmits")
+    p_reconcile.add_argument("--namespace", required=True)
+    p_reconcile.add_argument("--cache-workspace", required=True)
+    p_reconcile.add_argument("--cache-key", required=True)
+    p_reconcile.add_argument("--history-id", required=True)
+    def reconcile(args):
+        import governed_elevenlabs
+        return governed_elevenlabs.reconcile(sys.modules[__name__], args)
+    p_reconcile.set_defaults(func=reconcile)
     args = parser.parse_args()
     try:
         return args.func(args)
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
+        return 2
+    except (OSError, ValueError):
+        print("Local validation/storage failed; inspect the ledger before retrying any generation", file=sys.stderr)
         return 2
 
 

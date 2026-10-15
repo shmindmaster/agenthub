@@ -1,5 +1,12 @@
 # ElevenLabs capability map
 
+Governed-mode constraint: this is a provider capability catalog, not permission
+to generate. Only the shared CLI REST TTS adapter currently enforces metering.
+Other paid rows remain disabled until a shared adapter exists. Native Flows,
+SDKs and specialist skills must not bypass this restriction. Read
+`packages/media-studio/skills/media-studio/references/content-controls.md`.
+
+
 Load only the row needed. This is a routing map, not an account entitlement or
 successful-execution claim. Discover current tool/node schemas in the selected
 workspace; consult official API documentation for repository integrations.

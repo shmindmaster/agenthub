@@ -30,8 +30,12 @@ prove a working subscription, free credits or a cost ceiling.
   Flash/Turbo can cost less than premium speech, but verify clone readiness and
   quality. The shared TTS CLI requires a positive finite `--max-credits` for POST,
   refuses unknown rates/quota and checks the output destination before spending.
-  Its ceiling limits an estimate, not provider-side final billing or a concurrent
-  fleet-wide allowance. Keep a separate job ledger across segments/workers.
+  Its mandatory broker reserves that integer maximum atomically against one
+  lifetime local ceiling shared across cooperating agents, jobs and credentials.
+  Unset ceilings deny purchases. Unknown billing holds the entire reservation;
+  verified provider history settles actual credits. No automatic reset is used.
+  A provider overrun freezes new spend, but cannot impose a provider-side invoice
+  ceiling on unrestricted clients.
 - Account `character_limit - character_count` is the current API allowance
   remaining. Do not call that limit the base monthly grant: it can include
   rollover/adjustments. Record reset time; rollover composition/expiry is unknown
@@ -92,9 +96,15 @@ Keep private caches scoped to their authorized workspace, on the machine.
 
 Deduplicate identical queued/in-flight requests before submission. Retain the
 provider request/run ID; poll or retrieve its existing result after a timeout.
-Never blindly retry a paid POST. The shared CLI refuses existing output/receipt
-paths; it does not implement an automatic cache, cross-worker budget broker or
-provider batch service. The caller owns lookup, accepted-asset reuse and job caps.
+Never blindly retry a paid POST. The shared CLI automatically retrieves exact
+pending/accepted bytes, deduplicates workers and refuses existing output/receipt
+paths. Pending content still needs QA. Expired submitted leases retain their
+reservation and block resubmission. Recovery uses the saved request ID and exact
+provider history, never prompt similarity. See
+`packages/media-studio/skills/media-studio/references/content-controls.md`.
+Native connectors and unsupported paid endpoints remain disabled in governed
+mode. Provider batch and token prompt-cache discounts are not implemented by
+this asset broker; do not infer invoiced savings from fixture tests.
 
 ## Official references (checked October 14, 2026)
 
