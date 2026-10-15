@@ -86,7 +86,7 @@ test('encoded measurements: word alignment, drift, freezes, dropped frames, clip
 
 // ------------------------------------------------------------------ build-cue-sheet
 
-function cueJob(name, { asr = 'word', mapped = false, plan = null } = {}) {
+function cueJob(name, { asr = 'word', mapped = false, plan = null, headTrim = 0 } = {}) {
   const root = join(scratch, name);
   write(join(root, 'story', 'narration-timeline.json'), { durationSeconds: 9, segments: [
     { id: 'S01', scene: 'S01', text: 'Welcome to the approval queue', startSeconds: 0, durationSeconds: 3 },
@@ -100,7 +100,10 @@ function cueJob(name, { asr = 'word', mapped = false, plan = null } = {}) {
     write(join(root, 'voice', 'asr', 'S02.json'), { segments: [{ start: 0.4, end: 3.5, text: 'Click approve and the plan is approved' }] });
   }
   write(join(root, 'capture', 'manifest.json'), { clips: [{ id: 'S02', file: 'clips/S02.webm', segments: ['S02'], trimStart: 0.5 }] });
-  write(join(root, 'capture', 'receipt.json'), { clips: { S02: { file: 'clips/S02.webm', recast: 'full', actions: [
+  // headTrim: Recast's blank lead-in trim in seconds (record-job.mjs records it); null leaves it out, like a receipt
+  // written before the kit measured it. Receipt times stay on the raw recording clock either way.
+  write(join(root, 'capture', 'receipt.json'), { clips: { S02: { file: 'clips/S02.webm', recast: 'full', actionClock: 'recording-start',
+    ...(headTrim === null ? {} : { recastHeadTrimSeconds: headTrim, recastHeadTrimMethod: 'test' }), actions: [
     { t: 1, type: 'move', x: 100, y: 100 }, { t: 2.15, type: 'click', tStart: 2.1, x: 640, y: 300, label: 'Approve', target: 'Approve' },
     { t: 3.0, type: 'expect', label: 'Plan approved' }], expectations: [{ label: 'Plan approved', observed: true, at: 2.2, observedAt: 3.0 }] } } });
   if (plan) write(join(root, 'story', 'cue-plan.json'), plan);
@@ -147,6 +150,37 @@ test('cue sheet (mapped mode) puts action and result times on the program timeli
   assert.equal(s02.result.visible_at, 6.5);
   assert.equal(s02.screen.visible_until, 9);
   assert.ok(cue.inputs.composeMap.sha256);
+});
+
+test('clip clock: Recast head trim maps raw recording times onto the clip, and an unknown clock is refused', () => {
+  assert.deepEqual(L.clipClock({ recast: 'full', recastHeadTrimSeconds: 2.5 }).offset, 2.5);
+  assert.equal(L.toClipTime({ recast: 'full', recastHeadTrimSeconds: 2.5 }, 14.18), 11.68, 'Revolva S05: the click logged at 14.18 s plays at 11.68 s');
+  assert.equal(L.toClipTime({ recast: 'full', recastHeadTrimSeconds: 0.3 }, 0.1), 0, 'an event inside the trimmed lead-in clamps to the first frame');
+  assert.equal(L.clipClock({ recast: 'skipped' }).offset, 0, 'a raw copy keeps the recording clock');
+  assert.equal(L.clipClock({ recast: 'fallback' }).offset, 0);
+  assert.equal(L.clipClock({ recast: 'full', actionClock: 'clip' }).offset, 0);
+  assert.equal(L.clipClock({ recast: 'full' }).offset, null, 'a Recast render with no recorded trim has no known clock');
+  assert.match(L.clipClock({ recast: 'noZoom' }).source, /backfill-head-trim/);
+  assert.equal(L.toClipTime({ recast: 'full' }, 3), null);
+});
+
+test('cue sheet subtracts the Recast head trim from action and result times', () => {
+  const root = cueJob('cue-trim', { mapped: true, headTrim: 0.6 });
+  const r = run(cueBuilder, [root]); assert.equal(r.code, 0, r.out);
+  const s02 = readCue(root).beats[1];
+  assert.equal(s02.clip_clock.offset_seconds, 0.6);
+  assert.equal(s02.actions[0].clip_time, 1.5, 'click logged at 2.1 s on the recording clock, minus the 0.6 s trim');
+  assert.equal(s02.actions[0].action_time, 5, '3 + 1 s head hold + (1.5 - 0.5)');
+  assert.equal(s02.result.clip_time, 2.4);
+  assert.equal(s02.result.visible_at, 5.9);
+});
+
+test('cue sheet refuses a Recast clip whose receipt has no head trim instead of timing it on the wrong clock', () => {
+  const root = cueJob('cue-no-trim', { headTrim: null });
+  const r = run(cueBuilder, [root]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(JSON.parse(r.out).errors[0], /^S02: clip S02: recast "full" render with no recastHeadTrimSeconds/);
+  assert.deepEqual(readCue(root).beats[1].actions, [], 'no action is placed on an unknown clock');
 });
 
 test('cue sheet flags segment-level and missing ASR as degraded and keeps the cue-plan overrides', () => {
