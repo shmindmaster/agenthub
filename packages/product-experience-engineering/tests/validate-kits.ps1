@@ -42,7 +42,7 @@ try {
     Invoke-Checked 'check edited copy' $node @($vendorScript, '--check', '--dest', (Join-Path $temporary 'vendored-python')) -Expected 1 -Expect 'edited after vendoring' | Out-Null
     $jsDest = Join-Path $temporary 'vendored-js'
     Invoke-Checked 'vendor ts with .js imports' $node @($vendorScript, '--lang', 'ts', '--dest', $jsDest, '--import-ext', 'js') | Out-Null
-    if ((Get-Content -LiteralPath (Join-Path $jsDest 'approval-capsule.ts') -Raw) -notmatch 'from "\./canonical-json\.js"') {
+    if ((Get-Content -LiteralPath (Join-Path $jsDest 'approval-capsule.ts') -Raw -Encoding UTF8) -notmatch 'from "\./canonical-json\.js"') {
         throw 'vendor --import-ext js did not rewrite relative imports.'
     }
 
@@ -77,7 +77,7 @@ try {
         $isUp = ($LASTEXITCODE -eq 0)
         $ErrorActionPreference = $previous
     }
-    if (-not $isUp) { throw "demo-stack up did not become ready.`n$(Get-Content -Raw (Join-Path $temporary 'up.err') -ErrorAction SilentlyContinue)" }
+    if (-not $isUp) { throw "demo-stack up did not become ready.`n$(Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $temporary 'up.err') -ErrorAction SilentlyContinue)" }
     Invoke-Checked 'demo-stack down' $node @($stack, 'down', '--repo', $fixture) -Expect 'Stopped' | Out-Null
     Start-Sleep -Milliseconds 800
     Invoke-Checked 'demo-stack status after down' $node @($stack, 'status', '--repo', $fixture) -Expected 1 | Out-Null
