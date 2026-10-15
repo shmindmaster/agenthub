@@ -48,3 +48,16 @@ Ladder: Planned, Implemented, Integrated, Tested, Demonstrated, Production-Verif
 - [READINESS.md](./READINESS.md): status block and verdict.
 
 Showcase assessment (linked, not copied): `reports/showcase/agenthub.md` in the local coding-agent-dispatch runtime folder (2026-10-14). It is a local file, not part of this repo.
+
+## Engineering-quality gaps (directive 2026-10-15)
+
+| Rank | Severity | Gap | Evidence | Smallest fix | Small code-only fix with light focused test? |
+|---|---|---|---|---|---|
+| 1 | high (security) | **33 open Dependabot alerts: 1 critical, 26 high, 6 medium** across the two npm lockfiles. Critical: `shell-quote` (fix 1.11.0), runtime scope, in `packages/mobile-development/fixtures/smoke-app/package-lock.json`. High: `@modelcontextprotocol/sdk` (fix 1.31.0) in `packages/media-studio/kit/package-lock.json`, plus `@xmldom/xmldom`, `brace-expansion`, `braces`, `compression`, `image-size` and others. The pack names the open Dependabot PRs but not the alert counts | `gh api repos/<repo>/dependabot/alerts?state=open` (2026-10-15); `git ls-files | grep package-lock` shows only these two lockfiles; PRs #10 to #14 already propose the bumps (`shell-quote` 1.10.0 to 1.12.0, `@modelcontextprotocol/sdk` 1.30.0 to 1.32.1, others) | Merge PRs #10 to #14 after one local `npm ci` plus the kit's own tests in a heavy-work slot; the smoke-app is a test fixture, the kit is a media-studio dependency | yes (lockfile-only; light check = `npm ci` and the kit/smoke-app tests) |
+| 2 | high | The only hook is a security scanner; the tests and the validator run only by hand, so a broken registry or Slack contract can be pushed | `packages/security/hooks/pre-push`; pack READINESS blockers ("no recorded run") | Add `pwsh scripts/Validate-AgentHub.ps1` (fast) to the hook, and `Run-AllTests.ps1` when `registry/` or `packages/slack/` changed | yes (extend `packages/security/scripts/pre-push.test.mjs`) |
+| 3 | medium | Slack server is on 2025-11-25 with no `server/discover`, `outputSchema` or conformance run | `slack-mcp.mjs:9`, `contract.mjs:52-58` | Carried from the audit (P1.3); do after rank 2 so the conformance run has a gate | no |
+| 4 | medium | `registry/*.json` has no JSON Schema | `registry/` listing; `Validate-AgentHub.ps1` | `registry/schemas/mcps.schema.json` and a validator step (audit P1.4) | yes (validator test with a bad fixture) |
+| 5 | low | `engines.node` is `>=18`, a release line that no longer gets security fixes | `package.json:11-13` | Raise to the current LTS floor in `package.json` | yes (one line; run `npx agenthub validate` once) |
+| 6 | low | Slack tool list is not human-readable | `packages/slack/README.md:19-32` | Generated catalogue page (friction 2) | yes (drift test) |
+
+Skipped as already in the pack or README: no CI (owner decision), no recorded test run, installed state has no SHA, no demo, test-discovery gap, PR #16, Cursor autonomy conflict.

@@ -59,3 +59,6 @@ No GitHub Actions workflow on `main`. The only workflow GitHub knows is "Dependa
 ## What would raise the rung to Tested
 
 Run `Validate-AgentHub.ps1` and `Run-AllTests.ps1` on a clean checkout at a recorded SHA, save the output, and add the counts to this file with commit and timestamp. Add the product-experience-engineering validators to the aggregate run. Whether to restore hosted CI is an owner decision: GitHub runner workflows were retired across the fleet in July and August 2026.
+
+## Gate location
+No check blocks a push or a merge. The installed `pre-push` hook runs only the config-payload scanner (`packages/security/hooks/pre-push`). The one working blocker is `agenthub sync --apply`, which runs `scripts/Validate-AgentHub.ps1` first and refuses on failure (`scripts/AgentHub.ps1:363-374`), so it protects the operator's installed state, not the repository. `tests/Run-AllTests.ps1` is manual and does not include the product-experience-engineering validators or Python/TypeScript package tests that no PowerShell test calls. Nothing runs a conformance suite, a JSON Schema check on `registry/*.json`, or a dependency audit; GitHub Actions stay removed. Native option: chain `Validate-AgentHub.ps1` and `Run-AllTests.ps1` onto the existing pre-push hook.
