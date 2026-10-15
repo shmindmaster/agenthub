@@ -464,6 +464,6 @@ test("otel timing floors to integer milliseconds like Date.parse", () => {
   assert.equal(at("2026-10-14T15:00:00.001500Z"), 1791990000001);
 });
 
-test("KIT_VERSION is 1.1.0", () => {
-  assert.equal(KIT_VERSION, "1.1.0");
+test("KIT_VERSION is 1.1.1", () => {
+  assert.equal(KIT_VERSION, "1.1.1");
 });

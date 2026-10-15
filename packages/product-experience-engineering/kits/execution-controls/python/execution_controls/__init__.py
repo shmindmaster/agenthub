@@ -30,7 +30,7 @@ from .receipt import (
     verify_receipt,
 )
 
-KIT_VERSION = "1.1.0"
+KIT_VERSION = "1.1.1"
 
 __all__ = [
     "AUDIT_VERSION",

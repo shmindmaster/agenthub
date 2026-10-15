@@ -30,6 +30,16 @@ try {
     Invoke-Checked 'TypeScript kit tests' $node @('--test', (Join-Path $kits 'execution-controls\ts\test\')) | Out-Null
     Invoke-Checked 'Python kit tests' $python @('-m', 'unittest', 'discover', '-s', (Join-Path $kits 'execution-controls\python\tests')) | Out-Null
 
+    # 1b. Strict typecheck of the TypeScript a product vendors (tsconfig: strict,
+    # exactOptionalPropertyTypes, noUnused*). AgentHub carries no TypeScript
+    # dependency, so point EXECUTION_CONTROLS_TSC at a typescript/bin/tsc and
+    # EXECUTION_CONTROLS_TYPE_ROOTS at a node_modules/@types that has `node`.
+    if ($env:EXECUTION_CONTROLS_TSC -and $env:EXECUTION_CONTROLS_TYPE_ROOTS) {
+        Invoke-Checked 'strict tsc over vendored TypeScript' $node @($env:EXECUTION_CONTROLS_TSC, '-p', (Join-Path $kits 'execution-controls/ts/tsconfig.json'), '--typeRoots', $env:EXECUTION_CONTROLS_TYPE_ROOTS) | Out-Null
+    } else {
+        'SKIP: strict tsc over vendored TypeScript (set EXECUTION_CONTROLS_TSC and EXECUTION_CONTROLS_TYPE_ROOTS to run it).'
+    }
+
     # 2. Vendoring: a fresh copy checks clean; an edited copy fails.
     $vendorScript = Join-Path $pluginRoot 'scripts\vendor-execution-controls.mjs'
     foreach ($lang in 'python', 'ts') {

@@ -481,7 +481,7 @@ class Fixes110(unittest.TestCase):
                 canonical_json(bad)
 
     def test_kit_version(self):
-        self.assertEqual(KIT_VERSION, "1.1.0")
+        self.assertEqual(KIT_VERSION, "1.1.1")
 
 
 if __name__ == "__main__":

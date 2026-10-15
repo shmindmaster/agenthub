@@ -119,7 +119,10 @@ export function emitReceiptSpan(tracer: TracerLike, receipt: Receipt): ReceiptSp
     attributes: shape.attributes,
     startTime: shape.startTimeMs,
   });
-  if (shape.error) span.setStatus({ code: STATUS_ERROR, message: receipt.outcome.code });
+  if (shape.error) {
+    const code = receipt.outcome.code;
+    span.setStatus(code === undefined ? { code: STATUS_ERROR } : { code: STATUS_ERROR, message: code });
+  }
   span.end(shape.endTimeMs);
   return shape;
 }

@@ -197,7 +197,7 @@ export function createProposal(input: ProposalInput): Proposal {
   if (clean.expiresAt !== undefined && parseUtcMs(clean.expiresAt) === undefined) {
     throw new Error(`expiresAt must be an ISO-8601 UTC timestamp ending in "Z", got ${JSON.stringify(clean.expiresAt)}`);
   }
-  const body = { ...clean, capsuleVersion: CAPSULE_VERSION };
+  const body: Omit<Proposal, "proposalHash"> = { ...clean, capsuleVersion: CAPSULE_VERSION };
   return { ...body, proposalHash: proposalHashOf(body) };
 }
 
