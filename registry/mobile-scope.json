@@ -163,7 +163,7 @@
       "productId": "crewscore",
       "repository": "shmindmaster/crewscore",
       "bucket": "noNative",
-      "note": "Open-source CLI and service."
+      "note": "Open-source CLI and service. Archived 2026-10-15; superseded by Heatlot."
     },
     {
       "productId": "agenthub",
@@ -193,7 +193,7 @@
       "productId": "gitpin",
       "repository": "shmindmaster/gitpin",
       "bucket": "noNative",
-      "note": "Open-source CLI."
+      "note": "Open-source CLI. Archived 2026-10-15; superseded by Heatlot."
     },
     {
       "productId": "ap-study",
@@ -202,10 +202,10 @@
       "note": "Local-only repository under fleetRoot with no configured Git remote. README establishes an offline web/PWA study app and explicitly excludes App Store publication. This records that existing web-only direction; any future native work requires an owner scope decision. No mobile identity is assigned."
     },
     {
-      "productId": "assay",
-      "repository": "shmindmaster/assay",
+      "productId": "heatlot",
+      "repository": "shmindmaster/heatlot",
       "bucket": "noNative",
-      "note": "Recorded 2026-10-14 from the repository README: an Apache-2.0 Node.js reference implementation of a deterministic agent control layer, run from the command line. No product or native application surface. Any future native work requires an owner scope decision. No mobile identity is assigned."
+      "note": "Renamed from shmindmaster/assay on 2026-10-15 and rebuilt as Heatlot: AI verification of supplier certificates of conformance and mill test reports at receiving inspection (Apache-2.0, Node.js CLI, local HTTP API, MCP server and browser console). No native application surface. Any future native work requires an owner scope decision. No mobile identity is assigned."
     },
     {
       "productId": "mayamodest",
