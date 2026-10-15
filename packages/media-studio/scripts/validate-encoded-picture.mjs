@@ -183,6 +183,24 @@ function clipHashes(file, sourceRegion) {
   clipHashCache.set(key, hs);
   return hs;
 }
+const manifestClips = manifest.composeClips || manifest.clips || manifest.entries || manifest.captures || [];
+// A segment binds to its source clip by clip id. Two distinct edits can reuse one source video with different
+// ids and different sourceRegion crops, so matching on file alone binds a segment to the wrong clip's crop and
+// either fails a correct compose map or, worse, accepts a compose map whose crop contradicts the manifest.
+// Resolve by exact id first, fall back to an unambiguous file match, and fail closed on any ambiguity.
+const clipIdOf = (clip) => clip.id || clip.scenario || clip.storyboardSegmentId || null;
+const clipFileOf = (clip) => clip.file || clip.clip || clip.video || clip.output || null;
+function resolveManifestClip(clips, src) {
+  const byId = clips.filter((clip) => { const id = clipIdOf(clip); return id !== null && id === src.clipId; });
+  if (byId.length === 1) return clipFileOf(byId[0]) === src.file
+    ? { clip: byId[0], error: null }
+    : { clip: null, error: `clip id ${src.clipId} names a different source file in the capture manifest` };
+  if (byId.length > 1) return { clip: null, error: `multiple capture-manifest clips share clip id ${src.clipId}` };
+  const byFile = clips.filter((clip) => clipFileOf(clip) === src.file);
+  if (byFile.length === 1) return { clip: byFile[0], error: null };
+  if (byFile.length > 1) return { clip: null, error: `source ${src.file} matches ${byFile.length} capture-manifest clips and does not resolve by clip id` };
+  return { clip: null, error: `source ${src.file} is absent from the capture manifest` };
+}
 for (const seg of tl.segments) {
   const dur = Number(seg.durationSeconds) || 0;
   totalSeconds += dur;
@@ -194,8 +212,9 @@ for (const seg of tl.segments) {
   if (!src || !src.file) { fail(`segment ${seg.id} is a screen beat with no source clip in the compose map / manifest`); continue; }
   if (IMAGE_EXT.has(extname(src.file).toLowerCase())) { fail(`segment ${seg.id} screen beat is composed from a still (${src.file})`); continue; }
   if (receipt && !Object.values(receipt.clips || {}).some((e) => e.file === src.file || src.file.endsWith(e.file))) fail(`segment ${seg.id}: source ${src.file} is not a receipt-bound capture`);
-  const manifestClips = manifest.composeClips || manifest.clips || manifest.entries || manifest.captures || [];
-  const manifestClip = manifestClips.find((clip) => (clip.file || clip.clip || clip.video || clip.output) === src.file || (clip.id || clip.scenario || clip.storyboardSegmentId) === src.clipId);
+  const resolved = resolveManifestClip(manifestClips, src);
+  if (resolved.error) { fail(`segment ${seg.id}: ${resolved.error}`); continue; }
+  const manifestClip = resolved.clip;
   if (sourceRegionError(src.sourceRegion)) { fail(`segment ${seg.id}: invalid sourceRegion in compose map`); continue; }
   if (composeMap?.groups && !sameRegion(src.sourceRegion, manifestClip?.sourceRegion)) { fail(`segment ${seg.id}: compose-map sourceRegion differs from capture manifest`); continue; }
   if (Object.hasOwn(CAMPAIGN_FORMS, job.programForm) && deliveryFrame.height > deliveryFrame.width && !src.sourceRegion) { fail(`segment ${seg.id}: portrait campaign requires an explicit sourceRegion`); continue; }
