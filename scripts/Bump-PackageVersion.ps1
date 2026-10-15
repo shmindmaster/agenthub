@@ -54,6 +54,7 @@ if (Test-Path -LiteralPath $rootManifestPath) {
 } else {
     $rootManifest = [pscustomobject]@{ name = $Package }
 }
+$previousVersion = [string]$rootManifest.version
 $rootHash = @{}
 foreach ($p in $rootManifest.PSObject.Properties) { $rootHash[$p.Name] = $p.Value }
 $rootHash['$schema'] = $schema
@@ -96,16 +97,43 @@ foreach ($hostDir in $hostDirs) {
     Write-Host "updated $Package/$hostDir/plugin.json -> $Version"
 }
 
-# A deployable kit (media-studio) ships kit/package.json to the runtime, and Test-MediaStudioKitDeployment requires its
-# version to equal the package version. Only the top-level "version" line changes, so the manifest keeps its layout.
-$kitManifestPath = Join-Path $packageRoot 'kit/package.json'
-if (Test-Path -LiteralPath $kitManifestPath) {
-    $kitRaw = [IO.File]::ReadAllText($kitManifestPath)
-    $kitPattern = [regex]'(?m)^(\s*"version"\s*:\s*")[^"]*(")'
-    if (-not $kitPattern.IsMatch($kitRaw)) { throw "kit/package.json has no version field: $kitManifestPath" }
-    [IO.File]::WriteAllText($kitManifestPath, $kitPattern.Replace($kitRaw, "`${1}$Version`${2}", 1), [Text.UTF8Encoding]::new($false))
-    $updated += 'kit/package.json'
-    Write-Host "updated $Package/kit/package.json -> $Version"
+# A deployable kit (media-studio) carries the release version in more files than the plugin manifests, and the package
+# tests require every one to equal plugin.json: kit/package.json, kit/package-lock.json (root and packages[""]) and
+# kit/scene-archetypes.json. Only those version lines are rewritten, so each file keeps its layout; each is re-read and
+# checked afterwards, and a file whose layout does not match fails the bump instead of being left stale.
+function Set-ReleaseVersionLines([string]$RelativePath, [int]$Count, [scriptblock]$Check) {
+    $path = Join-Path $packageRoot $RelativePath
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    $raw = [IO.File]::ReadAllText($path)
+    $pattern = [regex]'(?m)^(\s*"version"\s*:\s*")[^"]*(")'
+    if ($pattern.Matches($raw).Count -lt $Count) { throw "$RelativePath has fewer than $Count version fields: $path" }
+    $next = $pattern.Replace($raw, "`${1}$Version`${2}", $Count)
+    # Checked on the text: Windows PowerShell's ConvertFrom-Json rejects the lockfile's empty-string key (packages[""]).
+    if (-not (& $Check $next)) { throw "$RelativePath would not carry release $Version after the bump: $path" }
+    [IO.File]::WriteAllText($path, $next, [Text.UTF8Encoding]::new($false))
+    $script:updated += $RelativePath
+    Write-Host "updated $Package/$RelativePath -> $Version"
+}
+$v = [regex]::Escape($Version)
+Set-ReleaseVersionLines 'kit/package.json' 1 { param($t) $t -match "(?m)^\{\s*(""[^""]+""\s*:\s*""[^""]*"",\s*)*""version""\s*:\s*""$v""" }
+# npm lockfile v3: the first two version lines are the root and packages[""] (the package itself), before any dependency.
+Set-ReleaseVersionLines 'kit/package-lock.json' 2 { param($t) $t -match "^\{\s*""name""\s*:\s*""[^""]*"",\s*""version""\s*:\s*""$v""" -and $t -match """packages""\s*:\s*\{\s*""""\s*:\s*\{[^{}]*?""version""\s*:\s*""$v""" }
+Set-ReleaseVersionLines 'kit/scene-archetypes.json' 1 { param($t) $t -match "^\{\s*""version""\s*:\s*""$v""" }
+
+# Skills that pin the release they verify against (media-studio-compose checks the runtime kit with -ne '<version>').
+# Only the previous release's own pins are rewritten: quoted '<old>', "<old> release", "verified <old>", "Studio <old>".
+if ($previousVersion -and $previousVersion -ne $Version) {
+    $old = [regex]::Escape($previousVersion)
+    $pins = [regex]"('$old')|($old(?= release))|((?<=verified )$old)|((?<=Studio )$old)"
+    foreach ($skill in @(Get-ChildItem -LiteralPath (Join-Path $packageRoot 'skills') -Filter 'SKILL.md' -Recurse -File -ErrorAction SilentlyContinue)) {
+        $raw = [IO.File]::ReadAllText($skill.FullName)
+        if (-not $pins.IsMatch($raw)) { continue }
+        $next = $pins.Replace($raw, { param($m) $m.Value.Replace($previousVersion, $Version) })
+        [IO.File]::WriteAllText($skill.FullName, $next, [Text.UTF8Encoding]::new($false))
+        $rel = $skill.FullName.Substring($packageRoot.Length).TrimStart('\', '/') -replace '\\', '/'
+        $updated += $rel
+        Write-Host "updated release pins in $Package/$rel -> $Version"
+    }
 }
 
 Write-Host ""
