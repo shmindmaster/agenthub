@@ -95,9 +95,9 @@ function Invoke-Launcher {
     }
     finally { Remove-Item Env:\FAKE_MCP_MARKER, Env:\FAKE_MCP_DEGRADED -ErrorAction SilentlyContinue }
     $logPath = Join-Path $runtime 'launcher.log'
-    $logText = if (Test-Path -LiteralPath $logPath) { Get-Content -LiteralPath $logPath -Raw } else { '' }
+    $logText = if (Test-Path -LiteralPath $logPath) { Get-Content -LiteralPath $logPath -Raw -Encoding UTF8 } else { '' }
     $statePath = Join-Path $runtime 'launcher.state.json'
-    $state = if (Test-Path -LiteralPath $statePath) { [string](Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).state } else { '' }
+    $state = if (Test-Path -LiteralPath $statePath) { [string](Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json).state } else { '' }
     [pscustomobject]@{ Code = $code; Log = $logText; State = $state }
 }
 
@@ -115,7 +115,7 @@ try {
 
     # 2b. Embedder down, start attempted through ai.ps1, still down: fail closed.
     $r = Invoke-Launcher -Port $port -EmbedderUrl $deadEmbedder
-    Report 'launcher asks ai.ps1 to start retrieval when the embedder is down' ((Test-Path -LiteralPath $embedderMarker) -and ((Get-Content -LiteralPath $embedderMarker -Raw) -match 'start retrieval')) "log=$($r.Log)"
+    Report 'launcher asks ai.ps1 to start retrieval when the embedder is down' ((Test-Path -LiteralPath $embedderMarker) -and ((Get-Content -LiteralPath $embedderMarker -Raw -Encoding UTF8) -match 'start retrieval')) "log=$($r.Log)"
     Report 'launcher still fails closed when the embedder start does not help' ($r.Code -eq 2 -and -not (Test-Path -LiteralPath $marker)) "exit=$($r.Code)"
 
     # 2c. Embedder up: start, wait for the port, confirm not degraded.
@@ -159,7 +159,7 @@ Report 'Codex plugin points at its own stdio manifest' ($codexPlugin.mcpServers 
 $codex = (Get-Content -LiteralPath (Join-Path $pkg 'mcp.codex.json') -Raw -Encoding UTF8 | ConvertFrom-Json).mcpServers.'repowise-workspace'
 Report 'Codex manifest launches the bridge relative to the plugin root' ($codex.type -eq 'stdio' -and $codex.command -eq 'pyw' -and @($codex.args)[-1] -eq './scripts/repowise_bridge.py') ($codex | ConvertTo-Json -Compress)
 
-$launcherText = Get-Content -LiteralPath $launcher -Raw
+$launcherText = Get-Content -LiteralPath $launcher -Raw -Encoding UTF8
 Report 'launcher holds no scheduled-task or logon registration' ($launcherText -notmatch 'Register-ScheduledTask|schtasks|CurrentVersion\\Run') 'scheduled start found'
 
 Write-Host ''
