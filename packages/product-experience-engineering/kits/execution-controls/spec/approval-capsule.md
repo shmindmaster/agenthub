@@ -149,8 +149,9 @@ and [`../ts/adversarial-suite.ts`](../ts/adversarial-suite.ts) run the same
 cases against the product's real route through an adapter: approve applies
 once, replay and re-approve apply once, a second approver replays, reject after
 approve conflicts, a reused key with a different body fails, stale, tampered,
-wrong hash, forged actor, wrong role, other tenant, self-approval and (when the
-adapter supports it) four concurrent approvals that must apply once. Every
+wrong hash, forged actor, other tenant, and, when they apply to the product,
+wrong role (`has_viewer`), self-approval (`proposer_is_user`) and four
+concurrent approvals that must apply once (`supports_concurrency`). Every
 refusal must leave zero side effects and one `refused` audit row with its code.
 
 ## 8. In the product UI

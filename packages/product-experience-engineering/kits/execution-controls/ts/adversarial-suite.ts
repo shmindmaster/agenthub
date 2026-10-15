@@ -20,6 +20,8 @@ export interface DecideCall {
 export interface CapsuleAdapter<Ctx = unknown> {
   /** True when the proposer is a person who could try to approve their own proposal. */
   proposerIsUser: boolean;
+  /** False when every participant may decide; the viewer case is then skipped. Default true. */
+  hasViewer?: boolean;
   supportsConcurrency?: boolean;
   setup(): Promise<Ctx>;
   proposal(ctx: Ctx): Promise<{ proposalHash: string }>;
@@ -50,7 +52,7 @@ export function adversarialCases<Ctx>(adapter: CapsuleAdapter<Ctx>): Array<[stri
       actor: "approver",
       proposalHash: (await adapter.proposal(ctx)).proposalHash,
       decision: "approve",
-      idempotencyKey: "adv-1",
+      idempotencyKey: "adversarial-key-1",
       ...overrides,
     });
 
@@ -81,21 +83,21 @@ export function adversarialCases<Ctx>(adapter: CapsuleAdapter<Ctx>): Array<[stri
     ["reapprove_new_key_applies_once", async () => {
       const ctx = await adapter.setup();
       await approve(ctx);
-      const again = await approve(ctx, { idempotencyKey: "adv-2" });
+      const again = await approve(ctx, { idempotencyKey: "adversarial-key-2" });
       expect(again.status === 200, `re-approve returned ${again.status}`);
       expect((await adapter.sideEffects(ctx)) === 1, "re-approve applied the change twice");
     }],
     ["second_approver_is_a_replay", async () => {
       const ctx = await adapter.setup();
       await approve(ctx);
-      const second = await approve(ctx, { actor: "second_approver", idempotencyKey: "adv-2" });
+      const second = await approve(ctx, { actor: "second_approver", idempotencyKey: "adversarial-key-2" });
       expect(second.status === 200, `second approver got ${second.status}`);
       expect((await adapter.sideEffects(ctx)) === 1, "second approver applied the change again");
     }],
     ["reject_after_approve_conflicts", async () => {
       const ctx = await adapter.setup();
       await approve(ctx);
-      const result = await approve(ctx, { idempotencyKey: "adv-2", decision: "reject" });
+      const result = await approve(ctx, { idempotencyKey: "adversarial-key-2", decision: "reject" });
       expect(result.status === 409 && codeOf(result.body) === "already_decided", `got ${result.status} ${codeOf(result.body)}`);
     }],
     ["same_key_different_body", async () => {
@@ -106,8 +108,9 @@ export function adversarialCases<Ctx>(adapter: CapsuleAdapter<Ctx>): Array<[stri
     }],
     ["stale_revision_is_refused", async () => {
       const ctx = await adapter.setup();
+      const shown = (await adapter.proposal(ctx)).proposalHash;
       await adapter.changeSubject(ctx);
-      await refused(ctx, await approve(ctx), 409, "stale_proposal");
+      await refused(ctx, await approve(ctx, { proposalHash: shown }), 409, "stale_proposal");
     }],
     ["tampered_proposal_is_refused", async () => {
       const ctx = await adapter.setup();
@@ -123,10 +126,6 @@ export function adversarialCases<Ctx>(adapter: CapsuleAdapter<Ctx>): Array<[stri
       const ctx = await adapter.setup();
       await refused(ctx, await approve(ctx, { claimedActorId: "someone-else" }), 403, "actor_mismatch");
     }],
-    ["viewer_is_refused", async () => {
-      const ctx = await adapter.setup();
-      await refused(ctx, await approve(ctx, { actor: "viewer" }), 403, "actor_not_authorized");
-    }],
     ["other_tenant_is_not_found", async () => {
       const ctx = await adapter.setup();
       const result = await approve(ctx, { actor: "other_tenant" });
@@ -135,6 +134,12 @@ export function adversarialCases<Ctx>(adapter: CapsuleAdapter<Ctx>): Array<[stri
     }],
   ];
 
+  if (adapter.hasViewer !== false) {
+    cases.push(["viewer_is_refused", async () => {
+      const ctx = await adapter.setup();
+      await refused(ctx, await approve(ctx, { actor: "viewer" }), 403, "actor_not_authorized");
+    }]);
+  }
   if (adapter.proposerIsUser) {
     cases.push(["self_approval_is_refused", async () => {
       const ctx = await adapter.setup();
@@ -146,7 +151,7 @@ export function adversarialCases<Ctx>(adapter: CapsuleAdapter<Ctx>): Array<[stri
       const ctx = await adapter.setup();
       const shown = (await adapter.proposal(ctx)).proposalHash;
       const results = await Promise.all(
-        [0, 1, 2, 3].map((i) => adapter.decide(ctx, { actor: "approver", proposalHash: shown, decision: "approve", idempotencyKey: `adv-c${i}` })),
+        [0, 1, 2, 3].map((i) => adapter.decide(ctx, { actor: "approver", proposalHash: shown, decision: "approve", idempotencyKey: `adversarial-key-c${i}` })),
       );
       expect(results.every((r) => r.status < 500), `concurrent statuses ${results.map((r) => r.status)}`);
       expect((await adapter.sideEffects(ctx)) === 1, "concurrent approvals applied more than once");

@@ -57,7 +57,14 @@ try {
     # 4. Hidden runner: up (supervised, windowless), status, down, nothing left listening.
     $env:AGENTHUB_DEMO_STACK_ROOT = Join-Path $temporary 'demo-stack'
     $stack = Join-Path $pluginRoot 'scripts\demo-stack.mjs'
-    $fixture = Join-Path $PSScriptRoot 'fixtures\demo-harness-app'
+    # Run a copy on a port the OS hands out now: Windows reserves shifting port
+    # ranges (WinNAT/Hyper-V), so any fixed fixture port eventually fails with EACCES.
+    $fixture = Join-Path $temporary 'demo-harness-app'
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fixtures\demo-harness-app') -Destination $fixture -Recurse
+    $port = [int](& $node -e "const s=require('net').createServer();s.listen(0,'127.0.0.1',()=>{console.log(s.address().port);s.close()})")
+    $harnessFile = Join-Path $fixture 'demo\harness.json'
+    $harnessText = (Get-Content -LiteralPath $harnessFile -Raw -Encoding UTF8) -replace '47613', [string]$port
+    [IO.File]::WriteAllText($harnessFile, $harnessText, (New-Object System.Text.UTF8Encoding($false)))
     $up = Start-Process -FilePath $node -ArgumentList @("`"$stack`"", 'up', '--repo', "`"$fixture`"") -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $temporary 'up.out') -RedirectStandardError (Join-Path $temporary 'up.err')
     $deadline = (Get-Date).AddSeconds(30)

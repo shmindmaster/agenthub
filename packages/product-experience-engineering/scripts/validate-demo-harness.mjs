@@ -99,7 +99,9 @@ if (harness) {
 }
 
 function sourceMentions(root, needle) {
-  const skip = new Set(['node_modules', '.git', 'dist', 'build', '.venv', 'venv', '.next', 'coverage', 'demo', 'docs']);
+  const skip = new Set(['node_modules', '.git', 'dist', 'build', '.venv', 'venv', '.next', 'coverage']);
+  // The harness folder and docs at the repo root declare the label; they do not render it.
+  const rootOnlySkip = new Set(['demo', 'docs']);
   const stack = [root];
   let budget = 20000;
   while (stack.length > 0 && budget > 0) {
@@ -108,7 +110,8 @@ function sourceMentions(root, needle) {
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { continue; }
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        if (!skip.has(entry.name) && !entry.name.startsWith('.')) stack.push(join(dir, entry.name));
+        const skipped = skip.has(entry.name) || (dir === root && rootOnlySkip.has(entry.name));
+        if (!skipped && !entry.name.startsWith('.')) stack.push(join(dir, entry.name));
       } else if (/\.(tsx|jsx|ts|js|mjs|cjs|mts|vue|svelte|html|py)$/.test(entry.name) && !/\.(spec|test)\./.test(entry.name)) {
         budget -= 1;
         try { if (readFileSync(join(dir, entry.name), 'utf8').includes(needle)) return true; } catch { /* unreadable file */ }

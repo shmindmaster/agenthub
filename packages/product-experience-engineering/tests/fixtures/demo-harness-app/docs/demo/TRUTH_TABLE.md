@@ -5,7 +5,7 @@
 | Claim | Evidence |
 |---|---|
 | The version endpoint names the build | `server.mjs`, `GET /api/version` |
-| The synthetic label is on every screen | `web/label.js` |
+| The synthetic label is on every screen | `web/components/demo/label.js` |
 
 ## Build next
 

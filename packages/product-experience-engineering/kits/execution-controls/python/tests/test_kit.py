@@ -32,7 +32,7 @@ from execution_controls import (  # noqa: E402
     verify_proposal,
     verify_receipt,
 )
-from execution_controls.adversarial_suite import run_adversarial_suite  # noqa: E402
+from execution_controls.adversarial_suite import arun_adversarial_suite, run_adversarial_suite  # noqa: E402
 
 VECTORS = HERE.parent.parent / "vectors"
 
@@ -276,6 +276,56 @@ class AdversarialSuite(unittest.TestCase):
         results = run_adversarial_suite(InMemoryProduct())
         self.assertEqual([r for r in results if not r.passed], [])
         self.assertEqual(len(results), 14)
+
+    def test_optional_cases_follow_the_adapter(self):
+        product = InMemoryProduct()
+        product.has_viewer = False
+        product.proposer_is_user = False
+        names = {r.name for r in run_adversarial_suite(product)}
+        self.assertNotIn("viewer_is_refused", names)
+        self.assertNotIn("self_approval_is_refused", names)
+        self.assertEqual(len(names), 12)
+
+    def test_async_adapter_runs_concurrently_and_passes(self):
+        import asyncio
+
+        class AsyncProduct(InMemoryProduct):
+            async def decide(self, ctx, **kwargs):
+                await asyncio.sleep(0)
+                return InMemoryProduct.decide(self, ctx, **kwargs)
+
+        results = asyncio.run(arun_adversarial_suite(AsyncProduct()))
+        self.assertEqual([r for r in results if not r.passed], [])
+
+    def test_missing_lock_is_caught_by_the_concurrency_case(self):
+        import time
+
+        class Racy(InMemoryProduct):
+            """Reads prior decisions, pauses, then writes: no lock between read and write."""
+
+            def decide(self, ctx, *, actor, proposal_hash, decision, idempotency_key, claimed_actor_id=None):
+                user, tenant, roles = self.PRINCIPALS[actor]
+                prior = list(ctx["decisions"])
+                revision = ctx["revision"]
+                time.sleep(0.05)
+                result = decide(
+                    proposal=ctx["proposal"],
+                    request={"proposalHash": proposal_hash, "decision": decision,
+                             "idempotencyKey": idempotency_key, "claimedActorId": claimed_actor_id},
+                    principal=Principal(user, tenant, roles),
+                    current_revision=revision,
+                    prior_decisions=prior,
+                    policy=ApprovalPolicy(approver_roles=["reviewer"]),
+                    now="2026-10-14T01:00:00Z",
+                )
+                ctx["audit"].append((result.audit["outcome"], result.audit["code"]))
+                if result.outcome == "apply":
+                    ctx["decisions"].append(result.record)
+                    ctx["applied"] += 1
+                return (result.status, result.error_body()) if result.outcome == "refuse" else (200, {})
+
+        failed = {r.name for r in run_adversarial_suite(Racy()) if not r.passed}
+        self.assertIn("concurrent_approvals_apply_once", failed)
 
     def test_trusting_the_body_actor_is_caught(self):
         failed = {r.name for r in run_adversarial_suite(InMemoryProduct(trust_body_actor=True)) if not r.passed}
