@@ -18,13 +18,22 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+function Apply-AsrBrandAliases([string]$Text) {
+  $path = Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\private\asr-brand-aliases.json'
+  if (-not (Test-Path -LiteralPath $path)) { return $Text }
+  $t = $Text
+  foreach ($entry in @(Get-Content -LiteralPath $path -Raw | ConvertFrom-Json)) {
+    foreach ($variant in @($entry.variants)) { $t = $t.Replace([string]$variant, [string]$entry.canonical) }
+  }
+  return $t
+}
+
 function Normalize-ForAsr([string]$Text) {
   $t = $Text.ToLowerInvariant()
   $t = $t.Replace('c-zero-one-b-one-three-five-eight', 'c01b1358')
   $t = $t.Replace('c zero one b one three five eight', 'c01b1358')
-  foreach ($b in @('avon state', 'avante stay', 'avante', 'avant stay', 'avantstay')) {
-    $t = $t.Replace($b, 'avantstay')
-  }
+  # Client brand aliases are private: runtime\private\asr-brand-aliases.json
+  $t = Apply-AsrBrandAliases $t
   $t = $t.Replace('field op slack', 'field ops slack')
   $t = $t.Replace('exclude tag', 'exclude-tag')
   $numberWords = [ordered]@{

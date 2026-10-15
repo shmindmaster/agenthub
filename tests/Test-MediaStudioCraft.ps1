@@ -221,6 +221,11 @@ Report 'Duckie capture note exists and carries no secret-shaped values' (
     (Test-Path -LiteralPath $duckie) -and
     ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -notmatch '(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*\S')
 ) 'Duckie operator note missing or carries a credential-shaped line'
+Report 'Duckie public stub carries no tenant identifiers and points to the private note' (
+    ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -notmatch '(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}') -and
+    ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -notmatch '(?i)\.zendesk\.com|ngrok\.app') -and
+    ((Get-Content -LiteralPath $duckie -Raw -Encoding UTF8) -match 'runtime\\private\\media-studio\\duckie-capture\.md')
+) 'Duckie public stub exposes tenant identifiers or sandbox hosts, or lost its private-note pointer'
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed" -ForegroundColor Red
