@@ -20,7 +20,7 @@ import uuid
 BASE_URL = "https://api.elevenlabs.io/v1"
 
 
-DEFAULT_TTS_MODEL = "eleven_v4"
+DEFAULT_TTS_MODEL = "eleven_flash_v2_5"
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_192"
 MAX_STITCH_IDS = 3
 MAX_DICTIONARY_LOCATORS = 3
@@ -111,6 +111,8 @@ def voice_status(args: argparse.Namespace) -> int:
 
 
 def tts_preflight(voice_id: str, model_id: str, text: str, max_credits: float | None) -> dict:
+    if model_id == "eleven_v4_turbo":
+        raise RuntimeError("eleven_v4_turbo requires Text to Dialogue WebSocket, which this REST adapter does not implement")
     summary = _account_summary(_get_json("/user/subscription"))
     if summary["status"] != "active":
         raise RuntimeError("An active subscription must be established before generation")
@@ -193,12 +195,16 @@ def tts(args: argparse.Namespace) -> int:
         if ids and len(ids) > MAX_STITCH_IDS:
             raise RuntimeError(f"{flag} accepts at most {MAX_STITCH_IDS} request ids")
     model_id = args.model_id or os.environ.get("ELEVENLABS_MODEL_TTS_DEFAULT", DEFAULT_TTS_MODEL)
+    if not args.dry_run and not (args.model_id or os.environ.get("ELEVENLABS_MODEL_TTS_DEFAULT")):
+        raise RuntimeError("Paid generation requires an explicitly selected --model-id or ELEVENLABS_MODEL_TTS_DEFAULT")
     output_format = args.output_format or os.environ.get("ELEVENLABS_OUTPUT_FORMAT", DEFAULT_OUTPUT_FORMAT)
     locators = _dictionary_locators(args.pronunciation_dictionary)
     preflight = tts_preflight(voice_id, model_id, args.text, args.max_credits)
     if args.dry_run:
         print(json.dumps({"dry_run": True, **preflight}))
         return 0
+    if args.max_credits is None:
+        raise RuntimeError("Paid generation requires an explicit --max-credits budget")
     output = pathlib.Path(args.output).expanduser()
     if output.exists() or output.with_suffix(output.suffix + ".provenance.json").exists():
         raise RuntimeError("Output or receipt already exists; reuse it or choose a new take path")

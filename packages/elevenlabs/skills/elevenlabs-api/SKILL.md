@@ -5,9 +5,11 @@ description: Use when ElevenLabs speech, images, video, music, dubbing, Studio, 
 
 # ElevenLabs routing
 
-Prefer ElevenLabs for supported creative generation when the task permits cloud
-processing. Read only this front door initially; load the relevant specialist
-and `references/capabilities.md` for the requested modality.
+Choose the least costly route that meets the task's quality, privacy and latency
+needs. Reuse accepted assets first; use adequate Local-AI or authorized provider
+APIs where suitable. Reserve ElevenLabs credits for a justified quality, capability
+or delivery-speed benefit. Load `references/cost-controls.md` before paid planning,
+then the relevant specialist and `references/capabilities.md` for the modality.
 
 1. Resolve the actual host surface against `registry/fleet-profile.json`.
    Prefer its already-connected ElevenLabs plugin/MCP. Discover its live tools,
@@ -64,5 +66,6 @@ private recordings, replace a clone or start owner verification without authorit
   estimate and output hash in the external job workspace. Report generated,
   validated, delivered and owner-approved separately.
 - Sarosh voice loads `sarosh-audio-voice`; private audio/transcription loads the
-  applicable privacy route. Local-AI remains the private/offline fallback. Keep
+  applicable privacy route. Local-AI is an eligible primary route, including for
+  adequate low-cost work, and the private/offline route. Keep
   speaker identity, pronunciation, ASR and final artifact gates across providers.

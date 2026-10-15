@@ -9,7 +9,7 @@ description: Use when the user wants any video, audio, animation, briefing, trai
 
 **Default: rapid.** A sentence, path, or “make a video from this” is enough. Infer the rest, run the crew, return a candidate. Rapid means infer-and-run, **not skip craft**. A short prompt is not permission to skip curation, gap-closure, story, scenes, or QA.
 
-**Reuse before regenerate.** Recut > recapture > rewrite. On a miss, rerun only `reviseSceneIds` / the failing take. Keep receipt-bound clips that still prove the claim. Do not regen TTS, the bed, or the whole encode for an unchanged scene — remux. Prefer the native ElevenLabs connector for supported cloud-approved generation; load `elevenlabs-api` and check credits first. Start Local-AI only for a selected local route (`voice` for identity/ASR or local TTS; Comfy only if a plate needs it). One GPU job at a time.
+**Reuse before regenerate.** Recut > recapture > rewrite. On a miss, rerun only `reviseSceneIds` / the failing take. Keep receipt-bound clips that still prove the claim. Do not regen TTS, the bed, or the whole encode for an unchanged scene — remux. Select by cost, latency, quality and privacy: use adequate local tools or authorized provider APIs; reserve ElevenLabs for justified value. Load `elevenlabs-api` for paid planning and cost controls. Start Local-AI only for a selected local route (`voice` for identity/ASR or local TTS; Comfy only if a plate needs it). One GPU job at a time.
 
 Load `sarosh-audio-voice` for owner speech. Hosted sources retain all identity,
 ASR, pronunciation and exact encoded release gates; use `elevenlabs-api` for

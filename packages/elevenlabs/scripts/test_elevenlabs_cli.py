@@ -38,6 +38,12 @@ class SpendingBoundaries(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "unknown"):
             self.check()
 
+    def test_dialogue_only_model_never_calls_rest(self):
+        with patch.object(cli, "_get_json") as get:
+            with self.assertRaisesRegex(RuntimeError, "WebSocket"):
+                cli.tts_preflight("fixture", "eleven_v4_turbo", "hello", 10)
+            get.assert_not_called()
+
     def test_quota_and_budget_fail(self):
         with self.assertRaisesRegex(RuntimeError, "max-credits"):
             self.check(budget=2)
@@ -74,7 +80,7 @@ class SpendingBoundaries(unittest.TestCase):
                 cli._request_full("/fixture")
         self.assertNotIn("private", str(caught.exception))
 
-    def invoke(self, target, extra=()):
+    def invoke(self, target, extra=("--max-credits", "10")):
         argv = ["cli", "tts", "--voice-id", "fixture", "--model-id", "ready",
                 "--text", "hello", "--output", str(target), *extra]
         with patch.object(cli.sys, "argv", argv), patch.object(cli, "_get_json", side_effect=self.metadata), contextlib.redirect_stdout(io.StringIO()):
@@ -97,6 +103,20 @@ class SpendingBoundaries(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(self.invoke(target), 2)
             self.assertEqual(post.call_count, 1)
+
+    def test_missing_budget_never_posts(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(cli, "_request_full") as post:
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(self.invoke(pathlib.Path(folder)/"take.mp3", []), 2)
+            post.assert_not_called()
+
+    def test_missing_explicit_model_never_posts(self):
+        argv = ["cli", "tts", "--voice-id", "fixture", "--text", "hello",
+                "--output", "unused.mp3", "--max-credits", "10"]
+        with patch.dict(cli.os.environ, {}, clear=True), patch.object(cli.sys, "argv", argv), patch.object(cli, "_request_full") as post:
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(cli.main(), 2)
+            post.assert_not_called()
 
     def test_unwritable_destination_never_posts(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(cli, "_request_full") as post:

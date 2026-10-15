@@ -7,7 +7,7 @@ governs Sarosh's spoken/cloned voice (local Qwen3-TTS clone, voice id
 `sarosh`, mandatory speaker-identity gate, dictionary-layer pronunciation),
 while sarosh-communication governs written tone and structure. These tests
 keep the skill identity, registry ownership, deployment reach, policy
-cross-reference, scope-separation language, and the no-hosted-TTS boundary
+cross-reference, scope-separation language, and the approved-existing-clone boundary
 aligned.
 
 Run: pwsh -NoProfile -File tests/Test-SaroshAudioVoice.ps1
@@ -77,7 +77,7 @@ $capability = if ($owners.Count -eq 1) { $owners[0] } else { $null }
 $expectedHosts = @(
     'amp', 'antigravity', 'claude', 'cline', 'codex', 'copilot', 'cursor',
     'devin', 'factory', 'gemini', 'grok', 'hermes', 'opencode', 'qoder',
-    'qwen-code', 'warp', 'windsurf'
+    'qwen-code', 'warp', 'windsurf', 'vscode-insiders'
 )
 $actualHosts = if ($capability) { @($capability.hostMappings | ForEach-Object { [string]$_.hostId } | Sort-Object -Unique) } else { @() }
 $hostSetOk = $actualHosts.Count -eq $expectedHosts.Count -and
@@ -91,9 +91,9 @@ $registryOk = $capability -and
     $capability.canonicalSource -eq 'overlays/personal/packages/sarosh-audio-voice' -and
     $capability.hashBasis -eq 'overlays/personal/packages/sarosh-audio-voice' -and
     $capability.status -eq 'active-canonical'
-Report 'registry has one owner and all 17 managed host mappings' `
+Report 'registry has one owner and all 18 managed host mappings' `
     ($registryOk -and $hostSetOk -and $mappingModesOk) `
-    "owners=$($owners.Count), hosts=$($actualHosts.Count), expected managed-loose-skills on all 17 hosts"
+    "owners=$($owners.Count), hosts=$($actualHosts.Count), expected managed-loose-skills on all 18 hosts"
 
 # 3. Global policy cross-references the skill from Owner voice.
 $policyOk = $policy -and
@@ -105,15 +105,18 @@ Report 'global policy routes owner voice through sarosh-audio-voice and Local-AI
     $policyOk `
     'expected Owner voice and the three-layer Sarosh policy to route audio through sarosh-audio-voice and local-ai-stack'
 
-# 4. The skill encodes the hard local-only / no-hosted-TTS boundary.
-$localOnlyOk = $skill -and
-    $skill -match '(?is)Local-AI control plane' -and
-    $skill -match '(?is)voice id \*\*`sarosh`\*\*' -and
-    $skill -match '(?is)Never generate or\s+approximate this speaker through a hosted TTS provider' -and
-    $skill -match '(?i)ElevenLabs'
-Report 'skill states the local-only / no-hosted-TTS boundary' `
-    $localOnlyOk `
-    'expected explicit Local-AI-only routing for voice id sarosh and a no-hosted-TTS (ElevenLabs or other) rule'
+# 4. Owner authorized only the existing clone, with cost-aware local routing.
+$routingOk = $skill -and
+    $skill -match '(?is)existing hosted Sarosh clone' -and
+    $skill -match '(?is)Local-AI voice id `sarosh`' -and
+    $skill -match '(?is)Use adequate\s+local speech' -and
+    $skill -match '(?is)credits and per-model clone readiness' -and
+    $skill -match '(?is)Never substitute a generic voice' -and
+    $skill -match '(?is)Do not upload new private\s+recordings or corpus' -and
+    $skill -match '(?is)change billing or enable overages without separate authority'
+Report 'skill limits hosted authority to the existing clone with cost and privacy gates' `
+    $routingOk `
+    'expected existing-clone authorization, adequate local speech, readiness, identity, no new private uploads and no billing changes'
 
 # 5. The skill encodes the mandatory speaker-identity gate and expression vs.
 #    identity distinction.
@@ -131,7 +134,7 @@ Report 'skill states the mandatory speaker-identity gate' `
 $otherRulesOk = $skill -and
     $skill -match '(?is)Do not correct pronunciation by respelling' -and
     $skill -match '(?is)dictionary layer applied at\s+render time' -and
-    $skill -match '(?is)not training data for an\s+external service' -and
+    $skill -match '(?is)not training data for an\s+external\s+service' -and
     $skill -match '(?is)benchmark \*text\*'
 Report 'skill states the pronunciation-dictionary and no-training-data/benchmark-approval rules' `
     $otherRulesOk `
@@ -163,7 +166,7 @@ Report 'skill follows the shared pattern and proves the exact delivery artifact'
     'expected objective, routing, examples, exact-encoded proof, full-program listening, and final check'
 
 Write-Host ''
-Write-Host "SCOPE: skill, UI metadata, global policy cross-references, registry, 17 host mappings, and the local-only/identity-gate boundary"
+Write-Host "SCOPE: skill, UI metadata, global policy cross-references, registry, 18 host mappings, and the approved-existing-clone/identity-gate boundary"
 Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed"
 if ($failures.Count -gt 0) { exit 1 }
 exit 0

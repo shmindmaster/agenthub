@@ -5,11 +5,11 @@ description: Use when a video or audio job needs provider-routed generation — 
 
 # Media studio generate
 
-Load `elevenlabs-api` for cloud-approved generation and prefer the host-native connector. Load `local-ai-stack` and resolve `$LocalAiControl` when local generation or validation is needed. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
+Choose by cost, latency, quality and privacy. Reuse accepted assets first; use adequate local tools or authorized provider APIs. Load `elevenlabs-api` and its cost-controls reference before paid planning; spend ElevenLabs credits only for justified value, using the host-native connector once selected. Load `local-ai-stack` and resolve `$LocalAiControl` when local generation or validation is needed. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
 
 Load `../media-studio/references/engagement.md`. Viewer-facing jobs consume **locked** `storyboard.json`, `visual-bible.json`, and `direction.json`. Do not invent plates the director did not call.
 
-Owner speech loads `sarosh-audio-voice`: use the approved existing hosted clone when ready, with local fallback and mandatory identity gates. No new private recordings, clone replacement or verification is implied.
+Owner speech loads `sarosh-audio-voice`: local speech is eligible when adequate; the approved existing hosted clone is permitted when ready and worth its cost. Both require identity gates. No new private recordings, clone replacement or verification is implied.
 
 ```powershell
 & $LocalAiControl status
@@ -32,7 +32,8 @@ If a required file is missing, remit. Do not generate a generic bed and skip the
 ## 2. Voice
 
 Use `elevenlabs-tts` for hosted speech. Lock segments, check credits and clone/model
-readiness, then generate one small preview. Save provider receipts under the job
+readiness and whole-job/preview budgets; reuse an accepted matching preview or
+generate one small preview. Save provider receipts under the job
 workspace; run local integrity, ASR, pronunciation and dual-backend identity gates
 before selecting owner takes. Decode and gate exact delivery spans again.
 `Generate-OwnerVoice.ps1` implements the **local backend only**. Its local receipt
@@ -73,7 +74,7 @@ Viewer-facing jobs also generate the directed music (`musicCue: bed` or `sting`)
 
 | Storyboard `sound.musicCue` | Generate |
 | --- | --- |
-| `bed` | one ElevenLabs music bed; local fallback `ai.ps1 music` |
+| `bed` | one accepted bed or adequate local `ai.ps1 music`; ElevenLabs when its benefit justifies credits |
 | `sting` | a **short** ElevenLabs SFX or local sting (2–4s hit), not a second full bed |
 | `silence` | **no** music on that beat. Do not fill the gap. |
 | `none` | skip |
@@ -84,7 +85,7 @@ Mix later with `Finish-Media.ps1 -Speech -Music` so the bed ducks. Do not mux an
 
 ## 4. Pictures the bible called for
 
-For each `visual-bible.brollPlan` / `imagePrompts` row, prefer the native ElevenLabs image/video tools with a live supported model. Use `ai.ps1 image` for the local fallback. Honor `refuse` (never product UI, metrics, testimonials). Specialist: `references/image.md`.
+For each `visual-bible.brollPlan` / `imagePrompts` row, reuse accepted plates or select an adequate local `ai.ps1 image` route. Use a live supported hosted image/video model when its quality or delivery benefit justifies cost. Honor `refuse` (never product UI, metrics, testimonials). Specialist: `references/image.md`.
 
 Motif / lipsync / portrait **only** when `direction` called for that plate. Never Motif or image-to-video a product screenshot (`references/video.md`, `product-picture.md`).
 
@@ -92,7 +93,7 @@ For cloud music, SFX, dubbing, lipsync, video, editing and composition load only
 the matching official ElevenLabs specialist and live node schema. Start a short
 preview, poll its run ID, reuse accepted assets and retain model/cost/hash receipts.
 
-## 5. Local fallback commands
+## 5. Local generation commands
 
 | Need | Command | Specialist |
 | --- | --- | --- |
