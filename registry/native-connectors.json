@@ -1074,7 +1074,7 @@
           "audio.elevenlabs"
         ],
         "required": false,
-        "note": "Official product skills (TTS, STT, agents, music, dubbing). AgentHub packages/elevenlabs is a fleet overlay: owner-voice stays local and the bundled CLI is the non-owner route. Do not replace that overlay with a vendored copy of this catalog.",
+        "note": "Official product skills complement the host-native ElevenLabs OAuth connector. AgentHub packages/elevenlabs owns fleet routing, credit checks and the shared REST fallback. Existing owner-approved hosted clones retain identity gates and local fallback. Do not vendor this catalog or install a redundant local MCP.",
         "observedAt": "2026-08-24",
         "hostChannels": [
           {

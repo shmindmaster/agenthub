@@ -58,3 +58,7 @@ locations, not independent policy authorities.
 ## Handoff
 
 Report the outcome, changed files, validation evidence, branch or commit when applicable, remaining risks, and the next required gate. Silence or a missing automated review is not approval.
+
+## Creative provider routing
+
+Prefer the host-native ElevenLabs connector for supported cloud-approved speech, images, video, music and editing. Use existing official specialist skills and the shared API fallback for operations the connector cannot perform. Check workspace, credits, permissions, model and clone readiness before spending; keep private/offline work local. Reuse accepted takes, preserve source/final quality gates and keep account evidence private. Do not install a redundant local MCP, change billing, upload private recordings or mutate a clone without authority.
