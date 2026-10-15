@@ -4,7 +4,7 @@
 // do not edit a vendored copy. Change the kit in AgentHub, run its tests, and
 // re-vendor.
 
-export const KIT_VERSION = "1.0.0";
+export const KIT_VERSION = "1.1.0";
 
 export * from "./canonical-json.ts";
 export * from "./approval-capsule.ts";

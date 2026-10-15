@@ -16,10 +16,10 @@ language verifies in the other.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Literal, Mapping, Sequence
 
 from .canonical_json import canonical_hash, drop_none
+from .timestamps import parse_utc_ms
 
 CAPSULE_VERSION = "approval-capsule/v1"
 AUDIT_VERSION = "approval-audit/v1"
@@ -94,25 +94,33 @@ class Principal:
 
 
 def proposal_hash_of(proposal: Mapping[str, Any]) -> str:
-    body = {key: value for key, value in proposal.items() if key != "proposalHash"}
-    body["capsuleVersion"] = CAPSULE_VERSION
-    return canonical_hash(body)
+    """Hash of every field but ``proposalHash``, the stored ``capsuleVersion`` included.
+
+    Top-level ``None`` means absent, so a proposal reloaded from a store that
+    writes ``null`` for a missing ``expiresAt`` still verifies.
+    """
+    return canonical_hash(drop_none({key: value for key, value in proposal.items() if key != "proposalHash"}))
 
 
 def create_proposal(proposal_input: Mapping[str, Any]) -> dict[str, Any]:
     """Return the stored form of a proposal: the input plus version and hash.
 
     Top-level ``None`` values mean "absent". The payload is hashed as given,
-    nulls included.
+    nulls included. ``createdAt`` and ``expiresAt`` must be ISO-8601 UTC
+    timestamps ending in ``Z``; anything else raises ``ValueError``.
     """
     body = drop_none(dict(proposal_input))
+    if parse_utc_ms(body.get("createdAt")) is None:
+        raise ValueError(f'createdAt must be an ISO-8601 UTC timestamp ending in "Z", got {body.get("createdAt")!r}')
+    if "expiresAt" in body and parse_utc_ms(body["expiresAt"]) is None:
+        raise ValueError(f'expiresAt must be an ISO-8601 UTC timestamp ending in "Z", got {body["expiresAt"]!r}')
     body["capsuleVersion"] = CAPSULE_VERSION
     body["proposalHash"] = proposal_hash_of(body)
     return body
 
 
 def verify_proposal(proposal: Mapping[str, Any]) -> bool:
-    return proposal_hash_of(proposal) == proposal.get("proposalHash")
+    return proposal.get("capsuleVersion") == CAPSULE_VERSION and proposal_hash_of(proposal) == proposal.get("proposalHash")
 
 
 def request_hash_of(request: Mapping[str, Any], actor_id: str) -> str:
@@ -128,10 +136,6 @@ def request_hash_of(request: Mapping[str, Any], actor_id: str) -> str:
     )
 
 
-def _parse_time(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
-
-
 def decide(
     *,
     proposal: Mapping[str, Any],
@@ -142,8 +146,10 @@ def decide(
     policy: ApprovalPolicy,
     now: str,
 ) -> DecideResult:
+    decision = request.get("decision")
+    if decision not in ("approve", "reject"):
+        raise ValueError(f'decision must be "approve" or "reject", got {decision!r}')
     subject = proposal["subject"]
-    decision = request["decision"]
 
     def audit(outcome: str, status: int, code: str | None) -> dict[str, Any]:
         return {
@@ -207,9 +213,15 @@ def decide(
         return DecideResult("replay", 200, audit("replayed", 200, None), record=dict(prior))
 
     if decision == "approve":
-        expires_at = proposal.get("expiresAt")
-        if expires_at is not None and _parse_time(now) >= _parse_time(expires_at):
+        # Fail closed: a clock or an expiry that cannot be read is an expired proposal.
+        now_ms = parse_utc_ms(now)
+        if now_ms is None:
             return refuse("proposal_expired")
+        expires_at = proposal.get("expiresAt")
+        if expires_at is not None:
+            expires_ms = parse_utc_ms(expires_at)
+            if expires_ms is None or now_ms >= expires_ms:
+                return refuse("proposal_expired")
         if str(current_revision) != str(subject["revision"]):
             return refuse("stale_proposal")
 

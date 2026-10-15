@@ -18,6 +18,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 from execution_controls import (  # noqa: E402
+    KIT_VERSION,
     ApprovalPolicy,
     CanonicalJsonError,
     Principal,
@@ -27,7 +28,9 @@ from execution_controls import (  # noqa: E402
     create_proposal,
     create_receipt,
     decide,
+    proposal_hash_of,
     receipt_span,
+    request_hash_of,
     verify_chain,
     verify_proposal,
     verify_receipt,
@@ -330,6 +333,155 @@ class AdversarialSuite(unittest.TestCase):
     def test_trusting_the_body_actor_is_caught(self):
         failed = {r.name for r in run_adversarial_suite(InMemoryProduct(trust_body_actor=True)) if not r.passed}
         self.assertIn("forged_actor_is_refused", failed)
+
+
+BASE_INPUT = load("approval-cases.json")["base"]["proposalInput"]
+BASE_PRINCIPAL = load("approval-cases.json")["base"]["principal"]
+BASE_POLICY = ApprovalPolicy.from_json(load("approval-cases.json")["base"]["policy"])
+NO_EXPIRY_HASH = "sha256:9bb74b5cfa1d2995ac7d78ca37ba9131abec1de36558e1dd2f2ef158fed3438c"
+RECEIPT_MIN = {
+    "receiptId": "rcpt-x", "tenantId": "t1", "occurredAt": "2026-10-14T15:00:00Z", "kind": "retrieval", "engine": "rules",
+    "input": {"hash": "sha256:" + "a" * 64}, "outcome": {"status": "succeeded"},
+}
+MIN_RECEIPT_HASH = "sha256:333426c67398ac6b6f620e127171a5d962a5788fea2260426c4872fcecc5245b"
+MIN_REPLAY_KEY = "sha256:0d5edfdd1c40ba44d6e6bdc84b543b0c1504792101dec69731eb01ed868c1947"
+EMPTY_RETRIEVAL_RECEIPT_HASH = "sha256:ca17d88c30195d798040ee4ac5443f50c36c0b68a315ae014d73358a8e321197"
+
+
+def stored_with(**patch):
+    """What an older writer could have stored: a valid hash over whatever it held."""
+    body = {**create_proposal(BASE_INPUT), **patch}
+    body.pop("proposalHash")
+    return {**body, "proposalHash": proposal_hash_of(body)}
+
+
+def approve_at(proposal, now, decision="approve", **request):
+    return decide(
+        proposal=proposal,
+        request={"proposalHash": proposal["proposalHash"], "decision": decision, "idempotencyKey": "k", **request},
+        principal=Principal.from_json(BASE_PRINCIPAL),
+        current_revision=7,
+        prior_decisions=[],
+        policy=BASE_POLICY,
+        now=now,
+    )
+
+
+class Fixes110(unittest.TestCase):
+    base_now = load("approval-cases.json")["base"]["now"]
+
+    def test_expiry_fails_closed_on_unparseable_expires_at(self):
+        for expires_at in ("garbage", "2026-10-15T15:00:00", "2026-10-15T15:00:00+00:00", "2026-02-30T00:00:00Z", "2026-10-15", ""):
+            with self.subTest(expires_at):
+                result = approve_at(stored_with(expiresAt=expires_at), self.base_now)
+                self.assertEqual((result.outcome, result.code), ("refuse", "proposal_expired"))
+
+    def test_expiry_fails_closed_on_unparseable_now(self):
+        proposal = create_proposal(BASE_INPUT)
+        for now in ("garbage", "2026-10-14T16:00:00", "2026-10-14T16:00:00+00:00", ""):
+            with self.subTest(now):
+                result = approve_at(proposal, now)
+                self.assertEqual((result.outcome, result.code), ("refuse", "proposal_expired"))
+        no_expiry = {k: v for k, v in BASE_INPUT.items() if k != "expiresAt"}
+        self.assertEqual(approve_at(create_proposal(no_expiry), "garbage").code, "proposal_expired")
+
+    def test_reject_is_still_allowed_when_timestamps_cannot_be_parsed(self):
+        self.assertEqual(approve_at(stored_with(expiresAt="garbage"), "garbage", "reject").outcome, "reject")
+
+    def test_fractional_seconds_in_a_z_timestamp_are_accepted(self):
+        self.assertEqual(approve_at(stored_with(expiresAt="2026-10-15T15:00:00.500Z"), self.base_now).outcome, "apply")
+
+    def test_sub_millisecond_expiry_compares_like_typescript(self):
+        # TypeScript floors to whole milliseconds, so 0.0005 s and 0.0001 s are the same instant there.
+        proposal = stored_with(expiresAt="2026-10-14T16:00:00.0005Z")
+        self.assertEqual(approve_at(proposal, "2026-10-14T16:00:00.0001Z").code, "proposal_expired")
+
+    def test_create_proposal_rejects_bad_timestamps(self):
+        for patch in (
+            {"createdAt": "garbage"}, {"createdAt": "2026-10-14T15:00:00"}, {"createdAt": "2026-10-14T15:00:00+00:00"},
+            {"expiresAt": "tomorrow"}, {"expiresAt": "2026-10-15T15:00:00+02:00"}, {"expiresAt": "2026-13-01T00:00:00Z"},
+            {"createdAt": 5},
+        ):
+            with self.subTest(patch), self.assertRaises(ValueError):
+                create_proposal({**BASE_INPUT, **patch})
+
+    def test_chain_head_is_anchored(self):
+        chain = ReceiptVectors().chain()
+        forged_head = create_receipt(load("receipts.json")["chain"][0], {"receiptHash": "sha256:" + "1" * 64})
+        self.assertTrue(verify_receipt(forged_head))
+        self.assertEqual(verify_chain([forged_head]), {"ok": False, "brokenAt": 0, "reason": "chain_link"})
+        self.assertEqual(verify_chain(chain[1:]), {"ok": False, "brokenAt": 0, "reason": "chain_link"})
+
+    def test_chain_slice_verifies_from_its_known_head(self):
+        chain = ReceiptVectors().chain()
+        self.assertEqual(verify_chain(chain[1:], chain[0]["receiptHash"]), {"ok": True, "brokenAt": -1})
+        self.assertEqual(verify_chain(chain, None), {"ok": True, "brokenAt": -1})
+        self.assertEqual(verify_chain(chain[1:], "sha256:" + "2" * 64), {"ok": False, "brokenAt": 0, "reason": "chain_link"})
+
+    def test_null_expires_at_hashes_like_absent_same_literal_as_typescript(self):
+        rest = {k: v for k, v in BASE_INPUT.items() if k != "expiresAt"}
+        self.assertEqual(create_proposal({**rest, "expiresAt": None})["proposalHash"], NO_EXPIRY_HASH)
+        self.assertEqual(create_proposal(rest)["proposalHash"], NO_EXPIRY_HASH)
+
+    def test_reloaded_proposal_with_null_expires_at_still_verifies(self):
+        rest = {k: v for k, v in BASE_INPUT.items() if k != "expiresAt"}
+        reloaded = {**create_proposal(rest), "expiresAt": None}
+        self.assertTrue(verify_proposal(reloaded))
+        self.assertEqual(approve_at(reloaded, "2030-01-01T00:00:00Z").outcome, "apply")
+
+    def test_null_reason_and_claimed_actor_are_absent(self):
+        digest = "sha256:" + "a" * 64
+        self.assertEqual(
+            request_hash_of({"proposalHash": digest, "decision": "approve", "reason": None}, "u1"),
+            request_hash_of({"proposalHash": digest, "decision": "approve"}, "u1"),
+        )
+        result = approve_at(create_proposal(BASE_INPUT), self.base_now, reason=None, claimedActorId=None)
+        self.assertEqual(result.outcome, "apply")
+        self.assertNotIn("reason", result.record)
+
+    def test_receipt_prunes_nulls_recursively(self):
+        receipt = create_receipt({**RECEIPT_MIN, "durationMs": None, "subject": None, "outcome": {"status": "succeeded", "code": None}})
+        self.assertEqual((receipt["receiptHash"], receipt["replayKey"]), (MIN_RECEIPT_HASH, MIN_REPLAY_KEY))
+        self.assertTrue(verify_receipt(receipt))
+
+    def test_empty_retrieval_is_absent_for_derived_fields(self):
+        receipt = create_receipt({**RECEIPT_MIN, "retrieval": {}})
+        self.assertNotIn("retrievalHash", receipt)
+        self.assertEqual(receipt["replayKey"], MIN_REPLAY_KEY)
+        self.assertEqual(receipt["receiptHash"], EMPTY_RETRIEVAL_RECEIPT_HASH)
+        self.assertTrue(verify_receipt(receipt))
+        with_documents = create_receipt({**RECEIPT_MIN, "retrieval": {"queryHash": "sha256:" + "b" * 64, "documents": []}})
+        self.assertRegex(with_documents["retrievalHash"], r"^sha256:[0-9a-f]{64}$")
+
+    def test_decision_must_be_approve_or_reject(self):
+        proposal = create_proposal(BASE_INPUT)
+        for decision in ("approved", "APPROVE", "", None, 1):
+            with self.subTest(decision), self.assertRaises(ValueError):
+                approve_at(proposal, self.base_now, decision)
+
+    def test_capsule_version_is_bound(self):
+        evil = {**create_proposal(BASE_INPUT), "capsuleVersion": "evil"}
+        self.assertFalse(verify_proposal(evil))
+        self.assertEqual(approve_at(evil, self.base_now).code, "proposal_tampered")
+        rehashed = stored_with(capsuleVersion="evil")
+        self.assertFalse(verify_proposal(rehashed))
+        self.assertNotEqual(rehashed["proposalHash"], create_proposal(BASE_INPUT)["proposalHash"])
+        self.assertEqual(approve_at(rehashed, self.base_now).code, "proposal_tampered")
+
+    def test_otel_timing_floors_to_integer_milliseconds_like_date_parse(self):
+        def end(occurred_at):
+            return receipt_span(create_receipt({**RECEIPT_MIN, "occurredAt": occurred_at}))["endTimeMs"]
+
+        self.assertEqual(end("2026-10-14T15:00:00.9996Z"), 1791990000999)
+        self.assertEqual(end("2026-10-14T15:00:00.001500Z"), 1791990000001)
+
+    def test_lone_surrogate_key_is_a_canonical_json_error(self):
+        for bad in ({"\ud800": 1, "a": 2}, {"a": {"\udfff": 1}}):
+            with self.subTest(repr(bad)), self.assertRaises(CanonicalJsonError):
+                canonical_json(bad)
+
+    def test_kit_version(self):
+        self.assertEqual(KIT_VERSION, "1.1.0")
 
 
 if __name__ == "__main__":

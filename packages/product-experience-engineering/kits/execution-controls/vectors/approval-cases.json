@@ -442,6 +442,18 @@
         "status": 200,
         "audit": "applied"
       }
+    },
+    {
+      "name": "capsule_version_is_bound",
+      "storedProposalPatch": {
+        "capsuleVersion": "evil"
+      },
+      "expect": {
+        "outcome": "refuse",
+        "status": 409,
+        "code": "proposal_tampered",
+        "audit": "refused"
+      }
     }
   ]
 }

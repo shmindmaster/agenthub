@@ -16,7 +16,7 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const kitRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'kits', 'execution-controls');
@@ -52,6 +52,15 @@ function sources(lang) {
   process.exit(2);
 }
 
+/** Every file under `root` as a forward-slash relative name. Generated `__pycache__` folders are not part of a vendored copy. */
+function listFiles(root, directory = root) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return entry.name === '__pycache__' ? [] : listFiles(root, path);
+    return [relative(root, path).split(sep).join('/')];
+  });
+}
+
 function transform(text, lang, importExt) {
   const header = lang === 'python'
     ? '# Vendored from agenthub packages/product-experience-engineering/kits/execution-controls. Do not edit; re-vendor.\n'
@@ -80,6 +89,13 @@ if (check) {
     else if (sha256(transform(readFileSync(from, 'utf8'), manifest.lang, manifest.importExt)) !== manifest.files[to]) {
       drift.push(`${to}: kit changed since vendoring (vendored ${manifest.kitVersion}, kit ${kitVersion()})`);
     }
+  }
+  const shipped = new Set(kitFiles.map(({ to }) => to));
+  for (const name of Object.keys(manifest.files)) {
+    if (!shipped.has(name)) drift.push(`${name}: in the manifest, not shipped by the kit`);
+  }
+  for (const name of listFiles(destRoot)) {
+    if (name !== MANIFEST && !(name in manifest.files)) drift.push(`${name}: not in the manifest`);
   }
   if (drift.length) {
     console.error(`FAIL execution-controls vendored copy at ${destRoot}:\n${drift.map((d) => `  - ${d}`).join('\n')}`);

@@ -55,11 +55,13 @@ def _encode(value: Any, path: str) -> str:
     if isinstance(value, (list, tuple)):
         return "[" + ",".join(_encode(item, f"{path}[{index}]") for index, item in enumerate(value)) + "]"
     if isinstance(value, Mapping):
-        parts = []
-        for key in sorted(value.keys(), key=lambda k: _utf16_order(k) if isinstance(k, str) else b""):
+        # Validate every key before sorting: the sort encodes keys, and a lone surrogate must be our error.
+        for key in value.keys():
             if not isinstance(key, str):
                 raise CanonicalJsonError("object keys must be strings", path)
             _check_text(key, path, "key")
+        parts = []
+        for key in sorted(value.keys(), key=_utf16_order):
             parts.append(json.dumps(key, ensure_ascii=False) + ":" + _encode(value[key], f"{path}.{key}"))
         return "{" + ",".join(parts) + "}"
     raise CanonicalJsonError(f"unsupported type {type(value).__name__}", path)

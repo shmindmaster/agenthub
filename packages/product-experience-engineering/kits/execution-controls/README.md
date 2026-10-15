@@ -20,7 +20,7 @@ The demo-side contract lives next door in [`../demo-harness`](../demo-harness/RE
 |---|---|
 | `spec/` | Normative specs |
 | `schemas/` | JSON Schemas for proposal, decision record, audit row, receipt |
-| `vectors/` | Shared test vectors: canonical JSON, 29 decision cases, a receipt chain with pinned span attributes |
+| `vectors/` | Shared test vectors: canonical JSON, 30 decision cases, a receipt chain with pinned span attributes |
 | `ts/` | TypeScript reference implementation (Node 22.6+ runs it directly; no dependencies) |
 | `python/execution_controls/` | Python 3.11+ reference implementation (stdlib only; `opentelemetry-api` only for `emit_receipt_span`) |
 | `*/adversarial-suite*` | The suite a product runs against its real approval route through an adapter |

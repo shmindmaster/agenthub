@@ -25,8 +25,14 @@ computed over the canonical JSON of a value:
   insignificant whitespace, strings escaped as `JSON.stringify` does, UTF-8.
 - Integers only, within ±(2^53 − 1). Non-integer numbers are refused; money,
   scores and ratios are strings (`"120.00"`, `"0.91"`).
-- Timestamps are ISO 8601 strings in UTC with a `Z` suffix.
-- An absent optional field is omitted, never `null`. A `null` inside the
+- Timestamps are ISO 8601 strings in UTC with a `Z` suffix (`2026-10-14T15:00:00Z`,
+  optionally with fractional seconds). Offsets, zone-less and date-only forms
+  are not timestamps. Comparisons use whole milliseconds, floored, in both
+  languages. `createProposal` refuses a `createdAt` or `expiresAt` that is not
+  one (TypeScript throws `Error`, Python raises `ValueError`).
+- An absent optional field is omitted, never `null`. Every implementation
+  treats a top-level `null` or `undefined` as absent when it builds, hashes
+  and verifies a proposal, a request or a receipt. A `null` inside the
   payload is data and is hashed.
 - Lone surrogates, non-string keys, NaN and infinities are refused.
 
@@ -52,8 +58,11 @@ A proposal is what an agent, a rule or a person asks to change.
 | `receiptId` | no | Receipt of the step that produced the proposal ([receipt.md](receipt.md)) |
 | `proposalHash` | yes | Hash of every other field, with `capsuleVersion` included |
 
-Every field is bound by the hash. A proposal is immutable once stored; a
-changed proposal is a new proposal with a new `capsuleId`.
+Every field is bound by the hash, `capsuleVersion` included: the hash covers
+the version that is stored, `createProposal` writes `approval-capsule/v1`
+before hashing, and verification fails for any other stored version. A
+proposal is immutable once stored; a changed proposal is a new proposal with a
+new `capsuleId`.
 
 When the subject's state is broader than one row (a project plus the people
 assigned to it, an accounting period's checklist and figures),
@@ -65,7 +74,7 @@ kit's `canonicalHash`.
 | Field | Required | Meaning |
 |---|---|---|
 | `proposalHash` | yes | The hash the reviewer was shown. The UI must render the proposal from the same object it got this hash from |
-| `decision` | yes | `approve` or `reject` |
+| `decision` | yes | Exactly `approve` or `reject`. Anything else is a programming error: `decide` throws (`TypeError` in TypeScript, `ValueError` in Python) instead of returning a refusal |
 | `idempotencyKey` | yes | Client-generated, unique per intended decision |
 | `claimedActorId` | no | If a client sends an actor id, it is compared to the session and never trusted |
 | `reason` | no | Free text; bound into the request hash |
@@ -88,14 +97,18 @@ HTTP status; nothing is applied.
 | 6 | Approve only: a `user` proposer is not the approver, unless the policy sets `allowSelfApproval` | `self_approval_forbidden` | 403 |
 | 7 | A prior decision with this `idempotencyKey` has the same request hash | `idempotency_key_reused` | 422 |
 | 8 | A prior decision on this proposal has the same decision | `already_decided` | 409 |
-| 9 | Approve only: `now < expiresAt` | `proposal_expired` | 410 |
+| 9 | Approve only: `now < expiresAt`. Fails closed: a `now` or an `expiresAt` that is not a `Z`-suffixed ISO timestamp counts as expired | `proposal_expired` | 410 |
 | 10 | Approve only: the subject's current revision equals `subject.revision` | `stale_proposal` | 409 |
 
 Rules 7 and 8 return a **replay** (status 200, the original decision record,
 no second side effect) when the earlier decision matches: the same key with the
 same request, or the same decision under a new key or from a second approver.
-Withdrawing (a proposer rejecting their own proposal), rejecting an expired
-proposal and rejecting a stale proposal are allowed: rejection changes nothing.
+Rejecting an expired proposal and rejecting a stale proposal are allowed:
+rejection changes nothing. Withdrawing (a proposer rejecting their own
+proposal) applies to a proposer who holds an approver role, because rule 5
+runs before any decision is considered. A product that wants proposers
+without an approver role to withdraw grants them a withdraw-capable role in
+`approverRoles`; the kit has no separate withdraw path.
 
 The request hash is the canonical hash of
 `{ proposalHash, decision, actorId, reason? }`.

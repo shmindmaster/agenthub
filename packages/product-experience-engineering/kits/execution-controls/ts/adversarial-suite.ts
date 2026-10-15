@@ -99,6 +99,7 @@ export function adversarialCases<Ctx>(adapter: CapsuleAdapter<Ctx>): Array<[stri
       await approve(ctx);
       const result = await approve(ctx, { idempotencyKey: "adversarial-key-2", decision: "reject" });
       expect(result.status === 409 && codeOf(result.body) === "already_decided", `got ${result.status} ${codeOf(result.body)}`);
+      expect((await adapter.sideEffects(ctx)) === 1, "side effects changed");
     }],
     ["same_key_different_body", async () => {
       const ctx = await adapter.setup();
@@ -150,8 +151,12 @@ export function adversarialCases<Ctx>(adapter: CapsuleAdapter<Ctx>): Array<[stri
     cases.push(["concurrent_approvals_apply_once", async () => {
       const ctx = await adapter.setup();
       const shown = (await adapter.proposal(ctx)).proposalHash;
+      // Each call starts from its own macrotask, so four calls interleave even when the adapter is synchronous.
       const results = await Promise.all(
-        [0, 1, 2, 3].map((i) => adapter.decide(ctx, { actor: "approver", proposalHash: shown, decision: "approve", idempotencyKey: `adversarial-key-c${i}` })),
+        [0, 1, 2, 3].map(async (i) => {
+          await new Promise((resolve) => setImmediate(resolve));
+          return adapter.decide(ctx, { actor: "approver", proposalHash: shown, decision: "approve", idempotencyKey: `adversarial-key-c${i}` });
+        }),
       );
       expect(results.every((r) => r.status < 500), `concurrent statuses ${results.map((r) => r.status)}`);
       expect((await adapter.sideEffects(ctx)) === 1, "concurrent approvals applied more than once");

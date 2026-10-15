@@ -25,6 +25,11 @@ def _prune(value: Any) -> Any:
     return value
 
 
+def _has_retrieval(retrieval: Any) -> bool:
+    """A retrieval object without a ``documents`` key is absent: no retrievalHash, no part in the replay key."""
+    return isinstance(retrieval, Mapping) and retrieval.get("documents") is not None
+
+
 def retrieval_hash_of(retrieval: Mapping[str, Any]) -> str:
     return canonical_hash(retrieval)
 
@@ -38,7 +43,7 @@ def replay_key_of(receipt: Mapping[str, Any]) -> str:
         "kind": receipt["kind"],
         "engine": receipt["engine"],
         "input": receipt["input"],
-        "retrievalHash": retrieval_hash_of(retrieval) if retrieval else None,
+        "retrievalHash": retrieval_hash_of(retrieval) if _has_retrieval(retrieval) else None,
         "requestModel": model.get("requestModel"),
         "tool": tool.get("name"),
     }
@@ -52,7 +57,7 @@ def receipt_hash_of(receipt: Mapping[str, Any]) -> str:
 def create_receipt(receipt_input: Mapping[str, Any], prev: Mapping[str, Any] | None = None) -> dict[str, Any]:
     body: dict[str, Any] = _prune(dict(receipt_input))
     body["receiptVersion"] = RECEIPT_VERSION
-    if body.get("retrieval"):
+    if _has_retrieval(body.get("retrieval")):
         body["retrievalHash"] = retrieval_hash_of(body["retrieval"])
     body["replayKey"] = replay_key_of(body)
     body["prevReceiptHash"] = prev["receiptHash"] if prev else None
@@ -68,17 +73,23 @@ def verify_receipt(receipt: Mapping[str, Any]) -> bool:
     if replay_key_of(receipt) != receipt.get("replayKey"):
         return False
     retrieval = receipt.get("retrieval")
-    if retrieval and receipt.get("retrievalHash") != retrieval_hash_of(retrieval):
+    if _has_retrieval(retrieval) and receipt.get("retrievalHash") != retrieval_hash_of(retrieval):
         return False
     return True
 
 
-def verify_chain(receipts: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def verify_chain(receipts: Sequence[Mapping[str, Any]], expected_prev: str | None = None) -> dict[str, Any]:
+    """Verify a chain from a known head.
+
+    The first receipt's ``prevReceiptHash`` must equal ``expected_prev`` (``None``
+    for a chain that starts at its beginning). Dropping receipts from the tail is
+    only detectable against an externally held anchor.
+    """
     for index, receipt in enumerate(receipts):
         if not verify_receipt(receipt):
             return {"ok": False, "brokenAt": index, "reason": "receipt_hash"}
-        expected_prev = receipt.get("prevReceiptHash") if index == 0 else receipts[index - 1]["receiptHash"]
-        if receipt.get("prevReceiptHash") != expected_prev:
+        want_prev = expected_prev if index == 0 else receipts[index - 1]["receiptHash"]
+        if receipt.get("prevReceiptHash") != want_prev:
             return {"ok": False, "brokenAt": index, "reason": "chain_link"}
     return {"ok": True, "brokenAt": -1}
 

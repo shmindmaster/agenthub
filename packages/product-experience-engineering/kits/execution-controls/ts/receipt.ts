@@ -96,6 +96,27 @@ export interface Receipt extends ReceiptInput {
   receiptHash: string;
 }
 
+/** `null` means absent, at every depth of a receipt input. Only plain objects and arrays are walked. */
+function prune<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => prune(item)) as T;
+  if (value !== null && typeof value === "object") {
+    const proto = Object.getPrototypeOf(value);
+    if (proto === Object.prototype || proto === null) {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .filter(([, item]) => item != null)
+          .map(([key, item]) => [key, prune(item)]),
+      ) as T;
+    }
+  }
+  return value;
+}
+
+/** A retrieval object without a `documents` key is absent: it has no retrievalHash and no part in the replay key. */
+function hasRetrieval(retrieval: unknown): retrieval is RetrievalRef {
+  return retrieval != null && typeof retrieval === "object" && (retrieval as { documents?: unknown }).documents != null;
+}
+
 export function retrievalHashOf(retrieval: RetrievalRef): string {
   return canonicalHash(retrieval);
 }
@@ -106,9 +127,9 @@ export function replayKeyOf(input: ReceiptInput): string {
     kind: input.kind,
     engine: input.engine,
     input: input.input,
-    retrievalHash: input.retrieval ? retrievalHashOf(input.retrieval) : undefined,
-    requestModel: input.model?.requestModel,
-    tool: input.tool?.name,
+    retrievalHash: hasRetrieval(input.retrieval) ? retrievalHashOf(input.retrieval) : undefined,
+    requestModel: input.model?.requestModel ?? undefined,
+    tool: input.tool?.name ?? undefined,
   });
 }
 
@@ -118,11 +139,12 @@ export function receiptHashOf(receipt: Omit<Receipt, "receiptHash"> | Receipt): 
 }
 
 export function createReceipt(input: ReceiptInput, prev: Receipt | null = null): Receipt {
+  const clean = prune(input);
   const body: Omit<Receipt, "receiptHash"> = {
-    ...input,
+    ...clean,
     receiptVersion: RECEIPT_VERSION,
-    ...(input.retrieval ? { retrievalHash: retrievalHashOf(input.retrieval) } : {}),
-    replayKey: replayKeyOf(input),
+    ...(hasRetrieval(clean.retrieval) ? { retrievalHash: retrievalHashOf(clean.retrieval) } : {}),
+    replayKey: replayKeyOf(clean),
     prevReceiptHash: prev ? prev.receiptHash : null,
   };
   return { ...body, receiptHash: receiptHashOf(body) };
@@ -132,7 +154,7 @@ export function verifyReceipt(receipt: Receipt): boolean {
   if (receipt.receiptVersion !== RECEIPT_VERSION) return false;
   if (receiptHashOf(receipt) !== receipt.receiptHash) return false;
   if (receipt.replayKey !== replayKeyOf(receipt)) return false;
-  if (receipt.retrieval && receipt.retrievalHash !== retrievalHashOf(receipt.retrieval)) return false;
+  if (hasRetrieval(receipt.retrieval) && receipt.retrievalHash !== retrievalHashOf(receipt.retrieval)) return false;
   return true;
 }
 
@@ -143,12 +165,17 @@ export interface ChainVerdict {
   reason?: "receipt_hash" | "chain_link";
 }
 
-export function verifyChain(receipts: Receipt[]): ChainVerdict {
+/**
+ * Verify a chain from a known head: the first receipt's `prevReceiptHash` must
+ * equal `expectedPrev` (null for a chain that starts at its beginning). Dropping
+ * receipts from the tail is only detectable against an externally held anchor.
+ */
+export function verifyChain(receipts: Receipt[], expectedPrev: string | null = null): ChainVerdict {
   for (let index = 0; index < receipts.length; index += 1) {
     const receipt = receipts[index];
     if (!verifyReceipt(receipt)) return { ok: false, brokenAt: index, reason: "receipt_hash" };
-    const expectedPrev = index === 0 ? receipt.prevReceiptHash : receipts[index - 1].receiptHash;
-    if (receipt.prevReceiptHash !== expectedPrev) return { ok: false, brokenAt: index, reason: "chain_link" };
+    const wantPrev = index === 0 ? expectedPrev : receipts[index - 1].receiptHash;
+    if (receipt.prevReceiptHash !== wantPrev) return { ok: false, brokenAt: index, reason: "chain_link" };
   }
   return { ok: true, brokenAt: -1 };
 }

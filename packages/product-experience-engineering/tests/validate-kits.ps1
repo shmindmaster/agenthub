@@ -40,6 +40,26 @@ try {
     $edited = Join-Path $temporary 'vendored-python\approval_capsule.py'
     Add-Content -LiteralPath $edited -Value '# local edit'
     Invoke-Checked 'check edited copy' $node @($vendorScript, '--check', '--dest', (Join-Path $temporary 'vendored-python')) -Expected 1 -Expect 'edited after vendoring' | Out-Null
+    # An extra file in a vendored copy is drift too; generated __pycache__ is not.
+    $tsDest = Join-Path $temporary 'vendored-ts'
+    $extra = Join-Path $tsDest 'extra.ts'
+    [IO.File]::WriteAllText($extra, "export const extra = 1;`n", (New-Object System.Text.UTF8Encoding($false)))
+    Invoke-Checked 'check copy with an extra file' $node @($vendorScript, '--check', '--dest', $tsDest) -Expected 1 -Expect 'extra.ts: not in the manifest' | Out-Null
+    Remove-Item -LiteralPath $extra
+    Invoke-Checked 'check after removing the extra file' $node @($vendorScript, '--check', '--dest', $tsDest) -Expect 'PASS' | Out-Null
+    $pyDest = Join-Path $temporary 'vendored-python-cache'
+    Invoke-Checked 'vendor python again' $node @($vendorScript, '--lang', 'python', '--dest', $pyDest) | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $pyDest '__pycache__') | Out-Null
+    [IO.File]::WriteAllBytes((Join-Path $pyDest '__pycache__\approval_capsule.cpython-313.pyc'), [byte[]](0, 1, 2))
+    Invoke-Checked 'check ignores __pycache__' $node @($vendorScript, '--check', '--dest', $pyDest) -Expect 'PASS' | Out-Null
+    # A manifest entry for a file the kit does not ship is drift even when the file is present and matches.
+    $ghost = Join-Path $tsDest 'ghost.ts'
+    [IO.File]::WriteAllText($ghost, "export const ghost = 1;`n", (New-Object System.Text.UTF8Encoding($false)))
+    $manifestFile = Join-Path $tsDest 'KIT_MANIFEST.json'
+    $manifest = Get-Content -LiteralPath $manifestFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $manifest.files | Add-Member -NotePropertyName 'ghost.ts' -NotePropertyValue ((Get-FileHash -Algorithm SHA256 -LiteralPath $ghost).Hash.ToLowerInvariant())
+    [IO.File]::WriteAllText($manifestFile, ($manifest | ConvertTo-Json -Depth 8), (New-Object System.Text.UTF8Encoding($false)))
+    Invoke-Checked 'check manifest naming a file the kit does not ship' $node @($vendorScript, '--check', '--dest', $tsDest) -Expected 1 -Expect 'ghost.ts: in the manifest, not shipped by the kit' | Out-Null
     $jsDest = Join-Path $temporary 'vendored-js'
     Invoke-Checked 'vendor ts with .js imports' $node @($vendorScript, '--lang', 'ts', '--dest', $jsDest, '--import-ext', 'js') | Out-Null
     if ((Get-Content -LiteralPath (Join-Path $jsDest 'approval-capsule.ts') -Raw -Encoding UTF8) -notmatch 'from "\./canonical-json\.js"') {

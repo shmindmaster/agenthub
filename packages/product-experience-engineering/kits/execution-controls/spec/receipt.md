@@ -23,8 +23,8 @@ span attributes. Hashing is the canonical form in
 | `engine` | yes | `model`, `rules`, `model+rules`, `human`. Shown in the UI as the engine badge; deterministic checks say `rules` |
 | `subject` | no | `{ type, id, revision }`, same shape as the capsule |
 | `input` | yes | `{ hash, promptName?, promptRevision?, policyRevision?, rulePackRevision? }`: hash of the exact input and the revisions that shaped it |
-| `retrieval` | no | `{ dataSourceId?, queryHash, topK?, documents: [{ id, hash, revision?, score? }] }`; scores are strings |
-| `retrievalHash` | derived | Canonical hash of `retrieval` |
+| `retrieval` | no | `{ dataSourceId?, queryHash, topK?, documents: [{ id, hash, revision?, score? }] }`; scores are strings. An object without a `documents` key (for example `{}`) is absent: no `retrievalHash`, no part in the `replayKey`, in both languages. `documents: []` is a retrieval that found nothing and is hashed |
+| `retrievalHash` | derived | Canonical hash of `retrieval`; omitted when `retrieval` is absent |
 | `model` | no | `{ provider, requestModel, responseModel?, operation?, responseId?, finishReasons?, usage?: { inputTokens, outputTokens, cacheReadInputTokens, cacheWriteInputTokens } }` |
 | `tool` | no | `{ name, callId? }` |
 | `evidence` | no | `[{ ref, hash, span?: { start, end } }]`: the exact sources the output relied on |
@@ -34,6 +34,9 @@ span attributes. Hashing is the canonical form in
 | `replayKey` | derived | Canonical hash of `{ kind, engine, input, retrievalHash, requestModel, tool }` |
 | `prevReceiptHash` | derived | `receiptHash` of the previous receipt in the chain, or `null` |
 | `receiptHash` | derived | Canonical hash of every other field |
+
+Absent optional fields are omitted, never `null`: `createReceipt` removes
+`null` and `undefined` at every depth of its input, in both languages.
 
 Failures are receipts too. A model call that times out is a `failed` receipt
 with `code: "timeout"`; the rule-based answer that replaced it is a
@@ -45,6 +48,17 @@ simulated.
 Receipts for one subject (or one run) form a hash chain through
 `prevReceiptHash`, like an append-only hash-chained ledger. `verifyChain` reports the first
 receipt whose hash fails (`receipt_hash`) or whose link fails (`chain_link`).
+
+A chain is verified from a known head: `verifyChain(receipts, expectedPrev)`
+(`verify_chain(receipts, expected_prev)`) requires the first receipt's
+`prevReceiptHash` to equal `expectedPrev`, which is `null` for a chain that
+starts at its beginning and the previous receipt's `receiptHash` for a slice.
+A forged first link, or a chain whose head was dropped, fails with
+`chain_link` at index 0. Dropping receipts from the tail leaves a valid
+chain, so tail truncation is only detectable against an external anchor: the
+latest `receiptHash` held somewhere the chain's writer cannot edit (a
+separate table, a log line, a signed checkpoint).
+
 Store receipts append-only. A Receipt Explorer renders the chain and lets a
 viewer change one byte and watch verification fail at that receipt.
 

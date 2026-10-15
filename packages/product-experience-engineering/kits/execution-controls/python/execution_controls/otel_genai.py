@@ -16,7 +16,7 @@ text, tool arguments and results) are never emitted.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Mapping
 
 
@@ -30,8 +30,16 @@ def _put(attributes: dict[str, Any], key: str, value: Any) -> None:
     attributes[key] = value
 
 
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
 def _epoch_ms(timestamp: str) -> int:
-    return round(datetime.fromisoformat(timestamp.replace("Z", "+00:00")).timestamp() * 1000)
+    """Integer milliseconds, floored like ``Date.parse`` in the TypeScript implementation."""
+    moment = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    delta = moment - _EPOCH
+    return (delta.days * 86400 + delta.seconds) * 1000 + delta.microseconds // 1000
 
 
 def receipt_span(receipt: Mapping[str, Any]) -> dict[str, Any]:
