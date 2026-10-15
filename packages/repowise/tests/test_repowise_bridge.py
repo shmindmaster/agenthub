@@ -35,7 +35,8 @@ def kill_listener(port: int) -> None:
                          creationflags=0x08000000).stdout
     for line in out.splitlines():
         parts = line.split()
-        if len(parts) >= 5 and parts[1] == f"127.0.0.1:{port}" and parts[3] == "LISTENING":
+        if (len(parts) >= 5 and parts[0] == "TCP" and parts[1] == f"127.0.0.1:{port}"
+                and parts[3] == "LISTENING" and parts[4] not in ("0", str(os.getpid()))):
             subprocess.run(["taskkill", "/PID", parts[4], "/T", "/F"], capture_output=True,
                            creationflags=0x08000000)
 
