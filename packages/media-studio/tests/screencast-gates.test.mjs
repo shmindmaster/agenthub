@@ -276,6 +276,27 @@ test('encoded gate: a card spliced where the capture belongs fails source bindin
   assert.match(r.out, /does not match any frame of the captured clip/);
 });
 
+test('encoded gate: a frame between 2 fps samples of the capture still binds (Recast zoom transitions)', { skip: !ffmpegAvailable, timeout: 120000 }, () => {
+  const root = join(scratch, 'encoded-subsample');
+  writeJob(root, { screenSeconds: 16, cardSeconds: 6 });
+  // A coarse block pattern re-randomised every frame: neighbouring frames hash far apart, as frames inside a
+  // Recast punch-in do, while the same frame survives re-encoding with its hash intact.
+  const clip = join(root, 'capture', 'clips', 'S02.webm');
+  ff(['-f', 'lavfi', '-i', "nullsrc=size=18x16:rate=30:duration=17,geq=lum='mod(X*97+Y*57+N*131+X*Y*N*29\\,251)':cb=128:cr=128", '-vf', 'scale=1600:1000:flags=neighbor,format=yuv420p', '-c:v', 'libvpx', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '4M', clip]);
+  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  const card = join(root, 'capture', 'clips', 'S01-card.png');
+  ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', card]);
+  // The capture enters 8 frames (0.267 s) in, so the S02 midpoint (14 s) shows clip time 8.267 s: real capture,
+  // but on none of the frames a 2 fps sampler sees.
+  const good = join(root, 'output', 'shifted.mp4');
+  ff(['-loop', '1', '-t', '6', '-i', card, '-i', clip, '-filter_complex', '[0:v]fps=30,setsar=1,format=yuv420p[a];[1:v]trim=start_frame=8,setpts=PTS-STARTPTS,trim=duration=16,fps=30,setsar=1,format=yuv420p[b];[a][b]concat=n=2:v=1:a=0[v]', '-map', '[v]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '12', good]);
+  writeFileSync(join(root, 'output', 'shifted-compose-map.json'), JSON.stringify({ groups: [{ segments: ['S01'], clipId: 'S01-card', file: 'clips/S01-card.png', isImage: true }, { segments: ['S02'], clipId: 'S02', file: 'clips/S02.webm', fit: 'cut', trimStart: 0.267 }] }));
+  const r = run(encodedValidator, [root, good, '--out', 'qa/encoded-shifted.json']);
+  const rep = JSON.parse(readFileSync(join(root, 'qa', 'encoded-shifted.json'), 'utf8'));
+  const s02 = rep.segments.find((s) => s.id === 'S02');
+  assert.equal(s02.bound, true, `S02 should bind to its own capture (hamming ${s02.hamming})\n${r.out}`);
+});
+
 test('compose: a pause between segments is picture time, so the picture runs the full timeline', { skip: !ffmpegAvailable }, () => {
   const root = join(scratch, 'compose-pause');
   writeJob(root, { screenSeconds: 16, cardSeconds: 6 });

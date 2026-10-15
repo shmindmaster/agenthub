@@ -38,6 +38,9 @@ const STATIC_W = 160, STATIC_H = 100;
 const CHANGED_PIXEL_DELTA = 16;
 const STATIC_CHANGED_FRACTION = 0.003;
 const FPS = 2;
+// Source binding hashes every capture frame (up to 30 fps). A 2 fps sample misses frames inside a Recast punch-in,
+// so a genuine capture frame mid-zoom failed to bind (LexAlign S04, 2026-10-15: hamming 16 sampled, 0 at full rate).
+const BIND_FPS = 30;
 const SMALL_W = 32, SMALL_H = 20;
 const CARD_MODES = new Set(['card', 'slide', 'diagram', 'talking-head', 'motif', 'animation', 'narration-only', 'broll']);
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
@@ -129,7 +132,7 @@ const report = {
   generator: 'media-studio/validate-encoded-picture',
   candidate: { path: candidate, sha256: createHash('sha256').update(readFileSync(candidate)).digest('hex'), bytes: statSync(candidate).size, durationSeconds: Number(duration.toFixed(3)) },
   timelineSeconds: Number(tl.durationSeconds || 0),
-  thresholds: { maxStaticSeconds: MAX_STATIC, resultHoldMax: RESULT_HOLD_MAX, bindMaxHamming: BIND_MAX_HAMMING, staticThumb: `${STATIC_W}x${STATIC_H}`, changedPixelDelta: CHANGED_PIXEL_DELTA, staticChangedFraction: STATIC_CHANGED_FRACTION, fps: FPS },
+  thresholds: { maxStaticSeconds: MAX_STATIC, resultHoldMax: RESULT_HOLD_MAX, bindMaxHamming: BIND_MAX_HAMMING, staticThumb: `${STATIC_W}x${STATIC_H}`, changedPixelDelta: CHANGED_PIXEL_DELTA, staticChangedFraction: STATIC_CHANGED_FRACTION, fps: FPS, bindFps: BIND_FPS },
   segments: [],
   staticRuns: [],
   screenRatio: null,
@@ -178,7 +181,7 @@ function clipHashes(file, sourceRegion) {
   if (clipHashCache.has(key)) return clipHashCache.get(key);
   const abs = resolve(jobRoot, 'capture', file);
   if (!existsSync(abs)) { clipHashCache.set(key, null); return null; }
-  const fr = grayFrames(abs, 9, 8, FPS, [sourcePictureFilter(sourceRegion, deliveryFrame)]);
+  const fr = grayFrames(abs, 9, 8, BIND_FPS, [sourcePictureFilter(sourceRegion, deliveryFrame)]);
   const hs = fr.map(dhash);
   clipHashCache.set(key, hs);
   return hs;
