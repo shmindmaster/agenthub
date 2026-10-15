@@ -56,9 +56,13 @@ python $Control status
 # Only after explicit owner approval of this aggregate amount:
 python $Control configure --bucket elevenlabs/credits --ceiling <approved-integer>
 python $Control freeze --bucket elevenlabs/credits
+# Only an expired reservation that never reached submitted can be released:
+python $Control release-prepared --namespace <saved-namespace> --cache-key <saved-key>
 ```
 
-Freeze sets the ceiling to existing commitments, preserving reuse and recovery.
+Freeze sets the ceiling to existing commitments, preserving reuse and recovery;
+an unset bucket fails explicitly. Release is atomic with submission and lease
+takeover; it refuses live prepared, submitted and unknown reservations.
 Agents must never raise/configure a ceiling merely to make a request succeed.
 Budgets are operator-managed policy, not protected against same-user edits.
 
@@ -74,8 +78,11 @@ silent model downgrade or prompt rewriting occurs.
 
 One fenced worker reserves/submits an exact request. Others wait and retrieve its
 bytes. A crashed prepared worker can be replaced after its lease; a submitted
-worker can never be replaced by a fresh purchase. Request IDs are saved as soon
-as response headers arrive. Lost/ambiguous responses retain the reservation and
+worker can never be replaced by a fresh purchase. Recovery refuses a submitted
+worker until its lease expires, or the worker explicitly records an unknown
+outcome. Request IDs are saved as soon as response headers arrive, including HTTP
+error responses. A response without an ID never becomes reusable content.
+Lost/ambiguous responses retain the reservation and
 fail closed. Recover the exact provider history item (GET only):
 
 ```powershell

@@ -10,6 +10,7 @@ import pathlib
 import re
 import tempfile
 import tomllib
+import sys
 
 # Official plugin .app.json declares this app ID. Plugin name is not the ID.
 ELEVENLABS_APP = "asdk_app_6a8d784b60cc81919aeafbfaeda5fbcf"
@@ -42,14 +43,15 @@ def codex_block(text):
     return result
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true")
-    args = parser.parse_args()
-    config = pathlib.Path.home() / ".codex/config.toml"
-    text = config.read_text(encoding="utf-8")
-    if args.apply and not blocked(text):
+def read_config(config):
+    return config.read_text(encoding="utf-8") if config.exists() else ""
+
+
+def run(config, apply=False):
+    text = read_config(config)
+    if apply and not blocked(text):
         result = codex_block(text)
+        config.parent.mkdir(parents=True, exist_ok=True)
         # Same-directory replace; don't copy authentication/config into reports.
         descriptor, name = tempfile.mkstemp(prefix=".content-controls-", dir=config.parent)
         temporary = pathlib.Path(name)
@@ -58,15 +60,28 @@ def main():
                 handle.write(result)
                 handle.flush()
                 os.fsync(handle.fileno())
-            if config.read_text(encoding="utf-8") != text:
+            if read_config(config) != text:
                 raise RuntimeError("Config changed concurrently; retry the merge")
             os.replace(temporary, config)
         finally:
             temporary.unlink(missing_ok=True)
-    print(json.dumps({"host": "codex-local", "app_id": ELEVENLABS_APP,
-                      "configured_block": blocked(config.read_text(encoding="utf-8")),
-                      "requires_new_session": True, "effective_tool_removal_verified": False}))
+    return {"host": "codex-local", "app_id": ELEVENLABS_APP,
+            "configured_block": blocked(read_config(config)),
+            "requires_new_session": True, "effective_tool_removal_verified": False}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--apply", action="store_true")
+    args = parser.parse_args(argv)
+    config = pathlib.Path.home() / ".codex/config.toml"
+    try:
+        print(json.dumps(run(config, args.apply)))
+        return 0
+    except (OSError, ValueError, RuntimeError, TypeError, AttributeError):
+        print("Content host control failed; inspect native configuration locally", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

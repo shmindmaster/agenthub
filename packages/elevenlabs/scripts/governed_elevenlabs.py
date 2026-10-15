@@ -80,7 +80,8 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload):
                     raise RuntimeError("Provider returned no audio")
                 row = ledger.complete(row, raw, ctype, headers.get("request-id"))
             except BaseException:
-                ledger.unknown(row)
+                if not ledger.unknown(row):
+                    raise RuntimeError("Submission state changed; inspect its existing receipt before any retry.") from None
                 raise RuntimeError("Submission unresolved; reservation retained. Recover provider history before retrying.") from None
         if row["state"] in ("pending", "accepted"):
             raw = ledger.read_asset(row)

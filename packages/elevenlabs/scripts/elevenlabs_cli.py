@@ -42,6 +42,8 @@ def _request_full(path: str, method: str = "GET", body: bytes | None = None, con
                 on_headers(response.headers)
             return response.status, response.headers.get_content_type(), response.read(), response.headers
     except urllib.error.HTTPError as exc:
+        if on_headers and exc.headers is not None:
+            on_headers(exc.headers)
         # Error messages may echo submitted text or account details. Emit only a code.
         try:
             detail = json.loads(exc.read()).get("detail", {})
@@ -358,7 +360,7 @@ def main() -> int:
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         return 2
-    except (OSError, ValueError):
+    except (OSError, ValueError, ImportError):
         print("Local validation/storage failed; inspect the ledger before retrying any generation", file=sys.stderr)
         return 2
 

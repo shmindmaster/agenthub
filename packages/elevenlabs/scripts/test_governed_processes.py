@@ -41,11 +41,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                             "character_count_change_from": 0, "character_count_change_to": 5}).encode())
         self.respond(json.dumps(data[self.path]).encode())
 
-    def respond(self, raw, content_type="application/json", lost=False):
-        self.send_response(200)
+    def respond(self, raw, content_type="application/json", lost=False, status=200, receipt=True):
+        self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(raw) + (100 if lost else 0)))
-        self.send_header("request-id", "fixture-request")
+        if receipt:
+            self.send_header("request-id", "fixture-request")
         self.end_headers()
         self.wfile.write(raw)
         self.close_connection = True
@@ -55,7 +56,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         with self.lock:
             type(self).posts += 1
         time.sleep(.15)
-        self.respond(RAW, "audio/mpeg", payload["text"] == "lost")
+        if payload["text"] == "http-error":
+            return self.respond(b'{"detail":{"status":"fixture_error"}}', status=500)
+        self.respond(RAW, "audio/mpeg", payload["text"] == "lost", receipt=payload["text"] != "no-id")
 
 
 def invoke(root, url, number, revision="v1", text="hello"):
@@ -112,8 +115,24 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 20)
 
     def test_lost_body_preserves_header_receipt_and_recovers_without_purchase(self):
-        self.assertEqual(invoke(self.root, self.url, "lost", text="lost"), 2)
-        self.assertEqual(invoke(self.root, self.url, "retry", text="lost"), 2)
+        self.assert_recovery("lost")
+
+    def test_http_error_preserves_header_receipt_and_recovers_without_purchase(self):
+        self.assert_recovery("http-error")
+
+    def test_missing_request_id_blocks_reuse_and_another_purchase(self):
+        self.assertEqual(invoke(self.root, self.url, "missing", text="no-id"), 2)
+        self.assertEqual(invoke(self.root, self.url, "retry", text="no-id"), 2)
+        self.assertEqual(Handler.posts, 1)
+        with self.ledger.connect() as con:
+            row = dict(con.execute("SELECT * FROM requests").fetchone())
+        self.assertEqual(row["state"], "unknown")
+        self.assertIsNone(row["receipt"])
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
+
+    def assert_recovery(self, text):
+        self.assertEqual(invoke(self.root, self.url, "lost", text=text), 2)
+        self.assertEqual(invoke(self.root, self.url, "retry", text=text), 2)
         self.assertEqual(Handler.posts, 1)
         with self.ledger.connect() as con:
             row = dict(con.execute("SELECT * FROM requests").fetchone())
@@ -126,7 +145,7 @@ class ProcessTests(unittest.TestCase):
             with patch.dict(os.environ, {"ELEVENLABS_API_KEY": "different-synthetic-key"}):
                 with self.assertRaisesRegex(RuntimeError, "namespace"):
                     governed.reconcile(cli, args)
-        self.assertEqual(invoke(self.root, self.url, "recovered", text="lost"), 0)
+        self.assertEqual(invoke(self.root, self.url, "recovered", text=text), 0)
         self.assertEqual(Handler.posts, 1)
         self.assertEqual((self.root / "take-recovered.mp3").read_bytes(), RAW)
         self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 5)

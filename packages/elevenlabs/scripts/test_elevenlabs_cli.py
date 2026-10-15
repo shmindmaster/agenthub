@@ -158,6 +158,19 @@ class GovernedRouting(unittest.TestCase):
         return self.invoke(target, ["--governed", "--cache-workspace", "fixture-project",
                                    "--cache-revision", revision, "--max-credits", "10"])
 
+    def test_missing_adapter_fails_without_provider_submission(self):
+        import builtins
+        original = builtins.__import__
+        def guarded(name, *args, **kwargs):
+            if name == "governed_elevenlabs":
+                raise ImportError("synthetic private path")
+            return original(name, *args, **kwargs)
+        with patch("builtins.__import__", side_effect=guarded), patch.object(cli, "_request_full") as post, \
+             contextlib.redirect_stderr(io.StringIO()) as errors:
+            self.assertEqual(self.governed(self.root / "a.mp3"), 2)
+            self.assertNotIn("synthetic private path", errors.getvalue())
+            post.assert_not_called()
+
     def test_exact_repeat_reuses_pending_bytes_without_second_post(self):
         with patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", b"synthetic audio", {"request-id": "fixture-request"})) as post:
             a, b = self.root / "a.mp3", self.root / "b.mp3"
@@ -171,7 +184,7 @@ class GovernedRouting(unittest.TestCase):
             self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
 
     def test_revision_change_invalidates_and_reserves_separately(self):
-        with patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", b"synthetic audio", {})) as post:
+        with patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", b"synthetic audio", {"request-id": "fixture-request"})) as post:
             self.assertEqual(self.governed(self.root / "a.mp3"), 0)
             self.assertEqual(self.governed(self.root / "b.mp3", "v2"), 0)
             with contextlib.redirect_stderr(io.StringIO()):

@@ -11,6 +11,9 @@ from content_runtime import Ledger
 def accept_manifest(ledger, namespace, key, manifest):
     """Verify saved evidence files; human/tool reviewers remain responsible for QA."""
     gates = json.loads(manifest.read_text(encoding="utf-8"))
+    if not isinstance(gates, dict) or any(not isinstance(gate, dict) or not isinstance(gate.get("evidence_path"), str)
+                                          for gate in gates.values()):
+        raise ValueError("Acceptance manifest requires gate objects with evidence paths")
     for gate in gates.values():
         evidence = pathlib.Path(gate["evidence_path"])
         if not evidence.is_absolute() or not gate.get("reviewer"):
@@ -33,15 +36,18 @@ def main(argv=None):
     accept.add_argument("--namespace", required=True)
     accept.add_argument("--cache-key", required=True)
     accept.add_argument("--manifest", required=True, type=pathlib.Path)
+    release = sub.add_parser("release-prepared", help="Release only an expired reservation that never submitted")
+    release.add_argument("--namespace", required=True)
+    release.add_argument("--cache-key", required=True)
     args = parser.parse_args(argv)
     try:
         ledger = Ledger()
         if args.command == "configure":
             ledger.configure(args.bucket, args.ceiling)
         elif args.command == "freeze":
-            with ledger.connect(True) as con:
-                con.execute("UPDATE budgets SET ceiling=? WHERE bucket=?",
-                            (ledger.committed(con, args.bucket), args.bucket))
+            ledger.freeze(args.bucket)
+        elif args.command == "release-prepared":
+            ledger.release_prepared(args.namespace, args.cache_key)
         elif args.command == "accept":
             row = accept_manifest(ledger, args.namespace, args.cache_key, args.manifest)
             print(json.dumps({"acceptance_state": row["state"], "output_sha256": row["sha256"]}))

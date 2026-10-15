@@ -11,6 +11,9 @@ import unittest
 
 from content_runtime import Ledger, request_key
 from content_control import accept_manifest
+from unittest.mock import patch
+from types import SimpleNamespace
+from content_runtime import linked_path
 
 
 class LedgerTests(unittest.TestCase):
@@ -34,6 +37,71 @@ class LedgerTests(unittest.TestCase):
                 self.claim(maximum=value)
         with self.assertRaisesRegex(RuntimeError, "budget"):
             self.ledger.claim("account", "key", "unset", 1)
+
+    def test_nonleader_cannot_obtain_worker_token(self):
+        leader = self.claim()
+        waiter = self.claim()
+        self.assertNotIn("token", waiter)
+        self.assertEqual(self.ledger.lookup("account-a", "same")["token"], leader["token"])
+
+    def test_recovery_refuses_active_submission_and_accepts_expired_submission(self):
+        claim = self.claim()
+        self.ledger.submitted(claim)
+        self.ledger.bind_receipt(claim, "receipt-1")
+        with self.assertRaisesRegex(RuntimeError, "active"):
+            self.ledger.recover("account-a", "same", b"recovered", "audio/fixture", "receipt-1", 2)
+        with self.ledger.connect(True) as con:
+            con.execute("UPDATE requests SET lease=0")
+        row = self.ledger.recover("account-a", "same", b"recovered", "audio/fixture", "receipt-1", 2)
+        self.assertEqual(row["state"], "pending")
+
+    def test_missing_receipt_cannot_become_reusable_content(self):
+        claim = self.claim()
+        self.ledger.submitted(claim)
+        with self.assertRaisesRegex(RuntimeError, "receipt"):
+            self.ledger.complete(claim, b"fixture", "audio/fixture", None)
+        self.assertEqual(self.ledger.lookup("account-a", "same")["state"], "submitted")
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 4)
+
+    def test_release_requires_expired_never_submitted_reservation(self):
+        claim = self.claim()
+        with self.assertRaisesRegex(RuntimeError, "expired"):
+            self.ledger.release_prepared("account-a", "same")
+        with self.ledger.connect(True) as con:
+            con.execute("UPDATE requests SET lease=0")
+        self.ledger.release_prepared("account-a", "same")
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 0)
+        with self.assertRaisesRegex(RuntimeError, "lease"):
+            self.ledger.submitted(claim)
+        submitted = self.claim()
+        self.ledger.submitted(submitted)
+        with self.ledger.connect(True) as con:
+            con.execute("UPDATE requests SET lease=0")
+        for state in ("submitted", "unknown"):
+            with self.assertRaisesRegex(RuntimeError, "expired"):
+                self.ledger.release_prepared("account-a", "same")
+            self.ledger.unknown(submitted)
+
+    def test_freeze_unknown_bucket_fails_and_existing_bucket_retains_commitments(self):
+        with self.assertRaisesRegex(RuntimeError, "bucket"):
+            self.ledger.freeze("missing")
+        self.claim()
+        self.ledger.freeze("fixture/credits")
+        self.assertEqual(self.ledger.status()["budgets"][0]["ceiling"], 4)
+        with self.assertRaisesRegex(RuntimeError, "ceiling"):
+            self.claim("other")
+
+    def test_reparse_point_detection_does_not_require_python312_path_api(self):
+        with patch.object(pathlib.Path, "lstat", return_value=SimpleNamespace(st_file_attributes=0x400, st_mode=0)):
+            self.assertTrue(linked_path(self.root))
+        self.assertFalse(linked_path(self.root / "absent"))
+
+    def test_invalid_manifest_shapes_fail_with_controlled_error(self):
+        manifest = self.root / "bad.json"
+        for value in ([], {"identity": []}, {"identity": {}}):
+            manifest.write_text(json.dumps(value))
+            with self.assertRaises((RuntimeError, ValueError)):
+                accept_manifest(self.ledger, "account-a", "same", manifest)
 
     def test_unknown_billing_retains_reservation_and_acceptance_requires_gates(self):
         claim = self.claim()

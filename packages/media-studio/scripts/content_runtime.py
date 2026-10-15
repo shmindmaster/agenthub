@@ -15,6 +15,7 @@ import os
 import pathlib
 import re
 import sqlite3
+import stat
 import time
 import uuid
 from functools import lru_cache
@@ -72,12 +73,20 @@ def windows_sid():
         kernel.CloseHandle(token)
 
 
+def linked_path(path: pathlib.Path):
+    """Reject all Windows reparse points, including junctions on Python 3.11."""
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & 0x400)
+
+
 def secure_directory(root: pathlib.Path):
     root = root.absolute()
     if str(root).startswith(("\\\\", "//")):
         raise RuntimeError("Content ledger requires a local disk")
-    if any(path.is_symlink() or path.is_junction() if hasattr(path, "is_junction") else path.is_symlink()
-           for path in (root, *root.parents)):
+    if any(linked_path(path) for path in (root, *root.parents)):
         raise RuntimeError("Content ledger refuses linked directories")
     if os.name == "nt":
         if ctypes.windll.kernel32.GetDriveTypeW(root.anchor) != 3:
@@ -137,7 +146,7 @@ class Ledger:
         self.db = self.root / "ledger.sqlite3"
         self.assets = self.root / "assets"
         self.assets.mkdir(exist_ok=True, mode=0o700)
-        if self.db.is_symlink() or self.assets.is_symlink() or (hasattr(self.assets, "is_junction") and self.assets.is_junction()):
+        if linked_path(self.db) or linked_path(self.assets):
             raise RuntimeError("Linked ledger or asset directory refused")
         with self.connect() as con:
             con.execute("PRAGMA journal_mode=WAL")
@@ -227,6 +236,7 @@ class Ledger:
                     result["state"] = "unknown"
                 if result["state"] in ("prepared", "submitted"):
                     result["state"] = "wait"
+                result.pop("token", None)
                 return result
             budget = con.execute("SELECT ceiling FROM budgets WHERE bucket=?", (bucket,)).fetchone()
             if not budget:
@@ -251,6 +261,21 @@ class Ledger:
             con.execute("DELETE FROM requests WHERE namespace=? AND key=? AND token=? AND state='prepared'",
                         (claim["namespace"], claim["key"], claim["token"]))
 
+    def release_prepared(self, namespace, key):
+        """Owner-operated release; atomic with submission and lease takeover."""
+        with self.connect(True) as con:
+            changed = con.execute("DELETE FROM requests WHERE namespace=? AND key=? AND state='prepared' AND lease<?",
+                                  (namespace, key, time.time())).rowcount
+            if changed != 1:
+                raise RuntimeError("Release requires an expired, never-submitted reservation")
+
+    def freeze(self, bucket):
+        with self.connect(True) as con:
+            changed = con.execute("UPDATE budgets SET ceiling=? WHERE bucket=?",
+                                  (self.committed(con, bucket), bucket)).rowcount
+            if changed != 1:
+                raise RuntimeError("Cannot freeze an unset budget bucket")
+
     def bind_receipt(self, claim, receipt):
         if not receipt or len(receipt) > 250:
             raise RuntimeError("Invalid provider receipt")
@@ -267,8 +292,8 @@ class Ledger:
 
     def unknown(self, claim: dict, receipt: str | None = None):
         with self.connect(True) as con:
-            con.execute("UPDATE requests SET state='unknown', receipt=COALESCE(receipt,?) WHERE namespace=? AND key=? AND token=? AND state='submitted' AND (receipt IS NULL OR ? IS NULL OR receipt=?)",
-                        (receipt, claim["namespace"], claim["key"], claim["token"], receipt, receipt))
+            return con.execute("UPDATE requests SET state='unknown', receipt=COALESCE(receipt,?) WHERE namespace=? AND key=? AND token=? AND state='submitted' AND (receipt IS NULL OR ? IS NULL OR receipt=?)",
+                               (receipt, claim["namespace"], claim["key"], claim["token"], receipt, receipt)).rowcount == 1
 
     def save_asset(self, raw: bytes) -> str:
         if not raw:
@@ -285,13 +310,22 @@ class Ledger:
             temporary.unlink(missing_ok=True)
         return digest
 
-    def complete(self, claim, raw, content_type, receipt, actual=None):
+    def complete(self, claim, raw, content_type, receipt, actual=None, *, recovery=False):
+        if not receipt or len(receipt) > 250:
+            raise RuntimeError("Completion requires a valid provider receipt")
         if actual is not None:
             integer(actual, True)
-            if not receipt:
-                raise RuntimeError("Known billing requires a provider receipt")
-        digest = self.save_asset(raw)
         with self.connect(True) as con:
+            # Check under the same write lock as the transition. Recovery cannot
+            # race a live submission, and invalid completions leave no orphan.
+            current = con.execute("SELECT * FROM requests WHERE namespace=? AND key=?",
+                                  (claim["namespace"], claim["key"])).fetchone()
+            if recovery and current and current["state"] == "submitted" and current["lease"] >= time.time():
+                raise RuntimeError("Recovery refused while submission lease is active")
+            if (not current or current["token"] != claim["token"] or current["state"] not in ("submitted", "unknown")
+                    or (current["receipt"] is not None and current["receipt"] != receipt)):
+                raise RuntimeError("Completion state changed; recover the existing provider receipt")
+            digest = self.save_asset(raw)
             changed = con.execute("UPDATE requests SET state='pending',sha256=?,content_type=?,receipt=COALESCE(?,receipt),actual=? WHERE namespace=? AND key=? AND token=? AND state IN ('submitted','unknown') AND (receipt IS NULL OR receipt=?)",
                                   (digest, content_type, receipt, actual, claim["namespace"], claim["key"], claim["token"], receipt)).rowcount
             if changed != 1:
@@ -306,7 +340,7 @@ class Ledger:
             raise RuntimeError("Recovery requires an unresolved submission and verified provider receipt")
         if row["receipt"] and row["receipt"] != receipt:
             raise RuntimeError("Recovery receipt mismatch")
-        return self.complete(dict(row), raw, content_type, receipt, actual)
+        return self.complete(dict(row), raw, content_type, receipt, actual, recovery=True)
 
     def settle(self, namespace, key, actual, receipt):
         integer(actual, True)
