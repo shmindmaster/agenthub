@@ -24,6 +24,7 @@ export const TIMING = Object.freeze({
 
 const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const describe = (locator) => { try { return String(locator).replace(/s+/g, ' ').slice(0, 120); } catch { return null; } };
 
 export class BeatTracker {
   constructor(t0) { this.t0 = t0; this.marks = []; }
@@ -40,7 +41,7 @@ export class BeatTracker {
 export class EventLog {
   constructor(t0) { this.t0 = t0; this.events = []; this.expectations = []; this.pointer = { x: null, y: null }; }
   now() { return Math.round(((Date.now() - this.t0) / 1000) * 1000) / 1000; }
-  push(type, data = {}) { this.events.push({ t: this.now(), type, ...data }); }
+  push(type, data = {}) { const ev = { t: this.now(), type, ...data }; this.events.push(ev); return ev; }
   summary() {
     const count = (type) => this.events.filter((e) => e.type === type).length;
     return {
@@ -74,8 +75,10 @@ export async function startRecording(id, opts = {}) {
     recordVideo: { dir: rawDir, size: viewport },
   });
   await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
-  const page = await context.newPage();
+  // The recorded video starts when the page is created, so the action clock starts just before it: every event `t`
+  // is then seconds into the raw WebM (the cue sheet and the sync gate map these through the edit decision list).
   const t0 = Date.now();
+  const page = await context.newPage();
   const beats = new BeatTracker(t0);
   const log = new EventLog(t0);
   const h = bindHelpers(page, log, beats, opts);
@@ -191,8 +194,10 @@ export function bindHelpers(page, log, beats, opts = {}) {
     // actions whose method is 'click' with a recorded point. mouse.click is method 'mouse.click' and none of the three see
     // it (the take then carries a cursor from the move keyframes but no ripple and no punch-in). The pointer is already
     // on the element centre, so the click lands where the approach ended; force skips a second actionability wait.
+    // tStart is the moment the click is issued (the narration word it must land on); t is when Playwright returned.
+    const tStart = log.now();
     await locator.first().click({ delay: 60, force: true, position: { x: box.width / 2, y: box.height / 2 }, timeout: 8000 });
-    log.push('click', { x: Math.round(x), y: Math.round(y), label: o.label || null });
+    log.push('click', { x: Math.round(x), y: Math.round(y), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
     if (o.label) beats.mark(o.label, { box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } });
     await wait(o.hold ?? TIMING.clickHoldMs);
   }
@@ -201,14 +206,17 @@ export function bindHelpers(page, log, beats, opts = {}) {
   async function typeText(locator, text, o = {}) {
     await click(locator, { ...o, hold: 250 });
     if (o.clear) { await page.keyboard.press('Control+A'); await page.keyboard.press('Backspace'); }
+    const tStart = log.now();
     await page.keyboard.type(text, { delay: o.delay ?? TIMING.typingDelayMs });
-    log.push('type', { chars: text.length, label: o.label || null });
+    log.push('type', { chars: text.length, label: o.label || null, target: o.target || o.label || describe(locator), tStart });
     await wait(o.hold ?? 600);
   }
 
   /** Pointer lead without a click, for a read beat. */
   async function pointAt(locator, o = {}) {
     const r = await approach(locator, o);
+    // A cursor-led highlight for a read beat (dashboards, diagrams): the arrival is the action the narration names.
+    log.push('point', { x: Math.round(r.x), y: Math.round(r.y), label: o.label || null, target: o.target || o.label || describe(locator), tStart: log.now() });
     if (o.label) beats.mark(o.label, { box: { x: Math.round(r.box.x), y: Math.round(r.box.y), w: Math.round(r.box.width), h: Math.round(r.box.height) } });
     await wait(o.hold ?? 900);
     return r;
@@ -247,6 +255,7 @@ export function bindHelpers(page, log, beats, opts = {}) {
       log.push('expect-failed', { label, error: String(e.message).split('\n')[0] });
     }
     log.expectations.push({ label, observed, at: t, observedAt: observed ? log.now() : null });
+    if (observed) log.push('expect', { label });
     if (observed) beats.mark('result: ' + label);
     if (!observed && !o.soft) throw new Error('expected product response not observed: ' + label);
     await wait(o.hold ?? TIMING.clickHoldMs);

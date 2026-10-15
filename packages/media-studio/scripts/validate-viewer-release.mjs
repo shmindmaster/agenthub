@@ -45,6 +45,25 @@ if (job.kind === 'product-screencast') {
     } catch (error) { errors.push(`cannot read encoded-picture report: ${error.message}`); }
   }
 }
+if (job.kind === 'product-screencast') {
+  // VIDEO-SYNC-DIRECTIVE §4: narration-to-visual sync is measured on the exact encoded file by validate-sync.mjs.
+  const syncPath = join(root, 'qa', 'sync.json');
+  if (!existsSync(syncPath)) errors.push('missing qa/sync.json; narration-to-visual sync must pass on the exact candidate (validate-sync.mjs).');
+  else {
+    try {
+      const sync = json(syncPath);
+      if (sync.generator !== 'media-studio/validate-sync' || sync.ok !== true || !Array.isArray(sync.errors) || sync.errors.length) errors.push('sync report must be a PASS with no errors from validate-sync.');
+      if (sync.degraded === true || sync.precision?.allWordLevel !== true) errors.push('sync report was produced with degraded (non word-level) narration timing; run word-level ASR per line and rebuild the cue sheet.');
+      if (sync.candidate?.sha256 !== candidateSha || sync.candidate?.bytes !== (candidateSha ? statSync(candidate).size : null)) errors.push('sync report is not bound to the exact candidate SHA-256 and byte count.');
+      const th = sync.thresholds || {};
+      if (!(th.actionToleranceMs <= 300) || !(th.screenToleranceMs <= 40) || !(th.resultHoldMinSeconds >= 1.5) || !(th.driftMaxMs <= 40) || !(th.maxFreezeSeconds <= 6) || !(th.maxDroppedFrames <= 3)) errors.push('sync report must use the canonical thresholds (action +-300 ms, screen-on 40 ms, result hold 1.5 s, A/V drift 40 ms, freeze 6 s, dropped frames 3).');
+      const performedChecks = new Set(sync.checks?.performed || []);
+      const missingChecks = ['screen-on', 'action-timing', 'result-hold', 'narration-order', 'av-sync', 'frozen-frames', 'dropped-frames'].filter((check) => !performedChecks.has(check));
+      if (missingChecks.length) errors.push(`sync report did not perform: ${missingChecks.join(', ')}.`);
+      if (!Array.isArray(sync.checks?.notPerformed) || !Array.isArray(sync.beats) || !sync.beats.some((beat) => (beat.findings || []).some((finding) => finding.check === 'action-timing' && finding.status === 'pass'))) errors.push('sync report must list checks not performed and show at least one passed action-timing finding.');
+    } catch (error) { errors.push(`cannot read sync report: ${error.message}`); }
+  }
+}
 if (Object.hasOwn(CAMPAIGN_FORMS, job.programForm)) errors.push(...validateCampaign(root, job, timeline, graphics));
 if (job.deliveryProfile || Object.hasOwn(CAMPAIGN_FORMS, job.programForm)) {
   try {

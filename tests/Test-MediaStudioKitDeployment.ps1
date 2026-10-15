@@ -10,7 +10,7 @@ $shared = Join-Path $scratch '_shared\tools'
 $checks = 0
 try {
     & (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -RuntimeKit $runtimeKit
-    foreach ($name in @('validate-storyboard.mjs','validate-capture-manifest.mjs','backfill-capture-receipt.mjs','validate-demo-scenario.mjs','validate-product-picture.mjs','validate-encoded-picture.mjs','validate-viewer-release.mjs')) {
+    foreach ($name in @('validate-storyboard.mjs','validate-capture-manifest.mjs','backfill-capture-receipt.mjs','validate-demo-scenario.mjs','validate-product-picture.mjs','validate-encoded-picture.mjs','validate-sync.mjs','build-cue-sheet.mjs','validate-viewer-release.mjs')) {
         $source = Join-Path (Join-Path $package 'scripts') $name
         foreach ($destination in @((Join-Path (Join-Path $runtimeKit 'screencast') $name), (Join-Path $shared $name))) {
             if (-not (Test-Path -LiteralPath $destination)) { throw "Missing runtime gate: $destination" }
@@ -18,7 +18,7 @@ try {
             $checks++
         }
     }
-    foreach ($name in @('compose-screencast.mjs','render-overlay.mjs','render-code.mjs','render-html.mjs','render-card.mjs','record-job.mjs','record-lib.mjs')) {
+    foreach ($name in @('compose-screencast.mjs','render-overlay.mjs','render-code.mjs','render-html.mjs','render-card.mjs','record-job.mjs','record-lib.mjs','sync-lib.mjs')) {
         $source = Join-Path (Join-Path $package 'kit\screencast') $name
         $destination = Join-Path $shared $name
         if (-not (Test-Path -LiteralPath $destination)) { throw "Missing shared tool: $destination" }

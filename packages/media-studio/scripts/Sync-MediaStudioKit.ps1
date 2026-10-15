@@ -35,6 +35,7 @@ $files = @(
     'screencast\render-card.mjs',
     'screencast\record-job.mjs',
     'screencast\record-lib.mjs',
+    'screencast\sync-lib.mjs',
     'screencast\README.md',
     'code-stage\shotlist.mjs',
     'code-stage\source.mjs',
@@ -56,7 +57,7 @@ foreach ($rel in $files) {
 # Capture and product-picture gates travel with the compositor so each host resolves the same scripts.
 # A missing validator is a hard stop, never a silent skip. The existing scripts are copied
 # beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
-$gateScripts = @('validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-viewer-release.mjs')
+$gateScripts = @('validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'validate-viewer-release.mjs')
 $sharedTools = Join-Path (Join-Path (Split-Path -Parent $RuntimeKit) '_shared') 'tools'
 New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null
 foreach ($name in $gateScripts) {
@@ -65,7 +66,7 @@ foreach ($name in $gateScripts) {
     Copy-Item -LiteralPath $from -Destination (Join-Path (Join-Path $RuntimeKit 'screencast') $name) -Force
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
 }
-foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs')) {
+foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs')) {
     $from = Join-Path (Join-Path $packageKit 'screencast') $name
     if (-not (Test-Path -LiteralPath $from)) { throw "Canonical screencast tool missing: $from" }
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force

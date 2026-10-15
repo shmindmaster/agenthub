@@ -8,14 +8,20 @@
 // Per-clip hints (see README.md): trimStart, trimEnd, speed, skip, fit: cut|hold|fit|fitpad, overlay.
 // A segment with no clip holds the previous clip's last frame. A png is a card, looped.
 // Output: output/<base>-silent.mp4 at the job delivery profile, 30 fps, yuv420p.
+// Voice-first: when plan/cue-sheet.json exists (build-cue-sheet.mjs; disable with --no-voice-first) the picture is built to the
+// locked narration. A new screen comes up `screenLeadSeconds` before the first content word, and each clip's first narrated
+// action is aligned to its spoken word by freezing the clip's first frame (headHold, at most 1.5 s) or trimming its head.
+// A clip that cannot cover its narration span after alignment stops the compose with a recapture message; the voice is never squeezed.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { CAMPAIGN_FORMS, frameFor, sourcePictureFilter, sourceRegionError, validateCampaign } from './campaign-contract.mjs';
+import { SYNC_DEFAULTS, planAlignment } from './sync-lib.mjs';
 
-const [jobRoot, base] = process.argv.slice(2);
-if (!jobRoot || !base) { console.error('usage: node compose-screencast.mjs <jobRoot> <base>'); process.exit(2); }
+const [jobRoot, base] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+if (!jobRoot || !base) { console.error('usage: node compose-screencast.mjs <jobRoot> <base> [--no-voice-first]'); process.exit(2); }
 const here = path.dirname(fileURLToPath(import.meta.url));
 function findProductPictureValidator() {
   const candidates = [
@@ -47,6 +53,16 @@ const graphicsPath = path.join(jobRoot, 'story', 'timed-graphics.json');
 const graphics = fs.existsSync(graphicsPath) ? JSON.parse(fs.readFileSync(graphicsPath, 'utf8')).overlays : [];
 const contractErrors = validateCampaign(jobRoot, job, tl, graphics);
 if (contractErrors.length) throw new Error(`campaign contract: ${contractErrors.join(' ')}`);
+const cuePath = path.join(jobRoot, 'plan', 'cue-sheet.json');
+const cue = !process.argv.includes('--no-voice-first') && fs.existsSync(cuePath) ? JSON.parse(fs.readFileSync(cuePath, 'utf8')) : null;
+const voiceFirst = !!cue && cue.voiceFirst !== false;
+if (voiceFirst) {
+  const tlSha = createHash('sha256').update(fs.readFileSync(path.join(jobRoot, 'story', 'narration-timeline.json'))).digest('hex');
+  if (cue.inputs?.timeline?.sha256 !== tlSha) throw new Error('voice-first: plan/cue-sheet.json was built from a different narration timeline. Re-lock the narration, then rerun build-cue-sheet.mjs; do not compose against a stale cue sheet.');
+}
+const cueBeat = (id) => (voiceFirst ? cue.beats.find((b) => b.beat === id) : null);
+const clickLead = Number(cue?.parameters?.clickLeadSeconds ?? SYNC_DEFAULTS.clickLeadSeconds);
+const recaptureNote = voiceFirst ? ' Voice-first: the narration is locked, so recapture this beat longer (hold on the result, slower pointer approach, or a pause before the action) instead of squeezing the voice.' : '';
 // Accept both shapes: { clips:[{id,file,segments}] } and the validator-shaped { captures:[{storyboardSegmentId, segments, clip?}] }.
 // A job may pre-assemble one exact-length plate per scene (manifest.composeClips); it wins over the raw capture record.
 const rawClips = man.composeClips || man.clips || man.entries || man.captures || [];
@@ -125,6 +141,14 @@ for (const seg of tl.segments) {
   if (last && last.clip === clip && clip) { last.segments.push(seg); last.duration += seg.durationSeconds; }
   else groups.push({ clip, segments: [seg], duration: seg.durationSeconds, start: seg.startSeconds });
 }
+// Voice-first: a new screen is up before the first content word of its line, never before the previous line has finished.
+if (voiceFirst) {
+  groups.forEach((g, i) => {
+    if (i === 0) return;
+    const b = cueBeat(g.segments[0].id);
+    if (b && Number.isFinite(b.slot_start) && b.slot_start <= g.start + 1e-6 && b.slot_start >= groups[i - 1].start + 0.5) g.start = b.slot_start;
+  });
+}
 // A pause between segments (pauseBeforeSeconds in the timeline) is picture time too: the product stays on screen while
 // the voice breathes. Each group therefore runs until the next group starts (the last one to the end of the timeline),
 // otherwise the picture finishes ahead of the narration by the sum of the pauses and drifts out of sync on the way.
@@ -157,37 +181,55 @@ groups.forEach((g, i) => {
   // Per-clip edit hints from the manifest: trimStart (s), trimEnd (s), speed (>1 = faster, applied to the
   // whole clip; use for real wait time such as a production query), skip: [[a,b],...] (seconds to drop).
   const hints = g.clip || {};
-  if (!isImage && ((hints.skip && hints.skip.length) || hints.trimStart || hints.trimEnd || hints.speed)) {
+  let align = null;
+  if (voiceFirst && g.clip && !isImage && hints.fit !== 'fit') {
+    for (const s of g.segments) {
+      const a = cueBeat(s.id)?.actions?.find((x) => x.narrated && x.keyword && Number.isFinite(x.clip_time));
+      if (a) { align = { clipTime: a.clip_time, keywordStart: a.keyword.start, label: `${s.id} action "${a.label || a.target}"` }; break; }
+    }
+  }
+  const effEdit = { trimStart: Number(hints.trimStart || 0), trimEnd: hints.trimEnd ? Number(hints.trimEnd) : null, speed: Number(hints.speed || 1), skip: hints.skip || [], headHold: 0, srcSeconds: 0 };
+  if (!isImage && ((hints.skip && hints.skip.length) || hints.trimStart || hints.trimEnd || hints.speed || align)) {
     // The manifest's trimStart was chosen against the narration alone; the slot also carries the pause after the beat.
     // Never trim away footage the slot needs: shrink the head trim first, so the take's own tail is used before any hold.
     const fullSrc = probe(src);
     let trimStart = Number(hints.trimStart || 0);
     const t1 = hints.trimEnd ? Number(hints.trimEnd) : fullSrc;
     if (!hints.speed && !(hints.skip && hints.skip.length) && t1 - trimStart < g.duration) trimStart = Math.max(0, Number((t1 - g.duration).toFixed(3)));
+    const sp = Number(hints.speed || 1);
+    let headHold = 0;
+    if (align) {
+      const planned = planAlignment({ edit: { trimStart, trimEnd: t1, speed: sp, skip: hints.skip || [], headHold: 0, srcSeconds: fullSrc }, actionClipTime: align.clipTime, targetSlotSeconds: align.keywordStart + clickLead - g.start, label: align.label });
+      if (planned.error) throw new Error(`segment ${g.segments.map((s) => s.id).join('+')}: ${planned.error}`);
+      trimStart = planned.edit.trimStart; headHold = planned.edit.headHold;
+    }
+    Object.assign(effEdit, { trimStart, trimEnd: t1, speed: sp, headHold, srcSeconds: fullSrc });
     const t0 = trimStart;
     const keep = [];
     let cur = t0;
     for (const [a, b] of (hints.skip || []).slice().sort((x, y) => x[0] - y[0])) { if (a > cur) keep.push([cur, Math.min(a, t1)]); cur = Math.max(cur, b); }
     if (cur < t1) keep.push([cur, t1]);
-    const sp = Number(hints.speed || 1);
-    const fc = keep.map(([a, b], k) => `[0:v]trim=start=${a}:end=${b},setpts=(PTS-STARTPTS)/${sp}[k${k}]`).join(';') + ';' + keep.map((_, k) => `[k${k}]`).join('') + `concat=n=${keep.length}:v=1:a=0[ed]`;
+    let fc = keep.map(([a, b], k) => `[0:v]trim=start=${a}:end=${b},setpts=(PTS-STARTPTS)/${sp}[k${k}]`).join(';') + ';' + keep.map((_, k) => `[k${k}]`).join('') + `concat=n=${keep.length}:v=1:a=0[ed]`;
+    // headHold: freeze the first frame so an action that would land before its spoken word lands on it.
+    if (headHold > 0) fc += `;[ed]tpad=start_mode=clone:start_duration=${headHold.toFixed(3)}[edh]`;
     const edited = path.join(tmp, `edited-${i}.mp4`);
-    execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-filter_complex', fc, '-map', '[ed]', '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-r', String(FPS), edited]);
+    execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-filter_complex', fc, '-map', headHold > 0 ? '[edh]' : '[ed]', '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-r', String(FPS), edited]);
     src = edited;
   }
   const srcDur = isImage ? 0 : probe(src);
+  if (!effEdit.srcSeconds) effEdit.srcSeconds = srcDur;
   const fit = g.clip?.fit || (srcDur > g.duration ? 'cut' : 'hold');
   // A 'cut' whose footage still ends before the slot does (a take paced to the words, then the pause after them) may hold
   // its last frame for at most HOLD_PAD_MAX; anything longer is the frozen-footage defect and fails like a hold would.
   const cutShortfall = !isImage && g.clip && fit === 'cut' && srcDur < g.duration ? Number((g.duration - srcDur).toFixed(3)) : 0;
   if (cutShortfall > HOLD_PAD_MAX && g.segments.some((s) => isScreenBeat(s.id))) {
-    throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} has ${srcDur.toFixed(1)}s of footage for a ${g.duration.toFixed(1)}s slot; the last frame would freeze for ${cutShortfall.toFixed(1)}s (max ${HOLD_PAD_MAX}s). Re-pace the take or trim the words.`);
+    throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} has ${srcDur.toFixed(1)}s of footage for a ${g.duration.toFixed(1)}s slot; the last frame would freeze for ${cutShortfall.toFixed(1)}s (max ${HOLD_PAD_MAX}s). Re-pace the take or trim the words.${recaptureNote}`);
   }
   if (!isImage && g.clip && (fit === 'hold' || fit === 'fitpad') && g.segments.some((s) => isScreenBeat(s.id))) {
     const pad = g.duration - srcDur;
     const declared = Math.max(0, ...g.segments.map((s) => Number(beatFor(s.id).resultHoldSeconds || 0)));
     if (pad > HOLD_PAD_MAX && !(declared >= pad && declared <= RESULT_HOLD_MAX)) {
-      throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} would freeze ${srcDur.toFixed(1)}s of footage for ${pad.toFixed(1)}s to cover ${g.duration.toFixed(1)}s of narration (max ${HOLD_PAD_MAX}s or a declared resultHoldSeconds ≤ ${RESULT_HOLD_MAX}s). Re-pace the take, cut the words, or split the beat.`);
+      throw new Error(`product-picture: segment ${g.segments.map((s) => s.id).join('+')} would freeze ${srcDur.toFixed(1)}s of footage for ${pad.toFixed(1)}s to cover ${g.duration.toFixed(1)}s of narration (max ${HOLD_PAD_MAX}s or a declared resultHoldSeconds ≤ ${RESULT_HOLD_MAX}s). Re-pace the take, cut the words, or split the beat.${recaptureNote}`);
     }
   }
   if (!isImage && g.clip && fit === 'fit' && srcDur > 0 && g.segments.some((s) => isScreenBeat(s.id))) {
@@ -213,7 +255,7 @@ groups.forEach((g, i) => {
   }
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-r', String(FPS), out]);
   parts.push(out); prevFile = src;
-  mapGroups.push({ segments: g.segments.map((s) => s.id), startSeconds: g.start, needSeconds: Number(g.duration.toFixed(3)), clipId: g.clip ? g.clip.id : null, file: g.clip ? g.clip.file : (prevClipFile || null), heldFromPrevious: !g.clip, sourceRegion, srcSeconds: Number(srcDur.toFixed(3)), fit: g.clip ? fit : 'hold-prev', trimStart: Number(hints.trimStart || 0), speed: Number(hints.speed || 1), overlay: g.clip?.overlay || null, isImage });
+  mapGroups.push({ segments: g.segments.map((s) => s.id), startSeconds: g.start, needSeconds: Number(g.duration.toFixed(3)), clipId: g.clip ? g.clip.id : null, file: g.clip ? g.clip.file : (prevClipFile || null), heldFromPrevious: !g.clip, sourceRegion, srcSeconds: Number(srcDur.toFixed(3)), fit: g.clip ? fit : 'hold-prev', trimStart: Number(hints.trimStart || 0), speed: Number(hints.speed || 1), edit: isImage || !g.clip ? null : effEdit, extras: !!(g.clip && g.clip.extras && g.clip.extras.length), overlay: g.clip?.overlay || null, isImage });
   if (g.clip) prevClipFile = g.clip.file;
   rows.push(`${g.segments.map((s) => s.id).join('+').padEnd(16)} ${(g.clip ? g.clip.id : '(hold prev)').padEnd(28)} need=${g.duration.toFixed(1).padStart(6)}s clip=${srcDur.toFixed(1).padStart(6)}s ${fit}${g.clip && g.clip.overlay ? ' +overlay' : ''}`);
 });
@@ -237,6 +279,6 @@ if (graphics.length) {
 }
 const finalDur = probe(outFile);
 // Compose map: validate-encoded-picture.mjs uses it to bind every encoded segment back to its receipt-bound clip.
-fs.writeFileSync(path.join(jobRoot, 'output', `${base}-compose-map.json`), JSON.stringify({ generator: 'media-studio/compose-screencast', base, silent: outFile, deliveryProfile: profile, width: W, height: H, timelineSeconds: tl.durationSeconds, pictureSeconds: finalDur, timedGraphics: graphics, groups: mapGroups }, null, 2));
+fs.writeFileSync(path.join(jobRoot, 'output', `${base}-compose-map.json`), JSON.stringify({ generator: 'media-studio/compose-screencast', base, voiceFirst, cueSheetSha256: voiceFirst ? createHash('sha256').update(fs.readFileSync(cuePath)).digest('hex') : null, silent: outFile, deliveryProfile: profile, width: W, height: H, timelineSeconds: tl.durationSeconds, pictureSeconds: finalDur, timedGraphics: graphics, groups: mapGroups }, null, 2));
 console.log(rows.join('\n'));
 console.log(JSON.stringify({ ok: true, out: outFile, pictureSeconds: finalDur, timelineSeconds: tl.durationSeconds, delta: +(finalDur - tl.durationSeconds).toFixed(2) }));

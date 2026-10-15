@@ -138,6 +138,10 @@ for (const id of ids) {
     recast: take.recast,
     recastNote: take.recastNote || null,
     events: fin.summary,
+    // Timestamped action log (seconds into the raw WebM; Recast keeps that timeline). build-cue-sheet.mjs maps these
+    // through the compose edit decision list to program time and the sync gate checks them against the spoken words.
+    actionClock: 'recording-start',
+    actions: fin.events,
     expectations: fin.expectations,
     beats: fin.beats,
     error: take.error || null,

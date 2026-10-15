@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, cpSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, cpSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -175,6 +175,7 @@ test('compose: refuses to run when the product-picture validator is not resolvab
   mkdirSync(kitCopy, { recursive: true });
   cpSync(compose, join(kitCopy, 'compose-screencast.mjs'));
   cpSync(join(pkg, 'kit', 'screencast', 'campaign-contract.mjs'), join(kitCopy, 'campaign-contract.mjs'));
+  cpSync(join(pkg, 'kit', 'screencast', 'sync-lib.mjs'), join(kitCopy, 'sync-lib.mjs'));
   const root = join(scratch, 'compose-nogate');
   writeJob(root);
   const r = spawnSync(process.execPath, [join(kitCopy, 'compose-screencast.mjs'), root, 'x'], { encoding: 'utf8', env: { ...process.env, AGENTHUB_ROOT: join(scratch, 'nowhere') } });
@@ -216,6 +217,7 @@ test('portrait campaign composes a bounded source reframe with timed graphic and
   const report = JSON.parse(readFileSync(join(root, 'qa', 'portrait-encoded.json'), 'utf8'));
   assert.equal(report.segments[0].bound, true);
   cpSync(join(root, 'qa', 'portrait-encoded.json'), join(root, 'qa', 'encoded-picture.json'));
+  writeFileSync(join(root, 'qa', 'sync.json'), JSON.stringify({ generator: 'media-studio/validate-sync', ok: true, degraded: false, errors: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, thresholds: { actionToleranceMs: 300, screenToleranceMs: 40, resultHoldMinSeconds: 1.5, driftMaxMs: 40, maxFreezeSeconds: 4, maxDroppedFrames: 3 }, precision: { allWordLevel: true }, beats: [{ beat: 'S01', findings: [{ check: 'action-timing', status: 'pass' }] }], checks: { performed: ['screen-on', 'action-timing', 'result-hold', 'narration-order', 'av-sync', 'frozen-frames', 'dropped-frames'], notPerformed: [] } }));
   const candidateSha = sha(candidate), scriptPath = join(root, 'story', 'screenplay.txt'), captionsPath = join(root, 'qa', 'captions.srt'), analyzerPath = join(root, 'qa', 'loudness.json');
   writeFileSync(scriptPath, 'Approve the plan after the result appears.');
   writeFileSync(captionsPath, '1\n00:00:00,000 --> 00:00:02,000\nApprove the plan.\n');
@@ -387,4 +389,51 @@ test('encoded gate: a repeated source file binds by clip id, not by file order',
   const wrongFile = run(encodedValidator, [root, good]);
   assert.notEqual(wrongFile.code, 0);
   assert.match(wrongFile.out, /different source file/);
+});
+
+// ---- voice-first compose (VIDEO-SYNC-DIRECTIVE §1): the picture is built to the locked narration
+function voiceFirstJob(name, { clipSeconds = 17, keywordStart = 9.7, slotStart = 5.7, clipTime = 3 } = {}) {
+  const root = join(scratch, name);
+  writeJob(root, { screenSeconds: 16, cardSeconds: 6 });
+  const clip = join(root, 'capture', 'clips', 'S02.webm');
+  movingClip(clip, clipSeconds);
+  ff(['-f', 'lavfi', '-i', 'color=c=0x334455:size=1600x1000:rate=1:duration=1', '-frames:v', '1', join(root, 'capture', 'clips', 'S01-card.png')]);
+  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip))));
+  const word = (w, start) => ({ w, start, end: start + 0.3 });
+  mkdirSync(join(root, 'plan'), { recursive: true });
+  writeFileSync(join(root, 'plan', 'cue-sheet.json'), JSON.stringify({
+    generator: 'media-studio/build-cue-sheet', voiceFirst: true, mode: 'plan', parameters: { clickLeadSeconds: 0 },
+    inputs: { timeline: { sha256: sha(join(root, 'story', 'narration-timeline.json')) } },
+    beats: [
+      { beat: 'S01', slot_start: 0, narration: { words: [word('Welcome', 0.5)] }, actions: [] },
+      { beat: 'S02', slot_start: slotStart, narration: { words: [word('Press', 6.1), word('Submit', keywordStart)] }, actions: [{ kind: 'click', label: 'Submit', narrated: true, clip_time: clipTime, keyword: { w: 'Submit', start: keywordStart } }] },
+    ],
+  }));
+  return root;
+}
+
+test('voice-first compose: a new screen leads its first word and a too-early click is held so it lands on its spoken word', { skip: !ffmpegAvailable, timeout: 180000 }, () => {
+  const root = voiceFirstJob('vf-hold');
+  const r = run(compose, [root, 'vf']); assert.equal(r.code, 0, r.out);
+  const map = JSON.parse(readFileSync(join(root, 'output', 'vf-compose-map.json'), 'utf8'));
+  assert.equal(map.voiceFirst, true);
+  const s02 = map.groups.find((g) => g.segments[0] === 'S02');
+  assert.equal(s02.startSeconds, 5.7, 'the screen is up 0.4 s before the first word, inside the pause');
+  assert.equal(s02.edit.headHold, 1, 'click at clip 3.0 would land at slot 3.0 but the word is at slot 4.0: freeze the first frame for 1.0 s');
+  assert.equal(map.groups.find((g) => g.segments[0] === 'S01').needSeconds, 5.7);
+  assert.ok(Math.abs(map.pictureSeconds - 22) < 0.4, `picture ${map.pictureSeconds}s runs the whole timeline`);
+});
+
+test('voice-first compose: stops with a recapture message instead of squeezing the voice', { skip: !ffmpegAvailable, timeout: 180000 }, () => {
+  const far = run(compose, [voiceFirstJob('vf-far', { keywordStart: 13 }), 'vf']);
+  assert.notEqual(far.code, 0); assert.match(far.out, /may freeze its first frame for at most 1\.5s\. Recapture the beat with a longer lead-in/);
+  // Pulling a late click onto its word trims 5 s off the head; the 17 s take no longer covers the 16.3 s slot.
+  const short = run(compose, [voiceFirstJob('vf-short', { clipTime: 8, keywordStart: 8.7 }), 'vf']);
+  assert.notEqual(short.code, 0); assert.match(short.out, /Voice-first: the narration is locked, so recapture this beat longer/);
+  const stale = voiceFirstJob('vf-stale');
+  writeFileSync(join(stale, 'story', 'narration-timeline.json'), JSON.stringify({ durationSeconds: 22, segments: [{ id: 'S01', scene: 'S01', text: 'hook', startSeconds: 0, durationSeconds: 6 }, { id: 'S02', scene: 'S02', text: 'hero', startSeconds: 6, durationSeconds: 16 }] }));
+  const staleRun = run(compose, [stale, 'vf']);
+  assert.notEqual(staleRun.code, 0); assert.match(staleRun.out, /built from a different narration timeline/);
+  const off = run(compose, [voiceFirstJob('vf-off', { keywordStart: 13 }), 'vf', '--no-voice-first']);
+  assert.equal(off.code, 0, '--no-voice-first composes the legacy fixed-slot picture: ' + off.out);
 });

@@ -5,6 +5,9 @@ Shared tooling for screencast-led films (product screencasts, technical stories)
 | Script | Produces |
 | --- | --- |
 | `compose-screencast.mjs <jobRoot> <base>` | `output/<base>-silent.mp4` — the silent picture, aligned to `story/narration-timeline.json`, from `capture/manifest.json` clips. Runs `validate-product-picture.mjs` first when that script is resolvable. |
+| `../../scripts/build-cue-sheet.mjs <jobRoot>` | `plan/cue-sheet.json` — one row per narration beat: words with times, screen, cursor action and time, expected UI state, camera, transition. Run before compose (plan) and again after it (mapped). |
+| `../../scripts/validate-sync.mjs <jobRoot> <candidate.mp4>` | `qa/sync.json` — narration-to-visual sync gate on the encoded file, bound to its SHA-256. |
+| `sync-lib.mjs` | Shared timing rules (keyword match, voice-first alignment, edit-list mapping, encoded measurements) used by the three tools above. |
 | `render-overlay.mjs <out.png> '<spec>'` | Transparent 1600×1000 annotation PNG: dim-with-cutout box, outline, labels, arrows, notes |
 | `render-code.mjs <out.png> '<spec>'` | Code-reveal card: real source excerpt with line numbers and highlight bands, provenance in the footer |
 | `render-html.mjs <out.png> <file.html>` | Typeset card or flow diagram from an HTML body |
@@ -28,6 +31,12 @@ Campaign jobs use `story/timed-graphics.json` (schema under `schemas/`) to place
 | `sourceRegion` | `{ "x": 0.275, "y": 0, "width": 0.45, "height": 1 }` | Normalized rectangle of the receipt-bound source clip, cropped before scaling and padding. Each coordinate is 0–1; width and height are at least 0.1 and the rectangle stays inside the source. Required on portrait campaign clips. Split clips rather than combining this with extras or the legacy full-frame `overlay`; use timed campaign graphics instead. |
 
 A segment with no clip holds the previous clip's last frame **only when that frame is already product video**. A `.png` clip is a card, looped for the segment. Segments without any clip and no card get an auto card from the storyboard beat (`kicker`, `title`, `subtitle`, `footer`) or `job.json` (`title`, `cardFooter`) **only when `visualMode` is not `screen`**. On `product-screencast`, omitted `visualMode` defaults to `screen`; missing clip or a PNG on a screen beat throws (`product-picture.md`).
+
+## Voice-first timing (`plan/cue-sheet.json`)
+
+When `plan/cue-sheet.json` exists, `compose-screencast.mjs` builds the picture to the locked narration (`--no-voice-first` restores fixed slots). A new screen comes up `screenLeadSeconds` (0.3) before the first content word, inside the pause, never before the previous line ends. A clip's first narrated action is aligned to its spoken word: an action that would land early freezes the clip's first frame (`headHold`, at most 1.5 s, recorded in the compose map `groups[].edit`); one that would land late trims the head (keeping 0.8 s of pointer approach). If the clip cannot cover the narration after alignment, or the action is too far from its word, compose stops with a recapture message. It never retimes the voice. `fit: "fit"` clips are not aligned and cannot be mapped.
+
+Capture feeds this through `record-lib` helpers: `h.click(loc, { label: 'Approve' })`, `h.typeText`, `h.pointAt(loc, { label })` and `h.expect(loc, 'Plan approved')` write timestamped actions and results into `capture/receipt.json` (`clips[id].actions`, seconds into the take). Label every action the line names; add `story/cue-plan.json` (`beats.S05.actions[].keywords`, `result`, `expectedState`, `camera`, `transition`) when the spoken word differs from the label.
 
 ## Overlay spec (`render-overlay.mjs`)
 
