@@ -19,6 +19,8 @@ test.after(async () => {
 });
 const sha = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 const writePictureReport = (root, candidate) => writeFileSync(join(root, 'qa', 'encoded-picture.json'), JSON.stringify({ generator: 'media-studio/validate-encoded-picture', ok: true, errors: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, thresholds: { maxStaticSeconds: 6, bindMaxHamming: 12 }, screenRatio: 1, segments: [{ id: 'hero', mode: 'screen', bound: true }] }));
+const syncReport = (candidate, over = {}) => ({ generator: 'media-studio/validate-sync', ok: true, degraded: false, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, thresholds: { actionToleranceMs: 300, screenToleranceMs: 40, resultHoldMinSeconds: 1.5, driftMaxMs: 40, maxFreezeSeconds: 4, maxDroppedFrames: 3 }, precision: { allWordLevel: true, degradedBeats: [] }, beats: [{ beat: 'hero', status: 'pass', findings: [{ check: 'action-timing', status: 'pass' }] }], checks: { performed: ['screen-on', 'action-timing', 'result-hold', 'narration-order', 'av-sync', 'frozen-frames', 'dropped-frames'], notPerformed: [{ check: 'text-clipping', reason: 'no OCR' }] }, ...over });
+const writeSyncReport = (root, candidate, over) => writeFileSync(join(root, 'qa', 'sync.json'), JSON.stringify(syncReport(candidate, over)));
 const run = (script, args) => { const result = spawnSync(process.execPath, [script, ...args], { encoding: "utf8" }); return { code: result.status, output: `${result.stdout}${result.stderr}` }; };
 function job(root) {
   mkdirSync(join(root, "evidence"), { recursive: true }); mkdirSync(join(root, "qa"), { recursive: true }); mkdirSync(join(root, "story"), { recursive: true });
@@ -36,6 +38,7 @@ function release(root) {
   writeFileSync(candidate, "encoded candidate bytes"); writeFileSync(script, "The plan is ready after approval."); writeFileSync(captions, "1\n00:00:00,000 --> 00:00:02,000\nThe plan is ready.\n");
   const candidateSha256 = sha(candidate); writeFileSync(analyzer, JSON.stringify({ tool: "ffmpeg-loudnorm", candidateSha256, integratedLufs: -16, truePeakDbtp: -1.5 }));
   writePictureReport(root, candidate);
+  writeSyncReport(root, candidate);
   const pass = { status: "PASS", candidateSha256 };
   const evidence = { candidate: { sha256: candidateSha256 }, captions: { ...pass, path: "qa/captions.srt", sha256: sha(captions) }, audio: { ...pass, integratedLufs: -16, truePeakDbtp: -1.5, analyzerReport: { path: "qa/loudness.json", sha256: sha(analyzer) } }, pronunciation: { ...pass, reference: "authored-script", scriptPath: "story/screenplay.txt", scriptSha256: sha(script), releaseEligible: true }, encodedVisualReview: pass, titleReview: { ...pass, titleCount: 1 }, actionResultReview: { ...pass, events: [{ segmentId: "hero", actionAtSeconds: 2, resultVisibleAtSeconds: 3, spokenResultAtSeconds: 3.1 }] }, storyReview: { ...pass, cta: "Review your workflow", sequence: { seriesId: "operations", chapter: 2 } } };
   writeFileSync(join(root, "qa", "viewer-release-evidence.json"), JSON.stringify(evidence)); return candidate;
@@ -148,6 +151,7 @@ test('campaign release probes exact encoded profile and duration', { skip: spawn
     releaseEvidence.captions.region = jobData.campaign.captionRegion;
     const candidateSha256 = sha(candidate);
     writePictureReport(root, candidate);
+    writeSyncReport(root, candidate);
     releaseEvidence.candidate.sha256 = candidateSha256;
     for (const key of ['captions', 'audio', 'pronunciation', 'encodedVisualReview', 'titleReview', 'actionResultReview', 'storyReview']) releaseEvidence[key].candidateSha256 = candidateSha256;
     const analyzer = join(root, 'qa', 'loudness.json');
@@ -168,4 +172,27 @@ test('campaign release probes exact encoded profile and duration', { skip: spawn
   result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /differs from job.durationSeconds/);
   jobData.durationSeconds = 65; jobData.programForm = 'campaign-short'; writeFileSync(jobPath, JSON.stringify(jobData));
   result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /encoded duration must be 10–20 seconds/);
+});
+test('release gate requires a PASS qa/sync.json bound to the exact candidate with canonical thresholds', () => {
+  const root = join(scratch, 'sync-report'); job(root); const candidate = release(root);
+  const syncPath = join(root, 'qa', 'sync.json');
+  assert.equal(run(releaseValidator, [root, candidate]).code, 0, 'a canonical PASS report releases');
+  const base = JSON.parse(readFileSync(syncPath, 'utf8'));
+  const expectFail = (mutate, pattern) => {
+    const report = structuredClone(base); mutate(report); writeFileSync(syncPath, JSON.stringify(report));
+    const result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, pattern);
+  };
+  expectFail((r) => { r.candidate.sha256 = '0'.repeat(64); }, /sync report is not bound to the exact candidate/);
+  expectFail((r) => { r.candidate.bytes += 1; }, /sync report is not bound to the exact candidate/);
+  expectFail((r) => { r.ok = false; r.errors = ['beat S02: action-timing: late']; }, /sync report must be a PASS/);
+  expectFail((r) => { r.degraded = true; }, /degraded \(non word-level\)/);
+  expectFail((r) => { r.thresholds.actionToleranceMs = 1000; }, /canonical thresholds/);
+  expectFail((r) => { r.thresholds.driftMaxMs = 200; }, /canonical thresholds/);
+  expectFail((r) => { r.thresholds.resultHoldMinSeconds = 0.2; }, /canonical thresholds/);
+  expectFail((r) => { r.checks.performed = r.checks.performed.filter((c) => c !== 'av-sync'); }, /did not perform: av-sync/);
+  expectFail((r) => { r.beats = [{ beat: 'hero', findings: [] }]; }, /at least one passed action-timing finding/);
+  writeFileSync(syncPath, JSON.stringify(base));
+  assert.equal(run(releaseValidator, [root, candidate]).code, 0);
+  rmSync(syncPath);
+  const missing = run(releaseValidator, [root, candidate]); assert.notEqual(missing.code, 0); assert.match(missing.output, /missing qa\/sync.json/);
 });

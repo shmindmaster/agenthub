@@ -91,6 +91,12 @@ node (Join-Path $kit 'screencast\compose-screencast.mjs') <job> <base>
 
 The overlay is markup (dim, box, outline, arrow, label, note, flow diagram), directed per beat by `media-director` for technical stories. It is not a second engagement rubric and it does not replace Recast's cursor, click ripple, and punch-in. Recast renders are sequential per clips directory (`.recast-tmp` collides); long many-click clips render without `autoZoom` or are split and joined here through `segments`.
 
+### Voice-first timing and the cue sheet
+
+The narration is locked and rendered first; the picture is built to it. Order: word-level ASR per line (`voice/asr/<id>.json`) -> `node <tools>/build-cue-sheet.mjs <jobRoot>` (plan) -> `compose-screencast.mjs <jobRoot> <base>` -> `build-cue-sheet.mjs <jobRoot>` again (mapped: action and result times go through `output/<base>-compose-map.json`) -> encode and mux -> `validate-sync.mjs` (`media-studio-qa`).
+
+With `plan/cue-sheet.json` present, compose cuts to each line's first content word (screen up 0.3 s before it, never before the previous line ends) and lines up each clip's first narrated action with its spoken word: a too-early action holds the clip's first frame (max 1.5 s), a late one trims the head. If the take is too short after that, or the action is far from its word, compose stops: recapture the beat, do not squeeze the voice. A stale cue sheet (narration re-locked) also stops it. `--no-voice-first` is for drafts only; the sync gate still needs the cue sheet. Rebuild the cue sheet after every compose that changes the picture. Static scenes keep a moving cursor or highlight on the element being named; emphasis is one punch-in, ring or callout per beat, on the word.
+
 Remotion 2.0 skills are a **router plus sub-skills**. Load `/remotion-best-practices` only to choose; then the specific skill. Animate with `useCurrentFrame()` / `interpolate()`; CSS/Tailwind animation classes do not render. Assets in `public/` via `staticFile()`. Preview in Studio before render.
 
 Official Remotion skills are installed globally under `~/.agents/skills` and symlinked into Grok. Claude and Codex stay owner-installed (`npx skills add remotion-dev/skills`) — AgentHub must not install them there.
@@ -109,5 +115,6 @@ Official Remotion skills are installed globally under `~/.agents/skills` and sym
 
 - [ ] Kit synced from `packages/media-studio/kit`
 - [ ] Scenes carry `archetype`; consecutive repeats only if intentional
+- [ ] Voice-first: cue sheet built from word-level ASR, compose ran against it, cue sheet rebuilt (mapped) after the last compose
 - [ ] Bed ducked from stems
 - [ ] Profile frame matches `deliveryProfile`
