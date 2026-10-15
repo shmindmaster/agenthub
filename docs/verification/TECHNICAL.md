@@ -94,3 +94,41 @@ Not verified: step 7 against real host config formats (JSON for Claude and other
 - Test discovery gap: `Run-AllTests.ps1` finds `tests/Test-*.ps1`, package `validate-plugin.ps1` and `*.test.mjs` only (`:32-47`). Python and TypeScript tests under `packages/` are reached only if a PowerShell test calls them (see [TESTS.md](./TESTS.md)).
 - Open PR #16 "Resolve private overlays from linked worktrees" is unmerged and touches overlay resolution.
 - Showcase notes an unresolved Cursor autonomy conflict flagged for owner review in `registry/fleet-profile.json`. Not re-verified here.
+
+## Engineering quality (directive 2026-10-15)
+
+### 1. Contract
+AgentHub is a control plane, not a web service: no HTTP API, no OpenAPI document, no docs route (searched all of `main` for `openapi|swagger`: only policy prose and a third-party container's README). The contracts that matter are two:
+- **MCP tool contract (Slack, the one server this repo owns).** Source of truth is `packages/slack/schemas/tools.json`, declared JSON Schema 2020-12 (`:2`), loaded at start by `packages/slack/mcp/contract.mjs`; inputs use `additionalProperties:false`; the server returns a `slackContractHash` in `initialize._meta` (`slack-mcp.mjs`). Protocol is pinned to `2025-11-25` (`packages/slack/mcp/slack-mcp.mjs:9`), no `server/discover`, no `outputSchema`, hand-rolled JSON-RPC with no MCP SDK. Input validation happens in the contract loader and the write gate; error results are `isError:true` text, not a structured shape.
+- **Registry.** `registry/*.json` (13 files) is validated by hand-written PowerShell, `scripts/Validate-AgentHub.ps1`, not by JSON Schema; no `registry/schemas/` directory and no `$schema` key in `registry/mcps.json`. Each MCP entry carries a probed `protocol.revision` that the validator checks.
+No generated client and no spec-drift check exist; the Slack contract hash is the drift signal.
+
+### 2. Native gate
+GitHub Actions were removed on purpose (validate workflow deleted in `74504f2`, 2026-07-31); there is no `.github/` directory. Do not re-add a workflow. The only installed gate is a local `pre-push` hook that runs the fleet config-payload scanner (`packages/security/hooks/pre-push`, tested by `packages/security/scripts/pre-push.test.mjs`); it does not run the test suite or the validator. `tests/Run-AllTests.ps1` (75 `tests/Test-*.ps1` plus package tests) and `scripts/Validate-AgentHub.ps1` are manual. `agenthub sync --apply` runs the validator first and refuses on failure (`scripts/AgentHub.ps1:363-374`), which is the real deploy-time gate for the operator's own machine.
+
+| Check | Status |
+|---|---|
+| Tests | present (`Run-AllTests.ps1`, `node --test` for `*.test.mjs`), **not wired to push or merge** |
+| Registry validation | present (`Validate-AgentHub.ps1`), gates `sync --apply` only |
+| Typecheck / lint | absent (no TypeScript at root, no ESLint/PSScriptAnalyzer config; searched the file list for `tsconfig*`, `eslint*`, `PSScriptAnalyzer*`) |
+| Redocly / oasdiff | absent, not applicable (no OpenAPI) |
+| Contract tests | present for Slack (`packages/slack/mcp/contract.test.mjs`, `tests/Test-SlackToolContract.ps1`); no official `modelcontextprotocol/conformance` run |
+| Generated-type drift | absent, not applicable |
+| Dependency audit | **Dependabot only**, and alerts are open and unactioned (see gaps) |
+| Accessibility lint | not applicable (no UI) |
+| Blocks a merge | **nothing** (no required checks; Dependabot PRs #10-#14 and #16 have no checks) |
+
+### 3. Developer docs
+No Scalar, Swagger or Redoc, and none is warranted. Docs are Markdown: `README.md`, `docs/current-state.md`, `docs/architecture/overview.md`, `packages/slack/README.md`. The Slack README describes the server and the write gate (`:19-32`) but does not list the 24 tools; `registry/mcps.json` is not rendered anywhere human-readable. No production URL exists (the product deploys by copying files to the operator's machine); the public repository page `https://github.com/shmindmaster/agenthub` returns 200 on GET.
+
+### 4. MCP decision
+An MCP server exists: Slack (`packages/slack/mcp/slack-mcp.mjs`, 24 tools, stdio). **Decision: MCP justified, Slack only, keep as is; add no further owned servers.** Real agent use cases: (1) search and read Slack with thread fidelity so any coding agent can ground an answer in a conversation; (2) draft and, only after explicit approval, post, reply or react (the server now refuses every write without `approved=true`, `write-gate.mjs`); (3) fetch a permalink or channel info for status checks. The other 14 `registry/mcps.json` entries are third-party servers that AgentHub only registers and probes. Remaining MCP work (from the audit, still open): move to the 2026-07-28 revision with `server/discover` and `outputSchema`, and run `@modelcontextprotocol/conformance` with a shrink-only baseline. Streamable HTTP is not needed while the only consumers are local hosts.
+
+### 5. Top 3 UX frictions (developer and operator experience)
+1. **"Which release is live" cannot be answered.** The installed state records content hashes and run times only (`scripts/Sync-AgentHub.ps1:215`, `Save-State` near `:243`), not a source commit. Smallest fix: store `git rev-parse HEAD` and dirty flag in the state on `-Apply` and print it from `agenthub sync` and `agenthub validate`.
+2. **No catalogue of what is registered.** A new adopter cannot see the 15 MCP servers or the 24 Slack tools without reading JSON (`packages/slack/README.md:19-32` omits the tool list). Smallest fix: a small script that renders `docs/mcp-catalogue.md` from `registry/mcps.json` and `packages/slack/schemas/tools.json`, plus a test that fails when the committed page is stale.
+3. **Editing the registry gives no editor feedback.** `registry/mcps.json` has no `$schema`, so typos surface only when `Validate-AgentHub.ps1` runs (`registry/mcps.json:1-3`). Smallest fix: a `registry/schemas/mcps.schema.json` (2020-12) referenced from the file, validated in the existing validator; keep the existing checks.
+
+### 6. Observability
+- Present: drift and apply reports (`latest-drift.json`), managed-file hash inventory, `slackContractHash` in `initialize._meta`, dispatcher timeout kills the process tree (`Invoke-CodingAgent.ps1:479-491`).
+- Gaps: no error reporting service (not warranted for a local control plane; do not add one); no tracing; **no source SHA in installed state** (friction 1); no health or readiness endpoint (nothing to serve); no append-only audit log of `--apply` runs beyond the latest state file; the dispatcher's smoke results are not kept in the repo (pack FUNCTIONAL.md).
