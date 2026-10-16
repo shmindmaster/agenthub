@@ -61,7 +61,7 @@ $pendingName = $null
 foreach ($name in @('Get-PendingSegments', 'Get-PendingOwner')) { $t = Get-FunctionText $name; if (-not $pendingName -and $t) { . ([scriptblock]::Create($t)); $pendingName = $name } }
 if (-not $pendingName) { $missing += 'Get-PendingSegments' }
 # Optional helpers: their absence fails the cases that need them rather than the whole run.
-foreach ($name in @('Set-SegmentRedo', 'Write-RegatePass', 'Get-RenderText')) { $t = Get-FunctionText $name; if ($t) { . ([scriptblock]::Create($t)) } }
+foreach ($name in @('Set-SegmentRedo', 'Write-RegatePass', 'Get-RenderText', 'Get-OwnerStyleContext', 'Invoke-SceneConcat', 'Resolve-SceneSpeaker', 'Write-TakeRenderRecord', 'Get-TakeRenderRecord', 'Test-TakeRejected', 'Write-TakeRejection')) { $t = Get-FunctionText $name; if ($t) { . ([scriptblock]::Create($t)) } }
 Report 'script defines every reuse function' ($missing.Count -eq 0) ("missing: " + ($missing -join ', '))
 $schemaAssign = $null
 foreach ($a in $sources.Values) {
@@ -111,6 +111,8 @@ function Write-Take([object]$Seg, [string]$Kind) {
         'legacy-other-speaker' { [ordered]@{ pass = $true; id = $Seg.id; speaker = 'vivian'; style = $Seg.style; text = $Seg.text } | ConvertTo-Json | Set-Content $p -Encoding utf8 }
         'current'       { [ordered]@{ pass = $true; id = $Seg.id; style = $Seg.style; text = $Seg.text; fingerprint = $Seg.fingerprint } | ConvertTo-Json | Set-Content $p -Encoding utf8 }
         'legacy'        { [ordered]@{ pass = $true; id = $Seg.id; style = $Seg.style; text = $Seg.text } | ConvertTo-Json | Set-Content $p -Encoding utf8 }
+        'regate-render-match' { [ordered]@{ pass = $true; id = $Seg.id; text = $Seg.text; renderText = $Seg.renderText; regate = $true } | ConvertTo-Json | Set-Content $p -Encoding utf8 }
+        'regate-render-other' { [ordered]@{ pass = $true; id = $Seg.id; text = $Seg.text; renderText = 'A different reading entirely.'; regate = $true } | ConvertTo-Json | Set-Content $p -Encoding utf8 }
         'regate'        { [ordered]@{ pass = $true; id = $Seg.id; text = $Seg.text; regate = $true } | ConvertTo-Json | Set-Content $p -Encoding utf8 }
         'legacy-notext' { [ordered]@{ pass = $true; id = $Seg.id } | ConvertTo-Json | Set-Content $p -Encoding utf8 }
         'legacy-fail'   { [ordered]@{ pass = $false; id = $Seg.id; style = $Seg.style; text = $Seg.text } | ConvertTo-Json | Set-Content $p -Encoding utf8 }
@@ -216,6 +218,56 @@ try {
     Report 'current role receipt (style empty): reused' (Test-SegmentPass $rf) 'role fingerprint round trip failed'
     Report 'current role receipt with a changed role voice: not reused' (-not (Test-SegmentPass (New-RoleSeg 'W05_L5_01' 'Role line with a current receipt.' 'Vivian'))) 'stale'
 
+
+    # 6c. historical ReGate receipts {pass,id,sceneId,text,path,sha256,asrWer,identityScores,regate}: no speaker, no renderText, no fingerprint
+    $pr1 = New-Seg 'W15_L1_01' 'Pronounced differently now.' 'Pronounced diffrently now.'
+    Write-Take $pr1 'regate'
+    Report 'historical ReGate receipt after a pronunciation-layer change (render text differs from text): not reused' (-not (Test-SegmentPass $pr1)) 'an old reading would ship under a current-looking receipt'
+    $pr2 = New-Seg 'W15_L2_01' 'Pronounced differently now.' 'Pronounced diffrently now.'
+    Write-Take $pr2 'regate-render-other'
+    Report 'legacy receipt whose recorded renderText differs from the current render text: not reused' (-not (Test-SegmentPass $pr2)) 'a take rendered from other text would ship'
+    $pr3 = New-Seg 'W15_L3_01' 'Pronounced differently now.' 'Pronounced diffrently now.'
+    Write-Take $pr3 'regate-render-match'
+    Report 'legacy receipt whose recorded renderText equals the current render text: reused' (Test-SegmentPass $pr3) 'a verified legacy take was refused'
+    $pr4 = New-RoleSeg 'W15_L4_01' 'Scene speaker changed from owner to Joel.'
+    Write-Take $pr4 'regate'
+    Report 'historical ReGate receipt (no speaker) on a role segment: not reused' (-not (Test-SegmentPass $pr4)) 'an owner-voice take would ship as Joel'
+    $pr5 = New-Seg 'W15_L5_01' 'Edited canonical sentence, second version.'
+    $pr5old = New-Seg 'W15_L5_01' 'Edited canonical sentence.'
+    Write-Take $pr5old 'regate'
+    Report 'historical ReGate receipt after a canonical edit: not reused' (-not (Test-SegmentPass $pr5)) 'stale audio would ship'
+    $pr6 = New-Seg 'W15_L6_01' 'Nothing to substitute here.'
+    Write-Take $pr6 'regate'
+    Report 'historical ReGate receipt for an owner line with no pronunciation substitution: reused' (Test-SegmentPass $pr6) 'a verified historical take was refused'
+
+    # 6d. the style probe may omit allowlist and default_style (strict mode must not throw)
+    if (Get-Command Get-OwnerStyleContext -ErrorAction SilentlyContinue) {
+        $stylesDir = Join-Path $work 'styles'
+        New-Item -ItemType Directory -Force -Path $stylesDir | Out-Null
+        [IO.File]::WriteAllText((Join-Path $stylesDir '02_explaining.wav'), 'wavbytes')
+        [IO.File]::WriteAllText((Join-Path $stylesDir '02_explaining.txt'), 'style transcript')
+        foreach ($probeJson in @('{}', '{"allowlist":["02_explaining"]}', '{"default_style":"02_explaining"}')) {
+            [IO.File]::WriteAllText((Join-Path $stylesDir '_identity_probe.json'), $probeJson)
+            $ctxOk = $false; $ctxErr = ''
+            try { $c = Get-OwnerStyleContext $stylesDir '02_explaining'; $ctxOk = ($c.DefaultStyle -ceq '02_explaining') } catch { $ctxErr = $_.Exception.Message }
+            Report "style probe $probeJson resolves without throwing" $ctxOk $ctxErr
+        }
+    } else {
+        Report 'Get-OwnerStyleContext is defined' $false 'missing'
+    }
+
+    # 6e. scene speaker resolution is shared, so ReGate can skip role segments
+    if (Get-Command Resolve-SceneSpeaker -ErrorAction SilentlyContinue) {
+        $r = Resolve-SceneSpeaker ([pscustomobject]@{ id = 'S1'; narration = 'x' })
+        Report 'scene without a speaker resolves to the owner' ($r.IsOwner -and $r.Speaker -ceq 'sarosh') "isOwner=$($r.IsOwner)"
+        $r = Resolve-SceneSpeaker ([pscustomobject]@{ id = 'S1'; speaker = 'joel' })
+        Report 'joel resolves to a role segment (Ryan)' ((-not $r.IsOwner) -and $r.RoleSpeaker -ceq 'Ryan') "isOwner=$($r.IsOwner) role=$($r.RoleSpeaker)"
+        $r = Resolve-SceneSpeaker ([pscustomobject]@{ id = 'S1'; speaker = 'vivian' })
+        Report 'vivian resolves to a role segment (Vivian)' ((-not $r.IsOwner) -and $r.RoleSpeaker -ceq 'Vivian') "role=$($r.RoleSpeaker)"
+    } else {
+        Report 'Resolve-SceneSpeaker is defined' $false 'ReGate has no way to tell role scenes from owner scenes'
+    }
+
     # 8. generation rounds with stubbed synthesis: owner AND role segments are pending, no GPU / TTS / Local-AI involved
     $receiptDir = Join-Path $work 'receipts'; $batchRoot = Join-Path $work 'batches'
     New-Item -ItemType Directory -Force -Path $receiptDir, $batchRoot | Out-Null
@@ -238,7 +290,7 @@ try {
             if (-not $script:failSynth) { [IO.File]::WriteAllText($j.out, ('o' * 2000)) }
         }
     }
-    $MaxRounds = 3; $ChunkSize = 4; $styleWav = 'style.wav'; $styleTxt = 'style text'; $SkipAsr = $true; $SkipIdentity = $true; $AsrWerMax = 0.38; $DefaultStyle = '02_explaining'
+    $MaxRounds = 3; $ChunkSize = 4; $styleWav = 'style.wav'; $styleTxt = 'style text'; $styleWavSha = 'wavsha-A'; $styleTxtSha = 'txtsha-A'; $SkipAsr = $true; $SkipIdentity = $true; $AsrWerMax = 0.38; $DefaultStyle = '02_explaining'
     function Start-Rounds([object[]]$Segs, [bool]$Fail = $false) {
         $script:segments = @($Segs); $script:roleCalls = @(); $script:ownerCalls = @(); $script:failSynth = $Fail
         try { Invoke-GenerationRounds *>&1 | Out-Null } catch { $script:roundsError = $_.Exception.Message }
@@ -293,21 +345,74 @@ try {
     Report 'failed redo: segment is not reported as passed' (-not (Test-SegmentPass $of)) 'a flagged take counted as passed'
     Report 'failed redo: round cap holds' (@($script:roleCalls).Count -le $MaxRounds) "roleCalls=$(@($script:roleCalls).Count) cap=$MaxRounds"
 
-    # 9. ReGate-OwnerVoice.ps1 receipts carry the fingerprint
-    if (Get-Command Write-RegatePass -ErrorAction SilentlyContinue) {
-        $LocalAi = Join-Path $work 'no-such-local-ai\ai.ps1'   # Get-RenderText falls back to the canonical text
+
+    # 8e. a listen rejection survives the process: the next run must not reuse or concatenate the rejected take
+    $ffmpegCalls = 0
+    function ffprobe { '24000' }
+    function ffmpeg { $script:ffmpegCalls++ }
+    $Job = $work
+    $j1 = New-Seg 'W12_L1_01' 'Rejected by the listener.'
+    Write-Take $j1 'current'
+    Start-Redo $j1
+    $j1b = New-Seg 'W12_L1_01' 'Rejected by the listener.'   # a new process rebuilds every segment from scratch
+    Report 'listen rejection survives a new process: rejected take is not passed' (-not (Test-SegmentPass $j1b)) 'the next run would reuse the rejected take'
+    Start-Rounds @($j1b) $true
+    $j1c = New-Seg 'W12_L1_01' 'Rejected by the listener.'
+    Report 'replacement failed: next process still sees the rejection' (-not (Test-SegmentPass $j1c)) 'a failed replacement re-validated the rejected take'
+    Report 'replacement failed: previous selected wav is kept' (Test-Path (Join-Path $selectedRoot 'W12_L1_01.wav')) 'old audio deleted with nothing to replace it'
+    $script:segments = @($j1c); $ids = @('W12_L1')
+    $concatThrew = $false; $ffmpegCalls = 0
+    try { Invoke-SceneConcat @() *>&1 | Out-Null } catch { $concatThrew = $true }
+    Report 'scene concat refuses a segment that is not passed' ($concatThrew -and $ffmpegCalls -eq 0) "threw=$concatThrew ffmpegCalls=$ffmpegCalls"
+    Start-Rounds @($j1c)
+    $j1d = New-Seg 'W12_L1_01' 'Rejected by the listener.'
+    Report 'replacement passed: segment is passed in the next process' (Test-SegmentPass $j1d) 'replacement never passed'
+    Report 'replacement passed: rejection marker is cleared' (-not (Test-Path (Join-Path $j1d.dir 'REJECTED.json'))) 'REJECTED.json survived a passing replacement'
+    $script:segments = @($j1d)
+    $concatThrew = $false
+    try { Invoke-SceneConcat @() *>&1 | Out-Null } catch { $concatThrew = $true }
+    Report 'scene concat accepts passed segments' (-not $concatThrew -and $ffmpegCalls -gt 0) "threw=$concatThrew"
+
+    # 8f. Generate records the render text it synthesized from, beside the take
+    $sc1 = New-Seg 'W16_L1_01' 'Sidecar owner sentence.' 'Sidecar owner sentance.'
+    Start-Rounds @($sc1)
+    $sidecar = Join-Path $sc1.dir 'take.render.json'
+    Report 'generation records the synthesized render text beside the take' ((Test-Path $sidecar) -and ((Get-Content -LiteralPath $sidecar -Raw -Encoding UTF8 | ConvertFrom-Json).renderText -ceq 'Sidecar owner sentance.')) 'no take.render.json after synthesis'
+
+    # 9. ReGate-OwnerVoice.ps1 receipts
+    if ((Get-Command Write-RegatePass -ErrorAction SilentlyContinue) -and (Get-Command Write-TakeRenderRecord -ErrorAction SilentlyContinue)) {
+        $LocalAi = Join-Path $work 'no-such-local-ai\ai.ps1'
         $ctx = [pscustomobject]@{ DefaultStyle = '02_explaining'; WavSha = 'wavsha-A'; TextSha = 'txtsha-A' }
+        $idRec = [pscustomobject]@{ scores = 1 }
+        # 9a. the render text recorded when the take was synthesized is what gets fingerprinted
         $rg = New-Seg 'W11_L1_01' 'Re-gated owner sentence.'
         [IO.File]::WriteAllText($rg.wav, 'audio')
-        Write-RegatePass $rg $ctx $selectedRoot 0.1 ([pscustomobject]@{ scores = 1 })
+        Write-TakeRenderRecord $rg.dir 'Re-gated owner sentence.' 'Re-gated owner sentance.' 'sarosh' '02_explaining' 'wavsha-A' 'txtsha-A'
+        Write-RegatePass $rg $selectedRoot 0.1 $idRec
         $rec = Get-Content -LiteralPath (Join-Path $rg.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-        Report 'ReGate receipt records a fingerprint' ([bool]$rec.fingerprint -and $rec.fingerprintSchema -ceq $script:FingerprintSchema) 'no fingerprint in the re-gate receipt'
-        Report 'ReGate receipt records speaker and style' ($rec.speaker -ceq 'sarosh' -and $rec.style -ceq '02_explaining') 'speaker/style missing'
-        Report 'ReGate receipt is reused for the same content' (Test-SegmentPass $rg) 'regated take rejected'
-        Report 'ReGate receipt is rejected after the style reference audio changes' (-not (Test-SegmentPass (New-Seg 'W11_L1_01' 'Re-gated owner sentence.' 'Re-gated owner sentence.' 'sarosh' '02_explaining' 'wavsha-B'))) 'regated take survived a style wav change'
-        Report 'ReGate receipt is rejected after the render text changes' (-not (Test-SegmentPass (New-Seg 'W11_L1_01' 'Re-gated owner sentence.' 'Re-gated owner sentance.'))) 'regated take survived a render text change'
+        Report 'ReGate receipt records a fingerprint when the synthesized render text is known' ([bool]$rec.fingerprint -and $rec.fingerprintSchema -ceq $script:FingerprintSchema) 'no fingerprint in the re-gate receipt'
+        Report 'ReGate receipt records speaker, style and the recorded render text' ($rec.speaker -ceq 'sarosh' -and $rec.style -ceq '02_explaining' -and $rec.renderText -ceq 'Re-gated owner sentance.') 'speaker/style/renderText wrong'
+        Report 'ReGate receipt is reused when the current render text equals the recorded one' (Test-SegmentPass (New-Seg 'W11_L1_01' 'Re-gated owner sentence.' 'Re-gated owner sentance.')) 'regated take rejected'
+        Report 'ReGate receipt is rejected when the current render text differs from the one synthesized' (-not (Test-SegmentPass (New-Seg 'W11_L1_01' 'Re-gated owner sentence.' 'Re-gated owner sentence.'))) 'today''s render text was stamped onto an older wav'
+        Report 'ReGate receipt is rejected after the style reference audio changes' (-not (Test-SegmentPass (New-Seg 'W11_L1_01' 'Re-gated owner sentence.' 'Re-gated owner sentance.' 'sarosh' '02_explaining' 'wavsha-B'))) 'regated take survived a style wav change'
+        # 9b. unknown render text: no fingerprint, said so in the receipt, legacy rule applies
+        $rg2 = New-Seg 'W11_L2_01' 'Unknown reading sentence.'
+        [IO.File]::WriteAllText($rg2.wav, 'audio')
+        Write-RegatePass $rg2 $selectedRoot 0.1 $idRec
+        $rec2 = Get-Content -LiteralPath (Join-Path $rg2.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        $hasFp = ($rec2.PSObject.Properties.Name -contains 'fingerprint') -and [bool]$rec2.fingerprint
+        Report 'ReGate receipt without a recorded render text carries no fingerprint' (-not $hasFp) 'a fingerprint was invented for an unknown reading'
+        Report 'ReGate receipt without a recorded render text says so' (($rec2.PSObject.Properties.Name -contains 'fingerprintNote') -and [bool]$rec2.fingerprintNote) 'no explanation in the receipt'
+        Report 'unfingerprinted ReGate receipt is reused only while no pronunciation substitution applies' ((Test-SegmentPass (New-Seg 'W11_L2_01' 'Unknown reading sentence.')) -and -not (Test-SegmentPass (New-Seg 'W11_L2_01' 'Unknown reading sentence.' 'Unknown reeding sentence.'))) 'legacy render rule not applied to ReGate output'
+        # 9c. a sidecar written for different text is not evidence for this text
+        $rg3 = New-Seg 'W11_L3_01' 'Current text of the line.'
+        [IO.File]::WriteAllText($rg3.wav, 'audio')
+        Write-TakeRenderRecord $rg3.dir 'Older text of the line.' 'Older text of the line.' 'sarosh' '02_explaining' 'wavsha-A' 'txtsha-A'
+        Write-RegatePass $rg3 $selectedRoot 0.1 $idRec
+        $rec3 = Get-Content -LiteralPath (Join-Path $rg3.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        Report 'ReGate ignores a render record written for different text' (-not (($rec3.PSObject.Properties.Name -contains 'fingerprint') -and [bool]$rec3.fingerprint)) 'fingerprinted a take from a sidecar of another sentence'
     } else {
-        Report 'ReGate-OwnerVoice.ps1 defines Write-RegatePass' $false 'ReGate still writes its PASS receipt inline, with no fingerprint'
+        Report 'ReGate-OwnerVoice.ps1 defines Write-RegatePass and the render record helpers' $false 'ReGate stamps the current render text onto an older wav'
     }
 
     # 7. wiring: production paths must go through the verified check
@@ -317,6 +422,7 @@ try {
     Report 'segments carry a fingerprint' ($src -match 'fingerprint\s*=\s*\(Get-SegmentFingerprint') 'segment objects lack a fingerprint'
     Report 'Generate-OwnerVoice.ps1 shares the reuse helper' ($src -match 'OwnerVoice-TakeReuse\.ps1') 'Generate does not load the shared reuse rules'
     $rgSrc = Get-Content -LiteralPath $regatePath -Raw -Encoding UTF8
+    Report 'ReGate-OwnerVoice.ps1 skips non-owner scenes' ($rgSrc -match 'Resolve-SceneSpeaker') 'ReGate would stamp role lines as the owner'
     Report 'ReGate-OwnerVoice.ps1 shares the reuse helper' ($rgSrc -match 'OwnerVoice-TakeReuse\.ps1' -and $rgSrc -match 'Get-SegmentFingerprint') 'ReGate does not use the shared fingerprint rules'
 }
 finally {

@@ -12,8 +12,6 @@
 param(
   [Parameter(Mandatory)][string]$Job,
   [string]$LocalAi = $(if ($env:LOCAL_AI_ROOT) { Join-Path $env:LOCAL_AI_ROOT 'ai.ps1' } else { 'D:\Local-AI\ai.ps1' }),
-  [string]$StylesRoot = 'D:\Local-AI\data\artifacts\media\voice-corpus\voices\sarosh\styles-20260815',
-  [string]$DefaultStyle = '02_explaining',
   [double]$AsrWerMax = 0.42,
   [switch]$SkipFreshAsr
 )
@@ -98,26 +96,37 @@ function Get-Wer([string]$Ref, [string]$Hyp) {
 # Shared with Generate-OwnerVoice.ps1: hashing, render text, style reference, fingerprint, PASS-receipt reuse rule.
 . (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'OwnerVoice-TakeReuse.ps1')
 
-# Select the re-gated take and write its PASS receipt. The receipt carries the same fingerprint Generate-OwnerVoice.ps1
-# writes, so a re-gated take is reused only while the sentence, its render text and the style reference are
-# unchanged. The render text is the current pronunciation-layer output: re-gating asserts that this take is the
-# current content's take. Re-gate scores identity against the owner voice, so the voice is 'sarosh'.
-function Write-RegatePass([object]$Segment, [object]$StyleCtx, [string]$SelectedRoot, $Wer, $IdRecord) {
+# Select the re-gated take and write its PASS receipt. The fingerprint covers the render text, voice and style reference
+# the take was synthesized from, so it is built from the render record Generate-OwnerVoice.ps1 wrote beside the take
+# (take.render.json), never from today's pronunciation layer: an older wav must not look current. When there is no
+# record for this sentence the synthesized reading is unknown; the receipt then carries no fingerprint and says so, and
+# the legacy rule in Test-PassReceipt applies (accepted only while no pronunciation substitution applies).
+function Write-RegatePass([object]$Segment, [string]$SelectedRoot, $Wer, $IdRecord) {
   $dest = Join-Path $SelectedRoot "$($Segment.id).wav"
   Copy-Item $Segment.wav $dest -Force
-  $renderText = Get-RenderText $Segment.text
-  $fingerprint = Get-SegmentFingerprint $Segment.text $renderText 'sarosh' $StyleCtx.DefaultStyle $StyleCtx.WavSha $StyleCtx.TextSha
-  [ordered]@{
-    pass = $true; id = $Segment.id; sceneId = $Segment.sceneId; speaker = 'sarosh'
-    style = $StyleCtx.DefaultStyle; text = $Segment.text; renderText = $renderText; fingerprint = $fingerprint
-    fingerprintSchema = $script:FingerprintSchema; path = $dest
-    sha256 = (Get-Sha256 $dest); asrWer = $Wer; identityScores = $(if ($null -ne $IdRecord) { $IdRecord.scores } else { $null }); regate = $true
-  } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $Segment.dir 'PASS.json') -Encoding utf8
+  $rr = Get-TakeRenderRecord $Segment.dir
+  $known = ($null -ne $rr -and [string]$rr.text -ceq $Segment.text -and [string]$rr.voice -ceq 'sarosh')
+  $receipt = [ordered]@{ pass = $true; id = $Segment.id; sceneId = $Segment.sceneId; speaker = $Segment.speaker }
+  if ($known) {
+    $receipt['style'] = [string]$rr.style
+    $receipt['text'] = $Segment.text
+    $receipt['renderText'] = [string]$rr.renderText
+    $receipt['fingerprint'] = (Get-SegmentFingerprint $Segment.text ([string]$rr.renderText) 'sarosh' ([string]$rr.style) ([string]$rr.styleWavSha) ([string]$rr.styleTextSha))
+    $receipt['fingerprintSchema'] = $script:FingerprintSchema
+  } else {
+    $receipt['text'] = $Segment.text
+    $receipt['fingerprintNote'] = 'No render record (take.render.json) for this sentence: the render text the wav was synthesized from is unknown, so no fingerprint is written. The legacy reuse rule applies.'
+  }
+  $receipt['path'] = $dest
+  $receipt['sha256'] = (Get-Sha256 $dest)
+  $receipt['asrWer'] = $Wer
+  $receipt['identityScores'] = $(if ($null -ne $IdRecord) { $IdRecord.scores } else { $null })
+  $receipt['regate'] = $true
+  $receipt | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $Segment.dir 'PASS.json') -Encoding utf8
 }
 
 $Job = (Resolve-Path $Job).Path
 $play = Get-Content (Join-Path $Job 'screenplay.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$styleCtx = Get-OwnerStyleContext $StylesRoot $DefaultStyle
 $Integrity = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'Test-SpeechIntegrity.ps1'
 $outRoot = Join-Path $Job 'voice\sentences'
 $selectedRoot = Join-Path $Job 'voice\selected'
@@ -127,6 +136,9 @@ New-Item -ItemType Directory -Force -Path $selectedRoot, $batchRoot | Out-Null
 # Collect segments needing PASS
 $need = @()
 foreach ($scene in $play.scenes) {
+  # Re-gate scores owner identity only: a role scene (Joel/Ryan/Vivian/Aiden) is never stamped as the owner.
+  $sp = Resolve-SceneSpeaker $scene
+  if (-not $sp.IsOwner) { Write-Warning ("skipping role scene {0} (speaker {1}); re-gate scores owner identity only" -f $scene.id, $sp.Speaker); continue }
   $si = 0
   foreach ($text in @([regex]::Split([string]$scene.narration, '(?<=[.!?])\s+') | Where-Object { $_.Trim().Length -gt 2 })) {
     $si++
@@ -136,7 +148,7 @@ foreach ($scene in $play.scenes) {
     $wav = Join-Path $dir 'take.wav'
     if (Test-Path $pass) { continue }
     if (-not (Test-Path $wav)) { Write-Warning "missing $wav"; continue }
-    $need += [pscustomobject]@{ id = $segId; sceneId = $scene.id; text = $text.Trim(); dir = $dir; wav = $wav }
+    $need += [pscustomobject]@{ id = $segId; sceneId = $scene.id; text = $text.Trim(); dir = $dir; wav = $wav; speaker = $sp.Speaker }
   }
 }
 Write-Host ("Re-gate {0} segments" -f $need.Count)
@@ -185,7 +197,7 @@ foreach ($s in $need) {
   Write-Host ("  {0} integ={1} asr={2}(wer={3:n3}) id={4} => {5}" -f $s.id, $integOk, $asrOk, $wer, $idOk, $(if ($ok) { 'PASS' } else { 'FAIL' }))
   Write-Host ("    ASR: {0}" -f $hyp)
   if ($ok) {
-    Write-RegatePass $s $styleCtx $selectedRoot $wer $rec
+    Write-RegatePass $s $selectedRoot $wer $rec
     $passed++
   } else { $still += $s.id }
 }
