@@ -252,13 +252,60 @@ function Invoke-CloneBatch {
   }
 }
 
-function Test-PassReceipt([string]$SegDir) {
+function Get-TextSha256([string]$Text) {
+  $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($Text)
+  $hash = [System.Security.Cryptography.SHA256]::HashData($bytes)
+  return ([BitConverter]::ToString($hash) -replace '-', '').ToLowerInvariant()
+}
+
+# Fingerprint of everything that decides what a take sounds like: the canonical sentence, the exact text sent to the
+# engine (after Get-RenderText normalisation), the voice, and the style reference (name, wav bytes, transcript).
+# Seed, round and premium are deliberately excluded: they vary between retries of the same content.
+# Reuse is keyed on this, never on the segment id, so a changed script line cannot ship old audio.
+$script:FingerprintSchema = 'owner-voice-take/1'
+function Get-SegmentFingerprint([string]$Text, [string]$RenderText, [string]$Voice, [string]$Style, [string]$StyleWavSha, [string]$StyleTextSha) {
+  $canon = @(
+    "schema=$script:FingerprintSchema", "voice=$Voice", "style=$Style", "styleWav=$StyleWavSha", "styleText=$StyleTextSha",
+    "text=$Text", "render=$RenderText"
+  ) -join "`n"
+  return (Get-TextSha256 $canon)
+}
+
+# A PASS receipt is reusable only when it provably belongs to this exact content.
+#  - current receipt (has a fingerprint): the fingerprint must match.
+#  - legacy receipt (no fingerprint, written before this check, or by ReGate-OwnerVoice.ps1): reusable only if it
+#    recorded the sentence text and that text matches (and the style, when one was recorded). With no recorded text the
+#    take cannot be verified, so it is stale.
+function Test-PassReceipt([string]$SegDir, [string]$Fingerprint, [string]$Text, [string]$Style) {
   $p = Join-Path $SegDir 'PASS.json'
   if (-not (Test-Path -LiteralPath $p)) { return $false }
   try {
     $o = Get-Content -LiteralPath $p -Raw -Encoding UTF8 | ConvertFrom-Json
-    return [bool]$o.pass
+    if (-not [bool]$o.pass) { return $false }
+    $names = @($o.PSObject.Properties.Name)
+    if ($names -contains 'fingerprint' -and $o.fingerprint) {
+      return ([string]$o.fingerprint -ceq $Fingerprint)
+    }
+    if ($names -contains 'text' -and $o.text) {
+      if (-not ([string]$o.text -ceq $Text)) { return $false }
+      # ReGate-OwnerVoice.ps1 receipts record the text (ASR-verified against it) but no style.
+      if ($names -contains 'style' -and $o.style) { return ([string]$o.style -ceq $Style) }
+      return $true
+    }
+    return $false
   } catch { return $false }
+}
+
+function Test-SegmentPass([object]$Segment) {
+  return (Test-PassReceipt $Segment.dir $Segment.fingerprint $Segment.text $Segment.style)
+}
+
+# Drop every artefact of a take that no longer matches its segment so it cannot be selected or concatenated.
+function Clear-SegmentTake([object]$Segment) {
+  foreach ($f in @('PASS.json', 'take.wav', 'take.asr.txt', 'take.identity.json', 'take.integrity.json')) {
+    Remove-Item -LiteralPath (Join-Path $Segment.dir $f) -Force -ErrorAction SilentlyContinue
+  }
+  Remove-Item -LiteralPath (Join-Path $selectedRoot "$($Segment.id).wav") -Force -ErrorAction SilentlyContinue
 }
 
 # --- setup ---
@@ -281,6 +328,8 @@ $styleWav = Join-Path $StylesRoot "$DefaultStyle.wav"
 $styleTxtPath = Join-Path $StylesRoot "$DefaultStyle.txt"
 if (-not (Test-Path $styleWav)) { throw "Missing style wav: $styleWav" }
 $styleTxt = (Get-Content -LiteralPath $styleTxtPath -Raw -Encoding UTF8).Trim()
+$styleWavSha = Get-Sha256 $styleWav
+$styleTxtSha = Get-TextSha256 $styleTxt
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Integrity = Join-Path $ScriptDir 'Test-SpeechIntegrity.ps1'
@@ -321,6 +370,10 @@ foreach ($id in $ids) {
     $si++
     $segId = '{0}_{1:d2}' -f $id, $si
     $segDir = Join-Path $outRoot $segId
+    $renderText = (Get-RenderText $text)
+    $segStyle = if ($isOwner) { $DefaultStyle } else { '' }
+    $segStyleWavSha = if ($isOwner) { $styleWavSha } else { '' }
+    $segStyleTextSha = if ($isOwner) { $styleTxtSha } else { '' }
     New-Item -ItemType Directory -Force -Path $segDir | Out-Null
     $segments.Add([pscustomobject]@{
         id           = $segId
@@ -329,7 +382,9 @@ foreach ($id in $ids) {
         isOwner      = $isOwner
         roleSpeaker  = $roleSpeaker
         text         = $text
-        renderText   = (Get-RenderText $text)
+        renderText   = $renderText
+        style        = $segStyle
+        fingerprint  = (Get-SegmentFingerprint $text $renderText $(if ($isOwner) { 'sarosh' } else { $roleSpeaker }) $segStyle $segStyleWavSha $segStyleTextSha)
         dir          = $segDir
         wav          = (Join-Path $segDir 'take.wav')
         seed         = 1000 + $si * 17
@@ -371,11 +426,9 @@ function Get-PendingOwner {
   $pending = @()
   foreach ($s in $All) {
     if (-not $s.isOwner) { continue }
-    if (Test-PassReceipt $s.dir) { continue }
-    # wipe failed take so batch regenerates
-    Remove-Item -LiteralPath $s.wav -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath (Join-Path $s.dir 'take.asr.txt') -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath (Join-Path $s.dir 'take.identity.json') -Force -ErrorAction SilentlyContinue
+    if (Test-SegmentPass $s) { continue }
+    # wipe a failed or stale take (PASS receipt and selected wav included) so the batch regenerates it
+    Clear-SegmentTake $s
     $s.seed = 1000 + $Round * 997 + ([int]($s.id -replace '\D', '0') % 900)
     $pending += $s
   }
@@ -416,8 +469,8 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
   # --- Role voices (small; one-shot is fine) ---
   foreach ($s in $segments) {
     if ($s.isOwner) { continue }
-    if (Test-PassReceipt $s.dir) { continue }
-    Remove-Item -LiteralPath $s.wav -Force -ErrorAction SilentlyContinue
+    if (Test-SegmentPass $s) { continue }
+    Clear-SegmentTake $s
     Write-Host ("  ROLE {0} speaker={1}" -f $s.id, $s.roleSpeaker)
     & $LocalAi voice qwen-role --speaker $s.roleSpeaker --text $s.renderText --out $s.wav 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "role TTS failed $($s.id)" }
@@ -425,7 +478,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
 
   # --- Integrity ---
   foreach ($s in $segments) {
-    if (Test-PassReceipt $s.dir) { continue }
+    if (Test-SegmentPass $s) { continue }
     if (-not (Test-Path -LiteralPath $s.wav) -or (Get-Item $s.wav).Length -lt 1000) {
       Write-Warning "Missing/tiny wav $($s.id)"
       continue
@@ -438,7 +491,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
   if (-not $SkipAsr) {
     $asrJobs = @()
     foreach ($s in $segments) {
-      if (Test-PassReceipt $s.dir) { continue }
+      if (Test-SegmentPass $s) { continue }
       if (-not (Test-Path -LiteralPath $s.wav)) { continue }
       $asrOut = Join-Path $s.dir 'take.asr.txt'
       Remove-Item -LiteralPath $asrOut -Force -ErrorAction SilentlyContinue
@@ -469,7 +522,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
     New-Item -ItemType Directory -Force -Path $scoreDir | Out-Null
     foreach ($s in $segments) {
       if (-not $s.isOwner) { continue }
-      if (Test-PassReceipt $s.dir) { continue }
+      if (Test-SegmentPass $s) { continue }
       if (-not (Test-Path -LiteralPath $s.wav)) { continue }
       Copy-Item -LiteralPath $s.wav -Destination (Join-Path $scoreDir "$($s.id).wav") -Force
     }
@@ -490,7 +543,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
 
   # --- Gate + PASS receipts ---
   foreach ($s in $segments) {
-    if (Test-PassReceipt $s.dir) { continue }
+    if (Test-SegmentPass $s) { continue }
     $integOk = $false
     $ij = Join-Path $s.dir 'take.integrity.json'
     if (Test-Path $ij) {
@@ -523,7 +576,8 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
       Copy-Item -LiteralPath $s.wav -Destination $dest -Force
       [ordered]@{
         pass = $true; id = $s.id; sceneId = $s.sceneId; speaker = $s.speaker
-        style = $DefaultStyle; text = $s.text; path = $dest
+        style = $s.style; text = $s.text; renderText = $s.renderText; fingerprint = $s.fingerprint
+        fingerprintSchema = $script:FingerprintSchema; path = $dest
         sha256 = (Get-Sha256 $dest); round = $round; premium = [bool]$premium
         asrWer = $wer; identityScores = $idScores
       } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $s.dir 'PASS.json') -Encoding utf8
@@ -534,13 +588,13 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
 }
 
 function Get-FailedSegments {
-  return @($segments | Where-Object { -not (Test-PassReceipt $_.dir) } | ForEach-Object { $_.id })
+  return @($segments | Where-Object { -not (Test-SegmentPass $_) } | ForEach-Object { $_.id })
 }
 
 function Write-Ledger([object]$Listen) {
   $ledgerSegs = @()
   foreach ($s in $segments) {
-    if (Test-PassReceipt $s.dir) { $ledgerSegs += (Get-Content (Join-Path $s.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json) }
+    if (Test-SegmentPass $s) { $ledgerSegs += (Get-Content (Join-Path $s.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json) }
   }
   [ordered]@{
     job = (Split-Path $Job -Leaf)
@@ -703,9 +757,7 @@ if (-not $SkipPronunciationListen -and $riskyScenes.Count -gt 0) {
     Write-Host ("  regenerating {0} segments after listen findings: {1}" -f $lres.redo.Count, ($lres.redo -join ', '))
     foreach ($segId in $lres.redo) {
       $sg = @($segments | Where-Object { $_.id -eq $segId })[0]
-      Remove-Item -LiteralPath (Join-Path $sg.dir 'PASS.json') -Force -ErrorAction SilentlyContinue
-      Remove-Item -LiteralPath $sg.wav -Force -ErrorAction SilentlyContinue
-      Remove-Item -LiteralPath (Join-Path $selectedRoot "$($sg.id).wav") -Force -ErrorAction SilentlyContinue
+      Clear-SegmentTake $sg
       $sg.seed = 5000 + $lr * 331 + ([int]($sg.id -replace '\D', '0') % 900)
     }
     Invoke-GenerationRounds
