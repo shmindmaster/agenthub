@@ -31,7 +31,7 @@ try {
         if ((Get-FileHash -LiteralPath $helperSource).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) { throw "Stale campaign helper: $destination" }
         $checks++
     }
-    foreach ($name in @('Finish-Media.ps1','Finish-BriefingStems.ps1','Generate-OwnerVoice.ps1','ReGate-OwnerVoice.ps1','Test-SpeechIntegrity.ps1')) {
+    foreach ($name in @('Finish-Media.ps1','Finish-BriefingStems.ps1','Generate-OwnerVoice.ps1','ReGate-OwnerVoice.ps1','OwnerVoice-TakeReuse.ps1','Test-SpeechIntegrity.ps1')) {
         $source = Join-Path (Join-Path $package 'scripts') $name
         $destination = Join-Path $shared $name
         if (-not (Test-Path -LiteralPath $destination)) { throw "Missing shared media helper: $destination" }
