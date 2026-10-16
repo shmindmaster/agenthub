@@ -5,6 +5,8 @@ description: Use when a video or audio job needs provider-routed generation — 
 
 # Media studio generate
 
+**Host capability catalog.** When `%LOCALAPPDATA%\AgentHub\media-studio\_shared\media-capabilities.md` exists, read it before casting tools: it lists the capture, editor, overlay, diagram, voice, generation, remote-API and plugin routes installed on this host, how to call each, and which are live or blocked. Prefer a live route it lists over a generic default.
+
 Choose by cost, latency, quality and privacy. Reuse accepted assets first. Load `elevenlabs-api` and `../media-studio/references/content-controls.md` before paid planning. Paid ElevenLabs TTS requires its shared governed CLI; unsupported paid modalities remain disabled. Native connectors and SDK examples must not bypass the ledger. Use adequate authorized local generation otherwise. Load `local-ai-stack` and resolve `$LocalAiControl` for local generation or validation. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
 
 Load `../media-studio/references/engagement.md`. Viewer-facing jobs consume **locked** `storyboard.json`, `visual-bible.json`, and `direction.json`. Do not invent plates the director did not call.

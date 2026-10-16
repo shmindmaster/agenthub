@@ -9,6 +9,8 @@ description: Use when the user wants any video, audio, animation, briefing, trai
 
 **Default: rapid.** A sentence, path, or “make a video from this” is enough. Infer the rest, run the crew, return a candidate. Rapid means infer-and-run, **not skip craft**. A short prompt is not permission to skip curation, gap-closure, story, scenes, or QA.
 
+**Host capability catalog.** When `%LOCALAPPDATA%\AgentHub\media-studio\_shared\media-capabilities.md` exists, read it before casting tools: it lists the capture, editor, overlay, diagram, voice, generation, remote-API and plugin routes installed on this host, how to call each, and which are live or blocked. Prefer a live route it lists over a generic default.
+
 **Reuse before regenerate.** Recut > recapture > rewrite. On a miss, rerun only `reviseSceneIds` / the failing take. Keep receipt-bound clips that still prove the claim. Do not regen TTS, the bed, or the whole encode for an unchanged scene — remux. Select by cost, latency, quality and privacy: use adequate local tools or authorized provider APIs; reserve ElevenLabs for justified value. Load `elevenlabs-api` for paid planning and cost controls. Start Local-AI only for a selected local route (`voice` for identity/ASR or local TTS; Comfy only if a plate needs it). One GPU job at a time.
 
 Load `sarosh-audio-voice` for owner speech. Hosted sources retain all identity,

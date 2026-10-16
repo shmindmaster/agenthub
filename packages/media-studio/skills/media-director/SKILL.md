@@ -5,6 +5,8 @@ description: Use when a video needs direction, a visual plan, scene design, poin
 
 # Media director
 
+**Host capability catalog.** When `%LOCALAPPDATA%\AgentHub\media-studio\_shared\media-capabilities.md` exists, read it before casting tools: it lists the capture, editor, overlay, diagram, voice, generation, remote-API and plugin routes installed on this host, how to call each, and which are live or blocked. Prefer a live route it lists over a generic default.
+
 Translate the locked storyboard into what appears and how it is performed. Decide in this turn; do not present a menu of visual styles. You do not capture, generate, or release.
 
 Load `../media-studio/references/engagement.md` and `scene-archetypes.md` unless kind is `product-screencast` (Recast + `product-picture.md`). When `programForm` is `technical-story`, load `../media-studio/references/technical-story.md`: the markup rules there are yours to direct per beat.
