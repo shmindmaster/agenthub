@@ -61,6 +61,25 @@ try {
     $checks++
     if (Get-ChildItem -LiteralPath $runtimeKit -File -Filter 'screencastvalidate-*') { throw 'Gate path lost its directory separator' }
     $checks++
+    # mvg: the whole kit\marketing tree and the MarketingAd composition are deployed byte-for-byte.
+    $marketingSource = Join-Path $package 'kit\marketing'
+    $marketingSourceFiles = @(Get-ChildItem -LiteralPath $marketingSource -Recurse -File)
+    if ($marketingSourceFiles.Count -lt 20) { throw 'Canonical marketing kit is missing files' }
+    foreach ($file in $marketingSourceFiles) {
+        $relative = $file.FullName.Substring($marketingSource.Length).TrimStart('')
+        $destination = Join-Path (Join-Path $runtimeKit 'marketing') $relative
+        if (-not (Test-Path -LiteralPath $destination)) { throw "Missing marketing kit file: $destination" }
+        if ((Get-FileHash -LiteralPath $file.FullName).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) { throw "Stale marketing kit file: $destination" }
+        $checks++
+    }
+    if ((Get-FileHash -LiteralPath (Join-Path $package 'kit\src\MarketingAd.tsx')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $runtimeKit 'src\MarketingAd.tsx')).Hash) { throw 'MarketingAd composition not deployed' }
+    $checks++
+    # Replace, never merge: a file deleted from the source must not survive in the runtime copy.
+    $stale = Join-Path (Join-Path $runtimeKit 'marketing') 'stale-removed-module.mjs'
+    Set-Content -LiteralPath $stale -Value '// stale' -Encoding ascii
+    & (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -RuntimeKit $runtimeKit | Out-Null
+    if (Test-Path -LiteralPath $stale) { throw 'Marketing kit sync merged instead of replacing' }
+    $checks++
     Write-Host "PASS: $checks runtime gate/tool deployment checks"
 } finally {
     $resolved = [IO.Path]::GetFullPath($scratch)

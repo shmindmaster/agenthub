@@ -4,6 +4,22 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Marketing video generator, mvg (2026-10-20):** `packages/media-studio/kit/marketing`
+  turns one ad spec into gated 16:9 / 4:5 / 9:16 ads (lint, voice, timing,
+  assets, capture reuse, compose, qa, deliver; each stage cached by input
+  hash, per-run and cumulative budgets). The `MarketingAd` Remotion
+  composition (`kit/src/MarketingAd.tsx`) crops the receipt-bound UI clip with
+  a focus-follow camera inside the platform-safe area; audio is mixed and
+  loudness-normalized with FFmpeg. Paid ElevenLabs speech, sound effects and
+  music go through the governed adapter (`packages/elevenlabs`:
+  `governed_audio.py`, `elevenlabs_cli.py sfx|music`); OpenAI supplies stills,
+  `whisper-1` word timing and vision QA. `validate-viewer-release.mjs` accepts
+  the mvg picture report for `generator: media-studio/mvg` jobs and a per-job
+  `loudnessTargetLufs`. `Sync-MediaStudioKit.ps1` replaces the runtime
+  `briefing-kit\marketing` tree. Unit tests: `packages/media-studio/tests/mvg.test.mjs`
+  (mock providers, no paid calls). Product data (brand, claims, specs) stays in
+  the external media workspace.
+
 - **Coding-agent dispatch (2026-10-14, prepared; deployment pending):** `packages/coding-agent-dispatch`
   owns the `use-coding-agent` skill and `Invoke-CodingAgent.ps1`. Claude and
   Codex are the primary orchestrators. Any host that has the skill can call

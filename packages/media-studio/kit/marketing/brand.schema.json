@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "mvg brand file",
+  "description": "Product-specific brand tokens, truth rules and budgets. Lives in the external media workspace, never in a product repository.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "product", "colors", "fonts", "safeZones", "forbiddenNames", "budgets", "deliver", "loudness"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,40}$" },
+    "product": { "type": "string" },
+    "label": { "type": "string" },
+    "colors": {
+      "type": "object",
+      "required": ["primary", "foreground", "background", "accent"],
+      "properties": {
+        "primary": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "foreground": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "background": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "accent": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "surface": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "muted": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "onPrimary": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+      }
+    },
+    "fonts": {
+      "type": "object",
+      "required": ["display", "body"],
+      "properties": {
+        "display": { "type": "string" },
+        "body": { "type": "string" },
+        "files": {
+          "type": "array",
+          "items": { "type": "object", "required": ["family", "file"], "properties": { "family": { "type": "string" }, "file": { "type": "string" }, "weight": { "type": "integer" } } }
+        }
+      }
+    },
+    "captionStyle": {
+      "type": "object",
+      "properties": {
+        "minWords": { "type": "integer", "minimum": 3 },
+        "maxWords": { "type": "integer", "maximum": 9 },
+        "maxHoldSeconds": { "type": "number" }
+      }
+    },
+    "safeZones": {
+      "type": "object",
+      "description": "Platform-reserved fractions of the frame height/width per ratio.",
+      "additionalProperties": {
+        "type": "object", "required": ["topPct", "bottomPct", "sidePct"],
+        "properties": { "topPct": { "type": "number", "minimum": 0, "maximum": 50 }, "bottomPct": { "type": "number", "minimum": 0, "maximum": 50 }, "sidePct": { "type": "number", "minimum": 0, "maximum": 20 } }
+      }
+    },
+    "forbiddenNames": { "type": "array", "items": { "type": "string", "minLength": 2 }, "description": "Prospect, customer, partner and competitor names that must never appear in narration, text or frames." },
+    "bannedPhrases": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "pattern"],
+        "properties": {
+          "id": { "type": "string" },
+          "pattern": { "type": "string" },
+          "flags": { "type": "string" },
+          "unlessNegated": { "type": "boolean", "description": "Allow the phrase when a negation (nothing, not, never, no, without) precedes it in the same sentence." },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "budgets": {
+      "type": "object", "required": ["elevenlabsCredits", "openaiUsd"],
+      "properties": {
+        "elevenlabsCredits": { "type": "integer", "minimum": 0, "description": "Cumulative cap across all mvg runs for this brand." },
+        "openaiUsd": { "type": "number", "minimum": 0, "description": "Cumulative cap across all mvg runs for this brand." },
+        "perRun": { "type": "object", "properties": { "elevenlabsCredits": { "type": "integer", "minimum": 0 }, "openaiUsd": { "type": "number", "minimum": 0 } } }
+      }
+    },
+    "loudness": {
+      "type": "object", "required": ["social", "web"],
+      "properties": { "social": { "type": "number" }, "web": { "type": "number" }, "truePeak": { "type": "number" } }
+    },
+    "vision": {
+      "type": "object",
+      "properties": { "model": { "type": "string" }, "fallbackModel": { "type": "string" }, "detail": { "enum": ["low", "high", "auto"] } }
+    },
+    "images": { "type": "object", "properties": { "model": { "type": "string" }, "quality": { "enum": ["low", "medium", "high"] } } },
+    "timing": { "type": "object", "properties": { "provider": { "enum": ["openai-whisper", "local-whisper"] } } },
+    "urls": { "type": "object", "properties": { "demo": { "type": "string" } } },
+    "deliver": {
+      "type": "object", "required": ["dir"],
+      "properties": { "dir": { "type": "string" }, "readme": { "type": "string" }, "reservedNumbers": { "type": "array", "items": { "type": "integer" } } }
+    },
+    "kit": { "type": "object", "properties": { "agenthubRoot": { "type": "string" }, "runtimeKit": { "type": "string" } } }
+  }
+}

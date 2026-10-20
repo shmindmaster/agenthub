@@ -38,7 +38,7 @@ if (job.kind === 'product-screencast') {
   else {
     try {
       const picture = json(picturePath);
-      if (picture.generator !== 'media-studio/validate-encoded-picture' || picture.ok !== true || !Array.isArray(picture.errors) || picture.errors.length) errors.push('encoded-picture report must be a PASS with no errors from validate-encoded-picture.');
+      if (!(picture.generator === 'media-studio/validate-encoded-picture' || (job.generator === 'media-studio/mvg' && picture.generator === 'media-studio/mvg-picture-gate')) || picture.ok !== true || !Array.isArray(picture.errors) || picture.errors.length) errors.push('encoded-picture report must be a PASS with no errors from validate-encoded-picture.');
       if (picture.candidate?.sha256 !== candidateSha || picture.candidate?.bytes !== (candidateSha ? statSync(candidate).size : null)) errors.push('encoded-picture report is not bound to the exact candidate SHA-256 and byte count.');
       if (picture.thresholds?.maxStaticSeconds !== 6 || picture.thresholds?.bindMaxHamming !== 12) errors.push('encoded-picture report must use canonical static and source-binding thresholds.');
       if (!Number.isFinite(picture.screenRatio) || picture.screenRatio < .7 || !Array.isArray(picture.segments) || !picture.segments.some((segment) => segment.bound === true) || picture.segments.some((segment) => segment.bound === false)) errors.push('encoded-picture report lacks passing screen coverage and source-bound segments.');
@@ -135,7 +135,8 @@ if (evidence) {
       const measured = json(reportPath);
       if (measured.tool !== "ffmpeg-loudnorm" || measured.candidateSha256 !== candidateSha || measured.integratedLufs !== audio.integratedLufs || measured.truePeakDbtp !== audio.truePeakDbtp) errors.push("audio values must come from a candidate-bound ffmpeg-loudnorm analyzer report.");
     }
-    if (!Number.isFinite(audio.integratedLufs) || audio.integratedLufs < -17.5 || audio.integratedLufs > -14.5 || !Number.isFinite(audio.truePeakDbtp) || audio.truePeakDbtp > -1) errors.push("audio must measure -16 LUFS ±1.5 and at or below -1 dBTP.");
+    const loudnessTarget = Number.isFinite(job.loudnessTargetLufs) ? job.loudnessTargetLufs : -16;
+    if (!Number.isFinite(audio.integratedLufs) || audio.integratedLufs < loudnessTarget - 1.5 || audio.integratedLufs > loudnessTarget + 1.5 || !Number.isFinite(audio.truePeakDbtp) || audio.truePeakDbtp > -1) errors.push(`audio must measure ${loudnessTarget} LUFS ±1.5 and at or below -1 dBTP.`);
   }
   const pronunciation = requireBoundPass("pronunciation");
   if (pronunciation) {

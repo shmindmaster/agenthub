@@ -1,0 +1,85 @@
+// Stage 3: timing. Word timings per narration line (OpenAI whisper-1 word timestamps, or local whisper), aligned to
+// the authored script, then the voice-first timeline (scene length = narration span), caption chunks and an SRT.
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { recordStage } from '../context.mjs';
+import { checkStage, stageKey, writeStage } from '../cache.mjs';
+import { chunkWords, toSrt } from '../captions.mjs';
+import { normalizeCuts } from '../lint.mjs';
+import { estimateWhisperUsd } from '../prices.mjs';
+import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../timing.mjs';
+import { run } from '../mix.mjs';
+import { readJson, round, writeJson } from '../util.mjs';
+
+export async function probeDuration(file) {
+  const r = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]);
+  const d = parseFloat(r.stdout);
+  if (!(d > 0)) throw new Error(`cannot probe duration of ${file}`);
+  return d;
+}
+
+async function wordsFor(ctx, { audio, asrPath, duration }) {
+  if (existsSync(asrPath)) return { payload: readJson(asrPath), cached: true };
+  const provider = ctx.brand.timing?.provider || 'openai-whisper';
+  mkdirSync(join(asrPath, '..'), { recursive: true });
+  if (provider === 'local-whisper') {
+    const local = ctx.providers.localWhisper || (await import('../providers/local.mjs')).whisperWords;
+    await local({ file: audio, jsonOut: asrPath, txtOut: asrPath.replace(/\.json$/, '.txt') });
+    ctx.ledger.charge({ stage: 'timing', provider: 'openai', service: 'whisper', units: 0, cached: true, note: 'local whisper' });
+    return { payload: readJson(asrPath), cached: false };
+  }
+  const usd = estimateWhisperUsd(duration);
+  ctx.ledger.check('openai', usd, 'whisper-1 timing');
+  const transcribe = ctx.providers.transcribeWords || (await import('../providers/openai.mjs')).transcribeWords;
+  const payload = await transcribe(audio);
+  writeFileSync(asrPath, `${JSON.stringify(payload, null, 2)}\n`);
+  ctx.ledger.charge({ stage: 'timing', provider: 'openai', service: 'whisper', units: usd, ref: relative(ctx.jobDir, audio) });
+  return { payload, cached: false };
+}
+
+export async function timingStage(ctx) {
+  const out = {};
+  for (const cut of normalizeCuts(ctx.spec)) {
+    const voicePath = join(ctx.jobDir, 'voice', `${cut.id}.lines.json`);
+    if (!existsSync(voicePath)) throw new Error(`timing needs the voice stage first (missing ${voicePath})`);
+    const voice = readJson(voicePath);
+    const k = stageKey('timing', { lines: voice.lines.map((l) => [l.key, l.sha256]), beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), provider: ctx.brand.timing?.provider || 'openai-whisper' });
+    const cached = checkStage(ctx.jobDir, 'timing', cut.id, k);
+    if (cached.hit && !ctx.flags.force) { ctx.log(`timing/${cut.id}: cached`); out[cut.id] = cached.manifest; continue; }
+    const byBeat = new Map(voice.lines.map((l) => [l.beatId, l]));
+    const lines = [];
+    const asrFiles = [];
+    for (const beat of cut.beats) {
+      const line = byBeat.get(beat.id);
+      if (!beat.narration) { lines.push({ beat }); continue; }
+      if (!line) throw new Error(`no voice line for narrated beat ${cut.id}/${beat.id}`);
+      const audio = join(ctx.jobDir, line.file);
+      const duration = await (ctx.providers.probeDuration || probeDuration)(audio);
+      const asrRel = join('timing', cut.id, 'asr', `${beat.id}-${line.key.slice(0, 12)}.json`);
+      const { payload } = await wordsFor(ctx, { audio, asrPath: join(ctx.jobDir, asrRel), duration });
+      asrFiles.push(asrRel);
+      const words = alignScriptToAsr(beat.narration, parseAsrWords(payload), duration);
+      lines.push({ beat, audio: { durationSeconds: round(duration, 3), words, asr: asrRel } });
+    }
+    const timeline = buildTimeline(lines);
+    const chunks = [];
+    for (const seg of timeline.segments) {
+      if (!seg.words.length) continue;
+      const beat = cut.beats.find((b) => b.id === seg.id);
+      for (const c of chunkWords(seg.words, { ...(ctx.brand.captionStyle || {}) })) chunks.push({ ...c, beatId: seg.id, emphasis: beat.emphasis || [] });
+    }
+    const base = join('timing', cut.id);
+    const files = { timeline: join(base, 'timeline.json'), captions: join(base, 'captions.json'), srt: join(base, 'captions.srt') };
+    writeJson(join(ctx.jobDir, files.timeline), { ...timeline, cut: cut.id, targetSeconds: cut.targetSeconds, lines: lines.map((l) => ({ beatId: l.beat.id, asr: l.audio?.asr || null })) });
+    writeJson(join(ctx.jobDir, files.captions), { cut: cut.id, chunks });
+    writeFileSync(join(ctx.jobDir, files.srt), toSrt(chunks), 'utf8');
+    const over = timeline.durationSeconds - cut.targetSeconds;
+    const detail = { durationSeconds: timeline.durationSeconds, targetSeconds: cut.targetSeconds, overSeconds: round(over, 2), captionChunks: chunks.length };
+    out[cut.id] = writeStage(ctx.jobDir, 'timing', cut.id, k, { ...detail, outputs: [...Object.values(files), ...asrFiles] });
+    if (over > 1.5) throw new Error(`cut ${cut.id} runs ${timeline.durationSeconds}s against a ${cut.targetSeconds}s target (+${over.toFixed(1)}s): trim the narration or beat minimums`);
+    if (over < -0.2 * cut.targetSeconds - 2) ctx.log(`timing/${cut.id}: ${timeline.durationSeconds}s is well under the ${cut.targetSeconds}s target`);
+  }
+  recordStage(ctx, 'timing', 'done', { cuts: Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { durationSeconds: v.durationSeconds, targetSeconds: v.targetSeconds }])) });
+  return out;
+}
+

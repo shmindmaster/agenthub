@@ -20,6 +20,7 @@ $files = @(
     'src\Briefing.tsx',
     'src\Root.tsx',
     'src\Composition.tsx',
+    'src\MarketingAd.tsx',
     'src\index.ts',
     'src\index.css',
     'package.json',
@@ -52,6 +53,15 @@ foreach ($rel in $files) {
     $to = Join-Path $RuntimeKit $rel
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $to) | Out-Null
     Copy-Item -LiteralPath $from -Destination $to -Force
+}
+
+# Marketing video generator (mvg): the whole kit\marketing tree is managed, so the runtime copy is replaced, not merged
+# (a deleted module must not survive as a stale file). The ElevenLabs adapter stays in the AgentHub checkout.
+$marketingSource = Join-Path $packageKit 'marketing'
+if (Test-Path -LiteralPath $marketingSource) {
+    $marketingTarget = Join-Path $RuntimeKit 'marketing'
+    if (Test-Path -LiteralPath $marketingTarget) { Remove-Item -LiteralPath $marketingTarget -Recurse -Force }
+    Copy-Item -LiteralPath $marketingSource -Destination $marketingTarget -Recurse -Force
 }
 
 # Capture and product-picture gates travel with the compositor so each host resolves the same scripts.

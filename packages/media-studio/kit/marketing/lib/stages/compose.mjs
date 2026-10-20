@@ -1,0 +1,149 @@
+// Stage 6: compose, per ratio. Builds the MarketingAd props (layout, focus-follow camera, kinetic captions), the
+// compose map the gates read, the FFmpeg mix plan, then renders the picture with Remotion and finishes audio and
+// the loudness-normalized encode with FFmpeg. `--prepare-only` stops after the props, map and plans (no render).
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { MODULE_ROOT, recordStage } from '../context.mjs';
+import { cameraKeyframes, focusWindows, pointerTrack, readability, windowAt } from '../crop.mjs';
+import { FRAMES, layoutFor, safeZoneErrors } from '../layout.mjs';
+import { normalizeCuts } from '../lint.mjs';
+import { buildMixArgs, encodeArgs, loudnessTarget, loudnormMeasureArgs, parseLoudnorm, run } from '../mix.mjs';
+import { toSrt } from '../captions.mjs';
+import { resolveClip } from './capture.mjs';
+import { sfxKey } from './assets.mjs';
+import { fileSha, readJson, round, writeJson } from '../util.mjs';
+
+export const HOLD_PAD_MAX = 2.0;
+
+/** Program time (seconds) a sound-effect cue lands at, or throws when an `action:` label is not in the receipt. */
+export function cueTime(cue, seg, { actions = [], headTrim = 0, trimStart = 0, duration = 1 }) {
+  if (cue === 'start') return round(seg.startSeconds + 0.12);
+  if (cue === 'end') return round(seg.startSeconds + seg.durationSeconds - duration);
+  if (cue.startsWith('at:')) return round(seg.startSeconds + Number(cue.slice(3)));
+  const label = cue.slice(7);
+  const hit = actions.find((a) => a.label === label && (a.type === 'click' || a.type === 'point' || a.type === 'type'));
+  if (!hit) throw new Error(`sfx cue action:${label} is not an action in the capture receipt`);
+  return round(seg.startSeconds + (hit.t - headTrim - trimStart));
+}
+
+export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, assets, capture }) {
+  const layout = layoutFor(ratio, ctx.brand);
+  const layoutErrors = safeZoneErrors(layout);
+  if (layoutErrors.length) throw new Error(`layout violates the platform-safe area: ${layoutErrors.join('; ')}`);
+  const frame = FRAMES[ratio];
+  const beats = [];
+  const groups = [];
+  const gateSegments = [];
+  const media = new Map();
+  const warnings = [];
+  const addMedia = (file, ext) => {
+    const name = `${fileSha(file).slice(0, 16)}.${ext}`;
+    media.set(name, file);
+    return `media/${name}`;
+  };
+  const sfxPlan = [];
+  const lastIndex = cut.beats.length - 1;
+  cut.beats.forEach((beat, i) => {
+    const seg = timeline.segments.find((s) => s.id === beat.id);
+    const base = { id: beat.id, kind: beat.kind, startSec: seg.startSeconds, durationSec: seg.durationSeconds, headline: beat.onScreenText };
+    if (beat.kind === 'ui') {
+      const clip = capture.find((c) => c.beatId === beat.id);
+      const { entry } = resolveClip(ctx, beat);
+      const trimStart = beat.ui.trimStart || 0;
+      const clipEnd = Math.min(beat.ui.trimEnd || clip.clipSeconds, clip.clipSeconds);
+      const available = clipEnd - trimStart;
+      if (!(available > 0)) throw new Error(`${beat.id}: trim leaves no clip`);
+      const playSec = Math.min(seg.durationSeconds, available);
+      const hold = seg.durationSeconds - playSec;
+      if (hold > HOLD_PAD_MAX) throw new Error(`${beat.id}: the clip covers ${playSec.toFixed(1)}s of the ${seg.durationSeconds.toFixed(1)}s beat (hold ${hold.toFixed(1)}s > ${HOLD_PAD_MAX}s); shorten the narration, adjust trims, or recapture`);
+      const track = pointerTrack(entry.actions, { headTrim: clip.headTrimSeconds, viewport: clip.viewport });
+      const windows = focusWindows({ explicit: beat.ui.focus, track, clipStart: trimStart, clipEnd: trimStart + playSec, srcW: clip.viewport.width, srcH: clip.viewport.height, band: layout.uiBand, zoom: layout.zoom });
+      for (const w of windows) { const r = readability(w.scale); if (!r.ok) throw new Error(`${beat.id} ${ratio}: ${r.reason}`); }
+      const camera = cameraKeyframes(windows, { clipStart: trimStart, duration: seg.durationSeconds });
+      const src = addMedia(clip.file, 'webm');
+      beats.push({ ...base, clip: { src, trimBeforeSec: trimStart, playSec: round(playSec, 3), srcW: clip.viewport.width, srcH: clip.viewport.height, camera } });
+      const mid = windowAt(windows, trimStart + playSec / 2);
+      groups.push({ segments: [beat.id], startSeconds: seg.startSeconds, needSeconds: seg.durationSeconds, clipId: beat.id, file: `clips/${beat.id}.webm`, heldFromPrevious: false, sourceRegion: mid.region, srcSeconds: clip.clipSeconds, fit: 'hold', trimStart: 0, speed: 1, edit: { trimStart, trimEnd: clipEnd, speed: 1, skip: [], headHold: 0, srcSeconds: clipEnd }, extras: false, overlay: null, isImage: false, windows });
+      gateSegments.push({ id: beat.id, kind: 'ui', startSeconds: seg.startSeconds, durationSeconds: seg.durationSeconds, clipFile: clip.file, sourceRegion: mid.region, clipStart: trimStart });
+      for (const s of beat.sfx || []) {
+        const duration = s.durationSeconds || 1;
+        const key = sfxKey(s.prompt, duration);
+        const asset = assets.items.find((a) => a.kind === 'sfx' && a.key === key);
+        if (!asset) throw new Error(`${beat.id}: sfx "${s.prompt}" was not generated (run the assets stage)`);
+        sfxPlan.push({ beatId: beat.id, file: join(ctx.jobDir, asset.path), startSec: cueTime(s.cue, seg, { actions: entry.actions, headTrim: clip.headTrimSeconds, trimStart, duration }), gainDb: s.gainDb ?? -14 });
+      }
+    } else if (beat.kind === 'broll') {
+      const asset = assets.items.find((a) => a.kind === 'broll' && a.beat === `${cut.id}/${beat.id}`);
+      if (!asset) throw new Error(`${beat.id}: b-roll not generated (run the assets stage)`);
+      const file = asset.provider === 'stock' ? asset.path : join(ctx.jobDir, asset.path);
+      beats.push({ ...base, image: { src: addMedia(file, 'png') } });
+      gateSegments.push({ id: beat.id, kind: 'broll', startSeconds: seg.startSeconds, durationSeconds: seg.durationSeconds });
+      groups.push({ segments: [beat.id], startSeconds: seg.startSeconds, needSeconds: seg.durationSeconds, clipId: beat.id, file: asset.path, heldFromPrevious: false, sourceRegion: null, srcSeconds: 0, fit: 'hold', trimStart: 0, speed: 1, edit: null, extras: false, overlay: null, isImage: true });
+      for (const s of beat.sfx || []) sfxPlan.push({ beatId: beat.id, file: join(ctx.jobDir, assets.items.find((a) => a.kind === 'sfx' && a.key === sfxKey(s.prompt, s.durationSeconds || 1)).path), startSec: cueTime(s.cue, seg, { duration: s.durationSeconds || 1 }), gainDb: s.gainDb ?? -14 });
+    } else {
+      beats.push({ ...base, isCta: beat.kind === 'card' && i === lastIndex });
+      gateSegments.push({ id: beat.id, kind: beat.kind, startSeconds: seg.startSeconds, durationSeconds: seg.durationSeconds });
+      groups.push({ segments: [beat.id], startSeconds: seg.startSeconds, needSeconds: seg.durationSeconds, clipId: beat.id, file: `cards/${beat.id}.png`, heldFromPrevious: false, sourceRegion: null, srcSeconds: 0, fit: 'hold', trimStart: 0, speed: 1, edit: null, extras: false, overlay: null, isImage: true });
+      for (const s of beat.sfx || []) sfxPlan.push({ beatId: beat.id, file: join(ctx.jobDir, assets.items.find((a) => a.kind === 'sfx' && a.key === sfxKey(s.prompt, s.durationSeconds || 1)).path), startSec: cueTime(s.cue, seg, { duration: s.durationSeconds || 1 }), gainDb: s.gainDb ?? -14 });
+    }
+  });
+  const fontFiles = (ctx.brand.fonts.files || []).map((f) => ({ family: f.family, src: addMedia(f.file, f.file.split('.').pop()), weight: f.weight || 400 }));
+  const c = ctx.brand.colors;
+  const props = {
+    ratio, width: frame.width, height: frame.height, fps: 30, durationSec: timeline.durationSeconds,
+    layout: { uiBand: layout.uiBand, captionBox: layout.captionBox, labelBox: layout.labelBox, ctaBox: layout.ctaBox },
+    brand: { productName: ctx.brand.product, colors: { primary: c.primary, foreground: c.foreground, background: c.background, accent: c.accent, onPrimary: c.onPrimary || '#ffffff' }, fontDisplay: ctx.brand.fonts.display, fontBody: ctx.brand.fonts.body, fontFiles },
+    label: ctx.spec.labels, disclosure: ctx.spec.voice.disclosure || undefined,
+    beats, captions: captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words })),
+    emphasis: [...new Set(cut.beats.flatMap((b) => b.emphasis || []))],
+    cta: { text: ctx.spec.cta.text, displayUrl: ctx.spec.cta.displayUrl || ctx.spec.cta.url.replace(/^https?:\/\//, '') },
+  };
+  const lines = voice.lines.map((l) => ({ file: join(ctx.jobDir, l.file), startSec: timeline.segments.find((s) => s.id === l.beatId).lineStartSeconds }));
+  const musicAsset = assets.items.find((a) => a.kind === 'music');
+  const music = musicAsset ? { file: join(ctx.jobDir, musicAsset.path), bedDb: ctx.spec.music?.bedDb ?? -24 } : null;
+  return { layout, props, groups, gateSegments, media, sfxPlan, lines, music, warnings };
+}
+
+export async function composeStage(ctx) {
+  const summary = {};
+  for (const cut of normalizeCuts(ctx.spec)) {
+    const timeline = readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
+    const captionsAll = readJson(join(ctx.jobDir, 'timing', cut.id, 'captions.json')).chunks;
+    const voice = readJson(join(ctx.jobDir, 'voice', `${cut.id}.lines.json`));
+    const assetsPath = join(ctx.jobDir, 'assets', 'manifest.json');
+    const assets = existsSync(assetsPath) ? readJson(assetsPath) : { items: [] };
+    const capture = existsSync(join(ctx.jobDir, 'capture', `${cut.id}.json`)) ? readJson(join(ctx.jobDir, 'capture', `${cut.id}.json`)).clips : [];
+    for (const ratio of cut.ratios) {
+      const dir = join(ctx.jobDir, 'compose', ratio);
+      mkdirSync(join(dir, 'public', 'media'), { recursive: true });
+      const plan = buildRatioPlan(ctx, cut, ratio, { timeline, captions: captionsAll, voice, assets, capture });
+      for (const [name, file] of plan.media) if (!existsSync(join(dir, 'public', 'media', name))) copyFileSync(file, join(dir, 'public', 'media', name));
+      writeJson(join(dir, 'props.json'), plan.props);
+      writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: timeline.durationSeconds, pictureSeconds: timeline.durationSeconds, leadInSeconds: 0, timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups });
+      writeJson(join(dir, 'gate-segments.json'), { band: plan.layout.uiBand, durationSeconds: timeline.durationSeconds, segments: plan.gateSegments });
+      const target = loudnessTarget(ratio, ctx.spec, ctx.brand);
+      const mixOut = join(dir, 'mix.wav');
+      const mixArgs = buildMixArgs({ lines: plan.lines, sfx: plan.sfxPlan, music: plan.music, durationSec: timeline.durationSeconds, out: mixOut });
+      writeJson(join(dir, 'mix-plan.json'), { target, lines: plan.lines, sfx: plan.sfxPlan, music: plan.music, ffmpegArgs: mixArgs });
+      writeFileSync(join(dir, 'ad.srt'), toSrt(captionsAll), 'utf8');
+      const kit = ctx.flags.kit || join(MODULE_ROOT, '..');
+      const silent = join(dir, 'silent.mp4');
+      const renderArgs = [join(kit, 'node_modules', '@remotion', 'cli', 'remotion-cli.js'), 'render', 'src/index.ts', 'MarketingAd', silent, `--props=${join(dir, 'props.json')}`, `--public-dir=${join(dir, 'public')}`, '--codec=h264', '--muted', '--crf=17', '--concurrency=2', '--log=error', '--timeout=180000'];
+      writeJson(join(dir, 'render-command.json'), { cwd: kit, node: process.execPath, args: renderArgs });
+      summary[ratio] = { dir, durationSeconds: timeline.durationSeconds, windows: plan.groups.filter((g) => g.windows).map((g) => ({ beat: g.segments[0], windows: g.windows.length })), sfx: plan.sfxPlan.length, music: !!plan.music, target };
+      if (ctx.flags.prepareOnly || ctx.flags.dryRun) { ctx.log(`compose/${ratio}: prepared (no render)`); continue; }
+      ctx.log(`compose/${ratio}: rendering picture`);
+      const r1 = await run(process.execPath, renderArgs, { timeoutMs: 1800000 });
+      if (r1.code !== 0 || !existsSync(silent)) throw new Error(`remotion render failed for ${ratio}: ${(r1.stderr || r1.stdout).trim().split('\n').slice(-3).join(' | ')}`);
+      const r2 = await run('ffmpeg', mixArgs);
+      if (r2.code !== 0) throw new Error(`audio mix failed for ${ratio}: ${r2.stderr.trim().split('\n').pop()}`);
+      const measured = parseLoudnorm((await run('ffmpeg', loudnormMeasureArgs(mixOut, target))).stderr);
+      const out = join(dir, 'ad.mp4');
+      const r3 = await run('ffmpeg', encodeArgs({ silent, mixWav: mixOut, out, measured, target }));
+      if (r3.code !== 0) throw new Error(`encode failed for ${ratio}: ${r3.stderr.trim().split('\n').pop()}`);
+      summary[ratio].ad = { path: out, sha256: fileSha(out) };
+    }
+  }
+  recordStage(ctx, 'compose', ctx.flags.prepareOnly || ctx.flags.dryRun ? 'prepared' : 'done', { ratios: summary });
+  return summary;
+}

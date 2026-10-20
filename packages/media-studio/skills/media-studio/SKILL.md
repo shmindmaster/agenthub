@@ -125,6 +125,15 @@ If the external workspace cannot be established without touching the product
 repository, return `PIPELINE_BLOCKED`. Do not fall back to scaffolding inside
 the repo.
 
+## 3b. Marketing ads (`mvg`)
+
+A 15-30 s social or web ad for a product (LinkedIn, Meta, YouTube, a landing page) is one ad spec run through `mvg`, not a hand-built film: `node %LOCALAPPDATA%\AgentHub\media-studio\briefing-kit\marketing\mvg.mjs <spec.json>` (stages `lint`, `voice`, `timing`, `assets`, `capture`, `compose`, `qa`, `deliver`; `--dry-run`, `--hosted-only`, `--local-gates`). Read `kit/marketing/README.md` for the spec, the stages, the costs and the gates.
+
+- Real captured UI (receipt-bound clips from the product's film workspaces) carries every credibility-bearing second. Generated stills, sound effects and music are abstract and assert nothing; no generated people or children, no invented figures, customers or testimonials, never "submitted to a payer".
+- Every narration sentence and on-screen text maps to a claim with evidence; `lint` fails closed before any paid call. Budgets are enforced per run and cumulatively; ElevenLabs goes only through the governed adapter in `packages/elevenlabs` (plain `python`, never `python -I`).
+- Owner approval (Sarosh, 2026-10-20) covers hosted ElevenLabs (speech, sound effects, music) and OpenAI (images, word timing, vision QA) inside the stated caps for marketing ads; the local-first rule above still governs films. The marketing narrator is never the owner clone or a celebrity sound-alike.
+- `deliver` only ships a ratio whose every required gate passed on the exact file (picture, captions, loudness, sync, listen, vision, story >= 85, viewer-release), as `NN - Title (ratio).mp4` with the README row, computing the next free `NN` at deliver time.
+
 ## 4. Stop
 
 - Real user data on a live product.
