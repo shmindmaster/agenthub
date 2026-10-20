@@ -1,8 +1,8 @@
 # ElevenLabs capability map
 
 Governed-mode constraint: this is a provider capability catalog, not permission
-to generate. Only the shared CLI REST TTS adapter currently enforces metering.
-Other paid rows remain disabled until a shared adapter exists. Native Flows,
+to generate. Only the shared CLI adapter enforces metering: REST speech (`tts`), sound effects (`sfx`) and
+instrumental music (`music`, `governed_audio.py`). Other paid rows remain disabled until a shared adapter exists. Native Flows,
 SDKs and specialist skills must not bypass this restriction. Read
 `packages/media-studio/skills/media-studio/references/content-controls.md`.
 
