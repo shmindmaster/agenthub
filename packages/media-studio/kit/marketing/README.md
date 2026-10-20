@@ -95,6 +95,7 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 words match: "twelve" finds "12"), so `ui.trimStart` is only a fallback; the beat is lengthened so the result holds at least
 1.6 s after the last narrated action. Every other receipt action inside the beat's window is written to the cue plan as
 `narrated: false`. Caption cues are held or started earlier into the surrounding gaps so none exceeds 18 characters per second.
+A capture expectation ("the product responded") stands as a beat's result only if it is visible inside the beat and holds >= 1.5 s; one up to 0.5 s short lengthens the beat, any other is left out of the cue plan (so it is never stamped after the beat). The per-line ASR copy in the gate workspace is shifted by the lead-in so keyword times match where each line is placed. Vision frames are sampled at least 0.25 s from a caption cue start or end. A reviewer may add `qa/<ratio>/vision-arbitration.json` `{candidateSha256, reviewer, items:[{frame, category, verdict:"false-positive", reason}]}`; it counts only when it names the current candidate hash, is recorded in `gates.json`, and is never written by mvg. The listen gate follows the film chain: `releaseEligible` is the pass signal and any finding, a WARNING included, fails it.
 A focus window magnified by a Recast punch-in (`sourceZoom`) gets a wider crop so the total magnification stays at or under
 3x; if even zoom 1 is over the cap the compose stops and asks for a recapture.
 

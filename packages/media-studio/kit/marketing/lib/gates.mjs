@@ -3,7 +3,7 @@
 // releasable decision. Nothing here is a pass unless a gate actually ran on the exact candidate.
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { expandKeywords, unnarratedActions } from './align.mjs';
+import { chooseResult, expectationClipTimes, expandKeywords, shiftAsr, unnarratedActions } from './align.mjs';
 import { FRAMES } from './layout.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
 
@@ -90,7 +90,12 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     if (!existsSync(join(root, 'capture', dest))) copyFileSync(c.file, join(root, 'capture', dest));
     const g = composeMap.groups.find((x) => x.segments.includes(beat.id));
     manifestClips.push({ id: beat.id, file: dest.replace(/\\/g, '/'), segments: [beat.id], fit: 'hold', trimStart: g.edit.trimStart, trimEnd: g.edit.trimEnd, sourceRegion: g.sourceRegion });
-    receipt.clips[beat.id] = { ...c.receiptEntry, file: dest.replace(/\\/g, '/'), segments: [beat.id], sha256: fileSha(join(root, 'capture', dest)) };
+    // Only expectations that can serve as this beat's result stay in the receipt copy: visible inside the beat and held
+    // >= 1.5 s (see align.chooseResult). Others belong to a later part of the clip and would be stamped after the beat.
+    const segDur = timeline.segments.find((x) => x.id === beat.id).durationSeconds;
+    const keep = new Set(chooseResult({ expectations: expectationClipTimes(c.receiptEntry), trimStart: g.edit.trimStart, naturalSeconds: segDur }).keep.map((e) => e.raw));
+    const expectations = (c.receiptEntry.expectations || []).filter((x) => !x.observed || keep.has(x));
+    receipt.clips[beat.id] = { ...c.receiptEntry, expectations, file: dest.replace(/\\/g, '/'), segments: [beat.id], sha256: fileSha(join(root, 'capture', dest)) };
     // Every receipt action inside the beat's window is declared: the narrated ones with their spoken keywords (digits and
     // number words both), all others narrated:false so the sync gate does not ask for a spoken word for a pointer trace.
     const narrated = (beat.ui.actions || []).map((a) => ({ label: a.label, narrated: true, keywords: expandKeywords(a.keywords) }));
@@ -100,7 +105,13 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
   writeJson(join(root, 'capture', 'manifest.json'), { clips: manifestClips });
   writeJson(join(root, 'capture', 'receipt.json'), receipt);
   writeJson(join(root, 'story', 'cue-plan.json'), cuePlan);
-  for (const [beatId, file] of Object.entries(asr || {})) copyFileSync(file, join(root, 'voice', 'asr', `${beatId}.json`));
+  // The cue sheet reads a line's word times as seconds from the START OF ITS SCENE, but mvg places each line after a lead-in
+  // pause, so the per-line ASR is shifted by that lead; otherwise every keyword lands one lead early (a constant 300 ms miss).
+  for (const [beatId, file] of Object.entries(asr || {})) {
+    const seg = timeline.segments.find((x) => x.id === beatId);
+    const lead = seg && seg.lineStartSeconds !== null ? seg.lineStartSeconds - seg.startSeconds : 0;
+    writeJson(join(root, 'voice', 'asr', `${beatId}.json`), shiftAsr(readJson(file), round(lead, 3)));
+  }
   writeJson(join(root, 'output', `${spec.id}-compose-map.json`), composeMap);
   return root;
 }

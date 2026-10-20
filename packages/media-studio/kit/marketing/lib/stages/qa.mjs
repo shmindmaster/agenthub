@@ -34,8 +34,8 @@ export async function qaStage(ctx) {
       buildGateWorkspace({ root: ws, spec: ctx.spec, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs: target.lufs });
       const ad = join(cdir, 'ad.mp4');
       const gates = {};
-      if (!existsSync(ad)) {
-        for (const g of required) gates[g] = pending('no encoded candidate yet (compose renders it)');
+      if (!existsSync(ad) || ctx.flags.prepareOnly) {
+        for (const g of required) gates[g] = pending('no encoded candidate yet (compose renders it) or --prepare-only');
         const verdict = releasable(gates, required);
         writeJson(join(qdir, 'gates.json'), { ratio, candidate: null, gates, ...verdict });
         out[ratio] = { ...verdict, gates };
@@ -67,9 +67,13 @@ export async function qaStage(ctx) {
       if (ctx.flags.noVision) gates.vision = pending('skipped by --no-vision');
       else {
         try {
-          const v = await runVisionQa({ candidate: ad, spec: ctx.spec, brand: ctx.brand, ratio, ledger: ctx.ledger, vision: ctx.providers.vision, frames: ctx.providers.frames, framesDir: join(qdir, 'vision-frames'), duration: gateSegments.durationSeconds });
+          // Frames are sampled away from caption transitions, and a reviewer's arbitration (never written by mvg) is honoured only
+          // when it names this exact candidate hash.
+          const arbPath = join(qdir, 'vision-arbitration.json');
+          const v = await runVisionQa({ candidate: ad, spec: ctx.spec, brand: ctx.brand, ratio, ledger: ctx.ledger, vision: ctx.providers.vision, frames: ctx.providers.frames, framesDir: join(qdir, 'vision-frames'), duration: gateSegments.durationSeconds, cues: readJson(join(ctx.jobDir, 'timing', cut.id, 'captions.json')).chunks, arbitration: existsSync(arbPath) ? readJson(arbPath) : null });
           writeJson(join(qdir, 'vision.json'), v);
-          gates.vision = v.ok ? { status: 'pass', detail: `${v.sampled.length} frames, ${v.findings.length} non-blocking findings` } : { status: 'fail', detail: v.reasons.slice(0, 2).join(' | ') };
+          const arb = v.arbitration?.honoured ? { reviewer: v.arbitration.reviewer, applied: v.arbitration.applied, ignored: v.arbitration.ignored } : v.arbitration?.file ? { reviewer: null, applied: [], ignored: v.arbitration.ignored } : null;
+          gates.vision = v.ok ? { status: 'pass', detail: `${v.sampled.length} frames, ${v.findings.length} findings${v.arbitration?.applied?.length ? `, ${v.arbitration.applied.length} arbitrated false-positive by ${v.arbitration.reviewer}` : ' (none blocking)'}`, ...(arb ? { arbitration: arb } : {}) } : { status: 'fail', detail: v.reasons.slice(0, 2).join(' | '), ...(arb ? { arbitration: arb } : {}) };
         } catch (e) { gates.vision = { status: 'fail', detail: e.message }; }
       }
 

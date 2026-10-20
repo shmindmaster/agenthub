@@ -87,3 +87,36 @@ export function unnarratedActions(receiptActions, headTrim, windowStart, windowE
   }
   return out;
 }
+
+const MAX_RESULT_EXTENSION_SECONDS = 0.5;
+
+/** Observed capture expectations ("the product responded") as clip seconds. */
+export function expectationClipTimes(entry) {
+  const headTrim = entry?.recastHeadTrimSeconds ?? 0;
+  return (entry?.expectations || []).filter((x) => x.observed).map((x) => ({ label: x.label, clip: (x.observedAt ?? x.at) - headTrim, raw: x }));
+}
+
+/**
+ * Which capture expectations may stand as this beat's result. The sync gate measures the hold from the moment the result
+ * is shown, so a result must be visible inside the beat and stay >= 1.5 s. An expectation that happens after the beat ends,
+ * or too late to hold, is not this beat's result and is left out of the cue plan (it would otherwise be stamped after the
+ * beat). One that is only slightly late (<= 0.5 s short) lengthens the beat instead.
+ * @returns {{keep:Array, requiredSeconds:number|null, dropped:Array}}
+ */
+export function chooseResult({ expectations, trimStart, naturalSeconds }) {
+  const rels = expectations.map((e) => ({ ...e, rel: round(e.clip - trimStart, 3) })).filter((e) => e.rel >= 0);
+  const held = rels.filter((e) => e.rel <= naturalSeconds - RESULT_HOLD_SECONDS + 1e-6);
+  if (held.length) return { keep: held, requiredSeconds: null, dropped: rels.filter((e) => !held.includes(e)) };
+  const slightlyLate = rels.filter((e) => e.rel <= naturalSeconds - RESULT_HOLD_SECONDS + MAX_RESULT_EXTENSION_SECONDS + 1e-6)[0];
+  if (slightlyLate) return { keep: [slightlyLate], requiredSeconds: round(slightlyLate.rel + RESULT_HOLD_SECONDS, 3), dropped: rels.filter((e) => e !== slightlyLate) };
+  return { keep: [], requiredSeconds: null, dropped: rels };
+}
+
+/** Shift an ASR payload (OpenAI verbose_json or local whisper) by `delta` seconds. */
+export function shiftAsr(payload, delta) {
+  const move = (w) => ({ ...w, start: round(Number(w.start) + delta, 3), end: round(Number(w.end) + delta, 3) });
+  const out = { ...payload };
+  if (Array.isArray(payload.words)) out.words = payload.words.map(move);
+  if (Array.isArray(payload.segments)) out.segments = payload.segments.map((s) => ({ ...s, ...(Number.isFinite(s.start) ? { start: round(s.start + delta, 3), end: round(s.end + delta, 3) } : {}), ...(Array.isArray(s.words) ? { words: s.words.map(move) } : {}) }));
+  return out;
+}

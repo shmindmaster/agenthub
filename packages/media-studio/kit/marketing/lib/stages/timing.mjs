@@ -5,8 +5,8 @@ import { join, relative } from 'node:path';
 import { recordStage } from '../context.mjs';
 import { checkStage, stageKey, writeStage } from '../cache.mjs';
 import { chunkWords, toSrt } from '../captions.mjs';
-import { alignBeat } from '../align.mjs';
-import { LEAD_SECONDS, normalizeCuts } from '../lint.mjs';
+import { alignBeat, chooseResult, expectationClipTimes } from '../align.mjs';
+import { LEAD_SECONDS, TAIL_SECONDS, normalizeCuts } from '../lint.mjs';
 import { resolveClip } from './capture.mjs';
 import { estimateWhisperUsd } from '../prices.mjs';
 import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../timing.mjs';
@@ -65,10 +65,19 @@ export async function timingStage(ctx) {
       // A beat is as long as the result needs to hold after its last narrated pointer action (>= 1.5 s), measured with the
       // clip cut so the first action lands on its spoken word.
       let sized = beat;
-      if (beat.ui?.actions?.length && beat.ui.align !== false) {
+      if (beat.ui) {
         const { entry } = resolveClip(ctx, beat);
-        const a = alignBeat({ actions: beat.ui.actions, receiptActions: entry.actions, headTrim: entry.recastHeadTrimSeconds ?? 0, wordsRel: words.map((w) => ({ word: w.word, start: w.start + LEAD_SECONDS })), fallbackTrim: beat.ui.trimStart || 0 });
-        if (a.requiredSeconds && a.requiredSeconds > (beat.minSeconds || 0)) sized = { ...beat, minSeconds: a.requiredSeconds };
+        let trimStart = beat.ui.trimStart || 0;
+        let required = null;
+        if (beat.ui.actions?.length && beat.ui.align !== false) {
+          const a = alignBeat({ actions: beat.ui.actions, receiptActions: entry.actions, headTrim: entry.recastHeadTrimSeconds ?? 0, wordsRel: words.map((w) => ({ word: w.word, start: w.start + LEAD_SECONDS })), fallbackTrim: trimStart });
+          if (a.aligned) { trimStart = a.trimStart; required = a.requiredSeconds; }
+        }
+        // A result the capture observed must be visible inside the beat and hold >= 1.5 s: a slightly late one lengthens the beat.
+        const natural = Math.max(LEAD_SECONDS + duration + TAIL_SECONDS, beat.minSeconds || 0, required || 0);
+        const result = chooseResult({ expectations: expectationClipTimes(entry), trimStart, naturalSeconds: natural });
+        const needed = Math.max(required || 0, result.requiredSeconds || 0);
+        if (needed > (beat.minSeconds || 0)) sized = { ...beat, minSeconds: needed };
       }
       lines.push({ beat: sized, audio: { durationSeconds: round(duration, 3), words, asr: asrRel } });
     }
@@ -87,7 +96,7 @@ export async function timingStage(ctx) {
     const over = timeline.durationSeconds - cut.targetSeconds;
     const detail = { durationSeconds: timeline.durationSeconds, targetSeconds: cut.targetSeconds, overSeconds: round(over, 2), captionChunks: chunks.length };
     out[cut.id] = writeStage(ctx.jobDir, 'timing', cut.id, k, { ...detail, outputs: [...Object.values(files), ...asrFiles] });
-    if (over > 1.5) throw new Error(`cut ${cut.id} runs ${timeline.durationSeconds}s against a ${cut.targetSeconds}s target (+${over.toFixed(1)}s): trim the narration or beat minimums`);
+    if (over > Math.max(2, cut.targetSeconds * 0.1)) throw new Error(`cut ${cut.id} runs ${timeline.durationSeconds}s against a ${cut.targetSeconds}s target (+${over.toFixed(1)}s; allowed ${Math.max(2, cut.targetSeconds * 0.1).toFixed(1)}s, the longer of 2 s and 10%): trim the narration or beat minimums`);
     if (over < -0.2 * cut.targetSeconds - 2) ctx.log(`timing/${cut.id}: ${timeline.durationSeconds}s is well under the ${cut.targetSeconds}s target`);
   }
   recordStage(ctx, 'timing', 'done', { cuts: Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { durationSeconds: v.durationSeconds, targetSeconds: v.targetSeconds }])) });

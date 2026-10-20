@@ -18,6 +18,8 @@ export function gateScript(name, moduleRoot) {
 
 const tail = (r) => String(r.stderr || r.stdout || '').trim().split(/\r?\n/).filter(Boolean).slice(-2).join(' | ').slice(0, 300);
 
+export const listenFindings = (report) => ((report.findings || []).map((f) => `${f.severity} ${f.checkId} at ${f.startSeconds}s: ${String(f.description).slice(0, 120)}`).join(' | ') || 'no findings (check the report)');
+
 /** The exact listen command line (the film chain's post_gates.sh passes the same flags). */
 export function listenCommand({ candidate, ws, sha, sourceRevision, risk, listenOut }) {
   return `& '${AI}' listen '${candidate}' --transcript '${join(ws, 'story', 'locked-script.txt')}' --pronunciation-manifest '${risk}' --timeline '${join(ws, 'qa', 'listen-timeline.json')}' --candidate-id ${sha} --source-revision ${sourceRevision} --output '${listenOut}'`;
@@ -44,7 +46,9 @@ export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, s
   const listen = await run('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', listenCommand({ candidate, ws, sha, sourceRevision, risk, listenOut })], { timeoutMs: 1800000 });
   writeFileSync(join(ws, 'qa', 'listen.log'), [listen.stdout, listen.stderr].join(String.fromCharCode(10)));
   const lr = existsSync(listenOut) ? readJson(listenOut) : null;
-  out.listen = listen.code === 0 && lr?.releaseEligible === true ? { status: 'pass', detail: `${(lr.findings || []).length} findings` } : { status: 'fail', detail: lr ? `status ${lr.status}, ${(lr.findings || []).length} findings` : `listen produced no report (exit ${listen.code}): ${tail(listen)}` };
+  // The gate's own rule (and the film chain's): releaseEligible is the pass signal, and ANY finding, a WARNING included,
+  // makes the report FAIL / not eligible. Nothing here downgrades a WARNING; the findings are named so a person can judge them.
+  out.listen = listen.code === 0 && lr?.releaseEligible === true ? { status: 'pass', detail: `${(lr.findings || []).length} findings` } : { status: 'fail', detail: lr ? `status ${lr.status}, releaseEligible ${lr.releaseEligible}: ${listenFindings(lr)}` : `listen produced no report (exit ${listen.code}): ${tail(listen)}` };
   return out;
 }
 

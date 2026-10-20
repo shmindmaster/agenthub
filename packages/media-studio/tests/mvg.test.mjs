@@ -20,7 +20,7 @@ import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../kit/marketing
 import { buildMixArgs, loudnessTarget, parseLoudnorm } from '../kit/marketing/lib/mix.mjs';
 import { deliverFiles, nextFreeNumber, updateReadme, usedNumbers, deliveredName } from '../kit/marketing/lib/deliver.mjs';
 import { captionsCheck, releasable } from '../kit/marketing/lib/gates.mjs';
-import { evaluate, parseVerdict, sampleTimes, runVisionQa, VerdictError } from '../kit/marketing/vision-qa.mjs';
+import { applyArbitration, buildInstructions, evaluate, parseVerdict, sampleTimes, runVisionQa, VerdictError } from '../kit/marketing/vision-qa.mjs';
 import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/picture-gate.mjs';
 import { estimateImageUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
 import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
@@ -29,9 +29,9 @@ import { assetsStage, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
 import { cueTime, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
 import { parseArgs } from '../kit/marketing/mvg.mjs';
-import { alignBeat, expandKeywords, findWord, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
+import { alignBeat, chooseResult, expandKeywords, findWord, shiftAsr, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
 import { buildGateWorkspace } from '../kit/marketing/lib/gates.mjs';
-import { listenCommand } from '../kit/marketing/lib/local-gates.mjs';
+import { listenCommand, listenFindings } from '../kit/marketing/lib/local-gates.mjs';
 import { labelWidth, MIN_LABEL_FONT } from '../kit/marketing/lib/layout.mjs';
 import { MAX_SCALE } from '../kit/marketing/lib/crop.mjs';
 
@@ -792,4 +792,112 @@ test('item 6: a window already magnified by a Recast punch-in gets a wider crop 
   assert.equal(readability(huge.scale).ok, false);
   const [wide] = focusWindows({ explicit: [{ startSec: 0, endSec: 5, x: 0.4, y: 0.4, sourceZoom: 1.5 }], clipStart: 0, clipEnd: 5, srcW: 1600, srcH: 1000, band: { w: 1080, h: 760 }, zoom: 1.7 });
   assert.equal(wide.zoom, 1.7);
+});
+
+// ---- round 2 (second GPU run)
+test('sync r2-1: a result is declared only when it is visible inside the beat and holds >= 1.5 s; a slightly late one lengthens the beat', () => {
+  const exp = (label, clip) => ({ label, clip });
+  // held: 2.0 s into a 4.1 s beat -> kept, no extension
+  let r = chooseResult({ expectations: [exp('runway visible', 8.0)], trimStart: 6.0, naturalSeconds: 4.1 });
+  assert.equal(r.keep.length, 1);
+  assert.equal(r.requiredSeconds, null);
+  // after the beat (clip 8.04 against a window that ends at 5.6): left out, never stamped after the beat
+  r = chooseResult({ expectations: [exp('Carter first on the list', 8.04)], trimStart: 2.7, naturalSeconds: 2.83 });
+  assert.equal(r.keep.length, 0);
+  assert.equal(r.dropped.length, 1);
+  // before the clip window: dropped
+  assert.equal(chooseResult({ expectations: [exp('early', 1)], trimStart: 3, naturalSeconds: 5 }).keep.length, 0);
+  // 0.14 s short of the hold (V1 in the second run): the beat grows by that much
+  r = chooseResult({ expectations: [exp('result', 2.22)], trimStart: 0, naturalSeconds: 3.68 });
+  assert.equal(r.keep.length, 1);
+  assert.ok(Math.abs(r.requiredSeconds - (2.22 + RESULT_HOLD_SECONDS)) < 1e-9);
+  // more than 0.5 s short: not this beat's result
+  assert.equal(chooseResult({ expectations: [exp('late', 3.2)], trimStart: 0, naturalSeconds: 3.68 }).keep.length, 0);
+  // the last of several held expectations is the one the cue sheet picks, so every held one is kept
+  assert.equal(chooseResult({ expectations: [exp('a', 1), exp('b', 2)], trimStart: 0, naturalSeconds: 6 }).keep.length, 2);
+});
+
+test('sync r2-2: the per-line ASR copy is shifted by the lead so keyword times match where the line is placed', () => {
+  const payload = { words: [{ word: 'Twelve', start: 0.1, end: 0.4 }], segments: [{ start: 0, end: 1, words: [{ word: 'Twelve', start: 0.1, end: 0.4 }] }] };
+  const moved = shiftAsr(payload, 0.3);
+  assert.equal(moved.words[0].start, 0.4);
+  assert.equal(moved.segments[0].words[0].end, 0.7);
+  assert.equal(payload.words[0].start, 0.1, 'the source is not modified');
+  const dir = join(root, 'gatews2');
+  const spec = baseSpec();
+  const cut = { id: 'main', ratios: ['16x9'], beats: [{ id: 'B1', kind: 'ui', narration: 'Twelve days.', ui: { sourceJob: 'film', clipId: 'A01', actions: [{ label: 'Carter row', keywords: ['twelve'] }] } }, { id: 'B2', kind: 'ui', narration: 'Later.', ui: { sourceJob: 'film', clipId: 'A01' } }] };
+  const timeline = { durationSeconds: 8, segments: [
+    { id: 'B1', text: 'Twelve days.', startSeconds: 0, durationSeconds: 4, speechSeconds: 2, lineStartSeconds: 0.3, words: [{ word: 'Twelve', start: 0.4, end: 0.8 }] },
+    { id: 'B2', text: 'Later.', startSeconds: 4, durationSeconds: 4, speechSeconds: 1, lineStartSeconds: 4.3, words: [{ word: 'Later.', start: 4.4, end: 4.8 }] }] };
+  const asrFile = join(root, 'asr-b1.json');
+  writeFileSync(asrFile, JSON.stringify(payload));
+  const clipFile = join(receiptDir, 'capture', 'clips', 'A01.webm');
+  const expectations = [{ label: 'in window', observed: true, observedAt: 5.0 }, { label: 'after the beat', observed: true, observedAt: 12.0 }, { label: 'never observed', observed: false, observedAt: 5.5 }];
+  const composeMap = { groups: [{ segments: ['B1'], edit: { trimStart: 3.0, trimEnd: 12, speed: 1, skip: [], headHold: 0 }, sourceRegion: { x: 0, y: 0, width: 0.5, height: 0.5 } }, { segments: ['B2'], edit: { trimStart: 3.0, trimEnd: 12, speed: 1, skip: [], headHold: 0 }, sourceRegion: { x: 0, y: 0, width: 0.5, height: 0.5 } }] };
+  buildGateWorkspace({ root: dir, spec, cut, ratio: '16x9', timeline, composeMap, clips: [{ beatId: 'B1', file: clipFile, receiptEntry: { actions: receiptActions, expectations, recastHeadTrimSeconds: 0 } }, { beatId: 'B2', file: clipFile, receiptEntry: { actions: receiptActions, expectations, recastHeadTrimSeconds: 0 } }], asr: { B1: asrFile }, loudnessLufs: -16 });
+  assert.equal(readJson(join(dir, 'voice', 'asr', 'B1.json')).words[0].start, 0.4);
+  const rec = readJson(join(dir, 'capture', 'receipt.json')).clips;
+  assert.deepEqual(rec.B1.expectations.filter((x) => x.observed).map((x) => x.label), ['in window'], 'only an expectation that can hold inside the beat stays');
+  assert.deepEqual(rec.B2.expectations.filter((x) => x.observed).map((x) => x.label), ['in window']);
+  assert.equal(rec.B1.expectations.length, 2, 'unobserved expectations are untouched');
+});
+
+test('vision r2-3: frames are not sampled within 0.25 s of a caption transition, and the rubric says captions are chunks', () => {
+  const cues = [{ startSec: 1.0, endSec: 2.5 }, { startSec: 2.6, endSec: 4.0 }, { startSec: 5.0, endSec: 6.0 }];
+  const plain = sampleTimes(7, 1.5);
+  const nudged = sampleTimes(7, 1.5, { cues });
+  assert.ok(plain.some((t) => cues.some((c) => Math.abs(t - c.startSec) < 0.25 || Math.abs(t - c.endSec) < 0.25)), 'the plain grid does hit a transition');
+  for (const t of nudged) assert.ok(cues.every((c) => Math.abs(t - c.startSec) >= 0.25 && Math.abs(t - c.endSec) >= 0.25), `sample ${t} is on a transition`);
+  assert.ok(nudged.every((t, i) => i === 0 || t > nudged[i - 1]), 'still ordered and unique');
+  assert.deepEqual(sampleTimes(6, 1.5, { cues: [] }), [0.4, 1.9, 3.4, 4.9, 5.6], 'no cues, no change');
+  const text = buildInstructions({ spec: baseSpec(), brand, ratio: '16x9' });
+  assert.match(text, /4-7 word chunks of ONE spoken sentence/);
+  assert.match(text, /NOT a typo or an incomplete sentence/);
+});
+
+test('vision r2-4: arbitration is honoured only for this candidate hash, a named reviewer and specific false-positive items', () => {
+  const verdict = parseVerdict(verdictJson({ frames: [
+    { label: 'F13', issues: [{ category: 'typo', severity: 'high', detail: 'reads "Tru"', evidence: 'Tru' }] },
+    { label: 'F14', issues: [{ category: 'typo', severity: 'high', detail: 'reads "Tru"', evidence: 'Tru' }, { category: 'banned-claim', severity: 'high', detail: 'real', evidence: 'x' }] }] }));
+  const base = evaluate(verdict);
+  assert.equal(base.ok, false);
+  const arb = { candidateSha256: 'a'.repeat(64), reviewer: 'sarosh', items: [
+    { frame: 'F13', category: 'typo', verdict: 'false-positive', reason: 'Try is legible in the encoded frame' },
+    { frame: 'F14', category: 'typo', verdict: 'false-positive', reason: 'same card, frame checked by eye' }] };
+  let r = applyArbitration(structuredClone(base), arb, 'a'.repeat(64));
+  assert.equal(r.arbitration.honoured, true);
+  assert.equal(r.arbitration.applied.length, 2);
+  assert.equal(r.ok, false, 'the real banned-claim finding on F14 still blocks');
+  assert.equal(r.blocking, 1);
+  const only = { ...arb, items: [{ frame: 'F13', category: 'typo', verdict: 'false-positive', reason: 'Try is legible in the encoded frame' }] };
+  const clean = evaluate(parseVerdict(verdictJson({ frames: [{ label: 'F13', issues: [{ category: 'typo', severity: 'high', detail: 'x', evidence: 'y' }] }] })));
+  r = applyArbitration(structuredClone(clean), only, 'a'.repeat(64));
+  assert.equal(r.ok, true);
+  assert.equal(r.arbitration.reviewer, 'sarosh');
+  // wrong candidate, no reviewer, weak item, unknown finding, wrong verdict: not honoured
+  assert.equal(applyArbitration(structuredClone(clean), only, 'b'.repeat(64)).ok, false);
+  assert.match(applyArbitration(structuredClone(clean), only, 'b'.repeat(64)).arbitration.ignored[0].reason, /different candidate/);
+  assert.equal(applyArbitration(structuredClone(clean), { ...only, reviewer: ' ' }, 'a'.repeat(64)).ok, false);
+  assert.equal(applyArbitration(structuredClone(clean), { ...only, items: [{ frame: 'F13', category: 'typo', verdict: 'false-positive', reason: 'no' }] }, 'a'.repeat(64)).ok, false);
+  assert.equal(applyArbitration(structuredClone(clean), { ...only, items: [{ frame: 'F99', category: 'typo', verdict: 'false-positive', reason: 'there is no such frame' }] }, 'a'.repeat(64)).ok, false);
+  assert.equal(applyArbitration(structuredClone(clean), { ...only, items: [{ frame: 'F13', category: 'typo', verdict: 'real', reason: 'it is a real typo here' }] }, 'a'.repeat(64)).ok, false);
+  // no file at all
+  assert.equal(applyArbitration(structuredClone(clean), null, 'a'.repeat(64)).arbitration.file, false);
+  // a missing label can be arbitrated only through an explicit overall/missing-label item
+  const nolabel = evaluate(parseVerdict(verdictJson({ overall: { labelPresentOnAllFrames: false, summary: 'x' } })));
+  assert.equal(applyArbitration(structuredClone(nolabel), { candidateSha256: 'a'.repeat(64), reviewer: 'r', items: [{ frame: 'overall', category: 'missing-label', verdict: 'false-positive', reason: 'label present on every frame, checked' }] }, 'a'.repeat(64)).ok, true);
+  // mvg itself never writes the file: the vision run leaves no arbitration behind
+  const qdir = join(root, 'noauto');
+  mkdirSync(qdir, { recursive: true });
+  const src = readFileSync(join(mod, 'lib', 'stages', 'qa.mjs'), 'utf8');
+  assert.ok(!/writeJson\([^)]*vision-arbitration/.test(src) && !/writeFileSync\([^)]*vision-arbitration/.test(src));
+});
+
+test('listen r2-5: releaseEligible is the pass signal and any finding, a WARNING included, is named in the gate detail', () => {
+  const report = { status: 'FAIL', releaseEligible: false, findings: [{ severity: 'WARNING', checkId: 'delivery-and-pacing', startSeconds: 0.33, description: "A slight hesitation before 'Twelve units left.'" }] };
+  assert.match(listenFindings(report), /WARNING delivery-and-pacing at 0.33s: A slight hesitation/);
+  assert.equal(listenFindings({ findings: [] }), 'no findings (check the report)');
+  const src = readFileSync(join(mod, 'lib', 'local-gates.mjs'), 'utf8');
+  assert.match(src, /releaseEligible === true/);
+  assert.ok(!/severity === 'WARNING'/.test(src), 'a WARNING is never downgraded');
 });

@@ -43,11 +43,27 @@ export const VERDICT_SCHEMA = {
 
 export class VerdictError extends Error { constructor(m) { super(m); this.name = 'VerdictError'; } }
 
-export function sampleTimes(durationSeconds, everySeconds = 1.5) {
+export const CAPTION_MARGIN_SECONDS = 0.25;
+
+/**
+ * Frame times every `everySeconds`, nudged off caption transitions: a frame within `margin` seconds of a cue start or end
+ * can catch a caption mid fade-in (every word transparent) and be misread as unreadable or incomplete. A sample moves forward
+ * to the first clear time (then backward) within half the interval; if none exists it stays.
+ */
+export function sampleTimes(durationSeconds, everySeconds = 1.5, { cues = [], margin = CAPTION_MARGIN_SECONDS } = {}) {
+  const near = (t) => cues.some((c) => Math.abs(t - c.startSec) < margin || Math.abs(t - c.endSec) < margin);
+  const nudge = (t) => {
+    if (!near(t)) return t;
+    for (let d = 0.05; d <= everySeconds / 2 + 1e-9; d += 0.05) {
+      for (const cand of [t + d, t - d]) if (cand > 0.1 && cand < durationSeconds - 0.1 && !near(cand)) return round(cand, 2);
+    }
+    return t;
+  };
   const out = [];
   for (let t = 0.4; t < durationSeconds - 0.2; t += everySeconds) out.push(round(t, 2));
   if (!out.length || durationSeconds - out[out.length - 1] > everySeconds * 0.6) out.push(round(Math.max(0.2, durationSeconds - 0.4), 2));
-  return out;
+  const moved = out.map(nudge);
+  return moved.filter((t, i) => moved.indexOf(t) === i);
 }
 
 export function buildInstructions({ spec, brand, ratio }) {
@@ -62,6 +78,7 @@ export function buildInstructions({ spec, brand, ratio }) {
     `Report prospect-name (high) if any of these names appear anywhere in a frame: ${forbidden}.`,
     `Report caption-overlap (high) when captions or graphics cover the focal point of the UI (the highlighted row, the pointer, the control being acted on).`,
     `Report people-or-children (high) for photographic or illustrated people, faces or children ADDED by the ad (b-roll, overlays, backgrounds). Ignore the small profile avatars that are part of the captured product UI. Report fabricated-ui (high) for any dashboard, chart or screen that does not look like captured software.`,
+    `The captions are 4-7 word chunks of ONE spoken sentence, shown one chunk at a time and highlighted word by word: a caption that is a fragment of a longer sentence is normal and is NOT a typo or an incomplete sentence. Sampled frames avoid caption transitions, but if a caption looks faded or partly transparent treat it as mid-animation and do not report it.`,
     `Every issue needs a one-sentence detail and a short evidence string quoting the visible text. If a frame has no issues return an empty list. Do not invent issues.`,
     `Approved overlay copy for reference (anything else on overlay is suspicious): ${spoken.join(' // ')} // ${spec.cta?.text || ''}`,
   ].join('\n');
@@ -89,6 +106,36 @@ export function evaluate(verdict, { failOn = 'high' } = {}) {
   return { ok: blocking.length === 0 && labelOk, blocking: blocking.length, findings, labelPresentOnAllFrames: labelOk, reasons };
 }
 
+/**
+ * Reviewer arbitration of vision findings. Honoured ONLY when the file names this exact candidate hash and a reviewer, and
+ * only for items that name a finding (frame + category), carry verdict "false-positive" and a reason. mvg never writes this
+ * file: a person who looked at the frames does. Returns the evaluation with arbitrated findings removed from `blocking`.
+ */
+export function applyArbitration(result, arbitration, candidateSha256) {
+  const record = { file: !!arbitration, honoured: false, reviewer: arbitration?.reviewer ?? null, applied: [], ignored: [] };
+  if (!arbitration) return { ...result, arbitration: record };
+  if (arbitration.candidateSha256 !== candidateSha256) { record.ignored.push({ reason: 'arbitration is bound to a different candidate hash; ignored' }); return { ...result, arbitration: record }; }
+  if (!String(arbitration.reviewer || '').trim()) { record.ignored.push({ reason: 'arbitration names no reviewer; ignored' }); return { ...result, arbitration: record }; }
+  record.honoured = true;
+  const items = Array.isArray(arbitration.items) ? arbitration.items : [];
+  const used = new Set();
+  const isBlocking = (f) => f.severity === 'high';
+  for (const item of items) {
+    const ok = item && item.verdict === 'false-positive' && String(item.reason || '').trim().length >= 8 && item.frame && item.category;
+    if (!ok) { record.ignored.push({ ...item, reason: 'needs frame, category, verdict "false-positive" and a reason of at least 8 characters' }); continue; }
+    const hits = result.findings.filter((f, i) => !used.has(i) && f.frame === item.frame && f.category === item.category);
+    if (!hits.length && !(item.frame === 'overall' && item.category === 'missing-label')) { record.ignored.push({ ...item, reason: 'no such finding' }); continue; }
+    result.findings.forEach((f, i) => { if (f.frame === item.frame && f.category === item.category) used.add(i); });
+    record.applied.push({ frame: item.frame, category: item.category, reason: item.reason });
+  }
+  const remaining = result.findings.filter((f, i) => isBlocking(f) && !used.has(i));
+  const labelArbitrated = record.applied.some((a) => a.frame === 'overall' && a.category === 'missing-label');
+  const labelOk = result.labelPresentOnAllFrames || labelArbitrated;
+  const reasons = remaining.map((f) => `${f.frame}: ${f.category} (${f.severity}) ${f.detail}`);
+  if (!labelOk) reasons.push('overall: the synthetic label is not present on all frames');
+  return { ...result, ok: remaining.length === 0 && labelOk, blocking: remaining.length, reasons, arbitration: record };
+}
+
 function ffprobeDuration(file) {
   return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { windowsHide: true }).toString());
 }
@@ -114,7 +161,7 @@ export async function runVisionQa(o) {
   const model = o.brand?.vision?.model || 'gpt-5.6-sol';
   const every = o.spec?.qa?.visionEverySeconds || 1.5;
   const duration = o.duration ?? ffprobeDuration(o.candidate);
-  const times = sampleTimes(duration, every);
+  const times = sampleTimes(duration, every, { cues: o.cues || [] });
   const frames = (o.frames || extractFramesFfmpeg)(o.candidate, times, o.framesDir || join(dirname(o.candidate), '.vision-frames'));
   const estimate = estimateVisionUsd(model, frames.length);
   o.ledger?.check('openai', estimate, 'vision QA');
@@ -128,10 +175,11 @@ export async function runVisionQa(o) {
   const verdict = parseVerdict(res.text);
   const usd = res.usage ? visionUsdFromUsage(model, res.usage) : estimate;
   o.ledger?.charge({ stage: 'qa', provider: 'openai', service: 'vision', units: usd, estimated: !res.usage, ref: `${o.ratio}:${frames.length} frames` });
-  const result = evaluate(verdict);
+  const candidateSha = existsSync(o.candidate) ? fileSha(o.candidate) : null;
+  const result = applyArbitration(evaluate(verdict), o.arbitration || null, candidateSha);
   return {
     generator: 'media-studio/mvg-vision-qa', model, ratio: o.ratio,
-    candidate: { path: o.candidate, sha256: existsSync(o.candidate) ? fileSha(o.candidate) : null, durationSeconds: round(duration, 2) },
+    candidate: { path: o.candidate, sha256: candidateSha, durationSeconds: round(duration, 2) },
     sampled: frames.map(({ label, t }) => ({ label, t })), everySeconds: every, costUsd: round(usd, 4), ...result, verdict,
   };
 }
@@ -152,7 +200,8 @@ if (isMain()) {
   const spec = readJson(resolve(specPath));
   const brandPath = flag('--brand') || join(dirname(resolve(specPath)), '..', 'brand', 'brand.json');
   const brand = existsSync(brandPath) ? readJson(brandPath) : {};
-  const report = await runVisionQa({ candidate: resolve(candidate), spec, brand, ratio });
+  const arbPath = flag('--arbitration');
+  const report = await runVisionQa({ candidate: resolve(candidate), spec, brand, ratio, arbitration: arbPath && existsSync(arbPath) ? readJson(resolve(arbPath)) : null });
   const out = resolve(flag('--out', 'vision-qa.json'));
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`);
