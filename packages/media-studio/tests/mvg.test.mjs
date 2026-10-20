@@ -6,6 +6,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { symlinkSync } from 'node:fs';
 import { validate } from '../kit/marketing/lib/schema.mjs';
 import { bannedHits, DEFAULT_BANNED, estimateCutSeconds, lintSpec, normalizeCuts } from '../kit/marketing/lib/lint.mjs';
 import { canonical, hashOf, readJson } from '../kit/marketing/lib/util.mjs';
@@ -25,7 +27,7 @@ import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
 import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
 import { assetsStage, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
-import { cueTime } from '../kit/marketing/lib/stages/compose.mjs';
+import { cueTime, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
 import { parseArgs } from '../kit/marketing/mvg.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -367,6 +369,9 @@ test('kinetic caption chunks are 4-7 words, break on clauses and never overlap',
   assert.ok(chunks[0].text.endsWith(',') || chunks[0].words.length <= 7);
   const srt = toSrt(chunks);
   assert.match(srt, /^1\n00:00:00,/);
+  const long = 'The check flagged it, and the next step waits on a person.'.split(' ').map((w, i) => ({ word: w, start: i * 0.3, end: i * 0.3 + 0.25 }));
+  assert.deepEqual(chunkWords(long).map((c) => c.text), ['The check flagged it,', 'and the next step', 'waits on a person.'], 'a 12-word sentence breaks at the clause and the conjunction, never into 4 + 8');
+  assert.ok(chunkWords('one two three four five six seven eight nine ten eleven twelve thirteen fourteen'.split(' ').map((w, i) => ({ word: w, start: i, end: i + 0.5 }))).every((c) => c.words.length >= 4 && c.words.length <= 7));
   assert.equal(wrapCue('a'.repeat(30) + ' ' + 'b'.repeat(30)).split('\n').length, 2);
   assert.ok(captionsCheck(srt).ok, JSON.stringify(captionsCheck(srt).errors));
   assert.equal(captionsCheck('1\n00:00:00,000 --> 00:00:01,000\none two three four five six seven eight\n').ok, false);
@@ -625,4 +630,38 @@ test('mvg CLI argument parsing', () => {
   assert.equal(a.flags.dryRun, true);
   assert.equal(a.flags.localGates, true);
   assert.equal(a.flags.workspace, 'D:/w');
+});
+
+test('the CLI still runs when the kit is reached through a junction (the deployed runtime path is a link)', () => {
+  const link = join(root, 'linked-marketing');
+  symlinkSync(mod, link, 'junction');
+  const r = spawnSync(process.execPath, [join(link, 'mvg.mjs')], { encoding: 'utf8', windowsHide: true });
+  assert.equal(r.status, 2, r.stderr);
+  assert.match(r.stderr, /usage: node mvg\.mjs/);
+});
+
+test('props integrity check catches a missing clip, a bad camera and a gap between beats before any render', () => {
+  const pub = join(root, 'pub');
+  mkdirSync(join(pub, 'media'), { recursive: true });
+  writeFileSync(join(pub, 'media', 'a.webm'), 'x');
+  const cam = { times: [0, 2], x: [0.1, 0.1], y: [0.1, 0.1], w: [0.5, 0.5], h: [0.5, 0.5] };
+  const good = { width: 1080, height: 1920, fps: 30, durationSec: 4, brand: { fontFiles: [] }, captions: [{ startSec: 0, endSec: 1.5, words: [{ word: 'hi', start: 0, end: 1 }] }], beats: [
+    { id: 'A', kind: 'ui', startSec: 0, durationSec: 2, clip: { src: 'media/a.webm', trimBeforeSec: 0, playSec: 2, srcW: 1600, srcH: 1000, camera: cam } },
+    { id: 'B', kind: 'card', startSec: 2, durationSec: 2 }] };
+  assert.deepEqual(validateProps(good, pub), []);
+  const missing = structuredClone(good);
+  missing.beats[0].clip.src = 'media/zzz.webm';
+  assert.ok(validateProps(missing, pub).some((e) => /clip file missing/.test(e)));
+  const flat = structuredClone(good);
+  flat.beats[0].clip.camera.times = [0, 0];
+  assert.ok(validateProps(flat, pub).some((e) => /strictly increasing/.test(e)));
+  const over = structuredClone(good);
+  over.beats[0].clip.camera.x = [0.8, 0.8];
+  assert.ok(validateProps(over, pub).some((e) => /overflows/.test(e)));
+  const gap = structuredClone(good);
+  gap.beats[1].startSec = 2.5;
+  assert.ok(validateProps(gap, pub).some((e) => /does not start where/.test(e)));
+  const long = structuredClone(good);
+  long.captions[0].words = Array(8).fill({ word: 'w', start: 0, end: 1 });
+  assert.ok(validateProps(long, pub).some((e) => /caption chunk/.test(e)));
 });

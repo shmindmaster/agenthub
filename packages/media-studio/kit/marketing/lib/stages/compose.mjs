@@ -26,6 +26,36 @@ export function cueTime(cue, seg, { actions = [], headTrim = 0, trimStart = 0, d
   return round(seg.startSeconds + (hit.t - headTrim - trimStart));
 }
 
+/** Structural check of the MarketingAd props before anything renders: a bad prop is cheaper to find here than mid-render. */
+export function validateProps(props, publicDir) {
+  const errors = [];
+  const need = (cond, msg) => { if (!cond) errors.push(msg); };
+  need(Number.isInteger(props.width) && Number.isInteger(props.height) && props.fps === 30, 'frame size / fps');
+  need(props.beats.length > 0, 'no beats');
+  let end = 0;
+  for (const b of props.beats) {
+    need(Math.abs(b.startSec - end) < 0.011, `beat ${b.id} does not start where the previous one ends (${b.startSec} vs ${end})`);
+    end = b.startSec + b.durationSec;
+    if (b.kind === 'ui') {
+      const c = b.clip;
+      need(!!c, `ui beat ${b.id} has no clip`);
+      if (!c) continue;
+      need(existsSync(join(publicDir, c.src)), `clip file missing for ${b.id}: ${c.src}`);
+      const cam = c.camera;
+      need(cam.times.length >= 2 && ['x', 'y', 'w', 'h'].every((k) => cam[k].length === cam.times.length), `camera arrays of ${b.id} differ in length`);
+      need(cam.times.every((t, i) => i === 0 || t > cam.times[i - 1]), `camera times of ${b.id} are not strictly increasing`);
+      need(['x', 'y'].every((k) => cam[k].every((v) => v >= 0 && v <= 1)) && ['w', 'h'].every((k) => cam[k].every((v) => v > 0 && v <= 1)), `camera region of ${b.id} leaves the source`);
+      need(cam.x.every((x, i) => x + cam.w[i] <= 1.0001) && cam.y.every((y, i) => y + cam.h[i] <= 1.0001), `camera region of ${b.id} overflows the source`);
+      need(c.playSec > 0 && c.playSec <= b.durationSec + 0.001, `play length of ${b.id}`);
+    }
+    if (b.kind === 'broll') need(b.image && existsSync(join(publicDir, b.image.src)), `b-roll image missing for ${b.id}`);
+  }
+  need(Math.abs(end - props.durationSec) < 0.02, `beats end at ${end}, props say ${props.durationSec}`);
+  for (const f of props.brand.fontFiles) need(existsSync(join(publicDir, f.src)), `font file missing: ${f.src}`);
+  for (const c of props.captions) need(c.endSec > c.startSec && c.words.length > 0 && c.words.length <= 7, 'caption chunk');
+  return errors;
+}
+
 export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, assets, capture }) {
   const layout = layoutFor(ratio, ctx.brand);
   const layoutErrors = safeZoneErrors(layout);
@@ -118,6 +148,8 @@ export async function composeStage(ctx) {
       mkdirSync(join(dir, 'public', 'media'), { recursive: true });
       const plan = buildRatioPlan(ctx, cut, ratio, { timeline, captions: captionsAll, voice, assets, capture });
       for (const [name, file] of plan.media) if (!existsSync(join(dir, 'public', 'media', name))) copyFileSync(file, join(dir, 'public', 'media', name));
+      const propErrors = validateProps(plan.props, join(dir, 'public'));
+      if (propErrors.length) throw new Error(`MarketingAd props for ${ratio} are invalid: ${propErrors.slice(0, 4).join('; ')}`);
       writeJson(join(dir, 'props.json'), plan.props);
       writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: timeline.durationSeconds, pictureSeconds: timeline.durationSeconds, leadInSeconds: 0, timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups });
       writeJson(join(dir, 'gate-segments.json'), { band: plan.layout.uiBand, durationSeconds: timeline.durationSeconds, segments: plan.gateSegments });

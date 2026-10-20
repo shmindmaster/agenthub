@@ -5,9 +5,9 @@
 //
 // CLI: node vision-qa.mjs <candidate.mp4> --spec <ad.json> --ratio 16x9 --out <report.json> [--brand brand.json]
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { validate } from './lib/schema.mjs';
 import { estimateVisionUsd, visionUsdFromUsage } from './lib/prices.mjs';
 import { fileSha, readJson, round } from './lib/util.mjs';
@@ -136,8 +136,13 @@ export async function runVisionQa(o) {
   };
 }
 
+// The deployed kit is reached through a link (%LOCALAPPDATA%\AgentHub\media-studio -> D:\Local-AI), so compare real paths.
+function isMain() {
+  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
+}
+
 // ---- CLI
-if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+if (isMain()) {
   const argv = process.argv.slice(2);
   const flag = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
   const candidate = argv.find((a) => !a.startsWith('--') && /\.mp4$/i.test(a));

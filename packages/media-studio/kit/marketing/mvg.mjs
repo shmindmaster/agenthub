@@ -15,8 +15,8 @@
 //   --force           ignore stage caches
 //   --workspace DIR   media workspace root (default: the parent of the spec folder)
 // Exit codes: 0 ok, 1 stage failed (lint/budget/gate), 2 usage.
-import { pathToFileURL } from 'node:url';
-import { resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { loadContext } from './lib/context.mjs';
 import { lintStage } from './lib/stages/lint.mjs';
 import { voiceStage } from './lib/stages/voice.mjs';
@@ -26,6 +26,11 @@ import { captureStage } from './lib/stages/capture.mjs';
 import { composeStage } from './lib/stages/compose.mjs';
 import { qaStage } from './lib/stages/qa.mjs';
 import { deliverStage } from './lib/stages/deliver.mjs';
+
+// The deployed kit is reached through a link (%LOCALAPPDATA%\AgentHub\media-studio -> D:\Local-AI), so compare real paths.
+function isMain() {
+  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
+}
 
 export const STAGES = [
   ['lint', lintStage], ['voice', voiceStage], ['timing', timingStage], ['assets', assetsStage],
@@ -78,4 +83,4 @@ async function main() {
   }
 }
 
-if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) await main();
+if (isMain()) await main();

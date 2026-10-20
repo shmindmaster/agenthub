@@ -3,6 +3,8 @@
 import { round } from './util.mjs';
 
 const END = /[.!?]["')\]]*$/;
+const BREAK_BEFORE = new Set(['and', 'but', 'so', 'with', 'to', 'in', 'on', 'of', 'for', 'from', 'that', 'which', 'then', 'before', 'after']);
+const norm = (w) => String(w).toLowerCase().replace(/[^a-z0-9']/g, '');
 const CLAUSE = /[,;:–—]["')\]]*$/;
 
 export function chunkWords(words, { minWords = 4, maxWords = 7, lead = 0.05, hold = 0.35, minSeconds = 1.0 } = {}) {
@@ -19,27 +21,26 @@ export function chunkWords(words, { minWords = 4, maxWords = 7, lead = 0.05, hol
     if (prev && (s.length < minWords || prev.length < minWords) && prev.length + s.length <= maxWords) prev.push(...s);
     else merged.push([...s]);
   }
-  // 3) balanced chunks, preferring a clause break near the middle
+  // 3) split long sentences at clause breaks, then before a conjunction or preposition, never leaving a stub
   const chunks = [];
-  for (const s of merged) {
-    if (s.length <= maxWords) { chunks.push(s); continue; }
-    const k = Math.ceil(s.length / maxWords);
-    let rest = s;
-    for (let part = k; part > 1; part--) {
-      const ideal = Math.round(rest.length / part);
-      let cut = ideal;
-      for (let d = 0; d <= 2; d++) {
-        const a = ideal - d;
-        const b = ideal + d;
-        if (a >= minWords - 1 && CLAUSE.test(rest[a - 1]?.word || '')) { cut = a; break; }
-        if (b <= maxWords && b < rest.length && CLAUSE.test(rest[b - 1]?.word || '')) { cut = b; break; }
+  const split = (rest) => {
+    while (rest.length > maxWords) {
+      const lo = Math.min(minWords, rest.length - 1);
+      const hi = Math.min(maxWords, Math.max(lo, rest.length - minWords));
+      const ideal = rest.length / Math.ceil(rest.length / maxWords);
+      let best = hi;
+      let bestScore = Infinity;
+      for (let c = lo; c <= hi; c++) {
+        const ends = CLAUSE.test(rest[c - 1].word) ? 0 : BREAK_BEFORE.has(norm(rest[c].word)) ? 1 : 3;
+        const score = ends + Math.abs(c - ideal) * 0.5;
+        if (score < bestScore) { bestScore = score; best = c; }
       }
-      cut = Math.min(maxWords, Math.max(1, cut));
-      chunks.push(rest.slice(0, cut));
-      rest = rest.slice(cut);
+      chunks.push(rest.slice(0, best));
+      rest = rest.slice(best);
     }
-    chunks.push(rest);
-  }
+    if (rest.length) chunks.push(rest);
+  };
+  for (const s of merged) split(s);
   const out = chunks.map((c) => ({ words: c, text: c.map((w) => w.word).join(' '), startSec: round(Math.max(0, c[0].start - lead)), endSec: round(c[c.length - 1].end + hold) }));
   for (let i = 0; i < out.length; i++) {
     const next = out[i + 1];
