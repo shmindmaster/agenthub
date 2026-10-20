@@ -252,12 +252,19 @@ function Invoke-CloneBatch {
   }
 }
 
-function Test-PassReceipt([string]$SegDir) {
+function Test-PassReceipt([string]$SegDir, [string]$ExpectedText) {
+  # A PASS take is reusable only for the text it was rendered from. Segment folders are keyed by
+  # position (W03_L1_01), so an edited line must not inherit the old line's take.
   $p = Join-Path $SegDir 'PASS.json'
   if (-not (Test-Path -LiteralPath $p)) { return $false }
   try {
     $o = Get-Content -LiteralPath $p -Raw -Encoding UTF8 | ConvertFrom-Json
-    return [bool]$o.pass
+    if (-not [bool]$o.pass) { return $false }
+    if ($PSBoundParameters.ContainsKey('ExpectedText')) {
+      $norm = { param($s) (([string]$s) -replace '\s+', ' ').Trim() }
+      if ((& $norm $o.text) -ne (& $norm $ExpectedText)) { return $false }
+    }
+    return $true
   } catch { return $false }
 }
 
@@ -371,7 +378,7 @@ function Get-PendingOwner {
   $pending = @()
   foreach ($s in $All) {
     if (-not $s.isOwner) { continue }
-    if (Test-PassReceipt $s.dir) { continue }
+    if (Test-PassReceipt $s.dir $s.text) { continue }
     # wipe failed take so batch regenerates
     Remove-Item -LiteralPath $s.wav -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath (Join-Path $s.dir 'take.asr.txt') -Force -ErrorAction SilentlyContinue
@@ -416,7 +423,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
   # --- Role voices (small; one-shot is fine) ---
   foreach ($s in $segments) {
     if ($s.isOwner) { continue }
-    if (Test-PassReceipt $s.dir) { continue }
+    if (Test-PassReceipt $s.dir $s.text) { continue }
     Remove-Item -LiteralPath $s.wav -Force -ErrorAction SilentlyContinue
     Write-Host ("  ROLE {0} speaker={1}" -f $s.id, $s.roleSpeaker)
     & $LocalAi voice qwen-role --speaker $s.roleSpeaker --text $s.renderText --out $s.wav 2>&1 | Out-Null
@@ -425,7 +432,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
 
   # --- Integrity ---
   foreach ($s in $segments) {
-    if (Test-PassReceipt $s.dir) { continue }
+    if (Test-PassReceipt $s.dir $s.text) { continue }
     if (-not (Test-Path -LiteralPath $s.wav) -or (Get-Item $s.wav).Length -lt 1000) {
       Write-Warning "Missing/tiny wav $($s.id)"
       continue
@@ -438,7 +445,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
   if (-not $SkipAsr) {
     $asrJobs = @()
     foreach ($s in $segments) {
-      if (Test-PassReceipt $s.dir) { continue }
+      if (Test-PassReceipt $s.dir $s.text) { continue }
       if (-not (Test-Path -LiteralPath $s.wav)) { continue }
       $asrOut = Join-Path $s.dir 'take.asr.txt'
       Remove-Item -LiteralPath $asrOut -Force -ErrorAction SilentlyContinue
@@ -469,7 +476,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
     New-Item -ItemType Directory -Force -Path $scoreDir | Out-Null
     foreach ($s in $segments) {
       if (-not $s.isOwner) { continue }
-      if (Test-PassReceipt $s.dir) { continue }
+      if (Test-PassReceipt $s.dir $s.text) { continue }
       if (-not (Test-Path -LiteralPath $s.wav)) { continue }
       Copy-Item -LiteralPath $s.wav -Destination (Join-Path $scoreDir "$($s.id).wav") -Force
     }
@@ -490,7 +497,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
 
   # --- Gate + PASS receipts ---
   foreach ($s in $segments) {
-    if (Test-PassReceipt $s.dir) { continue }
+    if (Test-PassReceipt $s.dir $s.text) { continue }
     $integOk = $false
     $ij = Join-Path $s.dir 'take.integrity.json'
     if (Test-Path $ij) {
@@ -534,13 +541,13 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
 }
 
 function Get-FailedSegments {
-  return @($segments | Where-Object { -not (Test-PassReceipt $_.dir) } | ForEach-Object { $_.id })
+  return @($segments | Where-Object { -not (Test-PassReceipt $_.dir $_.text) } | ForEach-Object { $_.id })
 }
 
 function Write-Ledger([object]$Listen) {
   $ledgerSegs = @()
   foreach ($s in $segments) {
-    if (Test-PassReceipt $s.dir) { $ledgerSegs += (Get-Content (Join-Path $s.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json) }
+    if (Test-PassReceipt $s.dir $s.text) { $ledgerSegs += (Get-Content (Join-Path $s.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json) }
   }
   [ordered]@{
     job = (Split-Path $Job -Leaf)
