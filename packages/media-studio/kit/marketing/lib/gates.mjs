@@ -3,6 +3,7 @@
 // releasable decision. Nothing here is a pass unless a gate actually ran on the exact candidate.
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { expandKeywords, unnarratedActions } from './align.mjs';
 import { FRAMES } from './layout.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
 
@@ -67,6 +68,18 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     title: `${spec.title} - storyboard`, kind: 'product-screencast', deliveryProfile: frame.profile, scenarioId: spec.id,
     beats: cut.beats.map((b, i) => ({ id: b.id, order: i + 1, narration: b.narration || '', visualMode: b.kind === 'ui' ? 'screen' : b.kind === 'broll' ? 'broll' : 'card', resultHoldSeconds: 1.6 })),
   });
+  // Inputs the Local-AI listen gate requires for a speech review: the segments for the pronunciation-risk manifest, the
+  // reading overrides, and a timeline whose audioStart/audioEnd bound the spoken words inside each scene.
+  const narratedSegs = timeline.segments.filter((s) => s.text);
+  writeJson(join(root, 'story', 'narration-segments.json'), { segments: narratedSegs.map((s) => ({ id: s.id, scene: s.id, text: s.text, wavSeconds: s.speechSeconds })) });
+  writeJson(join(root, 'story', 'reading-overrides.json'), {});
+  writeJson(join(root, 'qa', 'listen-timeline.json'), {
+    durationSeconds: timeline.durationSeconds, leadInSeconds: 0, tailSeconds: 0,
+    segments: narratedSegs.map((s) => ({
+      id: s.id, scene: s.id, text: s.text, startSeconds: s.startSeconds, durationSeconds: s.durationSeconds, speechSeconds: s.speechSeconds,
+      audioStartSeconds: s.words.length ? s.words[0].start : s.lineStartSeconds, audioEndSeconds: round(s.lineStartSeconds + s.speechSeconds, 3), sceneEndSeconds: round(s.startSeconds + s.durationSeconds, 3),
+    })),
+  });
   writeFileSync(join(root, 'story', 'locked-script.txt'), `${timeline.segments.map((s) => s.text).filter(Boolean).join('\n')}\n`, 'utf8');
   const cuePlan = { voiceFirst: true, beats: {} };
   const manifestClips = [];
@@ -78,7 +91,11 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     const g = composeMap.groups.find((x) => x.segments.includes(beat.id));
     manifestClips.push({ id: beat.id, file: dest.replace(/\\/g, '/'), segments: [beat.id], fit: 'hold', trimStart: g.edit.trimStart, trimEnd: g.edit.trimEnd, sourceRegion: g.sourceRegion });
     receipt.clips[beat.id] = { ...c.receiptEntry, file: dest.replace(/\\/g, '/'), segments: [beat.id], sha256: fileSha(join(root, 'capture', dest)) };
-    if (beat.ui.actions?.length) cuePlan.beats[beat.id] = { actions: beat.ui.actions.map((a) => ({ label: a.label, narrated: true, keywords: a.keywords })) };
+    // Every receipt action inside the beat's window is declared: the narrated ones with their spoken keywords (digits and
+    // number words both), all others narrated:false so the sync gate does not ask for a spoken word for a pointer trace.
+    const narrated = (beat.ui.actions || []).map((a) => ({ label: a.label, narrated: true, keywords: expandKeywords(a.keywords) }));
+    const quiet = unnarratedActions(c.receiptEntry.actions, c.receiptEntry.recastHeadTrimSeconds ?? 0, g.edit.trimStart, g.edit.trimEnd, narrated.map((a) => a.label)).map((label) => ({ label, narrated: false }));
+    if (narrated.length || quiet.length) cuePlan.beats[beat.id] = { actions: [...narrated, ...quiet] };
   }
   writeJson(join(root, 'capture', 'manifest.json'), { clips: manifestClips });
   writeJson(join(root, 'capture', 'receipt.json'), receipt);

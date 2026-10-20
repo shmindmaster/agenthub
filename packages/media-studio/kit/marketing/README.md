@@ -89,6 +89,15 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 | OpenAI `gpt-4o-mini-tts` | Optional narration with `instructions` | ~$0.02/min |
 | ElevenLabs video, OpenAI video | Not used: ElevenLabs video is not exposed by the governed REST adapter; the Sora Videos API was shut down 2026-09-24 | |
 
+## Voice-first alignment
+
+`ui.actions` names the receipt actions the voice talks about. The first one is cut onto its spoken keyword (digits and number
+words match: "twelve" finds "12"), so `ui.trimStart` is only a fallback; the beat is lengthened so the result holds at least
+1.6 s after the last narrated action. Every other receipt action inside the beat's window is written to the cue plan as
+`narrated: false`. Caption cues are held or started earlier into the surrounding gaps so none exceeds 18 characters per second.
+A focus window magnified by a Recast punch-in (`sourceZoom`) gets a wider crop so the total magnification stays at or under
+3x; if even zoom 1 is over the cap the compose stops and asks for a recapture.
+
 ## Composition and ratios
 
 `kit/src/MarketingAd.tsx` (registered in `Root.tsx` as `MarketingAd`) renders the picture from props. The UI sits in a "UI
@@ -99,9 +108,9 @@ persistent label and the CTA end card sit beside it, never over the focal point.
 
 | Ratio | Frame | UI band | Base zoom |
 | --- | --- | --- | --- |
-| 16x9 | 1920x1080 | 1920x944 at top, caption bar below | 1.15 |
+| 16x9 | 1920x1080 | 1920x896 at top; caption row and 24 px label row below | 1.15 |
 | 4x5 | 1080x1350 | 1080x760, label above, captions below | 1.7 |
-| 9x16 | 1080x1920 | 1080x610 inside the safe band (y 330-940), captions to y 1238 | 2.4 |
+| 9x16 | 1080x1920 | label 26 px and captions above (y 272-564), 1080x900 UI band from y 584 over a blurred backdrop of the same clip | 2.4 |
 
 ## QA gates (`qa/<ratio>/gates.json`)
 
@@ -111,7 +120,7 @@ persistent label and the CTA end card sit beside it, never over the focal point.
 | `captions` | 4-7 words per cue, <= 2 lines of 42 characters, <= 20 characters per second, ordered | none |
 | `loudness` | ffmpeg `loudnorm` on the exact file, within 1 LU of the target, true peak <= -1 dBTP | ffmpeg |
 | `sync` | `build-cue-sheet.mjs` + `validate-sync.mjs` after local whisper on the encoded file | `--local-gates` (GPU) |
-| `listen` | `ai.ps1 listen` Local-AI gate | `--local-gates` (GPU) |
+| `listen` | `ai.ps1 listen` Local-AI gate. It refuses a speech review without a pronunciation-risk manifest, so mvg first runs `ai.ps1 voice pronunciation-risk` on `story/narration-segments.json` and passes `--pronunciation-manifest` and `--timeline` (`qa/listen-timeline.json`); the exit code and tail of the log are in the gate detail | `--local-gates` (GPU) |
 | `vision` | `vision-qa.mjs`: a frame every 1.5 s to an OpenAI vision model with a rubric (overlay typos, unreadable text at phone size, banned claims, prospect names, missing label, captions over the focal point, people/children, fabricated UI); any high finding or a missing label fails | OpenAI |
 | `story` | `media-story-experience-reviewer` score >= `qa.storyMin` (85) recorded in `qa/<ratio>/reviews.json` `storyReview` with a reviewer and `cta: true` | an agent review |
 | `viewerRelease` | `validate-viewer-release.mjs` on the gate workspace in `qa/<ratio>/ws`, from `reviews.json` PASS entries (`encodedVisualReview`, `titleReview`, `actionResultReview`, `storyReview`, `pronunciation`) bound to the candidate | the reviews above |

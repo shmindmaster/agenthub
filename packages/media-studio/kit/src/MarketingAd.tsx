@@ -55,7 +55,7 @@ export type MarketingAdProps = {
   };
   brand: {
     productName: string;
-    colors: { primary: string; foreground: string; background: string; accent: string; onPrimary: string };
+    colors: { primary: string; foreground: string; background: string; accent: string; onPrimary: string; emphasis?: string };
     fontDisplay: string;
     fontBody: string;
     fontFiles: { family: string; src: string; weight: number }[];
@@ -75,9 +75,9 @@ export const sampleMarketingAd: MarketingAdProps = {
   fps: 30,
   durationSec: 6,
   layout: {
-    uiBand: { x: 0, y: 0, w: 1920, h: 944 },
-    captionBox: { x: 96, y: 966, w: 1300, h: 94, fontSize: 50, maxLines: 1 },
-    labelBox: { x: 1450, y: 984, w: 400, h: 52, fontSize: 18 },
+    uiBand: { x: 0, y: 0, w: 1920, h: 896 },
+    captionBox: { x: 96, y: 908, w: 1728, h: 90, fontSize: 50, maxLines: 1 },
+    labelBox: { x: 96, y: 1008, w: 780, h: 52, fontSize: 24 },
     ctaBox: { x: 116, y: 190, w: 1688, h: 600 },
   },
   brand: {
@@ -98,6 +98,10 @@ export const sampleMarketingAd: MarketingAdProps = {
 };
 
 const EASE = Easing.inOut(Easing.cubic);
+// Caption contrast on the navy bar (vision QA flagged grey unspoken words and orange emphasis as low contrast): unspoken
+// words stay at 0.88 opacity and the emphasis is a light amber (about 12:1 on #0f172a) instead of the brand orange.
+const UNSPOKEN_OPACITY = 0.88;
+const EMPHASIS_COLOR = "#ffd166";
 
 const stack = (display: string, body: string, which: "display" | "body"): string =>
   `${which === "display" ? display : body}, ${which === "display" ? body : display}, "Segoe UI", system-ui, sans-serif`;
@@ -152,6 +156,30 @@ const UiCamera: FC<{ beat: AdBeat; band: Box }> = ({ beat, band }) => {
   );
 };
 
+// Portrait ratios keep text inside the platform-safe area, which leaves wide bands above and below the UI. The same
+// real clip, blurred and dimmed to a texture, fills them so the frame is not empty; nothing in it is legible, so it
+// carries no claim of its own.
+const UiBackdrop: FC<{ beat: AdBeat }> = ({ beat }) => {
+  const { fps } = useVideoConfig();
+  const clip = beat.clip;
+  if (!clip) return null;
+  const playFrames = Math.max(1, Math.round(clip.playSec * fps));
+  const trimBefore = Math.round(clip.trimBeforeSec * fps);
+  const style: CSSProperties = { width: "100%", height: "100%", objectFit: "cover", filter: "blur(34px) brightness(0.32) saturate(0.7)", transform: "scale(1.15)" };
+  return (
+    <AbsoluteFill style={{ overflow: "hidden" }}>
+      <Sequence durationInFrames={playFrames} layout="none">
+        <OffthreadVideo src={staticFile(clip.src)} muted trimBefore={trimBefore} style={style} />
+      </Sequence>
+      <Sequence from={playFrames} layout="none">
+        <Freeze frame={playFrames - 1}>
+          <OffthreadVideo src={staticFile(clip.src)} muted trimBefore={trimBefore} style={style} />
+        </Freeze>
+      </Sequence>
+    </AbsoluteFill>
+  );
+};
+
 const BrollBeat: FC<{ beat: AdBeat; band: Box; colors: MarketingAdProps["brand"]["colors"] }> = ({ beat, band, colors }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -198,25 +226,24 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
   const emphasis = new Set(props.emphasis.map((w) => w.toLowerCase().replace(/[^a-z0-9$%]/g, "")));
   const enter = interpolate(t, [chunk.startSec, chunk.startSec + 0.18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
-    <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", alignItems: "center", justifyContent: props.ratio === "16x9" ? "flex-start" : "center", flexWrap: "wrap", alignContent: "center", columnGap: box.fontSize * 0.28, rowGap: box.fontSize * 0.08, opacity: enter, overflow: "hidden", textAlign: "center" }}>
+    <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", alignItems: "center", justifyContent: props.ratio === "16x9" ? "flex-start" : "center", flexWrap: "wrap", alignContent: "center", columnGap: box.fontSize * 0.4, rowGap: box.fontSize * 0.08, opacity: enter, overflow: "hidden", textAlign: "center" }}>
       {chunk.words.map((w, i) => {
         const key = w.word.toLowerCase().replace(/[^a-z0-9$%]/g, "");
         const active = t >= w.start - 0.04 && t < w.end + 0.04;
         const spoken = t >= w.start - 0.04;
-        const color = emphasis.has(key) ? props.brand.colors.accent : "#ffffff";
+        const color = emphasis.has(key) ? props.brand.colors.emphasis ?? EMPHASIS_COLOR : "#ffffff";
         const wordStyle: CSSProperties = {
           fontFamily: stack(props.brand.fontDisplay, props.brand.fontBody, "display"),
-          fontWeight: 600,
           fontSize: box.fontSize,
           lineHeight: 1.12,
           letterSpacing: "-0.01em",
           color,
-          opacity: spoken ? 1 : 0.5,
-          transform: active ? "scale(1.06)" : "scale(1)",
-          textDecoration: active ? "underline" : "none",
-          textDecorationColor: props.brand.colors.primary,
-          textDecorationThickness: Math.max(3, Math.round(box.fontSize * 0.07)),
-          textUnderlineOffset: Math.round(box.fontSize * 0.14),
+          opacity: spoken ? 1 : UNSPOKEN_OPACITY,
+          fontWeight: emphasis.has(key) ? 700 : 600,
+          // The spoken word lifts slightly; the gap above is wider than its growth, so neighbours never touch. No
+          // underline: on a product film an underlined word reads as a link.
+          transform: active ? "scale(1.03)" : "scale(1)",
+          transformOrigin: "50% 60%",
           textShadow: "0 2px 10px rgba(15,23,42,0.55)",
         };
         return (
@@ -232,7 +259,7 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
 const Label: FC<{ props: MarketingAdProps }> = ({ props }) => {
   const box = props.layout.labelBox;
   return (
-    <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid rgba(255,255,255,0.55)", borderRadius: 8, background: "rgba(15,23,42,0.72)", color: "#ffffff", fontFamily: stack(props.brand.fontDisplay, props.brand.fontBody, "body"), fontWeight: 600, fontSize: box.fontSize, letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap", flexDirection: "column", lineHeight: 1.1 }}>
+    <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid rgba(255,255,255,0.85)", borderRadius: 8, background: "rgba(15,23,42,0.92)", color: "#ffffff", fontFamily: stack(props.brand.fontDisplay, props.brand.fontBody, "body"), fontWeight: 600, fontSize: box.fontSize, letterSpacing: "0.05em", textTransform: "uppercase", whiteSpace: "nowrap", flexDirection: "column", lineHeight: 1.1 }}>
       <span>{props.label}</span>
       {props.disclosure ? <span style={{ fontSize: box.fontSize * 0.7, opacity: 0.85, letterSpacing: "0.04em", textTransform: "none" }}>{props.disclosure}</span> : null}
     </div>
@@ -242,6 +269,7 @@ const Label: FC<{ props: MarketingAdProps }> = ({ props }) => {
 export const MarketingAd: FC<MarketingAdProps> = (props) => {
   const { fps } = useVideoConfig();
   const { brand, layout } = props;
+  const portrait = props.ratio !== "16x9";
   return (
     <AbsoluteFill style={{ background: brand.colors.foreground }}>
       <FontLoader files={brand.fontFiles} />
@@ -250,6 +278,7 @@ export const MarketingAd: FC<MarketingAdProps> = (props) => {
         const duration = Math.max(1, Math.round(beat.durationSec * fps));
         return (
           <Sequence key={beat.id} from={from} durationInFrames={duration} name={beat.id}>
+            {beat.kind === "ui" && portrait ? <UiBackdrop beat={beat} /> : null}
             {beat.kind === "ui" ? <UiCamera beat={beat} band={layout.uiBand} /> : null}
             {beat.kind === "broll" ? <BrollBeat beat={beat} band={layout.uiBand} colors={brand.colors} /> : null}
             {beat.kind === "card" || beat.kind === "title" ? <CardBeat beat={beat} props={props} /> : null}

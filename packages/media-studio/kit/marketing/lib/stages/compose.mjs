@@ -4,6 +4,7 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
+import { alignBeat } from '../align.mjs';
 import { cameraKeyframes, focusWindows, pointerTrack, readability, windowAt } from '../crop.mjs';
 import { FRAMES, layoutFor, safeZoneErrors } from '../layout.mjs';
 import { normalizeCuts } from '../lint.mjs';
@@ -79,8 +80,17 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
     if (beat.kind === 'ui') {
       const clip = capture.find((c) => c.beatId === beat.id);
       const { entry } = resolveClip(ctx, beat);
-      const trimStart = beat.ui.trimStart || 0;
-      const clipEnd = Math.min(beat.ui.trimEnd || clip.clipSeconds, clip.clipSeconds);
+      // The first narrated pointer action is cut onto its spoken word; ui.trimStart is only the fallback.
+      let trimStart = beat.ui.trimStart || 0;
+      let aligned = false;
+      if (beat.ui.actions?.length && beat.ui.align !== false) {
+        const a = alignBeat({ actions: beat.ui.actions, receiptActions: entry.actions, headTrim: clip.headTrimSeconds, wordsRel: seg.words.map((w) => ({ word: w.word, start: w.start - seg.startSeconds })), fallbackTrim: trimStart });
+        if (a.aligned) { trimStart = a.trimStart; aligned = true; }
+        if (a.note) warnings.push(`${beat.id}: ${a.note}`);
+      }
+      // An authored trimEnd (it kept a Recast zoom or a click out of the beat) still applies when the beat can be covered with it.
+      const authoredEnd = beat.ui.trimEnd && (!aligned || beat.ui.trimEnd - trimStart >= seg.durationSeconds - HOLD_PAD_MAX) ? beat.ui.trimEnd : clip.clipSeconds;
+      const clipEnd = Math.min(authoredEnd, clip.clipSeconds);
       const available = clipEnd - trimStart;
       if (!(available > 0)) throw new Error(`${beat.id}: trim leaves no clip`);
       const playSec = Math.min(seg.durationSeconds, available);
@@ -122,7 +132,7 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
   const props = {
     ratio, width: frame.width, height: frame.height, fps: 30, durationSec: timeline.durationSeconds,
     layout: { uiBand: layout.uiBand, captionBox: layout.captionBox, labelBox: layout.labelBox, ctaBox: layout.ctaBox },
-    brand: { productName: ctx.brand.product, colors: { primary: c.primary, foreground: c.foreground, background: c.background, accent: c.accent, onPrimary: c.onPrimary || '#ffffff' }, fontDisplay: ctx.brand.fonts.display, fontBody: ctx.brand.fonts.body, fontFiles },
+    brand: { productName: ctx.brand.product, colors: { primary: c.primary, foreground: c.foreground, background: c.background, accent: c.accent, onPrimary: c.onPrimary || '#ffffff', ...(c.emphasis ? { emphasis: c.emphasis } : {}) }, fontDisplay: ctx.brand.fonts.display, fontBody: ctx.brand.fonts.body, fontFiles },
     label: ctx.spec.labels, disclosure: ctx.spec.voice.disclosure || undefined,
     beats, captions: captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words })),
     emphasis: [...new Set(cut.beats.flatMap((b) => b.emphasis || []))],

@@ -7,7 +7,7 @@ const BREAK_BEFORE = new Set(['and', 'but', 'so', 'with', 'to', 'in', 'on', 'of'
 const norm = (w) => String(w).toLowerCase().replace(/[^a-z0-9']/g, '');
 const CLAUSE = /[,;:–—]["')\]]*$/;
 
-export function chunkWords(words, { minWords = 4, maxWords = 7, lead = 0.05, hold = 0.35, minSeconds = 1.0 } = {}) {
+export function chunkWords(words, { minWords = 4, maxWords = 7, lead = 0.05, hold = 0.35, minSeconds = 1.0, maxCps = 18 } = {}) {
   if (!words.length) return [];
   // 1) sentences
   const sentenceList = [];
@@ -45,7 +45,30 @@ export function chunkWords(words, { minWords = 4, maxWords = 7, lead = 0.05, hol
   for (let i = 0; i < out.length; i++) {
     const next = out[i + 1];
     if (next && out[i].endSec > next.startSec) out[i].endSec = round(next.startSec - 0.02);
-    if (out[i].endSec - out[i].startSec < minSeconds) out[i].endSec = round(Math.min(next ? next.startSec - 0.02 : Infinity, out[i].startSec + minSeconds));
+  }
+  // Reading speed: a cue shows at most `maxCps` characters per second (the release gate fails above 20). A cue that is
+  // too fast is held longer into the gap after it, then started earlier into the gap before it, never over a neighbor.
+  for (let i = 0; i < out.length; i++) {
+    const c = out[i];
+    const need = Math.max(minSeconds, c.text.length / maxCps);
+    const prevEnd = i > 0 ? out[i - 1].endSec + 0.02 : 0;
+    const nextStart = i + 1 < out.length ? out[i + 1].startSec - 0.02 : Infinity;
+    if (c.endSec - c.startSec >= need) continue;
+    c.endSec = round(Math.min(nextStart, c.startSec + need));
+    if (c.endSec - c.startSec < need) c.startSec = round(Math.max(prevEnd, c.endSec - need));
+    if (c.endSec - c.startSec < need && i > 0) {
+      // take the previous cue's hold: it only needs to outlast its last word
+      const p = out[i - 1];
+      const floor = p.words[p.words.length - 1].end + 0.05;
+      c.startSec = round(Math.max(floor + 0.02, c.endSec - need));
+      p.endSec = round(Math.min(p.endSec, c.startSec - 0.02));
+    }
+    if (c.endSec - c.startSec < need && i + 1 < out.length) {
+      // last resort: the next cue appears exactly when its first word is spoken, and this one holds up to that moment
+      const n = out[i + 1];
+      const room = Math.min(n.words[0].start - 0.02, c.startSec + need);
+      if (room > c.endSec) { c.endSec = round(room); n.startSec = round(Math.max(n.startSec, c.endSec + 0.02)); }
+    }
   }
   return out;
 }

@@ -5,7 +5,9 @@ import { join, relative } from 'node:path';
 import { recordStage } from '../context.mjs';
 import { checkStage, stageKey, writeStage } from '../cache.mjs';
 import { chunkWords, toSrt } from '../captions.mjs';
-import { normalizeCuts } from '../lint.mjs';
+import { alignBeat } from '../align.mjs';
+import { LEAD_SECONDS, normalizeCuts } from '../lint.mjs';
+import { resolveClip } from './capture.mjs';
 import { estimateWhisperUsd } from '../prices.mjs';
 import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../timing.mjs';
 import { run } from '../mix.mjs';
@@ -43,7 +45,8 @@ export async function timingStage(ctx) {
     const voicePath = join(ctx.jobDir, 'voice', `${cut.id}.lines.json`);
     if (!existsSync(voicePath)) throw new Error(`timing needs the voice stage first (missing ${voicePath})`);
     const voice = readJson(voicePath);
-    const k = stageKey('timing', { lines: voice.lines.map((l) => [l.key, l.sha256]), beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), provider: ctx.brand.timing?.provider || 'openai-whisper' });
+    const clipShas = cut.beats.filter((b) => b.ui).map((b) => { const r = resolveClip(ctx, b).entry; return [b.id, r.sha256, b.ui.trimStart, b.ui.actions, b.ui.align]; });
+    const k = stageKey('timing', { lines: voice.lines.map((l) => [l.key, l.sha256]), beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), clips: clipShas, provider: ctx.brand.timing?.provider || 'openai-whisper' });
     const cached = checkStage(ctx.jobDir, 'timing', cut.id, k);
     if (cached.hit && !ctx.flags.force) { ctx.log(`timing/${cut.id}: cached`); out[cut.id] = cached.manifest; continue; }
     const byBeat = new Map(voice.lines.map((l) => [l.beatId, l]));
@@ -59,7 +62,15 @@ export async function timingStage(ctx) {
       const { payload } = await wordsFor(ctx, { audio, asrPath: join(ctx.jobDir, asrRel), duration });
       asrFiles.push(asrRel);
       const words = alignScriptToAsr(beat.narration, parseAsrWords(payload), duration);
-      lines.push({ beat, audio: { durationSeconds: round(duration, 3), words, asr: asrRel } });
+      // A beat is as long as the result needs to hold after its last narrated pointer action (>= 1.5 s), measured with the
+      // clip cut so the first action lands on its spoken word.
+      let sized = beat;
+      if (beat.ui?.actions?.length && beat.ui.align !== false) {
+        const { entry } = resolveClip(ctx, beat);
+        const a = alignBeat({ actions: beat.ui.actions, receiptActions: entry.actions, headTrim: entry.recastHeadTrimSeconds ?? 0, wordsRel: words.map((w) => ({ word: w.word, start: w.start + LEAD_SECONDS })), fallbackTrim: beat.ui.trimStart || 0 });
+        if (a.requiredSeconds && a.requiredSeconds > (beat.minSeconds || 0)) sized = { ...beat, minSeconds: a.requiredSeconds };
+      }
+      lines.push({ beat: sized, audio: { durationSeconds: round(duration, 3), words, asr: asrRel } });
     }
     const timeline = buildTimeline(lines);
     const chunks = [];

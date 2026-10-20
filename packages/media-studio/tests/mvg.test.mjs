@@ -29,6 +29,11 @@ import { assetsStage, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
 import { cueTime, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
 import { parseArgs } from '../kit/marketing/mvg.mjs';
+import { alignBeat, expandKeywords, findWord, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
+import { buildGateWorkspace } from '../kit/marketing/lib/gates.mjs';
+import { listenCommand } from '../kit/marketing/lib/local-gates.mjs';
+import { labelWidth, MIN_LABEL_FONT } from '../kit/marketing/lib/layout.mjs';
+import { MAX_SCALE } from '../kit/marketing/lib/crop.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mod = join(here, '..', 'kit', 'marketing');
@@ -665,4 +670,126 @@ test('props integrity check catches a missing clip, a bad camera and a gap betwe
   const long = structuredClone(good);
   long.captions[0].words = Array(8).fill({ word: 'w', start: 0, end: 1 });
   assert.ok(validateProps(long, pub).some((e) => /caption chunk/.test(e)));
+});
+
+// ---- 2026-10-20 first GPU run fixes
+const receiptActions = [
+  { t: 1.0, type: 'goto', url: 'x' },
+  { t: 3.9, type: 'point', label: 'at-risk list', x: 5, y: 5 },
+  { t: 8.3, type: 'point', label: 'Carter row', x: 5, y: 5 },
+  { t: 9.9, type: 'point', label: 'trace', x: 5, y: 5 },
+  { t: 10.4, type: 'point', label: 'trace', x: 5, y: 5 },
+  { t: 20, type: 'point', label: 'far away', x: 5, y: 5 },
+];
+
+test('sync 1: pointer actions the beat does not narrate are declared narrated:false, digits match number words', () => {
+  assert.deepEqual(expandKeywords(['twelve']).sort(), ['12', 'twelve']);
+  assert.deepEqual(expandKeywords(['3']).sort(), ['3', 'three']);
+  assert.equal(findWord([{ word: 'in', start: 1 }, { word: '12', start: 1.4 }], ['twelve']).start, 1.4);
+  assert.deepEqual(unnarratedActions(receiptActions, 0.5, 3, 10, ['Carter row']), ['at-risk list', 'trace'], 'deduplicated, window-bound, narrated label excluded');
+  assert.deepEqual(unnarratedActions(receiptActions, 0.5, 3, 10, []), ['at-risk list', 'Carter row', 'trace']);
+  const dir = join(root, 'gatews');
+  const spec = baseSpec();
+  const cut = { id: 'main', ratios: ['16x9'], beats: [{ id: 'B1', kind: 'ui', narration: 'Twelve days.', ui: { sourceJob: 'film', clipId: 'A01', actions: [{ label: 'Carter row', keywords: ['twelve'] }] } }] };
+  const timeline = { durationSeconds: 3, segments: [{ id: 'B1', text: 'Twelve days.', startSeconds: 0, durationSeconds: 3, speechSeconds: 2, lineStartSeconds: 0.3, words: [{ word: 'Twelve', start: 0.4, end: 0.8 }, { word: 'days.', start: 0.9, end: 1.3 }] }] };
+  const clipFile = join(receiptDir, 'capture', 'clips', 'A01.webm');
+  const composeMap = { groups: [{ segments: ['B1'], edit: { trimStart: 3.0, trimEnd: 11, speed: 1, skip: [], headHold: 0 }, sourceRegion: { x: 0, y: 0, width: 0.5, height: 0.5 } }] };
+  buildGateWorkspace({ root: dir, spec, cut, ratio: '16x9', timeline, composeMap, clips: [{ beatId: 'B1', file: clipFile, receiptEntry: { actions: receiptActions, recastHeadTrimSeconds: 0.5 } }], asr: {}, loudnessLufs: -16 });
+  const plan = readJson(join(dir, 'story', 'cue-plan.json')).beats.B1.actions;
+  assert.deepEqual(plan.filter((a) => a.narrated).map((a) => [a.label, a.keywords.sort()]), [['Carter row', ['12', 'twelve']]]);
+  assert.deepEqual(plan.filter((a) => !a.narrated).map((a) => a.label), ['at-risk list', 'trace']);
+  // listen inputs
+  const seg = readJson(join(dir, 'story', 'narration-segments.json')).segments;
+  assert.equal(seg[0].text, 'Twelve days.');
+  const tl = readJson(join(dir, 'qa', 'listen-timeline.json'));
+  assert.equal(tl.segments[0].audioStartSeconds, 0.4);
+  assert.equal(tl.segments[0].audioEndSeconds, 2.3);
+  assert.equal(tl.segments[0].sceneEndSeconds, 3);
+});
+
+test('sync 2: the clip is cut so the first narrated action lands on its word and the beat holds the result >= 1.5 s', () => {
+  const words = [{ word: 'An', start: 0.3 }, { word: 'authorization', start: 0.5 }, { word: 'runs', start: 1.4 }, { word: 'out', start: 1.6 }, { word: 'in', start: 1.7 }, { word: '12', start: 2.0 }, { word: 'days', start: 2.3 }];
+  const a = alignBeat({ actions: [{ label: 'Carter row', keywords: ['twelve'] }], receiptActions, headTrim: 0.5, wordsRel: words, fallbackTrim: 6 });
+  assert.equal(a.aligned, true);
+  assert.equal(a.trimStart, 5.8, 'action at 7.8 s of the clip lands at the word 2.0 s into the beat');
+  assert.equal(a.actions[0].programRel, 2.0);
+  assert.equal(a.requiredSeconds, 2.0 + RESULT_HOLD_SECONDS, 'the beat outlasts the action by the result hold');
+  assert.ok(a.requiredSeconds - a.actions[0].programRel >= 1.5);
+  // several actions: align the first, hold after the last
+  const two = alignBeat({ actions: [{ label: 'Carter row', keywords: ['twelve'] }, { label: 'trace', keywords: ['days'] }], receiptActions, headTrim: 0.5, wordsRel: words });
+  assert.ok(Math.abs(two.requiredSeconds - (9.4 - 5.8 + RESULT_HOLD_SECONDS)) < 1e-9);
+  // nothing to match: authored trim is kept and the beat is not resized
+  const none = alignBeat({ actions: [{ label: 'Carter row', keywords: ['payer'] }], receiptActions, headTrim: 0.5, wordsRel: words, fallbackTrim: 6 });
+  assert.equal(none.aligned, false);
+  assert.equal(none.trimStart, 6);
+  assert.equal(none.requiredSeconds, null);
+  // the word comes before the clip has enough lead-in: clamped at 0 with an explanation, never a negative trim
+  const early = alignBeat({ actions: [{ label: 'at-risk list', keywords: ['twelve'] }], receiptActions: [{ t: 0.9, type: 'point', label: 'at-risk list' }], headTrim: 0, wordsRel: words });
+  assert.equal(early.trimStart, 0);
+  assert.match(early.note, /land late/);
+});
+
+test('sync 2b: explicit focus windows outside a re-aligned clip window drop out instead of producing negative spans', () => {
+  const band = { w: 1080, h: 900 };
+  const w = focusWindows({ explicit: [{ startSec: 2, endSec: 4, x: 0.2, y: 0.2 }, { startSec: 4, endSec: 9, x: 0.6, y: 0.6 }], clipStart: 6, clipEnd: 10, srcW: 1600, srcH: 1000, band, zoom: 2.4 });
+  assert.equal(w.length, 1);
+  assert.equal(w[0].startSec, 6);
+  assert.equal(w[0].endSec, 10);
+  assert.equal(w[0].focus.x, 0.6);
+});
+
+test('captions 3: a cue never exceeds 18 characters per second; the gap around it is used, never a neighbor', () => {
+  const fast = [['Twelve', 0, 0.2], ['units', 0.2, 0.45], ['left,', 0.45, 0.7], ['renewal', 0.7, 1.0], ['not', 1.0, 1.2], ['started.', 1.2, 1.6], ['Next', 4.0, 4.3], ['step.', 4.3, 4.8]].map(([word, start, end]) => ({ word, start, end }));
+  const chunks = chunkWords(fast);
+  for (const c of chunks) assert.ok(c.text.length / (c.endSec - c.startSec) <= 18.01, `${c.text}: ${(c.text.length / (c.endSec - c.startSec)).toFixed(1)} cps`);
+  for (let i = 1; i < chunks.length; i++) assert.ok(chunks[i].startSec >= chunks[i - 1].endSec, 'no overlap');
+  assert.ok(captionsCheck(toSrt(chunks)).ok, JSON.stringify(captionsCheck(toSrt(chunks)).errors));
+  const tight = [['And', 0.0, 0.2], ['the', 0.2, 0.35], ['next', 0.35, 0.6], ['step', 0.6, 0.9], ['waits', 0.9, 1.2], ['on', 1.2, 1.35], ['a', 1.35, 1.45], ['person.', 1.45, 1.9]].map(([word, start, end]) => ({ word, start, end }));
+  const tc = chunkWords(tight);
+  assert.ok(tc.every((c) => c.text.length / (c.endSec - c.startSec) <= 20), JSON.stringify(tc.map((c) => [c.text, c.startSec, c.endSec])));
+});
+
+test('vision 5: the persistent label is at least 24 px on 16:9 and 26 px on portrait and fits its box', () => {
+  const label = 'SYNTHETIC DEMO · NO PHI · REAL PRODUCT';
+  for (const ratio of ['16x9', '4x5', '9x16']) {
+    const l = layoutFor(ratio, brand);
+    assert.ok(l.labelBox.fontSize >= MIN_LABEL_FONT[ratio], `${ratio} label ${l.labelBox.fontSize}px`);
+    assert.ok(labelWidth(label, l.labelBox.fontSize) <= l.labelBox.w, `${ratio} label fits`);
+    assert.deepEqual(safeZoneErrors(l), []);
+  }
+  assert.equal(MIN_LABEL_FONT['16x9'], 24);
+  assert.equal(MIN_LABEL_FONT['9x16'], 26);
+  const small = layoutFor('16x9', brand);
+  small.labelBox = { ...small.labelBox, fontSize: 18 };
+  assert.ok(safeZoneErrors(small).some((e) => /below the 24px/.test(e)));
+  const narrow = layoutFor('16x9', brand);
+  narrow.labelBox = { ...narrow.labelBox, w: 300 };
+  assert.ok(safeZoneErrors(narrow).some((e) => /too narrow/.test(e)));
+  const tsx = readFileSync(join(mod, '..', 'src', 'MarketingAd.tsx'), 'utf8');
+  assert.match(tsx, /UNSPOKEN_OPACITY = 0\.88/, 'unspoken caption words stay >= 0.85');
+  assert.match(tsx, /EMPHASIS_COLOR = "#ffd166"/);
+});
+
+test('listen 4: the listen command passes the pronunciation manifest and the timeline the gate requires', () => {
+  const cmd = listenCommand({ candidate: 'C:/ws/output/x.mp4', ws: 'C:/ws', sha: 'abc', sourceRevision: 'rev', risk: 'C:/ws/qa/pronunciation-risk.json', listenOut: 'C:/ws/qa/listen-encoded.json' });
+  for (const flag of ['listen', '--transcript', '--pronunciation-manifest', '--timeline', '--candidate-id abc', '--source-revision rev', '--output']) assert.ok(cmd.includes(flag), flag);
+  assert.match(cmd, /pronunciation-risk\.json/);
+  assert.match(cmd, /listen-timeline\.json/);
+});
+
+test('item 6: a window already magnified by a Recast punch-in gets a wider crop so the magnification stays under the cap', () => {
+  const band = { w: 1080, h: 900 };
+  const base = bandRegion({ srcW: 1600, srcH: 1000, band, zoom: 2.4 }).scale;
+  assert.ok(Math.abs(base - 2.16) < 0.01, 'the 9:16 band at base zoom is about 2.16x');
+  const [w] = focusWindows({ explicit: [{ startSec: 0, endSec: 5, x: 0.4, y: 0.4, sourceZoom: 1.5 }], clipStart: 0, clipEnd: 5, srcW: 1600, srcH: 1000, band, zoom: 2.4 });
+  assert.ok(w.scale <= MAX_SCALE + 1e-6, `scale ${w.scale}`);
+  assert.ok(w.zoom < 2.4 && w.zoom >= 1, `zoom reduced to ${w.zoom}`);
+  assert.equal(readability(w.scale).ok, true);
+  const [fits] = focusWindows({ explicit: [{ startSec: 0, endSec: 5, x: 0.4, y: 0.4, sourceZoom: 1.2 }], clipStart: 0, clipEnd: 5, srcW: 1600, srcH: 1000, band, zoom: 2.4 });
+  assert.equal(fits.zoom, 2.4);
+  const [huge] = focusWindows({ explicit: [{ startSec: 0, endSec: 5, x: 0.4, y: 0.4, sourceZoom: 3.8 }], clipStart: 0, clipEnd: 5, srcW: 1600, srcH: 1000, band, zoom: 2.4 });
+  assert.equal(huge.zoom, 1);
+  assert.equal(readability(huge.scale).ok, false);
+  const [wide] = focusWindows({ explicit: [{ startSec: 0, endSec: 5, x: 0.4, y: 0.4, sourceZoom: 1.5 }], clipStart: 0, clipEnd: 5, srcW: 1600, srcH: 1000, band: { w: 1080, h: 760 }, zoom: 1.7 });
+  assert.equal(wide.zoom, 1.7);
 });
