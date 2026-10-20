@@ -83,9 +83,9 @@ export function runPictureGate(o) {
     if (seg.kind !== 'ui') continue;
     ui += seg.durationSeconds;
     if (!existsSync(seg.clipFile)) { fail(`segment ${seg.id}: source clip missing ${seg.clipFile}`); continue; }
-    const r = seg.sourceRegion;
-    const crop = `crop=iw*${r.width}:ih*${r.height}:iw*${r.x}:ih*${r.y},scale=${o.band.w}:${o.band.h}`;
-    const hashes = grayFrames(seg.clipFile, crop, 9, 8, 30).map(dhash);
+    // The camera eases between focus windows, so a frame near a boundary matches a neighboring window's crop.
+    const regions = seg.sourceRegions?.length ? seg.sourceRegions : [seg.sourceRegion];
+    const hashes = regions.flatMap((r) => grayFrames(seg.clipFile, `crop=iw*${r.width}:ih*${r.height}:iw*${r.x}:ih*${r.y},scale=${o.band.w}:${o.band.h}`, 9, 8, 30).map(dhash));
     const mid = seg.startSeconds + seg.durationSeconds / 2;
     const got = grayAt(o.candidate, Math.min(mid, o.durationSeconds - 0.2), bandVf, 9, 8);
     if (!got || !hashes.length) { fail(`segment ${seg.id}: cannot decode candidate or source frames`); continue; }

@@ -538,6 +538,7 @@ test('vision-qa end to end with a mock provider charges the ledger from usage an
   assert.equal(calls[0].frames.length, 5);
   assert.match(calls[0].instructions, /SYNTHETIC DEMO/);
   assert.match(calls[0].instructions, /Kaego/);
+  assert.match(calls[0].instructions, /Ignore the small profile avatars/);
   assert.ok(Math.abs(ledger.runTotal('openai') - (20000 * 4 + 1000 * 20) / 1e6) < 1e-9);
   const tiny = new CostLedger({ jobDir: join(root, 'vledger2'), runId: 'v', perRun: { openaiUsd: 0.0001 }, cumulative: {} });
   await assert.rejects(runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, ratio: '16x9', ledger: tiny, vision, frames, duration: 6 }), BudgetError);

@@ -94,7 +94,7 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
       beats.push({ ...base, clip: { src, trimBeforeSec: trimStart, playSec: round(playSec, 3), srcW: clip.viewport.width, srcH: clip.viewport.height, camera } });
       const mid = windowAt(windows, trimStart + playSec / 2);
       groups.push({ segments: [beat.id], startSeconds: seg.startSeconds, needSeconds: seg.durationSeconds, clipId: beat.id, file: `clips/${beat.id}.webm`, heldFromPrevious: false, sourceRegion: mid.region, srcSeconds: clip.clipSeconds, fit: 'hold', trimStart: 0, speed: 1, edit: { trimStart, trimEnd: clipEnd, speed: 1, skip: [], headHold: 0, srcSeconds: clipEnd }, extras: false, overlay: null, isImage: false, windows });
-      gateSegments.push({ id: beat.id, kind: 'ui', startSeconds: seg.startSeconds, durationSeconds: seg.durationSeconds, clipFile: clip.file, sourceRegion: mid.region, clipStart: trimStart });
+      gateSegments.push({ id: beat.id, kind: 'ui', startSeconds: seg.startSeconds, durationSeconds: seg.durationSeconds, clipFile: clip.file, sourceRegion: mid.region, sourceRegions: windows.map((w) => w.region), clipStart: trimStart });
       for (const s of beat.sfx || []) {
         const duration = s.durationSeconds || 1;
         const key = sfxKey(s.prompt, duration);

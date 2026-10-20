@@ -61,7 +61,7 @@ export function buildInstructions({ spec, brand, ratio }) {
     `Report banned-claim (high) for any overlay text asserting: submission or transmission to a payer, payer approval or payment outcomes, guarantees, HIPAA certification, testimonials, superlatives, invented percentages or dollar figures.`,
     `Report prospect-name (high) if any of these names appear anywhere in a frame: ${forbidden}.`,
     `Report caption-overlap (high) when captions or graphics cover the focal point of the UI (the highlighted row, the pointer, the control being acted on).`,
-    `Report people-or-children (high) for any photographic or illustrated people, faces or children; fabricated-ui (high) for any dashboard, chart or screen that does not look like captured software.`,
+    `Report people-or-children (high) for photographic or illustrated people, faces or children ADDED by the ad (b-roll, overlays, backgrounds). Ignore the small profile avatars that are part of the captured product UI. Report fabricated-ui (high) for any dashboard, chart or screen that does not look like captured software.`,
     `Every issue needs a one-sentence detail and a short evidence string quoting the visible text. If a frame has no issues return an empty list. Do not invent issues.`,
     `Approved overlay copy for reference (anything else on overlay is suspicious): ${spoken.join(' // ')} // ${spec.cta?.text || ''}`,
   ].join('\n');
