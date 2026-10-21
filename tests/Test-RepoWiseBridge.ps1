@@ -67,8 +67,7 @@ function Stop-PortOwner([int]$Port) {
 $scratch = Join-Path ([IO.Path]::GetTempPath()) ("rwlauncher-" + [Guid]::NewGuid().ToString('N'))
 $workspace = Join-Path $scratch 'ws'
 New-Item -ItemType Directory -Force -Path $workspace | Out-Null
-# The launcher runs `<RepoWiseExe> mcp <workspace> ...` from the workspace, so
-# with py.exe as the exe a file named `mcp` there stands in for repowise.
+# A public entry-point override lets the launcher exercise a synthetic server.
 Copy-Item -LiteralPath $fake -Destination (Join-Path $workspace 'mcp')
 $marker = Join-Path $scratch 'server-started.txt'
 $embedderStub = Join-Path $scratch 'ai.ps1'
@@ -84,7 +83,7 @@ function Invoke-Launcher {
     try {
         $argv = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $launcher,
             '-Port', $Port, '-Workspace', $workspace, '-EmbedderUrl', $EmbedderUrl, '-EmbedderWaitSeconds', 3,
-            '-ServerWaitSeconds', 30, '-RepoWiseExe', $py, '-RuntimeDir', $runtime, '-LocalAiCli', $embedderStub) + $Extra
+            '-ServerWaitSeconds', 30, '-RepoWiseExe', $py, '-RepoWisePython', $py, '-SharedServer', $fake, '-RuntimeDir', $runtime, '-LocalAiCli', $embedderStub) + $Extra
         # Files, not a pipe: the server the launcher starts inherits its std
         # handles, so a piped launcher never reaches EOF. The bridge passes
         # DEVNULL for the same reason.

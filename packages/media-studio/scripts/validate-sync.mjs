@@ -3,7 +3,7 @@
 // Usage: node validate-sync.mjs <jobRoot> <candidate.mp4> [--cue-sheet plan/cue-sheet.json] [--asr qa/encoded-asr.json]
 //                               [--out qa/sync.json] [--allow-degraded]
 //        thresholds: --action-tolerance-ms 300 --screen-tolerance-ms 40 --result-hold 1.5 --drift-ms 40
-//                    --scene-threshold 0.4 --max-freeze 4 --max-dropped 3
+//                    --scene-threshold 0.4 --max-freeze 4 --max-hold 6.5 --max-dropped 3
 //
 // The cue sheet (build-cue-sheet.mjs, "mapped" mode, built after compose) says where every spoken word, screen change,
 // click and result is meant to be on the program timeline. This gate holds the encoded file to it:
@@ -14,7 +14,17 @@
 //   av-sync         encoded audio vs cue-sheet words, <= 40 ms drift: ASR on the encoded audio when --asr / qa/encoded-asr.json
 //                   is supplied (same engine as the cue sheet: ai.ps1 transcribe <candidate> --engine whisper --json-out qa\encoded-asr.json),
 //                   otherwise speech-onset detection (silencedetect), which is coarser (constant offset limit 120 ms)
-//   dropped-frames  pts gaps in the video packets          frozen-frames  exact-frame freezes (> 4 s fails)
+//   dropped-frames  pts gaps in the video packets
+//   frozen-frames   a freeze is a stalled picture while the cue sheet expects change; a hold the cue sheet declares is not a freeze
+//                   stalled         an exact-frame freeze (any length, freezedetect reports >= 2 s) covering +-0.25 s of a screen cut,
+//                                   an action_time, a result's visible_at or an edl clip start fails: the picture did not change
+//                                   where the sheet says it does
+//                   declared hold   from max(last action_time, result.visible_at) to the beat's slot_end (a beat with no action and no
+//                                   result, such as a card, holds from its slot_start). A freeze wholly inside it passes as a
+//                                   'declared-hold' finding with the hold length, up to --max-hold (default 6.5 s); longer fails
+//                   anything else   an exact-frame freeze > --max-freeze (4 s) outside every declared hold fails
+//                   The result-hold check (>= 1.5 s on screen after the result) is unchanged. Capture scripts never need a scroll
+//                   jiggle to pass: hold still on the result and let the cue sheet say so.
 //   text-clipping   OCR on sampled frames, advisory; only when tesseract is installed
 // Writes qa/sync.json bound to the candidate SHA-256 and byte count with per-beat findings and the explicit list of checks NOT performed.
 // Viewer release (validate-viewer-release.mjs) requires a PASS report for this exact file.
@@ -31,7 +41,7 @@ if (!libPath) { console.error('sync-lib.mjs not found beside this script or in .
 const L = await import(pathToFileURL(libPath).href);
 
 const argv = process.argv.slice(2);
-const VALUE_FLAGS = new Set(['--cue-sheet', '--asr', '--out', '--action-tolerance-ms', '--screen-tolerance-ms', '--result-hold', '--drift-ms', '--scene-threshold', '--max-freeze', '--max-dropped']);
+const VALUE_FLAGS = new Set(['--cue-sheet', '--asr', '--out', '--action-tolerance-ms', '--screen-tolerance-ms', '--result-hold', '--drift-ms', '--scene-threshold', '--max-freeze', '--max-hold', '--max-dropped']);
 const pos = []; const opt = {};
 for (let i = 0; i < argv.length; i++) { if (VALUE_FLAGS.has(argv[i])) opt[argv[i]] = argv[++i]; else if (argv[i].startsWith('--')) opt[argv[i]] = true; else pos.push(argv[i]); }
 const [jobRoot, candidateArg] = pos;
@@ -47,6 +57,7 @@ const T = {
   onsetOffsetMaxMs: L.SYNC_DEFAULTS.onsetOffsetMaxMs,
   sceneThreshold: num('--scene-threshold', L.SYNC_DEFAULTS.sceneThreshold),
   maxFreezeSeconds: num('--max-freeze', L.SYNC_DEFAULTS.maxFreezeSeconds),
+  maxHoldSeconds: num('--max-hold', L.SYNC_DEFAULTS.maxHoldSeconds),
   maxDroppedFrames: num('--max-dropped', L.SYNC_DEFAULTS.maxDroppedFrames),
 };
 const allowDegraded = !!opt['--allow-degraded'];
@@ -79,7 +90,7 @@ let candidateSha = null; let candidateBytes = null;
 if (!existsSync(candidate)) fail(`candidate does not exist: ${candidate}`);
 else { candidateSha = sha(candidate); candidateBytes = statSync(candidate).size; }
 
-let cueSheet = null; let probe = null; let avReport = null;
+let cueSheet = null; let probe = null; let avReport = null; let freezeReport = null;
 if (!existsSync(cuePath)) fail(`missing ${relative(root, cuePath).replace(/\\/g, '/')}: build it with build-cue-sheet.mjs (locked narration -> ASR -> compose -> build-cue-sheet).`);
 else { try { cueSheet = JSON.parse(readFileSync(cuePath, 'utf8').replace(/^﻿/, '')); } catch (e) { fail(`cannot read cue sheet: ${e.message}`); } }
 
@@ -124,12 +135,24 @@ if (candidateSha && cueSheet && probe && video) {
   performed.add('dropped-frames');
   if (drop.dropped > T.maxDroppedFrames) fail(`${drop.dropped} dropped frames (max ${T.maxDroppedFrames}); gaps at ${drop.gaps.slice(0, 5).map((g) => `${g.at}s(-${g.missing})`).join(', ')}.`);
 
-  // ---- frozen frames
+  // ---- frozen frames: a freeze is a stalled picture where the cue sheet expects change, not a hold the sheet declares
   performed.add('frozen-frames');
-  for (const f of freezes) if (f.duration > T.maxFreezeSeconds) {
+  const freezeVerdicts = []; freezeReport = freezeVerdicts;
+  const fmt = (f) => `${f.start.toFixed(2)}-${f.end.toFixed(2)}s`;
+  const where = (beat, check, status, msg, expected, measured) => { if (beat) finding(beat, check, status, msg, expected, measured); else if (status === 'fail') fail(msg); };
+  for (const f of freezes) {
+    const v = L.classifyFreeze(f, { beats, edl: cueSheet.edl, maxFreezeSeconds: T.maxFreezeSeconds, maxHoldSeconds: T.maxHoldSeconds });
+    freezeVerdicts.push({ start: f.start, end: f.end, duration: f.duration, verdict: v.verdict, hold: v.hold });
     const b = beats.find((x) => f.start < x.slot_end && f.end > x.slot_start);
-    const msg = `exact-frame freeze ${f.start.toFixed(2)}-${f.end.toFixed(2)}s (${f.duration.toFixed(1)}s > ${T.maxFreezeSeconds}s). A static scene needs a moving cursor or guided highlight, not a held frame.`;
-    if (b) finding(b.beat, 'frozen-frames', 'fail', msg, `<= ${T.maxFreezeSeconds}s`, `${f.duration.toFixed(1)}s`); else fail(msg);
+    if (v.verdict === 'stalled') {
+      for (const p of v.stalled) where(p.beat ?? b?.beat, 'frozen-frames', 'fail', `the picture is stalled where the cue sheet expects ${p.what} at ${p.t.toFixed(2)}s (exact-frame freeze ${fmt(f)}, ${f.duration.toFixed(1)}s). Either the picture really changes there, or the cue sheet is wrong.`, 'picture changes at the expected time', `frozen ${fmt(f)}`);
+    } else if (v.verdict === 'declared-hold') {
+      where(v.hold.beat, 'declared-hold', 'pass', `exact-frame freeze ${fmt(f)} (${f.duration.toFixed(1)}s) is a declared hold: the picture is meant to stay still from ${v.hold.from.toFixed(2)}s to ${v.hold.until.toFixed(2)}s (${(v.hold.until - v.hold.from).toFixed(1)}s, ${v.hold.kind}).`, `<= ${T.maxHoldSeconds}s`, `${f.duration.toFixed(1)}s`);
+    } else if (v.verdict === 'overlong-hold') {
+      where(v.hold.beat, 'frozen-frames', 'fail', `exact-frame freeze ${fmt(f)} (${f.duration.toFixed(1)}s > ${T.maxFreezeSeconds}s) is inside a declared hold but longer than the ${T.maxHoldSeconds}s max hold. A static scene needs a moving cursor or guided highlight, not a held frame.`, `<= ${T.maxHoldSeconds}s`, `${f.duration.toFixed(1)}s`);
+    } else if (v.verdict === 'undeclared') {
+      where(b?.beat, 'frozen-frames', 'fail', `exact-frame freeze ${fmt(f)} (${f.duration.toFixed(1)}s > ${T.maxFreezeSeconds}s) outside any declared hold. A static scene needs a moving cursor or guided highlight, not a held frame.`, `<= ${T.maxFreezeSeconds}s`, `${f.duration.toFixed(1)}s`);
+    }
   }
 
   // ---- per-beat narration/picture checks
@@ -291,6 +314,7 @@ const report = {
   thresholds: T,
   precision: { allWordLevel: degraded.length === 0, degradedBeats: degraded.map((b) => b.beat) },
   av: avReport,
+  freezes: freezeReport,
   beats: [...beatRecs.values()],
   checks: { performed: [...performed], notPerformed },
   measuredAt: new Date().toISOString(),

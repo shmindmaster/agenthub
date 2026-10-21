@@ -24,10 +24,12 @@ DEFAULT_TTS_MODEL = "eleven_flash_v2_5"
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_192"
 MAX_STITCH_IDS = 3
 MAX_DICTIONARY_LOCATORS = 3
+# Governed paid POST routes: speech, sound effects, music. Everything else stays read-only.
+GOVERNED_POST_PREFIXES = ("/text-to-speech/", "/sound-generation", "/music")
 
 
 def _request_full(path: str, method: str = "GET", body: bytes | None = None, content_type: str | None = None, timeout: int = 30, on_headers=None, governed_submission=False):
-    if method != "GET" and not (governed_submission and method == "POST" and path.startswith("/text-to-speech/")):
+    if method != "GET" and not (governed_submission and method == "POST" and path.startswith(GOVERNED_POST_PREFIXES)):
         raise RuntimeError("Paid/unmetered requests require the shared broker; this route is disabled")
     key = os.environ.get("ELEVENLABS_API_KEY")
     if not key:
@@ -261,6 +263,64 @@ def tts(args: argparse.Namespace) -> int:
     return 0
 
 
+def _audio_output_ready(args) -> None:
+    output = pathlib.Path(args.output).expanduser()
+    if output.exists() or output.with_suffix(output.suffix + ".provenance.json").exists():
+        raise RuntimeError("Output or receipt already exists; reuse it or choose a new take path")
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with output.open("xb"):
+            pass
+        output.unlink()
+    except OSError:
+        raise RuntimeError("Output destination is not writable; no generation was requested") from None
+
+
+def _write_governed_audio(args, raw: bytes, receipt: dict) -> int:
+    output = pathlib.Path(args.output).expanduser()
+    receipt["output"] = str(output.resolve())
+    # Receipt first: a failed local save stays recoverable without repurchasing.
+    with output.with_suffix(output.suffix + ".provenance.json").open("x", encoding="utf-8") as handle:
+        handle.write(json.dumps(receipt, indent=2) + "\n")
+    with output.open("xb") as handle:
+        handle.write(raw)
+    print(json.dumps({"ok": True, "output": str(output), "acceptance_state": receipt["acceptance_state"],
+                      "reused": receipt["reused"], "estimated_credits": receipt["estimated_credits"],
+                      "actual_credits": receipt["actual_credits"]}))
+    return 0
+
+
+def sfx(args: argparse.Namespace) -> int:
+    """Governed sound effect: POST /v1/sound-generation through the shared ledger."""
+    import governed_audio
+    payload = {"text": args.text, "duration_seconds": args.duration_seconds, "model_id": "eleven_text_to_sound_v2",
+               **({"prompt_influence": args.prompt_influence} if args.prompt_influence is not None else {}),
+               **({"loop": True} if args.loop else {})}
+    if args.dry_run:
+        print(json.dumps({"dry_run": True, "route": "sound-generation",
+                          "estimated_credits": governed_audio.estimate_audio_credits("sound-generation", payload)}))
+        return 0
+    _audio_output_ready(args)
+    raw, receipt = governed_audio.generate_audio(sys.modules[__name__], args, "sound-generation", payload["model_id"],
+                                                 args.output_format or "mp3_44100_128", payload)
+    return _write_governed_audio(args, raw, receipt)
+
+
+def music(args: argparse.Namespace) -> int:
+    """Governed instrumental music bed: POST /v1/music through the shared ledger."""
+    import governed_audio
+    model_id = args.model_id or "music_v2_5"
+    payload = {"prompt": args.prompt, "music_length_ms": args.length_ms, "model_id": model_id, "force_instrumental": True}
+    if args.dry_run:
+        print(json.dumps({"dry_run": True, "route": "music",
+                          "estimated_credits": governed_audio.estimate_audio_credits("music", payload)}))
+        return 0
+    _audio_output_ready(args)
+    raw, receipt = governed_audio.generate_audio(sys.modules[__name__], args, "music", model_id,
+                                                 args.output_format or "mp3_44100_128", payload)
+    return _write_governed_audio(args, raw, receipt)
+
+
 def multipart_file(fields: dict[str, str], file_field: str, file_path: pathlib.Path) -> tuple[bytes, str]:
     """Build a multipart payload without adding a third-party dependency."""
     boundary = f"----elevenlabs-{uuid.uuid4().hex}"
@@ -336,6 +396,29 @@ def main() -> int:
     p_tts.add_argument("--language-code")
     p_tts.add_argument("--seed", type=int)
     p_tts.set_defaults(func=tts)
+    p_sfx = sub.add_parser("sfx", help="Governed sound effect (ledger-reserved, receipt-bound)")
+    p_sfx.add_argument("--text", required=True)
+    p_sfx.add_argument("--output", required=True)
+    p_sfx.add_argument("--duration-seconds", type=float, required=True)
+    p_sfx.add_argument("--prompt-influence", type=float)
+    p_sfx.add_argument("--loop", action="store_true")
+    p_sfx.add_argument("--output-format")
+    p_sfx.add_argument("--dry-run", action="store_true", help="Print the credit reservation; no request")
+    p_sfx.add_argument("--max-credits", type=float)
+    p_sfx.add_argument("--cache-workspace")
+    p_sfx.add_argument("--cache-revision")
+    p_sfx.set_defaults(func=sfx)
+    p_music = sub.add_parser("music", help="Governed instrumental music bed (ledger-reserved, receipt-bound)")
+    p_music.add_argument("--prompt", required=True)
+    p_music.add_argument("--output", required=True)
+    p_music.add_argument("--length-ms", type=int, required=True)
+    p_music.add_argument("--model-id")
+    p_music.add_argument("--output-format")
+    p_music.add_argument("--dry-run", action="store_true", help="Print the credit reservation; no request")
+    p_music.add_argument("--max-credits", type=float)
+    p_music.add_argument("--cache-workspace")
+    p_music.add_argument("--cache-revision")
+    p_music.set_defaults(func=music)
     p_transcribe = sub.add_parser("transcribe", help="Transcribe an explicitly approved, non-sensitive local file")
     p_transcribe.add_argument("--input", required=True)
     p_transcribe.add_argument("--output", required=True)

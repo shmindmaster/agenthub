@@ -173,10 +173,10 @@ for (const [clip, { need, segments: segIds }] of needByClip) {
   } else if (entry) {
     if (entry.valid === false) fail(`clip ${label}: receipt marks the take invalid (${entry.error || (entry.events?.expectationsFailed || []).join(',') || 'no pointer motion'})`);
     const ev = entry.events || {};
-    if (!(ev.pointerMoves > 0)) fail(`clip ${label}: receipt records no pointer motion; a screen beat needs a visible pointer lead`);
+    if (!(ev.pointerMoves > 0 || ev.taps > 0)) fail(`clip ${label}: receipt records no pointer motion and no touch taps; a screen beat needs a visible pointer lead or a touch path`);
     const interactive = segIds.some((s) => interactionScenes.has(s) || interactionScenes.has(String(s).replace(/[a-z]$/, '')));
     if (interactive) {
-      if (!((ev.clicks || 0) + (ev.keystrokes || 0) + (ev.scrolls || 0) > 0)) fail(`clip ${label}: interaction beat with no click/type/scroll in the receipt`);
+      if (!((ev.clicks || 0) + (ev.taps || 0) + (ev.keystrokes || 0) + (ev.scrolls || 0) > 0)) fail(`clip ${label}: interaction beat with no click/tap/type/scroll in the receipt`);
       if (!(ev.expectationsObserved > 0)) {
         // A trace-backfilled receipt (backfill-capture-receipt.mjs) proves a live session and real clicks from the
         // Playwright trace but cannot prove the scene waited for the product's response. Accept it only when the

@@ -39,6 +39,7 @@
       }
     },
     "protectedHeroBeatId": { "type": "string" },
+    "syntheticDisclosure": { "$ref": "#/$defs/syntheticDisclosure" },
     "beats": {
       "type": "array",
       "minItems": 1,
@@ -95,6 +96,29 @@
           "eyeDirection": {
             "type": "string",
             "description": "Where the viewer's eye should go and in what order."
+          },
+          "eyePath": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["start", "move", "rest"],
+            "description": "Planned eye path: where the eye starts, the one move the beat makes, where it rests.",
+            "properties": {
+              "start": { "type": "string" },
+              "move": { "type": "string" },
+              "rest": { "type": "string" }
+            }
+          },
+          "pointer": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Allowance for validate-pointer-path.mjs; loosening the defaults requires reason.",
+            "properties": {
+              "maxReversals": { "type": "integer", "minimum": 0 },
+              "maxTravelRatio": { "type": "number", "minimum": 1 },
+              "maxScrollReversals": { "type": "integer", "minimum": 0 },
+              "maxUnnamedMoves": { "type": "integer", "minimum": 0 },
+              "reason": { "type": "string" }
+            }
           },
           "expectedState": {
             "type": "string",
@@ -186,6 +210,19 @@
             "enum": ["FACT", "DRAMATIZED", "COMPOSITE"]
           }
         }
+      }
+    }
+  },
+  "$defs": {
+    "syntheticDisclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "description": "Synthetic or demo data is disclosed on screen, never in narration.",
+      "properties": {
+        "mode": { "type": "string", "enum": ["caption", "end-card", "none"] },
+        "text": { "type": "string" },
+        "placement": { "type": "string" }
       }
     }
   }

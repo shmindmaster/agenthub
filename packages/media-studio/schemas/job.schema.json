@@ -51,10 +51,24 @@
         "campaign-flagship",
         "campaign-comparison",
         "campaign-short",
-        "campaign-outreach"
+        "campaign-outreach",
+        "marketing-cutdown"
       ],
       "description": "Buyer-library or named format. See references/program-forms.md. Infer from the brief."
     },
+    "dataClass": {
+      "type": "string",
+      "description": "Data classification of the product data shown (for example synthetic, demo, production). A synthetic class requires an on-screen disclosure."
+    },
+    "syntheticData": {
+      "type": "boolean",
+      "description": "True when the film shows synthetic or demo data; narration never says so, a caption or end card does."
+    },
+    "marketing": {
+      "type": "boolean",
+      "description": "Customer-facing marketing cut: the marketing-readiness rubric applies."
+    },
+    "syntheticDisclosure": { "$ref": "#/$defs/syntheticDisclosure" },
     "sourceJobId": {
       "type": "string",
       "description": "Parent job id when this film is a recut of a locked master. Do not re-fake product UI."
@@ -103,7 +117,7 @@
     "bounceTo": {
       "type": ["string", "null"],
       "enum": ["story-series-studio", null],
-      "description": "Only series methodology leaves this studio. Product screencasts stay here and invoke the internal engine."
+      "description": "Legacy value kept so old job files validate. Series methodology now lives in skills/media-studio/references/series.md and nothing leaves the studio; product screencasts stay here and invoke the internal engine."
     },
     "truth": {
       "type": "string",
@@ -142,9 +156,65 @@
       "minimum": 0,
       "maximum": 100,
       "description": "Viewer-facing story-experience fail-closed threshold. Default 85. Draft ignores this gate."
+    },
+    "captureViewports": {
+      "type": "object",
+      "description": "Per-ratio capture table (media-studio-capture 2b): each delivered aspect ratio is recorded at its own viewport with device emulation, never derived from a desktop capture. Keys are ratio strings such as 16:9, 4:5, 9:16.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["width", "height"],
+        "properties": {
+          "width": { "type": "integer", "minimum": 1 },
+          "height": { "type": "integer", "minimum": 1 },
+          "deviceScaleFactor": { "type": "number", "minimum": 1 },
+          "device": { "type": "string", "description": "Playwright device name for emulation." },
+          "isMobile": { "type": "boolean" },
+          "hasTouch": { "type": "boolean" }
+        }
+      }
+    },
+    "responsive": {
+      "type": "boolean",
+      "description": "false declares a product that is not responsive; it must be accompanied by responsiveException or the ratio gate fails closed."
+    },
+    "responsiveException": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "declaredBy"],
+      "properties": {
+        "reason": { "type": "string", "minLength": 1 },
+        "declaredBy": { "type": "string", "minLength": 1 }
+      },
+      "description": "Documented exception for a non-responsive product: the desktop capture may serve a non-16:9 cut, still unscaled, uncropped and without bars inside the product frame."
+    },
+    "flows": {
+      "type": "object",
+      "description": "Per-flow picture source (media-studio-capture 2c): native-app flows are recorded from the real mobile app on the emulator; responsive-web flows from the web app at the ratio's viewport.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["picture"],
+        "properties": {
+          "picture": { "type": "string", "enum": ["native-app", "responsive-web"] },
+          "device": { "type": "string" },
+          "ratio": { "type": "string" }
+        }
+      }
     }
   },
   "$defs": {
+    "syntheticDisclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "description": "Synthetic or demo data is disclosed on screen, never in narration.",
+      "properties": {
+        "mode": { "type": "string", "enum": ["caption", "end-card", "none"] },
+        "text": { "type": "string" },
+        "placement": { "type": "string" }
+      }
+    },
     "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
     "hashedFile": { "type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": { "path": { "type": "string", "minLength": 1 }, "sha256": { "$ref": "#/$defs/sha256" } } }
   },

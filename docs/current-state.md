@@ -4,6 +4,32 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Shared RepoWise HTTP lifetime:** the plugin launcher hosts RepoWise's public
+  FastMCP surface through `packages/repowise/scripts/shared_server.py`. Registry
+  resources belong to the ASGI application; disconnecting one MCP session leaves
+  other sessions usable. The bridge still starts the service on demand and fails
+  closed when the embedder is unavailable. Authenticated vendor HTTP gateways
+  require their own middleware; this loopback adapter refuses authenticated mode.
+  `packages/repowise/tests/test_shared_server.py` exercises independent sessions,
+  request context, validation, resource listing, teardown and reconnect.
+
+- **Marketing video generator, mvg (2026-10-20):** `packages/media-studio/kit/marketing`
+  turns one ad spec into gated 16:9 / 4:5 / 9:16 ads (lint, voice, timing,
+  assets, capture reuse, compose, qa, deliver; each stage cached by input
+  hash, per-run and cumulative budgets). The `MarketingAd` Remotion
+  composition (`kit/src/MarketingAd.tsx`) crops the receipt-bound UI clip with
+  a focus-follow camera inside the platform-safe area; audio is mixed and
+  loudness-normalized with FFmpeg. Paid ElevenLabs speech, sound effects and
+  music go through the governed adapter (`packages/elevenlabs`:
+  `governed_audio.py`, `elevenlabs_cli.py sfx|music`); OpenAI supplies stills,
+  `whisper-1` word timing and vision QA. `validate-viewer-release.mjs` accepts
+  the mvg picture report for `generator: media-studio/mvg` jobs and a per-job
+  `loudnessTargetLufs`. `Sync-MediaStudioKit.ps1` mirrors the runtime
+  `briefing-kit\marketing` tree in place (robocopy /MIR, never emptied) and
+  refuses while an mvg job runs from it unless `-Force` is passed. Unit tests: `packages/media-studio/tests/mvg.test.mjs`
+  (mock providers, no paid calls). Product data (brand, claims, specs) stays in
+  the external media workspace.
+
 - **Coding-agent dispatch (2026-10-14, prepared; deployment pending):** `packages/coding-agent-dispatch`
   owns the `use-coding-agent` skill and `Invoke-CodingAgent.ps1`. Claude and
   Codex are the primary orchestrators. Any host that has the skill can call
@@ -375,18 +401,30 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - **Portable plugin version authority (2026-08-21)**: root `plugin.json` is the
   Agent Plugins floor and single version authority; host projections must match
   (`scripts/Bump-PackageVersion.ps1`, `tests/Test-PluginManifests.ps1`).
+- **Media consolidation (2026-10-21)**: `media-studio` is one skill for
+  pre-production plus four crew skills (capture, generate, compose, qa). The
+  writer, storyboard, visuals, director and story-experience-reviewer front
+  doors are `skills/media-studio/references/{writer,storyboard,visuals,direction}.md`
+  and a section of `media-studio-qa`; Descript finishing is
+  `media-studio-compose/references/descript.md`. `story-series-studio` and
+  `technical-storytelling` are retired into `references/series.md`,
+  `story-craft.md`, `technical-story.md` and `direction.md` (schemas moved to
+  `packages/media-studio/schemas`). `elevenlabs` is one skill with `tts.md`,
+  `account-health.md`, `stt.md` (disabled) references. Every retired name is in
+  `retiredFleetSkills`; every gate, schema and script kept its owner.
 - **Creative / learning packages (2026-08-21)**: `technical-storytelling`,
-  `story-series-studio`, and `learning-studio` are registered packages.
+  `story-series-studio` (both retired 2026-10-21, see above), and
+  `learning-studio` are registered packages.
   `startup-series` is now a Receipts-only overlay (`startup-showrunner`,
   `comedy-writer`); generic craft lives in the studio packages. Private show
   bibles stay outside AgentHub.
 
 - **Local media studio (2026-08-25, craft 2026-09-02):** `packages/media-studio`
-  is the **only public** video/audio/animation pack (`1.5.0`). Rapid default: a
+  is the **only public** video/audio/animation pack (its release is the `version` in `packages/media-studio/plugin.json`). Rapid default: a
   concept or outline is enough; writer → storyboard → visuals → director →
   Local-AI generate → Remotion/FFmpeg/Recast compose → craft critic → QA.
   Viewer-facing jobs apply `engagement.md` plus `story-craft.md` and the
-  scene-archetype kit; `media-story-experience-reviewer` fails closed below 85.
+  scene-archetype kit; the story-experience review (now inside `media-studio-qa`) fails closed below 85.
   `intent: draft` skips GPU plates and the critic gate. Remotion is required
   for viewer-facing briefing/training/explainer/series-episode unless draft.
   Product screencasts use Playwright WebM + Recast in media-studio

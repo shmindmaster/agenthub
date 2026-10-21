@@ -5,7 +5,7 @@ or audio required, and writes qa/story-review.json in the story-experience-revie
 pass, missingEvidence, reason, checks, findings, reviseSceneIds). It is a screenplay lint, not a craft pass. It does not authorize capture, compose, or delivery.
 Product-screencast still requires validate-product-picture.mjs (WebM + Recast) and PDS review of the
 encoded file. The encoded-file critic (the PDS story-experience-reviewer agent for screencasts,
-media-story-experience-reviewer for the rest) still runs on the candidate after the master exists and
+the media-studio-qa story-experience review for the rest) still runs on the candidate after the master exists and
 supersedes this file with qa/story-experience-review.json.
 
 Usage:
@@ -35,6 +35,11 @@ Two kinds of check, and the tool never blurs them:
                        carries over from the previous scene (visual.revealFrom = N, a build) are not new type and
                        are not counted again, so a long table split across two consecutive builds passes
                        code, still, hero, cta, quote and chip visuals are exempt from both (a code reveal is dense by design)
+    no-fluff           qa/narration-check.json (validate-narration.mjs) exists, is bound by sha256 to the current
+                       screenplay (or narration timeline) and job.json, and has ok=true: no greeting, meta, recap,
+                       process, version, synthetic-in-narration, jargon, filler or repeated line, a hook that fits
+                       five seconds and names the promise, and a caption or end-card disclosure on synthetic data.
+                       Missing, stale or failed = structural miss (-15), owner media-writer
     platform           deliveryProfile declared (job.json or storyboard); frame/mute/vertical checks wait for the encode
     mix / ai-control   n/a before audio; ai-control becomes a judgment when programForm is ai-in-action / ai-trust
 
@@ -53,7 +58,7 @@ qa/story-judgments.json shape:
 Scoring follows the rubric, in the open: start 100; -20 missing hook / missing hero / greeting or feature-tour opening;
 -15 no before-state; -10 per filler beat or accidental consecutive repeat; -10 once when narration reads on-screen
 type; -5 per type-density miss; judgment findings deduct their `points` (default minor 5, major 15; block forces
-fail). A failed check the rubric gives no arithmetic for (trust, designed-frames, platform, or a failed judgment)
+fail). A failed check the rubric gives no arithmetic for (trust, designed-frames, no-fluff, platform, or a failed judgment)
 costs 15, the rubric's "structural miss" class; that rule is this tool's and is named in `reason`.
 
 Provenance (method, thresholds, input hashes, rubric hash) goes to qa/story-review.provenance.json so the review
@@ -343,6 +348,46 @@ def main() -> int:
         finding("minor", i, f"{r} rows, {w} on-card words (thresholds {DENSE_ROWS} rows / {DENSE_WORDS} words)",
                 "Split the card into two builds or drop the qualifiers.", "media-storyboard", 5)
 
+    # ---- no fluff (validate-narration.mjs report) ---------------------------------------------------------------------
+    nc_p = root / "qa" / "narration-check.json"
+    nf_fix = "Cut the narration to information the viewer can use, then run validate-narration.mjs until it passes."
+    nf_problem, nc = None, {}
+    if not nc_p.exists():
+        nf_problem = "qa/narration-check.json is missing: run validate-narration.mjs"
+    else:
+        try:
+            nc = load(nc_p)
+        except ValueError:
+            nf_problem = "qa/narration-check.json is unreadable: run validate-narration.mjs"
+        else:
+            bound = nc.get("inputs") or {}
+            stale = []
+            for key, path in (("screenplay", sp_p), ("timeline", root / "story" / "narration-timeline.json"), ("job", job_p)):
+                entry = bound.get(key)
+                if entry and (not path.exists() or entry.get("sha256") != sha(path)):
+                    stale.append(key)
+            if not (bound.get("screenplay") or bound.get("timeline")):
+                nf_problem = "qa/narration-check.json is not bound to a screenplay or narration timeline (stale): run validate-narration.mjs"
+            elif stale:
+                nf_problem = f"qa/narration-check.json is stale (its {', '.join(stale)} input changed after it ran): run validate-narration.mjs"
+    if nf_problem:
+        checks["no-fluff"] = "fail"
+        evidence["no-fluff"] = nf_problem
+        finding("major", "qa/narration-check.json", nf_problem, nf_fix, "media-writer", STRUCTURAL_MISS)
+    elif not nc.get("ok"):
+        fluff = nc.get("fluff") or {}
+        hits = fluff.get("hits") or []
+        cited = [f"{h.get('sceneId')} [{h.get('class')}] \"{h.get('match')}\"" for h in hits[:3]] or [str(e) for e in (nc.get("errors") or [])[:3]]
+        checks["no-fluff"] = "fail"
+        evidence["no-fluff"] = (f"narration check failed: fluff {fluff.get('perMinute', 0):g}/min, {fluff.get('count', len(hits))} hits, "
+                                f"{len(nc.get('errors') or [])} errors; first: " + "; ".join(cited))
+        finding("major", "qa/narration-check.json", evidence["no-fluff"], nf_fix, "media-writer", STRUCTURAL_MISS)
+        revise += [h.get("sceneId") for h in hits if h.get("sceneId") in ids]
+    else:
+        fluff = nc.get("fluff") or {}
+        checks["no-fluff"] = "pass"
+        evidence["no-fluff"] = f"fluff {fluff.get('perMinute', 0):g}/min, {fluff.get('count', 0)} hits"
+
     # ---- platform / mix / ai-control --------------------------------------------------------------------------------
     profile = job.get("deliveryProfile") or sb.get("deliveryProfile")
     checks["platform"] = "pass" if profile else "fail"
@@ -396,7 +441,7 @@ def main() -> int:
         passed = not blocks and score >= craft_min
         reason = (f"Pre-capture structural lint ({TOOL_VERSION}) on screenplay + storyboard; does not authorize compose or delivery; encoded-file critic pending. "
                   f"Score {score} = 100 - {sum(p for _, p in deductions)} ({', '.join(f'{i} -{p}' for i, p in deductions) or 'no deductions'}); "
-                  f"craftScoreMin {craft_min}. Checks without rubric arithmetic (trust, designed-frames, platform, failed judgments) cost {STRUCTURAL_MISS}. "
+                  f"craftScoreMin {craft_min}. Checks without rubric arithmetic (trust, designed-frames, no-fluff, platform, failed judgments) cost {STRUCTURAL_MISS}. "
                   + " | ".join(f"{k}: {evidence.get(k, '')}" for k in checks) + f" | duration: {duration_note}")
         review = {"status": "COMPLETE", "candidateId": candidate, "score": score, "pass": passed, "reason": reason,
                   "checks": checks, "findings": findings, "reviseSceneIds": revise}
@@ -405,7 +450,8 @@ def main() -> int:
     rubric = sorted(Path.home().glob(".claude/plugins/cache/agenthub/media-studio/*/skills/media-studio/references/story-review-rubric.md"))
     prov = {"tool": "write-story-review.py", "toolVersion": TOOL_VERSION, "method": "pre-capture structural gate + recorded judgments",
             "inputs": {"screenplay": sha(sp_p), "storyboard": sha(sb_p), "job": sha(job_p) if job_p.exists() else None,
-                       "judgments": sha(jd_p) if jd_p.exists() else None},
+                       "judgments": sha(jd_p) if jd_p.exists() else None,
+                       "narrationCheck": sha(nc_p) if nc_p.exists() else None},
             "rubric": {"path": str(rubric[-1]) if rubric else None, "sha256": sha(rubric[-1]) if rubric else None},
             "thresholds": {"hookMaxWords": HOOK_MAX_WORDS, "heroMinHold": HERO_MIN_HOLD, "lastMinHold": LAST_MIN_HOLD, "denseRows": DENSE_ROWS,
                            "denseWords": DENSE_WORDS, "readRowShare": READ_ROW_SHARE, "readWordShare": READ_WORD_SHARE, "readMinRowWords": READ_MIN_ROW_WORDS, "revealFromCarriesRows": True, "nonRowKinds": sorted(NON_ROW_KINDS), "structuralMiss": STRUCTURAL_MISS},

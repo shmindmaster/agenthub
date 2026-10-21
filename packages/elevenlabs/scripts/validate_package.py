@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import subprocess
 import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "2.0.0"
+EXPECTED_VERSION = "3.0.1"
 MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
@@ -88,17 +89,55 @@ def main() -> int:
     if "models" not in help_result.stdout:
         failures.append("elevenlabs_cli.py is missing the read-only models subcommand")
 
-    narration_skill = (ROOT / "skills" / "elevenlabs-tts" / "SKILL.md").read_text(encoding="utf-8")
+    skills_dir = ROOT / "skills"
+    skill_dirs = sorted(path.name for path in skills_dir.iterdir() if path.is_dir())
+    if skill_dirs != ["elevenlabs"]:
+        failures.append(f"skills/ must hold exactly one skill, elevenlabs (found {skill_dirs})")
+    skill_root = skills_dir / "elevenlabs"
+    reference_names = ("tts", "account-health", "stt", "capabilities", "cost-controls")
+    texts: dict[str, str] = {}
+    for relative in ["SKILL.md"] + [f"references/{name}.md" for name in reference_names]:
+        try:
+            texts[relative] = (skill_root / relative).read_text(encoding="utf-8")
+        except OSError as error:
+            failures.append(f"skills/elevenlabs/{relative}: unreadable ({error})")
+
+    skill_text = texts.get("SKILL.md", "")
+    if not skill_text.startswith("---\nname: elevenlabs\ndescription: "):
+        failures.append("skills/elevenlabs/SKILL.md: front matter must open with name: elevenlabs and a description")
+    for name in reference_names:
+        if f"references/{name}.md" not in skill_text:
+            failures.append(f"skills/elevenlabs/SKILL.md does not route to references/{name}.md")
+    flat_skill = " ".join(skill_text.lower().split())
+    for phrase in ("governed paid route", "unset shared ceiling disables purchases", "never print keys"):
+        if phrase not in flat_skill:
+            failures.append(f"skills/elevenlabs/SKILL.md lost the rule: {phrase}")
+
+    narration_skill = texts.get("references/tts.md", "")
     if "shared CLI owns the provider request" not in narration_skill:
-        failures.append("ElevenLabs TTS skill does not declare canonical provider ownership")
+        failures.append("ElevenLabs TTS reference does not declare canonical provider ownership")
+    if "eleven_v4_turbo" not in narration_skill:
+        failures.append("ElevenLabs TTS reference lost the eleven_v4_turbo refusal")
+    if "--dry-run" not in narration_skill:
+        failures.append("ElevenLabs TTS reference lost the dry-run rule")
+    if "fails closed" not in texts.get("references/stt.md", ""):
+        failures.append("ElevenLabs STT reference lost the fails-closed rule")
 
     # Loose-skill hosts receive SKILL.md without the package scripts/ directory, so a bare
-    # relative `scripts/elevenlabs_cli.py` does not resolve there. Every skill that invokes
+    # relative `scripts/elevenlabs_cli.py` does not resolve there. Every file that invokes
     # the CLI must name the resolvable package path.
-    for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
-        text = skill_md.read_text(encoding="utf-8")
+    secret_shapes = (
+        re.compile(r"\bsk_[0-9a-f]{20,}\b"),
+        re.compile(r"xi-api-key\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{16,}"),
+        re.compile(r"Bearer\s+[A-Za-z0-9_\-.]{20,}"),
+        re.compile(r"ELEVENLABS_API_KEY\s*=\s*['\"]?[A-Za-z0-9_\-]{16,}"),
+    )
+    for relative, text in texts.items():
         if "elevenlabs_cli.py" in text and "packages/elevenlabs/scripts/elevenlabs_cli.py" not in text.replace("\\", "/"):
-            failures.append(f"{skill_md.parent.name}: invokes elevenlabs_cli.py without the resolvable package path")
+            failures.append(f"skills/elevenlabs/{relative}: invokes elevenlabs_cli.py without the resolvable package path")
+        for shape in secret_shapes:
+            if shape.search(text):
+                failures.append(f"skills/elevenlabs/{relative}: contains a secret-shaped value")
 
     if failures:
         print(f"elevenlabs package validation FAILED ({len(failures)}):", file=sys.stderr)

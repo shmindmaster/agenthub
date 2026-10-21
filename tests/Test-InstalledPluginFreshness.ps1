@@ -312,30 +312,38 @@ function Test-EmptySourceFailsLoudly {
 # --- Behavior 6: a retired package identity is absent from deployed state.
 #
 # This is intentionally separate from content freshness. Unrelated installed
-# plugins may be stale without disguising whether the retired mobile package
-# still has a registration or loadable cache. Marketplace source is excluded:
-# a catalog row is not an installed registration or deployed cache. ---
-function Test-RetiredMobilePluginIdentityIsAbsent {
-    $retiredId = 'mobile-device-lab@agenthub'
-    $retiredName = 'mobile-device-lab'
+# plugins may be stale without disguising whether a retired package still has a
+# registration or loadable cache. Deleting a package also makes Behaviors 2-3
+# skip its installation (there is no source to compare against), so without
+# this check a native copy of a retired plugin could keep exposing its retired
+# skills indefinitely: Sync-Capabilities sweeps loose skill directories only and
+# treats native plugins as host-managed. Marketplace source is excluded: a
+# catalog row is not an installed registration or deployed cache. ---
+$RetiredPluginNames = @(
+    'mobile-device-lab',        # retired 2026-08
+    'technical-storytelling',   # retired 2026-10-21 into media-studio (consolidation P5)
+    'story-series-studio'       # retired 2026-10-21 into media-studio (consolidation P4)
+)
+function Test-RetiredPluginIdentitiesAreAbsent {
     $hits = [Collections.Generic.List[string]]::new()
     $files = @(
         (Join-Path $env:USERPROFILE '.claude\settings.json'),
         (Join-Path $env:USERPROFILE '.claude\plugins\installed_plugins.json'),
         (Join-Path $env:USERPROFILE '.codex\config.toml')
     )
-    foreach ($file in $files) {
-        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { continue }
-        if (Select-String -LiteralPath $file -SimpleMatch -Quiet -Pattern $retiredId) {
-            $hits.Add("registration/config: $file")
-        }
-    }
-
-    $claudeCache = Join-Path $env:USERPROFILE ".claude\plugins\cache\agenthub\$retiredName"
-    if (Test-Path -LiteralPath $claudeCache) { $hits.Add("Claude cache: $claudeCache") }
     $codexPlugins = Join-Path $env:USERPROFILE '.codex\plugins'
-    if (Test-Path -LiteralPath $codexPlugins) {
-        foreach ($directory in @(Get-ChildItem -LiteralPath $codexPlugins -Directory -Recurse -Force -ErrorAction SilentlyContinue | Where-Object Name -eq $retiredName)) {
+    $codexDirs = if (Test-Path -LiteralPath $codexPlugins) { @(Get-ChildItem -LiteralPath $codexPlugins -Directory -Recurse -Force -ErrorAction SilentlyContinue) } else { @() }
+    foreach ($retiredName in $RetiredPluginNames) {
+        $retiredId = "$retiredName@agenthub"
+        foreach ($file in $files) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { continue }
+            if (Select-String -LiteralPath $file -SimpleMatch -Quiet -Pattern $retiredId) {
+                $hits.Add("$retiredId registration/config: $file")
+            }
+        }
+        $claudeCache = Join-Path $env:USERPROFILE ".claude\plugins\cache\agenthub\$retiredName"
+        if (Test-Path -LiteralPath $claudeCache) { $hits.Add("Claude cache: $claudeCache") }
+        foreach ($directory in @($codexDirs | Where-Object Name -eq $retiredName)) {
             $hits.Add("Codex cache: $($directory.FullName)")
         }
     }
@@ -376,8 +384,8 @@ Report 'the comparator detects changed, missing and left-behind files, and clear
 $r5 = Test-EmptySourceFailsLoudly
 Report 'an empty source tree fails loudly instead of reporting a clean comparison' $r5.Passed $r5.Detail
 
-$r6 = Test-RetiredMobilePluginIdentityIsAbsent
-Report 'retired mobile-device-lab registration and cache residue are absent from Claude and Codex' $r6.Passed $r6.Detail
+$r6 = Test-RetiredPluginIdentitiesAreAbsent
+Report "retired plugin registrations and cache residue ($($RetiredPluginNames -join ', ')) are absent from Claude and Codex" $r6.Passed $r6.Detail
 
 $r7 = Test-AppiumIsNotPersisted
 Report 'Appium remains absent from Claude and Codex persistent configuration' $r7.Passed $r7.Detail

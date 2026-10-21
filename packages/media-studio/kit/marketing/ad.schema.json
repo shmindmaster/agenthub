@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "mvg ad spec",
+  "description": "One ad spec file in, gated 16:9 / 4:5 / 9:16 ads out. Written within the JSON-Schema subset lib/schema.mjs validates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "product", "audience", "objective", "voice", "claims", "labels", "cta"],
+  "anyOf": [
+    { "required": ["ratios", "targetSeconds", "beats"] },
+    { "required": ["cuts"] }
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,62}$" },
+    "title": { "type": "string", "minLength": 3, "maxLength": 90 },
+    "product": { "type": "string", "minLength": 2 },
+    "audience": { "type": "string", "minLength": 3 },
+    "objective": { "type": "string", "minLength": 3 },
+    "concept": { "type": "string" },
+    "brand": { "type": "string", "description": "Path to the brand file, relative to the spec or absolute. Default: ../brand/brand.json" },
+    "ratios": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/ratio" } },
+    "targetSeconds": { "type": "number", "minimum": 5, "maximum": 120 },
+    "cuts": {
+      "type": "array", "minItems": 1,
+      "description": "Distinct cuts of one ad (for example a 20 s main cut and a 12 s vertical cut). Ratios must not repeat across cuts.",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "ratios", "targetSeconds", "beats"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,30}$" },
+          "ratios": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/ratio" } },
+          "targetSeconds": { "type": "number", "minimum": 5, "maximum": 120 },
+          "beats": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/beat" } }
+        }
+      }
+    },
+    "voice": { "$ref": "#/definitions/voice" },
+    "music": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider"],
+      "properties": {
+        "provider": { "enum": ["elevenlabs", "none"] },
+        "prompt": { "type": "string", "minLength": 10 },
+        "licenseBasis": { "type": "string", "minLength": 10 },
+        "bedDb": { "type": "number", "minimum": -40, "maximum": -10 },
+        "lengthSeconds": { "type": "number", "minimum": 3, "description": "Fixed bed length. Jobs with the same prompt, model and lengthSeconds make an identical request and reuse one track instead of buying one per job length. Must be at least the longest cut plus 2 s (the mix trims the bed to the program, never extends it); default is the longest cut plus 2 s per job." },
+        "model": { "type": "string" }
+      }
+    },
+    "beats": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/beat" } },
+    "cta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["text", "url"],
+      "properties": {
+        "text": { "type": "string", "minLength": 3, "maxLength": 80 },
+        "url": { "type": "string", "pattern": "^https://[^\\s]+$" },
+        "displayUrl": { "type": "string" },
+        "claim": { "type": "string" }
+      }
+    },
+    "claims": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "text", "evidence"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,40}$" },
+          "text": { "type": "string", "minLength": 3 },
+          "phrases": { "type": "array", "items": { "type": "string", "minLength": 2 } },
+          "kind": { "enum": ["assertion", "stance", "cta"] },
+          "evidence": {
+            "type": "string", "minLength": 6,
+            "description": "file:<path>[:line] | clip:<sourceJob>#<clipId>@<t0>-<t1> | approved:<source>"
+          }
+        }
+      }
+    },
+    "labels": { "type": "string", "minLength": 8, "description": "Persistent on-screen label, e.g. SYNTHETIC DEMO · NO PHI · REAL PRODUCT" },
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "elevenlabsCredits": { "type": "integer", "minimum": 0 },
+        "openaiUsd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "edit": {
+      "type": "object", "additionalProperties": false,
+      "description": "Editing rules that are not part of any one beat.",
+      "properties": {
+        "beatGrid": {
+          "type": "object", "additionalProperties": false, "required": ["bpm", "offsetSeconds"],
+          "description": "The music bed's tempo. The bed plays from program time 0, so beats fall at offsetSeconds + n * 60/bpm. After the voice-first timeline is built, every scene boundary but the start is held (tail only) to the next beat, so cuts land on the grid the marketing-readiness floor measures. Lives here, never in music, so the bed's cache key is unaffected.",
+          "properties": {
+            "bpm": { "type": "number", "minimum": 40, "maximum": 220 },
+            "offsetSeconds": { "type": "number", "minimum": 0, "maximum": 10 }
+          }
+        }
+      }
+    },
+    "qa": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "storyMin": { "type": "number", "minimum": 0, "maximum": 100 },
+        "visionEverySeconds": { "type": "number", "minimum": 0.5, "maximum": 5 },
+        "loudness": { "enum": ["social", "web"] },
+        "required": { "type": "array", "items": { "enum": ["picture", "integrity", "pointer", "frameIntegrity", "captions", "loudness", "sync", "listen", "vision", "marketing", "story", "viewerRelease"] } }
+      }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "definitions": {
+    "ratio": { "enum": ["16x9", "4x5", "9x16"] },
+    "voice": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider", "voiceId", "model"],
+      "properties": {
+        "provider": { "enum": ["elevenlabs", "openai", "local"] },
+        "voiceId": { "type": "string", "minLength": 2 },
+        "name": { "type": "string" },
+        "model": { "type": "string", "minLength": 2 },
+        "settings": {
+          "type": "object",
+          "description": "ElevenLabs voice_settings (v4: stability and similarity_boost only) plus apply_text_normalization.",
+          "properties": {
+            "stability": { "type": "number", "minimum": 0, "maximum": 1 },
+            "similarity_boost": { "type": "number", "minimum": 0, "maximum": 1 },
+            "style": { "type": "number", "minimum": 0, "maximum": 1 },
+            "speed": { "type": "number", "minimum": 0.7, "maximum": 1.2 },
+            "use_speaker_boost": { "type": "boolean" },
+            "apply_text_normalization": { "enum": ["auto", "on", "off"] }
+          }
+        },
+        "instructions": { "type": "string", "description": "OpenAI gpt-4o-mini-tts style instructions." },
+        "stitching": { "type": "boolean", "description": "Send previous_text/next_text so prosody carries across lines (not on eleven_v3)." },
+        "pronunciationDictionaries": {
+          "type": "array", "maxItems": 3,
+          "items": { "type": "object", "additionalProperties": false, "required": ["id", "version"],
+                     "properties": { "id": { "type": "string" }, "version": { "type": "string" } } }
+        },
+        "disclosure": { "type": "string", "description": "Where the AI-voice disclosure appears. Required for OpenAI voices." },
+        "ownerVoice": { "type": "boolean", "description": "Must be false or absent: marketing narration is never the owner clone." }
+      }
+    },
+    "beat": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,30}$" },
+        "kind": { "enum": ["ui", "broll", "card", "title"] },
+        "narration": { "type": "string" },
+        "onScreenText": { "type": "string", "maxLength": 80 },
+        "emphasis": { "type": "array", "items": { "type": "string" }, "description": "Words in the narration highlighted in the kinetic captions." },
+        "claims": { "type": "array", "items": { "type": "string" }, "description": "Claim ids this beat's narration and on-screen text rely on." },
+        "minSeconds": { "type": "number", "minimum": 0.5, "maximum": 20 },
+        "captionPlacement": { "enum": ["bottom", "top"], "description": "Where this beat's caption plate sits. Default bottom; top when the bottom of the frame holds the product content the line is about (the top safe area then carries the plate)." },
+        "voiceTake": { "type": "integer", "minimum": 1, "maximum": 20, "description": "Ask for a fresh take of this line (new cache key and ledger revision) after a listen or review rejects its delivery." },
+        "ui": {
+          "type": "object", "additionalProperties": false,
+          "required": ["sourceJob", "clipId"],
+          "properties": {
+            "sourceJob": { "type": "string", "description": "Existing film workspace holding capture/receipt.json and capture/clips." },
+            "clipId": { "type": "string" },
+            "trimStart": { "type": "number", "minimum": 0 },
+            "trimEnd": { "type": "number", "minimum": 0 },
+            "record": { "type": "boolean", "description": "(Re)record this clip with record-job.mjs (needs --allow-capture and a scene function in the source job)." },
+            "actions": {
+              "type": "array",
+              "description": "Narrated pointer actions for the sync gate: the receipt action label and the spoken keywords that name it.",
+              "items": { "type": "object", "additionalProperties": false, "required": ["label", "keywords"], "properties": { "label": { "type": "string" }, "keywords": { "type": "array", "minItems": 1, "items": { "type": "string" } } } }
+            },
+            "freshness": { "enum": ["current", "recapture-recommended"], "description": "recapture-recommended: the clip predates a product change that touches this screen." },
+            "freshnessNote": { "type": "string" },
+            "focus": {
+              "type": "array",
+              "description": "Explicit focus windows in clip seconds with the target's normalized position in the clip frame. Required when the clip has Recast zoom (clicks).",
+              "items": {
+                "type": "object", "additionalProperties": false, "required": ["startSec", "endSec", "x", "y"],
+                "properties": {
+                  "startSec": { "type": "number", "minimum": 0 }, "endSec": { "type": "number", "minimum": 0 },
+                  "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "zoom": { "type": "number", "minimum": 1, "maximum": 3 },
+                  "declaredZoom": { "type": "boolean", "description": "The cue sheet declares this zoom beat; allowed only on a device-scale recording so the zoomed region is not upscaled (picture integrity)." },
+                  "sourceZoom": { "type": "number", "minimum": 1, "maximum": 3, "description": "Recast punch-in already present in the clip at this time; text is that much larger than the crop alone suggests." },
+                  "label": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "broll": {
+          "type": "object", "additionalProperties": false, "required": ["provider", "prompt"],
+          "properties": {
+            "provider": { "enum": ["openai-image", "elevenlabs-video", "stock"] },
+            "prompt": { "type": "string", "minLength": 10 },
+            "file": { "type": "string" },
+            "quality": { "enum": ["low", "medium", "high"] }
+          }
+        },
+        "sfx": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["cue", "prompt"],
+            "properties": {
+              "cue": { "type": "string", "pattern": "^(start|end|at:[0-9.]+|action:.+)$" },
+              "prompt": { "type": "string", "minLength": 4 },
+              "durationSeconds": { "type": "number", "minimum": 0.5, "maximum": 5 },
+              "gainDb": { "type": "number", "minimum": -30, "maximum": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

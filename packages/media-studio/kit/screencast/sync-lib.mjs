@@ -14,6 +14,7 @@ export const SYNC_DEFAULTS = Object.freeze({
   minCursorLeadSeconds: 0.8,// footage kept before an action when pulling it earlier (pointer travel + settle)
   clickLeadSeconds: 0,      // click target relative to the keyword start (negative = click first)
   maxFreezeSeconds: 4,
+  maxHoldSeconds: 6.5,      // a declared hold is a beat, not a pause: a still picture longer than this needs motion
   maxDroppedFrames: 3,
   sceneThreshold: 0.4,
 });
@@ -213,6 +214,66 @@ export function parseFreezes(stderr, endOfFile = null) {
   }
   if (open !== null && Number.isFinite(endOfFile)) out.push({ start: open, end: endOfFile, duration: round(endOfFile - open) });
   return out;
+}
+
+// ---------------------------------------------------------------- freezes against the cue sheet
+// A freeze is a stalled picture while the cue sheet expects change. A picture that is meant to stay still (the result
+// the viewer is reading, a card, a static read beat) is a declared hold and is not a freeze.
+
+export const FREEZE_EDGE_SECONDS = 0.25; // tolerance around an expected change and around a hold edge
+
+/**
+ * Where the picture is declared to stay still in one mapped cue-sheet beat, or null when the sheet cannot place it.
+ * From max(last action_time, result.visible_at) to slot_end; a beat with no actions and no result (a card, a static read
+ * beat) holds from its slot_start. Actions or a result without a program time declare nothing.
+ */
+export function declaredHold(beat) {
+  const end = [beat.slot_end, beat.screen?.visible_until].find(Number.isFinite);
+  const begin = [beat.slot_start, beat.screen?.visible_from].find(Number.isFinite);
+  if (!Number.isFinite(end)) return null;
+  const actions = beat.actions || [];
+  const times = actions.map((a) => a.action_time).filter(Number.isFinite);
+  const visible = beat.result?.visible_at;
+  const resultTimed = Number.isFinite(visible);
+  if (resultTimed) times.push(visible);
+  if (times.length) { const from = Math.max(...times); return from < end ? { beat: beat.beat, from, until: end, kind: resultTimed ? 'after-result' : 'after-action' } : null; }
+  if (!actions.length && !beat.result && Number.isFinite(begin)) return { beat: beat.beat, from: begin, until: end, kind: 'static-beat' };
+  return null;
+}
+
+/** Program times at which the cue sheet expects the picture to change: screen cuts, actions, results, edl clip starts. */
+export function expectedChangePoints(beats, edl = null) {
+  const pts = [];
+  (beats || []).forEach((b, i) => {
+    if (i > 0 && b.screen?.changes_from_previous && b.screen.kind !== 'hold' && Number.isFinite(b.screen.visible_from)) pts.push({ beat: b.beat, t: b.screen.visible_from, what: `screen "${b.beat}"` });
+    for (const a of b.actions || []) if (Number.isFinite(a.action_time)) pts.push({ beat: b.beat, t: a.action_time, what: `${a.kind} "${a.label || a.target}"` });
+    if (Number.isFinite(b.result?.visible_at)) pts.push({ beat: b.beat, t: b.result.visible_at, what: `result "${b.result.label}"` });
+  });
+  for (const e of edl || []) {
+    const t = Number(e.startSeconds);
+    if (!Number.isFinite(t) || t <= 0.05 || pts.some((p) => Math.abs(p.t - t) < 0.05)) continue;
+    const b = (beats || []).find((x) => t >= x.slot_start - 1e-6 && t < x.slot_end - 1e-6);
+    pts.push({ beat: b?.beat ?? null, t, what: `clip "${e.clip ?? (e.segments || []).join('+')}"` });
+  }
+  return pts.sort((x, y) => x.t - y.t);
+}
+
+/**
+ * Judge one exact-frame freeze ({ start, end, duration }) against the cue sheet.
+ *   stalled        it covers (+/- FREEZE_EDGE_SECONDS) a point where change is expected, whatever its length
+ *   ignore         at most maxFreezeSeconds
+ *   declared-hold  wholly inside a declared hold of at most maxHoldSeconds
+ *   overlong-hold  wholly inside a declared hold, but longer than maxHoldSeconds
+ *   undeclared     longer than maxFreezeSeconds and outside every declared hold
+ */
+export function classifyFreeze(freeze, { beats, edl = null, maxFreezeSeconds = SYNC_DEFAULTS.maxFreezeSeconds, maxHoldSeconds = SYNC_DEFAULTS.maxHoldSeconds } = {}) {
+  const e = FREEZE_EDGE_SECONDS;
+  const stalled = expectedChangePoints(beats, edl).filter((p) => freeze.start <= p.t - e && freeze.end >= p.t + e);
+  if (stalled.length) return { verdict: 'stalled', stalled, hold: null };
+  if (!(freeze.duration > maxFreezeSeconds)) return { verdict: 'ignore', stalled, hold: null };
+  const hold = (beats || []).map(declaredHold).filter(Boolean).find((h) => freeze.start >= h.from - e && freeze.end <= h.until + e) || null;
+  if (!hold) return { verdict: 'undeclared', stalled, hold: null };
+  return { verdict: freeze.duration > maxHoldSeconds ? 'overlong-hold' : 'declared-hold', stalled, hold };
 }
 
 /** Frame-interval gaps in decode-order-independent packet pts -> estimated dropped frames. */

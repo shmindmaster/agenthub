@@ -10,7 +10,7 @@ Python 3.11+ and the standard library are sufficient. No daemon or scheduler run
 
 | Route | Enforcement |
 | --- | --- |
-| Canonical ElevenLabs REST TTS on this OS account/disk | Required exact cache, singleflight, shared reservations and durable recovery |
+| Canonical ElevenLabs REST speech, sound effects (`sfx`) and music (`music`) on this OS account/disk | Required exact cache, singleflight, shared reservations and durable recovery |
 | Canonical STT and other non-GET requests | Disabled until a conservative metered adapter exists |
 | Codex ElevenLabs app | `content_host_controls.py --apply` sets the documented app `enabled=false`; verify fresh native app readback |
 | Already-loaded native tools, other connectors, raw SDK/API/shell and provider UI | Not intercepted; cannot be represented as governed |
