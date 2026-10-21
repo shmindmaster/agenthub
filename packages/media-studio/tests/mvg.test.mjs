@@ -26,7 +26,7 @@ import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/p
 import { estimateImageUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
 import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
 import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
-import { assetsStage, musicKey, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
+import { assetsStage, musicKey, musicLengthMs, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
 import { cueTime, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
 import { parseArgs } from '../kit/marketing/mvg.mjs';
@@ -1323,4 +1323,63 @@ test('beat grid 5: the compose map records the grid so the marketing-readiness m
   const src = readFileSync(join(mod, 'lib', 'stages', 'compose.mjs'), 'utf8');
   assert.match(src, /timeline\.beatGrid \? \{ beatGrid: \{ bpm: timeline\.beatGrid\.bpm, offsetSeconds: timeline\.beatGrid\.offsetSeconds \} \}/);
   assert.match(readFileSync(join(mod, 'README.md'), 'utf8'), /edit\.beatGrid/);
+});
+
+// ---- music.lengthSeconds: one bed length for many jobs
+test('music length 1: the default bed is the longest cut plus 2 s per job; lengthSeconds fixes it, and must cover the program', () => {
+  assert.equal(musicLengthMs({ provider: 'elevenlabs' }, 24.2), 27000, 'default: ceil(longest + 2) seconds');
+  assert.equal(musicLengthMs(undefined, 1), 3000, 'default floor of 3 s');
+  assert.equal(musicLengthMs({ provider: 'elevenlabs', lengthSeconds: 40 }, 24.2), 40000);
+  assert.equal(musicLengthMs({ provider: 'elevenlabs', lengthSeconds: 40 }, 31.9), 40000, 'a different job length asks for the same bed');
+  assert.equal(musicLengthMs({ provider: 'elevenlabs', lengthSeconds: 26.2 }, 24.2), 26200, 'exactly the longest cut plus 2 s is enough');
+  assert.throws(() => musicLengthMs({ provider: 'elevenlabs', lengthSeconds: 26 }, 24.2), /music\.lengthSeconds is 26 s.*raise it to at least 27/);
+  assert.throws(() => musicLengthMs({ provider: 'elevenlabs', lengthSeconds: 2 }, 1), /at least 3/);
+  assert.equal(musicLengthMs({ provider: 'elevenlabs', lengthSeconds: 20 }, 40, { measured: false }), 20000, 'estimates alone never fail the length');
+  const prompt = 'warm instrumental pulse, 120 bpm';
+  assert.equal(musicKey(prompt, musicLengthMs({ lengthSeconds: 40 }, 24.2), 'music_v2_5'), musicKey(prompt, musicLengthMs({ lengthSeconds: 40 }, 31.9), 'music_v2_5'), 'same prompt, model and length: one request');
+  assert.notEqual(musicKey(prompt, musicLengthMs({}, 24.2), 'music_v2_5'), musicKey(prompt, musicLengthMs({}, 31.9), 'music_v2_5'), 'without it each job length buys a new track');
+  assert.deepEqual(validate(adSchema.properties.music, { provider: 'elevenlabs', prompt, licenseBasis: 'owner-approved test', lengthSeconds: 40 }), []);
+  assert.notDeepEqual(validate(adSchema.properties.music, { provider: 'elevenlabs', lengthSeconds: 2 }), [], 'lengthSeconds is at least 3');
+  // the mix trims the bed to the program and fades it out inside the program, so a longer fixed bed never extends the film
+  const args = buildMixArgs({ lines: [{ file: 'v.wav', startSec: 0.3 }], music: { file: 'bed.mp3' }, durationSec: 20, out: 'mix.wav' });
+  const graph = args[args.indexOf('-filter_complex') + 1];
+  assert.match(graph, /\[1:a\][^;]*atrim=duration=20[^;]*afade=t=out:st=18\.6:d=1\.4\[bed0\]/);
+  assert.match(graph, /apad,atrim=duration=20\[mix\]/);
+});
+
+test('music length 2: lint refuses a fixed bed shorter than the cut plus 2 s; the assets stage buys one bed for jobs of different lengths and refuses a short one', async () => {
+  const music = { provider: 'elevenlabs', prompt: 'warm instrumental pulse, 120 bpm', licenseBasis: 'owner-approved test basis', lengthSeconds: 40 };
+  assert.ok(!codes(lint({ ...baseSpec(), music })).includes('music-length'));
+  assert.ok(codes(lint({ ...baseSpec(), music: { ...music, lengthSeconds: 20 } })).includes('music-length'), 'baseSpec targets 20 s, so a 20 s bed cannot outlast it');
+
+  const requests = [];
+  const providers = () => ({
+    elevenCli: {},
+    elevenlabs: {
+      resolveCli: () => ({}),
+      soundEffect: async (_c, o) => { writeFileSync(o.output, 'sfx'); return { receipt: { request_id: 'sfx', reused: false, actual_credits: 40 } }; },
+      music: async (_c, o) => { requests.push({ prompt: o.prompt, lengthMs: o.lengthMs, model: o.model }); writeFileSync(o.output, 'bed'); return { receipt: { request_id: `m${requests.length}`, reused: requests.length > 1, actual_credits: 100 } }; },
+    },
+  });
+  const job = (name, seconds, lengthSeconds) => {
+    const spec = { ...baseSpec(), id: name, music: { ...music, lengthSeconds } };
+    spec.beats = spec.beats.map(({ sfx, ...b }) => b);
+    const ctx = stageCtx(`music-${name}`, spec, providers());
+    mkdirSync(join(ctx.jobDir, 'timing', 'main'), { recursive: true });
+    writeFileSync(join(ctx.jobDir, 'timing', 'main', 'timeline.json'), JSON.stringify({ durationSeconds: seconds, segments: [] }));
+    return ctx;
+  };
+  await assetsStage(job('music-job-a', 19.4, 40));
+  await assetsStage(job('music-job-b', 26.8, 40));
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests[0], requests[1], 'an identical request, which the governed adapter reuses');
+  assert.equal(requests[0].lengthMs, 40000);
+  const per = [];
+  for (const [name, seconds] of [['music-job-c', 19.4], ['music-job-d', 26.8]]) {
+    const before = requests.length;
+    await assetsStage(job(name, seconds, undefined));
+    per.push(requests[before].lengthMs);
+  }
+  assert.deepEqual(per, [22000, 29000], 'without lengthSeconds each job length asks for its own bed');
+  await assert.rejects(() => assetsStage(job('music-job-e', 39.5, 40)), /music\.lengthSeconds is 40 s but the longest cut is 39\.50 s/);
 });

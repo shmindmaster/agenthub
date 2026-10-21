@@ -43,6 +43,7 @@
         "prompt": { "type": "string", "minLength": 10 },
         "licenseBasis": { "type": "string", "minLength": 10 },
         "bedDb": { "type": "number", "minimum": -40, "maximum": -10 },
+        "lengthSeconds": { "type": "number", "minimum": 3, "description": "Fixed bed length. Jobs with the same prompt, model and lengthSeconds make an identical request and reuse one track instead of buying one per job length. Must be at least the longest cut plus 2 s (the mix trims the bed to the program, never extends it); default is the longest cut plus 2 s per job." },
         "model": { "type": "string" }
       }
     },
