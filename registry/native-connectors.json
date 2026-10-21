@@ -335,7 +335,7 @@
         "Installed Codex plugin MCP manifests own Chrome DevTools, Descript, Linear, and Notion.",
         "The installed Firecrawl plugin is skills-only and contains no MCP manifest; registry/mcps.json retains the Firecrawl service contract.",
         "Installed Codex app connectors own GitHub.",
-        "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03 and are no longer registered on any host.",
+        "Tavily was retired from the fleet on 2026-08-03. Adobe and Canva were retired the same day and un-retired 2026-10-21 as claude.ai account connectors with single media roles (mediaConnectorRoles); neither is registered in registry/mcps.json or delivered to Codex.",
         "open-connector added to shared-gateway exposure on 2026-09-13: an HTTP entry for the local gateway at http://127.0.0.1:3400/mcp with a bearer read from the User environment variable OPEN_CONNECTOR_AGENT_TOKEN, written by Sync-AgentHub.ps1 -Apply. No process is spawned by the host."
       ],
       "exposureNote": "github added to codex's shared-gateway exposure on 2026-08-20. mcps.json listed codex among github's hosts, but codex had no delivery route for it in any mode -- not in config.toml, not plugin-owned, not gateway -- so the declaration was unreachable. Caught by Test-DeclaredVsDeployedMcp, which compares declared hosts against the host's actual config; no prior test opened a config file. github is shared-remote over HTTP, so this costs a config line and no process."
@@ -367,7 +367,7 @@
         "Claude installed_plugins.json and package manifests own GitHub and Notion. chrome-devtools was removed from this list on 2026-08-20: it stopped being a canonical id in registry/mcps.json when playwright replaced it fleet-wide on 2026-08-19, and it was the only exposure id left on any host that no longer resolves. It is NOT replaced by playwright here -- playwright's hosts are the ones with no verified native browser, which excludes claude; browser-toolkit reaches claude as managed loose skills instead. Test-DeclaredVsDeployedMcp now asserts every exposure id is a canonical server id, which is the check that would have caught this.",
         "Claude account connectors own Descript, Linear, Notion, and Railway (measured 2026-10-14: each connected as a claude.ai connector while the direct user-scope linear and railway entries and the Notion plugin server sat unauthenticated). The direct entries are suppressed here so Sync removes them from ~/.claude.json. Correction 2026-10-14: the media-studio plugin was NOT suppressing its bundled Descript MCP on Claude -- Claude auto-loads the package root .mcp.json regardless of mcpOwnership, and plugin:media-studio:descript appeared beside the connector. It is now blocked host-side by a deniedMcpServers entry in ~/.claude/settings.json, which Sync does not manage.",
         "claude.ai account plugins (small-business, marketing, engineering, design, exa, adobe-for-creativity) bundle their own copies of Gmail, Google Calendar, Google Drive, Slack, Notion, Canva, Datadog, Stripe, Atlassian, Figma, Exa, and Adobe. On 2026-10-14 the owner approved blocking each duplicate by scoped name (plugin:<plugin>:<server>) in ~/.claude/settings.json deniedMcpServers, keeping the plugins' skills. Verified with claude mcp list that the scoped name matches and a bare name does not. Exa, Context7, and Firecrawl claude.ai connectors were switched off for Code sessions so the keyed shared-gateway entries are the single source.",
-        "Adobe, Canva, and Tavily were retired from the fleet on 2026-08-03. Any residual Adobe or Canva tools in a Claude session come from claude.ai account connectors, which are not managed by this registry and must be removed in claude.ai connector settings.",
+        "Tavily was retired from the fleet on 2026-08-03. Canva and Adobe are kept (owner decision 2026-10-21) as claude.ai account connectors with the single media roles recorded in mediaConnectorRoles; they are account-level, not delivered by this registry, and their tools appear in a Claude session through claude.ai connector settings.",
         "Measured 2026-08-05: ~/.claude/plugins/installed_plugins.json lists 15 locally installed plugins, and none of engineering, marketing, small-business, design, litigation-legal, or adobe-for-creativity is among them; none has a directory under plugins/cache and none appears in known_marketplaces.json. Servers presented to a Claude session under those plugin names are therefore account-level, delivered by claude.ai rather than by any local installation this registry can reach. See ownerActionRequired."
       ]
     },
@@ -693,6 +693,63 @@
       }
     }
   ],
+  "mediaConnectorRoles": {
+    "recordedOn": "2026-10-21",
+    "authority": "Owner decision 2026-10-21 relayed by the orchestrating session (media consolidation research, proposal P9). Each connector has one owner and one default step; a step not listed is not that connector's job.",
+    "evidenceMethod": "A read-only connector call made in the recording session (no generation, no write). A connector the session could not call is recorded false, not assumed.",
+    "connectors": [
+      {
+        "id": "canva",
+        "status": "keep",
+        "owner": "personal-media",
+        "surface": "claude.ai account connector",
+        "defaultStep": "Static multi-format social cards, thumbnails and brand-kit layouts. Never film frames, never product UI.",
+        "spend": "Canva credits are paid generation: owner approval per run, recorded in the campaign run record.",
+        "referencedBy": "packages/media-studio/skills/media-studio/references/campaigns.md",
+        "live": true,
+        "liveEvidence": "2026-10-21: list-brand-kits returned two brand kits (one named GentleNext) in the recording session."
+      },
+      {
+        "id": "adobe",
+        "status": "keep",
+        "owner": "personal-media",
+        "surface": "claude.ai account connector (adobe-for-creativity)",
+        "defaultStep": "PDF one-pagers, font kits, social resize of delivered masters (a derivative that passes validate-picture-integrity.mjs again), and Firefly stills only under the abstract-imagery rule: no generated people, product UI, metrics or claims.",
+        "spend": "Adobe generation credits: owner approval per run.",
+        "referencedBy": "packages/media-studio/skills/media-studio/references/campaigns.md",
+        "live": null,
+        "liveEvidence": "2026-10-21: not called in the recording session (the connector requires its mandatory init step first); keep is the owner decision, live is not established."
+      },
+      {
+        "id": "elevenlabs",
+        "status": "keep-read-only",
+        "owner": "portfolio",
+        "surface": "claude.ai account connector (ElevenLabs Creative, voice and speech only)",
+        "defaultStep": "Read-only discovery: voices, workspace, account and model inventory. Every paid generation stays on the governed CLI (packages/elevenlabs/scripts/elevenlabs_cli.py) and its shared ledger; the connector never generates.",
+        "referencedBy": "packages/elevenlabs/skills/elevenlabs/SKILL.md",
+        "live": true,
+        "liveEvidence": "2026-10-21: creative_list_voices returned 25 voices with has_more; its connector_notice states it covers voice and speech only and refuses image, video and music nodes."
+      },
+      {
+        "id": "descript",
+        "status": "optional-finishing",
+        "owner": "personal-media",
+        "surface": "claude.ai account connector (registry/mcps.json descript row unchanged)",
+        "defaultStep": "Optional editorial finishing of cleared working media (transcript edits, filler removal, share links). Studio Sound is banned on owner voice.",
+        "referencedBy": "packages/media-studio/skills/media-studio-compose/references/descript.md",
+        "live": true,
+        "liveEvidence": "2026-10-21: get_drive_info returned the owner's drive in the recording session."
+      },
+      {
+        "id": "replit",
+        "status": "no-media-role",
+        "owner": null,
+        "defaultStep": null,
+        "live": false,
+        "liveEvidence": "2026-10-21: owner decision; Replit has no media role and nothing routes media work to it."
+      }
+    ]
+  },
   "thirdPartyExtensions": {
     "policy": {
       "authority": "upstream-maintainer",
