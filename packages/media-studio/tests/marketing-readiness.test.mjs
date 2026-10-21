@@ -54,7 +54,7 @@ function job(root, over = {}) {
   const candidate = candidateFor(root);
   writeJson(join(root, 'job.json'), { kind: 'product-screencast', title: 'fixture', workspace: root, repositoryWritePolicy: 'read-only', programForm: 'marketing-cutdown', intent: 'viewer-facing', ...over });
   writeJson(join(root, 'plan', 'cue-sheet.json'), { generator: 'media-studio/build-cue-sheet', mode: 'mapped', durationSeconds: 10, edl: [{ segments: ['M01'], startSeconds: 0 }, { segments: ['M02'], startSeconds: 2.0 }, { segments: ['M03'], startSeconds: 4.0 }, { segments: ['M04'], startSeconds: 6.5 }], beats: [] });
-  writeJson(join(root, 'qa', 'narration-check.json'), { generator: 'media-studio/validate-narration', ok: true, errors: [], fluff: { perMinute: 0, count: 0 } });
+  writeJson(join(root, 'qa', 'narration-check.json'), { generator: 'media-studio/validate-narration', ok: true, thresholds: { hookSeconds: 5, redundantOverlap: 0.7, redundantMinContentWords: 3, noNewInformationMinContentWords: 4 }, errors: [], fluff: { perMinute: 0, count: 0 } });
   writeJson(join(root, 'qa', 'marketing-readiness.json'), readiness(candidate));
   return candidate;
 }
@@ -84,6 +84,8 @@ test('marketing floor fails closed on each criterion', { skip: !hasFfmpeg }, () 
     const r = run([root, candidate]); assert.notEqual(r.code, 0, `${label} should fail`); assert.match(r.out, pattern, label);
   };
   expectFail({ hook: { atSeconds: 3.2, what: 'logo then the number', verdict: 'pass' } }, /hook lands at 3.2s; the floor is 2s/, 'late hook');
+  expectFail({ hook: { atSeconds: null, what: 'the held-claim count fills the frame before any logo', verdict: 'pass' } }, /hook.atSeconds must be the measured time/, 'null hook time is not zero');
+  expectFail({ hook: { atSeconds: '', what: 'the held-claim count fills the frame before any logo', verdict: 'pass' } }, /hook.atSeconds must be the measured time/, 'empty-string hook time is not zero');
   expectFail({ promise: { text: 'two things', count: 2, verdict: 'pass', evidence: 'M01 and M05 promise different outcomes' } }, /promise.count must be 1/, 'two promises');
   expectFail({ motion: { verdict: 'fail', evidence: 'static dashboard held 6 s at 0:03' } }, /motion needs verdict pass/, 'static motion');
   expectFail({ sound: { bed: false, designCues: 0, verdict: 'pass', evidence: 'voice only' } }, /sound.bed must be true/, 'no bed');

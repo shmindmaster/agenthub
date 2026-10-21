@@ -68,6 +68,11 @@ if (ratioOpt) {
   const vp = (options.viewports || {})[ratioOpt];
   if (!vp || !Number.isFinite(vp.width) || !Number.isFinite(vp.height)) throw new Error('--ratio ' + ratioOpt + ': capture/scenes.mjs options.viewports["' + ratioOpt + '"] = { width, height, ... } is missing');
   capture = { viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor ?? options.deviceScaleFactor, device: vp.device || null, isMobile: vp.isMobile, hasTouch: vp.hasTouch };
+  // A ratio entry is a CSS viewport (a phone is 390x844 at DSF 3), and Playwright records video at the size it is given,
+  // not at device pixels. Record and Recast it at viewport x DSF so a 9:16 take is 1170x2532, not a 390x844 clip that
+  // picture-integrity must reject as a 2.3x upscale into 1080x1920. mobileLayout already rasterises at native size.
+  const dsf = Number(capture.deviceScaleFactor);
+  if (!options.mobileLayout && Number.isFinite(dsf) && dsf > 1) capture.videoSize = { width: Math.round(vp.width * dsf), height: Math.round(vp.height * dsf) };
 }
 const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 const reducedRatio = (v) => { const g = gcd(v.width, v.height) || 1; return (v.width / g) + ':' + (v.height / g); };
@@ -129,7 +134,7 @@ for (const id of ids) {
   fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
   const takeState = carryState && fs.existsSync(carryPath) ? carryPath : storageState;
   const rec = await startRecording(id, {
-    storageState: takeState, baseUrl: options.baseUrl, viewport: capture.viewport, deviceScaleFactor: capture.deviceScaleFactor, mobileLayout: options.mobileLayout, pageZoom: options.pageZoom,
+    storageState: takeState, baseUrl: options.baseUrl, viewport: capture.viewport, videoSize: capture.videoSize, deviceScaleFactor: capture.deviceScaleFactor, mobileLayout: options.mobileLayout, pageZoom: options.pageZoom,
     device: capture.device || undefined, isMobile: capture.isMobile, hasTouch: capture.hasTouch,
     headless: !flags.has('--headed'), colorScheme: options.colorScheme, timezoneId: options.timezoneId, extraHTTPHeaders: options.extraHTTPHeaders,
   });
@@ -149,11 +154,11 @@ for (const id of ids) {
     // movie filter with only backslashes escaped, so an absolute Windows path breaks on the drive colon. cwd is capture/.
     const rawRel = path.relative(process.cwd(), fin.rawDir);
     const outRel = path.join('clips', `${id}.webm`);
-    try { await renderRecast(rawRel, outRel, { ...opts, resolution: capture.viewport }); take.recast = opts.autoZoom === false ? 'noZoom' : 'full'; }
+    try { await renderRecast(rawRel, outRel, { ...opts, resolution: capture.videoSize || capture.viewport }); take.recast = opts.autoZoom === false ? 'noZoom' : 'full'; }
     catch (e) {
       console.log('  recast failed:', e.message.split('\n')[0]);
       fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
-      try { await renderRecast(rawRel, outRel, { ...opts, autoZoom: false, resolution: capture.viewport }); take.recast = 'noZoom'; take.recastNote = e.message.split('\n')[0]; }
+      try { await renderRecast(rawRel, outRel, { ...opts, autoZoom: false, resolution: capture.videoSize || capture.viewport }); take.recast = 'noZoom'; take.recastNote = e.message.split('\n')[0]; }
       catch (e2) { fs.copyFileSync(fin.webm, out); take.recast = 'fallback'; take.recastNote = e2.message.split('\n')[0]; console.log('  raw webm copied (recast fallback)'); }
     }
   }

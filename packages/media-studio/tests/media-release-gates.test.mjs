@@ -19,7 +19,7 @@ test.after(async () => {
 });
 const sha = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 const writePictureReport = (root, candidate) => writeFileSync(join(root, 'qa', 'encoded-picture.json'), JSON.stringify({ generator: 'media-studio/validate-encoded-picture', ok: true, errors: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, thresholds: { maxStaticSeconds: 6, bindMaxHamming: 12 }, screenRatio: 1, segments: [{ id: 'hero', mode: 'screen', bound: true }] }));
-const syncReport = (candidate, over = {}) => ({ generator: 'media-studio/validate-sync', ok: true, degraded: false, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, thresholds: { actionToleranceMs: 300, screenToleranceMs: 40, resultHoldMinSeconds: 1.5, driftMaxMs: 40, maxFreezeSeconds: 4, maxDroppedFrames: 3 }, precision: { allWordLevel: true, degradedBeats: [] }, beats: [{ beat: 'hero', status: 'pass', findings: [{ check: 'action-timing', status: 'pass' }] }], checks: { performed: ['screen-on', 'action-timing', 'result-hold', 'narration-order', 'av-sync', 'frozen-frames', 'dropped-frames'], notPerformed: [{ check: 'text-clipping', reason: 'no OCR' }] }, ...over });
+const syncReport = (candidate, over = {}) => ({ generator: 'media-studio/validate-sync', ok: true, degraded: false, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, thresholds: { actionToleranceMs: 300, screenToleranceMs: 40, resultHoldMinSeconds: 1.5, driftMaxMs: 40, maxFreezeSeconds: 4, maxHoldSeconds: 6.5, maxDroppedFrames: 3 }, precision: { allWordLevel: true, degradedBeats: [] }, beats: [{ beat: 'hero', status: 'pass', findings: [{ check: 'action-timing', status: 'pass' }] }], checks: { performed: ['screen-on', 'action-timing', 'result-hold', 'narration-order', 'av-sync', 'frozen-frames', 'dropped-frames'], notPerformed: [{ check: 'text-clipping', reason: 'no OCR' }] }, ...over });
 const writeSyncReport = (root, candidate, over) => writeFileSync(join(root, 'qa', 'sync.json'), JSON.stringify(syncReport(candidate, over)));
 // Video-standard reports (owner direction 2026-10-20): each is produced by its own gate; the release gate only checks the binding.
 const writeStandardReports = (root, candidate) => {
@@ -28,10 +28,10 @@ const writeStandardReports = (root, candidate) => {
   if (!existsSync(screenplay)) writeFileSync(screenplay, JSON.stringify({ title: 't', scenes: [{ id: 'hero', narration: 'The plan is ready after approval.' }] }));
   const receipt = join(root, 'capture', 'receipt.json');
   if (!existsSync(receipt)) writeFileSync(receipt, JSON.stringify({ schemaVersion: '1.0.0', generator: 'media-studio/record-job', clips: {} }));
-  writeFileSync(join(root, 'qa', 'narration-check.json'), JSON.stringify({ generator: 'media-studio/validate-narration', ok: true, errors: [], warnings: [], inputs: { screenplay: { path: 'story/screenplay.json', sha256: sha(screenplay) } }, fluff: { perMinute: 0, count: 0, hits: [] } }));
-  writeFileSync(join(root, 'qa', 'frame-integrity.json'), JSON.stringify({ generator: 'media-studio/validate-frame-integrity', ok: true, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, tiled: [], lumaJumps: [] }));
-  writeFileSync(join(root, 'qa', 'pointer-path.json'), JSON.stringify({ generator: 'media-studio/validate-pointer-path', ok: true, errors: [], warnings: [], inputs: { receipt: { path: 'capture/receipt.json', sha256: sha(receipt) } }, windows: [] }));
-  writeFileSync(join(root, 'qa', 'picture-integrity.json'), JSON.stringify({ generator: 'media-studio/validate-picture-integrity', ok: true, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, clips: [] }));
+  writeFileSync(join(root, 'qa', 'narration-check.json'), JSON.stringify({ generator: 'media-studio/validate-narration', ok: true, thresholds: { hookSeconds: 5, redundantOverlap: 0.7, redundantMinContentWords: 3, noNewInformationMinContentWords: 4 }, errors: [], warnings: [], inputs: { screenplay: { path: 'story/screenplay.json', sha256: sha(screenplay) } }, fluff: { perMinute: 0, count: 0, hits: [] } }));
+  writeFileSync(join(root, 'qa', 'frame-integrity.json'), JSON.stringify({ generator: 'media-studio/validate-frame-integrity', ok: true, thresholds: { tilePsnr: 32, lumaJump: 40, contrastFloor: 12, cutWindow: 0.25, sampleFps: 2 }, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, tiled: [], lumaJumps: [] }));
+  writeFileSync(join(root, 'qa', 'pointer-path.json'), JSON.stringify({ generator: 'media-studio/validate-pointer-path', ok: true, thresholds: { maxReversals: 0, maxTravelRatio: 1.35, maxScrollReversals: 0, maxUnnamedMoves: 0, turnCos: -0.5 }, errors: [], warnings: [], inputs: { receipt: { path: 'capture/receipt.json', sha256: sha(receipt) } }, windows: [] }));
+  writeFileSync(join(root, 'qa', 'picture-integrity.json'), JSON.stringify({ generator: 'media-studio/validate-picture-integrity', ok: true, thresholds: { scaleTolerance: 0.005, barVariance: 4, barMinPx: 6, ratioTolerance: 0.02 }, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, clips: [] }));
 };
 const run = (script, args) => { const result = spawnSync(process.execPath, [script, ...args], { encoding: "utf8" }); return { code: result.status, output: `${result.stdout}${result.stderr}` }; };
 function job(root) {
@@ -167,7 +167,7 @@ test('campaign release probes exact encoded profile and duration', { skip: spawn
     writeSyncReport(root, candidate);
     writeStandardReports(root, candidate);
     // campaign-flagship is a marketing cut: the marketing floor report is bound to each encode
-    writeFileSync(join(root, 'qa', 'marketing-readiness-check.json'), JSON.stringify({ generator: 'media-studio/validate-marketing-readiness', ok: true, applies: true, errors: [], warnings: [], candidate: { sha256: candidateSha256, bytes: statSync(candidate).size }, checks: {} }));
+    writeFileSync(join(root, 'qa', 'marketing-readiness-check.json'), JSON.stringify({ generator: 'media-studio/validate-marketing-readiness', ok: true, thresholds: { hookMaxSeconds: 2, endCardWindowSeconds: 8, beatToleranceMs: 80, beatHitRatio: 0.9, referencesRequired: 3 }, applies: true, errors: [], warnings: [], candidate: { sha256: candidateSha256, bytes: statSync(candidate).size }, checks: {} }));
     releaseEvidence.candidate.sha256 = candidateSha256;
     for (const key of ['captions', 'audio', 'pronunciation', 'encodedVisualReview', 'titleReview', 'actionResultReview', 'storyReview']) releaseEvidence[key].candidateSha256 = candidateSha256;
     const analyzer = join(root, 'qa', 'loudness.json');
@@ -255,7 +255,7 @@ test('release gate holds marketing cuts to the marketing floor', () => {
   const root = join(scratch, 'marketing-floor'); job(root); const candidate = release(root);
   const jobPath = join(root, 'job.json'); const base = JSON.parse(readFileSync(jobPath, 'utf8'));
   const mk = join(root, 'qa', 'marketing-readiness-check.json');
-  const writeMk = (over = {}) => writeFileSync(mk, JSON.stringify({ generator: 'media-studio/validate-marketing-readiness', ok: true, applies: true, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, checks: {}, ...over }));
+  const writeMk = (over = {}) => writeFileSync(mk, JSON.stringify({ generator: 'media-studio/validate-marketing-readiness', ok: true, thresholds: { hookMaxSeconds: 2, endCardWindowSeconds: 8, beatToleranceMs: 80, beatHitRatio: 0.9, referencesRequired: 3 }, applies: true, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, checks: {}, ...over }));
   for (const form of ['marketing-cutdown', 'campaign-short', 'social-clip', 'hero']) {
     writeFileSync(jobPath, JSON.stringify({ ...base, programForm: form }));
     if (mk && existsSync(mk)) rmSync(mk);
@@ -266,6 +266,26 @@ test('release gate holds marketing cuts to the marketing floor', () => {
   writeMk({ ok: false, errors: ['hook-2s: hook lands at 3.2s'] }); assert.match(run(releaseValidator, [root, candidate]).output, /marketing-readiness-check.json must be a PASS/);
   writeMk({ applies: false }); assert.match(run(releaseValidator, [root, candidate]).output, /did not apply the marketing floor/);
   writeMk({ candidate: { sha256: '0'.repeat(64), bytes: 1 } }); assert.match(run(releaseValidator, [root, candidate]).output, /marketing-readiness-check.json is not bound to the exact candidate/);
+  writeMk({ thresholds: { hookMaxSeconds: 30, endCardWindowSeconds: 8, beatToleranceMs: 80, beatHitRatio: 0.9, referencesRequired: 3 } }); assert.match(run(releaseValidator, [root, candidate]).output, /marketing-readiness-check.json was not run at the canonical thresholds: hookMaxSeconds 30 \(at most 2\)/, 'a loosened hook floor is not a PASS');
   writeFileSync(jobPath, JSON.stringify(base)); rmSync(mk);
   assert.equal(run(releaseValidator, [root, candidate]).code, 0, 'a non-marketing role-demo is not held to the floor');
+});
+
+test('release gate refuses video-standard reports run with loosened thresholds', () => {
+  const root = join(scratch, 'loosened-thresholds'); job(root); const candidate = release(root);
+  assert.equal(run(releaseValidator, [root, candidate]).code, 0, 'canonical thresholds release');
+  const fi = join(root, 'qa', 'frame-integrity.json');
+  const original = readFileSync(fi, 'utf8');
+  const loosened = JSON.parse(original); loosened.thresholds = { ...loosened.thresholds, tilePsnr: 100, lumaJump: 256 };
+  writeFileSync(fi, JSON.stringify(loosened));
+  const r = run(releaseValidator, [root, candidate]);
+  assert.notEqual(r.code, 0);
+  assert.match(r.output, /frame-integrity.json was not run at the canonical thresholds: tilePsnr 100 \(at most 32\), lumaJump 256 \(at most 40\)/);
+  const stricter = JSON.parse(original); stricter.thresholds = { ...stricter.thresholds, tilePsnr: 28, sampleFps: 4 };
+  writeFileSync(fi, JSON.stringify(stricter));
+  assert.equal(run(releaseValidator, [root, candidate]).code, 0, 'a stricter run still releases');
+  const missing = JSON.parse(original); delete missing.thresholds;
+  writeFileSync(fi, JSON.stringify(missing));
+  assert.match(run(releaseValidator, [root, candidate]).output, /frame-integrity.json was not run at the canonical thresholds: tilePsnr missing/);
+  writeFileSync(fi, original);
 });
