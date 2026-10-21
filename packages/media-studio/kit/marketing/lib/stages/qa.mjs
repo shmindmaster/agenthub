@@ -80,7 +80,7 @@ export async function qaStage(ctx) {
       const reviews = readReviews(join(qdir, 'reviews.json'), sha);
       const storyMin = ctx.spec.qa?.storyMin ?? 85;
       const sr = reviews.storyReview;
-      gates.story = sr && sr.reviewer && Number(sr.score) >= storyMin && sr.cta ? { status: 'pass', detail: `score ${sr.score} by ${sr.reviewer}` } : pending(`media-story-experience-reviewer score >= ${storyMin} on this candidate (qa/${ratio}/reviews.json storyReview)`);
+      gates.story = sr && sr.reviewer && Number(sr.score) >= storyMin && sr.cta ? { status: 'pass', detail: `score ${sr.score} by ${sr.reviewer}` } : pending(`media-studio-qa story-experience review score >= ${storyMin} on this candidate (qa/${ratio}/reviews.json storyReview)`);
 
       const evidenceReady = ['encodedVisualReview', 'titleReview', 'actionResultReview', 'storyReview', 'pronunciation'].every((k) => reviews[k]?.status === 'PASS');
       if (!evidenceReady) gates.viewerRelease = pending('reviews.json needs PASS entries (encodedVisualReview, titleReview, actionResultReview, storyReview, pronunciation) for this candidate');

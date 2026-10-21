@@ -11,7 +11,7 @@ import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "3.0.0"
+EXPECTED_VERSION = "3.0.1"
 MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
@@ -127,7 +127,7 @@ def main() -> int:
     # relative `scripts/elevenlabs_cli.py` does not resolve there. Every file that invokes
     # the CLI must name the resolvable package path.
     secret_shapes = (
-        re.compile(r"sk_[0-9a-f]{20,}"),
+        re.compile(r"\bsk_[0-9a-f]{20,}\b"),
         re.compile(r"xi-api-key\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{16,}"),
         re.compile(r"Bearer\s+[A-Za-z0-9_\-.]{20,}"),
         re.compile(r"ELEVENLABS_API_KEY\s*=\s*['\"]?[A-Za-z0-9_\-]{16,}"),

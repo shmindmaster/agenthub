@@ -419,7 +419,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   bibles stay outside AgentHub.
 
 - **Local media studio (2026-08-25, craft 2026-09-02):** `packages/media-studio`
-  is the **only public** video/audio/animation pack (`1.5.0`). Rapid default: a
+  is the **only public** video/audio/animation pack (its release is the `version` in `packages/media-studio/plugin.json`). Rapid default: a
   concept or outline is enough; writer → storyboard → visuals → director →
   Local-AI generate → Remotion/FFmpeg/Recast compose → craft critic → QA.
   Viewer-facing jobs apply `engagement.md` plus `story-craft.md` and the
