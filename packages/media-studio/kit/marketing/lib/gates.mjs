@@ -4,10 +4,16 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { chooseResult, expectationClipTimes, expandKeywords, shiftAsr, unnarratedActions } from './align.mjs';
+import { CHAIN_GATES, captureViewportsFor } from './chain-gates.mjs';
 import { FRAMES } from './layout.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
 
-export const DEFAULT_REQUIRED = ['picture', 'captions', 'loudness', 'sync', 'listen', 'vision', 'story', 'viewerRelease'];
+// integrity, pointer, frameIntegrity and marketing are the media-studio 2.0.0 film-chain gates (picture integrity, pointer path,
+// tiled-frame / luma-jump check, marketing floor).
+export const DEFAULT_REQUIRED = ['picture', 'integrity', 'pointer', 'frameIntegrity', 'captions', 'loudness', 'sync', 'listen', 'vision', 'marketing', 'story', 'viewerRelease'];
+
+/** The gates deliver requires: the spec's list (or the default), always including the film-chain gates. */
+export const requiredGates = (spec) => [...new Set([...(spec?.qa?.required || DEFAULT_REQUIRED), ...CHAIN_GATES])];
 
 const seconds = (value) => {
   const m = /^(\d{2}):(\d{2}):(\d{2})[,.](\d{3})$/.exec(value.trim());
@@ -58,11 +64,19 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
   writeJson(join(root, 'job.json'), {
     jobId: `mvg-${spec.id}-${ratio}`, product: spec.product, title: spec.title, kind: 'product-screencast', programForm: 'outcome-workflow', intent: 'viewer-facing',
     craftScoreMin: spec.qa?.storyMin ?? 85, deliveryProfile: frame.profile, repositoryWritePolicy: 'read-only', workspace: root,
-    dataClass: 'synthetic only', label: spec.labels, loudnessTargetLufs: loudnessLufs, recastFallbackAllowed: false, generator: 'media-studio/mvg',
+    // A paid ad competes in a feed: validate-marketing-readiness and viewer-release apply the marketing floor to marketing: true
+    // (programForm stays outcome-workflow, see README deviation 8). Each portrait or square ratio is captured at its own frame.
+    marketing: true, captureViewports: captureViewportsFor(ratio, frame),
+    dataClass: 'synthetic only', label: spec.labels, syntheticDisclosure: { mode: 'end-card', text: spec.labels }, loudnessTargetLufs: loudnessLufs, recastFallbackAllowed: false, generator: 'media-studio/mvg',
   });
+  // A beat with no narration (the opening title card, an end card with only on-screen text) is a silent beat: it has no words and
+  // no timing precision to ask for. The cue sheet (build-cue-sheet.mjs) makes one row per segment of this file and, with no ASR
+  // to read for a segment, spreads its (empty) text and marks the row precision "estimate", which validate-sync refuses as
+  // "narration timing is estimate (not word-level)". So the narration timeline lists the narrated beats only; the film's total
+  // length stays, and the silent beat's picture is still in the compose map and the storyboard below.
   writeJson(join(root, 'story', 'narration-timeline.json'), {
     durationSeconds: timeline.durationSeconds,
-    segments: timeline.segments.map((s) => ({ id: s.id, scene: s.id, text: s.text, startSeconds: s.startSeconds, durationSeconds: s.durationSeconds, speechSeconds: s.speechSeconds })),
+    segments: timeline.segments.filter((s) => s.text).map((s) => ({ id: s.id, scene: s.id, text: s.text, startSeconds: s.startSeconds, durationSeconds: s.durationSeconds, speechSeconds: s.speechSeconds })),
   });
   writeJson(join(root, 'story', 'storyboard.json'), {
     title: `${spec.title} - storyboard`, kind: 'product-screencast', deliveryProfile: frame.profile, scenarioId: spec.id,
@@ -100,7 +114,12 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     // number words both), all others narrated:false so the sync gate does not ask for a spoken word for a pointer trace.
     const narrated = (beat.ui.actions || []).map((a) => ({ label: a.label, narrated: true, keywords: expandKeywords(a.keywords) }));
     const quiet = unnarratedActions(c.receiptEntry.actions, c.receiptEntry.recastHeadTrimSeconds ?? 0, g.edit.trimStart, g.edit.trimEnd, narrated.map((a) => a.label)).map((label) => ({ label, narrated: false }));
-    if (narrated.length || quiet.length) cuePlan.beats[beat.id] = { actions: [...narrated, ...quiet] };
+    // What the spec author declared, for validate-picture-integrity: a focus window with `declaredZoom` is an authored punch-in
+    // (and, below full region, an authored crop). Nothing undeclared is written here, so any other crop or zoom still fails.
+    const declared = (g.windows || []).some((w) => w.declaredZoom);
+    const cropped = g.sourceRegion && (g.sourceRegion.width < 1 || g.sourceRegion.height < 1);
+    const beatPlan = { ...(narrated.length || quiet.length ? { actions: [...narrated, ...quiet] } : {}), ...(declared ? { zoom: true } : {}), ...(declared && cropped ? { crop: { reason: 'ui.focus declaredZoom: an authored focus window on a device-scale recording' } } : {}) };
+    if (Object.keys(beatPlan).length) cuePlan.beats[beat.id] = beatPlan;
   }
   writeJson(join(root, 'capture', 'manifest.json'), { clips: manifestClips });
   writeJson(join(root, 'capture', 'receipt.json'), receipt);

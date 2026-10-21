@@ -11,9 +11,13 @@ import { fileSha, round } from './util.mjs';
 
 export const THRESHOLDS = { bindMaxHamming: 12, maxStaticSeconds: 6, screenRatioMin: 0.7, staticChangedFraction: 0.003, changedPixelDelta: 16 };
 
+// A neighbour must be brighter by more than this many levels to set a bit. A dimmed or near-blank frame (a modal's
+// overlay) averages to an almost flat 9x8 grid, where +-1 level of encode noise or a caption plate flips half the bits
+// and a picture that is the receipt-bound capture reads as unbound (film 14: dHash 13-14 on frames that match at 3-4).
+export const DHASH_DEADBAND = 2;
 export function dhash(gray9x8) {
   let bits = 0n;
-  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { bits <<= 1n; if (gray9x8[y * 9 + x] > gray9x8[y * 9 + x + 1]) bits |= 1n; }
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { bits <<= 1n; if (gray9x8[y * 9 + x] > gray9x8[y * 9 + x + 1] + DHASH_DEADBAND) bits |= 1n; }
   return bits;
 }
 export function hamming(a, b) { let x = a ^ b; let n = 0; while (x) { n += Number(x & 1n); x >>= 1n; } return n; }

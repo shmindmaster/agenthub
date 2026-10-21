@@ -43,6 +43,7 @@
         "prompt": { "type": "string", "minLength": 10 },
         "licenseBasis": { "type": "string", "minLength": 10 },
         "bedDb": { "type": "number", "minimum": -40, "maximum": -10 },
+        "lengthSeconds": { "type": "number", "minimum": 3, "description": "Fixed bed length. Jobs with the same prompt, model and lengthSeconds make an identical request and reuse one track instead of buying one per job length. Must be at least the longest cut plus 2 s (the mix trims the bed to the program, never extends it); default is the longest cut plus 2 s per job." },
         "model": { "type": "string" }
       }
     },
@@ -82,13 +83,27 @@
         "openaiUsd": { "type": "number", "minimum": 0 }
       }
     },
+    "edit": {
+      "type": "object", "additionalProperties": false,
+      "description": "Editing rules that are not part of any one beat.",
+      "properties": {
+        "beatGrid": {
+          "type": "object", "additionalProperties": false, "required": ["bpm", "offsetSeconds"],
+          "description": "The music bed's tempo. The bed plays from program time 0, so beats fall at offsetSeconds + n * 60/bpm. After the voice-first timeline is built, every scene boundary but the start is held (tail only) to the next beat, so cuts land on the grid the marketing-readiness floor measures. Lives here, never in music, so the bed's cache key is unaffected.",
+          "properties": {
+            "bpm": { "type": "number", "minimum": 40, "maximum": 220 },
+            "offsetSeconds": { "type": "number", "minimum": 0, "maximum": 10 }
+          }
+        }
+      }
+    },
     "qa": {
       "type": "object", "additionalProperties": false,
       "properties": {
         "storyMin": { "type": "number", "minimum": 0, "maximum": 100 },
         "visionEverySeconds": { "type": "number", "minimum": 0.5, "maximum": 5 },
         "loudness": { "enum": ["social", "web"] },
-        "required": { "type": "array", "items": { "enum": ["picture", "captions", "loudness", "sync", "listen", "vision", "story", "viewerRelease"] } }
+        "required": { "type": "array", "items": { "enum": ["picture", "integrity", "pointer", "frameIntegrity", "captions", "loudness", "sync", "listen", "vision", "marketing", "story", "viewerRelease"] } }
       }
     },
     "notes": { "type": "array", "items": { "type": "string" } }
@@ -137,6 +152,7 @@
         "emphasis": { "type": "array", "items": { "type": "string" }, "description": "Words in the narration highlighted in the kinetic captions." },
         "claims": { "type": "array", "items": { "type": "string" }, "description": "Claim ids this beat's narration and on-screen text rely on." },
         "minSeconds": { "type": "number", "minimum": 0.5, "maximum": 20 },
+        "captionPlacement": { "enum": ["bottom", "top"], "description": "Where this beat's caption plate sits. Default bottom; top when the bottom of the frame holds the product content the line is about (the top safe area then carries the plate)." },
         "voiceTake": { "type": "integer", "minimum": 1, "maximum": 20, "description": "Ask for a fresh take of this line (new cache key and ledger revision) after a listen or review rejects its delivery." },
         "ui": {
           "type": "object", "additionalProperties": false,
