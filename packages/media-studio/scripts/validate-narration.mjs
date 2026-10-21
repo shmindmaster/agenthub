@@ -8,10 +8,11 @@
 // Inputs (all under <jobRoot>):
 //   story/screenplay.json           scenes[].id + narration; top-level hook, viewerPromise, syntheticDisclosure,
 //                                   narrationAllowlist [{ phrase, reason }], wpm
-//   story/narration-timeline.json   { durationSeconds, segments:[{ id, scene, text }] }. Runtime source when present;
-//                                   the narration source when screenplay.json is absent (marketing cuts).
+//   story/narration-timeline.json   { durationSeconds, segments:[{ id, scene, text }] }. The runtime narration: the
+//                                   text checked whenever it exists (the screenplay is checked only without it).
+//   story/storyboard.json           optional: syntheticDisclosure (caption or end-card beat)
 //   story/screenplay.draft.json     optional (or --before): the writer's draft, for the words-cut report
-//   job.json                        optional: syntheticData, dataClass, syntheticDisclosure
+//   job.json                        optional: syntheticData, dataClass, syntheticDisclosure (screenplay, storyboard, then job)
 //
 // Lines are sentences. Each banned phrase is a hit (class, match, line, scene); each hit is an error. The report
 // (qa/narration-check.json) is bound to the exact files it read by sha256, so write-story-review.py can tell when it is
@@ -123,13 +124,15 @@ const timeline = existsSync(timelinePath) ? loadJson(timelinePath, 'timeline') :
 const job = existsSync(jobPath) ? loadJson(jobPath, 'job') : null;
 let lines = [];
 let source = null;
-if (screenplay) { source = 'screenplay'; inputs.screenplay = ref(screenplayPath); lines = linesOf(screenplay); }
-else if (timeline) { source = 'timeline'; lines = linesOf(timeline); }
-if (timeline) inputs.timeline = ref(timelinePath);
+// The locked timeline is what the voice actually speaks, so it is the text checked whenever it exists; the screenplay
+// is checked only when there is no timeline yet. A timeline rewrite cannot slip a banned line past a clean screenplay.
+if (timeline) { source = 'timeline'; inputs.timeline = ref(timelinePath); lines = linesOf(timeline); }
+else if (screenplay) { source = 'screenplay'; lines = linesOf(screenplay); }
+if (screenplay) inputs.screenplay = ref(screenplayPath);
 if (job) inputs.job = ref(jobPath);
 if (!source && !errors.length) errors.push('no narration to check: story/screenplay.json and story/narration-timeline.json are both absent');
 if (source && !lines.length) errors.push(`${source === 'screenplay' ? 'story/screenplay.json' : 'story/narration-timeline.json'} has no narration lines`);
-if (source === 'timeline') warnings.push('story/screenplay.json is absent: checked story/narration-timeline.json segments instead');
+if (source === 'timeline' && !screenplay) warnings.push('story/screenplay.json is absent: checked story/narration-timeline.json segments instead');
 
 const wpmFlag = Number(flag('--wpm'));
 const wpm = Number.isFinite(wpmFlag) && wpmFlag > 0 ? wpmFlag : (Number(screenplay?.wpm) >= 60 ? Number(screenplay.wpm) : 150);
@@ -212,7 +215,11 @@ if (!promiseText) {
 const hook = { firstSentence, words: hookWords, seconds: hookSeconds, ok: hookOk, promiseNamed };
 
 // ---- synthetic data: a caption or an end card, never narration -------------------------------------------------------
-const disclosure = screenplay?.syntheticDisclosure ?? job?.syntheticDisclosure ?? null;
+// The storyboard schema carries the caption / end-card declaration too (references/storyboard.md step 8).
+const storyboardPath = join(root, 'story', 'storyboard.json');
+const storyboard = existsSync(storyboardPath) ? loadJson(storyboardPath, 'storyboard') : null;
+if (storyboard?.syntheticDisclosure) inputs.storyboard = ref(storyboardPath);
+const disclosure = screenplay?.syntheticDisclosure ?? storyboard?.syntheticDisclosure ?? job?.syntheticDisclosure ?? null;
 const declaredSynthetic = job?.syntheticData === true || /synthetic/i.test(String(job?.dataClass ?? ''));
 const disclosureRequired = declaredSynthetic || !!disclosure;
 const mode = disclosure?.mode ?? null;

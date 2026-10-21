@@ -69,7 +69,7 @@ export function resolveDevice(opts, devices) {
   return d;
 }
 
-/** Start a fresh recording context. viewport is the delivery frame; DSF 2 is the PDS minimum. opts.device spreads a Playwright device descriptor first; explicit viewport / DSF / isMobile / hasTouch win. */
+/** Start a fresh recording context. viewport is the delivery frame; DSF 2 is the PDS minimum. opts.device spreads a Playwright device descriptor first; explicit viewport / DSF / isMobile / hasTouch win. opts.videoSize (default: viewport) is the recorded pixel size; record-job passes viewport x DSF for a --ratio entry whose CSS viewport is smaller than its delivery frame. */
 export async function startRecording(id, opts = {}) {
   const { chromium, devices } = await import('playwright');
   const device = resolveDevice(opts, devices);
@@ -97,7 +97,7 @@ export async function startRecording(id, opts = {}) {
     timezoneId: opts.timezoneId || 'America/Chicago',
     ...(opts.storageState ? { storageState: opts.storageState } : {}),
     ...(opts.extraHTTPHeaders ? { extraHTTPHeaders: opts.extraHTTPHeaders } : {}),
-    recordVideo: { dir: rawDir, size: viewport },
+    recordVideo: { dir: rawDir, size: opts.videoSize || viewport },
   });
   if (mobile) {
     await context.addInitScript(([cssWidth, scale]) => {
@@ -212,8 +212,9 @@ export async function renderRecast(rawDir, outFile, opts = {}) {
 /** Helpers bound to one page. Every helper logs to the receipt. */
 export function bindHelpers(page, log, beats, opts = {}) {
   const base = opts.baseUrl || '';
-  // Input runs in CSS layout pixels; the receipt logs recorded-video pixels, which differ by the mobile page scale.
-  const k = opts.mobileLayout ? opts.mobileLayout.scale : 1;
+  // Input runs in CSS layout pixels; the receipt logs recorded-video pixels, which differ by the mobile page scale, or by
+  // the DSF when record-job records a --ratio take at viewport x DSF (opts.videoSize).
+  const k = opts.mobileLayout ? opts.mobileLayout.scale : (opts.videoSize && opts.viewport?.width ? opts.videoSize.width / opts.viewport.width : 1);
   const wait = (ms) => page.waitForTimeout(ms);
 
   const center = async (locator) => {

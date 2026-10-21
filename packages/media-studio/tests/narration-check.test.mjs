@@ -450,3 +450,31 @@ test("write-story-review: ok:false report fails -15 with the first three hits in
   assert.ok(!f.evidence.includes("of course"), "only the first three hits are cited");
   assert.equal(rep.score, 85);
 });
+
+test("the locked timeline is checked when it exists: a fluff line rewritten into it fails even with a clean screenplay", () => {
+  const lines = withLine(1, "Let's take a look at how each request waits in a queue.");
+  const timeline = { durationSeconds: 40, segments: lines.map((text, i) => ({ id: `S0${i + 1}`, scene: `S0${i + 1}`, text, startSeconds: i * 6, durationSeconds: 6 })) };
+  const root = makeJob("timeline-wins", { timeline });
+  assert.equal(run([root]).code, 1);
+  const rep = report(root);
+  assert.equal(rep.source, "timeline");
+  assert.equal(rep.inputs.timeline.path, "story/narration-timeline.json");
+  assert.equal(rep.inputs.screenplay.path, "story/screenplay.json");
+  assert.ok(rep.fluff.hits.some((h) => h.class === "meta" && h.sceneId === "S02"), JSON.stringify(rep.fluff.hits));
+  assert.equal(rep.hook.promiseNamed, true, "viewerPromise still comes from the screenplay");
+  assert.ok(!rep.warnings.some((w) => w.includes("screenplay.json is absent")));
+});
+
+test("a storyboard syntheticDisclosure satisfies a synthetic job whose screenplay and job omit it", () => {
+  const sp = screenplay(CLEAN);
+  delete sp.syntheticDisclosure;
+  const root = makeJob("storyboard-disclosure", { sp });
+  assert.equal(run([root]).code, 1, "no disclosure anywhere fails");
+  writeJson(root, "story/storyboard.json", { syntheticDisclosure: { mode: "caption", text: "Synthetic data." } });
+  const r = run([root]);
+  assert.equal(r.code, 0, r.output);
+  const rep = report(root);
+  assert.equal(rep.syntheticDisclosure.ok, true);
+  assert.equal(rep.syntheticDisclosure.mode, "caption");
+  assert.equal(rep.inputs.storyboard.path, "story/storyboard.json");
+});
