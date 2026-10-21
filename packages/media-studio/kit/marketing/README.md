@@ -54,7 +54,7 @@ loudness targets, the vision and image models, the timing provider, the demo URL
 | 4 | `assets` | ElevenLabs sound effects and one ducked music bed (governed ledger), OpenAI `gpt-image` abstract stills, ElevenLabs video only if the API exposes it (it does not: recorded as skipped with the reason). Every generated asset is `aiGenerated: true` in `assets\manifest.json`. | credits / USD |
 | 5 | `capture` | Reuses a receipt-bound clip (sha256 re-checked against its capture receipt) or records it with `record-job.mjs` (`ui.record` plus `--allow-capture`). | none |
 | 6 | `compose` | Per ratio: layout, focus-follow camera, captions, compose map, FFmpeg mix plan, Remotion render of the `MarketingAd` composition (picture only), audio mix with the bed ducked under the voice, two-pass loudnorm (-14 LUFS social, -16 web) and the encode. `--prepare-only` writes `props.json`, `compose-map.json`, `mix-plan.json` and `render-command.json` and stops. | none (local CPU) |
-| 7 | `qa` | On the exact encoded file: picture, captions, loudness, sync and Local-AI listen (`--local-gates`), OpenAI vision QA, the story score, `validate-viewer-release`. Anything that did not run on this candidate is `pending`, never a pass. | vision ~$0.1-0.3/ratio |
+| 7 | `qa` | On the exact encoded file: picture, picture integrity, pointer path, captions, loudness, sync and Local-AI listen (`--local-gates`), OpenAI vision QA, the marketing floor, the story score, `validate-viewer-release`. Anything that did not run on this candidate is `pending`, never a pass. | vision ~$0.1-0.3/ratio |
 | 8 | `deliver` | Only if every required gate passed on the current file: copies to the library as `NN - Title (ratio).mp4` + `.srt`, updates the folder README table and per-film section, sha256 every file, deletes reproducible intermediates. | none |
 
 The film number `NN` is computed at deliver time: one above every number used by a file, a README row or heading, or the
@@ -127,9 +127,14 @@ narration that spends words on the demo data or on the film itself (`synthetic`,
 
 ## QA gates (`qa/<ratio>/gates.json`)
 
+`integrity`, `pointer` and `marketing` are always required (a spec's `qa.required` cannot drop them), so `deliver` refuses a ratio unless all three passed on the current file.
+
 | Gate | How | Needs |
 | --- | --- | --- |
 | `picture` | `lib/picture-gate.mjs`: UI band binds to the receipt-bound clip (dHash <= 12), no dead screen > 6 s, UI >= 70% of the cut, designed first/last frame | ffmpeg |
+| `integrity` | `validate-picture-integrity.mjs <ws> <candidate> --compose-map <ws compose map> --out <ws>/qa/picture-integrity.json` (media-studio 2.0.0): every product clip at its native scale (no upscale, stretch, bars or undeclared crop or zoom), and a 4:5 / 9:16 cut recorded at its own frame. The ws `job.json` carries `deliveryProfile` and `captureViewports` (`4:5` 1080x1350, `9:16` 1080x1920; 16:9 is unconstrained); an authored `ui.focus[].declaredZoom` is declared in `story/cue-plan.json`, nothing else is. Pass or fail is the script's exit code and report | ffmpeg |
+| `pointer` | `validate-pointer-path.mjs <ws> --out <ws>/qa/pointer-path.json` on the ws `capture/receipt.json`, which carries each used clip's full action log. With `--local-gates` the freshly built mapped `plan/cue-sheet.json` is passed, so only the footage on screen is judged per beat; without it the whole clips are judged and the detail says so | none (more exact with `--local-gates`) |
+| `marketing` | `validate-marketing-readiness.mjs <ws> <candidate> --readiness <ws>/qa/marketing-readiness.json` (the ws `job.json` says `marketing: true`; `programForm` stays `outcome-workflow`). A reviewer writes `qa/<ratio>/marketing-readiness.json` (`skills/media-studio/references/marketing-readiness.md`, `candidate.sha256` and `bytes` of this exact `ad.mp4`); mvg never writes it, copies it into the ws only when it names this candidate, and reports `pending` (not fail) when it is absent or bound to another render. The floor includes the no-fluff rule, so mvg runs `validate-narration.mjs` on the ws first (`qa/narration-check.json`) | an agent review |
 | `captions` | 4-7 words per cue, <= 2 lines of 42 characters, <= 20 characters per second, ordered | none |
 | `loudness` | ffmpeg `loudnorm` on the exact file, within 1 LU of the target, true peak <= -1 dBTP | ffmpeg |
 | `sync` | `build-cue-sheet.mjs` + `validate-sync.mjs` after local whisper on the encoded file | `--local-gates` (GPU) |

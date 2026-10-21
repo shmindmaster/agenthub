@@ -1,10 +1,12 @@
 // Stage 7: qa, per ratio, on the exact encoded file. Gates: band-bound picture, captions, loudness, sync and Local-AI
-// listen (local, --local-gates), OpenAI vision QA, the story score (reviewer file), and validate-viewer-release.
+// listen (local, --local-gates), the film-chain gates (picture integrity, pointer path, marketing readiness), OpenAI vision QA,
+// the story score (reviewer file), and validate-viewer-release.
 // Anything that did not run on this exact candidate is `pending`, never a pass, and deliver refuses to ship it.
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
-import { DEFAULT_REQUIRED, assembleEvidence, buildGateWorkspace, captionsCheck, readReviews, releasable } from '../gates.mjs';
+import { runIntegrityGate, runMarketingGate, runPointerGate } from '../chain-gates.mjs';
+import { assembleEvidence, buildGateWorkspace, captionsCheck, readReviews, releasable, requiredGates } from '../gates.mjs';
 import { measureLoudness, gateScript, runSyncGates } from '../local-gates.mjs';
 import { loudnessTarget, run } from '../mix.mjs';
 import { runPictureGate } from '../picture-gate.mjs';
@@ -16,7 +18,7 @@ import { runVisionQa } from '../../vision-qa.mjs';
 const pending = (detail) => ({ status: 'pending', detail });
 
 export async function qaStage(ctx) {
-  const required = ctx.spec.qa?.required || DEFAULT_REQUIRED;
+  const required = requiredGates(ctx.spec);
   const out = {};
   for (const cut of normalizeCuts(ctx.spec)) {
     const timeline = readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
@@ -58,11 +60,20 @@ export async function qaStage(ctx) {
       const loud = await measureLoudness(candidate, loudPath);
       gates.loudness = Math.abs(loud.integratedLufs - target.lufs) <= 1.0 && loud.truePeakDbtp <= -1.0 ? { status: 'pass', detail: `${loud.integratedLufs} LUFS / ${loud.truePeakDbtp} dBTP (target ${target.lufs})` } : { status: 'fail', detail: `${loud.integratedLufs} LUFS / ${loud.truePeakDbtp} dBTP vs target ${target.lufs}` };
 
+      // A cue sheet in the workspace must belong to this candidate: the sync gate below rebuilds it, nothing else may leave one behind.
+      rmSync(join(ws, 'plan', 'cue-sheet.json'), { force: true });
       if (ctx.flags.localGates) {
         const local = await runSyncGates({ ws, candidate, moduleRoot: MODULE_ROOT, composeMapRel: `output/${ctx.spec.id}-compose-map.json`, sourceRevision: ctx.spec.id });
         gates.sync = local.sync;
         gates.listen = local.listen;
       } else { gates.sync = pending('needs local ASR (GPU); run with --local-gates'); gates.listen = pending('needs the Local-AI listen gate (GPU); run with --local-gates'); }
+
+      // Film-chain gates on the exact encoded candidate (media-studio 2.0.0). They read the ws copies of the compose map and
+      // receipt; the marketing floor counts only a reviewer's qa/<ratio>/marketing-readiness.json that names this candidate.
+      const composeMapRel = `output/${ctx.spec.id}-compose-map.json`;
+      gates.integrity = await runIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
+      gates.pointer = await runPointerGate({ ws, moduleRoot: MODULE_ROOT });
+      gates.marketing = await runMarketingGate({ ws, qdir, ratio, candidate, sha, composeMapRel, moduleRoot: MODULE_ROOT });
 
       if (ctx.flags.noVision) gates.vision = pending('skipped by --no-vision');
       else {

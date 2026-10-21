@@ -19,7 +19,8 @@ import { chunkWords, lineBreaks, toSrt, wrapCue } from '../kit/marketing/lib/cap
 import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../kit/marketing/lib/timing.mjs';
 import { buildMixArgs, loudnessTarget, parseLoudnorm } from '../kit/marketing/lib/mix.mjs';
 import { deliverFiles, nextFreeNumber, updateReadme, usedNumbers, deliveredName } from '../kit/marketing/lib/deliver.mjs';
-import { captionsCheck, readReviews, releasable } from '../kit/marketing/lib/gates.mjs';
+import { DEFAULT_REQUIRED, captionsCheck, readReviews, releasable, requiredGates } from '../kit/marketing/lib/gates.mjs';
+import { CHAIN_GATES, captureViewportsFor, chainGateResult, readMarketingReadiness, readinessPending, runMarketingGate, runPointerGate } from '../kit/marketing/lib/chain-gates.mjs';
 import { applyArbitration, buildInstructions, evaluate, parseVerdict, sampleTimes, runVisionQa, VerdictError } from '../kit/marketing/vision-qa.mjs';
 import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/picture-gate.mjs';
 import { estimateImageUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
@@ -1038,4 +1039,145 @@ test('lint: narration about synthetic/demo data or the film itself is fluff and 
   assert.ok(FLUFF.test('Try ABACare on synthetic data.'));
   assert.ok(FLUFF.test('In this video we show the hold queue.'));
   assert.ok(!FLUFF.test('Twelve units left. Three sessions on the calendar.'));
+});
+
+// ---- media-studio 2.0.0 film-chain gates: picture integrity, pointer path, marketing readiness
+test('chain gates 1: integrity, pointer and marketing are required by default and always, and deliver refuses without them', () => {
+  for (const g of ['integrity', 'pointer', 'marketing']) assert.ok(DEFAULT_REQUIRED.includes(g), g);
+  assert.deepEqual([...CHAIN_GATES], ['integrity', 'pointer', 'marketing']);
+  const narrowed = requiredGates({ qa: { required: ['picture', 'captions'] } });
+  assert.deepEqual(narrowed, ['picture', 'captions', 'integrity', 'pointer', 'marketing'], 'a spec cannot drop the film-chain gates');
+  assert.deepEqual(requiredGates({}), DEFAULT_REQUIRED);
+  const passing = Object.fromEntries(DEFAULT_REQUIRED.map((g) => [g, { status: 'pass' }]));
+  assert.equal(releasable(passing, requiredGates({})).ok, true);
+  for (const g of CHAIN_GATES) {
+    const pending = releasable({ ...passing, [g]: { status: 'pending', detail: 'x' } }, requiredGates({}));
+    assert.equal(pending.ok, false, `${g} pending blocks release`);
+    assert.match(pending.failing.join(' '), new RegExp(`${g}: pending`));
+    assert.equal(releasable({ ...passing, [g]: { status: 'fail' } }, requiredGates({})).ok, false);
+    const missing = { ...passing };
+    delete missing[g];
+    assert.match(releasable(missing, requiredGates({})).failing.join(' '), new RegExp(`${g}: not run`));
+  }
+  const names = adSchema.properties.qa.properties.required.items.enum;
+  for (const g of CHAIN_GATES) assert.ok(names.includes(g), `ad.schema.json lists ${g}`);
+  assert.deepEqual(validate(adSchema.properties.qa, { required: [...DEFAULT_REQUIRED] }), []);
+});
+
+test('chain gates 2: the marketing-readiness file counts only for the candidate it names, and mvg never writes it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mvg-readiness-'));
+  const path = join(dir, 'marketing-readiness.json');
+  assert.equal(readMarketingReadiness(path, 'sha-new').state, 'absent');
+  writeFileSync(path, '{ not json');
+  assert.equal(readMarketingReadiness(path, 'sha-new').state, 'unreadable');
+  writeFileSync(path, JSON.stringify({ schema: 'media-studio/marketing-readiness/1', candidate: { sha256: 'sha-old', bytes: 1 } }));
+  const stale = readMarketingReadiness(path, 'sha-new');
+  assert.deepEqual([stale.state, stale.readiness, stale.boundTo], ['stale', null, 'sha-old'], 'a review of an earlier render never passes a new one');
+  writeFileSync(path, JSON.stringify({ schema: 'media-studio/marketing-readiness/1', reviewer: 'r' }));
+  assert.equal(readMarketingReadiness(path, 'sha-new').state, 'stale', 'a file that names no candidate is not bound');
+  writeFileSync(path, JSON.stringify({ candidate: { sha256: 'sha-new', bytes: 9 } }));
+  assert.equal(readMarketingReadiness(path, 'sha-new').state, 'bound');
+  writeFileSync(path, JSON.stringify({ candidateSha256: 'sha-new' }));
+  assert.equal(readMarketingReadiness(path, 'sha-new').state, 'bound', 'the reviews.json convention binds too');
+  assert.equal(readMarketingReadiness(path, '').state, 'stale');
+  const msg = readinessPending({ ratio: '4x5', state: 'absent', boundTo: null, sha: 'a'.repeat(64) });
+  assert.match(msg, /qa\/4x5\/marketing-readiness\.json/);
+  assert.match(msg, /candidate\.sha256 aaaaaaaaaaaa/);
+  assert.match(readinessPending({ ratio: '4x5', state: 'stale', boundTo: 'b'.repeat(64), sha: 'a'.repeat(64) }), /bound to another candidate \(bbbbbbbbbbbb/);
+  const src = readFileSync(join(mod, 'lib', 'chain-gates.mjs'), 'utf8');
+  assert.ok(!/writeJson\([^)]*marketing-readiness\.json/.test(src) && !/writeFileSync\([^)]*marketing-readiness\.json/.test(src), 'mvg never writes the reviewer file');
+});
+
+test('chain gates 3: the marketing gate is pending, not fail, without a reviewer file for this candidate, and runs no script', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mvg-mkgate-'));
+  const ws = join(dir, 'ws');
+  const qdir = join(dir, 'qa');
+  mkdirSync(join(ws, 'qa'), { recursive: true });
+  mkdirSync(qdir, { recursive: true });
+  writeFileSync(join(ws, 'qa', 'marketing-readiness.json'), '{"old":true}');
+  writeFileSync(join(ws, 'qa', 'marketing-readiness-check.json'), '{"ok":true}');
+  const args = { ws, qdir, ratio: '9x16', candidate: join(ws, 'output', 'x.mp4'), sha: 'c'.repeat(64), composeMapRel: 'output/x-compose-map.json', moduleRoot: join(dir, 'no-such-kit') };
+  const absent = await runMarketingGate(args);
+  assert.equal(absent.status, 'pending');
+  assert.match(absent.detail, /qa\/9x16\/marketing-readiness\.json/);
+  assert.ok(!existsSync(join(ws, 'qa', 'marketing-readiness.json')) && !existsSync(join(ws, 'qa', 'marketing-readiness-check.json')), 'no earlier copy or report survives into this candidate');
+  assert.ok(!existsSync(join(qdir, 'marketing-readiness.json')), 'mvg did not write the reviewer file');
+  writeFileSync(join(qdir, 'marketing-readiness.json'), JSON.stringify({ candidate: { sha256: 'd'.repeat(64), bytes: 1 } }));
+  const stale = await runMarketingGate(args);
+  assert.equal(stale.status, 'pending');
+  assert.match(stale.detail, /bound to another candidate/);
+  assert.ok(!existsSync(join(ws, 'qa', 'marketing-readiness.json')), 'a stale file is not copied into the workspace');
+  // A file for this candidate is copied and the shared script is then required (missing kit: a fail that names it, never a pass).
+  writeFileSync(join(qdir, 'marketing-readiness.json'), JSON.stringify({ candidate: { sha256: 'c'.repeat(64), bytes: 1 } }));
+  const bound = await runMarketingGate(args);
+  assert.equal(bound.status, 'fail');
+  assert.match(bound.detail, /not found/);
+  assert.ok(existsSync(join(ws, 'qa', 'marketing-readiness.json')), 'the bound file was copied into the workspace');
+});
+
+test('chain gates 4: a gate script result is a pass only on exit 0 with ok:true; a marketing floor that did not apply fails', () => {
+  assert.equal(chainGateResult('integrity', { code: 0, report: { ok: true, clips: [{}, {}], ratio: { deliverable: '4:5' }, warnings: [] } }).status, 'pass');
+  assert.equal(chainGateResult('integrity', { code: 1, report: { ok: true } }).status, 'fail', 'exit code wins');
+  assert.equal(chainGateResult('integrity', { code: 0, report: { ok: false, errors: ['[bars] x'] } }).status, 'fail');
+  assert.equal(chainGateResult('pointer', { code: 1, report: { ok: false, errors: ['a', 'b', 'c', 'd'] } }).detail, 'a | b | c');
+  assert.match(chainGateResult('pointer', { code: 0, report: { ok: true, mode: 'clip', windows: [{}] } }).detail, /whole clips/);
+  assert.doesNotMatch(chainGateResult('pointer', { code: 0, report: { ok: true, mode: 'mapped', windows: [{}] } }).detail, /whole clips/);
+  assert.equal(chainGateResult('integrity', { code: -1, report: null, stderr: 'validate-picture-integrity.mjs not found' }).detail, 'validate-picture-integrity.mjs not found');
+  assert.equal(chainGateResult('marketing', { code: 0, report: { ok: true, applies: false, reason: 'not a marketing cut' } }).status, 'fail');
+  assert.ok(chainGateResult('marketing', { code: 0, report: { ok: true, applies: true, checks: { 'hook-2s': 'pass', 'hook-2s.note': 'x', 'feed-test': 'pass' } } }).detail.startsWith('2 checks'));
+});
+
+test('chain gates 5: the workspace declares a marketing cut and the capture frame each non-landscape ratio must have', () => {
+  assert.deepEqual(captureViewportsFor('16x9', FRAMES['16x9']), {}, 'landscape is not constrained by the gate');
+  assert.deepEqual(captureViewportsFor('4x5', FRAMES['4x5']), { '4:5': { width: 1080, height: 1350 } });
+  assert.deepEqual(captureViewportsFor('9x16', FRAMES['9x16']), { '9:16': { width: 1080, height: 1920 } });
+  const dir = join(root, 'gatews-chain');
+  const spec = baseSpec();
+  const cut = { id: 'main', ratios: ['4x5'], beats: [{ id: 'B1', kind: 'ui', narration: 'Twelve days.', ui: { sourceJob: 'film', clipId: 'A01', actions: [{ label: 'Carter row', keywords: ['twelve'] }] } }, { id: 'B2', kind: 'ui', narration: 'Later.', ui: { sourceJob: 'film', clipId: 'A01' } }] };
+  const timeline = { durationSeconds: 8, segments: [
+    { id: 'B1', text: 'Twelve days.', startSeconds: 0, durationSeconds: 4, speechSeconds: 2, lineStartSeconds: 0.3, words: [{ word: 'Twelve', start: 0.4, end: 0.8 }] },
+    { id: 'B2', text: 'Later.', startSeconds: 4, durationSeconds: 4, speechSeconds: 1, lineStartSeconds: 4.3, words: [{ word: 'Later.', start: 4.4, end: 4.8 }] }] };
+  const full = { x: 0, y: 0, width: 1, height: 1 };
+  const half = { x: 0, y: 0, width: 0.5, height: 0.5 };
+  const edit = { trimStart: 0, trimEnd: 12, speed: 1, skip: [], headHold: 0 };
+  const composeMap = { groups: [{ segments: ['B1'], edit, sourceRegion: half, windows: [{ declaredZoom: true }] }, { segments: ['B2'], edit, sourceRegion: half, windows: [{ declaredZoom: false }] }] };
+  const clipFile = join(receiptDir, 'capture', 'clips', 'A01.webm');
+  const entry = { actions: [{ t: 6, type: 'point', x: 5, y: 5, label: 'Carter row' }], recastHeadTrimSeconds: 0 };
+  const clips = [{ beatId: 'B1', file: clipFile, receiptEntry: entry }, { beatId: 'B2', file: clipFile, receiptEntry: entry }];
+  buildGateWorkspace({ root: dir, spec, cut, ratio: '4x5', timeline, composeMap, clips, asr: {}, loudnessLufs: -14 });
+  const job = readJson(join(dir, 'job.json'));
+  assert.equal(job.marketing, true);
+  assert.equal(job.programForm, 'outcome-workflow', 'programForm is unchanged: marketing:true carries the applicability');
+  assert.equal(job.deliveryProfile, 'linkedin-4x5');
+  assert.deepEqual(job.captureViewports, { '4:5': { width: 1080, height: 1350 } });
+  assert.notEqual(job.responsive, false, 'no responsiveException shortcut');
+  const plan = readJson(join(dir, 'story', 'cue-plan.json')).beats;
+  assert.equal(plan.B1.zoom, true, 'an authored declaredZoom is declared in the cue plan');
+  assert.match(plan.B1.crop.reason, /declaredZoom/);
+  assert.equal(plan.B2?.zoom, undefined, 'an undeclared crop is never declared on the author behalf');
+  assert.equal(plan.B2?.crop, undefined);
+  const dir2 = join(root, 'gatews-chain2');
+  const fullMap = { groups: [{ segments: ['B1'], edit, sourceRegion: full, windows: [{ declaredZoom: true }] }, { segments: ['B2'], edit, sourceRegion: full, windows: [] }] };
+  buildGateWorkspace({ root: dir2, spec, cut, ratio: '4x5', timeline, composeMap: fullMap, clips, asr: {}, loudnessLufs: -14 });
+  assert.equal(readJson(join(dir2, 'story', 'cue-plan.json')).beats.B1.crop, undefined, 'a full-region window needs no crop declaration');
+});
+
+test('chain gates 6: the pointer gate runs the shared script on the workspace receipt: a led path passes, a wandering one fails', async () => {
+  const mk = (name, actions) => {
+    const ws = join(root, name);
+    mkdirSync(join(ws, 'capture'), { recursive: true });
+    writeFileSync(join(ws, 'capture', 'receipt.json'), JSON.stringify({ clips: { B1: { file: 'clips/B1.webm', segments: ['B1'], actions } } }));
+    return ws;
+  };
+  const move = (t, x, y) => ({ t, type: 'move', x, y });
+  const led = mk('ws-pointer-ok', [move(1, 100, 100), move(1.1, 200, 160), move(1.2, 300, 220), { t: 1.4, tStart: 1.4, type: 'click', x: 320, y: 230, label: 'Carter row' }]);
+  const ok = await runPointerGate({ ws: led, moduleRoot: mod });
+  assert.equal(ok.status, 'pass', ok.detail);
+  assert.ok(existsSync(join(led, 'qa', 'pointer-path.json')));
+  const wander = mk('ws-pointer-bad', [move(1, 100, 100), move(1.1, 400, 100), move(1.2, 100, 300), move(1.3, 400, 300), move(1.4, 100, 100)]);
+  const bad = await runPointerGate({ ws: wander, moduleRoot: mod });
+  assert.equal(bad.status, 'fail');
+  const none = join(root, 'ws-pointer-none');
+  mkdirSync(none, { recursive: true });
+  assert.equal((await runPointerGate({ ws: none, moduleRoot: mod })).status, 'fail', 'no receipt: fail closed');
 });
