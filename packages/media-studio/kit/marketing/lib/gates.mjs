@@ -8,8 +8,9 @@ import { CHAIN_GATES, captureViewportsFor } from './chain-gates.mjs';
 import { FRAMES } from './layout.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
 
-// integrity, pointer and marketing are the media-studio 2.0.0 film-chain gates (picture integrity, pointer path, marketing floor).
-export const DEFAULT_REQUIRED = ['picture', 'integrity', 'pointer', 'captions', 'loudness', 'sync', 'listen', 'vision', 'marketing', 'story', 'viewerRelease'];
+// integrity, pointer, frameIntegrity and marketing are the media-studio 2.0.0 film-chain gates (picture integrity, pointer path,
+// tiled-frame / luma-jump check, marketing floor).
+export const DEFAULT_REQUIRED = ['picture', 'integrity', 'pointer', 'frameIntegrity', 'captions', 'loudness', 'sync', 'listen', 'vision', 'marketing', 'story', 'viewerRelease'];
 
 /** The gates deliver requires: the spec's list (or the default), always including the film-chain gates. */
 export const requiredGates = (spec) => [...new Set([...(spec?.qa?.required || DEFAULT_REQUIRED), ...CHAIN_GATES])];
@@ -66,7 +67,7 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     // A paid ad competes in a feed: validate-marketing-readiness and viewer-release apply the marketing floor to marketing: true
     // (programForm stays outcome-workflow, see README deviation 8). Each portrait or square ratio is captured at its own frame.
     marketing: true, captureViewports: captureViewportsFor(ratio, frame),
-    dataClass: 'synthetic only', label: spec.labels, loudnessTargetLufs: loudnessLufs, recastFallbackAllowed: false, generator: 'media-studio/mvg',
+    dataClass: 'synthetic only', label: spec.labels, syntheticDisclosure: { mode: 'end-card', text: spec.labels }, loudnessTargetLufs: loudnessLufs, recastFallbackAllowed: false, generator: 'media-studio/mvg',
   });
   writeJson(join(root, 'story', 'narration-timeline.json'), {
     durationSeconds: timeline.durationSeconds,

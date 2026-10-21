@@ -20,7 +20,7 @@ import { alignScriptToAsr, buildTimeline, parseAsrWords, snapToBeatGrid } from '
 import { buildMixArgs, loudnessTarget, parseLoudnorm } from '../kit/marketing/lib/mix.mjs';
 import { deliverFiles, nextFreeNumber, updateReadme, usedNumbers, deliveredName } from '../kit/marketing/lib/deliver.mjs';
 import { DEFAULT_REQUIRED, captionsCheck, readReviews, releasable, requiredGates } from '../kit/marketing/lib/gates.mjs';
-import { CHAIN_GATES, captureViewportsFor, chainGateResult, readMarketingReadiness, readinessPending, runMarketingGate, runPointerGate } from '../kit/marketing/lib/chain-gates.mjs';
+import { CHAIN_GATES, captureViewportsFor, chainGateResult, readMarketingReadiness, readinessPending, declaredCutsSheet, runFrameIntegrityGate, runMarketingGate, runPointerGate } from '../kit/marketing/lib/chain-gates.mjs';
 import { applyArbitration, buildInstructions, evaluate, parseVerdict, sampleTimes, runVisionQa, VerdictError } from '../kit/marketing/vision-qa.mjs';
 import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/picture-gate.mjs';
 import { estimateImageUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
@@ -1065,10 +1065,10 @@ test('lint: narration about synthetic/demo data or the film itself is fluff and 
 
 // ---- media-studio 2.0.0 film-chain gates: picture integrity, pointer path, marketing readiness
 test('chain gates 1: integrity, pointer and marketing are required by default and always, and deliver refuses without them', () => {
-  for (const g of ['integrity', 'pointer', 'marketing']) assert.ok(DEFAULT_REQUIRED.includes(g), g);
-  assert.deepEqual([...CHAIN_GATES], ['integrity', 'pointer', 'marketing']);
+  for (const g of ['integrity', 'pointer', 'frameIntegrity', 'marketing']) assert.ok(DEFAULT_REQUIRED.includes(g), g);
+  assert.deepEqual([...CHAIN_GATES], ['integrity', 'pointer', 'frameIntegrity', 'marketing']);
   const narrowed = requiredGates({ qa: { required: ['picture', 'captions'] } });
-  assert.deepEqual(narrowed, ['picture', 'captions', 'integrity', 'pointer', 'marketing'], 'a spec cannot drop the film-chain gates');
+  assert.deepEqual(narrowed, ['picture', 'captions', 'integrity', 'pointer', 'frameIntegrity', 'marketing'], 'a spec cannot drop the film-chain gates');
   assert.deepEqual(requiredGates({}), DEFAULT_REQUIRED);
   const passing = Object.fromEntries(DEFAULT_REQUIRED.map((g) => [g, { status: 'pass' }]));
   assert.equal(releasable(passing, requiredGates({})).ok, true);
@@ -1110,7 +1110,7 @@ test('chain gates 2: the marketing-readiness file counts only for the candidate 
   assert.ok(!/writeJson\([^)]*marketing-readiness\.json/.test(src) && !/writeFileSync\([^)]*marketing-readiness\.json/.test(src), 'mvg never writes the reviewer file');
 });
 
-test('chain gates 3: the marketing gate is pending, not fail, without a reviewer file for this candidate, and runs no script', async () => {
+test('chain gates 3: the marketing gate is pending, not fail, without a reviewer file for this candidate, and runs no marketing script', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'mvg-mkgate-'));
   const ws = join(dir, 'ws');
   const qdir = join(dir, 'qa');
@@ -1140,6 +1140,8 @@ test('chain gates 3: the marketing gate is pending, not fail, without a reviewer
 test('chain gates 4: a gate script result is a pass only on exit 0 with ok:true; a marketing floor that did not apply fails', () => {
   assert.equal(chainGateResult('integrity', { code: 0, report: { ok: true, clips: [{}, {}], ratio: { deliverable: '4:5' }, warnings: [] } }).status, 'pass');
   assert.equal(chainGateResult('integrity', { code: 1, report: { ok: true } }).status, 'fail', 'exit code wins');
+  assert.equal(chainGateResult('frameIntegrity', { code: 0, report: { ok: true, sampled: 40, warnings: [] } }).status, 'pass');
+  assert.equal(chainGateResult('frameIntegrity', { code: 1, report: { ok: false, errors: ['tiled frame at 3.5 s'] } }).detail, 'tiled frame at 3.5 s');
   assert.equal(chainGateResult('integrity', { code: 0, report: { ok: false, errors: ['[bars] x'] } }).status, 'fail');
   assert.equal(chainGateResult('pointer', { code: 1, report: { ok: false, errors: ['a', 'b', 'c', 'd'] } }).detail, 'a | b | c');
   assert.match(chainGateResult('pointer', { code: 0, report: { ok: true, mode: 'clip', windows: [{}] } }).detail, /whole clips/);
@@ -1172,6 +1174,7 @@ test('chain gates 5: the workspace declares a marketing cut and the capture fram
   assert.equal(job.programForm, 'outcome-workflow', 'programForm is unchanged: marketing:true carries the applicability');
   assert.equal(job.deliveryProfile, 'linkedin-4x5');
   assert.deepEqual(job.captureViewports, { '4:5': { width: 1080, height: 1350 } });
+  assert.deepEqual(job.syntheticDisclosure, { mode: 'end-card', text: spec.labels }, 'the narration check sees the end-card disclosure');
   assert.notEqual(job.responsive, false, 'no responsiveException shortcut');
   const plan = readJson(join(dir, 'story', 'cue-plan.json')).beats;
   assert.equal(plan.B1.zoom, true, 'an authored declaredZoom is declared in the cue plan');
@@ -1382,4 +1385,20 @@ test('music length 2: lint refuses a fixed bed shorter than the cut plus 2 s; th
   }
   assert.deepEqual(per, [22000, 29000], 'without lengthSeconds each job length asks for its own bed');
   await assert.rejects(() => assetsStage(job('music-job-e', 39.5, 40)), /music\.lengthSeconds is 40 s but the longest cut is 39\.50 s/);
+});
+
+test('chain gates 7: the frame-integrity gate runs the shared script on the candidate and leaves its report where viewer-release reads it', async () => {
+  const ws = join(root, 'ws-frame');
+  mkdirSync(join(ws, 'output'), { recursive: true });
+  assert.deepEqual(declaredCutsSheet({ groups: [{ startSeconds: 0 }, { startSeconds: 3.5 }, { startSeconds: 'x' }] }).edl, [{ startSeconds: 0 }, { startSeconds: 3.5 }], 'the planned cuts of the compose map are the declared cuts');
+  writeFileSync(join(ws, 'output', 'x-compose-map.json'), JSON.stringify({ groups: [{ startSeconds: 0 }, { startSeconds: 3.5 }] }));
+  const missing = await runFrameIntegrityGate({ ws, candidate: join(ws, 'output', 'none.mp4'), composeMapRel: 'output/x-compose-map.json', moduleRoot: mod });
+  assert.deepEqual(readJson(join(ws, 'qa', 'frame-integrity-cuts.json')).edl, [{ startSeconds: 0 }, { startSeconds: 3.5 }]);
+  assert.equal(missing.status, 'fail', 'no candidate: fail closed');
+  assert.ok(existsSync(join(ws, 'qa', 'frame-integrity.json')), 'the report is written to <ws>/qa/frame-integrity.json, the path validate-viewer-release.mjs reads');
+  assert.equal(readJson(join(ws, 'qa', 'frame-integrity.json')).generator, 'media-studio/validate-frame-integrity');
+  assert.match(readFileSync(join(here, '..', 'scripts', 'validate-viewer-release.mjs'), 'utf8'), /boundReport\('qa\/frame-integrity\.json'/);
+  const qa = readFileSync(join(mod, 'lib', 'stages', 'qa.mjs'), 'utf8');
+  assert.match(qa, /gates\.frameIntegrity = await runFrameIntegrityGate/);
+  assert.ok(qa.indexOf('runSyncGates(') < qa.indexOf('runFrameIntegrityGate({'), 'it runs after the sync gate has built the cue sheet');
 });

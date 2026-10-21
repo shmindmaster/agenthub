@@ -1,11 +1,11 @@
 // Stage 7: qa, per ratio, on the exact encoded file. Gates: band-bound picture, captions, loudness, sync and Local-AI
-// listen (local, --local-gates), the film-chain gates (picture integrity, pointer path, marketing readiness), OpenAI vision QA,
+// listen (local, --local-gates), the film-chain gates (picture integrity, pointer path, frame integrity, marketing readiness), OpenAI vision QA,
 // the story score (reviewer file), and validate-viewer-release.
 // Anything that did not run on this exact candidate is `pending`, never a pass, and deliver refuses to ship it.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
-import { runIntegrityGate, runMarketingGate, runPointerGate } from '../chain-gates.mjs';
+import { runFrameIntegrityGate, runIntegrityGate, runMarketingGate, runPointerGate } from '../chain-gates.mjs';
 import { assembleEvidence, buildGateWorkspace, captionsCheck, readReviews, releasable, requiredGates } from '../gates.mjs';
 import { measureLoudness, gateScript, runSyncGates } from '../local-gates.mjs';
 import { loudnessTarget, run } from '../mix.mjs';
@@ -73,6 +73,7 @@ export async function qaStage(ctx) {
       const composeMapRel = `output/${ctx.spec.id}-compose-map.json`;
       gates.integrity = await runIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
       gates.pointer = await runPointerGate({ ws, moduleRoot: MODULE_ROOT });
+      gates.frameIntegrity = await runFrameIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
       gates.marketing = await runMarketingGate({ ws, qdir, ratio, candidate, sha, composeMapRel, moduleRoot: MODULE_ROOT });
 
       if (ctx.flags.noVision) gates.vision = pending('skipped by --no-vision');
