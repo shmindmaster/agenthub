@@ -33,7 +33,7 @@ import { parseArgs } from '../kit/marketing/mvg.mjs';
 import { alignBeat, chooseResult, expandKeywords, findWord, shiftAsr, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
 import { buildGateWorkspace } from '../kit/marketing/lib/gates.mjs';
 import { listenCommand, listenFindings } from '../kit/marketing/lib/local-gates.mjs';
-import { CTA_PILL_FONT } from '../kit/marketing/lib/layout.mjs';
+import { CTA_FOOT_FONT, CTA_PILL_FONT } from '../kit/marketing/lib/layout.mjs';
 import { pictureIntegrity } from '../kit/marketing/lib/integrity.mjs';
 import { MAX_SCALE, snapToContent, WIDE_REGION } from '../kit/marketing/lib/crop.mjs';
 
@@ -982,6 +982,17 @@ test('review 1/3/5/6: composition behaviours the layout depends on are in the so
   // 6: amber pill with navy text
   assert.match(tsx, /background: brand\.colors\.emphasis \?\? EMPHASIS_COLOR, color: brand\.colors\.foreground/);
   assert.equal(CTA_PILL_FONT['9x16'], 52);
+  // end-card disclosure: its own per-ratio size, about 2.8% of the frame width, so the 16:9 cut is legible full width on a
+  // phone (the vision gate failed it at 0.62 x the pill font, 1.5% of the width); the portrait sizes are unchanged
+  assert.match(tsx, /const footFont = layout\.ctaFootFont \?\? Math\.round\(pillFont \* 0\.62\)/);
+  assert.match(tsx, /top: box\.y \+ box\.h - Math\.round\(footFont \* 1\.6\)/);
+  assert.match(tsx, /fontSize: footFont,/);
+  for (const [ratio, width] of [['16x9', 1920], ['4x5', 1080], ['9x16', 1080]]) {
+    assert.equal(layoutFor(ratio, brand).ctaFootFont, CTA_FOOT_FONT[ratio]);
+    assert.ok(Math.abs(CTA_FOOT_FONT[ratio] / width - 0.028) < 0.002, `${ratio} disclosure is ~2.8% of the width`);
+  }
+  assert.equal(CTA_FOOT_FONT['4x5'], Math.round(CTA_PILL_FONT['4x5'] * 0.62));
+  assert.equal(CTA_FOOT_FONT['9x16'], Math.round(CTA_PILL_FONT['9x16'] * 0.62));
   // title: one row per sentence so "Out in 2 days." never wraps mid-sentence; the word stagger counts across rows
   assert.match(tsx, /split\(\/\(\?<=\[\.!\?\]\)\\s\+\/\)/);
   assert.match(tsx, /rows\.slice\(0, r\)\.reduce\(\(n, x\) => n \+ x\.length, 0\)/);

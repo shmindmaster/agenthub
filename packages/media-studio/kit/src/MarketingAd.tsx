@@ -53,6 +53,7 @@ export type MarketingAdProps = {
     captionBox: Box & { fontSize: number; maxLines: number };
     ctaBox: Box;
     ctaPillFont?: number;
+    ctaFootFont?: number;
   };
   brand: {
     productName: string;
@@ -81,6 +82,7 @@ export const sampleMarketingAd: MarketingAdProps = {
     captionBox: { x: 96, y: 924, w: 1728, h: 100, fontSize: 52, maxLines: 1 },
     ctaBox: { x: 96, y: 0, w: 1728, h: 1080 },
     ctaPillFont: 46,
+    ctaFootFont: 54,
   },
   brand: {
     productName: "ABACare",
@@ -240,6 +242,7 @@ const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }
   const box = layout.ctaBox;
   const base = Math.round(Math.min(box.w, box.h) * 0.11);
   const pillFont = layout.ctaPillFont ?? Math.round(base * 0.5);
+  const footFont = layout.ctaFootFont ?? Math.round(pillFont * 0.62);
   const lead = beat.isCta && beat.headline && beat.headline !== cta.text ? beat.headline : null;
   const foot = [props.label, props.disclosure].filter(Boolean).join(" · ");
   return (
@@ -259,7 +262,7 @@ const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }
         ) : null}
       </div>
       {beat.isCta && foot ? (
-        <div style={{ position: "absolute", left: box.x, top: box.y + box.h - Math.round(pillFont * 1.6), width: box.w, fontFamily: stack(brand.fontDisplay, brand.fontBody, "body"), fontSize: Math.round(pillFont * 0.62), fontWeight: 600, letterSpacing: "0.04em", color: "rgba(255,255,255,0.86)", opacity: fade }}>
+        <div style={{ position: "absolute", left: box.x, top: box.y + box.h - Math.round(footFont * 1.6), width: box.w, fontFamily: stack(brand.fontDisplay, brand.fontBody, "body"), fontSize: footFont, fontWeight: 600, letterSpacing: "0.04em", color: "rgba(255,255,255,0.86)", opacity: fade }}>
           {foot}
         </div>
       ) : null}

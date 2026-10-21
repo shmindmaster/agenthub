@@ -16,6 +16,10 @@ export const DEFAULT_SAFE = Object.freeze({
 
 export const CTA_PILL_FONT = Object.freeze({ '16x9': 46, '4x5': 50, '9x16': 52 });
 
+/** End-card disclosure line: about 2.8% of the frame width, so a landscape cut shown full width on a phone is as legible as
+ *  the portrait cuts (at 16:9 the old 0.62 x pill size came out at 1.5% of the width). */
+export const CTA_FOOT_FONT = Object.freeze({ '16x9': 54, '4x5': 31, '9x16': 32 });
+
 /** Caption plate per ratio: one short line on 16:9, at most two on the portrait ratios, inside the safe area. */
 const CAPTION = Object.freeze({
   '16x9': { x: 96, y: 924, w: 1728, h: 100, fontSize: 52, maxLines: 1 },
@@ -46,6 +50,7 @@ export function layoutFor(ratio, brand) {
     // The end card block is centred in the safe area and shares the caption left edge.
     ctaBox: { x: captionBox.x, y: safe.y, w: frame.width - 2 * captionBox.x, h: safe.h },
     ctaPillFont: CTA_PILL_FONT[ratio],
+    ctaFootFont: CTA_FOOT_FONT[ratio],
   };
 }
 
