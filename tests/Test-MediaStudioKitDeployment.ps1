@@ -101,17 +101,20 @@ try {
     Set-Content -LiteralPath (Join-Path $staleDir 'old.mjs') -Value '// stale' -Encoding ascii
     Set-Content -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs') -Value '// stale' -Encoding ascii
     $createdBefore = (Get-Item -LiteralPath $marketingTarget).CreationTimeUtc
+    # Robocopy keeps source timestamps, so a rewrite would not show in LastWriteTime. Hold an unchanged file open
+    # without write sharing instead: a rewrite fails with a sharing violation (exit 8, the sync throws); a skip passes.
     $keepFile = Join-Path $marketingTarget (Get-ChildItem -LiteralPath $marketingSource -File | Select-Object -First 1).Name
-    $keepWriteBefore = (Get-Item -LiteralPath $keepFile).LastWriteTimeUtc
     Start-Sleep -Milliseconds 1100
-    & $syncScript -RuntimeKit $runtimeKit -Force | Out-Null
+    $held = [IO.File]::Open($keepFile, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        try { & $syncScript -RuntimeKit $runtimeKit -Force | Out-Null } catch { throw "An unchanged marketing file was rewritten during sync: $($_.Exception.Message)" }
+    } finally { $held.Dispose() }
+    $checks++
     if (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-removed-dir')) { throw 'Marketing kit sync left a stale directory behind' }
     $checks++
     if (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs')) { throw 'Marketing kit sync left a stale top-level file behind' }
     $checks++
     if ((Get-Item -LiteralPath $marketingTarget).CreationTimeUtc -ne $createdBefore) { throw 'Marketing target directory was deleted and recreated during sync' }
-    $checks++
-    if ((Get-Item -LiteralPath $keepFile).LastWriteTimeUtc -ne $keepWriteBefore) { throw 'An unchanged marketing file was rewritten during sync' }
     $checks++
     # A successful robocopy (exit codes 1-7) must not leak as a failing script exit code.
     $pwshExe = (Get-Process -Id $PID).Path
@@ -144,24 +147,27 @@ try {
         if ($helper -and -not $helper.HasExited) { $helper.Kill(); $helper.WaitForExit(5000) | Out-Null }
         if ($helper) { $helper.Dispose() }
     }
-    # The run-mvg.sh runners start `node mvg.mjs` from inside the tree, so the command line carries no directory.
-    $helper = $null
-    try {
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = $node
-        $psi.Arguments = '-e "setTimeout(()=>{},60000)" mvg.mjs'
-        $psi.WorkingDirectory = $marketingTarget
-        $psi.CreateNoWindow = $true
-        $psi.UseShellExecute = $false
-        $helper = [Diagnostics.Process]::Start($psi)
-        Start-Sleep -Milliseconds 800
-        $refusal = $null
-        try { & $syncScript -RuntimeKit $runtimeKit | Out-Null } catch { $refusal = $_.Exception.Message }
-        if (-not $refusal -or $refusal -notmatch [string]$helper.Id) { throw "Sync did not refuse a bare 'node mvg.mjs' job (message: $refusal)" }
-        $checks++
-    } finally {
-        if ($helper -and -not $helper.HasExited) { $helper.Kill(); $helper.WaitForExit(5000) | Out-Null }
-        if ($helper) { $helper.Dispose() }
+    # The run-mvg.sh runners start `node mvg.mjs` from inside the tree, so the command line carries no directory;
+    # Git Bash runners may also pass ./mvg.mjs or a forward-slash absolute path.
+    foreach ($scriptArg in @('mvg.mjs', '.\mvg.mjs', './mvg.mjs', ((Join-Path $marketingTarget 'mvg.mjs').Replace('\', '/')))) {
+        $helper = $null
+        try {
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = $node
+            $psi.Arguments = '-e "setTimeout(()=>{},60000)" "' + $scriptArg + '"'
+            $psi.WorkingDirectory = $marketingTarget
+            $psi.CreateNoWindow = $true
+            $psi.UseShellExecute = $false
+            $helper = [Diagnostics.Process]::Start($psi)
+            Start-Sleep -Milliseconds 500
+            $refusal = $null
+            try { & $syncScript -RuntimeKit $runtimeKit | Out-Null } catch { $refusal = $_.Exception.Message }
+            if (-not $refusal -or $refusal -notmatch [string]$helper.Id) { throw "Sync did not refuse a 'node $scriptArg' job (message: $refusal)" }
+            $checks++
+        } finally {
+            if ($helper -and -not $helper.HasExited) { $helper.Kill(); $helper.WaitForExit(5000) | Out-Null }
+            if ($helper) { $helper.Dispose() }
+        }
     }
     Write-Host "PASS: $checks runtime gate/tool deployment checks"
 } finally {

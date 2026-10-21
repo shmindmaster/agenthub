@@ -19,15 +19,19 @@ if (-not (Test-Path -LiteralPath (Join-Path $packageKit 'src\Visuals.tsx'))) {
 # Refuse before touching anything while an mvg job runs from the deployed marketing tree: the mirror below rewrites
 # files that job has open. A job started as a bare `node mvg.mjs` from inside the tree (the run-mvg.sh runners do
 # this) shows no directory on its command line, so a bare mvg.mjs counts as running from here too.
+# Command lines are compared with forward slashes folded to backslashes (Git Bash runners pass C:/.../mvg.mjs).
 # An unavailable process list is a warning, not a stop.
-$marketingTarget = [IO.Path]::GetFullPath((Join-Path $RuntimeKit 'marketing'))
+$marketingTarget = [IO.Path]::GetFullPath((Join-Path $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RuntimeKit) 'marketing'))
 if (-not $Force -and (Test-Path -LiteralPath $marketingTarget)) {
     $running = @()
     try {
         $running = @(Get-CimInstance -ClassName Win32_Process -Filter "CommandLine LIKE '%mvg.mjs%'" -ErrorAction Stop |
-            Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and (
-                $_.CommandLine.IndexOf($marketingTarget, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
-                $_.CommandLine -match '(?<![\\/:\w.-])mvg\.mjs\b') })
+            Where-Object {
+                if ($_.ProcessId -eq $PID -or -not $_.CommandLine) { return $false }
+                $commandLine = $_.CommandLine.Replace('/', '\')
+                $commandLine.IndexOf($marketingTarget, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+                    $commandLine -match '(?:^|[\s"''])(?:\.\\)?mvg\.mjs(?=$|[\s"''])'
+            })
     } catch {
         Write-Warning "Could not list processes to check for a running mvg job: $($_.Exception.Message)"
     }
@@ -83,11 +87,15 @@ foreach ($rel in $files) {
 $marketingSource = Join-Path $packageKit 'marketing'
 if (Test-Path -LiteralPath $marketingSource) {
     New-Item -ItemType Directory -Force -Path $marketingTarget | Out-Null
-    & robocopy.exe $marketingSource $marketingTarget /MIR /NJH /NJS /NFL /NDL /NP /R:2 /W:1 | Out-Null
+    # Robocopy exit codes 0-7 are success (bit flags for what was copied/extra); 8 and above is failure. A caller with
+    # PSNativeCommandUseErrorActionPreference set would otherwise turn a success code into a terminating error here.
+    $PSNativeCommandUseErrorActionPreference = $false
+    $robocopyOutput = @(& robocopy.exe $marketingSource $marketingTarget /MIR /NJH /NJS /NDL /NP /R:2 /W:1 2>&1)
     $robocopyExit = $LASTEXITCODE
-    # Robocopy exit codes 0-7 are success (bit flags for what was copied/extra); 8 and above is failure.
     $global:LASTEXITCODE = 0
-    if ($robocopyExit -ge 8) { throw "Marketing kit mirror failed: robocopy exit code $robocopyExit ($marketingSource -> $marketingTarget)" }
+    if ($robocopyExit -ge 8) {
+        throw ("Marketing kit mirror failed: robocopy exit code {0} ({1} -> {2}): {3}" -f $robocopyExit, $marketingSource, $marketingTarget, (($robocopyOutput | Select-Object -Last 5) -join ' | '))
+    }
 }
 
 # Capture and product-picture gates travel with the compositor so each host resolves the same scripts.
