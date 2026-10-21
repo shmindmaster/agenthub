@@ -117,7 +117,7 @@ if (Test-Path -LiteralPath $gate) {
     Write-Host "Synced kit source -> $RuntimeKit"
 }
 
-# The deploy list above is the whole managed content of _shared	ools. Anything else there is a one-off script,
+# The deploy list above is the whole managed content of _shared\tools. Anything else there is a one-off script,
 # backup or working copy that belongs in its job folder. It is reported, never deleted: an unmatched file may be the
 # only copy, so the move is a reviewed step (global policy: delete nothing unmatched), not a sync side effect.
 $managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs',
@@ -126,7 +126,7 @@ $managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract
     'node_modules')  # node_modules is the capture-lib dependency link the screencast tools resolve from, not a script
 $unmanaged = @(Get-ChildItem -LiteralPath $sharedTools -Force | Where-Object { $_.Name -notin $managedTools } | ForEach-Object Name)
 if ($unmanaged.Count -gt 0) {
-    Write-Warning ("_shared	ools holds {0} unmanaged entries (not in the deploy list; move each to its job folder after a hash check): {1}" -f $unmanaged.Count, ($unmanaged -join ', '))
+    Write-Warning ("_shared\tools holds {0} unmanaged entries (not in the deploy list; move each to its job folder after a hash check): {1}" -f $unmanaged.Count, ($unmanaged -join ', '))
 } else {
-    Write-Host "_shared	ools matches the deploy list ($($managedTools.Count) managed entries)"
+    Write-Host "_shared\tools matches the deploy list ($($managedTools.Count) managed entries)"
 }
