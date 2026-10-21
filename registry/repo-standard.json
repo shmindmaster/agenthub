@@ -9,7 +9,8 @@
     "note": "Single RepoWise workspace over C:/Repos. Member paths are relative to that root (shmindmaster/<repo>, sh-pendoah/<repo>, musa-dev-team/<repo>, pendoah/<product>/<repo>). .demo-workspace is not a git repo (media-studio capture output). The fleet knowledge standard still applies only to rostered shmindmaster repos."
   },
   "excluded": [
-    { "name": ".demo-workspace", "reason": "Removed 2026-08-21. Was Product Demo Studio working media (not a git repo). work_dir now lives under %LOCALAPPDATA%\\AgentHub\\demo-workspace." }
+    { "name": ".demo-workspace", "reason": "Removed 2026-08-21. Was Product Demo Studio working media (not a git repo). work_dir now lives under %LOCALAPPDATA%\\AgentHub\\demo-workspace." },
+    { "name": "awesome-mcp-servers", "reason": "Recorded 2026-10-21. Fork of the third-party list punkpeye/awesome-mcp-servers (README files only, no product, no native project). Kept at the fleet root because it is a RepoWise workspace member (alias awesome-mcp-servers); it is reference material, not a fleet repo, so the knowledge standard and mobile-scope classification do not apply." }
   ],
   "requiredRootFiles": ["README.md", "AGENTS.md", "CLAUDE.md"],
   "requiredDocsFiles": ["docs/README.md", "docs/current-state.md", "docs/plans/PLANS.md"],
