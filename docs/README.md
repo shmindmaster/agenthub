@@ -40,3 +40,9 @@ stranger-safe first run. For this private fleet checkout, also use
 - [plans/PLANS.md](./plans/PLANS.md) — when and how to write resumable plans.
 - [plans/active/](./plans/active/) — active complex work.
 - [plans/completed/](./plans/completed/) — required directory; finished plans are deleted, not retained.
+
+## Proposals
+
+- [proposals/media-studio-2.1-sync-and-build.md](./proposals/media-studio-2.1-sync-and-build.md) —
+  proposed media-studio 2.1: word-synced text, diagrams that build on narration
+  beats, emphasis role tokens, and the word-sync gate (review only).
