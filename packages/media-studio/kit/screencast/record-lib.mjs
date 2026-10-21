@@ -8,7 +8,7 @@
 // refuses any screen beat whose clip has no receipt, no pointer motion, or an unobserved expectation.
 // That is what makes a stills animation, a looped PNG, or a hand-typed manifest unable to pass as
 // product footage: none of them can produce a receipt from a live browser session.
-import { chromium } from 'playwright';
+// playwright is loaded inside startRecording, so the helpers below (bindHelpers, EventLog, resolveDevice) import and unit-test without a browser install.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -47,6 +47,7 @@ export class EventLog {
     return {
       pointerMoves: count('move'),
       clicks: count('click'),
+      taps: count('tap'),
       keystrokes: this.events.filter((e) => e.type === 'type').reduce((n, e) => n + (e.chars || 0), 0),
       scrolls: count('wheel'),
       navigations: count('goto'),
@@ -57,9 +58,22 @@ export class EventLog {
   }
 }
 
-/** Start a fresh recording context. viewport is the delivery frame; DSF 2 is the PDS minimum. */
+/**
+ * The Playwright device descriptor named by opts.device (e.g. 'iPhone 13'), or null when none is named. A name Playwright does not
+ * know is an error: a non-16:9 cut is captured at its own viewport with device emulation, never silently as a desktop page.
+ */
+export function resolveDevice(opts, devices) {
+  if (!opts.device) return null;
+  const d = devices?.[opts.device];
+  if (!d) throw new Error('unknown Playwright device "' + opts.device + '" (options.viewports[...].device)');
+  return d;
+}
+
+/** Start a fresh recording context. viewport is the delivery frame; DSF 2 is the PDS minimum. opts.device spreads a Playwright device descriptor first; explicit viewport / DSF / isMobile / hasTouch win. opts.videoSize (default: viewport) is the recorded pixel size; record-job passes viewport x DSF for a --ratio entry whose CSS viewport is smaller than its delivery frame. */
 export async function startRecording(id, opts = {}) {
-  const viewport = opts.viewport || { width: 1600, height: 1000 };
+  const { chromium, devices } = await import('playwright');
+  const device = resolveDevice(opts, devices);
+  const viewport = opts.viewport || device?.viewport || { width: 1600, height: 1000 };
   const rawDir = path.resolve(opts.rawRoot || 'raw', id);
   fs.rmSync(rawDir, { recursive: true, force: true });
   fs.mkdirSync(rawDir, { recursive: true });
@@ -71,15 +85,19 @@ export async function startRecording(id, opts = {}) {
   // one recorded pixel per output pixel. Runtime-only; the product's own markup is untouched.
   const mobile = opts.mobileLayout || null;
   const context = await browser.newContext({
+    ...(device || {}),
     viewport,
-    deviceScaleFactor: mobile ? 1 : opts.deviceScaleFactor || 2,
+    // mobileLayout (native-resolution phone/tablet layout) wins over device emulation: it rasterises at DSF 1 by design.
+    deviceScaleFactor: mobile ? 1 : opts.deviceScaleFactor || device?.deviceScaleFactor || 2,
     ...(mobile ? { isMobile: true, hasTouch: true } : {}),
+    ...(!mobile && opts.isMobile !== undefined ? { isMobile: opts.isMobile } : {}),
+    ...(!mobile && opts.hasTouch !== undefined ? { hasTouch: opts.hasTouch } : {}),
     colorScheme: opts.colorScheme || 'light',
     locale: opts.locale || 'en-US',
     timezoneId: opts.timezoneId || 'America/Chicago',
     ...(opts.storageState ? { storageState: opts.storageState } : {}),
     ...(opts.extraHTTPHeaders ? { extraHTTPHeaders: opts.extraHTTPHeaders } : {}),
-    recordVideo: { dir: rawDir, size: viewport },
+    recordVideo: { dir: rawDir, size: opts.videoSize || viewport },
   });
   if (mobile) {
     await context.addInitScript(([cssWidth, scale]) => {
@@ -118,7 +136,7 @@ export async function startRecording(id, opts = {}) {
   const page = await context.newPage();
   const beats = new BeatTracker(t0);
   const log = new EventLog(t0);
-  const h = bindHelpers(page, log, beats, opts);
+  const h = bindHelpers(page, log, beats, { ...opts, hasTouch: opts.hasTouch ?? device?.hasTouch ?? false });
   return { id, browser, context, page, rawDir, beats, log, h, t0, viewport };
 }
 
@@ -194,8 +212,9 @@ export async function renderRecast(rawDir, outFile, opts = {}) {
 /** Helpers bound to one page. Every helper logs to the receipt. */
 export function bindHelpers(page, log, beats, opts = {}) {
   const base = opts.baseUrl || '';
-  // Input runs in CSS layout pixels; the receipt logs recorded-video pixels, which differ by the mobile page scale.
-  const k = opts.mobileLayout ? opts.mobileLayout.scale : 1;
+  // Input runs in CSS layout pixels; the receipt logs recorded-video pixels, which differ by the mobile page scale, or by
+  // the DSF when record-job records a --ratio take at viewport x DSF (opts.videoSize).
+  const k = opts.mobileLayout ? opts.mobileLayout.scale : (opts.videoSize && opts.viewport?.width ? opts.videoSize.width / opts.viewport.width : 1);
   const wait = (ms) => page.waitForTimeout(ms);
 
   const center = async (locator) => {
@@ -240,6 +259,24 @@ export function bindHelpers(page, log, beats, opts = {}) {
     const tStart = log.now();
     await locator.first().click({ delay: 60, force: true, position: { x: box.width / 2, y: box.height / 2 }, timeout: 8000 });
     log.push('click', { x: Math.round(x * k), y: Math.round(y * k), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
+    if (o.label) beats.mark(o.label, { box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } });
+    await wait(o.hold ?? TIMING.clickHoldMs);
+  }
+
+  /**
+   * A finger tap on a touch context: no pointer travel, so no 'move' events; the log carries only the tap, which the pointer-path
+   * gate reads as a named action. Without touch (opts.hasTouch falsy) it falls back to the desktop click (eased approach, then
+   * click) and still logs type 'tap'. Pass the same { label } the cue plan names.
+   */
+  async function tap(locator, o = {}) {
+    const touch = !!opts.hasTouch;
+    const { x, y, box } = touch ? await center(locator) : await approach(locator, o);
+    const position = { x: box.width / 2, y: box.height / 2 };
+    const tStart = log.now();
+    if (touch) await locator.first().tap({ force: true, position, timeout: 8000 });
+    else await locator.first().click({ delay: 60, force: true, position, timeout: 8000 });
+    log.push('tap', { x: Math.round(x), y: Math.round(y), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
+    log.pointer = { x, y };
     if (o.label) beats.mark(o.label, { box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } });
     await wait(o.hold ?? TIMING.clickHoldMs);
   }
@@ -316,5 +353,5 @@ export function bindHelpers(page, log, beats, opts = {}) {
   /** Result hold (≥500 ms; longer when the viewer must read). */
   const hold = (ms = 1500) => wait(ms);
 
-  return { approach, click, typeText, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
+  return { approach, click, tap, typeText, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
 }
