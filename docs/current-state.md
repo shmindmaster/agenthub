@@ -278,8 +278,11 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `Test-SharedSkillsDeployment` scan now bind through `PathBinding.ps1`.
 - **Knowledge-access documents layer (2026-08-21):** capability
   `knowledge-access` (`packages/knowledge-access`) is the sibling of
-  RepoWise for `D:\OneDrive - Maya Modest LLC\Documents\` folders `01`–`06` and
-  `10`. `_INDEX.md` and `AGENTS.md` sit at that Documents root; `_MAP.md`
+  RepoWise for folders `01`–`06` and
+  `10` under the then-current `D:\OneDrive - Maya Modest LLC\Documents\`.
+  Owner direction on 2026-10-19 moved the canonical Documents root to
+  `D:\OneDrive - MahumTech\Documents\`. `_INDEX.md` and `AGENTS.md` sit
+  at that Documents root; `_MAP.md`
   is a pointer. Exact search uses WSL `rga` 0.10.10 plus pandoc/poppler
   (no Windows rga build exists). Opportunity rendering is
   `opportunity-engine`; portfolio and professional-material enrichment is
