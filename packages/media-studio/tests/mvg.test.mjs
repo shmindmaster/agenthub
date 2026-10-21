@@ -1033,3 +1033,15 @@ test('a focus window zoom may be one number or a per-ratio map', async () => {
   assert.notDeepEqual(validate(zoom, { '1x1': 2 }), []);
   assert.notDeepEqual(validate(zoom, 4), []);
 });
+
+test('a focus window x and y may be one number or a per-ratio map', async () => {
+  const { validate } = await import('../kit/marketing/lib/schema.mjs');
+  const schema = JSON.parse(readFileSync(new URL('../kit/marketing/ad.schema.json', import.meta.url), 'utf8'));
+  const find = (node) => (node && typeof node === 'object' ? (node.x?.oneOf ? node : Object.values(node).map(find).find(Boolean)) : null);
+  const { x, y } = find(schema);
+  assert.deepEqual(validate(x, 0.35), []);
+  assert.deepEqual(validate(x, { '16x9': 0.35, '4x5': 0.328 }), []);
+  assert.deepEqual(validate(y, { '9x16': 0.4 }), []);
+  assert.notDeepEqual(validate(x, { '1x1': 0.3 }), []);
+  assert.notDeepEqual(validate(x, 1.2), []);
+});
