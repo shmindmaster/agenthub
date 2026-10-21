@@ -41,6 +41,13 @@ export function cueTime(cue, seg, { actions = [], headTrim = 0, trimStart = 0, d
   return round(seg.startSeconds + (hit.t - headTrim - trimStart));
 }
 
+/** Caption chunks that start inside a beat with captionPlacement "top" get `top: true`; the composition then draws them
+ *  on the layout's top plate. */
+export function placeCaptions(chunks, beats, segments) {
+  const tops = beats.filter((b) => b.captionPlacement === 'top').map((b) => segments.find((s) => s.id === b.id)).filter(Boolean);
+  return chunks.map((k) => (tops.some((s) => k.startSec >= s.startSeconds - 0.001 && k.startSec < s.startSeconds + s.durationSeconds) ? { ...k, top: true } : k));
+}
+
 /** Structural check of the MarketingAd props before anything renders: a bad prop is cheaper to find here than mid-render. */
 export function validateProps(props, publicDir) {
   const errors = [];
@@ -154,12 +161,12 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
   const c = ctx.brand.colors;
   const props = {
     ratio, width: frame.width, height: frame.height, fps: 30, durationSec: timeline.durationSeconds,
-    layout: { uiBand: layout.uiBand, captionBox: layout.captionBox, ctaBox: layout.ctaBox, ctaPillFont: layout.ctaPillFont },
+    layout: { uiBand: layout.uiBand, captionBox: layout.captionBox, captionBoxTop: layout.captionBoxTop, ctaBox: layout.ctaBox, ctaPillFont: layout.ctaPillFont, ctaFootFont: layout.ctaFootFont },
     brand: { productName: ctx.brand.product, colors: { primary: c.primary, foreground: c.foreground, background: c.background, accent: c.accent, onPrimary: c.onPrimary || '#ffffff', ...(c.emphasis ? { emphasis: c.emphasis } : {}) }, fontDisplay: ctx.brand.fonts.display, fontBody: ctx.brand.fonts.body, fontFiles },
     // The synthetic-data label and the AI-voice disclosure are end-card lines, not a chip over the product picture.
     label: ctx.spec.labels, disclosure: ctx.spec.voice.disclosure || undefined,
     logo: ctx.brand.logo ? addMedia(ctx.brand.logo, ctx.brand.logo.split('.').pop()) : undefined,
-    beats, captions: captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words, lines: lineBreaks(k.words, { maxWidthPx: Math.min(layout.captionBox.w, Math.round(0.82 * frame.width)), fontSize: layout.captionBox.fontSize }) })),
+    beats, captions: placeCaptions(captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words, lines: lineBreaks(k.words, { maxWidthPx: Math.min(layout.captionBox.w, Math.round(0.82 * frame.width)), fontSize: layout.captionBox.fontSize }) })), cut.beats, timeline.segments),
     emphasis: [...new Set(cut.beats.flatMap((b) => b.emphasis || []))],
     cta: { text: ctx.spec.cta.text, displayUrl: ctx.spec.cta.displayUrl || ctx.spec.cta.url.replace(/^https?:\/\//, '') },
   };

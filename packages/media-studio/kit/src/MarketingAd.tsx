@@ -40,7 +40,7 @@ export type AdBeat = {
 };
 
 export type CaptionWord = { word: string; start: number; end: number };
-export type CaptionChunk = { startSec: number; endSec: number; words: CaptionWord[]; lines?: number[] };
+export type CaptionChunk = { startSec: number; endSec: number; words: CaptionWord[]; lines?: number[]; top?: boolean };
 
 export type MarketingAdProps = {
   ratio: string;
@@ -51,6 +51,7 @@ export type MarketingAdProps = {
   layout: {
     uiBand: Box;
     captionBox: Box & { fontSize: number; maxLines: number };
+    captionBoxTop?: Box & { fontSize: number; maxLines: number };
     ctaBox: Box;
     ctaPillFont?: number;
     ctaFootFont?: number;
@@ -288,8 +289,9 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
   const frames = beatFrames(props.beats, fps);
   if (props.beats.some((b, i) => (b.kind === "card" || b.kind === "title") && frame >= frames[i].from && frame < frames[i].from + frames[i].durationInFrames)) return null;
   const chunk = props.captions.find((c) => t >= c.startSec && t < c.endSec);
-  const box = props.layout.captionBox;
   if (!chunk) return null;
+  // A beat whose product content fills the lower frame carries its caption on the top plate (captionPlacement "top").
+  const box = chunk.top && props.layout.captionBoxTop ? props.layout.captionBoxTop : props.layout.captionBox;
   const emphasis = new Set(props.emphasis.map((w) => w.toLowerCase().replace(/[^a-z0-9$%]/g, "")));
   const startFrame = Math.round(chunk.startSec * fps);
   const enter = interpolate(frame, [startFrame, startFrame + CAPTION_FADE_FRAMES], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });

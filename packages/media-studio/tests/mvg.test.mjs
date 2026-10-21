@@ -28,7 +28,7 @@ import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
 import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
 import { assetsStage, musicKey, musicLengthMs, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
-import { cueTime, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
+import { cueTime, placeCaptions, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
 import { parseArgs } from '../kit/marketing/mvg.mjs';
 import { alignBeat, chooseResult, expandKeywords, findWord, shiftAsr, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
 import { buildGateWorkspace } from '../kit/marketing/lib/gates.mjs';
@@ -1567,4 +1567,24 @@ test('silent beats 2: a cut with no narration at all lists no narration row rath
   buildGateWorkspace({ root: dir, spec: baseSpec(), cut, ratio: '16x9', timeline, composeMap: { groups: [] }, clips: [], asr: {}, loudnessLufs: -16 });
   assert.deepEqual(readJson(join(dir, 'story', 'narration-timeline.json')).segments, []);
   assert.deepEqual(readJson(join(dir, 'qa', 'listen-timeline.json')).segments, []);
+});
+
+test('caption placement: a beat with captionPlacement "top" draws its captions on the top plate inside the safe area', () => {
+  const segments = [{ id: 'U1', startSeconds: 1.67, durationSeconds: 4 }, { id: 'U2', startSeconds: 5.67, durationSeconds: 4 }];
+  const chunks = [{ startSec: 1.9, endSec: 3 }, { startSec: 5.9, endSec: 7 }, { startSec: 8, endSec: 9.6 }];
+  const placed = placeCaptions(chunks, [{ id: 'U1' }, { id: 'U2', captionPlacement: 'top' }], segments);
+  assert.deepEqual(placed.map((k) => !!k.top), [false, true, true]);
+  assert.deepEqual(placeCaptions(chunks, [{ id: 'U1' }, { id: 'U2' }], segments), chunks, 'no placement, no change');
+  const brand = { safeZones: undefined };
+  for (const ratio of ['16x9', '4x5', '9x16']) {
+    const l = layoutFor(ratio, brand);
+    assert.ok(l.captionBoxTop.y < l.captionBox.y && l.captionBoxTop.y >= l.safe.y, `${ratio} top plate sits at the top of the safe area`);
+    assert.deepEqual({ ...l.captionBoxTop, y: 0 }, { ...l.captionBox, y: 0 }, `${ratio} top plate is the same plate, moved`);
+    assert.deepEqual(safeZoneErrors(l), []);
+  }
+  const compose = readFileSync(new URL('../kit/marketing/lib/stages/compose.mjs', import.meta.url), 'utf8');
+  assert.match(compose, /captionBoxTop: layout\.captionBoxTop/);
+  assert.match(compose, /ctaFootFont: layout\.ctaFootFont/, 'the end-card disclosure size reaches the composition');
+  const tsx = readFileSync(new URL('../kit/src/MarketingAd.tsx', import.meta.url), 'utf8');
+  assert.match(tsx, /const box = chunk\.top && props\.layout\.captionBoxTop \? props\.layout\.captionBoxTop : props\.layout\.captionBox/);
 });
