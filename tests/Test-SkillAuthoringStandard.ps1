@@ -57,7 +57,8 @@ foreach ($file in $skillFiles) {
     }
 
     $descMatch = [regex]::Match($content, '(?m)^description:\s*(.*)$')
-    if (-not $descMatch.Success -or $descMatch.Groups[1].Value -notmatch '^\s*Use when\b') {
+    # A YAML-quoted description ("Use when ...") is the same contract; the quote is syntax, not content.
+    if (-not $descMatch.Success -or $descMatch.Groups[1].Value -notmatch '^\s*["'']?Use when\b') {
         $descriptionFailures.Add($relativePath)
     }
 

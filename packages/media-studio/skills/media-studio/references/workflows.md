@@ -8,9 +8,9 @@ Designed viewer experiences on the Remotion **archetype** kit, not a stack of da
 
 Evidence-led private briefings (a ledger plus captured/annotated screens): curate plates first (markup over raw), write a dramatic spine, storyboard scenes, then compose. Do not narrate the ledger in order. Open items stay open. Do not recapture live production.
 
-1. Writer locks `screenplay.json` (`story-craft.md`: sceneRole, WIIFM, hook, one hero).
-2. Storyboard locks `storyboard.json` (shot plan, archetype, sound, 2–3 scored hooks — pick internally).
-3. Visuals locks `visual-bible.json`. Director maps archetypes and registers.
+1. Writer (`writer.md`) locks `story/screenplay.json` (`story-craft.md`: sceneRole, WIIFM, hook, one hero).
+2. Storyboard (`storyboard.md`) locks `story/storyboard.json` (shot plan, archetype, sound, 2–3 scored hooks — pick internally).
+3. Visuals (`visuals.md`) locks `visual-bible.json`. Direction (`direction.md`) maps archetypes and registers.
 4. Generate owner voice through `ai.ps1 voice qwen-clone --voice sarosh`, identity-score, generate the bed unless `intent: draft`. Render composition `Briefing` from the house kit (do not `create-video` a new app). Sync kit source from `packages/media-studio/kit` first.
 5. `Finish-Media.ps1 -Speech -Music`. Craft critic (score ≥ 85) then QA. Exact logos, numbers, and legal text are compositor-set type, never diffusion.
 
@@ -22,7 +22,7 @@ Same crew, shorter scenes, one learning outcome per clip. Pattern interrupt betw
 
 ## explainer
 
-`technical-explainer` owns comprehension. Wrap it in `story-craft.md` (Question → Stakes → Wrong intuition → Reveal → Demonstration → Implication → Takeaway). `technical-visualizer` picks the simplest truthful visual that maintains attention. Real UI claims still capture through Playwright. A diagram that never builds is unfinished. Remotion required unless draft.
+Comprehension (`story-craft.md` → "Explainer path") comes first. Wrap it in the spine in `story-craft.md` (Question → Stakes → Wrong intuition → Reveal → Demonstration → Implication → Takeaway). `direction.md` §6 picks the simplest truthful visual that maintains attention. Real UI claims still capture through Playwright. A diagram that never builds is unfinished. Remotion required unless draft.
 
 ## talking-head
 
@@ -42,7 +42,7 @@ Do not load retired `product-demo*` skills. Stay in media-studio: `product-pictu
 
 ## series-episode
 
-`story-series` owns methodology and continuity. Tension/escalation/reveal craft is `story-craft.md`. Compose non-screencast picture here. Mix bed and holds in this studio. Remotion required unless draft.
+`series.md` owns methodology and continuity. Tension/escalation/reveal craft is `story-craft.md`. Compose non-screencast picture here. Mix bed and holds in this studio. Remotion required unless draft.
 
 ## webcast / webinar
 

@@ -1,15 +1,12 @@
----
-name: elevenlabs-stt
-description: Use when assessing hosted transcription eligibility; paid transcription is disabled pending a metered shared adapter.
----
-
 # ElevenLabs transcription
+
+**Disabled: fails closed.** Paid transcription is disabled pending a metered shared adapter.
 
 Hosted transcription currently fails closed. The canonical
 `packages/elevenlabs/scripts/elevenlabs_cli.py` refuses `transcribe` before an
 upload. Native tools, SDK examples and Flows must not bypass the shared budget.
 A duration/model quote, atomic reservation, durable receipt and recovery adapter
-are required before enabling this modality. Load `elevenlabs-api` and
+are required before enabling this modality. Load `../SKILL.md` and
 `packages/media-studio/skills/media-studio/references/content-controls.md`.
 
 Use an authorized local transcription route meanwhile. Legal, privileged,

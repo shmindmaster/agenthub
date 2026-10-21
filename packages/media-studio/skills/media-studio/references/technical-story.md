@@ -49,7 +49,7 @@ Set `speaker` on the scene; leave host scenes as `sarosh` or omit. See `scene-ar
 
 ## 3. Rules
 
-1. **Visual markup, aggressively.** Box the important element, dim the rest, arrows for cause → effect, zoom, labels such as `User action`, `Webhook`, `DB write`, `Async job`. When the story crosses systems, put a tiny flow diagram on screen. The compositor's annotation layer (`kit/screencast/render-overlay.mjs`) is the tool; `media-director` decides the markup per beat.
+1. **Visual markup, aggressively.** Box the important element, dim the rest, arrows for cause → effect, zoom, labels such as `User action`, `Webhook`, `DB write`, `Async job`. When the story crosses systems, put a tiny flow diagram on screen. The compositor's annotation layer (`kit/screencast/render-overlay.mjs`) is the tool; `direction.md` decides the markup per beat.
 2. **Explain what → why → consequence.** Every code or log beat answers all three. A beat that only says *what* is a screenshot with narration.
 3. **Before/after comparisons.** The fix beat is a comparison, not a description of the new code.
 4. **Small moments of tension.** "It should have worked here — it did not." Let the viewer feel the gap before you close it.
@@ -62,11 +62,11 @@ Set `speaker` on the scene; leave host scenes as `sarosh` or omit. See `scene-ar
 
 ## 4. Crew mapping
 
-| Skill | This form adds |
+| Step | This form adds |
 | --- | --- |
-| `media-writer` | Hook = problem, not feature. Every technical beat carries what/why/consequence and its human consequence. `truth: FACT` on every code/log claim. |
-| `media-storyboard` | Beats follow §2. Each code/log/diagram beat names the markup (`box`, `dim`, `arrow`, `label`, `flow`) and the single highlight. Before/after is one beat with two states. |
-| `media-director` | Specifies the overlay per beat for the compositor; picks the 5–20 lines; sets the flow-diagram nodes when systems are crossed. |
+| Writer (`writer.md`) | Hook = problem, not feature. Every technical beat carries what/why/consequence and its human consequence. `truth: FACT` on every code/log claim. |
+| Storyboard (`storyboard.md`) | Beats follow §2. Each code/log/diagram beat names the markup (`box`, `dim`, `arrow`, `label`, `flow`) and the single highlight. Before/after is one beat with two states. |
+| Direction (`direction.md`) | Specifies the overlay per beat for the compositor; picks the 5–20 lines; sets the flow-diagram nodes when systems are crossed. |
 | `media-studio-capture` | Duckie production (read-only) or the Zendesk partner sandbox, synthetic personas, deterministic replays; product-specific operator notes live in that skill's `references/`. |
 | `media-studio-compose` | Applies overlays per segment (`overlay` hint), code cards, flow cards; manifest hints `trimStart`, `trimEnd`, `speed`, `skip`, `fit`. |
 | `media-studio-qa` | product-picture plus: hook is a problem; one highlighted section at a time; no narrated chrome; no addendum. |
@@ -81,3 +81,7 @@ Set `speaker` on the scene; leave host scenes as `sarosh` or omit. See `scene-ar
 - [ ] Every technical consequence has a human consequence
 - [ ] Visual change every 5–15 s, all motivated; nothing narrated that is already visible
 - [ ] Synthetic local data only; no addendum clip
+
+## 6. Comprehension behind the story
+
+The "what is actually happening" and "what this means" beats draw on the explanation block (`story-craft.md` → "Explainer path"; `../../../schemas/explanation.schema.json`): the core idea in one sentence a viewer can reuse at work, the real example tagged `FACT` (what actually happened), and the misconception people hold. Define jargon once and use it consistently. Do not invent product behavior; where evidence is missing, say so on screen or in the "what this means" beat's uncertainty, never in a guess. Series episodes that carry a technical beat also follow `series.md` and `direction.md` §7.

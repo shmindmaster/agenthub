@@ -118,6 +118,16 @@ Set-ReleaseVersionLines 'kit/package.json' 1 { param($t) $t -match "(?m)^\{\s*("
 # npm lockfile v3: the first two version lines are the root and packages[""] (the package itself), before any dependency.
 Set-ReleaseVersionLines 'kit/package-lock.json' 2 { param($t) $t -match "^\{\s*""name""\s*:\s*""[^""]*"",\s*""version""\s*:\s*""$v""" -and $t -match """packages""\s*:\s*\{\s*""""\s*:\s*\{[^{}]*?""version""\s*:\s*""$v""" }
 Set-ReleaseVersionLines 'kit/scene-archetypes.json' 1 { param($t) $t -match "^\{\s*""version""\s*:\s*""$v""" }
+# The product-video policy names the release it governs (killer-demo-playbook.md calls it authoritative); keep it in step.
+$policyPath = Join-Path $packageRoot 'policy/product-video-policy.json'
+if (Test-Path -LiteralPath $policyPath) {
+    $raw = [IO.File]::ReadAllText($policyPath)
+    $policyPin = [regex]'(?m)^(\s*"capabilityVersion"\s*:\s*")[^"]*(")'
+    if ($policyPin.Matches($raw).Count -ne 1) { throw "policy/product-video-policy.json must carry exactly one capabilityVersion: $policyPath" }
+    [IO.File]::WriteAllText($policyPath, $policyPin.Replace($raw, "`${1}$Version`${2}", 1), [Text.UTF8Encoding]::new($false))
+    $script:updated += 'policy/product-video-policy.json'
+    Write-Host "updated $Package/policy/product-video-policy.json -> $Version"
+}
 
 # Skills that pin the release they verify against (media-studio-compose and -generate check the deployed kit and tools
 # with -ne '<version>'). Every pin phrase is rewritten whatever version it carries, so a pin left stale by an earlier

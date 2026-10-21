@@ -1,19 +1,12 @@
----
-name: media-writer
-description: Use when a video, briefing, training film, or explainer needs a screenplay, narration script, shot list, or scene-by-scene spoken words.
----
+# Writer (screenplay, narration, shot list)
 
-# Media writer
+Step 1 of the crew in `SKILL.md`. From the concept or outline already in context, produce a locked screenplay in this turn. Do not ask for act structure, tone, or shot count; infer them. Do not generate TTS. The next step is `storyboard.md`.
 
-From the concept or outline already in context, produce a locked screenplay in this turn. Do not ask for act structure, tone, or shot count — infer them.
-
-Load `../media-studio/references/engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md` unless kind is `product-screencast` (outcome-first rules in `program-forms.md` + `product-picture.md`; `story-craft.md` → "No fluff" still applies). When `programForm` is `technical-story` (a product or engineering change told as a 5–8 minute story), also load `../media-studio/references/technical-story.md` for the beat order and the what → why → consequence rule, whatever the kind. Marketing cuts (`marketing-readiness.md`) are written to win a feed: the hook is on screen inside two seconds.
-
-Handoff: this skill → `media-storyboard`. Do not generate TTS.
+Read with this step: `engagement.md`, `story-craft.md`, `studio-craft.md`, and `program-forms.md`, unless kind is `product-screencast` (outcome-first rules in `program-forms.md` + `product-picture.md`; `story-craft.md` → "No fluff" still applies). When `programForm` is `technical-story` (a product or engineering change told as a 5–8 minute story), also read `technical-story.md` for the beat order and the what → why → consequence rule, whatever the kind. Marketing cuts (`marketing-readiness.md`) are written to win a feed: the hook is on screen inside two seconds.
 
 ## 1. Output
 
-- `screenplay.json` matching `../../schemas/screenplay.schema.json` — `hook`, `emotionalTarget`, `viewerPromise`; per scene `sceneRole`, `viewerQuestion`, `wiifm`, `story`, `emphasis`, `pauseBeforeSeconds`, `holdAfterSeconds`, `musicCue`; `syntheticDisclosure` when the data is synthetic
+- `story/screenplay.json` matching `../../../schemas/screenplay.schema.json` — `hook`, `emotionalTarget`, `viewerPromise`; per scene `sceneRole`, `viewerQuestion`, `wiifm`, `story`, `emphasis`, `pauseBeforeSeconds`, `holdAfterSeconds`, `musicCue`; `syntheticDisclosure` when the data is synthetic
 - `narration.md` — canonical spoken text, one scene per heading, no phonetic respelling
 - `story/screenplay.draft.json` — the draft before the cut, so the check can report what was cut
 - `qa/narration-check.json` — from `scripts/validate-narration.mjs <jobRoot>` (deployed in `_shared\tools`), a PASS
@@ -54,4 +47,36 @@ Avoid:
 - [ ] Every viewer-facing scene has role, WIIFM, viewerQuestion
 - [ ] One hero
 - [ ] Schema validates
-- [ ] Next skill is `media-storyboard`
+- [ ] Next step is `storyboard.md`
+
+## 5. Dramatize a real incident (series and comic episodes)
+
+When the brief is a real technical incident to be told as a comic or dramatic episode (a `series-episode`, or any film that heightens a real failure), transform the incident into a premise before writing scenes:
+
+```text
+REAL INCIDENT
+     ↓
+comic/dramatic premise
+     ↓
+character objective
+     ↓
+conflict
+     ↓
+escalation
+     ↓
+technical complication
+     ↓
+reversal
+     ↓
+payoff
+```
+
+Comedy craft belongs inside dramatization; it is not a separate step. Keep comedy inside the telling:
+
+1. Establish the earnest goal.
+2. Add a small, plausible obstacle.
+3. Escalate with a technical misunderstanding (permissions, env, "it works on my machine").
+4. Reverse: the "fix" reveals the real system rule.
+5. Payoff teaches the takeaway without humiliating real people.
+
+Tag every beat `FACT` / `DRAMATIZED` / `COMPOSITE`. Fictionalize before any external share (the `sarosh-writing` fictionalization reference; `series.md`). Series methodology, truth ledger and continuity are in `series.md`.

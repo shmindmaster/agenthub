@@ -11,7 +11,7 @@ This rubric applies to every marketing cut: `programForm` `campaign-flagship`, `
 they inherit the no-fluff rule (`validate-narration.mjs`) and the cursor rule (`validate-pointer-path.mjs`)
 but are not judged against reference ads.
 
-`media-story-experience-reviewer` records the verdicts; `scripts/validate-marketing-readiness.mjs` holds
+The story-experience review (`media-studio-qa`) records the verdicts; `scripts/validate-marketing-readiness.mjs` holds
 them to the floor on the exact encoded file and `validate-viewer-release.mjs` refuses a marketing cut without
 a passing check. Below the floor is a fail. There is no score to average it away.
 
@@ -54,8 +54,8 @@ a passing check. Below the floor is a fail. There is no score to average it away
 ```
 
 Every verdict carries a timestamp or a scene id. A criterion without evidence is a fail, not a pass. An honest
-`winsAgainstReferences: false` is the most useful line in the file: it sends the cut back to `media-writer` /
-`media-storyboard` with the reference that beat it.
+`winsAgainstReferences: false` is the most useful line in the file: it sends the cut back to the writer (`writer.md`) /
+storyboard (`storyboard.md`) with the reference that beat it.
 
 ## Then
 

@@ -1,6 +1,6 @@
 # Story craft (viewer-facing films)
 
-Load this with `engagement.md` for every **viewer-facing** media-studio job that is not a product screencast. Product screencasts stay on the PDS story-experience gate. Series episodes still use `story-series` for bible/continuity; this file is the reusable tension craft those episodes and every other film share.
+Load this with `engagement.md` for every **viewer-facing** media-studio job that is not a product screencast. Product screencasts stay on the PDS story-experience gate. Series episodes use `series.md` for bible/continuity; this file is the reusable tension craft those episodes and every other film share.
 
 A scene is a designed viewer experience, not narration with a slide attached.
 
@@ -26,7 +26,7 @@ Banned from narration (each hit is an error, not a style note):
 | redundant | a line that says ≥ 70 % of an earlier line again; a line that adds no new content word |
 
 One idea is said once. Never any talk of versions, revision history, what changed since last time, or how the
-film was made. No build or version chips on screen (`media-storyboard` owns the on-screen half of that rule).
+film was made. No build or version chips on screen (`storyboard.md` owns the on-screen half of that rule).
 
 **Synthetic data is disclosed on screen, never spoken.** When the job runs on synthetic data (`job.dataClass`
 contains "synthetic" or `syntheticData: true`), the screenplay carries
@@ -69,7 +69,7 @@ Map onto scenes with `sceneRole`:
 | `cta` | One next step. Designed last frame. |
 | `bridge` | Only when the cut would otherwise confuse. |
 
-Conflict logic (same machinery as story-series, without becoming an episode):
+Conflict logic (same machinery as `series.md`, without becoming an episode):
 
 ```text
 goal → obstacle → escalation → complication → reversal → payoff
@@ -106,7 +106,37 @@ Avoid:
 
 ## Explainer path
 
-`technical-explainer` still owns comprehension (core idea → plain explanation → analogy → example → misconception → takeaway). For a **film**, wrap that explanation in the dramatic spine above. Do not ship the comprehension block as sequential slides.
+Comprehension comes first: convert a technical question, failure, design choice or incident into this structure (`../../../schemas/explanation.schema.json`: `core_idea`, `plain_explanation`, `takeaway` required; `analogy`, `real_example`, `misconception`, `visual_plan`, `truth` optional):
+
+```text
+CORE IDEA          one sentence
+PLAIN EXPLANATION  2–4 sentences
+ANALOGY            memorable comparison
+REAL EXAMPLE       what actually happened (FACT-tagged)
+MISCONCEPTION      what people commonly get wrong
+VISUAL PLAN        diagram / screen / animation intent
+TAKEAWAY           what the viewer should remember
+```
+
+For a **film**, wrap that block in the dramatic spine above:
+
+```text
+Question → Stakes → Wrong intuition → Complication → Reveal → Demonstration → Implication → Takeaway
+```
+
+Do not ship the comprehension block as sequential slides. The film still needs tension and a reveal.
+
+Rules:
+
+1. Name the concept in one sentence the viewer can reuse at work.
+2. Prefer show-then-tell: point to a visual plan before dense prose.
+3. Define jargon once; then use it consistently.
+4. Separate FACT (observed) from DRAMATIZED / COMPOSITE (storytelling).
+5. Do not invent product behavior; if evidence is missing, say so.
+
+Outputs: the explanation block (markdown); optional `visual_plan` notes for `direction.md` §6 (which visual); optional companion bullets for docs / learning cards. After the visual plan exists, compose the film through this studio (kind `explainer`, viewer-facing engagement). Do not load retired `product-demo*` skills.
+
+Not in scope here: series continuity and privacy fictionalization (`series.md`), and Remotion implementation (request capability `video.programmatic-composition` when animation is needed; resolve Remotion through thirdPartyExtensions, do not vendor it).
 
 ## Filler test
 
