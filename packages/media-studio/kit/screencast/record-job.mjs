@@ -5,7 +5,7 @@
 // Usage: node record-job.mjs <jobRoot> [S05 S06 ...] [--no-recast] [--headed] [--fresh]
 // Reads  <jobRoot>/capture/scenes.mjs:
 //   export const order = ['S05', ...];                      // default recording order
-//   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, recast?: { S05: { autoZoom: false } } };
+//   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, mobileLayout?: { cssWidth, scale }, recast?: { S05: { autoZoom: false } } };
 //   export const scenes = { async S05(h, ctx) {...} };      // one function per screen beat; h = record-lib helpers
 //   ctx = { page, beats, id, jobRoot, targetSeconds }       // targetSeconds = narration length of the beat, or null
 // Writes <jobRoot>/capture/clips/<id>.webm                  (Recast: cursor approach, click ripple, punch-in zoom)
@@ -98,7 +98,7 @@ for (const id of ids) {
   fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
   const takeState = carryState && fs.existsSync(carryPath) ? carryPath : storageState;
   const rec = await startRecording(id, {
-    storageState: takeState, baseUrl: options.baseUrl, viewport: options.viewport, deviceScaleFactor: options.deviceScaleFactor,
+    storageState: takeState, baseUrl: options.baseUrl, viewport: options.viewport, deviceScaleFactor: options.deviceScaleFactor, mobileLayout: options.mobileLayout,
     headless: !flags.has('--headed'), colorScheme: options.colorScheme, timezoneId: options.timezoneId, extraHTTPHeaders: options.extraHTTPHeaders,
   });
   const t0 = Date.now();
@@ -109,7 +109,8 @@ for (const id of ids) {
   take.rawSeconds = Number(((Date.now() - t0) / 1000).toFixed(1));
   fs.writeFileSync(path.join(cap, 'beats', `${id}.json`), JSON.stringify({ id, marks: fin.beats, expectations: fin.expectations }, null, 2));
   const out = path.resolve('clips', `${id}.webm`);
-  const opts = (options.recast || {})[id] || {};
+  // A native mobile layout gets no desktop cursor, ripple or punch-in zoom (picture integrity; the page shows touches).
+  const opts = { ...(options.mobileLayout ? { cursor: false, autoZoom: false } : {}), ...((options.recast || {})[id] || {}) };
   if (flags.has('--no-recast')) { fs.copyFileSync(fin.webm, out); take.recast = 'skipped'; }
   else {
     // Relative paths: Recast writes its cursor clip into .recast-tmp beside the output and passes that path to ffmpeg's
@@ -157,7 +158,8 @@ for (const id of ids) {
     traceSha256: fs.existsSync(fin.tracePath) ? sha256(fin.tracePath) : null,
     recordedAt: take.startedAt,
     viewport: rec.viewport,
-    deviceScaleFactor: options.deviceScaleFactor || 2,
+    deviceScaleFactor: options.mobileLayout ? options.mobileLayout.scale : options.deviceScaleFactor || 2,
+    ...(options.mobileLayout ? { mobileLayout: options.mobileLayout } : {}),
     recast: take.recast,
     recastNote: take.recastNote || null,
     events: fin.summary,

@@ -64,9 +64,16 @@ export async function startRecording(id, opts = {}) {
   fs.rmSync(rawDir, { recursive: true, force: true });
   fs.mkdirSync(rawDir, { recursive: true });
   const browser = await chromium.launch({ headless: opts.headless !== false, args: ['--hide-scrollbars=false'] });
+  // Playwright records video at CSS-pixel size whatever the device scale, so a phone or tablet layout recorded the
+  // ordinary way comes out at 360-540 px and has to be upscaled. opts.mobileLayout = { cssWidth, scale } instead opens a
+  // mobile context the size of the delivery frame and sets the page's viewport meta to cssWidth at that page scale: the
+  // app lays out at its phone/tablet breakpoint and is rasterised at `scale`, so the recording is the native layout at
+  // one recorded pixel per output pixel. Runtime-only; the product's own markup is untouched.
+  const mobile = opts.mobileLayout || null;
   const context = await browser.newContext({
     viewport,
-    deviceScaleFactor: opts.deviceScaleFactor || 2,
+    deviceScaleFactor: mobile ? 1 : opts.deviceScaleFactor || 2,
+    ...(mobile ? { isMobile: true, hasTouch: true } : {}),
     colorScheme: opts.colorScheme || 'light',
     locale: opts.locale || 'en-US',
     timezoneId: opts.timezoneId || 'America/Chicago',
@@ -74,6 +81,25 @@ export async function startRecording(id, opts = {}) {
     ...(opts.extraHTTPHeaders ? { extraHTTPHeaders: opts.extraHTTPHeaders } : {}),
     recordVideo: { dir: rawDir, size: viewport },
   });
+  if (mobile) {
+    await context.addInitScript(([cssWidth, scale]) => {
+      const set = () => {
+        let m = document.querySelector('meta[name=viewport]');
+        if (!m) { m = document.createElement('meta'); m.name = 'viewport'; document.head.appendChild(m); }
+        m.content = `width=${cssWidth}, initial-scale=${scale}, minimum-scale=${scale}, maximum-scale=${scale}, user-scalable=no`;
+      };
+      if (document.head) set(); else document.addEventListener('DOMContentLoaded', set);
+      window.addEventListener('load', set);
+      // A phone shows a touch, not a cursor: a soft dot where the finger lands (like the OS "show touches" option).
+      document.addEventListener('pointerdown', (e) => {
+        const d = document.createElement('div');
+        d.style.cssText = `position:fixed;left:${e.clientX - 22}px;top:${e.clientY - 22}px;width:44px;height:44px;border-radius:50%;background:rgba(110,86,248,0.35);border:2px solid rgba(110,86,248,0.85);pointer-events:none;z-index:2147483647;transition:transform 420ms ease-out,opacity 420ms ease-out;transform:scale(0.6);opacity:1`;
+        document.body.appendChild(d);
+        requestAnimationFrame(() => { d.style.transform = 'scale(1.25)'; d.style.opacity = '0'; });
+        setTimeout(() => d.remove(), 600);
+      }, true);
+    }, [mobile.cssWidth, mobile.scale]);
+  }
   await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
   // The recorded video starts when the page is created, so the action clock starts just before it: every event `t`
   // is then seconds into the raw WebM (the cue sheet and the sync gate map these through the edit decision list).
@@ -140,9 +166,12 @@ export async function renderRecast(rawDir, outFile, opts = {}) {
   const cues = opts.autoZoom !== false ? writeZoomCues(rawDir, opts.zoomHoldSeconds) : null;
   let r = Recast.from(rawDir).parse();
   r = cues ? r.subtitlesFromSrt(cues) : r.subtitles(() => '');
-  r = r
-    .cursorOverlay({ approachMs: 500, postArrivalHoldMs: 300, ...(opts.cursor || {}) })
-    .clickEffect({ radius: 28, duration: 350, opacity: 0.55, ...(opts.click || {}) });
+  // cursor: false (mobile layouts) draws no desktop cursor or click ripple: the page shows its own touch indicator.
+  if (opts.cursor !== false) {
+    r = r
+      .cursorOverlay({ approachMs: 500, postArrivalHoldMs: 300, ...(opts.cursor || {}) })
+      .clickEffect({ radius: 28, duration: 350, opacity: 0.55, ...(opts.click || {}) });
+  }
   if (opts.autoZoom !== false) {
     r = r.autoZoom({ clickLevel: 1.35, inputLevel: 1.4, idleLevel: 1.0, centerBias: 0.25, ...(opts.zoom || {}) });
   }
@@ -154,6 +183,8 @@ export async function renderRecast(rawDir, outFile, opts = {}) {
 /** Helpers bound to one page. Every helper logs to the receipt. */
 export function bindHelpers(page, log, beats, opts = {}) {
   const base = opts.baseUrl || '';
+  // Input runs in CSS layout pixels; the receipt logs recorded-video pixels, which differ by the mobile page scale.
+  const k = opts.mobileLayout ? opts.mobileLayout.scale : 1;
   const wait = (ms) => page.waitForTimeout(ms);
 
   const center = async (locator) => {
@@ -178,7 +209,7 @@ export function bindHelpers(page, log, beats, opts = {}) {
       const e = easeInOutCubic(i / steps);
       const x = sx + (tx - sx) * e, y = sy + (ty - sy) * e;
       await page.mouse.move(x, y);
-      log.push('move', { x: Math.round(x), y: Math.round(y) });
+      log.push('move', { x: Math.round(x * k), y: Math.round(y * k) });
       await wait(per);
     }
     log.pointer = { x: tx, y: ty };
@@ -197,7 +228,7 @@ export function bindHelpers(page, log, beats, opts = {}) {
     // tStart is the moment the click is issued (the narration word it must land on); t is when Playwright returned.
     const tStart = log.now();
     await locator.first().click({ delay: 60, force: true, position: { x: box.width / 2, y: box.height / 2 }, timeout: 8000 });
-    log.push('click', { x: Math.round(x), y: Math.round(y), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
+    log.push('click', { x: Math.round(x * k), y: Math.round(y * k), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
     if (o.label) beats.mark(o.label, { box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } });
     await wait(o.hold ?? TIMING.clickHoldMs);
   }
@@ -216,7 +247,7 @@ export function bindHelpers(page, log, beats, opts = {}) {
   async function pointAt(locator, o = {}) {
     const r = await approach(locator, o);
     // A cursor-led highlight for a read beat (dashboards, diagrams): the arrival is the action the narration names.
-    log.push('point', { x: Math.round(r.x), y: Math.round(r.y), label: o.label || null, target: o.target || o.label || describe(locator), tStart: log.now() });
+    log.push('point', { x: Math.round(r.x * k), y: Math.round(r.y * k), label: o.label || null, target: o.target || o.label || describe(locator), tStart: log.now() });
     if (o.label) beats.mark(o.label, { box: { x: Math.round(r.box.x), y: Math.round(r.box.y), w: Math.round(r.box.width), h: Math.round(r.box.height) } });
     await wait(o.hold ?? 900);
     return r;
