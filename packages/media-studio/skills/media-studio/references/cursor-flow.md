@@ -4,7 +4,7 @@ The cursor is the viewer's eye. It moves only to the next thing the narration na
 and it rests when the line rests. Nothing on screen moves that the narration is not about. The eye is led along
 one flow; it is never asked to go back.
 
-`media-director` plans it, `media-studio-capture` performs it, `scripts/validate-pointer-path.mjs` measures it
+`direction.md` plans it, `media-studio-capture` performs it, `scripts/validate-pointer-path.mjs` measures it
 from the capture receipt, and `media-studio-qa` refuses a take that breaks it.
 
 ## Eye path per scene

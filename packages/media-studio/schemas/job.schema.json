@@ -117,7 +117,7 @@
     "bounceTo": {
       "type": ["string", "null"],
       "enum": ["story-series-studio", null],
-      "description": "Only series methodology leaves this studio. Product screencasts stay here and invoke the internal engine."
+      "description": "Legacy value kept so old job files validate. Series methodology now lives in skills/media-studio/references/series.md and nothing leaves the studio; product screencasts stay here and invoke the internal engine."
     },
     "truth": {
       "type": "string",

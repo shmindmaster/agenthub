@@ -1,9 +1,6 @@
----
-name: elevenlabs-account-health
-description: Use when checking ElevenLabs authentication, subscription credits, live models, clone readiness or native connector access.
----
-
 # ElevenLabs account checks
+
+(Authentication, subscription credits, live models, clone readiness, native connector access.)
 
 Use the already-connected host-native ElevenLabs surface for its workspace
 inventory. Resolve link/workspace explicitly when more than one connection is

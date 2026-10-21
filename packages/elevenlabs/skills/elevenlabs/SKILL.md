@@ -1,12 +1,25 @@
 ---
-name: elevenlabs-api
-description: Use when ElevenLabs speech, images, video, music, dubbing, Studio, Flows or agent work needs native connector routing and live entitlement checks.
+name: elevenlabs
+description: Use when ElevenLabs speech or TTS, voice clone readiness, credits or account health, live models, transcription eligibility, or image, video, music, sound effect, dubbing, Studio, Flows or agent routing needs native connector routing and live entitlement checks.
 ---
+
+# ElevenLabs
+
+One skill, five references. This file routes; load only the reference the task needs.
+
+| Task | Reference |
+| --- | --- |
+| Speech, TTS, voice settings, the governed `tts` command | `references/tts.md` |
+| Credits, subscription, live models, clone readiness, connector access | `references/account-health.md` |
+| Transcription eligibility (paid STT is disabled, fails closed) | `references/stt.md` |
+| Which surface serves images, video, music, SFX, dubbing, Studio, Flows, agents | `references/capabilities.md` |
+| Route choice, spend, batch and cache, exact-asset reuse and recovery | `references/cost-controls.md` |
 
 # ElevenLabs routing
 
 **Governed paid route:** every paid content operation must use the shared CLI
-ledger. Only REST single-voice TTS is currently metered; other paid modalities
+ledger. Only REST single-voice TTS (`tts`), sound effects (`sfx`) and
+instrumental music (`music`) are currently metered; other paid modalities
 fail closed. Native connectors, Flows and SDK snippets must not bypass it. Read
 `packages/media-studio/skills/media-studio/references/content-controls.md`.
 An unset shared ceiling disables purchases. Never configure or raise it without
@@ -17,7 +30,7 @@ Choose the least costly route that meets the task's quality, privacy and latency
 needs. Reuse accepted assets first; use adequate Local-AI or authorized provider
 APIs where suitable. Reserve ElevenLabs credits for a justified quality, capability
 or delivery-speed benefit. Load `references/cost-controls.md` before paid planning,
-then the relevant specialist and `references/capabilities.md` for the modality.
+then the relevant reference above and `references/capabilities.md` for the modality.
 
 1. Resolve the actual host surface against `registry/fleet-profile.json`.
    For read-only discovery, use its already-connected ElevenLabs plugin/MCP if enabled. Discover its live tools,
@@ -47,6 +60,10 @@ python $Cli account
 python $Cli models
 python $Cli voice-status --voice-id <existing-id>
 ```
+
+The CLI's subcommands are `health`, `account`, `voice-status`, `voices`, `models`,
+`tts`, `sfx`, `music`, `transcribe` (refused, see `references/stt.md`) and
+`reconcile` (read-only history recovery; it never resubmits).
 
 These are read-only. Keep account/clone details in private task receipts, never
 public package content. Never print keys, headers, raw account responses or error

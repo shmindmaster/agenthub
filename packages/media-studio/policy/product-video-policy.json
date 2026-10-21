@@ -17,7 +17,7 @@
     "ownerVoiceGate": "media/qa/score_identity.py",
     "audioPerceptionRoute": "ai.ps1 listen",
     "elevenLabsProvider": "elevenlabs",
-    "editorialFinish": "media-studio-descript",
+    "editorialFinish": "media-studio-compose",
     "github": "gh-cli",
     "requirements": [
       "notion:notion",
