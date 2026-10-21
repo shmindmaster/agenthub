@@ -1593,3 +1593,9 @@ test('caption placement: a beat with captionPlacement "top" draws its captions o
   const tsx = readFileSync(new URL('../kit/src/MarketingAd.tsx', import.meta.url), 'utf8');
   assert.match(tsx, /const box = chunk\.top && props\.layout\.captionBoxTop \? props\.layout\.captionBoxTop : props\.layout\.captionBox/);
 });
+
+test('qa hands viewer-release the current candidate picture report, never a copy left from an earlier render', () => {
+  const qa = readFileSync(new URL('../kit/marketing/lib/stages/qa.mjs', import.meta.url), 'utf8');
+  assert.match(qa, /copyFileSync\(join\(qdir, 'picture\.json'\), join\(ws, 'qa', 'encoded-picture\.json'\)\)/);
+  assert.ok(!/existsSync\(join\(ws, 'qa', name\)\)/.test(qa), 'no copy-if-missing guard');
+});

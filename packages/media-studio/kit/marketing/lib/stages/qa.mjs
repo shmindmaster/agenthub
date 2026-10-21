@@ -99,7 +99,8 @@ export async function qaStage(ctx) {
       else {
         const evidence = assembleEvidence({ root: ws, candidate, candidateSha: sha, srtPath: srt, loudnessReportPath: loudPath, loudness: loud, reviews, scriptPath: join(ws, 'story', 'locked-script.txt') });
         writeJson(join(ws, 'qa', 'viewer-release-evidence.json'), evidence);
-        for (const name of ['encoded-picture.json']) if (!existsSync(join(ws, 'qa', name))) copyFileSync(join(qdir, 'picture.json'), join(ws, 'qa', name));
+        // Always the current candidate's report: a copy left from an earlier render is bound to another SHA-256.
+        copyFileSync(join(qdir, 'picture.json'), join(ws, 'qa', 'encoded-picture.json'));
         const vr = await run(process.execPath, [gateScript('validate-viewer-release.mjs', MODULE_ROOT), ws, candidate], {});
         let parsed = null;
         try { parsed = JSON.parse(vr.stdout); } catch { parsed = null; }
