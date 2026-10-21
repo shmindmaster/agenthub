@@ -690,7 +690,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "84A23F89707852E44CEB45DEBE7D84CA34956014AA978A9E7A8A79C586A62085",
+      "contentHash": "4A2F6EA3A71DB3718917E4F4B913929C8326971A1C8FC7EF52F25696F13E450F",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -793,7 +793,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "77F9547BE534E6770E1A0ABF5CD9D4D23D1D6993DA9A22B27752F0D839C878B9",
+      "contentHash": "BC822DFE5E7E96B7C5692D3CEF2EF6B8BC2758BCF8B99FFF91D539D5E74EBA79",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -1298,7 +1298,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "FA0C95A22F0700848B8E1A2FFDEABBFF0F995CA5C466DFF85EFDAF7942CEFF84",
+      "contentHash": "0346ACA690FD1BC3030F5FCE2194C7AA6C612D281D4EA1CBAA4475DF8566F66D",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1388,7 +1388,7 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ storyboard ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ visuals ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ director ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ generate ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ compose ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ craft critic (score ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€šÃ‚Â¥ 85) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 1.7.6 (2026-10-20: delivery review roots repointed to F:/My Drive/Videos/<Product>; Sync-MediaStudioKit.ps1 deploys Inspect-MediaVisualQuality.ps1, scaffold-video-workspace.mjs and product-experience-engineering's demo-stack.mjs to _shared/tools and reports unmanaged files left there). 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ storyboard ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ visuals ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ director ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ generate ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ compose ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ craft critic (score ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€šÃ‚Â¥ 85) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"

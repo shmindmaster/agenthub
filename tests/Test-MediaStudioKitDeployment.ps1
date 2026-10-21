@@ -38,6 +38,19 @@ try {
         if ((Get-FileHash -LiteralPath $source).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) { throw "Stale shared media helper: $destination" }
         $checks++
     }
+    foreach ($name in @('Inspect-MediaVisualQuality.ps1','scaffold-video-workspace.mjs')) {
+        $source = Join-Path (Join-Path $package 'scripts') $name
+        $destination = Join-Path $shared $name
+        if (-not (Test-Path -LiteralPath $destination)) { throw "Missing cited tool: $destination" }
+        if ((Get-FileHash -LiteralPath $source).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) { throw "Stale cited tool: $destination" }
+        $checks++
+    }
+    # demo-stack.mjs is product-experience-engineering's; the capture skill cites it from the deployed tools.
+    $demoStackSource = Join-Path $repoRoot 'packages\product-experience-engineering\scripts\demo-stack.mjs'
+    $demoStackDeployed = Join-Path $shared 'demo-stack.mjs'
+    if (-not (Test-Path -LiteralPath $demoStackDeployed)) { throw "Missing demo-stack runner: $demoStackDeployed" }
+    if ((Get-FileHash -LiteralPath $demoStackSource).Hash -ne (Get-FileHash -LiteralPath $demoStackDeployed).Hash) { throw "Stale demo-stack runner: $demoStackDeployed" }
+    $checks++
     if ((Get-FileHash -LiteralPath (Join-Path $package 'plugin.json')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $shared 'plugin.json')).Hash) { throw 'Shared tools release manifest is stale' }
     $checks++
     $stemsHelper = Get-Content -LiteralPath (Join-Path $shared 'Finish-BriefingStems.ps1') -Raw -Encoding utf8

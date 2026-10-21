@@ -85,6 +85,19 @@ Copy-Item -LiteralPath (Join-Path $packageKit 'screencast\campaign-contract.mjs'
 foreach ($name in @('Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Generate-OwnerVoice.ps1', 'ReGate-OwnerVoice.ps1', 'Test-SpeechIntegrity.ps1')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $sharedTools $name) -Force
 }
+# Skills cite these by name from the deployed shared tools: the visual-quality inspector (media-studio-qa, the story
+# reviewer, engagement.md) and the workspace scaffold (media-studio-capture). A missing script is a hard stop.
+foreach ($name in @('Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs')) {
+    $from = Join-Path $PSScriptRoot $name
+    if (-not (Test-Path -LiteralPath $from)) { throw "Canonical tool missing: $from" }
+    Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
+}
+# demo-stack.mjs is owned by product-experience-engineering (registry/capabilities.json). The capture skill starts a
+# product's demo harness with it before recording, and loose-skill hosts have no package checkout, so the canonical
+# file is copied beside the capture tools rather than re-implemented here. The copy is read-only output of that owner.
+$demoStack = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\product-experience-engineering\scripts\demo-stack.mjs'))
+if (-not (Test-Path -LiteralPath $demoStack)) { throw "Canonical demo-stack runner missing: $demoStack" }
+Copy-Item -LiteralPath $demoStack -Destination (Join-Path $sharedTools 'demo-stack.mjs') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\plugin.json') -Destination (Join-Path $sharedTools 'plugin.json') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\RELEASE-EVIDENCE.md') -Destination (Join-Path $sharedTools 'RELEASE-EVIDENCE.md') -Force
 # animate-stills.mjs turned screenshots into "footage" for the 2026-08/09 ABACare cuts. It has no place in a
@@ -102,4 +115,18 @@ if (Test-Path -LiteralPath $gate) {
     Write-Host "Synced kit source -> $RuntimeKit (+ write-story-review.py -> $sharedTools)"
 } else {
     Write-Host "Synced kit source -> $RuntimeKit"
+}
+
+# The deploy list above is the whole managed content of _shared	ools. Anything else there is a one-off script,
+# backup or working copy that belongs in its job folder. It is reported, never deleted: an unmatched file may be the
+# only copy, so the move is a reviewed step (global policy: delete nothing unmatched), not a sync side effect.
+$managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs',
+    'Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Generate-OwnerVoice.ps1', 'ReGate-OwnerVoice.ps1', 'Test-SpeechIntegrity.ps1',
+    'Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs', 'demo-stack.mjs', 'plugin.json', 'RELEASE-EVIDENCE.md', 'write-story-review.py',
+    'node_modules')  # node_modules is the capture-lib dependency link the screencast tools resolve from, not a script
+$unmanaged = @(Get-ChildItem -LiteralPath $sharedTools -Force | Where-Object { $_.Name -notin $managedTools } | ForEach-Object Name)
+if ($unmanaged.Count -gt 0) {
+    Write-Warning ("_shared	ools holds {0} unmanaged entries (not in the deploy list; move each to its job folder after a hash check): {1}" -f $unmanaged.Count, ($unmanaged -join ', '))
+} else {
+    Write-Host "_shared	ools matches the deploy list ($($managedTools.Count) managed entries)"
 }
