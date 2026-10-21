@@ -722,6 +722,130 @@ function Test-ScopedSyncRejectsUnsafeRequests {
     } finally { Remove-SyncCapabilitiesFixture -Fixture $fixture }
 }
 
+# --- cliSkillsDir ownership. A host's cliSkillsDir is loaded by its CLI on top
+# of the shared library, so Sync deploys nothing there; it prunes retired names
+# and shadow copies of shipped skills (with -Apply -Prune), reports them as drift
+# otherwise, reports third-party entries as unmanaged, and never removes a
+# reparse point. Everything lives under a synthetic -UserProfile. ---
+function New-CliSkillsDirFixture {
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-cli-cap' -HostId 'zz-cli-host' -SkillName 'zz-shipped-skill' -SkillContent "---`nname: zz-shipped-skill`ndescription: fixture`n---`nbody"
+    $agents = @{
+        activeAgents = @(@{
+            id = 'zz-cli-host'; name = 'Fixture CLI Host'; status = 'active'
+            nativePaths = @{
+                sharedSkillsDir = '{userHome}/.agents/skills'
+                skillsDir       = '{userHome}/.zz-host/skills'
+                cliSkillsDir    = '{userHome}/.zz-host/cli-skills'
+            }
+        })
+        inactiveAgents = @()
+    }
+    ($agents | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath (Join-Path $fixture.RegistryDir 'agents.json') -Encoding UTF8 -NoNewline
+    $capsPath = Join-Path $fixture.RegistryDir 'capabilities.json'
+    $caps = Get-Content -LiteralPath $capsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $caps | Add-Member -NotePropertyName retiredFleetSkills -NotePropertyValue @(@{ name = 'zz-retired-skill'; reason = 'fixture' })
+    ($caps | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $capsPath -Encoding UTF8 -NoNewline
+
+    $cliDir = Join-Path $fixture.UserProfile '.zz-host\cli-skills'
+    $seed = @{
+        'zz-retired-skill' = 'retired fleet skill'
+        'zz-shipped-skill' = 'stale shadow copy of a shipped skill'
+        'zz-third-party'   = 'owner-installed third-party skill'
+    }
+    foreach ($name in $seed.Keys) {
+        New-Item -ItemType Directory -Path (Join-Path $cliDir $name) -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $cliDir "$name\SKILL.md") -Value $seed[$name] -Encoding UTF8 -NoNewline
+    }
+    # A reparse point under a non-retired, non-shipped name, and its target.
+    $linkTarget = Join-Path $fixture.UserProfile 'zz-link-target'
+    New-Item -ItemType Directory -Path $linkTarget -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $linkTarget 'keep.txt') -Value 'link target content' -Encoding UTF8 -NoNewline
+    $linkPath = Join-Path $cliDir 'zz-linked-skill'
+    $linkType = if ($env:OS -eq 'Windows_NT') { 'Junction' } else { 'SymbolicLink' }
+    New-Item -ItemType $linkType -Path $linkPath -Target $linkTarget | Out-Null
+    $fixture | Add-Member -NotePropertyName CliDir -NotePropertyValue $cliDir
+    $fixture | Add-Member -NotePropertyName LinkPath -NotePropertyValue $linkPath
+    $fixture | Add-Member -NotePropertyName LinkTarget -NotePropertyValue $linkTarget
+    $fixture | Add-Member -NotePropertyName SharedDir -NotePropertyValue (Join-Path $fixture.UserProfile '.agents\skills')
+    return $fixture
+}
+
+function Test-CliSkillsDirAuditReportsAndKeeps {
+    $fixture = New-CliSkillsDirFixture
+    try {
+        $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($result.ExitCode -ne 0) { return @{ Passed = $false; Detail = "-Apply (no -Prune) exit code was $($result.ExitCode). Output: $($result.Output)" } }
+        foreach ($name in @('zz-retired-skill', 'zz-shipped-skill', 'zz-third-party', 'zz-linked-skill')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $fixture.CliDir $name))) {
+                return @{ Passed = $false; Detail = "'$name' was removed without -Prune. Output: $($result.Output)" }
+            }
+        }
+        foreach ($needle in @('retired skill still present', 'shadow copy of a shipped skill', 'unmanaged entry not shipped by AgentHub', 'reparse point left in place')) {
+            if ($result.Output -notmatch [regex]::Escape($needle)) { return @{ Passed = $false; Detail = "missing report line '$needle'. Output: $($result.Output)" } }
+        }
+        foreach ($status in @('shadow-copy=1', 'unmanaged=1', 'retired-present=1', 'reparse-skipped=1', 'cli-shadow-pruned=0')) {
+            if ($result.Output -notmatch [regex]::Escape($status)) { return @{ Passed = $false; Detail = "summary is missing '$status'. Output: $($result.Output)" } }
+        }
+        # Nothing is deployed into the CLI directory: the managed copy lands in the shared library.
+        if (-not (Test-Path -LiteralPath (Join-Path $fixture.SharedDir 'zz-shipped-skill\SKILL.md'))) {
+            return @{ Passed = $false; Detail = "the shipped skill was not deployed to the shared library. Output: $($result.Output)" }
+        }
+        if (([IO.File]::ReadAllText((Join-Path $fixture.CliDir 'zz-shipped-skill\SKILL.md'))) -ne 'stale shadow copy of a shipped skill') {
+            return @{ Passed = $false; Detail = 'the shadow copy was overwritten with a deployed copy; Sync must not deploy into cliSkillsDir.' }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $fixture
+    }
+}
+
+function Test-CliSkillsDirPrunesRetiredAndShadowOnly {
+    $fixture = New-CliSkillsDirFixture
+    try {
+        $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-Prune', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($result.ExitCode -ne 0) { return @{ Passed = $false; Detail = "-Apply -Prune exit code was $($result.ExitCode). Output: $($result.Output)" } }
+        foreach ($name in @('zz-retired-skill', 'zz-shipped-skill')) {
+            if (Test-Path -LiteralPath (Join-Path $fixture.CliDir $name)) { return @{ Passed = $false; Detail = "'$name' survived -Apply -Prune. Output: $($result.Output)" } }
+        }
+        if (-not (Test-Path -LiteralPath (Join-Path $fixture.CliDir 'zz-third-party\SKILL.md'))) {
+            return @{ Passed = $false; Detail = "the unmanaged third-party skill was deleted. Output: $($result.Output)" }
+        }
+        if (-not (Test-Path -LiteralPath $fixture.LinkPath)) { return @{ Passed = $false; Detail = 'the reparse point entry was removed.' } }
+        if (-not (Test-Path -LiteralPath (Join-Path $fixture.LinkTarget 'keep.txt'))) { return @{ Passed = $false; Detail = "the reparse point's target content was destroyed." } }
+        if ($result.Output -notmatch 'cli-shadow-pruned=1') { return @{ Passed = $false; Detail = "expected cli-shadow-pruned=1. Output: $($result.Output)" } }
+        if ($result.Output -notmatch 'retired-pruned=1;') { return @{ Passed = $false; Detail = "expected retired-pruned=1. Output: $($result.Output)" } }
+        if (-not (Test-Path -LiteralPath (Join-Path $fixture.SharedDir 'zz-shipped-skill\SKILL.md'))) {
+            return @{ Passed = $false; Detail = "pruning the shadow copy removed or skipped the managed shared-library copy. Output: $($result.Output)" }
+        }
+        $again = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-Prune', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($again.ExitCode -ne 0 -or $again.Output -notmatch 'cli-shadow-pruned=0') {
+            return @{ Passed = $false; Detail = "second -Apply -Prune was not clean. Output: $($again.Output)" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $fixture
+    }
+}
+
+function Test-CliSkillsDirReparsePointWithRetiredNameSurvives {
+    $fixture = New-CliSkillsDirFixture
+    try {
+        # Replace the retired directory with a reparse point carrying the retired name.
+        Remove-Item -LiteralPath (Join-Path $fixture.CliDir 'zz-retired-skill') -Recurse -Force
+        $linkType = if ($env:OS -eq 'Windows_NT') { 'Junction' } else { 'SymbolicLink' }
+        $retiredLink = Join-Path $fixture.CliDir 'zz-retired-skill'
+        New-Item -ItemType $linkType -Path $retiredLink -Target $fixture.LinkTarget | Out-Null
+        $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-Prune', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($result.ExitCode -ne 0) { return @{ Passed = $false; Detail = "exit code was $($result.ExitCode). Output: $($result.Output)" } }
+        if (-not (Test-Path -LiteralPath $retiredLink)) { return @{ Passed = $false; Detail = "a reparse point carrying a retired name was removed. Output: $($result.Output)" } }
+        if (-not (Test-Path -LiteralPath (Join-Path $fixture.LinkTarget 'keep.txt'))) { return @{ Passed = $false; Detail = "the reparse point's target content was destroyed." } }
+        if ($result.Output -notmatch [regex]::Escape('reparse point left in place')) { return @{ Passed = $false; Detail = "reparse point was not reported. Output: $($result.Output)" } }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SyncCapabilitiesFixture -Fixture $fixture
+    }
+}
+
 $rScoped = Test-ScopedSyncPreservesUnselectedCapability
 Report 'scoped sync updates selected files and preserves unselected files and ledger ownership' $rScoped.Passed $rScoped.Detail
 $rUnsafe = Test-ScopedSyncRejectsUnsafeRequests
@@ -762,6 +886,15 @@ Report 'a schemaVersion 1 state still refuses a genuinely hand-modified destinat
 
 $r10 = Test-LegacyStatePrunesUnmodifiedStaleDestination
 Report 'a schemaVersion 1 state still prunes an unmodified stale destination' $r10.Passed $r10.Detail
+
+$rCli1 = Test-CliSkillsDirAuditReportsAndKeeps
+Report 'cliSkillsDir without -Prune keeps retired and shadow entries, reports them, deploys nothing there' $rCli1.Passed $rCli1.Detail
+
+$rCli2 = Test-CliSkillsDirPrunesRetiredAndShadowOnly
+Report 'cliSkillsDir -Apply -Prune removes retired and shadow entries, keeps third-party entries and reparse points' $rCli2.Passed $rCli2.Detail
+
+$rCli3 = Test-CliSkillsDirReparsePointWithRetiredNameSurvives
+Report 'cliSkillsDir never removes a reparse point, even one carrying a retired skill name' $rCli3.Passed $rCli3.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

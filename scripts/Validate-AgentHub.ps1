@@ -49,7 +49,7 @@ if ($isPublicCore) {
   }
 } else {
   # Absence is not an opt-out. Canonical fleet validation still requires this
-  # registry and its established eight-product invariant below (Heatlot added 2026-10-15).
+  # registry and its eighteen-product baseline below (2026-10-21).
   $delivery = Read-Json $deliveryPath
 }
 $pluginFormats = Read-Json (Join-Path $root 'registry\plugin-formats.json')
@@ -325,7 +325,29 @@ foreach ($mcpServer in @($mcps.mcpServers)) {
 if ($verifiedRevisionCount -eq 0) {
   Fail 'no MCP server has a verified protocol.revision; the registry records a protocol contract that was never established against any server'
 }
-if (-not $isPublicCore -and @($delivery.products).Count -ne 8) { Fail 'product video delivery registry must contain eight products' }
+if (-not $isPublicCore) {
+  # Delivery roots (2026-10-21): every registered product is unique, delivers under F:/My Drive/Videos, and never into a
+  # personal or restricted folder, its own subfolders included. The floor is the 2026-10-21 baseline of eighteen
+  # products; dropping a mapping is a deliberate edit to this baseline, never a silent shrink.
+  $deliveryBaseline = 18
+  $deliveryProducts = @(@($delivery.products) | Where-Object { $null -ne $_ })
+  if ($deliveryProducts.Count -lt $deliveryBaseline) { Fail "product video delivery registry must contain at least $deliveryBaseline products (lists $($deliveryProducts.Count)); it covered $deliveryBaseline on 2026-10-21 and must not shrink silently" }
+  $deliveryIds = @($deliveryProducts | ForEach-Object { [string]$_.productId })
+  $dupIds = @($deliveryIds | Group-Object | Where-Object Count -gt 1 | ForEach-Object Name)
+  if ($dupIds.Count) { Fail "product video delivery registry repeats productId: $($dupIds -join ', ')" }
+  $excludedFolders = @($delivery.excludedFolders.folders)
+  foreach ($product in $deliveryProducts) {
+    $reviewRoot = [string]$product.reviewRoot
+    if (-not $reviewRoot.StartsWith('F:/My Drive/Videos/')) { Fail "product $($product.productId) reviewRoot '$reviewRoot' is not under F:/My Drive/Videos/"; continue }
+    # Normalise separators and trailing slashes, then compare the first path segment: 'Gartner', 'Gartner/' and
+    # 'Gartner/Client' all deliver inside the restricted Gartner tree.
+    $folder = ($reviewRoot.Substring('F:/My Drive/Videos/'.Length) -replace '\\', '/').Trim('/')
+    $topFolder = ($folder -split '/')[0]
+    $excludedHit = @($excludedFolders | Where-Object { [string]::Equals(([string]$_).Trim('/'), $topFolder, [StringComparison]::OrdinalIgnoreCase) })
+    if ([string]::IsNullOrWhiteSpace($folder)) { Fail "product $($product.productId) reviewRoot '$reviewRoot' names the Videos root itself, not a product folder" }
+    elseif ($excludedHit.Count) { Fail "product $($product.productId) delivers into excluded folder '$($excludedHit[0])' ($reviewRoot)" }
+  }
+}
 
 # Autonomy/permission model (registry/fleet-profile.json.autonomyProfiles): a host
 # marked 'interactive' must never be dispatched unattended, so this data must not

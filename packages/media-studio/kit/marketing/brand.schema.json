@@ -10,6 +10,7 @@
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,40}$" },
     "product": { "type": "string" },
     "label": { "type": "string" },
+    "logo": { "type": "string", "description": "Absolute path to the logo lockup (SVG or PNG) drawn on the end card." },
     "colors": {
       "type": "object",
       "required": ["primary", "foreground", "background", "accent"],
@@ -20,7 +21,8 @@
         "accent": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
         "surface": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
         "muted": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
-        "onPrimary": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+        "onPrimary": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "emphasis": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
       }
     },
     "fonts": {
@@ -87,6 +89,13 @@
     "deliver": {
       "type": "object", "required": ["dir"],
       "properties": { "dir": { "type": "string" }, "readme": { "type": "string" }, "reservedNumbers": { "type": "array", "items": { "type": "integer" } } }
+    },
+    "capture": {
+      "type": "object",
+      "properties": {
+        "contentLeft": { "type": "number", "minimum": 0, "maximum": 0.5, "description": "Normalized x where the product's left navigation ends in a capture; a crop never starts between 0 and this." },
+        "contentInsetPx": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
     },
     "kit": { "type": "object", "properties": { "agenthubRoot": { "type": "string" }, "runtimeKit": { "type": "string" } } }
   }

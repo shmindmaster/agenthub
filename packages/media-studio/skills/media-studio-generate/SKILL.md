@@ -5,7 +5,7 @@ description: Use when a video or audio job needs provider-routed generation — 
 
 # Media studio generate
 
-Choose by cost, latency, quality and privacy. Reuse accepted assets first. Load `elevenlabs-api` and `../media-studio/references/content-controls.md` before paid planning. Paid ElevenLabs TTS requires its shared governed CLI; unsupported paid modalities remain disabled. Native connectors and SDK examples must not bypass the ledger. Use adequate authorized local generation otherwise. Load `local-ai-stack` and resolve `$LocalAiControl` for local generation or validation. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
+Choose by cost, latency, quality and privacy. Reuse accepted assets first. Load `elevenlabs` (its `SKILL.md` and `references/cost-controls.md`) and `../media-studio/references/content-controls.md` before paid planning. Paid ElevenLabs TTS requires its shared governed CLI; unsupported paid modalities remain disabled. Native connectors and SDK examples must not bypass the ledger. Use adequate authorized local generation otherwise. Load `local-ai-stack` and resolve `$LocalAiControl` for local generation or validation. For hour-scale batches also load `long-running-generation`. One heavy GPU job at a time.
 
 Load `../media-studio/references/engagement.md`. Viewer-facing jobs consume **locked** `storyboard.json`, `visual-bible.json`, and `direction.json`. Do not invent plates the director did not call.
 
@@ -31,7 +31,7 @@ If a required file is missing, remit. Do not generate a generic bed and skip the
 
 ## 2. Voice
 
-Use `elevenlabs-tts` for hosted speech. Lock segments, check credits and clone/model
+Use `elevenlabs` (`references/tts.md`) for hosted speech. Lock segments, check credits and clone/model
 readiness and whole-job/preview budgets; reuse an accepted matching preview or
 generate one small preview. Save provider receipts under the job
 workspace; run local integrity, ASR, pronunciation and dual-backend identity gates
@@ -43,15 +43,15 @@ until a verified provider receipt adapter exists; report that limitation explici
 
 For local viewer-facing owner/role speech use `Generate-OwnerVoice.ps1`:
 
-Use the AgentHub-deployed shared tools on native-plugin and loose-skill hosts. Their `plugin.json` must match this skill's 1.7.0 release. Missing or stale tools block generation until AgentHub syncs the kit from a verified 1.7.0 package; do not default to a checkout of unknown version.
+Use the AgentHub-deployed shared tools on native-plugin and loose-skill hosts. Their `plugin.json` must match this skill's 2.0.3 release. Missing or stale tools block generation until AgentHub syncs the kit from a verified 2.0.3 package; do not default to a checkout of unknown version.
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $manifest = Join-Path $tools 'plugin.json'
 $generator = Join-Path $tools 'Generate-OwnerVoice.ps1'
 $integrity = Join-Path $tools 'Test-SpeechIntegrity.ps1'
-if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '1.7.0' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
-    throw 'Media Studio 1.7.0 voice tools are missing or stale. Deploy them from a verified package before generation.'
+if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '2.0.3' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
+    throw 'Media Studio 2.0.3 voice tools are missing or stale. Deploy them from a verified package before generation.'
 }
 & pwsh -NoProfile -File $generator -Job $Job
 ```
@@ -60,7 +60,7 @@ That path is fail-closed: allowlisted style only (default `02_explaining` from `
 
 If a STOP+LOG segment failed only because the ASR misread digits/numbers already present in the narration (identity passed, wording didn't), do not regenerate TTS: run `pwsh -NoProfile -File (Join-Path $tools 'ReGate-OwnerVoice.ps1') -Job $Job` after the same deployed-version check. It re-scores the existing `take.wav` files with number-normalized WER and looser integrity and writes fresh `PASS.json` receipts in place — it never re-synthesizes audio.
 
-`Generate-OwnerVoice.ps1` reads narration and `speaker` straight from `screenplay.json`; it does not parse `storyboard.json` or `visual-bible.json` itself — those still drive Sections 3 and 4 below by hand. **Known gap: it renders the whole job on one allowlisted default style, not per-beat `direction.register`.** `media-director` still names a style-bank register per beat in `direction.json` (`explaining`, `firm`, `serious`, …), but the batch script does not read or switch on it. If a beat's called register meaningfully differs from the default, generate that one segment manually — `ai.ps1 voice qwen-clone --voice sarosh --reference <register-style.wav> --ref-text <sidecar> --text "…"`, gated through `Test-SpeechIntegrity.ps1` and `ai.ps1 voice score --voice sarosh` — and splice it into `voice/selected/` before scene concat. Do not claim a beat's register was honored unless you did this by hand; the automated path always uses the default.
+`Generate-OwnerVoice.ps1` reads narration and `speaker` straight from `screenplay.json`; it does not parse `storyboard.json` or `visual-bible.json` itself — those still drive Sections 3 and 4 below by hand. **Known gap: it renders the whole job on one allowlisted default style, not per-beat `direction.register`.** The direction step (`../media-studio/references/direction.md`) still names a style-bank register per beat in `direction.json` (`explaining`, `firm`, `serious`, …), but the batch script does not read or switch on it. If a beat's called register meaningfully differs from the default, generate that one segment manually — `ai.ps1 voice qwen-clone --voice sarosh --reference <register-style.wav> --ref-text <sidecar> --text "…"`, gated through `Test-SpeechIntegrity.ps1` and `ai.ps1 voice score --voice sarosh` — and splice it into `voice/selected/` before scene concat. Do not claim a beat's register was honored unless you did this by hand; the automated path always uses the default.
 
 **Banned:** inventing style IDs (`04_serious`); using `03_firm` / other styles until allowlisted; GGUF talker/ASR forks; phonetic-respelling Sarosh input; assembling identity/ASR-failing segments.
 

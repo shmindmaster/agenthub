@@ -8,7 +8,7 @@
 // refuses any screen beat whose clip has no receipt, no pointer motion, or an unobserved expectation.
 // That is what makes a stills animation, a looped PNG, or a hand-typed manifest unable to pass as
 // product footage: none of them can produce a receipt from a live browser session.
-import { chromium } from 'playwright';
+// playwright is loaded inside startRecording, so the helpers below (bindHelpers, EventLog, resolveDevice) import and unit-test without a browser install.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -47,6 +47,7 @@ export class EventLog {
     return {
       pointerMoves: count('move'),
       clicks: count('click'),
+      taps: count('tap'),
       keystrokes: this.events.filter((e) => e.type === 'type').reduce((n, e) => n + (e.chars || 0), 0),
       scrolls: count('wheel'),
       navigations: count('goto'),
@@ -57,23 +58,77 @@ export class EventLog {
   }
 }
 
-/** Start a fresh recording context. viewport is the delivery frame; DSF 2 is the PDS minimum. */
+/**
+ * The Playwright device descriptor named by opts.device (e.g. 'iPhone 13'), or null when none is named. A name Playwright does not
+ * know is an error: a non-16:9 cut is captured at its own viewport with device emulation, never silently as a desktop page.
+ */
+export function resolveDevice(opts, devices) {
+  if (!opts.device) return null;
+  const d = devices?.[opts.device];
+  if (!d) throw new Error('unknown Playwright device "' + opts.device + '" (options.viewports[...].device)');
+  return d;
+}
+
+/** Start a fresh recording context. viewport is the delivery frame; DSF 2 is the PDS minimum. opts.device spreads a Playwright device descriptor first; explicit viewport / DSF / isMobile / hasTouch win. opts.videoSize (default: viewport) is the recorded pixel size; record-job passes viewport x DSF for a --ratio entry whose CSS viewport is smaller than its delivery frame. */
 export async function startRecording(id, opts = {}) {
-  const viewport = opts.viewport || { width: 1600, height: 1000 };
+  const { chromium, devices } = await import('playwright');
+  const device = resolveDevice(opts, devices);
+  const viewport = opts.viewport || device?.viewport || { width: 1600, height: 1000 };
   const rawDir = path.resolve(opts.rawRoot || 'raw', id);
   fs.rmSync(rawDir, { recursive: true, force: true });
   fs.mkdirSync(rawDir, { recursive: true });
   const browser = await chromium.launch({ headless: opts.headless !== false, args: ['--hide-scrollbars=false'] });
+  // Playwright records video at CSS-pixel size whatever the device scale, so a phone or tablet layout recorded the
+  // ordinary way comes out at 360-540 px and has to be upscaled. opts.mobileLayout = { cssWidth, scale } instead opens a
+  // mobile context the size of the delivery frame and sets the page's viewport meta to cssWidth at that page scale: the
+  // app lays out at its phone/tablet breakpoint and is rasterised at `scale`, so the recording is the native layout at
+  // one recorded pixel per output pixel. Runtime-only; the product's own markup is untouched.
+  const mobile = opts.mobileLayout || null;
   const context = await browser.newContext({
+    ...(device || {}),
     viewport,
-    deviceScaleFactor: opts.deviceScaleFactor || 2,
+    // mobileLayout (native-resolution phone/tablet layout) wins over device emulation: it rasterises at DSF 1 by design.
+    deviceScaleFactor: mobile ? 1 : opts.deviceScaleFactor || device?.deviceScaleFactor || 2,
+    ...(mobile ? { isMobile: true, hasTouch: true } : {}),
+    ...(!mobile && opts.isMobile !== undefined ? { isMobile: opts.isMobile } : {}),
+    ...(!mobile && opts.hasTouch !== undefined ? { hasTouch: opts.hasTouch } : {}),
     colorScheme: opts.colorScheme || 'light',
     locale: opts.locale || 'en-US',
     timezoneId: opts.timezoneId || 'America/Chicago',
     ...(opts.storageState ? { storageState: opts.storageState } : {}),
     ...(opts.extraHTTPHeaders ? { extraHTTPHeaders: opts.extraHTTPHeaders } : {}),
-    recordVideo: { dir: rawDir, size: viewport },
+    recordVideo: { dir: rawDir, size: opts.videoSize || viewport },
   });
+  if (mobile) {
+    await context.addInitScript(([cssWidth, scale]) => {
+      const set = () => {
+        let m = document.querySelector('meta[name=viewport]');
+        if (!m) { m = document.createElement('meta'); m.name = 'viewport'; document.head.appendChild(m); }
+        m.content = `width=${cssWidth}, initial-scale=${scale}, minimum-scale=${scale}, maximum-scale=${scale}, user-scalable=no`;
+      };
+      if (document.head) set(); else document.addEventListener('DOMContentLoaded', set);
+      window.addEventListener('load', set);
+      // A phone shows a touch, not a cursor: a soft dot where the finger lands (like the OS "show touches" option).
+      document.addEventListener('pointerdown', (e) => {
+        const d = document.createElement('div');
+        d.style.cssText = `position:fixed;left:${e.clientX - 22}px;top:${e.clientY - 22}px;width:44px;height:44px;border-radius:50%;background:rgba(110,86,248,0.35);border:2px solid rgba(110,86,248,0.85);pointer-events:none;z-index:2147483647;transition:transform 420ms ease-out,opacity 420ms ease-out;transform:scale(0.6);opacity:1`;
+        document.body.appendChild(d);
+        requestAnimationFrame(() => { d.style.transform = 'scale(1.25)'; d.style.opacity = '0'; });
+        setTimeout(() => d.remove(), 600);
+      }, true);
+    }, [mobile.cssWidth, mobile.scale]);
+  }
+  // Likewise a desktop frame is recorded at CSS-pixel size, so the app's 14 px text reads small in a 16:9 ad. An opt-in
+  // opts.pageZoom (e.g. 1.5) magnifies the page itself: the document zoom is set before the app paints and again once it
+  // has loaded, the layout reflows at viewport / pageZoom CSS px, and boundingBox / mouse coordinates stay in window pixels.
+  if (opts.pageZoom && !mobile) {
+    await context.addInitScript((z) => {
+      const set = () => { if (document.documentElement) document.documentElement.style.zoom = String(z); };
+      set();
+      document.addEventListener('DOMContentLoaded', set);
+      window.addEventListener('load', set);
+    }, opts.pageZoom);
+  }
   await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
   // The recorded video starts when the page is created, so the action clock starts just before it: every event `t`
   // is then seconds into the raw WebM (the cue sheet and the sync gate map these through the edit decision list).
@@ -81,7 +136,7 @@ export async function startRecording(id, opts = {}) {
   const page = await context.newPage();
   const beats = new BeatTracker(t0);
   const log = new EventLog(t0);
-  const h = bindHelpers(page, log, beats, opts);
+  const h = bindHelpers(page, log, beats, { ...opts, hasTouch: opts.hasTouch ?? device?.hasTouch ?? false });
   return { id, browser, context, page, rawDir, beats, log, h, t0, viewport };
 }
 
@@ -140,9 +195,12 @@ export async function renderRecast(rawDir, outFile, opts = {}) {
   const cues = opts.autoZoom !== false ? writeZoomCues(rawDir, opts.zoomHoldSeconds) : null;
   let r = Recast.from(rawDir).parse();
   r = cues ? r.subtitlesFromSrt(cues) : r.subtitles(() => '');
-  r = r
-    .cursorOverlay({ approachMs: 500, postArrivalHoldMs: 300, ...(opts.cursor || {}) })
-    .clickEffect({ radius: 28, duration: 350, opacity: 0.55, ...(opts.click || {}) });
+  // cursor: false (mobile layouts) draws no desktop cursor or click ripple: the page shows its own touch indicator.
+  if (opts.cursor !== false) {
+    r = r
+      .cursorOverlay({ approachMs: 500, postArrivalHoldMs: 300, ...(opts.cursor || {}) })
+      .clickEffect({ radius: 28, duration: 350, opacity: 0.55, ...(opts.click || {}) });
+  }
   if (opts.autoZoom !== false) {
     r = r.autoZoom({ clickLevel: 1.35, inputLevel: 1.4, idleLevel: 1.0, centerBias: 0.25, ...(opts.zoom || {}) });
   }
@@ -154,6 +212,9 @@ export async function renderRecast(rawDir, outFile, opts = {}) {
 /** Helpers bound to one page. Every helper logs to the receipt. */
 export function bindHelpers(page, log, beats, opts = {}) {
   const base = opts.baseUrl || '';
+  // Input runs in CSS layout pixels; the receipt logs recorded-video pixels, which differ by the mobile page scale, or by
+  // the DSF when record-job records a --ratio take at viewport x DSF (opts.videoSize).
+  const k = opts.mobileLayout ? opts.mobileLayout.scale : (opts.videoSize && opts.viewport?.width ? opts.videoSize.width / opts.viewport.width : 1);
   const wait = (ms) => page.waitForTimeout(ms);
 
   const center = async (locator) => {
@@ -178,7 +239,7 @@ export function bindHelpers(page, log, beats, opts = {}) {
       const e = easeInOutCubic(i / steps);
       const x = sx + (tx - sx) * e, y = sy + (ty - sy) * e;
       await page.mouse.move(x, y);
-      log.push('move', { x: Math.round(x), y: Math.round(y) });
+      log.push('move', { x: Math.round(x * k), y: Math.round(y * k) });
       await wait(per);
     }
     log.pointer = { x: tx, y: ty };
@@ -197,7 +258,25 @@ export function bindHelpers(page, log, beats, opts = {}) {
     // tStart is the moment the click is issued (the narration word it must land on); t is when Playwright returned.
     const tStart = log.now();
     await locator.first().click({ delay: 60, force: true, position: { x: box.width / 2, y: box.height / 2 }, timeout: 8000 });
-    log.push('click', { x: Math.round(x), y: Math.round(y), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
+    log.push('click', { x: Math.round(x * k), y: Math.round(y * k), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
+    if (o.label) beats.mark(o.label, { box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } });
+    await wait(o.hold ?? TIMING.clickHoldMs);
+  }
+
+  /**
+   * A finger tap on a touch context: no pointer travel, so no 'move' events; the log carries only the tap, which the pointer-path
+   * gate reads as a named action. Without touch (opts.hasTouch falsy) it falls back to the desktop click (eased approach, then
+   * click) and still logs type 'tap'. Pass the same { label } the cue plan names.
+   */
+  async function tap(locator, o = {}) {
+    const touch = !!opts.hasTouch;
+    const { x, y, box } = touch ? await center(locator) : await approach(locator, o);
+    const position = { x: box.width / 2, y: box.height / 2 };
+    const tStart = log.now();
+    if (touch) await locator.first().tap({ force: true, position, timeout: 8000 });
+    else await locator.first().click({ delay: 60, force: true, position, timeout: 8000 });
+    log.push('tap', { x: Math.round(x), y: Math.round(y), label: o.label || null, target: o.target || o.label || describe(locator), tStart });
+    log.pointer = { x, y };
     if (o.label) beats.mark(o.label, { box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } });
     await wait(o.hold ?? TIMING.clickHoldMs);
   }
@@ -216,7 +295,7 @@ export function bindHelpers(page, log, beats, opts = {}) {
   async function pointAt(locator, o = {}) {
     const r = await approach(locator, o);
     // A cursor-led highlight for a read beat (dashboards, diagrams): the arrival is the action the narration names.
-    log.push('point', { x: Math.round(r.x), y: Math.round(r.y), label: o.label || null, target: o.target || o.label || describe(locator), tStart: log.now() });
+    log.push('point', { x: Math.round(r.x * k), y: Math.round(r.y * k), label: o.label || null, target: o.target || o.label || describe(locator), tStart: log.now() });
     if (o.label) beats.mark(o.label, { box: { x: Math.round(r.box.x), y: Math.round(r.box.y), w: Math.round(r.box.width), h: Math.round(r.box.height) } });
     await wait(o.hold ?? 900);
     return r;
@@ -274,5 +353,5 @@ export function bindHelpers(page, log, beats, opts = {}) {
   /** Result hold (≥500 ms; longer when the viewer must read). */
   const hold = (ms = 1500) => wait(ms);
 
-  return { approach, click, typeText, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
+  return { approach, click, tap, typeText, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
 }

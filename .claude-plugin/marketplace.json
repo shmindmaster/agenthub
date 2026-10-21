@@ -26,14 +26,6 @@
       "source": "./packages/mobile-development"
     },
     {
-      "name": "technical-storytelling",
-      "source": "./packages/technical-storytelling"
-    },
-    {
-      "name": "story-series-studio",
-      "source": "./packages/story-series-studio"
-    },
-    {
       "name": "learning-studio",
       "source": "./packages/learning-studio"
     },

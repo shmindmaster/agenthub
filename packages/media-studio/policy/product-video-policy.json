@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "media-studio",
-  "capabilityVersion": "1.8.6",
+  "capabilityVersion": "2.0.3",
   "canonicalOwner": "personal-media",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -17,7 +17,7 @@
     "ownerVoiceGate": "media/qa/score_identity.py",
     "audioPerceptionRoute": "ai.ps1 listen",
     "elevenLabsProvider": "elevenlabs",
-    "editorialFinish": "media-studio-descript",
+    "editorialFinish": "media-studio-compose",
     "github": "gh-cli",
     "requirements": [
       "notion:notion",

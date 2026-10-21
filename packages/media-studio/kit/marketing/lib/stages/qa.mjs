@@ -1,10 +1,12 @@
 // Stage 7: qa, per ratio, on the exact encoded file. Gates: band-bound picture, captions, loudness, sync and Local-AI
-// listen (local, --local-gates), OpenAI vision QA, the story score (reviewer file), and validate-viewer-release.
+// listen (local, --local-gates), the film-chain gates (picture integrity, pointer path, frame integrity, marketing readiness), OpenAI vision QA,
+// the story score (reviewer file), and validate-viewer-release.
 // Anything that did not run on this exact candidate is `pending`, never a pass, and deliver refuses to ship it.
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
-import { DEFAULT_REQUIRED, assembleEvidence, buildGateWorkspace, captionsCheck, readReviews, releasable } from '../gates.mjs';
+import { runFrameIntegrityGate, runIntegrityGate, runMarketingGate, runPointerGate } from '../chain-gates.mjs';
+import { assembleEvidence, buildGateWorkspace, captionsCheck, readReviews, releasable, requiredGates } from '../gates.mjs';
 import { measureLoudness, gateScript, runSyncGates } from '../local-gates.mjs';
 import { loudnessTarget, run } from '../mix.mjs';
 import { runPictureGate } from '../picture-gate.mjs';
@@ -16,7 +18,7 @@ import { runVisionQa } from '../../vision-qa.mjs';
 const pending = (detail) => ({ status: 'pending', detail });
 
 export async function qaStage(ctx) {
-  const required = ctx.spec.qa?.required || DEFAULT_REQUIRED;
+  const required = requiredGates(ctx.spec);
   const out = {};
   for (const cut of normalizeCuts(ctx.spec)) {
     const timeline = readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
@@ -34,8 +36,8 @@ export async function qaStage(ctx) {
       buildGateWorkspace({ root: ws, spec: ctx.spec, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs: target.lufs });
       const ad = join(cdir, 'ad.mp4');
       const gates = {};
-      if (!existsSync(ad)) {
-        for (const g of required) gates[g] = pending('no encoded candidate yet (compose renders it)');
+      if (!existsSync(ad) || ctx.flags.prepareOnly) {
+        for (const g of required) gates[g] = pending('no encoded candidate yet (compose renders it) or --prepare-only');
         const verdict = releasable(gates, required);
         writeJson(join(qdir, 'gates.json'), { ratio, candidate: null, gates, ...verdict });
         out[ratio] = { ...verdict, gates };
@@ -58,32 +60,47 @@ export async function qaStage(ctx) {
       const loud = await measureLoudness(candidate, loudPath);
       gates.loudness = Math.abs(loud.integratedLufs - target.lufs) <= 1.0 && loud.truePeakDbtp <= -1.0 ? { status: 'pass', detail: `${loud.integratedLufs} LUFS / ${loud.truePeakDbtp} dBTP (target ${target.lufs})` } : { status: 'fail', detail: `${loud.integratedLufs} LUFS / ${loud.truePeakDbtp} dBTP vs target ${target.lufs}` };
 
+      // A cue sheet in the workspace must belong to this candidate: the sync gate below rebuilds it, nothing else may leave one behind.
+      rmSync(join(ws, 'plan', 'cue-sheet.json'), { force: true });
       if (ctx.flags.localGates) {
         const local = await runSyncGates({ ws, candidate, moduleRoot: MODULE_ROOT, composeMapRel: `output/${ctx.spec.id}-compose-map.json`, sourceRevision: ctx.spec.id });
         gates.sync = local.sync;
         gates.listen = local.listen;
       } else { gates.sync = pending('needs local ASR (GPU); run with --local-gates'); gates.listen = pending('needs the Local-AI listen gate (GPU); run with --local-gates'); }
 
+      // Film-chain gates on the exact encoded candidate (media-studio 2.0.0). They read the ws copies of the compose map and
+      // receipt; the marketing floor counts only a reviewer's qa/<ratio>/marketing-readiness.json that names this candidate.
+      const composeMapRel = `output/${ctx.spec.id}-compose-map.json`;
+      gates.integrity = await runIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
+      gates.pointer = await runPointerGate({ ws, moduleRoot: MODULE_ROOT });
+      gates.frameIntegrity = await runFrameIntegrityGate({ ws, candidate, composeMapRel, moduleRoot: MODULE_ROOT });
+      gates.marketing = await runMarketingGate({ ws, qdir, ratio, candidate, sha, composeMapRel, moduleRoot: MODULE_ROOT });
+
       if (ctx.flags.noVision) gates.vision = pending('skipped by --no-vision');
       else {
         try {
-          const v = await runVisionQa({ candidate: ad, spec: ctx.spec, brand: ctx.brand, ratio, ledger: ctx.ledger, vision: ctx.providers.vision, frames: ctx.providers.frames, framesDir: join(qdir, 'vision-frames'), duration: gateSegments.durationSeconds });
+          // Frames are sampled away from caption transitions, and a reviewer's arbitration (never written by mvg) is honoured only
+          // when it names this exact candidate hash.
+          const arbPath = join(qdir, 'vision-arbitration.json');
+          const v = await runVisionQa({ candidate: ad, spec: ctx.spec, brand: ctx.brand, ratio, ledger: ctx.ledger, vision: ctx.providers.vision, frames: ctx.providers.frames, framesDir: join(qdir, 'vision-frames'), duration: gateSegments.durationSeconds, cues: readJson(join(ctx.jobDir, 'timing', cut.id, 'captions.json')).chunks, arbitration: existsSync(arbPath) ? readJson(arbPath) : null });
           writeJson(join(qdir, 'vision.json'), v);
-          gates.vision = v.ok ? { status: 'pass', detail: `${v.sampled.length} frames, ${v.findings.length} non-blocking findings` } : { status: 'fail', detail: v.reasons.slice(0, 2).join(' | ') };
+          const arb = v.arbitration?.honoured ? { reviewer: v.arbitration.reviewer, applied: v.arbitration.applied, ignored: v.arbitration.ignored } : v.arbitration?.file ? { reviewer: null, applied: [], ignored: v.arbitration.ignored } : null;
+          gates.vision = v.ok ? { status: 'pass', detail: `${v.sampled.length} frames, ${v.findings.length} findings${v.arbitration?.applied?.length ? `, ${v.arbitration.applied.length} arbitrated false-positive by ${v.arbitration.reviewer}` : ' (none blocking)'}`, ...(arb ? { arbitration: arb } : {}) } : { status: 'fail', detail: v.reasons.slice(0, 2).join(' | '), ...(arb ? { arbitration: arb } : {}) };
         } catch (e) { gates.vision = { status: 'fail', detail: e.message }; }
       }
 
-      const reviews = readReviews(join(qdir, 'reviews.json'));
+      const reviews = readReviews(join(qdir, 'reviews.json'), sha);
       const storyMin = ctx.spec.qa?.storyMin ?? 85;
       const sr = reviews.storyReview;
-      gates.story = sr && sr.reviewer && Number(sr.score) >= storyMin && sr.cta ? { status: 'pass', detail: `score ${sr.score} by ${sr.reviewer}` } : pending(`media-story-experience-reviewer score >= ${storyMin} on this candidate (qa/${ratio}/reviews.json storyReview)`);
+      gates.story = sr && sr.reviewer && Number(sr.score) >= storyMin && sr.cta ? { status: 'pass', detail: `score ${sr.score} by ${sr.reviewer}` } : pending(`media-studio-qa story-experience review score >= ${storyMin} on this candidate (qa/${ratio}/reviews.json storyReview)`);
 
       const evidenceReady = ['encodedVisualReview', 'titleReview', 'actionResultReview', 'storyReview', 'pronunciation'].every((k) => reviews[k]?.status === 'PASS');
       if (!evidenceReady) gates.viewerRelease = pending('reviews.json needs PASS entries (encodedVisualReview, titleReview, actionResultReview, storyReview, pronunciation) for this candidate');
       else {
         const evidence = assembleEvidence({ root: ws, candidate, candidateSha: sha, srtPath: srt, loudnessReportPath: loudPath, loudness: loud, reviews, scriptPath: join(ws, 'story', 'locked-script.txt') });
         writeJson(join(ws, 'qa', 'viewer-release-evidence.json'), evidence);
-        for (const name of ['encoded-picture.json']) if (!existsSync(join(ws, 'qa', name))) copyFileSync(join(qdir, 'picture.json'), join(ws, 'qa', name));
+        // Always the current candidate's report: a copy left from an earlier render is bound to another SHA-256.
+        copyFileSync(join(qdir, 'picture.json'), join(ws, 'qa', 'encoded-picture.json'));
         const vr = await run(process.execPath, [gateScript('validate-viewer-release.mjs', MODULE_ROOT), ws, candidate], {});
         let parsed = null;
         try { parsed = JSON.parse(vr.stdout); } catch { parsed = null; }

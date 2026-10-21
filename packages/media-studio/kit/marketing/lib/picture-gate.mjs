@@ -11,9 +11,13 @@ import { fileSha, round } from './util.mjs';
 
 export const THRESHOLDS = { bindMaxHamming: 12, maxStaticSeconds: 6, screenRatioMin: 0.7, staticChangedFraction: 0.003, changedPixelDelta: 16 };
 
+// A neighbour must be brighter by more than this many levels to set a bit. A dimmed or near-blank frame (a modal's
+// overlay) averages to an almost flat 9x8 grid, where +-1 level of encode noise or a caption plate flips half the bits
+// and a picture that is the receipt-bound capture reads as unbound (film 14: dHash 13-14 on frames that match at 3-4).
+export const DHASH_DEADBAND = 2;
 export function dhash(gray9x8) {
   let bits = 0n;
-  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { bits <<= 1n; if (gray9x8[y * 9 + x] > gray9x8[y * 9 + x + 1]) bits |= 1n; }
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { bits <<= 1n; if (gray9x8[y * 9 + x] > gray9x8[y * 9 + x + 1] + DHASH_DEADBAND) bits |= 1n; }
   return bits;
 }
 export function hamming(a, b) { let x = a ^ b; let n = 0; while (x) { n += Number(x & 1n); x >>= 1n; } return n; }
@@ -83,9 +87,9 @@ export function runPictureGate(o) {
     if (seg.kind !== 'ui') continue;
     ui += seg.durationSeconds;
     if (!existsSync(seg.clipFile)) { fail(`segment ${seg.id}: source clip missing ${seg.clipFile}`); continue; }
-    const r = seg.sourceRegion;
-    const crop = `crop=iw*${r.width}:ih*${r.height}:iw*${r.x}:ih*${r.y},scale=${o.band.w}:${o.band.h}`;
-    const hashes = grayFrames(seg.clipFile, crop, 9, 8, 30).map(dhash);
+    // The camera eases between focus windows, so a frame near a boundary matches a neighboring window's crop.
+    const regions = seg.sourceRegions?.length ? seg.sourceRegions : [seg.sourceRegion];
+    const hashes = regions.flatMap((r) => grayFrames(seg.clipFile, `crop=iw*${r.width}:ih*${r.height}:iw*${r.x}:ih*${r.y},scale=${o.band.w}:${o.band.h}`, 9, 8, 30).map(dhash));
     const mid = seg.startSeconds + seg.durationSeconds / 2;
     const got = grayAt(o.candidate, Math.min(mid, o.durationSeconds - 0.2), bandVf, 9, 8);
     if (!got || !hashes.length) { fail(`segment ${seg.id}: cannot decode candidate or source frames`); continue; }

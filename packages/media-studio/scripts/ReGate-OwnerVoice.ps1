@@ -22,7 +22,7 @@ function Apply-AsrBrandAliases([string]$Text) {
   $path = Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\private\asr-brand-aliases.json'
   if (-not (Test-Path -LiteralPath $path)) { return $Text }
   $t = $Text
-  foreach ($entry in @(Get-Content -LiteralPath $path -Raw | ConvertFrom-Json)) {
+  foreach ($entry in @(Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)) {
     foreach ($variant in @($entry.variants)) { $t = $t.Replace([string]$variant, [string]$entry.canonical) }
   }
   return $t
@@ -93,8 +93,56 @@ function Get-Wer([string]$Ref, [string]$Hyp) {
   }
   return [double]$dp[$n, $m] / [double]$n
 }
-function Get-Sha256([string]$Path) {
-  return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+# Shared with Generate-OwnerVoice.ps1: hashing, render text, style reference, fingerprint, PASS-receipt reuse rule.
+. (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'OwnerVoice-TakeReuse.ps1')
+
+# Select the re-gated take and write its PASS receipt. The fingerprint covers the render text, voice and style reference
+# the take was synthesized from, so it is built from the render record Generate-OwnerVoice.ps1 wrote beside the take
+# (take.render.json), never from today's pronunciation layer: an older wav must not look current. When there is no
+# record for this sentence the synthesized reading is unknown; the receipt then carries no fingerprint and says so, and
+# the legacy rule in Test-PassReceipt applies (accepted only while no pronunciation substitution applies).
+function Write-RegatePass([object]$Segment, [string]$SelectedRoot, $Wer, $IdRecord) {
+  $dest = Join-Path $SelectedRoot "$($Segment.id).wav"
+  Copy-Item $Segment.wav $dest -Force
+  $rr = Get-TakeRenderRecord $Segment.dir
+  $known = ($null -ne $rr -and [string]$rr.text -ceq $Segment.text -and [string]$rr.voice -ceq 'sarosh')
+  $receipt = [ordered]@{ pass = $true; id = $Segment.id; sceneId = $Segment.sceneId; speaker = $Segment.speaker }
+  if ($known) {
+    $receipt['style'] = [string]$rr.style
+    $receipt['text'] = $Segment.text
+    $receipt['renderText'] = [string]$rr.renderText
+    $receipt['fingerprint'] = (Get-SegmentFingerprint $Segment.text ([string]$rr.renderText) 'sarosh' ([string]$rr.style) ([string]$rr.styleWavSha) ([string]$rr.styleTextSha))
+    $receipt['fingerprintSchema'] = $script:FingerprintSchema
+  } else {
+    $receipt['text'] = $Segment.text
+    $receipt['fingerprintNote'] = 'No render record (take.render.json) for this sentence: the render text the wav was synthesized from is unknown, so no fingerprint is written. The legacy reuse rule applies.'
+  }
+  $receipt['path'] = $dest
+  $receipt['sha256'] = (Get-Sha256 $dest)
+  $receipt['asrWer'] = $Wer
+  $receipt['identityScores'] = $(if ($null -ne $IdRecord) { $IdRecord.scores } else { $null })
+  $receipt['regate'] = $true
+  $receipt | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $Segment.dir 'PASS.json') -Encoding utf8
+  # A replacement that passes the gate ends the listen rejection, as in Generate-OwnerVoice.ps1.
+  Remove-Item -LiteralPath (Join-Path $Segment.dir 'REJECTED.json') -Force -ErrorAction SilentlyContinue
+}
+
+# A segment needs re-gating when it holds no PASS receipt, or when a listen rejection (REJECTED.json) voids the receipt
+# it holds. A rejected segment is skipped only while take.wav is still the rejected take itself (same bytes as the
+# receipt): re-passing that file would erase the listen rejection. A take.wav with other bytes is a replacement.
+function Test-NeedsRegate([string]$Dir) {
+  $passPath = Join-Path $Dir 'PASS.json'
+  if (-not (Test-Path -LiteralPath $passPath)) { return $true }
+  if (-not (Test-TakeRejected $Dir)) { return $false }
+  $wavPath = Join-Path $Dir 'take.wav'
+  if (-not (Test-Path -LiteralPath $wavPath)) { return $true }
+  try {
+    $receipt = Get-Content -LiteralPath $passPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (@($receipt.PSObject.Properties.Name) -contains 'sha256' -and $receipt.sha256) {
+      return -not ([string]$receipt.sha256 -ieq (Get-Sha256 $wavPath))
+    }
+  } catch { }
+  return $false
 }
 
 $Job = (Resolve-Path $Job).Path
@@ -108,16 +156,18 @@ New-Item -ItemType Directory -Force -Path $selectedRoot, $batchRoot | Out-Null
 # Collect segments needing PASS
 $need = @()
 foreach ($scene in $play.scenes) {
+  # Re-gate scores owner identity only: a role scene (Joel/Ryan/Vivian/Aiden) is never stamped as the owner.
+  $sp = Resolve-SceneSpeaker $scene
+  if (-not $sp.IsOwner) { Write-Warning ("skipping role scene {0} (speaker {1}); re-gate scores owner identity only" -f $scene.id, $sp.Speaker); continue }
   $si = 0
   foreach ($text in @([regex]::Split([string]$scene.narration, '(?<=[.!?])\s+') | Where-Object { $_.Trim().Length -gt 2 })) {
     $si++
     $segId = '{0}_{1:d2}' -f $scene.id, $si
     $dir = Join-Path $outRoot $segId
-    $pass = Join-Path $dir 'PASS.json'
     $wav = Join-Path $dir 'take.wav'
-    if (Test-Path $pass) { continue }
+    if (-not (Test-NeedsRegate $dir)) { continue }
     if (-not (Test-Path $wav)) { Write-Warning "missing $wav"; continue }
-    $need += [pscustomobject]@{ id = $segId; sceneId = $scene.id; text = $text.Trim(); dir = $dir; wav = $wav }
+    $need += [pscustomobject]@{ id = $segId; sceneId = $scene.id; text = $text.Trim(); dir = $dir; wav = $wav; speaker = $sp.Speaker }
   }
 }
 Write-Host ("Re-gate {0} segments" -f $need.Count)
@@ -166,12 +216,7 @@ foreach ($s in $need) {
   Write-Host ("  {0} integ={1} asr={2}(wer={3:n3}) id={4} => {5}" -f $s.id, $integOk, $asrOk, $wer, $idOk, $(if ($ok) { 'PASS' } else { 'FAIL' }))
   Write-Host ("    ASR: {0}" -f $hyp)
   if ($ok) {
-    $dest = Join-Path $selectedRoot "$($s.id).wav"
-    Copy-Item $s.wav $dest -Force
-    [ordered]@{
-      pass = $true; id = $s.id; sceneId = $s.sceneId; text = $s.text; path = $dest
-      sha256 = (Get-Sha256 $dest); asrWer = $wer; identityScores = $rec.scores; regate = $true
-    } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $s.dir 'PASS.json') -Encoding utf8
+    Write-RegatePass $s $selectedRoot $wer $rec
     $passed++
   } else { $still += $s.id }
 }

@@ -2,6 +2,7 @@
 import { join } from 'node:path';
 import { recordStage } from '../context.mjs';
 import { lintSpec, normalizeCuts, estimateCutSeconds } from '../lint.mjs';
+import { musicLengthMs } from './assets.mjs';
 import { estimateImageUsd, estimateMusicCredits, estimateSfxCredits, estimateTtsCredits } from '../prices.mjs';
 import { writeJson } from '../util.mjs';
 
@@ -27,7 +28,7 @@ export function planCost(spec, brand) {
   }
   const sfxPrompts = new Set(cuts.flatMap((c) => c.beats.flatMap((b) => (b.sfx || []).map((s) => `${s.prompt}|${s.durationSeconds || 1}`))));
   credits += sfxPrompts.size * estimateSfxCredits(1);
-  if (spec.music?.provider === 'elevenlabs') credits += estimateMusicCredits(Math.ceil(Math.max(...cuts.map(estimateCutSeconds)) + 2) * 1000);
+  if (spec.music?.provider === 'elevenlabs') credits += estimateMusicCredits(musicLengthMs(spec.music, Math.max(...cuts.map(estimateCutSeconds)), { measured: false }));
   usd += cuts.flatMap((c) => c.ratios).length * 0.35; // vision QA per ratio (padded)
   return { elevenlabsCredits: credits, openaiUsd: Number(usd.toFixed(2)) };
 }

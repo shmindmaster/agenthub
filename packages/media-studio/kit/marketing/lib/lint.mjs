@@ -6,6 +6,8 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { validate } from './schema.mjs';
 import { readJson, sentences, words } from './util.mjs';
 
+/** Narration that talks about the demo data, the film or its making instead of the viewer's problem. */
+export const FLUFF = /\b(synthetic|sample data|demo data|in this (?:video|film|demo)|welcome to|let's take a look|as you can see)\b/i;
 export const WORDS_PER_SECOND = 2.55; // ~153 wpm, the brisk end of the measured ABACare narration band
 export const LEAD_SECONDS = 0.3;
 export const TAIL_SECONDS = 0.45;
@@ -201,6 +203,9 @@ export function lintSpec(spec, brand, options = {}) {
       if (beat.kind !== 'ui' && beat.ui) err('beat-shape', `${beat.kind} beats must not carry a ui clip`, w);
       const texts = [...sentences(beat.narration || ''), ...(beat.onScreenText ? [beat.onScreenText] : [])];
       for (const t of texts) scanText(t, w);
+      // Owner rule (2026-10-20): no spoken time on synthetic/demo data or on the film itself; the disclosure is an end-card line.
+      const fluff = FLUFF.exec(beat.narration || '');
+      if (fluff) err('narration-fluff', `narration spends words on "${fluff[0]}"; say what the viewer gains, and leave the data disclosure to the end card`, w);
       if (beat.onScreenText && words(beat.onScreenText).length > 8) warn('on-screen-length', 'on-screen text longer than 8 words will not survive phone-size reading', w);
       const refs = (beat.claims || []).map((id) => claimsById.get(id));
       (beat.claims || []).forEach((id) => { if (!claimsById.has(id)) err('claim-missing', `beat references unknown claim ${id}`, w); });
@@ -239,6 +244,7 @@ export function lintSpec(spec, brand, options = {}) {
     if (estimate > cut.targetSeconds + 4) err('too-long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target; trim the script before spending on voice`, cut.id);
     else if (estimate > cut.targetSeconds + 1.5) warn('long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
     else if (estimate < cut.targetSeconds * 0.6) warn('short', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
+    if (m?.provider === 'elevenlabs' && m.lengthSeconds !== undefined && m.lengthSeconds < cut.targetSeconds + 2) err('music-length', `music.lengthSeconds ${m.lengthSeconds} s is shorter than cut ${cut.id} (${cut.targetSeconds} s target) plus 2 s; the bed must outlast the program (the assets stage re-checks against the measured length)`, 'music');
     if (!cut.beats.some((b) => b.kind === 'ui')) err('no-ui', `cut ${cut.id} has no real UI beat; credibility-bearing seconds must be captured product UI`, cut.id);
   }
   return { ok: errors.length === 0, errors, warnings, estimates };
