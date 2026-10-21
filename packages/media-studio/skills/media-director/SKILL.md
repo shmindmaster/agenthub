@@ -7,7 +7,7 @@ description: Use when a video needs direction, a visual plan, scene design, poin
 
 Translate the locked storyboard into what appears and how it is performed. Decide in this turn; do not present a menu of visual styles. You do not capture, generate, or release.
 
-Load `../media-studio/references/engagement.md` and `scene-archetypes.md` unless kind is `product-screencast` (Recast + `product-picture.md`). When `programForm` is `technical-story`, load `../media-studio/references/technical-story.md`: the markup rules there are yours to direct per beat.
+Load `../media-studio/references/engagement.md`, `cursor-flow.md` and `scene-archetypes.md` unless kind is `product-screencast` (Recast + `product-picture.md` + `cursor-flow.md`). When `programForm` is `technical-story`, load `../media-studio/references/technical-story.md`: the markup rules there are yours to direct per beat. Marketing cuts also load `marketing-readiness.md`.
 
 Requires `storyboard.json` and `visual-bible.json` on viewer-facing jobs. If they are missing, remit to `media-storyboard` / `media-studio-visuals`.
 
@@ -29,9 +29,19 @@ A slide or diagram that does not build across the line is a still. Call a build,
 
 Do not use the same `visualArchetype` twice in succession unless the storyboard marked the repeat intentional.
 
-## 2. Pointer, click, highlight
+Nothing on screen moves that the narration is not about. No build chip, version chip, environment badge or revision label is ever in frame; if the product shows one, frame it out or dim it.
 
-For `screen` scenes, specify target, pointer lead → action → visible feedback → result hold (`product-picture.md`). Recast owns cursor, ripple, punch-in. Wide → punch-in on the control → hold through the native response. Config beat before the run it causes.
+## 2. The eye path: start, the one move, rest
+
+Every scene is directed as one flow for the eye (`cursor-flow.md`). Write `eyePath` per beat into `direction.json`:
+
+- `start` — where the eye already is (the previous beat's rest).
+- `move` — **the one move** this beat makes, in one direction, to the thing the line names. Not two targets. Not a look around. If the line names two things, split the beat.
+- `rest` — where the eye holds while the result is named, ≥ 1.5 s, cursor still.
+
+For `screen` scenes, specify target, pointer lead → action → visible feedback → result hold (`product-picture.md`). Recast owns cursor, ripple, punch-in. Wide → punch-in on the control → hold through the native response. Config beat before the run it causes. The pointer never flicks, never goes up and down, never scrolls past and returns, never moves while nothing is being named; `validate-pointer-path.mjs` measures the take against this plan and the default allowance is zero reversals.
+
+For static scenes (dashboards, diagrams, architecture) the guided cursor or highlight lands on the exact element as it is named and then the next one; never a sweep, never a held frame.
 
 For type-led scenes, emphasis is type color, Remotion build-in, and hold time, not a fake cursor.
 
@@ -41,15 +51,17 @@ Technical stories mark up aggressively, on top of Recast: box the element that m
 
 Owner voice: name the style-bank register (`explaining`, `firm`, `serious`, …). Do not write free-text "sound excited" for that speaker.
 
-Honor storyboard `sound` (`musicCue`, `sfxCue`, `silenceOnReveal`, `transitionAudio`). Viewer-facing default is `bed` with `silence` on the hero hold.
+Honor storyboard `sound` (`musicCue`, `sfxCue`, `silenceOnReveal`, `transitionAudio`). Viewer-facing default is `bed` with `silence` on the hero hold. Marketing cuts: the bed carries the pace, cuts land on its grid, at least one designed cue (riser, hit, sting), end card from the brand kit with one CTA inside the last eight seconds (`marketing-readiness.md`).
 
 ## 4. Output
 
-`direction.json` keyed by beat id: visualMode, visualArchetype, on-screen copy, highlight, action, register, duration, sound, pause/hold. Then `media-studio-generate`.
+`direction.json` keyed by beat id: visualMode, visualArchetype, on-screen copy, highlight, action, `eyePath`, register, duration, sound, pause/hold. Then `media-studio-generate`.
 
 ## 5. Final check
 
+- [ ] Every beat has one `eyePath` (start, the one move, rest); no beat asks the eye to go back
 - [ ] Archetypes vary; no accidental consecutive repeat
+- [ ] Nothing in frame moves that the line is not about; no build or version chip
 - [ ] Hero has silence or a ducked rest
 - [ ] Register named per beat
 - [ ] Next skill is `media-studio-generate`
