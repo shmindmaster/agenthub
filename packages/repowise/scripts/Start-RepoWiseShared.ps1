@@ -42,11 +42,14 @@ param(
     [switch]$SkipDegradedProbe,
     [string]$RepoWiseExe = (Join-Path $env:USERPROFILE '.local\bin\repowise.exe'),
     [string]$RepoWisePython = (Join-Path $env:APPDATA 'uv\tools\repowise\Scripts\python.exe'),
-    [string]$SharedServer = (Join-Path $PSScriptRoot 'shared_server.py'),
+    [string]$SharedServer = '',
     [string]$RuntimeDir = (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\repowise-shared')
 )
 
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 can evaluate parameter defaults before PSScriptRoot
+# is populated. Resolve the sibling entry point after parameter binding.
+if (-not $SharedServer) { $SharedServer = Join-Path $PSScriptRoot 'shared_server.py' }
 New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
 $log = Join-Path $RuntimeDir 'launcher.log'
 function Write-Log([string]$m) { "[$(Get-Date -Format s)] launcher[$PID] $m" | Add-Content -Path $log -Encoding UTF8 }

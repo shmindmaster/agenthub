@@ -76,14 +76,16 @@ $embedderMarker = Join-Path $scratch 'embedder-start-called.txt'
     Set-Content -LiteralPath $embedderStub -Encoding UTF8
 
 function Invoke-Launcher {
-    param([int]$Port, [string]$EmbedderUrl, [string[]]$Extra = @(), [switch]$Degraded)
+    param([int]$Port, [string]$EmbedderUrl, [string[]]$Extra = @(), [switch]$Degraded, [switch]$DefaultSharedServer)
     $runtime = Join-Path $scratch ("rt-" + [Guid]::NewGuid().ToString('N'))
     $env:FAKE_MCP_MARKER = $marker
     $env:FAKE_MCP_DEGRADED = if ($Degraded) { '1' } else { '0' }
     try {
         $argv = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $launcher,
             '-Port', $Port, '-Workspace', $workspace, '-EmbedderUrl', $EmbedderUrl, '-EmbedderWaitSeconds', 3,
-            '-ServerWaitSeconds', 30, '-RepoWiseExe', $py, '-RepoWisePython', $py, '-SharedServer', $fake, '-RuntimeDir', $runtime, '-LocalAiCli', $embedderStub) + $Extra
+            '-ServerWaitSeconds', 30, '-RepoWiseExe', $py, '-RepoWisePython', $py, '-RuntimeDir', $runtime, '-LocalAiCli', $embedderStub)
+        if (-not $DefaultSharedServer) { $argv += @('-SharedServer', $fake) }
+        $argv += $Extra
         # Files, not a pipe: the server the launcher starts inherits its std
         # handles, so a piped launcher never reaches EOF. The bridge passes
         # DEVNULL for the same reason.
@@ -107,6 +109,9 @@ $embedderProc = $null
 try {
     # 2a. Embedder down, no start allowed: fail closed, start nothing.
     $port = Get-FreePort
+    $r = Invoke-Launcher -Port $port -EmbedderUrl $deadEmbedder -Extra @('-NoEmbedderStart') -DefaultSharedServer
+    Report 'Windows PowerShell binds the default shared server before failing closed' ($r.Code -eq 2 -and $r.Log -match 'FAIL-CLOSED: embedder') "exit=$($r.Code) log=$($r.Log)"
+    Report 'default entry point starts nothing on a down embedder' (-not (Test-Path -LiteralPath $marker) -and -not (Test-Listening $port)) 'server marker present or port served'
     $r = Invoke-Launcher -Port $port -EmbedderUrl $deadEmbedder -Extra @('-NoEmbedderStart')
     Report 'launcher exits 2 when the embedder is down' ($r.Code -eq 2) "exit=$($r.Code) log=$($r.Log)"
     Report 'launcher logs FAIL-CLOSED' ($r.Log -match 'FAIL-CLOSED: embedder') $r.Log
