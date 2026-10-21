@@ -12,6 +12,21 @@ import { fileSha, hashOf, readJson, writeJson } from '../util.mjs';
 export const sfxKey = (prompt, durationSeconds) => hashOf({ kind: 'sfx', prompt, durationSeconds });
 export const musicKey = (prompt, lengthMs, model) => hashOf({ kind: 'music', prompt, lengthMs, model });
 
+/**
+ * Length of the music bed in ms. By default the longest cut plus 2 s, whole seconds, so every job of a different length asks
+ * for a different track. `music.lengthSeconds` fixes it: jobs with the same prompt, model and lengthSeconds make an identical
+ * request and reuse one track. It must cover the longest cut plus 2 s (the mix trims the bed to the program, never extends it);
+ * `measured` is false while only estimates exist (dry run, before timing), where a short value is left to the real check.
+ */
+export function musicLengthMs(music, longestSeconds, { measured = true } = {}) {
+  const needed = longestSeconds + 2;
+  const fixed = music?.lengthSeconds;
+  if (fixed === undefined || fixed === null) return Math.max(3000, Math.ceil(needed) * 1000);
+  if (!(Number(fixed) >= 3)) throw new Error(`music.lengthSeconds must be a number of at least 3 (got ${fixed})`);
+  if (measured && Number(fixed) < needed) throw new Error(`music.lengthSeconds is ${fixed} s but the longest cut is ${longestSeconds.toFixed(2)} s and the bed must outlast it by 2 s: raise it to at least ${Math.ceil(needed)} (or remove it to size the bed per job)`);
+  return Math.round(Number(fixed) * 1000);
+}
+
 export function collectSfx(spec) {
   const map = new Map();
   for (const cut of normalizeCuts(spec)) for (const b of cut.beats) for (const s of b.sfx || []) {
@@ -27,6 +42,7 @@ function cutDuration(ctx, cut) {
   const p = join(ctx.jobDir, 'timing', cut.id, 'timeline.json');
   return existsSync(p) ? readJson(p).durationSeconds : estimateCutSeconds(cut);
 }
+const hasTimeline = (ctx, cut) => existsSync(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
 
 export async function assetsStage(ctx) {
   const cuts = normalizeCuts(ctx.spec);
@@ -34,7 +50,7 @@ export async function assetsStage(ctx) {
   const sfx = collectSfx(ctx.spec);
   const musicOn = ctx.spec.music?.provider === 'elevenlabs';
   const longest = Math.max(...cuts.map((c) => cutDuration(ctx, c)));
-  const lengthMs = Math.max(3000, Math.ceil(longest + 2) * 1000);
+  const lengthMs = musicOn ? musicLengthMs(ctx.spec.music, longest, { measured: cuts.every((c) => hasTimeline(ctx, c)) }) : Math.max(3000, Math.ceil(longest + 2) * 1000);
   const model = ctx.spec.music?.model || 'music_v2_5';
   const brolls = cuts.flatMap((cut) => cut.beats.filter((b) => b.broll).map((b) => ({ cut, beat: b })));
   const k = stageKey('assets', { sfx: sfx.map((s) => s.key), music: musicOn ? musicKey(ctx.spec.music.prompt, lengthMs, model) : null, broll: brolls.map(({ beat }) => [beat.id, beat.broll]) });

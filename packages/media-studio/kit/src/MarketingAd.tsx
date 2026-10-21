@@ -40,7 +40,7 @@ export type AdBeat = {
 };
 
 export type CaptionWord = { word: string; start: number; end: number };
-export type CaptionChunk = { startSec: number; endSec: number; words: CaptionWord[]; lines?: number[] };
+export type CaptionChunk = { startSec: number; endSec: number; words: CaptionWord[]; lines?: number[]; top?: boolean };
 
 export type MarketingAdProps = {
   ratio: string;
@@ -51,8 +51,10 @@ export type MarketingAdProps = {
   layout: {
     uiBand: Box;
     captionBox: Box & { fontSize: number; maxLines: number };
+    captionBoxTop?: Box & { fontSize: number; maxLines: number };
     ctaBox: Box;
     ctaPillFont?: number;
+    ctaFootFont?: number;
   };
   brand: {
     productName: string;
@@ -81,6 +83,7 @@ export const sampleMarketingAd: MarketingAdProps = {
     captionBox: { x: 96, y: 924, w: 1728, h: 100, fontSize: 52, maxLines: 1 },
     ctaBox: { x: 96, y: 0, w: 1728, h: 1080 },
     ctaPillFont: 46,
+    ctaFootFont: 54,
   },
   brand: {
     productName: "ABACare",
@@ -107,6 +110,21 @@ const UNSPOKEN_OPACITY = 0.88;
 const CAPTION_FADE_FRAMES = 6;
 const PLATE = "15, 23, 42";
 const EMPHASIS_COLOR = "#ffd166";
+
+/**
+ * The frames each beat occupies, [{ from, durationInFrames }]. Beat boundaries are not frame-aligned (edit.beatGrid), so start and
+ * duration are never rounded on their own: a beat's end is the next beat's start, rounded once, and the sequences tile exactly. Rounding
+ * both separately left a frame in no sequence (the navy AbsoluteFill showed as one black frame at the cut). kit/marketing/lib/timing.mjs
+ * (sequenceFrames) is the tested twin of this function.
+ */
+const beatFrames = (beats: AdBeat[], fps: number): { from: number; durationInFrames: number }[] => {
+  let cursor = beats.length ? Math.round(beats[0].startSec * fps) : 0;
+  return beats.map((b) => {
+    const from = cursor;
+    cursor = Math.max(from + 1, Math.round((b.startSec + b.durationSec) * fps));
+    return { from, durationInFrames: cursor - from };
+  });
+};
 
 const stack = (display: string, body: string, which: "display" | "body"): string =>
   `${which === "display" ? display : body}, ${which === "display" ? body : display}, "Segoe UI", system-ui, sans-serif`;
@@ -180,7 +198,12 @@ const TitleBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props 
   const { brand, layout } = props;
   const box = layout.ctaBox;
   const rows = String(beat.headline ?? "").split(/(?<=[.!?])\s+/).map((r) => r.split(/\s+/).filter(Boolean)).filter((r) => r.length);
-  const size = Math.round(Math.min(box.w, box.h) * (props.ratio === "16x9" ? 0.16 : 0.15));
+  // Each sentence row fits on one line: the type is sized from the widest row (Space Grotesk 600 is about 0.56 em per character,
+  // plus the 0.28 em gap between words), never above the hook size and never below a floor of 0.08 of the box (only there may a row wrap).
+  const cap = Math.round(Math.min(box.w, box.h) * (props.ratio === "16x9" ? 0.16 : 0.15));
+  const floor = Math.round(Math.min(box.w, box.h) * 0.08);
+  const rowEm = Math.max(0, ...rows.map((r) => 0.56 * r.join("").length + 0.28 * (r.length - 1)));
+  const size = rowEm > 0 ? Math.max(floor, Math.min(cap, Math.floor(box.w / rowEm))) : cap;
   const STAGGER = 0.09;
   return (
     <AbsoluteFill style={{ background: `linear-gradient(150deg, ${brand.colors.primary} 0%, ${brand.colors.foreground} 85%)` }}>
@@ -220,6 +243,7 @@ const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }
   const box = layout.ctaBox;
   const base = Math.round(Math.min(box.w, box.h) * 0.11);
   const pillFont = layout.ctaPillFont ?? Math.round(base * 0.5);
+  const footFont = layout.ctaFootFont ?? Math.round(pillFont * 0.62);
   const lead = beat.isCta && beat.headline && beat.headline !== cta.text ? beat.headline : null;
   const foot = [props.label, props.disclosure].filter(Boolean).join(" · ");
   return (
@@ -239,7 +263,7 @@ const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }
         ) : null}
       </div>
       {beat.isCta && foot ? (
-        <div style={{ position: "absolute", left: box.x, top: box.y + box.h - Math.round(pillFont * 1.6), width: box.w, fontFamily: stack(brand.fontDisplay, brand.fontBody, "body"), fontSize: Math.round(pillFont * 0.62), fontWeight: 600, letterSpacing: "0.04em", color: "rgba(255,255,255,0.86)", opacity: fade }}>
+        <div style={{ position: "absolute", left: box.x, top: box.y + box.h - Math.round(footFont * 1.6), width: box.w, fontFamily: stack(brand.fontDisplay, brand.fontBody, "body"), fontSize: footFont, fontWeight: 600, letterSpacing: "0.04em", color: "rgba(255,255,255,0.86)", opacity: fade }}>
           {foot}
         </div>
       ) : null}
@@ -261,10 +285,13 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
   const { fps, width } = useVideoConfig();
   const t = frame / fps;
   // The end card's headline already says it, and a caption mid-fade on the plate falls below 3:1: no captions on card beats.
-  if (props.beats.some((b) => (b.kind === "card" || b.kind === "title") && t >= b.startSec && t < b.startSec + b.durationSec)) return null;
+  // Compared in frames, against the same frames the sequences use, so the first and last frame of a card agree with its sequence.
+  const frames = beatFrames(props.beats, fps);
+  if (props.beats.some((b, i) => (b.kind === "card" || b.kind === "title") && frame >= frames[i].from && frame < frames[i].from + frames[i].durationInFrames)) return null;
   const chunk = props.captions.find((c) => t >= c.startSec && t < c.endSec);
-  const box = props.layout.captionBox;
   if (!chunk) return null;
+  // A beat whose product content fills the lower frame carries its caption on the top plate (captionPlacement "top").
+  const box = chunk.top && props.layout.captionBoxTop ? props.layout.captionBoxTop : props.layout.captionBox;
   const emphasis = new Set(props.emphasis.map((w) => w.toLowerCase().replace(/[^a-z0-9$%]/g, "")));
   const startFrame = Math.round(chunk.startSec * fps);
   const enter = interpolate(frame, [startFrame, startFrame + CAPTION_FADE_FRAMES], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -306,12 +333,12 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
 export const MarketingAd: FC<MarketingAdProps> = (props) => {
   const { fps } = useVideoConfig();
   const { brand, layout } = props;
+  const frames = beatFrames(props.beats, fps);
   return (
     <AbsoluteFill style={{ background: brand.colors.foreground }}>
       <FontLoader files={brand.fontFiles} />
-      {props.beats.map((beat) => {
-        const from = Math.round(beat.startSec * fps);
-        const duration = Math.max(1, Math.round(beat.durationSec * fps));
+      {props.beats.map((beat, i) => {
+        const { from, durationInFrames: duration } = frames[i];
         return (
           <Sequence key={beat.id} from={from} durationInFrames={duration} name={beat.id}>
             {beat.kind === "ui" ? <UiCamera beat={beat} band={layout.uiBand} /> : null}

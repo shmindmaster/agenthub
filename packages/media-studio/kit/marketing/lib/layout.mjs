@@ -16,12 +16,19 @@ export const DEFAULT_SAFE = Object.freeze({
 
 export const CTA_PILL_FONT = Object.freeze({ '16x9': 46, '4x5': 50, '9x16': 52 });
 
+/** End-card disclosure line: about 2.8% of the frame width, so a landscape cut shown full width on a phone is as legible as
+ *  the portrait cuts (at 16:9 the old 0.62 x pill size came out at 1.5% of the width). */
+export const CTA_FOOT_FONT = Object.freeze({ '16x9': 54, '4x5': 31, '9x16': 32 });
+
 /** Caption plate per ratio: one short line on 16:9, at most two on the portrait ratios, inside the safe area. */
 const CAPTION = Object.freeze({
   '16x9': { x: 96, y: 924, w: 1728, h: 100, fontSize: 52, maxLines: 1 },
   '4x5': { x: 60, y: 1110, w: 960, h: 190, fontSize: 60, maxLines: 2 },
   '9x16': { x: 60, y: 1030, w: 960, h: 200, fontSize: 60, maxLines: 2 },
 });
+
+/** The top plate for a beat with captionPlacement "top": the same plate, moved to the top of the platform-safe area. */
+const CAPTION_TOP_INSET = Object.freeze({ '16x9': 56, '4x5': 40, '9x16': 24 });
 
 export function safeRect(ratio, brand) {
   const frame = FRAMES[ratio];
@@ -39,20 +46,23 @@ export function layoutFor(ratio, brand) {
   if (!frame) throw new Error(`unknown ratio ${ratio}`);
   const safe = safeRect(ratio, brand);
   const captionBox = { ...CAPTION[ratio] };
+  const captionBoxTop = { ...captionBox, y: safe.y + CAPTION_TOP_INSET[ratio] };
   return {
     ratio, frame, safe, zoom: 1,
     uiBand: { x: 0, y: 0, w: frame.width, h: frame.height },
     captionBox,
+    captionBoxTop,
     // The end card block is centred in the safe area and shares the caption left edge.
     ctaBox: { x: captionBox.x, y: safe.y, w: frame.width - 2 * captionBox.x, h: safe.h },
     ctaPillFont: CTA_PILL_FONT[ratio],
+    ctaFootFont: CTA_FOOT_FONT[ratio],
   };
 }
 
 /** Errors for a text-bearing box outside the platform-safe rectangle, or a product picture that does not fill the frame. */
 export function safeZoneErrors(layout) {
   const errors = [];
-  for (const name of ['captionBox', 'ctaBox']) {
+  for (const name of ['captionBox', 'captionBoxTop', 'ctaBox']) {
     if (!inside(layout[name], layout.safe)) errors.push(`${layout.ratio}: ${name} leaves the platform-safe area`);
   }
   const band = layout.uiBand;

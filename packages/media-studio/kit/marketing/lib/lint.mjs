@@ -244,6 +244,7 @@ export function lintSpec(spec, brand, options = {}) {
     if (estimate > cut.targetSeconds + 4) err('too-long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target; trim the script before spending on voice`, cut.id);
     else if (estimate > cut.targetSeconds + 1.5) warn('long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
     else if (estimate < cut.targetSeconds * 0.6) warn('short', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
+    if (m?.provider === 'elevenlabs' && m.lengthSeconds !== undefined && m.lengthSeconds < cut.targetSeconds + 2) err('music-length', `music.lengthSeconds ${m.lengthSeconds} s is shorter than cut ${cut.id} (${cut.targetSeconds} s target) plus 2 s; the bed must outlast the program (the assets stage re-checks against the measured length)`, 'music');
     if (!cut.beats.some((b) => b.kind === 'ui')) err('no-ui', `cut ${cut.id} has no real UI beat; credibility-bearing seconds must be captured product UI`, cut.id);
   }
   return { ok: errors.length === 0, errors, warnings, estimates };
