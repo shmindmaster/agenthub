@@ -520,6 +520,11 @@ test('picture gate helpers: dHash binding, static-run detection', () => {
   assert.equal(hamming(a, a), 0);
   assert.ok(hamming(a, b) > 12);
   assert.equal(bestDistance(a, [b, a]), 0);
+  // A dimmed, near-flat frame: +-1 level of noise and a darker caption row no longer read as a different picture.
+  const flat = gray((i) => 51 + ((i * 7) % 3) - 1);
+  const flatNoisy = gray((i) => 51 + ((i * 5) % 3) - 1 + (i >= 63 ? [4, 8, 10, -1, 0, 0, 0, 0, 0][i - 63] : 0));
+  assert.ok(hamming(dhash(flat), dhash(flatNoisy)) <= 2, 'flat frames bind despite encode noise and a caption plate');
+  assert.ok(hamming(dhash(gray((i) => 51 + (i % 9 > 4 ? 30 : 0))), dhash(gray((i) => 51 + (i % 9 > 4 ? 0 : 30)))) >= 8, 'real structure still separates');
   const still = new Uint8Array(100).fill(100);
   const moving = new Uint8Array(100).fill(200);
   const runs = staticRuns([still, still, still, still, moving, moving], 2);
