@@ -5,7 +5,7 @@
     {
       "id": "claude",
       "name": "Claude Code",
-      "version": "2.1.300",
+      "version": "2.1.304",
       "executable": "{userHome}/.local/bin/claude.exe",
       "nativePaths": {
         "settings": "{userHome}/.claude/settings.json",
@@ -48,7 +48,7 @@
         "headless"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: verified installed launcher/file version 2.1.300. Manual forward update and launcher reconciliation; active sessions preserved."
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `claude.exe --version` printed 2.1.304 (Claude Code). Earlier: 2026-10-14: verified installed launcher/file version 2.1.300. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "codex",
@@ -81,7 +81,7 @@
     {
       "id": "qwen-code",
       "name": "Qwen Code",
-      "version": "0.25.1",
+      "version": "0.25.3",
       "executable": "qwen",
       "nativePaths": {
         "settings": "{userHome}/.qwen/settings.json",
@@ -106,14 +106,14 @@
         "extensions"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: bounded read-only probe of the bare command `qwen` reported 0.25.1, and `qwen update` reported the same version. No upgrade was performed by this inventory correction. The executable stays the bare name `qwen`, which resolves to ~/bin/qwen.cmd.",
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `qwen.cmd --version` printed 0.25.3. Earlier: 2026-10-14: bounded read-only probe of the bare command `qwen` reported 0.25.1, and `qwen update` reported the same version. No upgrade was performed by this inventory correction. The executable stays the bare name `qwen`, which resolves to ~/bin/qwen.cmd.",
       "headlessDispatchNote": "Qwen Code 0.25.1 supports positional one-shot prompts; shim supplies --yolo. Current qwen3.8-max Token Plan route returned HTTP 403; authenticated catalog membership does not establish model entitlement. No credential or model setting was changed."
     },
     {
       "id": "opencode",
       "name": "OpenCode",
-      "version": "1.19.0",
-      "versionObserved": "2026-10-14: `opencode.cmd --version` returned 1.19.0, and `opencode upgrade` reported that 1.19.0 is already installed. It also offered OpenCode 2 via `opencode upgrade --major`. That major upgrade was not run.",
+      "version": "1.19.3",
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `opencode.cmd --version` printed 1.19.3. Earlier: 2026-10-14: `opencode.cmd --version` returned 1.19.0, and `opencode upgrade` reported that 1.19.0 is already installed. It also offered OpenCode 2 via `opencode upgrade --major`. That major upgrade was not run.",
       "executable": "{userHome}/AppData/Roaming/npm/opencode.cmd",
       "nativePaths": {
         "config": "{userHome}/.config/opencode",
@@ -168,8 +168,8 @@
     {
       "id": "gemini",
       "name": "Gemini CLI",
-      "version": "0.64.0",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported 0.64.0. `npm view @google/gemini-cli version` returned the same version, so no upgrade was performed.",
+      "version": "0.65.0",
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `gemini.cmd --version` printed 0.65.0. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported 0.64.0. `npm view @google/gemini-cli version` returned the same version, so no upgrade was performed.",
       "executable": "{userHome}/bin/gemini.cmd",
       "nativePaths": {
         "settings": "{userHome}/.gemini/settings.json",
@@ -237,7 +237,7 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.98",
+      "version": "1.0.101",
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
@@ -259,16 +259,16 @@
         "acp"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: verified installed launcher/file version 1.0.98. Manual forward update and launcher reconciliation; active sessions preserved."
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `copilot.cmd --version` printed GitHub Copilot CLI 1.0.101. Earlier: 2026-10-14: verified installed launcher/file version 1.0.98. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.3.5",
+      "version": "1.4.0",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
-      "versionProbeNote": "Corrected 2026-10-14. The WinGet Links\\agy.exe path is absent. The installed CLI is %LOCALAPPDATA%\\agy\\bin\\agy.exe and `agy --version` returned 1.3.5 within the bounded probe, so versionProbe is cli. versionPackageId remains recorded and is not the probe.",
+      "versionProbeNote": "Corrected 2026-10-14. The WinGet Links\\agy.exe path is absent. The installed CLI is %LOCALAPPDATA%\\agy\\bin\\agy.exe and `agy --version` returned 1.3.5 within the bounded probe, so versionProbe is cli. versionPackageId remains recorded and is not the probe. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `agy.exe --version` printed 1.4.0.",
       "nativePaths": {
         "settings": "{userHome}/.gemini/antigravity-cli/settings.json",
         "mcp": "{userHome}/.gemini/config/mcp_config.json",
@@ -284,8 +284,8 @@
         "instructions": null,
         "instructionsOwnedBy": "gemini",
         "verification": "documented-shared-destination",
-        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today.",
-        "cliSkillsDirNote": "Verified 2026-08-05 against antigravity.google/docs/cli/plugins, which states directly that skills shared across all workstation workspaces go in ~/.gemini/antigravity-cli/skills/. Distinct from workspace .agents/skills/ and from the broader ~/.gemini/skills/ shared across all Antigravity tools rather than the CLI alone. Path correct; absent only because AgentHub deploys Antigravity capabilities as plugin bundles under ~/.gemini/antigravity-cli/plugins/ instead."
+        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today. Reconfirmed 2026-10-21 for the instruction-destination sweep: instructions stays null for the reason above.",
+        "cliSkillsDirNote": "Verified 2026-08-05 against antigravity.google/docs/cli/plugins, which states directly that skills shared across all workstation workspaces go in ~/.gemini/antigravity-cli/skills/. Distinct from workspace .agents/skills/ and from the broader ~/.gemini/skills/ shared across all Antigravity tools rather than the CLI alone. Path correct; absent only because AgentHub deploys Antigravity capabilities as plugin bundles under ~/.gemini/antigravity-cli/plugins/ instead. Updated 2026-10-21: scripts/Sync-Capabilities.ps1 now manages this directory without deploying into it, because the CLI already reads the shared library ~/.agents/skills (sharedSkillsDir) and a copy here would load every skill twice. With -Apply -Prune it removes retired fleet skill names and shadow copies (entries named like a skill AgentHub ships to this host); without -Prune it reports them as drift. Entries AgentHub does not ship (third-party skills) are reported as unmanaged and never deleted, and a reparse point is never removed. Background: on 2026-10-20 this directory held 29 stale unmanaged skill copies (old media-studio skills and retired names) that the CLI loaded beside the managed set; they were backed up to antigravity-cli-skills-backup-20261020-2353.zip with a SHA-256 manifest in the orchestrator's shared notes and then removed. That removal was the owner's decision, relayed by the orchestrating session."
       },
       "supportedCapabilities": [
         "rules",
@@ -302,10 +302,10 @@
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "2.23.1",
+      "version": "2.24.0",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
       "versionProbe": "file-version",
-      "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction.",
+      "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed 2.24.0.",
       "nativePaths": {
         "configHome": "{userHome}/AppData/Roaming/Antigravity",
         "instructions": null,
@@ -351,8 +351,8 @@
     {
       "id": "grok",
       "name": "Grok CLI",
-      "version": "1.0.52",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported `grok 1.0.52 (0920c8169e27) [stable]`. `grok update` reported already up to date at 1.0.52 and was not followed by a package-manager upgrade. No upgrade or downgrade was performed by this inventory correction.",
+      "version": "1.0.62",
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `grok.exe --version` printed grok 1.0.62 (1474f9cbdd91) [stable]. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported `grok 1.0.52 (0920c8169e27) [stable]`. `grok update` reported already up to date at 1.0.52 and was not followed by a package-manager upgrade. No upgrade or downgrade was performed by this inventory correction.",
       "versionNote": "Corrected 2026-08-19. This is NOT a version bump: the previously recorded 0.2.114 belongs to a different product line entirely and was never an observation of this install. Every artifact this install owns agrees on the 1.0.x scheme of xai-org/grok-build -- the binary's own `grok --version` (returned `grok 1.0.5 (5115b46bc9) [stable]`), the previous binary grok.exe.old at 1.0.4, ~/.grok/version.json, and ~/.grok/CHANGELOG.json. Nothing on this machine contains the string 0.2.114. What product 0.2.114 actually named was NOT determined and is recorded here as unresolved rather than guessed at.",
       "executable": "{userHome}/.grok/bin/grok.exe",
       "nativePaths": {
@@ -384,7 +384,7 @@
     {
       "id": "warp",
       "name": "Warp / Oz",
-      "version": "0.2026.10.07.08.29.stable_00",
+      "version": "0.2026.10.14.08.27.stable_01",
       "executable": "{userHome}/AppData/Local/Programs/Warp/warp.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "This is a GUI terminal app whose declared executable is the main window binary with no separate CLI entry point. Read (Get-Item $exe).VersionInfo.FileVersion without launching the window; normalize the leading v. Current observed version is recorded in versionObserved.",
@@ -397,7 +397,7 @@
         "configHome": "{userHome}/AppData/Roaming/warp",
         "instructions": null,
         "verification": "documented-no-global-file",
-        "instructionsNote": "Researched 2026-08-04 against docs.warp.dev/agent-platform/capabilities/rules (subject confirmed: rules). Warp Global Rules are GUI-only -- Warp Drive, Command Palette, Settings > Agents > Knowledge -- with no documented on-disk path. Warp's file-based AGENTS.md and WARP.md rules are project-scoped, which this global-scope sync does not cover. Documented absence of a global FILE, not a failure to find the docs."
+        "instructionsNote": "Researched 2026-08-04 against docs.warp.dev/agent-platform/capabilities/rules (subject confirmed: rules). Warp Global Rules are GUI-only -- Warp Drive, Command Palette, Settings > Agents > Knowledge -- with no documented on-disk path. Warp's file-based AGENTS.md and WARP.md rules are project-scoped, which this global-scope sync does not cover. Documented absence of a global FILE, not a failure to find the docs. Reconfirmed 2026-10-21 for the instruction-destination sweep: instructions stays null for the reason above."
       },
       "supportedCapabilities": [
         "rules",
@@ -409,14 +409,14 @@
         "worktrees"
       ],
       "status": "active",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported PE FileVersion v0.2026.10.07.08.29.stable_00. The recorded value omits the leading v so it matches FileVersion by substring. The window was not launched. No upgrade or downgrade was performed by this inventory correction.",
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed v0.2026.10.14.08.27.stable_01. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported PE FileVersion v0.2026.10.07.08.29.stable_00. The recorded value omits the leading v so it matches FileVersion by substring. The window was not launched. No upgrade or downgrade was performed by this inventory correction.",
       "headlessDispatchNote": "Warp Oz v0.2026.10.07.08.29: WARP_CLI_MODE=1 agent run --prompt <text> -C <cwd> --output-format text. This is a local CLI contract; cloud tasks remain prohibited."
     },
     {
       "id": "cline",
       "name": "Cline CLI / ACP / Kanban",
-      "version": "3.0.71",
-      "versionObserved": "2026-10-14: bounded read-only probe of the declared executable reported 3.0.71. `cline update` reported already on cline 3.0.71 and kanban 0.1.70. No upgrade or downgrade was performed by this inventory correction.",
+      "version": "3.0.73",
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `cline.cmd --version` printed 3.0.73. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported 3.0.71. `cline update` reported already on cline 3.0.71 and kanban 0.1.70. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/.local/bin/cline.cmd",
       "executableNote": "Corrected 2026-08-11: the declaration read {userHome}/bin/cline.cmd, which does not exist. Cline installs to %USERPROFILE%/.local/bin, the same root `claude` uses, and ships both cline.cmd and cline.ps1 there; PowerShell's Get-Command resolves the .ps1 first, so a check that compares against Get-Command output alone will disagree with this declaration even though both are the same install. .cmd is declared because it is the form callable from any shell.",
       "nativePaths": {
@@ -457,7 +457,7 @@
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.24.18",
+      "version": "3.25.9",
       "executable": "{userHome}/bin/cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
@@ -486,7 +486,7 @@
       ],
       "status": "active",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher was re-verified against Cursor 3.17.8 on 2026-08-22; native local plugins expose the canonical AgentHub packages.",
-      "versionObserved": "2026-10-14: verified installed launcher/file version 3.24.18. Manual forward update and launcher reconciliation; active sessions preserved."
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `cursor.cmd --version` printed 3.25.9. Earlier: 2026-10-14: verified installed launcher/file version 3.24.18. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "cursor-agent",
@@ -502,7 +502,7 @@
         "sharedSkillsDirNote": "Same junction as the cursor host: ~/.cursor/skills -> ~/.agents/skills. cursor-agent reads this path.",
         "instructions": null,
         "verification": "documented-no-global-file",
-        "instructionsNote": "Researched 2026-08-04 against cursor.com/docs/rules, cursor.com/docs/cli/using and cursor.com/docs/cli/reference/configuration (subjects confirmed: rules, CLI usage, CLI configuration). Cursor User Rules are global but live in GUI state under Customize > Rules with no documented file path, and the CLI reads AGENTS.md/CLAUDE.md only at the project root. The exhaustive cli-config.json key list contains no instructions field. This is a documented absence of a global FILE, not a failure to find the docs, so instructions stays null by design rather than pending discovery."
+        "instructionsNote": "Researched 2026-08-04 against cursor.com/docs/rules, cursor.com/docs/cli/using and cursor.com/docs/cli/reference/configuration (subjects confirmed: rules, CLI usage, CLI configuration). Cursor User Rules are global but live in GUI state under Customize > Rules with no documented file path, and the CLI reads AGENTS.md/CLAUDE.md only at the project root. The exhaustive cli-config.json key list contains no instructions field. This is a documented absence of a global FILE, not a failure to find the docs, so instructions stays null by design rather than pending discovery. Reconfirmed 2026-10-21 for the instruction-destination sweep: instructions stays null for the reason above."
       },
       "supportedCapabilities": [
         "rules",
@@ -520,8 +520,8 @@
     {
       "id": "qoder",
       "name": "Qoder CLI / Desktop / JetBrains / QoderWork",
-      "version": "1.1.71",
-      "versionNote": "2026-10-14: official npm CLI and PATH launcher report 1.1.71; ACP initialize reports agentVersion 1.1.71. Historical native 1.0.45 is not the selected launcher.",
+      "version": "1.1.75",
+      "versionNote": "2026-10-14: official npm CLI and PATH launcher report 1.1.71; ACP initialize reports agentVersion 1.1.71. Historical native 1.0.45 is not the selected launcher. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `qodercli.cmd --version` printed 1.1.75.",
       "executable": "{userHome}/AppData/Roaming/npm/qodercli.cmd",
       "executableNote": "2026-10-14: selected official npm qodercli.cmd. User bin launcher and qoder-acp.cmd forward here. Historical ~/.qodersec/bin/qodercli.exe is not the selected route.",
       "nativePaths": {
@@ -597,7 +597,7 @@
     {
       "id": "devin",
       "name": "Devin Desktop / CLI",
-      "version": "3000.11.3",
+      "version": "3000.11.92",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
       "nativePaths": {
         "config": "{roamingConfig}/devin/config.json",
@@ -607,9 +607,9 @@
         "pluginsDir": "{roamingConfig}/devin/cli/plugins",
         "agentsDir": "{roamingConfig}/devin/agents",
         "hooksDir": null,
-        "instructions": null,
-        "verification": "documented-feature-inferred-windows-path",
-        "instructionsNote": "Researched 2026-08-04 against docs.devin.ai/cli/extensibility/rules and re-checked the same day against docs.devin.ai/cli/extensibility/configuration (subjects confirmed: Rules/AGENTS.md and CLI configuration). Devin CLI loads a global AGENTS.md at the start of every session. The configuration page states the user config file is %APPDATA%/devin/config.json on Windows -- matching nativePaths.config here -- and instructs the reader to place AGENTS.md 'in this directory', i.e. the same user config directory, giving ~/.config/devin/AGENTS.md on Unix. The Windows form therefore derives from a documented directory rather than a guess, but the vendor never writes the Windows path literally, so this stays unresolved rather than being promoted to a deployment target. The separate Devin cloud Knowledge feature is an account setting, not a local file.",
+        "instructions": "{roamingConfig}/devin/AGENTS.md",
+        "verification": "documented-path",
+        "instructionsNote": "Re-verified 2026-10-21 against docs.devin.ai/cli/extensibility/configuration, which now writes the Windows path literally: the user config is %APPDATA%\\devin\\config.json (C:\\Users\\<you>\\AppData\\Roaming\\devin\\config.json) and 'You can also place an AGENTS.md file in this directory' to define global rules for every project. Promoted from documented-feature-inferred-windows-path to a deployment destination. History: researched 2026-08-04 when the page gave only the Unix ~/.config/devin form.",
         "mcpKey": "mcpServers",
         "mcpNote": "Verified 2026-08-04. docs.devin.ai/cli/extensibility/mcp documents only PROJECT scope (.devin/mcp_config.json and .devin/mcp_config.local.json, key mcpServers) and says nothing about user-level MCP -- which nearly became a false finding that Sync-AgentHub.ps1 writes MCP where Devin does not read it. Checking the live file settled it: %APPDATA%/devin/config.json already carries an mcpServers object with six Devin-owned entries (context7, descript, exa, firecrawl, linear, notion) that AgentHub never wrote. The global key is real and the vendor page is merely incomplete. Sync-AgentHub.ps1's ProtectKeys behavior exists to keep those host-owned entries from being pruned.",
         "agentsDirNote": "Verified 2026-08-05 against docs.devin.ai/cli/subagents. Devin CLI reads subagent profiles from %APPDATA%/devin/agents on Windows (~/.config/devin/agents on macOS and Linux), each as agents/<name>/AGENT.md -- a directory per agent, not a flat file per agent. Path correct; absent only because AgentHub does not generate Devin subagents: registry/subagent-formats.json is scoped to four hosts and devin is not one of them.",
@@ -629,7 +629,7 @@
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
       "versionProbe": "cli",
       "executableNote": "Corrected 2026-10-14. The old path %LOCALAPPDATA%\\devin\\cli\\bin\\devin.exe from the 2026-09-09 survey is not the live binary. The installed CLI is the WinGet executable %LOCALAPPDATA%\\Microsoft\\WinGet\\Links\\devin.exe. `devin --version` returned devin 3000.11.3 (9c803229faa4). The ~/bin/devin.cmd shim already injects fleet permission flags, so the registry points at the WinGet executable and not that shim. This repair verified the local print/prompt-file contract and a bounded smoke on the free swe-2-medium model. No upgrade or downgrade was performed by this inventory correction.",
-      "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because the WinGet executable exists and `devin --version` returned 3000.11.3 within the bounded probe.",
+      "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because the WinGet executable exists and `devin --version` returned 3000.11.3 within the bounded probe. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `devin.exe --version` printed devin 3000.11.92 (7f4e64980e22).",
       "headlessDispatchNote": "--permission-mode dangerous --respect-workspace-trust false -p --prompt-file <file>; devin 3000.11.3 --help verified 2026-10-14. Local execution only; --cloud is not dispatched."
     },
     {
@@ -678,8 +678,9 @@
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "sharedSkillsDirNote": "Verified 2026-08-20 against https://code.visualstudio.com/docs/agent-customization/agent-skills: VS Code supports personal Agent Skills under ~/.copilot/skills, ~/.claude/skills, and ~/.agents/skills. AgentHub already manages ~/.agents/skills as the shared user-level destination for Codex, Gemini, and Warp, so VS Code Insiders resolves to that same documented shared directory instead of inventing an AppData-private skills path.",
         "instructions": null,
-        "verification": "documented-feature-undocumented-path",
-        "instructionsNote": "Researched 2026-08-04 against code.visualstudio.com/docs/copilot/customization/custom-instructions (subject confirmed: Copilot custom instructions). A user-profile instructions scope exists and is file-based, but neither that page nor the prompt-files page states an absolute path -- they say only 'your user data'. No prompts directory and no *.instructions.md exists under AppData/Roaming/Code - Insiders/User on this machine. The instructions path remains discovery-required; the separately documented shared Agent Skills route is recorded in sharedSkillsDir."
+        "instructionsOwnedBy": "copilot",
+        "verification": "documented-shared-destination",
+        "instructionsNote": "Re-verified 2026-10-21 against code.visualstudio.com/docs/agent-customization/custom-instructions (ms.date 2026-10-14): user-scope instructions for the Copilot harness default to ~/.copilot/instructions; profile-stored instructions are migrated there and chat.instructionsFilesLocations is deprecated. That folder belongs to the Copilot harness, whose AgentHub destination is the 'copilot' entry ({userHome}/.copilot/copilot-instructions.md); instructions stays null here so Sync never writes a second, competing policy file (a single-file destination cannot be a folder), and instructionsOwnedBy records the owner. History: 2026-08-04 the page said only 'your user data'."
       },
       "supportedCapabilities": [
         "rules",

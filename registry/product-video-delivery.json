@@ -20,42 +20,130 @@
     {
       "productId": "gentlenext",
       "repositoryRoot": "C:/Repos/shmindmaster/gentlenext",
-      "reviewRoot": "F:/My Drive/Videos/GentleNext"
+      "reviewRoot": "F:/My Drive/Videos/GentleNext",
+      "kind": "product"
     },
     {
       "productId": "lawli",
       "repositoryRoot": "C:/Repos/shmindmaster/lawli",
-      "reviewRoot": "F:/My Drive/Videos/Lawli"
+      "reviewRoot": "F:/My Drive/Videos/Lawli",
+      "kind": "product"
     },
     {
       "productId": "lexalign",
       "repositoryRoot": "C:/Repos/shmindmaster/lexalign",
-      "reviewRoot": "F:/My Drive/Videos/LexAlign"
+      "reviewRoot": "F:/My Drive/Videos/LexAlign",
+      "kind": "product"
     },
     {
       "productId": "subops",
       "repositoryRoot": "C:/Repos/shmindmaster/subops",
-      "reviewRoot": "F:/My Drive/Videos/SubOps"
+      "reviewRoot": "F:/My Drive/Videos/SubOps",
+      "kind": "product"
     },
     {
       "productId": "warrantygains",
       "repositoryRoot": "C:/Repos/shmindmaster/warrantygains",
-      "reviewRoot": "F:/My Drive/Videos/WarrantyGains"
+      "reviewRoot": "F:/My Drive/Videos/WarrantyGains",
+      "kind": "product"
     },
     {
       "productId": "abacare",
       "repositoryRoot": "C:/Repos/shmindmaster/abacare",
-      "reviewRoot": "F:/My Drive/Videos/ABACare"
+      "reviewRoot": "F:/My Drive/Videos/ABACare",
+      "kind": "product"
     },
     {
       "productId": "coledger",
       "repositoryRoot": "C:/Repos/shmindmaster/coledger",
-      "reviewRoot": "F:/My Drive/Videos/CoLedger"
+      "reviewRoot": "F:/My Drive/Videos/CoLedger",
+      "kind": "product"
     },
     {
       "productId": "heatlot",
       "repositoryRoot": "C:/Repos/shmindmaster/heatlot",
-      "reviewRoot": "F:/My Drive/Videos/Heatlot"
+      "reviewRoot": "F:/My Drive/Videos/Heatlot",
+      "kind": "product"
+    },
+    {
+      "productId": "duckie",
+      "repositoryRoot": "C:/Repos/musa-dev-team/duckie-app",
+      "reviewRoot": "F:/My Drive/Videos/Duckie",
+      "kind": "client-product"
+    },
+    {
+      "productId": "revolva",
+      "repositoryRoot": "C:/Repos/shmindmaster/revolva",
+      "reviewRoot": "F:/My Drive/Videos/Revolva",
+      "kind": "product"
+    },
+    {
+      "productId": "repocontext",
+      "repositoryRoot": null,
+      "reviewRoot": "F:/My Drive/Videos/RepoContext",
+      "kind": "product-retired-repository",
+      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
+    },
+    {
+      "productId": "sabhi",
+      "repositoryRoot": null,
+      "reviewRoot": "F:/My Drive/Videos/Sabhi",
+      "kind": "client-product",
+      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
+    },
+    {
+      "productId": "toptal",
+      "repositoryRoot": null,
+      "reviewRoot": "F:/My Drive/Videos/Toptal",
+      "kind": "career",
+      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
+    },
+    {
+      "productId": "upwork",
+      "repositoryRoot": null,
+      "reviewRoot": "F:/My Drive/Videos/Upwork",
+      "kind": "career",
+      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
+    },
+    {
+      "productId": "proof-clips",
+      "repositoryRoot": null,
+      "reviewRoot": "F:/My Drive/Videos/Proof Clips",
+      "kind": "portfolio",
+      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
+    },
+    {
+      "productId": "showreel",
+      "repositoryRoot": null,
+      "reviewRoot": "F:/My Drive/Videos/Showreel",
+      "kind": "portfolio",
+      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
+    },
+    {
+      "productId": "deloitte",
+      "repositoryRoot": null,
+      "reviewRoot": "F:/My Drive/Videos/Deloitte",
+      "kind": "career",
+      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
+    },
+    {
+      "productId": "fedex",
+      "repositoryRoot": null,
+      "reviewRoot": "F:/My Drive/Videos/FedEx",
+      "kind": "career",
+      "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     }
-  ]
+  ],
+  "excludedFolders": {
+    "recordedOn": "2026-10-21",
+    "folders": [
+      "Personal",
+      "Personal Music",
+      "Personal Recordings",
+      "Private Reference",
+      "Gartner"
+    ],
+    "reason": "Personal or restricted (Gartner recordings are licensed and restricted). Never a delivery review root; validation fails if one is registered."
+  },
+  "registrationNote": "2026-10-21: every F:/My Drive/Videos folder that holds delivered NN - Title.mp4 files and is not personal or restricted is registered. GentleNext stays registered although its folder does not exist yet (no film delivered)."
 }
