@@ -570,7 +570,7 @@
       "retiredSkills": [
         {
           "name": "ui-verify",
-          "contentHash": "19E15F4745FD39172A67534369B12469897014EE84B45EC2A5998C5EBEE6AD9C",
+          "contentHash": "79667ED888D1D6B5E5CD8B888C8E9166F61C69D9FAE452A798D085FA5DEBA5E7",
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
@@ -690,7 +690,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "4A2F6EA3A71DB3718917E4F4B913929C8326971A1C8FC7EF52F25696F13E450F",
+      "contentHash": "666D550C0E37D7FE03D72A196B5E473EFDDB0AC47C5CEDECAC0E788724231655",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -1298,7 +1298,7 @@
         "media-story-experience-reviewer",
         "media-studio-descript"
       ],
-      "contentHash": "67CF0F3EFC0FAA628576FBC2A19CB68FB29929675F4CB7282FBF2B3ECA8BEFD5",
+      "contentHash": "4E4915EF98F72AC7C3F45BEF737039114D2D1A52C7B1BABF3D11352EBD6F31B8",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
