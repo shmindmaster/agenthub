@@ -985,6 +985,28 @@ test('review 1/3/5/6: composition behaviours the layout depends on are in the so
   // title: one row per sentence so "Out in 2 days." never wraps mid-sentence; the word stagger counts across rows
   assert.match(tsx, /split\(\/\(\?<=\[\.!\?\]\)\\s\+\/\)/);
   assert.match(tsx, /rows\.slice\(0, r\)\.reduce\(\(n, x\) => n \+ x\.length, 0\)/);
+  // title: each sentence row is sized to fit one line from its character count (0.56 em per character + 0.28 em word gaps),
+  // capped at the hook size, floored at 0.08 of the box
+  assert.match(tsx, /0\.56 \* r\.join\(""\)\.length \+ 0\.28 \* \(r\.length - 1\)/);
+  assert.match(tsx, /Math\.max\(floor, Math\.min\(cap, Math\.floor\(box\.w \/ rowEm\)\)\)/);
+  assert.match(tsx, /const floor = Math\.round\(Math\.min\(box\.w, box\.h\) \* 0\.08\)/);
+  assert.match(tsx, /columnGap: size \* 0\.28/);
+  const titleSize = (ratio, headline) => {
+    const box = layoutFor(ratio, brand).ctaBox;
+    const rows = headline.split(/(?<=[.!?])\s+/).map((r) => r.split(/\s+/).filter(Boolean));
+    const cap = Math.round(Math.min(box.w, box.h) * (ratio === '16x9' ? 0.16 : 0.15));
+    const floor = Math.round(Math.min(box.w, box.h) * 0.08);
+    const rowEm = Math.max(...rows.map((r) => 0.56 * r.join('').length + 0.28 * (r.length - 1)));
+    return { box, cap, floor, rowEm, size: Math.max(floor, Math.min(cap, Math.floor(box.w / rowEm))) };
+  };
+  const unsigned = titleSize('4x5', 'Unsigned note. Claim held.');
+  assert.ok(unsigned.size < unsigned.cap, 'the fixed fraction would have wrapped "Unsigned" alone');
+  assert.ok(unsigned.size * unsigned.rowEm <= unsigned.box.w, 'the widest row fits its box on one line');
+  assert.ok(unsigned.size >= unsigned.floor);
+  const short = titleSize('16x9', 'Two days.');
+  assert.equal(short.size, short.cap, 'a short row keeps the hook size');
+  const huge = titleSize('9x16', 'Authorization renewals quietly lapsing everywhere unnoticed today.');
+  assert.equal(huge.size, huge.floor, 'an over-long row bottoms out at the floor, where it may wrap');
   // 6: the card block is centred in the safe area and shares the caption / label left edge
   const l916 = layoutFor('9x16', brand);
   assert.equal(l916.ctaBox.y, l916.safe.y);

@@ -180,7 +180,12 @@ const TitleBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props 
   const { brand, layout } = props;
   const box = layout.ctaBox;
   const rows = String(beat.headline ?? "").split(/(?<=[.!?])\s+/).map((r) => r.split(/\s+/).filter(Boolean)).filter((r) => r.length);
-  const size = Math.round(Math.min(box.w, box.h) * (props.ratio === "16x9" ? 0.16 : 0.15));
+  // Each sentence row fits on one line: the type is sized from the widest row (Space Grotesk 600 is about 0.56 em per character,
+  // plus the 0.28 em gap between words), never above the hook size and never below a floor of 0.08 of the box (only there may a row wrap).
+  const cap = Math.round(Math.min(box.w, box.h) * (props.ratio === "16x9" ? 0.16 : 0.15));
+  const floor = Math.round(Math.min(box.w, box.h) * 0.08);
+  const rowEm = Math.max(0, ...rows.map((r) => 0.56 * r.join("").length + 0.28 * (r.length - 1)));
+  const size = rowEm > 0 ? Math.max(floor, Math.min(cap, Math.floor(box.w / rowEm))) : cap;
   const STAGGER = 0.09;
   return (
     <AbsoluteFill style={{ background: `linear-gradient(150deg, ${brand.colors.primary} 0%, ${brand.colors.foreground} 85%)` }}>
