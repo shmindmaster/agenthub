@@ -186,6 +186,13 @@ if ($CapabilityId) {
   if ($priorHashesAreLegacy) { throw 'Run a full sync to migrate the legacy ledger before scoped sync.' }
 }
 $retiredDestinations = @{}
+# Destinations that came from a host's nativePaths.cliSkillsDir. Sync owns that
+# directory (see the cliSkillsDir pass below) but never deploys into it, and it
+# never removes a reparse point from it.
+$cliRetiredDestinations = @{}
+# Per host: names of the skills AgentHub ships and deploys to that host's shared
+# library. Anything of the same name in the host's cliSkillsDir is a shadow copy.
+$shippedByHost = @{}
 $rows = [Collections.Generic.List[object]]::new()
 $failures = [Collections.Generic.List[string]]::new()
 # Destinations a guard declined to touch this run, keyed by path. Parallel to
@@ -203,6 +210,11 @@ function Resolve-AgentHubRuntimeDestination([string]$RelativePath) {
     throw "Managed runtime path escapes '$agentHubRuntimeRoot': '$RelativePath'"
   }
   return $destination
+}
+
+function Test-ReparsePoint([string]$Path) {
+  $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+  return [bool]($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint))
 }
 
 function Register-ManagedTree {
@@ -297,6 +309,10 @@ foreach ($capability in $capabilities.capabilities) {
       $retiredDestinations[(Join-Path $skillsDir $retiredName)] = $capability.id
     }
     if ($skills.Count -eq 0) { continue }
+    if (-not $shippedByHost.ContainsKey([string]$agent.id)) {
+      $shippedByHost[[string]$agent.id] = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    }
+    foreach ($skill in $skills) { [void]$shippedByHost[[string]$agent.id].Add($skill.Name) }
     $deployMode = if ($usesSharedDir) { 'shared-loose-skill' } else { 'loose-skill' }
     foreach ($skill in $skills) {
       $destination = Join-Path $skillsDir $skill.Name
@@ -334,11 +350,12 @@ foreach ($retired in @($capabilities.retiredFleetSkills)) {
     continue
   }
   foreach ($agent in $agents) {
-    foreach ($raw in @([string]$agent.nativePaths.skillsDir, [string]$agent.nativePaths.sharedSkillsDir)) {
+    foreach ($raw in @([string]$agent.nativePaths.skillsDir, [string]$agent.nativePaths.sharedSkillsDir, [string]$agent.nativePaths.cliSkillsDir)) {
       if ([string]::IsNullOrWhiteSpace($raw)) { continue }
       $dir = Resolve-UnderUserProfile $raw
       if ([string]::IsNullOrWhiteSpace($dir)) { continue }
       $retiredDestinations[(Join-Path $dir $name)] = "<fleet:$name>"
+      if ($raw -eq [string]$agent.nativePaths.cliSkillsDir) { $cliRetiredDestinations[(Join-Path $dir $name)] = $true }
     }
   }
 }
@@ -348,8 +365,79 @@ if ($Apply -and $Prune) {
   foreach ($destination in @($retiredDestinations.Keys)) {
     if (-not (Test-Path -LiteralPath $destination)) { continue }
     if ($desired.ContainsKey($destination)) { continue }   # a live skill reclaimed the name
+    if ($cliRetiredDestinations.ContainsKey($destination) -and (Test-ReparsePoint $destination)) { continue }
     Remove-Item -LiteralPath $destination -Recurse -Force
     $retiredPruned++
+  }
+}
+
+# cliSkillsDir pass. A host that declares nativePaths.cliSkillsDir (today only
+# antigravity) has a directory its CLI loads IN ADDITION to the shared library
+# it already reads, so a skill copied there is loaded twice. Sync therefore owns
+# that directory but deploys nothing into it:
+#   - retired names are pruned (the retiredFleetSkills sweep above covers it);
+#   - an entry named like a skill AgentHub ships to that host is a shadow copy:
+#     removed with -Apply -Prune, reported as drift otherwise;
+#   - any other entry (a third-party skill the owner installed) is reported as
+#     unmanaged and never touched;
+#   - a reparse point is never removed, whatever its name.
+# On 2026-10-20 this directory held 29 stale unmanaged copies that nothing
+# detected until the CLI loaded them beside the managed set.
+# Skipped for a scoped (-CapabilityId) run: its shipped set is partial, so it
+# would misclassify skills of the unselected capabilities.
+$cliShadowPruned = 0
+$cliDirs = @{}
+foreach ($agent in $agents) {
+  if ($CapabilityId) { break }
+  $raw = [string]$agent.nativePaths.cliSkillsDir
+  if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+  $dir = Resolve-UnderUserProfile $raw
+  if ([string]::IsNullOrWhiteSpace($dir)) { continue }
+  # If the CLI directory is the same place skills are deployed to, every
+  # shipped skill in it is the managed copy, not a shadow of it.
+  $sameAsDeploy = $false
+  foreach ($other in @([string]$agent.nativePaths.skillsDir, [string]$agent.nativePaths.sharedSkillsDir)) {
+    if ([string]::IsNullOrWhiteSpace($other)) { continue }
+    $otherDir = Resolve-UnderUserProfile $other
+    if ($otherDir -and $otherDir.TrimEnd('\','/') -ieq $dir.TrimEnd('\','/')) { $sameAsDeploy = $true }
+  }
+  if ($sameAsDeploy) { continue }
+  $key = $dir.TrimEnd('\','/').ToLowerInvariant()
+  if (-not $cliDirs.ContainsKey($key)) {
+    $cliDirs[$key] = @{ path=$dir; host=[string]$agent.id; shipped=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase) }
+  }
+  if ($shippedByHost.ContainsKey([string]$agent.id)) {
+    foreach ($n in $shippedByHost[[string]$agent.id]) { [void]$cliDirs[$key].shipped.Add($n) }
+  }
+}
+foreach ($entry in $cliDirs.Values) {
+  if (-not (Test-Path -LiteralPath $entry.path -PathType Container)) { continue }
+  foreach ($child in @(Get-ChildItem -LiteralPath $entry.path -Force)) {
+    $name = $child.Name
+    $path = $child.FullName
+    $cliRow = { param($status) $rows.Add([pscustomobject]@{ capability='<cli-skills-dir>'; host=$entry.host; mode='cli-skills-dir'; skill=$name; status=$status }) }
+    if ($desired.ContainsKey($path)) { continue }   # a managed destination is never a shadow of itself
+    if (Test-ReparsePoint $path) {
+      & $cliRow 'reparse-skipped'
+      Write-Host "CLI-SKILLS-DIR reparse point left in place (never removed): $path"
+    } elseif ($retiredDestinations.ContainsKey($path)) {
+      # Only reachable here when the retired prune did not run (no -Apply -Prune).
+      & $cliRow 'retired-present'
+      Write-Host "CLI-SKILLS-DIR retired skill still present (drift; -Apply -Prune removes it): $path"
+    } elseif ($entry.shipped.Contains($name)) {
+      if ($Apply -and $Prune) {
+        Remove-Item -LiteralPath $path -Recurse -Force
+        $cliShadowPruned++
+        & $cliRow 'shadow-pruned'
+        Write-Host "CLI-SKILLS-DIR shadow copy removed: $path"
+      } else {
+        & $cliRow 'shadow-copy'
+        Write-Host "CLI-SKILLS-DIR shadow copy of a shipped skill (drift; -Apply -Prune removes it): $path"
+      }
+    } else {
+      & $cliRow 'unmanaged'
+      Write-Host "CLI-SKILLS-DIR unmanaged entry not shipped by AgentHub (left in place): $path"
+    }
   }
 }
 
@@ -472,4 +560,4 @@ if ($rows.Count -eq 0 -and $pruned -eq 0) {
 }
 
 $counts = $rows | Group-Object status | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Count)" }
-Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; retired-pruned=$retiredPruned; yaml-repaired=$yamlRepaired; yaml-needs-repair=$yamlNeedsRepair; apply=$Apply."
+Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; retired-pruned=$retiredPruned; cli-shadow-pruned=$cliShadowPruned; yaml-repaired=$yamlRepaired; yaml-needs-repair=$yamlNeedsRepair; apply=$Apply."
