@@ -139,8 +139,9 @@ text-to-word or diagram-to-word sync.
   (never the pronunciation-respelled render text; respelling is a render-time dictionary layer, the aligner gets the
   words the viewer reads), then the whisper cross-check. Qwen3-ASR stays the identity/wording gate; it is not a clock.
 - `skills/media-studio-compose/SKILL.md`: new section "Word-synced text and building diagrams" (components in §5,
-  `build-sync-plan.mjs`, `render-with-receipt.mjs`). Replace line 68's single sentence with: burned word-synced text
-  and the soft subtitle track (`mov_text` for MP4) are both generated from `story/word-timings.json`; neither is typed
+  `build-sync-plan.mjs`, `render-with-receipt.mjs`). Replace line 68's single sentence with: this helper does not burn
+  captions; burned word-synced text (burned by the render, not the finish helper) and the soft subtitle track
+  (`mov_text` for MP4) are both generated from `story/word-timings.json`; neither is typed
   by hand. Update the hard-coded `2.0.4` version checks to `2.1.0`. Final check gains "sync plan built from timings;
   receipt collected".
 - `skills/media-studio-qa/SKILL.md`: new step **2g Word-sync gate** (product screencast with captions, and every other
@@ -186,16 +187,16 @@ text-to-word or diagram-to-word sync.
 | `tests/word-sync.test.mjs` (new) | Synthetic fixtures only: a clean pass; a 3-frame late highlight (fails); an early paint (fails); a node with no beat word (fails); a plan/receipt mismatch (fails); a pixel probe that sees no change (fails); a draft with estimates (warns). Proves the gate can fail. |
 | `scripts/build-cue-sheet.mjs` | Source order `voice/timings/` → `voice/asr/` → `story/narration-words.json` → estimate; record `precision: aligned \| word \| segment \| estimate` per line. |
 | `scripts/validate-viewer-release.mjs` | When `job.wordSync` is `required`, require `qa/word-sync.json` PASS bound to the candidate with the canonical thresholds (same `canonical()` pattern as `:59`, `:100`). |
-| `scripts/validate-storyboard.mjs` | Every `build[].word` occurs in its line's locked text; `textMode: spoken` beats have `onScreen` equal to the line, not a paraphrase. |
+| `scripts/validate-storyboard.mjs` | Every `build[].word` occurs in its line's locked text; `textMode: spoken` beats have `onScreen` equal to the line, not a paraphrase. These checks run only on beats that declare `textMode`/`build[]` (or when `wordSync` is not `off`), so pre-2.1 jobs re-cut under 2.1 tooling are unaffected unless they opt in (§9). |
 | `scripts/validate-narration.mjs` | Every `keyTerms[]` entry is spoken at least once (a term painted but never said is a fail). |
-| `scripts/scaffold-video-workspace.mjs` | Create `voice/timings/`. |
-| `scripts/Sync-MediaStudioKit.ps1` | Deploy `kit/sync/*`, `kit/src/sync/*`, `kit/src/theme/*`, and `validate-word-sync.mjs` to `_shared\tools`; refuse when the runtime lock's version differs from `package.json` (fixes §2.5). |
+| `scripts/scaffold-video-workspace.mjs` | Create `voice/timings/`; stamp `mediaStudioVersion: "2.1.0"` on new jobs. |
+| `scripts/Sync-MediaStudioKit.ps1` | Deploy `kit/sync/*`, `kit/src/sync/*`, `kit/src/theme/*`, and `validate-word-sync.mjs` to `_shared\tools`; refuse when the runtime lock's version differs from `package.json` (fixes §2.5). The deployed lock is stale today, so the first post-2.1 sync will refuse: the operator regenerates `package-lock.json` in the repo kit and re-runs the sync (remediation in §9). |
 | `schemas/word-timings.schema.json` (new) | §6.2. |
 | `schemas/sync-plan.schema.json` (new) | Plan and receipt events. |
 | `schemas/storyboard.schema.json` | Beat `textMode`, `build[] {target, word, occurrence?, lead?}`, `focus[]`, `emphasisRole`. |
 | `schemas/screenplay.schema.json` | Film-level `keyTerms[]`; scene `emphasis` gains a `role`. |
 | `schemas/visual-bible.schema.json` | Required `emphasisSystem`. |
-| `schemas/job.schema.json` | `wordSync: required \| optional \| off`; `mediaStudioVersion`. |
+| `schemas/job.schema.json` | `wordSync: required \| optional \| off`; `mediaStudioVersion` (written by `scaffold-video-workspace.mjs` at job creation; absent on pre-2.1 jobs). |
 | `schemas/timed-graphics.schema.json` | Optional `beat` on an overlay so a timed graphic can start on a word. |
 | Manifests | `plugin.json`, `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json` → 2.1.0; recompute `scripts/RegistryContentHash.ps1`; `Validate-AgentHub.ps1` and the package tests pass. |
 
@@ -317,6 +318,7 @@ and byte count, the sync plan and the receipt.
 
 | Check | Pass | Why this number |
 | --- | --- | --- |
+| Timings bound to take | Per line, `word-timings.audio.sha256` equals the SHA-256 of the take the cue sheet renders | Deterministic stale/swapped-take detection; the whisper cross-check is only probabilistic |
 | Coverage | ≥98% of script tokens aligned per line; **every** key term and every `build[].word` aligned | The exam plan's 2% unmatched limit; a missing beat word is a missing build |
 | Highlight/paint on time | Event frame − `round(start × fps)` ∈ [−1, +1] frames for every event; median 0 | ≤33 ms at 30 fps; the 40 ms owner tolerance expressed in frames |
 | No early paint | No event visible before its frame − 1 (pixel probe) | Text that runs ahead of the voice reads as a teleprompter |
@@ -337,7 +339,7 @@ loosened run cannot release. Text clipping is still not machine-checked without 
 Checked 2026-10-21 against npm release dates, the Remotion GitHub releases, the PowerToys GitHub releases and the
 `local-ai-platform` commit log. Items are proposals; each is verified in its implementation PR before adoption.
 
-### 8.1 Remotion 4.0.518 → 4.0.537 (kit pins 4.0.517, 2026-08-25)
+### 8.1 Remotion 4.0.517 → 4.0.537 (kit pins 4.0.517, 2026-08-25)
 
 | Adopt | What | Released |
 | --- | --- | --- |
@@ -391,7 +393,9 @@ rules unchanged; no clones of real people). Missing: `ai.ps1 align` (§6.1).
 - Existing `voice/asr/<id>.json` (whisper) imports as `clock.source: "asr"`; scenes with `at`/`atSeconds` keep
   working, `beat` wins when both exist; `MarketingAd` `captions.json` converts through `word-timings.mjs`.
 - Runtime: `Sync-MediaStudioKit.ps1` replaces the kit and refuses a stale lock; local extra files in the runtime kit
-  (`.bak-*`, job-specific scene JSON, `out/`, `public/`) are not touched.
+  (`.bak-*`, job-specific scene JSON, `out/`, `public/`) are not touched. The deployed lock is already stale (§2.5),
+  so the first post-2.1 sync refuses: regenerate `package-lock.json` in the repo kit (so it matches the 2.1.0
+  `package.json`), then re-run `Sync-MediaStudioKit.ps1` to deploy.
 - The exam job's shapes map one to one: `voice/timings/` (same folder name), `plan/diagram.json` → `BuildDiagram`
   `layout: given`, script `keyTerms` → screenplay `keyTerms`, its colour families → the default learning roles. Its
   card-level 40 ms gates match §7 in frames; the one difference is the explicit cross-check against the 80 ms
