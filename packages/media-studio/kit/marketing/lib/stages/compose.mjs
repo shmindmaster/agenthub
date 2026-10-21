@@ -6,10 +6,10 @@ import { join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
 import { alignBeat } from '../align.mjs';
 import { cameraKeyframes, focusWindows, pointerTrack, readability, windowAt } from '../crop.mjs';
-import { FRAMES, layoutFor, safeZoneErrors } from '../layout.mjs';
+import { FRAMES, labelLines, layoutFor, safeZoneErrors } from '../layout.mjs';
 import { normalizeCuts } from '../lint.mjs';
 import { buildMixArgs, encodeArgs, loudnessTarget, loudnormMeasureArgs, parseLoudnorm, run } from '../mix.mjs';
-import { toSrt } from '../captions.mjs';
+import { lineBreaks, toSrt } from '../captions.mjs';
 import { resolveClip } from './capture.mjs';
 import { sfxKey } from './assets.mjs';
 import { fileSha, readJson, round, writeJson } from '../util.mjs';
@@ -53,7 +53,11 @@ export function validateProps(props, publicDir) {
   }
   need(Math.abs(end - props.durationSec) < 0.02, `beats end at ${end}, props say ${props.durationSec}`);
   for (const f of props.brand.fontFiles) need(existsSync(join(publicDir, f.src)), `font file missing: ${f.src}`);
-  for (const c of props.captions) need(c.endSec > c.startSec && c.words.length > 0 && c.words.length <= 7, 'caption chunk');
+  for (const c of props.captions) {
+    need(c.endSec > c.startSec && c.words.length > 0 && c.words.length <= 7, 'caption chunk');
+    need(!c.lines || c.lines.reduce((a, b) => a + b, 0) === c.words.length, 'caption line breaks must cover every word');
+    need(!c.lines || c.words.length < 4 || c.lines.every((n) => n >= 2), 'a caption line holds a single word');
+  }
   return errors;
 }
 
@@ -97,7 +101,7 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
       const hold = seg.durationSeconds - playSec;
       if (hold > HOLD_PAD_MAX) throw new Error(`${beat.id}: the clip covers ${playSec.toFixed(1)}s of the ${seg.durationSeconds.toFixed(1)}s beat (hold ${hold.toFixed(1)}s > ${HOLD_PAD_MAX}s); shorten the narration, adjust trims, or recapture`);
       const track = pointerTrack(entry.actions, { headTrim: clip.headTrimSeconds, viewport: clip.viewport });
-      const windows = focusWindows({ explicit: beat.ui.focus, track, clipStart: trimStart, clipEnd: trimStart + playSec, srcW: clip.viewport.width, srcH: clip.viewport.height, band: layout.uiBand, zoom: layout.zoom });
+      const windows = focusWindows({ explicit: beat.ui.focus, track, clipStart: trimStart, clipEnd: trimStart + playSec, srcW: clip.viewport.width, srcH: clip.viewport.height, band: layout.uiBand, zoom: layout.zoom, contentLeft: ctx.brand.capture?.contentLeft || 0, contentInsetPx: ctx.brand.capture?.contentInsetPx ?? 24 });
       for (const w of windows) { const r = readability(w.scale); if (!r.ok) throw new Error(`${beat.id} ${ratio}: ${r.reason}`); }
       const camera = cameraKeyframes(windows, { clipStart: trimStart, duration: seg.durationSeconds });
       const src = addMedia(clip.file, 'webm');
@@ -131,10 +135,10 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
   const c = ctx.brand.colors;
   const props = {
     ratio, width: frame.width, height: frame.height, fps: 30, durationSec: timeline.durationSeconds,
-    layout: { uiBand: layout.uiBand, captionBox: layout.captionBox, labelBox: layout.labelBox, ctaBox: layout.ctaBox },
+    layout: { uiBand: layout.uiBand, captionBox: layout.captionBox, labelBox: layout.labelBox, ctaBox: layout.ctaBox, ctaPillFont: layout.ctaPillFont },
     brand: { productName: ctx.brand.product, colors: { primary: c.primary, foreground: c.foreground, background: c.background, accent: c.accent, onPrimary: c.onPrimary || '#ffffff', ...(c.emphasis ? { emphasis: c.emphasis } : {}) }, fontDisplay: ctx.brand.fonts.display, fontBody: ctx.brand.fonts.body, fontFiles },
-    label: ctx.spec.labels, disclosure: ctx.spec.voice.disclosure || undefined,
-    beats, captions: captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words })),
+    label: ctx.spec.labels, labelLines: labelLines(ctx.spec.labels, layout.labelBox.fontSize, layout.labelBox.w), disclosure: ctx.spec.voice.disclosure || undefined,
+    beats, captions: captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words, lines: lineBreaks(k.words, { maxWidthPx: Math.min(layout.captionBox.w, Math.round(0.82 * frame.width)), fontSize: layout.captionBox.fontSize }) })),
     emphasis: [...new Set(cut.beats.flatMap((b) => b.emphasis || []))],
     cta: { text: ctx.spec.cta.text, displayUrl: ctx.spec.cta.displayUrl || ctx.spec.cta.url.replace(/^https?:\/\//, '') },
   };

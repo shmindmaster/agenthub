@@ -15,7 +15,7 @@ import { checkStage, stageKey, writeStage } from '../kit/marketing/lib/cache.mjs
 import { BudgetError, CostLedger } from '../kit/marketing/lib/ledger.mjs';
 import { bandRegion, cameraKeyframes, focusAt, focusWindows, pointerTrack, readability, windowAt } from '../kit/marketing/lib/crop.mjs';
 import { FRAMES, layoutFor, safeRect, safeZoneErrors } from '../kit/marketing/lib/layout.mjs';
-import { chunkWords, toSrt, wrapCue } from '../kit/marketing/lib/captions.mjs';
+import { chunkWords, lineBreaks, toSrt, wrapCue } from '../kit/marketing/lib/captions.mjs';
 import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../kit/marketing/lib/timing.mjs';
 import { buildMixArgs, loudnessTarget, parseLoudnorm } from '../kit/marketing/lib/mix.mjs';
 import { deliverFiles, nextFreeNumber, updateReadme, usedNumbers, deliveredName } from '../kit/marketing/lib/deliver.mjs';
@@ -32,8 +32,8 @@ import { parseArgs } from '../kit/marketing/mvg.mjs';
 import { alignBeat, chooseResult, expandKeywords, findWord, shiftAsr, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
 import { buildGateWorkspace } from '../kit/marketing/lib/gates.mjs';
 import { listenCommand, listenFindings } from '../kit/marketing/lib/local-gates.mjs';
-import { labelWidth, MIN_LABEL_FONT } from '../kit/marketing/lib/layout.mjs';
-import { MAX_SCALE } from '../kit/marketing/lib/crop.mjs';
+import { labelLines, labelWidth, MIN_LABEL_FONT, CTA_PILL_FONT } from '../kit/marketing/lib/layout.mjs';
+import { MAX_SCALE, snapToContent, WIDE_REGION } from '../kit/marketing/lib/crop.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mod = join(here, '..', 'kit', 'marketing');
@@ -749,22 +749,40 @@ test('captions 3: a cue never exceeds 18 characters per second; the gap around i
   assert.ok(tc.every((c) => c.text.length / (c.endSec - c.startSec) <= 20), JSON.stringify(tc.map((c) => [c.text, c.startSec, c.endSec])));
 });
 
-test('vision 5: the persistent label is at least 24 px on 16:9 and 26 px on portrait and fits its box', () => {
+test('vision 5 / review 4: the persistent label is 34 px on 16:9 and 36 px on portrait, fits its box on one or two lines, with the requested margins', () => {
   const label = 'SYNTHETIC DEMO · NO PHI · REAL PRODUCT';
   for (const ratio of ['16x9', '4x5', '9x16']) {
     const l = layoutFor(ratio, brand);
     assert.ok(l.labelBox.fontSize >= MIN_LABEL_FONT[ratio], `${ratio} label ${l.labelBox.fontSize}px`);
-    assert.ok(labelWidth(label, l.labelBox.fontSize) <= l.labelBox.w, `${ratio} label fits`);
+    const lines = labelLines(label, l.labelBox.fontSize, l.labelBox.w);
+    assert.equal(lines.join(' ').replace(/\s+/g, ' '), label, `${ratio}: the wording is unchanged when wrapped`);
+    for (const line of lines) assert.ok(labelWidth(line, l.labelBox.fontSize) <= l.labelBox.w - 24, `${ratio} line fits`);
     assert.deepEqual(safeZoneErrors(l), []);
   }
-  assert.equal(MIN_LABEL_FONT['16x9'], 24);
-  assert.equal(MIN_LABEL_FONT['9x16'], 26);
+  assert.equal(MIN_LABEL_FONT['16x9'], 34);
+  assert.equal(MIN_LABEL_FONT['4x5'], 36);
+  assert.equal(MIN_LABEL_FONT['9x16'], 36);
+  const wide = layoutFor('16x9', brand);
+  const portrait = layoutFor('9x16', brand);
+  const feed = layoutFor('4x5', brand);
+  assert.ok(wide.frame.height - (wide.labelBox.y + wide.labelBox.h) >= 64, '16:9 label bottom margin');
+  assert.ok(feed.labelBox.y >= 54, '4:5 label top');
+  assert.ok(portrait.labelBox.y >= 300, '9:16 label top');
+  assert.equal(labelLines(label, 34, 1000).length, 1);
+  assert.equal(labelLines(label, 36, 960).length, 2);
+  assert.deepEqual(labelLines(label, 36, 960), ['SYNTHETIC DEMO ·', 'NO PHI · REAL PRODUCT']);
   const small = layoutFor('16x9', brand);
-  small.labelBox = { ...small.labelBox, fontSize: 18 };
-  assert.ok(safeZoneErrors(small).some((e) => /below the 24px/.test(e)));
+  small.labelBox = { ...small.labelBox, fontSize: 24 };
+  assert.ok(safeZoneErrors(small).some((e) => /below the 34px/.test(e)));
   const narrow = layoutFor('16x9', brand);
   narrow.labelBox = { ...narrow.labelBox, w: 300 };
   assert.ok(safeZoneErrors(narrow).some((e) => /too narrow/.test(e)));
+  const low = layoutFor('16x9', brand);
+  low.labelBox = { ...low.labelBox, y: low.labelBox.y + 30 };
+  assert.ok(safeZoneErrors(low).some((e) => /bottom margin/.test(e)));
+  const high = layoutFor('9x16', brand);
+  high.labelBox = { ...high.labelBox, y: 280 };
+  assert.ok(safeZoneErrors(high).some((e) => /label top/.test(e)));
   const tsx = readFileSync(join(mod, '..', 'src', 'MarketingAd.tsx'), 'utf8');
   assert.match(tsx, /UNSPOKEN_OPACITY = 0\.88/, 'unspoken caption words stay >= 0.85');
   assert.match(tsx, /EMPHASIS_COLOR = "#ffd166"/);
@@ -912,4 +930,88 @@ test('reviews.json counts only for the candidate hash it names', () => {
   assert.deepEqual(readReviews(path, 'new'), {});
   writeFileSync(path, JSON.stringify({ candidateSha256: 'new', storyReview: { status: 'PASS', score: 90 } }));
   assert.equal(readReviews(path, 'new').storyReview.score, 90);
+});
+
+// ---- round 3: design review fixes
+test('review 2: a crop never starts inside the product navigation', () => {
+  const opts = { contentLeft: 0.13, insetPx: 24, srcW: 1600 };
+  const r = (x, width) => ({ x, y: 0.2, width, height: 0.4 });
+  // starts mid-nav, narrow crop: snaps to the content edge plus the inset (0.13 + 24/1600 = 0.145)
+  assert.equal(snapToContent(r(0.05, 0.42), opts).x, 0.145);
+  assert.equal(snapToContent(r(0.12, 0.42), opts).x, 0.145);
+  // wide crop: shows the whole navigation instead
+  assert.equal(snapToContent(r(0.07, WIDE_REGION), opts).x, 0);
+  assert.equal(snapToContent(r(0.07, 0.8), opts).x, 0);
+  // already at 0, or at/after the content edge: untouched
+  assert.equal(snapToContent(r(0, 0.4), opts).x, 0);
+  assert.equal(snapToContent(r(0.13, 0.4), opts).x, 0.13);
+  assert.equal(snapToContent(r(0.4, 0.4), opts).x, 0.4);
+  // just under the wide threshold: still fits after the nav, so it snaps rather than showing the whole nav
+  assert.equal(snapToContent(r(0.1, 0.59), opts).x, 0.145);
+  // no brand edge: nothing changes
+  assert.equal(snapToContent(r(0.05, 0.4), { insetPx: 24, srcW: 1600 }).x, 0.05);
+  // through focusWindows: a 9:16 window centred near the nav no longer starts inside it
+  const band = { w: 1080, h: 820 };
+  const [w] = focusWindows({ explicit: [{ startSec: 0, endSec: 5, x: 0.2, y: 0.4 }], clipStart: 0, clipEnd: 5, srcW: 1600, srcH: 1000, band, zoom: 2.4, contentLeft: 0.13, contentInsetPx: 24 });
+  assert.ok(w.region.x >= 0.145 - 1e-9 || w.region.x === 0, `region starts at ${w.region.x}`);
+  const [free] = focusWindows({ explicit: [{ startSec: 0, endSec: 5, x: 0.2, y: 0.4 }], clipStart: 0, clipEnd: 5, srcW: 1600, srcH: 1000, band, zoom: 2.4 });
+  assert.ok(free.region.x > 0 && free.region.x < 0.13, 'without the brand edge the same crop would start inside the nav');
+});
+
+test('review 5: caption lines are balanced, fit 82% of the frame, and never leave a one-word line', () => {
+  const words = (t) => t.split(' ').map((word) => ({ word }));
+  const fit = 0.82 * 1080;
+  for (const text of ['Nine checks pass, the hold clears,', 'This claim is held because', 'the note behind it is unsigned.', 'One authorization runs out in twelve days,', 'and nothing is sent to a payer.', 'Ready to Bill means locally ready.']) {
+    const w = words(text);
+    const lines = lineBreaks(w, { maxWidthPx: fit, fontSize: 62 });
+    assert.equal(lines.reduce((a, b) => a + b, 0), w.length, text);
+    if (w.length >= 4) assert.ok(lines.every((n) => n >= 2), `${text}: ${lines}`);
+    let at = 0;
+    for (const n of lines) { const row = w.slice(at, at + n); at += n; assert.ok(row.map((x) => x.word).join(' ').length * 0.58 * 62 + (n - 1) * 0.4 * 62 <= fit + 1, `${text}: a line is too wide`); }
+    if (lines.length === 2) assert.ok(Math.abs(lines[0] - lines[1]) <= 2, `${text}: unbalanced ${lines}`);
+  }
+  assert.deepEqual(lineBreaks(words('One authorization runs out in twelve days,'), { maxWidthPx: 1574, fontSize: 50 }), [7], 'one line when it fits');
+  assert.deepEqual(lineBreaks(words('Twelve units left.'), { maxWidthPx: 200, fontSize: 62 }), [3], 'too short to split stays whole');
+  assert.deepEqual(lineBreaks([], { maxWidthPx: 100, fontSize: 50 }), []);
+  // a 5-word chunk too wide for one line splits 3 + 2, not 4 + 1
+  assert.deepEqual(lineBreaks(words('authorization authorization authorization renewal renewal'), { maxWidthPx: 1100, fontSize: 62 }).every((n) => n >= 2), true);
+});
+
+test('review 1/3/5/6: composition behaviours the layout depends on are in the source', () => {
+  const tsx = readFileSync(join(mod, '..', 'src', 'MarketingAd.tsx'), 'utf8');
+  // 1: no captions on card / title beats, fade <= 6 frames, no eyebrow
+  assert.match(tsx, /b\.kind === "card" \|\| b\.kind === "title"\) && t >= b\.startSec/);
+  assert.match(tsx, /CAPTION_FADE_FRAMES = 6/);
+  assert.ok(!/letterSpacing: "0\.12em"/.test(tsx), 'the product-name eyebrow is gone');
+  // 3: tinted backdrop and 32 px band fades
+  assert.match(tsx, /rgba\(15, 23, 42, 0\.85\)/);
+  assert.match(tsx, /BAND_FADE_PX = 32/);
+  // 5: balance, 82% width, bold when spoken
+  assert.match(tsx, /textWrap: "balance"/);
+  assert.match(tsx, /width \* 0\.82/);
+  assert.match(tsx, /bold=\{em \|\| spoken\}/);
+  // 6: amber pill with navy text
+  assert.match(tsx, /background: brand\.colors\.emphasis \?\? EMPHASIS_COLOR, color: brand\.colors\.foreground/);
+  assert.equal(CTA_PILL_FONT['9x16'], 52);
+  // 6: the card block is centred in the safe area and shares the caption / label left edge
+  const l916 = layoutFor('9x16', brand);
+  assert.equal(l916.ctaBox.y, l916.safe.y);
+  assert.equal(l916.ctaBox.h, l916.safe.h);
+  assert.equal(l916.ctaBox.x, l916.captionBox.x);
+  assert.equal(l916.ctaBox.x, l916.labelBox.x);
+  const l169 = layoutFor('16x9', brand);
+  assert.equal(l169.ctaBox.x, 96);
+  assert.equal(l169.ctaBox.x, l169.captionBox.x);
+  assert.equal(l169.ctaBox.x, l169.labelBox.x);
+  for (const ratio of ['16x9', '4x5', '9x16']) assert.deepEqual(safeZoneErrors(layoutFor(ratio, brand)), [], ratio);
+});
+
+test('review 5: compose hands the composition explicit caption line breaks that cover every word', () => {
+  const props = { width: 1080, height: 1920, fps: 30, durationSec: 4, brand: { fontFiles: [] }, beats: [{ id: 'A', kind: 'card', startSec: 0, durationSec: 4 }],
+    captions: [{ startSec: 0, endSec: 1.5, words: 'one two three four five'.split(' ').map((word) => ({ word, start: 0, end: 1 })), lines: [3, 2] }] };
+  assert.deepEqual(validateProps(props, join(root, 'pub')), []);
+  props.captions[0].lines = [4, 1];
+  assert.ok(validateProps(props, join(root, 'pub')).some((e) => /single word/.test(e)));
+  props.captions[0].lines = [2, 2];
+  assert.ok(validateProps(props, join(root, 'pub')).some((e) => /cover every word/.test(e)));
 });

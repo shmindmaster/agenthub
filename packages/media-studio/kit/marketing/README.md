@@ -103,15 +103,15 @@ A focus window magnified by a Recast punch-in (`sourceZoom`) gets a wider crop s
 
 `kit/src/MarketingAd.tsx` (registered in `Root.tsx` as `MarketingAd`) renders the picture from props. The UI sits in a "UI
 band" inside the platform-safe area (Reels/Shorts reserve the top 14% and bottom 35% of 9:16) cropped by a focus-follow
-camera; kinetic captions (burned in, 4-7 words, the spoken word underlined, emphasis words in the accent color), the
-persistent label and the CTA end card sit beside it, never over the focal point. Layout and crop math are plain JS
+camera; kinetic captions (burned in, 4-7 words, balanced over explicit line breaks of at least two words, within 82% of the frame width, the spoken word bold as well as bright, emphasis words in the accent color; hidden on the end card), the
+persistent label and the CTA end card (amber pill, navy text, left edge shared with the caption and label) sit beside it, never over the focal point. A 32 px gradient fades the UI band into the plate where they meet, and the blurred portrait backdrop is tinted `rgba(15,23,42,0.85)`. A caption fades in over at most 6 frames. A crop whose left edge would fall inside the product navigation snaps to `capture.contentLeft` plus a 24 px inset (or to 0 when wide enough to show the whole navigation); set `capture.contentLeft` (0-0.5, ABACare 0.13) and optional `capture.contentInsetPx` in `brand.json`. Layout and crop math are plain JS
 (`lib/layout.mjs`, `lib/crop.mjs`) so they are unit tested; the composition only draws.
 
 | Ratio | Frame | UI band | Base zoom |
 | --- | --- | --- | --- |
-| 16x9 | 1920x1080 | 1920x896 at top; caption row and 24 px label row below | 1.15 |
-| 4x5 | 1080x1350 | 1080x760, label above, captions below | 1.7 |
-| 9x16 | 1080x1920 | label 26 px and captions above (y 272-564), 1080x900 UI band from y 584 over a blurred backdrop of the same clip | 2.4 |
+| 16x9 | 1920x1080 | 1920x836 at top; caption row, then a 34 px label row with a 64 px bottom margin | 1.15 |
+| 4x5 | 1080x1350 | 1080x740 from y 172, 36 px label above (top >= 54), captions below | 1.7 |
+| 9x16 | 1080x1920 | 36 px label (top >= 300, one or two lines) and captions above, 1080x820 UI band from y 676 over a tinted blurred backdrop of the same clip; the end card block is centred in the safe zone | 2.4 |
 
 ## QA gates (`qa/<ratio>/gates.json`)
 

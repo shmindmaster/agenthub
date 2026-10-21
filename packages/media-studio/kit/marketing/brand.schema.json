@@ -89,6 +89,13 @@
       "type": "object", "required": ["dir"],
       "properties": { "dir": { "type": "string" }, "readme": { "type": "string" }, "reservedNumbers": { "type": "array", "items": { "type": "integer" } } }
     },
+    "capture": {
+      "type": "object",
+      "properties": {
+        "contentLeft": { "type": "number", "minimum": 0, "maximum": 0.5, "description": "Normalized x where the product's left navigation ends in a capture; a crop never starts between 0 and this." },
+        "contentInsetPx": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
     "kit": { "type": "object", "properties": { "agenthubRoot": { "type": "string" }, "runtimeKit": { "type": "string" } } }
   }
 }

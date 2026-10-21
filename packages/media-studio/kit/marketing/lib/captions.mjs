@@ -91,3 +91,40 @@ export function wrapCue(text, max = 42) {
 export function toSrt(chunks) {
   return `${chunks.map((c, i) => `${i + 1}\n${stamp(c.startSec)} --> ${stamp(c.endSec)}\n${wrapCue(c.text)}\n`).join('\n')}`;
 }
+
+const lexLess = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i]; return false; };
+
+export const CAPTION_CHAR_EM = 0.58; // Space Grotesk 600: average advance per character in em, with a little margin
+export const CAPTION_GAP_EM = 0.4;
+
+/**
+ * Explicit line breaks for one caption chunk: word counts per line. Lines are balanced (the widest is as narrow as
+ * possible), each is at most `maxWidthPx`, and none holds a single word (>= 2 words per line) unless the chunk is too short
+ * to split. Computed here, not by CSS, so a render cannot orphan a word; the composition also sets text-wrap: balance as a
+ * second line of defence. Chunks are at most 7 words, so every split is enumerated.
+ */
+export function lineBreaks(words, { maxWidthPx, fontSize, minWordsPerLine = 2, charEm = CAPTION_CHAR_EM, gapEm = CAPTION_GAP_EM }) {
+  const n = words.length;
+  const wpx = words.map((w) => String(w.word).length * charEm * fontSize);
+  const span = (i, j) => { let s = 0; for (let k = i; k < j; k++) s += wpx[k]; return s + (j - i - 1) * gapEm * fontSize; };
+  if (n === 0) return [];
+  if (span(0, n) <= maxWidthPx || n < 2 * minWordsPerLine) return [n];
+  let best = null;
+  const walk = (start, acc) => {
+    if (start === n) {
+      const widths = acc.map((c, idx) => span(acc.slice(0, idx).reduce((a, b) => a + b, 0), acc.slice(0, idx + 1).reduce((a, b) => a + b, 0)));
+      const fits = widths.every((w) => w <= maxWidthPx);
+      let at = 0;
+      const clause = acc.slice(0, -1).every((c) => { at += c; return /[,;:.!?]$/.test(String(words[at - 1].word)); }) ? 0 : 1;
+      const score = [fits ? 0 : 1, acc.length, Math.max(...widths), clause];
+      if (!best || lexLess(score, best.score)) best = { acc: [...acc], score };
+      return;
+    }
+    for (let take = minWordsPerLine; take <= n - start; take++) {
+      if (n - start - take !== 0 && n - start - take < minWordsPerLine) continue;
+      walk(start + take, [...acc, take]);
+    }
+  };
+  walk(0, []);
+  return best.acc;
+}
