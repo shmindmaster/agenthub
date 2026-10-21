@@ -142,7 +142,7 @@ const beats = segs.map((seg, i) => {
   const inBeat = (pt) => pt !== null && pt >= beatStart - 0.001 && pt < beatEnd - 0.001;
 
   // actions
-  const events = (clipRec?.actions || []).filter((e) => ['click', 'type', 'point'].includes(e.type));
+  const events = (clipRec?.actions || []).filter((e) => ['click', 'tap', 'type', 'point'].includes(e.type));
   const owned = events.map((e) => { const clipTime = L.toClipTime(clipRec, e.tStart ?? e.t); return { e, clipTime, program: toProgram(clipTime) }; }).filter((x) => x.clipTime !== null).filter((x) => g.segments.length === 1 || (x.program !== null ? inBeat(x.program) : g.segments[0] === seg.id));
   const planned = Array.isArray(cp.actions) ? cp.actions : null;
   const actions = [];
@@ -162,7 +162,7 @@ const beats = segs.map((seg, i) => {
   if (planned) {
     for (const spec of planned) {
       const x = owned.find((o) => String(o.e.label || '').toLowerCase() === String(spec.label || '').toLowerCase()) || owned.find((o) => String(o.e.target || '').toLowerCase().includes(String(spec.label || '').toLowerCase()));
-      if (x) take(x, spec); else warnings.push(`${seg.id}: cue-plan action "${spec.label}" has no matching captured click/type/point event`);
+      if (x) take(x, spec); else warnings.push(`${seg.id}: cue-plan action "${spec.label}" has no matching captured click/tap/type/point event`);
     }
   } else for (const x of owned) take(x, null);
 

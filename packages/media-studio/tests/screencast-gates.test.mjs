@@ -108,7 +108,17 @@ test('plan gate: receipt without pointer motion or observed response fails an in
   const r = run(validator, [root]);
   assert.notEqual(r.code, 0);
   assert.match(r.out, /no pointer motion/);
-  assert.match(r.out, /no click\/type\/scroll/);
+  assert.match(r.out, /no click\/tap\/type\/scroll/);
+});
+
+test('plan gate: a touch take (taps, no pointer moves or clicks) with an observed response passes an interaction beat', { skip: !ffmpegAvailable }, () => {
+  const root = join(scratch, 'tap');
+  writeJob(root);
+  const clip = join(root, 'capture', 'clips', 'S02.webm');
+  movingClip(clip, 16);
+  writeFileSync(join(root, 'capture', 'receipt.json'), JSON.stringify(goodReceipt('clips/S02.webm', sha(clip), { events: { pointerMoves: 0, clicks: 0, taps: 2, keystrokes: 0, scrolls: 0, expectations: 1, expectationsObserved: 1, expectationsFailed: [] } })));
+  const r = run(validator, [root]);
+  assert.equal(r.code, 0, r.out);
 });
 
 test('plan gate: a 3s take frozen across 20s of narration fails (the 250-01 defect)', { skip: !ffmpegAvailable }, () => {
@@ -248,12 +258,12 @@ test('portrait campaign composes a bounded source reframe with timed graphic and
   // video-standard reports (owner direction 2026-10-20): each produced by its own gate; the release gate checks the binding
   const receiptPath = join(root, 'capture', 'receipt.json'); const screenplayPath = join(root, 'story', 'screenplay.json');
   if (!existsSync(screenplayPath)) writeFileSync(screenplayPath, JSON.stringify({ title: 't', scenes: [{ id: 'S01', narration: 'The plan is ready after approval.' }] }));
-  writeFileSync(join(root, 'qa', 'narration-check.json'), JSON.stringify({ generator: 'media-studio/validate-narration', ok: true, errors: [], warnings: [], inputs: { screenplay: { path: 'story/screenplay.json', sha256: sha(screenplayPath) } }, fluff: { perMinute: 0, count: 0, hits: [] } }));
-  writeFileSync(join(root, 'qa', 'frame-integrity.json'), JSON.stringify({ generator: 'media-studio/validate-frame-integrity', ok: true, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, tiled: [], lumaJumps: [] }));
-  writeFileSync(join(root, 'qa', 'pointer-path.json'), JSON.stringify({ generator: 'media-studio/validate-pointer-path', ok: true, errors: [], warnings: [], inputs: { receipt: { path: 'capture/receipt.json', sha256: sha(receiptPath) } }, windows: [] }));
-  writeFileSync(join(root, 'qa', 'picture-integrity.json'), JSON.stringify({ generator: 'media-studio/validate-picture-integrity', ok: true, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, clips: [] }));
-  writeFileSync(join(root, 'qa', 'marketing-readiness-check.json'), JSON.stringify({ generator: 'media-studio/validate-marketing-readiness', ok: true, applies: true, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, checks: {} }));
-  writeFileSync(join(root, 'qa', 'sync.json'), JSON.stringify({ generator: 'media-studio/validate-sync', ok: true, degraded: false, errors: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, thresholds: { actionToleranceMs: 300, screenToleranceMs: 40, resultHoldMinSeconds: 1.5, driftMaxMs: 40, maxFreezeSeconds: 4, maxDroppedFrames: 3 }, precision: { allWordLevel: true }, beats: [{ beat: 'S01', findings: [{ check: 'action-timing', status: 'pass' }] }], checks: { performed: ['screen-on', 'action-timing', 'result-hold', 'narration-order', 'av-sync', 'frozen-frames', 'dropped-frames'], notPerformed: [] } }));
+  writeFileSync(join(root, 'qa', 'narration-check.json'), JSON.stringify({ generator: 'media-studio/validate-narration', ok: true, thresholds: { hookSeconds: 5, redundantOverlap: 0.7, redundantMinContentWords: 3, noNewInformationMinContentWords: 4 }, errors: [], warnings: [], inputs: { screenplay: { path: 'story/screenplay.json', sha256: sha(screenplayPath) } }, fluff: { perMinute: 0, count: 0, hits: [] } }));
+  writeFileSync(join(root, 'qa', 'frame-integrity.json'), JSON.stringify({ generator: 'media-studio/validate-frame-integrity', ok: true, thresholds: { tilePsnr: 32, lumaJump: 40, contrastFloor: 12, cutWindow: 0.25, sampleFps: 2 }, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, tiled: [], lumaJumps: [] }));
+  writeFileSync(join(root, 'qa', 'pointer-path.json'), JSON.stringify({ generator: 'media-studio/validate-pointer-path', ok: true, thresholds: { maxReversals: 0, maxTravelRatio: 1.35, maxScrollReversals: 0, maxUnnamedMoves: 0, turnCos: -0.5 }, errors: [], warnings: [], inputs: { receipt: { path: 'capture/receipt.json', sha256: sha(receiptPath) } }, windows: [] }));
+  writeFileSync(join(root, 'qa', 'picture-integrity.json'), JSON.stringify({ generator: 'media-studio/validate-picture-integrity', ok: true, thresholds: { scaleTolerance: 0.005, barVariance: 4, barMinPx: 6, ratioTolerance: 0.02 }, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, clips: [] }));
+  writeFileSync(join(root, 'qa', 'marketing-readiness-check.json'), JSON.stringify({ generator: 'media-studio/validate-marketing-readiness', ok: true, thresholds: { hookMaxSeconds: 2, endCardWindowSeconds: 8, beatToleranceMs: 80, beatHitRatio: 0.9, referencesRequired: 3 }, applies: true, errors: [], warnings: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, checks: {} }));
+  writeFileSync(join(root, 'qa', 'sync.json'), JSON.stringify({ generator: 'media-studio/validate-sync', ok: true, degraded: false, errors: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, thresholds: { actionToleranceMs: 300, screenToleranceMs: 40, resultHoldMinSeconds: 1.5, driftMaxMs: 40, maxFreezeSeconds: 4, maxHoldSeconds: 6.5, maxDroppedFrames: 3 }, precision: { allWordLevel: true }, beats: [{ beat: 'S01', findings: [{ check: 'action-timing', status: 'pass' }] }], checks: { performed: ['screen-on', 'action-timing', 'result-hold', 'narration-order', 'av-sync', 'frozen-frames', 'dropped-frames'], notPerformed: [] } }));
   const candidateSha = sha(candidate), scriptPath = join(root, 'story', 'screenplay.txt'), captionsPath = join(root, 'qa', 'captions.srt'), analyzerPath = join(root, 'qa', 'loudness.json');
   writeFileSync(scriptPath, 'Approve the plan after the result appears.');
   writeFileSync(captionsPath, '1\n00:00:00,000 --> 00:00:02,000\nApprove the plan.\n');

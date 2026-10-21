@@ -5,7 +5,7 @@ or audio required, and writes qa/story-review.json in the story-experience-revie
 pass, missingEvidence, reason, checks, findings, reviseSceneIds). It is a screenplay lint, not a craft pass. It does not authorize capture, compose, or delivery.
 Product-screencast still requires validate-product-picture.mjs (WebM + Recast) and PDS review of the
 encoded file. The encoded-file critic (the PDS story-experience-reviewer agent for screencasts,
-media-story-experience-reviewer for the rest) still runs on the candidate after the master exists and
+the media-studio-qa story-experience review for the rest) still runs on the candidate after the master exists and
 supersedes this file with qa/story-experience-review.json.
 
 Usage:

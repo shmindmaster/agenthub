@@ -135,7 +135,7 @@ narration that spends words on the demo data or on the film itself (`synthetic`,
 | `sync` | `build-cue-sheet.mjs` + `validate-sync.mjs` after local whisper on the encoded file | `--local-gates` (GPU) |
 | `listen` | `ai.ps1 listen` Local-AI gate. It refuses a speech review without a pronunciation-risk manifest, so mvg first runs `ai.ps1 voice pronunciation-risk` on `story/narration-segments.json` and passes `--pronunciation-manifest` and `--timeline` (`qa/listen-timeline.json`); the exit code and tail of the log are in the gate detail | `--local-gates` (GPU) |
 | `vision` | `vision-qa.mjs`: a frame every 1.5 s to an OpenAI vision model with a rubric (overlay typos, unreadable text at phone size, banned claims, prospect names, missing label, captions over the focal point, people/children, fabricated UI); any high finding or a missing label fails | OpenAI |
-| `story` | `media-story-experience-reviewer` score >= `qa.storyMin` (85) recorded in `qa/<ratio>/reviews.json` `storyReview` with a reviewer and `cta: true` | an agent review |
+| `story` | `media-studio-qa` story-experience review score >= `qa.storyMin` (85) recorded in `qa/<ratio>/reviews.json` `storyReview` with a reviewer and `cta: true` | an agent review |
 | `viewerRelease` | `validate-viewer-release.mjs` on the gate workspace in `qa/<ratio>/ws`, from `reviews.json` PASS entries (`encodedVisualReview`, `titleReview`, `actionResultReview`, `storyReview`, `pronunciation`) bound to the candidate | the reviews above |
 
 ## Deviations from the design brief (with reasons)

@@ -70,8 +70,9 @@ if (applies && readiness && candidateRec) {
   else pass('candidate-binding');
 
   // 1. Hook inside two seconds: the first thing on screen is the pain or the payoff, measured, not promised.
-  const hookAt = Number(R.hook?.atSeconds);
-  if (!Number.isFinite(hookAt) || hookAt < 0) fail('hook-2s', 'hook.atSeconds must be the measured time the hook lands on screen.');
+  // A JSON number only: Number(null) and Number('') are 0, which would pass an unmeasured hook.
+  const hookAt = typeof R.hook?.atSeconds === 'number' ? R.hook.atSeconds : NaN;
+  if (!Number.isFinite(hookAt) || hookAt < 0) fail('hook-2s', 'hook.atSeconds must be the measured time the hook lands on screen (a JSON number).');
   else if (hookAt > T.hookMaxSeconds) fail('hook-2s', `hook lands at ${hookAt}s; the floor is ${T.hookMaxSeconds}s. A feed viewer has left.`);
   else if (R.hook?.verdict !== 'pass' || !text(R.hook?.what, 10)) fail('hook-2s', 'hook needs verdict pass and a sentence saying what is on screen at that moment.');
   else pass('hook-2s', `${hookAt}s: ${R.hook.what}`);
