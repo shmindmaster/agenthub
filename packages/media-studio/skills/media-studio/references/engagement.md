@@ -53,7 +53,7 @@ Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 | `talking-head` | Bed + lipsync | Register change on the payoff line. Face stays visible. |
 | `animation` | Motif and/or Remotion; bed unless the motion is the music | Do not regenerate motion to fit duration; trim or hold. |
 | `audio-only` | Voice + bed unless the user asked for dry speech | Duck the bed. Silence on the key line. |
-| `series-episode` | `story-series` owns drama; this studio still mixes bed and holds | Truth tags stay on every beat. |
+| `series-episode` | `series.md` owns drama; this studio still mixes bed and holds | Truth tags stay on every beat. |
 | `webcast` | Bed + speaker/slide/lower-third/chapter archetypes | Broadcast feel. Chapters. Passive audience. |
 | `webinar` | Same + Q&A chapter cards | Taught session, not a slide dump. |
 | `keynote` | Talking-head coverage + slides | Change angle; do not lock one webcam. |
@@ -63,23 +63,23 @@ Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 
 `intent: draft` (user asked for a scratch, proxy, or timing pass): TTS + stills/slides only. Record what was skipped.
 
-## Writer owns
+## Writer owns (`writer.md`)
 
 1. First sentence is payoff or pain — never "welcome" or an agenda.
 2. One idea per scene. Tag `DRAMATIZED` / `COMPOSITE` when you heighten.
 3. Set `hook`, `emotionalTarget`, `viewerPromise`. Per scene: `sceneRole`, `viewerQuestion`, `wiifm`, one `emphasis`, `pauseBeforeSeconds`, `holdAfterSeconds`. Structure from `story-craft.md`.
 4. Do not narrate visible chrome ("click the blue button"). Name the result after it appears.
 5. Kill repeated scenes and a long close after the takeaway.
-6. Hand the locked screenplay to `media-storyboard`. Do not skip to director.
+6. Hand the locked screenplay to the storyboard step (`storyboard.md`). Do not skip to direction.
 
-## Storyboard owns
+## Storyboard owns (`storyboard.md`)
 
 1. Timed beats: eye direction, expected state, `shotPlan`, `visualArchetype`, `rhythm`, `sound`, `transition`.
 2. Internally score 2–3 hook/visual approaches; write `chosenHook` and `rejectedHooks`. Do not present a menu.
 3. Exactly one `protectedHeroBeatId`. No consecutive archetype repeats unless intentional.
-4. Then `media-studio-visuals` (visual bible) and `media-director`.
+4. Then the visuals step (`visuals.md`, the visual bible) and the direction step (`direction.md`).
 
-## Director owns
+## Director owns (`direction.md`)
 
 1. The picture changes when the idea changes. Prefer the **simplest truthful visual that maintains attention**, not the cheapest still.
 2. One emphasis per scene (color **or** zoom **or** callout, not all three unless the hold is the hero).
@@ -87,7 +87,7 @@ Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 4. Name the Sarosh register. Role voices may use `--instruction`.
 5. Then `media-studio-generate`.
 
-## Visuals owns
+## Visuals owns (`visuals.md`)
 
 `visual-bible.json`: motif, lighting, type, composition, B-roll plan, motion treatment, continuity. Never synthesize product UI, metrics, or testimonials.
 
@@ -95,5 +95,5 @@ Fix the failing stretch. Do not sprinkle effects on a cut that already lands.
 
 - Generate: consume storyboard + visual bible + direction. TTS with per-beat register. Viewer-facing `musicCue: bed|sting` → `ai.ps1 music`; `silence` generates nothing. Bible B-roll via `ai.ps1 image`. Directed Motif/lipsync/portrait only. Score owner voice before compose.
 - Compose: honor pause/hold; duck the bed; Remotion **archetypes** rather than one slide grammar; Recast for `screen`. Two-pass linear loudnorm only. Viewer-facing briefing/training/explainer/series-episode/webcast/webinar/keynote/documentary/teaser **requires Remotion** unless `intent: draft`.
-- Craft critic: `media-story-experience-reviewer` on the encoded file. Score < 85 fails; revise `reviseSceneIds` and rerun.
+- Craft critic: the story-experience review (`media-studio-qa`) on the encoded file. Score < 85 fails; revise `reviseSceneIds` and rerun.
 - QA: identity, listen, captions, engagement diagnose, plus `Inspect-MediaVisualQuality.ps1`. Remit to the owner above. Non-screencast kinds do not claim PDS arbitration.

@@ -7,8 +7,7 @@
       "title": "Technical series production",
       "summary": "Produce a fictionalized technical story series with evidence-bound capture, explanation, and optional Remotion composition.",
       "requires": [
-        "story-series-studio",
-        "technical-storytelling",
+        "media-studio",
         "browser-toolkit"
       ],
       "recommends": [
@@ -24,7 +23,7 @@
         ]
       },
       "notes": [
-        "story-series-studio and technical-storytelling are registered AgentHub packages.",
+        "Series methodology, truth ledgers and the technical explainer are media-studio references (references/series.md, story-craft.md, technical-story.md) since 2026-10-21; story-series-studio and technical-storytelling were retired into them.",
         "media-studio is the public video pack, including live-product screencasts (Playwright WebM + Recast).",
         "startup-series remains a Receipts-specific overlay that requires the generic studio packages."
       ]
@@ -34,10 +33,11 @@
       "title": "Engaging learning",
       "summary": "Attention-friendly exam coaching with optional visual explainers.",
       "requires": [
-        "learning-studio",
-        "technical-storytelling"
+        "learning-studio"
       ],
-      "recommends": [],
+      "recommends": [
+        "media-studio"
+      ],
       "thirdParty": {
         "recommends": [],
         "optional": [
@@ -45,7 +45,7 @@
         ]
       },
       "notes": [
-        "learning-studio and technical-storytelling are registered AgentHub packages.",
+        "learning-studio is a registered AgentHub package; visual explainers come from media-studio (references/story-craft.md explainer path, references/direction.md).",
         "Remotion/animations are optional enhancements, not required to answer a question."
       ]
     },
@@ -58,7 +58,6 @@
         "local-ai"
       ],
       "recommends": [
-        "technical-storytelling",
         "browser-toolkit"
       ],
       "thirdParty": {

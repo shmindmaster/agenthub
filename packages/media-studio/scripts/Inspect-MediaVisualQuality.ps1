@@ -8,6 +8,11 @@ Outputs JSON matching schemas/visual-quality-report.schema.json.
 Flags suspects for the story-experience reviewer; does not score craft.
 
 ffmpeg and ffprobe must be on PATH.
+
+-ContactSheet <png>: when <jobRoot>/plan/cue-sheet.json exists, builds the reviewer
+contact sheet there with build-contact-sheet.mjs (node, windowless) and prints the
+report path. -JobRoot defaults to the parent of the video's output\ folder. With no
+cue sheet the path is only recorded in the report, as before, and the output says so.
 #>
 [CmdletBinding()]
 param(
@@ -15,7 +20,8 @@ param(
     [Parameter(Mandatory)][string]$Output,
     [int]$SampleFps = 2,
     [double]$StaticSeconds = 6,
-    [string]$ContactSheet
+    [string]$ContactSheet,
+    [string]$JobRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -142,6 +148,28 @@ try {
 
     # First/last-frame design is a critic judgment. This script only flags
     # measurable stills; a held opening beat is not automatically undesigned.
+
+    if ($ContactSheet) {
+        $csRoot = $JobRoot
+        if (-not $csRoot) {
+            $csDir = Split-Path -Parent $videoPath
+            if ((Split-Path -Leaf $csDir) -eq 'output') { $csRoot = Split-Path -Parent $csDir }
+        }
+        $csCue = if ($csRoot) { Join-Path $csRoot 'plan\cue-sheet.json' } else { $null }
+        $csScript = Join-Path $PSScriptRoot 'build-contact-sheet.mjs'
+        $csNode = Get-Command node -ErrorAction SilentlyContinue
+        if ($csCue -and (Test-Path -LiteralPath $csCue) -and $csNode -and (Test-Path -LiteralPath $csScript)) {
+            $csOut = [IO.Path]::GetFullPath($ContactSheet)
+            & $csNode.Source $csScript $csRoot $videoPath --out $csOut | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Contact sheet: $csOut (report: $([IO.Path]::ChangeExtension($csOut, '.json')))"
+            } else {
+                Write-Warning "build-contact-sheet.mjs failed (exit $LASTEXITCODE); contact sheet not built"
+            }
+        } else {
+            Write-Host "Contact sheet: path recorded only; no <jobRoot>/plan/cue-sheet.json to build one (build it with build-cue-sheet.mjs, then pass -JobRoot if the video is not under <jobRoot>\output)."
+        }
+    }
 
     $pass = $suspects.Count -eq 0
     $report = [ordered]@{

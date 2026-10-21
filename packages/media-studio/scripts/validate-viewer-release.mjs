@@ -64,6 +64,44 @@ if (job.kind === 'product-screencast') {
     } catch (error) { errors.push(`cannot read sync report: ${error.message}`); }
   }
 }
+// Video standard (owner direction 2026-10-20): no fluff, the feed test, nothing redundant, a purposeful cursor. Each rule
+// has its own measuring gate; this gate only refuses a release that lacks a PASS bound to the exact inputs it measured.
+const boundReport = (relPath, generator, label) => {
+  const path = join(root, relPath);
+  if (!existsSync(path)) { errors.push(`missing ${relPath}; ${label}.`); return null; }
+  try {
+    const report = json(path);
+    if (report.generator !== generator || report.ok !== true || !Array.isArray(report.errors) || report.errors.length) { errors.push(`${relPath} must be a PASS with no errors from ${generator.replace('media-studio/', '')}.`); return null; }
+    return report;
+  } catch (error) { errors.push(`cannot read ${relPath}: ${error.message}`); return null; }
+};
+const boundToCandidate = (report, relPath) => { if (report && (report.candidate?.sha256 !== candidateSha || report.candidate?.bytes !== (candidateSha ? statSync(candidate).size : null))) errors.push(`${relPath} is not bound to the exact candidate SHA-256 and byte count.`); };
+const boundToInput = (report, relPath, inputKeys, label) => {
+  if (!report) return;
+  const key = inputKeys.find((k) => report.inputs?.[k]?.path);
+  const input = key ? report.inputs[key] : null;
+  if (!input) { errors.push(`${relPath} does not record the ${label} it read.`); return; }
+  const source = resolve(root, input.path);
+  if (!withinRoot(source) || !existsSync(source)) { errors.push(`${relPath} names a ${label} that is not in the job workspace: ${input.path}.`); return; }
+  if (digest(source) !== input.sha256) errors.push(`${relPath} is stale: ${input.path} changed since it was checked; rerun the gate.`);
+};
+// No fluff: the narration check on the locked script, bound to the script it read.
+boundToInput(boundReport('qa/narration-check.json', 'media-studio/validate-narration', 'the locked script must pass the no-fluff check (validate-narration.mjs) before release'), 'qa/narration-check.json', ['screenplay', 'timeline'], 'locked script');
+// Frame integrity on the exact encoded picture.
+boundToCandidate(boundReport('qa/frame-integrity.json', 'media-studio/validate-frame-integrity', 'tiled frames and off-cut luma jumps must be checked on the exact candidate (validate-frame-integrity.mjs)'), 'qa/frame-integrity.json');
+if (job.kind === 'product-screencast') {
+  // The cursor moved with purpose: the pointer-path gate on the capture receipt the picture came from.
+  boundToInput(boundReport('qa/pointer-path.json', 'media-studio/validate-pointer-path', 'every take must pass the pointer-path gate (validate-pointer-path.mjs): one direction per beat, no wandering, no scroll return'), 'qa/pointer-path.json', ['receipt'], 'capture receipt');
+  // Nothing morphed or cropped: every product clip at native scale, uncropped, unbarred, each ratio from its own viewport.
+  boundToCandidate(boundReport('qa/picture-integrity.json', 'media-studio/validate-picture-integrity', 'product footage must pass the picture-integrity gate (validate-picture-integrity.mjs): no stretch, upscale, crop, bars or undeclared zoom, each ratio captured at its own viewport'), 'qa/picture-integrity.json');
+}
+// The feed test: marketing cuts fail closed below the marketing floor (validate-marketing-readiness.mjs owns the list).
+const MARKETING_FORMS = ['campaign-flagship', 'campaign-comparison', 'campaign-short', 'campaign-outreach', 'marketing-cutdown', 'social-clip', 'hero'];
+if (job.marketing === true || job.kind === 'teaser' || MARKETING_FORMS.includes(job.programForm)) {
+  const mk = boundReport('qa/marketing-readiness-check.json', 'media-studio/validate-marketing-readiness', 'a marketing cut releases only at or above the marketing floor (validate-marketing-readiness.mjs)');
+  if (mk && mk.applies !== true) errors.push('qa/marketing-readiness-check.json did not apply the marketing floor to this job; rerun it with the job.json that declares the marketing cut.');
+  boundToCandidate(mk, 'qa/marketing-readiness-check.json');
+}
 if (Object.hasOwn(CAMPAIGN_FORMS, job.programForm)) errors.push(...validateCampaign(root, job, timeline, graphics));
 if (job.deliveryProfile || Object.hasOwn(CAMPAIGN_FORMS, job.programForm)) {
   try {

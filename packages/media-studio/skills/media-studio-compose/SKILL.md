@@ -1,6 +1,6 @@
 ---
 name: media-studio-compose
-description: Use when assembled video needs FFmpeg, Recast pointer/click finishing, Remotion programmatic composition, captions, or delivery encode.
+description: Use when assembled video needs FFmpeg, Recast pointer/click finishing, Remotion programmatic composition, captions, Descript finishing, or delivery encode.
 ---
 
 # Media studio compose
@@ -21,13 +21,13 @@ skill defaults to the current repo, point it at the external workspace first.
 Canonical source: `packages/media-studio/kit`  
 Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`
 
-Use the deployed runtime kit only when its package manifest matches this skill's 1.7.6 release. AgentHub's `Sync-MediaStudioKit.ps1` deploys that kit and the shared finishing helper; a loose skill does not include package-level scripts. If the kit is missing or stale, stop and sync from a verified 1.7.6 package source (native plugin cache or reviewed AgentHub checkout), then rerun the version check. Never resolve a source by defaulting to an unverified AgentHub checkout. Composition `Briefing` still hosts the program; each scene sets `archetype` from `scene-archetypes.md`. The briefing board remains 1600×1000 at 30 fps. The screencast compositor renders directly to `deliveryProfile`; portrait campaign clips require a bounded manifest `sourceRegion` so the important UI is intentionally framed. It applies timed campaign graphics only inside safe areas away from declared product controls and captions.
+Use the deployed runtime kit only when its package manifest matches this skill's 2.0.0 release. AgentHub's `Sync-MediaStudioKit.ps1` deploys that kit and the shared finishing helper; a loose skill does not include package-level scripts. If the kit is missing or stale, stop and sync from a verified 2.0.0 package source (native plugin cache or reviewed AgentHub checkout), then rerun the version check. Never resolve a source by defaulting to an unverified AgentHub checkout. Composition `Briefing` still hosts the program; each scene sets `archetype` from `scene-archetypes.md`. The briefing board remains 1600×1000 at 30 fps. The screencast compositor renders directly to `deliveryProfile`; portrait campaign clips require a bounded manifest `sourceRegion` so the important UI is intentionally framed. It applies timed campaign graphics only inside safe areas away from declared product controls and captions.
 
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
 $kitManifest = Join-Path $kit 'package.json'
-if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '1.7.6') {
-    throw 'Media Studio 1.7.6 runtime kit is missing or stale. Sync from a verified 1.7.6 package source before rendering.'
+if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.0') {
+    throw 'Media Studio 2.0.0 runtime kit is missing or stale. Sync from a verified 2.0.0 package source before rendering.'
 }
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
 ```
@@ -36,8 +36,8 @@ To repair a missing kit, set `MEDIA_STUDIO_PACKAGE_ROOT` to the actual installed
 
 ```powershell
 $package = $env:MEDIA_STUDIO_PACKAGE_ROOT
-if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '1.7.6') {
-    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 1.7.6 package.'
+if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.0') {
+    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.0 package.'
 }
 pwsh -NoProfile -File (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1')
 ```
@@ -54,8 +54,8 @@ Do not invent an FFmpeg graph. The helper is the provider:
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $toolsManifest = Join-Path $tools 'plugin.json'
 $Finish = Join-Path $tools 'Finish-Media.ps1'
-if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '1.7.6' -or -not (Test-Path -LiteralPath $Finish)) {
-    throw 'Media Studio 1.7.6 finishing helper is missing or stale in the deployed shared tools.'
+if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.0' -or -not (Test-Path -LiteralPath $Finish)) {
+    throw 'Media Studio 2.0.0 finishing helper is missing or stale in the deployed shared tools.'
 }
 pwsh -NoProfile -File $Finish -Action finish -Program <job>\candidate.mp4 -Output <job>\candidate-finished.mp4
 pwsh -NoProfile -File $Finish -Action finish -Speech <job>\voice.wav -Music <job>\bed.wav -Video <job>\picture.mp4 -Output <job>\candidate-finished.mp4
@@ -89,7 +89,7 @@ node (Join-Path $kit 'screencast\compose-screencast.mjs') <job> <base>
 
 `capture/manifest.json` `clips[]` hints, applied per clip by the compositor: `segments` (segment or scene ids), `trimStart` / `trimEnd` (seconds), `speed` (>1 = faster, for real waits), `skip` (`[[a,b],...]` seconds to drop), `fit: cut|hold|fit|fitpad`, and `overlay` (a transparent 1600×1000 PNG from `render-overlay.mjs`, composited over the scaled frame for that clip's segments). One overlay per clip; split the clip when the markup changes. Full table: `kit/screencast/README.md`. Auto-card is forbidden on `visualMode: screen`; a PNG clip on a screen beat throws.
 
-The overlay is markup (dim, box, outline, arrow, label, note, flow diagram), directed per beat by `media-director` for technical stories. It is not a second engagement rubric and it does not replace Recast's cursor, click ripple, and punch-in. Recast renders are sequential per clips directory (`.recast-tmp` collides); long many-click clips render without `autoZoom` or are split and joined here through `segments`.
+The overlay is markup (dim, box, outline, arrow, label, note, flow diagram), directed per beat by `../media-studio/references/direction.md` for technical stories. It is not a second engagement rubric and it does not replace Recast's cursor, click ripple, and punch-in. Recast renders are sequential per clips directory (`.recast-tmp` collides); long many-click clips render without `autoZoom` or are split and joined here through `segments`.
 
 ### Voice-first timing and the cue sheet
 
@@ -118,6 +118,10 @@ Official Remotion skills are installed globally under `~/.agents/skills` and sym
 - [ ] Voice-first: cue sheet built from word-level ASR, compose ran against it, cue sheet rebuilt (mapped) after the last compose
 - [ ] Bed ducked from stems
 - [ ] Profile frame matches `deliveryProfile`
+
+## Descript finishing
+
+Optional finishing after truth and craft are locked: Descript audio cleanup, filler-word removal, captions, or a shorter cut. Rules and limits are in `references/descript.md`. A Descript export is a new candidate; prior approval does not transfer. Do not apply Studio Sound to owner-voice (Sarosh) audio; use `Finish-Media.ps1` (section 2) for local two-pass loudness.
 
 ## Marketing ads
 

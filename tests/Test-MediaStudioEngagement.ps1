@@ -37,14 +37,16 @@ function Read-Pkg([string]$Relative) {
 
 $engagement = Read-Pkg 'skills\media-studio\references\engagement.md'
 $producer = Read-Pkg 'skills\media-studio\SKILL.md'
-$writer = Read-Pkg 'skills\media-writer\SKILL.md'
-$storyboard = Read-Pkg 'skills\media-storyboard\SKILL.md'
-$visuals = Read-Pkg 'skills\media-studio-visuals\SKILL.md'
-$director = Read-Pkg 'skills\media-director\SKILL.md'
+# Consolidation (2026-10-21): writer, storyboard, visuals and director are references of the producer skill; the
+# story-experience critic is a section of media-studio-qa.
+$writer = Read-Pkg 'skills\media-studio\references\writer.md'
+$storyboard = Read-Pkg 'skills\media-studio\references\storyboard.md'
+$visuals = Read-Pkg 'skills\media-studio\references\visuals.md'
+$director = Read-Pkg 'skills\media-studio\references\direction.md'
 $generate = Read-Pkg 'skills\media-studio-generate\SKILL.md'
 $compose = Read-Pkg 'skills\media-studio-compose\SKILL.md'
 $qa = Read-Pkg 'skills\media-studio-qa\SKILL.md'
-$critic = Read-Pkg 'skills\media-story-experience-reviewer\SKILL.md'
+$critic = $qa
 $capture = Read-Pkg 'skills\media-studio-capture\SKILL.md'
 $job = Read-Pkg 'schemas\job.schema.json'
 $play = Read-Pkg 'schemas\screenplay.schema.json'
@@ -69,18 +71,23 @@ Report 'engagement.md sends product-screencast to the PDS killer-demo guide' (
 
 foreach ($pair in @(
         @{ Name = 'producer'; Text = $producer },
-        @{ Name = 'writer'; Text = $writer },
-        @{ Name = 'storyboard'; Text = $storyboard },
-        @{ Name = 'visuals'; Text = $visuals },
-        @{ Name = 'director'; Text = $director },
         @{ Name = 'generate'; Text = $generate },
         @{ Name = 'compose'; Text = $compose },
-        @{ Name = 'qa'; Text = $qa },
-        @{ Name = 'critic'; Text = $critic }
+        @{ Name = 'qa'; Text = $qa }
     )) {
     Report "$($pair.Name) loads engagement.md" (
         $pair.Text -match 'engagement\.md'
     ) "$($pair.Name) SKILL.md does not name engagement.md"
+}
+foreach ($pair in @(
+        @{ Name = 'writer'; Text = $writer; File = 'writer.md' },
+        @{ Name = 'storyboard'; Text = $storyboard; File = 'storyboard.md' },
+        @{ Name = 'visuals'; Text = $visuals; File = 'visuals.md' },
+        @{ Name = 'director'; Text = $director; File = 'direction.md' }
+    )) {
+    Report "$($pair.Name) reference exists and the producer routes to it" (
+        -not [string]::IsNullOrWhiteSpace($pair.Text) -and $producer -match [regex]::Escape($pair.File)
+    ) "skills/media-studio/references/$($pair.File) missing or not named by the producer"
 }
 
 Report 'producer no longer skips music as the rapid default' (
@@ -93,15 +100,15 @@ Report 'producer QA step includes an engagement pass for non-screencast kinds' (
     $producer -match 'engagement pass'
 ) 'producer must run an engagement pass'
 Report 'producer crew includes storyboard then visuals then critic' (
-    $producer -match 'media-storyboard' -and
-    $producer -match 'media-studio-visuals' -and
-    $producer -match 'media-story-experience-reviewer'
+    $producer -match 'storyboard\.md' -and
+    $producer -match 'visuals\.md' -and
+    $producer -match 'story-experience'
 ) 'rapid path must insert storyboard, visuals, and craft critic'
 Report 'producer requires Remotion for viewer-facing briefing/training/explainer/series-episode' (
     $producer -match 'requires Remotion' -and $producer -match 'intent: draft'
 ) 'viewer-facing motion jobs must not silently fall back to static slides'
 Report 'writer hands off to storyboard' (
-    $writer -match 'media-storyboard'
+    $writer -match 'storyboard\.md'
 ) 'writer must not skip to director'
 Report 'director prefers simplest truthful visual that maintains attention' (
     $director -match 'simplest truthful visual that maintains attention'
@@ -128,7 +135,7 @@ Report 'qa engagement pass inspects the encoded file' (
     $qa -match 'encoded' -and $qa -match 'Diagnose first'
 ) 'non-screencast QA must walk the encoded file against Diagnose first'
 Report 'capture keeps screencast engagement on the PDS gate' (
-    $capture -match 'product-picture\.md' -and $capture -match 'media-story-experience-reviewer' -and $capture -match 'not `engagement.md` and not a second overlay stack'
+    $capture -match 'product-picture\.md' -and $capture -match 'story-experience' -and $capture -match 'not `engagement.md` and not a second overlay stack'
 ) 'capture must not apply engagement.md as a second overlay stack'
 
 Report 'job schema has intent draft|viewer-facing' (

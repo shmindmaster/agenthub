@@ -88,6 +88,147 @@
       "supersededBy": "media-studio-visuals",
       "reason": "Renamed into media-studio.",
       "whyFleetScoped": "Same shared-dir spread as product-demo."
+    },
+    {
+      "name": "media-writer",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Folded into media-studio references/writer.md (2026-10-21 consolidation P1). The producer routes the write step; the screenplay schema, validate-narration.mjs and write-story-review.py are unchanged.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "media-storyboard",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Folded into media-studio references/storyboard.md (P1). Storyboard schema and validators unchanged.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "media-studio-visuals",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Folded into media-studio references/visuals.md (P1). visual-bible schema unchanged.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "media-director",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Folded into media-studio references/direction.md (P1), with technical-visualizer and technical-story-director.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "media-story-experience-reviewer",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio-qa",
+      "reason": "Folded into media-studio-qa (P2): the story-experience review of the encoded file, the 85 floor and the marketing feed test live there; story-review-rubric.md and the review schema are unchanged.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "media-studio-descript",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio-compose",
+      "reason": "Folded into media-studio-compose references/descript.md (P3). The Studio Sound ban on owner voice and the mcps.json descript row are unchanged.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "story-series",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "story-series-studio package retired (P4): series methodology is media-studio references/series.md; schemas moved to packages/media-studio/schemas/series.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "dramatize-real-incident",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Folded into media-studio references/writer.md (P4): incident -> premise -> escalation -> payoff with FACT/DRAMATIZED/COMPOSITE tags.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "technical-story-director",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Folded into media-studio references/direction.md (P4).",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "episode-editor",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Folded into media-studio references/series.md (P4); episode, scene-plan, receipt-ledger and continuity schemas moved with it.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "privacy-fictionalizer",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "sarosh-writing",
+      "reason": "Moved to the private sarosh-writing overlay as a reference (P4): fictionalization is used outside film.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "series-continuity",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Folded into media-studio references/series.md (P4); continuity.schema.json moved to packages/media-studio/schemas/series.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "technical-explainer",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "technical-storytelling package retired (P5): the comprehension block lives in media-studio references/story-craft.md and technical-story.md; explanation.schema.json moved to packages/media-studio/schemas.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "technical-visualizer",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "technical-storytelling package retired (P5): the visual-mode decision rules live in media-studio references/direction.md.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "elevenlabs-api",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "elevenlabs",
+      "reason": "Collapsed into the one elevenlabs skill (P7): routing and the governed paid route are its SKILL.md; capabilities.md and cost-controls.md are its references.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "elevenlabs-tts",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "elevenlabs",
+      "reason": "Collapsed into elevenlabs references/tts.md (P7). The governed CLI, ledger, --max-credits and ad-only hosted approval are unchanged.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "elevenlabs-stt",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "elevenlabs",
+      "reason": "Collapsed into elevenlabs references/stt.md (P7), still marked disabled / fails closed.",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    },
+    {
+      "name": "elevenlabs-account-health",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "elevenlabs",
+      "reason": "Collapsed into elevenlabs references/account-health.md (P7).",
+      "whyFleetScoped": "Deployed as a loose skill on every managed-loose-skills host and inside the Claude/Codex native plugins; a capability-scoped retirement on the folded package would miss the shared ~/.agents/skills copies."
+    }
+,
+    {
+      "name": "portfolio-campaign-production",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Private overlay skill retired (P6): multi-asset campaign planning is media-studio references/campaigns.md; it routed through the Notion Prompt OS, which the owner declared an archived reference, not live.",
+      "whyFleetScoped": "Was deployed as a loose skill on the eight-host tier and inside the Claude/Codex native plugins; the overlay row is gone, so only a fleet retirement can sweep the copies."
+    },
+    {
+      "name": "portfolio-prompt-os",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "media-studio",
+      "reason": "Private overlay skill retired: the Notion Prompt OS is an archived reference (records last maintained 2026-08-28/29; its start page says they are no longer active). No workflow routes to it.",
+      "whyFleetScoped": "Same eight-host spread as portfolio-campaign-production."
     }
   ],
   "surfaceAliases": [
@@ -209,7 +350,10 @@
       "owner": "portfolio",
       "capabilityType": "skill-pack-plugin+cli",
       "canonicalSource": "packages/elevenlabs",
-      "contentHash": "134DE4E165BD8252129A7AF190F418F6F5C23AEE20F71ACA7EE7B92CDF85050D",
+      "managedSkillNames": [
+        "elevenlabs"
+      ],
+      "contentHash": "0F2FB4A3E90ACEF4E6BD17F79718C54CCFA2659A71A7F0DEE597FC2273949C8E",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
@@ -292,7 +436,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "BEF3A187FF324192E3C87ABCD47B14E4B970A9972593F337196BB4B2CB515EF5",
+      "contentHash": "650ECAE0E6C6EF8A2A592B9A577D9B462BC67EAB5FA170A0129E89B1FB3876E6",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "notes": "2026-10-14: owner of the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors; adversarial suite for adopters) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, Demonstrate now / Build next / Do not claim truth table, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
@@ -945,233 +1089,6 @@
       "hostScopeNote": "All active coding hosts receive both loose skills and resolve the catalog through the fleet-managed package under %LOCALAPPDATA%/AgentHub/capabilities/mobile-development, independent of a repository checkout or native marketplace state. Only claude and codex may activate the Appium MCP, matching registry/mcps.json; no host persists it in default configuration."
     },
     {
-      "id": "technical-storytelling",
-      "owner": "personal-media",
-      "capabilityType": "plugin+skills",
-      "canonicalSource": "packages/technical-storytelling",
-      "managedSkillNames": [
-        "technical-explainer",
-        "technical-visualizer"
-      ],
-      "contentHash": "A52CBED739F3DD5AB0EEB373DCFE4CB4926C85969786DE5EB5637A761C9DB66A",
-      "hashBasis": "packages/technical-storytelling",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "native-plugin-installed",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ],
-          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills without story-series/technical-explainer because cursor-agent reads ~/.cursor/skills, not ~/.cursor/plugins/local. Junction at ~/.cursor/plugins/local/technical-storytelling remains for Cursor IDE plugin discovery; AgentHub does not remove it."
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "notes": "Added 2026-08-21. Shared technical explanation + visualization planning for demos, series, learning, and docs. No private show content. Remotion remains optional via external:remotion. Non-screencast composition routes through media-studio; a film visual that never changes is unfinished (media-studio engagement.md). Codex loads the native plugin; skill-only hosts stay managed-loose-skills.",
-      "dependencies": {
-        "requires": [],
-        "recommends": [],
-        "optional": [
-          "external:remotion"
-        ]
-      },
-      "kind": "provider",
-      "maturity": "beta",
-      "provenance": "agenthub-owned"
-    },
-    {
-      "id": "story-series-studio",
-      "owner": "personal-media",
-      "capabilityType": "plugin+skills",
-      "canonicalSource": "packages/story-series-studio",
-      "managedSkillNames": [
-        "story-series",
-        "dramatize-real-incident",
-        "technical-story-director",
-        "episode-editor",
-        "privacy-fictionalizer",
-        "series-continuity"
-      ],
-      "contentHash": "671CC290043E9F9D1EB1A5694913D01AB45C0769903752DD46DD919361F825B8",
-      "hashBasis": "packages/story-series-studio",
-      "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "native-plugin-installed",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ],
-          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills without story-series because cursor-agent reads ~/.cursor/skills, not ~/.cursor/plugins/local. Junction at ~/.cursor/plugins/local/story-series-studio remains for Cursor IDE plugin discovery; AgentHub does not remove it."
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "notes": "Added 2026-08-21. Generic series methodology only ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â private show bibles and media stay outside AgentHub. Prefer this over startup-series for new series work. Product Demo Studio stays the product-screencast workflow; assemble non-screencast picture through media-studio. Codex loads the native plugin; skill-only hosts stay managed-loose-skills.",
-      "dependencies": {
-        "requires": [
-          "technical-storytelling"
-        ],
-        "recommends": [
-          "browser-toolkit",
-          "local-ai"
-        ],
-        "optional": [
-          "external:remotion",
-          "external:superpowers",
-          "external:creative-writing-skills"
-        ]
-      },
-      "kind": "orchestrator",
-      "maturity": "beta",
-      "provenance": "agenthub-owned"
-    },
-    {
       "id": "learning-studio",
       "owner": "personal-learning",
       "capabilityType": "plugin+skills",
@@ -1270,7 +1187,7 @@
       "dependencies": {
         "requires": [],
         "recommends": [
-          "technical-storytelling"
+          "media-studio"
         ],
         "optional": [
           "external:remotion"
@@ -1287,18 +1204,12 @@
       "canonicalSource": "packages/media-studio",
       "managedSkillNames": [
         "media-studio",
-        "media-writer",
-        "media-storyboard",
-        "media-director",
+        "media-studio-capture",
         "media-studio-generate",
         "media-studio-compose",
-        "media-studio-capture",
-        "media-studio-qa",
-        "media-studio-visuals",
-        "media-story-experience-reviewer",
-        "media-studio-descript"
+        "media-studio-qa"
       ],
-      "contentHash": "06074E39240B75F5D4C8DEF297FDBABDC08D68872A29BBF963C21DB87F8E5E32",
+      "contentHash": "CF6545E686A502F60FAA9266D6962C74CB37883BAD2231FDBA8DBCF45D91BE4C",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1388,19 +1299,17 @@
           "deploymentStatus": "managed-loose-skills"
         }
       ],
-      "notes": "Added 2026-08-25; current public pack 1.7.6 (2026-10-20: delivery review roots repointed to F:/My Drive/Videos/<Product>; Sync-MediaStudioKit.ps1 deploys Inspect-MediaVisualQuality.ps1, scaffold-video-workspace.mjs and product-experience-engineering's demo-stack.mjs to _shared/tools and reports unmanaged files left there). 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ storyboard ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ visuals ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ director ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ generate ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ compose ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ craft critic (score ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€šÃ‚Â¥ 85) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
+      "notes": "Added 2026-08-25; current public pack 2.0.0 (2026-10-21 consolidation P1-P8: one producer skill with writer/storyboard/visuals/direction/series/campaigns references plus capture, generate, compose, qa; story-series-studio and technical-storytelling retired into it; descript a compose reference; story-experience review inside qa). 1.8.0 (2026-10-20 video standard, owner direction: validate-narration no-fluff check, capture pre-flight in record-job, validate-pointer-path, validate-frame-integrity, validate-picture-integrity and per-ratio capture, validate-marketing-readiness feed test, build-contact-sheet, freeze gate accepts declared holds; validate-viewer-release requires their reports; the deploy list must add the seven new gate scripts). 1.7.6 (2026-10-20: delivery review roots repointed to F:/My Drive/Videos/<Product>; Sync-MediaStudioKit.ps1 deploys Inspect-MediaVisualQuality.ps1, scaffold-video-workspace.mjs and product-experience-engineering's demo-stack.mjs to _shared/tools and reports unmanaged files left there). 1.5.6 (2026-09-15: product-picture.md interaction contract, validate-product-picture.mjs, Recast+WebM fail-closed, no Ken Burns on product UI). Infer programForm and kind from a short ask ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â product demo is a kind, not a second plugin. A short prompt still runs curation, gap-closure, writer, storyboard, director, generate, compose, critic, QA. Program forms (hero, outcome-workflow, webcast, ai-trust, ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦) plus studio-craft. Only public video/audio pack. Viewer-facing crew is writer ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ storyboard ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ visuals ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ director ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ generate ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ compose ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ craft critic (score ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°Ãƒâ€šÃ‚Â¥ 85) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ QA. Engagement + story-craft + scene-archetype kit; intent:draft skips GPU plates and the critic gate. Remotion is required for viewer-facing briefing/training/explainer/series-episode unless draft. Product repositories are read-only inputs: all job config, capture/composition code, dependencies, fixtures, assets, evidence, and generated media remain in external runtime/artifact roots, and product remediation requires a separate authorized engineering task. product-demo-studio package deleted 2026-09-15; screencast capture/Recast/product-picture live in this pack. Claude and Codex install media-studio@agenthub natively. Skill-only hosts including Grok stay managed-loose-skills.",
       "dependencies": {
         "requires": [
           "local-ai"
         ],
         "recommends": [
-          "technical-storytelling",
           "browser-toolkit",
           "external:remotion",
           "external:creative-writing-skills"
         ],
         "optional": [
-          "story-series-studio",
           "learning-studio",
           "elevenlabs"
         ]

@@ -121,16 +121,18 @@ finally {
     Remove-Item -LiteralPath $scratchRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$explainer = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\technical-storytelling\skills\technical-explainer\SKILL.md') -Raw -Encoding UTF8
-$visualizer = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\technical-storytelling\skills\technical-visualizer\SKILL.md') -Raw -Encoding UTF8
-$series = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\story-series-studio\references\episode-structure.md') -Raw -Encoding UTF8
-Report 'technical-explainer has viewer-facing dramatic spine' (
-    $explainer -match 'Question' -and $explainer -match 'story-craft'
-) 'explainer still only ships comprehension slides'
-Report 'technical-visualizer maintains attention' (
+# Consolidation (2026-10-21): technical-explainer lives in story-craft.md (explainer path), technical-visualizer and
+# the series director in references/direction.md, series methodology in references/series.md.
+$explainer = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\story-craft.md') -Raw -Encoding UTF8
+$visualizer = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\direction.md') -Raw -Encoding UTF8
+$series = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\series.md') -Raw -Encoding UTF8
+Report 'story-craft carries the explainer comprehension block inside the dramatic spine' (
+    $explainer -match 'Question' -and $explainer -match '(?i)core idea' -and $explainer -match '(?i)misconception'
+) 'explainer comprehension block was lost in the fold or still ships as slides'
+Report 'direction.md maintains attention' (
     $visualizer -match 'maintains attention'
-) 'visualizer still says cheapest truthful visual'
-Report 'story-series points non-series films at media-studio story-craft' (
+) 'direction reference still says cheapest truthful visual'
+Report 'series.md points non-series films at story-craft' (
     $series -match 'story-craft.md'
 ) 'series structure was not extracted for general films'
 $music = Read-LocalAiReference 'music.md'
@@ -145,17 +147,17 @@ if ($null -eq $music -or $null -eq $image) {
         $image -match 'visual-bible' -and $image -match 'product UI'
     ) 'image.md has no film B-roll contract'
 }
-$tsd = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\story-series-studio\skills\technical-story-director\SKILL.md') -Raw -Encoding UTF8
-$editor = Get-Content -LiteralPath (Join-Path $repoRoot 'packages\story-series-studio\skills\episode-editor\SKILL.md') -Raw -Encoding UTF8
-Report 'technical-story-director hands off to media-storyboard' (
-    $tsd -match 'media-storyboard' -and $tsd -match 'story-craft'
+$tsd = $visualizer
+$editor = $series
+Report 'direction.md series beat hands off to the storyboard reference' (
+    $tsd -match 'storyboard\.md' -and $tsd -match 'story-craft'
 ) 'series director still jumps explainer to picture'
-Report 'technical-story-director routes live product to product-picture' (
+Report 'direction.md routes live product to product-picture' (
     $tsd -match 'product-picture.md' -and $tsd -match 'product-screencast'
 ) 'series director can still pick a Remotion slide stack for a running product'
-Report 'episode-editor runs the media-studio crew' (
-    $editor -match 'media-storyboard' -and $editor -match 'media-studio-generate'
-) 'episode-editor still composes from the scene plan alone'
+Report 'series.md runs the media-studio crew' (
+    $editor -match 'storyboard\.md' -and $editor -match 'media-studio-generate'
+) 'series assembly still composes from the scene plan alone'
 
 # Technical-story format (1.5.4): one reference owns the beat map and markup
 # rules; writer, storyboard, director, the PDS playbook, and the series director
@@ -168,11 +170,11 @@ Report 'technical-story.md carries the beat map, markup rules, and the guiding p
     $techStory -match 'Never make an addendum' -and
     $techStory -match 'render-overlay\.mjs'
 ) 'technical-story.md is missing the owner-directed structure or rules'
-$writer = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-writer\SKILL.md') -Raw -Encoding UTF8
-$board = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-storyboard\SKILL.md') -Raw -Encoding UTF8
-$director = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-director\SKILL.md') -Raw -Encoding UTF8
+$writer = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\writer.md') -Raw -Encoding UTF8
+$board = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\storyboard.md') -Raw -Encoding UTF8
+$director = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\direction.md') -Raw -Encoding UTF8
 $playbook = Get-Content -LiteralPath (Join-Path $pkg 'skills\media-studio\references\killer-demo-playbook.md') -Raw -Encoding UTF8
-Report 'writer, storyboard, director, PDS playbook, and series director link technical-story.md' (
+Report 'writer, storyboard, direction references and the PDS playbook link technical-story.md' (
     $writer -match 'technical-story\.md' -and
     $board -match 'technical-story\.md' -and
     $director -match 'technical-story\.md' -and
