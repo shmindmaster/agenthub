@@ -93,6 +93,57 @@ try {
     & (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -RuntimeKit $runtimeKit | Out-Null
     if (Test-Path -LiteralPath $stale) { throw 'Marketing kit sync merged instead of replacing' }
     $checks++
+    # Mirror in place: stale files and stale directories go, but the target directory is the same object (never emptied or recreated).
+    $marketingTarget = Join-Path $runtimeKit 'marketing'
+    $syncScript = Join-Path $package 'scripts\Sync-MediaStudioKit.ps1'
+    $staleDir = Join-Path $marketingTarget 'stale-removed-dir\nested'
+    New-Item -ItemType Directory -Force -Path $staleDir | Out-Null
+    Set-Content -LiteralPath (Join-Path $staleDir 'old.mjs') -Value '// stale' -Encoding ascii
+    Set-Content -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs') -Value '// stale' -Encoding ascii
+    $createdBefore = (Get-Item -LiteralPath $marketingTarget).CreationTimeUtc
+    $keepFile = Join-Path $marketingTarget (Get-ChildItem -LiteralPath $marketingSource -File | Select-Object -First 1).Name
+    $keepWriteBefore = (Get-Item -LiteralPath $keepFile).LastWriteTimeUtc
+    Start-Sleep -Milliseconds 1100
+    & $syncScript -RuntimeKit $runtimeKit | Out-Null
+    if (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-removed-dir')) { throw 'Marketing kit sync left a stale directory behind' }
+    $checks++
+    if (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs')) { throw 'Marketing kit sync left a stale top-level file behind' }
+    $checks++
+    if ((Get-Item -LiteralPath $marketingTarget).CreationTimeUtc -ne $createdBefore) { throw 'Marketing target directory was deleted and recreated during sync' }
+    $checks++
+    if ((Get-Item -LiteralPath $keepFile).LastWriteTimeUtc -ne $keepWriteBefore) { throw 'An unchanged marketing file was rewritten during sync' }
+    $checks++
+    # A successful robocopy (exit codes 1-7) must not leak as a failing script exit code.
+    $pwshExe = (Get-Process -Id $PID).Path
+    Set-Content -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs') -Value '// stale' -Encoding ascii
+    & $pwshExe -NoProfile -File $syncScript -RuntimeKit $runtimeKit | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Sync exited $LASTEXITCODE after a successful mirror" }
+    $checks++
+    # Refuse while an mvg job runs from the target; -Force overrides.
+    $node = (Get-Command node -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+    $helper = $null
+    try {
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $node
+        $psi.Arguments = '-e "setTimeout(()=>{},60000)" "' + (Join-Path $marketingTarget 'mvg.mjs') + '"'
+        $psi.CreateNoWindow = $true
+        $psi.UseShellExecute = $false
+        $helper = [Diagnostics.Process]::Start($psi)
+        Start-Sleep -Milliseconds 800
+        Set-Content -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs') -Value '// stale' -Encoding ascii
+        $refusal = $null
+        try { & $syncScript -RuntimeKit $runtimeKit | Out-Null } catch { $refusal = $_.Exception.Message }
+        if (-not $refusal -or $refusal -notmatch 'mvg' -or $refusal -notmatch [string]$helper.Id) { throw "Sync did not refuse while an mvg job was running (message: $refusal)" }
+        $checks++
+        if (-not (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs')) -or -not (Test-Path -LiteralPath (Join-Path $marketingTarget 'mvg.mjs'))) { throw 'Refused sync still touched the marketing directory' }
+        $checks++
+        & $syncScript -RuntimeKit $runtimeKit -Force 3>$null | Out-Null
+        if (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs')) { throw '-Force did not complete the mirror' }
+        $checks++
+    } finally {
+        if ($helper -and -not $helper.HasExited) { $helper.Kill() }
+        if ($helper) { $helper.Dispose() }
+    }
     Write-Host "PASS: $checks runtime gate/tool deployment checks"
 } finally {
     $resolved = [IO.Path]::GetFullPath($scratch)
