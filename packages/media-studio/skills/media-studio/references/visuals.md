@@ -1,21 +1,16 @@
----
-name: media-studio-visuals
-description: Use when a media-studio job needs art direction, a visual bible, B-roll, shot concepts, or truthful non-product-UI imagery, and must not fabricate product UI or metrics.
----
+# Visuals (art direction, visual bible, B-roll)
 
-# Media studio visuals
+Step 3 of the crew in `SKILL.md`. Art direction for the job. You do not generate TTS, compose the program, or invent product UI.
 
-Art direction for the job. You do not generate TTS, compose the program, or invent product UI.
+Read with this step: `engagement.md` and `scene-archetypes.md`. Local images: `ai.ps1 image` / Visual Bank (`local-ai-stack` `references/image.md`). Exact logos and legal text are compositor type.
 
-Load `../media-studio/references/engagement.md` and `scene-archetypes.md`. Local images: `ai.ps1 image` / Visual Bank (`local-ai-stack` `references/image.md`). Exact logos and legal text are compositor type.
+Screencast visual contract (kind `product-screencast`): `Visual-Asset-Guide.md` plus `product-picture.md`. Product UI is captured video, not a bible still.
 
-Screencast visual contract (kind `product-screencast`): `../media-studio/references/Visual-Asset-Guide.md` plus `../media-studio/references/product-picture.md`. Product UI is captured video, not a bible still.
-
-Handoff: `media-storyboard` → **this skill** → `media-director`.
+Order: `storyboard.md` → **this step** → `direction.md`.
 
 ## 1. Visual bible
 
-Write `visual-bible.json` matching `../../schemas/visual-bible.schema.json`.
+Write `visual-bible.json` matching `../../../schemas/visual-bible.schema.json`.
 
 Required: motif, lighting, typography, compositionRules, graphicalLanguage, motionTreatment, texture, continuity, brollPlan.
 
@@ -46,4 +41,4 @@ Never synthesize product UI, customer evidence, metrics, or testimonials.
 - [ ] Bible validates
 - [ ] Every B-roll beat has intent + refuse
 - [ ] Motif is specific to this job
-- [ ] Next skill is `media-director`
+- [ ] Next step is `direction.md`

@@ -1,23 +1,18 @@
----
-name: media-storyboard
-description: Use when a media-studio screenplay needs a timed storyboard — shot plan, visual archetype, sound, rhythm, eye direction, and scored hook options — before directing or generating.
----
+# Storyboard (timed beats)
 
-# Media storyboard
+Step 2 of the crew in `SKILL.md`. Turn the locked screenplay into a designed sequence of viewer experiences. You do not generate media, rewrite claims, or release.
 
-Turn the locked screenplay into a designed sequence of viewer experiences. You do not generate media, rewrite claims, or release.
+Read with this step: `engagement.md`, `story-craft.md`, `cursor-flow.md`, and `scene-archetypes.md`, unless kind is `product-screencast` (`product-picture.md` + `cursor-flow.md`). When `programForm` is `technical-story`, read `technical-story.md` and lay the beats on its timestamp map (hook → scenario → weird behavior → what is actually happening → code reveal → fix before/after → replay → what this means), whatever the kind. Marketing cuts also read `marketing-readiness.md`: the beats must put the hook on screen inside two seconds and cut on the bed.
 
-Load `../media-studio/references/engagement.md`, `story-craft.md`, `cursor-flow.md`, and `scene-archetypes.md` unless kind is `product-screencast` (`product-picture.md` + `cursor-flow.md`). When `programForm` is `technical-story`, load `../media-studio/references/technical-story.md` and lay the beats on its timestamp map (hook → scenario → weird behavior → what is actually happening → code reveal → fix before/after → replay → what this means), whatever the kind. Marketing cuts also load `marketing-readiness.md`: the beats must put the hook on screen inside two seconds and cut on the bed.
-
-Handoff: `media-writer` → **this skill** → `media-studio-visuals` → `media-director`.
+Order: `writer.md` → **this step** → `visuals.md` → `direction.md`.
 
 ## 1. Inputs
 
-- `screenplay.json` matching `../../schemas/screenplay.schema.json`
+- `story/screenplay.json` matching `../../../schemas/screenplay.schema.json`
 - `qa/narration-check.json` with `ok: true` (the writer's no-fluff gate)
 - `job.json` (`intent`, `kind`, `deliveryProfile`)
 
-If the screenplay lacks `hook`, `sceneRole`, or `wiifm` on a viewer-facing job, or the narration check is missing or failing, remit to `media-writer`. Do not invent metrics or product behavior.
+If the screenplay lacks `hook`, `sceneRole`, or `wiifm` on a viewer-facing job, or the narration check is missing or failing, remit to the writer (`writer.md`). Do not invent metrics or product behavior.
 
 ## 2. Hook choice (internal)
 
@@ -52,9 +47,9 @@ Rules:
 
 ## 4. Output
 
-Write `storyboard.json` matching `../../schemas/storyboard.schema.json`.
+Write `story/storyboard.json` matching `../../../schemas/storyboard.schema.json` (`scripts/validate-storyboard.mjs` checks it).
 
-Then `media-studio-visuals`.
+Then `visuals.md`.
 
 ## 5. Final check
 

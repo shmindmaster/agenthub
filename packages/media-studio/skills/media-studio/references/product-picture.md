@@ -73,7 +73,7 @@ Missing `visualMode` on a `product-screencast` beat **defaults to `screen`**, no
 - Ken Burns on `screen-in-context` is off in the Remotion kit. Recast punch-in is the only zoom on product UI.
 - `validate-encoded-picture.mjs` on the candidate: dead screen > 6 s in a screen beat fails; a segment whose frames do not come from the receipt-bound clip fails.
 - `Inspect-MediaVisualQuality.ps1` flags `ken-burns-on-still` (tiny grayscale hash frozen while full-frame hashes change).
-- `media-story-experience-reviewer` refuses `kind: product-screencast` (`MALFORMED_INPUT`). Story review runs on the **encoded** file only. A pre-capture text score is not a craft pass.
+- The story-experience review (`media-studio-qa`) refuses a `kind: product-screencast` without the encoded candidate (`MALFORMED_INPUT`). Story review runs on the **encoded** file only. A pre-capture text score is not a craft pass.
 - Motif / image-to-video of a product screenshot is refused (`local-ai-stack` `references/video.md`).
 - Card / `slide` / `diagram` beats on a `product-screencast` are each ≤8s.
 - Recast (`playwright-recast@0.21.0`, declared in `kit/package.json`) is required pointer finishing (`policy/product-video-policy.json` `pointerFinishing`). If its ffmpeg render fails on a long many-click clip, `record-job.mjs` retries without `autoZoom`, then records `recast: fallback`; the validator accepts a fallback only when `job.json` says `recastFallbackAllowed: true` with a reason. Split the take instead.

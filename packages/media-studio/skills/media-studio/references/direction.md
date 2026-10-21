@@ -1,15 +1,10 @@
----
-name: media-director
-description: Use when a video needs direction, a visual plan, scene design, pointer and highlight choreography, talking-head blocking, or performance notes for local voice.
----
+# Direction (visual choice, eye path, performance)
 
-# Media director
+Step 4 of the crew in `SKILL.md`. Translate the locked storyboard into what appears and how it is performed. Decide in this turn; do not present a menu of visual styles. You do not capture, generate, or release.
 
-Translate the locked storyboard into what appears and how it is performed. Decide in this turn; do not present a menu of visual styles. You do not capture, generate, or release.
+Read with this step: `engagement.md`, `cursor-flow.md` and `scene-archetypes.md`, unless kind is `product-screencast` (Recast + `product-picture.md` + `cursor-flow.md`). When `programForm` is `technical-story`, read `technical-story.md`: the markup rules there are yours to direct per beat. Marketing cuts also read `marketing-readiness.md`.
 
-Load `../media-studio/references/engagement.md`, `cursor-flow.md` and `scene-archetypes.md` unless kind is `product-screencast` (Recast + `product-picture.md` + `cursor-flow.md`). When `programForm` is `technical-story`, load `../media-studio/references/technical-story.md`: the markup rules there are yours to direct per beat. Marketing cuts also load `marketing-readiness.md`.
-
-Requires `storyboard.json` and `visual-bible.json` on viewer-facing jobs. If they are missing, remit to `media-storyboard` / `media-studio-visuals`.
+Requires `story/storyboard.json` and `visual-bible.json` on viewer-facing jobs. If they are missing, remit to `storyboard.md` / `visuals.md`.
 
 ## 1. Visual choice
 
@@ -65,3 +60,60 @@ Honor storyboard `sound` (`musicCue`, `sfxCue`, `silenceOnReveal`, `transitionAu
 - [ ] Hero has silence or a ducked rest
 - [ ] Register named per beat
 - [ ] Next skill is `media-studio-generate`
+
+## 6. Technical ideas: which visual (decision rules)
+
+For a technical idea, failure or design choice, decide the **simplest truthful visual that maintains attention**. A cheaper still that holds across two ideas is unfinished, not simpler. Walk the list:
+
+```text
+actual screen?
+terminal?
+Slack/UI chrome (synthetic)?
+architecture diagram?
+sequence diagram?
+animated flow?
+code?
+graph?
+avatar?
+nothing — narration enough?
+```
+
+Decision rules:
+
+1. Prefer real captured UI/terminal when the claim is about product behavior.
+2. Prefer diagrams when the claim is about structure or flow.
+3. Prefer animation only when motion itself teaches (ordering, fan-out, failure propagation).
+4. Prefer narration-only when a visual would decorate without teaching.
+5. If the output is a film, a visual that never changes across a scene is unfinished, not cheaper. Builds, cuts, and motion that teach are not decoration; film craft lives in `engagement.md`.
+6. Route composition through `media-studio-compose`. Remotion is capability `video.programmatic-composition` (official `remotion-dev/skills`), never vendored here. Mermaid/D2 for static diagrams. Product-UI truth still captures through `media-studio-capture` (Playwright WebM + Recast in `packages/media-studio`). Do not load retired `product-demo*` skills.
+
+Record the decision per beat:
+
+```yaml
+visual:
+  mode: screen|terminal|diagram|animation|narration
+  why: <one sentence>
+  provider_hint: capture|mermaid|d2|remotion|none
+  truth: FACT|DRAMATIZED|COMPOSITE
+```
+
+(`mode` maps onto the §1 `visualMode` table: `terminal` is a captured `screen`; `narration` is `narration-only`.)
+
+## 7. Series technical beats
+
+Choosing capture vs diagram vs animation for a **series** technical beat. You do not generate media or skip the crew in `SKILL.md`.
+
+1. Comprehension first: the explanation block (`story-craft.md` → "Explainer path"; `../../../schemas/explanation.schema.json`).
+2. `story-craft.md` for tension / reveal; do not flatten to Core Idea → Takeaway slides.
+3. `technical-story.md` when the beat is a product or engineering change: hook on the problem, flow overlay, code reveal of the 5–20 lines that matter, before/after, replay, what it means. Its markup rules (box, dim, arrow, label, flow) apply to the series beat too. A running product as the picture also reads `product-picture.md` — WebM + Recast, not Ken Burns stills.
+4. Then hand the locked explanation to the crew. If the picture is a running product, kind is `product-screencast`, not a Remotion `series-episode` slide stack. Writer → storyboard → visuals → direction.
+
+Do not jump explainer → Remotion. The storyboard owns shot plan, archetype, and sound.
+
+Picture: prefer Playwright / `media-studio-capture` + Recast when the claim is a running product (`product-picture.md`). Prefer diagram **build** (overlay on the product, or ≤8s cutaway) when the claim is structure. Prefer Motif / Remotion only when motion itself teaches — never Motif a product screenshot. Simplest truthful visual that **maintains attention**; a still held across two ideas is unfinished.
+
+Final check for a series technical beat:
+
+- [ ] Truth tag on the beat
+- [ ] Next step is `storyboard.md`, not a slide dump
+- [ ] Live UI is capture, not diffusion

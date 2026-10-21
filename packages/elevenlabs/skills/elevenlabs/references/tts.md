@@ -1,18 +1,15 @@
----
-name: elevenlabs-tts
-description: Use when approved text needs ElevenLabs speech with existing voices, live clone readiness, bounded credits and exact-artifact validation.
----
-
 # ElevenLabs speech
 
-Load `elevenlabs-api` for cost/latency/quality routing. Once ElevenLabs is justified,
+(Approved text, existing voices, live clone readiness, bounded credits, exact-artifact validation.)
+
+Use `../SKILL.md` for cost/latency/quality routing. Once ElevenLabs is justified,
 use the shared governed CLI for every paid speech request. For Sarosh, load
 `sarosh-audio-voice` first: local speech is eligible when adequate; the approved
 existing hosted clone is permitted when compatible and worth its cost. Preserve
 the mandatory speaker-identity gate on either route. Never substitute a generic voice,
 upload private recordings, replace a clone or perform verification by inference.
 
-Read credits with `elevenlabs-account-health`. Select the exact existing voice
+Read credits with `account-health.md`. Select the exact existing voice
 from the intended workspace; inspect readiness on the requested model. A missing
 professional-clone model state is unknown readiness and blocks that combination.
 Choose a ready model explicitly rather than silently changing speaker or model.
@@ -49,13 +46,15 @@ Paid generation requires `--model-id` or `ELEVENLABS_MODEL_TTS_DEFAULT`; there i
 no implicit paid premium-model choice. Dry-run discovery defaults to `eleven_flash_v2_5`.
 This REST adapter refuses `eleven_v4_turbo`: its documented Text to Dialogue
 WebSocket endpoint needs a separate governed implementation; native generation stays blocked.
-Always select a verified compatible model for a professional clone. Output format defaults to
+Always select a verified compatible model for a professional clone.
+`eleven_v4` exposes only stability and similarity: `--style` and `--speed` are still forwarded
+but the CLI warns they have no verified effect, so do not pass them with a v4 model. Output format defaults to
 `ELEVENLABS_OUTPUT_FORMAT` or `mp3_44100_192`; check tier support first.
 
 Run `tts --help` for voice settings, normalization, seed, language, output format,
 dictionary locators and stitching. Maximum three dictionary locators, and three
 neighbor request IDs per side. Never combine previous text with previous request
-IDs, or next text with next request IDs. Persist the returned `request_id`.
+IDs, or next text with next request IDs. The CLI stdout carries `ok`, `output`, `acceptance_state` and `reused`; read the provider `request_id` from the hash-bound `.provenance.json` receipt and persist it.
 Controls vary by model: a successful API response does not prove a setting had an
 audible effect. Use model-supported direction and a short listening comparison.
 

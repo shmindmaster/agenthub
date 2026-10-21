@@ -1,6 +1,6 @@
 # Story-experience rubric (non-screencast)
 
-Used by `media-story-experience-reviewer` on the encoded file, including product screencasts. Marketing cuts
+Used by the story-experience review (`media-studio-qa` → "Story-experience review") on the encoded file, including product screencasts. Marketing cuts
 are additionally held to the floor in `marketing-readiness.md`; below that floor is a fail whatever this score says.
 
 Score 0–100. **Below 85 is a fail.** Remit deficient scenes and rerun. Do not deliver.

@@ -1,6 +1,6 @@
 ---
 name: media-studio-qa
-description: Use when a media-studio candidate needs fail-closed screencast evidence, craft, local audio perception, an engagement pass, domain review, arbitration, or final verification.
+description: Use when a media-studio candidate needs fail-closed screencast evidence, craft, a scored story-and-experience review, local audio perception, an engagement pass, domain review, arbitration, or final verification.
 ---
 
 # Media studio QA
@@ -14,7 +14,7 @@ Four rules hold for every kind and no gate below outranks them: no fluff (every 
 Fail-closed release. Gates run on source artifacts and the exact encoded candidate; a numeric craft score never overrides them. Native plugins resolve `scripts/` inside their installed package. Loose-skill hosts use `%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools`; its `RELEASE-EVIDENCE.md` defines the evidence contract. Missing executables block release.
 
 0. `scripts/validate-demo-scenario.mjs <jobRoot>` **before recording** — source-hashed synthetic scenario proof: persona, pain, hero action, visible outcome, coherent generic entity continuity, and CTA. Do not record a hard-coded or unverified authenticated path. A readiness handoff must prove the product resolves the intended workflow.
-0b. `scripts/validate-narration.mjs <jobRoot>` **before recording** — the no-fluff check on the locked script: every banned class (greeting, meta, recap, process, version, synthetic-data talk, jargon, filler), redundancy, lines that add nothing, hook and promise inside five seconds, synthetic disclosure as caption or end card. Writes `qa/narration-check.json` with fluff per minute and the words-cut report. Any hit → back to `media-writer`; `write-story-review.py` and the viewer-release gate both require this PASS.
+0b. `scripts/validate-narration.mjs <jobRoot>` **before recording** — the no-fluff check on the locked script: every banned class (greeting, meta, recap, process, version, synthetic-data talk, jargon, filler), redundancy, lines that add nothing, hook and promise inside five seconds, synthetic disclosure as caption or end card. Writes `qa/narration-check.json` with fluff per minute and the words-cut report. Any hit → back to the writer (`../media-studio/references/writer.md`); `write-story-review.py` and the viewer-release gate both require this PASS.
 0c. Capture pre-flight runs inside `record-job.mjs` (`validate-capture-preflight.mjs`): scene ids across `scenes.mjs`, the narration timeline, storyboard, capture plan and cue plan agree, every cue-plan keyword is in its line, typing fits the beat. `qa/capture-preflight.json` must be a PASS; `recordings.preflight: skipped` is not.
 1. `scripts/validate-product-picture.mjs <jobRoot>` — plan and clips: receipt-bound live captures, pointer motion, observed responses, Recast, no hidden freeze, ≥70% screen.
 1b. **Pointer-path gate:** `scripts/validate-pointer-path.mjs <jobRoot>` — the receipt's move, wheel, click, point and type events per beat against the cue sheet: direction reversals (flicking, up-and-down, going back), total travel against the straight path through the named targets, scroll reversals and scroll-past-and-return, moves not followed by a named action. Defaults are zero reversals, zero scroll returns, travel ≤ 1.35× direct, zero unnamed moves; a cue-plan `pointer` allowance needs a reason. Writes `qa/pointer-path.json` bound to the receipt. FAIL → re-record those beats; nothing else fixes a wandering cursor.
@@ -30,7 +30,7 @@ Fail-closed release. Gates run on source artifacts and the exact encoded candida
 
 Final human-grade review, never skipped: watch and listen to the whole exact encoded file and check the contact sheet and every critical interaction against the cue-sheet timeline (screen already up at the line's first content word, cursor on the control as it is named, result readable after, the eye never asked to go back). The sync gate does not replace this. **Never say sync or visual quality is verified unless you inspected the rendered file and its audio; a successful render or a PASS report alone is not verification.** State limitations plainly in the handoff (e.g. "the architecture beat uses a guided highlight, not live UI"; "text clipping not machine-checked, no OCR").
 
-Screen accuracy: every spoken product claim is visible in that beat's frames (`qa/screen-accuracy.json`). Mute test: `product-picture.md`. Do **not** use `Inspect-MediaVisualQuality.ps1` or `media-story-experience-reviewer` for this kind.
+Screen accuracy: every spoken product claim is visible in that beat's frames (`qa/screen-accuracy.json`). Mute test: `product-picture.md`. Do **not** use `Inspect-MediaVisualQuality.ps1` or a screenplay-only story score for this kind; the story-experience review below runs on the encoded file.
 
 ## 2. Other kinds
 
@@ -39,13 +39,112 @@ Briefings, training, explainers, talking-heads, animation, and audio-only do **n
 0. `scripts/validate-narration.mjs <jobRoot>` on the locked script (as 0b above) before any voice is rendered; a hit is a block.
 1. Identity-score owner voice and `ai.ps1 listen` on the **exact encoded file**. Above 90 seconds, pass the canonical narration timeline with `--timeline <timeline.json>`; the Local-AI report must bind the original candidate and prove contiguous decoded-sample coverage across its scene-aligned reviews. Do not substitute separately exported clips.
 2. Captions from the spoken words.
-3. Require a current `story-experience-review.json` from `media-story-experience-reviewer` with `pass: true` (score ≥ `craftScoreMin`, default 85). If it is missing or failing, remit — do not treat identity/listen as a craft pass. A technical story or explainer with screen beats also needs the pointer-path PASS (1b) and the frame-integrity PASS (2c); a marketing cut of any kind needs the marketing floor (2e).
-4. Engagement pass on the **encoded** file (not the screenplay): walk every scene and list stretches that are slow, repetitive, visually static, or emotionally flat per `engagement.md` Diagnose first. Missing hook, wall-to-wall static, rushed payoff, unducked bed, narration that reads the slide, anything said twice, or a cursor or highlight that moves while nothing is named is a fail — remit to writer, storyboard, director, generate, or compose.
+3. Require a current `story-experience-review.json` from the story-experience review below with `pass: true` (score ≥ `craftScoreMin`, default 85). If it is missing or failing, remit — do not treat identity/listen as a craft pass. A technical story or explainer with screen beats also needs the pointer-path PASS (1b) and the frame-integrity PASS (2c); a marketing cut of any kind needs the marketing floor (2e).
+4. Engagement pass on the **encoded** file (not the screenplay): walk every scene and list stretches that are slow, repetitive, visually static, or emotionally flat per `engagement.md` Diagnose first. Missing hook, wall-to-wall static, rushed payoff, unducked bed, narration that reads the slide, anything said twice, or a cursor or highlight that moves while nothing is named is a fail — remit to the writer, storyboard, direction (`../media-studio/references/writer.md`, `storyboard.md`, `direction.md`), generate, or compose.
 5. Run `Inspect-MediaVisualQuality.ps1` on the encoded file (`-ContactSheet` builds the cue-sheet contact sheet when a cue sheet exists). Suspects (static stretch, duplicate visual, undesigned first/last frame) go to the critic or director. Metrics flag; they do not replace judgment.
 
 6. `scripts/validate-viewer-release.mjs <jobRoot> <candidate.mp4>` after **every** recut — it requires the exact candidate SHA on captions, loudness, authored-script pronunciation, visual/title/action-result reviews, the narration check, frame integrity, CTA and, when applicable, series evidence. Captions must be readable rather than paragraph blocks; ASR cannot be its own pronunciation reference.
 
 Do not ship a product-screencast that failed scenario, narration, pre-flight, product-picture, pointer-path, exact-candidate, frame-integrity, picture-integrity, marketing-floor or encoded-file review.
+
+## Story-experience review
+
+Read-only craft critic for viewer-facing films against the **encoded** file. Product screencasts also require `product-picture.md`. You do not edit media.
+
+Read: `../media-studio/references/story-review-rubric.md` and `engagement.md`; `marketing-readiness.md` when the job is a marketing cut; `story-craft.md` → "No fluff" and `cursor-flow.md` always. Ignore generator self-assessment.
+
+A `qa/story-review.json` from `write-story-review.py` is a screenplay lint. It does not authorize capture, compose, or delivery. Product-screencast still requires `product-picture.md` and this review of the encoded file.
+
+### 0. Before capture
+
+This review cannot run before capture: it judges the encoded file. The writer's
+pre-capture gate for **every** kind, product screencasts included, is the plugin's
+`scripts/validate-narration.mjs` (no fluff; `qa/narration-check.json`) followed by
+`scripts/write-story-review.py` (the media-studio kit keeps its working copies at
+`%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools\`):
+
+```text
+node validate-narration.mjs <jobRoot>
+python write-story-review.py <jobRoot> [--min 85] [--print]
+```
+
+It computes the mechanical rubric checks from `story/screenplay.json` + `story/storyboard.json` (hook,
+hero, silence, before-state, repeats, designed frames, filler vocabulary, no-fluff from the narration check,
+narration reading the card, type density) and reads the judgment checks (audience, outcome, wiifm, progressive,
+one-idea, one-promise, studio-picture, trust when the labels cannot prove it) from `qa/story-judgments.json`,
+which the writer records with a scene-cited evidence line per check. A missing judgments file is
+`MALFORMED_INPUT`, never a pass. It writes `qa/story-review.json` (this review's schema) and a provenance
+sidecar; nobody hand-writes a score. The rubric arithmetic is unchanged; the tool adds one rule of its
+own, named in `reason`: a failed check the rubric gives no arithmetic for costs 15. Below 85 the writer
+revises the scenes it names and reruns it before any capture starts. When the master exists, the encoded
+critic runs on the file and supersedes
+`qa/story-review.json` with `qa/story-experience-review.json`; that review, not the gate, is the craft pass.
+
+### 1. Inputs
+
+Encoded candidate, contact sheet (`qa/contact-sheet.png` + index from `build-contact-sheet.mjs`) or `Inspect-MediaVisualQuality.ps1` report, screenplay, storyboard, visual bible, captions/transcript, job.json, `qa/narration-check.json`, and `qa/pointer-path.json` when the film has screen beats.
+
+If `job.kind` is `product-screencast`, also require a passing `validate-product-picture.mjs` result. A screenplay-only score is not a craft pass.
+
+Missing or mutable inputs → `status: MALFORMED_INPUT`. Never pass a hole. The encoded candidate is required.
+
+### 2. Judge
+
+Walk the rubric checks against the **picture**, not the screenplay. Cite timestamp or frame for every finding. The viewer is not in a review room; judge the first five seconds as a stranger scrolling past.
+
+Fail closed when:
+
+- score < 85 (job `craftScoreMin`, default 85)
+- any `block` finding
+- missing hook, missing hero, feature-tour opening, wall-to-wall static, unducked bed, narration that reads the slide
+- `qa/narration-check.json` missing or failing; any spoken line about versions, revisions, what changed, how the film was made, or synthetic data (block)
+- anything said twice; a card that repeats the voice; a build, version, environment or revision chip in any frame (block)
+- `qa/pointer-path.json` missing or failing on a film with screen beats; a cursor or highlight that moves while nothing is named, goes back, or scrolls past and returns (block)
+- `qa/picture-integrity.json` missing or failing on a film with product footage; a product frame that looks soft (upscaled), stretched, cropped at a UI edge, barred, or a vertical cut that is plainly a desktop capture (block). On every declared punch-in, attest in the review that no UI the line names leaves the frame; that is the one integrity check the gate cannot make
+- a marketing cut below the floor (section 3)
+
+Prefer:
+
+`score: 78, pass: false, reviseSceneIds: ["s4","s7"], findings[0].owner: media-storyboard`
+
+Avoid:
+
+`Looks pretty good.` / shipping because QA identity passed.
+
+### 3. Marketing cuts: the feed test
+
+When `job.json` is a marketing cut (`programForm` campaign-*, `marketing-cutdown`, `social-clip`, `hero`; `kind: teaser`; or `marketing: true`), the question is not "is it accurate and complete" but **"would this win the viewer in a feed next to the references?"** Write `qa/marketing-readiness.json` (schema `media-studio/marketing-readiness/1`, shape in `marketing-readiness.md`), bound to the exact candidate, with a timestamped verdict per criterion:
+
+1. hook on screen inside two seconds (`hook.atSeconds`, what is on screen)
+2. one promise, kept (`promise.text`, `count: 1`, evidence)
+3. designed motion and type (evidence with timestamps)
+4. music bed and sound design carrying the pace (`sound.bed`, `designCues`)
+5. brand kit end card with one CTA inside the last eight seconds
+6. cuts on the beat (`cutsOnBeat.bpm`, `offsetSeconds`)
+7. three cited reference ads this cut competes against (title, source, why it wins)
+8. the feed verdict: `attentionCompetition.winsAgainstReferences` with evidence from the first five seconds
+
+Then run `scripts/validate-marketing-readiness.mjs <jobRoot> <candidate.mp4>`; it measures what it can (hook time, end-card window, cuts against the grid from the edit list, the narration check) and writes `qa/marketing-readiness-check.json`. Below the floor is `pass: false` with a `block` finding, whatever the story score. An honest `winsAgainstReferences: false` names the reference that beat it in `evidence` and sends the cut back to the writer / storyboard (`../media-studio/references/writer.md`, `storyboard.md`).
+
+Explainers and technical stories are not judged against reference ads; they keep this rubric and inherit the no-fluff and cursor blocks above.
+
+### 4. Output
+
+`story-experience-review.json` matching `../../schemas/story-experience-review.schema.json`.
+
+`pass` is true only when `status` is `COMPLETE`, `score >= craftScoreMin`, no `block` finding, and, for a marketing cut, `qa/marketing-readiness-check.json` is a PASS on this candidate.
+
+### 5. Revision
+
+If fail: producer reruns `findings[].owner` on `reviseSceneIds` only, re-encodes, then this review again. Do not skip to release. The `owner` values name the step guides: `media-writer` = `writer.md`, `media-storyboard` = `storyboard.md`, `media-director` = `direction.md`, `media-studio-visuals` = `visuals.md`; `media-studio-generate`, `media-studio-compose` and `media-studio` / `media-studio-qa` are skills. The schema enum keeps the older values for existing review files.
+
+### 6. Final check
+
+- [ ] Encoded file inspected, not inferred; contact sheet used for the walk-through
+- [ ] Every finding has location, evidence, fix, owner
+- [ ] Score arithmetic matches the rubric; no-fluff, redundancy and cursor blocks applied
+- [ ] Marketing cut: readiness file written and its check is a PASS, or the review fails
+- [ ] Fail below 85 even if identity/listen passed
 
 ## 3. Final check
 

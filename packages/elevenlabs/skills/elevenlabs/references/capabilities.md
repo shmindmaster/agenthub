@@ -13,8 +13,8 @@ workspace; consult official API documentation for repository integrations.
 
 | Need | Preferred surface | Checks / specialist |
 | --- | --- | --- |
-| Single voice, dialogue, streaming speech, timing | Native speech / Flows TTS; shared CLI single-voice fallback | `elevenlabs-tts`; live models, exact voice, clone readiness, dictionaries, output tier |
-| Transcription, diarization, realtime ASR, alignment | Official STT/speech-engine tools or API | `elevenlabs-stt`; explicit cloud approval for audio, local route for private evidence |
+| Single voice, dialogue, streaming speech, timing | Native speech / Flows TTS; shared CLI single-voice fallback | `tts.md`; live models, exact voice, clone readiness, dictionaries, output tier |
+| Transcription, diarization, realtime ASR, alignment | Official STT/speech-engine tools or API | `stt.md` (disabled, fails closed); explicit cloud approval for audio, local route for private evidence |
 | Music, composition plans, edits, stems, video-to-music | Native music / Flows; official music skill | Duration, model-specific metering, instrumental/vocal choice; reuse accepted stems |
 | SFX, loops, audio effects | Native SFX / audio-effects node | Duration and prompt scope; avoid rerunning full tracks for one effect |
 | Image generation, transforms, references | Native Flows image-generation / image-transform | Current region/model list, aspect ratio, resolution, reference permissions |

@@ -400,8 +400,20 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 - **Portable plugin version authority (2026-08-21)**: root `plugin.json` is the
   Agent Plugins floor and single version authority; host projections must match
   (`scripts/Bump-PackageVersion.ps1`, `tests/Test-PluginManifests.ps1`).
+- **Media consolidation (2026-10-21)**: `media-studio` is one skill for
+  pre-production plus four crew skills (capture, generate, compose, qa). The
+  writer, storyboard, visuals, director and story-experience-reviewer front
+  doors are `skills/media-studio/references/{writer,storyboard,visuals,direction}.md`
+  and a section of `media-studio-qa`; Descript finishing is
+  `media-studio-compose/references/descript.md`. `story-series-studio` and
+  `technical-storytelling` are retired into `references/series.md`,
+  `story-craft.md`, `technical-story.md` and `direction.md` (schemas moved to
+  `packages/media-studio/schemas`). `elevenlabs` is one skill with `tts.md`,
+  `account-health.md`, `stt.md` (disabled) references. Every retired name is in
+  `retiredFleetSkills`; every gate, schema and script kept its owner.
 - **Creative / learning packages (2026-08-21)**: `technical-storytelling`,
-  `story-series-studio`, and `learning-studio` are registered packages.
+  `story-series-studio` (both retired 2026-10-21, see above), and
+  `learning-studio` are registered packages.
   `startup-series` is now a Receipts-only overlay (`startup-showrunner`,
   `comedy-writer`); generic craft lives in the studio packages. Private show
   bibles stay outside AgentHub.
@@ -411,7 +423,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   concept or outline is enough; writer → storyboard → visuals → director →
   Local-AI generate → Remotion/FFmpeg/Recast compose → craft critic → QA.
   Viewer-facing jobs apply `engagement.md` plus `story-craft.md` and the
-  scene-archetype kit; `media-story-experience-reviewer` fails closed below 85.
+  scene-archetype kit; the story-experience review (now inside `media-studio-qa`) fails closed below 85.
   `intent: draft` skips GPU plates and the critic gate. Remotion is required
   for viewer-facing briefing/training/explainer/series-episode unless draft.
   Product screencasts use Playwright WebM + Recast in media-studio
