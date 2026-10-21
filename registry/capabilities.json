@@ -224,6 +224,13 @@
       "whyFleetScoped": "Was deployed as a loose skill on the eight-host tier and inside the Claude/Codex native plugins; the overlay row is gone, so only a fleet retirement can sweep the copies."
     },
     {
+      "name": "long-running-generation",
+      "retiredOn": "2026-10-21",
+      "supersededBy": "local-ai-stack",
+      "reason": "Private overlay skill folded into local-ai-stack as references/batches.md (P8): resumable batches, stall detectors, stable-hash sharding, output gates and backed-up repair, unchanged.",
+      "whyFleetScoped": "Deployed as a loose skill on the eight-host tier; the overlay row no longer names it, so only a fleet retirement sweeps the copies."
+    },
+    {
       "name": "portfolio-prompt-os",
       "retiredOn": "2026-10-21",
       "supersededBy": "media-studio",
