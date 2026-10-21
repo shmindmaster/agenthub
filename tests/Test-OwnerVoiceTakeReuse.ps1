@@ -61,7 +61,7 @@ $pendingName = $null
 foreach ($name in @('Get-PendingSegments', 'Get-PendingOwner')) { $t = Get-FunctionText $name; if (-not $pendingName -and $t) { . ([scriptblock]::Create($t)); $pendingName = $name } }
 if (-not $pendingName) { $missing += 'Get-PendingSegments' }
 # Optional helpers: their absence fails the cases that need them rather than the whole run.
-foreach ($name in @('Set-SegmentRedo', 'Write-RegatePass', 'Get-RenderText', 'Get-OwnerStyleContext', 'Invoke-SceneConcat', 'Resolve-SceneSpeaker', 'Write-TakeRenderRecord', 'Get-TakeRenderRecord', 'Test-TakeRejected', 'Write-TakeRejection')) { $t = Get-FunctionText $name; if ($t) { . ([scriptblock]::Create($t)) } }
+foreach ($name in @('Set-SegmentRedo', 'Write-RegatePass', 'Get-RenderText', 'Get-OwnerStyleContext', 'Invoke-SceneConcat', 'Resolve-SceneSpeaker', 'Write-TakeRenderRecord', 'Get-TakeRenderRecord', 'Test-TakeRejected', 'Write-TakeRejection', 'Test-NeedsRegate')) { $t = Get-FunctionText $name; if ($t) { . ([scriptblock]::Create($t)) } }
 Report 'script defines every reuse function' ($missing.Count -eq 0) ("missing: " + ($missing -join ', '))
 $schemaAssign = $null
 foreach ($a in $sources.Values) {
@@ -411,6 +411,28 @@ try {
         Write-RegatePass $rg3 $selectedRoot 0.1 $idRec
         $rec3 = Get-Content -LiteralPath (Join-Path $rg3.dir 'PASS.json') -Raw -Encoding UTF8 | ConvertFrom-Json
         Report 'ReGate ignores a render record written for different text' (-not (($rec3.PSObject.Properties.Name -contains 'fingerprint') -and [bool]$rec3.fingerprint)) 'fingerprinted a take from a sidecar of another sentence'
+        # 9d. a listen-rejected segment is not skipped just because PASS.json exists
+        if (Get-Command Test-NeedsRegate -ErrorAction SilentlyContinue) {
+            $nr0 = New-Seg 'W13_L1_01' 'Never passed sentence.'
+            [IO.File]::WriteAllText($nr0.wav, 'audio')
+            Report 'ReGate selects a segment with no PASS receipt' (Test-NeedsRegate $nr0.dir) 'an unpassed take would be skipped'
+            $nr1 = New-Seg 'W13_L2_01' 'Passed sentence.'
+            [IO.File]::WriteAllText($nr1.wav, 'audio')
+            Write-RegatePass $nr1 $selectedRoot 0.1 $idRec
+            Report 'ReGate skips a segment that holds a valid PASS receipt' (-not (Test-NeedsRegate $nr1.dir)) 'a passed take would be re-scored'
+            $nr2 = New-Seg 'W13_L3_01' 'Rejected then replaced sentence.'
+            [IO.File]::WriteAllText($nr2.wav, 'audio')
+            Write-RegatePass $nr2 $selectedRoot 0.1 $idRec
+            Write-TakeRejection $nr2.dir $nr2.id 'pronunciation listen finding' 1
+            Report 'ReGate skips the rejected take itself (same bytes as the rejected receipt)' (-not (Test-NeedsRegate $nr2.dir)) 'the rejected wav would be re-passed and the listen rejection erased'
+            [IO.File]::WriteAllText($nr2.wav, 'a replacement take')
+            Report 'ReGate does not skip a rejected segment whose take.wav is a replacement' (Test-NeedsRegate $nr2.dir) 'PASS.json of the rejected take hid the replacement from re-gate'
+            Write-RegatePass $nr2 $selectedRoot 0.1 $idRec
+            Report 'ReGate pass of a replacement clears the rejection marker' (-not (Test-Path -LiteralPath (Join-Path $nr2.dir 'REJECTED.json'))) 'REJECTED.json survived a passing replacement'
+            Report 'ReGate pass of a replacement makes the segment reusable again' (Test-SegmentPass (New-Seg 'W13_L3_01' 'Rejected then replaced sentence.')) 'the replacement stays rejected forever'
+        } else {
+            Report 'ReGate-OwnerVoice.ps1 defines Test-NeedsRegate' $false 'a rejected segment with PASS.json is skipped by re-gate'
+        }
     } else {
         Report 'ReGate-OwnerVoice.ps1 defines Write-RegatePass and the render record helpers' $false 'ReGate stamps the current render text onto an older wav'
     }
@@ -422,6 +444,9 @@ try {
     Report 'segments carry a fingerprint' ($src -match 'fingerprint\s*=\s*\(Get-SegmentFingerprint') 'segment objects lack a fingerprint'
     Report 'Generate-OwnerVoice.ps1 shares the reuse helper' ($src -match 'OwnerVoice-TakeReuse\.ps1') 'Generate does not load the shared reuse rules'
     $rgSrc = Get-Content -LiteralPath $regatePath -Raw -Encoding UTF8
+    $helperSrc = Get-Content -LiteralPath $helperPath -Raw -Encoding UTF8
+    Report 'text hashing avoids SHA256.HashData (not available on older .NET)' ($helperSrc -notmatch 'SHA256\]::HashData' -and $helperSrc -match 'SHA256\]::Create\(\)') 'Get-TextSha256 depends on a .NET 5+ static method'
+    Report 'Get-TextSha256 matches the known SHA-256 of "abc"' ((Get-TextSha256 'abc') -ceq 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad') 'hash value changed'
     Report 'ReGate-OwnerVoice.ps1 skips non-owner scenes' ($rgSrc -match 'Resolve-SceneSpeaker') 'ReGate would stamp role lines as the owner'
     Report 'ReGate-OwnerVoice.ps1 shares the reuse helper' ($rgSrc -match 'OwnerVoice-TakeReuse\.ps1' -and $rgSrc -match 'Get-SegmentFingerprint') 'ReGate does not use the shared fingerprint rules'
 }

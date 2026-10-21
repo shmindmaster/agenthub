@@ -123,6 +123,26 @@ function Write-RegatePass([object]$Segment, [string]$SelectedRoot, $Wer, $IdReco
   $receipt['identityScores'] = $(if ($null -ne $IdRecord) { $IdRecord.scores } else { $null })
   $receipt['regate'] = $true
   $receipt | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $Segment.dir 'PASS.json') -Encoding utf8
+  # A replacement that passes the gate ends the listen rejection, as in Generate-OwnerVoice.ps1.
+  Remove-Item -LiteralPath (Join-Path $Segment.dir 'REJECTED.json') -Force -ErrorAction SilentlyContinue
+}
+
+# A segment needs re-gating when it holds no PASS receipt, or when a listen rejection (REJECTED.json) voids the receipt
+# it holds. A rejected segment is skipped only while take.wav is still the rejected take itself (same bytes as the
+# receipt): re-passing that file would erase the listen rejection. A take.wav with other bytes is a replacement.
+function Test-NeedsRegate([string]$Dir) {
+  $passPath = Join-Path $Dir 'PASS.json'
+  if (-not (Test-Path -LiteralPath $passPath)) { return $true }
+  if (-not (Test-TakeRejected $Dir)) { return $false }
+  $wavPath = Join-Path $Dir 'take.wav'
+  if (-not (Test-Path -LiteralPath $wavPath)) { return $true }
+  try {
+    $receipt = Get-Content -LiteralPath $passPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (@($receipt.PSObject.Properties.Name) -contains 'sha256' -and $receipt.sha256) {
+      return -not ([string]$receipt.sha256 -ieq (Get-Sha256 $wavPath))
+    }
+  } catch { }
+  return $false
 }
 
 $Job = (Resolve-Path $Job).Path
@@ -144,9 +164,8 @@ foreach ($scene in $play.scenes) {
     $si++
     $segId = '{0}_{1:d2}' -f $scene.id, $si
     $dir = Join-Path $outRoot $segId
-    $pass = Join-Path $dir 'PASS.json'
     $wav = Join-Path $dir 'take.wav'
-    if (Test-Path $pass) { continue }
+    if (-not (Test-NeedsRegate $dir)) { continue }
     if (-not (Test-Path $wav)) { Write-Warning "missing $wav"; continue }
     $need += [pscustomobject]@{ id = $segId; sceneId = $scene.id; text = $text.Trim(); dir = $dir; wav = $wav; speaker = $sp.Speaker }
   }

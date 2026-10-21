@@ -9,7 +9,11 @@ $runtimeKit = Join-Path $scratch 'briefing-kit'
 $shared = Join-Path $scratch '_shared\tools'
 $checks = 0
 try {
-    & (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -RuntimeKit $runtimeKit
+    # Capture warnings and host output: a deployed helper missing from the managed list is reported as unmanaged.
+    $firstSync = (& (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -RuntimeKit $runtimeKit 3>&1 6>&1 | Out-String)
+    if ($firstSync -match 'unmanaged entries[^
+]*OwnerVoice-TakeReuse\.ps1') { throw "OwnerVoice-TakeReuse.ps1 is deployed but reported unmanaged: $firstSync" }
+    $checks++
     foreach ($name in @('validate-storyboard.mjs','validate-capture-manifest.mjs','backfill-capture-receipt.mjs','validate-demo-scenario.mjs','validate-product-picture.mjs','validate-encoded-picture.mjs','validate-sync.mjs','build-cue-sheet.mjs','validate-viewer-release.mjs','validate-narration.mjs','validate-capture-preflight.mjs','validate-pointer-path.mjs','validate-frame-integrity.mjs','validate-picture-integrity.mjs','validate-marketing-readiness.mjs','build-contact-sheet.mjs')) {
         $source = Join-Path (Join-Path $package 'scripts') $name
         foreach ($destination in @((Join-Path (Join-Path $runtimeKit 'screencast') $name), (Join-Path $shared $name))) {

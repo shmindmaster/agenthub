@@ -16,7 +16,8 @@ function Get-Sha256([string]$Path) {
 
 function Get-TextSha256([string]$Text) {
   $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($Text)
-  $hash = [System.Security.Cryptography.SHA256]::HashData($bytes)
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try { $hash = $sha.ComputeHash($bytes) } finally { $sha.Dispose() }
   return ([BitConverter]::ToString($hash) -replace '-', '').ToLowerInvariant()
 }
 

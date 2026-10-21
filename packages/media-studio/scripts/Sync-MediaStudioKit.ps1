@@ -157,7 +157,7 @@ if (Test-Path -LiteralPath $gate) {
 # backup or working copy that belongs in its job folder. It is reported, never deleted: an unmatched file may be the
 # only copy, so the move is a reviewed step (global policy: delete nothing unmatched), not a sync side effect.
 $managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs',
-    'Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Generate-OwnerVoice.ps1', 'ReGate-OwnerVoice.ps1', 'Test-SpeechIntegrity.ps1',
+    'Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Generate-OwnerVoice.ps1', 'ReGate-OwnerVoice.ps1', 'OwnerVoice-TakeReuse.ps1', 'Test-SpeechIntegrity.ps1',
     'Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs', 'demo-stack.mjs', 'plugin.json', 'RELEASE-EVIDENCE.md', 'write-story-review.py',
     'node_modules')  # node_modules is the capture-lib dependency link the screencast tools resolve from, not a script
 $unmanaged = @(Get-ChildItem -LiteralPath $sharedTools -Force | Where-Object { $_.Name -notin $managedTools } | ForEach-Object Name)
