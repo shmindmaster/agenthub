@@ -690,7 +690,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "4A2F6EA3A71DB3718917E4F4B913929C8326971A1C8FC7EF52F25696F13E450F",
+      "contentHash": "666D550C0E37D7FE03D72A196B5E473EFDDB0AC47C5CEDECAC0E788724231655",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
