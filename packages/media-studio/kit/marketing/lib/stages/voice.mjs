@@ -1,6 +1,7 @@
 // Stage 2: voice. One file per narrated beat; ElevenLabs (governed ledger, request stitching), OpenAI
 // gpt-4o-mini-tts (instructions) or local Qwen (Local-AI) behind one interface. Cached by
-// (text, voice, model, settings, neighbors), so an unchanged line never costs twice.
+// (text, voice, model, settings, neighbors), so an unchanged line never costs twice. A beat's `voiceTake` (1, 2, …) asks
+// for a fresh take of that one line (a new key and ledger revision) after a listen or review rejects the delivery.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { recordStage } from '../context.mjs';
@@ -9,9 +10,10 @@ import { normalizeCuts } from '../lint.mjs';
 import { estimateOpenAiSpeechUsd, estimateTtsCredits } from '../prices.mjs';
 import { fileSha, hashOf, writeJson } from '../util.mjs';
 
-export function lineKey(spec, text, prev, next) {
+export function lineKey(spec, text, prev, next, take = 0) {
   const v = spec.voice;
   return hashOf({
+    ...(take ? { take } : {}),
     provider: v.provider, voiceId: v.voiceId, model: v.model, settings: v.settings || null, instructions: v.instructions || null,
     dictionaries: v.pronunciationDictionaries || null, stitching: !!v.stitching, text, prev: v.stitching ? prev || null : null, next: v.stitching ? next || null : null,
   });
@@ -19,7 +21,7 @@ export function lineKey(spec, text, prev, next) {
 
 export const lineExt = (provider) => (provider === 'local' ? 'wav' : 'mp3');
 
-async function renderLine(ctx, { text, prev, next, out, key }) {
+async function renderLine(ctx, { text, prev, next, out, key, take }) {
   const v = ctx.spec.voice;
   const P = ctx.providers;
   if (v.provider === 'elevenlabs') {
@@ -29,7 +31,7 @@ async function renderLine(ctx, { text, prev, next, out, key }) {
     const cli = P.elevenCli || eleven.resolveCli(ctx.brand);
     const res = await eleven.speech(cli, {
       text, output: out, voiceId: v.voiceId, model: v.model, settings: v.settings, maxCredits: credits,
-      workspace: ctx.workspaceId, revision: 'mvg-voice-v1', previousText: v.stitching ? prev : undefined, nextText: v.stitching ? next : undefined,
+      workspace: ctx.workspaceId, revision: take ? `mvg-voice-v1-take${take}` : 'mvg-voice-v1', previousText: v.stitching ? prev : undefined, nextText: v.stitching ? next : undefined,
       dictionaries: v.pronunciationDictionaries, run: P.runCli,
     });
     const reused = !!res.receipt?.reused;
@@ -59,8 +61,8 @@ export async function voiceStage(ctx) {
   for (const cut of normalizeCuts(ctx.spec)) {
     const narrated = cut.beats.filter((b) => b.narration);
     const plan = narrated.map((b, i) => ({
-      beat: b.id, text: b.narration, prev: narrated[i - 1]?.narration, next: narrated[i + 1]?.narration,
-    })).map((l) => ({ ...l, key: lineKey(ctx.spec, l.text, l.prev, l.next) }));
+      beat: b.id, text: b.narration, prev: narrated[i - 1]?.narration, next: narrated[i + 1]?.narration, take: Number(b.voiceTake || 0),
+    })).map((l) => ({ ...l, key: lineKey(ctx.spec, l.text, l.prev, l.next, l.take) }));
     const ext = lineExt(ctx.spec.voice.provider);
     const stageK = stageKey('voice', { lines: plan.map((l) => l.key) });
     const cached = checkStage(ctx.jobDir, 'voice', cut.id, stageK);

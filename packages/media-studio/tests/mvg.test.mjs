@@ -1015,3 +1015,10 @@ test('review 5: compose hands the composition explicit caption line breaks that 
   props.captions[0].lines = [2, 2];
   assert.ok(validateProps(props, join(root, 'pub')).some((e) => /cover every word/.test(e)));
 });
+
+test('voiceTake gives a line a fresh cache key without touching its neighbours', () => {
+  const spec = { voice: { provider: 'elevenlabs', voiceId: 'v', model: 'eleven_v4', settings: { stability: 0.5 } } };
+  const a = lineKey(spec, 'Twelve units left.', 'prev', 'next');
+  assert.equal(lineKey(spec, 'Twelve units left.', 'prev', 'next', 0), a);
+  assert.notEqual(lineKey(spec, 'Twelve units left.', 'prev', 'next', 2), a);
+});

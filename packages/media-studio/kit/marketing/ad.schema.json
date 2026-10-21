@@ -137,6 +137,7 @@
         "emphasis": { "type": "array", "items": { "type": "string" }, "description": "Words in the narration highlighted in the kinetic captions." },
         "claims": { "type": "array", "items": { "type": "string" }, "description": "Claim ids this beat's narration and on-screen text rely on." },
         "minSeconds": { "type": "number", "minimum": 0.5, "maximum": 20 },
+        "voiceTake": { "type": "integer", "minimum": 1, "maximum": 20, "description": "Ask for a fresh take of this line (new cache key and ledger revision) after a listen or review rejects its delivery." },
         "ui": {
           "type": "object", "additionalProperties": false,
           "required": ["sourceJob", "clipId"],
