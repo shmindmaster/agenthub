@@ -117,6 +117,10 @@ function Get-MobileProcessSnapshot {
     )
 }
 
+function Get-NewMobileProcesses([string[]]$Before, [string[]]$After) {
+    @($After | Where-Object { $_ -cnotin $Before })
+}
+
 $contract = Read-Json 'registry\mobile-development.json'
 $scope = Read-Json 'registry\mobile-scope.json'
 $mcps = Read-Json 'registry\mcps.json'
@@ -516,16 +520,32 @@ Report 'skill deep preflight matches claimed SSH Xcode Simulator and Appium evid
     $labSkillText -notmatch 'check runtime both -Json'
 ) 'The skill claims deep runtime evidence after only a process-table check.'
 
+Report 'mobile process guard permits existing processes to exit' (
+    @(Get-NewMobileProcesses @('adb.exe:1','emulator.exe:2') @('adb.exe:1')).Count -eq 0
+) 'An unrelated process exit must not be treated as a resource start.'
+Report 'mobile process guard permits unchanged and empty snapshots' (
+    @(Get-NewMobileProcesses @('adb.exe:1') @('adb.exe:1')).Count -eq 0 -and
+    @(Get-NewMobileProcesses @() @()).Count -eq 0
+) 'Stable process snapshots must not report a resource start.'
+foreach ($processName in @('adb.exe','emulator.exe','qemu-system-x86_64.exe','vmware-vmx.exe')) {
+    $newProcess = '{0}:2' -f $processName
+    Report "mobile process guard detects a new $processName PID despite an existing process exit" (
+        (Test-Sequence @(Get-NewMobileProcesses @('adb.exe:1') @($newProcess)) @($newProcess))
+    ) 'Replacing an existing process must still fail the no-start guard.'
+}
+
 $before = Get-MobileProcessSnapshot
 $filesCheck = Invoke-MobileJson @('check','files','both')
 $afterFiles = Get-MobileProcessSnapshot
 $runtimeCheck = Invoke-MobileJson @('check','runtime','both')
 $afterRuntime = Get-MobileProcessSnapshot
+$filesStarted = @(Get-NewMobileProcesses $before $afterFiles)
+$runtimeStarted = @(Get-NewMobileProcesses $afterFiles $afterRuntime)
 Report 'read-only file check demonstrably starts no mobile resource' (
-    $filesCheck.Result -and -not $filesCheck.Result.startedResources -and (Test-Sequence $afterFiles $before)
+    $filesCheck.Result -and -not $filesCheck.Result.startedResources -and $filesStarted.Count -eq 0
 ) "before=$($before -join ',') after=$($afterFiles -join ',') output=$($filesCheck.Output -join ' ')"
 Report 'read-only runtime check demonstrably starts no adb, emulator, or VMware guest process' (
-    $runtimeCheck.Result -and -not $runtimeCheck.Result.startedResources -and (Test-Sequence $afterRuntime $afterFiles)
+    $runtimeCheck.Result -and -not $runtimeCheck.Result.startedResources -and $runtimeStarted.Count -eq 0
 ) "before=$($afterFiles -join ',') after=$($afterRuntime -join ',') output=$($runtimeCheck.Output -join ' ')"
 Report 'runtime check is process-table-only and never invokes lifecycle commands' (
     $entrypointText -match 'process-table-only' -and `
