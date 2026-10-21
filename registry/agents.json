@@ -81,7 +81,7 @@
     {
       "id": "qwen-code",
       "name": "Qwen Code",
-      "version": "0.25.3",
+      "version": "unknown",
       "executable": "qwen",
       "nativePaths": {
         "settings": "{userHome}/.qwen/settings.json",
@@ -92,7 +92,12 @@
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Qwen is not documented as reading ~/.agents/skills. AgentHub deploys once to the master library; ~/.qwen/skills is a directory junction to that library.",
         "agentsDir": "{userHome}/.qwen/agents",
-        "extensionsDir": "{userHome}/.qwen/extensions"
+        "extensionsDir": "{userHome}/.qwen/extensions",
+        "settingsNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "instructionsNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "skillsDirNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "agentsDirNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "extensionsDirNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated."
       },
       "supportedCapabilities": [
         "rules",
@@ -106,8 +111,11 @@
         "extensions"
       ],
       "status": "active",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `qwen.cmd --version` printed 0.25.3. Earlier: 2026-10-14: bounded read-only probe of the bare command `qwen` reported 0.25.1, and `qwen update` reported the same version. No upgrade was performed by this inventory correction. The executable stays the bare name `qwen`, which resolves to ~/bin/qwen.cmd.",
-      "headlessDispatchNote": "Qwen Code 0.25.1 supports positional one-shot prompts; shim supplies --yolo. Current qwen3.8-max Token Plan route returned HTTP 403; authenticated catalog membership does not establish model entitlement. No credential or model setting was changed."
+      "versionObserved": "2026-10-21 reconciliation: current installed version is unknown because the selected executable is absent. Historical observations follow: Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `qwen.cmd --version` printed 0.25.3. Earlier: 2026-10-14: bounded read-only probe of the bare command `qwen` reported 0.25.1, and `qwen update` reported the same version. No upgrade was performed by this inventory correction. The executable stays the bare name `qwen`, which resolves to ~/bin/qwen.cmd.",
+      "headlessDispatchNote": "Qwen Code 0.25.1 supports positional one-shot prompts; shim supplies --yolo. Current qwen3.8-max Token Plan route returned HTTP 403; authenticated catalog membership does not establish model entitlement. No credential or model setting was changed.",
+      "versionProbe": "none",
+      "versionProbeNote": "Checked 2026-10-21: no qwen or qodercli command resolved on PATH; no matching entries were found in ~/bin, ~/.local/bin, %APPDATA%/npm (including node_modules), %LOCALAPPDATA%/Programs, Program Files, Program Files (x86), WinGet Links/Packages, the existing VS Code Insiders/Cursor extension directories or the three standard uninstall registry roots. The declared config roots, selected npm launchers and historical ~/.qodersec/bin/qodercli.exe are absent. This is a bounded survey of named locations, not a whole-disk absence claim. Restore cli probing only when a real installation resolves; earlier version observations in this record are historical.",
+      "executableNote": "Checked 2026-10-21: no qwen or qodercli command resolved on PATH; no matching entries were found in ~/bin, ~/.local/bin, %APPDATA%/npm (including node_modules), %LOCALAPPDATA%/Programs, Program Files, Program Files (x86), WinGet Links/Packages, the existing VS Code Insiders/Cursor extension directories or the three standard uninstall registry roots. The declared config roots, selected npm launchers and historical ~/.qodersec/bin/qodercli.exe are absent. This is a bounded survey of named locations, not a whole-disk absence claim."
     },
     {
       "id": "opencode",
@@ -237,7 +245,7 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.101",
+      "version": "1.0.102",
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
@@ -259,7 +267,7 @@
         "acp"
       ],
       "status": "active",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `copilot.cmd --version` printed GitHub Copilot CLI 1.0.101. Earlier: 2026-10-14: verified installed launcher/file version 1.0.98. Manual forward update and launcher reconciliation; active sessions preserved."
+      "versionObserved": "Observed 2026-10-21 in the bounded full suite: `copilot.cmd --version` printed GitHub Copilot CLI 1.0.102. Historical observations: Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `copilot.cmd --version` printed GitHub Copilot CLI 1.0.101. Earlier: 2026-10-14: verified installed launcher/file version 1.0.98. Manual forward update and launcher reconciliation; active sessions preserved."
     },
     {
       "id": "antigravity",
@@ -335,7 +343,9 @@
         "instructions": null,
         "instructionsOwnedBy": "gemini",
         "verification": "documented-shared-destination",
-        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today."
+        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today.",
+        "configHomeNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "settingsNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated."
       },
       "supportedCapabilities": [
         "rules",
@@ -520,10 +530,10 @@
     {
       "id": "qoder",
       "name": "Qoder CLI / Desktop / JetBrains / QoderWork",
-      "version": "1.1.75",
-      "versionNote": "2026-10-14: official npm CLI and PATH launcher report 1.1.71; ACP initialize reports agentVersion 1.1.71. Historical native 1.0.45 is not the selected launcher. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `qodercli.cmd --version` printed 1.1.75.",
+      "version": "unknown",
+      "versionNote": "2026-10-21 reconciliation: current installed version is unknown because the selected executable is absent. Historical observations follow: 2026-10-14: official npm CLI and PATH launcher report 1.1.71; ACP initialize reports agentVersion 1.1.71. Historical native 1.0.45 is not the selected launcher. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `qodercli.cmd --version` printed 1.1.75.",
       "executable": "{userHome}/AppData/Roaming/npm/qodercli.cmd",
-      "executableNote": "2026-10-14: selected official npm qodercli.cmd. User bin launcher and qoder-acp.cmd forward here. Historical ~/.qodersec/bin/qodercli.exe is not the selected route.",
+      "executableNote": "2026-10-14: selected official npm qodercli.cmd. User bin launcher and qoder-acp.cmd forward here. Historical ~/.qodersec/bin/qodercli.exe is not the selected route. Checked 2026-10-21: no qwen or qodercli command resolved on PATH; no matching entries were found in ~/bin, ~/.local/bin, %APPDATA%/npm (including node_modules), %LOCALAPPDATA%/Programs, Program Files, Program Files (x86), WinGet Links/Packages, the existing VS Code Insiders/Cursor extension directories or the three standard uninstall registry roots. The declared config roots, selected npm launchers and historical ~/.qodersec/bin/qodercli.exe are absent. This is a bounded survey of named locations, not a whole-disk absence claim.",
       "nativePaths": {
         "configHome": "{userHome}/.qoder",
         "settings": "{userHome}/.qoder/settings.json",
@@ -541,7 +551,11 @@
         "instructionsNote": "Added 2026-08-04 from docs.qoder.com/cli/using-cli, Memory section (subject confirmed: memory and context files, not MCP or plugins). Qoder CLI documents a three-tier hierarchy whose user level is ~/.qoder/AGENTS.md, explicitly applying to all projects. The Windows form is inferred from this host's existing configHome, which already resolves ~/.qoder to that directory and demonstrably exists. Distinct from .qoder/rules, which is project-scoped only. HTML-comment survival is not vendor-documented; the agenthub:managed marker is standard Markdown and inert in prompt context.",
         "agentsDirNote": "Verified 2026-08-11 against docs.qoder.com/en/cli/subagent: subagent configuration is saved to the user-level path ~/.qoder/agents/<agentName>.md, and project-level subagents take precedence over user-level ones when names collide. Path correct. Created when the first user-level subagent is generated, so an empty agents directory is the documented default state. Corrected 2026-10-14: the CLI is installed. qodercli --version on ~/.qodersec/bin/qodercli.exe returned 1.0.45. --help exited 42 with no usage text, so coding-agent dispatch does not call it. The old ~/.qoder/bin/qodercli/qodercli.exe path remains absent. The 2026-08-11 claim that Qoder was not installed referred to that old path.",
         "pluginsDirNote": "COULD NOT ESTABLISH from official docs, checked 2026-08-11. docs.qoder.com/cli/plugins documents installation via `qodercli plugins install`, and names ~/.qoder/, ~/.qoder/commands/ and ~/.qoder/skills/, but never states where an installed plugin lands on disk and names no marketplace or cache directory. ~/.qoder/plugins is therefore INFERRED from the sibling directory names -- precisely the inference hermes.pluginsDirNote deliberately refused, deriving its path from a documented HERMES_HOME mapping instead. Treat as unverified: do not sync into it, and do not read its absence as evidence in either direction. Corrected 2026-10-14: the CLI is installed at ~/.qodersec/bin/qodercli.exe (see agentsDirNote). This plugins directory is still not settled, because settling it needs a plugin actually installed through the CLI, then this note replaced with that finding.",
-        "canvasDirNote": "Probably WRONG, checked 2026-08-11 -- recorded as a correction rather than as a gap, because the two are different findings and only one of them is someone's next task. docs.qoder.com places Canvas under Desktop > Extensions, making it a Desktop application feature rather than a CLI one, and describes /canvas as producing a .canvas.tsx file rendered in a Canvas preview: a project artifact, not user-level state. No Qoder page names a ~/.qoder/canvas directory, and none of the pages that do enumerate ~/.qoder contents (using-cli, plugins, subagent) list it. So unlike pluginsDir this is not merely unverified -- the documented design points away from a user-level canvas directory existing at all. Kept rather than deleted, because deleting a declared path on the mistaken basis that a directory absent from disk must be wrong is the exact error gemini.agentsDirNote exists to record. A host with Qoder Desktop installed can settle it by observation; replace this note with that."
+        "canvasDirNote": "Probably WRONG, checked 2026-08-11 -- recorded as a correction rather than as a gap, because the two are different findings and only one of them is someone's next task. docs.qoder.com places Canvas under Desktop > Extensions, making it a Desktop application feature rather than a CLI one, and describes /canvas as producing a .canvas.tsx file rendered in a Canvas preview: a project artifact, not user-level state. No Qoder page names a ~/.qoder/canvas directory, and none of the pages that do enumerate ~/.qoder contents (using-cli, plugins, subagent) list it. So unlike pluginsDir this is not merely unverified -- the documented design points away from a user-level canvas directory existing at all. Kept rather than deleted, because deleting a declared path on the mistaken basis that a directory absent from disk must be wrong is the exact error gemini.agentsDirNote exists to record. A host with Qoder Desktop installed can settle it by observation; replace this note with that.",
+        "configHomeNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "settingsNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "mcpNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "skillsDirNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated."
       },
       "supportedCapabilities": [
         "rules",
@@ -559,7 +573,9 @@
       ],
       "status": "active",
       "notes": "Qoder CLI 1.1.71. ACP initialize verified protocol 1. Full autonomy flags remain controlled by dispatch policy; authentication, included allowance and useful worker smoke are separate readiness checks.",
-      "headlessDispatchNote": "Headless and ACP transport contracts exist; do not infer model entitlement from ACP initialize. Follow fleet readiness gates before paid or included-model execution."
+      "headlessDispatchNote": "Headless and ACP transport contracts exist; do not infer model entitlement from ACP initialize. Follow fleet readiness gates before paid or included-model execution.",
+      "versionProbe": "none",
+      "versionProbeNote": "Checked 2026-10-21: no qwen or qodercli command resolved on PATH; no matching entries were found in ~/bin, ~/.local/bin, %APPDATA%/npm (including node_modules), %LOCALAPPDATA%/Programs, Program Files, Program Files (x86), WinGet Links/Packages, the existing VS Code Insiders/Cursor extension directories or the three standard uninstall registry roots. The declared config roots, selected npm launchers and historical ~/.qodersec/bin/qodercli.exe are absent. This is a bounded survey of named locations, not a whole-disk absence claim. Restore cli probing only when a real installation resolves; earlier version observations in this record are historical."
     },
     {
       "id": "amp",
@@ -715,7 +731,11 @@
         "instructionHeader": null,
         "instructionFormat": "markdown",
         "hooksFileNote": "Corrected 2026-08-05. Previously recorded as a directory ~/.codeium/windsurf/hooks, which does not exist and never did. docs.windsurf.com/windsurf/cascade/hooks (redirecting to docs.devin.ai/desktop/cascade/hooks after the merger) documents global hooks as a single FILE, hooks.json, merged with workspace .windsurf/hooks.json and system-level C:/ProgramData/Windsurf/hooks.json. The old value is exactly what this field's accountability rule exists to catch: a plausible directory name nobody had checked. Field renamed from hooksDir to hooksFile in the same change, because a field whose name says Dir while its value names a file is the identical quiet wrongness one layer along. Nothing consumes this field programmatically -- it is declarative, read only by the inventory sweep, which iterates fields generically.",
-        "workflowsDirNote": "Corrected 2026-08-05. Previously recorded as ~/.codeium/windsurf/workflows, which does not exist. docs.windsurf.com/windsurf/cascade/workflows documents the global directory as global_workflows/*.md, available in every workspace and not committed; the project-scoped equivalent is .windsurf/workflows/*.md. Both this and hooksDir were wrong in the same host entry, which is why an absent path is not evidence of an unused feature."
+        "workflowsDirNote": "Corrected 2026-08-05. Previously recorded as ~/.codeium/windsurf/workflows, which does not exist. docs.windsurf.com/windsurf/cascade/workflows documents the global directory as global_workflows/*.md, available in every workspace and not committed; the project-scoped equivalent is .windsurf/workflows/*.md. Both this and hooksDir were wrong in the same host entry, which is why an absent path is not evidence of an unused feature.",
+        "mcpNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "skillsDirNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "settingsNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
+        "instructionsNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated."
       },
       "supportedCapabilities": [
         "rules",
@@ -728,7 +748,7 @@
       ],
       "status": "unverified",
       "installationExpectation": "in-use-executable-not-located",
-      "notes": "Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%/Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch.",
+      "notes": "2026-10-21 reconciliation: the recorded ~/.codeium/windsurf configuration tree is now absent; the earlier configuration inventory below is historical. Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%/Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch.",
       "headlessDispatchNote": "Windsurf routes to the installed Devin CLI; dispatch and autonomy restrictions on Devin also apply."
     }
   ],

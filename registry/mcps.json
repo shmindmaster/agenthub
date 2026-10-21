@@ -34,16 +34,16 @@
       "gemini",
       "grok",
       "opencode",
-      "qoder",
-      "qwen-code",
       "vscode-insiders",
       "warp"
     ],
     "notInstalled": [
       "hermes",
-      "windsurf"
+      "windsurf",
+      "qoder",
+      "qwen-code"
     ],
-    "note": "Which hosts actually exist on this machine, established 2026-08-19 by enumerating ~/.local/bin, ~/bin, %APPDATA%/npm(+node_modules), %LOCALAPPDATA%/Programs, Program Files, Program Files (x86), WindowsApps, %LOCALAPPDATA%/Packages, WinGet Links/Packages, the uninstall registry, and the VS Code / VS Code Insiders / Cursor extension dirs. The field is named 'hosts' so Test-RegistryHostReferences.ps1, which validates every property literally named 'hosts' against agents.json, checks these ids too. notInstalled entries are checked-and-absent, not unchecked: hermes has ~/AppData/Local/hermes with skills but no binary anywhere (its ~/bin/hermes-acp.cmd shim points at a venv path that does not exist), and windsurf has ~/.codeium/windsurf config but no binary and no host extension. An on-demand-local server must not name either -- see Test-LocalMcpHostScope.ps1."
+    "note": "Which hosts actually exist on this machine, established 2026-08-19 by enumerating ~/.local/bin, ~/bin, %APPDATA%/npm(+node_modules), %LOCALAPPDATA%/Programs, Program Files, Program Files (x86), WindowsApps, %LOCALAPPDATA%/Packages, WinGet Links/Packages, the uninstall registry, and the VS Code / VS Code Insiders / Cursor extension dirs. The field is named 'hosts' so Test-RegistryHostReferences.ps1, which validates every property literally named 'hosts' against agents.json, checks these ids too. notInstalled entries are checked-and-absent, not unchecked: hermes has ~/AppData/Local/hermes with skills but no binary anywhere (its ~/bin/hermes-acp.cmd shim points at a venv path that does not exist), and windsurf has ~/.codeium/windsurf config but no binary and no host extension. An on-demand-local server must not name either -- see Test-LocalMcpHostScope.ps1. Reconciled 2026-10-21 for Qwen Code and Qoder only: Checked 2026-10-21: no qwen or qodercli command resolved on PATH; no matching entries were found in ~/bin, ~/.local/bin, %APPDATA%/npm (including node_modules), %LOCALAPPDATA%/Programs, Program Files, Program Files (x86), WinGet Links/Packages, the existing VS Code Insiders/Cursor extension directories or the three standard uninstall registry roots. The declared config roots, selected npm launchers and historical ~/.qodersec/bin/qodercli.exe are absent. This is a bounded survey of named locations, not a whole-disk absence claim. Those two hosts were moved from hosts to notInstalled; capability support and historical observations remain in agents.json. Earlier statements about other hosts are dated observations, not a fresh whole-fleet survey."
   },
   "protocolRevisionNote": "Every server carries a `protocol` block establishing which MCP revision it actually speaks, probed rather than assumed. This exists because `transport: \"http\"` stopped being informative once the 2026-07-28 revision made the core stateless: a 2025-11-25 server and a 2026-07-28 server are both 'http' and are not wire-compatible. `revision: null` is a legitimate recorded state meaning 'could not be established', and it must say why -- it is never a placeholder for an unchecked entry. Known revisions are listed in knownProtocolRevisions.",
   "knownProtocolRevisions": [
@@ -215,7 +215,6 @@
         "gemini",
         "grok",
         "opencode",
-        "qwen-code",
         "warp"
       ],
       "credentialPolicy": "personal-chrome-via-playwright-extension",
@@ -264,7 +263,6 @@
         "gemini",
         "grok",
         "opencode",
-        "qwen-code",
         "warp"
       ],
       "credentialPolicy": "personal-chrome-via-autoconnect",
@@ -321,7 +319,6 @@
         "gemini",
         "grok",
         "opencode",
-        "qwen-code",
         "warp"
       ],
       "credentialPolicy": "local-linkedin-browser-session",
@@ -368,7 +365,6 @@
         "gemini",
         "grok",
         "opencode",
-        "qwen-code",
         "warp"
       ],
       "credentialPolicy": "environment-user-oauth-token",
@@ -455,8 +451,6 @@
         "codex",
         "cursor",
         "grok",
-        "qwen-code",
-        "qoder",
         "cline",
         "opencode",
         "vscode-insiders"
