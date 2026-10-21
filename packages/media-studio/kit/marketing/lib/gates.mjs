@@ -69,9 +69,14 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     marketing: true, captureViewports: captureViewportsFor(ratio, frame),
     dataClass: 'synthetic only', label: spec.labels, syntheticDisclosure: { mode: 'end-card', text: spec.labels }, loudnessTargetLufs: loudnessLufs, recastFallbackAllowed: false, generator: 'media-studio/mvg',
   });
+  // A beat with no narration (the opening title card, an end card with only on-screen text) is a silent beat: it has no words and
+  // no timing precision to ask for. The cue sheet (build-cue-sheet.mjs) makes one row per segment of this file and, with no ASR
+  // to read for a segment, spreads its (empty) text and marks the row precision "estimate", which validate-sync refuses as
+  // "narration timing is estimate (not word-level)". So the narration timeline lists the narrated beats only; the film's total
+  // length stays, and the silent beat's picture is still in the compose map and the storyboard below.
   writeJson(join(root, 'story', 'narration-timeline.json'), {
     durationSeconds: timeline.durationSeconds,
-    segments: timeline.segments.map((s) => ({ id: s.id, scene: s.id, text: s.text, startSeconds: s.startSeconds, durationSeconds: s.durationSeconds, speechSeconds: s.speechSeconds })),
+    segments: timeline.segments.filter((s) => s.text).map((s) => ({ id: s.id, scene: s.id, text: s.text, startSeconds: s.startSeconds, durationSeconds: s.durationSeconds, speechSeconds: s.speechSeconds })),
   });
   writeJson(join(root, 'story', 'storyboard.json'), {
     title: `${spec.title} - storyboard`, kind: 'product-screencast', deliveryProfile: frame.profile, scenarioId: spec.id,

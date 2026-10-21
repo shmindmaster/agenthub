@@ -16,7 +16,7 @@ import { BudgetError, CostLedger } from '../kit/marketing/lib/ledger.mjs';
 import { bandRegion, cameraKeyframes, focusAt, focusWindows, pointerTrack, readability, windowAt } from '../kit/marketing/lib/crop.mjs';
 import { FRAMES, layoutFor, safeRect, safeZoneErrors } from '../kit/marketing/lib/layout.mjs';
 import { chunkWords, lineBreaks, toSrt, wrapCue } from '../kit/marketing/lib/captions.mjs';
-import { alignScriptToAsr, buildTimeline, parseAsrWords, snapToBeatGrid } from '../kit/marketing/lib/timing.mjs';
+import { FPS, alignScriptToAsr, buildTimeline, parseAsrWords, sequenceFrames, snapToBeatGrid } from '../kit/marketing/lib/timing.mjs';
 import { buildMixArgs, loudnessTarget, parseLoudnorm } from '../kit/marketing/lib/mix.mjs';
 import { deliverFiles, nextFreeNumber, updateReadme, usedNumbers, deliveredName } from '../kit/marketing/lib/deliver.mjs';
 import { DEFAULT_REQUIRED, captionsCheck, readReviews, releasable, requiredGates } from '../kit/marketing/lib/gates.mjs';
@@ -969,7 +969,7 @@ test('review 5: caption lines are balanced, fit 82% of the frame, and never leav
 test('review 1/3/5/6: composition behaviours the layout depends on are in the source', () => {
   const tsx = readFileSync(join(mod, '..', 'src', 'MarketingAd.tsx'), 'utf8');
   // 1: no captions on card / title beats, fade <= 6 frames, no eyebrow
-  assert.match(tsx, /b\.kind === "card" \|\| b\.kind === "title"\) && t >= b\.startSec/);
+  assert.match(tsx, /b\.kind === "card" \|\| b\.kind === "title"\) && frame >= frames\[i\]\.from/);
   assert.match(tsx, /CAPTION_FADE_FRAMES = 6/);
   assert.ok(!/letterSpacing: "0\.12em"/.test(tsx), 'the product-name eyebrow is gone');
   // 3: captions sit on their own navy plate over the native picture (no band, no backdrop)
@@ -1307,7 +1307,9 @@ test('beat grid 4: the grid lives outside spec.music, so the bed key cannot chan
   assert.equal(timed.main.beatGrid.bpm, 120);
   for (const seg of tl.segments) {
     const beats = (seg.startSeconds + seg.durationSeconds - 0.12) / 0.5;
-    assert.ok(Math.abs(beats - Math.round(beats)) * 0.5 <= 0.001, `${seg.id} ends on the grid`);
+    assert.ok(Math.abs(beats - Math.round(beats)) * 0.5 <= 2 / FPS, `${seg.id} ends on the grid, to the frame the stage snaps it to`);
+    const frames = (seg.startSeconds + seg.durationSeconds) * FPS;
+    assert.ok(Math.abs(frames - Math.round(frames)) < 0.02, `${seg.id} ends on a whole frame (${frames})`);
   }
   const chunks = readJson(join(grid.jobDir, 'timing', 'main', 'captions.json')).chunks;
   assert.ok(chunks.length > 0 && chunks.every((c) => { const seg = tl.segments.find((x) => x.id === c.beatId); return c.startSec >= seg.startSeconds - 0.06 && c.startSec <= seg.startSeconds + seg.durationSeconds; }), 'every caption chunk starts inside its snapped scene');
@@ -1401,4 +1403,157 @@ test('chain gates 7: the frame-integrity gate runs the shared script on the cand
   const qa = readFileSync(join(mod, 'lib', 'stages', 'qa.mjs'), 'utf8');
   assert.match(qa, /gates\.frameIntegrity = await runFrameIntegrityGate/);
   assert.ok(qa.indexOf('runSyncGates(') < qa.indexOf('runFrameIntegrityGate({'), 'it runs after the sync gate has built the cue sheet');
+});
+
+// ---- frame tiling at beat boundaries (one-frame black gaps) and silent beats in the sync gate
+const stepFrames = (list) => list.map((f, i) => (i ? list[i - 1].from + list[i - 1].durationInFrames === f.from : true));
+
+test('frame gaps 1: sequences tile exactly whatever the boundary times are (a 10.751 s cut, and 2000 random ones)', () => {
+  // The defect: Math.round(start * 30) and Math.round(duration * 30) taken separately. A beat that starts at 7.213 s (frame 216.39 -> 216)
+  // and is 3.547 s long (106.41 -> 106) ends at frame 322, while the next beat starts at 10.76 s (322.8 -> 323): frame 322 is in no sequence.
+  const beats = [
+    { id: 'U1', startSec: 3.5, durationSec: 3.7 }, { id: 'U2', startSec: 7.2, durationSec: 3.551 }, { id: 'U3', startSec: 10.751, durationSec: 4.449 },
+  ];
+  const odd = [{ startSec: 7.213, durationSec: 3.547 }, { startSec: 10.76, durationSec: 4.44 }];
+  const independent = odd.map((b) => ({ from: Math.round(b.startSec * FPS), durationInFrames: Math.max(1, Math.round(b.durationSec * FPS)) }));
+  assert.ok(stepFrames(independent).includes(false), 'rounding start and duration separately leaves a gap on this cut');
+  assert.ok(stepFrames(sequenceFrames(odd)).every(Boolean));
+  const tiled = sequenceFrames(beats);
+  assert.ok(stepFrames(tiled).every(Boolean), JSON.stringify(tiled));
+  assert.equal(tiled[0].from, Math.round(3.5 * FPS));
+  assert.equal(tiled.at(-1).from + tiled.at(-1).durationInFrames, Math.round(15.2 * FPS), 'the last beat ends where the program ends');
+  let seed = 7;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+  let independentGaps = 0;
+  for (let run = 0; run < 2000; run++) {
+    let t = 0;
+    const list = Array.from({ length: 2 + Math.floor(rnd() * 8) }, (_, i) => {
+      const durationSec = Math.round((0.2 + rnd() * 5) * 1000) / 1000;
+      const b = { id: `S${i}`, startSec: Math.round(t * 1000) / 1000, durationSec };
+      t += durationSec;
+      return b;
+    });
+    const frames = sequenceFrames(list);
+    assert.ok(stepFrames(frames).every(Boolean), `gap or overlap for ${JSON.stringify(list)}`);
+    assert.ok(frames.every((f) => f.durationInFrames >= 1));
+    assert.ok(Math.abs(frames.at(-1).from + frames.at(-1).durationInFrames - Math.round(t * FPS)) <= 1);
+    if (stepFrames(list.map((b) => ({ from: Math.round(b.startSec * FPS), durationInFrames: Math.max(1, Math.round(b.durationSec * FPS)) }))).includes(false)) independentGaps++;
+  }
+  assert.ok(independentGaps > 100, `the old arithmetic does leave gaps on random cuts (${independentGaps} of 2000)`);
+  assert.deepEqual(sequenceFrames([]), []);
+  assert.equal(sequenceFrames([{ startSec: 0, durationSec: 0 }])[0].durationInFrames, 1, 'a beat is at least one frame');
+});
+
+test('frame gaps 2: MarketingAd lays its sequences from the tiled frames, and KineticCaptions asks the same frames', () => {
+  const tsx = readFileSync(join(mod, '..', 'src', 'MarketingAd.tsx'), 'utf8');
+  assert.ok(!/Math\.round\(beat\.startSec \* fps\)/.test(tsx) && !/Math\.round\(beat\.durationSec \* fps\)/.test(tsx), 'no beat start or duration is rounded on its own');
+  assert.match(tsx, /const frames = beatFrames\(props\.beats, fps\);\s+return \(\s+<AbsoluteFill style=\{\{ background: brand\.colors\.foreground \}\}>/);
+  assert.match(tsx, /const \{ from, durationInFrames: duration \} = frames\[i\];/);
+  assert.match(tsx, /<Sequence key=\{beat\.id\} from=\{from\} durationInFrames=\{duration\}/);
+  // the in-file function is the twin of timing.mjs sequenceFrames: evaluate its body on a cut with unaligned boundaries
+  const body = /const beatFrames = \(beats: AdBeat\[\], fps: number\)[^=]*=> \{([\s\S]*?)\n\};/.exec(tsx);
+  assert.ok(body, 'beatFrames is defined in MarketingAd.tsx');
+  const beatFrames = new Function('beats', 'fps', body[1]);
+  const beats = [{ startSec: 0, durationSec: 3.049 }, { startSec: 3.049, durationSec: 3.3 }, { startSec: 6.349, durationSec: 4.402 }, { startSec: 10.751, durationSec: 2.2 }];
+  assert.deepEqual(beatFrames(beats, FPS), sequenceFrames(beats, FPS));
+  assert.ok(stepFrames(beatFrames(beats, FPS)).every(Boolean));
+  assert.ok(!/t >= b\.startSec/.test(tsx), 'no per-beat window compares seconds against frame / fps');
+});
+
+test('frame gaps 3: with a beat grid and fps every boundary is a whole frame, no scene shrinks, words and lead-ins move with their scene', () => {
+  for (const grid of [{ bpm: 120, offsetSeconds: 0.12 }, { bpm: 128, offsetSeconds: 0.3 }, { bpm: 97, offsetSeconds: 0 }, { bpm: 100, offsetSeconds: 1.37 }]) {
+    const before = gridFixture();
+    const frozen = JSON.stringify(before);
+    const after = snapToBeatGrid(before, grid, { fps: FPS });
+    assert.equal(JSON.stringify(before), frozen);
+    assert.equal(after.beatGrid.fps, FPS);
+    const period = 60 / grid.bpm;
+    after.segments.forEach((seg, i) => {
+      const end = seg.startSeconds + seg.durationSeconds;
+      assert.ok(Math.abs(end * FPS - Math.round(end * FPS)) < 0.02, `${grid.bpm}/${seg.id} ends on frame ${end * FPS}`);
+      assert.ok(seg.durationSeconds >= before.segments[i].durationSeconds - 0.0006, `${grid.bpm}/${seg.id} never shrinks`);
+      const off = (end - grid.offsetSeconds) / period;
+      assert.ok(Math.abs((off - Math.round(off)) * period) <= 2 / FPS, `${grid.bpm}/${seg.id} is ${Math.abs((off - Math.round(off)) * period) * 1000} ms from the beat`);
+      assert.ok(seg.snapExtendSeconds < period + 1 / FPS);
+      seg.words.forEach((w, k) => {
+        const old = before.segments[i];
+        assert.ok(Math.abs(w.start - seg.startSeconds - (old.words[k].start - old.startSeconds)) < 1e-9, 'a word keeps its place inside its scene');
+      });
+    });
+    assert.ok(Math.abs(after.durationSeconds - (after.segments.at(-1).startSeconds + after.segments.at(-1).durationSeconds)) < 1e-9);
+    // the frames the picture cuts on are exactly the boundaries the timeline names
+    const frames = sequenceFrames(after.segments.map((s) => ({ startSec: s.startSeconds, durationSec: s.durationSeconds })));
+    assert.ok(stepFrames(frames).every(Boolean));
+    after.segments.forEach((seg, i) => assert.equal(frames[i].from, Math.round(seg.startSeconds * FPS)));
+  }
+  // without fps nothing changes: the millisecond grid of the plain call is kept
+  const plain = snapToBeatGrid(gridFixture(), { bpm: 120, offsetSeconds: 0.12 });
+  assert.equal(plain.beatGrid.fps, undefined);
+  assert.ok(plain.segments.some((s) => Math.abs((s.startSeconds + s.durationSeconds) * FPS - Math.round((s.startSeconds + s.durationSeconds) * FPS)) > 0.02), 'the fixture does have unaligned boundaries');
+  // a boundary already on a frame and on a beat needs no extra frame
+  const exact = snapToBeatGrid(buildTimeline([{ beat: { id: 'A', kind: 'card', minSeconds: 3 } }, { beat: { id: 'B', kind: 'card', minSeconds: 3 } }]), { bpm: 120, offsetSeconds: 0 }, { fps: FPS });
+  assert.deepEqual(exact.segments.map((s) => s.durationSeconds), [3, 3]);
+});
+
+test('frame gaps 4: the timing stage snaps its grid to frames and keys the cache on it', () => {
+  const src = readFileSync(join(mod, 'lib', 'stages', 'timing.mjs'), 'utf8');
+  assert.match(src, /snapToBeatGrid\(buildTimeline\(lines\), grid, \{ fps: FPS \}\)/);
+  assert.match(src, /beatGrid: grid, frameSnap: FPS/);
+});
+
+test('silent beats 1: a beat with no narration is not a narration row, so the cue sheet has no estimate-precision beat to refuse', () => {
+  const dir = join(root, 'gatews-silent');
+  const spec = baseSpec();
+  const edit = { trimStart: 3.0, trimEnd: 12, speed: 1, skip: [], headHold: 0 };
+  const cut = { id: 'main', ratios: ['16x9'], beats: [
+    { id: 'T1', kind: 'title', onScreenText: 'Twelve units left.' },
+    { id: 'B1', kind: 'ui', narration: 'Twelve days.', ui: { sourceJob: 'film', clipId: 'A01', actions: [{ label: 'Carter row', keywords: ['twelve'] }] } },
+    { id: 'B3', kind: 'card', narration: 'Try the live demo.', onScreenText: 'Try it on synthetic data' },
+  ] };
+  const timeline = { durationSeconds: 9.2, segments: [
+    { id: 'T1', kind: 'title', text: '', startSeconds: 0, durationSeconds: 2.2, speechSeconds: 0, lineStartSeconds: null, words: [] },
+    { id: 'B1', kind: 'ui', text: 'Twelve days.', startSeconds: 2.2, durationSeconds: 4, speechSeconds: 2, lineStartSeconds: 2.5, words: [{ word: 'Twelve', start: 2.6, end: 3.0 }, { word: 'days.', start: 3.1, end: 3.5 }] },
+    { id: 'B3', kind: 'card', text: 'Try the live demo.', startSeconds: 6.2, durationSeconds: 3, speechSeconds: 1.5, lineStartSeconds: 6.5, words: [{ word: 'Try', start: 6.6, end: 6.8 }, { word: 'the', start: 6.8, end: 6.9 }, { word: 'live', start: 6.9, end: 7.1 }, { word: 'demo.', start: 7.1, end: 7.5 }] },
+  ] };
+  const asrB1 = join(root, 'silent-b1.json');
+  const asrB3 = join(root, 'silent-b3.json');
+  writeFileSync(asrB1, JSON.stringify({ words: [{ word: 'Twelve', start: 0.1, end: 0.5 }, { word: 'days', start: 0.6, end: 1.0 }] }));
+  writeFileSync(asrB3, JSON.stringify({ words: [{ word: 'Try', start: 0.1, end: 0.3 }, { word: 'the', start: 0.3, end: 0.4 }, { word: 'live', start: 0.4, end: 0.6 }, { word: 'demo', start: 0.6, end: 1.0 }] }));
+  const composeMap = { groups: [
+    { segments: ['T1'], startSeconds: 0, needSeconds: 2.2, clipId: 'T1', isImage: true, edit: null, sourceRegion: null },
+    { segments: ['B1'], startSeconds: 2.2, needSeconds: 4, clipId: 'B1', edit, sourceRegion: { x: 0, y: 0, width: 0.5, height: 0.5 } },
+    { segments: ['B3'], startSeconds: 6.2, needSeconds: 3, clipId: 'B3', isImage: true, edit: null, sourceRegion: null },
+  ] };
+  const clipFile = join(receiptDir, 'capture', 'clips', 'A01.webm');
+  buildGateWorkspace({ root: dir, spec, cut, ratio: '16x9', timeline, composeMap, clips: [{ beatId: 'B1', file: clipFile, receiptEntry: { actions: receiptActions, recastHeadTrimSeconds: 0.5 } }], asr: { B1: asrB1, B3: asrB3 }, loudnessLufs: -16 });
+  const tl = readJson(join(dir, 'story', 'narration-timeline.json'));
+  assert.deepEqual(tl.segments.map((x) => x.id), ['B1', 'B3'], 'the silent title is not a narration row');
+  assert.equal(tl.durationSeconds, 9.2, 'the film keeps its whole length');
+  assert.deepEqual(readJson(join(dir, 'story', 'storyboard.json')).beats.map((b) => b.id), ['T1', 'B1', 'B3'], 'the title is still a beat of the film');
+  assert.equal(readFileSync(join(dir, 'story', 'locked-script.txt'), 'utf8'), 'Twelve days.\nTry the live demo.\n');
+  // the real cue-sheet builder over this workspace: every beat it lists is word-level, which is what validate-sync requires
+  const builder = join(mod, '..', '..', 'scripts', 'build-cue-sheet.mjs');
+  const run = spawnSync(process.execPath, [builder, dir, '--compose-map', 'output/expired-auth-compose-map.json'], { encoding: 'utf8' });
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  const sheet = readJson(join(dir, 'plan', 'cue-sheet.json'));
+  assert.deepEqual(sheet.beats.map((b) => [b.beat, b.narration.precision]), [['B1', 'word'], ['B3', 'word']]);
+  assert.equal(sheet.precision.allWordLevel, true);
+  assert.deepEqual(sheet.precision.degradedBeats, []);
+  assert.equal(sheet.durationSeconds, 9.2);
+  // the control: the same film with the silent beat listed as a narration row is what validate-sync refuses
+  const listed = readJson(join(dir, 'story', 'narration-timeline.json'));
+  listed.segments.unshift({ id: 'T1', scene: 'T1', text: '', startSeconds: 0, durationSeconds: 2.2, speechSeconds: 0 });
+  writeFileSync(join(dir, 'story', 'narration-timeline.json'), JSON.stringify(listed));
+  const ctl = spawnSync(process.execPath, [builder, dir, '--compose-map', 'output/expired-auth-compose-map.json', '--out', 'plan/control.json'], { encoding: 'utf8' });
+  assert.equal(ctl.status, 0, ctl.stderr || ctl.stdout);
+  assert.deepEqual(readJson(join(dir, 'plan', 'control.json')).precision.degradedBeats, [{ beat: 'T1', precision: 'estimate' }], 'listed as a row, a silent beat is estimate-precision');
+});
+
+test('silent beats 2: a cut with no narration at all lists no narration row rather than an estimate row', () => {
+  const dir = join(root, 'gatews-allsilent');
+  const cut = { id: 'main', ratios: ['16x9'], beats: [{ id: 'T1', kind: 'title', onScreenText: 'Hook.' }] };
+  const timeline = { durationSeconds: 2.2, segments: [{ id: 'T1', kind: 'title', text: '', startSeconds: 0, durationSeconds: 2.2, speechSeconds: 0, lineStartSeconds: null, words: [] }] };
+  buildGateWorkspace({ root: dir, spec: baseSpec(), cut, ratio: '16x9', timeline, composeMap: { groups: [] }, clips: [], asr: {}, loudnessLufs: -16 });
+  assert.deepEqual(readJson(join(dir, 'story', 'narration-timeline.json')).segments, []);
+  assert.deepEqual(readJson(join(dir, 'qa', 'listen-timeline.json')).segments, []);
 });

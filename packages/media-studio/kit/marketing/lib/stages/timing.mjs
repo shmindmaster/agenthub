@@ -10,7 +10,7 @@ import { alignBeat, chooseResult, expectationClipTimes } from '../align.mjs';
 import { LEAD_SECONDS, TAIL_SECONDS, normalizeCuts } from '../lint.mjs';
 import { resolveClip } from './capture.mjs';
 import { estimateWhisperUsd } from '../prices.mjs';
-import { alignScriptToAsr, buildTimeline, parseAsrWords, snapToBeatGrid } from '../timing.mjs';
+import { FPS, alignScriptToAsr, buildTimeline, parseAsrWords, snapToBeatGrid } from '../timing.mjs';
 import { run } from '../mix.mjs';
 import { readJson, round, writeJson } from '../util.mjs';
 
@@ -67,7 +67,7 @@ export async function timingStage(ctx) {
     if (!existsSync(voicePath)) throw new Error(`timing needs the voice stage first (missing ${voicePath})`);
     const voice = readJson(voicePath);
     const clipShas = cut.beats.filter((b) => b.ui).map((b) => { const r = resolveClip(ctx, b).entry; return [b.id, r.sha256, b.ui.trimStart, b.ui.actions, b.ui.align]; });
-    const k = stageKey('timing', { lines: voice.lines.map((l) => [l.key, l.sha256]), beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), clips: clipShas, provider: ctx.brand.timing?.provider || 'openai-whisper', ...(grid ? { beatGrid: grid } : {}) });
+    const k = stageKey('timing', { lines: voice.lines.map((l) => [l.key, l.sha256]), beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), clips: clipShas, provider: ctx.brand.timing?.provider || 'openai-whisper', ...(grid ? { beatGrid: grid, frameSnap: FPS } : {}) });
     const cached = checkStage(ctx.jobDir, 'timing', cut.id, k);
     if (cached.hit && !ctx.flags.force) { ctx.log(`timing/${cut.id}: cached`); out[cut.id] = cached.manifest; continue; }
     const byBeat = new Map(voice.lines.map((l) => [l.beatId, l]));
@@ -102,7 +102,8 @@ export async function timingStage(ctx) {
       }
       lines.push({ beat: sized, audio: { durationSeconds: round(duration, 3), words, asr: asrRel } });
     }
-    const timeline = grid ? snapToBeatGrid(buildTimeline(lines), grid) : buildTimeline(lines);
+    // Beat-grid boundaries are snapped to whole frames too (FPS): a boundary between frames would leave the picture a gap frame.
+    const timeline = grid ? snapToBeatGrid(buildTimeline(lines), grid, { fps: FPS }) : buildTimeline(lines);
     const chunks = [];
     for (const seg of timeline.segments) {
       if (!seg.words.length) continue;

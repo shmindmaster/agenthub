@@ -107,17 +107,39 @@ export function beatGridOf(grid) {
 
 const GRID_TOLERANCE = 0.0005; // a boundary within half a millisecond of a beat is on it
 
+/** The delivery frame rate of every mvg ad (compose refuses any other). */
+export const FPS = 30;
+
+/**
+ * The frames the picture gives each beat: [{ from, durationInFrames }]. A beat's last frame is the frame before the next beat's
+ * first, so consecutive sequences tile with no gap and no overlap whatever the (millisecond) times are: each boundary is rounded
+ * once and shared. Rounding start and duration separately leaves a frame that belongs to no sequence (a black frame at the
+ * boundary). MarketingAd.tsx (beatFrames) computes the same thing; the tests hold the two together.
+ */
+export function sequenceFrames(beats, fps = FPS) {
+  let cursor = beats.length ? Math.round(beats[0].startSec * fps) : 0;
+  return beats.map((b) => {
+    const from = cursor;
+    cursor = Math.max(from + 1, Math.round((b.startSec + b.durationSec) * fps));
+    return { from, durationInFrames: cursor - from };
+  });
+}
+
 /**
  * Cuts on the beat. Every segment boundary except the program start lands on the next grid point at or after the segment's
  * natural end, by lengthening only the segment's tail hold (never shortening it, never moving narration inside it); a boundary
  * already on the grid is left alone, so each extension is under one beat period. Later segments shift by what came before:
  * startSeconds, lineStartSeconds and every word time move together, speechSeconds is untouched, and the total grows.
  * Pure: the input timeline is not modified. Times are whole milliseconds, so a boundary is within 0.5 ms of its grid point.
- * @returns {object} the timeline with `beatGrid { bpm, offsetSeconds, periodSeconds, snapped, addedSeconds }` and, per segment, `snapExtendSeconds`
+ * With `fps` every boundary is then moved to a whole frame (the nearest frame to its grid point, or the first frame at or after the
+ * natural end when that is earlier), so the edit list, the captions and the gates name the frames the picture really cuts on: the
+ * cut sits within half a frame of the beat, or at most one frame later when it would otherwise shorten the scene's own tail hold.
+ * @returns {object} the timeline with `beatGrid { bpm, offsetSeconds, periodSeconds, snapped, addedSeconds, fps? }` and, per segment, `snapExtendSeconds`
  */
-export function snapToBeatGrid(timeline, grid) {
+export function snapToBeatGrid(timeline, grid, { fps = null } = {}) {
   const { bpm, offsetSeconds, periodSeconds } = beatGridOf(grid);
-  if (!timeline.segments.length) return { ...timeline, beatGrid: { bpm, offsetSeconds, periodSeconds: round(periodSeconds, 6), snapped: 0, addedSeconds: 0 } };
+  const info = { bpm, offsetSeconds, periodSeconds: round(periodSeconds, 6) };
+  if (!timeline.segments.length) return { ...timeline, beatGrid: { ...info, snapped: 0, addedSeconds: 0, ...(fps ? { fps } : {}) } };
   let start = timeline.segments[0].startSeconds; // the program start is not snapped
   let snapped = 0;
   const segments = timeline.segments.map((seg) => {
@@ -125,7 +147,12 @@ export function snapToBeatGrid(timeline, grid) {
     const natural = round(start + seg.durationSeconds);
     // n may be negative: the offset is the bed's phase, so beats continue backwards from it to program time 0
     const n = Math.ceil((natural - offsetSeconds - GRID_TOLERANCE) / periodSeconds);
-    const boundary = Math.max(natural, round(offsetSeconds + n * periodSeconds));
+    let boundary = Math.max(natural, round(offsetSeconds + n * periodSeconds));
+    if (fps) {
+      let k = Math.round(boundary * fps);
+      while (round(k / fps) < natural - GRID_TOLERANCE) k++; // never shorter than the natural end
+      boundary = Math.max(natural, round(k / fps));
+    }
     const extend = round(boundary - natural);
     if (extend > 0) snapped++;
     const out = {
@@ -137,5 +164,5 @@ export function snapToBeatGrid(timeline, grid) {
     return out;
   });
   const durationSeconds = start;
-  return { ...timeline, durationSeconds, segments, beatGrid: { bpm, offsetSeconds, periodSeconds: round(periodSeconds, 6), snapped, addedSeconds: round(durationSeconds - timeline.durationSeconds) } };
+  return { ...timeline, durationSeconds, segments, beatGrid: { ...info, snapped, addedSeconds: round(durationSeconds - timeline.durationSeconds), ...(fps ? { fps } : {}) } };
 }

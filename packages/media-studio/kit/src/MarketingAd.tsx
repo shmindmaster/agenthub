@@ -108,6 +108,21 @@ const CAPTION_FADE_FRAMES = 6;
 const PLATE = "15, 23, 42";
 const EMPHASIS_COLOR = "#ffd166";
 
+/**
+ * The frames each beat occupies, [{ from, durationInFrames }]. Beat boundaries are not frame-aligned (edit.beatGrid), so start and
+ * duration are never rounded on their own: a beat's end is the next beat's start, rounded once, and the sequences tile exactly. Rounding
+ * both separately left a frame in no sequence (the navy AbsoluteFill showed as one black frame at the cut). kit/marketing/lib/timing.mjs
+ * (sequenceFrames) is the tested twin of this function.
+ */
+const beatFrames = (beats: AdBeat[], fps: number): { from: number; durationInFrames: number }[] => {
+  let cursor = beats.length ? Math.round(beats[0].startSec * fps) : 0;
+  return beats.map((b) => {
+    const from = cursor;
+    cursor = Math.max(from + 1, Math.round((b.startSec + b.durationSec) * fps));
+    return { from, durationInFrames: cursor - from };
+  });
+};
+
 const stack = (display: string, body: string, which: "display" | "body"): string =>
   `${which === "display" ? display : body}, ${which === "display" ? body : display}, "Segoe UI", system-ui, sans-serif`;
 
@@ -266,7 +281,9 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
   const { fps, width } = useVideoConfig();
   const t = frame / fps;
   // The end card's headline already says it, and a caption mid-fade on the plate falls below 3:1: no captions on card beats.
-  if (props.beats.some((b) => (b.kind === "card" || b.kind === "title") && t >= b.startSec && t < b.startSec + b.durationSec)) return null;
+  // Compared in frames, against the same frames the sequences use, so the first and last frame of a card agree with its sequence.
+  const frames = beatFrames(props.beats, fps);
+  if (props.beats.some((b, i) => (b.kind === "card" || b.kind === "title") && frame >= frames[i].from && frame < frames[i].from + frames[i].durationInFrames)) return null;
   const chunk = props.captions.find((c) => t >= c.startSec && t < c.endSec);
   const box = props.layout.captionBox;
   if (!chunk) return null;
@@ -311,12 +328,12 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
 export const MarketingAd: FC<MarketingAdProps> = (props) => {
   const { fps } = useVideoConfig();
   const { brand, layout } = props;
+  const frames = beatFrames(props.beats, fps);
   return (
     <AbsoluteFill style={{ background: brand.colors.foreground }}>
       <FontLoader files={brand.fontFiles} />
-      {props.beats.map((beat) => {
-        const from = Math.round(beat.startSec * fps);
-        const duration = Math.max(1, Math.round(beat.durationSec * fps));
+      {props.beats.map((beat, i) => {
+        const { from, durationInFrames: duration } = frames[i];
         return (
           <Sequence key={beat.id} from={from} durationInFrames={duration} name={beat.id}>
             {beat.kind === "ui" ? <UiCamera beat={beat} band={layout.uiBand} /> : null}
