@@ -5,13 +5,39 @@ Does not copy node_modules. Does not touch product repositories.
 #>
 [CmdletBinding()]
 param(
-    [string]$RuntimeKit = (Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit')
+    [string]$RuntimeKit = (Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'),
+    # Sync even while an mvg job is running from the target marketing directory.
+    [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
 $packageKit = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\kit'))
 if (-not (Test-Path -LiteralPath (Join-Path $packageKit 'src\Visuals.tsx'))) {
     throw "Canonical kit source missing: $packageKit\src"
+}
+
+# Refuse before touching anything while an mvg job runs from the deployed marketing tree: the mirror below rewrites
+# files that job has open. A job started as a bare `node mvg.mjs` from inside the tree (the run-mvg.sh runners do
+# this) shows no directory on its command line, so a bare mvg.mjs counts as running from here too.
+# Command lines are compared with forward slashes folded to backslashes (Git Bash runners pass C:/.../mvg.mjs).
+# An unavailable process list is a warning, not a stop.
+$marketingTarget = [IO.Path]::GetFullPath((Join-Path $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RuntimeKit) 'marketing'))
+if (-not $Force -and (Test-Path -LiteralPath $marketingTarget)) {
+    $running = @()
+    try {
+        $running = @(Get-CimInstance -ClassName Win32_Process -Filter "CommandLine LIKE '%mvg.mjs%'" -ErrorAction Stop |
+            Where-Object {
+                if ($_.ProcessId -eq $PID -or -not $_.CommandLine) { return $false }
+                $commandLine = $_.CommandLine.Replace('/', '\')
+                $commandLine.IndexOf($marketingTarget, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+                    $commandLine -match '(?:^|[\s"''])(?:\.\\)?mvg\.mjs(?=$|[\s"''])'
+            })
+    } catch {
+        Write-Warning "Could not list processes to check for a running mvg job: $($_.Exception.Message)"
+    }
+    if ($running.Count -gt 0) {
+        throw ("An mvg job is running from {0} (PID {1}). Wait for it to finish, or pass -Force to sync anyway." -f $marketingTarget, (($running | ForEach-Object { $_.ProcessId }) -join ', '))
+    }
 }
 
 New-Item -ItemType Directory -Force -Path (Join-Path $RuntimeKit 'src') | Out-Null
@@ -55,20 +81,28 @@ foreach ($rel in $files) {
     Copy-Item -LiteralPath $from -Destination $to -Force
 }
 
-# Marketing video generator (mvg): the whole kit\marketing tree is managed, so the runtime copy is replaced, not merged
-# (a deleted module must not survive as a stale file). The ElevenLabs adapter stays in the AgentHub checkout.
+# Marketing video generator (mvg): the whole kit\marketing tree is managed, so the runtime copy is mirrored, not merged
+# (a deleted module must not survive as a stale file). The mirror runs in place: the target directory is never
+# deleted or emptied, so a running pipeline never sees the tree disappear. The ElevenLabs adapter stays in the AgentHub checkout.
 $marketingSource = Join-Path $packageKit 'marketing'
 if (Test-Path -LiteralPath $marketingSource) {
-    $marketingTarget = Join-Path $RuntimeKit 'marketing'
-    if (Test-Path -LiteralPath $marketingTarget) { Remove-Item -LiteralPath $marketingTarget -Recurse -Force }
-    Copy-Item -LiteralPath $marketingSource -Destination $marketingTarget -Recurse -Force
+    New-Item -ItemType Directory -Force -Path $marketingTarget | Out-Null
+    # Robocopy exit codes 0-7 are success (bit flags for what was copied/extra); 8 and above is failure. A caller with
+    # PSNativeCommandUseErrorActionPreference set would otherwise turn a success code into a terminating error here.
+    $PSNativeCommandUseErrorActionPreference = $false
+    $robocopyOutput = @(& robocopy.exe $marketingSource $marketingTarget /MIR /NJH /NJS /NDL /NP /R:2 /W:1 2>&1)
+    $robocopyExit = $LASTEXITCODE
+    $global:LASTEXITCODE = 0
+    if ($robocopyExit -ge 8) {
+        throw ("Marketing kit mirror failed: robocopy exit code {0} ({1} -> {2}): {3}" -f $robocopyExit, $marketingSource, $marketingTarget, (($robocopyOutput | Select-Object -Last 5) -join ' | '))
+    }
 }
 
 # Capture and product-picture gates travel with the compositor so each host resolves the same scripts.
 # A missing validator is a hard stop, never a silent skip. The existing scripts are copied
 # beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
 $gateScripts = @('validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
-    # video standard (2026-10-20): record-job.mjs resolves validate-capture-preflight.mjs from _shared	ools; the rest are the release gates the skills cite
+    # video standard (2026-10-20): record-job.mjs resolves validate-capture-preflight.mjs from _shared\tools; the rest are the release gates the skills cite
     'validate-narration.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'build-contact-sheet.mjs')
 $sharedTools = Join-Path (Join-Path (Split-Path -Parent $RuntimeKit) '_shared') 'tools'
 New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null

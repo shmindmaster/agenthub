@@ -24,8 +24,9 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   `governed_audio.py`, `elevenlabs_cli.py sfx|music`); OpenAI supplies stills,
   `whisper-1` word timing and vision QA. `validate-viewer-release.mjs` accepts
   the mvg picture report for `generator: media-studio/mvg` jobs and a per-job
-  `loudnessTargetLufs`. `Sync-MediaStudioKit.ps1` replaces the runtime
-  `briefing-kit\marketing` tree. Unit tests: `packages/media-studio/tests/mvg.test.mjs`
+  `loudnessTargetLufs`. `Sync-MediaStudioKit.ps1` mirrors the runtime
+  `briefing-kit\marketing` tree in place (robocopy /MIR, never emptied) and
+  refuses while an mvg job runs from it unless `-Force` is passed. Unit tests: `packages/media-studio/tests/mvg.test.mjs`
   (mock providers, no paid calls). Product data (brand, claims, specs) stays in
   the external media workspace.
 
