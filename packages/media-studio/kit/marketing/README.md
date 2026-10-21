@@ -30,13 +30,13 @@ Exit 0 = ok, 1 = a stage failed closed (lint, budget, gate), 2 = usage. Every ru
 | `beats[]` | `id`, `kind` `ui` / `broll` / `card` / `title`, `narration`, `onScreenText`, `emphasis[]`, `claims[]`, `minSeconds`, `ui {sourceJob, clipId, trimStart, trimEnd, focus[], actions[], freshness, record}`, `broll {provider, prompt}`, `sfx[] {cue, prompt, durationSeconds}`. A final `card` beat is the CTA end card. |
 | `claims[]` | `id`, `text`, `phrases[]` (exact substrings of narration/on-screen text it substantiates), `kind`, `evidence`: `file:<path>[:line]`, `clip:<sourceJob>#<clipId>@<t0>-<t1>` (checked against the capture receipt) or `approved:<source>`. |
 | `cta` | `text`, `url` (https), `displayUrl`, `claim`. |
-| `labels` | Persistent on-screen label; must say SYNTHETIC and NO PHI. |
+| `labels` | Synthetic-data disclosure shown as one line on the end card; must say SYNTHETIC and NO PHI. |
 | `budget`, `qa` | Per-run caps; `qa.storyMin`, `qa.visionEverySeconds`, `qa.loudness`, `qa.required`. |
 
 `ui.focus[]` gives explicit focus windows in clip seconds with the target's normalized position in the clip frame
-(`x`, `y`), an optional `zoom` and `sourceZoom` (Recast punch-in already in the clip). It is required for any non-16:9 cut
-when the clip has clicks, because Recast zooms around clicks and the pointer coordinates then no longer match the frame.
-Clips without clicks may omit it: the pointer/point track drives the windows. `ui.actions[]` names the receipt actions the
+(`x`, `y`), an optional `zoom`, `sourceZoom` (Recast punch-in already in the clip) and `declaredZoom` (the cue sheet
+declares this zoom). Without a declared zoom every window shows the whole native recording; the integrity check fails any
+other crop. `ui.actions[]` names the receipt actions the
 spoken keywords land on (for the sync gate); `sfx[].cue` is `start`, `end`, `at:<seconds>` or `action:<receipt label>`.
 
 The brand file (`brand.schema.json`) holds colors, fonts (files are loaded in the composition), safe zones per ratio,
@@ -97,21 +97,33 @@ words match: "twelve" finds "12"), so `ui.trimStart` is only a fallback; the bea
 `narrated: false`. Caption cues are held or started earlier into the surrounding gaps so none exceeds 18 characters per second.
 A capture expectation ("the product responded") stands as a beat's result only if it is visible inside the beat and holds >= 1.5 s; one up to 0.5 s short lengthens the beat, any other is left out of the cue plan (so it is never stamped after the beat). The per-line ASR copy in the gate workspace is shifted by the lead-in so keyword times match where each line is placed. Vision frames are sampled at least 0.25 s from a caption cue start or end. A reviewer may add `qa/<ratio>/vision-arbitration.json` `{candidateSha256, reviewer, items:[{frame, category, verdict:"false-positive", reason}]}`; it counts only when it names the current candidate hash, is recorded in `gates.json`, and is never written by mvg. The listen gate follows the film chain: `releaseEligible` is the pass signal and any finding, a WARNING included, fails it.
 A focus window magnified by a Recast punch-in (`sourceZoom`) gets a wider crop so the total magnification stays at or under
-3x; if even zoom 1 is over the cap the compose stops and asks for a recapture.
+3x; any magnification of recorded pixels then still fails the integrity check unless the recording was made at device scale.
 
 ## Composition and ratios
 
-`kit/src/MarketingAd.tsx` (registered in `Root.tsx` as `MarketingAd`) renders the picture from props. The UI sits in a "UI
-band" inside the platform-safe area (Reels/Shorts reserve the top 14% and bottom 35% of 9:16) cropped by a focus-follow
-camera; kinetic captions (burned in, 4-7 words, balanced over explicit line breaks of at least two words, within 82% of the frame width, the spoken word bold as well as bright, emphasis words in the accent color; hidden on the end card), the
-persistent label and the CTA end card (amber pill, navy text, left edge shared with the caption and label) sit beside it, never over the focal point. A 32 px gradient fades the UI band into the plate where they meet, and the blurred portrait backdrop is tinted `rgba(15,23,42,0.85)`. A caption fades in over at most 6 frames. A crop whose left edge would fall inside the product navigation snaps to `capture.contentLeft` plus a 24 px inset (or to 0 when wide enough to show the whole navigation); set `capture.contentLeft` (0-0.5, ABACare 0.13) and optional `capture.contentInsetPx` in `brand.json`. Layout and crop math are plain JS
-(`lib/layout.mjs`, `lib/crop.mjs`) so they are unit tested; the composition only draws.
+`kit/src/MarketingAd.tsx` (registered in `Root.tsx` as `MarketingAd`) renders the picture from props. Each ratio is its
+own native capture at a viewport of that aspect (16:9 desktop web recorded at 1920x1080, 4:5 web at a tablet or
+large-phone layout recorded at 1080x1350, 9:16 the mobile app or phone web at 1080x1920), so the product picture fills
+the frame at scale 1.0: no UI band, no crop, no bars, no upscale. `lib/integrity.mjs` checks every product window on
+each compose and stops it on a stretch, an aspect mismatch (bars), an upscale (soft text) or a crop the cue sheet did not
+declare (`ui.focus[].declaredZoom`, allowed only on a device-scale recording so the zoomed region keeps one recorded pixel
+per output pixel); the result is written to `compose-map.json` as `integrity`. Kinetic captions (burned in, 4-7 words,
+balanced over explicit line breaks of at least two words, the spoken word bold as well as bright, emphasis words in amber)
+sit on their own navy plate over the picture inside the platform-safe area (Reels/Shorts reserve the top 14% and bottom
+35% of 9:16) and are hidden on title and card beats. A `title` beat is the hook: its headline lands word by word in big
+type on brand colour. The `card` end card carries the logo lockup (`brand.logo`), the line the film ends on, the CTA (amber
+pill, navy text) and, as one small line at its foot, the synthetic-data label and any AI-voice disclosure; that is the only
+place the label appears. Layout math is plain JS (`lib/layout.mjs`, `lib/integrity.mjs`) so it is unit tested; the
+composition only draws.
 
-| Ratio | Frame | UI band | Base zoom |
+| Ratio | Frame | Product picture | Caption plate |
 | --- | --- | --- | --- |
-| 16x9 | 1920x1080 | 1920x836 at top; caption row, then a 34 px label row with a 64 px bottom margin | 1.15 |
-| 4x5 | 1080x1350 | 1080x740 from y 172, 36 px label above (top >= 54), captions below | 1.7 |
-| 9x16 | 1080x1920 | 36 px label (top >= 300, one or two lines) and captions above, 1080x820 UI band from y 676 over a tinted blurred backdrop of the same clip; the end card block is centred in the safe zone | 2.4 |
+| 16x9 | 1920x1080 | full frame, native 1920x1080 recording | one line, x 96, y 924 |
+| 4x5 | 1080x1350 | full frame, native 1080x1350 recording | up to two lines, y 1110 |
+| 9x16 | 1080x1920 | full frame, native 1080x1920 recording | up to two lines, y 1030 (above the bottom 35%) |
+
+The music bed sits about 12 dB below its mastered level with a light 3:1 duck under the voice, so it carries the pace;
+narration that spends words on the demo data or on the film itself (`synthetic`, `in this video`, ...) fails lint.
 
 ## QA gates (`qa/<ratio>/gates.json`)
 
@@ -141,8 +153,8 @@ persistent label and the CTA end card (amber pill, navy text, left edge shared w
    subcommands) so they use the same ledger, reservation and receipt rules as speech.
 6. **Focus windows are piecewise static with eased transitions** so the encoded-picture binding can compare a stable crop
    at each beat midpoint. Recast zoom is declared with `sourceZoom` because the clip is already magnified there.
-7. **No separate wordmark chip.** The persistent label is on screen in every frame, the product UI carries its own mark in
-   16:9 crops and the end card names the product; a moving corner mark would sit on the UI.
+7. **No chip over the product picture.** The synthetic-data label is one line on the end card, beside the logo and the
+   CTA (owner direction, 2026-10-20); a persistent chip read as an internal explainer.
 8. **Campaign contract not used.** `campaign-short` is 10-20 s and the concept ads run to 25 s; mvg jobs use
    `programForm: outcome-workflow` and carry their own gates.
 

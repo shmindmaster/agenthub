@@ -96,7 +96,7 @@ export function focusWindows({ explicit, track, clipStart, clipEnd, srcW, srcH, 
     sorted[0].startSec = Math.min(sorted[0].startSec, clipStart);
     sorted[sorted.length - 1].endSec = Math.max(sorted[sorted.length - 1].endSec, clipEnd);
     for (let i = 1; i < sorted.length; i++) sorted[i - 1].endSec = sorted[i].startSec;
-    raw = sorted.map((w) => ({ start: Math.max(w.startSec, clipStart), end: Math.min(w.endSec, clipEnd), x: w.x, y: w.y, zoom: w.zoom || zoom, sourceZoom: w.sourceZoom || 1, label: w.label || null }));
+    raw = sorted.map((w) => ({ start: Math.max(w.startSec, clipStart), end: Math.min(w.endSec, clipEnd), x: w.x, y: w.y, zoom: w.zoom || zoom, sourceZoom: w.sourceZoom || 1, label: w.label || null, declaredZoom: !!w.declaredZoom }));
   } else {
     const samples = [];
     for (let t = clipStart; t < clipEnd - 1e-6; t += step) samples.push({ t, ...focusAt(track || [], t) });
@@ -128,7 +128,7 @@ export function focusWindows({ explicit, track, clipStart, clipEnd, srcW, srcH, 
     const region = snapToContent(fit.region, { contentLeft, insetPx: contentInsetPx, srcW });
     const scale = fit.scale;
     w.zoom = round(effective, 3);
-    return { startSec: round(w.start, 3), endSec: round(w.end, 3), focus: { x: round(w.x, 4), y: round(w.y, 4) }, zoom: w.zoom, sourceZoom: w.sourceZoom, label: w.label, region, scale: round(scale * w.sourceZoom, 3) };
+    return { startSec: round(w.start, 3), endSec: round(w.end, 3), focus: { x: round(w.x, 4), y: round(w.y, 4) }, zoom: w.zoom, sourceZoom: w.sourceZoom, label: w.label, ...(w.declaredZoom ? { declaredZoom: true } : {}), region, scale: round(scale * w.sourceZoom, 3) };
   });
 }
 

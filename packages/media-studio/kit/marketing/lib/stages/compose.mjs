@@ -1,12 +1,14 @@
 // Stage 6: compose, per ratio. Builds the MarketingAd props (layout, focus-follow camera, kinetic captions), the
 // compose map the gates read, the FFmpeg mix plan, then renders the picture with Remotion and finishes audio and
 // the loudness-normalized encode with FFmpeg. `--prepare-only` stops after the props, map and plans (no render).
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
 import { alignBeat } from '../align.mjs';
 import { cameraKeyframes, focusWindows, pointerTrack, readability, windowAt } from '../crop.mjs';
-import { FRAMES, labelLines, layoutFor, safeZoneErrors } from '../layout.mjs';
+import { FRAMES, layoutFor, safeZoneErrors } from '../layout.mjs';
+import { pictureIntegrity } from '../integrity.mjs';
 import { normalizeCuts } from '../lint.mjs';
 import { buildMixArgs, encodeArgs, loudnessTarget, loudnormMeasureArgs, parseLoudnorm, run } from '../mix.mjs';
 import { lineBreaks, toSrt } from '../captions.mjs';
@@ -15,6 +17,18 @@ import { sfxKey } from './assets.mjs';
 import { fileSha, readJson, round, writeJson } from '../util.mjs';
 
 export const HOLD_PAD_MAX = 2.0;
+
+const recorded = new Map();
+/** Pixel size of a recording (ffprobe), cached per file. */
+export function recordedSize(file) {
+  if (!recorded.has(file)) {
+    const out = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', file], { encoding: 'utf8' }).trim();
+    const [width, height] = out.split(',').map(Number);
+    if (!(width > 0 && height > 0)) throw new Error(`cannot probe the size of ${file}`);
+    recorded.set(file, { width, height });
+  }
+  return recorded.get(file);
+}
 
 /** Program time (seconds) a sound-effect cue lands at, or throws when an `action:` label is not in the receipt. */
 export function cueTime(cue, seg, { actions = [], headTrim = 0, trimStart = 0, duration = 1 }) {
@@ -77,6 +91,7 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
     return `media/${name}`;
   };
   const sfxPlan = [];
+  const integrityRows = [];
   const lastIndex = cut.beats.length - 1;
   cut.beats.forEach((beat, i) => {
     const seg = timeline.segments.find((s) => s.id === beat.id);
@@ -101,12 +116,12 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
       const hold = seg.durationSeconds - playSec;
       if (hold > HOLD_PAD_MAX) throw new Error(`${beat.id}: the clip covers ${playSec.toFixed(1)}s of the ${seg.durationSeconds.toFixed(1)}s beat (hold ${hold.toFixed(1)}s > ${HOLD_PAD_MAX}s); shorten the narration, adjust trims, or recapture`);
       const track = pointerTrack(entry.actions, { headTrim: clip.headTrimSeconds, viewport: clip.viewport });
-      // A focus window's x, y and zoom may each be one number or a per-ratio map ({"16x9": 1.8, "4x5": 2.4}) when one cut
-      // serves two ratios: a narrower crop needs its own position to keep text whole at its edges.
-      const perRatio = (v) => (v && typeof v === 'object' ? v[ratio] : v);
-      const explicit = beat.ui.focus?.map((f) => ({ ...f, x: perRatio(f.x), y: perRatio(f.y), zoom: perRatio(f.zoom) }));
-      const windows = focusWindows({ explicit, track, clipStart: trimStart, clipEnd: trimStart + playSec, srcW: clip.viewport.width, srcH: clip.viewport.height, band: layout.uiBand, zoom: layout.zoom, contentLeft: ctx.brand.capture?.contentLeft || 0, contentInsetPx: ctx.brand.capture?.contentInsetPx ?? 24 });
+      const windows = focusWindows({ explicit: beat.ui.focus, track, clipStart: trimStart, clipEnd: trimStart + playSec, srcW: clip.viewport.width, srcH: clip.viewport.height, band: layout.uiBand, zoom: layout.zoom, contentLeft: ctx.brand.capture?.contentLeft || 0, contentInsetPx: ctx.brand.capture?.contentInsetPx ?? 24 });
       for (const w of windows) { const r = readability(w.scale); if (!r.ok) throw new Error(`${beat.id} ${ratio}: ${r.reason}`); }
+      // Each ratio is its own native capture: the recording fills the frame at scale <= 1, uncropped unless a zoom is declared.
+      const integrity = pictureIntegrity({ band: layout.uiBand, recorded: recordedSize(clip.file), windows: windows.map((w) => ({ region: w.region, declaredZoom: w.declaredZoom, label: `${beat.id}${w.label ? ` (${w.label})` : ''}` })) });
+      integrityRows.push({ beat: beat.id, clip: clip.file, recorded: recordedSize(clip.file), ...integrity });
+      if (!integrity.ok) throw new Error(`${beat.id} ${ratio}: picture integrity: ${integrity.errors.join('; ')}`);
       const camera = cameraKeyframes(windows, { clipStart: trimStart, duration: seg.durationSeconds });
       const src = addMedia(clip.file, 'webm');
       beats.push({ ...base, clip: { src, trimBeforeSec: trimStart, playSec: round(playSec, 3), srcW: clip.viewport.width, srcH: clip.viewport.height, camera } });
@@ -139,17 +154,19 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
   const c = ctx.brand.colors;
   const props = {
     ratio, width: frame.width, height: frame.height, fps: 30, durationSec: timeline.durationSeconds,
-    layout: { uiBand: layout.uiBand, captionBox: layout.captionBox, labelBox: layout.labelBox, ctaBox: layout.ctaBox, ctaPillFont: layout.ctaPillFont },
+    layout: { uiBand: layout.uiBand, captionBox: layout.captionBox, ctaBox: layout.ctaBox, ctaPillFont: layout.ctaPillFont },
     brand: { productName: ctx.brand.product, colors: { primary: c.primary, foreground: c.foreground, background: c.background, accent: c.accent, onPrimary: c.onPrimary || '#ffffff', ...(c.emphasis ? { emphasis: c.emphasis } : {}) }, fontDisplay: ctx.brand.fonts.display, fontBody: ctx.brand.fonts.body, fontFiles },
-    label: ctx.spec.labels, labelLines: labelLines(ctx.spec.labels, layout.labelBox.fontSize, layout.labelBox.w), disclosure: ctx.spec.voice.disclosure || undefined,
+    // The synthetic-data label and the AI-voice disclosure are end-card lines, not a chip over the product picture.
+    label: ctx.spec.labels, disclosure: ctx.spec.voice.disclosure || undefined,
+    logo: ctx.brand.logo ? addMedia(ctx.brand.logo, ctx.brand.logo.split('.').pop()) : undefined,
     beats, captions: captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words, lines: lineBreaks(k.words, { maxWidthPx: Math.min(layout.captionBox.w, Math.round(0.82 * frame.width)), fontSize: layout.captionBox.fontSize }) })),
     emphasis: [...new Set(cut.beats.flatMap((b) => b.emphasis || []))],
     cta: { text: ctx.spec.cta.text, displayUrl: ctx.spec.cta.displayUrl || ctx.spec.cta.url.replace(/^https?:\/\//, '') },
   };
   const lines = voice.lines.map((l) => ({ file: join(ctx.jobDir, l.file), startSec: timeline.segments.find((s) => s.id === l.beatId).lineStartSeconds }));
   const musicAsset = assets.items.find((a) => a.kind === 'music');
-  const music = musicAsset ? { file: join(ctx.jobDir, musicAsset.path), bedDb: ctx.spec.music?.bedDb ?? -24 } : null;
-  return { layout, props, groups, gateSegments, media, sfxPlan, lines, music, warnings };
+  const music = musicAsset ? { file: join(ctx.jobDir, musicAsset.path), bedDb: ctx.spec.music?.bedDb ?? -12 } : null;
+  return { layout, props, groups, gateSegments, media, sfxPlan, lines, music, warnings, integrity: integrityRows };
 }
 
 export async function composeStage(ctx) {
@@ -169,7 +186,7 @@ export async function composeStage(ctx) {
       const propErrors = validateProps(plan.props, join(dir, 'public'));
       if (propErrors.length) throw new Error(`MarketingAd props for ${ratio} are invalid: ${propErrors.slice(0, 4).join('; ')}`);
       writeJson(join(dir, 'props.json'), plan.props);
-      writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: timeline.durationSeconds, pictureSeconds: timeline.durationSeconds, leadInSeconds: 0, timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups });
+      writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: timeline.durationSeconds, pictureSeconds: timeline.durationSeconds, leadInSeconds: 0, timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups, integrity: plan.integrity });
       writeJson(join(dir, 'gate-segments.json'), { band: plan.layout.uiBand, durationSeconds: timeline.durationSeconds, segments: plan.gateSegments });
       const target = loudnessTarget(ratio, ctx.spec, ctx.brand);
       const mixOut = join(dir, 'mix.wav');

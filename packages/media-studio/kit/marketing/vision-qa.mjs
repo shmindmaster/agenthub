@@ -36,8 +36,8 @@ export const VERDICT_SCHEMA = {
       },
     },
     overall: {
-      type: 'object', additionalProperties: false, required: ['labelPresentOnAllFrames', 'summary'],
-      properties: { labelPresentOnAllFrames: { type: 'boolean' }, summary: { type: 'string' } },
+      type: 'object', additionalProperties: false, required: ['labelPresentWhereRequired', 'summary'],
+      properties: { labelPresentWhereRequired: { type: 'boolean' }, summary: { type: 'string' } },
     },
   },
 };
@@ -72,7 +72,7 @@ export function buildInstructions({ spec, brand, ratio }) {
   const spoken = (spec.cuts?.flatMap((c) => c.beats) || spec.beats || []).map((b) => [b.narration, b.onScreenText].filter(Boolean).join(' | ')).filter(Boolean);
   return [
     `You are the visual QA reviewer for a ${ratio} marketing ad for ${spec.product}. Review each frame like a skeptical compliance editor.`,
-    `The required persistent on-screen label is: "${spec.labels}". Report missing-label (high) for any frame where it is absent or illegible, and set overall.labelPresentOnAllFrames accordingly.`,
+    `The required disclosure line is: "${spec.labels}". It belongs on the closing end card (the frame with the call to action), not over the product picture. Report missing-label (high) when an end-card frame lacks it or it is illegible there, and set overall.labelPresentWhereRequired accordingly (true when no end-card frame was sampled).`,
     `The product UI in the frames is real captured software on synthetic data. Do NOT report the product's own synthetic names or numbers as problems; DO report typos or garbled text in OVERLAY text (captions, headlines, label, call to action) as high.`,
     `Report unreadable-text (high for overlay text, medium for UI text) when text is too small, low-contrast or cut off to read on a phone held at arm's length.`,
     `Report banned-claim (high) for any overlay text asserting: submission or transmission to a payer, payer approval or payment outcomes, guarantees, HIPAA certification, testimonials, superlatives, invented percentages or dollar figures.`,
@@ -101,10 +101,10 @@ export function evaluate(verdict, { failOn = 'high' } = {}) {
   const findings = [];
   for (const f of verdict.frames) for (const i of f.issues) findings.push({ frame: f.label, ...i });
   const blocking = findings.filter((f) => rank[f.severity] >= threshold);
-  const labelOk = verdict.overall.labelPresentOnAllFrames === true;
+  const labelOk = verdict.overall.labelPresentWhereRequired === true;
   const reasons = blocking.map((f) => `${f.frame}: ${f.category} (${f.severity}) ${f.detail}`);
-  if (!labelOk) reasons.push('overall: the synthetic label is not present on all frames');
-  return { ok: blocking.length === 0 && labelOk, blocking: blocking.length, findings, labelPresentOnAllFrames: labelOk, reasons };
+  if (!labelOk) reasons.push('overall: the synthetic-data disclosure is missing or illegible on the end card');
+  return { ok: blocking.length === 0 && labelOk, blocking: blocking.length, findings, labelPresentWhereRequired: labelOk, reasons };
 }
 
 /**
@@ -131,9 +131,9 @@ export function applyArbitration(result, arbitration, candidateSha256) {
   }
   const remaining = result.findings.filter((f, i) => isBlocking(f) && !used.has(i));
   const labelArbitrated = record.applied.some((a) => a.frame === 'overall' && a.category === 'missing-label');
-  const labelOk = result.labelPresentOnAllFrames || labelArbitrated;
+  const labelOk = result.labelPresentWhereRequired || labelArbitrated;
   const reasons = remaining.map((f) => `${f.frame}: ${f.category} (${f.severity}) ${f.detail}`);
-  if (!labelOk) reasons.push('overall: the synthetic label is not present on all frames');
+  if (!labelOk) reasons.push('overall: the synthetic-data disclosure is missing or illegible on the end card');
   return { ...result, ok: remaining.length === 0 && labelOk, blocking: remaining.length, reasons, arbitration: record };
 }
 

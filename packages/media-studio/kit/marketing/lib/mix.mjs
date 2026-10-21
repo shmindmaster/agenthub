@@ -15,7 +15,7 @@ export function loudnessTarget(ratio, spec, brand) {
 const ms = (s) => Math.max(0, Math.round(s * 1000));
 
 /** ffmpeg arguments that render the pre-loudness mix wav. `lines`/`sfx` carry absolute file paths and program seconds. */
-export function buildMixArgs({ lines, sfx = [], music = null, durationSec, out, bedDb = -24 }) {
+export function buildMixArgs({ lines, sfx = [], music = null, durationSec, out, bedDb = -12 }) {
   const args = ['-hide_banner', '-loglevel', 'error', '-y'];
   const chains = [];
   const voiceLabels = [];
@@ -43,7 +43,8 @@ export function buildMixArgs({ lines, sfx = [], music = null, durationSec, out, 
   if (music) {
     args.push('-i', music.file);
     chains.push(`[${index}:a]aresample=48000,aformat=channel_layouts=stereo,volume=${music.bedDb ?? bedDb}dB,atrim=duration=${round(durationSec, 3)},afade=t=in:d=0.6,afade=t=out:st=${round(Math.max(0, durationSec - 1.4), 3)}:d=1.4[bed0]`);
-    chains.push('[bed0][voicesc]sidechaincompress=threshold=0.02:ratio=8:attack=30:release=500[bed]');
+    // A light duck (3:1) keeps the bed audible under the voice so it carries the pace; 8:1 buried it about 25 dB down.
+    chains.push('[bed0][voicesc]sidechaincompress=threshold=0.05:ratio=3:attack=30:release=400[bed]');
     mixIns.push('[bed]');
   } else chains.push('[voicesc]anullsink');
   chains.push(`${mixIns.join('')}amix=inputs=${mixIns.length}:normalize=0:duration=longest,apad,atrim=duration=${round(durationSec, 3)}[mix]`);

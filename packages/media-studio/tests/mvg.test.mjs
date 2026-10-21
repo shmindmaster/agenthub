@@ -32,7 +32,8 @@ import { parseArgs } from '../kit/marketing/mvg.mjs';
 import { alignBeat, chooseResult, expandKeywords, findWord, shiftAsr, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
 import { buildGateWorkspace } from '../kit/marketing/lib/gates.mjs';
 import { listenCommand, listenFindings } from '../kit/marketing/lib/local-gates.mjs';
-import { labelLines, labelWidth, MIN_LABEL_FONT, CTA_PILL_FONT } from '../kit/marketing/lib/layout.mjs';
+import { CTA_PILL_FONT } from '../kit/marketing/lib/layout.mjs';
+import { pictureIntegrity } from '../kit/marketing/lib/integrity.mjs';
 import { MAX_SCALE, snapToContent, WIDE_REGION } from '../kit/marketing/lib/crop.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -67,14 +68,14 @@ const baseSpec = () => ({
   cta: { text: 'Try it on synthetic data', url: 'https://abacare.ai/demo', claim: 'c-cta' },
   claims: [
     { id: 'c-runway', text: 'One authorization has twelve units left and three sessions still scheduled', phrases: ['twelve units left', 'three sessions'], evidence: 'file:evidence.txt:2' },
-    { id: 'c-cta', text: 'Try the live demo on synthetic data', phrases: ['Try it on synthetic data'], kind: 'cta', evidence: 'approved:playbook concept 1 CTA' },
+    { id: 'c-cta', text: 'Try the live demo on synthetic data', phrases: ['Try it on synthetic data', 'Try the live demo'], kind: 'cta', evidence: 'approved:playbook concept 1 CTA' },
     { id: 'c-local', text: 'Nothing is sent to a payer', phrases: ['Nothing is sent to a payer'], evidence: 'clip:film#A01@0-10' },
   ],
   ratios: ['16x9', '9x16'], targetSeconds: 20,
   beats: [
     { id: 'B1', kind: 'ui', narration: 'Twelve units left, and three sessions still scheduled.', claims: ['c-runway'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 3 }, sfx: [{ cue: 'action:Carter row', prompt: 'soft interface click' }] },
     { id: 'B2', kind: 'ui', narration: 'Nothing is sent to a payer.', claims: ['c-local'], ui: { sourceJob: 'film', clipId: 'A01', trimStart: 1 } },
-    { id: 'B3', kind: 'card', narration: 'Try it on synthetic data.', onScreenText: 'Try it on synthetic data', claims: ['c-cta'] },
+    { id: 'B3', kind: 'card', narration: 'Try the live demo.', onScreenText: 'Try it on synthetic data', claims: ['c-cta'] },
   ],
 });
 const lint = (spec, b = brand) => lintSpec(spec, b, { adSchema, brandSchema, specDir: root });
@@ -356,11 +357,28 @@ test('layouts: every text box sits inside the platform-safe area (Reels top 14% 
   assert.equal(safe.bottom, Math.round(1920 * 0.35));
   const l = layoutFor('9x16', brand);
   assert.ok(l.captionBox.y + l.captionBox.h <= 1920 - safe.bottom);
-  assert.ok(l.uiBand.y >= safe.top);
+  assert.deepEqual(l.uiBand, { x: 0, y: 0, w: 1080, h: 1920 }, 'the native picture fills the frame');
   const bad = { ...l, captionBox: { ...l.captionBox, y: 1500 } };
   assert.ok(safeZoneErrors(bad).some((e) => /captionBox/.test(e)));
-  const text = readability(bandRegion({ srcW: 1600, srcH: 1000, band: l.uiBand, zoom: l.zoom }).scale);
-  assert.equal(text.ok, true);
+  const barred = { ...l, uiBand: { ...l.uiBand, y: 172, h: 1500 } };
+  assert.ok(safeZoneErrors(barred).some((e) => /fill the frame/.test(e)));
+  assert.equal(l.zoom, 1);
+});
+
+test('picture integrity: a native recording passes; upscale, crop, stretch and bars fail; a declared zoom on a device-scale recording passes', () => {
+  const full = { x: 0, y: 0, width: 1, height: 1 };
+  assert.equal(pictureIntegrity({ band: { w: 1920, h: 1080 }, recorded: { width: 1920, height: 1080 }, windows: [{ region: full }] }).ok, true);
+  const soft = pictureIntegrity({ band: { w: 1920, h: 1080 }, recorded: { width: 1600, height: 900 }, windows: [{ region: full }] });
+  assert.ok(soft.errors.some((e) => /upscales/.test(e)), 'a 1600 px recording on a 1920 px frame is upscaled');
+  const barred = pictureIntegrity({ band: { w: 1920, h: 1080 }, recorded: { width: 1600, height: 1000 }, windows: [{ region: full }] });
+  assert.ok(barred.errors.some((e) => /does not match/.test(e)), '16:10 into 16:9 means bars or a crop');
+  const crop = { x: 0.145, y: 0.2, width: 0.5556, height: 0.5556 };
+  assert.ok(pictureIntegrity({ band: { w: 1080, h: 1080 }, recorded: { width: 1600, height: 1600 }, windows: [{ region: crop }] }).errors.some((e) => /without a declared zoom/.test(e)));
+  const stretch = pictureIntegrity({ band: { w: 1920, h: 1080 }, recorded: { width: 1920, height: 1080 }, windows: [{ region: { x: 0, y: 0, width: 1, height: 0.8 } }] });
+  assert.ok(stretch.errors.some((e) => /non-uniform/.test(e)));
+  // A declared 2x zoom on a 3840x2160 (2x device scale) recording still has one recorded pixel per output pixel.
+  const zoom = pictureIntegrity({ band: { w: 1920, h: 1080 }, recorded: { width: 3840, height: 2160 }, windows: [{ region: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 }, declaredZoom: true }] });
+  assert.equal(zoom.ok, true, zoom.errors.join('; '));
 });
 
 // ---- captions and timing
@@ -508,13 +526,13 @@ test('picture gate helpers: dHash binding, static-run detection', () => {
   assert.equal(runs[0].seconds, 2);
 });
 
-const verdictJson = (overrides = {}) => JSON.stringify({ frames: [{ label: 'F01', issues: [] }, { label: 'F02', issues: [{ category: 'typo', severity: 'medium', detail: 'x', evidence: 'y' }] }], overall: { labelPresentOnAllFrames: true, summary: 'ok' }, ...overrides });
+const verdictJson = (overrides = {}) => JSON.stringify({ frames: [{ label: 'F01', issues: [] }, { label: 'F02', issues: [{ category: 'typo', severity: 'medium', detail: 'x', evidence: 'y' }] }], overall: { labelPresentWhereRequired: true, summary: 'ok' }, ...overrides });
 
 test('vision-qa: strict verdict parsing, fenced JSON, schema errors', () => {
   assert.equal(parseVerdict(verdictJson()).frames.length, 2);
   assert.equal(parseVerdict(`\`\`\`json\n${verdictJson()}\n\`\`\``).overall.summary, 'ok');
   assert.throws(() => parseVerdict('not json'), VerdictError);
-  assert.throws(() => parseVerdict(JSON.stringify({ frames: [{ label: 'F1', issues: [{ category: 'vibes', severity: 'high', detail: 'x', evidence: 'y' }] }], overall: { labelPresentOnAllFrames: true, summary: '' } })), /schema/);
+  assert.throws(() => parseVerdict(JSON.stringify({ frames: [{ label: 'F1', issues: [{ category: 'vibes', severity: 'high', detail: 'x', evidence: 'y' }] }], overall: { labelPresentWhereRequired: true, summary: '' } })), /schema/);
   assert.throws(() => parseVerdict(JSON.stringify({ frames: [] })), VerdictError);
 });
 
@@ -525,9 +543,9 @@ test('vision-qa: high-severity findings and a missing label fail; medium finding
   assert.equal(r.ok, false);
   assert.equal(r.blocking, 1);
   assert.match(r.reasons[0], /banned-claim/);
-  const nolabel = evaluate(parseVerdict(verdictJson({ overall: { labelPresentOnAllFrames: false, summary: 'missing' } })));
+  const nolabel = evaluate(parseVerdict(verdictJson({ overall: { labelPresentWhereRequired: false, summary: 'missing' } })));
   assert.equal(nolabel.ok, false);
-  assert.match(nolabel.reasons.join(' '), /label/);
+  assert.match(nolabel.reasons.join(' '), /disclosure/);
   assert.deepEqual(sampleTimes(6, 1.5), [0.4, 1.9, 3.4, 4.9, 5.6]);
   assert.ok(sampleTimes(20, 1.5).length >= 13);
 });
@@ -582,7 +600,7 @@ test('voice, timing and assets stages run on mock providers, cache on rerun and 
   assert.equal(seen.length, 3, 'one governed request per narrated beat');
   assert.equal(seen[0].previousText, undefined);
   assert.equal(seen[1].previousText, 'Twelve units left, and three sessions still scheduled.', 'request stitching carries the neighbor');
-  assert.equal(seen[1].nextText, 'Try it on synthetic data.');
+  assert.equal(seen[1].nextText, 'Try the live demo.');
   assert.equal(seen[0].maxCredits, Math.ceil(seen[0].text.length * 1.2), 'tight reservation, 1.2x characters');
   assert.equal(seen[0].voiceId, 'hpp4J3VqNfWAUOO0d1Us');
   assert.ok(voice.main.lines.every((l) => l.sha256));
@@ -749,41 +767,11 @@ test('captions 3: a cue never exceeds 18 characters per second; the gap around i
   assert.ok(tc.every((c) => c.text.length / (c.endSec - c.startSec) <= 20), JSON.stringify(tc.map((c) => [c.text, c.startSec, c.endSec])));
 });
 
-test('vision 5 / review 4: the persistent label is 34 px on 16:9 and 36 px on portrait, fits its box on one or two lines, with the requested margins', () => {
-  const label = 'SYNTHETIC DEMO · NO PHI · REAL PRODUCT';
-  for (const ratio of ['16x9', '4x5', '9x16']) {
-    const l = layoutFor(ratio, brand);
-    assert.ok(l.labelBox.fontSize >= MIN_LABEL_FONT[ratio], `${ratio} label ${l.labelBox.fontSize}px`);
-    const lines = labelLines(label, l.labelBox.fontSize, l.labelBox.w);
-    assert.equal(lines.join(' ').replace(/\s+/g, ' '), label, `${ratio}: the wording is unchanged when wrapped`);
-    for (const line of lines) assert.ok(labelWidth(line, l.labelBox.fontSize) <= l.labelBox.w - 24, `${ratio} line fits`);
-    assert.deepEqual(safeZoneErrors(l), []);
-  }
-  assert.equal(MIN_LABEL_FONT['16x9'], 34);
-  assert.equal(MIN_LABEL_FONT['4x5'], 36);
-  assert.equal(MIN_LABEL_FONT['9x16'], 36);
-  const wide = layoutFor('16x9', brand);
-  const portrait = layoutFor('9x16', brand);
-  const feed = layoutFor('4x5', brand);
-  assert.ok(wide.frame.height - (wide.labelBox.y + wide.labelBox.h) >= 64, '16:9 label bottom margin');
-  assert.ok(feed.labelBox.y >= 54, '4:5 label top');
-  assert.ok(portrait.labelBox.y >= 300, '9:16 label top');
-  assert.equal(labelLines(label, 34, 1000).length, 1);
-  assert.equal(labelLines(label, 36, 960).length, 2);
-  assert.deepEqual(labelLines(label, 36, 960), ['SYNTHETIC DEMO ·', 'NO PHI · REAL PRODUCT']);
-  const small = layoutFor('16x9', brand);
-  small.labelBox = { ...small.labelBox, fontSize: 24 };
-  assert.ok(safeZoneErrors(small).some((e) => /below the 34px/.test(e)));
-  const narrow = layoutFor('16x9', brand);
-  narrow.labelBox = { ...narrow.labelBox, w: 300 };
-  assert.ok(safeZoneErrors(narrow).some((e) => /too narrow/.test(e)));
-  const low = layoutFor('16x9', brand);
-  low.labelBox = { ...low.labelBox, y: low.labelBox.y + 30 };
-  assert.ok(safeZoneErrors(low).some((e) => /bottom margin/.test(e)));
-  const high = layoutFor('9x16', brand);
-  high.labelBox = { ...high.labelBox, y: 280 };
-  assert.ok(safeZoneErrors(high).some((e) => /label top/.test(e)));
+test('vision 5: the synthetic-data disclosure is an end-card line, never a chip over the product picture; caption contrast holds', () => {
   const tsx = readFileSync(join(mod, '..', 'src', 'MarketingAd.tsx'), 'utf8');
+  assert.doesNotMatch(tsx, /const Label: FC/, 'no persistent label component');
+  assert.match(tsx, /const foot = \[props\.label, props\.disclosure\]/, 'the end card carries the label and disclosure');
+  for (const ratio of ['16x9', '4x5', '9x16']) assert.equal(layoutFor(ratio, brand).labelBox, undefined, ratio);
   assert.match(tsx, /UNSPOKEN_OPACITY = 0\.88/, 'unspoken caption words stay >= 0.85');
   assert.match(tsx, /EMPHASIS_COLOR = "#ffd166"/);
 });
@@ -902,7 +890,7 @@ test('vision r2-4: arbitration is honoured only for this candidate hash, a named
   // no file at all
   assert.equal(applyArbitration(structuredClone(clean), null, 'a'.repeat(64)).arbitration.file, false);
   // a missing label can be arbitrated only through an explicit overall/missing-label item
-  const nolabel = evaluate(parseVerdict(verdictJson({ overall: { labelPresentOnAllFrames: false, summary: 'x' } })));
+  const nolabel = evaluate(parseVerdict(verdictJson({ overall: { labelPresentWhereRequired: false, summary: 'x' } })));
   assert.equal(applyArbitration(structuredClone(nolabel), { candidateSha256: 'a'.repeat(64), reviewer: 'r', items: [{ frame: 'overall', category: 'missing-label', verdict: 'false-positive', reason: 'label present on every frame, checked' }] }, 'a'.repeat(64)).ok, true);
   // mvg itself never writes the file: the vision run leaves no arbitration behind
   const qdir = join(root, 'noauto');
@@ -983,9 +971,9 @@ test('review 1/3/5/6: composition behaviours the layout depends on are in the so
   assert.match(tsx, /b\.kind === "card" \|\| b\.kind === "title"\) && t >= b\.startSec/);
   assert.match(tsx, /CAPTION_FADE_FRAMES = 6/);
   assert.ok(!/letterSpacing: "0\.12em"/.test(tsx), 'the product-name eyebrow is gone');
-  // 3: tinted backdrop and 32 px band fades
-  assert.match(tsx, /rgba\(15, 23, 42, 0\.85\)/);
-  assert.match(tsx, /BAND_FADE_PX = 32/);
+  // 3: captions sit on their own navy plate over the native picture (no band, no backdrop)
+  assert.match(tsx, /background: `rgba\(\$\{PLATE\}, 0\.86\)`/);
+  assert.ok(!/BAND_FADE_PX|UiBackdrop/.test(tsx), 'the band layout is gone');
   // 5: balance, 82% width, bold when spoken
   assert.match(tsx, /textWrap: "balance"/);
   assert.match(tsx, /width \* 0\.82/);
@@ -998,11 +986,9 @@ test('review 1/3/5/6: composition behaviours the layout depends on are in the so
   assert.equal(l916.ctaBox.y, l916.safe.y);
   assert.equal(l916.ctaBox.h, l916.safe.h);
   assert.equal(l916.ctaBox.x, l916.captionBox.x);
-  assert.equal(l916.ctaBox.x, l916.labelBox.x);
   const l169 = layoutFor('16x9', brand);
   assert.equal(l169.ctaBox.x, 96);
   assert.equal(l169.ctaBox.x, l169.captionBox.x);
-  assert.equal(l169.ctaBox.x, l169.labelBox.x);
   for (const ratio of ['16x9', '4x5', '9x16']) assert.deepEqual(safeZoneErrors(layoutFor(ratio, brand)), [], ratio);
 });
 
@@ -1023,25 +1009,20 @@ test('voiceTake gives a line a fresh cache key without touching its neighbours',
   assert.notEqual(lineKey(spec, 'Twelve units left.', 'prev', 'next', 2), a);
 });
 
-test('a focus window zoom may be one number or a per-ratio map', async () => {
+test('a focus window zoom is one number, and a zoom the cue sheet declares is marked declaredZoom', async () => {
   const { validate } = await import('../kit/marketing/lib/schema.mjs');
   const schema = JSON.parse(readFileSync(new URL('../kit/marketing/ad.schema.json', import.meta.url), 'utf8'));
-  const find = (node) => (node && typeof node === 'object' ? (node.zoom?.oneOf ? node.zoom : Object.values(node).map(find).find(Boolean)) : null);
-  const zoom = find(schema);
-  assert.deepEqual(validate(zoom, 1.8), []);
-  assert.deepEqual(validate(zoom, { '16x9': 1.8, '4x5': 2.4 }), []);
-  assert.notDeepEqual(validate(zoom, { '1x1': 2 }), []);
-  assert.notDeepEqual(validate(zoom, 4), []);
+  const find = (node) => (node && typeof node === 'object' ? (node.declaredZoom ? node : Object.values(node).map(find).find(Boolean)) : null);
+  const focus = find(schema);
+  assert.deepEqual(validate(focus.zoom, 1.8), []);
+  assert.notDeepEqual(validate(focus.zoom, { '16x9': 1.8 }), [], 'per-ratio crops are gone: each ratio is its own capture');
+  assert.notDeepEqual(validate(focus.x, { '4x5': 0.3 }), []);
+  assert.deepEqual(validate(focus.declaredZoom, true), []);
 });
 
-test('a focus window x and y may be one number or a per-ratio map', async () => {
-  const { validate } = await import('../kit/marketing/lib/schema.mjs');
-  const schema = JSON.parse(readFileSync(new URL('../kit/marketing/ad.schema.json', import.meta.url), 'utf8'));
-  const find = (node) => (node && typeof node === 'object' ? (node.x?.oneOf ? node : Object.values(node).map(find).find(Boolean)) : null);
-  const { x, y } = find(schema);
-  assert.deepEqual(validate(x, 0.35), []);
-  assert.deepEqual(validate(x, { '16x9': 0.35, '4x5': 0.328 }), []);
-  assert.deepEqual(validate(y, { '9x16': 0.4 }), []);
-  assert.notDeepEqual(validate(x, { '1x1': 0.3 }), []);
-  assert.notDeepEqual(validate(x, 1.2), []);
+test('lint: narration about synthetic/demo data or the film itself is fluff and fails', async () => {
+  const { FLUFF } = await import('../kit/marketing/lib/lint.mjs');
+  assert.ok(FLUFF.test('Try ABACare on synthetic data.'));
+  assert.ok(FLUFF.test('In this video we show the hold queue.'));
+  assert.ok(!FLUFF.test('Twelve units left. Three sessions on the calendar.'));
 });

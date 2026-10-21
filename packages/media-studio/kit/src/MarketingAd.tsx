@@ -17,9 +17,10 @@ import {
 
 /**
  * MarketingAd: one composition for every ratio of an mvg ad (16:9, 4:5, 9:16). All geometry arrives in props from
- * kit/marketing (layout.mjs, crop.mjs): the captured UI sits in a UI band inside the platform-safe area, cropped by a
- * focus-follow camera; kinetic captions, the persistent synthetic label and the CTA sit beside it. It renders the
- * picture only. Voice, effects and the ducked bed are mixed with FFmpeg (mix.mjs), so this file never plays audio.
+ * kit/marketing (layout.mjs, crop.mjs, integrity.mjs): each ratio's native recording fills the frame at scale <= 1;
+ * kinetic captions sit on their own plate over it; a kinetic title opens and an end card with the logo, the CTA and the
+ * synthetic-data disclosure closes. It renders the picture only. Voice, effects and the bed are mixed with FFmpeg
+ * (mix.mjs), so this file never plays audio.
  */
 
 export type Box = { x: number; y: number; w: number; h: number };
@@ -50,7 +51,6 @@ export type MarketingAdProps = {
   layout: {
     uiBand: Box;
     captionBox: Box & { fontSize: number; maxLines: number };
-    labelBox: Box & { fontSize: number };
     ctaBox: Box;
     ctaPillFont?: number;
   };
@@ -62,8 +62,8 @@ export type MarketingAdProps = {
     fontFiles: { family: string; src: string; weight: number }[];
   };
   label: string;
-  labelLines?: string[];
   disclosure?: string;
+  logo?: string;
   beats: AdBeat[];
   captions: CaptionChunk[];
   emphasis: string[];
@@ -77,9 +77,8 @@ export const sampleMarketingAd: MarketingAdProps = {
   fps: 30,
   durationSec: 6,
   layout: {
-    uiBand: { x: 0, y: 0, w: 1920, h: 836 },
-    captionBox: { x: 96, y: 852, w: 1728, h: 84, fontSize: 50, maxLines: 1 },
-    labelBox: { x: 96, y: 946, w: 1000, h: 62, fontSize: 34 },
+    uiBand: { x: 0, y: 0, w: 1920, h: 1080 },
+    captionBox: { x: 96, y: 924, w: 1728, h: 100, fontSize: 52, maxLines: 1 },
     ctaBox: { x: 96, y: 0, w: 1728, h: 1080 },
     ctaPillFont: 46,
   },
@@ -106,8 +105,6 @@ const EASE = Easing.inOut(Easing.cubic);
 const UNSPOKEN_OPACITY = 0.88;
 // A caption cue fades in over at most 6 frames: a longer fade is caught mid-way by any sampled frame and reads as unreadable.
 const CAPTION_FADE_FRAMES = 6;
-// Fade where the UI band meets the plate, so rows sliced by the crop do not end on a hard edge.
-const BAND_FADE_PX = 32;
 const PLATE = "15, 23, 42";
 const EMPHASIS_COLOR = "#ffd166";
 
@@ -132,7 +129,7 @@ const FontLoader: FC<{ files: MarketingAdProps["brand"]["fontFiles"] }> = ({ fil
 
 const UiCamera: FC<{ beat: AdBeat; band: Box }> = ({ beat, band }) => {
   const frame = useCurrentFrame();
-  const { fps, height } = useVideoConfig();
+  const { fps } = useVideoConfig();
   const clip = beat.clip;
   if (!clip) return null;
   const t = frame / fps;
@@ -160,34 +157,7 @@ const UiCamera: FC<{ beat: AdBeat; band: Box }> = ({ beat, band }) => {
           </Freeze>
         </Sequence>
       </div>
-      {band.y > 0 ? <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: BAND_FADE_PX, background: `linear-gradient(to bottom, rgba(${PLATE}, 0.96), rgba(${PLATE}, 0))` }} /> : null}
-      {band.y + band.h < height ? <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: BAND_FADE_PX, background: `linear-gradient(to top, rgba(${PLATE}, 0.96), rgba(${PLATE}, 0))` }} /> : null}
     </div>
-  );
-};
-
-// Portrait ratios keep text inside the platform-safe area, which leaves wide bands above and below the UI. The same
-// real clip, blurred and dimmed to a texture, fills them so the frame is not empty; nothing in it is legible, so it
-// carries no claim of its own.
-const UiBackdrop: FC<{ beat: AdBeat }> = ({ beat }) => {
-  const { fps } = useVideoConfig();
-  const clip = beat.clip;
-  if (!clip) return null;
-  const playFrames = Math.max(1, Math.round(clip.playSec * fps));
-  const trimBefore = Math.round(clip.trimBeforeSec * fps);
-  const style: CSSProperties = { width: "100%", height: "100%", objectFit: "cover", filter: "blur(34px) brightness(0.32) saturate(0.7)", transform: "scale(1.15)" };
-  return (
-    <AbsoluteFill style={{ overflow: "hidden" }}>
-      <Sequence durationInFrames={playFrames} layout="none">
-        <OffthreadVideo src={staticFile(clip.src)} muted trimBefore={trimBefore} style={style} />
-      </Sequence>
-      <Sequence from={playFrames} layout="none">
-        <Freeze frame={playFrames - 1}>
-          <OffthreadVideo src={staticFile(clip.src)} muted trimBefore={trimBefore} style={style} />
-        </Freeze>
-      </Sequence>
-      <AbsoluteFill style={{ background: "rgba(15, 23, 42, 0.85)" }} />
-    </AbsoluteFill>
   );
 };
 
@@ -202,6 +172,36 @@ const BrollBeat: FC<{ beat: AdBeat; band: Box; colors: MarketingAdProps["brand"]
   );
 };
 
+// The opening title is the hook: the stake in a few big words on brand colour, landing word by word on the beat.
+const TitleBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const { brand, layout } = props;
+  const box = layout.ctaBox;
+  const words = String(beat.headline ?? "").split(/\s+/).filter(Boolean);
+  const size = Math.round(Math.min(box.w, box.h) * (props.ratio === "16x9" ? 0.16 : 0.15));
+  const STAGGER = 0.09;
+  return (
+    <AbsoluteFill style={{ background: `linear-gradient(150deg, ${brand.colors.primary} 0%, ${brand.colors.foreground} 85%)` }}>
+      <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", flexWrap: "wrap", alignContent: "center", columnGap: size * 0.28, rowGap: size * 0.06 }}>
+        {words.map((w, i) => {
+          const at = i * STAGGER * fps;
+          const rise = interpolate(frame, [at, at + 0.28 * fps], [size * 0.5, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+          const fade = interpolate(frame, [at, at + 0.2 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+          const em = props.emphasis.some((e) => e.toLowerCase().replace(/[^a-z0-9$%]/g, "") === w.toLowerCase().replace(/[^a-z0-9$%]/g, ""));
+          return (
+            <span key={`${i}-${w}`} style={{ fontFamily: stack(brand.fontDisplay, brand.fontBody, "display"), fontSize: size, fontWeight: 600, lineHeight: 1.02, letterSpacing: "-0.03em", color: em ? brand.colors.emphasis ?? EMPHASIS_COLOR : brand.colors.onPrimary, opacity: fade, transform: `translateY(${rise}px)` }}>
+              {w}
+            </span>
+          );
+        })}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// The end card: logo lockup, the line the film ends on, the call to action, and the synthetic-data disclosure as one
+// small line at the foot (the only place it appears; it is never a chip over the product picture).
 const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -211,11 +211,12 @@ const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }
   const box = layout.ctaBox;
   const base = Math.round(Math.min(box.w, box.h) * 0.11);
   const pillFont = layout.ctaPillFont ?? Math.round(base * 0.5);
-  // The end card carries the call to action; a different on-screen line (the claim the narration ends on) sits above it.
   const lead = beat.isCta && beat.headline && beat.headline !== cta.text ? beat.headline : null;
+  const foot = [props.label, props.disclosure].filter(Boolean).join(" · ");
   return (
     <AbsoluteFill style={{ background: `linear-gradient(160deg, ${brand.colors.primary} 0%, ${brand.colors.foreground} 78%)` }}>
       <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: base * 0.45, opacity: fade, transform: `translateY(${rise}px)` }}>
+        {beat.isCta && props.logo ? <Img src={staticFile(props.logo)} style={{ height: Math.round(base * 0.9), width: "auto", marginBottom: base * 0.25 }} /> : null}
         {lead ? (
           <div style={{ fontFamily: stack(brand.fontDisplay, brand.fontBody, "display"), fontSize: Math.round(base * 0.62), fontWeight: 600, lineHeight: 1.15, color: "rgba(255,255,255,0.94)" }}>{lead}</div>
         ) : null}
@@ -228,6 +229,11 @@ const CardBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }
           </div>
         ) : null}
       </div>
+      {beat.isCta && foot ? (
+        <div style={{ position: "absolute", left: box.x, top: box.y + box.h - Math.round(pillFont * 1.6), width: box.w, fontFamily: stack(brand.fontDisplay, brand.fontBody, "body"), fontSize: Math.round(pillFont * 0.62), fontWeight: 600, letterSpacing: "0.04em", color: "rgba(255,255,255,0.86)", opacity: fade }}>
+          {foot}
+        </div>
+      ) : null}
     </AbsoluteFill>
   );
 };
@@ -261,7 +267,7 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
   const align = props.ratio === "16x9" ? "flex-start" : "center";
   return (
     <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: align, opacity: enter, overflow: "hidden" }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: align, maxWidth, textWrap: "balance" } as CSSProperties}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: align, maxWidth, textWrap: "balance", background: `rgba(${PLATE}, 0.86)`, borderRadius: Math.round(box.fontSize * 0.34), padding: `${Math.round(box.fontSize * 0.16)}px ${Math.round(box.fontSize * 0.42)}px` } as CSSProperties}>
         {rows.map((row, r) => (
           <div key={r} style={{ display: "flex", justifyContent: align, columnGap: box.fontSize * 0.4, lineHeight: 1.12 }}>
             {row.map((w, i) => {
@@ -288,23 +294,9 @@ const KineticCaptions: FC<{ props: MarketingAdProps }> = ({ props }) => {
   );
 };
 
-const Label: FC<{ props: MarketingAdProps }> = ({ props }) => {
-  const box = props.layout.labelBox;
-  const lines = props.labelLines && props.labelLines.length ? props.labelLines : [props.label];
-  return (
-    <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid rgba(255,255,255,0.85)", borderRadius: 8, background: "rgba(15,23,42,0.92)", color: "#ffffff", fontFamily: stack(props.brand.fontDisplay, props.brand.fontBody, "body"), fontWeight: 600, fontSize: box.fontSize, letterSpacing: "0.05em", textTransform: "uppercase", whiteSpace: "nowrap", flexDirection: "column", lineHeight: 1.1 }}>
-      {lines.map((l) => (
-        <span key={l}>{l}</span>
-      ))}
-      {props.disclosure ? <span style={{ fontSize: box.fontSize * 0.7, opacity: 0.85, letterSpacing: "0.04em", textTransform: "none" }}>{props.disclosure}</span> : null}
-    </div>
-  );
-};
-
 export const MarketingAd: FC<MarketingAdProps> = (props) => {
   const { fps } = useVideoConfig();
   const { brand, layout } = props;
-  const portrait = props.ratio !== "16x9";
   return (
     <AbsoluteFill style={{ background: brand.colors.foreground }}>
       <FontLoader files={brand.fontFiles} />
@@ -313,15 +305,14 @@ export const MarketingAd: FC<MarketingAdProps> = (props) => {
         const duration = Math.max(1, Math.round(beat.durationSec * fps));
         return (
           <Sequence key={beat.id} from={from} durationInFrames={duration} name={beat.id}>
-            {beat.kind === "ui" && portrait ? <UiBackdrop beat={beat} /> : null}
             {beat.kind === "ui" ? <UiCamera beat={beat} band={layout.uiBand} /> : null}
             {beat.kind === "broll" ? <BrollBeat beat={beat} band={layout.uiBand} colors={brand.colors} /> : null}
-            {beat.kind === "card" || beat.kind === "title" ? <CardBeat beat={beat} props={props} /> : null}
+            {beat.kind === "title" ? <TitleBeat beat={beat} props={props} /> : null}
+            {beat.kind === "card" ? <CardBeat beat={beat} props={props} /> : null}
           </Sequence>
         );
       })}
       <KineticCaptions props={props} />
-      <Label props={props} />
     </AbsoluteFill>
   );
 };

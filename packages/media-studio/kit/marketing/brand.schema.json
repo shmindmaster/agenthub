@@ -10,6 +10,7 @@
     "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,40}$" },
     "product": { "type": "string" },
     "label": { "type": "string" },
+    "logo": { "type": "string", "description": "Absolute path to the logo lockup (SVG or PNG) drawn on the end card." },
     "colors": {
       "type": "object",
       "required": ["primary", "foreground", "background", "accent"],
