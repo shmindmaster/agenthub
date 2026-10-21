@@ -981,6 +981,9 @@ test('review 1/3/5/6: composition behaviours the layout depends on are in the so
   // 6: amber pill with navy text
   assert.match(tsx, /background: brand\.colors\.emphasis \?\? EMPHASIS_COLOR, color: brand\.colors\.foreground/);
   assert.equal(CTA_PILL_FONT['9x16'], 52);
+  // title: one row per sentence so "Out in 2 days." never wraps mid-sentence; the word stagger counts across rows
+  assert.match(tsx, /split\(\/\(\?<=\[\.!\?\]\)\\s\+\/\)/);
+  assert.match(tsx, /rows\.slice\(0, r\)\.reduce\(\(n, x\) => n \+ x\.length, 0\)/);
   // 6: the card block is centred in the safe area and shares the caption / label left edge
   const l916 = layoutFor('9x16', brand);
   assert.equal(l916.ctaBox.y, l916.safe.y);
@@ -990,6 +993,16 @@ test('review 1/3/5/6: composition behaviours the layout depends on are in the so
   assert.equal(l169.ctaBox.x, 96);
   assert.equal(l169.ctaBox.x, l169.captionBox.x);
   for (const ratio of ['16x9', '4x5', '9x16']) assert.deepEqual(safeZoneErrors(layoutFor(ratio, brand)), [], ratio);
+});
+
+test('record-lib pageZoom: an opt-in desktop document zoom set early and on load, recorded per take, never combined with mobileLayout', () => {
+  const lib = readFileSync(join(mod, '..', 'screencast', 'record-lib.mjs'), 'utf8');
+  const job = readFileSync(join(mod, '..', 'screencast', 'record-job.mjs'), 'utf8');
+  assert.match(lib, /if \(opts\.pageZoom && !mobile\)/);
+  assert.match(lib, /document\.documentElement\.style\.zoom = String\(z\)/);
+  assert.match(lib, /addEventListener\('DOMContentLoaded', set\);\s+window\.addEventListener\('load', set\)/);
+  assert.match(job, /pageZoom: options\.pageZoom,/);
+  assert.match(job, /\.\.\.\(options\.pageZoom \? \{ pageZoom: options\.pageZoom \} : \{\}\)/);
 });
 
 test('review 5: compose hands the composition explicit caption line breaks that cover every word', () => {

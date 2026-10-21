@@ -100,6 +100,17 @@ export async function startRecording(id, opts = {}) {
       }, true);
     }, [mobile.cssWidth, mobile.scale]);
   }
+  // Likewise a desktop frame is recorded at CSS-pixel size, so the app's 14 px text reads small in a 16:9 ad. An opt-in
+  // opts.pageZoom (e.g. 1.5) magnifies the page itself: the document zoom is set before the app paints and again once it
+  // has loaded, the layout reflows at viewport / pageZoom CSS px, and boundingBox / mouse coordinates stay in window pixels.
+  if (opts.pageZoom && !mobile) {
+    await context.addInitScript((z) => {
+      const set = () => { if (document.documentElement) document.documentElement.style.zoom = String(z); };
+      set();
+      document.addEventListener('DOMContentLoaded', set);
+      window.addEventListener('load', set);
+    }, opts.pageZoom);
+  }
   await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
   // The recorded video starts when the page is created, so the action clock starts just before it: every event `t`
   // is then seconds into the raw WebM (the cue sheet and the sync gate map these through the edit decision list).

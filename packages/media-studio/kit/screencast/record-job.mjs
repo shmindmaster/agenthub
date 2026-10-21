@@ -5,7 +5,7 @@
 // Usage: node record-job.mjs <jobRoot> [S05 S06 ...] [--no-recast] [--headed] [--fresh]
 // Reads  <jobRoot>/capture/scenes.mjs:
 //   export const order = ['S05', ...];                      // default recording order
-//   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, mobileLayout?: { cssWidth, scale }, recast?: { S05: { autoZoom: false } } };
+//   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, mobileLayout?: { cssWidth, scale }, pageZoom?: 1.5, recast?: { S05: { autoZoom: false } } };
 //   export const scenes = { async S05(h, ctx) {...} };      // one function per screen beat; h = record-lib helpers
 //   ctx = { page, beats, id, jobRoot, targetSeconds }       // targetSeconds = narration length of the beat, or null
 // Writes <jobRoot>/capture/clips/<id>.webm                  (Recast: cursor approach, click ripple, punch-in zoom)
@@ -98,7 +98,7 @@ for (const id of ids) {
   fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
   const takeState = carryState && fs.existsSync(carryPath) ? carryPath : storageState;
   const rec = await startRecording(id, {
-    storageState: takeState, baseUrl: options.baseUrl, viewport: options.viewport, deviceScaleFactor: options.deviceScaleFactor, mobileLayout: options.mobileLayout,
+    storageState: takeState, baseUrl: options.baseUrl, viewport: options.viewport, deviceScaleFactor: options.deviceScaleFactor, mobileLayout: options.mobileLayout, pageZoom: options.pageZoom,
     headless: !flags.has('--headed'), colorScheme: options.colorScheme, timezoneId: options.timezoneId, extraHTTPHeaders: options.extraHTTPHeaders,
   });
   const t0 = Date.now();
@@ -160,6 +160,7 @@ for (const id of ids) {
     viewport: rec.viewport,
     deviceScaleFactor: options.mobileLayout ? options.mobileLayout.scale : options.deviceScaleFactor || 2,
     ...(options.mobileLayout ? { mobileLayout: options.mobileLayout } : {}),
+    ...(options.pageZoom ? { pageZoom: options.pageZoom } : {}),
     recast: take.recast,
     recastNote: take.recastNote || null,
     events: fin.summary,

@@ -172,27 +172,36 @@ const BrollBeat: FC<{ beat: AdBeat; band: Box; colors: MarketingAdProps["brand"]
   );
 };
 
-// The opening title is the hook: the stake in a few big words on brand colour, landing word by word on the beat.
+// The opening title is the hook: the stake in a few big words on brand colour, landing word by word on the beat. Each
+// sentence is its own row so a line never wraps mid-sentence ("...Out in 2 / days."); the stagger counts across rows.
 const TitleBeat: FC<{ beat: AdBeat; props: MarketingAdProps }> = ({ beat, props }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const { brand, layout } = props;
   const box = layout.ctaBox;
-  const words = String(beat.headline ?? "").split(/\s+/).filter(Boolean);
+  const rows = String(beat.headline ?? "").split(/(?<=[.!?])\s+/).map((r) => r.split(/\s+/).filter(Boolean)).filter((r) => r.length);
   const size = Math.round(Math.min(box.w, box.h) * (props.ratio === "16x9" ? 0.16 : 0.15));
   const STAGGER = 0.09;
   return (
     <AbsoluteFill style={{ background: `linear-gradient(150deg, ${brand.colors.primary} 0%, ${brand.colors.foreground} 85%)` }}>
-      <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", flexWrap: "wrap", alignContent: "center", columnGap: size * 0.28, rowGap: size * 0.06 }}>
-        {words.map((w, i) => {
-          const at = i * STAGGER * fps;
-          const rise = interpolate(frame, [at, at + 0.28 * fps], [size * 0.5, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
-          const fade = interpolate(frame, [at, at + 0.2 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-          const em = props.emphasis.some((e) => e.toLowerCase().replace(/[^a-z0-9$%]/g, "") === w.toLowerCase().replace(/[^a-z0-9$%]/g, ""));
+      <div style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h, display: "flex", flexDirection: "column", justifyContent: "center", rowGap: size * 0.06 }}>
+        {rows.map((row, r) => {
+          const first = rows.slice(0, r).reduce((n, x) => n + x.length, 0);
           return (
-            <span key={`${i}-${w}`} style={{ fontFamily: stack(brand.fontDisplay, brand.fontBody, "display"), fontSize: size, fontWeight: 600, lineHeight: 1.02, letterSpacing: "-0.03em", color: em ? brand.colors.emphasis ?? EMPHASIS_COLOR : brand.colors.onPrimary, opacity: fade, transform: `translateY(${rise}px)` }}>
-              {w}
-            </span>
+            <div key={r} style={{ display: "flex", flexWrap: "wrap", columnGap: size * 0.28, rowGap: size * 0.06 }}>
+              {row.map((w, j) => {
+                const i = first + j;
+                const at = i * STAGGER * fps;
+                const rise = interpolate(frame, [at, at + 0.28 * fps], [size * 0.5, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+                const fade = interpolate(frame, [at, at + 0.2 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+                const em = props.emphasis.some((e) => e.toLowerCase().replace(/[^a-z0-9$%]/g, "") === w.toLowerCase().replace(/[^a-z0-9$%]/g, ""));
+                return (
+                  <span key={`${i}-${w}`} style={{ fontFamily: stack(brand.fontDisplay, brand.fontBody, "display"), fontSize: size, fontWeight: 600, lineHeight: 1.02, letterSpacing: "-0.03em", color: em ? brand.colors.emphasis ?? EMPHASIS_COLOR : brand.colors.onPrimary, opacity: fade, transform: `translateY(${rise}px)` }}>
+                    {w}
+                  </span>
+                );
+              })}
+            </div>
           );
         })}
       </div>
