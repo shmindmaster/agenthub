@@ -101,7 +101,9 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
       const hold = seg.durationSeconds - playSec;
       if (hold > HOLD_PAD_MAX) throw new Error(`${beat.id}: the clip covers ${playSec.toFixed(1)}s of the ${seg.durationSeconds.toFixed(1)}s beat (hold ${hold.toFixed(1)}s > ${HOLD_PAD_MAX}s); shorten the narration, adjust trims, or recapture`);
       const track = pointerTrack(entry.actions, { headTrim: clip.headTrimSeconds, viewport: clip.viewport });
-      const windows = focusWindows({ explicit: beat.ui.focus, track, clipStart: trimStart, clipEnd: trimStart + playSec, srcW: clip.viewport.width, srcH: clip.viewport.height, band: layout.uiBand, zoom: layout.zoom, contentLeft: ctx.brand.capture?.contentLeft || 0, contentInsetPx: ctx.brand.capture?.contentInsetPx ?? 24 });
+      // A focus window's zoom may be one number or a per-ratio map ({"16x9": 1.8, "4x5": 2.4}) when one cut serves two ratios.
+      const explicit = beat.ui.focus?.map((f) => ({ ...f, zoom: f.zoom && typeof f.zoom === 'object' ? f.zoom[ratio] : f.zoom }));
+      const windows = focusWindows({ explicit, track, clipStart: trimStart, clipEnd: trimStart + playSec, srcW: clip.viewport.width, srcH: clip.viewport.height, band: layout.uiBand, zoom: layout.zoom, contentLeft: ctx.brand.capture?.contentLeft || 0, contentInsetPx: ctx.brand.capture?.contentInsetPx ?? 24 });
       for (const w of windows) { const r = readability(w.scale); if (!r.ok) throw new Error(`${beat.id} ${ratio}: ${r.reason}`); }
       const camera = cameraKeyframes(windows, { clipStart: trimStart, duration: seg.durationSeconds });
       const src = addMedia(clip.file, 'webm');

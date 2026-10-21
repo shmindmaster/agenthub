@@ -1022,3 +1022,14 @@ test('voiceTake gives a line a fresh cache key without touching its neighbours',
   assert.equal(lineKey(spec, 'Twelve units left.', 'prev', 'next', 0), a);
   assert.notEqual(lineKey(spec, 'Twelve units left.', 'prev', 'next', 2), a);
 });
+
+test('a focus window zoom may be one number or a per-ratio map', async () => {
+  const { validate } = await import('../kit/marketing/lib/schema.mjs');
+  const schema = JSON.parse(readFileSync(new URL('../kit/marketing/ad.schema.json', import.meta.url), 'utf8'));
+  const find = (node) => (node && typeof node === 'object' ? (node.zoom?.oneOf ? node.zoom : Object.values(node).map(find).find(Boolean)) : null);
+  const zoom = find(schema);
+  assert.deepEqual(validate(zoom, 1.8), []);
+  assert.deepEqual(validate(zoom, { '16x9': 1.8, '4x5': 2.4 }), []);
+  assert.notDeepEqual(validate(zoom, { '1x1': 2 }), []);
+  assert.notDeepEqual(validate(zoom, 4), []);
+});

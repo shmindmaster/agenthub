@@ -162,7 +162,7 @@
                 "properties": {
                   "startSec": { "type": "number", "minimum": 0 }, "endSec": { "type": "number", "minimum": 0 },
                   "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 },
-                  "zoom": { "type": "number", "minimum": 1, "maximum": 3 },
+                  "zoom": { "oneOf": [{ "type": "number", "minimum": 1, "maximum": 3 }, { "type": "object", "additionalProperties": false, "properties": { "16x9": { "type": "number", "minimum": 1, "maximum": 3 }, "4x5": { "type": "number", "minimum": 1, "maximum": 3 }, "9x16": { "type": "number", "minimum": 1, "maximum": 3 } } }] },
                   "sourceZoom": { "type": "number", "minimum": 1, "maximum": 3, "description": "Recast punch-in already present in the clip at this time; text is that much larger than the crop alone suggests." },
                   "label": { "type": "string" }
                 }
