@@ -745,8 +745,8 @@
         "status": "no-media-role",
         "owner": null,
         "defaultStep": null,
-        "live": false,
-        "liveEvidence": "2026-10-21: owner decision; Replit has no media role and nothing routes media work to it."
+        "live": null,
+        "liveEvidence": "Not probed: no connector call has established Replit's availability. 2026-10-21 owner decision: Replit has no media role and nothing routes media work to it (that is routing, not a liveness check)."
       }
     ]
   },

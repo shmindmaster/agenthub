@@ -607,7 +607,7 @@
         "pluginsDir": "{roamingConfig}/devin/cli/plugins",
         "agentsDir": "{roamingConfig}/devin/agents",
         "hooksDir": null,
-        "instructions": "{userHome}/AppData/Roaming/devin/AGENTS.md",
+        "instructions": "{roamingConfig}/devin/AGENTS.md",
         "verification": "documented-path",
         "instructionsNote": "Re-verified 2026-10-21 against docs.devin.ai/cli/extensibility/configuration, which now writes the Windows path literally: the user config is %APPDATA%\\devin\\config.json (C:\\Users\\<you>\\AppData\\Roaming\\devin\\config.json) and 'You can also place an AGENTS.md file in this directory' to define global rules for every project. Promoted from documented-feature-inferred-windows-path to a deployment destination. History: researched 2026-08-04 when the page gave only the Unix ~/.config/devin form.",
         "mcpKey": "mcpServers",

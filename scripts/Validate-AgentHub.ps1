@@ -49,7 +49,7 @@ if ($isPublicCore) {
   }
 } else {
   # Absence is not an opt-out. Canonical fleet validation still requires this
-  # registry and its established eight-product invariant below (Heatlot added 2026-10-15).
+  # registry and its eighteen-product baseline below (2026-10-21).
   $delivery = Read-Json $deliveryPath
 }
 $pluginFormats = Read-Json (Join-Path $root 'registry\plugin-formats.json')
@@ -327,9 +327,11 @@ if ($verifiedRevisionCount -eq 0) {
 }
 if (-not $isPublicCore) {
   # Delivery roots (2026-10-21): every registered product is unique, delivers under F:/My Drive/Videos, and never into a
-  # personal or restricted folder. The fixed eight-product count it replaces could only fail when a folder was added.
+  # personal or restricted folder, its own subfolders included. The floor is the 2026-10-21 baseline of eighteen
+  # products; dropping a mapping is a deliberate edit to this baseline, never a silent shrink.
+  $deliveryBaseline = 18
   $deliveryProducts = @(@($delivery.products) | Where-Object { $null -ne $_ })
-  if ($deliveryProducts.Count -lt 8) { Fail "product video delivery registry must contain at least eight products (lists $($deliveryProducts.Count)); it covered eight before 2026-10-21 and must not shrink silently" }
+  if ($deliveryProducts.Count -lt $deliveryBaseline) { Fail "product video delivery registry must contain at least $deliveryBaseline products (lists $($deliveryProducts.Count)); it covered $deliveryBaseline on 2026-10-21 and must not shrink silently" }
   $deliveryIds = @($deliveryProducts | ForEach-Object { [string]$_.productId })
   $dupIds = @($deliveryIds | Group-Object | Where-Object Count -gt 1 | ForEach-Object Name)
   if ($dupIds.Count) { Fail "product video delivery registry repeats productId: $($dupIds -join ', ')" }
@@ -337,8 +339,13 @@ if (-not $isPublicCore) {
   foreach ($product in $deliveryProducts) {
     $reviewRoot = [string]$product.reviewRoot
     if (-not $reviewRoot.StartsWith('F:/My Drive/Videos/')) { Fail "product $($product.productId) reviewRoot '$reviewRoot' is not under F:/My Drive/Videos/"; continue }
-    $folder = $reviewRoot.Substring('F:/My Drive/Videos/'.Length)
-    if ($excludedFolders -contains $folder) { Fail "product $($product.productId) delivers into excluded folder '$folder'" }
+    # Normalise separators and trailing slashes, then compare the first path segment: 'Gartner', 'Gartner/' and
+    # 'Gartner/Client' all deliver inside the restricted Gartner tree.
+    $folder = ($reviewRoot.Substring('F:/My Drive/Videos/'.Length) -replace '\\', '/').Trim('/')
+    $topFolder = ($folder -split '/')[0]
+    $excludedHit = @($excludedFolders | Where-Object { [string]::Equals(([string]$_).Trim('/'), $topFolder, [StringComparison]::OrdinalIgnoreCase) })
+    if ([string]::IsNullOrWhiteSpace($folder)) { Fail "product $($product.productId) reviewRoot '$reviewRoot' names the Videos root itself, not a product folder" }
+    elseif ($excludedHit.Count) { Fail "product $($product.productId) delivers into excluded folder '$($excludedHit[0])' ($reviewRoot)" }
   }
 }
 

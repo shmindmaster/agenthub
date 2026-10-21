@@ -156,21 +156,32 @@ function Test-ExportOmitsPersonalSurface {
         $publicCaps.PSObject.Properties.Remove('distribution')
         $publicCaps | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $capPath -Encoding UTF8
         $missingOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
-        if ($LASTEXITCODE -eq 0 -or $missingOutput -notmatch 'product video delivery registry must contain at least eight products') {
+        if ($LASTEXITCODE -eq 0 -or $missingOutput -notmatch 'product video delivery registry must contain at least 18 products') {
             return @{ Passed = $false; Detail = "canonical mode accepted missing delivery registry: $missingOutput" }
         }
         $deliveryPath = Join-Path $dest 'registry\product-video-delivery.json'
-        @{ products = @(1..7 | ForEach-Object { @{ productId = "synthetic-product-$_"; reviewRoot = "F:/My Drive/Videos/Synthetic-$_" } }) } |
+        @{ products = @(1..17 | ForEach-Object { @{ productId = "synthetic-product-$_"; reviewRoot = "F:/My Drive/Videos/Synthetic-$_" } }) } |
             ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $deliveryPath -Encoding UTF8
         $countOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
-        if ($LASTEXITCODE -eq 0 -or $countOutput -notmatch 'product video delivery registry must contain at least eight products') {
-            return @{ Passed = $false; Detail = "canonical mode accepted seven delivery products: $countOutput" }
+        if ($LASTEXITCODE -eq 0 -or $countOutput -notmatch 'product video delivery registry must contain at least 18 products') {
+            return @{ Passed = $false; Detail = "canonical mode accepted seventeen delivery products: $countOutput" }
         }
-        @{ products = @(1..8 | ForEach-Object { @{ productId = "synthetic-product-$_"; reviewRoot = "F:/My Drive/Videos/Synthetic-$_" } }) } |
+        # A restricted folder's descendants are as restricted as the folder itself.
+        $excluded = @{ recordedOn = '2026-10-21'; folders = @('Gartner'); reason = 'synthetic restricted folder' }
+        foreach ($restricted in @('F:/My Drive/Videos/Gartner', 'F:/My Drive/Videos/Gartner/', 'F:/My Drive/Videos/Gartner/Client')) {
+            $rows = @(1..18 | ForEach-Object { @{ productId = "synthetic-product-$_"; reviewRoot = "F:/My Drive/Videos/Synthetic-$_" } })
+            $rows[0].reviewRoot = $restricted
+            @{ products = $rows; excludedFolders = $excluded } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $deliveryPath -Encoding UTF8
+            $restrictedOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
+            if ($LASTEXITCODE -eq 0 -or $restrictedOutput -notmatch "delivers into excluded folder 'Gartner'") {
+                return @{ Passed = $false; Detail = "canonical mode accepted delivery into the restricted tree at '$restricted': $restrictedOutput" }
+            }
+        }
+        @{ products = @(1..18 | ForEach-Object { @{ productId = "synthetic-product-$_"; reviewRoot = "F:/My Drive/Videos/Synthetic-$_" } }); excludedFolders = $excluded } |
             ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $deliveryPath -Encoding UTF8
         $canonicalOutput = & pwsh -NoProfile -File $entry validate -UserProfile $syntheticProfile 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) {
-            return @{ Passed = $false; Detail = "canonical mode rejected eight synthetic products: $canonicalOutput" }
+            return @{ Passed = $false; Detail = "canonical mode rejected eighteen synthetic products: $canonicalOutput" }
         }
         return @{ Passed = $true; Detail = $null }
     } finally {
