@@ -17,13 +17,17 @@ if (-not (Test-Path -LiteralPath (Join-Path $packageKit 'src\Visuals.tsx'))) {
 }
 
 # Refuse before touching anything while an mvg job runs from the deployed marketing tree: the mirror below rewrites
-# files that job has open. An unavailable process list is a warning, not a stop.
+# files that job has open. A job started as a bare `node mvg.mjs` from inside the tree (the run-mvg.sh runners do
+# this) shows no directory on its command line, so a bare mvg.mjs counts as running from here too.
+# An unavailable process list is a warning, not a stop.
 $marketingTarget = [IO.Path]::GetFullPath((Join-Path $RuntimeKit 'marketing'))
 if (-not $Force -and (Test-Path -LiteralPath $marketingTarget)) {
     $running = @()
     try {
         $running = @(Get-CimInstance -ClassName Win32_Process -Filter "CommandLine LIKE '%mvg.mjs%'" -ErrorAction Stop |
-            Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine.IndexOf($marketingTarget, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
+            Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and (
+                $_.CommandLine.IndexOf($marketingTarget, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+                $_.CommandLine -match '(?<![\\/:\w.-])mvg\.mjs\b') })
     } catch {
         Write-Warning "Could not list processes to check for a running mvg job: $($_.Exception.Message)"
     }

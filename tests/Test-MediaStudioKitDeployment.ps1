@@ -79,7 +79,7 @@ try {
     $marketingSourceFiles = @(Get-ChildItem -LiteralPath $marketingSource -Recurse -File)
     if ($marketingSourceFiles.Count -lt 20) { throw 'Canonical marketing kit is missing files' }
     foreach ($file in $marketingSourceFiles) {
-        $relative = $file.FullName.Substring($marketingSource.Length).TrimStart('')
+        $relative = $file.FullName.Substring($marketingSource.Length).TrimStart('\')
         $destination = Join-Path (Join-Path $runtimeKit 'marketing') $relative
         if (-not (Test-Path -LiteralPath $destination)) { throw "Missing marketing kit file: $destination" }
         if ((Get-FileHash -LiteralPath $file.FullName).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) { throw "Stale marketing kit file: $destination" }
@@ -90,7 +90,7 @@ try {
     # Replace, never merge: a file deleted from the source must not survive in the runtime copy.
     $stale = Join-Path (Join-Path $runtimeKit 'marketing') 'stale-removed-module.mjs'
     Set-Content -LiteralPath $stale -Value '// stale' -Encoding ascii
-    & (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -RuntimeKit $runtimeKit | Out-Null
+    & (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1') -RuntimeKit $runtimeKit -Force | Out-Null
     if (Test-Path -LiteralPath $stale) { throw 'Marketing kit sync merged instead of replacing' }
     $checks++
     # Mirror in place: stale files and stale directories go, but the target directory is the same object (never emptied or recreated).
@@ -104,7 +104,7 @@ try {
     $keepFile = Join-Path $marketingTarget (Get-ChildItem -LiteralPath $marketingSource -File | Select-Object -First 1).Name
     $keepWriteBefore = (Get-Item -LiteralPath $keepFile).LastWriteTimeUtc
     Start-Sleep -Milliseconds 1100
-    & $syncScript -RuntimeKit $runtimeKit | Out-Null
+    & $syncScript -RuntimeKit $runtimeKit -Force | Out-Null
     if (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-removed-dir')) { throw 'Marketing kit sync left a stale directory behind' }
     $checks++
     if (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs')) { throw 'Marketing kit sync left a stale top-level file behind' }
@@ -116,7 +116,7 @@ try {
     # A successful robocopy (exit codes 1-7) must not leak as a failing script exit code.
     $pwshExe = (Get-Process -Id $PID).Path
     Set-Content -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs') -Value '// stale' -Encoding ascii
-    & $pwshExe -NoProfile -File $syncScript -RuntimeKit $runtimeKit | Out-Null
+    & $pwshExe -NoProfile -File $syncScript -RuntimeKit $runtimeKit -Force | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Sync exited $LASTEXITCODE after a successful mirror" }
     $checks++
     # Refuse while an mvg job runs from the target; -Force overrides.
@@ -141,7 +141,26 @@ try {
         if (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs')) { throw '-Force did not complete the mirror' }
         $checks++
     } finally {
-        if ($helper -and -not $helper.HasExited) { $helper.Kill() }
+        if ($helper -and -not $helper.HasExited) { $helper.Kill(); $helper.WaitForExit(5000) | Out-Null }
+        if ($helper) { $helper.Dispose() }
+    }
+    # The run-mvg.sh runners start `node mvg.mjs` from inside the tree, so the command line carries no directory.
+    $helper = $null
+    try {
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $node
+        $psi.Arguments = '-e "setTimeout(()=>{},60000)" mvg.mjs'
+        $psi.WorkingDirectory = $marketingTarget
+        $psi.CreateNoWindow = $true
+        $psi.UseShellExecute = $false
+        $helper = [Diagnostics.Process]::Start($psi)
+        Start-Sleep -Milliseconds 800
+        $refusal = $null
+        try { & $syncScript -RuntimeKit $runtimeKit | Out-Null } catch { $refusal = $_.Exception.Message }
+        if (-not $refusal -or $refusal -notmatch [string]$helper.Id) { throw "Sync did not refuse a bare 'node mvg.mjs' job (message: $refusal)" }
+        $checks++
+    } finally {
+        if ($helper -and -not $helper.HasExited) { $helper.Kill(); $helper.WaitForExit(5000) | Out-Null }
         if ($helper) { $helper.Dispose() }
     }
     Write-Host "PASS: $checks runtime gate/tool deployment checks"
