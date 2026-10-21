@@ -10,7 +10,7 @@
 //   narration (static, no browser); a failure stops the run. --skip-preflight bypasses it and records recordings.preflight = "skipped".
 // Reads  <jobRoot>/capture/scenes.mjs:
 //   export const order = ['S05', ...];                      // default recording order
-//   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, mobileLayout?: { cssWidth, scale }, recast?: { S05: { autoZoom: false } } };
+//   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, mobileLayout?: { cssWidth, scale }, pageZoom?: 1.5, recast?: { S05: { autoZoom: false } } };
 //   export const scenes = { async S05(h, ctx) {...} };      // one function per screen beat; h = record-lib helpers
 //   ctx = { page, beats, id, jobRoot, targetSeconds }       // targetSeconds = narration length of the beat, or null
 // Writes <jobRoot>/capture/clips/<id>.webm                  (Recast: cursor approach, click ripple, punch-in zoom)
@@ -129,7 +129,7 @@ for (const id of ids) {
   fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
   const takeState = carryState && fs.existsSync(carryPath) ? carryPath : storageState;
   const rec = await startRecording(id, {
-    storageState: takeState, baseUrl: options.baseUrl, viewport: capture.viewport, deviceScaleFactor: capture.deviceScaleFactor, mobileLayout: options.mobileLayout,
+    storageState: takeState, baseUrl: options.baseUrl, viewport: capture.viewport, deviceScaleFactor: capture.deviceScaleFactor, mobileLayout: options.mobileLayout, pageZoom: options.pageZoom,
     device: capture.device || undefined, isMobile: capture.isMobile, hasTouch: capture.hasTouch,
     headless: !flags.has('--headed'), colorScheme: options.colorScheme, timezoneId: options.timezoneId, extraHTTPHeaders: options.extraHTTPHeaders,
   });
@@ -194,6 +194,7 @@ for (const id of ids) {
     ...(options.mobileLayout ? { mobileLayout: options.mobileLayout } : {}),
     ratio: ratioOpt || reducedRatio(rec.viewport),
     device: capture.device,
+    ...(options.pageZoom ? { pageZoom: options.pageZoom } : {}),
     recast: take.recast,
     recastNote: take.recastNote || null,
     events: fin.summary,
