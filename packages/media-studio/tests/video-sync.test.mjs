@@ -210,7 +210,8 @@ function gateFixture(name, v = {}) {
   const root = join(scratch, name);
   const cut = v.cuts || [0, 3, 8, 12, 15];
   const total = cut.at(-1);
-  const speech = [[0.5, 2.5], [3.4, 6.6], [8.4, 10.6], [12.4, 14.0]];
+  const s04at = v.s04at ?? 12.4; // where the closing line starts (a longer S03 pushes it later)
+  const speech = [[0.5, 2.5], [3.4, 6.6], [8.4, 10.6], [s04at, s04at + 1.6]];
   // pictureShift moves every internal cut of the encoded picture while the cue sheet keeps the planned times.
   const pcut = cut.map((t, i) => (i === 0 || i === cut.length - 1 ? t : t + (v.pictureShift || 0)));
   const dur = (i) => (pcut[i + 1] - pcut[i]).toFixed(3);
@@ -219,16 +220,18 @@ function gateFixture(name, v = {}) {
   sources.forEach((s, i) => { if (i === 2) args.push('-f', 'lavfi', '-t', dur(2), '-i', s); else args.push('-f', 'lavfi', '-i', s); });
   const tone = speech.map(([a, b]) => `between(t,${a},${b})`).join('+');
   args.push('-f', 'lavfi', '-i', `sine=f=300:d=${total}`);
-  const vFilter = `[0:v][1:v][2:v][3:v]concat=n=4:v=1:a=0,format=yuv420p[v]`;
+  // stillFrom: S03's picture stops changing at that program time (last frame cloned): an exact-frame freeze to the cut.
+  const still = v.stillFrom != null ? `[2:v]trim=duration=${(v.stillFrom - pcut[2]).toFixed(3)},setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${(pcut[3] - v.stillFrom).toFixed(3)}[v2];` : '';
+  const vFilter = `${still}[0:v][1:v]${still ? '[v2]' : '[2:v]'}[3:v]concat=n=4:v=1:a=0,format=yuv420p[v]`;
   let aFilter = `[4:a]volume=eval=frame:volume='if(gt(${tone},0),0.8,0)'${v.audioFilter ? ',' + v.audioFilter : ''}[a]`;
   mkdirSync(join(root, 'story'), { recursive: true }); mkdirSync(join(root, 'qa'), { recursive: true }); mkdirSync(join(root, 'plan'), { recursive: true });
   const candidate = join(root, 'candidate.mp4');
-  ff([...args, '-filter_complex', `${vFilter};${aFilter}`, '-map', '[v]', '-map', '[a]', '-t', String(total), '-c:v', 'libx264', '-preset', 'ultrafast', '-g', '30', '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', candidate]);
+  ff([...args, '-filter_complex', `${vFilter};${aFilter}`, '-map', '[v]', '-map', '[a]', '-t', String(total), '-c:v', 'libx264', '-preset', 'ultrafast', '-g', String(v.gop ?? 30), ...(v.gop ? ['-keyint_min', String(v.gop)] : []), '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', candidate]);
   const W = (s, a, b) => L.spreadWords(s, a, b);
   const s01 = W('Welcome to the approval queue today', 0.5, 2.5);
   const s02 = [['Open', 3.4, 3.7], ['the', 3.7, 3.8], ['plan', 3.8, 4.1], ['and', 4.3, 4.5], ['approve', 4.6, 5.0], ['it', 5.0, 5.1], ['The', 5.6, 5.7], ['plan', 5.7, 6.0], ['is', 6.0, 6.1], ['approved', 6.2, 6.6]].map(([w, start, end]) => ({ w, start, end }));
   const s03 = [['Now', 8.4, 8.7], ['send', 8.8, 9.1], ['the', 9.1, 9.2], ['report', 9.2, 9.6], ['The', 10.0, 10.1], ['report', 10.1, 10.2], ['is', 10.2, 10.3], ['sent', 10.3, 10.6]].map(([w, start, end]) => ({ w, start, end }));
-  const s04 = W('Thanks for watching today', 12.4, 14.0);
+  const s04 = W('Thanks for watching today', s04at, s04at + 1.6);
   const fcw = (ws) => { const f = L.firstContentWord(ws); return f; };
   const timeline = { durationSeconds: total, segments: ['S01', 'S02', 'S03', 'S04'].map((id, i) => ({ id, scene: id, text: id, startSeconds: cut[i], durationSeconds: cut[i + 1] - cut[i] })) };
   write(join(root, 'story', 'narration-timeline.json'), timeline);
@@ -332,4 +335,70 @@ test('sync gate fails a long exact-frame freeze, degraded timing, a stale or pla
   const bare = gate(gateFixture('gate-no-actions', { noActions: true })); assert.equal(bare.code, 1); assert.match(bare.report.errors.join(' '), /no narrated action/);
   const missing = gateFixture('gate-no-cue'); rmSync(join(missing.root, 'plan', 'cue-sheet.json'));
   r = gate(missing); assert.equal(r.code, 1); assert.match(r.out, /missing plan\/cue-sheet.json/);
+});
+
+// ------------------------------------------------------------------ freeze gate: a declared hold is not a freeze
+
+const hb = (beat, o = {}) => ({ beat, slot_start: o.from ?? 0, slot_end: o.until ?? 10, screen: { kind: o.kind || 'screen', visible_from: o.from ?? 0, visible_until: o.until ?? 10, changes_from_previous: o.changes ?? true }, actions: o.actions ?? [], result: o.result ?? null });
+
+test('declared hold: from the last action or the result to the slot end; a card or read beat holds from its start; unknown timing declares nothing', () => {
+  const act = (t) => ({ kind: 'click', label: 'Send', narrated: true, action_time: t });
+  assert.deepEqual(L.declaredHold(hb('S02', { from: 3, until: 14, actions: [act(4.6)], result: { label: 'Plan approved', visible_at: 6 } })), { beat: 'S02', from: 6, until: 14, kind: 'after-result' });
+  assert.deepEqual(L.declaredHold(hb('S02', { from: 3, until: 14, actions: [act(4.6), act(7)], result: { label: 'x', visible_at: 6 } })), { beat: 'S02', from: 7, until: 14, kind: 'after-result' }, 'the later of last action and result');
+  assert.deepEqual(L.declaredHold(hb('S02', { from: 3, until: 14, actions: [act(4.6)] })), { beat: 'S02', from: 4.6, until: 14, kind: 'after-action' });
+  assert.deepEqual(L.declaredHold(hb('S04', { from: 12, until: 19, kind: 'card' })), { beat: 'S04', from: 12, until: 19, kind: 'static-beat' });
+  assert.equal(L.declaredHold(hb('S02', { from: 3, until: 14, actions: [act(null)] })), null, 'actions with no program time: the hold cannot be placed');
+});
+
+test('expected-change points and freeze classification: stalled where change is expected, declared hold, overlong hold, undeclared', () => {
+  const act = (t) => ({ kind: 'click', label: 'Send', narrated: true, action_time: t });
+  const beats = [hb('S01', { from: 0, until: 3, kind: 'card', changes: false }),
+    hb('S03', { from: 8, until: 16, actions: [act(8.8)], result: { label: 'Report sent', visible_at: 10.1 } }),
+    hb('S04', { from: 16, until: 26, kind: 'card' })];
+  const pts = L.expectedChangePoints(beats, [{ startSeconds: 16 }]);
+  assert.deepEqual(pts.map((p) => [p.beat, p.t]), [['S03', 8], ['S03', 8.8], ['S03', 10.1], ['S04', 16]], 'first beat, hold beats and the edl cut at 16 (already a beat start) are not doubled');
+  const o = { beats, edl: [], maxFreezeSeconds: 4, maxHoldSeconds: 6.5 };
+  const f = (start, end) => ({ start, end, duration: end - start });
+  assert.equal(L.classifyFreeze(f(10.4, 16), o).verdict, 'declared-hold');
+  assert.equal(L.classifyFreeze(f(8.5, 16), o).verdict, 'stalled');
+  assert.deepEqual(L.classifyFreeze(f(8.5, 16), o).stalled.map((p) => p.t), [8.8, 10.1]);
+  assert.equal(L.classifyFreeze(f(16, 26), o).verdict, 'overlong-hold', '10 s of card is over the 6.5 s max hold');
+  assert.equal(L.classifyFreeze(f(16, 21), o).verdict, 'declared-hold');
+  assert.equal(L.classifyFreeze(f(2, 6.5), o).verdict, 'undeclared', 'S01 is a card but the freeze runs into S03');
+  assert.equal(L.classifyFreeze(f(9, 12), o).verdict, 'stalled', 'short freezes over a change point fail whatever their length');
+  assert.equal(L.classifyFreeze(f(11, 14), o).verdict, 'ignore', 'a short freeze inside the hold is nothing');
+  assert.equal(L.classifyFreeze(f(9.2, 9.9), { ...o, maxFreezeSeconds: 0.1 }).verdict, 'undeclared', 'before the result: not yet in the hold, not on a change point');
+});
+
+// gop 1000: a keyframe re-quantises a still picture and ends an exact-frame freeze, so the fixture keeps one GOP.
+const holdFixture = (name, v = {}) => gateFixture(name, { cuts: [0, 3, 8, 16, 19], s04at: 16.4, stillFrom: 10.4, gop: 1000, ...v });
+const editCue = (f, fn) => { const p = join(f.root, 'plan', 'cue-sheet.json'); const c = JSON.parse(readFileSync(p, 'utf8')); fn(c); write(p, c); };
+
+test('sync gate passes a 5.6 s picture hold after the result is visible as a declared hold, and records it', { skip: !hasFfmpeg, timeout: 240000 }, () => {
+  const f = holdFixture('hold-declared');
+  const r = gate(f); assert.equal(r.code, 0, r.out);
+  const hold = r.report.beats.find((b) => b.beat === 'S03').findings.find((x) => x.check === 'declared-hold');
+  assert.equal(hold.status, 'pass');
+  assert.match(hold.message, /exact-frame freeze 10\.\d\d-16\.00s \(5\.\ds\) is a declared hold: the picture is meant to stay still from 10\.10s to 16\.00s \(5\.9s, after-result\)/);
+  assert.ok(r.report.checks.performed.includes('frozen-frames'));
+  assert.ok(r.report.beats.find((b) => b.beat === 'S03').findings.some((x) => x.check === 'result-hold' && x.status === 'pass'), 'the 1.5 s result-hold minimum is unchanged');
+});
+
+test('sync gate fails the same still when it is stretched across a click and the result: stalled where the cue sheet expects change', { skip: !hasFfmpeg, timeout: 240000 }, () => {
+  const r = gate(holdFixture('hold-stalled', { stillFrom: 8.2 })); assert.equal(r.code, 1, r.out);
+  const msgs = failing(r.report, 'frozen-frames').map((x) => x.message);
+  assert.ok(msgs.some((m) => /the picture is stalled where the cue sheet expects click "Send" at 8\.80s/.test(m)), msgs.join('\n'));
+  assert.ok(msgs.some((m) => /stalled where the cue sheet expects result "Report sent" at 10\.10s/.test(m)), msgs.join('\n'));
+  assert.ok(!msgs.some((m) => /A static scene needs/.test(m)), 'a stall is reported as a stall, not twice');
+});
+
+test('sync gate still fails a long still outside every declared hold, and a hold over the max hold (--max-hold)', { skip: !hasFfmpeg, timeout: 240000 }, () => {
+  const f = holdFixture('hold-undeclared');
+  editCue(f, (c) => { c.beats[2].actions[0].action_time = null; c.beats[2].result = null; }); // the cue sheet cannot place a hold in S03
+  let r = gate(f); assert.equal(r.code, 1, r.out);
+  assert.match(r.report.errors.join('\n'), /beat S03: frozen-frames: exact-frame freeze 10\.\d\d-16\.00s \(5\.\ds > 4s\) outside any declared hold\. A static scene needs a moving cursor/);
+  const g = holdFixture('hold-overlong');
+  assert.equal(gate(g).code, 0);
+  r = gate(g, ['--max-hold', '3']); assert.equal(r.code, 1, r.out);
+  assert.match(r.report.errors.join('\n'), /beat S03: frozen-frames: exact-frame freeze 10\.\d\d-16\.00s \(5\.\ds > 4s\) is inside a declared hold but longer than the 3s max hold\. A static scene needs a moving cursor/);
 });

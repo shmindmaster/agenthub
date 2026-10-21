@@ -2,7 +2,12 @@
 // This is the only path that produces the picture of a `screen` beat (product-picture.md); PNG stills are
 // diagnostic. Runs from the external job workspace; the product repository is read-only.
 //
-// Usage: node record-job.mjs <jobRoot> [S05 S06 ...] [--no-recast] [--headed] [--fresh]
+// Usage: node record-job.mjs <jobRoot> [S05 S06 ...] [--no-recast] [--headed] [--fresh] [--skip-preflight] [--ratio <r>]
+//   --ratio <r> records at options.viewports[r] = { width, height, deviceScaleFactor?, device?, isMobile?, hasTouch? } (a Playwright device name
+//   such as 'iPhone 13' applies its emulation) instead of options.viewport; without it the options.viewport path is unchanged.
+//   Every receipt clip records ratio, device, viewport and deviceScaleFactor, so a non-16:9 cut is captured at its own viewport.
+//   Before the first take validate-capture-preflight.mjs checks scene ids, cue-plan keywords and typing budgets against the locked
+//   narration (static, no browser); a failure stops the run. --skip-preflight bypasses it and records recordings.preflight = "skipped".
 // Reads  <jobRoot>/capture/scenes.mjs:
 //   export const order = ['S05', ...];                      // default recording order
 //   export const options = { baseUrl, storageState?, carryState?, viewport?, deviceScaleFactor?, recast?: { S05: { autoZoom: false } } };
@@ -24,7 +29,10 @@ import { startRecording, finishRecording, renderRecast } from './record-lib.mjs'
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--')));
-const [jobRootArg, ...only] = argv.filter((a) => !a.startsWith('--'));
+// --ratio takes a value (--ratio 9:16 or --ratio=9:16); the value is not a scene id.
+const ratioAt = argv.indexOf('--ratio');
+const ratioOpt = ratioAt >= 0 ? argv[ratioAt + 1] : (argv.find((a) => a.startsWith('--ratio=')) || '').slice(8) || null;
+const [jobRootArg, ...only] = argv.filter((a, i) => !a.startsWith('--') && !(i > 0 && argv[i - 1] === '--ratio'));
 if (!jobRootArg) { console.error('usage: node record-job.mjs <jobRoot> [S05 ...] [--no-recast] [--headed]'); process.exit(2); }
 const jobRoot = path.resolve(jobRootArg);
 const job = JSON.parse(fs.readFileSync(path.join(jobRoot, 'job.json'), 'utf8').replace(/^﻿/, ''));
@@ -54,6 +62,15 @@ if (flags.has('--fresh') && fs.existsSync(carryPath)) fs.unlinkSync(carryPath);
 const carryState = options.carryState === true;
 
 // Narration length per scene so a take can be paced to the words.
+// Capture frame: options.viewport, or with --ratio the entry options.viewports[ratio]. Receipt records it either way.
+let capture = { viewport: options.viewport, deviceScaleFactor: options.deviceScaleFactor, device: null, isMobile: undefined, hasTouch: undefined };
+if (ratioOpt) {
+  const vp = (options.viewports || {})[ratioOpt];
+  if (!vp || !Number.isFinite(vp.width) || !Number.isFinite(vp.height)) throw new Error('--ratio ' + ratioOpt + ': capture/scenes.mjs options.viewports["' + ratioOpt + '"] = { width, height, ... } is missing');
+  capture = { viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor ?? options.deviceScaleFactor, device: vp.device || null, isMobile: vp.isMobile, hasTouch: vp.hasTouch };
+}
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const reducedRatio = (v) => { const g = gcd(v.width, v.height) || 1; return (v.width / g) + ':' + (v.height / g); };
 const targets = {};
 const tlPath = path.join(jobRoot, 'story', 'narration-timeline.json');
 if (fs.existsSync(tlPath)) {
@@ -91,6 +108,20 @@ receipt.recastVersion = recastVersion;
 receipt.baseUrl = options.baseUrl;
 const save = () => { fs.writeFileSync(recPath, JSON.stringify(recordings, null, 2)); fs.writeFileSync(receiptPath, JSON.stringify(receipt, null, 2)); };
 
+// Pre-flight (static, no browser): scene ids, cue-plan keywords and typing budgets are checked against the locked narration before
+// the first take, so a mistake does not surface after a long recording. scripts/validate-capture-preflight.mjs sits beside this file
+// in the deployed kit, in the package scripts/ folder, or in _shared/tools (the deploy list).
+if (flags.has('--skip-preflight')) {
+  console.log('WARNING: --skip-preflight: the capture pre-flight was bypassed; scene ids, cue-plan keywords and typing budgets are unchecked');
+  recordings.preflight = 'skipped';
+} else {
+  const preflight = [path.join(here, 'validate-capture-preflight.mjs'), path.join(here, '..', '..', 'scripts', 'validate-capture-preflight.mjs'), path.join(here, '..', '..', '_shared', 'tools', 'validate-capture-preflight.mjs')].find((f) => fs.existsSync(f));
+  if (!preflight) throw new Error('capture pre-flight script not found (deploy list)');
+  try { execFileSync(process.execPath, [preflight, jobRoot], { windowsHide: true, stdio: 'inherit' }); }
+  catch { throw new Error('capture pre-flight failed: fix scene ids, keywords or typing budgets before recording'); }
+  recordings.preflight = { ok: true, report: 'qa/capture-preflight.json' };
+}
+
 const ids = only.length ? only : order;
 for (const id of ids) {
   if (!scenes[id]) { console.log('no scene function for', id); recordings.takes[id] = { error: 'no scene function' }; save(); continue; }
@@ -98,7 +129,8 @@ for (const id of ids) {
   fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
   const takeState = carryState && fs.existsSync(carryPath) ? carryPath : storageState;
   const rec = await startRecording(id, {
-    storageState: takeState, baseUrl: options.baseUrl, viewport: options.viewport, deviceScaleFactor: options.deviceScaleFactor,
+    storageState: takeState, baseUrl: options.baseUrl, viewport: capture.viewport, deviceScaleFactor: capture.deviceScaleFactor,
+    device: capture.device || undefined, isMobile: capture.isMobile, hasTouch: capture.hasTouch,
     headless: !flags.has('--headed'), colorScheme: options.colorScheme, timezoneId: options.timezoneId, extraHTTPHeaders: options.extraHTTPHeaders,
   });
   const t0 = Date.now();
@@ -116,11 +148,11 @@ for (const id of ids) {
     // movie filter with only backslashes escaped, so an absolute Windows path breaks on the drive colon. cwd is capture/.
     const rawRel = path.relative(process.cwd(), fin.rawDir);
     const outRel = path.join('clips', `${id}.webm`);
-    try { await renderRecast(rawRel, outRel, { ...opts, resolution: options.viewport }); take.recast = opts.autoZoom === false ? 'noZoom' : 'full'; }
+    try { await renderRecast(rawRel, outRel, { ...opts, resolution: capture.viewport }); take.recast = opts.autoZoom === false ? 'noZoom' : 'full'; }
     catch (e) {
       console.log('  recast failed:', e.message.split('\n')[0]);
       fs.rmSync(path.resolve('clips', '.recast-tmp'), { recursive: true, force: true });
-      try { await renderRecast(rawRel, outRel, { ...opts, autoZoom: false, resolution: options.viewport }); take.recast = 'noZoom'; take.recastNote = e.message.split('\n')[0]; }
+      try { await renderRecast(rawRel, outRel, { ...opts, autoZoom: false, resolution: capture.viewport }); take.recast = 'noZoom'; take.recastNote = e.message.split('\n')[0]; }
       catch (e2) { fs.copyFileSync(fin.webm, out); take.recast = 'fallback'; take.recastNote = e2.message.split('\n')[0]; console.log('  raw webm copied (recast fallback)'); }
     }
   }
@@ -144,7 +176,7 @@ for (const id of ids) {
   take.ratio = take.targetSeconds ? Number((take.clipSeconds / take.targetSeconds).toFixed(2)) : null;
   take.short = take.ratio !== null && take.ratio < 0.85;
   take.events = fin.summary;
-  const valid = !take.error && fin.summary.pointerMoves > 0 && fin.summary.expectationsFailed.length === 0;
+  const valid = !take.error && (fin.summary.pointerMoves > 0 || fin.summary.taps > 0) && fin.summary.expectationsFailed.length === 0;
   take.valid = valid;
   recordings.takes[id] = take;
   receipt.clips[id] = {
@@ -157,7 +189,9 @@ for (const id of ids) {
     traceSha256: fs.existsSync(fin.tracePath) ? sha256(fin.tracePath) : null,
     recordedAt: take.startedAt,
     viewport: rec.viewport,
-    deviceScaleFactor: options.deviceScaleFactor || 2,
+    deviceScaleFactor: capture.deviceScaleFactor || 2,
+    ratio: ratioOpt || reducedRatio(rec.viewport),
+    device: capture.device,
     recast: take.recast,
     recastNote: take.recastNote || null,
     events: fin.summary,

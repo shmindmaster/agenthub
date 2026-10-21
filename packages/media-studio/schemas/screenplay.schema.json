@@ -19,6 +19,25 @@
       "type": "string",
       "description": "What the viewer can do or stop doing after the film."
     },
+    "wpm": {
+      "type": "number",
+      "minimum": 60,
+      "description": "Narration pace used by validate-narration.mjs for the 5-second hook and fluff-seconds estimate. Default 150."
+    },
+    "narrationAllowlist": {
+      "type": "array",
+      "description": "Phrases validate-narration.mjs must not flag as fluff, each with the reason it earns its seconds.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["phrase", "reason"],
+        "properties": {
+          "phrase": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "syntheticDisclosure": { "$ref": "#/$defs/syntheticDisclosure" },
     "scenes": {
       "type": "array",
       "minItems": 1,
@@ -26,6 +45,17 @@
     }
   },
   "$defs": {
+    "syntheticDisclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "description": "Synthetic or demo data is disclosed on screen, never in narration.",
+      "properties": {
+        "mode": { "type": "string", "enum": ["caption", "end-card", "none"] },
+        "text": { "type": "string" },
+        "placement": { "type": "string" }
+      }
+    },
     "sceneRole": {
       "type": "string",
       "enum": [
