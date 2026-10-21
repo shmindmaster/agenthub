@@ -16,7 +16,7 @@ import { BudgetError, CostLedger } from '../kit/marketing/lib/ledger.mjs';
 import { bandRegion, cameraKeyframes, focusAt, focusWindows, pointerTrack, readability, windowAt } from '../kit/marketing/lib/crop.mjs';
 import { FRAMES, layoutFor, safeRect, safeZoneErrors } from '../kit/marketing/lib/layout.mjs';
 import { chunkWords, lineBreaks, toSrt, wrapCue } from '../kit/marketing/lib/captions.mjs';
-import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../kit/marketing/lib/timing.mjs';
+import { alignScriptToAsr, buildTimeline, parseAsrWords, snapToBeatGrid } from '../kit/marketing/lib/timing.mjs';
 import { buildMixArgs, loudnessTarget, parseLoudnorm } from '../kit/marketing/lib/mix.mjs';
 import { deliverFiles, nextFreeNumber, updateReadme, usedNumbers, deliveredName } from '../kit/marketing/lib/deliver.mjs';
 import { DEFAULT_REQUIRED, captionsCheck, readReviews, releasable, requiredGates } from '../kit/marketing/lib/gates.mjs';
@@ -26,7 +26,7 @@ import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/p
 import { estimateImageUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
 import { lineKey, voiceStage } from '../kit/marketing/lib/stages/voice.mjs';
 import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
-import { assetsStage, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
+import { assetsStage, musicKey, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
 import { cueTime, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
 import { parseArgs } from '../kit/marketing/mvg.mjs';
@@ -1180,4 +1180,125 @@ test('chain gates 6: the pointer gate runs the shared script on the workspace re
   const none = join(root, 'ws-pointer-none');
   mkdirSync(none, { recursive: true });
   assert.equal((await runPointerGate({ ws: none, moduleRoot: mod })).status, 'fail', 'no receipt: fail closed');
+});
+
+// ---- edit.beatGrid: cuts on the music bed's beat
+const gridFixture = () => buildTimeline([
+  { beat: { id: 'B1', kind: 'ui', narration: 'hello there friend' }, audio: { durationSeconds: 3.1, words: [{ word: 'hello', start: 0.1, end: 0.5 }, { word: 'there', start: 0.6, end: 1.0 }, { word: 'friend', start: 1.2, end: 1.9 }] } },
+  { beat: { id: 'B2', kind: 'ui', narration: 'second line', minSeconds: 6 }, audio: { durationSeconds: 2.37, words: [{ word: 'second', start: 0.2, end: 0.7 }, { word: 'line', start: 0.9, end: 1.3 }] } },
+  { beat: { id: 'B3', kind: 'card' } },
+  { beat: { id: 'B4', kind: 'ui', narration: 'last words here' }, audio: { durationSeconds: 1.83, words: [{ word: 'last', start: 0.1, end: 0.4 }, { word: 'words', start: 0.5, end: 0.9 }, { word: 'here', start: 1.0, end: 1.5 }] } },
+]);
+
+test('beat grid 1: every boundary but the start lands on the grid within 1 ms, no segment shrinks, each extension is under one beat', () => {
+  for (const grid of [{ bpm: 120, offsetSeconds: 0.12 }, { bpm: 128, offsetSeconds: 0.3 }, { bpm: 97, offsetSeconds: 0 }, { bpm: 60, offsetSeconds: 2.5 }, { bpm: 200, offsetSeconds: 9.9 }]) {
+    const before = gridFixture();
+    const frozen = JSON.stringify(before);
+    const after = snapToBeatGrid(before, grid);
+    assert.equal(JSON.stringify(before), frozen, 'the input timeline is not modified');
+    const period = 60 / grid.bpm;
+    assert.equal(after.segments[0].startSeconds, 0, 'the program start is not snapped');
+    after.segments.forEach((seg, i) => {
+      assert.ok(seg.durationSeconds >= before.segments[i].durationSeconds - 1e-9, `${grid.bpm}/${seg.id} never shrinks`);
+      assert.ok(seg.snapExtendSeconds >= 0 && seg.snapExtendSeconds < period, `${grid.bpm}/${seg.id} extends by ${seg.snapExtendSeconds}s, under one ${period}s beat`);
+      assert.ok(Math.abs(seg.durationSeconds - before.segments[i].durationSeconds - seg.snapExtendSeconds) < 1e-9, 'the whole change is the tail hold');
+      const end = seg.startSeconds + seg.durationSeconds;
+      const beats = (end - grid.offsetSeconds) / period;
+      assert.ok(Math.abs((beats - Math.round(beats)) * period) <= 0.001, `${grid.bpm}/${seg.id} ends at ${end}, ${Math.abs((beats - Math.round(beats)) * period) * 1000} ms off the grid`);
+      if (i) assert.ok(Math.abs(seg.startSeconds - (after.segments[i - 1].startSeconds + after.segments[i - 1].durationSeconds)) < 1e-9, 'segments stay contiguous');
+    });
+    const last = after.segments.at(-1);
+    assert.ok(Math.abs(after.durationSeconds - (last.startSeconds + last.durationSeconds)) < 1e-9, 'the total is the last boundary');
+    assert.ok(after.durationSeconds >= before.durationSeconds);
+    assert.deepEqual([after.beatGrid.bpm, after.beatGrid.offsetSeconds], [grid.bpm, grid.offsetSeconds]);
+    assert.equal(after.beatGrid.snapped, after.segments.filter((s) => s.snapExtendSeconds > 0).length);
+    assert.ok(Math.abs(after.beatGrid.addedSeconds - (after.durationSeconds - before.durationSeconds)) < 1e-9);
+  }
+});
+
+test('beat grid 2: a boundary already on a beat is left alone, and the offset is the bed phase, so beats run back to program time 0', () => {
+  const tl = buildTimeline([{ beat: { id: 'A', kind: 'card', minSeconds: 3 } }, { beat: { id: 'B', kind: 'card', minSeconds: 2.25 } }, { beat: { id: 'C', kind: 'card', minSeconds: 1 } }]);
+  const on = snapToBeatGrid(tl, { bpm: 120, offsetSeconds: 0 }); // 0.5 s beats: 3 is on a beat, 5.25 is half a beat late, 6.5 is on a beat again
+  assert.deepEqual(on.segments.map((s) => s.snapExtendSeconds), [0, 0.25, 0]);
+  assert.deepEqual(on.segments.map((s) => s.startSeconds + s.durationSeconds), [3, 5.5, 6.5]);
+  const early = snapToBeatGrid(buildTimeline([{ beat: { id: 'A', kind: 'card', minSeconds: 0.4 } }]), { bpm: 120, offsetSeconds: 2 });
+  assert.equal(early.segments[0].durationSeconds, 0.5, 'beats at 2 - n * 0.5 include 0.5: no extension of a whole offset');
+  assert.equal(snapToBeatGrid({ durationSeconds: 0, segments: [] }, { bpm: 90, offsetSeconds: 0 }).durationSeconds, 0);
+  assert.throws(() => snapToBeatGrid(tl, { bpm: 0, offsetSeconds: 0 }), /bpm/);
+  assert.throws(() => snapToBeatGrid(tl, { bpm: 120, offsetSeconds: -1 }), /offsetSeconds/);
+});
+
+test('beat grid 3: narration does not move inside its segment; lead-in, words and caption chunks shift with the segment', () => {
+  const before = gridFixture();
+  const after = snapToBeatGrid(before, { bpm: 120, offsetSeconds: 0.12 });
+  assert.ok(after.segments.some((s, i) => s.startSeconds > before.segments[i].startSeconds), 'something shifted');
+  after.segments.forEach((seg, i) => {
+    const old = before.segments[i];
+    const shift = seg.startSeconds - old.startSeconds;
+    assert.equal(seg.speechSeconds, old.speechSeconds);
+    assert.equal(seg.text, old.text);
+    if (old.lineStartSeconds === null) assert.equal(seg.lineStartSeconds, null);
+    else assert.ok(Math.abs(seg.lineStartSeconds - seg.startSeconds - (old.lineStartSeconds - old.startSeconds)) < 1e-9, `${seg.id} lead-in is unchanged`);
+    seg.words.forEach((w, k) => {
+      assert.ok(Math.abs(w.start - seg.startSeconds - (old.words[k].start - old.startSeconds)) < 1e-9, `${seg.id}/${w.word} keeps its place inside the segment`);
+      assert.ok(Math.abs(w.end - old.words[k].end - shift) < 1e-9);
+      assert.ok(w.start >= seg.startSeconds && w.end <= seg.startSeconds + seg.durationSeconds, 'the words stay inside their scene');
+    });
+  });
+  // captions are derived from the words, so they move with them
+  const chunkStarts = (tl) => tl.segments.flatMap((s) => (s.words.length ? chunkWords(s.words).map((c) => c.startSec - s.startSeconds) : []));
+  assert.equal(chunkStarts(after).length, chunkStarts(before).length);
+  chunkStarts(after).forEach((rel, i) => assert.ok(Math.abs(rel - chunkStarts(before)[i]) < 1e-6, 'caption chunk offsets inside the scene are unchanged'));
+});
+
+test('beat grid 4: the grid lives outside spec.music, so the bed key cannot change, and the timing stage re-times only when it changes', async () => {
+  const spec = { ...baseSpec(), music: { provider: 'elevenlabs', prompt: 'warm instrumental pulse, 120 bpm', licenseBasis: 'owner-approved test' } };
+  const withGrid = { ...spec, edit: { beatGrid: { bpm: 120, offsetSeconds: 0.12 } } };
+  assert.deepEqual(validate(adSchema, withGrid).filter((e) => /edit|beatGrid/.test(e)), [], 'edit.beatGrid is in the schema');
+  assert.notDeepEqual(validate(adSchema, { ...spec, edit: { beatGrid: { bpm: 10, offsetSeconds: 0 } } }), [], 'a tempo outside 40-220 is refused');
+  assert.notDeepEqual(validate(adSchema, { ...spec, edit: { beatGrid: { bpm: 120 } } }), [], 'offsetSeconds is required with bpm');
+  assert.notDeepEqual(validate(adSchema, { ...spec, music: { ...spec.music, beatGrid: { bpm: 120, offsetSeconds: 0 } } }), [], 'music takes no beatGrid');
+  assert.equal(JSON.stringify(withGrid.music), JSON.stringify(spec.music));
+  assert.equal(musicKey(withGrid.music.prompt, 30000, 'music_v2_5'), musicKey(spec.music.prompt, 30000, 'music_v2_5'));
+  assert.ok(!/beatGrid/.test(readFileSync(join(mod, 'lib', 'stages', 'assets.mjs'), 'utf8')), 'the assets stage never reads the grid');
+
+  const elevenlabs = {
+    resolveCli: () => ({}),
+    speech: async (_cli, o) => { writeFileSync(o.output, `audio:${o.text}`); const receipt = { request_id: 'r', reused: false, actual_credits: null }; writeFileSync(`${o.output}.provenance.json`, JSON.stringify(receipt)); return { receipt }; },
+  };
+  const providers = { elevenlabs, elevenCli: {}, probeDuration: async (f) => (readFileSync(f, 'utf8').length > 40 ? 4 : 2.5), transcribeWords: async () => ({ words: [{ word: 'hello', start: 0.05, end: 0.4 }] }) };
+  const plain = stageCtx('stages-nogrid', baseSpec(), providers);
+  await voiceStage(plain);
+  await timingStage(plain);
+  const plainTl = readJson(join(plain.jobDir, 'timing', 'main', 'timeline.json'));
+  assert.equal(plainTl.beatGrid, undefined, 'no grid: the timeline is the voice-first one');
+
+  const grid = stageCtx('stages-grid', { ...baseSpec(), edit: { beatGrid: { bpm: 120, offsetSeconds: 0.12 } } }, providers);
+  await voiceStage(grid);
+  const timed = await timingStage(grid);
+  const tl = readJson(join(grid.jobDir, 'timing', 'main', 'timeline.json'));
+  assert.deepEqual([tl.beatGrid.bpm, tl.beatGrid.offsetSeconds], [120, 0.12]);
+  assert.ok(tl.durationSeconds >= plainTl.durationSeconds);
+  assert.equal(timed.main.beatGrid.bpm, 120);
+  for (const seg of tl.segments) {
+    const beats = (seg.startSeconds + seg.durationSeconds - 0.12) / 0.5;
+    assert.ok(Math.abs(beats - Math.round(beats)) * 0.5 <= 0.001, `${seg.id} ends on the grid`);
+  }
+  const chunks = readJson(join(grid.jobDir, 'timing', 'main', 'captions.json')).chunks;
+  assert.ok(chunks.length > 0 && chunks.every((c) => { const seg = tl.segments.find((x) => x.id === c.beatId); return c.startSec >= seg.startSeconds - 0.06 && c.startSec <= seg.startSeconds + seg.durationSeconds; }), 'every caption chunk starts inside its snapped scene');
+  assert.ok(grid.ledger.entries.filter((e) => e.service === 'whisper' && !e.cached).length > 0);
+  const calls = grid.ledger.entries.filter((e) => e.service === 'whisper' && !e.cached).length;
+  await timingStage(grid);
+  assert.equal(readJson(join(grid.jobDir, 'timing', 'main', 'timeline.json')).beatGrid.bpm, 120);
+  grid.spec.edit.beatGrid.bpm = 100;
+  await timingStage(grid);
+  const retimed = readJson(join(grid.jobDir, 'timing', 'main', 'timeline.json'));
+  assert.equal(retimed.beatGrid.bpm, 100, 'a changed grid re-times (it is part of the timing cache key)');
+  assert.equal(grid.ledger.entries.filter((e) => e.service === 'whisper' && !e.cached).length, calls, 're-timing reuses the cached ASR: no new spend');
+});
+
+test('beat grid 5: the compose map records the grid so the marketing-readiness measurement can be cross-checked', () => {
+  const src = readFileSync(join(mod, 'lib', 'stages', 'compose.mjs'), 'utf8');
+  assert.match(src, /timeline\.beatGrid \? \{ beatGrid: \{ bpm: timeline\.beatGrid\.bpm, offsetSeconds: timeline\.beatGrid\.offsetSeconds \} \}/);
+  assert.match(readFileSync(join(mod, 'README.md'), 'utf8'), /edit\.beatGrid/);
 });

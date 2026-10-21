@@ -82,6 +82,20 @@
         "openaiUsd": { "type": "number", "minimum": 0 }
       }
     },
+    "edit": {
+      "type": "object", "additionalProperties": false,
+      "description": "Editing rules that are not part of any one beat.",
+      "properties": {
+        "beatGrid": {
+          "type": "object", "additionalProperties": false, "required": ["bpm", "offsetSeconds"],
+          "description": "The music bed's tempo. The bed plays from program time 0, so beats fall at offsetSeconds + n * 60/bpm. After the voice-first timeline is built, every scene boundary but the start is held (tail only) to the next beat, so cuts land on the grid the marketing-readiness floor measures. Lives here, never in music, so the bed's cache key is unaffected.",
+          "properties": {
+            "bpm": { "type": "number", "minimum": 40, "maximum": 220 },
+            "offsetSeconds": { "type": "number", "minimum": 0, "maximum": 10 }
+          }
+        }
+      }
+    },
     "qa": {
       "type": "object", "additionalProperties": false,
       "properties": {

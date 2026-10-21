@@ -1,5 +1,6 @@
 // Stage 3: timing. Word timings per narration line (OpenAI whisper-1 word timestamps, or local whisper), aligned to
-// the authored script, then the voice-first timeline (scene length = narration span), caption chunks and an SRT.
+// the authored script, then the voice-first timeline (scene length = narration span), caption chunks and an SRT. With
+// edit.beatGrid every scene boundary is then held to the next beat of the music bed.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { recordStage } from '../context.mjs';
@@ -9,7 +10,7 @@ import { alignBeat, chooseResult, expectationClipTimes } from '../align.mjs';
 import { LEAD_SECONDS, TAIL_SECONDS, normalizeCuts } from '../lint.mjs';
 import { resolveClip } from './capture.mjs';
 import { estimateWhisperUsd } from '../prices.mjs';
-import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../timing.mjs';
+import { alignScriptToAsr, buildTimeline, parseAsrWords, snapToBeatGrid } from '../timing.mjs';
 import { run } from '../mix.mjs';
 import { readJson, round, writeJson } from '../util.mjs';
 
@@ -59,12 +60,14 @@ async function wordsFor(ctx, { audio, asrPath, duration }) {
 
 export async function timingStage(ctx) {
   const out = {};
+  // edit.beatGrid keys the stage only when set, so a spec without it keeps its cache; the music asset never sees it (spec.music).
+  const grid = ctx.spec.edit?.beatGrid ? { bpm: ctx.spec.edit.beatGrid.bpm, offsetSeconds: ctx.spec.edit.beatGrid.offsetSeconds } : null;
   for (const cut of normalizeCuts(ctx.spec)) {
     const voicePath = join(ctx.jobDir, 'voice', `${cut.id}.lines.json`);
     if (!existsSync(voicePath)) throw new Error(`timing needs the voice stage first (missing ${voicePath})`);
     const voice = readJson(voicePath);
     const clipShas = cut.beats.filter((b) => b.ui).map((b) => { const r = resolveClip(ctx, b).entry; return [b.id, r.sha256, b.ui.trimStart, b.ui.actions, b.ui.align]; });
-    const k = stageKey('timing', { lines: voice.lines.map((l) => [l.key, l.sha256]), beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), clips: clipShas, provider: ctx.brand.timing?.provider || 'openai-whisper' });
+    const k = stageKey('timing', { lines: voice.lines.map((l) => [l.key, l.sha256]), beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), clips: clipShas, provider: ctx.brand.timing?.provider || 'openai-whisper', ...(grid ? { beatGrid: grid } : {}) });
     const cached = checkStage(ctx.jobDir, 'timing', cut.id, k);
     if (cached.hit && !ctx.flags.force) { ctx.log(`timing/${cut.id}: cached`); out[cut.id] = cached.manifest; continue; }
     const byBeat = new Map(voice.lines.map((l) => [l.beatId, l]));
@@ -99,7 +102,7 @@ export async function timingStage(ctx) {
       }
       lines.push({ beat: sized, audio: { durationSeconds: round(duration, 3), words, asr: asrRel } });
     }
-    const timeline = buildTimeline(lines);
+    const timeline = grid ? snapToBeatGrid(buildTimeline(lines), grid) : buildTimeline(lines);
     const chunks = [];
     for (const seg of timeline.segments) {
       if (!seg.words.length) continue;
@@ -112,7 +115,7 @@ export async function timingStage(ctx) {
     writeJson(join(ctx.jobDir, files.captions), { cut: cut.id, chunks });
     writeFileSync(join(ctx.jobDir, files.srt), toSrt(chunks), 'utf8');
     const over = timeline.durationSeconds - cut.targetSeconds;
-    const detail = { durationSeconds: timeline.durationSeconds, targetSeconds: cut.targetSeconds, overSeconds: round(over, 2), captionChunks: chunks.length };
+    const detail = { durationSeconds: timeline.durationSeconds, targetSeconds: cut.targetSeconds, overSeconds: round(over, 2), captionChunks: chunks.length, ...(timeline.beatGrid ? { beatGrid: timeline.beatGrid } : {}) };
     out[cut.id] = writeStage(ctx.jobDir, 'timing', cut.id, k, { ...detail, outputs: [...Object.values(files), ...asrFiles] });
     if (over > Math.max(2, cut.targetSeconds * 0.1)) throw new Error(`cut ${cut.id} runs ${timeline.durationSeconds}s against a ${cut.targetSeconds}s target (+${over.toFixed(1)}s; allowed ${Math.max(2, cut.targetSeconds * 0.1).toFixed(1)}s, the longer of 2 s and 10%): trim the narration or beat minimums`);
     if (over < -0.2 * cut.targetSeconds - 2) ctx.log(`timing/${cut.id}: ${timeline.durationSeconds}s is well under the ${cut.targetSeconds}s target`);

@@ -186,7 +186,7 @@ export async function composeStage(ctx) {
       const propErrors = validateProps(plan.props, join(dir, 'public'));
       if (propErrors.length) throw new Error(`MarketingAd props for ${ratio} are invalid: ${propErrors.slice(0, 4).join('; ')}`);
       writeJson(join(dir, 'props.json'), plan.props);
-      writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: timeline.durationSeconds, pictureSeconds: timeline.durationSeconds, leadInSeconds: 0, timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups, integrity: plan.integrity });
+      writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: timeline.durationSeconds, pictureSeconds: timeline.durationSeconds, leadInSeconds: 0, ...(timeline.beatGrid ? { beatGrid: { bpm: timeline.beatGrid.bpm, offsetSeconds: timeline.beatGrid.offsetSeconds } } : {}), timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups, integrity: plan.integrity });
       writeJson(join(dir, 'gate-segments.json'), { band: plan.layout.uiBand, durationSeconds: timeline.durationSeconds, segments: plan.gateSegments });
       const target = loudnessTarget(ratio, ctx.spec, ctx.brand);
       const mixOut = join(dir, 'mix.wav');

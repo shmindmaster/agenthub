@@ -95,3 +95,47 @@ export function buildTimeline(lines, { lead = LEAD_SECONDS, tail = TAIL_SECONDS,
   }
   return { durationSeconds: round(t), segments };
 }
+
+/** The music bed's beat grid (`edit.beatGrid`): bed time 0 is program time 0, so beats fall at offsetSeconds + n * 60/bpm (any integer n: the offset is the phase). */
+export function beatGridOf(grid) {
+  const bpm = Number(grid?.bpm);
+  const offsetSeconds = Number(grid?.offsetSeconds ?? 0);
+  if (!(bpm >= 40 && bpm <= 220)) throw new Error(`edit.beatGrid.bpm must be between 40 and 220 (got ${grid?.bpm})`);
+  if (!(offsetSeconds >= 0 && offsetSeconds <= 10)) throw new Error(`edit.beatGrid.offsetSeconds must be between 0 and 10 seconds (got ${grid?.offsetSeconds})`);
+  return { bpm, offsetSeconds, periodSeconds: 60 / bpm };
+}
+
+const GRID_TOLERANCE = 0.0005; // a boundary within half a millisecond of a beat is on it
+
+/**
+ * Cuts on the beat. Every segment boundary except the program start lands on the next grid point at or after the segment's
+ * natural end, by lengthening only the segment's tail hold (never shortening it, never moving narration inside it); a boundary
+ * already on the grid is left alone, so each extension is under one beat period. Later segments shift by what came before:
+ * startSeconds, lineStartSeconds and every word time move together, speechSeconds is untouched, and the total grows.
+ * Pure: the input timeline is not modified. Times are whole milliseconds, so a boundary is within 0.5 ms of its grid point.
+ * @returns {object} the timeline with `beatGrid { bpm, offsetSeconds, periodSeconds, snapped, addedSeconds }` and, per segment, `snapExtendSeconds`
+ */
+export function snapToBeatGrid(timeline, grid) {
+  const { bpm, offsetSeconds, periodSeconds } = beatGridOf(grid);
+  if (!timeline.segments.length) return { ...timeline, beatGrid: { bpm, offsetSeconds, periodSeconds: round(periodSeconds, 6), snapped: 0, addedSeconds: 0 } };
+  let start = timeline.segments[0].startSeconds; // the program start is not snapped
+  let snapped = 0;
+  const segments = timeline.segments.map((seg) => {
+    const shift = round(start - seg.startSeconds);
+    const natural = round(start + seg.durationSeconds);
+    // n may be negative: the offset is the bed's phase, so beats continue backwards from it to program time 0
+    const n = Math.ceil((natural - offsetSeconds - GRID_TOLERANCE) / periodSeconds);
+    const boundary = Math.max(natural, round(offsetSeconds + n * periodSeconds));
+    const extend = round(boundary - natural);
+    if (extend > 0) snapped++;
+    const out = {
+      ...seg, startSeconds: start, durationSeconds: round(boundary - start), snapExtendSeconds: extend,
+      lineStartSeconds: seg.lineStartSeconds === null ? null : round(seg.lineStartSeconds + shift),
+      words: seg.words.map((w) => ({ ...w, start: round(w.start + shift), end: round(w.end + shift) })),
+    };
+    start = boundary;
+    return out;
+  });
+  const durationSeconds = start;
+  return { ...timeline, durationSeconds, segments, beatGrid: { bpm, offsetSeconds, periodSeconds: round(periodSeconds, 6), snapped, addedSeconds: round(durationSeconds - timeline.durationSeconds) } };
+}
