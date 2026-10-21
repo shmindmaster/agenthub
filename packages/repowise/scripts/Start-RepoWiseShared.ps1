@@ -176,7 +176,7 @@ try {
     Set-LaunchState 'starting'
     $launchStarted = $true
     $p = Start-Process -FilePath $RepoWisePython `
-        -ArgumentList "`"$SharedServer`"", "`"$Workspace`"", '--port', "$Port" `
+        -ArgumentList "`"$SharedServer`"", "`"$Workspace`"", '--port', "$Port", '--embedding-base-url', "`"$($EmbedderUrl -replace '/models/?$', '')`"" `
         -WorkingDirectory ($Workspace -replace '/', '\') -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $RuntimeDir 'stdout.log') `
         -RedirectStandardError (Join-Path $RuntimeDir 'stderr.log')

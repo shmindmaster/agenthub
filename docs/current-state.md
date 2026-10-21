@@ -4,6 +4,16 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **RepoWise local embedding routing (2026-10-21):** plugin 1.2.5 pins the
+  shared query process to the local OpenAI-compatible embedding service before
+  importing the vendor server. Startup probes an actual vector and rejects
+  unavailable, malformed, zero or nonfinite responses. Inherited remote URLs
+  and keys are overridden; loopback requests bypass inherited proxies. This
+  repairs queries silently falling back to FTS after remote authentication
+  failures. Focused tests cover routing, fail-closed behavior and the existing
+  independent-client lifetime. Installation and live retrieval require separate
+  readback; a passing startup probe alone is insufficient.
+
 - **Shared RepoWise HTTP lifetime:** the plugin launcher hosts RepoWise's public
   FastMCP surface through `packages/repowise/scripts/shared_server.py`. Registry
   resources belong to the ASGI application; disconnecting one MCP session leaves
