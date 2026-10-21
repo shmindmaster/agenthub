@@ -13,6 +13,15 @@ import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../timing.mjs';
 import { run } from '../mix.mjs';
 import { readJson, round, writeJson } from '../util.mjs';
 
+/** Seconds of leading silence before speech (ffmpeg silencedetect at -42 dB), less a 30 ms guard; 0 when speech starts at once. */
+export async function speechOnset(file) {
+  const r = await run('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-af', 'silencedetect=n=-42dB:d=0.1', '-f', 'null', '-']);
+  const text = `${r.stdout || ''}${r.stderr || ''}`;
+  const start = /silence_start: ([\d.]+)/.exec(text);
+  const end = /silence_end: ([\d.]+)/.exec(text);
+  return start && Number(start[1]) <= 0.02 && end ? Math.max(0, round(Number(end[1]) - 0.03, 3)) : 0;
+}
+
 export async function probeDuration(file) {
   const r = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]);
   const d = parseFloat(r.stdout);
@@ -27,8 +36,17 @@ async function wordsFor(ctx, { audio, asrPath, duration }) {
   if (provider === 'local-whisper') {
     const local = ctx.providers.localWhisper || (await import('../providers/local.mjs')).whisperWords;
     await local({ file: audio, jsonOut: asrPath, txtOut: asrPath.replace(/\.json$/, '.txt') });
+    // Whisper without VAD pins a line's first word at 0 s whatever silence precedes it; move it to the measured speech
+    // onset (the film pipeline's fix_asr_onset), so cue words match what the encoded-file ASR hears.
+    const payload = readJson(asrPath);
+    const onset = await (ctx.providers.speechOnset || speechOnset)(audio);
+    const first = (payload.segments || []).flatMap((x) => x.words || [])[0];
+    if (first && first.start < onset) {
+      first.start = round(Math.min(onset, first.end - 0.05), 3);
+      writeFileSync(asrPath, `${JSON.stringify(payload, null, 2)}\n`);
+    }
     ctx.ledger.charge({ stage: 'timing', provider: 'openai', service: 'whisper', units: 0, cached: true, note: 'local whisper' });
-    return { payload: readJson(asrPath), cached: false };
+    return { payload, cached: false };
   }
   const usd = estimateWhisperUsd(duration);
   ctx.ledger.check('openai', usd, 'whisper-1 timing');
@@ -58,7 +76,7 @@ export async function timingStage(ctx) {
       if (!line) throw new Error(`no voice line for narrated beat ${cut.id}/${beat.id}`);
       const audio = join(ctx.jobDir, line.file);
       const duration = await (ctx.providers.probeDuration || probeDuration)(audio);
-      const asrRel = join('timing', cut.id, 'asr', `${beat.id}-${line.key.slice(0, 12)}.json`);
+      const asrRel = join('timing', cut.id, 'asr', `${beat.id}-${line.key.slice(0, 12)}-${ctx.brand.timing?.provider || 'openai-whisper'}.json`);
       const { payload } = await wordsFor(ctx, { audio, asrPath: join(ctx.jobDir, asrRel), duration });
       asrFiles.push(asrRel);
       const words = alignScriptToAsr(beat.narration, parseAsrWords(payload), duration);

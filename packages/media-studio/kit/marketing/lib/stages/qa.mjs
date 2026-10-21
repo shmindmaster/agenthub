@@ -77,7 +77,7 @@ export async function qaStage(ctx) {
         } catch (e) { gates.vision = { status: 'fail', detail: e.message }; }
       }
 
-      const reviews = readReviews(join(qdir, 'reviews.json'));
+      const reviews = readReviews(join(qdir, 'reviews.json'), sha);
       const storyMin = ctx.spec.qa?.storyMin ?? 85;
       const sr = reviews.storyReview;
       gates.story = sr && sr.reviewer && Number(sr.score) >= storyMin && sr.cta ? { status: 'pass', detail: `score ${sr.score} by ${sr.reviewer}` } : pending(`media-story-experience-reviewer score >= ${storyMin} on this candidate (qa/${ratio}/reviews.json storyReview)`);

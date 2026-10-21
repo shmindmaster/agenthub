@@ -142,5 +142,10 @@ export function releasable(gates, required = DEFAULT_REQUIRED) {
   return { ok: failing.length === 0, failing };
 }
 
-export const readReviews = (path) => (existsSync(path) ? readJson(path) : {});
+/** The reviewer's file counts only for the candidate it names: a review of an earlier render must never pass a new one. */
+export function readReviews(path, candidateSha) {
+  if (!existsSync(path)) return {};
+  const reviews = readJson(path);
+  return reviews.candidateSha256 && reviews.candidateSha256 === candidateSha ? reviews : {};
+}
 export { round };

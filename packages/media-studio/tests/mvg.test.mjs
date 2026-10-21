@@ -19,7 +19,7 @@ import { chunkWords, toSrt, wrapCue } from '../kit/marketing/lib/captions.mjs';
 import { alignScriptToAsr, buildTimeline, parseAsrWords } from '../kit/marketing/lib/timing.mjs';
 import { buildMixArgs, loudnessTarget, parseLoudnorm } from '../kit/marketing/lib/mix.mjs';
 import { deliverFiles, nextFreeNumber, updateReadme, usedNumbers, deliveredName } from '../kit/marketing/lib/deliver.mjs';
-import { captionsCheck, releasable } from '../kit/marketing/lib/gates.mjs';
+import { captionsCheck, readReviews, releasable } from '../kit/marketing/lib/gates.mjs';
 import { applyArbitration, buildInstructions, evaluate, parseVerdict, sampleTimes, runVisionQa, VerdictError } from '../kit/marketing/vision-qa.mjs';
 import { dhash, hamming, staticRuns, bestDistance } from '../kit/marketing/lib/picture-gate.mjs';
 import { estimateImageUsd, estimateTtsCredits, estimateVisionUsd } from '../kit/marketing/lib/prices.mjs';
@@ -900,4 +900,16 @@ test('listen r2-5: releaseEligible is the pass signal and any finding, a WARNING
   const src = readFileSync(join(mod, 'lib', 'local-gates.mjs'), 'utf8');
   assert.match(src, /releaseEligible === true/);
   assert.ok(!/severity === 'WARNING'/.test(src), 'a WARNING is never downgraded');
+});
+
+test('reviews.json counts only for the candidate hash it names', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mvg-reviews-'));
+  const path = join(dir, 'reviews.json');
+  assert.deepEqual(readReviews(path, 'abc'), {});
+  writeFileSync(path, JSON.stringify({ candidateSha256: 'old', storyReview: { status: 'PASS', score: 90 } }));
+  assert.deepEqual(readReviews(path, 'new'), {});
+  writeFileSync(path, JSON.stringify({ storyReview: { status: 'PASS', score: 90 } }));
+  assert.deepEqual(readReviews(path, 'new'), {});
+  writeFileSync(path, JSON.stringify({ candidateSha256: 'new', storyReview: { status: 'PASS', score: 90 } }));
+  assert.equal(readReviews(path, 'new').storyReview.score, 90);
 });

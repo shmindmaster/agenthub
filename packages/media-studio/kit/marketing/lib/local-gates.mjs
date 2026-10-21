@@ -41,6 +41,8 @@ export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, s
   const listenOut = join(ws, 'qa', 'listen-encoded.json');
   rmSync(risk, { force: true });
   rmSync(listenOut, { force: true });
+  // The listen gate also refuses to overwrite its previous raw model response.
+  rmSync(`${listenOut}.model-response.txt`, { force: true });
   const pr = await run('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', `& '${AI}' voice pronunciation-risk --segments '${join(ws, 'story', 'narration-segments.json')}' --overrides '${join(ws, 'story', 'reading-overrides.json')}' --out '${risk}' --fail-on never`], { timeoutMs: 600000 });
   if (pr.code !== 0 || !existsSync(risk)) { out.listen = { status: 'fail', detail: `pronunciation-risk failed: ${tail(pr)}` }; return out; }
   const listen = await run('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', listenCommand({ candidate, ws, sha, sourceRevision, risk, listenOut })], { timeoutMs: 1800000 });
