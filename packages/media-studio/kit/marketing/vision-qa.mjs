@@ -6,7 +6,8 @@
 // CLI: node vision-qa.mjs <candidate.mp4> --spec <ad.json> --ratio 16x9 --out <report.json> [--brand brand.json]
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { validate } from './lib/schema.mjs';
 import { estimateVisionUsd, visionUsdFromUsage } from './lib/prices.mjs';
@@ -162,7 +163,7 @@ export async function runVisionQa(o) {
   const every = o.spec?.qa?.visionEverySeconds || 1.5;
   const duration = o.duration ?? ffprobeDuration(o.candidate);
   const times = sampleTimes(duration, every, { cues: o.cues || [] });
-  const frames = (o.frames || extractFramesFfmpeg)(o.candidate, times, o.framesDir || join(dirname(o.candidate), '.vision-frames'));
+  const frames = (o.frames || extractFramesFfmpeg)(o.candidate, times, o.framesDir || join(tmpdir(), 'mvg-vision-frames', basename(o.candidate)));
   const estimate = estimateVisionUsd(model, frames.length);
   o.ledger?.check('openai', estimate, 'vision QA');
   const vision = o.vision || (async (args) => (await import('./lib/providers/openai.mjs')).visionJson(args));
