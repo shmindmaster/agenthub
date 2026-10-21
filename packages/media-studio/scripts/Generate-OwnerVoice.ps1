@@ -79,7 +79,7 @@ function Apply-AsrBrandAliases([string]$Text) {
   $path = Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\private\asr-brand-aliases.json'
   if (-not (Test-Path -LiteralPath $path)) { return $Text }
   $t = $Text
-  foreach ($entry in @(Get-Content -LiteralPath $path -Raw | ConvertFrom-Json)) {
+  foreach ($entry in @(Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)) {
     foreach ($variant in @($entry.variants)) { $t = $t.Replace([string]$variant, [string]$entry.canonical) }
   }
   return $t
