@@ -4,6 +4,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Shared RepoWise HTTP lifetime:** the plugin launcher hosts RepoWise's public
+  FastMCP surface through `packages/repowise/scripts/shared_server.py`. Registry
+  resources belong to the ASGI application; disconnecting one MCP session leaves
+  other sessions usable. The bridge still starts the service on demand and fails
+  closed when the embedder is unavailable. Authenticated vendor HTTP gateways
+  require their own middleware; this loopback adapter refuses authenticated mode.
+  `packages/repowise/tests/test_shared_server.py` exercises independent sessions,
+  request context, validation, resource listing, teardown and reconnect.
+
 - **Marketing video generator, mvg (2026-10-20):** `packages/media-studio/kit/marketing`
   turns one ad spec into gated 16:9 / 4:5 / 9:16 ads (lint, voice, timing,
   assets, capture reuse, compose, qa, deliver; each stage cached by input

@@ -41,6 +41,8 @@ param(
     [int]$ServerWaitSeconds = 120,
     [switch]$SkipDegradedProbe,
     [string]$RepoWiseExe = (Join-Path $env:USERPROFILE '.local\bin\repowise.exe'),
+    [string]$RepoWisePython = (Join-Path $env:APPDATA 'uv\tools\repowise\Scripts\python.exe'),
+    [string]$SharedServer = (Join-Path $PSScriptRoot 'shared_server.py'),
     [string]$RuntimeDir = (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\repowise-shared')
 )
 
@@ -165,11 +167,13 @@ try {
     Write-Log 'embedder ready'
 
     if (-not (Test-Path -LiteralPath $RepoWiseExe)) { Write-Log "FAIL: $RepoWiseExe missing"; exit 3 }
-    Write-Log "starting $RepoWiseExe mcp $Workspace on 127.0.0.1:$Port"
+    if (-not (Test-Path -LiteralPath $RepoWisePython)) { Write-Log 'FAIL: RepoWise tool Python missing'; exit 3 }
+    if (-not (Test-Path -LiteralPath $SharedServer)) { Write-Log 'FAIL: shared server entry point missing'; exit 3 }
+    Write-Log "starting application-owned RepoWise workspace $Workspace on 127.0.0.1:$Port"
     Set-LaunchState 'starting'
     $launchStarted = $true
-    $p = Start-Process -FilePath $RepoWiseExe `
-        -ArgumentList 'mcp', $Workspace, '--transport', 'streamable-http', '--port', "$Port", '--host', '127.0.0.1' `
+    $p = Start-Process -FilePath $RepoWisePython `
+        -ArgumentList "`"$SharedServer`"", "`"$Workspace`"", '--port', "$Port" `
         -WorkingDirectory ($Workspace -replace '/', '\') -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $RuntimeDir 'stdout.log') `
         -RedirectStandardError (Join-Path $RuntimeDir 'stderr.log')
