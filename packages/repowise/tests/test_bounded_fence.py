@@ -62,6 +62,35 @@ class FenceTests(unittest.TestCase):
             for command in seen:
                 self.assertEqual(command[:2], ["git", "--no-optional-locks"])
 
+    def test_initialized_submodule_is_fenced_by_commit_instead_of_rejected(self):
+        git = ["git", "-c", "user.name=fixture", "-c", "user.email=fixture@example.com",
+               "-c", "protocol.file.allow=always"]
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+        def run(repo, *args):
+            subprocess.run([*git, "-C", str(repo), *args], check=True, creationflags=flags,
+                           capture_output=True)
+
+        with tempfile.TemporaryDirectory(prefix="factory-source-fence-") as directory:
+            root = Path(directory)
+            library, repo = root / "library", root / "repo"
+            for path in (library, repo):
+                path.mkdir()
+                run(path, "init", "-q")
+            (library / "lib.txt").write_text("one")
+            run(library, "add", ".")
+            run(library, "commit", "-qm", "library")
+            run(repo, "submodule", "add", "-q", str(library), "vendor")
+            run(repo, "commit", "-qm", "add submodule")
+            baseline = source_fence(repo)  # must not raise on the gitlink directory
+            self.assertEqual(baseline, source_fence(repo))
+            (repo / "vendor" / "lib.txt").write_text("two")
+            run(repo / "vendor", "commit", "-qam", "advance inside the submodule")
+            moved = source_fence(repo)
+            self.assertNotEqual(baseline, moved)  # checked-out HEAD no longer the recorded gitlink
+            run(repo, "add", "vendor")
+            self.assertNotEqual(moved, source_fence(repo))  # recorded gitlink moved too
+
 
 if __name__ == "__main__":
     unittest.main()

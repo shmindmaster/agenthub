@@ -16,11 +16,29 @@ def source_fence(repo: Path) -> dict:
                  (".vscode/mcp.json", ".mcp.json", "AGENTS.md", "CLAUDE.md",
                   ".claude/CLAUDE.md", ".repowise/config.yaml"))
     digest = sha256(git("status", "--porcelain=v1", "-z", "--untracked-files=all"))
-    digest.update(git("ls-files", "--stage", "-z"))
+    staged = git("ls-files", "--stage", "-z")
+    digest.update(staged)
+    gitlinks = {}
+    for entry in staged.split(b"\0"):
+        meta, _, name = entry.partition(b"\t")
+        fields = meta.split()
+        if len(fields) == 3 and fields[0] == b"160000":
+            gitlinks[name] = fields[1]
     for name in sorted(names):
         path = repo / os.fsdecode(name)
         content = sha256()
-        if path.is_symlink():
+        if name in gitlinks:
+            # A submodule is a directory in the work tree but a commit in the
+            # index: fence the recorded gitlink commit and what is checked out.
+            kind = b"gitlink"
+            content.update(gitlinks[name] + b"\0")
+            if (path / ".git").exists():
+                content.update(subprocess.check_output(
+                    ["git", "--no-optional-locks", "-C", str(path), "rev-parse", "HEAD"],
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).strip())
+            else:
+                content.update(b"uninitialized")
+        elif path.is_symlink():
             kind = b"symlink"
             content.update(os.fsencode(os.readlink(path)))
         elif path.is_file():
