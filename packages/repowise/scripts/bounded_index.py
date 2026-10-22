@@ -19,7 +19,33 @@ LEASE_OWNER = "AgentHub bounded RepoWise index"
 
 
 def require_lease(path: Path, token: str) -> None:
-    lease = json.loads(path.read_text(encoding="utf-8-sig"))
+    if os.name == "nt":
+        import ctypes as C
+        from ctypes import wintypes as W
+        import msvcrt
+        kernel = C.WinDLL("kernel32", use_last_error=True)
+        kernel.CreateFileW.argtypes = [
+            W.LPCWSTR, W.DWORD, W.DWORD, C.c_void_p, W.DWORD, W.DWORD, W.HANDLE]
+        kernel.CreateFileW.restype = W.HANDLE
+        kernel.CloseHandle.argtypes = [W.HANDLE]
+        kernel.CloseHandle.restype = W.BOOL
+        # The parent owns DELETE access through DeleteOnClose. Ordinary Python
+        # open() denies delete sharing and cannot read that live lease.
+        handle = kernel.CreateFileW(str(path), 0x80000000, 7, None, 3, 0, None)
+        if handle == C.c_void_p(-1).value:
+            raise C.WinError(C.get_last_error())
+        try:
+            descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY)
+        except Exception:
+            kernel.CloseHandle(handle)
+            raise
+        with os.fdopen(descriptor, "r", encoding="utf-8-sig") as stream:
+            body = stream.read(65537)
+    else:
+        body = path.read_text(encoding="utf-8-sig")
+    if len(body) > 65536:
+        raise ValueError("Admission lease exceeds its size limit")
+    lease = json.loads(body)
     if (lease.get("pid") != os.getppid() or lease.get("token") != token
             or lease.get("owner") != LEASE_OWNER):
         raise RuntimeError("Admission lease is not owned by the calling parent")

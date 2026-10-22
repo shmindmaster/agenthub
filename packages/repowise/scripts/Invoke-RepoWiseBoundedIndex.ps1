@@ -29,6 +29,13 @@ $free = (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory * 1KB
 if ($free -le $MinimumFreeGiB * 1GB) { throw 'Insufficient free physical RAM; no lease acquired.' }
 $pythonCommand = (Get-Command $Python -CommandType Application -ErrorAction Stop).Source
 if ($pythonCommand -like '*\WindowsApps\*') { throw 'Use an installed Python, not the Store stub.' }
+# uv/py launchers may insert a shim process. Call the actual interpreter so the
+# reader can bind the lease to its immediate PowerShell parent without guessing
+# ancestry or weakening the PID check.
+$runtime = (& $pythonCommand -c 'import sys; print(sys.executable)' | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or -not [IO.Path]::IsPathFullyQualified($runtime) -or
+    -not (Test-Path -LiteralPath $runtime -PathType Leaf)) { throw 'Could not resolve the actual Python interpreter.' }
+$pythonCommand = $runtime
 $token = [Guid]::NewGuid().ToString('N')
 $stream = $null
 try {
@@ -42,6 +49,7 @@ try {
     $bytes = [Text.Encoding]::UTF8.GetBytes(($record | ConvertTo-Json -Compress))
     $stream.Write($bytes, 0, $bytes.Length)
     $stream.Flush($true)
+    if ([DateTimeOffset]::Now -ge $Deadline) { throw 'Admission deadline has passed.' }
     & $pythonCommand "$PSScriptRoot\bounded_index.py" `
         --workspace $Workspace --repo-root $RepositoryRoot `
         --lease $LeasePath --lease-token $token --output $OutputDirectory `

@@ -32,9 +32,21 @@ try {
     catch { $refused = $true }
     if (-not $refused -or [IO.File]::ReadAllText($lease) -ne 'synthetic foreign lease' -or
         (Test-Path -LiteralPath $params.OutputDirectory)) { throw 'Foreign lease boundary failed.' }
+    $owned = Join-Path $scratch 'owned.json'
+    $handle = [IO.FileStream]::new($owned, [IO.FileMode]::CreateNew,
+        [IO.FileAccess]::Write, [IO.FileShare]::Read, 4096, [IO.FileOptions]::DeleteOnClose)
+    try {
+        $bytes = [Text.Encoding]::UTF8.GetBytes((@{owner='AgentHub bounded RepoWise index'
+            pid=$PID; token='synthetic'} | ConvertTo-Json -Compress))
+        $handle.Write($bytes, 0, $bytes.Length); $handle.Flush($true)
+        $runtime = (& python.exe -c 'import sys; print(sys.executable)').Trim()
+        & $runtime -c "import sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); from bounded_index import require_lease; require_lease(Path(sys.argv[2]),'synthetic')" "$package\scripts" $owned
+        if ($LASTEXITCODE -ne 0) { throw 'Owned live DeleteOnClose lease is unreadable.' }
+    } finally { $handle.Dispose() }
+    if (Test-Path -LiteralPath $owned) { throw 'Owned lease was not released by its exact handle.' }
 } finally {
     # This tree contains only the synthetic files created by this test.
     [IO.Directory]::Delete($scratch, $true)
 }
-Write-Host 'RESULT: 4 passed, 0 failed'
+Write-Host 'RESULT: 5 passed, 0 failed'
 exit 0
