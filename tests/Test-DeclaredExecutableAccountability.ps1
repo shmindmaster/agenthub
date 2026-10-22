@@ -19,19 +19,16 @@ every other suite was green.
 
 Two things this file must get right, both learned from the data:
 
-  - BARE NAMES ARE NOT PATHS. qwen-code declares `qwen`, which is correct and
-    resolves through PATH to ~/bin/qwen.cmd. A Test-Path-only check reports it
-    missing, and a false positive on a correct declaration is how a gate gets
-    ignored. Behavior 1 pins that case down explicitly.
-  - RESOLVING ON PATH IS NOT BEING INSTALLED. qoder is uninstalled, yet an
-    orphaned vendor wrapper at ~/bin/qodercli.cmd is still on PATH and points
-    at the (absent) declared exe, failing only when invoked. So PATH resolution
-    is used ONLY to resolve a bare name to a file, never as proof a product is
-    present.
+  - BARE NAMES ARE NOT PATHS. A valid command name resolves through PATH, so
+    a Test-Path-only check would report it missing. Behavior 1 covers that
+    control case explicitly.
+  - RESOLVING ON PATH IS NOT BEING INSTALLED. An orphaned vendor wrapper can
+    survive on PATH after an uninstall and point at an absent executable.
+    PATH resolution is used only to locate a file, never as proof the product
+    is present.
 
-Absence is judged on this machine and means nothing fleet-wide -- codex,
-hermes and qoder are all in fleet-profile.json managedHosts and may exist on
-another host. That is exactly why the remedy is a NOTE rather than deletion:
+Absence is judged on this machine and means nothing fleet-wide -- a product
+may be installed on another host. That is exactly why the remedy is a NOTE rather than deletion:
 the same reasoning Test-DeclaredPathAccountability records in
 gemini.agentsDirNote, where a declared path was changed on the mistaken basis
 that a directory absent from disk must be wrong.
@@ -163,7 +160,7 @@ function Test-ResolverDistinguishesTheFourStates {
         }
     }
     if ($wrong.Count -gt 0) {
-        return @{ Passed = $false; Detail = "the executable resolver misclassified its control cases, so no result below can be trusted: $($wrong -join '; '). The bare-name cases matter most: qwen-code correctly declares the bare name 'qwen', and a resolver that cannot follow PATH reports that correct declaration as missing." }
+        return @{ Passed = $false; Detail = "the executable resolver misclassified its control cases, so no result below can be trusted: $($wrong -join '; '). The bare-name case matters most: a resolver that cannot follow PATH reports a correct command declaration as missing." }
     }
     $declarations = Get-ExecutableDeclarations
     if ($declarations.Count -eq 0) {
@@ -189,7 +186,7 @@ function Test-EveryAbsentExecutableIsAccountedFor {
     $unaccounted = @($absent | Where-Object { -not (Test-HasAccounting -Declaration $_) })
     if ($unaccounted.Count -gt 0) {
         $rendered = @($unaccounted | ForEach-Object { "$($_.HostId) ($($_.Value))" })
-        return @{ Passed = $false; Detail = "$($unaccounted.Count) active host(s) declare an executable that does not resolve on this machine, with no 'executableNote' saying whether the path is wrong or the product is simply not installed here: $($rendered -join '; '). Check the real location first -- resolve bare names through PATH, and remember that a vendor wrapper surviving on PATH does NOT mean the product is installed (qoder). 'Not installed on this workstation' is a valid note; absence of a note is not, because it cannot be told apart from nobody having checked." }
+        return @{ Passed = $false; Detail = "$($unaccounted.Count) active host(s) declare an executable that does not resolve on this machine, with no 'executableNote' saying whether the path is wrong or the product is simply not installed here: $($rendered -join '; '). Check the real location first -- resolve bare names through PATH, and remember that a vendor wrapper surviving on PATH does NOT mean the product is installed. 'Not installed on this workstation' is a valid note; absence of a note is not, because it cannot be told apart from nobody having checked." }
     }
     return @{ Passed = $true; Detail = $null }
 }

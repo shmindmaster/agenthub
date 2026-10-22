@@ -14,11 +14,11 @@ trailing `\r`. This repo is checked out CRLF in this worktree
 today depends on which checkout ran it. That is the defect this file exists
 to close permanently.
 
-Every one of the ten `(?m)...$` literals actually found in the three files
-named by the task-6 brief (search: `rg "\(\?m[s]?\)" scripts/Sync-AgentHub.ps1
+The active `(?m)...$` literals found in the three files named by the task-6
+brief (search: `rg "\(\?m[s]?\)" scripts/Sync-AgentHub.ps1
 scripts/Validate-AgentHub.ps1 packages/product-experience-engineering/tests/validate-plugin.ps1`,
 then manually filtering to the ones that actually terminate in a bare `$`)
-is audited below:
+are audited below:
 
   packages/product-experience-engineering/tests/validate-plugin.ps1
     L92  ^description: .+$                       -- already tolerant (`.` absorbs \r, no capture group at risk) -- UNCHANGED, verified below
@@ -34,9 +34,10 @@ is audited below:
   scripts/Sync-AgentHub.ps1
     L980  ^source\s*=.*$ (used in -replace)       -- ACTIVE CORRUPTION (the replaced line loses its \r, degrading CRLF to LF for that one line) -- FIXED
     L1096 ^\[mcp_servers\.([^\].]+)\]$             -- ACTIVE FAILURE (the -Prune stale-section scan finds zero top-level sections against a CRLF host TOML, so MCP prune silently does nothing -- the project's defining defect) -- FIXED
-    L1260 ^mcp_servers:\s*$                        -- already tolerant (\s*$, no group at risk) -- UNCHANGED, verified below
 
-Everything else matching `(?m...)` in these three files either has no `$`
+The Hermes `mcp_servers` key check is no longer tested because its host
+writer was retired on 2026-10-21. Everything else matching `(?m...)` in
+these three files either has no `$`
 anchor at all (a prefix/substring check) or already anchors on `\r?$`/uses
 singleline mode with an explicit `\r?` in a lookahead (scripts/Sync-AgentHub.ps1
 L948, L976, L995 -- pre-existing, already correct) and is out of scope.
@@ -308,23 +309,14 @@ function Test-SyncAgentHubPruneRemovesStaleCrlfMcpSection {
     }
 }
 
-# --- Behavior 8 (regression guard, not a new fix): the anchors already using
-# the accepted \s*$ dialect (validate-plugin.ps1 L105, Sync-AgentHub.ps1
-# L1260) must stay CRLF-tolerant. These are extracted the same way as the
-# fixed ones so a future edit that drops the \s* is caught here too. ---
+# --- Behavior 8 (regression guard, not a new fix): the validator anchor
+# already using the accepted \s*$ dialect must stay CRLF-tolerant. ---
 function Test-AlreadyTolerantAnchorsStayTolerant {
     $pluginSource = [IO.File]::ReadAllText($validatePluginScript)
     $readonlyPattern = Get-QuotedLiteralContainingSubstring -SourceText $pluginSource -AnchorSubstring '^readonly:\s*(true|false)\s*$' -Because 'validate-plugin.ps1 readonly capture'
     $readonlySample = "readonly: true`r`n"
     if (-not [regex]::IsMatch($readonlySample, $readonlyPattern)) {
         return @{ Passed = $false; Detail = "readonly pattern '$readonlyPattern' no longer matches CRLF content: [$readonlySample]" }
-    }
-
-    $syncSource = [IO.File]::ReadAllText($syncAgentHubScript)
-    $mcpKeyPattern = Get-QuotedLiteralContainingSubstring -SourceText $syncSource -AnchorSubstring '^mcp_servers:\s*$' -Because 'Sync-AgentHub.ps1 mcp_servers: key existence check'
-    $mcpKeySample = "mcp_servers:`r`n  github:`r`n"
-    if (-not [regex]::IsMatch($mcpKeySample, $mcpKeyPattern)) {
-        return @{ Passed = $false; Detail = "mcp_servers: pattern '$mcpKeyPattern' no longer matches CRLF content: [$mcpKeySample]" }
     }
     return @{ Passed = $true; Detail = $null }
 }

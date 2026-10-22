@@ -29,6 +29,11 @@ function Run([string[]]$Arguments) {
     $p.Dispose(); return $result
 }
 $oldRoot = $env:AGENTHUB_ROOT; $oldLocal = $env:LOCALAPPDATA
+$oldApiKeyVars = @{}
+foreach ($name in @('ANTHROPIC_API_KEY','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','WARP_API_KEY')) {
+    $oldApiKeyVars[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+    [Environment]::SetEnvironmentVariable($name, 'synthetic-dispatch-fixture', 'Process')
+}
 $fixture = Join-Path $env:TEMP ('cad fixture ' + [guid]::NewGuid().ToString('n'))
 try {
     foreach ($dir in @('registry','scripts\lib','scratch','logs')) { $null = New-Item -ItemType Directory -Path (Join-Path $fixture $dir) -Force }
@@ -39,20 +44,23 @@ const fs = require('node:fs');
 if (process.env.CAD_FIXTURE_SLEEP) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 8000);
 const args = process.argv.slice(2);
 const contents = [];
+let ampSettings = null;
 for (const arg of args) {
   const match = arg.match(/Read the task from this UTF-8 file and carry it out: (.+)$/);
   const file = match ? match[1] : arg;
   if ((match || /prompt-.*\.txt$/.test(arg)) && fs.existsSync(file)) contents.push(fs.readFileSync(file, 'utf8'));
 }
-console.log(JSON.stringify({Arguments: args, Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PromptContents: contents}));
+const settingsIndex = args.indexOf('--settings-file');
+if (settingsIndex >= 0 && fs.existsSync(args[settingsIndex + 1])) ampSettings = JSON.parse(fs.readFileSync(args[settingsIndex + 1], 'utf8'));
+console.log(JSON.stringify({Arguments: args, Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','WARP_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
 if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
     $stub = Join-Path $fixture 'fake agent.cmd'
     $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
     [IO.File]::WriteAllText($stub, "@echo off`r`n`"$node`" `"$recorder`" %*`r`n")
-    $ids = @('claude','codex','cursor','cursor-agent','qwen-code','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','qoder','warp','windsurf','hermes','antigravity-desktop')
+    $ids = @('claude','codex','cursor','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium' }; opencode = @{ model = 'opencode/big-pickle' } } }
+    $fleet = @{ autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium-lightning' }; opencode = @{ model = 'opencode-go/hy3' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -62,14 +70,19 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $scratch = Join-Path $fixture 'scratch'
     $r = Run @('-List')
     Check 'list succeeds' ($r.Exit -eq 0) $r.Err
-    foreach ($id in @('claude','codex','amp','devin','qoder','warp')) { Check "$id headless contract" ($r.Out -match "(?m)^$id\tcallable\t") }
+    $fleet.dispatchPolicy['codex'] = @{ enabled = $false; reason = 'response capture is not verified'; ownerAction = 'run a bounded smoke after the output fix' }; Save-Fixture
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch)
+    Check 'disabled Codex policy refuses a dispatch' ($r.Exit -eq 3 -and $r.Err -match 'response capture is not verified' -and $r.Err -match 'bounded smoke')
+    $fleet.dispatchPolicy.Remove('codex'); Save-Fixture
+    $r = Run @('-List')
+    foreach ($id in @('claude','codex','amp','devin','warp')) { Check "$id headless contract" ($r.Out -match "(?m)^$id\tcallable\t") }
     foreach ($id in @('cursor','windsurf')) { Check "$id routes to CLI" ($r.Out -match "(?m)^$id\trouted\t") }
-    foreach ($id in @('hermes','antigravity-desktop')) { Check "$id refuses" ($r.Out -match "(?m)^$id\trefused\t") }
+    foreach ($id in @('antigravity-desktop')) { Check "$id refuses" ($r.Out -match "(?m)^$id\trefused\t") }
     $r = Run @('-HostId','unknown','-Prompt','ok'); Check 'unknown host refuses' ($r.Exit -eq 3 -and $r.Err -match 'unknown host')
     foreach ($id in @('devin-cloud','jules','cursor-cloud','copilot-agent')) {
         $r = Run @('-HostId',$id,'-Prompt','ok'); Check "$id cloud refuses" ($r.Exit -eq 3 -and $r.Err -match 'hosted cloud execution')
     }
-    foreach ($id in @('claude','codex','cursor-agent','qwen-code','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','qoder','warp')) {
+    foreach ($id in @('claude','codex','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
         $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
         Check "$id launches synthetic child" ($r.Exit -eq 0 -and $null -ne $d) $r.Err
@@ -78,15 +91,44 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'codex did not initialize git' (-not (Test-Path (Join-Path $scratch '.git')))
         }
         if ($id -eq 'antigravity') { Check 'agy attaches print value after permissions' ($d.Arguments -contains '--print=ok' -and $d.Arguments[0] -eq '--dangerously-skip-permissions') }
+        if ($id -eq 'factory') {
+            $factoryOrder = @('--cwd', $scratch, 'exec', '--auto', 'high', '-f')
+            $factoryArgsMatch = $d.Arguments.Count -eq 7
+            for ($i = 0; $i -lt $factoryOrder.Count; $i++) {
+                if ($d.Arguments[$i] -ne $factoryOrder[$i]) { $factoryArgsMatch = $false }
+            }
+            Check 'Factory places global auto mode after exec' ($factoryArgsMatch -and $d.PromptContents -contains 'ok')
+        }
+        if ($id -eq 'gemini') {
+            $promptIndex = [Array]::IndexOf($d.Arguments, '--prompt')
+            $approvalIndex = [Array]::IndexOf($d.Arguments, '--approval-mode')
+            Check 'Gemini uses headless prompt with yolo approval mode' ($promptIndex -ge 0 -and $d.Arguments[$promptIndex + 1] -eq 'ok' -and $approvalIndex -ge 0 -and $d.Arguments[$approvalIndex + 1] -eq 'yolo' -and $d.Arguments -notcontains '--yolo')
+        }
+        if ($id -eq 'cursor-agent') {
+            Check 'Cursor uses print text mode, read-only Q&A and trusted workspace' ($d.Arguments -contains '--print' -and $d.Arguments -contains '--output-format' -and $d.Arguments -contains 'text' -and $d.Arguments -contains '--mode' -and $d.Arguments -contains 'ask' -and $d.Arguments -contains '--trust' -and $d.Arguments -contains '--workspace' -and $d.Arguments -contains $scratch)
+        }
         if ($id -eq 'warp') { Check 'warp receives CLI environment' ($d.WarpMode -eq '1' -and $d.Arguments[0] -eq 'agent' -and $d.Arguments[1] -eq 'run') }
-        if ($id -eq 'devin') { Check 'Devin receives prompt file and pinned free model' ($d.PromptContents -contains 'ok' -and $d.Arguments -contains '--prompt-file' -and $d.Arguments -contains 'swe-2-medium') }
-        if ($id -eq 'opencode') { Check 'OpenCode receives pinned free model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'opencode/big-pickle') }
-        if ($id -eq 'amp') { Check 'Amp receives unattended stdin contract' ($d.Input -eq 'ok' -and $d.Arguments -contains '-x' -and $d.Arguments -contains '--no-notifications' -and $d.Arguments -contains '--no-ide') }
-        if ($id -eq 'qoder') { Check 'Qoder receives print workspace and text options' ($d.Arguments -contains '-p' -and $d.Arguments -contains '-w' -and $d.Arguments -contains $scratch -and $d.Arguments -contains 'text') }
+        if ($id -eq 'devin') { Check 'Devin receives prompt file and paid model' ($d.PromptContents -contains 'ok' -and $d.Arguments -contains '--prompt-file' -and $d.Arguments -contains 'swe-2-medium-lightning') }
+        if ($id -eq 'devin') { Check 'Devin uses account auth without its API key' (-not $d.ApiKeyVars.DEVIN_API_KEY) }
+        if ($id -eq 'claude') { Check 'Claude uses account auth without its API key' (-not $d.ApiKeyVars.ANTHROPIC_API_KEY) }
+        if ($id -eq 'codex') { Check 'Codex uses account auth without its API key' (-not $d.ApiKeyVars.OPENAI_API_KEY) }
+        if ($id -eq 'cline') { Check 'Cline uses account auth without Anthropic API key' (-not $d.ApiKeyVars.ANTHROPIC_API_KEY) }
+        if ($id -eq 'gemini') { Check 'Gemini uses OAuth without API-key variables' (-not $d.ApiKeyVars.GOOGLE_API_KEY -and -not $d.ApiKeyVars.GEMINI_API_KEY) }
+        if ($id -eq 'opencode') {
+            Check 'OpenCode receives paid plan model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'opencode-go/hy3')
+            Check 'OpenCode Go account uses no API key override' (-not $d.ApiKeyVars.OPENCODE_GO_API_KEY)
+        }
+        if ($id -eq 'warp') { Check 'Warp account auth uses no API key override' (-not $d.ApiKeyVars.WARP_API_KEY) }
+        if ($id -eq 'amp') {
+            $settingsIndex = [Array]::IndexOf($d.Arguments, '--settings-file')
+            $settingsPath = if ($settingsIndex -ge 0) { $d.Arguments[$settingsIndex + 1] } else { $null }
+            Check 'Amp receives unattended stdin with MCP servers disabled' ($d.Input -eq 'ok' -and $d.Arguments -contains '-x' -and $d.Arguments -contains '--no-notifications' -and $d.Arguments -contains '--no-ide' -and $d.AmpSettingsLoaded -and $d.AmpMcpServerCount -eq 0)
+            Check 'Amp dispatch-only settings file is removed' ($settingsPath -and -not (Test-Path -LiteralPath $settingsPath))
+        }
     }
     $text = "quoted `"text`" café`n& echo %PATH% !name! " + ('x' * 9000)
     $taskFile = Join-Path $fixture 'task.txt'; [IO.File]::WriteAllText($taskFile, $text)
-    foreach ($id in @('qwen-code','gemini','antigravity','qoder')) {
+    foreach ($id in @('gemini','antigravity')) {
         $r = Run @('-HostId',$id,'-PromptFile',$taskFile,'-Cwd',$scratch,'-TimeoutSec','5')
         $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
         $detail = "exit=$($r.Exit) lengths=$(@($d.PromptContents | ForEach-Object { $_.Length }) -join ',') expected=$($text.Length) args=$($d.Arguments -join ' ') $($r.Err)"
@@ -99,8 +141,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         Check "$id preserves UTF-8 task through stdin or file" ($r.Exit -eq 0 -and ($d.Input -eq $text -or $d.PromptContents -contains $text)) $r.Err
     }
     $r = Run @('-HostId','windsurf','-Prompt','ok','-Cwd',$scratch)
-    Check 'Windsurf executes the Devin file contract' ($r.Exit -eq 0 -and $r.Out -match 'routed: windsurf -> devin' -and $r.Out -match 'swe-2-medium') $r.Err
-    $r = Run @('-HostId','qoder','-Prompt','--dash & echo %PATH%','-ShowCommand')
+    Check 'Windsurf executes the Devin file contract' ($r.Exit -eq 0 -and $r.Out -match 'routed: windsurf -> devin' -and $r.Out -match 'swe-2-medium-lightning') $r.Err
+    $r = Run @('-HostId','gemini','-Prompt','--dash & echo %PATH%','-ShowCommand')
     Check 'show command uses safe pointer' ($r.Exit -eq 0 -and $r.Out -match 'prompt-show.txt' -and $r.Out -notmatch '%PATH%')
     $fleet.dispatchPolicy['devin'] = @{ enabled = $false; reason = 'synthetic auth block'; ownerAction = 'owner runs devin auth login' }; Save-Fixture
     $r = Run @('-HostId','windsurf','-Prompt','ok')
@@ -111,8 +153,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','amp','-Prompt','ok'); Check 'table cannot bypass interactive profile' ($r.Exit -eq 3 -and $r.Err -match 'interactive')
     ($fleet.autonomyProfiles.profiles | Where-Object hostId -eq 'windsurf').defaultProfile = 'interactive'; Save-Fixture
     $r = Run @('-HostId','windsurf','-Prompt','ok'); Check 'alias cannot bypass its interactive profile' ($r.Exit -eq 3 -and $r.Err -match 'interactive')
-    ($agents.activeAgents | Where-Object id -eq 'qoder').executable = Join-Path $fixture 'missing.exe'; Save-Fixture
-    $r = Run @('-HostId','qoder','-Prompt','ok'); Check 'missing binary refuses' ($r.Exit -eq 3 -and $r.Err -match 'executable is absent')
+    ($agents.activeAgents | Where-Object id -eq 'gemini').executable = Join-Path $fixture 'missing.exe'; Save-Fixture
+    $r = Run @('-HostId','gemini','-Prompt','ok'); Check 'missing binary refuses' ($r.Exit -eq 3 -and $r.Err -match 'executable is absent')
     $env:CAD_FIXTURE_EXIT = '1'
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch); Check 'child exit code retained' ($r.Exit -eq 7)
     $env:CAD_FIXTURE_EXIT = $null; $env:CAD_FIXTURE_SLEEP = '1'
@@ -124,6 +166,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'temporary prompt files cleaned' ($left.Count -eq 0)
 } finally {
     $env:AGENTHUB_ROOT = $oldRoot; $env:LOCALAPPDATA = $oldLocal; $env:CAD_FIXTURE_EXIT = $null; $env:CAD_FIXTURE_SLEEP = $null
+    foreach ($name in $oldApiKeyVars.Keys) { [Environment]::SetEnvironmentVariable($name, $oldApiKeyVars[$name], 'Process') }
     $resolved = [IO.Path]::GetFullPath($fixture)
     if ($resolved.StartsWith([IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $resolved -Recurse -Force }
 }

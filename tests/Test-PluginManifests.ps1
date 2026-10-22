@@ -322,7 +322,7 @@ if ($failures.Count -gt 0) {
 # authority. Host projections may add host-native fields but must not diverge
 # on version. On 2026-08-19 only .claude-plugin was bumped for one package, so
 # hosts disagreed; requiring root authority prevents that split.
-$hostManifestDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin', '.qoder-plugin')
+$hostManifestDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin')
 $packagesWithHostVersion = 0
 foreach ($pkgDir in Get-ChildItem -LiteralPath (Join-Path $repoRoot 'packages') -Directory) {
     $rootManifest = Join-Path $pkgDir.FullName 'plugin.json'

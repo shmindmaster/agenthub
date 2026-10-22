@@ -7,8 +7,8 @@ Why: measured 2026-08-19, the first time this was checked end to end: 18 of
 22 active hosts carried a stale `version`, three of them wrong in ways a
 simple diff would not catch -- grok's recorded 0.2.114 belonged to a
 different product line entirely (every artifact this install owns agrees on
-the 1.0.x scheme instead), qoder's recorded 1.1.5 was HIGHER than the
-installed 1.0.45 so it was never a real observation, and factory carried a
+the 1.0.x scheme instead), another recorded CLI version was higher than the
+installed version so it was never a real observation, and factory carried a
 third number that matched neither the binary's own output nor the app
 directory it ships under. Nothing in this repository compared the recorded
 string to a live probe, so drift accumulated silently across every upgrade.
@@ -39,7 +39,7 @@ for part of the fleet:
                       WinGet agy.exe blocked; the 2026-10-14 binary at
                       %LOCALAPPDATA%\agy\bin\agy.exe answers --version and uses cli.
   - 'none'          - there is no installed binary at all (opencode-desktop,
-                      hermes, windsurf). The only thing to assert is that the
+                      windsurf). The only thing to assert is that the
                       registry's own belief agrees: the declared executable
                       must really be absent, because a 'none' entry whose
                       executable DOES exist on disk means the record drifted
@@ -82,8 +82,8 @@ function Report {
 $agents = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $activeAgents = @($agents.activeAgents | Where-Object { $_ })
 
-# Bare names are not paths (qwen-code declares the bare command 'qwen'), and
-# resolving on PATH is not proof of installation (an orphaned vendor wrapper
+# Bare names are not paths, and resolving on PATH is not proof of installation
+# (an orphaned vendor wrapper
 # can survive on PATH after an uninstall) -- so this resolver only ever says
 # whether a FILE is really there, using Get-Command purely to turn a bare
 # name into the absolute path PATH would actually run, per the guidance
@@ -101,8 +101,8 @@ function Resolve-ExecutableState {
         if (Test-Path -LiteralPath $text -PathType Leaf) { return [pscustomobject]@{ State = 'Present'; Path = $text } }
         return [pscustomobject]@{ State = 'Absent'; Path = $text }
     }
-    # A bare name can match several files across PATHEXT (qwen resolves to
-    # qwen.cmd AND qwen.ps1 AND a third qwen.cmd on a second PATH entry).
+    # A bare name can match several files across PATHEXT, potentially on multiple
+    # PATH entries.
     # Get-Command returns all of them as an array in that case; taking the
     # array whole and handing it to & later invokes it as multiple
     # positional arguments rather than one path, producing nonsense output.

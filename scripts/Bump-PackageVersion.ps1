@@ -6,7 +6,7 @@
 .DESCRIPTION
   AgentHub treats packages/<id>/plugin.json as the portable Agent Plugins floor
   and the version authority. Host projections (.claude-plugin, .codex-plugin,
-  .cursor-plugin, .qoder-plugin) must carry the same version string.
+  .cursor-plugin) must carry the same version string.
 
   This script updates those manifests together. It does not recompute
   contentHash or edit registry/capabilities.json — run RegistryContentHash.ps1
@@ -35,7 +35,7 @@ if ($Version -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
     throw "Version '$Version' is not a simple semver-like string (expected N.N.N)."
 }
 
-$hostDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin', '.qoder-plugin')
+$hostDirs = @('.claude-plugin', '.codex-plugin', '.cursor-plugin')
 $schema = 'https://agentplugins.org/schemas/1.0.0/plugin.schema.json'
 $rootManifestPath = Join-Path $packageRoot 'plugin.json'
 

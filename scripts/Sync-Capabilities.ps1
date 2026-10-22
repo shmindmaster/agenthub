@@ -289,7 +289,7 @@ foreach ($capability in $capabilities.capabilities) {
     # skillsDir. The fleet master is ~/.agents/skills. Hosts that natively
     # read that path (codex, gemini, cursor, copilot, warp, amp, factory,
     # opencode, windsurf, vscode-insiders) deploy only there. Hosts that do
-    # not (claude, cline, grok, qwen, qoder) still declare sharedSkillsDir
+    # not (claude, cline, grok) still declare sharedSkillsDir
     # so AgentHub writes once; their skillsDir is a directory junction to
     # the master library. $desired stays keyed purely by the physical
     # destination path (not e.g. "$hostId::$destination"), so when two
