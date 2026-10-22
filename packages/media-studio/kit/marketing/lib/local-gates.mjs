@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { run } from './mix.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
+import { expandKeywords } from './align.mjs';
 import { alignWords as forceAlign } from './providers/local.mjs';
 import { forcedWordOnsets } from '../../screencast/sync-lib.mjs';
 
@@ -22,6 +23,26 @@ export function gateScript(name, moduleRoot) {
 const tail = (r) => String(r.stderr || r.stdout || '').trim().split(/\r?\n/).filter(Boolean).slice(-2).join(' | ').slice(0, 300);
 
 export const listenFindings = (report) => ((report.findings || []).map((f) => `${f.severity} ${f.checkId} at ${f.startSeconds}s: ${String(f.description).slice(0, 120)}`).join(' | ') || 'no findings (check the report)');
+
+/** Transcript text only. Preserve numeric values and word boundaries, not Whisper onset times. */
+export function transcriptKey(text) {
+  const source = String(text).toLowerCase().replace(/[’']/g, '').replace(/%/g, ' percent ');
+  const words = [...source.matchAll(/[\p{L}]+|-?\d+(?:\.\d+)?/gu)];
+  const number = word => expandKeywords([word]).find(key => /^\d+$/.test(key));
+  const keys = [];
+  for (let i = 0; i < words.length; i++) {
+    const hit = words[i];
+    const n = number(hit[0]), unit = number(words[i + 1]?.[0]);
+    const adjacent = words[i + 1] && /^[\s-]+$/.test(source.slice(hit.index + hit[0].length, words[i + 1].index));
+    if (/^[\p{L}]+$/u.test(hit[0]) && n && Number(n) >= 20 && Number(n) <= 90 && Number(n) % 10 === 0 && unit && Number(unit) > 0 && Number(unit) < 10 && adjacent) {
+      i++;
+      keys.push(String(Number(n) + Number(unit)));
+    } else {
+      keys.push(/^-?\d/.test(hit[0]) ? hit[0] : number(hit[0]) || hit[0]);
+    }
+  }
+  return keys.join(' ');
+}
 
 /** The exact listen command line (the film chain's post_gates.sh passes the same flags). */
 export function listenCommand({ candidate, ws, sha, sourceRevision, risk, listenOut }) {
@@ -67,9 +88,8 @@ export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, s
     // Text only. Word timing is deliberately discarded.
     const content = readJson(asrJson);
     const spoken = content.text || content.segments?.map((s) => s.text).join(' ') || content.words?.map((w) => w.word || w.text).join(' ') || '';
-    const normalized = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
     const locked = readJson(join(ws, 'story', 'narration-timeline.json')).segments.map((s) => s.text).join(' ');
-    if (!normalized(spoken) || normalized(spoken) !== normalized(locked)) out.transcript = { status: 'fail', detail: 'Whisper text differs from the locked script; inspect transcript, not onsets' };
+    if (!transcriptKey(spoken) || transcriptKey(spoken) !== transcriptKey(locked)) out.transcript = { status: 'fail', detail: 'Whisper text differs from the locked script; inspect transcript, not onsets' };
   }
   const sync = await run(process.execPath, [gateScript('validate-sync.mjs', moduleRoot), ws, candidate], {});
   const report = existsSync(join(ws, 'qa', 'sync.json')) ? readJson(join(ws, 'qa', 'sync.json')) : null;

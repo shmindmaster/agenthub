@@ -17,10 +17,19 @@ import { localVisionJson, visionEndpoint } from '../kit/marketing/lib/providers/
 import { loadContext } from '../kit/marketing/lib/context.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
 import { requiredGates } from '../kit/marketing/lib/gates.mjs';
+import { transcriptKey } from '../kit/marketing/lib/local-gates.mjs';
 
 const root = mkdtempSync(join(tmpdir(), 'candidate-qa-'));
 test.after(() => rmSync(root, { recursive: true, force: true }));
 const write = (p, value) => writeFileSync(p, JSON.stringify(value));
+
+test('transcript text canonicalizes numeric spelling without hiding changed values or using onsets', () => {
+  assert.equal(transcriptKey('Twelve trials.'), transcriptKey('12 trials'));
+  assert.equal(transcriptKey('Four trials. Three correct. Seventy-five percent.'), transcriptKey('4 trials, 3 correct, 75%.'));
+  assert.equal(transcriptKey('seventy five percent'), transcriptKey('75%'));
+  assert.equal(transcriptKey('Trial-response.'), transcriptKey('trial response'));
+  for (const [a, b] of [['four', 'five'], ['four three', '43'], ['seventy. five', '75'], ['1.2', '12'], ['-5', '5']]) assert.notEqual(transcriptKey(a), transcriptKey(b));
+});
 
 test('QA and deliver stage selection cannot re-enter compose, even with force or stale upstream inputs', async () => {
   for (const name of ['qa', 'deliver']) {
