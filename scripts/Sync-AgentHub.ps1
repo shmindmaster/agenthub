@@ -1248,6 +1248,12 @@ function Sync-HostMcp-Codex {
     if (-not (Test-Path -LiteralPath $path)) { return @{ status='config-missing' } }
 
     $toml = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+    # Codex writes config.toml with LF line endings and rewrites the whole file on
+    # its own saves. Emitting managed sections with [Environment]::NewLine (CRLF on
+    # Windows) produced a mixed-ending file that Codex normalised back to LF, so
+    # every audit after a Codex save reported drift that no content change caused
+    # (observed 2026-10-22). Follow the file's own ending; LF for a new file.
+    $codexNewLine = if ($toml -and $toml.Contains("`r`n")) { "`r`n" } else { "`n" }
     $newToml = $toml
 
     # Remove only entries with an explicit native-plugin owner or lifecycle
@@ -1307,13 +1313,13 @@ function Sync-HostMcp-Codex {
             }
         }
 
-        $sectionText = ($sectionLines -join [Environment]::NewLine) + [Environment]::NewLine
+        $sectionText = ($sectionLines -join $codexNewLine) + $codexNewLine
         $sectionPattern = Get-CodexMcpSectionPattern $key
         if ($newToml -match $sectionPattern) {
             $newToml = [regex]::Replace($newToml, $sectionPattern, $sectionText)
         } else {
-            if ($newToml.Length -gt 0 -and -not $newToml.EndsWith("`n")) { $newToml += [Environment]::NewLine }
-            $newToml += [Environment]::NewLine + $sectionText
+            if ($newToml.Length -gt 0 -and -not $newToml.EndsWith("`n")) { $newToml += $codexNewLine }
+            $newToml += $codexNewLine + $sectionText
         }
     }
 
