@@ -16,8 +16,12 @@
       - Forbidden legacy instruction surfaces (GEMINI.md, .cursorrules,
         .windsurfrules, .github/copilot-instructions.md,
         docs/ai/REPO_AGENT_RULES.md, scratch state files) do not exist.
-      - RepoWise: repo is a member of the fleet workspace, post-commit hook
-        installed, .repowise/ gitignored, index present and not stale.
+      - RepoWise: repo is a member of the fleet workspace, .repowise/
+        gitignored, index present and not stale. Freshness is refreshed only
+        through the bounded manual entry point
+        (packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1); the
+        standard no longer requires, and does not recommend, a post-commit hook
+        or a bare `repowise update`.
       - One MCP registration: the fleet workspace server in
         registry/mcps.json. Per-repo repowise MCP entries are drift.
       - Tracker authority is explicit in AGENTS.md.
@@ -77,6 +81,37 @@ if ([string]::IsNullOrWhiteSpace($workspaceFileName)) { $workspaceFileName = '.r
 $workspaceRoot = [string]$config.workspace.root
 if ([string]::IsNullOrWhiteSpace($workspaceRoot)) { $workspaceRoot = $fleetRoot }
 $workspaceFile     = Join-Path $workspaceRoot $workspaceFileName
+
+# The fleet's RepoWise freshness path is the bounded manual entry point in the
+# agenthub checkout this checker belongs to. It is a fleet-level property, so it
+# is resolved once and reported on every audited repo. A registry that declares
+# no path fails closed rather than skipping the rule.
+$refreshCfg = $config.repowiseRefresh
+$boundedRefreshOk = $false
+$boundedRefreshDetail = ''
+$boundedRefreshCommand = 'packages\repowise\scripts\Invoke-RepoWiseBoundedIndex.ps1'
+if ($null -eq $refreshCfg -or [string]::IsNullOrWhiteSpace([string]$refreshCfg.entryPoint)) {
+    $boundedRefreshDetail = "repo-standard.json declares no repowiseRefresh.entryPoint; the fleet freshness path is $boundedRefreshCommand"
+} else {
+    $refreshRoot = if ([string]::IsNullOrWhiteSpace([string]$refreshCfg.root)) { $repoRoot } else { [string]$refreshCfg.root }
+    $entryName = [IO.Path]::GetFileName([string]$refreshCfg.entryPoint)
+    $entryFile = Join-Path $refreshRoot (([string]$refreshCfg.entryPoint) -replace '/', '\')
+    $undocumented = @()
+    foreach ($doc in @($refreshCfg.documentedIn)) {
+        $docFile = Join-Path $refreshRoot (([string]$doc) -replace '/', '\')
+        $docText = if (Test-Path -LiteralPath $docFile -PathType Leaf) { Get-Content -LiteralPath $docFile -Raw -Encoding UTF8 } else { '' }
+        if ($docText -notmatch [regex]::Escape($entryName)) { $undocumented += [string]$doc }
+    }
+    if (-not (Test-Path -LiteralPath $entryFile -PathType Leaf)) {
+        $boundedRefreshDetail = "missing $($refreshCfg.entryPoint) in the agenthub checkout; restore the bounded entry point $boundedRefreshCommand (not a post-commit hook or bare repowise update)"
+    } elseif (@($refreshCfg.documentedIn).Count -eq 0) {
+        $boundedRefreshDetail = "repowiseRefresh.documentedIn is empty; name the skill that documents $boundedRefreshCommand"
+    } elseif ($undocumented.Count -gt 0) {
+        $boundedRefreshDetail = "$($undocumented -join ', ') does not document the bounded entry point $boundedRefreshCommand"
+    } else {
+        $boundedRefreshOk = $true
+    }
+}
 
 $workspaceRepos = @()
 if (Test-Path -LiteralPath $workspaceFile) {
@@ -418,9 +453,7 @@ function Invoke-RepoCheck {
     $inWorkspace = $workspaceRepos -contains $Name
     Add-Result $Name 'repowise-membership' $inWorkspace $(if (-not $inWorkspace) { "not in $workspaceFileName" } else { '' }) $false
 
-    $hookPath = Join-Path $path '.git\hooks\post-commit'
-    $hookOk = (Test-Path -LiteralPath $hookPath) -and ((Get-Content -LiteralPath $hookPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue) -match 'repowise')
-    Add-Result $Name 'repowise-hook' $hookOk $(if (-not $hookOk) { 'run: repowise hook install -w from C:\Repos' } else { '' }) $false
+    Add-Result $Name 'repowise-bounded-refresh' $boundedRefreshOk $boundedRefreshDetail $false
 
     $gitignorePath = Join-Path $path '.gitignore'
     $gi = if (Test-Path -LiteralPath $gitignorePath) { Get-Content -LiteralPath $gitignorePath -Raw -Encoding UTF8 } else { '' }
@@ -458,12 +491,12 @@ function Invoke-RepoCheck {
                 throw "git rev-parse HEAD failed (exit $LASTEXITCODE): $head"
             }
             $stale = ($syncCommit -ne $head)
-            Add-Result $Name 'repowise-freshness' (-not $stale) $(if ($stale) { "index not at HEAD; run repowise update --repo $Name" } else { '' }) $false
+            Add-Result $Name 'repowise-freshness' (-not $stale) $(if ($stale) { "index not at HEAD; refresh with the bounded entry point $boundedRefreshCommand (-RepositoryRoot this repo)" } else { '' }) $false
         } catch {
             Add-Result $Name 'repowise-freshness' $false "unable to verify freshness: $($_.Exception.Message)" $false
         }
     } else {
-        Add-Result $Name 'repowise-indexed' $false 'no .repowise/state.json; run repowise update --repo <name>' $false
+        Add-Result $Name 'repowise-indexed' $false "no .repowise/state.json; the bounded entry point $boundedRefreshCommand refuses first-time initialization, so initialize deliberately, then refresh through it" $false
     }
 
     $mcpPath = Join-Path $path '.mcp.json'
