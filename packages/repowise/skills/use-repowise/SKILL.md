@@ -147,6 +147,9 @@ per-repo repowise MCP entries.
 - **Agent hosts:** skills + CLI everywhere; MCP only while `repowise@agenthub`
   is enabled. Distill markers in `AGENTS.md` / Cursor rules. Do not restore
   disabled unbounded post-commit hooks.
+- Workspace instructions live in `C:\Repos\.claude\CLAUDE.md` and
+  `C:\Repos\AGENTS.md`. Per-repo managed blocks sit between `REPOWISE:START`
+  markers — never hand-edit below them.
 
 ### MCP tools (call these instead of grep/read for exploration)
 
@@ -201,15 +204,20 @@ workspace. Acceptance requires exit zero, no remaining owned descendants,
 the exact current HEAD in `state.last_sync_commit`, and unchanged HEAD,
 staged entries, tracked/nonignored source bytes and known agent config.
 An unexpected source edit fails acceptance; it is never silently reverted.
+The source fence covers Git-visible files (tracked and non-ignored untracked)
+plus a fixed list of agent config names (`.vscode/mcp.json`, `.mcp.json`,
+`AGENTS.md`, `CLAUDE.md`, `.claude/CLAUDE.md`, `.repowise/config.yaml`), not
+every ignored agent artifact.
+The wrapper removes its lease only once the run left no owned processes. If
+the job cannot be reconciled (exit 3) the lease stays on disk and an operator
+must verify the processes are gone before removing it. If the wrapper itself
+is killed, the job is terminated with it.
 This is an incremental update, not an embedding-provider migration or a
 forced full rebuild. A successful receipt does not prove semantic/vector
 retrieval quality. Check real queries separately.
 
 There is no automatic post-commit refresh. Do not run an unbounded update,
 `--full`, docs generation or first-time initialization through this wrapper.
-- Workspace instructions live in `C:\Repos\.claude\CLAUDE.md` and
-  `C:\Repos\AGENTS.md`. Per-repo managed blocks sit between `REPOWISE:START`
-  markers — never hand-edit below them.
 
 ## Standard enforcement
 
