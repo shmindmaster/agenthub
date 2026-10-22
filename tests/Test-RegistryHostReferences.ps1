@@ -237,6 +237,70 @@ function Test-LiveCapabilitiesCanonicalSourcesAllExistOnDisk {
     return @{ Passed = $true; Detail = $null }
 }
 
+# --- Behavior 6: every host configuration carries an explicit auth mode and
+# owner login command. Unverified account smokes remain gated; Codex stays
+# disabled until the dispatcher captures a standalone response. ---
+function Test-LiveHostAuthenticationMetadata {
+    $profile = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    $violations = [Collections.Generic.List[string]]::new()
+    foreach ($entry in $profile.hostSettings.PSObject.Properties) {
+        if ($entry.Value.authMode -notin @('account', 'apiKey')) {
+            $violations.Add("$($entry.Name) has no valid authMode")
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$entry.Value.loginCommand)) {
+            $violations.Add("$($entry.Name) has no loginCommand")
+        }
+    }
+    $dispatchHosts = @('claude', 'codex', 'cursor-agent', 'gemini', 'grok', 'opencode', 'antigravity', 'factory', 'cline', 'copilot', 'amp', 'devin', 'warp', 'windsurf')
+    foreach ($id in $dispatchHosts) {
+        if ($profile.hostSettings.PSObject.Properties.Name -notcontains $id) {
+            $violations.Add("$id has no hostSettings authentication record")
+        }
+    }
+    if ($profile.hostSettings.gemini.authMode -ne 'account' -or
+        $profile.hostSettings.gemini.settingsPath -ne 'security.auth.selectedType' -or
+        $profile.hostSettings.gemini.settingsValue -ne 'oauth-personal' -or
+        $profile.dispatchPolicy.gemini.enabled -or
+        -not $profile.dispatchPolicy.'cursor-agent'.enabled -or
+        -not $profile.dispatchPolicy.amp.enabled) {
+        $violations.Add('Gemini must remain disabled; verified Cursor Agent and Amp account smokes must remain enabled')
+    }
+    if ($profile.dispatchPolicy.opencode.enabled -or
+        $profile.dispatchPolicy.opencode.reason -notmatch 'no Go-plan account entry') {
+        $violations.Add('OpenCode must remain disabled without a Go-plan account entry')
+    }
+    if ($profile.dispatchPolicy.codex.enabled -ne $false -or
+        $profile.dispatchPolicy.codex.knownIssue -notmatch 'no response text' -or
+        $profile.dispatchPolicy.codex.knownIssue -notmatch 'quota was exhausted') {
+        $violations.Add('Codex must remain disabled until response capture works and record its exhausted quota')
+    }
+    if ($profile.managedHosts -notcontains 'cursor-agent') {
+        $violations.Add('Cursor Agent CLI must be present in managedHosts')
+    }
+    $retiredMatches = foreach ($file in Get-ChildItem -LiteralPath (Join-Path $repoRoot 'registry') -Filter '*.json' -File) {
+        $contents = [IO.File]::ReadAllText($file.FullName)
+        if ([regex]::IsMatch($contents, '"(?:qoder|qwen-code|hermes)"', [Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
+            $file.Name
+        }
+    }
+    if ($retiredMatches) {
+        $violations.Add("Retired host ids remain in registry JSON: $($retiredMatches -join ', ')")
+    }
+    foreach ($id in @('cline', 'opencode')) {
+        $settings = $profile.hostSettings.PSObject.Properties[$id].Value
+        if ($settings.availableProviders.deepseek.apiKeyEnv -ne 'DEEPSEEK_API_KEY') {
+            $violations.Add("$id lost its configured DeepSeek secondary provider")
+        }
+        if ($settings.availableProviders.deepseek.PSObject.Properties.Name -contains 'userScopeSet') {
+            $violations.Add("$id exposes local credential state in the public registry")
+        }
+    }
+    if ($violations.Count -gt 0) {
+        return @{ Passed = $false; Detail = ($violations -join '; ') }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $r1 = Test-CollectorFlagsUnknownHostId
 Report 'an unresolved hostId (hostId property or bare hosts[] string) is flagged by name' $r1.Passed $r1.Detail
 
@@ -251,6 +315,9 @@ Report 'a capability whose canonicalSource is missing on disk is flagged by id' 
 
 $r5 = Test-LiveCapabilitiesCanonicalSourcesAllExistOnDisk
 Report 'every live capability canonicalSource exists on disk' $r5.Passed $r5.Detail
+
+$r6 = Test-LiveHostAuthenticationMetadata
+Report 'dispatch hosts have auth records; retired ids are absent and unverified paid routes remain gated' $r6.Passed $r6.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

@@ -219,8 +219,7 @@ function Test-UserProfileRebasesHostDestinations {
             if (-not $agent.nativePaths) { continue }
             foreach ($property in @($agent.nativePaths.PSObject.Properties)) {
                 $candidate = $property.Value
-                # nativePaths also carries non-path values (hermes stores an
-                # instruction template and a prose note there), so filter to
+                # nativePaths also carries prose notes, so filter to
                 # rooted paths rather than calling GetFullPath on everything --
                 # .NET Framework throws "Illegal characters in path" on the rest.
                 if ($candidate -is [string] -and (Test-AgentHubBindablePathValue $candidate)) {

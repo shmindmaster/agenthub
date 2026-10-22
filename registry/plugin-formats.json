@@ -3,7 +3,7 @@
   "canonicalPackage": {
     "portableManifest": "plugin.json",
     "portableManifestSchema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
-    "portableManifestNote": "Agent Plugins 1.0.0 floor: root plugin.json is the portable package identity and the single version authority. Host projections (.claude-plugin, .codex-plugin, .cursor-plugin, .qoder-plugin) may add host-native fields but must not diverge on name/version. Use scripts/Bump-PackageVersion.ps1 to bump.",
+    "portableManifestNote": "Agent Plugins 1.0.0 floor: root plugin.json is the portable package identity and the single version authority. Host projections (.claude-plugin, .codex-plugin, .cursor-plugin) may add host-native fields but must not diverge on name/version. Use scripts/Bump-PackageVersion.ps1 to bump.",
     "manifest": ".claude-plugin/plugin.json",
     "manifestNote": "Claude-shaped host projection retained for hosts that still consume the Claude plugin layout. Version must match root plugin.json.",
     "skills": "skills/*/SKILL.md",
@@ -79,17 +79,6 @@
       "mcpNote": "Re-verified 2026-08-04: VS Code's top-level MCP key is \"servers\", NOT \"mcpServers\" as every other JSON-file host in this fleet uses. Sync-AgentHub.ps1 already passes -JsonProperty 'servers' for this host."
     },
     {
-      "id": "qwen-code",
-      "mode": "auto-converts-claude-marketplace-package",
-      "manifest": null,
-      "documentation": "https://qwenlm.github.io/qwen-code-docs/en/users/extension/introduction/",
-      "globalSkillsDir": "~/.qwen/skills",
-      "subagents": "agents/ in extension",
-      "mcpPath": "~/.qwen/settings.json",
-      "mcpKey": "mcpServers",
-      "verifiedAgainst": "https://qwenlm.github.io/qwen-code-docs/en/users/extension/introduction/"
-    },
-    {
       "id": "copilot",
       "mode": "native-root-package",
       "manifest": "plugin.json",
@@ -110,17 +99,6 @@
       "mcpPath": "~/.gemini/config/mcp_config.json",
       "mcpKey": "mcpServers",
       "verifiedAgainst": "https://antigravity.google/docs/cli/plugins"
-    },
-    {
-      "id": "qoder",
-      "mode": "native-qoder-package",
-      "manifest": ".qoder-plugin/plugin.json",
-      "documentation": "https://docs.qoder.com/en/cli/Skills",
-      "globalSkillsDir": "~/.qoder/skills",
-      "subagents": "agents/*.md",
-      "mcpPath": "~/.qoder/settings.json",
-      "mcpKey": "mcpServers",
-      "verifiedAgainst": "https://docs.qoder.com/en/cli/Skills"
     },
     {
       "id": "devin",
@@ -190,17 +168,6 @@
       "mcpKey": "mcpServers",
       "documentation": "https://geminicli.com/docs/extensions/reference/",
       "verifiedAgainst": "https://geminicli.com/docs/extensions/reference/"
-    },
-    {
-      "id": "hermes",
-      "mode": "loose-skills-and-mcp",
-      "manifest": null,
-      "globalSkillsDir": "%LOCALAPPDATA%/hermes/skills",
-      "subagents": "unverified",
-      "mcpPath": "%LOCALAPPDATA%/hermes/config.yaml",
-      "mcpKey": "mcp_servers",
-      "documentation": "local install inspection (2026-08-03)",
-      "verifiedAgainst": "local install inspection (2026-08-03)"
     },
     {
       "id": "warp",

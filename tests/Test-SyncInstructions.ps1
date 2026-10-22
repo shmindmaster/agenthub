@@ -170,7 +170,22 @@ function Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd {
     $fixtureRoot = Join-Path $userProfile 'fixture'
     New-Item -ItemType Directory -Path (Join-Path $fixtureRoot 'registry') -Force | Out-Null
     $registry = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Encoding UTF8 -Raw | ConvertFrom-Json
-    $hermes = @($registry.activeAgents | Where-Object id -eq 'hermes')[0]
+    $hermes = @(@($registry.activeAgents) + @($registry.inactiveAgents) | Where-Object id -eq 'hermes')[0]
+    if (-not $hermes) {
+        # The fleet registry retired and removed the hermes entry on 2026-10-21. The template
+        # contract is still exercised against a synthetic host that carries the same
+        # preamble + placeholder + trailing-marker layout; nothing here recreates the host.
+        $hermes = [pscustomobject]@{
+            id = 'hermes'; name = 'Hermes Agent'; version = 'synthetic'; executable = $null; status = 'retired'
+            nativePaths = [pscustomobject]@{
+                instructions = '{userHome}/AppData/Local/hermes/SOUL.md'
+                instructionHeader = '# Hermes Agent'
+                instructionFormat = 'markdown'
+                instructionBodyTemplate = "# Hermes Agent`n`nYou are Hermes Agent, an intelligent AI assistant created by Nous Research. Be helpful, knowledgeable, direct, targeted, and efficient. Admit uncertainty when appropriate and prioritize genuine usefulness.`n`n{{globalPolicy}}`n<!-- agenthub:managed -->`n"
+            }
+            supportedCapabilities = @('rules')
+        }
+    }
     $hermes.status = 'active' # Synthetic template positive control, never the retired fleet entry.
     @{ activeAgents = @($hermes); inactiveAgents = @(); userProfile = $env:USERPROFILE } |
         ConvertTo-Json -Depth 30 | Set-Content -LiteralPath (Join-Path $fixtureRoot 'registry\agents.json')

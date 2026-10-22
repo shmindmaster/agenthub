@@ -40,3 +40,10 @@ stranger-safe first run. For this private fleet checkout, also use
 - [plans/PLANS.md](./plans/PLANS.md) — when and how to write resumable plans.
 - [plans/active/](./plans/active/) — active complex work.
 - [plans/completed/](./plans/completed/) — required directory; finished plans are deleted, not retained.
+
+## Fleet
+
+- [retired-hosts-2026-10-21.md](./fleet/retired-hosts-2026-10-21.md) — Qoder,
+  Qwen Code, and Hermes retirement record.
+- [account-logins-2026-10-21.md](./fleet/account-logins-2026-10-21.md) — host
+  account-authentication commands and verified gates.
