@@ -4,6 +4,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Bounded RepoWise updates:** package 1.2.6 adds the manual
+  `Invoke-RepoWiseBoundedIndex.ps1` entry point. It acquires a caller-specified
+  atomic lease, pins existing local embeddings, and installs an 8 GiB / 900 s
+  Windows Job Object before one index-only child starts. A required deadline
+  can shorten that budget. Foreign leases are untouched. Source/config
+  fingerprints and exact HEAD freshness gate acceptance. Synthetic tests cover
+  memory denial, timeout/descendant cleanup, admission and negative acceptance
+  controls. These checks are not evidence of a deployed or completed reindex.
+
 - **RepoWise local embedding routing (2026-10-21):** plugin 1.2.5 pins the
   shared query process to the local OpenAI-compatible embedding service before
   importing the vendor server. Startup probes an actual vector and rejects
@@ -539,8 +548,9 @@ added six more: **175 passed / 4 failed** across 28 files, still the same four.
 ## Known constraints
 
 - The checker compares the RepoWise index to `HEAD`; a repo with uncommitted
-  in-flight work is fine (hook syncs on commit), but a just-committed repo
-  shows stale until the hook or `repowise update --repo <name>` runs.
+  in-flight work may match that HEAD but is not necessarily indexed at its
+  working-tree state. After commit, refresh manually through the bounded entry
+  point. Do not restore disabled unbounded post-commit hooks.
 - `.claude/CLAUDE.md` is RepoWise-generated and gitignored. `.vscode/mcp.json`
   was removed 2026-09-02 (owner); do not recreate it as AgentHub-authored
   state. RepoWise may write a tool-managed copy; it is not a registry surface.

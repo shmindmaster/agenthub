@@ -135,7 +135,8 @@ per-repo repowise MCP entries.
   Official Claude/Codex RepoWise marketplace plugins are forbidden: they
   register a second MCP at the nearest repo instead of `C:/Repos`.
 - **CLI (always available):** `repowise search "<q>"`, `repowise status -w`,
-  `repowise doctor -w`, `repowise update --repo <alias>` **from `C:\Repos`**.
+  `repowise doctor -w` **from `C:\Repos`**. Updates use the bounded manual
+  entry point below, never a bare update or an automatic post-commit update.
   Never `repowise update` from inside a member repo without `--no-agents`.
   Measured 2026-09-10: `--no-agents` still writes `.vscode/mcp.json` pointed
   at the member path. After a CLI upgrade, `repowise agents refresh
@@ -144,8 +145,8 @@ per-repo repowise MCP entries.
 - **Human dashboard:** `repowise serve --host 127.0.0.1 --ui-port 7338` from
   `C:\Repos`. API is `http://127.0.0.1:7337`. Port 3000 is Duckie.
 - **Agent hosts:** skills + CLI everywhere; MCP only while `repowise@agenthub`
-  is enabled. Distill markers in `AGENTS.md` / Cursor rules. Post-commit
-  hooks on every member.
+  is enabled. Distill markers in `AGENTS.md` / Cursor rules. Do not restore
+  disabled unbounded post-commit hooks.
 
 ### MCP tools (call these instead of grep/read for exploration)
 
@@ -178,14 +179,34 @@ There is no marketplace plugin on this fleet. Behave as those skills:
 - **code-health** — debt, what to refactor → `get_health`
 - **dead-code-cleanup** — unused code → `get_dead_code`
 
-## Freshness contract
+## Bounded manual freshness
 
-- A post-commit hook in every workspace repo auto-syncs the index.
-- After material changes, verify: `repowise status -w` from `C:\Repos`. If
-  your repo is stale, run `repowise update --repo <alias>` (seconds).
-- First-time prose docs for a repo: from inside the repo,
-  `repowise update --full -y --no-workspace` (LLM spend; provider comes from
-  the environment — never write keys anywhere).
+After material changes, check freshness, then run
+`scripts/Invoke-RepoWiseBoundedIndex.ps1` from this package with absolute
+`-Workspace`, `-RepositoryRoot`, `-LeasePath`, `-OutputDirectory` and an
+explicit timezone-bearing `-Deadline`. Use the machine's shared heavy-work
+lease path. A foreign lease is a refusal, not a stale file to delete.
+
+The existing index is required. One repository runs index-only, without
+agent generation, under a Windows Job Object installed before the child
+executes. Defaults are an 8 GiB aggregate commit-memory ceiling, 900 seconds,
+and strictly more than 8 GiB free physical RAM. Free RAM below the selected
+floor stops only the owned job. A mandatory deadline shortens the budget.
+Follow the operator's closed heavy-work window; do not start in that window.
+No service is started or stopped and no scheduled work is registered.
+
+The child uses the shared server's actual local embedding probe, compatible
+model and placeholder key. Receipts and raw logs stay outside the source
+workspace. Acceptance requires exit zero, no remaining owned descendants,
+the exact current HEAD in `state.last_sync_commit`, and unchanged HEAD,
+staged entries, tracked/nonignored source bytes and known agent config.
+An unexpected source edit fails acceptance; it is never silently reverted.
+This is an incremental update, not an embedding-provider migration or a
+forced full rebuild. A successful receipt does not prove semantic/vector
+retrieval quality. Check real queries separately.
+
+There is no automatic post-commit refresh. Do not run an unbounded update,
+`--full`, docs generation or first-time initialization through this wrapper.
 - Workspace instructions live in `C:\Repos\.claude\CLAUDE.md` and
   `C:\Repos\AGENTS.md`. Per-repo managed blocks sit between `REPOWISE:START`
   markers — never hand-edit below them.
