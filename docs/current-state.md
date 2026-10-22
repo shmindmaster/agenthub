@@ -14,6 +14,8 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   controls. Package 1.2.7 keeps the lease on disk (exit 3) when owned processes
   cannot be proven gone and terminates the job if the wrapper dies. These
   checks are not evidence of a deployed or completed reindex.
+  Package 1.2.8 adds an explicit, per-run owner RAM-floor waiver recorded in
+  the lease and acceptance receipt, without relaxing other bounds or fences.
 
 - **RepoWise local embedding routing (2026-10-21):** plugin 1.2.5 pins the
   shared query process to the local OpenAI-compatible embedding service before

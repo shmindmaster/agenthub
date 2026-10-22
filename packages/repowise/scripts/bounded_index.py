@@ -188,10 +188,17 @@ def main(argv=None) -> int:
     parser.add_argument("--memory-gib", type=int, choices=range(1, 9), default=8)
     parser.add_argument("--timeout-seconds", type=int, choices=range(1, 901), default=900)
     parser.add_argument("--minimum-free-gib", type=float, default=8)
+    parser.add_argument("--ram-floor-waiver-reason")
     parser.add_argument("--deadline")
     args = parser.parse_args(argv)
     if not 4 <= args.minimum_free_gib <= 64:
         raise ValueError("At least 4 GiB free physical RAM is required")
+    waiver = args.ram_floor_waiver_reason
+    if waiver is not None and (not waiver.strip() or len(waiver) > 512):
+        raise ValueError("A RAM-floor waiver requires a nonblank reason of at most 512 characters")
+    ram_policy = {"minimumFreeGiB": args.minimum_free_gib,
+                  "waived": waiver is not None, "waiverReason": waiver,
+                  "effectiveMinimumFreeBytes": 0 if waiver is not None else int(args.minimum_free_gib * GIB)}
     workspace, repo, output = (p.resolve() for p in
                                (args.workspace, args.repo_root, args.output))
     try:
@@ -199,7 +206,8 @@ def main(argv=None) -> int:
         remaining_seconds(args.timeout_seconds, args.deadline)
         validate_paths(workspace, repo, output)
         require_editor_files_opt_out(repo)
-        if free_memory() <= args.minimum_free_gib * GIB:
+        ram_policy["freePhysicalBytesAtAdmission"] = free_memory()
+        if not ram_policy["waived"] and ram_policy["freePhysicalBytesAtAdmission"] <= ram_policy["effectiveMinimumFreeBytes"]:
             raise RuntimeError("Insufficient free physical RAM; child not started")
         executable = shutil.which("repowise")
         if not executable:
@@ -207,7 +215,8 @@ def main(argv=None) -> int:
         output.mkdir(parents=True, exist_ok=False)
         receipt = {"accepted": False, "headBefore": git_head(repo),
                    "lastSyncCommitBefore": state_commit(repo),
-                   "sourceBefore": source_fence(repo), "mode": "index-only"}
+                   "sourceBefore": source_fence(repo), "mode": "index-only",
+                   "ramFloorPolicy": ram_policy}
     except Exception as error:
         write_admission_failure(workspace, output, error)
         raise
@@ -223,7 +232,7 @@ def main(argv=None) -> int:
             cwd=repo, output=output / "child",
             memory_bytes=args.memory_gib * GIB,
             timeout_seconds=remaining_seconds(args.timeout_seconds, args.deadline),
-            minimum_free_bytes=int(args.minimum_free_gib * GIB),
+            minimum_free_bytes=ram_policy["effectiveMinimumFreeBytes"],
             environment=dict(os.environ), parent_pid=os.getppid())
         receipt["child"] = result
     except BaseException as error:
