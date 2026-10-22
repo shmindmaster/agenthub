@@ -238,8 +238,8 @@ function Test-LiveCapabilitiesCanonicalSourcesAllExistOnDisk {
 }
 
 # --- Behavior 6: every host configuration carries an explicit auth mode and
-# owner login command. Unverified account smokes remain gated, while OpenCode
-# and Cline retain their secondary DeepSeek provider. ---
+# owner login command. Unverified account smokes remain gated; Codex stays
+# disabled until the dispatcher captures a standalone response. ---
 function Test-LiveHostAuthenticationMetadata {
     $profile = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $violations = [Collections.Generic.List[string]]::new()
@@ -261,17 +261,18 @@ function Test-LiveHostAuthenticationMetadata {
         $profile.hostSettings.gemini.settingsPath -ne 'security.auth.selectedType' -or
         $profile.hostSettings.gemini.settingsValue -ne 'oauth-personal' -or
         $profile.dispatchPolicy.gemini.enabled -or
-        $profile.dispatchPolicy.'cursor-agent'.enabled -or
-        $profile.dispatchPolicy.amp.enabled) {
-        $violations.Add('Unverified Gemini, Cursor Agent, and Amp account smokes must remain dispatch-disabled')
+        -not $profile.dispatchPolicy.'cursor-agent'.enabled -or
+        -not $profile.dispatchPolicy.amp.enabled) {
+        $violations.Add('Gemini must remain disabled; verified Cursor Agent and Amp account smokes must remain enabled')
     }
     if ($profile.dispatchPolicy.opencode.enabled -or
         $profile.dispatchPolicy.opencode.reason -notmatch 'no Go-plan account entry') {
         $violations.Add('OpenCode must remain disabled without a Go-plan account entry')
     }
-    if ($profile.dispatchPolicy.codex.enabled -ne $true -or
-        $profile.dispatchPolicy.codex.knownIssue -notmatch 'Quota exceeded\. Check your plan and billing details\.') {
-        $violations.Add('Codex must remain enabled and record the exhausted ChatGPT-plan quota')
+    if ($profile.dispatchPolicy.codex.enabled -ne $false -or
+        $profile.dispatchPolicy.codex.knownIssue -notmatch 'no response text' -or
+        $profile.dispatchPolicy.codex.knownIssue -notmatch 'quota was exhausted') {
+        $violations.Add('Codex must remain disabled until response capture works and record its exhausted quota')
     }
     if ($profile.managedHosts -notcontains 'cursor-agent') {
         $violations.Add('Cursor Agent CLI must be present in managedHosts')
@@ -289,6 +290,9 @@ function Test-LiveHostAuthenticationMetadata {
         $settings = $profile.hostSettings.PSObject.Properties[$id].Value
         if ($settings.availableProviders.deepseek.apiKeyEnv -ne 'DEEPSEEK_API_KEY') {
             $violations.Add("$id lost its configured DeepSeek secondary provider")
+        }
+        if ($settings.availableProviders.deepseek.PSObject.Properties.Name -contains 'userScopeSet') {
+            $violations.Add("$id exposes local credential state in the public registry")
         }
     }
     if ($violations.Count -gt 0) {

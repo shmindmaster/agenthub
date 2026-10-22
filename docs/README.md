@@ -47,5 +47,3 @@ stranger-safe first run. For this private fleet checkout, also use
   Qwen Code, and Hermes retirement record.
 - [account-logins-2026-10-21.md](./fleet/account-logins-2026-10-21.md) — host
   account-authentication commands and verified gates.
-- [paid-plans-smoke-2026-10-21.md](./fleet/paid-plans-smoke-2026-10-21.md) —
-  bounded dispatcher smoke results and current readiness.

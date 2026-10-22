@@ -70,6 +70,11 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $scratch = Join-Path $fixture 'scratch'
     $r = Run @('-List')
     Check 'list succeeds' ($r.Exit -eq 0) $r.Err
+    $fleet.dispatchPolicy['codex'] = @{ enabled = $false; reason = 'response capture is not verified'; ownerAction = 'run a bounded smoke after the output fix' }; Save-Fixture
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch)
+    Check 'disabled Codex policy refuses a dispatch' ($r.Exit -eq 3 -and $r.Err -match 'response capture is not verified' -and $r.Err -match 'bounded smoke')
+    $fleet.dispatchPolicy.Remove('codex'); Save-Fixture
+    $r = Run @('-List')
     foreach ($id in @('claude','codex','amp','devin','warp')) { Check "$id headless contract" ($r.Out -match "(?m)^$id\tcallable\t") }
     foreach ($id in @('cursor','windsurf')) { Check "$id routes to CLI" ($r.Out -match "(?m)^$id\trouted\t") }
     foreach ($id in @('antigravity-desktop')) { Check "$id refuses" ($r.Out -match "(?m)^$id\trefused\t") }

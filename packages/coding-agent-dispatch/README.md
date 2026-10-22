@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.2.3 (loose skill; version metadata lives in `SKILL.md`).
+Version 0.2.4 (loose skill; version metadata lives in `SKILL.md`).
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever
@@ -19,8 +19,9 @@ routes to Devin. Readiness is additionally gated by
 model recorded in `registry/fleet-profile.json`; OpenCode's Go model is
 selected there but dispatch remains disabled because no Go-plan account entry
 is configured.
-Windsurf shares Devin's model and command. The 2026-10-21 bounded smoke results
-are recorded in `docs/fleet/paid-plans-smoke-2026-10-21.md`.
+Windsurf shares Devin's model and command. Current host readiness is recorded
+in `registry/fleet-profile.json`; detailed runtime output stays outside this
+public repository.
 
 Account-based authentication is recorded per CLI in `registry/fleet-profile.json`
 -> `hostSettings`. Gemini's settings select `oauth-personal`, but the latest
@@ -43,9 +44,9 @@ created. Hosted cloud aliases are explicitly refused.
 pwsh -NoProfile -File .\packages\coding-agent-dispatch\skills\use-coding-agent\Invoke-CodingAgent.ps1 -List
 ```
 
-Deployment is a separate owner-authorized gate. The skill's targeted command
-is `Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`.
-Do not use a full `Sync-AgentHub.ps1 -Apply` for this package alone.
+Deployment is a separate gate. The skill's targeted command is
+`Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`; a full
+AgentHub deployment uses `Sync-AgentHub.ps1 -Apply -Validate`.
 
 `agents/claude/coding-agent.md` and `agents/codex/coding-agent.toml` are the
 orchestrator agent definitions. Copy them into `~/.claude/agents` and

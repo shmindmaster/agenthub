@@ -30,15 +30,19 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   (mock providers, no paid calls). Product data (brand, claims, specs) stays in
   the external media workspace.
 
-- **Coding-agent dispatch (2026-10-21, paid-plan policy prepared; deployment pending):** `packages/coding-agent-dispatch`
+- **Coding-agent dispatch (2026-10-22):** `packages/coding-agent-dispatch`
   owns the `use-coding-agent` skill and `Invoke-CodingAgent.ps1`. Claude and
-  Codex are the primary orchestrators. Any host that has the skill can call
-  the same script. `-List` is the callable set. The paid Devin model replaces
+  Codex are the primary orchestrators; any host with the skill can call the
+  same script. The dispatcher reads `registry/fleet-profile.json` on each
+  invocation, so policy changes take effect immediately for source-checkout
+  dispatch; syncing deploys the package and instructions. `-List` reports the
+  callable set. Codex remains disabled until its dispatcher captures a
+  standalone response and quota permits a smoke. The paid Devin model replaces
   its former free route. OpenCode's Go model is selected, but dispatch remains
-  disabled pending owner verification and a successful smoke. Bounded smoke
-  results are recorded in `docs/fleet/paid-plans-smoke-2026-10-21.md`.
-  A host without a verified headless command is refused, including GUI hosts. Deploy with
-  `Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`. The
+  disabled pending owner verification and a successful smoke. A host without
+  a verified headless command is refused, including GUI hosts. Deploy with
+  `Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`; use
+  `Sync-AgentHub.ps1 -Apply -Validate` for a full AgentHub deployment. The
   orchestrator doors are `agents/claude/coding-agent.md` and
   `agents/codex/coding-agent.toml`, copied into `~/.claude/agents` and
   `~/.codex/agents`.
@@ -238,8 +242,8 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   Code, and Hermes from the managed fleet. See
   [retired-hosts](./fleet/retired-hosts-2026-10-21.md) and the pending
   [account-login checklist](./fleet/account-logins-2026-10-21.md). Current
-  account-mode dispatcher results are in
-  [paid-plan smoke evidence](./fleet/paid-plans-smoke-2026-10-21.md).
+  readiness is recorded in `registry/fleet-profile.json`; detailed runtime
+  output is kept outside the public repository.
 - **Mobile capability boundary:** Mobile skills/catalog deploy to active
   coding surfaces, while native Appium activation is intentionally available
   only through Claude and Codex.

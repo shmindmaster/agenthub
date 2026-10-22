@@ -266,8 +266,7 @@
       "loginCommand": "cline auth",
       "availableProviders": {
         "deepseek": {
-          "apiKeyEnv": "DEEPSEEK_API_KEY",
-          "userScopeSet": true
+          "apiKeyEnv": "DEEPSEEK_API_KEY"
         }
       }
     },
@@ -278,8 +277,7 @@
       "loginCommand": "opencode auth login",
       "availableProviders": {
         "deepseek": {
-          "apiKeyEnv": "DEEPSEEK_API_KEY",
-          "userScopeSet": true
+          "apiKeyEnv": "DEEPSEEK_API_KEY"
         }
       }
     },
@@ -371,10 +369,10 @@
       "verifiedOn": "2026-10-14"
     },
     "codex": {
-      "enabled": true,
-      "reason": "OWNER_CONFIRMED 2026-10-21: paid plan; model gpt-6.1-sol",
-      "verifiedOn": "2026-10-21",
-      "knownIssue": "ChatGPT-plan quota exhausted 2026-10-21 22:00 CT: \"Quota exceeded. Check your plan and billing details.\""
+      "enabled": false,
+      "reason": "Owner-confirmed paid plan; keep disabled until the dispatcher captures a standalone response and quota permits a smoke.",
+      "verifiedOn": "2026-10-22",
+      "knownIssue": "2026-10-21 smoke captured no response text; ChatGPT-plan quota was exhausted at 22:00 CT."
     },
     "gemini": {
       "enabled": false,

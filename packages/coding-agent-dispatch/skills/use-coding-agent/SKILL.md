@@ -2,7 +2,7 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.3"
+  version: "0.2.4"
 ---
 
 # Use a coding agent from another coding agent
@@ -32,7 +32,7 @@ Aliases enforce their own policy and the target's policy and autonomy profile.
 Refused rows stay refused. Help verification establishes a command contract;
 authentication, allowance and smoke evidence establish readiness separately.
 
-The 0.2.3 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
+The 0.2.4 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
 Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin and local Warp/Oz.
 `registry/fleet-profile.json` -> `dispatchPolicy`
 can disable each contract with a reason and owner action. The current verified
