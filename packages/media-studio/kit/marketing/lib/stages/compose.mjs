@@ -54,6 +54,30 @@ export function renderCaptions(ctx, captions) {
   return ctx.flags.noLineChips || ctx.flags.noCaptions || ctx.spec.render?.lineChips === false || ctx.spec.render?.captions === false ? [] : captions;
 }
 
+/** Legacy 2.0.4/2.0.5 timelines without a clock remain usable only with explicit Whisper timing. */
+export function requireTimingClock(timeline, flags = {}) {
+  if (timeline.wordClock === 'forced-aligner') return;
+  if (flags.whisperTiming && (!timeline.wordClock || timeline.wordClock === 'whisper')) return;
+  throw new Error('compose requires forced-aligner timing; rerun timing with ai.ps1 align, or use --whisper-timing explicitly for a job without an aligner');
+}
+
+export function timingReceiptFor(ctx, timeline, beatId) {
+  const line = timeline.lines?.find((item) => item.beatId === beatId);
+  const path = line?.alignment?.path || line?.asr;
+  const expectedSha256 = line?.alignment?.sha256;
+  const requiresBinding = timeline.wordClock === 'forced-aligner' && !!timeline.segments?.find((segment) => segment.id === beatId)?.text;
+  if (!path) {
+    if (requiresBinding) throw new Error(`compose requires a bound alignment receipt for ${beatId}`);
+    return null;
+  }
+  const file = join(ctx.jobDir, path);
+  if (!existsSync(file)) throw new Error(`timing receipt is missing for ${beatId}: ${path}`);
+  const sha256 = fileSha(file);
+  if (expectedSha256 && sha256 !== expectedSha256) throw new Error(`timing receipt changed after the timeline was built for ${beatId}: ${path}`);
+  if (requiresBinding && !expectedSha256) throw new Error(`compose requires a hash-bound alignment receipt for ${beatId}`);
+  return { path, sha256, bound: !!expectedSha256 };
+}
+
 /** Structural check of the MarketingAd props before anything renders: a bad prop is cheaper to find here than mid-render. */
 export function validateProps(props, publicDir) {
   const errors = [];
@@ -112,13 +136,21 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
     if (beat.kind === 'ui') {
       const clip = capture.find((c) => c.beatId === beat.id);
       const { entry } = resolveClip(ctx, beat);
-      // The first narrated pointer action is cut onto its spoken word; ui.trimStart is only the fallback.
+      const timingReceipt = timingReceiptFor(ctx, timeline, beat.id);
+      // The first narrated pointer action is cut onto its forced-aligned spoken word; ui.trimStart is only the fallback.
       let trimStart = beat.ui.trimStart || 0;
       let aligned = false;
+      let trimAlignment = { source: 'authored-trim', wordClock: timeline.wordClock || 'legacy-whisper', receipt: timingReceipt };
       if (beat.ui.actions?.length && beat.ui.align !== false) {
         const a = alignBeat({ actions: beat.ui.actions, receiptActions: entry.actions, headTrim: clip.headTrimSeconds, wordsRel: seg.words.map((w) => ({ word: w.word, start: w.start - seg.startSeconds })), fallbackTrim: trimStart });
         if (a.aligned) { trimStart = a.trimStart; aligned = true; }
         if (a.note) warnings.push(`${beat.id}: ${a.note}`);
+        trimAlignment = {
+          source: a.aligned ? 'word-onset' : 'authored-fallback',
+          wordClock: timeline.wordClock || 'legacy-whisper',
+          receipt: timingReceipt,
+          anchor: a.actions.find((action) => action.clipSeconds !== null && action.wordRel !== null) || null,
+        };
       }
       // An authored trimEnd (it kept a Recast zoom or a click out of the beat) still applies when the beat can be covered with it.
       const authoredEnd = beat.ui.trimEnd && (!aligned || beat.ui.trimEnd - trimStart >= seg.durationSeconds - HOLD_PAD_MAX) ? beat.ui.trimEnd : clip.clipSeconds;
@@ -139,7 +171,7 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
       const src = addMedia(clip.file, 'webm');
       beats.push({ ...base, clip: { src, trimBeforeSec: trimStart, playSec: round(playSec, 3), srcW: clip.viewport.width, srcH: clip.viewport.height, camera } });
       const mid = windowAt(windows, trimStart + playSec / 2);
-      groups.push({ segments: [beat.id], startSeconds: seg.startSeconds, needSeconds: seg.durationSeconds, clipId: beat.id, file: `clips/${beat.id}.webm`, heldFromPrevious: false, sourceRegion: mid.region, srcSeconds: clip.clipSeconds, fit: 'hold', trimStart: 0, speed: 1, edit: { trimStart, trimEnd: clipEnd, speed: 1, skip: [], headHold: 0, srcSeconds: clipEnd }, extras: false, overlay: null, isImage: false, windows });
+      groups.push({ segments: [beat.id], startSeconds: seg.startSeconds, needSeconds: seg.durationSeconds, clipId: beat.id, file: `clips/${beat.id}.webm`, heldFromPrevious: false, sourceRegion: mid.region, srcSeconds: clip.clipSeconds, fit: 'hold', trimStart: 0, speed: 1, edit: { trimStart, trimEnd: clipEnd, speed: 1, skip: [], headHold: 0, srcSeconds: clipEnd, alignment: trimAlignment }, extras: false, overlay: null, isImage: false, windows });
       gateSegments.push({ id: beat.id, kind: 'ui', startSeconds: seg.startSeconds, durationSeconds: seg.durationSeconds, clipFile: clip.file, sourceRegion: mid.region, sourceRegions: windows.map((w) => w.region), clipStart: trimStart });
       for (const s of beat.sfx || []) {
         const duration = s.durationSeconds || 1;
@@ -187,6 +219,7 @@ export async function composeStage(ctx) {
   const summary = {};
   for (const cut of selectedCuts(ctx, normalizeCuts(ctx.spec))) {
     const timeline = readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
+    requireTimingClock(timeline, ctx.flags);
     const captionsAll = readJson(join(ctx.jobDir, 'timing', cut.id, 'captions.json')).chunks;
     const voice = readJson(join(ctx.jobDir, 'voice', `${cut.id}.lines.json`));
     const assetsPath = join(ctx.jobDir, 'assets', 'manifest.json');
@@ -196,11 +229,12 @@ export async function composeStage(ctx) {
       const { dir, id } = candidatePaths(ctx, ratio);
       mkdirSync(join(dir, 'public', 'media'), { recursive: true });
       const plan = buildRatioPlan(ctx, cut, ratio, { timeline, captions: captionsAll, voice, assets, capture });
+      for (const warning of plan.warnings) ctx.log(`compose/${ratio}: ${warning}`);
       for (const [name, file] of plan.media) if (!existsSync(join(dir, 'public', 'media', name))) copyFileSync(file, join(dir, 'public', 'media', name));
       const propErrors = validateProps(plan.props, join(dir, 'public'));
       if (propErrors.length) throw new Error(`MarketingAd props for ${ratio} are invalid: ${propErrors.slice(0, 4).join('; ')}`);
       writeJson(join(dir, 'props.json'), plan.props);
-      writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: timeline.durationSeconds, pictureSeconds: timeline.durationSeconds, leadInSeconds: 0, ...(timeline.beatGrid ? { beatGrid: { bpm: timeline.beatGrid.bpm, offsetSeconds: timeline.beatGrid.offsetSeconds } } : {}), timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups, integrity: plan.integrity });
+      writeJson(join(dir, 'compose-map.json'), { generator: 'media-studio/mvg-compose', base: ctx.spec.id, voiceFirst: true, wordClock: timeline.wordClock || 'legacy-whisper', deliveryProfile: FRAMES[ratio].profile, width: FRAMES[ratio].width, height: FRAMES[ratio].height, timelineSeconds: timeline.durationSeconds, pictureSeconds: timeline.durationSeconds, leadInSeconds: 0, ...(timeline.beatGrid ? { beatGrid: { bpm: timeline.beatGrid.bpm, offsetSeconds: timeline.beatGrid.offsetSeconds } } : {}), timedGraphics: [], band: plan.layout.uiBand, groups: plan.groups, integrity: plan.integrity, warnings: plan.warnings });
       writeJson(join(dir, 'gate-segments.json'), { band: plan.layout.uiBand, durationSeconds: timeline.durationSeconds, segments: plan.gateSegments });
       const target = loudnessTarget(ratio, ctx.spec, ctx.brand);
       const mixOut = join(dir, 'mix.wav');
@@ -211,7 +245,7 @@ export async function composeStage(ctx) {
       const silent = join(dir, 'silent.mp4');
       const renderArgs = [join(kit, 'node_modules', '@remotion', 'cli', 'remotion-cli.js'), 'render', 'src/index.ts', 'MarketingAd', silent, `--props=${join(dir, 'props.json')}`, `--public-dir=${join(dir, 'public')}`, '--codec=h264', '--muted', '--crf=17', '--concurrency=2', '--log=error', '--timeout=180000'];
       writeJson(join(dir, 'render-command.json'), { cwd: kit, node: process.execPath, args: renderArgs });
-      summary[ratio] = { dir, durationSeconds: timeline.durationSeconds, windows: plan.groups.filter((g) => g.windows).map((g) => ({ beat: g.segments[0], windows: g.windows.length })), sfx: plan.sfxPlan.length, music: !!plan.music, target };
+      summary[ratio] = { dir, durationSeconds: timeline.durationSeconds, windows: plan.groups.filter((g) => g.windows).map((g) => ({ beat: g.segments[0], windows: g.windows.length })), sfx: plan.sfxPlan.length, music: !!plan.music, warnings: plan.warnings, target };
       if (ctx.flags.prepareOnly || ctx.flags.dryRun) { ctx.log(`compose/${ratio}: prepared (no render)`); continue; }
       ctx.log(`compose/${ratio}: rendering picture`);
       const r1 = await run(process.execPath, renderArgs, { timeoutMs: 1800000 });

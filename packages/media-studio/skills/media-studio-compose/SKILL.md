@@ -98,7 +98,7 @@ The overlay is markup (dim, box, outline, arrow, label, note, flow diagram), dir
 
 ### Voice-first timing and the cue sheet
 
-The narration is locked and rendered first; the picture is built to it. Order: word-level ASR per line (`voice/asr/<id>.json`) -> `node <tools>/build-cue-sheet.mjs <jobRoot>` (plan) -> `compose-screencast.mjs <jobRoot> <base>` -> `build-cue-sheet.mjs <jobRoot>` again (mapped: action and result times go through `output/<base>-compose-map.json`) -> encode and mux -> `validate-sync.mjs` (`media-studio-qa`).
+The narration is locked and rendered first; the picture is built to it. Order: force-align each accepted take against its locked line into `voice/asr/<id>.json` -> `node <tools>/build-cue-sheet.mjs <jobRoot>` (plan) -> `compose-screencast.mjs <jobRoot> <base>` -> `build-cue-sheet.mjs <jobRoot>` again (mapped: action and result times go through `output/<base>-compose-map.json`) -> encode and mux -> `validate-sync.mjs` (`media-studio-qa`). Whisper is a separate transcript check, not the timing clock.
 
 With `plan/cue-sheet.json` present, compose cuts to each line's first content word (screen up 0.3 s before it, never before the previous line ends) and lines up each clip's first narrated action with its spoken word: a too-early action holds the clip's first frame (max 1.5 s), a late one trims the head. If the take is too short after that, or the action is far from its word, compose stops: recapture the beat, do not squeeze the voice. A stale cue sheet (narration re-locked) also stops it. `--no-voice-first` is for drafts only; the sync gate still needs the cue sheet. Rebuild the cue sheet after every compose that changes the picture. Static scenes keep a moving cursor or highlight on the element being named; emphasis is one punch-in, ring or callout per beat, on the word.
 
@@ -120,7 +120,7 @@ Official Remotion skills are installed globally under `~/.agents/skills` and sym
 
 - [ ] Kit synced from `packages/media-studio/kit`
 - [ ] Scenes carry `archetype`; consecutive repeats only if intentional
-- [ ] Voice-first: cue sheet built from word-level ASR, compose ran against it, cue sheet rebuilt (mapped) after the last compose
+- [ ] Voice-first: cue sheet built from take/script-bound forced alignment, compose ran against it, cue sheet rebuilt (mapped) after the last compose
 - [ ] Bed ducked from stems
 - [ ] Profile frame matches `deliveryProfile`
 

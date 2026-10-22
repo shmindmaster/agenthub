@@ -1,6 +1,6 @@
-// Stage 3: timing. Word timings per narration line (OpenAI whisper-1 word timestamps, or local whisper), aligned to
-// the authored script, then the voice-first timeline (scene length = narration span), caption chunks and an SRT. With
-// edit.beatGrid every scene boundary is then held to the next beat of the music bed.
+// Stage 3: timing. The forced aligner clocks each accepted narration take against its authored script, then builds the
+// voice-first timeline (scene length = narration span), caption chunks and an SRT. Whisper timing is an explicit
+// compatibility fallback for jobs without an aligner. With edit.beatGrid every boundary is held to the next music beat.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { recordStage } from '../context.mjs';
@@ -11,8 +11,9 @@ import { LEAD_SECONDS, TAIL_SECONDS, normalizeCuts } from '../lint.mjs';
 import { resolveClip } from './capture.mjs';
 import { estimateWhisperUsd } from '../prices.mjs';
 import { FPS, alignScriptToAsr, buildTimeline, parseAsrWords, snapToBeatGrid } from '../timing.mjs';
+import { forcedWordOnsets } from '../../../screencast/sync-lib.mjs';
 import { run } from '../mix.mjs';
-import { readJson, round, writeJson } from '../util.mjs';
+import { fileSha, readJson, round, writeJson } from '../util.mjs';
 
 /** Seconds of leading silence before speech (ffmpeg silencedetect at -42 dB), less a 30 ms guard; 0 when speech starts at once. */
 export async function speechOnset(file) {
@@ -30,9 +31,15 @@ export async function probeDuration(file) {
   return d;
 }
 
-async function wordsFor(ctx, { audio, asrPath, duration }) {
+export function timingWordSource(flags = {}, brand = {}) {
+  if (flags.whisperTiming) {
+    return { clock: 'whisper', provider: flags.hostedOnly ? 'openai-whisper' : brand.timing?.provider || 'openai-whisper' };
+  }
+  return { clock: 'forced-aligner', provider: 'local-aligner' };
+}
+
+async function whisperWordsFor(ctx, { audio, asrPath, duration, provider }) {
   if (existsSync(asrPath)) return { payload: readJson(asrPath), cached: true };
-  const provider = ctx.brand.timing?.provider || 'openai-whisper';
   mkdirSync(join(asrPath, '..'), { recursive: true });
   if (provider === 'local-whisper') {
     const local = ctx.providers.localWhisper || (await import('../providers/local.mjs')).whisperWords;
@@ -58,31 +65,64 @@ async function wordsFor(ctx, { audio, asrPath, duration }) {
   return { payload, cached: false };
 }
 
+async function alignedWordsFor(ctx, { audio, asrPath, script, acceptedTakeSha256 }) {
+  mkdirSync(join(asrPath, '..'), { recursive: true });
+  const scriptPath = asrPath.replace(/\.json$/, '.script.txt');
+  writeFileSync(scriptPath, script, 'utf8');
+  const takeSha256 = fileSha(audio);
+  if (!acceptedTakeSha256 || takeSha256 !== acceptedTakeSha256) throw new Error(`accepted narration take changed before timing: ${audio}`);
+  const cached = existsSync(asrPath);
+  if (!cached) {
+    const align = ctx.providers.alignWords || (await import('../providers/local.mjs')).alignWords;
+    await align({ file: audio, script: scriptPath, output: asrPath });
+  }
+  const report = readJson(asrPath);
+  const expectedWords = String(script).split(/\s+/).filter(Boolean).map((word) => ({ w: word }));
+  const words = forcedWordOnsets(report, expectedWords, { takeSha256, scriptSha256: fileSha(scriptPath) })
+    .map((w) => ({ word: w.w, start: round(w.start), end: round(w.end) }));
+  return { payload: report, words, cached, scriptPath };
+}
+
+export async function wordsFor(ctx, options) {
+  const source = options.source || timingWordSource(ctx.flags, ctx.brand);
+  if (source.clock === 'forced-aligner') return alignedWordsFor(ctx, options);
+  const result = await whisperWordsFor(ctx, { ...options, provider: source.provider });
+  return { ...result, words: alignScriptToAsr(options.script, parseAsrWords(result.payload), options.duration) };
+}
+
 export async function timingStage(ctx) {
   const out = {};
+  const source = timingWordSource(ctx.flags, ctx.brand);
   // edit.beatGrid keys the stage only when set, so a spec without it keeps its cache; the music asset never sees it (spec.music).
   const grid = ctx.spec.edit?.beatGrid ? { bpm: ctx.spec.edit.beatGrid.bpm, offsetSeconds: ctx.spec.edit.beatGrid.offsetSeconds } : null;
   for (const cut of normalizeCuts(ctx.spec)) {
     const voicePath = join(ctx.jobDir, 'voice', `${cut.id}.lines.json`);
     if (!existsSync(voicePath)) throw new Error(`timing needs the voice stage first (missing ${voicePath})`);
     const voice = readJson(voicePath);
+    const acceptedLines = voice.lines.map((line) => {
+      const audio = join(ctx.jobDir, line.file);
+      const sha256 = fileSha(audio);
+      if (!line.sha256 || sha256 !== line.sha256) throw new Error(`accepted narration take changed before timing: ${audio}`);
+      return [line.key, sha256];
+    });
     const clipShas = cut.beats.filter((b) => b.ui).map((b) => { const r = resolveClip(ctx, b).entry; return [b.id, r.sha256, b.ui.trimStart, b.ui.actions, b.ui.align]; });
-    const k = stageKey('timing', { lines: voice.lines.map((l) => [l.key, l.sha256]), beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), clips: clipShas, provider: ctx.brand.timing?.provider || 'openai-whisper', ...(grid ? { beatGrid: grid, frameSnap: FPS } : {}) });
+    const k = stageKey('timing', { lines: acceptedLines, beats: cut.beats.map((b) => [b.id, b.kind, b.minSeconds, b.narration, b.onScreenText]), clips: clipShas, clock: source.clock, provider: source.provider, ...(grid ? { beatGrid: grid, frameSnap: FPS } : {}) });
     const cached = checkStage(ctx.jobDir, 'timing', cut.id, k);
     if (cached.hit && !ctx.flags.force) { ctx.log(`timing/${cut.id}: cached`); out[cut.id] = cached.manifest; continue; }
     const byBeat = new Map(voice.lines.map((l) => [l.beatId, l]));
     const lines = [];
-    const asrFiles = [];
+    const timingFiles = [];
     for (const beat of cut.beats) {
       const line = byBeat.get(beat.id);
       if (!beat.narration) { lines.push({ beat }); continue; }
       if (!line) throw new Error(`no voice line for narrated beat ${cut.id}/${beat.id}`);
       const audio = join(ctx.jobDir, line.file);
       const duration = await (ctx.providers.probeDuration || probeDuration)(audio);
-      const asrRel = join('timing', cut.id, 'asr', `${beat.id}-${line.key.slice(0, 12)}-${ctx.brand.timing?.provider || 'openai-whisper'}.json`);
-      const { payload } = await wordsFor(ctx, { audio, asrPath: join(ctx.jobDir, asrRel), duration });
-      asrFiles.push(asrRel);
-      const words = alignScriptToAsr(beat.narration, parseAsrWords(payload), duration);
+      const asrRel = join('timing', cut.id, 'asr', `${beat.id}-${line.key.slice(0, 12)}-${source.provider}.json`);
+      const asrPath = join(ctx.jobDir, asrRel);
+      const { words, scriptPath } = await wordsFor(ctx, { audio, asrPath, duration, script: beat.narration, acceptedTakeSha256: line.sha256, source });
+      timingFiles.push(asrRel);
+      if (scriptPath) timingFiles.push(relative(ctx.jobDir, scriptPath));
       // A beat is as long as the result needs to hold after its last narrated pointer action (>= 1.5 s), measured with the
       // clip cut so the first action lands on its spoken word.
       let sized = beat;
@@ -112,12 +152,21 @@ export async function timingStage(ctx) {
     }
     const base = join('timing', cut.id);
     const files = { timeline: join(base, 'timeline.json'), captions: join(base, 'captions.json'), srt: join(base, 'captions.srt') };
-    writeJson(join(ctx.jobDir, files.timeline), { ...timeline, cut: cut.id, targetSeconds: cut.targetSeconds, lines: lines.map((l) => ({ beatId: l.beat.id, asr: l.audio?.asr || null })) });
+    writeJson(join(ctx.jobDir, files.timeline), {
+      ...timeline,
+      cut: cut.id,
+      targetSeconds: cut.targetSeconds,
+      wordClock: source.clock,
+      lines: lines.map((line) => {
+        const asr = line.audio?.asr || null;
+        return { beatId: line.beat.id, asr, alignment: asr ? { path: asr, sha256: fileSha(join(ctx.jobDir, asr)) } : null };
+      }),
+    });
     writeJson(join(ctx.jobDir, files.captions), { cut: cut.id, chunks });
     writeFileSync(join(ctx.jobDir, files.srt), toSrt(chunks), 'utf8');
     const over = timeline.durationSeconds - cut.targetSeconds;
-    const detail = { durationSeconds: timeline.durationSeconds, targetSeconds: cut.targetSeconds, overSeconds: round(over, 2), captionChunks: chunks.length, ...(timeline.beatGrid ? { beatGrid: timeline.beatGrid } : {}) };
-    out[cut.id] = writeStage(ctx.jobDir, 'timing', cut.id, k, { ...detail, outputs: [...Object.values(files), ...asrFiles] });
+    const detail = { durationSeconds: timeline.durationSeconds, targetSeconds: cut.targetSeconds, overSeconds: round(over, 2), captionChunks: chunks.length, wordClock: source.clock, ...(timeline.beatGrid ? { beatGrid: timeline.beatGrid } : {}) };
+    out[cut.id] = writeStage(ctx.jobDir, 'timing', cut.id, k, { ...detail, outputs: [...Object.values(files), ...timingFiles] });
     if (over > Math.max(2, cut.targetSeconds * 0.1)) throw new Error(`cut ${cut.id} runs ${timeline.durationSeconds}s against a ${cut.targetSeconds}s target (+${over.toFixed(1)}s; allowed ${Math.max(2, cut.targetSeconds * 0.1).toFixed(1)}s, the longer of 2 s and 10%): trim the narration or beat minimums`);
     if (over < -0.2 * cut.targetSeconds - 2) ctx.log(`timing/${cut.id}: ${timeline.durationSeconds}s is well under the ${cut.targetSeconds}s target`);
   }

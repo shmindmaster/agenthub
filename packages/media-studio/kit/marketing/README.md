@@ -10,7 +10,8 @@ read-only inputs.
 # from the deployed kit (or kit\marketing in a checkout); plain `node`, no windows, no npm install needed for lint/voice/assets
 node mvg.mjs D:\...\abacare-marketing\specs\01-expired-authorization.json --stage lint
 node mvg.mjs <spec> --dry-run                 # plan, planned spend, no provider call
-node mvg.mjs <spec> --stage capture --hosted-only # preparation only; no render
+node mvg.mjs <spec> --stage capture --hosted-only --whisper-timing # explicit hosted fallback; no render
+node mvg.mjs <spec> --stage timing --whisper-timing # explicit fallback only when no forced aligner is available
 node mvg.mjs <spec> --stage compose --candidate-id cut-01 --no-line-chips
 node mvg.mjs <spec> --stage qa --candidate-id cut-01 --local-gates # never composes
 node mvg.mjs <spec> --stage deliver --candidate-id cut-01
@@ -39,10 +40,12 @@ QA containment resolves symlinks/junctions, even for a new output directory. Its
 as well as the MP4; changed or missing subtitles block delivery. An unencoded prepared candidate writes pending gates.
 Isolated compose/QA/delivery dry runs are rejected; use `--stage capture --dry-run` for lint and planned-spend checks.
 
-Preparation timing may be provisional ASR; it cannot release. Local gates align accepted line takes plus the encoded
-candidate against locked scripts using `ai.ps1 align`, validate their hashes and 80 ms grid, and use only those word
-onsets for the canonical 40 ms offset/drift gate. Whisper separately checks transcript text. The 80 ms output grid is
-not a claim of 40 ms acoustic accuracy. This is a 2.0.5 word-onset repair, not the proposed 2.1 pixel/render sync audit.
+Timing aligns each accepted narration take to its authored text with `ai.ps1 align`; its take/script-bound 80 ms-grid
+reports remain under the existing `timing\<cut>\asr` receipt paths and drive timelines, captions and action trims.
+`--whisper-timing` is the explicit compatibility fallback for a job without an aligner, including an existing 2.0.4 or
+2.0.5 timeline; compose otherwise refuses a non-aligned clock. Local QA independently aligns the exact encoded candidate.
+Whisper checks transcript text there and never supplies the default timing clock. The 80 ms output grid is not a claim
+of 40 ms acoustic accuracy. This is not the proposed 2.1 pixel/render sync audit.
 
 ### Migrating a 2.0.4 runner or retained encode
 
@@ -85,7 +88,7 @@ loudness targets, the vision and image models, the timing provider, the demo URL
 | --- | --- | --- | --- |
 | 1 | `lint` | Schema, claims and evidence, narration/on-screen coverage, figures, banned phrases, forbidden names, people/children b-roll, voice and music policy, label, clip validity, length estimate, planned spend vs caps. Fails closed before any paid call. | none |
 | 2 | `voice` | One line per narrated beat. ElevenLabs REST through the governed adapter (request stitching, versioned pronunciation dictionary, text normalization), OpenAI `gpt-4o-mini-tts` with `instructions`, or local Qwen (`ai.ps1 voice qwen-role`). Keyed by (text, voice, model, settings, neighbors). | ElevenLabs credits / OpenAI USD |
-| 3 | `timing` | Word timings per line (OpenAI `whisper-1` word timestamps, or local whisper), the authored script aligned onto them, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. Fails if a cut runs more than 1.5 s over target. | whisper-1 ~$0.006/min |
+| 3 | `timing` | Forced alignment of each accepted take and authored line, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. `--whisper-timing` explicitly selects the configured Whisper fallback. Fails if a cut runs more than 1.5 s over target. | local; fallback whisper-1 ~$0.006/min |
 | 4 | `assets` | ElevenLabs sound effects and one ducked music bed (governed ledger), OpenAI `gpt-image` abstract stills, ElevenLabs video only if the API exposes it (it does not: recorded as skipped with the reason). Every generated asset is `aiGenerated: true` in `assets\manifest.json`. | credits / USD |
 | 5 | `capture` | Reuses a receipt-bound clip (sha256 re-checked against its capture receipt) or records it with `record-job.mjs` (`ui.record` plus `--allow-capture`). | none |
 | 6 | `compose` | Per ratio: layout, focus-follow camera, captions, compose map, FFmpeg mix plan, Remotion render of the `MarketingAd` composition (picture only), audio mix with the bed ducked under the voice, two-pass loudnorm (-14 LUFS social, -16 web) and the encode. `--prepare-only` writes `props.json`, `compose-map.json`, `mix-plan.json` and `render-command.json` and stops. | none (local CPU) |
@@ -118,7 +121,7 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 | ElevenLabs `eleven_v4` (default) | Narration, request stitching works | 1 credit/char, reserved at 1.2x |
 | ElevenLabs sound effects | UI ticks, chimes | reserved max(200, 40/s) credits |
 | ElevenLabs Music `music_v2_5` | One instrumental bed per spec | 900 credits/min + 15% margin |
-| OpenAI `whisper-1` | Word timings (hosted fallback to local whisper) | $0.006/min |
+| OpenAI `whisper-1` | Transcript check; explicit `--whisper-timing` fallback when no aligner is available | $0.006/min |
 | OpenAI `gpt-image-2` | Abstract stills only (default quality medium) | ~$0.05 per 1536x1024 |
 | OpenAI `gpt-5.6-sol` (brand `vision.model`) | Vision QA on sampled frames | $4 / $20 per 1M tokens |
 | OpenAI `gpt-4o-mini-tts` | Optional narration with `instructions` | ~$0.02/min |
@@ -128,7 +131,8 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 
 `ui.actions` names the receipt actions the voice talks about. The first one is cut onto its spoken keyword (digits and number
 words match: "twelve" finds "12"), so `ui.trimStart` is only a fallback; the beat is lengthened so the result holds at least
-1.6 s after the last narrated action. Every other receipt action inside the beat's window is written to the cue plan as
+1.6 s after the last narrated action. The compose map records the timeline word clock, timing receipt hash, trim source,
+and matched action/word anchor; unmatched-action fallback warnings are also persisted. Every other receipt action inside the beat's window is written to the cue plan as
 `narrated: false`. Caption cues are held or started earlier into the surrounding gaps so none exceeds 18 characters per second.
 A capture expectation ("the product responded") stands as a beat's result only if it is visible inside the beat and holds >= 1.5 s; one up to 0.5 s short lengthens the beat, any other is left out of the cue plan (so it is never stamped after the beat). The per-line ASR copy in the gate workspace is shifted by the lead-in so keyword times match where each line is placed. Vision frames are sampled at least 0.25 s from a caption cue start or end. A reviewer may add `qa/<ratio>/vision-arbitration.json` `{candidateSha256, reviewer, items:[{frame, category, verdict:"false-positive", reason}]}`; it counts only when it names the current candidate hash, is recorded in `gates.json`, and is never written by mvg. The listen gate follows the film chain: `releaseEligible` is the pass signal and any finding, a WARNING included, fails it.
 A focus window magnified by a Recast punch-in (`sourceZoom`) gets a wider crop so the total magnification stays at or under

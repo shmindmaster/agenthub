@@ -9,7 +9,7 @@
 // Inputs (all under <jobRoot>; the product repository is never read):
 //   story/narration-timeline.json  required  { durationSeconds, segments:[{ id, scene, text, startSeconds, durationSeconds }] }
 //   voice/asr/<segmentId>.json     word timestamps per line, seconds into that line's audio (offset by startSeconds):
-//                                    ai.ps1 transcribe <take.wav> --engine whisper --json-out voice\asr\<id>.json
+//                                    normally a take/script-bound ai.ps1 align report; legacy Whisper payloads also parse
 //                                  or story/narration-words.json, the same payload with program-absolute times.
 //                                  Segment-level timing only -> precision "segment"; no ASR at all -> authored text spread
 //                                  across the segment, precision "estimate". Both are flagged and the sync gate refuses them.
