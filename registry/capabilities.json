@@ -487,8 +487,7 @@
         {
           "hostId": "cline",
           "deploymentStatus": "managed-loose-skills"
-        }
-      ]
+        }      ]
     },
     {
       "id": "firecrawl",
@@ -765,7 +764,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "5F3B13C1723E2D40C16E319C14132C7D4C5B24B507BE38800E5BE49738F1FE4D",
+      "contentHash": "E8317868EE934F7FA9C90AB5345FBDC4A6982B78780CB85CADD4A7275E730BE5",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -1359,7 +1358,7 @@
       "managedSkillNames": [
         "use-coding-agent"
       ],
-      "contentHash": "67476D240117ED16335E0AC8A2A8A680FABB9B71147239350A438895109AF0F1",
+      "contentHash": "17E7B9A36414FF86C8234B593958D139A6210427DFFCA25948EED997BB57067C",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1393,5 +1392,5 @@
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",
-  "lastCanonicalChangeAt": "2026-10-14T00:00:00Z"
+  "lastCanonicalChangeAt": "2026-10-22T00:00:00Z"
 }

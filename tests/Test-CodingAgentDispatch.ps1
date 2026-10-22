@@ -101,7 +101,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         }
         if ($id -eq 'gemini') {
             $promptIndex = [Array]::IndexOf($d.Arguments, '--prompt')
-            Check 'Gemini uses headless prompt without conflicting approval mode' ($promptIndex -ge 0 -and $d.Arguments[$promptIndex + 1] -eq 'ok' -and $d.Arguments -notcontains '--approval-mode')
+            $approvalIndex = [Array]::IndexOf($d.Arguments, '--approval-mode')
+            Check 'Gemini uses headless prompt with yolo approval mode' ($promptIndex -ge 0 -and $d.Arguments[$promptIndex + 1] -eq 'ok' -and $approvalIndex -ge 0 -and $d.Arguments[$approvalIndex + 1] -eq 'yolo' -and $d.Arguments -notcontains '--yolo')
         }
         if ($id -eq 'cursor-agent') {
             Check 'Cursor uses print text mode, read-only Q&A and trusted workspace' ($d.Arguments -contains '--print' -and $d.Arguments -contains '--output-format' -and $d.Arguments -contains 'text' -and $d.Arguments -contains '--mode' -and $d.Arguments -contains 'ask' -and $d.Arguments -contains '--trust' -and $d.Arguments -contains '--workspace' -and $d.Arguments -contains $scratch)

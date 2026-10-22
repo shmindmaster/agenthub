@@ -2,7 +2,7 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.4"
+  version: "0.2.5"
 ---
 
 # Use a coding agent from another coding agent
@@ -32,7 +32,7 @@ Aliases enforce their own policy and the target's policy and autonomy profile.
 Refused rows stay refused. Help verification establishes a command contract;
 authentication, allowance and smoke evidence establish readiness separately.
 
-The 0.2.4 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
+The 0.2.5 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
 Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin and local Warp/Oz.
 `registry/fleet-profile.json` -> `dispatchPolicy`
 can disable each contract with a reason and owner action. The current verified
@@ -46,7 +46,7 @@ Account-mode readiness recorded in this repair:
 | --- | --- |
 | Cursor Agent | Account status and a standalone-response smoke passed on 2026-10-22. |
 | Amp | Execute mode with dispatch-only MCP servers disabled returned the requested response on 2026-10-22; `amp usage` reported Amp Free. |
-| Gemini | Headless flags avoid the registered shim's duplicate `--yolo`; complete Google OAuth interactively with `gemini` before another smoke. |
+| Gemini | Dispatcher uses `--approval-mode yolo`; the registered shim supplies only `--skip-trust`. Complete Google OAuth interactively with `gemini` before another smoke. |
 | Warp | No supported account-status command or local-only execution mode was verified; keep disabled unless both are established. |
 | Other gated CLIs | Confirm included allowance for the configured provider/model or obtain an explicit task credit budget, then one smoke before enabling. |
 

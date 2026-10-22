@@ -2,8 +2,11 @@
 from contextlib import asynccontextmanager
 import importlib.util
 import json
+import os
 from pathlib import Path
 import unittest
+from unittest.mock import patch
+from io import BytesIO
 
 from mcp.server.fastmcp import FastMCP, Context
 from starlette.testclient import TestClient
@@ -12,6 +15,47 @@ spec = importlib.util.spec_from_file_location(
     'shared_server', Path(__file__).parents[1] / 'scripts/shared_server.py')
 shared = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(shared)
+
+
+class LocalEmbeddingTest(unittest.TestCase):
+    def test_actual_request_overrides_inherited_remote_route_and_key(self):
+        with patch.dict(os.environ, {'OPENAI_BASE_URL': 'https://api.openai.com/v1',
+                                    'OPENAI_API_KEY': 'fixture-remote-key'}):
+            with patch.object(shared, 'build_opener') as factory:
+                factory.return_value.open.return_value = BytesIO(json.dumps({
+                    'data': [{'embedding': [0.2, -0.7]}]}).encode())
+                shared.configure_local_embedder('http://127.0.0.1:8790/v1/', 'fixture')
+                request = factory.return_value.open.call_args.args[0]
+                self.assertEqual(request.full_url, 'http://127.0.0.1:8790/v1/embeddings')
+                self.assertNotIn('fixture-remote-key', str(request.headers))
+                self.assertEqual(os.environ['OPENAI_BASE_URL'], 'http://127.0.0.1:8790/v1')
+                self.assertEqual(os.environ['OPENAI_API_KEY'], 'local-retrieval')
+                self.assertEqual(os.environ['REPOWISE_EMBEDDER'], 'openai')
+                self.assertEqual(os.environ['REPOWISE_EMBEDDING_MODEL'], 'fixture')
+
+    def test_remote_and_credential_urls_are_rejected_without_network(self):
+        for url in ('https://api.openai.com/v1', 'http://example.com/v1',
+                    'http://127.0.0.1.evil.test/v1', 'http://u:p@localhost/v1',
+                    'http://localhost/v1?secret=x', 'http://localhost/other'):
+            with self.subTest(url=url), patch.object(shared, 'build_opener') as factory:
+                with self.assertRaises(ValueError):
+                    shared.configure_local_embedder(url, 'fixture')
+                factory.assert_not_called()
+
+    def test_failure_or_bad_vectors_fail_closed_and_preserve_environment(self):
+        for payload in ({}, {'data': [{'embedding': [0, 0]}]},
+                        {'data': [{'embedding': [float('nan'), 1]}]},
+                        {'data': [{'embedding': ['secret', 1]}]}):
+            with self.subTest(payload=payload), patch.dict(os.environ, {}, clear=True):
+                with patch.object(shared, 'build_opener') as factory:
+                    factory.return_value.open.return_value = BytesIO(json.dumps(payload).encode())
+                    with self.assertRaisesRegex(RuntimeError, 'refusing to serve'):
+                        shared.configure_local_embedder('http://localhost:8790/v1', 'fixture')
+                    self.assertNotIn('OPENAI_BASE_URL', os.environ)
+        with patch.object(shared, 'build_opener', side_effect=RuntimeError('private-response')):
+            with self.assertRaises(RuntimeError) as error:
+                shared.configure_local_embedder('http://localhost:8790/v1', 'fixture')
+            self.assertNotIn('private-response', str(error.exception))
 
 
 class SharedLifetimeTest(unittest.TestCase):
