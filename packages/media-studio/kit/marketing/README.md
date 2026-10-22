@@ -10,14 +10,33 @@ read-only inputs.
 # from the deployed kit (or kit\marketing in a checkout); plain `node`, no windows, no npm install needed for lint/voice/assets
 node mvg.mjs D:\...\abacare-marketing\specs\01-expired-authorization.json --stage lint
 node mvg.mjs <spec> --dry-run                 # plan, planned spend, no provider call
-node mvg.mjs <spec> --hosted-only             # lint, voice, timing, assets, capture check, compose PREPARE; no render, no local gates
-node mvg.mjs <spec>                           # everything up to qa; deliver only when every required gate passed
-node mvg.mjs <spec> --stage qa --local-gates  # adds local whisper + sync + Local-AI listen (GPU)
-node mvg.mjs <spec> --only deliver
+node mvg.mjs <spec> --stage capture --hosted-only # preparation only; no render
+node mvg.mjs <spec> --stage compose --candidate-id cut-01 --no-line-chips
+node mvg.mjs <spec> --stage qa --candidate-id cut-01 --local-gates # never composes
+node mvg.mjs <spec> --stage deliver --candidate-id cut-01
 ```
 
 Exit 0 = ok, 1 = a stage failed closed (lint, budget, gate), 2 = usage. Every run writes `jobs\<spec id>\manifest.json`
-(stage status, hashes, cost) and `cost-ledger.json`.
+(stage status, hashes, cost) and `cost-ledger.json`, except external read-only QA, which writes only under `--qa-dir`.
+
+Compose reserves `compose/candidates/<id>` exclusively, even with `--force`. Recompose means a new ID.
+QA and delivery require that ID and its compose receipt. To gate an existing file without writing source evidence:
+
+```powershell
+node mvg.mjs <spec> --stage qa --candidate-id retained-01 --candidate <ad.mp4> --candidate-sha256 <sha256> --compose-dir <original-build-dir> --ratio 9x16 --qa-dir D:\Local-AI\data\artifacts\media\qa-retained-01 --local-gates
+```
+
+The QA directory must be outside the source job. Local-AI alignment outputs must be under its declared media artifact
+root (`D:\Local-AI\data\artifacts\media` on the reference host). No copying to the delivery library occurs in QA.
+`--no-line-chips`, `--no-captions`, or `render: { "lineChips": false }` disables burned caption chips, retaining the SRT.
+Vision defaults to the enabled existing Local-AI vision model. It never starts a service or downloads weights.
+Unavailable/retired local vision fails closed; paid OpenAI requires `--vision-provider openai` or explicit
+`brand.vision.provider: "openai"` and the normal budget ledger.
+
+Preparation timing may be provisional ASR; it cannot release. Local gates align accepted line takes plus the encoded
+candidate against locked scripts using `ai.ps1 align`, validate their hashes and 80 ms grid, and use only those word
+onsets for the canonical 40 ms offset/drift gate. Whisper separately checks transcript text. The 80 ms output grid is
+not a claim of 40 ms acoustic accuracy. This is a 2.0.5 word-onset repair, not the proposed 2.1 pixel/render sync audit.
 
 ## Writing a spec (`ad.schema.json`)
 
@@ -55,8 +74,8 @@ loudness targets, the vision and image models, the timing provider, the demo URL
 | 4 | `assets` | ElevenLabs sound effects and one ducked music bed (governed ledger), OpenAI `gpt-image` abstract stills, ElevenLabs video only if the API exposes it (it does not: recorded as skipped with the reason). Every generated asset is `aiGenerated: true` in `assets\manifest.json`. | credits / USD |
 | 5 | `capture` | Reuses a receipt-bound clip (sha256 re-checked against its capture receipt) or records it with `record-job.mjs` (`ui.record` plus `--allow-capture`). | none |
 | 6 | `compose` | Per ratio: layout, focus-follow camera, captions, compose map, FFmpeg mix plan, Remotion render of the `MarketingAd` composition (picture only), audio mix with the bed ducked under the voice, two-pass loudnorm (-14 LUFS social, -16 web) and the encode. `--prepare-only` writes `props.json`, `compose-map.json`, `mix-plan.json` and `render-command.json` and stops. | none (local CPU) |
-| 7 | `qa` | On the exact encoded file: picture, picture integrity, pointer path, frame integrity, captions, loudness, sync and Local-AI listen (`--local-gates`), OpenAI vision QA, the marketing floor, the story score, `validate-viewer-release`. Anything that did not run on this candidate is `pending`, never a pass. | vision ~$0.1-0.3/ratio |
-| 8 | `deliver` | Only if every required gate passed on the current file: copies to the library as `NN - Title (ratio).mp4` + `.srt`, updates the folder README table and per-film section, sha256 every file, deletes reproducible intermediates. | none |
+| 7 | `qa` | Selects a named, hash-verified candidate without composing: picture, captions, loudness, forced word-sync, independent Whisper transcript, sync and listen (`--local-gates`), local vision, marketing, story and viewer-release. Missing checks stay pending. | local; explicit `--vision-provider openai` is paid |
+| 8 | `deliver` | Verifies the named candidate and every required gate's SHA, then copies MP4/SRT and updates the library index. Candidate evidence is retained. | none |
 
 The film number `NN` is computed at deliver time: one above every number used by a file, a README row or heading, or the
 brand's `reservedNumbers`. It is claimed with an exclusive create, so a number is never reused.

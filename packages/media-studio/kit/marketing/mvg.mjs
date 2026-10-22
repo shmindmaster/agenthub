@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 // mvg: marketing video generator. One ad spec in, gated 16:9 / 4:5 / 9:16 ads out.
 //
-//   node mvg.mjs <spec.json> [--stage lint|voice|timing|assets|capture|compose|qa|deliver|all] [--dry-run]
+//   node mvg.mjs <spec.json> --stage lint|voice|timing|assets|capture|compose|qa|deliver [--dry-run]
 //
 // Stages run in order (lint -> voice -> timing -> assets -> capture -> compose -> qa -> deliver), each cached by the
-// hash of its inputs so reruns skip unchanged work. `--stage X` runs the stages up to and including X that are not
-// already satisfied; `--only X` runs just X. Flags:
+// hash of its inputs so reruns skip unchanged work. Compose, QA and deliver are explicit isolated steps;
+// preparation stages run their prerequisites. `--only X` also runs just X. Flags:
+//   --candidate-id ID new exclusive compose directory; QA/delivery select that exact candidate
+//   --candidate FILE --candidate-sha256 SHA --compose-dir DIR --ratio R --qa-dir DIR  gate existing evidence
+//   --no-line-chips / --no-captions  disable the burned caption layer (sidecar SRT retained)
+//   --vision-provider local|openai  local by default; openai is an explicit paid fallback
 //   --dry-run         plan only: lint, planned spend, no provider call, no render, no delivery
 //   --prepare-only    compose writes props / compose map / mix plan but does not render or encode
 //   --hosted-only     hosted providers only: implies --prepare-only (no render/encode), no recording, no local gates; deliver is skipped
-//   --local-gates     qa also runs local whisper + the sync and Local-AI listen gates (GPU)
+//   --local-gates     forced word alignment, independent Whisper transcript and Local-AI listen (GPU)
 //   --allow-capture   permit ui.record clips to be (re)recorded through record-job.mjs
-//   --no-vision       skip OpenAI vision QA (it stays `pending`, so deliver refuses)
+//   --no-vision       skip vision QA (it stays `pending`, so deliver refuses)
 //   --force           ignore stage caches
 //   --workspace DIR   media workspace root (default: the parent of the spec folder)
 // Exit codes: 0 ok, 1 stage failed (lint/budget/gate), 2 usage.
@@ -44,19 +48,27 @@ export function parseArgs(argv) {
     const a = argv[i];
     if (!a.startsWith('--')) { pos.push(a); continue; }
     const name = a.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    if (['stage', 'only', 'workspace', 'kit'].includes(name)) flags[name] = argv[++i];
+    if (['stage', 'only', 'workspace', 'kit', 'candidateId', 'candidate', 'candidateSha256', 'composeDir', 'qaDir', 'ratio', 'visionProvider'].includes(name)) {
+      if (!argv[i + 1] || argv[i + 1].startsWith('--')) throw new Error(`--${a.slice(2)} needs a value`);
+      flags[name] = argv[++i];
+    }
     else flags[name] = true;
   }
   return { specPath: pos[0], flags };
 }
 
-export async function runPipeline(ctx) {
+export function selectedStages(flags) {
   const names = STAGES.map(([n]) => n);
-  const last = ctx.flags.only || ctx.flags.stage || 'all';
+  const last = flags.only || flags.stage || (flags.dryRun ? 'capture' : null);
+  if (!last || last === 'all') throw new Error('select an explicit --stage; compose, qa and deliver are separate steps');
   if (last !== 'all' && !names.includes(last)) throw new Error(`unknown stage ${last} (stages: ${names.join(', ')})`);
-  const selected = ctx.flags.only ? [ctx.flags.only] : names.slice(0, last === 'all' ? names.length : names.indexOf(last) + 1);
+  return flags.only || ['compose', 'qa', 'deliver'].includes(last) ? [last] : names.slice(0, names.indexOf(last) + 1);
+}
+
+export async function runPipeline(ctx, stages = STAGES) {
+  const selected = selectedStages(ctx.flags);
   const results = {};
-  for (const [name, fn] of STAGES) {
+  for (const [name, fn] of stages) {
     if (!selected.includes(name)) continue;
     if (ctx.flags.dryRun && ['timing', 'compose', 'qa', 'deliver'].includes(name)) { ctx.log(`${name}: skipped in --dry-run (needs generated audio)`); continue; }
     if (ctx.flags.hostedOnly && name === 'deliver') { ctx.log('deliver: skipped (--hosted-only)'); continue; }
@@ -72,7 +84,8 @@ async function main() {
   if (flags.hostedOnly) { flags.prepareOnly = true; flags.allowCapture = false; flags.localGates = false; }
   const ctx = loadContext({ specPath, flags });
   try {
-    await runPipeline(ctx);
+    const results = await runPipeline(ctx);
+    if (results.qa && Object.values(results.qa).some((r) => !r.ok)) throw new Error('QA has failing or pending gates; see candidate gates.json');
     const s = ctx.ledger.summary();
     console.log(JSON.stringify({ ok: true, jobDir: ctx.jobDir, cost: { elevenlabsCredits: s.elevenlabsCredits, openaiUsd: s.openaiUsd } }));
   } catch (e) {

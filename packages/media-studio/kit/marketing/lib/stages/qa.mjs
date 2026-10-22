@@ -14,18 +14,20 @@ import { normalizeCuts } from '../lint.mjs';
 import { fileSha, readJson, writeJson } from '../util.mjs';
 import { resolveClip } from './capture.mjs';
 import { runVisionQa } from '../../vision-qa.mjs';
+import { selectedCuts, verifiedCandidate } from '../candidate.mjs';
 
 const pending = (detail) => ({ status: 'pending', detail });
 
 export async function qaStage(ctx) {
   const required = requiredGates(ctx.spec);
   const out = {};
-  for (const cut of normalizeCuts(ctx.spec)) {
+  for (const cut of selectedCuts(ctx, normalizeCuts(ctx.spec))) {
     const timeline = readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
     const capture = existsSync(join(ctx.jobDir, 'capture', `${cut.id}.json`)) ? readJson(join(ctx.jobDir, 'capture', `${cut.id}.json`)).clips : [];
     for (const ratio of cut.ratios) {
-      const cdir = join(ctx.jobDir, 'compose', ratio);
-      const qdir = join(ctx.jobDir, 'qa', ratio);
+      const named = verifiedCandidate(ctx, ratio);
+      const cdir = named.dir;
+      const qdir = named.qa;
       const ws = join(qdir, 'ws');
       mkdirSync(qdir, { recursive: true });
       const composeMap = readJson(join(cdir, 'compose-map.json'));
@@ -34,7 +36,7 @@ export async function qaStage(ctx) {
       const asr = Object.fromEntries((timeline.lines || []).filter((l) => l.asr).map((l) => [l.beatId, join(ctx.jobDir, l.asr)]));
       const target = loudnessTarget(ratio, ctx.spec, ctx.brand);
       buildGateWorkspace({ root: ws, spec: ctx.spec, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs: target.lufs });
-      const ad = join(cdir, 'ad.mp4');
+      const ad = named.ad;
       const gates = {};
       if (!existsSync(ad) || ctx.flags.prepareOnly) {
         for (const g of required) gates[g] = pending('no encoded candidate yet (compose renders it) or --prepare-only');
@@ -43,7 +45,8 @@ export async function qaStage(ctx) {
         out[ratio] = { ...verdict, gates };
         continue;
       }
-      const sha = fileSha(ad);
+      const sha = named.sha256;
+      if (fileSha(ad) !== sha) throw new Error('candidate changed before QA');
       const candidate = join(ws, 'output', `${ctx.spec.id}.mp4`);
       copyFileSync(ad, candidate);
       const srt = join(ws, 'output', `${ctx.spec.id}.srt`);
@@ -63,10 +66,12 @@ export async function qaStage(ctx) {
       // A cue sheet in the workspace must belong to this candidate: the sync gate below rebuilds it, nothing else may leave one behind.
       rmSync(join(ws, 'plan', 'cue-sheet.json'), { force: true });
       if (ctx.flags.localGates) {
-        const local = await runSyncGates({ ws, candidate, moduleRoot: MODULE_ROOT, composeMapRel: `output/${ctx.spec.id}-compose-map.json`, sourceRevision: ctx.spec.id });
+        const local = await runSyncGates({ ws, candidate, moduleRoot: MODULE_ROOT, composeMapRel: `output/${ctx.spec.id}-compose-map.json`, sourceRevision: ctx.spec.id, voiceLines: readJson(join(cdir, 'mix-plan.json')).lines });
         gates.sync = local.sync;
         gates.listen = local.listen;
-      } else { gates.sync = pending('needs local ASR (GPU); run with --local-gates'); gates.listen = pending('needs the Local-AI listen gate (GPU); run with --local-gates'); }
+        gates.wordSync = local.wordSync || pending('word-sync did not run');
+        gates.transcript = local.transcript || pending('independent transcript did not run');
+      } else { gates.sync = pending('needs forced alignment; run with --local-gates'); gates.wordSync = pending('needs ai.ps1 align'); gates.transcript = pending('needs independent Whisper transcript'); gates.listen = pending('needs the Local-AI listen gate (GPU); run with --local-gates'); }
 
       // Film-chain gates on the exact encoded candidate (media-studio 2.0.0). They read the ws copies of the compose map and
       // receipt; the marketing floor counts only a reviewer's qa/<ratio>/marketing-readiness.json that names this candidate.
@@ -82,7 +87,7 @@ export async function qaStage(ctx) {
           // Frames are sampled away from caption transitions, and a reviewer's arbitration (never written by mvg) is honoured only
           // when it names this exact candidate hash.
           const arbPath = join(qdir, 'vision-arbitration.json');
-          const v = await runVisionQa({ candidate: ad, spec: ctx.spec, brand: ctx.brand, ratio, ledger: ctx.ledger, vision: ctx.providers.vision, frames: ctx.providers.frames, framesDir: join(qdir, 'vision-frames'), duration: gateSegments.durationSeconds, cues: readJson(join(ctx.jobDir, 'timing', cut.id, 'captions.json')).chunks, arbitration: existsSync(arbPath) ? readJson(arbPath) : null });
+          const v = await runVisionQa({ candidate: ad, spec: ctx.spec, brand: ctx.brand, ratio, provider: ctx.flags.visionProvider, ledger: ctx.ledger, vision: ctx.providers.vision, localVision: ctx.providers.localVision, frames: ctx.providers.frames, framesDir: join(qdir, 'vision-frames'), duration: gateSegments.durationSeconds, cues: readJson(join(ctx.jobDir, 'timing', cut.id, 'captions.json')).chunks, arbitration: existsSync(arbPath) ? readJson(arbPath) : null });
           writeJson(join(qdir, 'vision.json'), v);
           const arb = v.arbitration?.honoured ? { reviewer: v.arbitration.reviewer, applied: v.arbitration.applied, ignored: v.arbitration.ignored } : v.arbitration?.file ? { reviewer: null, applied: [], ignored: v.arbitration.ignored } : null;
           gates.vision = v.ok ? { status: 'pass', detail: `${v.sampled.length} frames, ${v.findings.length} findings${v.arbitration?.applied?.length ? `, ${v.arbitration.applied.length} arbitrated false-positive by ${v.arbitration.reviewer}` : ' (none blocking)'}`, ...(arb ? { arbitration: arb } : {}) } : { status: 'fail', detail: v.reasons.slice(0, 2).join(' | '), ...(arb ? { arbitration: arb } : {}) };
@@ -107,11 +112,13 @@ export async function qaStage(ctx) {
         gates.viewerRelease = vr.code === 0 && parsed?.ok ? { status: 'pass', detail: 'validate-viewer-release ok' } : { status: 'fail', detail: (parsed?.errors || [vr.stderr]).slice(0, 3).join(' | ') };
       }
       const verdict = releasable(gates, required);
-      writeJson(join(qdir, 'gates.json'), { ratio, candidate: { path: ad, sha256: sha }, required, gates, ...verdict });
+      if (fileSha(ad) !== sha || fileSha(candidate) !== sha) throw new Error('candidate changed during QA; no gate verdict published');
+      for (const g of Object.values(gates)) g.candidateSha256 = sha;
+      writeJson(join(qdir, 'gates.json'), { ratio, candidate: { id: named.id, path: ad, sha256: sha, bytes: named.bytes }, required, gates, ...verdict });
       out[ratio] = { ...verdict, gates, candidateSha256: sha };
     }
   }
   const allOk = Object.values(out).every((r) => r.ok);
-  recordStage(ctx, 'qa', allOk ? 'pass' : 'pending-or-fail', { ratios: Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { ok: v.ok, failing: v.failing }])) });
+  if (!ctx.flags.qaDir) recordStage(ctx, 'qa', allOk ? 'pass' : 'pending-or-fail', { ratios: Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { ok: v.ok, failing: v.failing }])) });
   return out;
 }

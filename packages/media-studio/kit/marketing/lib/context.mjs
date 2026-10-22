@@ -19,7 +19,7 @@ export function loadContext({ specPath, flags = {}, providers = {}, now = new Da
   const runId = `${now.toISOString().replace(/[:.]/g, '-')}`;
   const perRun = { ...(brand.budgets?.perRun || {}), ...(spec.budget || {}) };
   const ledger = new CostLedger({
-    jobDir, runId, perRun,
+    jobDir: flags.qaDir ? resolve(flags.qaDir) : jobDir, runId, perRun,
     cumulative: { elevenlabsCredits: brand.budgets?.elevenlabsCredits, openaiUsd: brand.budgets?.openaiUsd },
     cumulativePath: join(workspace, '_spend', 'ledger.jsonl'),
   });

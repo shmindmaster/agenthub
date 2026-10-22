@@ -15,6 +15,7 @@ import { lineBreaks, toSrt } from '../captions.mjs';
 import { resolveClip } from './capture.mjs';
 import { sfxKey } from './assets.mjs';
 import { fileSha, readJson, round, writeJson } from '../util.mjs';
+import { candidatePaths, reserveCandidate, selectedCuts } from '../candidate.mjs';
 
 export const HOLD_PAD_MAX = 2.0;
 
@@ -46,6 +47,11 @@ export function cueTime(cue, seg, { actions = [], headTrim = 0, trimStart = 0, d
 export function placeCaptions(chunks, beats, segments) {
   const tops = beats.filter((b) => b.captionPlacement === 'top').map((b) => segments.find((s) => s.id === b.id)).filter(Boolean);
   return chunks.map((k) => (tops.some((s) => k.startSec >= s.startSeconds - 0.001 && k.startSec < s.startSeconds + s.durationSeconds) ? { ...k, top: true } : k));
+}
+
+export function renderCaptions(ctx, captions) {
+  // "Line chips" and burned captions are the same MarketingAd layer. Sidecar SRT remains available.
+  return ctx.flags.noLineChips || ctx.flags.noCaptions || ctx.spec.render?.lineChips === false || ctx.spec.render?.captions === false ? [] : captions;
 }
 
 /** Structural check of the MarketingAd props before anything renders: a bad prop is cheaper to find here than mid-render. */
@@ -166,7 +172,7 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
     // The synthetic-data label and the AI-voice disclosure are end-card lines, not a chip over the product picture.
     label: ctx.spec.labels, disclosure: ctx.spec.voice.disclosure || undefined,
     logo: ctx.brand.logo ? addMedia(ctx.brand.logo, ctx.brand.logo.split('.').pop()) : undefined,
-    beats, captions: placeCaptions(captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words, lines: lineBreaks(k.words, { maxWidthPx: Math.min(layout.captionBox.w, Math.round(0.82 * frame.width)), fontSize: layout.captionBox.fontSize }) })), cut.beats, timeline.segments),
+    beats, captions: renderCaptions(ctx, placeCaptions(captions.map((k) => ({ startSec: k.startSec, endSec: k.endSec, words: k.words, lines: lineBreaks(k.words, { maxWidthPx: Math.min(layout.captionBox.w, Math.round(0.82 * frame.width)), fontSize: layout.captionBox.fontSize }) })), cut.beats, timeline.segments)),
     emphasis: [...new Set(cut.beats.flatMap((b) => b.emphasis || []))],
     cta: { text: ctx.spec.cta.text, displayUrl: ctx.spec.cta.displayUrl || ctx.spec.cta.url.replace(/^https?:\/\//, '') },
   };
@@ -177,8 +183,9 @@ export function buildRatioPlan(ctx, cut, ratio, { timeline, captions, voice, ass
 }
 
 export async function composeStage(ctx) {
+  reserveCandidate(ctx);
   const summary = {};
-  for (const cut of normalizeCuts(ctx.spec)) {
+  for (const cut of selectedCuts(ctx, normalizeCuts(ctx.spec))) {
     const timeline = readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
     const captionsAll = readJson(join(ctx.jobDir, 'timing', cut.id, 'captions.json')).chunks;
     const voice = readJson(join(ctx.jobDir, 'voice', `${cut.id}.lines.json`));
@@ -186,7 +193,7 @@ export async function composeStage(ctx) {
     const assets = existsSync(assetsPath) ? readJson(assetsPath) : { items: [] };
     const capture = existsSync(join(ctx.jobDir, 'capture', `${cut.id}.json`)) ? readJson(join(ctx.jobDir, 'capture', `${cut.id}.json`)).clips : [];
     for (const ratio of cut.ratios) {
-      const dir = join(ctx.jobDir, 'compose', ratio);
+      const { dir, id } = candidatePaths(ctx, ratio);
       mkdirSync(join(dir, 'public', 'media'), { recursive: true });
       const plan = buildRatioPlan(ctx, cut, ratio, { timeline, captions: captionsAll, voice, assets, capture });
       for (const [name, file] of plan.media) if (!existsSync(join(dir, 'public', 'media', name))) copyFileSync(file, join(dir, 'public', 'media', name));
@@ -216,6 +223,7 @@ export async function composeStage(ctx) {
       const r3 = await run('ffmpeg', encodeArgs({ silent, mixWav: mixOut, out, measured, target }));
       if (r3.code !== 0) throw new Error(`encode failed for ${ratio}: ${r3.stderr.trim().split('\n').pop()}`);
       summary[ratio].ad = { path: out, sha256: fileSha(out) };
+      writeJson(join(dir, 'candidate.json'), { id, ratio, ...summary[ratio].ad, specSha256: ctx.specSha, brandSha256: ctx.brandSha });
     }
   }
   recordStage(ctx, 'compose', ctx.flags.prepareOnly || ctx.flags.dryRun ? 'prepared' : 'done', { ratios: summary });

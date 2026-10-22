@@ -1,10 +1,13 @@
 // Local-AI gates for an encoded ad: encoded ASR (local whisper), the cue sheet, the sync gate and the Local-AI
 // listen gate. These start GPU work through D:\Local-AI\ai.ps1, so mvg runs them only with --local-gates and the
 // coordinator's go-ahead. Ported from the film post_gates.sh chain (abacare-video-plan-20261019/films/06/tools).
-import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, rmSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { run } from './mix.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
+import { alignWords as forceAlign } from './providers/local.mjs';
+import { forcedWordOnsets } from '../../screencast/sync-lib.mjs';
 
 const AI = process.env.MVG_LOCAL_AI || 'D:\\Local-AI\\ai.ps1';
 
@@ -25,13 +28,49 @@ export function listenCommand({ candidate, ws, sha, sourceRevision, risk, listen
   return `& '${AI}' listen '${candidate}' --transcript '${join(ws, 'story', 'locked-script.txt')}' --pronunciation-manifest '${risk}' --timeline '${join(ws, 'qa', 'listen-timeline.json')}' --candidate-id ${sha} --source-revision ${sourceRevision} --output '${listenOut}'`;
 }
 
-export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, sourceRevision = 'mvg' }) {
+export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, sourceRevision = 'mvg', voiceLines, align = forceAlign }) {
   const out = { sync: { status: 'fail' }, listen: { status: 'fail' } };
+  rmSync(join(ws, 'qa', 'encoded-alignment.json'), { force: true });
+  rmSync(join(ws, 'qa', 'word-sync.json'), { force: true });
+  try {
+    const timeline = readJson(join(ws, 'story', 'narration-timeline.json'));
+    if (voiceLines?.length !== timeline.segments.length) throw new Error('mix-plan voice lines do not cover the narration timeline');
+    const alignDir = join(ws, 'qa', 'align', randomUUID());
+    mkdirSync(alignDir, { recursive: true });
+    for (const [i, seg] of timeline.segments.entries()) {
+      const line = voiceLines[i];
+      const script = join(alignDir, `${i}.txt`), output = join(alignDir, `${i}.json`);
+      writeFileSync(script, seg.text, 'utf8');
+      await align({ file: line.file, script, output });
+      const expected = seg.text.split(/\s+/).filter(Boolean).map((w) => ({ w }));
+      const words = forcedWordOnsets(readJson(output), expected, { takeSha256: fileSha(line.file), scriptSha256: fileSha(script) });
+      const lead = line.startSec - seg.startSeconds;
+      writeJson(join(ws, 'voice', 'asr', `${seg.id}.json`), { words: words.map((w) => ({ ...w, start: round(w.start + lead), end: round(w.end + lead) })), clock: 'forced-aligner', takeSha256: fileSha(line.file), alignment: output });
+    }
+    const output = join(alignDir, 'encoded.json');
+    await align({ file: candidate, script: join(ws, 'story', 'locked-script.txt'), output });
+    copyFileSync(output, join(ws, 'qa', 'encoded-alignment.json'));
+    const jobPath = join(ws, 'job.json');
+    writeJson(jobPath, { ...readJson(jobPath), syncClock: 'forced-aligner' });
+  } catch (e) {
+    out.wordSync = { status: 'fail', detail: `forced alignment: ${e.message}` };
+  }
   const asrJson = join(ws, 'qa', 'encoded-asr.json');
   const t = await run('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', `& '${AI}' transcribe '${candidate}' --engine whisper --no-vad --json-out '${asrJson}' --out '${join(ws, 'qa', 'encoded-asr.txt')}'`], { timeoutMs: 1800000 });
-  if (t.code !== 0) return { ...out, sync: { status: 'fail', detail: 'encoded ASR failed' } };
+  out.transcript = t.code === 0 ? { status: 'pass', detail: 'Whisper transcript produced (not a timing clock)' } : { status: 'fail', detail: 'encoded transcript failed' };
   const cue = await run(process.execPath, [gateScript('build-cue-sheet.mjs', moduleRoot), ws, '--compose-map', composeMapRel], {});
   if (cue.code !== 0) return { ...out, sync: { status: 'fail', detail: `cue sheet: ${(cue.stderr || cue.stdout).trim().split('\n').pop()}` } };
+  const word = await run(process.execPath, [gateScript('validate-word-sync.mjs', moduleRoot), ws, candidate], {});
+  const wr = existsSync(join(ws, 'qa', 'word-sync.json')) ? readJson(join(ws, 'qa', 'word-sync.json')) : null;
+  out.wordSync ||= word.code === 0 && wr?.ok ? { status: 'pass', detail: `forced-aligner grid ${wr.gridMs} ms; offset ${wr.offsetMs} ms, drift ${wr.driftMs} ms`, report: 'qa/word-sync.json' } : { status: 'fail', detail: (wr?.errors || [word.stderr]).join(' | ') };
+  if (t.code === 0) {
+    // Text only. Word timing is deliberately discarded.
+    const content = readJson(asrJson);
+    const spoken = content.text || content.segments?.map((s) => s.text).join(' ') || content.words?.map((w) => w.word || w.text).join(' ') || '';
+    const normalized = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    const locked = readJson(join(ws, 'story', 'narration-timeline.json')).segments.map((s) => s.text).join(' ');
+    if (!normalized(spoken) || normalized(spoken) !== normalized(locked)) out.transcript = { status: 'fail', detail: 'Whisper text differs from the locked script; inspect transcript, not onsets' };
+  }
   const sync = await run(process.execPath, [gateScript('validate-sync.mjs', moduleRoot), ws, candidate], {});
   const report = existsSync(join(ws, 'qa', 'sync.json')) ? readJson(join(ws, 'qa', 'sync.json')) : null;
   out.sync = sync.code === 0 && report?.ok ? { status: 'pass', detail: `${report.errors?.length || 0} errors`, report: 'qa/sync.json' } : { status: 'fail', detail: (report?.errors || [sync.stderr]).slice(0, 3).join(' | ') };
