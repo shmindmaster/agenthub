@@ -77,8 +77,8 @@ $owners = if ($registry) { @($registry.capabilities | Where-Object { 'sarosh-aud
 $capability = if ($owners.Count -eq 1) { $owners[0] } else { $null }
 $expectedHosts = @(
     'amp', 'antigravity', 'claude', 'cline', 'codex', 'copilot', 'cursor',
-    'devin', 'factory', 'gemini', 'grok', 'hermes', 'opencode', 'qoder',
-    'qwen-code', 'warp', 'windsurf', 'vscode-insiders'
+    'devin', 'factory', 'gemini', 'grok', 'opencode',
+    'warp', 'windsurf', 'vscode-insiders'
 )
 $actualHosts = if ($capability) { @($capability.hostMappings | ForEach-Object { [string]$_.hostId } | Sort-Object -Unique) } else { @() }
 $hostSetOk = $actualHosts.Count -eq $expectedHosts.Count -and
@@ -92,9 +92,9 @@ $registryOk = $capability -and
     $capability.canonicalSource -eq 'overlays/personal/packages/sarosh-audio-voice' -and
     $capability.hashBasis -eq 'overlays/personal/packages/sarosh-audio-voice' -and
     $capability.status -eq 'active-canonical'
-Report 'registry has one owner and all 18 managed host mappings' `
+Report 'registry has one owner and all 15 non-retired managed host mappings' `
     ($registryOk -and $hostSetOk -and $mappingModesOk) `
-    "owners=$($owners.Count), hosts=$($actualHosts.Count), expected managed-loose-skills on all 18 hosts"
+    "owners=$($owners.Count), hosts=$($actualHosts.Count), expected managed-loose-skills on all 15 non-retired hosts"
 
 # 3. Global policy cross-references the skill from Owner voice.
 $policyOk = $policy -and

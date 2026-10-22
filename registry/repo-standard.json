@@ -10,6 +10,7 @@
   },
   "excluded": [
     { "name": ".demo-workspace", "reason": "Removed 2026-08-21. Was Product Demo Studio working media (not a git repo). work_dir now lives under %LOCALAPPDATA%\\AgentHub\\demo-workspace." },
+    { "name": "local-ai-platform-release-20261021", "reason": "Temporary immutable release clone of local-ai-platform, not an independent product or fleet member. Canonical local-ai-platform classification still applies; no native mobile identity is authorized." },
     { "name": "awesome-mcp-servers", "reason": "Recorded 2026-10-21. Fork of the third-party list punkpeye/awesome-mcp-servers (README files only, no product, no native project). Kept at the fleet root because it is a RepoWise workspace member (alias awesome-mcp-servers); it is reference material, not a fleet repo, so the knowledge standard and mobile-scope classification do not apply." }
   ],
   "requiredRootFiles": ["README.md", "AGENTS.md", "CLAUDE.md"],

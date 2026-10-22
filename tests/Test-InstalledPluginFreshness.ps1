@@ -21,7 +21,7 @@ layer and unreachable at another, with nothing failing. An agent invoking the
 skill read instructions that predated the entire capability.
 
 So this compares CONTENT, not versions: every file the installed plugin exposes
-must be byte-identical to its source in packages/. That is a check a missing
+must match its source in packages/, with registry-standard newline normalization. That is a check a missing
 version bump cannot satisfy.
 
 Scope note: only plugins that are actually installed are checked. An
@@ -72,7 +72,9 @@ function Read-JsonFile {
 
 function Get-FileSha256 {
     param([Parameter(Mandatory)][string]$Path)
-    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+    # Match the registry's text-content contract across LF and CRLF checkouts.
+    # Binary files and every substantive text byte still participate.
+    return Get-AgentHubStableFileHash -Path $Path
 }
 
 function Compare-DeployedTree {
@@ -207,7 +209,7 @@ function Test-InstalledVersionMatchesSource {
     return @{ Passed = $true; Detail = 'every installed @agenthub plugin is at the version its source manifest declares' }
 }
 
-# --- Behavior 3: the installed CONTENT matches source, byte for byte.
+# --- Behavior 3: installed CONTENT matches under the registry's newline policy.
 #
 # The check the missing version bump could not satisfy. A plugin held at a
 # constant version while its skills change passes Behavior 2 and fails here. ---
@@ -246,7 +248,7 @@ function Test-InstalledContentMatchesSource {
     if ($drifted.Count -gt 0) {
         return @{ Passed = $false; Detail = ($drifted -join ' || ') }
     }
-    return @{ Passed = $true; Detail = 'every installed @agenthub skill file is byte-identical to its source in packages/' }
+    return @{ Passed = $true; Detail = 'every installed @agenthub skill file matches source under the registry newline policy' }
 }
 
 # --- Behavior 4: the comparison can actually fail.
@@ -264,18 +266,20 @@ function Test-ComparatorDetectsEachDriftShape {
 
         [IO.File]::WriteAllText((Join-Path $source 'SKILL.md'), "same`n")
         [IO.File]::WriteAllText((Join-Path $deployed 'SKILL.md'), "same`n")
+        [IO.File]::WriteAllText((Join-Path $source 'eol.md'), "same`r`n")
+        [IO.File]::WriteAllText((Join-Path $deployed 'eol.md'), "same`n")
         [IO.File]::WriteAllText((Join-Path $source 'nested\drifted.ps1'), "new content`n")
         [IO.File]::WriteAllText((Join-Path $deployed 'nested\drifted.ps1'), "old content`n")
         [IO.File]::WriteAllText((Join-Path $source 'added.md'), "only in source`n")
         [IO.File]::WriteAllText((Join-Path $deployed 'stale.md'), "only in deployed`n")
 
-        $fixtureFiles = @('SKILL.md', 'nested/drifted.ps1', 'added.md')
+        $fixtureFiles = @('SKILL.md', 'eol.md', 'nested/drifted.ps1', 'added.md')
         $differences = @(Compare-DeployedTree -SourceRoot $source -DeployedRoot $deployed -RelativePaths $fixtureFiles)
 
         $sawContent = @($differences | Where-Object { $_ -like 'content differs: *drifted.ps1' }).Count -eq 1
         $sawMissing = @($differences | Where-Object { $_ -like 'missing from the installed copy: added.md' }).Count -eq 1
         $sawStale = @($differences | Where-Object { $_ -like 'left behind*stale.md' }).Count -eq 1
-        $ignoredIdentical = @($differences | Where-Object { $_ -like '*SKILL.md*' }).Count -eq 0
+        $ignoredIdentical = @($differences | Where-Object { $_ -like '*SKILL.md*' -or $_ -like '*eol.md*' }).Count -eq 0
 
         if (-not ($sawContent -and $sawMissing -and $sawStale -and $ignoredIdentical)) {
             return @{ Passed = $false; Detail = "comparator missed a drift shape (content=$sawContent missing=$sawMissing stale=$sawStale identicalIgnored=$ignoredIdentical): $($differences -join '; ')" }
@@ -376,7 +380,7 @@ $r2 = Test-InstalledVersionMatchesSource
 Report 'every installed @agenthub plugin is at the version its source manifest declares' $r2.Passed $r2.Detail
 
 $r3 = Test-InstalledContentMatchesSource
-Report 'every installed @agenthub skill file is byte-identical to source, which a version match alone cannot prove' $r3.Passed $r3.Detail
+Report 'every installed @agenthub skill file matches source under the registry newline policy' $r3.Passed $r3.Detail
 
 $r4 = Test-ComparatorDetectsEachDriftShape
 Report 'the comparator detects changed, missing and left-behind files, and clears an identical tree' $r4.Passed $r4.Detail

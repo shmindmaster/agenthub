@@ -10,10 +10,10 @@ import { fileSha, readJson, round, writeJson } from './util.mjs';
 
 // integrity, pointer, frameIntegrity and marketing are the media-studio 2.0.0 film-chain gates (picture integrity, pointer path,
 // tiled-frame / luma-jump check, marketing floor).
-export const DEFAULT_REQUIRED = ['picture', 'integrity', 'pointer', 'frameIntegrity', 'captions', 'loudness', 'sync', 'listen', 'vision', 'marketing', 'story', 'viewerRelease'];
+export const DEFAULT_REQUIRED = ['picture', 'integrity', 'pointer', 'frameIntegrity', 'captions', 'loudness', 'sync', 'listen', 'vision', 'marketing', 'story', 'viewerRelease', 'wordSync', 'transcript'];
 
 /** The gates deliver requires: the spec's list (or the default), always including the film-chain gates. */
-export const requiredGates = (spec) => [...new Set([...(spec?.qa?.required || DEFAULT_REQUIRED), ...CHAIN_GATES])];
+export const requiredGates = (spec) => [...new Set([...(spec?.qa?.required || DEFAULT_REQUIRED), ...CHAIN_GATES, 'wordSync', 'transcript'])];
 
 const seconds = (value) => {
   const m = /^(\d{2}):(\d{2}):(\d{2})[,.](\d{3})$/.exec(value.trim());
@@ -66,7 +66,7 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     craftScoreMin: spec.qa?.storyMin ?? 85, deliveryProfile: frame.profile, repositoryWritePolicy: 'read-only', workspace: root,
     // A paid ad competes in a feed: validate-marketing-readiness and viewer-release apply the marketing floor to marketing: true
     // (programForm stays outcome-workflow, see README deviation 8). Each portrait or square ratio is captured at its own frame.
-    marketing: true, captureViewports: captureViewportsFor(ratio, frame),
+    marketing: true, syncClock: 'forced-aligner', captureViewports: captureViewportsFor(ratio, frame),
     dataClass: 'synthetic only', label: spec.labels, syntheticDisclosure: { mode: 'end-card', text: spec.labels }, loudnessTargetLufs: loudnessLufs, recastFallbackAllowed: false, generator: 'media-studio/mvg',
   });
   // A beat with no narration (the opening title card, an end card with only on-screen text) is a silent beat: it has no words and
@@ -101,7 +101,7 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
   for (const beat of cut.beats.filter((b) => b.kind === 'ui')) {
     const c = clips.find((x) => x.beatId === beat.id);
     const dest = join('clips', `${beat.id}.webm`);
-    if (!existsSync(join(root, 'capture', dest))) copyFileSync(c.file, join(root, 'capture', dest));
+    copyFileSync(c.file, join(root, 'capture', dest));
     const g = composeMap.groups.find((x) => x.segments.includes(beat.id));
     manifestClips.push({ id: beat.id, file: dest.replace(/\\/g, '/'), segments: [beat.id], fit: 'hold', trimStart: g.edit.trimStart, trimEnd: g.edit.trimEnd, sourceRegion: g.sourceRegion });
     // Only expectations that can serve as this beat's result stay in the receipt copy: visible inside the beat and held
