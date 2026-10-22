@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "media-studio",
-  "capabilityVersion": "2.0.5",
+  "capabilityVersion": "2.0.6",
   "canonicalOwner": "personal-media",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",

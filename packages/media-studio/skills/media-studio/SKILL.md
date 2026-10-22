@@ -162,7 +162,7 @@ A 15-30 s social or web ad uses the deployed `mvg.mjs` and `kit/marketing/README
 - Story-experience score below 85. A pre-capture text-only score is not a pass.
 - An addendum or correction clip. Re-record the affected section and re-cut the master.
 
-Delivery: file names are `NN - Title.mp4` with no product prefix; a delivered series has a `README.md` index; superseded masters and reproducible intermediates are deleted outright, never parked in `_retired` / `_old` folders. Status claims name where the film actually is: merged to dev → in main → deployed → production-verified.
+Delivery: each product or purpose has exactly one folder directly under `F:\My Drive\Videos`, and every film, caption and note sits directly in it: no subfolders of any kind (no `Training`, `Notes`, `Evidence`, `Prospects` or archive folders; QA evidence stays in the media-studio workspace). File names are `NN - Title.mp4` with no product prefix, the `.srt` beside each film; the folder has one `README.md` index; superseded masters and reproducible intermediates are deleted outright, never parked in `_retired` / `_old` folders. Status claims name where the film actually is: merged to dev → in main → deployed → production-verified.
 
 ## 5. Final check
 

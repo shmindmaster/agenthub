@@ -44,7 +44,7 @@ present the result as that lane.
 3. Capture product evidence once at every delivered ratio's own viewport (`media-studio-capture` §2b); every asset
    draws from those receipts.
 4. Produce per lane. Every asset gets the gates its kind requires; marketing cuts pass the marketing floor.
-5. Deliver under `F:\My Drive\Videos\<Product>` for film (`NN - Title.mp4`, README index) and the product's
+5. Deliver under `F:\My Drive\Videos\<Product>` for film (one flat folder per product, no subfolders; `NN - Title.mp4`, `.srt` beside it, README index) and the product's
    documented asset folders for the rest; the registry's `product-video-delivery.json` names the review roots.
 
 ## Output contract
