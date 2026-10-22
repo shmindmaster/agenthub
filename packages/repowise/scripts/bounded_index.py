@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -79,6 +80,69 @@ def remaining_seconds(limit: int, deadline: str | None) -> float:
     return min(limit, remaining)
 
 
+def allowed_output_root() -> Path:
+    """Receipts and raw child logs live only beneath %LOCALAPPDATA%\\AgentHub."""
+    base = os.environ.get("LOCALAPPDATA")
+    if not base:
+        raise RuntimeError("LOCALAPPDATA is not set; cannot place receipts under AgentHub")
+    return (Path(base) / "AgentHub").resolve()
+
+
+def output_permitted(output: Path) -> bool:
+    """True when the fully resolved output (junctions and symlinks followed) is
+    strictly inside the AgentHub runtime root."""
+    root = allowed_output_root()
+    resolved = output.resolve()
+    return resolved != root and resolved.is_relative_to(root)
+
+
+def _editor_files_settings(text: str) -> dict:
+    try:
+        import yaml
+    except ImportError:
+        yaml = None
+    if yaml is not None:
+        value = (yaml.safe_load(text) or {}).get("editor_files") if text.strip() else None
+        return value if isinstance(value, dict) else {}
+    # Fallback for an interpreter without PyYAML: block or flow mapping only.
+    settings = {}
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        match = re.match(r"editor_files:\s*(\{.*\})?\s*(#.*)?$", line)
+        if not match:
+            continue
+        pairs = [(match.group(1) or "")]
+        for follower in lines[index + 1:]:
+            if follower.strip() and not follower.startswith((" ", "\t")):
+                break
+            pairs.append(follower)
+        for key, value in re.findall(r"([A-Za-z_]+)\s*:\s*(true|false)\b", "\n".join(pairs), re.I):
+            settings[key] = value.lower() == "true"
+    return settings
+
+
+def require_editor_files_opt_out(repo: Path) -> None:
+    """Refuse a run whose child would rewrite managed instruction files.
+
+    RepoWise 0.58.0's `update` regenerates `.claude/CLAUDE.md` unless
+    `editor_files.claude_md` is false, and AGENTS.md when `editor_files.agents_md`
+    is true. It has no per-run switch: `--no-agents` writes the opt-out into
+    `.repowise/config.yaml`, which would leave the repository permanently
+    configured. The regenerated block carries the indexed date and commit, so
+    the source fence would reject the run after the write anyway. Fail closed
+    before launch; the opt-out is an owner decision made outside this run.
+    """
+    config = repo / ".repowise" / "config.yaml"
+    text = config.read_text(encoding="utf-8-sig") if config.is_file() else ""
+    settings = _editor_files_settings(text)
+    if settings.get("claude_md") is not False or settings.get("agents_md") is True:
+        raise RuntimeError(
+            "Refusing: this RepoWise update regenerates managed instruction files with no "
+            "per-run opt-out (--no-agents would rewrite .repowise/config.yaml). The "
+            "repository's config must already set editor_files.claude_md: false and not "
+            "enable editor_files.agents_md; set that deliberately outside this run.")
+
+
 def validate_paths(workspace: Path, repo: Path, output: Path) -> None:
     if not (workspace / ".repowise-workspace.yaml").is_file():
         raise RuntimeError("Expected an existing RepoWise workspace")
@@ -91,6 +155,8 @@ def validate_paths(workspace: Path, repo: Path, output: Path) -> None:
         raise RuntimeError("Repository must be its own Git root")
     if output.is_relative_to(workspace):
         raise RuntimeError("Receipts must be outside the source workspace")
+    if not output_permitted(output):
+        raise RuntimeError("Receipts must be beneath the AgentHub runtime root (%LOCALAPPDATA%\\AgentHub)")
     if not (repo / ".repowise" / "state.json").is_file():
         raise RuntimeError("Refusing initialization: an existing index is required")
 
@@ -102,7 +168,7 @@ def write_admission_failure(workspace: Path, output: Path, error: Exception) -> 
     Receipts never go into the source workspace and never overwrite a prior one.
     """
     try:
-        if output.is_relative_to(workspace):
+        if output.is_relative_to(workspace) or not output_permitted(output):
             return
         output.mkdir(parents=True, exist_ok=True)
         with (output / "acceptance.json").open("x", encoding="utf-8") as stream:
@@ -132,6 +198,7 @@ def main(argv=None) -> int:
         require_lease(args.lease, args.lease_token)
         remaining_seconds(args.timeout_seconds, args.deadline)
         validate_paths(workspace, repo, output)
+        require_editor_files_opt_out(repo)
         if free_memory() <= args.minimum_free_gib * GIB:
             raise RuntimeError("Insufficient free physical RAM; child not started")
         executable = shutil.which("repowise")
@@ -144,6 +211,7 @@ def main(argv=None) -> int:
     except Exception as error:
         write_admission_failure(workspace, output, error)
         raise
+    receipt_error = None
     try:
         # Reuse the shared server's loopback-only validation and actual embedding
         # probe. Never inherit a paid endpoint or forward a real key locally.
@@ -151,7 +219,7 @@ def main(argv=None) -> int:
         require_lease(args.lease, args.lease_token)
         result = run(
             [executable, "update", "--no-workspace", "--index-only",
-             "--concurrency", "1", "--no-agents", "--progress", "json"],
+             "--concurrency", "1", "--progress", "json"],
             cwd=repo, output=output / "child",
             memory_bytes=args.memory_gib * GIB,
             timeout_seconds=remaining_seconds(args.timeout_seconds, args.deadline),
@@ -178,8 +246,18 @@ def main(argv=None) -> int:
             and receipt["headBefore"] == receipt.get("headAfter")
             and receipt["sourceBefore"] == receipt.get("sourceAfter")
             and receipt.get("lastSyncCommitAfter") == receipt.get("headAfter"))
-        (output / "acceptance.json").write_text(
-            json.dumps(receipt, indent=2), encoding="utf-8")
+        try:
+            (output / "acceptance.json").write_text(
+                json.dumps(receipt, indent=2), encoding="utf-8")
+        except OSError as write_error:
+            # A receipt failure must never mask an in-flight failure (notably
+            # LeaseRetentionError, which keeps the lease on disk): report it,
+            # then let the original exception continue.
+            receipt_error = write_error
+            print(f"Could not write acceptance.json ({type(write_error).__name__}).",
+                  file=sys.stderr)
+    if receipt_error is not None:
+        return 1
     print(json.dumps({"accepted": receipt["accepted"],
                       "receipt": str(output / "acceptance.json")}))
     return 0 if receipt["accepted"] else 1

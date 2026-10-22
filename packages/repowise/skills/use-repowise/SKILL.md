@@ -137,9 +137,12 @@ per-repo repowise MCP entries.
 - **CLI (always available):** `repowise search "<q>"`, `repowise status -w`,
   `repowise doctor -w` **from `C:\Repos`**. Updates use the bounded manual
   entry point below, never a bare update or an automatic post-commit update.
-  Never `repowise update` from inside a member repo without `--no-agents`.
-  Measured 2026-09-10: `--no-agents` still writes `.vscode/mcp.json` pointed
-  at the member path. After a CLI upgrade, `repowise agents refresh
+  Never run a bare `repowise update` from inside a member repo, and do not
+  treat `--no-agents` as a safe opt-out: in RepoWise 0.58.0 it persists
+  `editor_files.agents_md: false` into `.repowise/config.yaml` (the repository
+  is then configured never to generate that file), and measured 2026-09-10 an
+  earlier CLI with it still wrote `.vscode/mcp.json` pointed at the member
+  path. After a CLI upgrade, `repowise agents refresh
   --scope=both C:\Repos`. A member `.vscode/mcp.json` is allowed only as
   `repowise mcp C:/Repos`; `Check-RepoStandard.ps1` fails any other path.
 - **Human dashboard:** `repowise serve --host 127.0.0.1 --ui-port 7338` from
@@ -199,8 +202,17 @@ Follow the operator's closed heavy-work window; do not start in that window.
 No service is started or stopped and no scheduled work is registered.
 
 The child uses the shared server's actual local embedding probe, compatible
-model and placeholder key. Receipts and raw logs stay outside the source
-workspace. Acceptance requires exit zero, no remaining owned descendants,
+model and placeholder key. Receipts and raw logs must resolve (junctions and
+symlinks followed) to a path beneath `%LOCALAPPDATA%\AgentHub` and outside the
+source workspace; any other `-OutputDirectory` is refused and gets no receipt.
+Python is launched hidden through `System.Diagnostics.Process`, never the call
+operator. RepoWise 0.58.0 `update` regenerates `.claude/CLAUDE.md` unless the
+repository's `.repowise/config.yaml` already sets `editor_files.claude_md:
+false`, regenerates AGENTS.md when `editor_files.agents_md` is true, and has
+no per-run switch. The wrapper therefore refuses before launch unless that
+opt-out is already configured (it never writes the config); making it is a
+deliberate owner decision per repository, outside this run. A submodule is
+fenced by its recorded gitlink commit and checked-out HEAD. Acceptance requires exit zero, no remaining owned descendants,
 the exact current HEAD in `state.last_sync_commit`, and unchanged HEAD,
 staged entries, tracked/nonignored source bytes and known agent config.
 An unexpected source edit fails acceptance; it is never silently reverted.
