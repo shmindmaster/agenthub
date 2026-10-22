@@ -46,7 +46,7 @@ Account-mode readiness recorded in this repair:
 | --- | --- |
 | Cursor Agent | Account status and a standalone-response smoke passed on 2026-10-22. |
 | Amp | Execute mode with dispatch-only MCP servers disabled returned the requested response on 2026-10-22; `amp usage` reported Amp Free. |
-| Gemini | Dispatcher uses `--approval-mode yolo`; the registered shim supplies only `--skip-trust`. Complete Google OAuth interactively with `gemini` before another smoke. |
+| Gemini | Dispatcher uses `--approval-mode yolo`; the registered shim skips its yolo default for that explicit invocation and supplies `--skip-trust`. Complete Google OAuth interactively with `gemini` before another smoke. |
 | Warp | No supported account-status command or local-only execution mode was verified; keep disabled unless both are established. |
 | Other gated CLIs | Confirm included allowance for the configured provider/model or obtain an explicit task credit budget, then one smoke before enabling. |
 

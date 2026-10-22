@@ -13,8 +13,8 @@ OpenCode, Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin and
 Warp/Oz. `cursor` routes to Cursor Agent; its account-mode smoke returned
 `ok` on 2026-10-22. Amp's account-mode smoke returned `ok` with MCP servers
 disabled for dispatch. Gemini remains blocked on interactive Google OAuth;
-its registered wrapper supplies `--skip-trust` and the dispatcher uses
-`--approval-mode yolo`. `windsurf`
+its registered wrapper defaults to `--approval-mode yolo` and `--skip-trust`,
+while the dispatcher supplies its explicit approval mode. `windsurf`
 routes to Devin. Readiness is additionally gated by
 `dispatchPolicy` and each host's autonomy profile. Devin uses its paid plan
 model recorded in `registry/fleet-profile.json`; OpenCode's Go model is

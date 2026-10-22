@@ -23,6 +23,8 @@
   ],
   "launchDefaults": {
     "gemini": [
+      "--approval-mode",
+      "yolo",
       "--skip-trust"
     ],
     "copilot": [
@@ -353,7 +355,7 @@
     },
     "factory": {
       "enabled": true,
-      "reason": "OWNER_CONFIRMED 2026-10-21: paid plan; model openai-latest-balanced",
+      "reason": "Paid plan; model openai-latest-balanced",
       "verifiedOn": "2026-10-21"
     },
     "amp": {
@@ -408,7 +410,7 @@
     "devin": {
       "enabled": true,
       "model": "swe-2-medium-lightning",
-      "reason": "OWNER_CONFIRMED 2026-10-21: paid plan; model swe-2-medium-lightning",
+      "reason": "Paid plan; model swe-2-medium-lightning",
       "verifiedOn": "2026-10-21"
     },
     "opencode": {
@@ -426,20 +428,20 @@
     },
     "cline": {
       "enabled": true,
-      "reason": "OWNER_CONFIRMED 2026-10-21: paid plan; model cline-pass/qwen3.8-max",
+      "reason": "Paid plan; model cline-pass/qwen3.8-max",
       "verifiedOn": "2026-10-21",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
       "knownIssue": "2026-10-14: after a useful 127-line review, cline called submit_and_exit, wrote the report, then did not exit; the dispatcher killed it at the 1500 s timeout (exit 4). Treat the report file as the result and check it before trusting exit 4."
     },
     "copilot": {
       "enabled": true,
-      "reason": "OWNER_CONFIRMED 2026-10-21: paid plan; model auto",
+      "reason": "Paid plan; model auto",
       "verifiedOn": "2026-10-21",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
     },
     "windsurf": {
       "enabled": true,
-      "reason": "OWNER_CONFIRMED 2026-10-21: paid plan; model swe-2-medium-lightning",
+      "reason": "Paid plan; model swe-2-medium-lightning",
       "verifiedOn": "2026-10-21"
     },
     "grok": {
