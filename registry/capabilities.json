@@ -1536,10 +1536,10 @@
     },
     {
       "id": "fleet-board",
-      "owner": "personal-infrastructure",
+      "owner": "agenthub",
       "capabilityType": "script",
       "canonicalSource": "packages/fleet-board",
-      "contentHash": "BA7AA3C14E8CD12D39F72E89D7510679FDDF6D789D4886B59508F95DB7AFB1D2",
+      "contentHash": "C01C53A3B971728F75F16F4A4F6C8E08ADA667501D2546804B065EAFD117D495",
       "hashBasis": "packages/fleet-board",
       "status": "active-canonical",
       "hostMappings": [],
@@ -1551,9 +1551,9 @@
       "kind": "tool",
       "maturity": "beta",
       "provenance": "agenthub-owned",
-      "notes": "Rebuilds FLEET-BOARD.md (MahumTech Documents 06_Research_and_Knowledge_Base plus a copy under the goals runtime root) from program STATUS.md files, Codex rollouts, coding-agent-dispatch .out logs, gh pr list, the heavy-work lease JSON, and running coding-host processes. Capability-invoked per owner direction 2026-10-13: no scheduled task, Run key, or auto-start, and every subprocess runs windowless. Added 2026-10-21. All source roots are script parameters; -SkipGitHub/-SkipProcesses/-SkipMachineState support fixture-only test runs."
+      "notes": "Regenerates a Markdown fleet board from configurable local status files, optional Codex rollouts, dispatcher logs, optional GitHub queries, an optional lease file, and running coding-host processes. Defaults to the user-local AgentHub runtime; exporting elsewhere requires an explicit path. Capability-invoked: no scheduled task, Run key, or auto-start. Tests use synthetic fixtures and skip live process, GitHub, and machine-state reads."
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",
-  "lastCanonicalChangeAt": "2026-10-21T00:00:00Z"
+  "lastCanonicalChangeAt": "2026-10-22T00:00:00Z"
 }

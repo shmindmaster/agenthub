@@ -1,8 +1,7 @@
 # fleet-board
 
-Regenerates `FLEET-BOARD.md` — the single-page board of which coding agents are
-working for the owner, what rung each task is on, and which owner gates are
-waiting.
+Regenerates a Markdown fleet board from configured local status files,
+dispatcher logs, optional Codex session records, and optional GitHub queries.
 
 ## Run
 
@@ -15,22 +14,25 @@ opens no window. Run it when a refresh is wanted.
 
 ## Outputs
 
-- `D:\OneDrive - MahumTech\Documents\06_Research_and_Knowledge_Base\FLEET-BOARD.md`
-- A copy at `%LOCALAPPDATA%\AgentHub\runtime\goals\relaunch-2026-10-21\FLEET-BOARD.md`
+- Defaults to `%LOCALAPPDATA%\AgentHub\runtime\fleet-board\FLEET-BOARD.md`.
+- Export elsewhere only with the explicit `-BoardExportPath` parameter.
 
 ## Sources
 
-All roots are parameters; defaults are the live fleet paths:
+Paths and repository scopes are parameters. Defaults are user-local where a
+standard root exists; no personal documents or repository names are embedded:
 
-- Program `STATUS.md` files under the goals runtime `programs\*\` and the Codex
-  programs root (latest dated heading and its `Rung` line).
+- Program `STATUS.md` files under `%LOCALAPPDATA%\AgentHub\runtime\goals\programs`
+  and optional `-CodexProgramsRoot` (latest dated heading and its `Rung` line).
 - Codex rollouts under `~/.codex/sessions/**/*.jsonl` (first-line
-  `session_meta` cwd; last assistant `output_text`).
-- Dispatcher `*.out` logs from today (host and start from the filename; the
-  dispatcher records no exit-code sidecar, so the board says so).
-- `gh pr list --state open` for the fleet repos.
-- The heavy-work lease JSON.
-- Running coding-host processes with start times.
+  `session_meta` cwd; last assistant `output_text`; listed as recent activity,
+  not proof a session is still running).
+- Dispatcher `*.out` logs completed today (host and start parsed from the
+ filename; the dispatcher records no exit-code sidecar).
+- `gh pr list --state open` only for repositories passed with `-Repositories`.
+- The heavy-work lease only when `-LeasePath` is provided.
+- Running processes from the conservative default name list.
 
-`-SkipGitHub`, `-SkipProcesses`, and `-SkipMachineState` exist for tests and
-partial environments.
+`-FleetProfilePath` controls the optional dispatcher-policy source.
+`-SkipGitHub`, `-SkipProcesses`, and `-SkipMachineState` support offline tests
+and partial environments.

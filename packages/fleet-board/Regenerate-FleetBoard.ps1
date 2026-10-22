@@ -1,51 +1,66 @@
 #Requires -Version 5.1
 <#
-Regenerate-FleetBoard.ps1 -- rebuilds FLEET-BOARD.md from live sources.
+Regenerate-FleetBoard.ps1 -- rebuilds FLEET-BOARD.md from configured sources.
 
 Capability-invoked: run it when a board refresh is wanted. It registers no
 scheduled task, Run key, or auto-start service, opens no window, and takes no
 keyboard focus.
 
-Sources (all roots are parameters; defaults are the live fleet paths):
+Sources are configurable parameters. Defaults, when available, are user-local:
   - Program STATUS.md files under $GoalsRuntimeRoot\programs\* and
     $CodexProgramsRoot\* (latest dated heading and its Rung line)
   - Codex rollouts $CodexSessionsRoot\**\*.jsonl (first-line session_meta cwd;
     last assistant output_text)
-  - Dispatcher logs $DispatchLogRoot\*.out written today (host, start, exit
+  - Dispatcher logs $DispatchLogRoot\*.out completed today (host, start, exit
     evidence -- the dispatcher records no exit-code sidecar)
   - `gh pr list --state open` for each repo in $Repositories
   - The heavy-work lease JSON at $LeasePath
   - Running processes named in $ProcessNames, with start times
 
-Outputs: $BoardPath and a copy at $BoardCopyPath (default:
-$GoalsRuntimeRoot\FLEET-BOARD.md).
+Output defaults to the AgentHub runtime. Export to another location only by
+passing -BoardExportPath explicitly.
 #>
 [CmdletBinding()]
 param(
-    [string]$GoalsRuntimeRoot = 'C:\Users\SaroshHussain\AppData\Local\AgentHub\runtime\goals\relaunch-2026-10-21',
-    [string]$CodexProgramsRoot = 'D:\OneDrive - MahumTech\Documents\Codex\2026-10-21\programs',
-    [string]$CodexSessionsRoot = 'C:\Users\SaroshHussain\.codex\sessions',
-    [string]$DispatchLogRoot = 'C:\Users\SaroshHussain\AppData\Local\AgentHub\runtime\coding-agent-dispatch',
-    [string]$LeasePath = 'D:\OneDrive - MahumTech\Documents\Codex\2026-10-21\can\outputs\claude-takeover\heavy-work.lease.json',
-    [string]$BoardPath = 'D:\OneDrive - MahumTech\Documents\06_Research_and_Knowledge_Base\FLEET-BOARD.md',
-    [string]$BoardCopyPath = '',
-    [string[]]$Repositories = @(
-        'shmindmaster/agenthub', 'shmindmaster/local-ai-platform',
-        'shmindmaster/abacare', 'shmindmaster/rexa', 'shmindmaster/saroshhussain',
-        'musa-dev-team/duckie-app', 'musa-dev-team/duckie-deploy'
-    ),
-    [string[]]$ProcessNames = @('codex', 'claude', 'grok', 'agy', 'droid', 'cline', 'gemini', 'python'),
+    [string]$GoalsRuntimeRoot = (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\goals'),
+    [string]$CodexProgramsRoot = '',
+    [string]$CodexSessionsRoot = (Join-Path $env:USERPROFILE '.codex\sessions'),
+    [string]$DispatchLogRoot = (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch'),
+    [string]$LeasePath = '',
+    [string]$FleetProfilePath = '',
+    [string]$BoardPath = (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\fleet-board\FLEET-BOARD.md'),
+    [string]$BoardExportPath = '',
+    [string[]]$Repositories = @(),
+    [string[]]$ProcessNames = @('codex', 'claude', 'grok', 'agy', 'droid', 'cline', 'gemini', 'cursor-agent', 'amp', 'copilot'),
     [switch]$SkipGitHub,
     [switch]$SkipProcesses,
     [switch]$SkipMachineState
 )
 $ErrorActionPreference = 'Stop'
 
-if (-not $BoardCopyPath) { $BoardCopyPath = Join-Path $GoalsRuntimeRoot 'FLEET-BOARD.md' }
+if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    throw 'LOCALAPPDATA is required for the default runtime output path.'
+}
+if ([string]::IsNullOrWhiteSpace($FleetProfilePath)) {
+    $candidateRoot = $env:AGENTHUB_ROOT
+    if ($candidateRoot -and (Test-Path -LiteralPath (Join-Path $candidateRoot 'registry\fleet-profile.json'))) {
+        $FleetProfilePath = Join-Path $candidateRoot 'registry\fleet-profile.json'
+    } else {
+        $candidateRoot = $PSScriptRoot
+        while ($candidateRoot) {
+            $candidate = Join-Path $candidateRoot 'registry\fleet-profile.json'
+            if (Test-Path -LiteralPath $candidate) { $FleetProfilePath = $candidate; break }
+            $parent = Split-Path -Parent $candidateRoot
+            if (-not $parent -or $parent -eq $candidateRoot) { break }
+            $candidateRoot = $parent
+        }
+    }
+}
 $now = Get-Date
 $nowUtc = $now.ToUniversalTime()
 $today = $now.Date
 $offset = $now.ToString('zzz')
+$warnings = [Collections.Generic.List[string]]::new()
 
 function Compress-Cell([string]$Text, [int]$Max = 200) {
     if ($null -eq $Text) { return '' }
@@ -57,7 +72,7 @@ function Compress-Cell([string]$Text, [int]$Max = 200) {
 # --- STATUS.md programs -------------------------------------------------
 $ownerGatePattern = 'owner|sarosh|blocked|go-ahead|go or no-go|authoriz|needs his|waiting on owner'
 $statusRows = [Collections.Generic.List[object]]::new()
-foreach ($root in @((Join-Path $GoalsRuntimeRoot 'programs'), $CodexProgramsRoot)) {
+foreach ($root in @((Join-Path $GoalsRuntimeRoot 'programs'), $CodexProgramsRoot) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) {
     if (-not (Test-Path -LiteralPath $root)) { continue }
     foreach ($statusFile in Get-ChildItem -LiteralPath $root -Recurse -Filter STATUS.md -File) {
         $program = Split-Path -Leaf (Split-Path -Parent $statusFile.FullName)
@@ -67,12 +82,18 @@ foreach ($root in @((Join-Path $GoalsRuntimeRoot 'programs'), $CodexProgramsRoot
             if ($lines[$i] -match '^#{2,4}\s.*20\d\d-\d\d-\d\d') { $headingIdx += $i }
         }
         $heading = if ($headingIdx.Count) { ($lines[$headingIdx[-1]] -replace '^#+\s*', '').Trim() } else { 'no dated heading' }
-        $end = if ($headingIdx.Count) { $lines.Count } else { 0 }
-        $start = if ($headingIdx.Count) { $headingIdx[-1] + 1 } else { 0 }
-        $block = @($lines[$start..($end - 1)])
+        if ($headingIdx.Count) {
+            $start = $headingIdx[-1] + 1
+            $block = if ($start -lt $lines.Count) { @($lines[$start..($lines.Count - 1)]) } else { @() }
+        } else {
+            $block = @($lines)
+        }
         $rung = ($block | Where-Object { $_ -match 'Rung' } | Select-Object -First 1)
         $status = ($block | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1)
-        $gates = @($lines | Where-Object { $_ -match $ownerGatePattern } | Select-Object -First 3)
+        $gates = @($block | Where-Object {
+            $_ -match $ownerGatePattern -and
+            $_ -notmatch '(?i)owner gate\s*:\s*(none|resolved|complete|completed)\b|^\s*[-*]\s*(none|resolved|complete|completed)\b'
+        } | Select-Object -First 3)
         $statusRows.Add([pscustomobject]@{
             Agent   = $program
             Task    = "STATUS.md program '$program'"
@@ -99,22 +120,31 @@ if (Test-Path -LiteralPath $CodexSessionsRoot) {
             $first = Get-Content -LiteralPath $file.FullName -TotalCount 1
             $meta = $first | ConvertFrom-Json
             $cwd = [string]$meta.payload.cwd
-        } catch { }
+        } catch {
+            $warnings.Add("Unreadable Codex rollout metadata in $($file.Name).")
+        }
+        $reader = [IO.StreamReader]::new($file.FullName)
         try {
-            foreach ($line in @(Get-Content -LiteralPath $file.FullName -Tail 60)) {
-                $item = $line | ConvertFrom-Json
-                if ($item.payload.role -eq 'assistant') {
-                    $text = @($item.payload.content | Where-Object { $_.type -eq 'output_text' } | ForEach-Object { [string]$_.text }) -join ' '
-                    if ($text) { $lastAssistant = $text }
+            while ($null -ne ($line = $reader.ReadLine())) {
+                try {
+                    $item = $line | ConvertFrom-Json
+                    if ($item.payload.role -eq 'assistant') {
+                        $text = @($item.payload.content | Where-Object { $_.type -eq 'output_text' } | ForEach-Object { [string]$_.text }) -join ' '
+                        if ($text) { $lastAssistant = $text }
+                    }
+                } catch {
+                    $warnings.Add("Unreadable Codex rollout record in $($file.Name).")
                 }
             }
-        } catch { }
+        } finally {
+            $reader.Dispose()
+        }
         if ($cwd) { $sessionCwd[$sessionId] = $cwd }
         $rolloutRows.Add([pscustomobject]@{
-            Agent   = 'Codex (rollout)'
-            Task    = "cwd $cwd"
+            Agent   = 'Codex (recent)'
+            Task    = "Recent session $sessionId; cwd $cwd"
             Id      = "session $sessionId"
-            Status  = Compress-Cell $lastAssistant 160
+            Status  = Compress-Cell ("Not confirmed running; last response: " + $lastAssistant) 160
             Rung    = ''
             Updated = $file.LastWriteTime.ToString('yyyy-MM-dd HH:mm') + ' local'
             LogPath = $file.FullName
@@ -127,20 +157,19 @@ if (Test-Path -LiteralPath $CodexSessionsRoot) {
 $dispatchRows = [Collections.Generic.List[object]]::new()
 if (Test-Path -LiteralPath $DispatchLogRoot) {
     $outs = @(Get-ChildItem -LiteralPath $DispatchLogRoot -Filter '*.out' -File |
-        Where-Object { $_.Name -match ('^' + $today.ToString('yyyyMMdd') + '-') })
+        Where-Object { $_.LastWriteTime -ge $today })
     foreach ($f in $outs) {
-        $dispatchHost = ($f.BaseName -split '-')[-1]
+        if ($f.BaseName -notmatch '^(?<date>\d{8})-(?<time>\d{6})-(?<id>[0-9a-fA-F]{8})-(?<host>.+)$') {
+            $warnings.Add("Unrecognized dispatcher log filename: $($f.Name).")
+            continue
+        }
+        $dispatchHost = $Matches.host
         $start = '{0}:{1}' -f $f.Name.Substring(9, 2), $f.Name.Substring(11, 2)
         $errPath = [IO.Path]::ChangeExtension($f.FullName, '.err')
         $errSize = if (Test-Path -LiteralPath $errPath) { (Get-Item -LiteralPath $errPath).Length } else { 0 }
         $exit = if ($errSize -gt 0) { "stderr written ($errSize bytes); exit code not recorded" } else { 'no stderr; exit code not recorded' }
-        $briefGuess = ''
-        $briefDir = Join-Path $DispatchLogRoot 'briefs'
-        if (Test-Path -LiteralPath $briefDir) {
-            $briefGuess = @(Get-ChildItem -LiteralPath $briefDir -File | Where-Object { $_.Name -match $today.ToString('yyyy-MM-dd') -and $_.Name -match $dispatchHost } | Select-Object -First 1 -ExpandProperty Name)
-        }
         $dispatchRows.Add([pscustomobject]@{
-            Start = $start; Host = $dispatchHost; Task = [string]$briefGuess
+            Start = $start; Host = $dispatchHost; Task = 'not recorded'
             Output = Compress-Cell (Get-Content -LiteralPath $f.FullName -TotalCount 4 -ErrorAction SilentlyContinue | Out-String) 140
             Exit = $exit
         })
@@ -148,15 +177,20 @@ if (Test-Path -LiteralPath $DispatchLogRoot) {
 }
 
 # --- Lease -----------------------------------------------------------------
-$leaseLine = 'no lease file found'
-if (Test-Path -LiteralPath $LeasePath) {
+$leaseLine = 'not checked (no lease path configured)'
+if (-not [string]::IsNullOrWhiteSpace($LeasePath) -and (Test-Path -LiteralPath $LeasePath)) {
     try {
         $lease = Get-Content -LiteralPath $LeasePath -Raw | ConvertFrom-Json
         $acquired = [string]$lease.acquiredUtc
         $acquiredLocal = try { ([DateTimeOffset]::Parse($acquired)).LocalDateTime.ToString('yyyy-MM-dd HH:mm') } catch { '' }
         $acquired = try { ([DateTimeOffset]::Parse($acquired, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal)).UtcDateTime.ToString('yyyy-MM-dd HH:mm\Z') } catch { $acquired }
         $leaseLine = "``$($lease.chat)``, task `"$($lease.task)`", acquired $acquired ($acquiredLocal local). Operation: $($lease.operation)"
-    } catch { $leaseLine = "lease file unreadable: $($_.Exception.Message)" }
+    } catch {
+        $leaseLine = "lease file unreadable: $($_.Exception.Message)"
+        $warnings.Add('The configured heavy-work lease could not be read.')
+    }
+} elseif (-not [string]::IsNullOrWhiteSpace($LeasePath)) {
+    $leaseLine = 'checked absent'
 }
 
 # --- Machine state -----------------------------------------------------------
@@ -177,12 +211,9 @@ if (-not $SkipMachineState) {
 if (-not $SkipProcesses) {
     $procs = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $ProcessNames -contains $_.ProcessName.ToLowerInvariant() })
     if ($procs.Count) {
-        $parts = @($procs | Group-Object { $_.ProcessName.ToLowerInvariant() } | Sort-Object Name | ForEach-Object {
-            $g = $_.Group
-            $pids = ($g | ForEach-Object Id | Sort-Object) -join ', '
-            $starts = @($g | Where-Object StartTime | ForEach-Object { $_.StartTime } | Sort-Object)
-            $started = if ($starts.Count) { '{0} to {1}' -f $starts[0].ToString('HH:mm'), $starts[-1].ToString('HH:mm') } else { 'unknown' }
-            "$($_.Name) x$($g.Count) (PIDs $pids, started $started)"
+        $parts = @($procs | Sort-Object ProcessName, Id | ForEach-Object {
+            $started = try { $_.StartTime.ToString('HH:mm') } catch { 'unknown' }
+            "$($_.ProcessName) (PID $($_.Id), started $started)"
         })
         $procLine = $parts -join '; '
     } else { $procLine = 'none of the watched process names are running' }
@@ -190,7 +221,7 @@ if (-not $SkipProcesses) {
 
 # --- Open PRs ---------------------------------------------------------------
 $prLines = [Collections.Generic.List[string]]::new()
-if (-not $SkipGitHub) {
+if (-not $SkipGitHub -and $Repositories.Count -gt 0) {
     foreach ($repo in $Repositories) {
         $json = gh pr list --repo $repo --state open --json number,title,isDraft,updatedAt --limit 50 2>$null
         if ($LASTEXITCODE -ne 0 -or -not $json) { $prLines.Add("- ${repo}: gh query failed"); continue }
@@ -203,47 +234,90 @@ if (-not $SkipGitHub) {
     }
 }
 
+# --- Dispatcher policy -------------------------------------------------------
+$enabledHosts = [Collections.Generic.List[string]]::new()
+$disabledHosts = [Collections.Generic.List[string]]::new()
+$policyOwnerActions = [Collections.Generic.List[string]]::new()
+$failureNotes = [Collections.Generic.List[string]]::new()
+$fleetPolicyState = 'not checked (fleet profile not found)'
+if ($FleetProfilePath -and (Test-Path -LiteralPath $FleetProfilePath -PathType Leaf)) {
+    try {
+        $fleetProfile = Get-Content -LiteralPath $FleetProfilePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($property in $fleetProfile.dispatchPolicy.PSObject.Properties) {
+            $id = [string]$property.Name
+            $entry = $property.Value
+            if ($entry.enabled -eq $true) {
+                $enabledHosts.Add($id)
+            } elseif ($entry.enabled -eq $false) {
+                $disabledHosts.Add($id)
+                if ($entry.ownerAction) { $policyOwnerActions.Add("$id`: $($entry.ownerAction)") }
+            } else {
+                $disabledHosts.Add("$id (enabled state not established)")
+            }
+            if ($entry.knownIssue) { $failureNotes.Add("$id`: $($entry.knownIssue)") }
+            elseif ($entry.reason -match '(?i)failed|quota|paused|timed out|no response') {
+                $failureNotes.Add("$id`: $($entry.reason)")
+            }
+        }
+        $fleetPolicyState = 'loaded'
+    } catch {
+        $fleetPolicyState = 'unreadable'
+        $warnings.Add("Could not read dispatcher policy from $([IO.Path]::GetFileName($FleetProfilePath)).")
+    }
+}
+
 # --- Owner actions -----------------------------------------------------------
 $ownerActions = [Collections.Generic.List[string]]::new()
 foreach ($row in $statusRows) {
     if ($row.Gates) { $ownerActions.Add(("{0}: {1}" -f $row.Agent, $row.Gates)) }
 }
-if (-not $SkipGitHub) {
+foreach ($action in $policyOwnerActions) { $ownerActions.Add($action) }
+if (-not $SkipGitHub -and $Repositories.Count -gt 0) {
     $openCount = @($prLines | Where-Object { $_ -match '#' }).Count
     if ($openCount) { $ownerActions.Add('Open PRs awaiting merge/review decisions; see the Open PRs section.') }
 }
 if ($ownerActions.Count -eq 0) { $ownerActions.Add('none detected in sources') }
+foreach ($row in $statusRows) {
+    if ($row.Status -match '(?i)failed|quota|paused|blocked') {
+        $failureNotes.Add("$($row.Agent): $($row.Status)")
+    }
+}
+if ($failureNotes.Count -eq 0) { $failureNotes.Add('none recorded in configured sources') }
 
 # --- Compose -----------------------------------------------------------------
 $lines = [Collections.Generic.List[string]]::new()
-$lines.Add("# FLEET BOARD: agents working for Sarosh, $($now.ToString('yyyy-MM-dd'))")
+$lines.Add('# FLEET BOARD')
 $lines.Add('')
-$lines.Add("**Generated:** $($now.ToString('yyyy-MM-dd HH:mm')) (UTC$offset; $($nowUtc.ToString('HH:mm'))Z). Regenerated by packages/fleet-board/Regenerate-FleetBoard.ps1.")
+$lines.Add("Header (UTC): $($nowUtc.ToString('yyyy-MM-dd HH:mm'))")
+$lines.Add("Header (local): $($now.ToString('yyyy-MM-dd HH:mm')) (UTC$offset)")
+$lines.Add('Regenerated by: packages/fleet-board/Regenerate-FleetBoard.ps1.')
 $lines.Add('')
-$lines.Add('**Rule:** every program appends to its own STATUS.md after each step; this board is regenerated from those files.')
+$lines.Add('## Host snapshot')
 $lines.Add('')
-$lines.Add('**Rung ladder:** merged to dev, then in main, then deployed, then production-verified. "Proposed" and "tested" sit below the ladder.')
+$lines.Add("- $ramLine")
+$lines.Add("- $gpuLine")
+$lines.Add("- Heavy-work lease: $leaseLine")
+$lines.Add("- Running coding-host processes: $procLine")
 $lines.Add('')
-$lines.Add("## Machine state ($($now.ToString('HH:mm')))")
+$lines.Add('## Agent table')
 $lines.Add('')
-$lines.Add("- **$ramLine**")
-$lines.Add("- **$gpuLine**")
-$lines.Add("- **Heavy lease:** $leaseLine. File: ``$LeasePath``.")
-$lines.Add("- **Processes:** $procLine")
-$lines.Add('')
-$lines.Add('## Agent board')
-$lines.Add('')
-$lines.Add('| Agent/host | Program or task | Session or process id | Status | Rung | Last update | Log path | Owner gates |')
-$lines.Add('|---|---|---|---|---|---|---|---|')
+$lines.Add('| Agent/host | Program or task | Status | Rung | Last update | Log or status path | Owner gate |')
+$lines.Add('|---|---|---|---|---|---|---|')
 foreach ($row in @($statusRows) + @($rolloutRows)) {
-    $lines.Add("| $($row.Agent) | $($row.Task) | $($row.Id) | $($row.Status) | $($row.Rung) | $($row.Updated) | ``$($row.LogPath)`` | $($row.Gates) |")
+    $lines.Add("| $($row.Agent) | $($row.Task) | $($row.Status) | $($row.Rung) | $($row.Updated) | ``$($row.LogPath)`` | $($row.Gates) |")
 }
+$lines.Add('')
+$lines.Add('## Dispatch policy (registry: fleet-profile.json -> dispatchPolicy)')
+$lines.Add('')
+$enabledText = if ($enabledHosts.Count) { $enabledHosts -join ', ' } else { 'none' }
+$disabledText = if ($disabledHosts.Count) { $disabledHosts -join ', ' } else { 'none' }
+$lines.Add("- Enabled: $enabledText")
+$lines.Add("- Disabled: $disabledText")
+$lines.Add("- Policy source: $fleetPolicyState")
 $lines.Add('')
 $lines.Add('## Finished today')
 $lines.Add('')
-$lines.Add('### Fleet dispatches (local start; output; exit)')
-$lines.Add('')
-$lines.Add('| Dispatch (local) | Host | Task | Output head | Exit |')
+$lines.Add('| Dispatch start (local) | Host | Task | Output head | Exit evidence |')
 $lines.Add('|---|---|---|---|---|')
 if ($dispatchRows.Count -eq 0) { $lines.Add('| none today | | | | |') }
 foreach ($d in $dispatchRows) { $lines.Add("| $($d.Start) | $($d.Host) | $(Compress-Cell $d.Task 60) | $($d.Output) | $($d.Exit) |") }
@@ -251,19 +325,39 @@ $lines.Add('')
 $lines.Add('## Open PRs (GitHub)')
 $lines.Add('')
 foreach ($l in $prLines) { $lines.Add($l) }
-if ($prLines.Count -eq 0) { $lines.Add('(skipped)') }
+if ($prLines.Count -eq 0) {
+    $lines.Add($(if ($SkipGitHub -or $Repositories.Count -eq 0) { '(not checked: no repositories configured or GitHub skipped)' } else { '(none found)' }))
+}
 $lines.Add('')
-$lines.Add('## Owner actions pending')
+$lines.Add('## Owner items')
 $lines.Add('')
 $i = 0
 foreach ($a in $ownerActions) { $i++; $lines.Add("$i. $a") }
 $lines.Add('')
+$lines.Add('## Failed, quota-blocked, or paused')
+$lines.Add('')
+foreach ($note in $failureNotes) { $lines.Add("- $note") }
+$lines.Add('')
+$lines.Add('## Notes')
+$lines.Add('')
+if ($warnings.Count) {
+    foreach ($warning in $warnings) { $lines.Add("- $warning") }
+} else {
+    $lines.Add('- No source-read warnings.')
+}
+$lines.Add('')
+$lines.Add("Row count: $(@($statusRows).Count + @($rolloutRows).Count).")
 
 $text = ($lines -join "`r`n")
-foreach ($target in @($BoardPath, $BoardCopyPath)) {
+$targets = [Collections.Generic.List[string]]::new()
+$targets.Add($BoardPath)
+if (-not [string]::IsNullOrWhiteSpace($BoardExportPath) -and
+    [IO.Path]::GetFullPath($BoardExportPath) -ne [IO.Path]::GetFullPath($BoardPath)) {
+    $targets.Add($BoardExportPath)
+}
+foreach ($target in $targets) {
     $dir = Split-Path -Parent $target
     if (-not (Test-Path -LiteralPath $dir)) { $null = New-Item -ItemType Directory -Path $dir -Force }
     [IO.File]::WriteAllText($target, $text, [Text.UTF8Encoding]::new($false))
 }
-Write-Output "wrote $BoardPath"
-Write-Output "wrote $BoardCopyPath"
+foreach ($target in $targets) { Write-Output "wrote $target" }
