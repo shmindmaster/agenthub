@@ -44,6 +44,15 @@ candidate against locked scripts using `ai.ps1 align`, validate their hashes and
 onsets for the canonical 40 ms offset/drift gate. Whisper separately checks transcript text. The 80 ms output grid is
 not a claim of 40 ms acoustic accuracy. This is a 2.0.5 word-onset repair, not the proposed 2.1 pixel/render sync audit.
 
+### Migrating a 2.0.4 runner or retained encode
+
+Replace no-stage or `--stage all` runners with separate preparation (`--stage capture`), compose, QA and delivery
+invocations. Give each new compose a fresh candidate ID; a prepared ID is reserved and cannot be composed again.
+For an existing encode without `candidate.json`, use the external QA command above with its exact SHA-256, original
+compose metadata and ratio. Keep the old job read-only. Old PASS receipts do not authorize release: rerun the required
+gates, including `wordSync` and `transcript`, and obtain exact-candidate reviews. QA measures existing captions; it does
+not retime them. The separate production timing-stage follow-up is not part of this repair.
+
 ## Writing a spec (`ad.schema.json`)
 
 | Field | Meaning |
