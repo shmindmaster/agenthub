@@ -70,7 +70,7 @@ try {
         if ($case.Throws -ne ($null -ne $thrown)) { throw "Stub exit $($case.Exit): wrong throw behaviour." }
         if ($case.Keeps -ne (Test-Path -LiteralPath $lease)) { throw "Stub exit $($case.Exit): wrong lease retention." }
         if ($case.Keeps) {
-            $kept = Get-Content -LiteralPath $lease -Raw | ConvertFrom-Json
+            $kept = [IO.File]::ReadAllText($lease) | ConvertFrom-Json
             if ($kept.owner -ne 'AgentHub bounded RepoWise index' -or -not $kept.token) { throw 'Retained lease lost its owner record.' }
             if ($thrown.Message -notlike "*$lease*" -or $thrown.Message -notmatch 'operator') {
                 throw 'Retention message must name the lease path and the operator check.'
