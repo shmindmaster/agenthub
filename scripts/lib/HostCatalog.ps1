@@ -6,6 +6,13 @@
 
 . (Join-Path $PSScriptRoot 'PathBinding.ps1')
 
+function Test-AgentHubHostSyncEnabled {
+    param([Parameter(Mandatory)]$Agent)
+    # Retirement is explicit and is not the historical inactive label. Keep
+    # inventory and paths, but never recreate an owner-retired deployment.
+    return -not ($Agent.PSObject.Properties['status'] -and [string]$Agent.status -eq 'retired')
+}
+
 function Import-AgentHubBoundHostCatalog {
     param(
         [Parameter(Mandatory)]$AgentsDocument,

@@ -271,15 +271,16 @@
       }
     },
     "opencode": {
-      "model": "opencode-go/hy3",
-      "smallModel": "opencode-go/mimo-v2.5",
+      "model": "opencode/glm-5.3",
+      "smallModel": "opencode/glm-5.3-flash",
       "authMode": "account",
       "loginCommand": "opencode auth login",
       "availableProviders": {
         "deepseek": {
           "apiKeyEnv": "DEEPSEEK_API_KEY"
         }
-      }
+      },
+      "modelNote": "2026-10-22: switched from the custom opencode-go provider (needs User env OPENCODE_GO_API_KEY, which the dispatcher strips by owner rule) to the built-in opencode provider, which bills the Go-plan account entry in auth.json. `opencode models` lists opencode/glm-5.3 and opencode/glm-5.3-flash; hy3 is not offered there."
     },
     "copilot": {
       "model": "auto",
@@ -414,9 +415,9 @@
     },
     "opencode": {
       "enabled": false,
-      "model": "opencode-go/hy3",
-      "reason": "2026-10-22 smoke (opencode run, models opencode-go/hy3 and opencode/glm-5.3): both stored keys are expired. The Go provider reads User env OPENCODE_GO_API_KEY; the built-in opencode provider reads auth.json's opencode entry (written 07:23 CT). Each returned 'This API key has expired. Create a new API key in OpenCode Console'.",
-      "ownerAction": "Create a new key in the OpenCode Console (the key pasted into chat on 2026-10-22 is exposed and must not be reused), run `opencode auth login` alone and choose OpenCode, then set the same key as User env OPENCODE_GO_API_KEY (setx) so the opencode-go provider works; then one smoke: opencode run --model opencode-go/hy3 'reply ok'.",
+      "model": "opencode/glm-5.3",
+      "reason": "2026-10-22 smoke (opencode run --model opencode/glm-5.3): the auth.json opencode entry written 07:23 CT returned 'This API key has expired. Create a new API key in OpenCode Console'. Dispatch stays disabled until a live key is in auth.json.",
+      "ownerAction": "Create a new key in the OpenCode Console (the key pasted into chat on 2026-10-22 is exposed and must not be reused), run `opencode auth login` alone, choose OpenCode and paste it; nothing else to set. Then one smoke: opencode run --model opencode/glm-5.3 'reply ok'.",
       "verifiedOn": "2026-10-22"
     },
     "antigravity": {

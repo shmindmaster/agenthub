@@ -77,8 +77,8 @@ Every child is windowless. Warp sets child-only `WARP_CLI_MODE=1`; it never
 opens the terminal GUI. Every child runs on its account login: the provider
 API-key variables for Claude, Codex, Cline, Devin, Gemini, Antigravity, Warp,
 Grok, Factory, Cursor Agent, Amp and Copilot are removed before launch (owner
-rule 2026-10-22); OpenCode keeps OPENCODE_GO_API_KEY because that is its Go-plan
-key. Copilot runs on the sh-pendoah GitHub account: the dispatcher reads that
+rule 2026-10-22); OpenCode's Go plan is the account entry from `opencode auth login`,
+so OPENCODE_GO_API_KEY is stripped too. Copilot runs on the sh-pendoah GitHub account: the dispatcher reads that
 token from gh's keyring into the child environment only. Values are never printed. A timeout kills the process tree and
 exits 4. Pass `-TimeoutSec 7200` for program-scale dispatches.
 

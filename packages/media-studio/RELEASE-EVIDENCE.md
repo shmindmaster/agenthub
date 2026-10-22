@@ -14,13 +14,13 @@ the other loose-skill hosts. Deploy both skill content and executable tools:
 
 `Sync-AgentHub.ps1` manages host configuration; it is not the skill deployment
 step. Inspect a refused user-modified skill before explicitly adopting it.
-Compare all eleven Media Studio skill trees through every active host's declared
+Compare all declared Media Studio skill trees through every active host's declared
 path (including registered surface aliases), and compare the four runtime gates
 and capture/composition tools against source. Native plugins require a separate
 native update and installed-content freshness check. Existing sessions must
 reload instructions; installed file parity does not prove session compliance.
 
-The sync tools (`build-cue-sheet.mjs`, `validate-sync.mjs`, `sync-lib.mjs`) are part of the same deployed set, as are the video-standard gates (`validate-narration.mjs`, `validate-capture-preflight.mjs`, `validate-pointer-path.mjs`, `validate-frame-integrity.mjs`, `validate-marketing-readiness.mjs`, `build-contact-sheet.mjs`).
+The sync tools (`build-cue-sheet.mjs`, `validate-word-sync.mjs`, `validate-sync.mjs`, `sync-lib.mjs`) are part of the same deployed set, as are the video-standard gates (`validate-narration.mjs`, `validate-capture-preflight.mjs`, `validate-pointer-path.mjs`, `validate-frame-integrity.mjs`, `validate-marketing-readiness.mjs`, `build-contact-sheet.mjs`).
 
 Loose-skill hosts execute gates from
 `%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools`. The briefing kit also has
@@ -40,6 +40,22 @@ node <media-studio>/scripts/validate-demo-scenario.mjs <jobRoot>
 This is a pre-capture gate. A failed picker, contract mismatch, missing approval criteria, or a dashboard state without a visible resolution belongs in the source readiness handoff; repair the product in its separately authorized engineering task before recording.
 
 ## Exact encoded candidate
+
+Marketing 2.0.5 uses explicit isolated compose/QA/delivery stages and immutable candidate IDs. QA cannot compose.
+Every top-level gate and delivery decision binds to the selected candidate SHA. External-candidate QA requires the
+expected SHA, original compose metadata directory and a separate `--qa-dir`; source job evidence stays read-only.
+Containment resolves junctions/symlinks, including nonexistent output tails. QA records the sidecar SRT hash;
+delivery rejects a missing or changed sidecar even when the encoded candidate and its gate bindings still match.
+
+Jobs declaring `syncClock: "forced-aligner"` also require `qa/word-sync.json`, bound to the exact candidate SHA/bytes,
+cue sheet and encoded alignment report. `ai.ps1 align` supplies the take/script-bound word clock on its 80 ms grid.
+Whisper only checks transcript text. Missing or invalid alignment cannot fall back to Whisper onset times.
+The canonical 40 ms offset/drift limits are unchanged; the raw grid limits measurement accuracy. This patch is not
+the proposed 2.1 rendered-pixel/action-evidence audit, and its receipt-based picture checks retain their stated limits.
+
+Local vision reuses only an enabled existing vision-capable Local-AI route, without starting services or downloading
+weights. An unavailable or retired route blocks the vision gate. Paid OpenAI requires explicit provider selection
+and normal budget accounting. No missing review, unavailable service or proposed capability counts as a pass.
 
 After every recut, write `qa/viewer-release-evidence.json` and run:
 

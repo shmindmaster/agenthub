@@ -109,7 +109,7 @@
       ],
       "status": "active",
       "notes": "Global skill path follows the official OpenCode ~/.config/opencode/skills contract.",
-      "headlessDispatchNote": "OpenCode 1.19.3 run --auto --dir <cwd> --model opencode-go/hy3 <prompt> is headless. The paid-plan model is selected in registry/fleet-profile.json hostSettings and dispatchPolicy; read dispatchPolicy for current smoke readiness."
+      "headlessDispatchNote": "OpenCode 1.19.3 run --auto --dir <cwd> --model opencode/glm-5.3 <prompt> is headless. The paid-plan model is selected in registry/fleet-profile.json hostSettings and dispatchPolicy; read dispatchPolicy for current smoke readiness."
     },
     {
       "id": "opencode-desktop",
@@ -194,7 +194,7 @@
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.4.0",
+      "version": "1.4.5",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
@@ -227,12 +227,13 @@
       ],
       "status": "active",
       "notes": "Installed CLI on 2026-10-14 is 1.3.5 at %LOCALAPPDATA%\\agy\\bin\\agy.exe. Path layout was documented against Antigravity CLI 1.1.8 and still uses ~/.gemini/antigravity-cli/plugins and ~/.gemini/config/mcp_config.json. Desktop and IDE use ~/.gemini/config skills, agents, and plugins. The extra ~/.gemini/antigravity/mcp_config.json is synchronized temporarily as a compatibility path and is not the canonical authority.",
-      "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded the WinGet Links\\agy.exe shim, which is still absent. The real CLI is %LOCALAPPDATA%\\agy\\bin\\agy.exe. `agy --version` returned 1.3.5 and the updater reported that build as current. No upgrade or downgrade was performed by this inventory correction."
+      "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded the WinGet Links\\agy.exe shim, which is still absent. The real CLI is %LOCALAPPDATA%\\agy\\bin\\agy.exe. `agy --version` returned 1.3.5 and the updater reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
+      "versionObserved": "Observed 2026-10-22 by the full release suite: the declared agy.exe --version returned 1.4.5. No upgrade was performed."
     },
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "2.24.0",
+      "version": "2.25.0",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed 2.24.0.",
@@ -250,7 +251,8 @@
       "status": "active",
       "surfaceType": "companion-desktop",
       "notes": "Uses the official Antigravity global MCP configuration owned by the Antigravity CLI entry.",
-      "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded this GUI as absent. Antigravity.exe is present and its PE FileVersion is 2.23.0. This is a desktop window. Do not launch it to read the version or to dispatch a task."
+      "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded this GUI as absent. Antigravity.exe is present and its PE FileVersion is 2.23.0. This is a desktop window. Do not launch it to read the version or to dispatch a task.",
+      "versionObserved": "Observed 2026-10-22 by the full release suite: the declared executable PE FileVersion was 2.25.0. The GUI was not launched."
     },
     {
       "id": "antigravity-ide",
@@ -316,7 +318,7 @@
     {
       "id": "warp",
       "name": "Warp / Oz",
-      "version": "0.2026.10.14.08.27.stable_01",
+      "version": "0.2026.10.14.08.27.stable_03",
       "executable": "{userHome}/AppData/Local/Programs/Warp/warp.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "This is a GUI terminal app whose declared executable is the main window binary with no separate CLI entry point. Read (Get-Item $exe).VersionInfo.FileVersion without launching the window; normalize the leading v. Current observed version is recorded in versionObserved.",
@@ -341,7 +343,7 @@
         "worktrees"
       ],
       "status": "active",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed v0.2026.10.14.08.27.stable_01. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported PE FileVersion v0.2026.10.07.08.29.stable_00. The recorded value omits the leading v so it matches FileVersion by substring. The window was not launched. No upgrade or downgrade was performed by this inventory correction.",
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed v0.2026.10.14.08.27.stable_03 (rechecked 2026-10-22 without launching the window). Earlier: 2026-10-14: bounded read-only probe of the declared executable reported PE FileVersion v0.2026.10.07.08.29.stable_00. The recorded value omits the leading v so it matches FileVersion by substring. The window was not launched. No upgrade or downgrade was performed by this inventory correction.",
       "headlessDispatchNote": "Warp Oz v0.2026.10.07.08.29: WARP_CLI_MODE=1 agent run --prompt <text> -C <cwd> --output-format text. This is a local CLI contract; cloud tasks remain prohibited."
     },
     {
@@ -423,7 +425,7 @@
     {
       "id": "cursor-agent",
       "name": "Cursor Agent CLI",
-      "version": "2026.10.14-941492e",
+      "version": "2026.10.19-6bbf2c4",
       "executable": "{userHome}/bin/cursor-agent.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/cursor-agent/cursor-agent.cmd",
@@ -446,7 +448,7 @@
       "status": "active",
       "surfaceType": "companion-cli",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration.",
-      "versionObserved": "2026-10-14: verified installed launcher/file version 2026.10.14-941492e. Manual forward update and launcher reconciliation; active sessions preserved.",
+      "versionObserved": "2026-10-22: full release suite verified cursor-agent.cmd --version returns 2026.10.19-6bbf2c4. No upgrade performed.",
       "headlessDispatchNote": "2026-10-14: native headless contract verified; prior smoke failed authentication. Owner action: run agent login in the owner terminal; dispatcher alias cursor-agent login is equivalent. Do not authenticate automatically."
     },
     {
@@ -523,7 +525,7 @@
     {
       "id": "factory",
       "name": "Factory Droid",
-      "version": "0.241.1",
+      "version": "0.245.1",
       "versionNote": "Corrected 2026-10-14. The 2026-08-19 observation of 0.195.0 from app-0.152.0 is historical. The live binary is %USERPROFILE%\\bin\\droid.exe and `droid --version` returned 0.241.1. `droid update` reported that build as current. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/bin/droid.exe",
       "executableNote": "Corrected 2026-10-14. The versioned Factory\\app-0.152.0\\resources\\bin\\droid.exe path is absent. The installed CLI is %USERPROFILE%\\bin\\droid.exe. `droid --version` returned 0.241.1.",
@@ -553,7 +555,8 @@
       "notes": "Reclassified active 2026-08-04 on the owner's statement that all five previously-inactive hosts are in use. The inactive label predated this session and was inert until skill deployment was wired to it, at which point it silently withheld 129 skill deployments; the label, not the deployment, was wrong. Host config schema re-verified against vendor documentation at reclassification time -- see the per-field notes.",
       "versionProbe": "cli",
       "versionProbeNote": "Corrected 2026-10-14. versionProbe is cli because %USERPROFILE%\\bin\\droid.exe exists and `droid --version` returned 0.241.1 within the bounded probe.",
-      "headlessDispatchNote": "Droid 0.241.1 exec -f is headless. Prior smoke failed authentication. Owner action: open droid in the owner terminal and run /login; do not authenticate automatically."
+      "headlessDispatchNote": "Droid 0.241.1 exec -f is headless. Prior smoke failed authentication. Owner action: open droid in the owner terminal and run /login; do not authenticate automatically.",
+      "versionObserved": "Observed 2026-10-22 by the full release suite: the declared droid.exe --version returned 0.245.1. No upgrade was performed."
     },
     {
       "id": "vscode-insiders",

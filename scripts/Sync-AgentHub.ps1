@@ -2198,6 +2198,7 @@ $agentsToSync = @($agentsReg.activeAgents)
 if ($IncludeInactiveAgents) { $agentsToSync += @($agentsReg.inactiveAgents) }
 
 foreach ($agent in $agentsToSync) {
+    if (-not (Test-AgentHubHostSyncEnabled -Agent $agent)) { continue }
     $hostDrift = @{ host=$agent.id; mcp=@(); files=@(); status='ok' }
     $gatewayPlan = Get-GatewayPlanForHost -HostId $agent.id -GatewayRegistry $gatewayReg -ConnectorRegistry $connectorReg
     $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -HostConfigOverrides $mcpHostConfigOverrides -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan

@@ -10,9 +10,15 @@
     Reads registry/agents.json for each host's instructionHeader,
     instructionFormat, and destination (a single file, or -- for hosts that
     declare instructionsDestinationKind = 'directory' -- a directory a file
-    must be written inside). Renders <header> + blank +
-    <!-- agenthub:managed --> + blank +
-    <canonical body>. Stages the rendered bytes under
+    must be written inside). By default renders <header> + blank +
+    <!-- agenthub:managed --> + blank + <canonical body>. A host whose real
+    deployed layout differs (currently only Hermes: an identity preamble
+    before the policy, and the managed marker at the end of the file
+    instead of after the header) instead declares
+    nativePaths.instructionBodyTemplate in the registry -- a template
+    containing a {{globalPolicy}} placeholder that fully owns the layout,
+    including marker placement, so there is no per-host code branch for
+    this. Stages the rendered bytes under
     %LOCALAPPDATA%\AgentHub\runtime\instructions\<hostId>\ (or the
     -UserProfile-relative equivalent under test), and either reports drift
     (-Audit, the default) or writes the destination (-Apply).
@@ -118,7 +124,11 @@ if ([string]::IsNullOrWhiteSpace($PolicyBody)) {
 
 function Write-Utf8NoBomLf {
     param([string]$Path, [string]$Content)
-    # Use plain LF line endings and no BOM so rendered files remain stable.
+    # Every deployed instruction file (confirmed by reading the real
+    # ~/.claude/CLAUDE.md and ~/.../hermes/SOUL.md bytes) uses plain LF line
+    # endings and no BOM -- match that exactly rather than defaulting to
+    # Windows CRLF, which would make every render byte-mismatch the deployed
+    # files on line endings alone.
     [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
 }
 
@@ -135,12 +145,33 @@ function Write-Utf8NoBomLf {
 # task-2-report.md for the full discussion.
 $CursorRulesFileName = 'agenthub-global-policy.mdc'
 
+# The token a host's registry-declared instructionBodyTemplate uses to mark
+# where the canonical policy body is substituted in. See Hermes below for
+# why this exists.
+$GlobalPolicyPlaceholder = '{{globalPolicy}}'
+
 function Get-RenderedInstructionContent {
     param(
+        [Parameter(Mandatory)][string]$HostId,
         [Parameter(Mandatory)][string]$Header,
-        [Parameter(Mandatory)][string]$Body
+        [string]$BodyTemplate
     )
-    return "$Header`n`n$Marker`n`n$Body"
+    if (-not [string]::IsNullOrWhiteSpace($BodyTemplate)) {
+        # A host with an instructionBodyTemplate (currently only Hermes) has
+        # a real deployed layout that is NOT the generic header/blank/
+        # marker/blank/body contract -- it can carry a preamble BEFORE the
+        # policy and/or place the managed marker somewhere other than right
+        # after the header. The template fully owns that layout, including
+        # marker placement, so there is no per-host special case in this
+        # function: any host with a template gets exactly one substitution
+        # of the canonical body into the placeholder, nothing more.
+        $occurrences = ([regex]::Matches($BodyTemplate, [regex]::Escape($GlobalPolicyPlaceholder))).Count
+        if ($occurrences -ne 1) {
+            throw "Host '$HostId' declares nativePaths.instructionBodyTemplate but it contains $occurrences occurrences of '$GlobalPolicyPlaceholder' (expected exactly 1). Refusing to guess which one is the real insertion point."
+        }
+        return $BodyTemplate.Replace($GlobalPolicyPlaceholder, $PolicyBody)
+    }
+    return "$Header`n`n$Marker`n`n$PolicyBody"
 }
 
 # ---------------------------------------------------------------------------
@@ -242,6 +273,20 @@ function Resolve-HostTarget {
         $headerSource = 'derived-fallback'
     }
 
+    # A host whose real deployed layout is not the generic header/marker/
+    # body contract (currently only Hermes: identity preamble before the
+    # policy, managed marker at the end of the file) declares
+    # nativePaths.instructionBodyTemplate. This is read generically here --
+    # nothing in this function or the renderer checks $hostId against a
+    # literal host name; marker placement and any preamble live entirely in
+    # the registry data.
+    $bodyTemplate = if ($paths.PSObject.Properties['instructionBodyTemplate'] -and
+        -not [string]::IsNullOrWhiteSpace([string]$paths.instructionBodyTemplate)) {
+        [string]$paths.instructionBodyTemplate
+    } else {
+        $null
+    }
+
     return [pscustomobject]@{
         HostId            = $hostId
         Kind              = 'destination'
@@ -251,6 +296,7 @@ function Resolve-HostTarget {
         Header            = $header
         HeaderSource      = $headerSource
         IsDirectoryTarget = [bool]$isDirectoryTarget
+        BodyTemplate      = $bodyTemplate
     }
 }
 
@@ -262,6 +308,7 @@ $workSetCount = 0
 $hasUnmanaged = $false
 
 foreach ($agent in $allHosts) {
+    if (-not (Test-AgentHubHostSyncEnabled -Agent $agent)) { continue }
     $target = Resolve-HostTarget -Agent $agent
 
     if ($target.Kind -eq 'none') {
@@ -273,7 +320,7 @@ foreach ($agent in $allHosts) {
     }
 
     $workSetCount++
-    $expectedContent = Get-RenderedInstructionContent -Header $target.Header -Body $PolicyBody
+    $expectedContent = Get-RenderedInstructionContent -HostId $target.HostId -Header $target.Header -BodyTemplate $target.BodyTemplate
 
     # Stage the rendered bytes for inspection regardless of mode. Always
     # under %LOCALAPPDATA%\AgentHub\runtime\instructions\<hostId>\ (or its

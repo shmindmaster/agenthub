@@ -310,17 +310,28 @@ test('sync gate fails audio that is late against the cue-sheet words (constant o
   assert.match(drift.report.errors.join(' '), /A\/V drift/);
 });
 
-test('sync gate uses ASR on the encoded audio for the exact 40 ms check when supplied', { skip: !hasFfmpeg, timeout: 180000 }, () => {
+test('sync gate uses bound forced alignment, ignores Whisper onset jitter, and fails shifted or swapped clocks', { skip: !hasFfmpeg, timeout: 180000 }, () => {
   const f = gateFixture('gate-asr');
   const cue = JSON.parse(readFileSync(join(f.root, 'plan', 'cue-sheet.json'), 'utf8'));
-  const asrWords = (shift) => ({ words: cue.beats.flatMap((b) => b.narration.words).map((w) => ({ word: w.w, start: w.start + shift, end: w.end + shift })) });
-  write(join(f.root, 'qa', 'encoded-asr.json'), asrWords(0.01));
+  const words = cue.beats.flatMap((b) => b.narration.words);
+  write(join(f.root, 'story', 'locked-script.txt'), words.map((w) => w.w).join(' '));
+  const aligned = (shift) => ({
+    schema: 'local-ai/forced-alignment/1', units: 'seconds', gridSeconds: 0.08, durationSeconds: 20,
+    take: { sha256: sha(f.candidate) }, script: { sha256: sha(join(f.root, 'story', 'locked-script.txt')) },
+    words: words.map((w) => ({ text: w.w, start: Math.round(w.start / 0.08) * 0.08 + shift, end: Math.round(w.end / 0.08) * 0.08 + shift })),
+  });
+  write(join(f.root, 'qa', 'encoded-asr.json'), { words: words.map((w) => ({ word: w.w, start: w.start - 0.127, end: w.end - 0.127 })) });
+  write(join(f.root, 'qa', 'encoded-alignment.json'), aligned(0));
   let r = gate(f); assert.equal(r.code, 0, r.out);
-  assert.equal(r.report.av.method, 'asr-on-encoded');
+  assert.equal(r.report.av.method, 'forced-alignment-on-encoded');
   assert.ok(!r.report.checks.notPerformed.some((n) => n.check === 'av-sync-asr-on-encoded'));
-  write(join(f.root, 'qa', 'encoded-asr.json'), asrWords(0.1));
+  write(join(f.root, 'qa', 'encoded-alignment.json'), aligned(0.16));
   r = gate(f); assert.equal(r.code, 1);
-  assert.match(r.report.errors.join(' '), /encoded audio is 100 ms off/);
+  assert.match(r.report.errors.join(' '), /encoded audio is .* ms off/);
+  const wrong = aligned(0); wrong.take.sha256 = '0'.repeat(64);
+  write(join(f.root, 'qa', 'encoded-alignment.json'), wrong);
+  r = gate(f); assert.equal(r.code, 1);
+  assert.match(r.report.errors.join(' '), /input SHA-256 mismatch/);
 });
 
 test('sync gate fails a long exact-frame freeze, degraded timing, a stale or plan-mode cue sheet, and a film with no narrated action', { skip: !hasFfmpeg, timeout: 240000 }, () => {

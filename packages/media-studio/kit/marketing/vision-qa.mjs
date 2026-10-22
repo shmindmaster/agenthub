@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Vision QA on an encoded ad. Samples a frame every N seconds, sends the frames to an OpenAI vision model with a
+// Vision QA on an encoded ad. Samples frames for existing local vision, or explicit ledger-governed OpenAI, with a
 // rubric, parses a strict JSON verdict and fails on any high-severity finding. It supplements, never replaces, the
 // encoded-file gates and a full human watch: vision models miss small text, so every finding is evidence to check.
 //
@@ -159,27 +159,41 @@ export function extractFramesFfmpeg(candidate, times, dir, { maxWidth = 1080 } =
  * @param {Function} [o.frames] injected (candidate, times, dir) => frames; default ffmpeg
  */
 export async function runVisionQa(o) {
-  const model = o.brand?.vision?.model || 'gpt-5.6-sol';
+  const provider = o.provider || o.brand?.vision?.provider || 'local';
+  if (!['local', 'openai'].includes(provider)) throw new Error('vision provider must be local or explicit paid openai');
+  if (provider === 'openai' && (typeof o.ledger?.check !== 'function' || typeof o.ledger?.charge !== 'function')) throw new Error('paid OpenAI vision requires a governed cost ledger; use mvg --stage qa');
+  let model = provider === 'openai' ? (o.brand?.vision?.model || 'gpt-5.6-sol') : null;
   const every = o.spec?.qa?.visionEverySeconds || 1.5;
+  const candidateSha = existsSync(o.candidate) ? fileSha(o.candidate) : null;
   const duration = o.duration ?? ffprobeDuration(o.candidate);
   const times = sampleTimes(duration, every, { cues: o.cues || [] });
   const frames = (o.frames || extractFramesFfmpeg)(o.candidate, times, o.framesDir || join(tmpdir(), 'mvg-vision-frames', basename(o.candidate)));
-  const estimate = estimateVisionUsd(model, frames.length);
-  o.ledger?.check('openai', estimate, 'vision QA');
-  const vision = o.vision || (async (args) => (await import('./lib/providers/openai.mjs')).visionJson(args));
+  const estimate = provider === 'openai' ? estimateVisionUsd(model, frames.length) : 0;
+  if (provider === 'openai') o.ledger.check('openai', estimate, 'vision QA');
+  const vision = provider === 'local'
+    ? (o.localVision || (async (args) => (await import('./lib/providers/local.mjs')).localVisionJson(args)))
+    : (o.vision || (async (args) => (await import('./lib/providers/openai.mjs')).visionJson(args)));
   const res = await vision({
     model, detail: o.brand?.vision?.detail || 'high', schema: VERDICT_SCHEMA, schemaName: 'ad_vision_verdict',
     system: 'You are a meticulous, skeptical visual QA reviewer. You only report what you can see.',
     instructions: buildInstructions({ spec: o.spec, brand: o.brand, ratio: o.ratio }),
     frames: frames.map(({ label, t, dataUrl }) => ({ label, t, dataUrl })),
   });
-  const verdict = parseVerdict(res.text);
-  const usd = res.usage ? visionUsdFromUsage(model, res.usage) : estimate;
-  o.ledger?.charge({ stage: 'qa', provider: 'openai', service: 'vision', units: usd, estimated: !res.usage, ref: `${o.ratio}:${frames.length} frames` });
-  const candidateSha = existsSync(o.candidate) ? fileSha(o.candidate) : null;
+  // Account for the completed paid call even if its verdict is malformed.
+  const usd = provider === 'openai' ? (res.usage ? visionUsdFromUsage(model, res.usage) : estimate) : 0;
+  if (provider === 'openai') o.ledger.charge({ stage: 'qa', provider: 'openai', service: 'vision', units: usd, estimated: !res.usage, ref: `${o.ratio}:${frames.length} frames` });
+  if (provider === 'local') model = res.model || 'local';
+  const parts = res.frameTexts?.map(parseVerdict);
+  const verdict = parts ? {
+    frames: parts.flatMap((p) => p.frames),
+    overall: { labelPresentWhereRequired: parts.every((p) => p.overall.labelPresentWhereRequired), summary: parts.map((p) => p.overall.summary).join(' ') },
+  } : parseVerdict(res.text);
+  const labels = verdict.frames.map((f) => f.label);
+  if (labels.length !== frames.length || new Set(labels).size !== frames.length || frames.some((f) => !labels.includes(f.label))) throw new VerdictError('vision verdict must cover every sampled frame exactly once');
+  if (candidateSha && fileSha(o.candidate) !== candidateSha) throw new Error('candidate changed during vision QA');
   const result = applyArbitration(evaluate(verdict), o.arbitration || null, candidateSha);
   return {
-    generator: 'media-studio/mvg-vision-qa', model, ratio: o.ratio,
+    generator: 'media-studio/mvg-vision-qa', provider, model, ratio: o.ratio,
     candidate: { path: o.candidate, sha256: candidateSha, durationSeconds: round(duration, 2) },
     sampled: frames.map(({ label, t }) => ({ label, t })), everySeconds: every, costUsd: round(usd, 4), ...result, verdict,
   };
@@ -202,7 +216,7 @@ if (isMain()) {
   const brandPath = flag('--brand') || join(dirname(resolve(specPath)), '..', 'brand', 'brand.json');
   const brand = existsSync(brandPath) ? readJson(brandPath) : {};
   const arbPath = flag('--arbitration');
-  const report = await runVisionQa({ candidate: resolve(candidate), spec, brand, ratio, arbitration: arbPath && existsSync(arbPath) ? readJson(resolve(arbPath)) : null });
+  const report = await runVisionQa({ candidate: resolve(candidate), spec, brand, ratio, provider: flag('--provider'), arbitration: arbPath && existsSync(arbPath) ? readJson(resolve(arbPath)) : null });
   const out = resolve(flag('--out', 'vision-qa.json'));
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`);

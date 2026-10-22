@@ -427,8 +427,8 @@ $psi.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
 # OWNER RULE 2026-10-22: every agent runs on its account/plan login, never a provider API key.
 # Strip provider keys from the child environment so a key in the User environment cannot
 # override the account login (Devin used DEVIN_API_KEY; Codex's wrapper used OPENAI_API_KEY).
-# opencode keeps OPENCODE_GO_API_KEY: its Go-plan provider is configured through that
-# variable, and the plan key is the account.
+# OpenCode's Go plan is the account entry written by `opencode auth login`; the env override
+# is stripped so the built-in opencode/* models always bill the account entry.
 $accountScrub = @{
     'claude'       = @('ANTHROPIC_API_KEY', 'ANTHROPIC_API_KEY_BACKUP')
     'codex'        = @('OPENAI_API_KEY')
@@ -442,7 +442,7 @@ $accountScrub = @{
     'cursor-agent' = @('CURSOR_API_KEY')
     'amp'          = @('AMP_API_KEY')
     'copilot'      = @('GH_TOKEN', 'GITHUB_TOKEN')
-    'opencode'     = @()
+    'opencode'     = @('OPENCODE_GO_API_KEY')
 }
 if ($accountScrub.ContainsKey($targetId)) {
     foreach ($name in $accountScrub[$targetId]) { [void]$psi.EnvironmentVariables.Remove($name) }

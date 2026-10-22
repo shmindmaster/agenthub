@@ -92,7 +92,7 @@ $registryOk = $capability -and
     $capability.canonicalSource -eq 'overlays/personal/packages/sarosh-communication' -and
     $capability.hashBasis -eq 'overlays/personal/packages/sarosh-communication' -and
     $capability.status -eq 'active-canonical'
-Report 'registry has one owner, all 17 managed host mappings, no sarosh-writing' `
+Report 'registry has one owner, all 14 non-retired managed host mappings, no sarosh-writing' `
     ($registryOk -and $hostSetOk -and $mappingModesOk -and $noSaroshWriting) `
     "owners=$($owners.Count), hosts=$($actualHosts.Count), expected owner=personal-communication, managed-loose-skills, and no sarosh-writing entry"
 
