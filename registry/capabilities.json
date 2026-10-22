@@ -1437,6 +1437,25 @@
       "maturity": "beta",
       "provenance": "agenthub-owned",
       "notes": "Windowless dispatcher so one coding agent can call another. Claude and Codex are the primary orchestrators and can call any host -List marks callable. The same skill is deployed to the other coding hosts, so they can call the same script. Flags are only the headless commands verified on 2026-10-14. Cursor routes to cursor-agent. GUI hosts, interactive hosts, and CLIs without a verified prompt contract are refused."
+    },
+    {
+      "id": "fleet-board",
+      "owner": "agenthub",
+      "capabilityType": "script",
+      "canonicalSource": "packages/fleet-board",
+      "contentHash": "C01C53A3B971728F75F16F4A4F6C8E08ADA667501D2546804B065EAFD117D495",
+      "hashBasis": "packages/fleet-board",
+      "status": "active-canonical",
+      "hostMappings": [],
+      "dependencies": {
+        "requires": [],
+        "recommends": [],
+        "optional": []
+      },
+      "kind": "tool",
+      "maturity": "beta",
+      "provenance": "agenthub-owned",
+      "notes": "Regenerates a Markdown fleet board from configurable local status files, optional Codex rollouts, dispatcher logs, optional GitHub queries, an optional lease file, and running coding-host processes. Defaults to the user-local AgentHub runtime; exporting elsewhere requires an explicit path. Capability-invoked: no scheduled task, Run key, or auto-start. Tests use synthetic fixtures and skip live process, GitHub, and machine-state reads."
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",
