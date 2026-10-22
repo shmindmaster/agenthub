@@ -142,14 +142,17 @@ function Get-DispatchTable {
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('-p', '--output-format', 'text', $PromptText); Stdin = $null; PromptFile = $null }
+                @{ Args = @('--print', '--output-format', 'text', '--mode', 'ask', '--trust', '--workspace', $Work, $PromptText); Stdin = $null; PromptFile = $null }
             }
         }
         'gemini' = @{
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                $args = @('--approval-mode', 'yolo', '--prompt', $PromptText)
+                # The registered gemini.cmd shim already adds --yolo and
+                # --skip-trust. Do not combine its legacy --yolo with
+                # --approval-mode; --prompt enables headless execution.
+                $args = @('--prompt', $PromptText)
                 # Gemini restricts read_file to workspace roots. A pointer
                 # prompt must explicitly admit its runtime prompt directory.
                 if ($File) { $args += @('--include-directories', (Split-Path -Parent $File)) }
@@ -213,7 +216,8 @@ function Get-DispatchTable {
                 # amp --help 2026-10-14: -x/--execute reads the prompt from stdin
                 # and prints the last assistant message. --dangerously-allow-all
                 # disables command confirmation (amp.dangerouslyAllowAll).
-                @{ Args = @('-x', '--dangerously-allow-all', '--no-notifications', '--no-ide'); Stdin = $PromptText; PromptFile = $null }
+                $settingsFile = Join-Path $runDir ("settings-amp-{0}.json" -f [guid]::NewGuid().ToString('n'))
+                @{ Args = @('-x', '--dangerously-allow-all', '--no-notifications', '--no-ide', '--settings-file', $settingsFile); Stdin = $PromptText; PromptFile = $null; SettingsFile = $settingsFile }
             }
         }
         'devin' = @{
@@ -409,6 +413,7 @@ New-Item -ItemType Directory -Force -Path $runDir | Out-Null
 $stamp = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('n').Substring(0, 8)
 $stdoutPath = Join-Path $runDir "$stamp-$targetId.out"
 $stderrPath = Join-Path $runDir "$stamp-$targetId.err"
+$settingsFile = $built.SettingsFile
 $isBatch = $executable -match '\.(cmd|bat)$'
 $psi = [Diagnostics.ProcessStartInfo]::new()
 $psi.UseShellExecute = $false
@@ -448,6 +453,9 @@ if ($isBatch) {
 $process = [Diagnostics.Process]::new()
 $process.StartInfo = $psi
 try {
+    if ($settingsFile) {
+        [IO.File]::WriteAllText($settingsFile, '{"amp.mcpServers":{}}', [Text.UTF8Encoding]::new($false))
+    }
     if (-not $process.Start()) { Write-Refusal 2 "refused ${targetId}: process did not start" }
     $timer = [Diagnostics.Stopwatch]::StartNew()
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
@@ -488,6 +496,9 @@ try {
 } finally {
     if ($promptFile -and (Test-Path -LiteralPath $promptFile)) {
         Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
+    }
+    if ($settingsFile -and (Test-Path -LiteralPath $settingsFile)) {
+        Remove-Item -LiteralPath $settingsFile -Force -ErrorAction SilentlyContinue
     }
     $process.Dispose()
 }

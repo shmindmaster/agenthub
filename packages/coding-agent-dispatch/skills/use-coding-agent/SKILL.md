@@ -2,7 +2,7 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.2"
+  version: "0.2.3"
 ---
 
 # Use a coding agent from another coding agent
@@ -32,7 +32,7 @@ Aliases enforce their own policy and the target's policy and autonomy profile.
 Refused rows stay refused. Help verification establishes a command contract;
 authentication, allowance and smoke evidence establish readiness separately.
 
-The 0.2.2 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
+The 0.2.3 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
 Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin and local Warp/Oz.
 `registry/fleet-profile.json` -> `dispatchPolicy`
 can disable each contract with a reason and owner action. The current verified
@@ -40,13 +40,13 @@ model and provider selections are recorded in `registry/fleet-profile.json` ->
 `hostSettings` and `dispatchPolicy`. Do not reuse historical free-model
 selections for a host whose current policy names a paid plan model.
 
-Owner gates recorded in this repair:
+Account-mode readiness recorded in this repair:
 
-| Host | Required step before enabling |
+| Host | Status |
 | --- | --- |
-| Cursor Agent | The 2026-10-21 smoke exited 0 without response text; verify account/model access and get the requested response before enabling. |
-| Amp | The 2026-10-21 smoke stopped at MCP OAuth prompts without a task response; verify the account plan and resolve those prompts before enabling. |
-| Gemini | The 2026-10-21 account-mode smoke exited 1; verify Google account OAuth and model access before another authorized smoke. |
+| Cursor Agent | Account status and a standalone-response smoke passed on 2026-10-22. |
+| Amp | Execute mode with dispatch-only MCP servers disabled returned the requested response on 2026-10-22; `amp usage` reported Amp Free. |
+| Gemini | Headless flags avoid the registered shim's duplicate `--yolo`; complete Google OAuth interactively with `gemini` before another smoke. |
 | Warp | No supported account-status command or local-only execution mode was verified; keep disabled unless both are established. |
 | Other gated CLIs | Confirm included allowance for the configured provider/model or obtain an explicit task credit budget, then one smoke before enabling. |
 

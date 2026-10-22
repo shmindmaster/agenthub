@@ -21,10 +21,9 @@ OpenCode remains disabled in `registry/fleet-profile.json` pending owner
 verification and another authorized smoke. Copilot and Codex exited
 successfully, but their dispatcher stdout did not contain a standalone `ok`.
 The prior Gemini `ok` was from its configured default route and does not
-establish account-authenticated access. Cursor routes to `cursor-agent`; its
-new account-mode smoke returned no response text. The earlier `cursor` refusal
-was superseded by the direct `cursor-agent` smoke below; dispatch remains
-disabled because the requested response was not captured.
+establish account-authenticated access. The account-mode follow-up below
+records the new Cursor Agent and Amp responses and the remaining Gemini login
+blocker.
 
 ## Account-mode follow-up
 
@@ -34,9 +33,9 @@ account-authenticated host API-key overrides were removed by the dispatcher.
 
 | Host | Model | Auth mode | Smoke result | Current status |
 | --- | --- | --- | --- | --- |
-| cursor-agent | Not established | account | Exit 0, 23.4 s; no response text | Disabled |
-| amp | Not reported | account | Exit 0, 22 s; MCP OAuth prompts, no task response or plan | Disabled |
-| gemini | CLI default not established | account | Exit 1, 1.6 s; no response | Disabled |
+| cursor-agent | Not established | account | Exit 0, 33 s; standalone `ok` using `--print --output-format text --mode ask --trust --workspace <scratch>`; `cursor-agent status` confirmed a logged-in account | Enabled; account smoke ok 2026-10-22 |
+| amp | Not reported | account | Exit 0, 11.4 s; standalone `ok` using `-x` and a dispatch-only `--settings-file` with empty `amp.mcpServers`; `amp usage` confirmed a signed-in account and reported Amp Free with 100% daily allowance remaining and individual credits at -$0.07 after the smoke | Enabled; account smoke ok 2026-10-22 |
+| gemini | CLI default not established | account | First attempt exited 1 in 1.6 s because the registered shim already adds `--yolo` and conflicts with `--approval-mode`; after removing the duplicate flag, exit 4 at 120 s with stderr `Opening authentication page in your browser. Do you want to continue? [Y/n]:`; no response | Disabled; owner must run `gemini` interactively, select **Sign in with Google**, and complete browser OAuth before another smoke |
 | opencode | `opencode-go/hy3` | account | Not run; auth file has no Go-plan account entry | Disabled; awaiting Go login |
 | warp | Not established | account | Not run; `warp auth status` unsupported and local-only mode unverified | Disabled |
 | codex | `gpt-6.1-sol` | account | Not run; quota exhausted at 22:00 CT | Enabled as directed; quota blocks use |

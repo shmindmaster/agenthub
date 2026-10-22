@@ -350,10 +350,9 @@
       "reason": "Owner explicitly reauthorized all Cursor surfaces on 2026-07-30. Health checks remain read-only and must not consume a paid run."
     },
     "cursor-agent": {
-      "enabled": false,
-      "reason": "2026-10-21 dispatcher smoke exited 0 in 23.4 s but returned no response text; model access is unverified.",
-      "ownerAction": "Verify cursor-agent account/model access, then rerun one authorized smoke that returns the requested response.",
-      "verifiedOn": "2026-10-21"
+      "enabled": true,
+      "reason": "account smoke ok 2026-10-22",
+      "verifiedOn": "2026-10-22"
     },
     "factory": {
       "enabled": true,
@@ -361,10 +360,9 @@
       "verifiedOn": "2026-10-21"
     },
     "amp": {
-      "enabled": false,
-      "reason": "2026-10-21 dispatcher smoke exited 0 in 22 s but stopped at MCP OAuth prompts and returned no task response; plan was not reported.",
-      "ownerAction": "Resolve or disable the unconfigured MCP authorization prompts, verify the account plan, then rerun one authorized smoke.",
-      "verifiedOn": "2026-10-21"
+      "enabled": true,
+      "reason": "account smoke ok 2026-10-22",
+      "verifiedOn": "2026-10-22"
     },
     "claude": {
       "enabled": false,
@@ -380,9 +378,9 @@
     },
     "gemini": {
       "enabled": false,
-      "reason": "2026-10-21 account-authenticated dispatcher smoke exited 1 in 1.6 s without a response; OAuth access is unverified.",
-      "ownerAction": "Verify Google account OAuth, then rerun one authorized dispatcher smoke; API-key fallback is disabled.",
-      "verifiedOn": "2026-10-21"
+      "reason": "2026-10-22 dispatcher smoke timed out at the Google OAuth browser-confirmation prompt: \"Opening authentication page in your browser. Do you want to continue? [Y/n]:\"",
+      "ownerAction": "Run gemini in an interactive terminal, select Sign in with Google, and complete browser OAuth; then rerun one account-mode smoke.",
+      "verifiedOn": "2026-10-22"
     },
     "warp": {
       "enabled": false,

@@ -44,12 +44,15 @@ const fs = require('node:fs');
 if (process.env.CAD_FIXTURE_SLEEP) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 8000);
 const args = process.argv.slice(2);
 const contents = [];
+let ampSettings = null;
 for (const arg of args) {
   const match = arg.match(/Read the task from this UTF-8 file and carry it out: (.+)$/);
   const file = match ? match[1] : arg;
   if ((match || /prompt-.*\.txt$/.test(arg)) && fs.existsSync(file)) contents.push(fs.readFileSync(file, 'utf8'));
 }
-console.log(JSON.stringify({Arguments: args, Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PromptContents: contents, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','WARP_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
+const settingsIndex = args.indexOf('--settings-file');
+if (settingsIndex >= 0 && fs.existsSync(args[settingsIndex + 1])) ampSettings = JSON.parse(fs.readFileSync(args[settingsIndex + 1], 'utf8'));
+console.log(JSON.stringify({Arguments: args, Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','WARP_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
 if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
     $stub = Join-Path $fixture 'fake agent.cmd'
@@ -92,9 +95,11 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'Factory places global auto mode after exec' ($factoryArgsMatch -and $d.PromptContents -contains 'ok')
         }
         if ($id -eq 'gemini') {
-            $approvalIndex = [Array]::IndexOf($d.Arguments, '--approval-mode')
             $promptIndex = [Array]::IndexOf($d.Arguments, '--prompt')
-            Check 'Gemini sets headless approval mode before prompt' ($approvalIndex -ge 0 -and $d.Arguments[$approvalIndex + 1] -eq 'yolo' -and $promptIndex -gt $approvalIndex)
+            Check 'Gemini uses headless prompt without conflicting approval mode' ($promptIndex -ge 0 -and $d.Arguments[$promptIndex + 1] -eq 'ok' -and $d.Arguments -notcontains '--approval-mode')
+        }
+        if ($id -eq 'cursor-agent') {
+            Check 'Cursor uses print text mode, read-only Q&A and trusted workspace' ($d.Arguments -contains '--print' -and $d.Arguments -contains '--output-format' -and $d.Arguments -contains 'text' -and $d.Arguments -contains '--mode' -and $d.Arguments -contains 'ask' -and $d.Arguments -contains '--trust' -and $d.Arguments -contains '--workspace' -and $d.Arguments -contains $scratch)
         }
         if ($id -eq 'warp') { Check 'warp receives CLI environment' ($d.WarpMode -eq '1' -and $d.Arguments[0] -eq 'agent' -and $d.Arguments[1] -eq 'run') }
         if ($id -eq 'devin') { Check 'Devin receives prompt file and paid model' ($d.PromptContents -contains 'ok' -and $d.Arguments -contains '--prompt-file' -and $d.Arguments -contains 'swe-2-medium-lightning') }
@@ -108,7 +113,12 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'OpenCode Go account uses no API key override' (-not $d.ApiKeyVars.OPENCODE_GO_API_KEY)
         }
         if ($id -eq 'warp') { Check 'Warp account auth uses no API key override' (-not $d.ApiKeyVars.WARP_API_KEY) }
-        if ($id -eq 'amp') { Check 'Amp receives unattended stdin contract' ($d.Input -eq 'ok' -and $d.Arguments -contains '-x' -and $d.Arguments -contains '--no-notifications' -and $d.Arguments -contains '--no-ide') }
+        if ($id -eq 'amp') {
+            $settingsIndex = [Array]::IndexOf($d.Arguments, '--settings-file')
+            $settingsPath = if ($settingsIndex -ge 0) { $d.Arguments[$settingsIndex + 1] } else { $null }
+            Check 'Amp receives unattended stdin with MCP servers disabled' ($d.Input -eq 'ok' -and $d.Arguments -contains '-x' -and $d.Arguments -contains '--no-notifications' -and $d.Arguments -contains '--no-ide' -and $d.AmpSettingsLoaded -and $d.AmpMcpServerCount -eq 0)
+            Check 'Amp dispatch-only settings file is removed' ($settingsPath -and -not (Test-Path -LiteralPath $settingsPath))
+        }
     }
     $text = "quoted `"text`" café`n& echo %PATH% !name! " + ('x' * 9000)
     $taskFile = Join-Path $fixture 'task.txt'; [IO.File]::WriteAllText($taskFile, $text)
