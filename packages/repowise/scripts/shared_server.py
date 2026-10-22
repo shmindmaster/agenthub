@@ -11,7 +11,45 @@ from __future__ import annotations
 import argparse
 from contextlib import asynccontextmanager
 from importlib.metadata import version
+import json
+import math
 import os
+from urllib.parse import urlsplit
+from urllib.request import ProxyHandler, Request, build_opener
+
+
+def configure_local_embedder(base_url: str, model: str) -> None:
+    """Pin the query process to the same local provider used by indexing.
+
+    A provider constructor can succeed with an invalid remote key. Probe a real
+    embedding before serving; never trust that constructor as retrieval health.
+    This process must not inherit a remote endpoint or send its key locally.
+    """
+    parsed = urlsplit(base_url)
+    if (parsed.scheme != 'http' or parsed.hostname not in
+            {'127.0.0.1', 'localhost', '::1'} or parsed.username or
+            parsed.password or parsed.query or parsed.fragment or
+            parsed.path.rstrip('/') != '/v1'):
+        raise ValueError('RepoWise embeddings require a loopback HTTP /v1 endpoint')
+    endpoint = base_url.rstrip('/')
+    request = Request(endpoint + '/embeddings', data=json.dumps({
+        'model': model, 'input': ['RepoWise local retrieval readiness']
+    }).encode(), headers={'Content-Type': 'application/json',
+                         'Authorization': 'Bearer local-retrieval'})
+    try:
+        # Local requests must not leave the machine through an inherited proxy.
+        with build_opener(ProxyHandler({})).open(request, timeout=30) as response:
+            payload = json.load(response)
+        vector = payload['data'][0]['embedding']
+        if (not isinstance(vector, list) or len(vector) < 2 or
+                any(type(v) not in (int, float) or not math.isfinite(v)
+                    for v in vector) or not any(vector)):
+            raise ValueError('invalid embedding')
+    except Exception:
+        # Never echo response bodies, headers, keys or inherited configuration.
+        raise RuntimeError('Local embedding request failed; refusing to serve') from None
+    os.environ.update(OPENAI_BASE_URL=endpoint, OPENAI_API_KEY='local-retrieval',
+                      REPOWISE_EMBEDDER='openai', REPOWISE_EMBEDDING_MODEL=model)
 
 
 def create_app(upstream, *, server_version: str):
@@ -56,11 +94,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('workspace')
     parser.add_argument('--port', type=int, default=7339)
+    parser.add_argument('--embedding-base-url', default='http://127.0.0.1:8790/v1')
+    parser.add_argument('--embedding-model', default='text-embedding-3-small')
     args = parser.parse_args()
     # This fleet endpoint is loopback-only. Never silently bypass the vendor's
     # bearer/principal middleware if an operator later enables HTTP auth.
     if os.environ.get('REPOWISE_API_KEY') or os.environ.get('REPOWISE_HTTP_PRINCIPALS'):
         raise RuntimeError('Authenticated serving requires the vendor HTTP gateway')
+    configure_local_embedder(args.embedding_base_url, args.embedding_model)
     from repowise.server.mcp_server import create_mcp_server
     import uvicorn
     upstream = create_mcp_server(repo_path=args.workspace, workspace_mode=True)

@@ -41,8 +41,8 @@ Do not call it to avoid reading the exact file you are editing.
 
 ## Sibling stores
 
-RepoWise is one of three retrieval stores and the only one that is not a
-vector index. Route before you search:
+RepoWise combines repository graphs, FTS and a local vector index. Route
+before you search:
 
 | You are asking | Go to |
 | --- | --- |
@@ -50,13 +50,16 @@ vector index. Route before you search:
 | What have we done, built, proposed, or written about X | Qdrant `knowledge`, via `use-knowledge-access` |
 | Anything touching a legal matter | Qdrant `legal`, via Local-AI `query.ps1` only |
 
-Search here is FTS5 plus the symbol/call graph. Hybrid wiki search uses the
-OpenAI embedder (`REPOWISE_EMBEDDER=openai`,
-`REPOWISE_EMBEDDING_MODEL=text-embedding-3-small`, key `OPENAI_API_KEY` in the
-process environment — never stored in AgentHub). After changing embedder, rebuild
-vectors with `repowise reindex --embedder openai` from `C:\Repos`. This is still
-not Qdrant `knowledge` or `legal`. An empty result is not absence — try a
-synonym or `grep`.
+Search combines FTS5, the symbol/call graph and local vectors. The shared
+server pins the OpenAI-compatible provider to `http://127.0.0.1:8790/v1`,
+uses the existing `text-embedding-3-small` compatibility alias and supplies a
+non-secret local placeholder key. It overrides inherited remote routing and
+probes an actual finite, nonzero embedding before serving. An HTTP models
+response or `embedder_degraded: false` alone does not verify vector search.
+Check real search results for the vector source as well as relevance. CLI
+indexing needs the same local base URL and model; preserve the existing vector
+configuration. Change providers only through an explicit compatible reindex.
+An empty result is unknown; try another query or `rg` and inspect the source.
 
 The split is deliberate and should stay. A graph traversal is not a vector
 query, and `legal` is walled off at the collection level so opportunity and
@@ -97,7 +100,9 @@ RepoWise on this fleet is a **local disk index**, not a hosted product.
   `repowise telemetry status`.
 - Default update path is `--index-only` / `--no-docs`: parse, graph, git.
   No LLM, no key.
-- Hybrid search/reindex uses OpenAI embeddings (`OPENAI_API_KEY`). Optional
+- Hybrid search/reindex uses the local OpenAI-compatible embeddings endpoint.
+  Never send repository queries or a remote credential to a hosted endpoint.
+  Optional
   wiki prose (`--full` / `--docs`) still uses `REPOWISE_PROVIDER` /
   `REPOWISE_MODEL` from the process environment, never a key in AgentHub.
   Do not run `--full` against `portfolio-records` or private evidence. Do

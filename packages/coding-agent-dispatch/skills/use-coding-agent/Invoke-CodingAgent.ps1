@@ -149,10 +149,9 @@ function Get-DispatchTable {
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                # The registered gemini.cmd shim already adds --yolo and
-                # --skip-trust. Do not combine its legacy --yolo with
-                # --approval-mode; --prompt enables headless execution.
-                $args = @('--prompt', $PromptText)
+                # The registered shim applies its yolo default only when this
+                # explicit approval-mode flag is absent.
+                $args = @('--approval-mode', 'yolo', '--prompt', $PromptText)
                 # Gemini restricts read_file to workspace roots. A pointer
                 # prompt must explicitly admit its runtime prompt directory.
                 if ($File) { $args += @('--include-directories', (Split-Path -Parent $File)) }
