@@ -103,11 +103,20 @@ Behavior exists, checks pass, docs match reality.
     Set-Content -LiteralPath (Join-Path $Path 'docs\current-state.md') -Encoding UTF8 -Value "# Current State`n"
     Set-Content -LiteralPath (Join-Path $Path 'docs\plans\PLANS.md') -Encoding UTF8 -Value "# Execution Plans`n"
 }
+# Stand-in for the agenthub checkout the standard reads: the bounded RepoWise
+# entry point and the skill that documents it.
+$boundedRel = 'packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1'
+$skillRel = 'packages/repowise/skills/use-repowise/SKILL.md'
+$agenthubStub = Join-Path $fixtureRoot 'agenthub-stub'
+New-Item -ItemType Directory -Force (Join-Path $agenthubStub 'packages\repowise\scripts'), (Join-Path $agenthubStub 'packages\repowise\skills\use-repowise') | Out-Null
+Set-Content -LiteralPath (Join-Path $agenthubStub $boundedRel) -Value '# fixture bounded entry point'
+Set-Content -LiteralPath (Join-Path $agenthubStub $skillRel) -Value 'Refresh with scripts/Invoke-RepoWiseBoundedIndex.ps1.'
 # Fixture config mirrors the real roster shape but points fleetRoot at TEMP.
 $fixtureConfig = [pscustomobject]@{
     schemaVersion = 1
     fleetRoot = $fixtureRoot
     workspace = @{ file = '.repowise-workspace.yaml' }
+    repowiseRefresh = [pscustomobject]@{ root = $agenthubStub; entryPoint = $boundedRel; documentedIn = @($skillRel) }
     requiredRootFiles = @('README.md','AGENTS.md','CLAUDE.md')
     requiredDocsFiles = @('docs/README.md','docs/current-state.md','docs/plans/PLANS.md')
     requiredDocsDirs = @('docs/product','docs/architecture','docs/development','docs/runbooks','docs/plans')
@@ -130,7 +139,7 @@ $good = New-FixtureRepo 'compliant'
 Write-MinimalCompliantRepo $good
 git -C $good add .
 git -C $good commit -qm 'standard layout'
-Set-Content -LiteralPath (Join-Path $good '.git\hooks\post-commit') -Value "#!/bin/sh`n# repowise post-commit placeholder (fixture)"
+# No post-commit hook: the fleet's freshness path is the bounded entry point.
 $gi = Get-Content -LiteralPath (Join-Path $good '.gitignore') -Raw -Encoding UTF8
 Set-Content -LiteralPath (Join-Path $good '.gitignore') -Value ($gi + "`n.repowise/`n.claude/CLAUDE.md") -Encoding UTF8
 git -C $good add .gitignore
@@ -168,6 +177,54 @@ try {
     $out = & $checker -Repo compliant -ConfigPath $configPath 2>&1 | Out-String
     $code = $LASTEXITCODE
     Report 'compliant-repo-passes' ($code -eq 0) (($out.Trim().Split("`n")) | Select-Object -Last 3 | Out-String)
+
+    # The standard requires the bounded RepoWise entry point, not a hook: the
+    # compliant fixture has no hook and must still pass.
+    Report 'compliant-repo-needs-no-post-commit-hook' `
+        ($code -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $good '.git\hooks\post-commit')) -and $out -notmatch 'repowise-hook') `
+        'a repo without a post-commit hook must pass, and no repowise-hook check may remain.'
+    $refreshBase = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8
+    function Invoke-RefreshVariant([string]$Name, [scriptblock]$Mutate) {
+        $variant = $refreshBase | ConvertFrom-Json
+        & $Mutate $variant
+        $variantPath = Join-Path $fixtureRoot "refresh-$Name.json"
+        $variant | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $variantPath -Encoding UTF8
+        $variantOut = & $checker -Repo compliant -ConfigPath $variantPath -Format json 2>&1 | Out-String
+        $variantCode = $LASTEXITCODE
+        $row = @(($variantOut | ConvertFrom-Json).results | Where-Object { $_.Check -eq 'repowise-bounded-refresh' })
+        return [pscustomobject]@{ Code = $variantCode; Row = $row }
+    }
+    $passing = Invoke-RefreshVariant 'passing' { param($c) }
+    Report 'bounded-refresh-row-passes-when-entry-point-is-documented' `
+        ($passing.Code -eq 0 -and $passing.Row.Count -eq 1 -and $passing.Row[0].Passed) `
+        "expected one passing repowise-bounded-refresh row (exit=$($passing.Code), rows=$($passing.Row.Count))."
+    # Old guidance only: the skill still tells people to install the hook and
+    # the bounded entry point does not exist.
+    $oldOnlyStub = Join-Path $fixtureRoot 'agenthub-old-guidance'
+    New-Item -ItemType Directory -Force (Join-Path $oldOnlyStub 'packages\repowise\skills\use-repowise') | Out-Null
+    Set-Content -LiteralPath (Join-Path $oldOnlyStub $skillRel) -Value 'Run `repowise hook install -w` and `repowise update --repo <name>`.'
+    $oldOnly = Invoke-RefreshVariant 'old-hook-only' { param($c) $c.repowiseRefresh.root = $oldOnlyStub }
+    Report 'old-hook-guidance-only-fails-naming-the-bounded-command' `
+        ($oldOnly.Code -eq 1 -and $oldOnly.Row.Count -eq 1 -and -not $oldOnly.Row[0].Passed -and
+         $oldOnly.Row[0].Detail -match 'Invoke-RepoWiseBoundedIndex\.ps1' -and $oldOnly.Row[0].Detail -notmatch 'hook install') `
+        "expected a failing repowise-bounded-refresh row naming the bounded command (exit=$($oldOnly.Code), rows=$($oldOnly.Row.Count))."
+    # Entry point present but the skill does not document it.
+    New-Item -ItemType Directory -Force (Join-Path $oldOnlyStub 'packages\repowise\scripts') | Out-Null
+    Set-Content -LiteralPath (Join-Path $oldOnlyStub $boundedRel) -Value '# present'
+    $undocumented = Invoke-RefreshVariant 'undocumented' { param($c) $c.repowiseRefresh.root = $oldOnlyStub }
+    Report 'undocumented-bounded-entry-point-fails' `
+        ($undocumented.Code -eq 1 -and $undocumented.Row.Count -eq 1 -and -not $undocumented.Row[0].Passed) `
+        "an entry point the skill does not document was accepted (exit=$($undocumented.Code))."
+    $undeclared = Invoke-RefreshVariant 'undeclared' { param($c) $c.PSObject.Properties.Remove('repowiseRefresh') }
+    Report 'undeclared-refresh-path-fails-closed' `
+        ($undeclared.Code -eq 1 -and $undeclared.Row.Count -eq 1 -and -not $undeclared.Row[0].Passed) `
+        'a registry without repowiseRefresh must fail, not skip the rule.'
+    # The shipped registry must name an entry point and documentation that exist.
+    $real = (Get-Content -LiteralPath (Join-Path $repoRoot 'registry\repo-standard.json') -Raw -Encoding UTF8 | ConvertFrom-Json).repowiseRefresh
+    $realOk = $null -ne $real -and (Test-Path -LiteralPath (Join-Path $repoRoot $real.entryPoint) -PathType Leaf) -and
+        @($real.documentedIn | Where-Object { (Get-Content -LiteralPath (Join-Path $repoRoot $_) -Raw -Encoding UTF8) -match [regex]::Escape([IO.Path]::GetFileName($real.entryPoint)) }).Count -eq @($real.documentedIn).Count
+    Report 'shipped-registry-names-existing-documented-bounded-entry-point' $realOk `
+        'registry/repo-standard.json repowiseRefresh must name an existing entry point documented in each documentedIn file.'
 
     # An intentional flat docs layout may exempt only paths from the global
     # required-doc lists, and only with a nonblank reason. The exception stays

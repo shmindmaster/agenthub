@@ -44,9 +44,10 @@ This repo is the primary (default) member of the RepoWise workspace at
 `C:\Repos` (covers `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and
 `pendoah`). Use the workspace MCP (`repowise-workspace`, registered in
 `registry/mcps.json`) or `repowise search`/`status -w` from `C:\Repos`
-before broad exploration. After material changes, run
-`repowise update --repo agenthub` if the post-commit hook has not already
-refreshed the index. Verify important derived claims against source. Full
+before broad exploration. After material changes, refresh the index only
+through the bounded manual entry point
+`packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1` (no post-commit
+hook, no bare `repowise update`). Verify important derived claims against source. Full
 contract:
 [`packages/repowise/skills/use-repowise/SKILL.md`](./packages/repowise/skills/use-repowise/SKILL.md).
 
@@ -141,7 +142,7 @@ uses `docs/plans/active/`.
 - Registry and package content agree; content hashes recomputed.
 - `Validate-AgentHub.ps1` and relevant tests pass.
 - Docs updated when behavior, layout, or contracts changed.
-- RepoWise index refreshed (hook or manual update).
+- RepoWise index refreshed through the bounded manual entry point.
 
 ## GitHub
 
