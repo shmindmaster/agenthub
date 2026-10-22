@@ -33,6 +33,7 @@ export async function deliverStage(ctx) {
       const measured = releasable(g.gates || {}, requiredGates(ctx.spec));
       if (!measured.ok || Object.values(g.gates || {}).some((gate) => gate.candidateSha256 !== named.sha256)) throw new Error(`deliver refused for ${ratio}: missing, failing or stale per-gate candidate binding`);
       if (!g.ok) throw new Error(`deliver refused for ${ratio}: ${g.failing.join('; ')}`);
+      if (g.specSha256 !== ctx.specSha || g.brandSha256 !== ctx.brandSha) throw new Error(`deliver refused for ${ratio}: QA used different spec or brand inputs`);
       if (!g.candidate || g.candidate.id !== named.id || g.candidate.sha256 !== fileSha(ad)) throw new Error(`deliver refused for ${ratio}: the gates were run on a different file than the current candidate`);
       gatesByRatio[ratio] = g;
       rows.push({ ratio, mp4: ad, srt: join(named.dir, 'ad.srt'), seconds: readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json')).durationSeconds });

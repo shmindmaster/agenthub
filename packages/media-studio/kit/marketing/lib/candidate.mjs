@@ -47,6 +47,7 @@ export function verifiedCandidate(ctx, ratio) {
     if (rel === '' || (!isAbsolute(rel) && rel !== '..' && !rel.startsWith('../') && !rel.startsWith('..\\'))) throw new Error('--qa-dir must be outside the source evidence job');
   }
   if (receipt && receipt.id !== paths.id) throw new Error('candidate receipt id does not match --candidate-id');
+  if (receipt && (receipt.ratio !== ratio || !/^[a-f0-9]{64}$/.test(ctx.specSha || '') || !/^[a-f0-9]{64}$/.test(ctx.brandSha || '') || receipt.specSha256 !== ctx.specSha || receipt.brandSha256 !== ctx.brandSha)) throw new Error('candidate receipt has stale or missing ratio/spec/brand input bindings; compose a new candidate ID');
   if (!existsSync(paths.ad) || fileSha(paths.ad) !== expected) throw new Error('candidate SHA-256 does not match the named candidate');
   return { ...paths, sha256: expected, bytes: statSync(paths.ad).size };
 }

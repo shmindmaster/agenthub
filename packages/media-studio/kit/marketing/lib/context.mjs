@@ -14,6 +14,8 @@ export function loadContext({ specPath, flags = {}, providers = {}, now = new Da
   const brandPath = spec.brand ? (isAbsolute(spec.brand) ? spec.brand : resolve(specDir, spec.brand)) : resolve(specDir, '..', 'brand', 'brand.json');
   if (!existsSync(brandPath)) throw new Error(`brand file not found: ${brandPath}`);
   const brand = readJson(brandPath);
+  if (flags.qaDir && (flags.only || flags.stage) !== 'qa') throw new Error('--qa-dir is only valid for isolated QA');
+  if (flags.qaDir && !flags.noVision && (flags.visionProvider || brand.vision?.provider || 'local') !== 'local') throw new Error('read-only external QA requires local vision; paid QA would modify the source cumulative spend ledger');
   const workspace = flags.workspace ? resolve(flags.workspace) : resolve(specDir, '..');
   const jobDir = join(workspace, 'jobs', spec.id);
   const runId = `${now.toISOString().replace(/[:.]/g, '-')}`;

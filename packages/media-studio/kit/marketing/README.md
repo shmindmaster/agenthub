@@ -26,6 +26,8 @@ QA and delivery require that ID and its compose receipt. To gate an existing fil
 node mvg.mjs <spec> --stage qa --candidate-id retained-01 --candidate <ad.mp4> --candidate-sha256 <sha256> --compose-dir <original-build-dir> --ratio 9x16 --qa-dir D:\Local-AI\data\artifacts\media\qa-retained-01 --local-gates
 ```
 
+Read-only external QA is local-only: paid vision is refused before a provider call because its cumulative spend ledger
+would write the source workspace. Explicit paid fallback remains available for normal receipt-bound candidate QA.
 The QA directory must be outside the source job. Local-AI alignment outputs must be under its declared media artifact
 root (`D:\Local-AI\data\artifacts\media` on the reference host). No copying to the delivery library occurs in QA.
 `--no-line-chips`, `--no-captions`, or `render: { "lineChips": false }` disables burned caption chips, retaining the SRT.

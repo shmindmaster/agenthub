@@ -14,6 +14,9 @@ import { fileSha } from '../kit/marketing/lib/util.mjs';
 import { forcedWordOnsets, measureWordSync } from '../kit/screencast/sync-lib.mjs';
 import { runVisionQa } from '../kit/marketing/vision-qa.mjs';
 import { localVisionJson, visionEndpoint } from '../kit/marketing/lib/providers/local.mjs';
+import { loadContext } from '../kit/marketing/lib/context.mjs';
+import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
+import { requiredGates } from '../kit/marketing/lib/gates.mjs';
 
 const root = mkdtempSync(join(tmpdir(), 'candidate-qa-'));
 test.after(() => rmSync(root, { recursive: true, force: true }));
@@ -46,7 +49,7 @@ test('compose candidate identity is mandatory and exclusive; force cannot replac
 });
 
 test('named candidates reject missing, swapped, or changed hashes and wrong receipt ids', () => {
-  const ctx = { jobDir: join(root, 'binding'), flags: { candidateId: 'one' } };
+  const ctx = { jobDir: join(root, 'binding'), flags: { candidateId: 'one' }, specSha: 'a'.repeat(64), brandSha: 'b'.repeat(64) };
   reserveCandidate(ctx);
   const paths = candidatePaths(ctx, '9x16');
   mkdirSync(paths.dir);
@@ -55,8 +58,10 @@ test('named candidates reject missing, swapped, or changed hashes and wrong rece
   const sha256 = fileSha(paths.ad);
   write(join(paths.dir, 'candidate.json'), { id: 'other', sha256 });
   assert.throws(() => verifiedCandidate(ctx, '9x16'), /id/);
-  write(join(paths.dir, 'candidate.json'), { id: 'one', sha256 });
+  write(join(paths.dir, 'candidate.json'), { id: 'one', ratio: '9x16', sha256, specSha256: ctx.specSha, brandSha256: ctx.brandSha });
   assert.equal(verifiedCandidate(ctx, '9x16').sha256, sha256);
+  ctx.specSha = 'c'.repeat(64); assert.throws(() => verifiedCandidate(ctx, '9x16'), /input bindings/); ctx.specSha = 'a'.repeat(64);
+  ctx.brandSha = 'c'.repeat(64); assert.throws(() => verifiedCandidate(ctx, '9x16'), /input bindings/); ctx.brandSha = 'b'.repeat(64);
   writeFileSync(paths.ad, 'changed');
   assert.throws(() => verifiedCandidate(ctx, '9x16'), /SHA-256/);
   ctx.flags = { candidateId: 'import', candidate: paths.ad };
@@ -71,14 +76,17 @@ test('named candidates reject missing, swapped, or changed hashes and wrong rece
 });
 
 test('delivery refuses a forged top-level pass without per-gate bindings', async () => {
-  const ctx = { jobDir: join(root, 'delivery'), flags: { candidateId: 'one' }, spec: { ratios: ['9x16'], beats: [] } };
+  const ctx = { jobDir: join(root, 'delivery'), flags: { candidateId: 'one' }, spec: { ratios: ['9x16'], beats: [] }, specSha: 'a'.repeat(64), brandSha: 'b'.repeat(64) };
   reserveCandidate(ctx);
   const p = candidatePaths(ctx, '9x16');
   mkdirSync(p.dir); mkdirSync(p.qa, { recursive: true });
   writeFileSync(p.ad, 'accepted');
-  write(join(p.dir, 'candidate.json'), { id: 'one', sha256: fileSha(p.ad) });
+  write(join(p.dir, 'candidate.json'), { id: 'one', ratio: '9x16', sha256: fileSha(p.ad), specSha256: ctx.specSha, brandSha256: ctx.brandSha });
   write(join(p.qa, 'gates.json'), { ok: true, gates: {} });
   await assert.rejects(deliverStage(ctx), /per-gate candidate binding/);
+  const gates = Object.fromEntries(requiredGates(ctx.spec).map(name => [name, { status: 'pass', candidateSha256: fileSha(p.ad) }]));
+  write(join(p.qa, 'gates.json'), { ok: true, gates, candidate: { id: 'one', sha256: fileSha(p.ad) }, specSha256: 'c'.repeat(64), brandSha256: ctx.brandSha });
+  await assert.rejects(deliverStage(ctx), /QA used different spec or brand/);
 });
 
 test('line chips and burned captions can be turned off without altering input chunks', () => {
@@ -92,6 +100,26 @@ test('line chips and burned captions can be turned off without altering input ch
   assert.equal(args.flags.candidateId, 'one');
   assert.equal(args.flags.visionProvider, 'local');
   assert.throws(() => parseArgs(['spec.json', '--candidate-id']), /needs a value/);
+});
+
+test('external paid QA is refused before a call or source-ledger write', () => {
+  const dir = join(root, 'external-paid'); mkdirSync(dir);
+  const specPath = join(dir, 'spec.json'), brandPath = join(dir, 'brand.json');
+  write(specPath, { id: 'one', brand: 'brand.json' }); write(brandPath, { vision: { provider: 'openai' } });
+  const flags = { qaDir: `${dir}-qa`, stage: 'qa' };
+  assert.throws(() => loadContext({ specPath, flags }), /read-only external QA requires local/);
+  const ctx = loadContext({ specPath, flags: { ...flags, visionProvider: 'local' } });
+  assert.equal(ctx.ledger.entries.length, 0);
+  assert.equal(ctx.flags.visionProvider, 'local');
+});
+
+test('local-only planning has no vision or transcript API cost; explicit paid overrides are planned', () => {
+  const spec = { id: 'one', ratios: ['9x16'], beats: [{ id: 'one', narration: 'Open the screen.' }], voice: { provider: 'local' } };
+  const brand = { timing: { provider: 'local-whisper' } };
+  assert.equal(planCost(spec, brand).openaiUsd, 0);
+  assert.equal(planCost(spec, { ...brand, vision: { provider: 'local' } }).openaiUsd, 0);
+  assert.equal(planCost(spec, brand, { visionProvider: 'openai' }).openaiUsd, 0.35);
+  assert.equal(planCost(spec, { ...brand, vision: { provider: 'openai' } }, { visionProvider: 'local' }).openaiUsd, 0);
 });
 
 const cue = [{ w: 'Open', start: 0.08 }, { w: 'seventy-five.', start: 0.32 }];

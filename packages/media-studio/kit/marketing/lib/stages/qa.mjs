@@ -114,7 +114,7 @@ export async function qaStage(ctx) {
       const verdict = releasable(gates, required);
       if (fileSha(ad) !== sha || fileSha(candidate) !== sha) throw new Error('candidate changed during QA; no gate verdict published');
       for (const g of Object.values(gates)) g.candidateSha256 = sha;
-      writeJson(join(qdir, 'gates.json'), { ratio, candidate: { id: named.id, path: ad, sha256: sha, bytes: named.bytes }, required, gates, ...verdict });
+      writeJson(join(qdir, 'gates.json'), { ratio, candidate: { id: named.id, path: ad, sha256: sha, bytes: named.bytes }, specSha256: ctx.specSha, brandSha256: ctx.brandSha, required, gates, ...verdict });
       out[ratio] = { ...verdict, gates, candidateSha256: sha };
     }
   }
