@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { runPipeline, selectedStages, parseArgs } from '../kit/marketing/mvg.mjs';
 import { reserveCandidate, candidatePaths, verifiedCandidate, selectedCuts } from '../kit/marketing/lib/candidate.mjs';
 import { renderCaptions } from '../kit/marketing/lib/stages/compose.mjs';
@@ -111,6 +113,25 @@ test('forced clock preserves 80 ms provenance, split words and the canonical 40 
   const late = measureWordSync(raw, cue, bindings);
   assert.equal(late.ok, false);
   assert.match(late.errors.join(' '), /80 ms off/);
+});
+
+test('word-sync executable binds candidate, locked script and cue inputs without decoding or ASR', () => {
+  const ws = join(root, 'word-executable');
+  for (const dir of ['plan', 'qa', 'story']) mkdirSync(join(ws, dir), { recursive: true });
+  const candidate = join(ws, 'synthetic.mp4'), script = join(ws, 'story', 'locked-script.txt');
+  writeFileSync(candidate, 'synthetic candidate bytes'); writeFileSync(script, 'Open seventy-five.');
+  const raw = alignment(); raw.take.sha256 = fileSha(candidate); raw.script.sha256 = fileSha(script);
+  write(join(ws, 'qa', 'encoded-alignment.json'), raw);
+  write(join(ws, 'plan', 'cue-sheet.json'), { beats: [{ narration: { words: cue } }] });
+  const executable = fileURLToPath(new URL('../scripts/validate-word-sync.mjs', import.meta.url));
+  const run = () => spawnSync(process.execPath, [executable, ws, candidate], { encoding: 'utf8', windowsHide: true });
+  let r = run(); assert.equal(r.status, 0, r.stdout + r.stderr);
+  const report = JSON.parse(readFileSync(join(ws, 'qa', 'word-sync.json'), 'utf8'));
+  assert.equal(report.candidate.sha256, fileSha(candidate));
+  assert.equal(report.inputs.script.sha256, fileSha(script)); assert.equal(report.gridMs, 80);
+  writeFileSync(script, 'Changed locked words');
+  r = run(); assert.equal(r.status, 1); assert.match(r.stdout, /input SHA-256 mismatch/);
+  assert.throws(() => measureWordSync(alignment(), [{ w: 'Open' }, cue[1]], bindings), /cue word/);
 });
 test('forced clock fails wrong candidate/script, nonfinite, malformed, missing and off-grid words', () => {
   for (const change of [
