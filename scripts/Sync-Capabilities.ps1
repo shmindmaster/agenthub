@@ -26,7 +26,7 @@ $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
 # Functions only; the pass runs after deploy/prune so it never rewrites a
 # destination this script is about to delete.
 . (Join-Path $PSScriptRoot 'SkillFrontmatterYaml.ps1')
-. (Join-Path $PSScriptRoot 'lib\PathBinding.ps1')
+. (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
 . (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
 
 # -UserProfile has to actually move where this script writes, or it is a
@@ -86,6 +86,7 @@ $capabilities.capabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDo
 # -Prune, because prune only ever iterates destinations the state still claims.
 $allAgents = @($agentsDocument.activeAgents) + @($agentsDocument.inactiveAgents)
 $agents = if ($IncludeInactiveAgents) { $allAgents } else { @($agentsDocument.activeAgents) }
+$agents = @($agents | Where-Object { Test-AgentHubHostSyncEnabled -Agent $_ })
 
 # A registry that declares nothing is a wrong or empty tree, not a clean run.
 if (@($capabilities.capabilities).Count -eq 0) {

@@ -167,8 +167,16 @@ function Test-RenderContractProducesExactBytes {
 function Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd {
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-hermes-template-" + [guid]::NewGuid())
     $hermesDest = Join-Path $userProfile 'AppData\Local\hermes\SOUL.md'
+    $fixtureRoot = Join-Path $userProfile 'fixture'
+    New-Item -ItemType Directory -Path (Join-Path $fixtureRoot 'registry') -Force | Out-Null
+    $registry = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw | ConvertFrom-Json
+    $hermes = @($registry.activeAgents | Where-Object id -eq 'hermes')[0]
+    $hermes.status = 'active' # Synthetic template positive control, never the retired fleet entry.
+    @{ activeAgents = @($hermes); inactiveAgents = @(); userProfile = $env:USERPROFILE } |
+        ConvertTo-Json -Depth 30 | Set-Content -LiteralPath (Join-Path $fixtureRoot 'registry\agents.json')
+    Copy-Item -LiteralPath $canonicalPolicyPath -Destination (Join-Path $fixtureRoot 'global-agent-policy.md')
     try {
-        $apply = Invoke-SyncInstructions -ExtraArgs @('-Apply', '-UserProfile', $userProfile)
+        $apply = Invoke-SyncInstructions -ExtraArgs @('-Apply', '-RepositoryRoot', $fixtureRoot, '-UserProfile', $userProfile)
         if ($apply.ExitCode -ne 0) {
             return @{ Passed = $false; Detail = "-Apply exit code was $($apply.ExitCode). Output: $($apply.Output)" }
         }

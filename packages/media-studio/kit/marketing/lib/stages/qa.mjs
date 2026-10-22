@@ -1,5 +1,5 @@
 // Stage 7: qa, per ratio, on the exact encoded file. Gates: band-bound picture, captions, loudness, sync and Local-AI
-// listen (local, --local-gates), the film-chain gates (picture integrity, pointer path, frame integrity, marketing readiness), OpenAI vision QA,
+// listen (local, --local-gates), the film-chain gates (picture integrity, pointer path, frame integrity, marketing readiness), local-first vision QA,
 // the story score (reviewer file), and validate-viewer-release.
 // Anything that did not run on this exact candidate is `pending`, never a pass, and deliver refuses to ship it.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
@@ -14,7 +14,7 @@ import { normalizeCuts } from '../lint.mjs';
 import { fileSha, readJson, writeJson } from '../util.mjs';
 import { resolveClip } from './capture.mjs';
 import { runVisionQa } from '../../vision-qa.mjs';
-import { selectedCuts, verifiedCandidate } from '../candidate.mjs';
+import { candidatePaths, selectedCuts, verifiedCandidate } from '../candidate.mjs';
 
 const pending = (detail) => ({ status: 'pending', detail });
 
@@ -25,17 +25,12 @@ export async function qaStage(ctx) {
     const timeline = readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json'));
     const capture = existsSync(join(ctx.jobDir, 'capture', `${cut.id}.json`)) ? readJson(join(ctx.jobDir, 'capture', `${cut.id}.json`)).clips : [];
     for (const ratio of cut.ratios) {
-      const named = verifiedCandidate(ctx, ratio);
+      const paths = candidatePaths(ctx, ratio);
+      const named = existsSync(paths.ad) ? verifiedCandidate(ctx, ratio) : paths;
       const cdir = named.dir;
       const qdir = named.qa;
       const ws = join(qdir, 'ws');
       mkdirSync(qdir, { recursive: true });
-      const composeMap = readJson(join(cdir, 'compose-map.json'));
-      const gateSegments = readJson(join(cdir, 'gate-segments.json'));
-      const clips = capture.map((c) => ({ ...c, receiptEntry: resolveClip(ctx, cut.beats.find((b) => b.id === c.beatId)).entry }));
-      const asr = Object.fromEntries((timeline.lines || []).filter((l) => l.asr).map((l) => [l.beatId, join(ctx.jobDir, l.asr)]));
-      const target = loudnessTarget(ratio, ctx.spec, ctx.brand);
-      buildGateWorkspace({ root: ws, spec: ctx.spec, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs: target.lufs });
       const ad = named.ad;
       const gates = {};
       if (!existsSync(ad) || ctx.flags.prepareOnly) {
@@ -45,12 +40,19 @@ export async function qaStage(ctx) {
         out[ratio] = { ...verdict, gates };
         continue;
       }
+      const composeMap = readJson(join(cdir, 'compose-map.json'));
+      const gateSegments = readJson(join(cdir, 'gate-segments.json'));
+      const clips = capture.map((c) => ({ ...c, receiptEntry: resolveClip(ctx, cut.beats.find((b) => b.id === c.beatId)).entry }));
+      const asr = Object.fromEntries((timeline.lines || []).filter((l) => l.asr).map((l) => [l.beatId, join(ctx.jobDir, l.asr)]));
+      const target = loudnessTarget(ratio, ctx.spec, ctx.brand);
+      buildGateWorkspace({ root: ws, spec: ctx.spec, cut, ratio, timeline, composeMap, clips, asr, loudnessLufs: target.lufs });
       const sha = named.sha256;
       if (fileSha(ad) !== sha) throw new Error('candidate changed before QA');
       const candidate = join(ws, 'output', `${ctx.spec.id}.mp4`);
       copyFileSync(ad, candidate);
       const srt = join(ws, 'output', `${ctx.spec.id}.srt`);
       copyFileSync(join(cdir, 'ad.srt'), srt);
+      const srtSha = fileSha(srt);
 
       const pic = runPictureGate({ candidate: ad, band: gateSegments.band, segments: gateSegments.segments, durationSeconds: gateSegments.durationSeconds });
       writeJson(join(qdir, 'picture.json'), pic);
@@ -113,8 +115,9 @@ export async function qaStage(ctx) {
       }
       const verdict = releasable(gates, required);
       if (fileSha(ad) !== sha || fileSha(candidate) !== sha) throw new Error('candidate changed during QA; no gate verdict published');
+      if (fileSha(srt) !== srtSha || fileSha(join(cdir, 'ad.srt')) !== srtSha) throw new Error('subtitles changed during QA; no gate verdict published');
       for (const g of Object.values(gates)) g.candidateSha256 = sha;
-      writeJson(join(qdir, 'gates.json'), { ratio, candidate: { id: named.id, path: ad, sha256: sha, bytes: named.bytes }, specSha256: ctx.specSha, brandSha256: ctx.brandSha, required, gates, ...verdict });
+      writeJson(join(qdir, 'gates.json'), { ratio, candidate: { id: named.id, path: ad, sha256: sha, bytes: named.bytes }, subtitles: { sha256: srtSha }, specSha256: ctx.specSha, brandSha256: ctx.brandSha, required, gates, ...verdict });
       out[ratio] = { ...verdict, gates, candidateSha256: sha };
     }
   }

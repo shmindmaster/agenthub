@@ -35,8 +35,10 @@ export async function deliverStage(ctx) {
       if (!g.ok) throw new Error(`deliver refused for ${ratio}: ${g.failing.join('; ')}`);
       if (g.specSha256 !== ctx.specSha || g.brandSha256 !== ctx.brandSha) throw new Error(`deliver refused for ${ratio}: QA used different spec or brand inputs`);
       if (!g.candidate || g.candidate.id !== named.id || g.candidate.sha256 !== fileSha(ad)) throw new Error(`deliver refused for ${ratio}: the gates were run on a different file than the current candidate`);
+      const srt = join(named.dir, 'ad.srt');
+      if (!existsSync(srt) || !g.subtitles?.sha256 || fileSha(srt) !== g.subtitles.sha256) throw new Error(`deliver refused for ${ratio}: missing or changed subtitle SHA-256 binding`);
       gatesByRatio[ratio] = g;
-      rows.push({ ratio, mp4: ad, srt: join(named.dir, 'ad.srt'), seconds: readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json')).durationSeconds });
+      rows.push({ ratio, mp4: ad, srt, seconds: readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json')).durationSeconds });
     }
   }
   const dir = ctx.brand.deliver.dir;

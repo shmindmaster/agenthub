@@ -44,6 +44,8 @@ This is a pre-capture gate. A failed picker, contract mismatch, missing approval
 Marketing 2.0.5 uses explicit isolated compose/QA/delivery stages and immutable candidate IDs. QA cannot compose.
 Every top-level gate and delivery decision binds to the selected candidate SHA. External-candidate QA requires the
 expected SHA, original compose metadata directory and a separate `--qa-dir`; source job evidence stays read-only.
+Containment resolves junctions/symlinks, including nonexistent output tails. QA records the sidecar SRT hash;
+delivery rejects a missing or changed sidecar even when the encoded candidate and its gate bindings still match.
 
 Jobs declaring `syncClock: "forced-aligner"` also require `qa/word-sync.json`, bound to the exact candidate SHA/bytes,
 cue sheet and encoded alignment report. `ai.ps1 align` supplies the take/script-bound word clock on its 80 ms grid.

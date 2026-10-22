@@ -1,4 +1,4 @@
-// Local-AI gates for an encoded ad: encoded ASR (local whisper), the cue sheet, the sync gate and the Local-AI
+// Local-AI gates for an encoded ad: forced alignment, independent Whisper text, the cue sheet, sync and Local-AI
 // listen gate. These start GPU work through D:\Local-AI\ai.ps1, so mvg runs them only with --local-gates and the
 // coordinator's go-ahead. Ported from the film post_gates.sh chain (abacare-video-plan-20261019/films/06/tools).
 import { existsSync, rmSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
@@ -49,7 +49,7 @@ export function listenCommand({ candidate, ws, sha, sourceRevision, risk, listen
   return `& '${AI}' listen '${candidate}' --transcript '${join(ws, 'story', 'locked-script.txt')}' --pronunciation-manifest '${risk}' --timeline '${join(ws, 'qa', 'listen-timeline.json')}' --candidate-id ${sha} --source-revision ${sourceRevision} --output '${listenOut}'`;
 }
 
-export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, sourceRevision = 'mvg', voiceLines, align = forceAlign }) {
+export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, sourceRevision = 'mvg', voiceLines, align = forceAlign, runCommand = run }) {
   const out = { sync: { status: 'fail' }, listen: { status: 'fail' } };
   rmSync(join(ws, 'qa', 'encoded-alignment.json'), { force: true });
   rmSync(join(ws, 'qa', 'word-sync.json'), { force: true });
@@ -77,21 +77,27 @@ export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, s
     out.wordSync = { status: 'fail', detail: `forced alignment: ${e.message}` };
   }
   const asrJson = join(ws, 'qa', 'encoded-asr.json');
-  const t = await run('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', `& '${AI}' transcribe '${candidate}' --engine whisper --no-vad --json-out '${asrJson}' --out '${join(ws, 'qa', 'encoded-asr.txt')}'`], { timeoutMs: 1800000 });
-  out.transcript = t.code === 0 ? { status: 'pass', detail: 'Whisper transcript produced (not a timing clock)' } : { status: 'fail', detail: 'encoded transcript failed' };
-  const cue = await run(process.execPath, [gateScript('build-cue-sheet.mjs', moduleRoot), ws, '--compose-map', composeMapRel], {});
+  const t = await runCommand('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', `& '${AI}' transcribe '${candidate}' --engine whisper --no-vad --json-out '${asrJson}' --out '${join(ws, 'qa', 'encoded-asr.txt')}'`], { timeoutMs: 1800000 });
+  out.transcript = { status: 'fail', detail: 'encoded transcript failed' };
+  if (t.code === 0) {
+    try {
+      // Text only. Word timing is deliberately discarded.
+      const content = readJson(asrJson);
+      const spoken = content.text || content.segments?.map((s) => s.text).join(' ') || content.words?.map((w) => w.word || w.text).join(' ') || '';
+      const locked = readJson(join(ws, 'story', 'narration-timeline.json')).segments.map((s) => s.text).join(' ');
+      out.transcript = transcriptKey(spoken) && transcriptKey(spoken) === transcriptKey(locked)
+        ? { status: 'pass', detail: 'Whisper text matches the locked script (not a timing clock)' }
+        : { status: 'fail', detail: 'Whisper text differs from the locked script; inspect transcript, not onsets' };
+    } catch {
+      out.transcript = { status: 'fail', detail: 'encoded transcript or locked script is unreadable' };
+    }
+  }
+  const cue = await runCommand(process.execPath, [gateScript('build-cue-sheet.mjs', moduleRoot), ws, '--compose-map', composeMapRel], {});
   if (cue.code !== 0) return { ...out, sync: { status: 'fail', detail: `cue sheet: ${(cue.stderr || cue.stdout).trim().split('\n').pop()}` } };
-  const word = await run(process.execPath, [gateScript('validate-word-sync.mjs', moduleRoot), ws, candidate], {});
+  const word = await runCommand(process.execPath, [gateScript('validate-word-sync.mjs', moduleRoot), ws, candidate], {});
   const wr = existsSync(join(ws, 'qa', 'word-sync.json')) ? readJson(join(ws, 'qa', 'word-sync.json')) : null;
   out.wordSync ||= word.code === 0 && wr?.ok ? { status: 'pass', detail: `forced-aligner grid ${wr.gridMs} ms; offset ${wr.offsetMs} ms, drift ${wr.driftMs} ms`, report: 'qa/word-sync.json' } : { status: 'fail', detail: (wr?.errors || [word.stderr]).join(' | ') };
-  if (t.code === 0) {
-    // Text only. Word timing is deliberately discarded.
-    const content = readJson(asrJson);
-    const spoken = content.text || content.segments?.map((s) => s.text).join(' ') || content.words?.map((w) => w.word || w.text).join(' ') || '';
-    const locked = readJson(join(ws, 'story', 'narration-timeline.json')).segments.map((s) => s.text).join(' ');
-    if (!transcriptKey(spoken) || transcriptKey(spoken) !== transcriptKey(locked)) out.transcript = { status: 'fail', detail: 'Whisper text differs from the locked script; inspect transcript, not onsets' };
-  }
-  const sync = await run(process.execPath, [gateScript('validate-sync.mjs', moduleRoot), ws, candidate], {});
+  const sync = await runCommand(process.execPath, [gateScript('validate-sync.mjs', moduleRoot), ws, candidate], {});
   const report = existsSync(join(ws, 'qa', 'sync.json')) ? readJson(join(ws, 'qa', 'sync.json')) : null;
   out.sync = sync.code === 0 && report?.ok ? { status: 'pass', detail: `${report.errors?.length || 0} errors`, report: 'qa/sync.json' } : { status: 'fail', detail: (report?.errors || [sync.stderr]).slice(0, 3).join(' | ') };
   const sha = fileSha(candidate);
@@ -102,9 +108,9 @@ export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, s
   rmSync(listenOut, { force: true });
   // The listen gate also refuses to overwrite its previous raw model response.
   rmSync(`${listenOut}.model-response.txt`, { force: true });
-  const pr = await run('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', `& '${AI}' voice pronunciation-risk --segments '${join(ws, 'story', 'narration-segments.json')}' --overrides '${join(ws, 'story', 'reading-overrides.json')}' --out '${risk}' --fail-on never`], { timeoutMs: 600000 });
+  const pr = await runCommand('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', `& '${AI}' voice pronunciation-risk --segments '${join(ws, 'story', 'narration-segments.json')}' --overrides '${join(ws, 'story', 'reading-overrides.json')}' --out '${risk}' --fail-on never`], { timeoutMs: 600000 });
   if (pr.code !== 0 || !existsSync(risk)) { out.listen = { status: 'fail', detail: `pronunciation-risk failed: ${tail(pr)}` }; return out; }
-  const listen = await run('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', listenCommand({ candidate, ws, sha, sourceRevision, risk, listenOut })], { timeoutMs: 1800000 });
+  const listen = await runCommand('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', listenCommand({ candidate, ws, sha, sourceRevision, risk, listenOut })], { timeoutMs: 1800000 });
   writeFileSync(join(ws, 'qa', 'listen.log'), [listen.stdout, listen.stderr].join(String.fromCharCode(10)));
   const lr = existsSync(listenOut) ? readJson(listenOut) : null;
   // The gate's own rule (and the film chain's): releaseEligible is the pass signal, and ANY finding, a WARNING included,

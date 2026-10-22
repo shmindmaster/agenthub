@@ -4,16 +4,17 @@ import { spawn } from 'node:child_process';
 
 const AI = process.env.MVG_LOCAL_AI || 'D:\\Local-AI\\ai.ps1';
 
-function ps(args, env) {
+function ps(args, env, { stdoutOnly = false, spawnImpl = spawn } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', `& '${AI.replace(/'/g, "''")}' ${args}`], { windowsHide: true, timeout: 1800000, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } });
-    let out = '';
+    const child = spawnImpl('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', `& '${AI.replace(/'/g, "''")}' ${args}`], { windowsHide: true, timeout: 1800000, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } });
+    let out = '', err = '';
     child.stdout.on('data', (d) => { out += d; });
-    child.stderr.on('data', (d) => { out += d; });
+    child.stderr.on('data', (d) => { err += d; if (!stdoutOnly) out += d; });
     child.on('error', reject);
-    child.on('close', (code) => (code === 0 ? resolve(out) : reject(new Error(`ai.ps1 exited ${code}: ${out.trim().split('\n').pop()}`))));
+    child.on('close', (code) => (code === 0 ? resolve(out) : reject(new Error(`ai.ps1 exited ${code}: ${(err || out).trim().split('\n').pop()}`))));
   });
 }
+export { ps as localCommandOutput };
 
 export async function alignWords({ file, script, output }) {
   return ps('align $env:MVG_F --script $env:MVG_SCRIPT --language English --output $env:MVG_O', { MVG_F: file, MVG_SCRIPT: script, MVG_O: output });
@@ -29,7 +30,7 @@ export function visionEndpoint(capability) {
 
 /** Existing Local-AI vision service only. Never starts a retired LLM, downloads weights, or reclaims retrieval. */
 export async function localVisionJson({ frames, system, instructions, schema, schemaName }, { discover, fetchImpl = fetch } = {}) {
-  const capability = discover ? await discover() : JSON.parse(await ps('capability provider.local --json', {}));
+  const capability = discover ? await discover() : JSON.parse(await ps('capability provider.local --json', {}, { stdoutOnly: true }));
   const endpoint = visionEndpoint(capability);
   const request = async (path, init = {}) => {
     const response = await fetchImpl(`${endpoint}/${path}`, { ...init, redirect: 'error', signal: AbortSignal.timeout(180000) });

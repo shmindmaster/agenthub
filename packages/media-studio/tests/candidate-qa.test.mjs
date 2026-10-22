@@ -73,10 +73,11 @@ test('named candidates reject missing, swapped, or changed hashes and wrong rece
   ctx.brandSha = 'c'.repeat(64); assert.throws(() => verifiedCandidate(ctx, '9x16'), /input bindings/); ctx.brandSha = 'b'.repeat(64);
   writeFileSync(paths.ad, 'changed');
   assert.throws(() => verifiedCandidate(ctx, '9x16'), /SHA-256/);
-  ctx.flags = { candidateId: 'import', candidate: paths.ad };
+  ctx.flags = { candidateId: 'import', candidate: paths.ad, composeDir: paths.dir, qaDir: `${ctx.jobDir}-qa` };
   assert.throws(() => verifiedCandidate(ctx, '9x16'), /candidate-sha256/);
   assert.throws(() => selectedCuts(ctx, [{ ratios: ['9x16'] }]), /--ratio/);
   ctx.flags.candidateSha256 = fileSha(paths.ad);
+  delete ctx.flags.qaDir;
   assert.throws(() => verifiedCandidate(ctx, '9x16'), /--qa-dir/);
   ctx.flags.composeDir = paths.dir; ctx.flags.qaDir = join(ctx.jobDir, 'qa');
   assert.throws(() => verifiedCandidate(ctx, '9x16'), /outside/);

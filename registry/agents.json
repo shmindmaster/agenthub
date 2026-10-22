@@ -240,9 +240,9 @@
         "mcp",
         "acp"
       ],
-      "status": "unverified",
+      "status": "retired",
       "notes": "Native Windows installation. The former Ubuntu installation was migrated and removed.",
-      "headlessDispatchNote": "2026-10-14: declared hermes.exe absent; no hermes command on PATH. Owner action: restore the configured Hermes installation so the declared executable resolves, then verify native headless help and one authorized smoke before enabling dispatch."
+      "headlessDispatchNote": "2026-10-22: owner-retired. Do not dispatch or automatically restore skills, instructions or the host. Historical 2026-10-14 observation: declared hermes.exe absent; no hermes command on PATH."
     },
     {
       "id": "copilot",
@@ -423,7 +423,7 @@
         "worktrees"
       ],
       "status": "active",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed v0.2026.10.14.08.27.stable_01. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported PE FileVersion v0.2026.10.07.08.29.stable_00. The recorded value omits the leading v so it matches FileVersion by substring. The window was not launched. No upgrade or downgrade was performed by this inventory correction.",
+      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed v0.2026.10.14.08.27.stable_03 (rechecked 2026-10-22 without launching the window). Earlier: 2026-10-14: bounded read-only probe of the declared executable reported PE FileVersion v0.2026.10.07.08.29.stable_00. The recorded value omits the leading v so it matches FileVersion by substring. The window was not launched. No upgrade or downgrade was performed by this inventory correction.",
       "headlessDispatchNote": "Warp Oz v0.2026.10.07.08.29: WARP_CLI_MODE=1 agent run --prompt <text> -C <cwd> --output-format text. This is a local CLI contract; cloud tasks remain prohibited."
     },
     {

@@ -62,6 +62,7 @@ export function selectedStages(flags) {
   const last = flags.only || flags.stage || (flags.dryRun ? 'capture' : null);
   if (!last || last === 'all') throw new Error('select an explicit --stage; compose, qa and deliver are separate steps');
   if (last !== 'all' && !names.includes(last)) throw new Error(`unknown stage ${last} (stages: ${names.join(', ')})`);
+  if (flags.dryRun && (['compose', 'qa', 'deliver'].includes(last) || (flags.only && last === 'timing'))) throw new Error('isolated encoded stages cannot use --dry-run; use --stage capture --dry-run for lint and planned spend');
   return flags.only || ['compose', 'qa', 'deliver'].includes(last) ? [last] : names.slice(0, names.indexOf(last) + 1);
 }
 

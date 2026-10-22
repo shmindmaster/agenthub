@@ -35,6 +35,10 @@ Vision defaults to the enabled existing Local-AI vision model. It never starts a
 Unavailable/retired local vision fails closed; paid OpenAI requires `--vision-provider openai` or explicit
 `brand.vision.provider: "openai"` and the normal budget ledger.
 
+QA containment resolves symlinks/junctions, even for a new output directory. Its receipt binds the sidecar SRT hash
+as well as the MP4; changed or missing subtitles block delivery. An unencoded prepared candidate writes pending gates.
+Isolated compose/QA/delivery dry runs are rejected; use `--stage capture --dry-run` for lint and planned-spend checks.
+
 Preparation timing may be provisional ASR; it cannot release. Local gates align accepted line takes plus the encoded
 candidate against locked scripts using `ai.ps1 align`, validate their hashes and 80 ms grid, and use only those word
 onsets for the canonical 40 ms offset/drift gate. Whisper separately checks transcript text. The 80 ms output grid is
@@ -160,9 +164,11 @@ narration that spends words on the demo data or on the film itself (`synthetic`,
 | `marketing` | `validate-marketing-readiness.mjs <ws> <candidate> --readiness <ws>/qa/marketing-readiness.json` (the ws `job.json` says `marketing: true`; `programForm` stays `outcome-workflow`). A reviewer writes `qa/<ratio>/marketing-readiness.json` (`skills/media-studio/references/marketing-readiness.md`, `candidate.sha256` and `bytes` of this exact `ad.mp4`); mvg never writes it, copies it into the ws only when it names this candidate, and reports `pending` (not fail) when it is absent or bound to another render. The floor includes the no-fluff rule, so mvg runs `validate-narration.mjs` on the ws first (`qa/narration-check.json`) | an agent review |
 | `captions` | 4-7 words per cue, <= 2 lines of 42 characters, <= 20 characters per second, ordered | none |
 | `loudness` | ffmpeg `loudnorm` on the exact file, within 1 LU of the target, true peak <= -1 dBTP | ffmpeg |
-| `sync` | `build-cue-sheet.mjs` + `validate-sync.mjs` after local whisper on the encoded file | `--local-gates` (GPU) |
+| `sync` | `build-cue-sheet.mjs` + `validate-sync.mjs` using forced-alignment word timings, never Whisper onsets | `--local-gates` (GPU) |
+| `wordSync` | Forced alignment bound to the exact encoded candidate and locked script, retaining the raw 80 ms grid and canonical 40 ms sync tolerance | `--local-gates` (GPU) |
+| `transcript` | Independent Whisper text compared with the locked script; numeric values preserved, onsets discarded | `--local-gates` (GPU) |
 | `listen` | `ai.ps1 listen` Local-AI gate. It refuses a speech review without a pronunciation-risk manifest, so mvg first runs `ai.ps1 voice pronunciation-risk` on `story/narration-segments.json` and passes `--pronunciation-manifest` and `--timeline` (`qa/listen-timeline.json`); the exit code and tail of the log are in the gate detail | `--local-gates` (GPU) |
-| `vision` | `vision-qa.mjs`: a frame every 1.5 s to an OpenAI vision model with a rubric (overlay typos, unreadable text at phone size, banned claims, prospect names, missing label, captions over the focal point, people/children, fabricated UI); any high finding or a missing label fails | OpenAI |
+| `vision` | `vision-qa.mjs`: a frame every 1.5 s to existing local vision by default, with a rubric (overlay typos, unreadable text at phone size, banned claims, prospect names, missing label, captions over the focal point, people/children, fabricated UI); any high finding or a missing label fails. Explicit paid OpenAI requires the governed ledger through `mvg --stage qa`; standalone paid CLI calls are refused | existing local vision; paid OpenAI is explicit opt-in |
 | `story` | `media-studio-qa` story-experience review score >= `qa.storyMin` (85) recorded in `qa/<ratio>/reviews.json` `storyReview` with a reviewer and `cta: true` | an agent review |
 | `viewerRelease` | `validate-viewer-release.mjs` on the gate workspace in `qa/<ratio>/ws`, from `reviews.json` PASS entries (`encodedVisualReview`, `titleReview`, `actionResultReview`, `storyReview`, `pronunciation`) bound to the candidate | the reviews above |
 

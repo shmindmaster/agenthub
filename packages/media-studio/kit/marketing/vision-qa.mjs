@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Vision QA on an encoded ad. Samples a frame every N seconds, sends the frames to an OpenAI vision model with a
+// Vision QA on an encoded ad. Samples frames for existing local vision, or explicit ledger-governed OpenAI, with a
 // rubric, parses a strict JSON verdict and fails on any high-severity finding. It supplements, never replaces, the
 // encoded-file gates and a full human watch: vision models miss small text, so every finding is evidence to check.
 //
@@ -161,6 +161,7 @@ export function extractFramesFfmpeg(candidate, times, dir, { maxWidth = 1080 } =
 export async function runVisionQa(o) {
   const provider = o.provider || o.brand?.vision?.provider || 'local';
   if (!['local', 'openai'].includes(provider)) throw new Error('vision provider must be local or explicit paid openai');
+  if (provider === 'openai' && (typeof o.ledger?.check !== 'function' || typeof o.ledger?.charge !== 'function')) throw new Error('paid OpenAI vision requires a governed cost ledger; use mvg --stage qa');
   let model = provider === 'openai' ? (o.brand?.vision?.model || 'gpt-5.6-sol') : null;
   const every = o.spec?.qa?.visionEverySeconds || 1.5;
   const candidateSha = existsSync(o.candidate) ? fileSha(o.candidate) : null;
@@ -168,7 +169,7 @@ export async function runVisionQa(o) {
   const times = sampleTimes(duration, every, { cues: o.cues || [] });
   const frames = (o.frames || extractFramesFfmpeg)(o.candidate, times, o.framesDir || join(tmpdir(), 'mvg-vision-frames', basename(o.candidate)));
   const estimate = provider === 'openai' ? estimateVisionUsd(model, frames.length) : 0;
-  if (provider === 'openai') o.ledger?.check('openai', estimate, 'vision QA');
+  if (provider === 'openai') o.ledger.check('openai', estimate, 'vision QA');
   const vision = provider === 'local'
     ? (o.localVision || (async (args) => (await import('./lib/providers/local.mjs')).localVisionJson(args)))
     : (o.vision || (async (args) => (await import('./lib/providers/openai.mjs')).visionJson(args)));
@@ -180,7 +181,7 @@ export async function runVisionQa(o) {
   });
   // Account for the completed paid call even if its verdict is malformed.
   const usd = provider === 'openai' ? (res.usage ? visionUsdFromUsage(model, res.usage) : estimate) : 0;
-  if (provider === 'openai') o.ledger?.charge({ stage: 'qa', provider: 'openai', service: 'vision', units: usd, estimated: !res.usage, ref: `${o.ratio}:${frames.length} frames` });
+  if (provider === 'openai') o.ledger.charge({ stage: 'qa', provider: 'openai', service: 'vision', units: usd, estimated: !res.usage, ref: `${o.ratio}:${frames.length} frames` });
   if (provider === 'local') model = res.model || 'local';
   const parts = res.frameTexts?.map(parseVerdict);
   const verdict = parts ? {
