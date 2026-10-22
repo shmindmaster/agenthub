@@ -38,12 +38,14 @@ if ($LASTEXITCODE -ne 0 -or -not [IO.Path]::IsPathFullyQualified($runtime) -or
 $pythonCommand = $runtime
 $token = [Guid]::NewGuid().ToString('N')
 $stream = $null
+$retainLease = $false
 try {
-    # CreateNew is the admission decision. DeleteOnClose releases this exact
-    # handle only; never remove a path owned by another task.
+    # CreateNew is the admission decision. The handle is NOT DeleteOnClose: a
+    # lease must survive a run that cannot prove its owned processes are gone.
+    # FileShare.Read keeps other tasks from deleting or rewriting it meanwhile.
     $stream = [IO.FileStream]::new(
         $LeasePath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write,
-        [IO.FileShare]::Read, 4096, [IO.FileOptions]::DeleteOnClose)
+        [IO.FileShare]::Read, 4096, [IO.FileOptions]::None)
     $record = @{ owner = 'AgentHub bounded RepoWise index'; pid = $PID
         token = $token; acquiredUtc = [DateTimeOffset]::UtcNow.ToString('o') }
     $bytes = [Text.Encoding]::UTF8.GetBytes(($record | ConvertTo-Json -Compress))
@@ -55,7 +57,24 @@ try {
         --lease $LeasePath --lease-token $token --output $OutputDirectory `
         --memory-gib $MemoryGiB --timeout-seconds $TimeoutSeconds `
         --minimum-free-gib $MinimumFreeGiB --deadline $Deadline.ToUniversalTime().ToString('o')
-    if ($LASTEXITCODE -ne 0) { throw 'Bounded indexing was not accepted.' }
+    $code = $LASTEXITCODE
+    if ($code -eq 3) {
+        # Exit 3: owned processes may still be alive. Keep the lease.
+        $retainLease = $true
+        throw "Bounded indexing could not prove its owned processes are gone. The admission lease REMAINS at '$LeasePath'. An operator must verify the processes are gone before removing it."
+    }
+    if ($code -ne 0) { throw 'Bounded indexing was not accepted.' }
 } finally {
-    if ($null -ne $stream) { $stream.Dispose() }
+    if ($null -ne $stream) {
+        $stream.Dispose()
+        if (-not $retainLease) {
+            # Remove only the lease this run created: its token must match. A
+            # file that is not ours (or unreadable) is left for its owner.
+            try {
+                $mine = ([IO.File]::ReadAllText($LeasePath) | ConvertFrom-Json).token -eq $token
+            } catch { $mine = $false }
+            if ($mine) { [IO.File]::Delete($LeasePath) }
+            else { Write-Warning "Lease at '$LeasePath' was not removed: its token is not this run's." }
+        }
+    }
 }

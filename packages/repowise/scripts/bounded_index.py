@@ -12,10 +12,15 @@ import sys
 
 from shared_server import configure_local_embedder
 from source_fence import source_fence
-from windows_job import free_memory, run
+from windows_job import LeaseRetentionError, free_memory, run
 
 GIB = 1024**3
 LEASE_OWNER = "AgentHub bounded RepoWise index"
+# Terminate, reconcile and re-fence need time inside the caller's deadline.
+CLEANUP_RESERVE_SECONDS = 30
+# Distinct exit status: owned processes may still be alive, so the wrapper must
+# leave the admission lease on disk for an operator.
+LEASE_RETENTION_EXIT = 3
 
 
 def require_lease(path: Path, token: str) -> None:
@@ -68,7 +73,7 @@ def remaining_seconds(limit: int, deadline: str | None) -> float:
     end = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
     if end.tzinfo is None:
         raise ValueError("Deadline must include a timezone")
-    remaining = (end - datetime.now(timezone.utc)).total_seconds()
+    remaining = (end - datetime.now(timezone.utc)).total_seconds() - CLEANUP_RESERVE_SECONDS
     if remaining <= 0:
         raise RuntimeError("Admission deadline has passed")
     return min(limit, remaining)
@@ -90,6 +95,23 @@ def validate_paths(workspace: Path, repo: Path, output: Path) -> None:
         raise RuntimeError("Refusing initialization: an existing index is required")
 
 
+def write_admission_failure(workspace: Path, output: Path, error: Exception) -> None:
+    """Leave a minimal non-accepted receipt for a failure before the job began.
+
+    Only the exception class is recorded: messages can carry repository names.
+    Receipts never go into the source workspace and never overwrite a prior one.
+    """
+    try:
+        if output.is_relative_to(workspace):
+            return
+        output.mkdir(parents=True, exist_ok=True)
+        with (output / "acceptance.json").open("x", encoding="utf-8") as stream:
+            json.dump({"accepted": False, "failure": type(error).__name__,
+                       "stage": "admission"}, stream)
+    except OSError:
+        pass
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", type=Path, required=True)
@@ -106,18 +128,22 @@ def main(argv=None) -> int:
         raise ValueError("At least 4 GiB free physical RAM is required")
     workspace, repo, output = (p.resolve() for p in
                                (args.workspace, args.repo_root, args.output))
-    require_lease(args.lease, args.lease_token)
-    remaining_seconds(args.timeout_seconds, args.deadline)
-    validate_paths(workspace, repo, output)
-    if free_memory() <= args.minimum_free_gib * GIB:
-        raise RuntimeError("Insufficient free physical RAM; child not started")
-    executable = shutil.which("repowise")
-    if not executable:
-        raise RuntimeError("Existing RepoWise CLI not found; refusing installation")
-    output.mkdir(parents=True, exist_ok=False)
-    receipt = {"accepted": False, "headBefore": git_head(repo),
-               "lastSyncCommitBefore": state_commit(repo),
-               "sourceBefore": source_fence(repo), "mode": "index-only"}
+    try:
+        require_lease(args.lease, args.lease_token)
+        remaining_seconds(args.timeout_seconds, args.deadline)
+        validate_paths(workspace, repo, output)
+        if free_memory() <= args.minimum_free_gib * GIB:
+            raise RuntimeError("Insufficient free physical RAM; child not started")
+        executable = shutil.which("repowise")
+        if not executable:
+            raise RuntimeError("Existing RepoWise CLI not found; refusing installation")
+        output.mkdir(parents=True, exist_ok=False)
+        receipt = {"accepted": False, "headBefore": git_head(repo),
+                   "lastSyncCommitBefore": state_commit(repo),
+                   "sourceBefore": source_fence(repo), "mode": "index-only"}
+    except Exception as error:
+        write_admission_failure(workspace, output, error)
+        raise
     try:
         # Reuse the shared server's loopback-only validation and actual embedding
         # probe. Never inherit a paid endpoint or forward a real key locally.
@@ -130,20 +156,28 @@ def main(argv=None) -> int:
             memory_bytes=args.memory_gib * GIB,
             timeout_seconds=remaining_seconds(args.timeout_seconds, args.deadline),
             minimum_free_bytes=int(args.minimum_free_gib * GIB),
-            environment=dict(os.environ))
+            environment=dict(os.environ), parent_pid=os.getppid())
         receipt["child"] = result
+    except BaseException as error:
+        receipt["failure"] = type(error).__name__
+        raise
     finally:
         # No source rollback: concurrent/user changes are preserved and make
         # acceptance fail. The Job Object reconciles only its own descendants.
-        receipt.update(headAfter=git_head(repo), lastSyncCommitAfter=state_commit(repo),
-                       sourceAfter=source_fence(repo))
+        try:
+            receipt.update(headAfter=git_head(repo), lastSyncCommitAfter=state_commit(repo),
+                           sourceAfter=source_fence(repo))
+        except Exception as error:
+            receipt.setdefault("failure", type(error).__name__)
         child = receipt.get("child", {})
         receipt["accepted"] = (
-            child.get("exitCode") == 0 and child.get("reason") == "exited"
+            "failure" not in receipt
+            and child.get("exitCode") == 0 and child.get("reason") == "exited"
+            and child.get("activeProcessesBeforeCleanup") == 0
             and child.get("activeProcessesAfterCleanup") == 0
-            and receipt["headBefore"] == receipt["headAfter"]
-            and receipt["sourceBefore"] == receipt["sourceAfter"]
-            and receipt["lastSyncCommitAfter"] == receipt["headAfter"])
+            and receipt["headBefore"] == receipt.get("headAfter")
+            and receipt["sourceBefore"] == receipt.get("sourceAfter")
+            and receipt.get("lastSyncCommitAfter") == receipt.get("headAfter"))
         (output / "acceptance.json").write_text(
             json.dumps(receipt, indent=2), encoding="utf-8")
     print(json.dumps({"accepted": receipt["accepted"],
@@ -151,11 +185,19 @@ def main(argv=None) -> int:
     return 0 if receipt["accepted"] else 1
 
 
-if __name__ == "__main__":
+def cli(argv=None) -> int:
     try:
-        sys.exit(main())
+        return main(argv)
+    except LeaseRetentionError:
+        # Owned processes may still be alive: the wrapper must keep the lease.
+        print("Owned processes were not proven gone; keep the admission lease.", file=sys.stderr)
+        return LEASE_RETENTION_EXIT
     except Exception:
         # Raw CLI output is restricted to the external job folder. Exceptions
         # may contain repository names or provider response data.
         print("Bounded indexing failed; inspect the external receipt/logs.", file=sys.stderr)
-        sys.exit(1)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(cli())

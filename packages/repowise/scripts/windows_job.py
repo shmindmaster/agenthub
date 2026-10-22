@@ -15,6 +15,10 @@ import subprocess
 import time
 
 
+class LeaseRetentionError(RuntimeError):
+    """Owned processes may still be alive: the caller must keep its admission lease."""
+
+
 class Limits(C.Structure):
     _fields_ = [("ProcessTime", C.c_int64), ("JobTime", C.c_int64),
                 ("Flags", W.DWORD), ("MinWorkingSet", C.c_size_t),
@@ -68,7 +72,11 @@ def free_memory() -> int:
 
 def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
         timeout_seconds: float, minimum_free_bytes: int,
-        environment: dict[str, str] | None = None) -> dict:
+        environment: dict[str, str] | None = None,
+        parent_pid: int | None = None) -> dict:
+    """Run `command` in a Job Object. When `parent_pid` is given, the job is
+    terminated as soon as that process exits, so the caller's lease can never
+    outlive-or-undercut the work it protects."""
     if os.name != "nt":
         raise OSError("Windows Job Objects are required")
     if memory_bytes < 32 * 1024**2 or timeout_seconds <= 0:
@@ -87,6 +95,8 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
         "AssignProcessToJobObject": ([W.HANDLE, W.HANDLE], W.BOOL),
         "ResumeThread": ([W.HANDLE], W.DWORD),
         "WaitForSingleObject": ([W.HANDLE, W.DWORD], W.DWORD),
+        "WaitForMultipleObjects": ([W.DWORD, C.POINTER(W.HANDLE), W.BOOL, W.DWORD], W.DWORD),
+        "OpenProcess": ([W.DWORD, W.BOOL, W.DWORD], W.HANDLE),
         "GetExitCodeProcess": ([W.HANDLE, C.POINTER(W.DWORD)], W.BOOL),
         "TerminateProcess": ([W.HANDLE, W.UINT], W.BOOL),
         "TerminateJobObject": ([W.HANDLE, W.UINT], W.BOOL),
@@ -101,11 +111,28 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
             raise C.WinError(C.get_last_error())
         return ok
 
+    parent = None
+    if parent_pid is not None:
+        parent = check(kernel.OpenProcess(0x00100000, False, parent_pid))  # SYNCHRONIZE
+        if kernel.WaitForSingleObject(parent, 0) != 258:
+            kernel.CloseHandle(parent)
+            raise RuntimeError("Parent process already exited; child not started")
     output.mkdir(parents=True, exist_ok=False)
     job = check(kernel.CreateJobObjectW(None, None))
     info = ProcessInfo()
     assigned = False
     started = time.monotonic()
+    def terminate_owned():
+        check(kernel.TerminateJobObject(job, 124))
+        if kernel.WaitForSingleObject(info.process, 10000) != 0:
+            result["leaseRetained"] = True
+            raise LeaseRetentionError("Owned process did not terminate; retain admission lease")
+
+    def active_processes() -> int:
+        accounting = Accounting()
+        check(kernel.QueryInformationJobObject(job, 1, C.byref(accounting), C.sizeof(accounting), None))
+        return accounting.activeProcesses
+
     result = {"startedUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
               "memoryLimitBytes": memory_bytes, "timeoutSeconds": timeout_seconds,
               "pid": None, "exitCode": None, "reason": "launch-failed", "peakJobBytes": 0}
@@ -143,9 +170,11 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
                 raise C.WinError(C.get_last_error())
             result["reason"] = "exited"
             with (output / "resource-samples.jsonl").open("w", encoding="utf-8") as samples:
+                waitable = [info.process] + ([parent] if parent else [])
+                waitables = (W.HANDLE * len(waitable))(*waitable)
                 while True:
-                    wait = kernel.WaitForSingleObject(info.process, 500)
-                    if wait not in (0, 258):
+                    wait = kernel.WaitForMultipleObjects(len(waitable), waitables, False, 500)
+                    if wait not in (0, 1, 258) or (wait == 1 and not parent):
                         raise C.WinError(C.get_last_error())
                     measured = ExtendedLimits()
                     check(kernel.QueryInformationJobObject(job, 9, C.byref(measured), C.sizeof(measured), None))
@@ -157,39 +186,58 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
                     samples.flush()
                     if wait == 0:
                         break
+                    if wait == 1:
+                        result["reason"] = "parent-exited"
+                        terminate_owned()
+                        break
                     if elapsed >= timeout_seconds or available < minimum_free_bytes:
                         result["reason"] = "timeout" if elapsed >= timeout_seconds else "low-ram"
-                        check(kernel.TerminateJobObject(job, 124))
-                        if kernel.WaitForSingleObject(info.process, 10000) != 0:
-                            raise RuntimeError("Owned process did not terminate; retain admission lease")
+                        terminate_owned()
                         break
                 exit_code = W.DWORD()
                 check(kernel.GetExitCodeProcess(info.process, C.byref(exit_code)))
                 result["exitCode"] = exit_code.value
     finally:
-        # A failed assignment still leaves the owned child suspended: terminate it.
-        if info.process and not assigned:
-            kernel.TerminateProcess(info.process, 125)
-            kernel.WaitForSingleObject(info.process, 10000)
-        if assigned:
-            # Even a successful launcher can leave children running. Reconcile the
-            # entire owned job before the caller releases its heavy-work lease.
-            check(kernel.TerminateJobObject(job, 125))
-            deadline = time.monotonic() + 10
-            while True:
-                accounting = Accounting()
-                check(kernel.QueryInformationJobObject(job, 1, C.byref(accounting), C.sizeof(accounting), None))
-                if accounting.activeProcesses == 0:
-                    result["activeProcessesAfterCleanup"] = 0
-                    break
-                if time.monotonic() >= deadline:
-                    kernel.CloseHandle(job)
-                    raise RuntimeError("Owned descendants not reconciled; retain admission lease")
-                time.sleep(0.05)
-        kernel.CloseHandle(job)
-        for handle in (info.thread, info.process):
-            if handle:
-                kernel.CloseHandle(handle)
-        result["elapsedSeconds"] = round(time.monotonic() - started, 3)
-        (output / "receipt.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+        retain = None
+        try:
+            # A failed assignment still leaves the owned child suspended: terminate it.
+            if info.process and not assigned:
+                kernel.TerminateProcess(info.process, 125)
+                if kernel.WaitForSingleObject(info.process, 10000) != 0:
+                    raise LeaseRetentionError("Owned process did not terminate; retain admission lease")
+            if assigned:
+                # A launcher can exit while a detached descendant keeps running.
+                # Record that before the cleanup below hides it.
+                settle = time.monotonic() + 0.25
+                result["activeProcessesBeforeCleanup"] = active_processes()
+                while result["activeProcessesBeforeCleanup"] and time.monotonic() < settle:
+                    time.sleep(0.025)
+                    result["activeProcessesBeforeCleanup"] = active_processes()
+                # Reconcile the entire owned job before the caller releases its
+                # heavy-work lease.
+                check(kernel.TerminateJobObject(job, 125))
+                deadline = time.monotonic() + 10
+                while True:
+                    if active_processes() == 0:
+                        result["activeProcessesAfterCleanup"] = 0
+                        break
+                    if time.monotonic() >= deadline:
+                        raise LeaseRetentionError("Owned descendants not reconciled; retain admission lease")
+                    time.sleep(0.05)
+        except Exception as error:
+            # Never lose the receipt or leak handles; the caller must keep its
+            # lease because the owned tree is not proven gone.
+            result["cleanupError"] = type(error).__name__
+            result["leaseRetained"] = True
+            retain = error
+        finally:
+            for handle in (job, parent, info.thread, info.process):
+                if handle:
+                    kernel.CloseHandle(handle)
+            result["elapsedSeconds"] = round(time.monotonic() - started, 3)
+            (output / "receipt.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+        if retain is not None:
+            if isinstance(retain, LeaseRetentionError):
+                raise retain
+            raise LeaseRetentionError("Owned process tree not proven gone; retain admission lease") from retain
     return result

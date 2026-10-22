@@ -5,11 +5,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 """Synthetic negative controls; does not invoke RepoWise or touch an index."""
 import json
 import os
+import subprocess
 import sys
 import tempfile
+import time
 import unittest
+from unittest.mock import patch
 
-from windows_job import run
+import windows_job
+from windows_job import LeaseRetentionError, run
 
 
 @unittest.skipUnless(os.name == 'nt', 'Windows Job Objects required')
@@ -64,6 +68,58 @@ class BoundedJobTests(unittest.TestCase):
         self.assertEqual(result['reason'], 'timeout')
         self.assertEqual(result['activeProcessesAfterCleanup'], 0)
         self.assertLess(result['elapsedSeconds'], 12)
+
+    def test_parent_exit_terminates_job(self):
+        source = self.root/'sleep.py'
+        source.write_text('import time; time.sleep(60)', encoding='utf-8')
+        child = self.root/'child.py'
+        child.write_text("import subprocess,sys,time; subprocess.Popen([sys.executable, 'sleep.py']); time.sleep(60)", encoding='utf-8')
+        parent = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(1.5)'],
+                                  creationflags=subprocess.CREATE_NO_WINDOW)
+        try:
+            result = run([sys.executable, str(child)], cwd=self.root, output=self.root/'run',
+                         memory_bytes=256*1024**2, timeout_seconds=30, minimum_free_bytes=0,
+                         parent_pid=parent.pid)
+        finally:
+            parent.kill()
+            parent.wait()
+        self.assertEqual(result['reason'], 'parent-exited')
+        self.assertEqual(result['activeProcessesAfterCleanup'], 0)
+        self.assertLess(result['elapsedSeconds'], 12)
+
+    def test_detached_grandchild_is_recorded_before_cleanup(self):
+        (self.root/'sleep.py').write_text('import time; time.sleep(60)', encoding='utf-8')
+        result = self.execute("import subprocess,sys; subprocess.Popen([sys.executable, 'sleep.py'])")
+        self.assertEqual(result['exitCode'], 0)
+        self.assertGreaterEqual(result['activeProcessesBeforeCleanup'], 1)
+        self.assertEqual(result['activeProcessesAfterCleanup'], 0)
+
+    def test_clean_exit_records_no_active_processes_before_cleanup(self):
+        result = self.execute("print('done')")
+        self.assertEqual(result['activeProcessesBeforeCleanup'], 0)
+
+    def test_failed_cleanup_keeps_receipt_and_demands_lease_retention(self):
+        real = windows_job.C.WinDLL
+
+        class Failing:
+            def __init__(self, *args, **kwargs):
+                self.kernel = real(*args, **kwargs)
+                self.TerminateJobObject = self
+
+            argtypes = restype = None
+
+            def __getattr__(self, name):
+                return getattr(self.kernel, name)
+
+            def __call__(self, *args):
+                return 0
+
+        with patch.object(windows_job.C, 'WinDLL', Failing):
+            with self.assertRaises(LeaseRetentionError):
+                self.execute("print('done')")
+        receipt = json.loads((self.root/'run/receipt.json').read_text())
+        self.assertIn('cleanupError', receipt)
+        self.assertTrue(receipt['leaseRetained'])
 
     def test_low_ram_refuses_before_child(self):
         with self.assertRaisesRegex(RuntimeError, 'child not started'):

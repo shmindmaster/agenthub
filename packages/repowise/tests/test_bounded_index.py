@@ -1,4 +1,5 @@
 """Synthetic admission checks, never starts RepoWise or calls a provider."""
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,8 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from bounded_index import LEASE_OWNER, main, remaining_seconds, require_lease, validate_paths
+from bounded_index import LEASE_OWNER, cli, main, remaining_seconds, require_lease, validate_paths
+from windows_job import LeaseRetentionError
 
 
 class AdmissionTests(unittest.TestCase):
@@ -18,6 +20,13 @@ class AdmissionTests(unittest.TestCase):
             remaining_seconds(900, "2000-01-01T00:00:00Z")
         with self.assertRaisesRegex(ValueError, "timezone"):
             remaining_seconds(900, "2100-01-01T00:00:00")
+
+    def test_deadline_keeps_a_cleanup_reserve(self):
+        soon = (datetime.now(timezone.utc) + timedelta(seconds=100)).isoformat()
+        self.assertTrue(60 <= remaining_seconds(900, soon) <= 70)
+        inside_reserve = (datetime.now(timezone.utc) + timedelta(seconds=20)).isoformat()
+        with self.assertRaisesRegex(RuntimeError, "deadline"):
+            remaining_seconds(900, inside_reserve)
 
     def test_lease_rejects_foreign_pid_token_or_owner(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -52,6 +61,7 @@ class AdmissionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder) / "result"
             successful = {"exitCode": 0, "reason": "exited",
+                          "activeProcessesBeforeCleanup": 0,
                           "activeProcessesAfterCleanup": 0}
             with patch("bounded_index.require_lease"), patch("bounded_index.validate_paths"), \
                     patch("bounded_index.free_memory", return_value=16 * 1024**3), \
@@ -70,6 +80,7 @@ class AdmissionTests(unittest.TestCase):
                 self.assertIn("--no-workspace", args[0])
                 self.assertEqual(kwargs["memory_bytes"], 8 * 1024**3)
                 self.assertLessEqual(kwargs["timeout_seconds"], 900)
+                self.assertEqual(kwargs["parent_pid"], os.getppid())
                 embedder.assert_called_once_with("http://127.0.0.1:8790/v1",
                                                  "text-embedding-3-small")
                 receipt = json.loads((output / "acceptance.json").read_text())
@@ -83,10 +94,64 @@ class AdmissionTests(unittest.TestCase):
             fences=[{"sha256": "before"}, {"sha256": "after"}]), 1)
 
     def test_rejects_timeout_failure_and_unreconciled_children(self):
-        good = {"exitCode": 0, "reason": "exited", "activeProcessesAfterCleanup": 0}
+        good = {"exitCode": 0, "reason": "exited",
+                "activeProcessesBeforeCleanup": 0, "activeProcessesAfterCleanup": 0}
         for field, value in (("exitCode", 1), ("reason", "timeout"),
+                             ("reason", "parent-exited"),
+                             ("activeProcessesBeforeCleanup", 1),
                              ("activeProcessesAfterCleanup", 1)):
             self.assertEqual(self.exercise_acceptance(child={**good, field: value}), 1)
+
+    def run_with_failure(self, failure, *, output_below_workspace=False, stage="run"):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            workspace = root / "workspace"
+            workspace.mkdir()
+            output = (workspace if output_below_workspace else root) / "result"
+            patches = [patch("bounded_index.require_lease"),
+                       patch("bounded_index.free_memory", return_value=16 * 1024**3),
+                       patch("bounded_index.shutil.which", return_value="synthetic-cli.exe"),
+                       patch("bounded_index.git_head", return_value="synthetic-head"),
+                       patch("bounded_index.state_commit", return_value="synthetic-head"),
+                       patch("bounded_index.source_fence", return_value={"sha256": "same"}),
+                       patch("bounded_index.configure_local_embedder")]
+            if stage == "run":
+                patches += [patch("bounded_index.validate_paths"),
+                            patch("bounded_index.run", side_effect=failure)]
+            else:
+                patches += [patch("bounded_index.validate_paths", side_effect=failure)]
+            for item in patches:
+                item.start()
+                self.addCleanup(item.stop)
+            code = cli(["--workspace", str(workspace), "--repo-root", str(workspace),
+                        "--lease", str(root / "lease"), "--lease-token", "synthetic",
+                        "--output", str(output)])
+            receipt = output / "acceptance.json"
+            return code, json.loads(receipt.read_text()) if receipt.exists() else None
+
+    def test_unreconciled_processes_exit_with_the_lease_retention_code(self):
+        code, receipt = self.run_with_failure(LeaseRetentionError("synthetic"))
+        self.assertEqual(code, 3)
+        body = receipt
+        self.assertFalse(body["accepted"])
+        self.assertEqual(body["failure"], "LeaseRetentionError")
+
+    def test_ordinary_failure_exits_one_with_a_receipt(self):
+        code, receipt = self.run_with_failure(RuntimeError("synthetic"))
+        self.assertEqual(code, 1)
+        self.assertEqual(receipt["failure"], "RuntimeError")
+
+    def test_early_failure_writes_a_minimal_non_accepted_receipt(self):
+        code, receipt = self.run_with_failure(RuntimeError("synthetic path detail"), stage="early")
+        self.assertEqual(code, 1)
+        body = receipt
+        self.assertEqual(body, {"accepted": False, "failure": "RuntimeError", "stage": "admission"})
+
+    def test_early_failure_never_writes_receipts_into_the_source_workspace(self):
+        code, receipt = self.run_with_failure(RuntimeError("synthetic"), stage="early",
+                                              output_below_workspace=True)
+        self.assertEqual(code, 1)
+        self.assertIsNone(receipt)
 
 
 if __name__ == "__main__":
