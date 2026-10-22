@@ -67,7 +67,7 @@ class AdmissionTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "member"):
                     validate_paths(workspace, root / "foreign", root / "receipt")
 
-    def exercise_acceptance(self, *, child=None, fences=None, commits=None):
+    def exercise_acceptance(self, *, child=None, fences=None, commits=None, waiver=None, free_gib=16):
         with runtime_tmp() as folder:
             output = Path(folder) / "result"
             successful = {"exitCode": 0, "reason": "exited",
@@ -75,28 +75,59 @@ class AdmissionTests(unittest.TestCase):
                           "activeProcessesAfterCleanup": 0}
             with patch("bounded_index.require_lease"), patch("bounded_index.validate_paths"), \
                     patch("bounded_index.require_editor_files_opt_out"), \
-                    patch("bounded_index.free_memory", return_value=16 * 1024**3), \
+                    patch("bounded_index.free_memory", return_value=free_gib * 1024**3), \
                     patch("bounded_index.shutil.which", return_value="synthetic-cli.exe"), \
                     patch("bounded_index.git_head", return_value="synthetic-head"), \
                     patch("bounded_index.state_commit", side_effect=commits or ["old", "synthetic-head"]), \
                     patch("bounded_index.source_fence", side_effect=fences or [{"sha256": "same"}] * 2), \
                     patch("bounded_index.configure_local_embedder") as embedder, \
                     patch("bounded_index.run", return_value=child or successful) as job:
-                result = main(["--workspace", folder, "--repo-root", folder,
+                argv = ["--workspace", folder, "--repo-root", folder,
                                "--lease", str(Path(folder) / "lease"),
-                               "--lease-token", "synthetic", "--output", str(output)])
+                               "--lease-token", "synthetic", "--output", str(output)]
+                if waiver is not None:
+                    argv += ["--ram-floor-waiver-reason", waiver]
+                if free_gib <= 8 and waiver is None:
+                    with self.assertRaisesRegex(RuntimeError, "free physical RAM"):
+                        main(argv)
+                    job.assert_not_called()
+                    embedder.assert_not_called()
+                    return
+                result = main(argv)
                 args, kwargs = job.call_args
                 self.assertIn("--index-only", args[0])
                 self.assertNotIn("--no-agents", args[0])  # it persists editor_files in config.yaml
                 self.assertIn("--no-workspace", args[0])
                 self.assertEqual(kwargs["memory_bytes"], 8 * 1024**3)
+                self.assertEqual(kwargs["minimum_free_bytes"], 0 if waiver else 8 * 1024**3)
                 self.assertLessEqual(kwargs["timeout_seconds"], 900)
                 self.assertEqual(kwargs["parent_pid"], os.getppid())
                 embedder.assert_called_once_with("http://127.0.0.1:8790/v1",
                                                  "text-embedding-3-small")
                 receipt = json.loads((output / "acceptance.json").read_text())
+                self.assertEqual(receipt["ramFloorPolicy"]["waived"], waiver is not None)
+                self.assertEqual(receipt["ramFloorPolicy"]["waiverReason"], waiver)
+                self.assertEqual(receipt["ramFloorPolicy"]["freePhysicalBytesAtAdmission"], free_gib * 1024**3)
                 self.assertEqual(receipt["accepted"], result == 0)
                 return result
+
+    def test_ram_floor_still_refuses_without_explicit_waiver(self):
+        self.exercise_acceptance(free_gib=1)
+        self.exercise_acceptance(free_gib=8)
+
+    def test_explicit_waiver_reaches_monitor_and_receipt_but_not_other_gates(self):
+        self.assertEqual(self.exercise_acceptance(waiver="Owner waived RAM floor for this run", free_gib=1), 0)
+        self.assertEqual(self.exercise_acceptance(waiver="Owner waiver", free_gib=1, commits=["old", "old"]), 1)
+        self.assertEqual(self.exercise_acceptance(waiver="Owner waiver", free_gib=1,
+            child={"exitCode": 124, "reason": "timeout", "activeProcessesBeforeCleanup": 0,
+                   "activeProcessesAfterCleanup": 0}), 1)
+
+    def test_empty_or_oversized_waiver_is_rejected_before_launch(self):
+        for reason in ("", "   ", "x" * 513):
+            with patch("bounded_index.run") as job, self.assertRaisesRegex(ValueError, "waiver"):
+                main(["--workspace", ".", "--repo-root", ".", "--lease", "unused",
+                      "--lease-token", "unused", "--output", ".", "--ram-floor-waiver-reason", reason])
+            job.assert_not_called()
 
     def test_accepts_only_matching_commit_and_fence(self):
         self.assertEqual(self.exercise_acceptance(), 0)

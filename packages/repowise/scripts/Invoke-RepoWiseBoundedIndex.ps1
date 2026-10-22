@@ -15,6 +15,9 @@ param(
     [ValidateRange(1, 8)][int]$MemoryGiB = 8,
     [ValidateRange(1, 900)][int]$TimeoutSeconds = 900,
     [ValidateRange(4, 64)][double]$MinimumFreeGiB = 8,
+    [ValidateLength(1, 512)]
+    [ValidateScript({ -not [string]::IsNullOrWhiteSpace($_) })]
+    [string]$RamFloorWaiverReason,
     [Parameter(Mandatory)][DateTimeOffset]$Deadline,
     [string]$Python = 'python.exe'
 )
@@ -50,7 +53,7 @@ foreach ($path in @($Workspace, $RepositoryRoot, $LeasePath, $OutputDirectory)) 
 }
 if ([DateTimeOffset]::Now -ge $Deadline) { throw 'Admission deadline has passed.' }
 $free = (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory * 1KB
-if ($free -le $MinimumFreeGiB * 1GB) { throw 'Insufficient free physical RAM; no lease acquired.' }
+if (-not $RamFloorWaiverReason -and $free -le $MinimumFreeGiB * 1GB) { throw 'Insufficient free physical RAM; no lease acquired.' }
 $pythonCommand = (Get-Command $Python -CommandType Application -ErrorAction Stop).Source
 if ($pythonCommand -like '*\WindowsApps\*') { throw 'Use an installed Python, not the Store stub.' }
 # uv/py launchers may insert a shim process. Call the actual interpreter so the
@@ -72,18 +75,21 @@ try {
         $LeasePath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write,
         [IO.FileShare]::Read, 4096, [IO.FileOptions]::None)
     $record = @{ owner = 'AgentHub bounded RepoWise index'; pid = $PID
-        token = $token; acquiredUtc = [DateTimeOffset]::UtcNow.ToString('o') }
+        token = $token; acquiredUtc = [DateTimeOffset]::UtcNow.ToString('o')
+        ramFloorWaiverReason = $RamFloorWaiverReason }
     $bytes = [Text.Encoding]::UTF8.GetBytes(($record | ConvertTo-Json -Compress))
     $stream.Write($bytes, 0, $bytes.Length)
     $stream.Flush($true)
     if ([DateTimeOffset]::Now -ge $Deadline) { throw 'Admission deadline has passed.' }
-    $run = Invoke-HiddenProcess -FilePath $pythonCommand -ArgumentList @(
+    $childArguments = @(
         (Join-Path $PSScriptRoot 'bounded_index.py'),
         '--workspace', $Workspace, '--repo-root', $RepositoryRoot,
         '--lease', $LeasePath, '--lease-token', $token, '--output', $OutputDirectory,
         '--memory-gib', [string]$MemoryGiB, '--timeout-seconds', [string]$TimeoutSeconds,
         '--minimum-free-gib', [string]$MinimumFreeGiB,
         '--deadline', $Deadline.ToUniversalTime().ToString('o'))
+    if ($RamFloorWaiverReason) { $childArguments += @('--ram-floor-waiver-reason', $RamFloorWaiverReason) }
+    $run = Invoke-HiddenProcess -FilePath $pythonCommand -ArgumentList $childArguments
     if ($run.StdOut) { Write-Output $run.StdOut.TrimEnd() }
     if ($run.StdErr) { Write-Host $run.StdErr.TrimEnd() }
     $code = $run.ExitCode

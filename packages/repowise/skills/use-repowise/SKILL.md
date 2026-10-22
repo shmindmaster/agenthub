@@ -198,6 +198,12 @@ agent generation, under a Windows Job Object installed before the child
 executes. Defaults are an 8 GiB aggregate commit-memory ceiling, 900 seconds,
 and strictly more than 8 GiB free physical RAM. Free RAM below the selected
 floor stops only the owned job. A mandatory deadline shortens the budget.
+When the owner explicitly waives the free-RAM floor for a run, pass
+`-RamFloorWaiverReason` with that authorization (1–512 nonblank characters).
+It waives only the admission and runtime free-physical-RAM checks; the
+aggregate memory cap, timeout, deadline, lease, local-provider and source
+fences remain enforced. The lease and acceptance receipt record the waiver.
+Do not infer or reuse a waiver for another task without owner authorization.
 Follow the operator's closed heavy-work window; do not start in that window.
 No service is started or stopped and no scheduled work is registered.
 
