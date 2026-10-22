@@ -258,7 +258,6 @@
     ]
   },
   "hostSettings": {
-
     "cline": {
       "provider": "cline-pass",
       "model": "cline-pass/qwen3.8-max",
@@ -364,9 +363,9 @@
     },
     "claude": {
       "enabled": false,
-      "reason": "Account login and included allowance are not established for this dispatcher.",
-      "ownerAction": "Run claude auth login in your own terminal, verify included allowance or explicitly authorize a task credit budget, then run one smoke.",
-      "verifiedOn": "2026-10-14"
+      "reason": "Account login is established (claude auth status: claude.ai, firstParty). 2026-10-22 smoke `claude -p` on claude-haiku-5-5 returned 'You've hit your weekly limit, resets Oct 26 9am America/Chicago'; no included allowance for dispatch until then.",
+      "ownerAction": "After 2026-10-26 09:00 CT run one smoke; enable only if it returns text. No API-key fallback.",
+      "verifiedOn": "2026-10-22"
     },
     "codex": {
       "enabled": false,
@@ -415,9 +414,9 @@
     "opencode": {
       "enabled": false,
       "model": "opencode-go/hy3",
-      "reason": "OpenCode auth.json has no Go-plan account entry; dispatch remains disabled pending Go account login.",
-      "ownerAction": "Run opencode auth login and select the Go account flow, then verify the Go account entry and run one authorized smoke.",
-      "verifiedOn": "2026-10-21"
+      "reason": "2026-10-22 smoke (opencode run, models opencode-go/hy3 and opencode/glm-5.3): both stored keys are expired. The Go provider reads User env OPENCODE_GO_API_KEY; the built-in opencode provider reads auth.json's opencode entry (written 07:23 CT). Each returned 'This API key has expired. Create a new API key in OpenCode Console'.",
+      "ownerAction": "Create a new key in the OpenCode Console (the key pasted into chat on 2026-10-22 is exposed and must not be reused), run `opencode auth login` alone and choose OpenCode, then set the same key as User env OPENCODE_GO_API_KEY (setx) so the opencode-go provider works; then one smoke: opencode run --model opencode-go/hy3 'reply ok'.",
+      "verifiedOn": "2026-10-22"
     },
     "antigravity": {
       "enabled": true,

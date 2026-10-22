@@ -38,7 +38,6 @@
       "warp"
     ],
     "notInstalled": [
-
       "windsurf"
     ],
     "note": "The machine-scoped host inventory was established by bounded filesystem and package-manager surveys, most recently reconciled 2026-10-21. The field named 'hosts' is validated against agents.json; notInstalled records only checked-and-absent entries. Historical probes are not whole-disk absence claims and must not be read as current fleet-wide evidence. Recheck the documented locations before changing host eligibility."
@@ -409,7 +408,27 @@
       "pluginOwnersByHost": {
         "codex": "media-studio@agenthub"
       },
-      "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Public finishing guidance is media-studio-compose references/descript.md (media-studio-descript was folded into it on 2026-10-21). Claude uses its native Descript account connector (media-studio Claude mapping sets mcpOwnership shared-registry so the plugin does not also offer Descript). Codex uses the media-studio plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509"
+      "notes": "Optional editorial-finishing MCP (import, Underlord edits, publish share links). Import only privacy/redaction/claim-cleared working media. Every edit creates a new candidate and invalidates prior preflight, review, arbiter, verifier, and automated release evidence; output without locally checksumable bytes is PIPELINE_BLOCKED. Publishing requires explicit task authorization plus current automated PASS evidence for the exact shared bytes. Public finishing guidance is media-studio-compose references/descript.md (media-studio-descript was folded into it on 2026-10-21). Claude uses its native Descript account connector (media-studio Claude mapping sets mcpOwnership shared-registry so the plugin does not also offer Descript). Codex uses the media-studio plugin-owned MCP. Never connect both in one session. No local MP4 export via API. Consumes media minutes and AI credits. Docs: https://help.descript.com/hc/en-us/articles/46056322186509",
+      "hosts": [
+        "claude",
+        "codex",
+        "opencode",
+        "opencode-desktop",
+        "gemini",
+        "copilot",
+        "antigravity",
+        "antigravity-desktop",
+        "antigravity-ide",
+        "grok",
+        "warp",
+        "cline",
+        "cursor",
+        "cursor-agent",
+        "devin",
+        "factory",
+        "vscode-insiders"
+      ],
+      "hostScopeNote": "hosts[] added 2026-10-22: every active host except amp. Amp's Descript OAuth access token is expired with no refresh token, so a persisted entry stops every headless Amp run at an OAuth prompt (MCP-ACCESS-AUDIT-2026-10-22). The entry was removed from ~/.config/amp/settings.json that day; this allowlist keeps sync from re-adding it. Re-add amp after `amp mcp oauth login descript` succeeds. Windsurf is omitted because it is checked-absent on this machine."
     },
     {
       "id": "repowise-workspace",

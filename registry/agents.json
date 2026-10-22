@@ -384,7 +384,7 @@
         "headless"
       ],
       "status": "active",
-      "notes": "Cline 3.0.71 (observed 2026-10-14). Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion \u2014 same set as gemini and registry allowlist; on-demand-local chrome-devtools is intentionally not fleet-synced (brave-search was retired into the open-connector gateway on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
+      "notes": "Cline 3.0.71 (observed 2026-10-14). Primary config is ~/.cline (CLI/SDK/Kanban and modern IDE shared config per docs.cline.bot/getting-started/config). Native plugins are CLI/SDK/Kanban-only; custom agents.yaml schema remains discovery-required. CLI rules use ~/.cline/data/settings/rules; ~/.cline/rules is also mirrored. Fleet MCP (shared-remote): context7, descript, exa, firecrawl, github, linear, notion — same set as gemini and registry allowlist; on-demand-local chrome-devtools is intentionally not fleet-synced (brave-search was retired into the open-connector gateway on 2026-09-13). VS Code Insiders extension globalStorage MCP was migrated 2026-08-05 off OneDrive node_modules paths onto those remote HTTP registrations. Documents/Cline under OneDrive was removed the same day (Known Folder redirect). Skills deploy once to ~/.agents/skills; ~/.cline/skills is a junction to that library (owner-authorized 2026-09-02). Local launcher mitigation keeps TEMP/TMP on %LOCALAPPDATA%/Temp to avoid Bun/OpenTUI Windows error 126 regressions tied to nonstandard temp roots."
     },
     {
       "id": "cursor",
@@ -583,7 +583,9 @@
       "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded this launcher as absent. code-insiders.cmd is present. It is an editor, not a headless dispatch target. `code-insiders.cmd --version` returned 1.142.0-insider. No installer was run.",
       "versionProbeNote": "versionProbe stays cli. The declared launcher exists and `code-insiders.cmd --version` prints and exits. Corrected 2026-10-14 from the stale note that said the executable was absent.",
       "versionObserved": "2026-10-14: verified installed launcher/file version 1.143.0-insider. Manual forward update and launcher reconciliation; active sessions preserved."
-    },
+    }
+  ],
+  "inactiveAgents": [
     {
       "id": "windsurf",
       "name": "Windsurf / Cascade",
@@ -621,8 +623,8 @@
       "status": "unverified",
       "installationExpectation": "in-use-executable-not-located",
       "notes": "2026-10-21 reconciliation: the recorded ~/.codeium/windsurf configuration tree is now absent; the earlier configuration inventory below is historical. Reclassified active 2026-08-04 with one unresolved point, recorded rather than smoothed over: the owner states Windsurf is in use, but no windsurf executable was found under %LOCALAPPDATA%/Programs or on PATH at reclassification time, and no executable is recorded here. What IS present is the live configuration tree at .codeium/windsurf, including 31 deployed skills, so the host is demonstrably configured even though the binary was not located -- it may be installed outside the searched locations or driven through another surface. MCP verified the same day: docs.windsurf.com/windsurf/cascade/mcp now 307-redirects to docs.devin.ai/desktop/cascade/mcp (Cognition hosts these docs), which states ~/.codeium/windsurf/mcp_config.json with top-level key mcpServers, matching this entry. Skills path was corrected earlier the same day after being wrongly recorded as null; legacy .windsurf is plans-only. Run a native smoke test before relying on dispatch.",
-      "headlessDispatchNote": "Windsurf routes to the installed Devin CLI; dispatch and autonomy restrictions on Devin also apply."
+      "headlessDispatchNote": "Windsurf routes to the installed Devin CLI; dispatch and autonomy restrictions on Devin also apply.",
+      "inactiveNote": "Moved to inactiveAgents 2026-10-22: no windsurf executable on PATH or under %LOCALAPPDATA%/Programs and no ~/.codeium directory (hostInventory.notInstalled already recorded this). An active entry made Sync-AgentHub report drift and create ~/.codeium/windsurf/mcp_config.json for a host that is not installed. Dispatch of `windsurf` still routes to Devin per the dispatcher. Reactivate after an install is verified."
     }
-  ],
-  "inactiveAgents": []
+  ]
 }
