@@ -20,8 +20,32 @@ and a 120-second timeout. Durations include dispatcher startup.
 OpenCode remains disabled in `registry/fleet-profile.json` pending owner
 verification and another authorized smoke. Copilot and Codex exited
 successfully, but their dispatcher stdout did not contain a standalone `ok`.
-The dispatcher refused `cursor` under its interactive autonomy profile;
-`cursor-agent` remains disabled by its existing policy gate.
+The prior Gemini `ok` was from its configured default route and does not
+establish account-authenticated access. Cursor routes to `cursor-agent`; its
+new account-mode smoke returned no response text. The earlier `cursor` refusal
+was superseded by the direct `cursor-agent` smoke below; dispatch remains
+disabled because the requested response was not captured.
+
+## Account-mode follow-up
+
+These checks used the dispatcher from the source checkout, a temporary empty
+working directory, and the prompt `Reply with the single word ok.`. The
+account-authenticated host API-key overrides were removed by the dispatcher.
+
+| Host | Model | Auth mode | Smoke result | Current status |
+| --- | --- | --- | --- | --- |
+| cursor-agent | Not established | account | Exit 0, 23.4 s; no response text | Disabled |
+| amp | Not reported | account | Exit 0, 22 s; MCP OAuth prompts, no task response or plan | Disabled |
+| gemini | CLI default not established | account | Exit 1, 1.6 s; no response | Disabled |
+| opencode | `opencode-go/hy3` | account | Not run; auth file has no Go-plan account entry | Disabled; awaiting Go login |
+| warp | Not established | account | Not run; `warp auth status` unsupported and local-only mode unverified | Disabled |
+| codex | `gpt-6.1-sol` | account | Not run; quota exhausted at 22:00 CT | Enabled as directed; quota blocks use |
+
+CodeRabbit CLI is review-only, not a general-purpose coding host. Its attempted
+help probe launched a repository review, so it was not added to the dispatcher
+or invoked again. Other inventory items absent from `managedHosts` are GUI,
+research, indexing, search, companion, or device-control tools without a
+verified coding-task contract.
 
 No deployed copies under `%LOCALAPPDATA%\AgentHub` were changed; deployment is
 a separate step.

@@ -18,9 +18,8 @@
   receives a one-line pointer to that file. Every host therefore accepts
   -PromptFile.
 
-  The claude host bills the Anthropic API: the child gets ANTHROPIC_API_KEY
-  from the User environment when the caller's process does not carry it
-  (owner direction 2026-10-14). Only the variable name is ever printed.
+  Account-authenticated hosts do not inherit their API key environment
+  variables. Explicit API-key runs use their own configuration.
 
   Paths come from registry/agents.json. Flags that a ~/bin shim already
   applies are not repeated. This script does not invent a flag, open a
@@ -146,18 +145,11 @@ function Get-DispatchTable {
                 @{ Args = @('-p', '--output-format', 'text', $PromptText); Stdin = $null; PromptFile = $null }
             }
         }
-        'qwen-code' = @{
-            Mode = 'argument'
-            Build = {
-                param($PromptText, $Work, $File)
-                @{ Args = @($PromptText); Stdin = $null; PromptFile = $null }
-            }
-        }
         'gemini' = @{
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                $args = @('--prompt', $PromptText)
+                $args = @('--approval-mode', 'yolo', '--prompt', $PromptText)
                 # Gemini restricts read_file to workspace roots. A pointer
                 # prompt must explicitly admit its runtime prompt directory.
                 if ($File) { $args += @('--include-directories', (Split-Path -Parent $File)) }
@@ -197,7 +189,7 @@ function Get-DispatchTable {
             Mode = 'file'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('--auto', 'high', '--cwd', $Work, 'exec', '-f', $File); Stdin = $null; PromptFile = $File }
+                @{ Args = @('--cwd', $Work, 'exec', '--auto', 'high', '-f', $File); Stdin = $null; PromptFile = $File }
             }
         }
         'cline' = @{
@@ -236,15 +228,6 @@ function Get-DispatchTable {
                 @{ Args = $args; Stdin = $null; PromptFile = $File }
             }
         }
-        'qoder' = @{
-            Mode = 'argument'
-            Build = {
-                param($PromptText, $Work, $File)
-                # qodercli --help 2026-10-14: -p prints and exits, -w sets the cwd,
-                # -o sets the output format. Flags mirror the ~/bin/qodercli.cmd shim.
-                @{ Args = @('-p', '--dangerously-skip-permissions', '--tools', 'default', '-w', $Work, '-o', 'text', $PromptText); Stdin = $null; PromptFile = $null }
-            }
-        }
         'warp' = @{
             Mode = 'argument'
             Build = {
@@ -275,13 +258,6 @@ foreach ($profile in @($fleet.autonomyProfiles.profiles)) {
 $table = Get-DispatchTable
 $routes = @{ 'cursor' = 'cursor-agent'; 'windsurf' = 'devin' }
 $dispatchPolicy = $fleet.dispatchPolicy
-
-function Get-UserScopedValue {
-    param([string]$Name)
-    $value = [Environment]::GetEnvironmentVariable($Name, 'Process')
-    if ([string]::IsNullOrEmpty($value)) { $value = [Environment]::GetEnvironmentVariable($Name, 'User') }
-    return $value
-}
 
 function Test-PolicyDisabled {
     param([string]$Id)
@@ -444,11 +420,18 @@ $psi.RedirectStandardInput = $true
 $psi.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
 $psi.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
 $psi.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
-foreach ($name in @('ANTHROPIC_API_KEY', 'DEVIN_API_KEY')) {
-    if (($name -eq 'ANTHROPIC_API_KEY' -and $targetId -eq 'claude') -or ($name -eq 'DEVIN_API_KEY' -and $targetId -eq 'devin')) {
-        $value = Get-UserScopedValue $name
-        if ($value) { $psi.EnvironmentVariables[$name] = $value }
-    }
+$accountApiKeyVariables = switch ($targetId) {
+    'claude' { @('ANTHROPIC_API_KEY') }
+    'codex' { @('OPENAI_API_KEY') }
+    'cline' { @('ANTHROPIC_API_KEY') }
+    'devin' { @('DEVIN_API_KEY') }
+    'gemini' { @('GOOGLE_API_KEY', 'GEMINI_API_KEY') }
+    'opencode' { @('OPENCODE_GO_API_KEY') }
+    'warp' { @('WARP_API_KEY') }
+    default { @() }
+}
+foreach ($name in $accountApiKeyVariables) {
+    $psi.EnvironmentVariables.Remove($name)
 }
 if ($built.Env) {
     foreach ($name in $built.Env.Keys) { $psi.EnvironmentVariables[$name] = [string]$built.Env[$name] }
