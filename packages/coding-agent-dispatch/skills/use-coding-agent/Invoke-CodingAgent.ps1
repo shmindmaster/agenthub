@@ -425,18 +425,35 @@ $psi.RedirectStandardInput = $true
 $psi.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
 $psi.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
 $psi.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
-$accountApiKeyVariables = switch ($targetId) {
-    'claude' { @('ANTHROPIC_API_KEY') }
-    'codex' { @('OPENAI_API_KEY') }
-    'cline' { @('ANTHROPIC_API_KEY') }
-    'devin' { @('DEVIN_API_KEY') }
-    'gemini' { @('GOOGLE_API_KEY', 'GEMINI_API_KEY') }
-    'opencode' { @('OPENCODE_GO_API_KEY') }
-    'warp' { @('WARP_API_KEY') }
-    default { @() }
+# OWNER RULE 2026-10-22: every agent runs on its account/plan login, never a provider API key.
+# Strip provider keys from the child environment so a key in the User environment cannot
+# override the account login (Devin used DEVIN_API_KEY; Codex's wrapper used OPENAI_API_KEY).
+# opencode keeps OPENCODE_GO_API_KEY: its Go-plan provider is configured through that
+# variable, and the plan key is the account.
+$accountScrub = @{
+    'claude'       = @('ANTHROPIC_API_KEY', 'ANTHROPIC_API_KEY_BACKUP')
+    'codex'        = @('OPENAI_API_KEY')
+    'cline'        = @('CLINE_API_KEY', 'OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY')
+    'devin'        = @('DEVIN_API_KEY', 'DEVIN_API_TOKEN', 'DEVIN_SERVICE_USER_TOKEN', 'DEVIN_ORG_ID')
+    'gemini'       = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
+    'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
+    'warp'         = @('WARP_API_KEY')
+    'grok'         = @('XAI_API_KEY')
+    'factory'      = @('FACTORY_API_KEY')
+    'cursor-agent' = @('CURSOR_API_KEY')
+    'amp'          = @('AMP_API_KEY')
+    'copilot'      = @('GH_TOKEN', 'GITHUB_TOKEN')
+    'opencode'     = @()
 }
-foreach ($name in $accountApiKeyVariables) {
-    $psi.EnvironmentVariables.Remove($name)
+if ($accountScrub.ContainsKey($targetId)) {
+    foreach ($name in $accountScrub[$targetId]) { [void]$psi.EnvironmentVariables.Remove($name) }
+}
+# Copilot runs on the sh-pendoah GitHub account (owner direction 2026-10-22). The token is read
+# from gh's keyring at launch, placed only in the child environment, and never printed.
+if ($targetId -eq 'copilot') {
+    $pendoahToken = (& gh auth token --user sh-pendoah 2>$null)
+    if ($pendoahToken) { $psi.EnvironmentVariables['COPILOT_GITHUB_TOKEN'] = ([string]$pendoahToken).Trim() }
+    else { Write-Refusal 3 'copilot: gh has no token for account sh-pendoah; run gh auth login for it.' }
 }
 if ($built.Env) {
     foreach ($name in $built.Env.Keys) { $psi.EnvironmentVariables[$name] = [string]$built.Env[$name] }

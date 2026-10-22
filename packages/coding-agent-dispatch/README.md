@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.2.4 (loose skill; version metadata lives in `SKILL.md`).
+Version 0.2.5 (loose skill; version metadata lives in `SKILL.md`).
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever

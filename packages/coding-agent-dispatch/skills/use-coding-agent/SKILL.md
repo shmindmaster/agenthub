@@ -2,7 +2,7 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.4"
+  version: "0.2.5"
 ---
 
 # Use a coding agent from another coding agent
@@ -32,7 +32,7 @@ Aliases enforce their own policy and the target's policy and autonomy profile.
 Refused rows stay refused. Help verification establishes a command contract;
 authentication, allowance and smoke evidence establish readiness separately.
 
-The 0.2.4 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
+The 0.2.5 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
 Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin and local Warp/Oz.
 `registry/fleet-profile.json` -> `dispatchPolicy`
 can disable each contract with a reason and owner action. The current verified
@@ -74,10 +74,12 @@ task directly. Gemini admits that runtime directory with
 an attached `--print=<prompt>` after its permissions flag.
 
 Every child is windowless. Warp sets child-only `WARP_CLI_MODE=1`; it never
-opens the terminal GUI. Account-authenticated Claude, Codex, Cline, Devin,
-Gemini, OpenCode, and Warp children have their respective API-key environment
-variables removed before launch. Explicit API-key runs use a separate
-configuration. Values are never printed. A timeout kills the process tree and
+opens the terminal GUI. Every child runs on its account login: the provider
+API-key variables for Claude, Codex, Cline, Devin, Gemini, Antigravity, Warp,
+Grok, Factory, Cursor Agent, Amp and Copilot are removed before launch (owner
+rule 2026-10-22); OpenCode keeps OPENCODE_GO_API_KEY because that is its Go-plan
+key. Copilot runs on the sh-pendoah GitHub account: the dispatcher reads that
+token from gh's keyring into the child environment only. Values are never printed. A timeout kills the process tree and
 exits 4. Pass `-TimeoutSec 7200` for program-scale dispatches.
 
 Exit 0 means the child exited 0. Exit 2 is a launch failure; an absent
