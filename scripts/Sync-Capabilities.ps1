@@ -26,7 +26,7 @@ $root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
 # Functions only; the pass runs after deploy/prune so it never rewrites a
 # destination this script is about to delete.
 . (Join-Path $PSScriptRoot 'SkillFrontmatterYaml.ps1')
-. (Join-Path $PSScriptRoot 'lib\PathBinding.ps1')
+. (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
 . (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
 
 # -UserProfile has to actually move where this script writes, or it is a
@@ -78,14 +78,12 @@ $capabilities.capabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDo
 # recorded three separate globalSkillsDir errors built on exactly that
 # inference.
 #
-# SEQUENCING HAZARD: narrowing the host set drops those destinations out of
-# $desired, and a plain -Apply rewrites the state file to exactly $desired.
-# Prune compares $prior against $desired and so must run in the SAME -Apply
-# that first narrows the set -- once a plain -Apply has rewritten the state,
-# the already-deployed copies are orphaned beyond the reach of any later
-# -Prune, because prune only ever iterates destinations the state still claims.
+# Narrowing the host set must not discard ownership before an explicit prune.
+# A plain -Apply retains prior records so a later -Apply -Prune can still
+# identify stale copies and protect any owner modifications.
 $allAgents = @($agentsDocument.activeAgents) + @($agentsDocument.inactiveAgents)
 $agents = if ($IncludeInactiveAgents) { $allAgents } else { @($agentsDocument.activeAgents) }
+$agents = @($agents | Where-Object { Test-AgentHubHostSyncEnabled -Agent $_ })
 
 # A registry that declares nothing is a wrong or empty tree, not a clean run.
 if (@($capabilities.capabilities).Count -eq 0) {
@@ -177,6 +175,13 @@ $prior = if (Test-Path -LiteralPath $statePath) {
 } else { @{ managed = @{} } }
 if (-not $prior.ContainsKey('managed')) { $prior.managed = @{} }
 $priorHashesAreLegacy = $priorSchemaVersion -lt $StateSchemaVersion
+function Test-LegacyManagedHash([string]$Destination) {
+  $entry = $prior.managed[$Destination]
+  if ($entry -and $entry.PSObject.Properties['hashSchemaVersion']) {
+    return [int]$entry.hashSchemaVersion -lt $StateSchemaVersion
+  }
+  return $priorHashesAreLegacy
+}
 $desired = @{}
 if ($CapabilityId) {
   foreach ($id in $CapabilityId) {
@@ -238,7 +243,7 @@ function Register-ManagedTree {
     $refused[$Destination] = $true
     return
   }
-  $recordedComparableHash = if ($currentHash -and $priorHashesAreLegacy -and $prior.managed.ContainsKey($Destination)) {
+  $recordedComparableHash = if ($currentHash -and $prior.managed.ContainsKey($Destination) -and (Test-LegacyManagedHash $Destination)) {
     Get-TreeHashLegacy $Destination
   } else { $currentHash }
   if ($currentHash -and $prior.managed.ContainsKey($Destination) -and
@@ -448,7 +453,7 @@ if ($Apply -and $Prune) {
   foreach ($destination in @($prior.managed.Keys)) {
     if ($desired.ContainsKey($destination) -or -not (Test-Path -LiteralPath $destination)) { continue }
     # Same stored-format rule as the replace guard above.
-    $currentHash = if ($priorHashesAreLegacy) { Get-TreeHashLegacy $destination } else { Get-TreeHash $destination }
+    $currentHash = if (Test-LegacyManagedHash $destination) { Get-TreeHashLegacy $destination } else { Get-TreeHash $destination }
     if ($currentHash -ne $prior.managed[$destination].hash) {
       $failures.Add("refusing to prune modified managed skill: $destination")
       $refused[$destination] = $true
@@ -515,7 +520,7 @@ foreach ($dir in $sharedRoots) {
 #                               prune path can only reach through this ledger.
 #   - everything else         -> recorded as deployed.
 $managedAfterRun = @{}
-if ($CapabilityId) {
+if ($CapabilityId -or -not $Prune) {
   foreach ($destination in $prior.managed.Keys) {
     $managedAfterRun[$destination] = $prior.managed[$destination]
   }
@@ -532,6 +537,17 @@ foreach ($destination in $desired.Keys) {
 foreach ($destination in $refused.Keys) {
   if ($managedAfterRun.ContainsKey($destination)) { continue }
   if ($prior.managed.ContainsKey($destination)) { $managedAfterRun[$destination] = $prior.managed[$destination] }
+}
+
+# Carried legacy entries keep their original comparison format, including
+# modified copies. Never re-baseline their current bytes during migration.
+if ($priorHashesAreLegacy) {
+  foreach ($destination in $managedAfterRun.Keys) {
+    if ($prior.managed.ContainsKey($destination) -and
+        [object]::ReferenceEquals($managedAfterRun[$destination], $prior.managed[$destination])) {
+      $managedAfterRun[$destination] | Add-Member -NotePropertyName hashSchemaVersion -NotePropertyValue 1 -Force
+    }
+  }
 }
 
 if ($Apply) {

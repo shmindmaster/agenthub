@@ -62,14 +62,14 @@ $routingOk = $skill -match '(?is)Use `sarosh-communication` for the concise mess
 Report 'long-form writing routes cleanly to communication and audio layers' $routingOk 'expected all three skill ids in their correct roles'
 
 $owners = @($registry.capabilities | Where-Object { 'sarosh-writing' -in @($_.managedSkillNames) })
-$expectedHosts = @('amp','antigravity','claude','cline','codex','copilot','cursor','devin','factory','gemini','grok','hermes','opencode','qoder','qwen-code','warp','windsurf') | Sort-Object
+$expectedHosts = @('amp','antigravity','claude','cline','codex','copilot','cursor','devin','factory','gemini','grok','opencode','warp','windsurf') | Sort-Object
 $actualHosts = if ($owners.Count -eq 1) { @($owners[0].hostMappings | ForEach-Object { [string]$_.hostId } | Sort-Object -Unique) } else { @() }
 $registryOk = $owners.Count -eq 1 -and $owners[0].id -eq 'sarosh-writing' -and
     $owners[0].owner -eq 'personal-writing' -and
     $owners[0].canonicalSource -eq 'overlays/personal/packages/sarosh-writing' -and
     $actualHosts.Count -eq $expectedHosts.Count -and
     @(Compare-Object $expectedHosts $actualHosts).Count -eq 0
-Report 'registry has one writing owner and all 17 host mappings' $registryOk "owners=$($owners.Count), hosts=$($actualHosts.Count)"
+Report 'registry has one writing owner and all 14 non-retired host mappings' $registryOk "owners=$($owners.Count), hosts=$($actualHosts.Count)"
 
 $forbidden = @('(?i)mailto:', '(?i)[A-Z0-9._%+-]+@(?!example\.(com|org|net|test|invalid)\b)[A-Z0-9-]+(\.[A-Z0-9-]+)*\.[A-Z]{2,}', '(?i)Mobile:\s*\+?\d')
 $leaks = @($forbidden | Where-Object { $skill -match $_ })

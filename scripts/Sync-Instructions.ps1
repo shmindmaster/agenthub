@@ -308,6 +308,7 @@ $workSetCount = 0
 $hasUnmanaged = $false
 
 foreach ($agent in $allHosts) {
+    if (-not (Test-AgentHubHostSyncEnabled -Agent $agent)) { continue }
     $target = Resolve-HostTarget -Agent $agent
 
     if ($target.Kind -eq 'none') {

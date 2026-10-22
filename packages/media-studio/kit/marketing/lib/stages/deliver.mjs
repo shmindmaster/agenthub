@@ -2,9 +2,11 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { recordStage } from '../context.mjs';
-import { deleteIntermediates, deliverFiles, mmss } from '../deliver.mjs';
+import { deliverFiles, mmss } from '../deliver.mjs';
 import { normalizeCuts } from '../lint.mjs';
 import { fileSha, readJson, writeJson } from '../util.mjs';
+import { selectedCuts, verifiedCandidate } from '../candidate.mjs';
+import { releasable, requiredGates } from '../gates.mjs';
 
 export function readmeSection({ ctx, nn, title, delivered, gatesByRatio, date }) {
   const v = ctx.spec.voice;
@@ -21,16 +23,22 @@ export function readmeSection({ ctx, nn, title, delivered, gatesByRatio, date })
 export async function deliverStage(ctx) {
   const rows = [];
   const gatesByRatio = {};
-  for (const cut of normalizeCuts(ctx.spec)) {
+  for (const cut of selectedCuts(ctx, normalizeCuts(ctx.spec))) {
     for (const ratio of cut.ratios) {
-      const gp = join(ctx.jobDir, 'qa', ratio, 'gates.json');
-      const ad = join(ctx.jobDir, 'compose', ratio, 'ad.mp4');
+      const named = verifiedCandidate(ctx, ratio);
+      const gp = join(named.qa, 'gates.json');
+      const ad = named.ad;
       if (!existsSync(gp) || !existsSync(ad)) throw new Error(`deliver: ${ratio} has no gated candidate; run compose and qa first`);
       const g = readJson(gp);
+      const measured = releasable(g.gates || {}, requiredGates(ctx.spec));
+      if (!measured.ok || Object.values(g.gates || {}).some((gate) => gate.candidateSha256 !== named.sha256)) throw new Error(`deliver refused for ${ratio}: missing, failing or stale per-gate candidate binding`);
       if (!g.ok) throw new Error(`deliver refused for ${ratio}: ${g.failing.join('; ')}`);
-      if (!g.candidate || g.candidate.sha256 !== fileSha(ad)) throw new Error(`deliver refused for ${ratio}: the gates were run on a different file than the current candidate`);
+      if (g.specSha256 !== ctx.specSha || g.brandSha256 !== ctx.brandSha) throw new Error(`deliver refused for ${ratio}: QA used different spec or brand inputs`);
+      if (!g.candidate || g.candidate.id !== named.id || g.candidate.sha256 !== fileSha(ad)) throw new Error(`deliver refused for ${ratio}: the gates were run on a different file than the current candidate`);
+      const srt = join(named.dir, 'ad.srt');
+      if (!existsSync(srt) || !g.subtitles?.sha256 || fileSha(srt) !== g.subtitles.sha256) throw new Error(`deliver refused for ${ratio}: missing or changed subtitle SHA-256 binding`);
       gatesByRatio[ratio] = g;
-      rows.push({ ratio, mp4: ad, srt: join(ctx.jobDir, 'compose', ratio, 'ad.srt'), seconds: readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json')).durationSeconds });
+      rows.push({ ratio, mp4: ad, srt, seconds: readJson(join(ctx.jobDir, 'timing', cut.id, 'timeline.json')).durationSeconds });
     }
   }
   const dir = ctx.brand.deliver.dir;
@@ -41,7 +49,7 @@ export async function deliverStage(ctx) {
     dir, readmePath, reserved: ctx.brand.deliver.reservedNumbers || [], title: ctx.spec.title, files: rows,
     readmeEntry: ({ nn, delivered }) => ({ audience: ctx.spec.audience, pitch: ctx.spec.objective, section: readmeSection({ ctx, nn, title: ctx.spec.title, delivered, gatesByRatio, date }) }),
   });
-  const removed = deleteIntermediates(rows.flatMap((r) => [join(ctx.jobDir, 'compose', r.ratio, 'silent.mp4'), join(ctx.jobDir, 'compose', r.ratio, 'mix.wav'), join(ctx.jobDir, 'compose', r.ratio, 'public'), join(ctx.jobDir, 'qa', r.ratio, 'vision-frames')]));
+  const removed = []; // Candidate inputs and gates are immutable evidence, never cleaned by delivery.
   writeJson(join(ctx.jobDir, 'deliver', 'manifest.json'), { nn: result.nn, deliveredAt: new Date().toISOString(), files: result.delivered, readme: result.readme, intermediatesDeleted: removed, cost: ctx.ledger.summary(), specSha256: ctx.specSha, brandSha256: ctx.brandSha });
   recordStage(ctx, 'deliver', 'done', { nn: result.nn, files: result.delivered.length });
   return result;

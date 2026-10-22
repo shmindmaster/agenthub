@@ -56,6 +56,25 @@ function release(root) {
   const evidence = { candidate: { sha256: candidateSha256 }, captions: { ...pass, path: "qa/captions.srt", sha256: sha(captions) }, audio: { ...pass, integratedLufs: -16, truePeakDbtp: -1.5, analyzerReport: { path: "qa/loudness.json", sha256: sha(analyzer) } }, pronunciation: { ...pass, reference: "authored-script", scriptPath: "story/screenplay.txt", scriptSha256: sha(script), releaseEligible: true }, encodedVisualReview: pass, titleReview: { ...pass, titleCount: 1 }, actionResultReview: { ...pass, events: [{ segmentId: "hero", actionAtSeconds: 2, resultVisibleAtSeconds: 3, spokenResultAtSeconds: 3.1 }] }, storyReview: { ...pass, cta: "Review your workflow", sequence: { seriesId: "operations", chapter: 2 } } };
   writeFileSync(join(root, "qa", "viewer-release-evidence.json"), JSON.stringify(evidence)); return candidate;
 }
+test("forced-clock release rejects missing, stale or lax word-sync evidence", () => {
+  const root = join(scratch, "forced-clock"); job(root); const candidate = release(root);
+  writeFileSync(join(root, 'job.json'), JSON.stringify({ kind: 'product-screencast', syncClock: 'forced-aligner' }));
+  let result = run(releaseValidator, [root, candidate]);
+  assert.notEqual(result.code, 0); assert.match(result.output, /word-sync/);
+  for (const rel of ['plan/cue-sheet.json', 'qa/encoded-alignment.json', 'story/locked-script.txt']) {
+    mkdirSync(dirname(join(root, rel)), { recursive: true }); writeFileSync(join(root, rel), '{}');
+  }
+  const inputs = Object.fromEntries([['cueSheet', 'plan/cue-sheet.json'], ['alignment', 'qa/encoded-alignment.json'], ['script', 'story/locked-script.txt']].map(([key, path]) => [key, { path, sha256: sha(join(root, path)) }]));
+  const report = { generator: 'media-studio/validate-word-sync', ok: true, errors: [], candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, inputs, thresholds: { driftMaxMs: 40 }, method: 'forced-alignment-on-encoded', gridMs: 80 };
+  writeFileSync(join(root, 'qa', 'word-sync.json'), JSON.stringify(report));
+  result = run(releaseValidator, [root, candidate]); assert.equal(result.code, 0, result.output);
+  report.thresholds.driftMaxMs = 80;
+  writeFileSync(join(root, 'qa', 'word-sync.json'), JSON.stringify(report));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /canonical thresholds/);
+  report.thresholds.driftMaxMs = 40; writeFileSync(join(root, 'qa', 'word-sync.json'), JSON.stringify(report));
+  writeFileSync(join(root, 'qa', 'encoded-alignment.json'), 'changed');
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /stale|changed/);
+});
 test("scenario gate accepts generic entity continuity and rejects an undeclared entity", () => {
   const root = join(scratch, "scenario"); job(root); let result = run(scenarioValidator, [root]); assert.equal(result.code, 0, result.output);
   const board = JSON.parse(readFileSync(join(root, "story", "storyboard.json"), "utf8")); board.beats[0].entityRefs = [{ type: "goal", id: "unrelated-trend" }]; writeFileSync(join(root, "story", "storyboard.json"), JSON.stringify(board));
