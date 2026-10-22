@@ -74,7 +74,7 @@ $claudePlugin = Get-Content -LiteralPath (Join-Path $pkg '.claude-plugin\plugin.
 # projections below prove they follow the root.
 Report 'root plugin is named slack with a semver version' ($rootPlugin.name -eq 'slack' -and [string]$rootPlugin.version -match '^\d+\.\d+\.\d+$') "root plugin.json name=$($rootPlugin.name) version=$($rootPlugin.version)"
 Report 'claude plugin version matches root' ($claudePlugin.version -eq $rootPlugin.version -and $claudePlugin.name -eq 'slack') 'host projection diverged'
-foreach ($projection in @('.codex-plugin', '.cursor-plugin', '.qoder-plugin')) {
+foreach ($projection in @('.codex-plugin', '.cursor-plugin')) {
     $manifest = Get-Content -LiteralPath (Join-Path $pkg "$projection\plugin.json") -Raw -Encoding UTF8 | ConvertFrom-Json
     Report "$projection version matches root" ($manifest.version -eq $rootPlugin.version) "$projection=$($manifest.version) root=$($rootPlugin.version)"
 }

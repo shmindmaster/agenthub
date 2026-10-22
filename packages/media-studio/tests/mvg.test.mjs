@@ -561,7 +561,7 @@ test('vision-qa end to end with a mock provider charges the ledger from usage an
   const calls = [];
   const frames = (c, times) => times.map((t, i) => ({ label: `F${i + 1}`, t, dataUrl: 'data:image/jpeg;base64,AAAA' }));
   const vision = async (args) => { calls.push(args); return { text: verdictJson({ frames: args.frames.map((f) => ({ label: f.label, issues: [] })) }), usage: { input_tokens: 20000, output_tokens: 1000 } }; };
-  const report = await runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, ratio: '16x9', ledger, vision, frames, duration: 6 });
+  const report = await runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, provider: 'openai', ratio: '16x9', ledger, vision, frames, duration: 6 });
   assert.equal(report.ok, true);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].frames.length, 5);
@@ -570,7 +570,7 @@ test('vision-qa end to end with a mock provider charges the ledger from usage an
   assert.match(calls[0].instructions, /Ignore the small profile avatars/);
   assert.ok(Math.abs(ledger.runTotal('openai') - (20000 * 4 + 1000 * 20) / 1e6) < 1e-9);
   const tiny = new CostLedger({ jobDir: join(root, 'vledger2'), runId: 'v', perRun: { openaiUsd: 0.0001 }, cumulative: {} });
-  await assert.rejects(runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, ratio: '16x9', ledger: tiny, vision, frames, duration: 6 }), BudgetError);
+  await assert.rejects(runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, provider: 'openai', ratio: '16x9', ledger: tiny, vision, frames, duration: 6 }), BudgetError);
   assert.equal(calls.length, 1, 'no provider call after the budget stop');
 });
 
@@ -1084,7 +1084,7 @@ test('chain gates 1: integrity, pointer and marketing are required by default an
   for (const g of ['integrity', 'pointer', 'frameIntegrity', 'marketing']) assert.ok(DEFAULT_REQUIRED.includes(g), g);
   assert.deepEqual([...CHAIN_GATES], ['integrity', 'pointer', 'frameIntegrity', 'marketing']);
   const narrowed = requiredGates({ qa: { required: ['picture', 'captions'] } });
-  assert.deepEqual(narrowed, ['picture', 'captions', 'integrity', 'pointer', 'frameIntegrity', 'marketing'], 'a spec cannot drop the film-chain gates');
+  assert.deepEqual(narrowed, ['picture', 'captions', 'integrity', 'pointer', 'frameIntegrity', 'marketing', 'wordSync', 'transcript'], 'a spec cannot drop the film-chain or forced-clock gates');
   assert.deepEqual(requiredGates({}), DEFAULT_REQUIRED);
   const passing = Object.fromEntries(DEFAULT_REQUIRED.map((g) => [g, { status: 'pass' }]));
   assert.equal(releasable(passing, requiredGates({})).ok, true);

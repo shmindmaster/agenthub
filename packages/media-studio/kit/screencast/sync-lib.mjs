@@ -192,6 +192,43 @@ export function offsetStats(deltasMs, times) {
   return { count: order.length, offsetMs: round(median(order.map((x) => x.d)), 1), driftMs: round(last - first, 1), p95AbsMs: round(percentile(order.map((x) => Math.abs(x.d)), 95), 1) };
 }
 
+/** The forced aligner's raw clock, bound to exact inputs. Split punctuation/hyphen tokens share their true onset. */
+export function forcedWordOnsets(report, expected, { takeSha256, scriptSha256 }) {
+  if (report?.schema !== 'local-ai/forced-alignment/1' || report.units !== 'seconds' || report.gridSeconds !== 0.08) throw new Error('requires Local-AI forced alignment in seconds on the 80 ms grid');
+  if (!takeSha256 || report.take?.sha256 !== takeSha256 || !scriptSha256 || report.script?.sha256 !== scriptSha256) throw new Error('forced alignment input SHA-256 mismatch');
+  if (!Number.isFinite(report.durationSeconds) || !(report.durationSeconds > 0) || !Array.isArray(report.words) || !report.words.length) throw new Error('empty forced alignment');
+  let previous = 0;
+  const raw = report.words.map((w) => {
+    if (!norm(w.text) || !Number.isFinite(w.start) || !Number.isFinite(w.end) || w.start < previous || w.end < w.start || w.end > report.durationSeconds ||
+      [w.start, w.end].some((v) => Math.abs(v / 0.08 - Math.round(v / 0.08)) > 1e-5)) throw new Error('invalid forced alignment word interval or grid');
+    previous = w.end;
+    return { ...w, key: norm(w.text) };
+  });
+  const keys = expected.map((w) => norm(w.w ?? w.word ?? w.text));
+  if (keys.some((k) => !k) || keys.join('') !== raw.map((w) => w.key).join('')) throw new Error('forced alignment does not cover the complete locked script');
+  let char = 0;
+  const spans = raw.map((w) => { const from = char; char += w.key.length; return { ...w, from, until: char }; });
+  char = 0;
+  return expected.map((w, i) => {
+    const from = char; char += keys[i].length;
+    const hits = spans.filter((s) => s.from < char && s.until > from);
+    return { w: w.w ?? w.word ?? w.text, start: hits[0].start, end: hits.at(-1).end };
+  });
+}
+
+export function measureWordSync(report, cueWords, bindings, maxMs = SYNC_DEFAULTS.driftMaxMs) {
+  if (!cueWords.length || cueWords.some((w, i) => !Number.isFinite(w.start) || w.start < 0 || (i && w.start < cueWords[i - 1].start) || (w.end !== undefined && (!Number.isFinite(w.end) || w.end < w.start)))) throw new Error('invalid cue word interval');
+  const words = forcedWordOnsets(report, cueWords, bindings);
+  const stats = offsetStats(words.map((w, i) => (w.start - cueWords[i].start) * 1000), cueWords.map((w) => w.start));
+  const errors = [];
+  if (!stats) errors.push('no cue words to measure');
+  else {
+    if (Math.abs(stats.offsetMs) > maxMs) errors.push(`encoded audio is ${stats.offsetMs} ms off the cue-sheet words (max +-${maxMs} ms; forced-aligner 80 ms grid).`);
+    if (Math.abs(stats.driftMs) > maxMs) errors.push(`A/V drift ${stats.driftMs} ms from the start of the program to its end (max +-${maxMs} ms).`);
+  }
+  return { ok: !errors.length, errors, method: 'forced-alignment-on-encoded', gridMs: 80, ...stats, words };
+}
+
 /** silence_end markers from ffmpeg silencedetect stderr = speech onsets, seconds. */
 export function parseSilenceEnds(stderr) {
   return [...String(stderr).matchAll(/silence_end:\s*(-?[\d.]+)/g)].map((m) => Number(m[1]));

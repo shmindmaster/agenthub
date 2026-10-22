@@ -91,7 +91,7 @@ It CANNOT see, and does not claim to:
     by the `-ceq` measurement above. They are correct, not exempted.
   - whether a path a script reads is actually a repo file rather than a
     host file. It flags every unencoded read, which is the safe direction:
-    host configs (Grok/Hermes) were the worst instances found.
+    host configs were the worst instances found.
 
 Not a Pester suite: this repo carries no Pester dependency (see
 tests/Test-RegistryContentHash.ps1 and siblings for the prior art this

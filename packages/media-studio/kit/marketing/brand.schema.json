@@ -81,7 +81,7 @@
     },
     "vision": {
       "type": "object",
-      "properties": { "model": { "type": "string" }, "fallbackModel": { "type": "string" }, "detail": { "enum": ["low", "high", "auto"] } }
+      "properties": { "provider": { "enum": ["local", "openai"] }, "model": { "type": "string" }, "fallbackModel": { "type": "string" }, "detail": { "enum": ["low", "high", "auto"] } }
     },
     "images": { "type": "object", "properties": { "model": { "type": "string" }, "quality": { "enum": ["low", "medium", "high"] } } },
     "timing": { "type": "object", "properties": { "provider": { "enum": ["openai-whisper", "local-whisper"] } } },

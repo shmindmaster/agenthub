@@ -18,7 +18,7 @@ pending metered adapters. Real product UI remains captured evidence.
 
 **Owner standard (2026-10-15), adding to everything above:**
 - **Product honesty before film.** Write the pain, buyer, competitors and native-platform overlap, usage and a one-line "who cares" into the job's plan. A weak product is rebuilt, repositioned or retired, not polished on film.
-- **Voice first, word-level sync.** Lock and render the narration first and take word timings from local ASR. Each scene lasts as long as its narration span: retime or recapture the picture, never squeeze the voice.
+- **Voice first, word-level sync.** Lock narration, align accepted takes and the exact encode with deployed `ai.ps1 align`, and preserve raw 80 ms-grid reports bound to the take and script hashes. Whisper is a separate transcript check, never the clock. Each scene lasts as long as its narration span.
   - The screen is visible by the line's first content word.
   - The action lands within ±300 ms of the spoken verb.
   - The result holds for at least 1.5 s.
@@ -144,7 +144,7 @@ the repo.
 
 ## 3b. Marketing ads (`mvg`)
 
-A 15-30 s social or web ad for a product (LinkedIn, Meta, YouTube, a landing page) is one ad spec run through `mvg`, not a hand-built film: `node %LOCALAPPDATA%\AgentHub\media-studio\briefing-kit\marketing\mvg.mjs <spec.json>` (stages `lint`, `voice`, `timing`, `assets`, `capture`, `compose`, `qa`, `deliver`; `--dry-run`, `--hosted-only`, `--local-gates`). Read `kit/marketing/README.md` for the spec, the stages, the costs and the gates.
+A 15-30 s social or web ad uses the deployed `mvg.mjs` and `kit/marketing/README.md`. Run preparation explicitly, then isolated `--stage compose --candidate-id <new-id>`, `--stage qa --candidate-id <id> --local-gates`, and only when releasable `--stage deliver --candidate-id <id>`. QA never composes. `--no-line-chips` / `--no-captions` disables burned captions, not the SRT. Local vision is default and fails closed if unavailable; paid OpenAI requires explicit provider selection.
 
 - Real captured UI (receipt-bound clips from the product's film workspaces) carries every credibility-bearing second. Generated stills, sound effects and music are abstract and assert nothing; no generated people or children, no invented figures, customers or testimonials, never "submitted to a payer".
 - Every narration sentence and on-screen text maps to a claim with evidence; `lint` fails closed before any paid call. Budgets are enforced per run and cumulatively; ElevenLabs goes only through the governed adapter in `packages/elevenlabs` (plain `python`, never `python -I`).

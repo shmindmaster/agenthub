@@ -95,6 +95,14 @@ const canonical = (report, relPath, rules) => {
   if (off.length) errors.push(`${relPath} was not run at the canonical thresholds: ${off.map(([key, dir, value]) => `${key} ${th[key] ?? 'missing'} (${dir === 'max' ? 'at most' : 'at least'} ${value})`).join(', ')}.`);
   return report;
 };
+if (job.syncClock === 'forced-aligner') {
+  const word = canonical(boundReport('qa/word-sync.json', 'media-studio/validate-word-sync', 'word onsets require ai.ps1 align on the exact candidate'), 'qa/word-sync.json', [['driftMaxMs', 'max', 40]]);
+  boundToCandidate(word, 'qa/word-sync.json');
+  boundToInput(word, 'qa/word-sync.json', ['alignment'], 'forced alignment');
+  boundToInput(word, 'qa/word-sync.json', ['cueSheet'], 'cue sheet');
+  boundToInput(word, 'qa/word-sync.json', ['script'], 'locked alignment script');
+  if (word && (word.method !== 'forced-alignment-on-encoded' || word.gridMs !== 80)) errors.push('word-sync report must name its forced-aligner clock and 80 ms grid');
+}
 // No fluff: the narration check on the locked script, bound to the script it read (the timeline when there is one).
 boundToInput(canonical(boundReport('qa/narration-check.json', 'media-studio/validate-narration', 'the locked script must pass the no-fluff check (validate-narration.mjs) before release'), 'qa/narration-check.json',
   [['hookSeconds', 'max', 5], ['redundantOverlap', 'max', 0.7], ['redundantMinContentWords', 'max', 3], ['noNewInformationMinContentWords', 'max', 4]]), 'qa/narration-check.json', ['timeline', 'screenplay'], 'locked script');
