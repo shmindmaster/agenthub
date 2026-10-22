@@ -234,10 +234,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   XCUITest 12.18.1 and appium-mcp 1.97.1, and records the x86_64 guest's
   Xcode 26.6 ceiling. Implemented and tested in source; the guest doctor run
   against the new pins and fleet deployment are still pending.
-- **Current host evidence (2026-08-20):** Codex, Qoder, and Factory are active.
-  OpenCode Desktop, Hermes, and Windsurf remain unverified on this workstation.
-  Mobile skills/catalog are deployed to active coding surfaces, while native
-  Appium activation is intentionally available only through Claude and Codex.
+- **Retired coding hosts (2026-10-21):** Owner direction retired Qoder, Qwen
+  Code, and Hermes from the managed fleet. See
+  [retired-hosts](./fleet/retired-hosts-2026-10-21.md) and the pending
+  [account-login checklist](./fleet/account-logins-2026-10-21.md). Current
+  account-mode dispatcher results are in
+  [paid-plan smoke evidence](./fleet/paid-plans-smoke-2026-10-21.md).
+- **Mobile capability boundary:** Mobile skills/catalog deploy to active
+  coding surfaces, while native Appium activation is intentionally available
+  only through Claude and Codex.
 - Registry (`registry/*.json`) declares hosts, capabilities, MCP servers,
   fleet profile, and the fleet repository standard roster.
 - `scripts/Validate-AgentHub.ps1` validates the registry against on-disk
@@ -467,7 +472,7 @@ Every failure the section below records is now fixed:
 | File | Was | Now |
 | --- | --- | --- |
 | Test-CapabilityRouting | 5 assertions failing on `use-chrome-devtools-mcp` | 9/9 — the skill is a provider reference, not a router; see below |
-| Test-DeclaredPathAccountability | 4 (later 7) hermes/qoder paths with no note | 4/4 — every absent path carries a sourced note |
+| Test-DeclaredPathAccountability | 4 (later 7) absent paths with no note | 4/4 — every absent path carries a sourced note |
 | Test-ScriptsFailLoudly | `Start-ChromeAgentCDP.ps1` missing `$ErrorActionPreference` | passing; fixed at some point before 2026-08-11 and never recorded |
 | Test-RepoStandard | 8.3 short-path comparison | fixed 2026-08-08, already recorded below |
 
@@ -477,20 +482,6 @@ the three routing skills load *after* resolving a provider. It now declares
 claim rather than trusting it: an excused skill must be named by a routing
 skill and must document a registered server. The kind defaults to `routing`,
 so the exemption cannot be taken by omission.
-
-**The one thing not verified end to end: `Run-AllTests.ps1` hung twice on
-2026-08-11**, both times at `Test-SyncAgentHubRegistryRoot` →
-`Sync-AgentHub.ps1 -Audit` → `Repair-QwenCodeMcpOAuth.js --check`. The child
-`node` sat at 0.1s CPU for minutes — blocked, not slow, and not catastrophic
-backtracking. It is not that test and not that script: the test passes 5/5 in
-isolation in well under its budget, and the script alone exits 0 in seconds
-with 70 bytes of output. It reproduces only inside the full runner, and only
-under the heavy concurrent load this machine carried that day (several agent
-sessions each running chrome-devtools-mcp, desktop-commander and appium-mcp,
-plus a Remotion render). Treat a `Run-AllTests` hang as this, not as a new
-failure — and confirm by running the named file alone. Root cause unknown;
-a suite that hangs intermittently is nearly as useless as one that is red, so
-this is worth chasing when the machine is quiet.
 
 ## Known pre-existing test failures (as of 2026-08-08, all now fixed — see above)
 
@@ -505,7 +496,7 @@ The 4 failing files are agenthub's own engineering debt:
 | File | Cause |
 | --- | --- |
 | Test-CapabilityRouting | `use-chrome-devtools-mcp` carries no `## Capability required` or `## Resolve a provider` section (5 assertions) |
-| Test-DeclaredPathAccountability | 4 hermes paths absent from disk with no `<field>Note` |
+| Test-DeclaredPathAccountability | 4 absent paths with no `<field>Note` |
 | Test-ScriptsFailLoudly | `Start-ChromeAgentCDP.ps1` does not set `$ErrorActionPreference = 'Stop'` |
 
 The mobile scope guard added `Test-MobileScope.ps1` (+5) and the

@@ -55,7 +55,7 @@ foreach ($b in $browser) {
     Report "'$($b.id)' pins an explicit version" ($argLine -match '@\d') `
         'An unpinned @latest changes tool surface without a recorded pin.'
 
-    $nativeHosts = @('cursor','antigravity','vscode-insiders','cline','claude','codex','qoder','hermes','windsurf','factory')
+    $nativeHosts = @('cursor','antigravity','vscode-insiders','cline','claude','codex','windsurf','factory')
     $overlap = @($b.hosts | Where-Object { $_ -in $nativeHosts })
     Report "'$($b.id)' eligibility list excludes native-browser hosts" ($overlap.Count -eq 0) `
         "overlaps $($overlap.Count) native-browser host(s): $($overlap -join ', ')."

@@ -153,51 +153,6 @@ function Test-RenderContractProducesExactBytes {
     }
 }
 
-# --- Behavior 1b (fix round 1, CRITICAL): Hermes carries a registry-declared
-# instructionBodyTemplate (header + identity preamble + {{globalPolicy}}
-# placeholder + trailing marker) because its real deployed layout is NOT
-# the generic header/marker/body contract every other host uses -- it has a
-# preamble BEFORE the policy and the marker AFTER it. The renderer must
-# substitute the canonical body into the placeholder rather than
-# concatenating header+marker+body, or it would silently strip the "You are
-# Hermes Agent ... Nous Research" identity text on every -Apply. Asserts an
-# EXACT byte match against a template-substitution built independently in
-# the test (not by calling into the renderer's own helper), so this cannot
-# pass by both sides sharing the same bug. ---
-function Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd {
-    $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-hermes-template-" + [guid]::NewGuid())
-    $hermesDest = Join-Path $userProfile 'AppData\Local\hermes\SOUL.md'
-    try {
-        $apply = Invoke-SyncInstructions -ExtraArgs @('-Apply', '-UserProfile', $userProfile)
-        if ($apply.ExitCode -ne 0) {
-            return @{ Passed = $false; Detail = "-Apply exit code was $($apply.ExitCode). Output: $($apply.Output)" }
-        }
-        if (-not (Test-Path -LiteralPath $hermesDest)) {
-            return @{ Passed = $false; Detail = "expected Hermes file was not written: $hermesDest. Output: $($apply.Output)" }
-        }
-
-        $policyBody = [IO.File]::ReadAllText($canonicalPolicyPath).Replace("`r`n", "`n")
-        $expectedPersona = 'You are Hermes Agent, an intelligent AI assistant created by Nous Research. Be helpful, knowledgeable, direct, targeted, and efficient. Admit uncertainty when appropriate and prioritize genuine usefulness.'
-        $expected = "# Hermes Agent`n`n$expectedPersona`n`n$policyBody`n<!-- agenthub:managed -->`n"
-        $actual = [IO.File]::ReadAllText($hermesDest)
-
-        if ($actual -cne $expected) {
-            return @{ Passed = $false; Detail = "Hermes rendered bytes did not match the preamble+placeholder template. This means the renderer is concatenating header+marker+body instead of substituting into instructionBodyTemplate -- it would strip the Hermes identity preamble on a real host. First 220 chars expected=[$($expected.Substring(0,[Math]::Min(220,$expected.Length)))] actual=[$($actual.Substring(0,[Math]::Min(220,$actual.Length)))]" }
-        }
-        if ($actual.IndexOf($expectedPersona, [StringComparison]::Ordinal) -lt 0) {
-            return @{ Passed = $false; Detail = "the Hermes identity preamble ('You are Hermes Agent ... Nous Research ...') is missing from the rendered output entirely." }
-        }
-        $markerIndex = $actual.IndexOf('<!-- agenthub:managed -->', [StringComparison]::Ordinal)
-        $lastRealCharIndex = $actual.TrimEnd().Length - 1
-        if ($markerIndex -lt ($lastRealCharIndex - 30)) {
-            return @{ Passed = $false; Detail = "the managed marker is not near the end of the Hermes file (markerIndex=$markerIndex, contentLength=$($actual.TrimEnd().Length)) -- Hermes' real deployed layout puts the marker at the end of the file, not after the header." }
-        }
-        return @{ Passed = $true; Detail = $null }
-    } finally {
-        Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
-
 # --- Behavior 2: marker refusal. A destination that exists without the
 # <!-- agenthub:managed --> marker must never be overwritten; the run must
 # report it 'unmanaged' and exit non-zero. ---
@@ -446,9 +401,6 @@ Report 'a missing registry userProfile still rebases onto -UserProfile and never
 
 $r1 = Test-RenderContractProducesExactBytes
 Report 'render contract produces exact bytes: header, blank, marker, blank, canonical body' $r1.Passed $r1.Detail
-
-$r1b = Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd
-Report 'Hermes template substitution preserves the identity preamble and places the marker at the end' $r1b.Passed $r1b.Detail
 
 $r2 = Test-UnmanagedDestinationRefusesAndExitsNonZero
 Report 'unmanaged destination is refused and the run exits non-zero' $r2.Passed $r2.Detail

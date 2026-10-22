@@ -453,25 +453,6 @@
       }
     },
     {
-      "hostId": "qwen-code",
-      "providerHeld": false,
-      "exposures": {
-        "plugin-owned": [
-          "descript"
-        ],
-        "native-connector": [],
-        "shared-gateway": [
-          "context7",
-          "exa",
-          "firecrawl",
-          "github",
-          "linear",
-          "notion"
-        ],
-        "local-only": []
-      }
-    },
-    {
       "hostId": "opencode",
       "providerHeld": false,
       "exposures": {
@@ -499,24 +480,6 @@
     },
     {
       "hostId": "gemini",
-      "providerHeld": false,
-      "exposures": {
-        "plugin-owned": [],
-        "native-connector": [],
-        "shared-gateway": [
-          "context7",
-          "descript",
-          "exa",
-          "firecrawl",
-          "github",
-          "linear",
-          "notion"
-        ],
-        "local-only": []
-      }
-    },
-    {
-      "hostId": "hermes",
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [],
@@ -630,25 +593,6 @@
         "shared-gateway": [
           "context7",
           "descript",
-          "exa",
-          "firecrawl",
-          "github",
-          "linear",
-          "notion"
-        ],
-        "local-only": []
-      }
-    },
-    {
-      "hostId": "qoder",
-      "providerHeld": false,
-      "exposures": {
-        "plugin-owned": [
-          "context7",
-          "descript"
-        ],
-        "native-connector": [],
-        "shared-gateway": [
           "exa",
           "firecrawl",
           "github",
@@ -817,14 +761,6 @@
             "current": false,
             "updateCommand": "Cursor in-app plugin UI",
             "note": "Pinned to upstream commit d884ae0 (v6.1.1). cursor-agent's CLI exposes only marketplace add/list/remove/update, and marketplace update needs account auth that is not present in this environment, so the bump is an in-app owner action."
-          },
-          {
-            "hostId": "qoder",
-            "channel": "qoder-marketplace",
-            "installedVersion": "5.1.0",
-            "current": false,
-            "updateCommand": "Qoder in-app plugin UI",
-            "note": "Four minor versions behind. The qoder CLI is an editor launcher with no plugin subcommand, so this is an in-app owner action."
           },
           {
             "hostId": "cline",

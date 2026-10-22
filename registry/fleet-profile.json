@@ -7,7 +7,7 @@
     "claude",
     "codex",
     "cursor",
-    "qwen-code",
+    "cursor-agent",
     "opencode",
     "amp",
     "devin",
@@ -15,12 +15,10 @@
     "windsurf",
     "gemini",
     "copilot",
-    "hermes",
     "grok",
     "antigravity",
     "warp",
     "cline",
-    "qoder",
     "vscode-insiders"
   ],
   "launchDefaults": {
@@ -46,9 +44,6 @@
     "cline": [
       "--auto-approve",
       "true"
-    ],
-    "qoder": [
-      "--dangerously-skip-permissions"
     ]
   },
   "autonomyProfiles": {
@@ -93,34 +88,6 @@
             "disabled",
             "--approve-mcps"
           ]
-        }
-      },
-      {
-        "hostId": "qwen-code",
-        "defaultProfile": "repo-autonomous",
-        "native": {
-          "approvalMode": "yolo",
-          "permissions": "allow-all",
-          "managedAutoMemory": true,
-          "managedAutoDream": true,
-          "subagents": [
-            "scout",
-            "implementer",
-            "reviewer",
-            "verifier"
-          ],
-          "headless": {
-            "promptFlag": "--prompt",
-            "structuredOutput": [
-              "json",
-              "stream-json"
-            ]
-          },
-          "lsp": {
-            "flag": "--experimental-lsp",
-            "projectConfig": ".lsp.json"
-          },
-          "hooks": "default-enabled; SessionStart command hook re-applies the MCP OAuth refresh hotfix (scripts/Repair-QwenCodeMcpOAuth.js; personal mirror ~/.qwen/scripts/repair-mcp-oauth-hotfix.js) after qwen-code npm updates"
         }
       },
       {
@@ -238,17 +205,6 @@
         "note": "2026-10-14 owner-authorized fleet repair: verified native headless help; dispatchPolicy independently gates auth, billing and smoke evidence. No remote/cloud execution is authorized."
       },
       {
-        "hostId": "hermes",
-        "defaultProfile": "interactive",
-        "native": {
-          "surface": "cli",
-          "acpCommand": [
-            "acp"
-          ],
-          "reason": "No verified universal bypass contract in the managed Windows installation."
-        }
-      },
-      {
         "hostId": "warp",
         "defaultProfile": "repo-autonomous",
         "native": {
@@ -286,30 +242,6 @@
         }
       },
       {
-        "hostId": "qoder",
-        "defaultProfile": "repo-autonomous",
-        "launchDefaultsKey": "qoder",
-        "native": {
-          "permissionMode": "bypass_permissions",
-          "tools": "default",
-          "acpFlags": [
-            "--acp"
-          ],
-          "administrativeCommandsExcluded": [
-            "login",
-            "mcp",
-            "plugins",
-            "skills",
-            "hooks",
-            "agents",
-            "update",
-            "status",
-            "feedback",
-            "rollback"
-          ]
-        }
-      },
-      {
         "hostId": "vscode-insiders",
         "defaultProfile": "repo-autonomous",
         "native": {
@@ -326,19 +258,12 @@
     ]
   },
   "hostSettings": {
-    "qwen-code": {
-      "requiredModelGeneration": {
-        "qwen3.8-max-preview": {
-          "thinkingMandatory": true,
-          "extra_body": {
-            "enable_thinking": true
-          }
-        }
-      }
-    },
+
     "cline": {
       "provider": "cline-pass",
       "model": "cline-pass/qwen3.8-max",
+      "authMode": "account",
+      "loginCommand": "cline auth",
       "availableProviders": {
         "deepseek": {
           "apiKeyEnv": "DEEPSEEK_API_KEY",
@@ -349,6 +274,8 @@
     "opencode": {
       "model": "opencode-go/hy3",
       "smallModel": "opencode-go/mimo-v2.5",
+      "authMode": "account",
+      "loginCommand": "opencode auth login",
       "availableProviders": {
         "deepseek": {
           "apiKeyEnv": "DEEPSEEK_API_KEY",
@@ -357,20 +284,63 @@
       }
     },
     "copilot": {
-      "model": "auto"
+      "model": "auto",
+      "authMode": "account",
+      "loginCommand": "gh auth login"
     },
     "codex": {
-      "model": "gpt-6.1-sol"
+      "model": "gpt-6.1-sol",
+      "authMode": "account",
+      "loginCommand": "codex login"
     },
     "devin": {
-      "model": "swe-2-medium-lightning"
+      "model": "swe-2-medium-lightning",
+      "authMode": "account",
+      "loginCommand": "devin auth login"
     },
     "factory": {
-      "model": "openai-latest-balanced"
+      "model": "openai-latest-balanced",
+      "authMode": "account",
+      "loginCommand": "droid; enter /login at the prompt"
     },
     "windsurf": {
       "aliasOf": "devin",
-      "model": "swe-2-medium-lightning"
+      "model": "swe-2-medium-lightning",
+      "authMode": "account",
+      "loginCommand": "devin auth login"
+    },
+    "claude": {
+      "authMode": "account",
+      "loginCommand": "claude auth login",
+      "apiKeyConfigDir": "~/.claude-api (explicit API runs only)"
+    },
+    "cursor-agent": {
+      "authMode": "account",
+      "loginCommand": "cursor-agent login"
+    },
+    "gemini": {
+      "authMode": "account",
+      "loginCommand": "gemini",
+      "settingsFile": "~/.gemini/settings.json",
+      "settingsPath": "security.auth.selectedType",
+      "settingsValue": "oauth-personal",
+      "loginPending": true
+    },
+    "grok": {
+      "authMode": "account",
+      "loginCommand": "grok login --oauth"
+    },
+    "antigravity": {
+      "authMode": "account",
+      "loginCommand": "agy"
+    },
+    "amp": {
+      "authMode": "account",
+      "loginCommand": "amp login"
+    },
+    "warp": {
+      "authMode": "account",
+      "loginCommand": "warp login"
     }
   },
   "dispatchPolicy": {
@@ -381,55 +351,44 @@
     },
     "cursor-agent": {
       "enabled": false,
-      "reason": "Authentication required in the prior live smoke.",
-      "ownerAction": "Run agent login in your own terminal, then rerun one authorized smoke.",
-      "verifiedOn": "2026-10-14"
+      "reason": "2026-10-21 dispatcher smoke exited 0 in 23.4 s but returned no response text; model access is unverified.",
+      "ownerAction": "Verify cursor-agent account/model access, then rerun one authorized smoke that returns the requested response.",
+      "verifiedOn": "2026-10-21"
     },
     "factory": {
       "enabled": true,
       "reason": "OWNER_CONFIRMED 2026-10-21: paid plan; model openai-latest-balanced",
       "verifiedOn": "2026-10-21"
     },
-    "hermes": {
-      "enabled": false,
-      "reason": "Declared executable and PATH command are absent.",
-      "ownerAction": "Restore the configured Hermes installation so {userHome}/AppData/Local/hermes/hermes-agent/venv/Scripts/hermes.exe resolves; verify its native headless help and one authorized smoke before enabling.",
-      "verifiedOn": "2026-10-14"
-    },
     "amp": {
       "enabled": false,
-      "reason": "Headless help verified; free allowance does not establish execute-mode billing eligibility.",
-      "ownerAction": "Verify included execute allowance or explicitly authorize a task credit budget, then run one smoke.",
-      "verifiedOn": "2026-10-14"
+      "reason": "2026-10-21 dispatcher smoke exited 0 in 22 s but stopped at MCP OAuth prompts and returned no task response; plan was not reported.",
+      "ownerAction": "Resolve or disable the unconfigured MCP authorization prompts, verify the account plan, then rerun one authorized smoke.",
+      "verifiedOn": "2026-10-21"
     },
     "claude": {
       "enabled": false,
-      "reason": "Headless help verified; User ANTHROPIC_API_KEY would use API billing. Included allowance is not established.",
-      "ownerAction": "Verify included allowance or explicitly authorize a task credit budget, then run one smoke.",
+      "reason": "Account login and included allowance are not established for this dispatcher.",
+      "ownerAction": "Run claude auth login in your own terminal, verify included allowance or explicitly authorize a task credit budget, then run one smoke.",
       "verifiedOn": "2026-10-14"
     },
     "codex": {
       "enabled": true,
       "reason": "OWNER_CONFIRMED 2026-10-21: paid plan; model gpt-6.1-sol",
-      "verifiedOn": "2026-10-21"
-    },
-    "qwen-code": {
-      "enabled": false,
-      "reason": "Prior live smoke returned HTTP 403 for qwen3.8-max; model eligibility is not proven by the catalog.",
-      "ownerAction": "Select an eligible Token Plan model in Qwen settings and verify included allowance before one smoke.",
-      "verifiedOn": "2026-10-14"
+      "verifiedOn": "2026-10-21",
+      "knownIssue": "ChatGPT-plan quota exhausted 2026-10-21 22:00 CT: \"Quota exceeded. Check your plan and billing details.\""
     },
     "gemini": {
-      "enabled": true,
-      "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 14 s, returned ok; bills GOOGLE_API_KEY (API route, not the Google AI Pro plan).",
-      "verifiedOn": "2026-10-14",
-      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
+      "enabled": false,
+      "reason": "2026-10-21 account-authenticated dispatcher smoke exited 1 in 1.6 s without a response; OAuth access is unverified.",
+      "ownerAction": "Verify Google account OAuth, then rerun one authorized dispatcher smoke; API-key fallback is disabled.",
+      "verifiedOn": "2026-10-21"
     },
     "warp": {
       "enabled": false,
-      "reason": "Local Oz headless help verified; authentication, included allowance and smoke remain unverified.",
-      "ownerAction": "Verify Oz account access and included allowance, then authorize one local smoke; do not use cloud execution.",
-      "verifiedOn": "2026-10-14"
+      "reason": "2026-10-21: no auth-status command is exposed; Oz CLI help identifies agent management and cloud runs, so local-only execution and account authentication remain unverified.",
+      "ownerAction": "Verify a supported local account-authenticated run mode before enabling; cloud execution remains prohibited.",
+      "verifiedOn": "2026-10-21"
     },
     "devin-cloud": {
       "enabled": false,
@@ -460,15 +419,9 @@
     "opencode": {
       "enabled": false,
       "model": "opencode-go/hy3",
-      "reason": "OWNER_CONFIRMED 2026-10-21: paid plan; model opencode-go/hy3. Bounded smoke failed.",
-      "ownerAction": "Verify the local OpenCode Go account configuration, then run one authorized smoke.",
-      "verifiedOn": "2026-10-14"
-    },
-    "qoder": {
-      "enabled": false,
-      "reason": "qodercli status reports Account: Not logged in. Native headless help verified.",
-      "ownerAction": "Run qodercli login in your own terminal; confirm included allowance or authorize a task credit budget, then one smoke before enabling.",
-      "verifiedOn": "2026-10-14"
+      "reason": "OpenCode auth.json has no Go-plan account entry; dispatch remains disabled pending Go account login.",
+      "ownerAction": "Run opencode auth login and select the Go account flow, then verify the Go account entry and run one authorized smoke.",
+      "verifiedOn": "2026-10-21"
     },
     "antigravity": {
       "enabled": true,
@@ -719,29 +672,6 @@
         "verification": "Official Antigravity IDE browser docs: isolated Chrome profile, screenshots, action videos. The CLI host (antigravity) is a different surface and is not asserted here."
       },
       {
-        "hostId": "qoder",
-        "surfaceId": "qoder-ide",
-        "capabilities": {
-          "browser.isolated": true,
-          "browser.authenticated": null,
-          "computer.gui": true,
-          "mobile.android.local": null,
-          "mobile.ios.simulated": null
-        },
-        "capabilityEvidence": {
-          "browser.isolated": "docs.qoder.com/user-guide/chat/browser-agent: Browser Agent is built into Qoder IDE Agent Mode (/browser). Built-in browser is 'a lightweight browser panel built into the IDE -- no additional setup required' and takes screenshots as visual feedback.",
-          "computer.gui": "docs.qoder.com/user-guide/chat/computer-use-agent: Computer Use is a Qoder IDE capability on macOS 14+ and Windows 10+. It takes screenshots and drives mouse and keyboard. For web apps the same page says prefer Browser Agent first."
-        },
-        "capabilityNotEstablished": {
-          "browser.authenticated": "Browser Agent can switch to local Chrome for complex or extension-backed pages. That attach was not probed, so authenticated stays null.",
-          "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
-          "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
-        },
-        "verifiedOn": "2026-09-02",
-        "verification": "Official Qoder IDE docs: built-in Browser Agent pane with screenshots, and Computer Use on Windows 10+. The optional local-Chrome path is not treated as authenticated without a connection probe. This is the IDE surface; the CLI is not separately asserted.",
-        "dispatchNote": "This IDE row is not the qodercli print surface. CLI dispatch uses the separately recorded qoder-cli surface."
-      },
-      {
         "hostId": "factory",
         "surfaceId": "factory",
         "capabilities": {
@@ -866,19 +796,6 @@
         "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
       },
       {
-        "hostId": "qoder",
-        "surfaceId": "qoder-cli",
-        "capabilities": {
-          "browser.isolated": null,
-          "browser.authenticated": null,
-          "computer.gui": null,
-          "mobile.android.local": null,
-          "mobile.ios.simulated": null
-        },
-        "verifiedOn": "2026-10-14",
-        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
-      },
-      {
         "hostId": "amp",
         "surfaceId": "amp-cli",
         "capabilities": {
@@ -894,19 +811,6 @@
       {
         "hostId": "opencode",
         "surfaceId": "opencode-cli",
-        "capabilities": {
-          "browser.isolated": null,
-          "browser.authenticated": null,
-          "computer.gui": null,
-          "mobile.android.local": null,
-          "mobile.ios.simulated": null
-        },
-        "verifiedOn": "2026-10-14",
-        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
-      },
-      {
-        "hostId": "qwen-code",
-        "surfaceId": "qwen-cli",
         "capabilities": {
           "browser.isolated": null,
           "browser.authenticated": null,

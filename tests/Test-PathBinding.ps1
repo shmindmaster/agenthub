@@ -74,19 +74,6 @@ function Test-UnrebasableShapeIsRefused {
     return @{ Passed = $true; Detail = $null }
 }
 
-function Test-GlobalPolicyTokenIsNotAPath {
-    if (Test-AgentHubBindablePathValue '{{globalPolicy}}') {
-        return @{ Passed = $false; Detail = '{{globalPolicy}} was classified as a bindable path' }
-    }
-    $context = New-AgentHubPathBindingContext -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user'
-    $node = [pscustomobject]@{ instructionBodyTemplate = "# Hermes`n{{globalPolicy}}`n" }
-    Convert-AgentHubBoundNode -Node $node -Context $context
-    if ($node.instructionBodyTemplate -notmatch '\{\{globalPolicy\}\}') {
-        return @{ Passed = $false; Detail = 'binding rewrote the Hermes policy token' }
-    }
-    return @{ Passed = $true; Detail = $null }
-}
-
 function Test-ForwardSlashHomeTemplateMatchesBackslashOnWindows {
     $context = New-AgentHubPathBindingContext -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
     $bound = Resolve-AgentHubBoundPath -Declared '{userHome}/.claude/CLAUDE.md' -Context $context
@@ -199,7 +186,6 @@ $behaviors = @(
     @{ Name = 'recorded absolute path rebases from the registry profile'; Run = { Test-RecordedAbsoluteRebasesFromRegistryProfile } }
     @{ Name = 'missing registry profile still rebases from the invoking profile'; Run = { Test-MissingRegistryProfileFallsBackToInvokingProfile } }
     @{ Name = 'UNC and forward-slash absolutes are refused'; Run = { Test-UnrebasableShapeIsRefused } }
-    @{ Name = 'globalPolicy token is not treated as a path'; Run = { Test-GlobalPolicyTokenIsNotAPath } }
     @{ Name = 'a path already under the target profile is not nested'; Run = { Test-AlreadyTargetPathIsNotNested } }
     @{ Name = 'forward-slash home templates expand with the Windows separator'; Run = { Test-ForwardSlashHomeTemplateMatchesBackslashOnWindows } }
     @{ Name = 'OS config roots expand for windows, darwin, and linux'; Run = { Test-OsConfigRootsExpandPerPlatform } }

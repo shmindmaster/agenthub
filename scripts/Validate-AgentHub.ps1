@@ -175,9 +175,9 @@ if ((@($claudeMarketplace.plugins.name | Sort-Object) -join '|') -ne ($catalogNa
   Fail 'Claude-compatible marketplace does not match the canonical plugin catalog'
 }
 foreach ($hostId in @(
-  'claude','codex','cursor','factory','vscode-insiders','qwen-code','copilot',
-  'antigravity','qoder','devin','grok','opencode','amp','cline','gemini',
-  'hermes','warp','windsurf'
+  'claude','codex','cursor','factory','vscode-insiders','copilot',
+  'antigravity','devin','grok','opencode','amp','cline','gemini',
+  'warp','windsurf'
 )) {
   if ($hostId -notin @($pluginFormats.hosts.id)) { Fail "plugin format registry is missing host: $hostId" }
 }

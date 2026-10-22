@@ -299,16 +299,8 @@
           "deploymentStatus": "managed"
         },
         {
-          "hostId": "qwen-code",
-          "deploymentStatus": "native-extension-junction"
-        },
-        {
           "hostId": "cline",
           "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
         },
         {
           "hostId": "amp",
@@ -332,10 +324,6 @@
         },
         {
           "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -385,15 +373,7 @@
           "deploymentStatus": "managed"
         },
         {
-          "hostId": "qwen-code",
-          "deploymentStatus": "native-extension-junction"
-        },
-        {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -418,10 +398,6 @@
         },
         {
           "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -469,10 +445,6 @@
           "deploymentStatus": "native-local-plugin"
         },
         {
-          "hostId": "qwen-code",
-          "deploymentStatus": "native-extension-junction"
-        },
-        {
           "hostId": "opencode",
           "deploymentStatus": "managed-loose-skills"
         },
@@ -505,10 +477,6 @@
           "deploymentStatus": "managed-observed-path"
         },
         {
-          "hostId": "hermes",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "grok",
           "deploymentStatus": "managed-loose-skills"
         },
@@ -519,10 +487,6 @@
         {
           "hostId": "cline",
           "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "native-local-plugin"
         }
       ]
     },
@@ -559,15 +523,7 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -592,10 +548,6 @@
         },
         {
           "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -646,15 +598,7 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -679,10 +623,6 @@
         },
         {
           "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -788,24 +728,8 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "hermes",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "opencode",
           "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ],
-          "deploymentStatusNote": "Loose skills since 2026-08-26. native-local-plugin left ~/.qoder/skills with no browser-toolkit skills and no plugin directory on disk, so desktop-evidence was unreachable. Skills-only mapping; Qoder has no verified plugin copy to refresh."
-        },
-        {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-native-skills-and-mcp"
         },
         {
           "hostId": "vscode-insiders",
@@ -881,15 +805,7 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -922,10 +838,6 @@
         },
         {
           "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1060,22 +972,6 @@
           ]
         },
         {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills",
-            "catalog"
-          ]
-        },
-        {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills",
-            "catalog"
-          ]
-        },
-        {
           "hostId": "vscode-insiders",
           "deploymentStatus": "managed-loose-skills",
           "components": [
@@ -1146,14 +1042,6 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "antigravity",
           "deploymentStatus": "managed-loose-skills"
         },
@@ -1167,10 +1055,6 @@
         },
         {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1254,10 +1138,6 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "opencode",
           "deploymentStatus": "managed-loose-skills"
         },
@@ -1270,10 +1150,6 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "qoder",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "cline",
           "deploymentStatus": "managed-loose-skills"
         },
@@ -1283,10 +1159,6 @@
         },
         {
           "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "hermes",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1385,15 +1257,7 @@
           "deploymentStatus": "managed-loose-skills"
         },
         {
-          "hostId": "qwen-code",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
           "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "qoder",
           "deploymentStatus": "managed-loose-skills"
         },
         {
@@ -1424,10 +1288,6 @@
             "mcp"
           ],
           "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated (slack@agenthub)."
-        },
-        {
-          "hostId": "hermes",
-          "deploymentStatus": "managed-loose-skills"
         },
         {
           "hostId": "opencode",
@@ -1505,10 +1365,8 @@
       "hostMappings": [
         { "hostId": "claude", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "codex", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "qwen-code", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "opencode", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "gemini", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "hermes", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "copilot", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "antigravity", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "grok", "deploymentStatus": "managed-loose-skills" },
@@ -1516,7 +1374,6 @@
         { "hostId": "cline", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "cursor", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "cursor-agent", "deploymentStatus": "managed-loose-skills" },
-        { "hostId": "qoder", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "amp", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "devin", "deploymentStatus": "managed-loose-skills" },
         { "hostId": "factory", "deploymentStatus": "managed-loose-skills" },
