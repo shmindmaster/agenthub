@@ -5,6 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 from source_fence import source_fence
 
 
@@ -42,6 +43,24 @@ class FenceTests(unittest.TestCase):
             (repo / ".vscode").mkdir()
             (repo / ".vscode" / "mcp.json").write_text("{}")
             self.assertNotEqual(baseline, source_fence(repo))
+
+    def test_git_never_takes_optional_locks(self):
+        with tempfile.TemporaryDirectory(prefix="factory-source-fence-") as directory:
+            repo = Path(directory)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            (repo / "source.txt").write_text("baseline")
+            real, seen = subprocess.check_output, []
+
+            def record(command, *args, **kwargs):
+                seen.append(command)
+                return real(command, *args, **kwargs)
+
+            with patch("source_fence.subprocess.check_output", side_effect=record):
+                source_fence(repo)
+            self.assertTrue(seen)
+            for command in seen:
+                self.assertEqual(command[:2], ["git", "--no-optional-locks"])
 
 
 if __name__ == "__main__":

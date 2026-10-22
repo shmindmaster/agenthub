@@ -7,7 +7,7 @@ import subprocess
 
 def source_fence(repo: Path) -> dict:
     def git(*args):
-        return subprocess.check_output(["git", "-C", str(repo), *args],
+        return subprocess.check_output(["git", "--no-optional-locks", "-C", str(repo), *args],
                                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
     names = set(git("ls-files", "-z", "--cached", "--others", "--exclude-standard").split(b"\0"))
