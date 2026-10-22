@@ -12,6 +12,7 @@ import time
 import unittest
 from unittest.mock import patch
 
+import ctypes
 import windows_job
 from windows_job import LeaseRetentionError, run
 
@@ -24,6 +25,31 @@ class BoundedJobTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def wait_for_pid_file(self, name='descendant.pid'):
+        path = self.root / name
+        deadline = time.monotonic() + 5
+        while not path.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertTrue(path.exists(), 'fixture never recorded its descendant PID')
+        return int(path.read_text())
+
+    def assert_process_gone(self, pid):
+        """Independent of the job's own accounting: ask the OS about the PID."""
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.OpenProcess.restype = ctypes.c_void_p
+        kernel.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
+        kernel.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+        handle = kernel.OpenProcess(0x00100000, 0, pid)  # SYNCHRONIZE
+        if not handle:
+            return  # no such process
+        try:
+            # Job accounting drops a process a moment before its handle is
+            # signalled, so allow teardown a short, bounded grace period.
+            self.assertEqual(kernel.WaitForSingleObject(handle, 3000), 0, f'descendant {pid} is still running')
+        finally:
+            kernel.CloseHandle(handle)
 
     def execute(self, source, **kwargs):
         script = self.root / 'child.py'
@@ -62,18 +88,19 @@ class BoundedJobTests(unittest.TestCase):
         source = self.root/'sleep.py'
         source.write_text('import time; time.sleep(60)', encoding='utf-8')
         parent = self.root/'parent.py'
-        parent.write_text("import subprocess,sys,time; subprocess.Popen([sys.executable, 'sleep.py']); time.sleep(60)", encoding='utf-8')
+        parent.write_text("import subprocess,sys,time; p=subprocess.Popen([sys.executable, 'sleep.py']); open('descendant.pid','w').write(str(p.pid)); time.sleep(60)", encoding='utf-8')
         result = run([sys.executable, str(parent)], cwd=self.root, output=self.root/'run',
                      memory_bytes=256*1024**2, timeout_seconds=1, minimum_free_bytes=0)
         self.assertEqual(result['reason'], 'timeout')
         self.assertEqual(result['activeProcessesAfterCleanup'], 0)
+        self.assert_process_gone(self.wait_for_pid_file())
         self.assertLess(result['elapsedSeconds'], 12)
 
     def test_parent_exit_terminates_job(self):
         source = self.root/'sleep.py'
         source.write_text('import time; time.sleep(60)', encoding='utf-8')
         child = self.root/'child.py'
-        child.write_text("import subprocess,sys,time; subprocess.Popen([sys.executable, 'sleep.py']); time.sleep(60)", encoding='utf-8')
+        child.write_text("import subprocess,sys,time; p=subprocess.Popen([sys.executable, 'sleep.py']); open('descendant.pid','w').write(str(p.pid)); time.sleep(60)", encoding='utf-8')
         parent = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(1.5)'],
                                   creationflags=subprocess.CREATE_NO_WINDOW)
         try:
@@ -85,14 +112,16 @@ class BoundedJobTests(unittest.TestCase):
             parent.wait()
         self.assertEqual(result['reason'], 'parent-exited')
         self.assertEqual(result['activeProcessesAfterCleanup'], 0)
+        self.assert_process_gone(self.wait_for_pid_file())
         self.assertLess(result['elapsedSeconds'], 12)
 
     def test_detached_grandchild_is_recorded_before_cleanup(self):
         (self.root/'sleep.py').write_text('import time; time.sleep(60)', encoding='utf-8')
-        result = self.execute("import subprocess,sys; subprocess.Popen([sys.executable, 'sleep.py'])")
+        result = self.execute("import subprocess,sys; p=subprocess.Popen([sys.executable, 'sleep.py']); open('descendant.pid','w').write(str(p.pid))")
         self.assertEqual(result['exitCode'], 0)
         self.assertGreaterEqual(result['activeProcessesBeforeCleanup'], 1)
         self.assertEqual(result['activeProcessesAfterCleanup'], 0)
+        self.assert_process_gone(self.wait_for_pid_file())
 
     def test_clean_exit_records_no_active_processes_before_cleanup(self):
         result = self.execute("print('done')")
@@ -120,6 +149,32 @@ class BoundedJobTests(unittest.TestCase):
         receipt = json.loads((self.root/'run/receipt.json').read_text())
         self.assertIn('cleanupError', receipt)
         self.assertTrue(receipt['leaseRetained'])
+
+    def test_retention_error_survives_a_receipt_write_failure(self):
+        real_write = Path.write_text
+        real = windows_job.C.WinDLL
+
+        class Failing:
+            def __init__(self, *args, **kwargs):
+                self.kernel = real(*args, **kwargs)
+                self.TerminateJobObject = self
+
+            argtypes = restype = None
+
+            def __getattr__(self, name):
+                return getattr(self.kernel, name)
+
+            def __call__(self, *args):
+                return 0
+
+        def refuse(path, *args, **kwargs):
+            if path.name == 'receipt.json':
+                raise OSError('synthetic disk failure')
+            return real_write(path, *args, **kwargs)
+
+        with patch.object(windows_job.C, 'WinDLL', Failing), patch('pathlib.Path.write_text', refuse):
+            with self.assertRaises(LeaseRetentionError):
+                self.execute("print('done')")
 
     def test_low_ram_refuses_before_child(self):
         with self.assertRaisesRegex(RuntimeError, 'child not started'):

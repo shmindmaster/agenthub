@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 
 
@@ -112,6 +113,7 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
         return ok
 
     parent = None
+    finished = False
     if parent_pid is not None:
         parent = check(kernel.OpenProcess(0x00100000, False, parent_pid))  # SYNCHRONIZE
         if kernel.WaitForSingleObject(parent, 0) != 258:
@@ -197,6 +199,7 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
                 exit_code = W.DWORD()
                 check(kernel.GetExitCodeProcess(info.process, C.byref(exit_code)))
                 result["exitCode"] = exit_code.value
+                finished = True
     finally:
         retain = None
         try:
@@ -235,9 +238,18 @@ def run(command: list[str], *, cwd: Path, output: Path, memory_bytes: int,
                 if handle:
                     kernel.CloseHandle(handle)
             result["elapsedSeconds"] = round(time.monotonic() - started, 3)
-            (output / "receipt.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+            write_error = None
+            try:
+                (output / "receipt.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+            except OSError as error:
+                # A receipt failure must not mask an in-flight failure or a
+                # retention verdict: report it and let those continue.
+                write_error = error
+                print(f"Could not write receipt.json ({type(error).__name__}).", file=sys.stderr)
         if retain is not None:
             if isinstance(retain, LeaseRetentionError):
                 raise retain
             raise LeaseRetentionError("Owned process tree not proven gone; retain admission lease") from retain
+        if write_error is not None and finished:
+            raise write_error
     return result
