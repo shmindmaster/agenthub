@@ -169,7 +169,7 @@ function Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd {
     $hermesDest = Join-Path $userProfile 'AppData\Local\hermes\SOUL.md'
     $fixtureRoot = Join-Path $userProfile 'fixture'
     New-Item -ItemType Directory -Path (Join-Path $fixtureRoot 'registry') -Force | Out-Null
-    $registry = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw | ConvertFrom-Json
+    $registry = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Encoding UTF8 -Raw | ConvertFrom-Json
     $hermes = @($registry.activeAgents | Where-Object id -eq 'hermes')[0]
     $hermes.status = 'active' # Synthetic template positive control, never the retired fleet entry.
     @{ activeAgents = @($hermes); inactiveAgents = @(); userProfile = $env:USERPROFILE } |

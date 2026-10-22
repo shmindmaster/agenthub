@@ -274,8 +274,8 @@
     {
       "id": "antigravity",
       "name": "Google Antigravity",
-      "version": "1.4.4",
-      "versionObserved": "Observed 2026-10-22 by the full release suite: the declared agy.exe --version returned 1.4.4. No upgrade was performed.",
+      "version": "1.4.5",
+      "versionObserved": "Observed 2026-10-22 by the full release suite: the declared agy.exe --version returned 1.4.5. No upgrade was performed.",
       "executable": "{userHome}/AppData/Local/agy/bin/agy.exe",
       "versionProbe": "cli",
       "versionPackageId": "Google.AntigravityCLI",
@@ -505,7 +505,7 @@
     {
       "id": "cursor-agent",
       "name": "Cursor Agent CLI",
-      "version": "2026.10.14-941492e",
+      "version": "2026.10.19-6bbf2c4",
       "executable": "{userHome}/bin/cursor-agent.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/cursor-agent/cursor-agent.cmd",
@@ -528,7 +528,7 @@
       "status": "active",
       "surfaceType": "companion-cli",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher uses yolo mode, disables the sandbox, approves MCPs, and shares native Cursor plugins and configuration.",
-      "versionObserved": "2026-10-14: verified installed launcher/file version 2026.10.14-941492e. Manual forward update and launcher reconciliation; active sessions preserved.",
+      "versionObserved": "2026-10-22: full release suite verified cursor-agent.cmd --version returns 2026.10.19-6bbf2c4. No upgrade performed.",
       "headlessDispatchNote": "2026-10-14: native headless contract verified; prior smoke failed authentication. Owner action: run agent login in the owner terminal; dispatcher alias cursor-agent login is equivalent. Do not authenticate automatically."
     },
     {
