@@ -30,11 +30,13 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   (mock providers, no paid calls). Product data (brand, claims, specs) stays in
   the external media workspace.
 
-- **Coding-agent dispatch (2026-10-14, prepared; deployment pending):** `packages/coding-agent-dispatch`
+- **Coding-agent dispatch (2026-10-21, paid-plan policy prepared; deployment pending):** `packages/coding-agent-dispatch`
   owns the `use-coding-agent` skill and `Invoke-CodingAgent.ps1`. Claude and
   Codex are the primary orchestrators. Any host that has the skill can call
-  the same script. `-List` is the callable set. Devin and OpenCode passed
-  bounded smokes on explicitly free models; other hosts have explicit gates.
+  the same script. `-List` is the callable set. The paid Devin model replaces
+  its former free route. OpenCode's Go model is selected, but dispatch remains
+  disabled pending owner verification and a successful smoke. Bounded smoke
+  results are recorded in `docs/fleet/paid-plans-smoke-2026-10-21.md`.
   A host without a verified headless command is refused, including GUI hosts. Deploy with
   `Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`. The
   orchestrator doors are `agents/claude/coding-agent.md` and

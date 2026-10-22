@@ -52,7 +52,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     [IO.File]::WriteAllText($stub, "@echo off`r`n`"$node`" `"$recorder`" %*`r`n")
     $ids = @('claude','codex','cursor','cursor-agent','qwen-code','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','qoder','warp','windsurf','hermes','antigravity-desktop')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium' }; opencode = @{ model = 'opencode/big-pickle' } } }
+    $fleet = @{ autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium-lightning' }; opencode = @{ model = 'opencode-go/hy3' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -79,8 +79,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         }
         if ($id -eq 'antigravity') { Check 'agy attaches print value after permissions' ($d.Arguments -contains '--print=ok' -and $d.Arguments[0] -eq '--dangerously-skip-permissions') }
         if ($id -eq 'warp') { Check 'warp receives CLI environment' ($d.WarpMode -eq '1' -and $d.Arguments[0] -eq 'agent' -and $d.Arguments[1] -eq 'run') }
-        if ($id -eq 'devin') { Check 'Devin receives prompt file and pinned free model' ($d.PromptContents -contains 'ok' -and $d.Arguments -contains '--prompt-file' -and $d.Arguments -contains 'swe-2-medium') }
-        if ($id -eq 'opencode') { Check 'OpenCode receives pinned free model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'opencode/big-pickle') }
+        if ($id -eq 'devin') { Check 'Devin receives prompt file and paid model' ($d.PromptContents -contains 'ok' -and $d.Arguments -contains '--prompt-file' -and $d.Arguments -contains 'swe-2-medium-lightning') }
+        if ($id -eq 'opencode') { Check 'OpenCode receives paid plan model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'opencode-go/hy3') }
         if ($id -eq 'amp') { Check 'Amp receives unattended stdin contract' ($d.Input -eq 'ok' -and $d.Arguments -contains '-x' -and $d.Arguments -contains '--no-notifications' -and $d.Arguments -contains '--no-ide') }
         if ($id -eq 'qoder') { Check 'Qoder receives print workspace and text options' ($d.Arguments -contains '-p' -and $d.Arguments -contains '-w' -and $d.Arguments -contains $scratch -and $d.Arguments -contains 'text') }
     }
@@ -99,7 +99,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         Check "$id preserves UTF-8 task through stdin or file" ($r.Exit -eq 0 -and ($d.Input -eq $text -or $d.PromptContents -contains $text)) $r.Err
     }
     $r = Run @('-HostId','windsurf','-Prompt','ok','-Cwd',$scratch)
-    Check 'Windsurf executes the Devin file contract' ($r.Exit -eq 0 -and $r.Out -match 'routed: windsurf -> devin' -and $r.Out -match 'swe-2-medium') $r.Err
+    Check 'Windsurf executes the Devin file contract' ($r.Exit -eq 0 -and $r.Out -match 'routed: windsurf -> devin' -and $r.Out -match 'swe-2-medium-lightning') $r.Err
     $r = Run @('-HostId','qoder','-Prompt','--dash & echo %PATH%','-ShowCommand')
     Check 'show command uses safe pointer' ($r.Exit -eq 0 -and $r.Out -match 'prompt-show.txt' -and $r.Out -notmatch '%PATH%')
     $fleet.dispatchPolicy['devin'] = @{ enabled = $false; reason = 'synthetic auth block'; ownerAction = 'owner runs devin auth login' }; Save-Fixture

@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.2.0 (loose skill; version metadata lives in `SKILL.md`).
+Version 0.2.1 (loose skill; version metadata lives in `SKILL.md`).
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever
@@ -13,8 +13,11 @@ Gemini, Grok, OpenCode, Antigravity CLI, Factory Droid, Cline, Copilot, Amp,
 Devin, Qoder and Warp/Oz. `cursor` has a configured alias to Cursor Agent,
 currently refused by its interactive autonomy profile; `windsurf` routes
 to Devin. Readiness is additionally gated by `dispatchPolicy` and each
-host's autonomy profile. Devin (`swe-2-medium`) and OpenCode (`opencode/big-pickle`) passed bounded
-live smokes on explicitly free models; the Windsurf alias shares Devin's command.
+host's autonomy profile. Devin uses its paid plan model recorded in
+`registry/fleet-profile.json`; OpenCode's Go model is selected there but
+dispatch remains disabled pending owner verification and a successful smoke.
+Windsurf shares Devin's model and command. The 2026-10-21 bounded smoke results
+are recorded in `docs/fleet/paid-plans-smoke-2026-10-21.md`.
 
 Cursor Agent needs owner `agent login`; Factory needs owner `/login` inside
 `droid`. Qoder needs owner `qodercli login`. Hermes' declared executable is absent. Qwen's configured

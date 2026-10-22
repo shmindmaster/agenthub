@@ -2,7 +2,7 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # Use a coding agent from another coding agent
@@ -32,24 +32,27 @@ Aliases enforce their own policy and the target's policy and autonomy profile.
 Refused rows stay refused. Help verification establishes a command contract;
 authentication, allowance and smoke evidence establish readiness separately.
 
-The 0.2.0 contracts cover Claude, Codex, Cursor Agent, Qwen Code, Gemini,
+The 0.2.1 contracts cover Claude, Codex, Cursor Agent, Qwen Code, Gemini,
 Grok, OpenCode, Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin,
 Qoder and local Warp/Oz. `registry/fleet-profile.json` -> `dispatchPolicy`
 can disable each contract with a reason and owner action. The current verified
-free routes are Devin (`swe-2-medium`), also used by the Windsurf alias,
-and OpenCode (`opencode/big-pickle`).
+model and provider selections are recorded in `registry/fleet-profile.json` ->
+`hostSettings` and `dispatchPolicy`. Do not reuse historical free-model
+selections for a host whose current policy names a paid plan model.
 
 Owner gates recorded in this repair:
 
 | Host | Required step before enabling |
 | --- | --- |
 | Cursor Agent | Owner runs `agent login` in their own terminal, then one authorized smoke. Use `cursor-agent` directly; the Cursor IDE alias also requires an approved unattended autonomy profile. |
-| Factory | Owner opens `droid` and runs `/login`, then one authorized smoke. |
 | Hermes | Restore the missing executable through official installation/setup; verify help and smoke. |
 | Qoder | Owner runs `qodercli login`; confirm allowance and run one smoke before enabling. |
 | Qwen Code | Resolve the `qwen3.8-max` HTTP 403 against the account's Token Plan entitlements; set an eligible model in Qwen settings and verify allowance before a smoke. Catalog membership is insufficient. |
 | Gemini | Resolve exhausted fetch retries; verify API connectivity, model access and included allowance before a smoke. |
 | Other gated CLIs | Confirm included allowance for the configured provider/model or obtain an explicit task credit budget, then one smoke before enabling. |
+
+If a Factory auth check fails, keep dispatch disabled and have the owner run
+`droid` and `/login` in their own terminal.
 
 Never log in, change credentials, or accept paid fallback automatically. A
 local headless command does not authorize cloud execution. `devin-cloud`,
