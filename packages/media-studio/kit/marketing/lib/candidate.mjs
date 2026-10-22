@@ -1,5 +1,5 @@
 // Candidate identity is explicit. QA and delivery never select "the latest" encode.
-import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileSha, readJson } from './util.mjs';
 
@@ -30,6 +30,18 @@ export function candidatePaths(ctx, ratio) {
   }
   const dir = ctx.flags.composeDir ? resolve(ctx.flags.composeDir) : join(ctx.jobDir, 'compose', 'candidates', id, ratio);
   const qa = ctx.flags.qaDir ? join(resolve(ctx.flags.qaDir), ratio) : join(ctx.jobDir, 'qa', id, ratio);
+  if (ctx.flags.candidate) {
+    // The actual write tree includes the ratio and ws descendants, not just qaDir.
+    // Never follow an existing link while creating or refreshing external evidence.
+    const pending = [qa];
+    while (pending.length) {
+      const path = pending.pop();
+      const entry = lstatSync(path, { throwIfNoEntry: false });
+      if (!entry) continue;
+      if (entry.isSymbolicLink()) throw new Error('external QA write tree must not contain symlinks or reparse points');
+      if (entry.isDirectory()) pending.push(...readdirSync(path).map(name => join(path, name)));
+    }
+  }
   return { id, dir, qa, ad: ctx.flags.candidate ? resolve(ctx.flags.candidate) : join(dir, 'ad.mp4') };
 }
 

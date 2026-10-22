@@ -8,7 +8,7 @@ import { run } from './mix.mjs';
 import { fileSha, readJson, round, writeJson } from './util.mjs';
 import { expandKeywords } from './align.mjs';
 import { alignWords as forceAlign } from './providers/local.mjs';
-import { forcedWordOnsets } from '../../screencast/sync-lib.mjs';
+import { forcedWordOnsets, textWords } from '../../screencast/sync-lib.mjs';
 
 const AI = process.env.MVG_LOCAL_AI || 'D:\\Local-AI\\ai.ps1';
 
@@ -63,7 +63,7 @@ export async function runSyncGates({ ws, candidate, moduleRoot, composeMapRel, s
       const script = join(alignDir, `${i}.txt`), output = join(alignDir, `${i}.json`);
       writeFileSync(script, seg.text, 'utf8');
       await align({ file: line.file, script, output });
-      const expected = seg.text.split(/\s+/).filter(Boolean).map((w) => ({ w }));
+      const expected = textWords(seg.text).map((w) => ({ w }));
       const words = forcedWordOnsets(readJson(output), expected, { takeSha256: fileSha(line.file), scriptSha256: fileSha(script) });
       const lead = line.startSec - seg.startSeconds;
       writeJson(join(ws, 'voice', 'asr', `${seg.id}.json`), { words: words.map((w) => ({ ...w, start: round(w.start + lead), end: round(w.end + lead) })), clock: 'forced-aligner', takeSha256: fileSha(line.file), alignment: output });
