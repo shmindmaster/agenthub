@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import mimetypes
@@ -119,8 +120,6 @@ def voice_status(args: argparse.Namespace) -> int:
 
 
 def tts_preflight(voice_id: str, model_id: str, text: str, max_credits: float | None) -> dict:
-    if model_id == "eleven_v4_turbo":
-        raise RuntimeError("eleven_v4_turbo requires Text to Dialogue WebSocket, which this REST adapter does not implement")
     summary = _account_summary(_get_json("/user/subscription"))
     if summary["status"] != "active":
         raise RuntimeError("An active subscription must be established before generation")
@@ -190,6 +189,27 @@ def _dictionary_locators(values: list[str] | None) -> list[dict[str, str]]:
     return locators
 
 
+ALIGNMENT_KEYS = ("characters", "character_start_times_seconds", "character_end_times_seconds")
+
+
+def _valid_alignment(value) -> bool:
+    return (isinstance(value, dict) and all(isinstance(value.get(key), list) for key in ALIGNMENT_KEYS)
+            and len({len(value[key]) for key in ALIGNMENT_KEYS}) == 1)
+
+
+def split_timestamped_response(raw: bytes) -> tuple[bytes, dict]:
+    """Split a /with-timestamps JSON body into audio bytes and its character alignment."""
+    try:
+        data = json.loads(raw)
+        audio = base64.b64decode(data["audio_base64"], validate=True)
+    except (ValueError, KeyError, TypeError):
+        raise RuntimeError("Saved asset is not a timestamped response; no alignment can be rebuilt from it") from None
+    normalized = data.get("normalized_alignment")
+    if not audio or not _valid_alignment(data.get("alignment")) or not (normalized is None or _valid_alignment(normalized)):
+        raise RuntimeError("Timestamped response is missing audio or a consistent character alignment")
+    return audio, {"alignment": data["alignment"], "normalized_alignment": normalized}
+
+
 def tts(args: argparse.Namespace) -> int:
     voice_id = args.voice_id or os.environ.get("ELEVENLABS_VOICE_ID")
     if not voice_id:
@@ -209,13 +229,14 @@ def tts(args: argparse.Namespace) -> int:
     locators = _dictionary_locators(args.pronunciation_dictionary)
     if args.dry_run:
         preflight = tts_preflight(voice_id, model_id, args.text, args.max_credits)
-        print(json.dumps({"dry_run": True, **preflight}))
+        print(json.dumps({"dry_run": True, "with_timestamps": args.with_timestamps, **preflight}))
         return 0
     if args.max_credits is None:
         raise RuntimeError("Paid generation requires an explicit --max-credits budget")
     output = pathlib.Path(args.output).expanduser()
-    if output.exists() or output.with_suffix(output.suffix + ".provenance.json").exists():
-        raise RuntimeError("Output or receipt already exists; reuse it or choose a new take path")
+    alignment_path = output.with_suffix(output.suffix + ".alignment.json") if args.with_timestamps else None
+    if output.exists() or output.with_suffix(output.suffix + ".provenance.json").exists() or (alignment_path and alignment_path.exists()):
+        raise RuntimeError("Output, receipt or alignment already exists; reuse it or choose a new take path")
     # Resolve a usable local destination before consuming provider credits.
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -252,14 +273,30 @@ def tts(args: argparse.Namespace) -> int:
         **({"seed": args.seed} if args.seed is not None else {}),
     }
     import governed_elevenlabs
-    raw, receipt = governed_elevenlabs.generate(sys.modules[__name__], args, voice_id, model_id, output_format, payload_object)
+    raw, receipt = governed_elevenlabs.generate(sys.modules[__name__], args, voice_id, model_id, output_format,
+                                                payload_object, with_timestamps=args.with_timestamps)
     receipt["output"] = str(output.resolve())
+    alignment_bytes = None
+    if args.with_timestamps:
+        # The ledger asset is the provider's JSON body; acceptance binds ledger_asset_sha256, the file on disk is the decoded audio.
+        raw, alignment = split_timestamped_response(raw)
+        alignment_bytes = (json.dumps({"schema": "elevenlabs/tts-alignment/1", "request_id": receipt["request_id"],
+                                       "model_id": model_id, "voice_id": voice_id, "output_format": output_format,
+                                       "audio_sha256": hashlib.sha256(raw).hexdigest(), **alignment}, indent=1) + "\n").encode("utf-8")
+        receipt.update({"with_timestamps": True, "ledger_asset_sha256": receipt["output_sha256"],
+                        "output_sha256": hashlib.sha256(raw).hexdigest(), "output_bytes": len(raw),
+                        "alignment_output": str(alignment_path.resolve()),
+                        "alignment_sha256": hashlib.sha256(alignment_bytes).hexdigest()})
     # Save the receipt first; a failed local save remains recoverable without repurchasing.
     with output.with_suffix(output.suffix + ".provenance.json").open("x", encoding="utf-8") as handle:
         handle.write(json.dumps(receipt, indent=2) + "\n")
     with output.open("xb") as handle:
         handle.write(raw)
-    print(json.dumps({"ok": True, "output": str(output), "acceptance_state": receipt["acceptance_state"], "reused": receipt["reused"]}))
+    if alignment_bytes is not None:
+        with alignment_path.open("xb") as handle:
+            handle.write(alignment_bytes)
+    print(json.dumps({"ok": True, "output": str(output), "acceptance_state": receipt["acceptance_state"], "reused": receipt["reused"],
+                      **({"alignment": str(alignment_path)} if alignment_bytes is not None else {})}))
     return 0
 
 
@@ -395,6 +432,8 @@ def main() -> int:
     p_tts.add_argument("--pronunciation-dictionary", action="append", metavar="ID[:VERSION]", help="Repeatable, max 3, applied in order")
     p_tts.add_argument("--language-code")
     p_tts.add_argument("--seed", type=int)
+    p_tts.add_argument("--with-timestamps", action="store_true",
+                       help="POST /with-timestamps; also writes <output>.alignment.json (character alignment)")
     p_tts.set_defaults(func=tts)
     p_sfx = sub.add_parser("sfx", help="Governed sound effect (ledger-reserved, receipt-bound)")
     p_sfx.add_argument("--text", required=True)

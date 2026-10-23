@@ -1,4 +1,5 @@
 """Synthetic, offline checks for spending and diagnostic boundaries."""
+import base64
 import contextlib
 import io
 import json
@@ -51,11 +52,10 @@ class SpendingBoundaries(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "unknown"):
             self.check()
 
-    def test_dialogue_only_model_never_calls_rest(self):
-        with patch.object(cli, "_get_json") as get:
-            with self.assertRaisesRegex(RuntimeError, "WebSocket"):
-                cli.tts_preflight("fixture", "eleven_v4_turbo", "hello", 10)
-            get.assert_not_called()
+    def test_v4_turbo_is_priced_from_live_inventory(self):
+        self.voice = {"category": "premade"}
+        self.model["model_id"] = "eleven_v4_turbo"
+        self.assertEqual(self.check(model="eleven_v4_turbo")["estimated_credits"], 3)
 
     def test_quota_and_budget_fail(self):
         with self.assertRaisesRegex(RuntimeError, "max-credits"):
@@ -154,9 +154,9 @@ class GovernedRouting(unittest.TestCase):
     invoke = SpendingBoundaries.invoke
     metadata = SpendingBoundaries.metadata
 
-    def governed(self, target, revision="locked-voice-model-v1"):
+    def governed(self, target, revision="locked-voice-model-v1", extra=()):
         return self.invoke(target, ["--governed", "--cache-workspace", "fixture-project",
-                                   "--cache-revision", revision, "--max-credits", "10"])
+                                   "--cache-revision", revision, "--max-credits", "10", *extra])
 
     def test_missing_adapter_fails_without_provider_submission(self):
         import builtins
@@ -198,6 +198,53 @@ class GovernedRouting(unittest.TestCase):
                 self.assertEqual(self.governed(self.root / "b.mp3"), 2)
             self.assertEqual(post.call_count, 1)
             self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
+
+    def timestamped(self, audio=b"synthetic audio"):
+        alignment = {"characters": list("hi"), "character_start_times_seconds": [0.0, 0.1],
+                     "character_end_times_seconds": [0.1, 0.2]}
+        body = json.dumps({"audio_base64": base64.b64encode(audio).decode(), "alignment": alignment,
+                           "normalized_alignment": alignment}).encode()
+        return (200, "application/json", body, {"request-id": "fixture-request"})
+
+    def test_timestamps_write_audio_alignment_and_bound_receipt(self):
+        with patch.object(cli, "_request_full", return_value=self.timestamped()) as post:
+            target = self.root / "a.mp3"
+            self.assertEqual(self.governed(target, extra=["--with-timestamps"]), 0)
+            self.assertIn("/text-to-speech/fixture/with-timestamps?output_format=", post.call_args.args[0])
+            self.assertEqual(target.read_bytes(), b"synthetic audio")
+            alignment_file = target.with_suffix(".mp3.alignment.json")
+            alignment = json.loads(alignment_file.read_text())
+            self.assertEqual(alignment["alignment"]["characters"], ["h", "i"])
+            self.assertEqual(alignment["normalized_alignment"]["character_end_times_seconds"], [0.1, 0.2])
+            receipt = json.loads(target.with_suffix(".mp3.provenance.json").read_text())
+            self.assertEqual(receipt["output_sha256"], cli.hashlib.sha256(b"synthetic audio").hexdigest())
+            self.assertEqual(receipt["alignment_sha256"], cli.hashlib.sha256(alignment_file.read_bytes()).hexdigest())
+            self.assertEqual(receipt["ledger_asset_sha256"], cli.hashlib.sha256(self.timestamped()[2]).hexdigest())
+
+    def test_timestamps_flag_is_part_of_the_cache_key(self):
+        with patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", b"synthetic audio", {"request-id": "plain"})):
+            self.assertEqual(self.governed(self.root / "a.mp3"), 0)
+        with patch.object(cli, "_request_full", return_value=self.timestamped()) as post:
+            self.assertEqual(self.governed(self.root / "b.mp3", extra=["--with-timestamps"]), 0)
+            self.assertEqual(self.governed(self.root / "c.mp3", extra=["--with-timestamps"]), 0)
+            self.assertEqual(post.call_count, 1)
+        self.assertTrue(self.root.joinpath("c.mp3.alignment.json").exists())
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 20)
+
+    def test_existing_alignment_path_never_posts(self):
+        self.root.joinpath("a.mp3.alignment.json").write_text("{}")
+        with patch.object(cli, "_request_full") as post, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(self.governed(self.root / "a.mp3", extra=["--with-timestamps"]), 2)
+            post.assert_not_called()
+
+    def test_untimed_timestamp_response_retains_reservation(self):
+        with patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", b"synthetic audio", {"request-id": "fixture"})) as post:
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(self.governed(self.root / "a.mp3", extra=["--with-timestamps"]), 2)
+                self.assertEqual(self.governed(self.root / "b.mp3", extra=["--with-timestamps"]), 2)
+            self.assertEqual(post.call_count, 1)
+        self.assertFalse(self.root.joinpath("a.mp3").exists())
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
 
     def test_unversioned_dictionary_and_missing_revision_never_post(self):
         with patch.object(cli, "_request_full") as post, contextlib.redirect_stderr(io.StringIO()):

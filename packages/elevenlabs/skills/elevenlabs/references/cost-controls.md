@@ -60,10 +60,11 @@ dollar rates, minutes or hours without its actual billing contract. Published
 rates are not the account's invoice or a measured quality ranking. SFX units
 conflict even within the public pricing page; fail closed on unsupported quotes.
 Vendor latency claims exclude application/network and whole-job latency.
-The v4 Turbo docs specify Text to Dialogue WebSocket; the shared CLI implements
-Text to Speech REST. A live catalog entry does not establish compatibility with
-that wrapper. Use the matching documented endpoint/schema and retain success
-evidence; do not substitute a model ID blindly or claim every model implemented.
+v4 Turbo is documented for both REST Text to Speech and the Text to Dialogue
+WebSocket; the shared CLI implements only REST (including `--with-timestamps`).
+A live catalog entry alone does not establish compatibility with a wrapper. Use
+the matching documented endpoint/schema and retain success evidence; do not
+substitute a model ID blindly or claim every model implemented.
 
 ## Batch and prompt cache
 

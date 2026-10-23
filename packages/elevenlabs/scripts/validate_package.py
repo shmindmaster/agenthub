@@ -11,7 +11,7 @@ import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "3.0.1"
+EXPECTED_VERSION = "3.1.0"
 MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
@@ -35,6 +35,7 @@ REQUIRED_TTS_FLAGS = (
     "--next-request-id",
     "--output-format",
     "--pronunciation-dictionary",
+    "--with-timestamps",
 )
 
 
@@ -117,7 +118,9 @@ def main() -> int:
     if "shared CLI owns the provider request" not in narration_skill:
         failures.append("ElevenLabs TTS reference does not declare canonical provider ownership")
     if "eleven_v4_turbo" not in narration_skill:
-        failures.append("ElevenLabs TTS reference lost the eleven_v4_turbo refusal")
+        failures.append("ElevenLabs TTS reference lost the eleven_v4_turbo endpoint note")
+    if "--with-timestamps" not in narration_skill:
+        failures.append("ElevenLabs TTS reference lost the --with-timestamps contract")
     if "--dry-run" not in narration_skill:
         failures.append("ElevenLabs TTS reference lost the dry-run rule")
     if "fails closed" not in texts.get("references/stt.md", ""):
