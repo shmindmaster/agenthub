@@ -11,7 +11,7 @@ import { LEAD_SECONDS, TAIL_SECONDS, normalizeCuts } from '../lint.mjs';
 import { resolveClip } from './capture.mjs';
 import { estimateWhisperUsd } from '../prices.mjs';
 import { FPS, alignScriptToAsr, buildTimeline, parseAsrWords, snapToBeatGrid } from '../timing.mjs';
-import { forcedWordOnsets } from '../../../screencast/sync-lib.mjs';
+import { forcedWordOnsets, textWords } from '../../../screencast/sync-lib.mjs';
 import { run } from '../mix.mjs';
 import { fileSha, readJson, round, writeJson } from '../util.mjs';
 
@@ -77,7 +77,7 @@ async function alignedWordsFor(ctx, { audio, asrPath, script, acceptedTakeSha256
     await align({ file: audio, script: scriptPath, output: asrPath });
   }
   const report = readJson(asrPath);
-  const expectedWords = String(script).split(/\s+/).filter(Boolean).map((word) => ({ w: word }));
+  const expectedWords = textWords(script).map((word) => ({ w: word }));
   const words = forcedWordOnsets(report, expectedWords, { takeSha256, scriptSha256: fileSha(scriptPath) })
     .map((w) => ({ word: w.w, start: round(w.start), end: round(w.end) }));
   return { payload: report, words, cached, scriptPath };
