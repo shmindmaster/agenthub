@@ -47,3 +47,9 @@ stranger-safe first run. For this private fleet checkout, also use
   Qwen Code, and Hermes retirement record.
 - [account-logins-2026-10-21.md](./fleet/account-logins-2026-10-21.md) — host
   account-authentication commands and verified gates.
+
+## Proposals
+
+- [proposals/media-studio-2.1-sync-and-build.md](./proposals/media-studio-2.1-sync-and-build.md) —
+  proposed media-studio 2.1: word-synced text, diagrams that build on narration
+  beats, emphasis role tokens, and the word-sync gate (review only).
