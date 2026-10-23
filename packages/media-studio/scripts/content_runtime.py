@@ -269,6 +269,15 @@ class Ledger:
             if changed != 1:
                 raise RuntimeError("Release requires an expired, never-submitted reservation")
 
+    def reject(self, claim):
+        """The provider refused this fenced submission before generating anything (for example HTTP 429).
+        Releases its reservation so the exact request can be submitted again; any other outcome stays unknown."""
+        with self.connect(True) as con:
+            changed = con.execute("DELETE FROM requests WHERE namespace=? AND key=? AND token=? AND state='submitted'",
+                                  (claim["namespace"], claim["key"], claim["token"])).rowcount
+            if changed != 1:
+                raise RuntimeError("Rejection requires this worker's own submitted request")
+
     def freeze(self, bucket):
         with self.connect(True) as con:
             changed = con.execute("UPDATE budgets SET ceiling=? WHERE bucket=?",

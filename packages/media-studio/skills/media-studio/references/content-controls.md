@@ -83,7 +83,9 @@ worker until its lease expires, or the worker explicitly records an unknown
 outcome. Request IDs are saved as soon as response headers arrive, including HTTP
 error responses. A response without an ID never becomes reusable content.
 Lost/ambiguous responses retain the reservation and
-fail closed. Recover the exact provider history item (GET only):
+fail closed. The one exception is HTTP 429 (rate or concurrency limit): the provider
+refused before generating, so the worker releases its own submission
+(`Ledger.reject`) and the exact request may be retried later. Recover the exact provider history item (GET only):
 
 ```powershell
 python $Cli reconcile --namespace <saved-namespace> --cache-key <saved-key> --cache-workspace <same-workspace> --history-id <exact-history-id>

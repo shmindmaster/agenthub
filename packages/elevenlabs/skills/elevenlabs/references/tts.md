@@ -58,6 +58,10 @@ the same preflight, reservation and exact cache; the flag is part of the cache
 key. The ledger keeps the provider's JSON body, so the receipt's `output_sha256`
 is the audio file and `ledger_asset_sha256` is what acceptance binds. History
 recovery returns audio only and cannot rebuild an alignment.
+
+HTTP 429 (rate or concurrency limit) releases that request's reservation, because
+nothing was generated; back off and retry the identical request. Every other
+failure keeps the reservation and blocks a repeat purchase until reconciled.
 `eleven_v4` exposes only stability and similarity: `--style` and `--speed` are still forwarded
 but the CLI warns they have no verified effect, so do not pass them with a v4 model. Output format defaults to
 `ELEVENLABS_OUTPUT_FORMAT` or `mp3_44100_192`; check tier support first.
