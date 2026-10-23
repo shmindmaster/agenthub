@@ -43,6 +43,8 @@ stranger-safe first run. For this private fleet checkout, also use
 
 ## Fleet
 
+- [context-reduction.md](./fleet/context-reduction.md) — manual context audits,
+  reversible skill cleanup and native on-demand tool discovery.
 - [retired-hosts-2026-10-21.md](./fleet/retired-hosts-2026-10-21.md) — Qoder,
   Qwen Code, and Hermes retirement record.
 - [account-logins-2026-10-21.md](./fleet/account-logins-2026-10-21.md) — host

@@ -167,7 +167,7 @@
     {
       "id": "copilot",
       "name": "GitHub Copilot CLI",
-      "version": "1.0.102",
+      "version": "1.0.103",
       "executable": "{userHome}/bin/copilot.cmd",
       "nativePaths": {
         "settings": "{userHome}/.copilot/settings.json",
@@ -189,7 +189,7 @@
         "acp"
       ],
       "status": "active",
-      "versionObserved": "Observed 2026-10-21 in the bounded full suite: `copilot.cmd --version` printed GitHub Copilot CLI 1.0.102. Historical observations: Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `copilot.cmd --version` printed GitHub Copilot CLI 1.0.101. Earlier: 2026-10-14: verified installed launcher/file version 1.0.98. Manual forward update and launcher reconciliation; active sessions preserved."
+      "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run."
     },
     {
       "id": "antigravity",
@@ -285,8 +285,8 @@
     {
       "id": "grok",
       "name": "Grok CLI",
-      "version": "1.0.62",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `grok.exe --version` printed grok 1.0.62 (1474f9cbdd91) [stable]. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported `grok 1.0.52 (0920c8169e27) [stable]`. `grok update` reported already up to date at 1.0.52 and was not followed by a package-manager upgrade. No upgrade or downgrade was performed by this inventory correction.",
+      "version": "1.0.67",
+      "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run.",
       "versionNote": "Corrected 2026-08-19. This is NOT a version bump: the previously recorded 0.2.114 belongs to a different product line entirely and was never an observation of this install. Every artifact this install owns agrees on the 1.0.x scheme of xai-org/grok-build -- the binary's own `grok --version` (returned `grok 1.0.5 (5115b46bc9) [stable]`), the previous binary grok.exe.old at 1.0.4, ~/.grok/version.json, and ~/.grok/CHANGELOG.json. Nothing on this machine contains the string 0.2.114. What product 0.2.114 actually named was NOT determined and is recorded here as unresolved rather than guessed at.",
       "executable": "{userHome}/.grok/bin/grok.exe",
       "nativePaths": {
@@ -391,7 +391,7 @@
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.25.9",
+      "version": "3.27.12",
       "executable": "{userHome}/bin/cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
@@ -420,7 +420,7 @@
       ],
       "status": "active",
       "notes": "Owner reauthorized dispatch on 2026-07-30. The managed launcher was re-verified against Cursor 3.17.8 on 2026-08-22; native local plugins expose the canonical AgentHub packages.",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `cursor.cmd --version` printed 3.25.9. Earlier: 2026-10-14: verified installed launcher/file version 3.24.18. Manual forward update and launcher reconciliation; active sessions preserved."
+      "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run."
     },
     {
       "id": "cursor-agent",
@@ -561,7 +561,7 @@
     {
       "id": "vscode-insiders",
       "name": "VS Code Insiders",
-      "version": "1.143.0-insider",
+      "version": "1.144.0-insider",
       "executable": "{userHome}/AppData/Local/Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd",
       "nativePaths": {
         "mcp": "{roamingConfig}/Code - Insiders/User/mcp.json",
@@ -585,7 +585,7 @@
       "versionProbe": "cli",
       "executableNote": "Corrected 2026-10-14. The 2026-09-09 survey recorded this launcher as absent. code-insiders.cmd is present. It is an editor, not a headless dispatch target. `code-insiders.cmd --version` returned 1.142.0-insider. No installer was run.",
       "versionProbeNote": "versionProbe stays cli. The declared launcher exists and `code-insiders.cmd --version` prints and exits. Corrected 2026-10-14 from the stale note that said the executable was absent.",
-      "versionObserved": "2026-10-14: verified installed launcher/file version 1.143.0-insider. Manual forward update and launcher reconciliation; active sessions preserved."
+      "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run."
     }
   ],
   "inactiveAgents": [

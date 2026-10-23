@@ -54,7 +54,7 @@ function Read-Utf8([string]$Path) {
 
 $skill = Read-Utf8 $skillPath
 $metadata = Read-Utf8 $metadataPath
-$policy = Read-Utf8 $policyPath
+$policy = Read-AgentHubTestPolicy -PolicyPath $policyPath -Domains media,communication
 $registry = if (Test-Path -LiteralPath $registryPath) {
     Get-AgentHubMergedCapabilitiesDocument -OverlayRoot $overlay.Root -CapabilitiesDocument (Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json)
 } else { $null }
@@ -73,7 +73,7 @@ Report 'skill identity and trigger description are explicit' `
     'expected sarosh-audio-voice frontmatter, a "Use when" description naming voice clone and speaker-identity triggers, and allow_implicit_invocation: true'
 
 # 2. One capability owns the skill and deploys it to the complete managed set.
-$owners = if ($registry) { @($registry.capabilities | Where-Object { 'sarosh-audio-voice' -in @($_.managedSkillNames) }) } else { @() }
+$owners = @(if ($registry) { $registry.capabilities | Where-Object { 'sarosh-audio-voice' -in @($_.managedSkillNames) } })
 $capability = if ($owners.Count -eq 1) { $owners[0] } else { $null }
 $expectedHosts = @(
     'amp', 'antigravity', 'claude', 'cline', 'codex', 'copilot', 'cursor',

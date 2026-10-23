@@ -50,7 +50,7 @@ function Read-Utf8([string]$Path) {
 
 $skill = Read-Utf8 $skillPath
 $metadata = Read-Utf8 $metadataPath
-$policy = Read-Utf8 $policyPath
+$policy = Read-AgentHubTestPolicy -PolicyPath $policyPath -Domains communication
 $registry = if (Test-Path -LiteralPath $registryPath) {
     Get-AgentHubMergedCapabilitiesDocument -OverlayRoot $overlay.Root -CapabilitiesDocument (Get-Content -LiteralPath $registryPath -Raw -Encoding UTF8 | ConvertFrom-Json)
 } else { $null }
@@ -71,7 +71,7 @@ Report 'skill identity, written/audio boundary, and implicit invocation are expl
 
 # 2. One capability owns the skill, deploys it to the complete managed set,
 #    and no longer manages a sarosh-writing skill (retired from this branch).
-$owners = if ($registry) { @($registry.capabilities | Where-Object { 'sarosh-communication' -in @($_.managedSkillNames) }) } else { @() }
+$owners = @(if ($registry) { $registry.capabilities | Where-Object { 'sarosh-communication' -in @($_.managedSkillNames) } })
 $capability = if ($owners.Count -eq 1) { $owners[0] } else { $null }
 $expectedHosts = @(
     'amp', 'antigravity', 'claude', 'cline', 'codex', 'copilot', 'cursor',
@@ -106,52 +106,33 @@ Report 'global policy routes communication, writing, and audio separately' `
     $policyOk `
     'expected mandatory loading for replies, progress commentary, final task reports, and drafts'
 
-# 4. The restored authoritative text preserves the load-bearing communication
-#    contract and its numbered sections. The framework started at 28 sections
-#    and grows (evidence ladder, recruiter outreach, and sending were added
-#    2026-10-06), so the contract is: sections numbered 1..N with no gap, N
-#    never below the original 28, and the last one is the Final Check.
-#    Section 1 (Objective) has always been a level-2 heading under the title.
+# The everyday entry stays small and requires the retained professional
+# reference only for recipient-specific work. Test safeguards, not templates.
+$referencePath = Join-Path $skillRoot 'references\professional-messaging.md'
+$reference = Read-Utf8 $referencePath
+$referenceRequired = $skill -match '(?is)professional messages, first read\s+`references/professional-messaging.md`'
+$contract = $skill + "`n" + $reference
 $requiredPatterns = @(
-    'Bottom Line.*Impact.*Action',
-    'No action needed from you\.',
-    'Minimum necessary content wins',
-    'Accuracy.*Clarity.*Brevity.*Actionability.*Tone',
-    'Machine-generated logs and raw tool output',
-    'proposed.*implemented.*tested.*committed.*reviewed.*merged.*deployed.*production-verified.*user-validated',
-    '\[TK: specific information needed\]',
-    '\[TK .{1,3} requires sign-off:',
-    'A blocker stops the \*\*send\*\*, not necessarily the \*\*draft\*\*',
-    'Relational Messages'
+    'proposed.*implemented.*tested.*committed.*reviewed.*merged.*deployed.*production-verified',
+    'Missing evidence is UNKNOWN',
+    'Owner confirmations outrank',
+    'Never invent a metric',
+    'Preserve raw machine output',
+    'Verify recipient, rendered formatting,\s+exact attachment and actual delivery',
+    'No action needed from you',
+    '\[TK: specific information needed\]'
 )
-$missingPatterns = @($requiredPatterns | Where-Object { -not ($skill -match "(?is)$_") })
-$sectionNumbers = if ($skill) { @([regex]::Matches($skill, '(?m)^#{1,2} (\d+)\. ') | ForEach-Object { [int]$_.Groups[1].Value }) } else { @() }
-$lastSection = if ($sectionNumbers.Count -gt 0) { $sectionNumbers[-1] } else { 0 }
-$sectionsContiguous = $sectionNumbers.Count -gt 0 -and (($sectionNumbers -join ',') -eq ((1..$lastSection) -join ','))
-$finalCheckLast = $skill -and $skill -match "(?m)^# $lastSection\. Final Check\s*$"
-$sectionsOk = $sectionsContiguous -and $lastSection -ge 28 -and $finalCheckLast
-Report 'skill contains the merged framework, hard gates, and every numbered section through Final Check' `
-    ($skill -and $missingPatterns.Count -eq 0 -and $sectionsOk) `
-    "missing required contract patterns: $($missingPatterns -join ', '); sections=$($sectionNumbers -join ',') (need 1..N with no gap, N >= 28, and '# N. Final Check' last)"
-
-# 5. The added intro paragraph preserves precedence and the no-external-send
-#    boundary without expanding beyond what was authorized.
-$precedenceOk = $skill -and
-    $skill -match '(?is)outrank brevity' -and
-    $skill -match '(?is)does not authorize an\s+external send' -and
-    $skill -match '(?is)system, safety,\s+repository, legal, evidence, and\s+task-specific'
-Report 'intro paragraph preserves precedence and authorization boundaries' `
-    $precedenceOk `
-    'expected "outrank brevity", "does not authorize an external send", and the system/safety/repository/legal/evidence/task-specific list'
-
-# 6. Communication, long-form writing, and audio remain separate layers.
-$separationOk = $skill -and
-    $skill -match '(?is)interaction and concise-messaging layer' -and
-    $skill -match '(?is)also load `sarosh-writing`' -and
-    $skill -match '(?is)spoken or\s+cloned voice is\s+a separate capability,\s+`sarosh-audio-voice`'
-Report 'communication stays separate from long-form writing and owner audio' `
-    $separationOk `
-    'expected explicit interaction, long-form writing, and spoken-voice boundaries'
+$missing = @($requiredPatterns | Where-Object { $contract -notmatch "(?is)$_" })
+Report 'compact entry mandates professional guidance and retains evidence and delivery gates' `
+    ($skill.Length -lt 4500 -and $referenceRequired -and $reference -and $missing.Count -eq 0) `
+    "entry chars=$($skill.Length), required reference=$referenceRequired, missing=$($missing -join ', ')"
+$precedenceOk = $skill -match '(?is)Correctness, evidence, privacy and task requirements outrank brevity' -and
+    $skill -match '(?is)never authorizes a send, publication, commitment, or account change'
+Report 'compact entry preserves precedence and authorization boundaries' $precedenceOk 'Missing priority or no-send boundary'
+$separationOk = $skill -match '(?is)Use sarosh-writing for substantial artifacts' -and
+    $skill -match '(?is)spoken\s+identity belongs to sarosh-audio-voice' -and
+    $skill -match '(?is)no fixed framework'
+Report 'communication separates authorship and spoken identity without mandatory templates' $separationOk 'Missing routing or current style direction'
 
 # 7. Mutable contact and signature facts are verified at use time, not frozen
 #    into fleet policy.
@@ -162,14 +143,14 @@ $forbiddenContactPatterns = @(
     '(?i)\+1\s*\(\d{3}\)',
     '(?is)Default [A-Za-z]+ sender:'
 )
-$contactLeaks = @($forbiddenContactPatterns | Where-Object { $skill -match $_ })
-$mutableIdentityOk = $skill -match '(?is)Treat titles, organizations, email addresses, phone numbers, signatures,\s+billing rates, aliases, and availability as mutable facts'
+$contactLeaks = @($forbiddenContactPatterns | Where-Object { $contract -match $_ })
+$mutableIdentityOk = $referenceRequired -and $contract -match '(?is)Treat titles, organizations, email addresses, phone numbers, signatures,\s+billing rates, aliases, and availability as mutable facts'
 Report 'skill contains no fixed contact data and requires current identity verification' `
     ($contactLeaks.Count -eq 0 -and $mutableIdentityOk) `
     "matched fixed contact patterns: $($contactLeaks -join ', ')"
 
 Write-Host ''
-Write-Host "SCOPE: skill, UI metadata, global policy, registry, 17 host mappings, and expression-layer boundaries"
+Write-Host "SCOPE: skill, UI metadata, global policy, registry, 14 host mappings, and expression-layer boundaries"
 Write-Host "RESULT: $($reported - $failures.Count) passed, $($failures.Count) failed"
 if ($failures.Count -gt 0) { exit 1 }
 exit 0

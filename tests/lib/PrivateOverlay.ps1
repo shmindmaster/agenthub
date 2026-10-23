@@ -54,3 +54,32 @@ function Get-AgentHubTestEffectivePolicy {
     }
     return [pscustomobject]@{ Path = (Join-Path $RepositoryRoot 'global-agent-policy.md'); IsOverlay = $false }
 }
+
+# Detailed policy may be deferred, but only a mandatory, task-specific load in
+# the effective root makes it part of the contract. Never blindly concatenate
+# adjacent guidance: that would let an unreferenced safeguard pass these tests.
+function Read-AgentHubTestPolicy {
+    param(
+        [Parameter(Mandatory)][string]$PolicyPath,
+        [ValidateSet('mobile','media','career','communication')][string[]]$Domains = @()
+    )
+    $rootText = [IO.File]::ReadAllText($PolicyPath)
+    if ($rootText -notmatch '(?m)^## Load detailed policy when the task needs it') { return $rootText }
+    if ($rootText -notmatch '(?is)following are mandatory.*Read the indicated canonical file before acting') {
+        throw 'Deferred policy does not require loading canonical guidance before acting.'
+    }
+    $result = $rootText
+    foreach ($domain in $Domains) {
+        $reference = '(?m)^- Before [^\r\n]*Read `(?<guidancePath>[^`]*guidance[\\/]' + [regex]::Escape($domain) + '\.md)`\.'
+        if ($rootText -notmatch $reference) { throw "No mandatory task-specific load for guidance/$domain.md" }
+        $declaredPath = $Matches['guidancePath']
+        $path = Join-Path (Split-Path -Parent $PolicyPath) "guidance\$domain.md"
+        if (-not [IO.Path]::IsPathRooted($declaredPath) -or
+            -not [IO.Path]::GetFullPath($declaredPath).Equals([IO.Path]::GetFullPath($path), [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Task-specific load must name the exact canonical guidance/$domain.md"
+        }
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing required guidance/$domain.md" }
+        $result += "`n" + [IO.File]::ReadAllText($path)
+    }
+    return $result
+}

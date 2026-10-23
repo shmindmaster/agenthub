@@ -39,11 +39,11 @@ $structureOk = $skill -match '(?m)^## 1\. Objective\s*$' -and
     $skill -match '(?m)^## 2\. Scope and routing\s*$' -and
     $skill -match '(?m)^## 3\. Voice\s*$' -and
     $skill -match '(?m)^## 15\. Final check\s*$' -and
-    $skill -match '(?is)Prefer:.*Avoid:'
-Report 'skill follows the shared objective, routing, examples, and final-check pattern' $structureOk 'expected numbered structure plus Prefer/Avoid examples'
+    $skill.Length -lt 14000
+Report 'skill follows the shared objective, routing, bounded context, and final-check pattern' $structureOk 'expected numbered structure within the context budget'
 
 $evidencePatterns = @(
-    'Claim.*Evidence.*Meaning.*Decision or action',
+    'Claim.*Evidence.*Meaning.*Decision(?: or |/)action',
     'opportunity-engine',
     'portfolio-enrichment',
     'Qdrant `knowledge`',
@@ -56,8 +56,8 @@ $evidencePatterns = @(
 $missing = @($evidencePatterns | Where-Object { $skill -notmatch "(?is)$_" })
 Report 'skill preserves evidence, argument, state, and release gates' ($missing.Count -eq 0) "missing: $($missing -join ', ')"
 
-$routingOk = $skill -match '(?is)Use `sarosh-communication` for the concise message' -and
-    $skill -match '(?is)Use `sarosh-audio-voice` if the text will be rendered' -and
+$routingOk = $skill -match '(?is)Use `sarosh-communication` for the (?:concise|delivery) message' -and
+    $skill -match '(?is)Use `sarosh-audio-voice` (?:if the text will be rendered|for spoken rendering)' -and
     $policy -match '(?is)substantial authored artifacts.*`sarosh-writing`'
 Report 'long-form writing routes cleanly to communication and audio layers' $routingOk 'expected all three skill ids in their correct roles'
 

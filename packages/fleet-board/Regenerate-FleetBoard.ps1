@@ -76,7 +76,7 @@ foreach ($root in @((Join-Path $GoalsRuntimeRoot 'programs'), $CodexProgramsRoot
     if (-not (Test-Path -LiteralPath $root)) { continue }
     foreach ($statusFile in Get-ChildItem -LiteralPath $root -Recurse -Filter STATUS.md -File) {
         $program = Split-Path -Leaf (Split-Path -Parent $statusFile.FullName)
-        $lines = @(Get-Content -LiteralPath $statusFile.FullName)
+        $lines = @(Get-Content -Encoding UTF8 -LiteralPath $statusFile.FullName)
         $headingIdx = @()
         for ($i = 0; $i -lt $lines.Count; $i++) {
             if ($lines[$i] -match '^#{2,4}\s.*20\d\d-\d\d-\d\d') { $headingIdx += $i }
@@ -117,7 +117,7 @@ if (Test-Path -LiteralPath $CodexSessionsRoot) {
         $sessionId = if ($file.BaseName -match '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})') { $Matches[1] } else { $file.BaseName }
         $cwd = ''; $lastAssistant = ''
         try {
-            $first = Get-Content -LiteralPath $file.FullName -TotalCount 1
+            $first = Get-Content -Encoding UTF8 -LiteralPath $file.FullName -TotalCount 1
             $meta = $first | ConvertFrom-Json
             $cwd = [string]$meta.payload.cwd
         } catch {
@@ -170,7 +170,7 @@ if (Test-Path -LiteralPath $DispatchLogRoot) {
         $exit = if ($errSize -gt 0) { "stderr written ($errSize bytes); exit code not recorded" } else { 'no stderr; exit code not recorded' }
         $dispatchRows.Add([pscustomobject]@{
             Start = $start; Host = $dispatchHost; Task = 'not recorded'
-            Output = Compress-Cell (Get-Content -LiteralPath $f.FullName -TotalCount 4 -ErrorAction SilentlyContinue | Out-String) 140
+            Output = Compress-Cell (Get-Content -Encoding UTF8 -LiteralPath $f.FullName -TotalCount 4 -ErrorAction SilentlyContinue | Out-String) 140
             Exit = $exit
         })
     }
@@ -180,7 +180,7 @@ if (Test-Path -LiteralPath $DispatchLogRoot) {
 $leaseLine = 'not checked (no lease path configured)'
 if (-not [string]::IsNullOrWhiteSpace($LeasePath) -and (Test-Path -LiteralPath $LeasePath)) {
     try {
-        $lease = Get-Content -LiteralPath $LeasePath -Raw | ConvertFrom-Json
+        $lease = Get-Content -Encoding UTF8 -LiteralPath $LeasePath -Raw | ConvertFrom-Json
         $acquired = [string]$lease.acquiredUtc
         $acquiredLocal = try { ([DateTimeOffset]::Parse($acquired)).LocalDateTime.ToString('yyyy-MM-dd HH:mm') } catch { '' }
         $acquired = try { ([DateTimeOffset]::Parse($acquired, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal)).UtcDateTime.ToString('yyyy-MM-dd HH:mm\Z') } catch { $acquired }

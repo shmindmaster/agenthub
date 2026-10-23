@@ -76,7 +76,7 @@ $standard = Get-Content -LiteralPath $standardPath -Raw -Encoding UTF8 | Convert
 # checkout is LF, so every match below runs against a newline-normalized copy.
 # A bare (?m)...$ anchor would otherwise pass in one checkout and fail in the
 # other -- the defect tests/Test-CrlfAnchors.ps1 exists to close.
-$policy = ([IO.File]::ReadAllText($policyPath)).Replace("`r`n", "`n")
+$policy = (Read-AgentHubTestPolicy -PolicyPath $policyPath -Domains mobile).Replace("`r`n", "`n")
 
 $products      = @($scope.products)
 $bucketNames   = @($scope.buckets.PSObject.Properties | ForEach-Object { $_.Name })

@@ -3,9 +3,10 @@
   "generatedAt": "2026-09-13",
   "migrationAliases": {
     "repowise": "repowise-workspace",
-    "chrome-devtools-isolated": "chrome-devtools"
+    "chrome-devtools-isolated": "chrome-devtools",
+    "mcp-playwright": "playwright"
   },
-  "migrationAliasesNote": "Maps a key a host config actually carries to the canonical server id. Prune keeps only what the canonical set names after Resolve-McpAliasKey, so an unaliased drifted key is deleted rather than reconciled. Recorded 2026-08-19: .claude/settings.json carried repowise-workspace under the key 'repowise', and migrationAliases was empty, so a prune run would have removed the only working repowise registration on the machine. Verified the canonical args are safe to converge on: 'repowise mcp' defaults to stdio, so the deployed '--transport stdio' is redundant and dropping it changes nothing. 2026-09-07: chrome-devtools is a live canonical id again (plugin-gated attach); chrome-devtools-isolated aliases to it. Do not map chrome-devtools to playwright.",
+  "migrationAliasesNote": "Maps a key a host config actually carries to the canonical server id. Prune keeps only what the canonical set names after Resolve-McpAliasKey, so an unaliased drifted key is deleted rather than reconciled. Recorded 2026-08-19: .claude/settings.json carried repowise-workspace under the key 'repowise', and migrationAliases was empty, so a prune run would have removed the only working repowise registration on the machine. Verified the canonical args are safe to converge on: 'repowise mcp' defaults to stdio, so the deployed '--transport stdio' is redundant and dropping it changes nothing. 2026-09-07: chrome-devtools is a live canonical id again (plugin-gated attach); chrome-devtools-isolated aliases to it. Do not map chrome-devtools to playwright. 2026-10-23: Devin retained mcp-playwright as an unmanaged duplicate npm launcher. Reconcile it to the canonical on-demand playwright lifecycle rather than starting an extra default server.",
   "activationPolicy": {
     "recordedOn": "2026-08-04",
     "preferenceOrder": [

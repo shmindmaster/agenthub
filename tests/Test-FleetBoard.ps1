@@ -90,8 +90,8 @@ try {
     Check 'script exits 0' ($LASTEXITCODE -eq 0) ($out | Out-String)
     Check 'board written' (Test-Path -LiteralPath $board)
     Check 'copy written' (Test-Path -LiteralPath $copy)
-    $text = Get-Content -LiteralPath $board -Raw
-    Check 'copy matches board' ((Get-Content -LiteralPath $copy -Raw) -eq $text)
+    $text = Get-Content -Encoding UTF8 -LiteralPath $board -Raw
+    Check 'copy matches board' ((Get-Content -Encoding UTF8 -LiteralPath $copy -Raw) -eq $text)
     Check 'UTC and local header timestamps' ($text -match 'Header \(UTC\):' -and $text -match 'Header \(local\):')
     Check 'host snapshot section' ($text -match '## Host snapshot')
     Check 'lease holder in board' ($text -match 'fixture-chat')
@@ -114,7 +114,7 @@ try {
     Check 'owner items section' ($text -match '## Owner items' -and $text -match 'fixture owner action')
     Check 'quota issue section' ($text -match '## Failed, quota-blocked, or paused' -and $text -match 'fixture quota issue')
     Check 'notes and row count sections' ($text -match '## Notes' -and $text -match 'Row count:')
-    $scriptText = Get-Content -LiteralPath $ScriptPath -Raw
+    $scriptText = Get-Content -Encoding UTF8 -LiteralPath $ScriptPath -Raw
     Check 'no owner-specific OneDrive or profile paths' ($scriptText -notmatch 'D:\\OneDrive -|C:\\Users\\SaroshHussain' -and $scriptText -notmatch "'python'")
     Check 'default output stays in the local AgentHub runtime' ($scriptText -match 'AgentHub\\runtime\\fleet-board\\FLEET-BOARD\.md')
 } finally {

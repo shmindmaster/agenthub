@@ -1799,8 +1799,13 @@ function Sync-HostMcp-Cline {
 
         $existingServer = ConvertTo-Hashtable $servers[$targetKey]
         $servers[$targetKey] = $existingServer
-        foreach ($field in @('type','command','args','cwd','url','disabled','autoApprove')) {
+        # Activation and approvals are host/user choices. A transport refresh
+        # must not re-enable an intentionally deferred server or reset consent.
+        foreach ($field in @('type','command','args','cwd','url')) {
             if ($target.ContainsKey($field)) { $existingServer[$field] = $target[$field] }
+        }
+        foreach ($field in @('disabled','autoApprove')) {
+            if (-not $existingServer.ContainsKey($field)) { $existingServer[$field] = $target[$field] }
         }
         if ($target.ContainsKey('url')) {
             foreach ($field in @('command','args','cwd','env')) {

@@ -764,7 +764,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "08475D21537B133969BD6479FB1EE8615E151304AADEDD2488CBB66B3B28250F",
+      "contentHash": "6ED86FAAF7590E96E11D38BEFC9CAD7811FBDADD44E1D4A0DC128BC69135A16C",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -1001,79 +1001,8 @@
       "contentHash": "73B3BE22393597AE75343C14799C7ED199AA195B91429F8211331614ED4966C1",
       "hashBasis": "packages/learning-studio",
       "status": "active-canonical",
-      "hostMappings": [
-        {
-          "hostId": "claude",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "codex",
-          "deploymentStatus": "native-plugin-installed",
-          "components": [
-            "skills"
-          ]
-        },
-        {
-          "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills",
-          "components": [
-            "skills"
-          ],
-          "deploymentStatusNote": "Loose skills since 2026-09-02. native-local-plugin left ~/.cursor/skills unread by cursor-agent. Junction at ~/.cursor/plugins/local/learning-studio remains for Cursor IDE plugin discovery; AgentHub does not remove it."
-        },
-        {
-          "hostId": "vscode-insiders",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "gemini",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "opencode",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "copilot",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "antigravity",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "grok",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "warp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "cline",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "amp",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "devin",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "factory",
-          "deploymentStatus": "managed-loose-skills"
-        },
-        {
-          "hostId": "windsurf",
-          "deploymentStatus": "managed-loose-skills"
-        }
-      ],
-      "notes": "Added 2026-08-21. Attention-friendly exam/training coach. Domain packs are data, not baked into the skill. Remotion optional.",
+      "hostMappings": [],
+      "notes": "Opt-in catalog capability; omitted from default coding context. Source and marketplace package retained. Owner context cleanup 2026-10-23.",
       "dependencies": {
         "requires": [],
         "recommends": [
@@ -1358,7 +1287,7 @@
       "managedSkillNames": [
         "use-coding-agent"
       ],
-      "contentHash": "E5242B2EF5C25FDD3A45E5233F1073401A23E2F1F6F5D6591EFED46A8E8D4D83",
+      "contentHash": "3B3A538B52643A4C00DE012A4279B50D398FC6B96498ADF81A0A7CBCB49CF83A",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1443,7 +1372,7 @@
       "owner": "agenthub",
       "capabilityType": "script",
       "canonicalSource": "packages/fleet-board",
-      "contentHash": "C01C53A3B971728F75F16F4A4F6C8E08ADA667501D2546804B065EAFD117D495",
+      "contentHash": "46BDA59CF4EB52DFD82A039EDF20D5938F4F4A378993D77FE34223DDC3A7D5B4",
       "hashBasis": "packages/fleet-board",
       "status": "active-canonical",
       "hostMappings": [],

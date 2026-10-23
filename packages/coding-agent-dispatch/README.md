@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.2.7 (loose skill; version metadata lives in `SKILL.md`).
+Version 0.2.8 (loose skill; version metadata lives in `SKILL.md`).
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever
@@ -49,6 +49,16 @@ sync supplies its canonical source and repair command; installation is explicit.
 It never starts Cline or registers background maintenance. User configuration
 lives outside the application installation and normally survives updates;
 future SDK compatibility still requires verification after an upgrade.
+
+OpenCode 2.1.4 has the equivalent native plugin in
+`skills/use-coding-agent/opencode/lightweight-chat.js`. It defers tool schemas,
+skill descriptions and MCP instructions until `find_tools` selects them, then
+resets that selection on each user turn. `Install-OpenCodeToolDiscovery.ps1`
+audits by default; `-Apply` installs and verifies the single global plugin file.
+It does not change permissions, credentials or the provider. CLI and Desktop
+consume the shared service; a running service needs native `opencode reload`
+after installation. Test discovery again after an SDK upgrade. Neither repair
+command installs a scheduled job. See `docs/fleet/context-reduction.md`.
 
 Account-based authentication is recorded per CLI in `registry/fleet-profile.json`
 -> `hostSettings`. Gemini's settings select `oauth-personal`, but the latest

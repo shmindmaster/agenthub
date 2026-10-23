@@ -2,8 +2,14 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.7"
+  version: "0.2.8"
 ---
+
+For OpenCode 2 tool discovery, run `Install-OpenCodeToolDiscovery.ps1` to audit
+or add `-Apply` to install the native global plugin. It defers schemas and
+skill/MCP catalogs until needed and preserves native approvals. Reload the
+shared OpenCode service after installing; verify after SDK updates. The
+installer never starts a host or creates automatic maintenance.
 
 # Use a coding agent from another coding agent
 
@@ -32,7 +38,7 @@ Aliases enforce their own policy and the target's policy and autonomy profile.
 Refused rows stay refused. Help verification establishes a command contract;
 authentication, allowance and smoke evidence establish readiness separately.
 
-The 0.2.7 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
+The 0.2.8 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
 Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin and local Warp/Oz.
 `registry/fleet-profile.json` -> `dispatchPolicy`
 can disable each contract with a reason and owner action. The current verified

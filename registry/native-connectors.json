@@ -548,7 +548,6 @@
       "providerHeld": false,
       "exposures": {
         "plugin-owned": [
-          "descript",
           "linkedin",
           "slack"
         ],
@@ -560,12 +559,14 @@
           "github",
           "linear",
           "notion",
-          "open-connector"
+          "open-connector",
+          "descript"
         ],
         "local-only": []
       },
       "evidence": [
-        "open-connector added to shared-gateway exposure on 2026-09-13: an HTTP entry for the local gateway at http://127.0.0.1:3400/mcp with a bearer read from the User environment variable OPEN_CONNECTOR_AGENT_TOKEN, written by Sync-AgentHub.ps1 -Apply. No process is spawned by the host."
+        "open-connector added to shared-gateway exposure on 2026-09-13: an HTTP entry for the local gateway at http://127.0.0.1:3400/mcp with a bearer read from the User environment variable OPEN_CONNECTOR_AGENT_TOKEN, written by Sync-AgentHub.ps1 -Apply. No process is spawned by the host.",
+        "2026-10-23: installed plugin inventory has no Descript provider. Use the canonical remote MCP registration; do not suppress it as plugin-owned."
       ]
     },
     {
