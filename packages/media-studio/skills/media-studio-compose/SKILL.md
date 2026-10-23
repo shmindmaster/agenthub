@@ -7,6 +7,11 @@ description: Use when assembled video needs FFmpeg, Recast pointer/click finishi
 
 Assemble locked plates, audio, and motion into a candidate in this turn. You do not rewrite the screenplay or waive identity gates.
 
+Marketing compose requires `--stage compose --candidate-id <new-id>` and reserves that candidate directory exclusively.
+QA is a separate `--stage qa --candidate-id <id>` call and never invokes compose. Use `--no-line-chips` or
+`--no-captions` (or `render.lineChips: false`) for a clean picture; keep the sidecar SRT. A changed encode needs a new ID
+and fresh candidate-SHA-bound gates. Never overwrite a reviewed candidate with `--force`.
+
 Load `../media-studio/references/engagement.md`, `scene-archetypes.md`, and `delivery-profiles.md`. Product-screencast and `visualMode: screen` also load `product-picture.md` and run `scripts/validate-product-picture.mjs` before encode.
 
 **Rapid default:** reuse the house archetype kit, do not scaffold a new Remotion app. Honor `pauseBeforeSeconds` / `holdAfterSeconds`. A slide that does not build is unfinished — use Remotion interpolation, not a still held for the whole line.
@@ -21,13 +26,13 @@ skill defaults to the current repo, point it at the external workspace first.
 Canonical source: `packages/media-studio/kit`  
 Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`
 
-Use the deployed runtime kit only when its package manifest matches this skill's 2.0.4 release. AgentHub's `Sync-MediaStudioKit.ps1` deploys that kit and the shared finishing helper; a loose skill does not include package-level scripts. If the kit is missing or stale, stop and sync from a verified 2.0.4 package source (native plugin cache or reviewed AgentHub checkout), then rerun the version check. Never resolve a source by defaulting to an unverified AgentHub checkout. Composition `Briefing` still hosts the program; each scene sets `archetype` from `scene-archetypes.md`. The briefing board remains 1600×1000 at 30 fps. The screencast compositor renders directly to `deliveryProfile`; portrait campaign clips require a bounded manifest `sourceRegion` so the important UI is intentionally framed. It applies timed campaign graphics only inside safe areas away from declared product controls and captions.
+Use the deployed runtime kit only when its package manifest matches this skill's 2.0.8 release. AgentHub's `Sync-MediaStudioKit.ps1` deploys that kit and the shared finishing helper; a loose skill does not include package-level scripts. If the kit is missing or stale, stop and sync from a verified 2.0.8 package source (native plugin cache or reviewed AgentHub checkout), then rerun the version check. Never resolve a source by defaulting to an unverified AgentHub checkout. Composition `Briefing` still hosts the program; each scene sets `archetype` from `scene-archetypes.md`. The briefing board remains 1600×1000 at 30 fps. The screencast compositor renders directly to `deliveryProfile`; portrait campaign clips require a bounded manifest `sourceRegion` so the important UI is intentionally framed. It applies timed campaign graphics only inside safe areas away from declared product controls and captions.
 
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
 $kitManifest = Join-Path $kit 'package.json'
-if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.4') {
-    throw 'Media Studio 2.0.4 runtime kit is missing or stale. Sync from a verified 2.0.4 package source before rendering.'
+if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.8') {
+    throw 'Media Studio 2.0.8 runtime kit is missing or stale. Sync from a verified 2.0.8 package source before rendering.'
 }
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
 ```
@@ -36,8 +41,8 @@ To repair a missing kit, set `MEDIA_STUDIO_PACKAGE_ROOT` to the actual installed
 
 ```powershell
 $package = $env:MEDIA_STUDIO_PACKAGE_ROOT
-if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.4') {
-    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.4 package.'
+if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.8') {
+    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.8 package.'
 }
 pwsh -NoProfile -File (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1')
 ```
@@ -54,8 +59,8 @@ Do not invent an FFmpeg graph. The helper is the provider:
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $toolsManifest = Join-Path $tools 'plugin.json'
 $Finish = Join-Path $tools 'Finish-Media.ps1'
-if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.4' -or -not (Test-Path -LiteralPath $Finish)) {
-    throw 'Media Studio 2.0.4 finishing helper is missing or stale in the deployed shared tools.'
+if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.8' -or -not (Test-Path -LiteralPath $Finish)) {
+    throw 'Media Studio 2.0.8 finishing helper is missing or stale in the deployed shared tools.'
 }
 pwsh -NoProfile -File $Finish -Action finish -Program <job>\candidate.mp4 -Output <job>\candidate-finished.mp4
 pwsh -NoProfile -File $Finish -Action finish -Speech <job>\voice.wav -Music <job>\bed.wav -Video <job>\picture.mp4 -Output <job>\candidate-finished.mp4
@@ -93,7 +98,7 @@ The overlay is markup (dim, box, outline, arrow, label, note, flow diagram), dir
 
 ### Voice-first timing and the cue sheet
 
-The narration is locked and rendered first; the picture is built to it. Order: word-level ASR per line (`voice/asr/<id>.json`) -> `node <tools>/build-cue-sheet.mjs <jobRoot>` (plan) -> `compose-screencast.mjs <jobRoot> <base>` -> `build-cue-sheet.mjs <jobRoot>` again (mapped: action and result times go through `output/<base>-compose-map.json`) -> encode and mux -> `validate-sync.mjs` (`media-studio-qa`).
+The narration is locked and rendered first; the picture is built to it. Order: force-align each accepted take against its locked line into `voice/asr/<id>.json` -> `node <tools>/build-cue-sheet.mjs <jobRoot>` (plan) -> `compose-screencast.mjs <jobRoot> <base>` -> `build-cue-sheet.mjs <jobRoot>` again (mapped: action and result times go through `output/<base>-compose-map.json`) -> encode and mux -> `validate-sync.mjs` (`media-studio-qa`). Whisper is a separate transcript check, not the timing clock.
 
 With `plan/cue-sheet.json` present, compose cuts to each line's first content word (screen up 0.3 s before it, never before the previous line ends) and lines up each clip's first narrated action with its spoken word: a too-early action holds the clip's first frame (max 1.5 s), a late one trims the head. If the take is too short after that, or the action is far from its word, compose stops: recapture the beat, do not squeeze the voice. A stale cue sheet (narration re-locked) also stops it. `--no-voice-first` is for drafts only; the sync gate still needs the cue sheet. Rebuild the cue sheet after every compose that changes the picture. Static scenes keep a moving cursor or highlight on the element being named; emphasis is one punch-in, ring or callout per beat, on the word.
 
@@ -107,7 +112,7 @@ Official Remotion skills are installed globally under `~/.agents/skills` and sym
 - Captions from the final spoken wording.
 - Owner-voice programs still need identity score + local `ai.ps1 listen` on the exact encoded file before anyone calls it done.
 - Output stays in the job workspace. Accepted masters may be copied to the owner's Videos tree; never into git.
-- Delivered file names are `NN - Title.mp4` with no product prefix (`03 - The tag that never landed.mp4`). A delivered series carries a `README.md` index in its folder.
+- Delivered file names are `NN - Title.mp4` with no product prefix (`03 - The tag that never landed.mp4`). A delivered series carries a `README.md` index in its folder. Each product has one flat folder directly under `F:\My Drive\Videos`; never deliver into a subfolder (no `Training`, `Notes`, `Evidence` or archive folders).
 - When a master is superseded, delete the old master and every reproducible intermediate outright. No `_retired`, `_old`, or archive folders; the job workspace and git history are the record.
 - A wrong section is re-recorded and the master re-cut. Never deliver an addendum or correction clip.
 
@@ -115,7 +120,7 @@ Official Remotion skills are installed globally under `~/.agents/skills` and sym
 
 - [ ] Kit synced from `packages/media-studio/kit`
 - [ ] Scenes carry `archetype`; consecutive repeats only if intentional
-- [ ] Voice-first: cue sheet built from word-level ASR, compose ran against it, cue sheet rebuilt (mapped) after the last compose
+- [ ] Voice-first: cue sheet built from take/script-bound forced alignment, compose ran against it, cue sheet rebuilt (mapped) after the last compose
 - [ ] Bed ducked from stems
 - [ ] Profile frame matches `deliveryProfile`
 

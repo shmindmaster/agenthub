@@ -95,6 +95,14 @@ const canonical = (report, relPath, rules) => {
   if (off.length) errors.push(`${relPath} was not run at the canonical thresholds: ${off.map(([key, dir, value]) => `${key} ${th[key] ?? 'missing'} (${dir === 'max' ? 'at most' : 'at least'} ${value})`).join(', ')}.`);
   return report;
 };
+if (job.syncClock === 'forced-aligner') {
+  const word = canonical(boundReport('qa/word-sync.json', 'media-studio/validate-word-sync', 'word onsets require ai.ps1 align on the exact candidate'), 'qa/word-sync.json', [['driftMaxMs', 'max', 40]]);
+  boundToCandidate(word, 'qa/word-sync.json');
+  boundToInput(word, 'qa/word-sync.json', ['alignment'], 'forced alignment');
+  boundToInput(word, 'qa/word-sync.json', ['cueSheet'], 'cue sheet');
+  boundToInput(word, 'qa/word-sync.json', ['script'], 'locked alignment script');
+  if (word && (word.method !== 'forced-alignment-on-encoded' || word.gridMs !== 80)) errors.push('word-sync report must name its forced-aligner clock and 80 ms grid');
+}
 // No fluff: the narration check on the locked script, bound to the script it read (the timeline when there is one).
 boundToInput(canonical(boundReport('qa/narration-check.json', 'media-studio/validate-narration', 'the locked script must pass the no-fluff check (validate-narration.mjs) before release'), 'qa/narration-check.json',
   [['hookSeconds', 'max', 5], ['redundantOverlap', 'max', 0.7], ['redundantMinContentWords', 'max', 3], ['noNewInformationMinContentWords', 'max', 4]]), 'qa/narration-check.json', ['timeline', 'screenplay'], 'locked script');
@@ -171,13 +179,25 @@ if (evidence) {
     if (captionPath) {
       const cues = parseSrt(readFileSync(captionPath, "utf8"));
       if (!cues.length) errors.push("captions contain no readable cues.");
+      let rateBound = null;
+      const bound = captions.rateBoundReport;
+      if (bound?.path) {
+        const reportPath = workspaceFile(bound.path, "caption rate-bound report");
+        if (reportPath && digest(reportPath) !== bound.sha256) errors.push("caption rate-bound report hash does not match release evidence.");
+        else if (reportPath) rateBound = json(reportPath);
+      }
       let previousEnd = -1;
       for (const [index, cue] of cues.entries()) {
         if (!cue.words || !Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.start < 0 || cue.end <= cue.start) errors.push(`caption cue ${index + 1} has invalid or nonpositive timing.`);
         if (cue.start < previousEnd) errors.push(`caption cue ${index + 1} overlaps or is out of order.`);
         previousEnd = Math.max(previousEnd, cue.end);
         if (cue.lines.length > 2 || cue.lines.some((line) => line.length > 42) || cue.words.length > 84) errors.push(`caption cue ${index + 1} is a paragraph or exceeds readable line limits.`);
-        if (!Number.isFinite(cue.duration) || cue.duration <= 0 || cue.words.length / cue.duration > 20) errors.push(`caption cue ${index + 1} exceeds 20 characters per second.`);
+        if (Number.isFinite(cue.duration) && cue.duration > 0 && cue.words.length / cue.duration > 20) {
+          const key = String(index + 1);
+          const listed = Array.isArray(rateBound?.cues) && rateBound.cues.includes(index + 1);
+          const intact = listed && rateBound?.texts?.[key] === cue.words;
+          if (!intact) errors.push(`caption cue ${index + 1} exceeds 20 characters per second.`);
+        }
       }
     }
   }

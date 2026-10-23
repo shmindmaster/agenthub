@@ -7,7 +7,7 @@ import { estimateImageUsd, estimateMusicCredits, estimateSfxCredits, estimateTts
 import { writeJson } from '../util.mjs';
 
 /** Planned spend of a full run, so the budget fails before voice rather than during assets. */
-export function planCost(spec, brand) {
+export function planCost(spec, brand, flags = {}) {
   const cuts = normalizeCuts(spec);
   let credits = 0;
   let usd = 0;
@@ -20,7 +20,7 @@ export function planCost(spec, brand) {
           lines.add(key);
           if (spec.voice.provider === 'elevenlabs') credits += estimateTtsCredits(b.narration, spec.voice.model);
           else if (spec.voice.provider === 'openai') usd += 0.02;
-          usd += 0.002; // whisper-1 timing for the line
+          if (flags.whisperTiming && (flags.hostedOnly || brand.timing?.provider !== 'local-whisper')) usd += 0.002;
         }
       }
       if (b.broll?.provider === 'openai-image') usd += estimateImageUsd(brand.images?.model || 'gpt-image-2', b.broll.quality || brand.images?.quality || 'medium');
@@ -29,13 +29,13 @@ export function planCost(spec, brand) {
   const sfxPrompts = new Set(cuts.flatMap((c) => c.beats.flatMap((b) => (b.sfx || []).map((s) => `${s.prompt}|${s.durationSeconds || 1}`))));
   credits += sfxPrompts.size * estimateSfxCredits(1);
   if (spec.music?.provider === 'elevenlabs') credits += estimateMusicCredits(musicLengthMs(spec.music, Math.max(...cuts.map(estimateCutSeconds)), { measured: false }));
-  usd += cuts.flatMap((c) => c.ratios).length * 0.35; // vision QA per ratio (padded)
+  if (!flags.noVision && (flags.visionProvider || brand.vision?.provider || 'local') === 'openai') usd += cuts.flatMap((c) => c.ratios).length * 0.35; // explicit paid vision, padded
   return { elevenlabsCredits: credits, openaiUsd: Number(usd.toFixed(2)) };
 }
 
 export async function lintStage(ctx) {
   const result = lintSpec(ctx.spec, ctx.brand, { adSchema: ctx.adSchema, brandSchema: ctx.brandSchema, specDir: ctx.specDir });
-  const plan = result.ok ? planCost(ctx.spec, ctx.brand) : null;
+  const plan = result.ok ? planCost(ctx.spec, ctx.brand, ctx.flags) : null;
   const budget = { ...(ctx.brand.budgets?.perRun || {}), ...(ctx.spec.budget || {}) };
   const errors = [...result.errors];
   if (plan) {

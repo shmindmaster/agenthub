@@ -8,9 +8,7 @@
 .DESCRIPTION
     Reads the central registry and deploys real files / native configuration
     entries into each installed coding agent's documented user-level folders
-    on Windows, macOS, or Linux. Idempotent. Qwen extensions use managed directory junctions so its
-    native extension loader can consume the canonical skill sources without
-    copying credentials or skill content.
+    on Windows, macOS, or Linux. Idempotent.
 
 .PARAMETER Audit
     Report drift without making changes.
@@ -143,12 +141,7 @@ function Write-Utf8NoBom {
         [string]$Path,
         [string]$Content
     )
-    # Windows PowerShell 5.1's `Set-Content -Encoding UTF8` writes a BOM.
-    # Qwen Code feeds settings.json directly to JSON.parse(), which rejects
-    # that leading character.
-    # The parent directory always exists on the live fleet, so this was latent
-    # there -- but it fails against a fresh profile, which is exactly the
-    # isolated target -UserProfile exists to make testable.
+    # Write standard UTF-8 without a BOM for strict JSON and host parsers.
     $parent = Split-Path -Parent $Path
     if ($parent -and -not (Test-Path -LiteralPath $parent)) {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
@@ -1234,7 +1227,7 @@ function ConvertTo-HostEnvironmentReference {
         [string]$TargetHost
     )
 
-    if ($TargetHost -in @('grok', 'hermes')) {
+    if ($TargetHost -eq 'grok') {
         return [regex]::Replace($Value, '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}', {
             param($match)
             return '${' + $match.Groups[1].Value + '}'
@@ -1255,6 +1248,12 @@ function Sync-HostMcp-Codex {
     if (-not (Test-Path -LiteralPath $path)) { return @{ status='config-missing' } }
 
     $toml = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+    # Codex writes config.toml with LF line endings and rewrites the whole file on
+    # its own saves. Emitting managed sections with [Environment]::NewLine (CRLF on
+    # Windows) produced a mixed-ending file that Codex normalised back to LF, so
+    # every audit after a Codex save reported drift that no content change caused
+    # (observed 2026-10-22). Follow the file's own ending; LF for a new file.
+    $codexNewLine = if ($toml -and $toml.Contains("`r`n")) { "`r`n" } else { "`n" }
     $newToml = $toml
 
     # Remove only entries with an explicit native-plugin owner or lifecycle
@@ -1314,13 +1313,13 @@ function Sync-HostMcp-Codex {
             }
         }
 
-        $sectionText = ($sectionLines -join [Environment]::NewLine) + [Environment]::NewLine
+        $sectionText = ($sectionLines -join $codexNewLine) + $codexNewLine
         $sectionPattern = Get-CodexMcpSectionPattern $key
         if ($newToml -match $sectionPattern) {
             $newToml = [regex]::Replace($newToml, $sectionPattern, $sectionText)
         } else {
-            if ($newToml.Length -gt 0 -and -not $newToml.EndsWith("`n")) { $newToml += [Environment]::NewLine }
-            $newToml += [Environment]::NewLine + $sectionText
+            if ($newToml.Length -gt 0 -and -not $newToml.EndsWith("`n")) { $newToml += $codexNewLine }
+            $newToml += $codexNewLine + $sectionText
         }
     }
 
@@ -1471,401 +1470,15 @@ function Sync-HostMcp-Grok {
     return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
-function Sync-HostMcp-Hermes {
-    param(
-        [Parameter(Mandatory)]$Agent,
-        [Parameter(Mandatory)][hashtable]$Mcps,
-        [string[]]$SuppressedKeys = @(),
-        [switch]$WhatIf
-    )
 
-    # Hermes has a root-level YAML mcp_servers mapping. Replace fleet-managed
-    # entries while preserving unregistered user MCP entries and all other YAML.
-    $path = $Agent.nativePaths.config
-    if (-not (Test-Path -LiteralPath $path)) {
-        return @{ status='not-verified'; path=$path; reason='Hermes is absent; discovery skipped' }
-    }
-    $existing = Get-Content -LiteralPath $path -Raw -Encoding UTF8
-    $original = $existing
-    $lines = [System.Collections.Generic.List[string]]::new()
-    $null = $lines.Add('mcp_servers:')
-    foreach ($name in @($Mcps.Keys | Sort-Object)) {
-        $mcp = $Mcps[$name]
-        $null = $lines.Add("  ${name}:")
-        if ($mcp.type -eq 'http') {
-            $url = ConvertTo-HostEnvironmentReference -Value $mcp.url -TargetHost 'hermes'
-            $null = $lines.Add("    url: `"$url`"")
-            if ($mcp.auth) { $null = $lines.Add("    auth: $($mcp.auth)") }
-            if ($mcp.headers) {
-                $null = $lines.Add('    headers:')
-                foreach ($property in @($mcp.headers.GetEnumerator() | Sort-Object Key)) {
-                    $value = ConvertTo-HostEnvironmentReference -Value ([string]$property.Value) -TargetHost 'hermes'
-                    $null = $lines.Add("      $($property.Key): `"$value`"")
-                }
-            }
-        }
-        else {
-            $null = $lines.Add("    command: `"$($mcp.command)`"")
-            if ($mcp.args) {
-                $args = @($mcp.args | ForEach-Object { "`"$_`"" })
-                $null = $lines.Add("    args: [$($args -join ', ')]")
-            }
-            if ($mcp.env) {
-                $null = $lines.Add('    env:')
-                foreach ($property in @($mcp.env.GetEnumerator() | Sort-Object Key)) {
-                    $value = ConvertTo-HostEnvironmentReference -Value ([string]$property.Value) -TargetHost 'hermes'
-                    $null = $lines.Add("      $($property.Key): `"$value`"")
-                }
-            }
-        }
-    }
-    $mcpBlock = ($lines -join "`n") + "`n"
-    $sectionPattern = '(?ms)^mcp_servers:\s*(?:\r?\n.*?)*(?=^[A-Za-z_][A-Za-z0-9_-]*:\s*(?:#.*)?\r?$|\z)'
-    if ($existing -match '(?m)^mcp_servers:\s*$') {
-        $sectionMatch = [regex]::Match($existing, $sectionPattern)
-        $managedNames = @{}
-        foreach ($name in $Mcps.Keys) { $managedNames[(Resolve-McpAliasKey $name)] = $true }
-        foreach ($name in $SuppressedKeys) { $managedNames[(Resolve-McpAliasKey $name)] = $true }
-        $preservedEntries = [System.Collections.Generic.List[string]]::new()
-        # Determine the existing direct-child indentation dynamically, then
-        # accept normal YAML keys (including dotted, spaced, and quoted names).
-        $anyChildPattern = '(?m)^(?<indent>[ \t]+)(?<key>"(?:[^"\\]|\\.)*"|''(?:[^'']|'''')*''|[^\s:\r\n][^:\r\n]*):(?:\s|$)'
-        $firstChild = [regex]::Match($sectionMatch.Value, $anyChildPattern)
-        if ($firstChild.Success) {
-            $existingIndent = $firstChild.Groups['indent'].Value
-            $escapedIndent = [regex]::Escape($existingIndent)
-            $entryPattern = '(?m)^' + $escapedIndent + '(?<key>"(?:[^"\\]|\\.)*"|''(?:[^'']|'''')*''|[^\s:\r\n][^:\r\n]*):(?:\s|$)'
-            $entryMatches = [regex]::Matches($sectionMatch.Value, $entryPattern)
-            for ($index = 0; $index -lt $entryMatches.Count; $index++) {
-                $entry = $entryMatches[$index]
-                $entryName = $entry.Groups['key'].Value.Trim()
-                if (($entryName.StartsWith('"') -and $entryName.EndsWith('"')) -or ($entryName.StartsWith("'") -and $entryName.EndsWith("'"))) {
-                    $entryName = $entryName.Substring(1, $entryName.Length - 2)
-                }
-                $entryEnd = if ($index + 1 -lt $entryMatches.Count) { $entryMatches[$index + 1].Index } else { $sectionMatch.Value.Length }
-                if (-not $managedNames.ContainsKey((Resolve-McpAliasKey $entryName))) {
-                    $rawEntry = $sectionMatch.Value.Substring($entry.Index, $entryEnd - $entry.Index).TrimEnd()
-                    $normalizedEntry = [regex]::Replace($rawEntry, '(?m)^' + $escapedIndent, '  ')
-                    $null = $preservedEntries.Add($normalizedEntry)
-                }
-            }
-        }
-        if ($preservedEntries.Count -gt 0) {
-            $mcpBlock = $mcpBlock.TrimEnd() + "`n" + ($preservedEntries -join "`n") + "`n"
-        }
-        $updated = $existing.Substring(0, $sectionMatch.Index) + $mcpBlock + $existing.Substring($sectionMatch.Index + $sectionMatch.Length)
-    }
-    else {
-        $updated = $mcpBlock + $(if ($existing) { "`n$existing" } else { '' })
-    }
-    $changed = $original.TrimEnd() -ne $updated.TrimEnd()
-    if ($WhatIf) { return @{ status = (Resolve-McpAuditStatus $changed); path = $path } }
-    Write-Utf8NoBom -Path $path -Content $updated
-    $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
-}
 
-function ConvertTo-QwenMcpEntry {
-    param([hashtable]$Canonical)
-    $entry = @{}
-    if ($Canonical.type -eq 'http') {
-        $entry.httpUrl = $Canonical.url
-        if ($Canonical.headers) {
-            # The shared registry uses the host-neutral ${env:NAME} notation.
-            # Qwen resolves string values using $NAME / ${NAME}; translate only
-            # the reference syntax and never resolve or serialize its value.
-            $headers = @{}
-            foreach ($header in (ConvertTo-Hashtable $Canonical.headers).GetEnumerator()) {
-                $headers[$header.Key] = [regex]::Replace(
-                    [string]$header.Value,
-                    '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}',
-                    { param($match) '$' + '{' + $match.Groups[1].Value + '}' }
-                )
-            }
-            $entry.headers = $headers
-        }
-    } elseif ($Canonical.type -eq 'stdio') {
-        $entry.command = $Canonical.command
-        $entry.args = @($Canonical.args)
-        if ($Canonical.env) {
-            $environment = @{}
-            foreach ($variable in (ConvertTo-Hashtable $Canonical.env).GetEnumerator()) {
-                $environment[$variable.Key] = [regex]::Replace(
-                    [string]$variable.Value,
-                    '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}',
-                    { param($match) '$' + '{' + $match.Groups[1].Value + '}' }
-                )
-            }
-            $entry.env = $environment
-        }
-    }
-    return $entry
-}
 
-function Sync-HostMcp-Qwen {
-    param(
-        [pscustomobject]$Agent,
-        [hashtable]$McpEntries,
-        [string[]]$SuppressedKeys = @(),
-        [switch]$WhatIf,
-        [switch]$Prune
-    )
-    $path = $Agent.nativePaths.settings
-    $json = @{}
-    if (Test-Path -LiteralPath $path) {
-        $json = ConvertTo-Hashtable (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json)
-    }
-    if (-not $json.ContainsKey('mcpServers')) { $json.mcpServers = @{} }
-    elseif (-not ($json.mcpServers -is [hashtable])) { $json.mcpServers = ConvertTo-Hashtable $json.mcpServers }
-    $json.mcpServers = Normalize-McpTargetKeys -Target $json.mcpServers
-    $json.mcpServers = Remove-McpTargetKeys -Target $json.mcpServers -Keys $SuppressedKeys
 
-    $canonicalKeys = @{}
-    foreach ($key in $McpEntries.Keys) {
-        $resolved = Resolve-McpAliasKey $key
-        $canonicalKeys[$resolved] = $true
-        $canonical = $McpEntries[$key]
-        if (-not ($canonical -is [hashtable])) { $canonical = ConvertTo-Hashtable $canonical }
-        $json.mcpServers[$resolved] = ConvertTo-QwenMcpEntry $canonical
-    }
 
-    # Qwen treats mcp.allowed as an explicit connection allowlist when it is
-    # present. Keep the user's existing allowlist, retire known aliases, and
-    # add every registry-managed server so a successfully rendered definition
-    # is not silently blocked at runtime.
-    if ($json.ContainsKey('mcp')) {
-        if (-not ($json.mcp -is [hashtable])) { $json.mcp = ConvertTo-Hashtable $json.mcp }
-        if ($json.mcp.ContainsKey('allowed') -and $null -ne $json.mcp.allowed) {
-            $suppressedLookup = @{}
-            foreach ($suppressedKey in $SuppressedKeys) {
-                $suppressedLookup[(Resolve-McpAliasKey ([string]$suppressedKey))] = $true
-            }
-            $allowed = @($json.mcp.allowed | ForEach-Object {
-                Resolve-McpAliasKey ([string]$_)
-            } | Where-Object { -not $suppressedLookup.ContainsKey([string]$_) })
-            $allowed += @($canonicalKeys.Keys)
-            $json.mcp.allowed = @($allowed | Sort-Object -Unique)
-        }
-    }
 
-    if ($Prune) {
-        foreach ($key in @($json.mcpServers.Keys)) {
-            if (-not $canonicalKeys.ContainsKey((Resolve-McpAliasKey $key))) { $json.mcpServers.Remove($key) }
-        }
-    }
 
-    $stableNewJson = Get-StableJsonString $json
-    $stableExistingJson = if (Test-Path -LiteralPath $path) { Get-StableJsonString (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json) } else { Get-StableJsonString @{} }
-    $changed = $stableExistingJson -ne $stableNewJson
-    if ($WhatIf) { return @{ status=(Resolve-McpAuditStatus $changed); path=$path } }
 
-    Write-Utf8NoBom -Path $path -Content $stableNewJson
-    $script:state.managedFiles[$path] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $path) }
-    return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
-}
 
-function Sync-QwenCapabilityExtensions {
-    param(
-        [pscustomobject]$Agent,
-        [pscustomobject]$CapabilitiesRegistry,
-        [switch]$WhatIf,
-        [switch]$Prune
-    )
-
-    $extensionsRoot = $Agent.nativePaths.extensionsDir
-    if (-not $extensionsRoot) { return @{ status='unsupported-path'; note='Qwen extensions path missing' } }
-
-    $adapterRoot = Join-Path $RuntimeDir 'runtime\qwen-code\extensions'
-    # Same reporting defect the MCP writers had, in the files channel: this
-    # returned 'updated' on every apply regardless of whether a junction was
-    # actually created or removed. The audit path here is already correct -- it
-    # returns 'drift' early (see the -WhatIf branch below) when any extension is
-    # not ready -- so the apply path just has to name the same fact.
-    # $adapterReady -and $userReady IS that fact; it is the exact condition the
-    # audit branch tests.
-    $changed = $false
-    $expected = @()
-    foreach ($capability in @($CapabilitiesRegistry.capabilities)) {
-        $mapping = @($capability.hostMappings | Where-Object {
-            $_.hostId -eq 'qwen-code' -and $_.deploymentStatus -in @('managed','native-extension-junction')
-        })
-        if ($mapping.Count -eq 0) { continue }
-
-        $sourceSkills = Join-Path (
-            Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
-        ) 'skills'
-        if (-not (Test-Path -LiteralPath $sourceSkills)) { continue }
-        $sourceAgents = Join-Path (
-            Resolve-RegistryOwnedPath ([string]$capability.canonicalSource)
-        ) 'agents'
-        $hasSourceAgents = Test-Path -LiteralPath $sourceAgents -PathType Container
-        $extensionName = 'agenthub-' + [string]$capability.id
-        $expected += $extensionName
-        $adapterPath = Join-Path $adapterRoot $extensionName
-        $manifestPath = Join-Path $adapterPath 'qwen-extension.json'
-        $skillsLink = Join-Path $adapterPath 'skills'
-        $agentsLink = Join-Path $adapterPath 'agents'
-        $userLink = Join-Path $extensionsRoot $extensionName
-        $manifest = @{ name=$extensionName; version='1.0.0'; description="Registry adapter for $($capability.id)"; skills='skills' }
-        if ($hasSourceAgents) { $manifest.agents = 'agents' }
-        $manifestJson = Get-StableJsonString $manifest
-
-        # Deliberate suppression, verified as such (task audit finding #4):
-        # "not found" is the ordinary, expected state here -- the junction
-        # simply has not been created yet -- and SilentlyContinue only
-        # collapses that expected case, it does not hide a genuine failure
-        # going undetected. Any other Get-Item failure (permission denied,
-        # a locked handle, etc.) still surfaces loudly downstream: with
-        # $ErrorActionPreference = 'Stop' active for this whole script, the
-        # New-Item -ItemType Junction / Remove-Item calls a few lines below
-        # that key off $skillsItem/$agentsItem/$userItem being $null throw a
-        # real, unsuppressed terminating error the moment they collide with
-        # a path Get-Item could not actually read cleanly.
-        $skillsItem = Get-Item -LiteralPath $skillsLink -Force -ErrorAction SilentlyContinue
-        $agentsItem = Get-Item -LiteralPath $agentsLink -Force -ErrorAction SilentlyContinue
-        $userItem = Get-Item -LiteralPath $userLink -Force -ErrorAction SilentlyContinue
-        $skillsTarget = if ($skillsItem -and $skillsItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-            [string]$skillsItem.Target
-        } else { '' }
-        $agentsTarget = if ($agentsItem -and $agentsItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-            [string]$agentsItem.Target
-        } else { '' }
-        $userTarget = if ($userItem -and $userItem.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-            [string]$userItem.Target
-        } else { '' }
-        $agentsReady = if ($hasSourceAgents) {
-            $agentsTarget -and
-            [IO.Path]::GetFullPath($agentsTarget) -eq [IO.Path]::GetFullPath($sourceAgents)
-        } else {
-            -not $agentsItem
-        }
-        $adapterReady = (
-            (Test-Path -LiteralPath $manifestPath -PathType Leaf) -and
-            ((Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8) -eq $manifestJson) -and
-            $skillsTarget -and
-            [IO.Path]::GetFullPath($skillsTarget) -eq [IO.Path]::GetFullPath($sourceSkills) -and
-            $agentsReady
-        )
-        $userReady = (
-            $userTarget -and
-            [IO.Path]::GetFullPath($userTarget) -eq [IO.Path]::GetFullPath($adapterPath)
-        )
-        if ($WhatIf) {
-            if (-not ($adapterReady -and $userReady)) { return @{ status='drift'; path=$extensionsRoot } }
-            continue
-        }
-        if (-not ($adapterReady -and $userReady)) { $changed = $true }
-
-        if (-not (Test-Path -LiteralPath $adapterPath)) { New-Item -ItemType Directory -Path $adapterPath -Force | Out-Null }
-        Write-Utf8NoBom -Path $manifestPath -Content $manifestJson
-        if ($skillsItem -and -not $skillsTarget) {
-            throw "Refusing to replace non-junction Qwen adapter path: $skillsLink"
-        }
-        if ($skillsItem -and -not $adapterReady) {
-            Remove-ManagedJunction -Path $skillsLink
-            $skillsItem = $null
-        }
-        if (-not $skillsItem) {
-            New-Item -ItemType Junction -Path $skillsLink -Target $sourceSkills | Out-Null
-        }
-        if ($agentsItem -and -not $agentsTarget) {
-            throw "Refusing to replace non-junction Qwen adapter path: $agentsLink"
-        }
-        if ($agentsItem -and -not $agentsReady) {
-            Remove-ManagedJunction -Path $agentsLink
-            $agentsItem = $null
-        }
-        if ($hasSourceAgents -and -not $agentsItem) {
-            New-Item -ItemType Junction -Path $agentsLink -Target $sourceAgents | Out-Null
-        } elseif (-not $hasSourceAgents -and $agentsItem) {
-            Remove-ManagedJunction -Path $agentsLink
-        }
-        if (-not (Test-Path -LiteralPath $extensionsRoot)) { New-Item -ItemType Directory -Path $extensionsRoot -Force | Out-Null }
-        if ($userItem -and -not $userTarget) {
-            throw "Refusing to replace non-junction Qwen extension path: $userLink"
-        }
-        if ($userItem -and -not $userReady) {
-            Remove-ManagedJunction -Path $userLink
-            $userItem = $null
-        }
-        if (-not $userItem) {
-            New-Item -ItemType Junction -Path $userLink -Target $adapterPath | Out-Null
-        }
-    }
-
-    if ($Prune -and -not $WhatIf) {
-        foreach ($userPath in @(Get-ChildItem -LiteralPath $extensionsRoot -Directory -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -like 'agenthub-*' -and $_.Name -notin $expected })) {
-            if (-not ($userPath.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-                throw "Refusing to prune non-junction Qwen extension path: $($userPath.FullName)"
-            }
-            Remove-ManagedJunction -Path $userPath.FullName
-            $changed = $true
-        }
-        foreach ($adapterPath in @(Get-ChildItem -LiteralPath $adapterRoot -Directory -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -like 'agenthub-*' -and $_.Name -notin $expected })) {
-            $resolvedAdapter = [IO.Path]::GetFullPath($adapterPath.FullName)
-            $resolvedRoot = [IO.Path]::GetFullPath($adapterRoot).TrimEnd('\') + '\'
-            if (-not $resolvedAdapter.StartsWith($resolvedRoot, [StringComparison]::OrdinalIgnoreCase)) {
-                throw "Refusing to prune Qwen adapter outside managed runtime: $resolvedAdapter"
-            }
-            Remove-Item -LiteralPath $resolvedAdapter -Recurse -Force
-            $changed = $true
-        }
-    }
-    # Reaching here under -WhatIf means every extension was ready, because the
-    # not-ready case returned 'drift' above.
-    $status = if ($WhatIf) { 'unchanged' } else { Resolve-McpWriteStatus $changed }
-    return @{ status=$status; path=$extensionsRoot; count=$expected.Count }
-}
-
-# Qwen Code ships its MCP OAuth token storage inside content-hashed bundle
-# chunks; every npm update restores the upstream expired-token defect
-# (getCredentials returns null for expired tokens, so MCPOAuthProvider never
-# reaches the refresh branch) and Linear/Notion fall back to browser
-# re-authentication loops. scripts/Repair-QwenCodeMcpOAuth.js removes the
-# early-return again. Audit reports drift when the installed bundle needs the
-# patch; Apply runs the patch. A missing qwen-code install or node.exe is
-# 'unsupported-path', not drift: this guard protects an installation, it does
-# not create one.
-function Sync-QwenOAuthBundleGuard {
-    param([switch]$WhatIf)
-    $scriptPath = Join-Path $RegistryRoot 'scripts\Repair-QwenCodeMcpOAuth.js'
-    $chunksDir = Join-Path $env:APPDATA 'npm\node_modules\@qwen-code\qwen-code\chunks'
-    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
-        return @{ status='unsupported-path'; note='scripts/Repair-QwenCodeMcpOAuth.js missing' }
-    }
-    if (-not (Test-Path -LiteralPath $chunksDir -PathType Container)) {
-        return @{ status='unsupported-path'; note='qwen-code npm install not found' }
-    }
-    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-        return @{ status='unsupported-path'; note='node not on PATH' }
-    }
-    # Windows PowerShell 5.1 turns a native child's stderr into terminating
-    # NativeCommandErrors under $ErrorActionPreference = 'Stop'; relax locally
-    # exactly like Invoke-DelegatedScript in AgentHub.ps1 does.
-    $previousEap = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    try {
-        $checkOutput = & node $scriptPath --check 2>&1 | Out-String
-        $code = $LASTEXITCODE
-        if ($code -eq 0) { return @{ status='unchanged'; path=$chunksDir } }
-        if ($code -ne 3) {
-            return @{ status='drift'; path=$chunksDir; note="Repair-QwenCodeMcpOAuth.js --check exited $code : $($checkOutput.Trim())" }
-        }
-        if ($WhatIf) {
-            return @{ status='drift'; path=$chunksDir; note='MCP OAuth refresh hotfix missing from qwen-code bundle' }
-        }
-        $patchOutput = & node $scriptPath 2>&1 | Out-String
-        $code = $LASTEXITCODE
-        if ($code -ne 0) {
-            throw "Repair-QwenCodeMcpOAuth.js failed (exit $code): $($patchOutput.Trim())"
-        }
-        return @{ status='updated'; path=$chunksDir }
-    } finally {
-        $ErrorActionPreference = $previousEap
-    }
-}
 
 function Sync-HostMcp-JsonFile {
     param(
@@ -2230,82 +1843,9 @@ function Sync-HostMcp-Cline {
     return @{ status=(Resolve-McpWriteStatus $changed); path=$path }
 }
 
-function ConvertTo-QoderMcpEntry {
-    param([hashtable]$CanonicalEntry)
 
-    $entry = @{}
-    if ($CanonicalEntry.type -eq 'http') {
-        # Qoder's documented CLI/IDE schema uses http/sse/ws transport values
-        # and does not accept the registry's host-neutral auth marker.
-        $entry.type = 'http'
-        $entry.url = $CanonicalEntry.url
-        if ($CanonicalEntry.ContainsKey('headers')) {
-            $headers = @{}
-            foreach ($header in (ConvertTo-Hashtable $CanonicalEntry.headers).GetEnumerator()) {
-                # Qoder expands ${NAME} from the process environment. The
-                # host-neutral ${env:NAME} spelling is otherwise sent
-                # literally and the remote rejects the request.
-                $headers[$header.Key] = [regex]::Replace(
-                    [string]$header.Value,
-                    '\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}',
-                    { param($match) '$' + '{' + $match.Groups[1].Value + '}' }
-                )
-            }
-            $entry.headers = $headers
-        }
-    } elseif ($CanonicalEntry.type -eq 'stdio') {
-        $entry.command = $CanonicalEntry.command
-        $entry.args = @($CanonicalEntry.args)
-        if ($CanonicalEntry.ContainsKey('env')) { $entry.env = ConvertTo-Hashtable $CanonicalEntry.env }
-    }
-    return $entry
-}
 
-function Sync-HostMcp-Qoder {
-    param(
-        [pscustomobject]$Agent,
-        [hashtable]$McpEntries,
-        [string[]]$SuppressedKeys = @(),
-        [switch]$WhatIf,
-        [switch]$Prune
-    )
 
-    $qoderEntries = @{}
-    foreach ($key in $McpEntries.Keys) {
-        $qoderEntries[$key] = ConvertTo-QoderMcpEntry (ConvertTo-Hashtable $McpEntries[$key])
-    }
-    $result = Sync-HostMcp-JsonFile -Path $Agent.nativePaths.mcp -McpEntries $qoderEntries -JsonProperty 'mcpServers' -SuppressedKeys $SuppressedKeys -WhatIf:$WhatIf -Prune:$Prune
-    if (-not $WhatIf -and (Test-Path -LiteralPath $Agent.nativePaths.mcp -PathType Leaf)) {
-        $json = ConvertTo-Hashtable (Get-Content -LiteralPath $Agent.nativePaths.mcp -Raw -Encoding UTF8 | ConvertFrom-Json)
-        $changed = $false
-        foreach ($key in $qoderEntries.Keys) {
-            $targetKey = Resolve-McpAliasKey $key
-            if (-not $json.mcpServers.ContainsKey($targetKey)) { continue }
-            $server = ConvertTo-Hashtable $json.mcpServers[$targetKey]
-            if ($server.ContainsKey('auth')) {
-                $server.Remove('auth')
-                $changed = $true
-            }
-            if ($qoderEntries[$key].ContainsKey('headers')) {
-                $targetHeaders = ConvertTo-Hashtable $qoderEntries[$key].headers
-                $currentHeaders = if ($server.ContainsKey('headers')) {
-                    ConvertTo-Hashtable $server.headers
-                } else { @{} }
-                if ((Get-StableJsonString $currentHeaders) -ne (Get-StableJsonString $targetHeaders)) {
-                    $server.headers = $targetHeaders
-                    $changed = $true
-                }
-            }
-            $json.mcpServers[$targetKey] = $server
-        }
-        if ($changed) {
-            Write-Utf8NoBom -Path $Agent.nativePaths.mcp -Content (Get-StableJsonString $json)
-            $script:state.managedFiles[$Agent.nativePaths.mcp] = @{ capability='mcp-registry'; hash=(Get-FileHash256 $Agent.nativePaths.mcp) }
-            $result.status = 'updated'
-        }
-    }
-    return $result
-}
 
 # OpenCode expands {env:NAME}, not the shared ${env:NAME} notation, and it does
 # so anywhere in opencode.json -- remote `headers` and local `environment`
@@ -2664,6 +2204,7 @@ $agentsToSync = @($agentsReg.activeAgents)
 if ($IncludeInactiveAgents) { $agentsToSync += @($agentsReg.inactiveAgents) }
 
 foreach ($agent in $agentsToSync) {
+    if (-not (Test-AgentHubHostSyncEnabled -Agent $agent)) { continue }
     $hostDrift = @{ host=$agent.id; mcp=@(); files=@(); status='ok' }
     $gatewayPlan = Get-GatewayPlanForHost -HostId $agent.id -GatewayRegistry $gatewayReg -ConnectorRegistry $connectorReg
     $hostMcpEntries = Get-HostMcpEntries -HostId $agent.id -BaseEntries $allMcpEntries -HostAllowlist $mcpHostAllowlist -HostConfigOverrides $mcpHostConfigOverrides -PluginProvidedByHost $pluginProvidedByHost -GatewayPlan $gatewayPlan
@@ -2697,10 +2238,6 @@ foreach ($agent in $agentsToSync) {
             $r = Sync-HostMcp-Grok -Agent $agent -Mcps $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
-        'hermes' {
-            $r = Sync-HostMcp-Hermes -Agent $agent -Mcps $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode
-            $hostDrift.mcp += $r
-        }
         'warp' {
             $r = Sync-HostMcp-ConvertedJsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -Converter ${function:ConvertTo-WarpMcpEntry} -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
@@ -2716,12 +2253,6 @@ foreach ($agent in $agentsToSync) {
         'factory' {
             $r = Sync-HostMcp-JsonFile -Path $agent.nativePaths.mcp -McpEntries $hostMcpEntries -JsonProperty 'mcpServers' -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
-        }
-        'qwen-code' {
-            $r = Sync-HostMcp-Qwen -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
-            $hostDrift.mcp += $r
-            $hostDrift.files += Sync-QwenCapabilityExtensions -Agent $agent -CapabilitiesRegistry $capReg -WhatIf:$whatIfMode -Prune:$Prune
-            $hostDrift.files += Sync-QwenOAuthBundleGuard -WhatIf:$whatIfMode
         }
         'devin' {
             # Devin CLI v3000.3+ keeps user MCP servers in a dedicated
@@ -2772,10 +2303,6 @@ foreach ($agent in $agentsToSync) {
             $r = Sync-HostMcp-Cline -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
             $hostDrift.mcp += $r
         }
-        'qoder' {
-            $r = Sync-HostMcp-Qoder -Agent $agent -McpEntries $hostMcpEntries -SuppressedKeys $suppressedKeys -WhatIf:$whatIfMode -Prune:$Prune
-            $hostDrift.mcp += $r
-        }
     }
 
 
@@ -2791,7 +2318,6 @@ if ($Validate -or $Apply -or $Audit) {
         '{userHome}/.cursor/mcp.json',
         '{roamingConfig}/Code - Insiders/User/mcp.json',
         '{userHome}/.factory/mcp.json',
-        '{userHome}/.qwen/settings.json',
         '{roamingConfig}/devin/config.json',
         '{roamingConfig}/devin/mcp_config.json',
         '{userHome}/.config/amp/settings.json',
@@ -2802,8 +2328,7 @@ if ($Validate -or $Apply -or $Audit) {
         '{userHome}/.copilot/mcp-config.json',
         '{userHome}/.codeium/windsurf/mcp_config.json',
         '{userHome}/.warp/.mcp.json',
-        '{userHome}/.cline/data/settings/cline_mcp_settings.json',
-        '{userHome}/.qoder/settings.json'
+        '{userHome}/.cline/data/settings/cline_mcp_settings.json'
     ) | ForEach-Object { Expand-AgentHubPathTemplate -Value $_ -Context $pathBinding }
     foreach ($f in $configFiles) {
         # Test-JsonParse returns a bool (used elsewhere via its side effect on

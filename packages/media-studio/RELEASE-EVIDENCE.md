@@ -14,13 +14,13 @@ the other loose-skill hosts. Deploy both skill content and executable tools:
 
 `Sync-AgentHub.ps1` manages host configuration; it is not the skill deployment
 step. Inspect a refused user-modified skill before explicitly adopting it.
-Compare all eleven Media Studio skill trees through every active host's declared
+Compare all declared Media Studio skill trees through every active host's declared
 path (including registered surface aliases), and compare the four runtime gates
 and capture/composition tools against source. Native plugins require a separate
 native update and installed-content freshness check. Existing sessions must
 reload instructions; installed file parity does not prove session compliance.
 
-The sync tools (`build-cue-sheet.mjs`, `validate-sync.mjs`, `sync-lib.mjs`) are part of the same deployed set, as are the video-standard gates (`validate-narration.mjs`, `validate-capture-preflight.mjs`, `validate-pointer-path.mjs`, `validate-frame-integrity.mjs`, `validate-marketing-readiness.mjs`, `build-contact-sheet.mjs`).
+The sync tools (`build-cue-sheet.mjs`, `validate-word-sync.mjs`, `validate-sync.mjs`, `sync-lib.mjs`) are part of the same deployed set, as are the video-standard gates (`validate-narration.mjs`, `validate-capture-preflight.mjs`, `validate-pointer-path.mjs`, `validate-frame-integrity.mjs`, `validate-marketing-readiness.mjs`, `build-contact-sheet.mjs`).
 
 Loose-skill hosts execute gates from
 `%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools`. The briefing kit also has
@@ -41,6 +41,23 @@ This is a pre-capture gate. A failed picker, contract mismatch, missing approval
 
 ## Exact encoded candidate
 
+Marketing 2.0.8 uses explicit isolated compose/QA/delivery stages and immutable candidate IDs. QA cannot compose.
+Every top-level gate and delivery decision binds to the selected candidate SHA. External-candidate QA requires the
+expected SHA, original compose metadata directory and a separate `--qa-dir`; source job evidence stays read-only.
+Containment resolves junctions/symlinks, including nonexistent output tails. QA records the sidecar SRT hash;
+delivery rejects a missing or changed sidecar even when the encoded candidate and its gate bindings still match.
+
+Jobs declaring `syncClock: "forced-aligner"` also require `qa/word-sync.json`, bound to the exact candidate SHA/bytes,
+cue sheet and encoded alignment report. `ai.ps1 align` supplies the take/script-bound word clock on its 80 ms grid.
+Whisper only checks transcript text. Missing or invalid alignment cannot fall back to Whisper onset times.
+Before Remotion, `scripts/validate-picture-inputs.mjs` refuses a missing props file, a Whisper word clock, a narration whose numbers differ from `story/fact-lock.json`, a spotlight word that is not the spoken word, an mp3 or a wav without a PASS receipt, and a named person on a role voice without dramatization. `scripts/render-program.mjs` passes `--props=` as one argument and deletes a picture whose duration does not match the voice.
+The canonical 40 ms offset/drift limits are unchanged; the raw grid limits measurement accuracy. This patch is not
+the proposed 2.1 rendered-pixel/action-evidence audit, and its receipt-based picture checks retain their stated limits.
+
+Local vision reuses only an enabled existing vision-capable Local-AI route, without starting services or downloading
+weights. An unavailable or retired route blocks the vision gate. Paid OpenAI requires explicit provider selection
+and normal budget accounting. No missing review, unavailable service or proposed capability counts as a pass.
+
 After every recut, write `qa/viewer-release-evidence.json` and run:
 
 ```powershell
@@ -49,7 +66,7 @@ node <media-studio>/scripts/validate-viewer-release.mjs <jobRoot> <candidate.mp4
 
 Every review must carry the SHA-256 of that exact candidate. The gate requires:
 
-- `captions`: a PASS SRT review; two readable lines per cue, 42 characters per line, 84 per cue, and no more than 20 characters per second.
+- `captions`: a PASS SRT review; two readable lines per cue, 42 characters per line, 84 per cue, and no more than 20 characters per second. A cue that is itself faster than 20 characters a second passes only when `qa/caption-rate-bound.json` lists that cue, its text matches the report, and the report hash is on the captions review. Listing a cue does not relax the line limits. Spoken words stay intact.
 - `audio`: PASS measurement at -16 LUFS ±1.5 and at or below -1 dBTP, linked by path and hash to the exact-candidate `ffmpeg-loudnorm` analyzer report.
 - `pronunciation`: PASS, `reference: "authored-script"`, source script path/hash, and `releaseEligible: true`. ASR remains diagnostic and cannot be its own pronunciation reference.
 - `encodedVisualReview`, `titleReview` (no duplicate opening title treatment), and `actionResultReview`. Each action event records action, visible-result, and spoken-result timestamps; the sentence cannot precede the picture.

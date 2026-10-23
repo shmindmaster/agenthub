@@ -189,10 +189,6 @@
               "state": "poc-pending"
             },
             {
-              "hostId": "qwen-code",
-              "state": "poc-pending"
-            },
-            {
               "hostId": "opencode",
               "state": "poc-pending"
             },
@@ -202,10 +198,6 @@
             },
             {
               "hostId": "gemini",
-              "state": "poc-pending"
-            },
-            {
-              "hostId": "hermes",
               "state": "poc-pending"
             },
             {
@@ -234,10 +226,6 @@
             },
             {
               "hostId": "cline",
-              "state": "poc-pending"
-            },
-            {
-              "hostId": "qoder",
               "state": "poc-pending"
             },
             {

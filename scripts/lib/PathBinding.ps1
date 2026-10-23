@@ -5,8 +5,7 @@
 
 .DESCRIPTION
     Expands path templates and rebases absolute destinations onto the target
-    home. Sync scripts must not grow a second rebase. {{globalPolicy}} is not
-    a path token.
+    home. Sync scripts must not grow a second rebase.
 
     Platforms are windows, darwin, and linux -- the three operating systems
     coding agents actually ship for. Templates are stored with / separators.

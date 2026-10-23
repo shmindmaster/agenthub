@@ -14,7 +14,7 @@ try {
     if ($firstSync -match 'unmanaged entries[^
 ]*OwnerVoice-TakeReuse\.ps1') { throw "OwnerVoice-TakeReuse.ps1 is deployed but reported unmanaged: $firstSync" }
     $checks++
-    foreach ($name in @('validate-storyboard.mjs','validate-capture-manifest.mjs','backfill-capture-receipt.mjs','validate-demo-scenario.mjs','validate-product-picture.mjs','validate-encoded-picture.mjs','validate-sync.mjs','build-cue-sheet.mjs','validate-viewer-release.mjs','validate-narration.mjs','validate-capture-preflight.mjs','validate-pointer-path.mjs','validate-frame-integrity.mjs','validate-picture-integrity.mjs','validate-marketing-readiness.mjs','build-contact-sheet.mjs')) {
+    foreach ($name in @('validate-word-sync.mjs','validate-storyboard.mjs','validate-capture-manifest.mjs','backfill-capture-receipt.mjs','validate-demo-scenario.mjs','validate-product-picture.mjs','validate-encoded-picture.mjs','validate-sync.mjs','build-cue-sheet.mjs','validate-viewer-release.mjs','validate-narration.mjs','validate-capture-preflight.mjs','validate-pointer-path.mjs','validate-frame-integrity.mjs','validate-picture-integrity.mjs','validate-marketing-readiness.mjs','build-contact-sheet.mjs')) {
         $source = Join-Path (Join-Path $package 'scripts') $name
         foreach ($destination in @((Join-Path (Join-Path $runtimeKit 'screencast') $name), (Join-Path $shared $name))) {
             if (-not (Test-Path -LiteralPath $destination)) { throw "Missing runtime gate: $destination" }

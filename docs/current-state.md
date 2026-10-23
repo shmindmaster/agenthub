@@ -4,6 +4,19 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today
 
+- **Bounded RepoWise updates:** package 1.2.6 adds the manual
+  `Invoke-RepoWiseBoundedIndex.ps1` entry point. It acquires a caller-specified
+  atomic lease, pins existing local embeddings, and installs an 8 GiB / 900 s
+  Windows Job Object before one index-only child starts. A required deadline
+  can shorten that budget. Foreign leases are untouched. Source/config
+  fingerprints and exact HEAD freshness gate acceptance. Synthetic tests cover
+  memory denial, timeout/descendant cleanup, admission and negative acceptance
+  controls. Package 1.2.7 keeps the lease on disk (exit 3) when owned processes
+  cannot be proven gone and terminates the job if the wrapper dies. These
+  checks are not evidence of a deployed or completed reindex.
+  Package 1.2.8 adds an explicit, per-run owner RAM-floor waiver recorded in
+  the lease and acceptance receipt, without relaxing other bounds or fences.
+
 - **RepoWise local embedding routing (2026-10-21):** plugin 1.2.5 pins the
   shared query process to the local OpenAI-compatible embedding service before
   importing the vendor server. Startup probes an actual vector and rejects
@@ -31,8 +44,9 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   a focus-follow camera inside the platform-safe area; audio is mixed and
   loudness-normalized with FFmpeg. Paid ElevenLabs speech, sound effects and
   music go through the governed adapter (`packages/elevenlabs`:
-  `governed_audio.py`, `elevenlabs_cli.py sfx|music`); OpenAI supplies stills,
-  `whisper-1` word timing and vision QA. `validate-viewer-release.mjs` accepts
+  `governed_audio.py`, `elevenlabs_cli.py sfx|music`); Local-AI forced alignment
+  supplies take-bound word timing, while OpenAI supplies stills, the explicit
+  `--whisper-timing` fallback, and paid vision QA. `validate-viewer-release.mjs` accepts
   the mvg picture report for `generator: media-studio/mvg` jobs and a per-job
   `loudnessTargetLufs`. `Sync-MediaStudioKit.ps1` mirrors the runtime
   `briefing-kit\marketing` tree in place (robocopy /MIR, never emptied) and
@@ -40,13 +54,19 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   (mock providers, no paid calls). Product data (brand, claims, specs) stays in
   the external media workspace.
 
-- **Coding-agent dispatch (2026-10-14, prepared; deployment pending):** `packages/coding-agent-dispatch`
+- **Coding-agent dispatch (2026-10-22):** `packages/coding-agent-dispatch`
   owns the `use-coding-agent` skill and `Invoke-CodingAgent.ps1`. Claude and
-  Codex are the primary orchestrators. Any host that has the skill can call
-  the same script. `-List` is the callable set. Devin and OpenCode passed
-  bounded smokes on explicitly free models; other hosts have explicit gates.
-  A host without a verified headless command is refused, including GUI hosts. Deploy with
-  `Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`. The
+  Codex are the primary orchestrators; any host with the skill can call the
+  same script. The dispatcher reads `registry/fleet-profile.json` on each
+  invocation, so policy changes take effect immediately for source-checkout
+  dispatch; syncing deploys the package and instructions. `-List` reports the
+  callable set. Codex remains disabled until its dispatcher captures a
+  standalone response and quota permits a smoke. The paid Devin model replaces
+  its former free route. OpenCode's Go model is selected, but dispatch remains
+  disabled pending owner verification and a successful smoke. A host without
+  a verified headless command is refused, including GUI hosts. Deploy with
+  `Sync-Capabilities.ps1 -Apply -CapabilityId coding-agent-dispatch`; use
+  `Sync-AgentHub.ps1 -Apply -Validate` for a full AgentHub deployment. The
   orchestrator doors are `agents/claude/coding-agent.md` and
   `agents/codex/coding-agent.toml`, copied into `~/.claude/agents` and
   `~/.codex/agents`.
@@ -242,10 +262,15 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   XCUITest 12.18.1 and appium-mcp 1.97.1, and records the x86_64 guest's
   Xcode 26.6 ceiling. Implemented and tested in source; the guest doctor run
   against the new pins and fleet deployment are still pending.
-- **Current host evidence (2026-08-20):** Codex, Qoder, and Factory are active.
-  OpenCode Desktop, Hermes, and Windsurf remain unverified on this workstation.
-  Mobile skills/catalog are deployed to active coding surfaces, while native
-  Appium activation is intentionally available only through Claude and Codex.
+- **Retired coding hosts (2026-10-21):** Owner direction retired Qoder, Qwen
+  Code, and Hermes from the managed fleet. See
+  [retired-hosts](./fleet/retired-hosts-2026-10-21.md) and the pending
+  [account-login checklist](./fleet/account-logins-2026-10-21.md).
+- **Host readiness:** `registry/fleet-profile.json` is the source of truth for
+  account auth and callable dispatcher hosts. A configured model or installed
+  CLI alone does not establish readiness. Mobile skills/catalog are deployed
+  to active coding surfaces, while native Appium activation remains limited
+  to the verified hosts in the registry.
 - Registry (`registry/*.json`) declares hosts, capabilities, MCP servers,
   fleet profile, and the fleet repository standard roster.
 - `scripts/Validate-AgentHub.ps1` validates the registry against on-disk
@@ -539,8 +564,9 @@ added six more: **175 passed / 4 failed** across 28 files, still the same four.
 ## Known constraints
 
 - The checker compares the RepoWise index to `HEAD`; a repo with uncommitted
-  in-flight work is fine (hook syncs on commit), but a just-committed repo
-  shows stale until the hook or `repowise update --repo <name>` runs.
+  in-flight work may match that HEAD but is not necessarily indexed at its
+  working-tree state. After commit, refresh manually through the bounded entry
+  point. Do not restore disabled unbounded post-commit hooks.
 - `.claude/CLAUDE.md` is RepoWise-generated and gitignored. `.vscode/mcp.json`
   was removed 2026-09-02 (owner); do not recreate it as AgentHub-authored
   state. RepoWise may write a tool-managed copy; it is not a registry surface.

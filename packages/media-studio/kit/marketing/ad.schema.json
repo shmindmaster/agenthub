@@ -35,6 +35,13 @@
       }
     },
     "voice": { "$ref": "#/definitions/voice" },
+    "render": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "lineChips": { "type": "boolean", "description": "False disables the burned caption/line-chip layer, not the sidecar SRT." },
+        "captions": { "type": "boolean", "description": "False disables burned captions; accessible sidecar captions remain." }
+      }
+    },
     "music": {
       "type": "object", "additionalProperties": false,
       "required": ["provider"],
@@ -103,7 +110,7 @@
         "storyMin": { "type": "number", "minimum": 0, "maximum": 100 },
         "visionEverySeconds": { "type": "number", "minimum": 0.5, "maximum": 5 },
         "loudness": { "enum": ["social", "web"] },
-        "required": { "type": "array", "items": { "enum": ["picture", "integrity", "pointer", "frameIntegrity", "captions", "loudness", "sync", "listen", "vision", "marketing", "story", "viewerRelease"] } }
+        "required": { "type": "array", "items": { "enum": ["picture", "integrity", "pointer", "frameIntegrity", "captions", "loudness", "sync", "listen", "vision", "marketing", "story", "viewerRelease", "wordSync", "transcript"] } }
       }
     },
     "notes": { "type": "array", "items": { "type": "string" } }

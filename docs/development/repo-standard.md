@@ -71,19 +71,25 @@ contract (Mission + Knowledge authority + Definition of done) is drift.
   under `shmindmaster`, `sh-pendoah`, `musa-dev-team`, and `pendoah`.
   Rostered shmindmaster membership is checked against that file (path leaf
   or alias).
-- Every rostered member repo has the post-commit hook installed and gitignores
-  `.repowise/`. It must also ignore either the exact generated adapter
+- Every rostered member repo gitignores `.repowise/`. It must also ignore either the exact generated adapter
   `.claude/CLAUDE.md` or the entire `.claude/` directory when that repository
   deliberately treats all Claude-local state as generated and untracked.
-- Index freshness: `.repowise/state.json` `last_sync_commit` == `HEAD`
-  (the hook normally maintains this). Indexes themselves live in each repo's
-  `.repowise/` directory.
+- Index freshness: `.repowise/state.json` `last_sync_commit` == `HEAD`.
+  The only fleet refresh path is the bounded manual entry point
+  `packages/repowise/scripts/Invoke-RepoWiseBoundedIndex.ps1` (index-only, under
+  an admission lease and a Windows Job Object). The standard does not require
+  or recommend a post-commit hook, `repowise hook install` or a bare
+  `repowise update`. `repowise-bounded-refresh` checks that the entry point
+  exists in the agenthub checkout the checker reads and that the skill named in
+  `registry/repo-standard.json` (`repowiseRefresh.documentedIn`) documents it;
+  a registry that declares no entry point fails closed. Indexes themselves
+  live in each repo's `.repowise/` directory.
 - One MCP registration: `repowise-workspace` in `registry/mcps.json`
   (`repowise mcp C:/Repos`). A repo-local `.mcp.json` mentioning repowise
   is drift. Tool-managed `.vscode/mcp.json` / `.cursor/mcp.json` may exist
   but must invoke `repowise mcp C:/Repos`, never the member checkout.
   `Check-RepoStandard.ps1` fails a member path (measured 2026-09-10 when
-  `repowise update --repo agenthub` from inside the repo wrote
+  a bare `repowise update` from inside the repo wrote
   `C:/Repos/shmindmaster/agenthub`).
 - Excluded from the workspace: `.demo-workspace` (media-studio
   capture output; not a git repo — do not delete).

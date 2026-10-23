@@ -8,10 +8,12 @@
 //
 // Inputs (all under <jobRoot>; the product repository is never read):
 //   story/narration-timeline.json  required  { durationSeconds, segments:[{ id, scene, text, startSeconds, durationSeconds }] }
-//   voice/asr/<segmentId>.json     word timestamps per line, seconds into that line's audio (offset by startSeconds):
-//                                    ai.ps1 transcribe <take.wav> --engine whisper --json-out voice\asr\<id>.json
-//                                  or story/narration-words.json, the same payload with program-absolute times.
-//                                  Segment-level timing only -> precision "segment"; no ASR at all -> authored text spread
+//   voice/align/<segmentId>.json  picture clock. ai.ps1 align, method forced-alignment. Take-relative words, offset by startSeconds.
+//                                  When job.json syncClock is forced-aligner, a missing align report is an error.
+//                                  Whisper (voice/asr or narration-words) is a transcript check and cannot time that picture.
+//   voice/asr/<segmentId>.json     legacy screencast word timestamps, seconds into that line's audio (offset by startSeconds).
+//                                  Used only when no align report exists and the job has no forced-aligner clock.
+//                                  Segment-level timing only -> precision "segment"; no timing at all -> authored text spread
 //                                  across the segment, precision "estimate". Both are flagged and the sync gate refuses them.
 //   capture/receipt.json           clips[id].actions (record-job.mjs): click / type / point events with tStart, label, x, y,
 //                                  on the raw recording clock; clips[id].recastHeadTrimSeconds maps them onto the clip
@@ -29,6 +31,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSy
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { clockAccepted, designedCuts, normalizeAlignWords, pictureScripts } from './picture-gates.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
@@ -73,15 +76,46 @@ const composeMap = composeMapPath && existsSync(composeMapPath) ? JSON.parse(rea
 const mapped = !!composeMap?.groups?.length;
 if (composeMapPath && !composeMap) warnings.push(`compose map not found: ${composeMapPath}`);
 
-// ---- narration words per segment
+// ---- narration words per segment. Aligner reports win. Whisper cannot time a forced-aligner picture.
+const jobDoc = readJson('job.json') || {};
+const forcedClock = jobDoc.syncClock === 'forced-aligner';
 const absWords = readJson('story/narration-words.json');
 const absParsed = absWords ? L.parseAsrWords(absWords) : null;
+function wordsFromAlign(seg) {
+  const alignPath = join(root, 'voice', 'align', `${seg.id}.json`);
+  if (!existsSync(alignPath)) return null;
+  const report = JSON.parse(readFileSync(alignPath, 'utf8').replace(/^\uFEFF/, ''));
+  const clock = clockAccepted(report);
+  if (!clock.ok) {
+    errors.push(`${seg.id}: ${clock.reason}`);
+    return { words: [], precision: 'refused', source: `voice/align/${seg.id}.json` };
+  }
+  const parsed = L.parseAsrWords(normalizeAlignWords(report), { offset: seg.startSeconds });
+  if (parsed.words.length) return { ...parsed, source: `voice/align/${seg.id}.json` };
+  errors.push(`${seg.id}: voice/align/${seg.id}.json has no usable timing`);
+  return { words: [], precision: 'refused', source: `voice/align/${seg.id}.json` };
+}
 const beatsWords = segs.map((seg, i) => {
+  const aligned = wordsFromAlign(seg);
+  if (aligned) return aligned;
+  if (forcedClock && String(seg.text || '').trim()) {
+    // mvg local gates write their forced-aligner words here, marked clock: 'forced-aligner'. Unmarked Whisper output stays refused.
+    const marked = join(root, 'voice', 'asr', `${seg.id}.json`);
+    if (existsSync(marked)) {
+      const payload = JSON.parse(readFileSync(marked, 'utf8').replace(/^\uFEFF/, ''));
+      if (payload?.clock === 'forced-aligner') {
+        const parsed = L.parseAsrWords(payload, { offset: seg.startSeconds });
+        if (parsed.words.length) return { ...parsed, source: `voice/asr/${seg.id}.json` };
+      }
+    }
+    errors.push(`${seg.id}: word times must come from ai.ps1 align (voice/align/${seg.id}.json, method forced-alignment). Whisper is a transcript check and cannot time the picture.`);
+    return { words: [], precision: 'refused', source: 'missing aligner report' };
+  }
   const next = segs[i + 1];
   const end = next ? next.startSeconds : Infinity;
   const perSeg = join(root, 'voice', 'asr', `${seg.id}.json`);
   if (existsSync(perSeg)) {
-    const parsed = L.parseAsrWords(JSON.parse(readFileSync(perSeg, 'utf8').replace(/^﻿/, '')), { offset: seg.startSeconds });
+    const parsed = L.parseAsrWords(JSON.parse(readFileSync(perSeg, 'utf8').replace(/^\uFEFF/, '')), { offset: seg.startSeconds });
     if (parsed.words.length) return { ...parsed, source: `voice/asr/${seg.id}.json` };
     warnings.push(`${seg.id}: voice/asr/${seg.id}.json has no usable timing`);
   }
@@ -197,8 +231,35 @@ const beats = segs.map((seg, i) => {
   };
 });
 
+const flatScripts = pictureScripts(root).flat();
+let designed = null;
+if (flatScripts.length) {
+  const timingById = {};
+  segs.forEach((seg, i) => {
+    const row = { s: seg.startSeconds, words: (beatsWords[i].words || []).map((word) => ({ w: word.w, s: word.start, start: word.start })) };
+    if (!timingById[seg.id]) timingById[seg.id] = row;
+    const dash = String(seg.id).lastIndexOf('-');
+    const short = dash >= 0 ? String(seg.id).slice(dash + 1) : '';
+    if (short && !timingById[short]) timingById[short] = row;
+  });
+  designed = designedCuts(flatScripts, timingById, 0);
+  for (const miss of designed.misses) errors.push(miss);
+}
 const degraded = beats.filter((b) => b.narration.precision !== 'word').map((b) => ({ beat: b.beat, precision: b.narration.precision }));
-if (degraded.length) warnings.push(`degraded timing precision on ${degraded.length} beat(s): ${degraded.map((d) => `${d.beat}=${d.precision}`).join(', ')}; the sync gate fails these. Run word-level ASR per line.`);
+if (degraded.length) warnings.push(`degraded timing precision on ${degraded.length} beat(s): ${degraded.map((d) => `${d.beat}=${d.precision}`).join(', ')}; the sync gate fails these. Run ai.ps1 align and write voice/align/<id>.json. Whisper cannot time the picture.`);
+const composeEdl = mapped ? composeMap.groups.map((g) => ({ segments: g.segments, clip: g.clipId, startSeconds: g.startSeconds, needSeconds: g.needSeconds, fit: g.fit, edit: g.edit || null })) : null;
+let edl = composeEdl;
+if (designed) {
+  const existing = Array.isArray(composeEdl) ? [...composeEdl] : [];
+  const seen = new Set(existing.map((row) => Number(row.startSeconds)));
+  for (const start of designed.cuts) {
+    if (seen.has(start)) continue;
+    seen.add(start);
+    existing.push({ startSeconds: start, kind: 'designed' });
+  }
+  existing.sort((a, b) => Number(a.startSeconds) - Number(b.startSeconds));
+  edl = existing;
+}
 const sheet = {
   generator: 'media-studio/build-cue-sheet',
   schemaVersion: '1.0.0',
@@ -208,7 +269,7 @@ const sheet = {
   parameters: { screenLeadSeconds: lead, clickLeadSeconds: clickLead },
   inputs: { timeline: ref(timelinePath), receipt: ref(join(root, 'capture', 'receipt.json')), manifest: ref(join(root, 'capture', 'manifest.json')), composeMap: mapped ? ref(composeMapPath) : null, cuePlan: ref(join(root, 'story', 'cue-plan.json')) },
   precision: { allWordLevel: degraded.length === 0, degradedBeats: degraded },
-  edl: mapped ? composeMap.groups.map((g) => ({ segments: g.segments, clip: g.clipId, startSeconds: g.startSeconds, needSeconds: g.needSeconds, fit: g.fit, edit: g.edit || null })) : null,
+  edl,
   warnings,
   errors,
   beats,

@@ -18,7 +18,7 @@ You describe your setup once, in this repository. AgentHub works out what each h
 
 A host with no documented location for one of these is skipped rather than guessed at.
 
-The hosts the registry currently describes are Claude Code, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot CLI, Qwen Code, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp, Qoder and VS Code Insiders. Windsurf, Hermes and OpenCode Desktop are in the registry marked unverified.
+The registry describes Claude Code, OpenAI Codex, Cursor and Cursor Agent, Gemini CLI, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp and VS Code Insiders. Windsurf and OpenCode Desktop are marked unverified.
 
 ## Why you can trust it with your agents' config
 

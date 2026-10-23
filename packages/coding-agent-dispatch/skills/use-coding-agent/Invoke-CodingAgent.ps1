@@ -18,9 +18,8 @@
   receives a one-line pointer to that file. Every host therefore accepts
   -PromptFile.
 
-  The claude host bills the Anthropic API: the child gets ANTHROPIC_API_KEY
-  from the User environment when the caller's process does not carry it
-  (owner direction 2026-10-14). Only the variable name is ever printed.
+  Account-authenticated hosts do not inherit their API key environment
+  variables. Explicit API-key runs use their own configuration.
 
   Paths come from registry/agents.json. Flags that a ~/bin shim already
   applies are not repeated. This script does not invent a flag, open a
@@ -143,21 +142,16 @@ function Get-DispatchTable {
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('-p', '--output-format', 'text', $PromptText); Stdin = $null; PromptFile = $null }
-            }
-        }
-        'qwen-code' = @{
-            Mode = 'argument'
-            Build = {
-                param($PromptText, $Work, $File)
-                @{ Args = @($PromptText); Stdin = $null; PromptFile = $null }
+                @{ Args = @('--print', '--output-format', 'text', '--mode', 'ask', '--trust', '--workspace', $Work, $PromptText); Stdin = $null; PromptFile = $null }
             }
         }
         'gemini' = @{
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                $args = @('--prompt', $PromptText)
+                # The registered shim applies its yolo default only when this
+                # explicit approval-mode flag is absent.
+                $args = @('--approval-mode', 'yolo', '--prompt', $PromptText)
                 # Gemini restricts read_file to workspace roots. A pointer
                 # prompt must explicitly admit its runtime prompt directory.
                 if ($File) { $args += @('--include-directories', (Split-Path -Parent $File)) }
@@ -197,7 +191,7 @@ function Get-DispatchTable {
             Mode = 'file'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('--auto', 'high', '--cwd', $Work, 'exec', '-f', $File); Stdin = $null; PromptFile = $File }
+                @{ Args = @('--cwd', $Work, 'exec', '--auto', 'high', '-f', $File); Stdin = $null; PromptFile = $File }
             }
         }
         'cline' = @{
@@ -221,7 +215,8 @@ function Get-DispatchTable {
                 # amp --help 2026-10-14: -x/--execute reads the prompt from stdin
                 # and prints the last assistant message. --dangerously-allow-all
                 # disables command confirmation (amp.dangerouslyAllowAll).
-                @{ Args = @('-x', '--dangerously-allow-all', '--no-notifications', '--no-ide'); Stdin = $PromptText; PromptFile = $null }
+                $settingsFile = Join-Path $runDir ("settings-amp-{0}.json" -f [guid]::NewGuid().ToString('n'))
+                @{ Args = @('-x', '--dangerously-allow-all', '--no-notifications', '--no-ide', '--settings-file', $settingsFile); Stdin = $PromptText; PromptFile = $null; SettingsFile = $settingsFile }
             }
         }
         'devin' = @{
@@ -234,15 +229,6 @@ function Get-DispatchTable {
                 $args = @('--permission-mode', 'dangerous', '--respect-workspace-trust', 'false', '-p', '--prompt-file', $File)
                 if ($fleet.dispatchPolicy.devin.model) { $args += @('--model', [string]$fleet.dispatchPolicy.devin.model) }
                 @{ Args = $args; Stdin = $null; PromptFile = $File }
-            }
-        }
-        'qoder' = @{
-            Mode = 'argument'
-            Build = {
-                param($PromptText, $Work, $File)
-                # qodercli --help 2026-10-14: -p prints and exits, -w sets the cwd,
-                # -o sets the output format. Flags mirror the ~/bin/qodercli.cmd shim.
-                @{ Args = @('-p', '--dangerously-skip-permissions', '--tools', 'default', '-w', $Work, '-o', 'text', $PromptText); Stdin = $null; PromptFile = $null }
             }
         }
         'warp' = @{
@@ -275,13 +261,6 @@ foreach ($profile in @($fleet.autonomyProfiles.profiles)) {
 $table = Get-DispatchTable
 $routes = @{ 'cursor' = 'cursor-agent'; 'windsurf' = 'devin' }
 $dispatchPolicy = $fleet.dispatchPolicy
-
-function Get-UserScopedValue {
-    param([string]$Name)
-    $value = [Environment]::GetEnvironmentVariable($Name, 'Process')
-    if ([string]::IsNullOrEmpty($value)) { $value = [Environment]::GetEnvironmentVariable($Name, 'User') }
-    return $value
-}
 
 function Test-PolicyDisabled {
     param([string]$Id)
@@ -433,6 +412,7 @@ New-Item -ItemType Directory -Force -Path $runDir | Out-Null
 $stamp = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('n').Substring(0, 8)
 $stdoutPath = Join-Path $runDir "$stamp-$targetId.out"
 $stderrPath = Join-Path $runDir "$stamp-$targetId.err"
+$settingsFile = $built.SettingsFile
 $isBatch = $executable -match '\.(cmd|bat)$'
 $psi = [Diagnostics.ProcessStartInfo]::new()
 $psi.UseShellExecute = $false
@@ -444,11 +424,35 @@ $psi.RedirectStandardInput = $true
 $psi.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
 $psi.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
 $psi.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
-foreach ($name in @('ANTHROPIC_API_KEY', 'DEVIN_API_KEY')) {
-    if (($name -eq 'ANTHROPIC_API_KEY' -and $targetId -eq 'claude') -or ($name -eq 'DEVIN_API_KEY' -and $targetId -eq 'devin')) {
-        $value = Get-UserScopedValue $name
-        if ($value) { $psi.EnvironmentVariables[$name] = $value }
-    }
+# OWNER RULE 2026-10-22: every agent runs on its account/plan login, never a provider API key.
+# Strip provider keys from the child environment so a key in the User environment cannot
+# override the account login (Devin used DEVIN_API_KEY; Codex's wrapper used OPENAI_API_KEY).
+# OpenCode's Go plan is the account entry written by `opencode auth login`; the env override
+# is stripped so the built-in opencode/* models always bill the account entry.
+$accountScrub = @{
+    'claude'       = @('ANTHROPIC_API_KEY', 'ANTHROPIC_API_KEY_BACKUP')
+    'codex'        = @('OPENAI_API_KEY')
+    'cline'        = @('CLINE_API_KEY', 'OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY')
+    'devin'        = @('DEVIN_API_KEY', 'DEVIN_API_TOKEN', 'DEVIN_SERVICE_USER_TOKEN', 'DEVIN_ORG_ID')
+    'gemini'       = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
+    'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
+    'warp'         = @('WARP_API_KEY')
+    'grok'         = @('XAI_API_KEY')
+    'factory'      = @('FACTORY_API_KEY')
+    'cursor-agent' = @('CURSOR_API_KEY')
+    'amp'          = @('AMP_API_KEY')
+    'copilot'      = @('GH_TOKEN', 'GITHUB_TOKEN')
+    'opencode'     = @('OPENCODE_GO_API_KEY')
+}
+if ($accountScrub.ContainsKey($targetId)) {
+    foreach ($name in $accountScrub[$targetId]) { [void]$psi.EnvironmentVariables.Remove($name) }
+}
+# Copilot runs on the sh-pendoah GitHub account (owner direction 2026-10-22). The token is read
+# from gh's keyring at launch, placed only in the child environment, and never printed.
+if ($targetId -eq 'copilot') {
+    $pendoahToken = (& gh auth token --user sh-pendoah 2>$null)
+    if ($pendoahToken) { $psi.EnvironmentVariables['COPILOT_GITHUB_TOKEN'] = ([string]$pendoahToken).Trim() }
+    else { Write-Refusal 3 'copilot: gh has no token for account sh-pendoah; run gh auth login for it.' }
 }
 if ($built.Env) {
     foreach ($name in $built.Env.Keys) { $psi.EnvironmentVariables[$name] = [string]$built.Env[$name] }
@@ -465,6 +469,9 @@ if ($isBatch) {
 $process = [Diagnostics.Process]::new()
 $process.StartInfo = $psi
 try {
+    if ($settingsFile) {
+        [IO.File]::WriteAllText($settingsFile, '{"amp.mcpServers":{}}', [Text.UTF8Encoding]::new($false))
+    }
     if (-not $process.Start()) { Write-Refusal 2 "refused ${targetId}: process did not start" }
     $timer = [Diagnostics.Stopwatch]::StartNew()
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
@@ -505,6 +512,9 @@ try {
 } finally {
     if ($promptFile -and (Test-Path -LiteralPath $promptFile)) {
         Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
+    }
+    if ($settingsFile -and (Test-Path -LiteralPath $settingsFile)) {
+        Remove-Item -LiteralPath $settingsFile -Force -ErrorAction SilentlyContinue
     }
     $process.Dispose()
 }

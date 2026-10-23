@@ -29,7 +29,7 @@ import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
 import { assetsStage, musicKey, musicLengthMs, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
 import { cueTime, placeCaptions, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
-import { parseArgs } from '../kit/marketing/mvg.mjs';
+import { parseArgs, selectedStages } from '../kit/marketing/mvg.mjs';
 import { alignBeat, chooseResult, expandKeywords, findWord, shiftAsr, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
 import { buildGateWorkspace } from '../kit/marketing/lib/gates.mjs';
 import { listenCommand, listenFindings } from '../kit/marketing/lib/local-gates.mjs';
@@ -290,7 +290,9 @@ test('planCost sums voice, sfx, music, stills and vision and is checked against 
   s.music = { provider: 'elevenlabs', prompt: 'calm sparse piano bed, instrumental', licenseBasis: 'owner-approved 2026-10-20' };
   const plan = planCost(s, brand);
   assert.ok(plan.elevenlabsCredits > 400, 'voice, one sfx and a music bed');
-  assert.ok(plan.openaiUsd > 0);
+  assert.equal(plan.openaiUsd, 0, 'the default forced aligner has no OpenAI timing spend');
+  assert.ok(planCost(s, brand, { whisperTiming: true }).openaiUsd > 0, 'the explicit hosted Whisper fallback is budgeted');
+  assert.ok(planCost(s, { ...brand, timing: { provider: 'local-whisper' } }, { whisperTiming: true, hostedOnly: true }).openaiUsd > 0, 'hosted-only overrides local Whisper and budgets OpenAI');
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_v4'), 120);
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_flash_v2_5'), 60);
   assert.ok(estimateImageUsd('gpt-image-2', 'medium') < estimateImageUsd('gpt-image-2', 'high'));
@@ -561,7 +563,7 @@ test('vision-qa end to end with a mock provider charges the ledger from usage an
   const calls = [];
   const frames = (c, times) => times.map((t, i) => ({ label: `F${i + 1}`, t, dataUrl: 'data:image/jpeg;base64,AAAA' }));
   const vision = async (args) => { calls.push(args); return { text: verdictJson({ frames: args.frames.map((f) => ({ label: f.label, issues: [] })) }), usage: { input_tokens: 20000, output_tokens: 1000 } }; };
-  const report = await runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, ratio: '16x9', ledger, vision, frames, duration: 6 });
+  const report = await runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, provider: 'openai', ratio: '16x9', ledger, vision, frames, duration: 6 });
   assert.equal(report.ok, true);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].frames.length, 5);
@@ -570,7 +572,7 @@ test('vision-qa end to end with a mock provider charges the ledger from usage an
   assert.match(calls[0].instructions, /Ignore the small profile avatars/);
   assert.ok(Math.abs(ledger.runTotal('openai') - (20000 * 4 + 1000 * 20) / 1e6) < 1e-9);
   const tiny = new CostLedger({ jobDir: join(root, 'vledger2'), runId: 'v', perRun: { openaiUsd: 0.0001 }, cumulative: {} });
-  await assert.rejects(runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, ratio: '16x9', ledger: tiny, vision, frames, duration: 6 }), BudgetError);
+  await assert.rejects(runVisionQa({ candidate: join(root, 'none.mp4'), spec: baseSpec(), brand, provider: 'openai', ratio: '16x9', ledger: tiny, vision, frames, duration: 6 }), BudgetError);
   assert.equal(calls.length, 1, 'no provider call after the budget stop');
 });
 
@@ -602,6 +604,7 @@ test('voice, timing and assets stages run on mock providers, cache on rerun and 
     probeDuration: async (f) => (readFileSync(f, 'utf8').length > 40 ? 4 : 2.5),
     transcribeWords: async () => ({ words: [{ word: 'hello', start: 0.05, end: 0.4 }] }),
   });
+  ctx.flags.whisperTiming = true;
   const voice = await voiceStage(ctx);
   assert.equal(seen.length, 3, 'one governed request per narrated beat');
   assert.equal(seen[0].previousText, undefined);
@@ -654,12 +657,15 @@ test('sfx cue timing resolves start, end, at and receipt action labels', () => {
 });
 
 test('mvg CLI argument parsing', () => {
-  const a = parseArgs(['spec.json', '--stage', 'voice', '--dry-run', '--local-gates', '--workspace', 'D:/w']);
+  const a = parseArgs(['spec.json', '--stage', 'voice', '--dry-run', '--whisper-timing', '--local-gates', '--workspace', 'D:/w']);
   assert.equal(a.specPath, 'spec.json');
   assert.equal(a.flags.stage, 'voice');
   assert.equal(a.flags.dryRun, true);
+  assert.equal(a.flags.whisperTiming, true);
   assert.equal(a.flags.localGates, true);
   assert.equal(a.flags.workspace, 'D:/w');
+  assert.throws(() => selectedStages({ stage: 'timing', hostedOnly: true }), /requires the explicit --whisper-timing/);
+  assert.deepEqual(selectedStages({ stage: 'timing', hostedOnly: true, whisperTiming: true }), ['lint', 'voice', 'timing']);
 });
 
 test('the CLI still runs when the kit is reached through a junction (the deployed runtime path is a link)', () => {
@@ -1084,7 +1090,7 @@ test('chain gates 1: integrity, pointer and marketing are required by default an
   for (const g of ['integrity', 'pointer', 'frameIntegrity', 'marketing']) assert.ok(DEFAULT_REQUIRED.includes(g), g);
   assert.deepEqual([...CHAIN_GATES], ['integrity', 'pointer', 'frameIntegrity', 'marketing']);
   const narrowed = requiredGates({ qa: { required: ['picture', 'captions'] } });
-  assert.deepEqual(narrowed, ['picture', 'captions', 'integrity', 'pointer', 'frameIntegrity', 'marketing'], 'a spec cannot drop the film-chain gates');
+  assert.deepEqual(narrowed, ['picture', 'captions', 'integrity', 'pointer', 'frameIntegrity', 'marketing', 'wordSync', 'transcript'], 'a spec cannot drop the film-chain or forced-clock gates');
   assert.deepEqual(requiredGates({}), DEFAULT_REQUIRED);
   const passing = Object.fromEntries(DEFAULT_REQUIRED.map((g) => [g, { status: 'pass' }]));
   assert.equal(releasable(passing, requiredGates({})).ok, true);
@@ -1309,12 +1315,14 @@ test('beat grid 4: the grid lives outside spec.music, so the bed key cannot chan
   };
   const providers = { elevenlabs, elevenCli: {}, probeDuration: async (f) => (readFileSync(f, 'utf8').length > 40 ? 4 : 2.5), transcribeWords: async () => ({ words: [{ word: 'hello', start: 0.05, end: 0.4 }] }) };
   const plain = stageCtx('stages-nogrid', baseSpec(), providers);
+  plain.flags.whisperTiming = true;
   await voiceStage(plain);
   await timingStage(plain);
   const plainTl = readJson(join(plain.jobDir, 'timing', 'main', 'timeline.json'));
   assert.equal(plainTl.beatGrid, undefined, 'no grid: the timeline is the voice-first one');
 
   const grid = stageCtx('stages-grid', { ...baseSpec(), edit: { beatGrid: { bpm: 120, offsetSeconds: 0.12 } } }, providers);
+  grid.flags.whisperTiming = true;
   await voiceStage(grid);
   const timed = await timingStage(grid);
   const tl = readJson(join(grid.jobDir, 'timing', 'main', 'timeline.json'));
@@ -1533,8 +1541,8 @@ test('silent beats 1: a beat with no narration is not a narration row, so the cu
   ] };
   const asrB1 = join(root, 'silent-b1.json');
   const asrB3 = join(root, 'silent-b3.json');
-  writeFileSync(asrB1, JSON.stringify({ words: [{ word: 'Twelve', start: 0.1, end: 0.5 }, { word: 'days', start: 0.6, end: 1.0 }] }));
-  writeFileSync(asrB3, JSON.stringify({ words: [{ word: 'Try', start: 0.1, end: 0.3 }, { word: 'the', start: 0.3, end: 0.4 }, { word: 'live', start: 0.4, end: 0.6 }, { word: 'demo', start: 0.6, end: 1.0 }] }));
+  writeFileSync(asrB1, JSON.stringify({ clock: 'forced-aligner', words: [{ word: 'Twelve', start: 0.1, end: 0.5 }, { word: 'days', start: 0.6, end: 1.0 }] }));
+  writeFileSync(asrB3, JSON.stringify({ clock: 'forced-aligner', words: [{ word: 'Try', start: 0.1, end: 0.3 }, { word: 'the', start: 0.3, end: 0.4 }, { word: 'live', start: 0.4, end: 0.6 }, { word: 'demo', start: 0.6, end: 1.0 }] }));
   const composeMap = { groups: [
     { segments: ['T1'], startSeconds: 0, needSeconds: 2.2, clipId: 'T1', isImage: true, edit: null, sourceRegion: null },
     { segments: ['B1'], startSeconds: 2.2, needSeconds: 4, clipId: 'B1', edit, sourceRegion: { x: 0, y: 0, width: 0.5, height: 0.5 } },

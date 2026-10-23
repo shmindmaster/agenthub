@@ -2,7 +2,7 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.0"
+  version: "0.2.5"
 ---
 
 # Use a coding agent from another coding agent
@@ -32,24 +32,26 @@ Aliases enforce their own policy and the target's policy and autonomy profile.
 Refused rows stay refused. Help verification establishes a command contract;
 authentication, allowance and smoke evidence establish readiness separately.
 
-The 0.2.0 contracts cover Claude, Codex, Cursor Agent, Qwen Code, Gemini,
-Grok, OpenCode, Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin,
-Qoder and local Warp/Oz. `registry/fleet-profile.json` -> `dispatchPolicy`
+The 0.2.5 contracts cover Claude, Codex, Cursor Agent, Gemini, Grok, OpenCode,
+Antigravity CLI, Factory Droid, Cline, Copilot, Amp, Devin and local Warp/Oz.
+`registry/fleet-profile.json` -> `dispatchPolicy`
 can disable each contract with a reason and owner action. The current verified
-free routes are Devin (`swe-2-medium`), also used by the Windsurf alias,
-and OpenCode (`opencode/big-pickle`).
+model and provider selections are recorded in `registry/fleet-profile.json` ->
+`hostSettings` and `dispatchPolicy`. Do not reuse historical free-model
+selections for a host whose current policy names a paid plan model.
 
-Owner gates recorded in this repair:
+Account-mode readiness recorded in this repair:
 
-| Host | Required step before enabling |
+| Host | Status |
 | --- | --- |
-| Cursor Agent | Owner runs `agent login` in their own terminal, then one authorized smoke. Use `cursor-agent` directly; the Cursor IDE alias also requires an approved unattended autonomy profile. |
-| Factory | Owner opens `droid` and runs `/login`, then one authorized smoke. |
-| Hermes | Restore the missing executable through official installation/setup; verify help and smoke. |
-| Qoder | Owner runs `qodercli login`; confirm allowance and run one smoke before enabling. |
-| Qwen Code | Resolve the `qwen3.8-max` HTTP 403 against the account's Token Plan entitlements; set an eligible model in Qwen settings and verify allowance before a smoke. Catalog membership is insufficient. |
-| Gemini | Resolve exhausted fetch retries; verify API connectivity, model access and included allowance before a smoke. |
+| Cursor Agent | Account status and a standalone-response smoke passed on 2026-10-22. |
+| Amp | Execute mode with dispatch-only MCP servers disabled returned the requested response on 2026-10-22; `amp usage` reported Amp Free. |
+| Gemini | Dispatcher uses `--approval-mode yolo`; the registered shim skips its yolo default for that explicit invocation and supplies `--skip-trust`. Complete Google OAuth interactively with `gemini` before another smoke. |
+| Warp | No supported account-status command or local-only execution mode was verified; keep disabled unless both are established. |
 | Other gated CLIs | Confirm included allowance for the configured provider/model or obtain an explicit task credit budget, then one smoke before enabling. |
+
+If a Factory auth check fails, keep dispatch disabled and have the owner run
+`droid` and `/login` in their own terminal.
 
 Never log in, change credentials, or accept paid fallback automatically. A
 local headless command does not authorize cloud execution. `devin-cloud`,
@@ -72,10 +74,13 @@ task directly. Gemini admits that runtime directory with
 an attached `--print=<prompt>` after its permissions flag.
 
 Every child is windowless. Warp sets child-only `WARP_CLI_MODE=1`; it never
-opens the terminal GUI. Claude and Devin inherit their relevant API-key
-variable from the User environment only when absent in the process. Values
-are never printed. Claude's API route still requires a verified allowance
-or an explicit budget. A timeout kills the process tree and exits 4.
+opens the terminal GUI. Every child runs on its account login: the provider
+API-key variables for Claude, Codex, Cline, Devin, Gemini, Antigravity, Warp,
+Grok, Factory, Cursor Agent, Amp and Copilot are removed before launch (owner
+rule 2026-10-22); OpenCode's Go plan is the account entry from `opencode auth login`,
+so OPENCODE_GO_API_KEY is stripped too. Copilot runs on the sh-pendoah GitHub account: the dispatcher reads that
+token from gh's keyring into the child environment only. Values are never printed. A timeout kills the process tree and
+exits 4. Pass `-TimeoutSec 7200` for program-scale dispatches.
 
 Exit 0 means the child exited 0. Exit 2 is a launch failure; an absent
 executable found during readiness checking is a refusal (3). Exit 3 also

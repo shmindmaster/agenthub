@@ -266,10 +266,11 @@ $play = Get-Content -LiteralPath $ScreenplayPath -Raw -Encoding UTF8 | ConvertFr
 $styleCtx = Get-OwnerStyleContext $StylesRoot $DefaultStyle
 $DefaultStyle = $styleCtx.DefaultStyle
 $allow = $styleCtx.Allow
-$styleWav = $styleCtx.Wav
-$styleTxt = $styleCtx.Text
-$styleWavSha = $styleCtx.WavSha
-$styleTxtSha = $styleCtx.TextSha
+$script:StyleCache = @{}
+function Get-StyleBundle([string]$Style) {
+  if (-not $script:StyleCache.ContainsKey($Style)) { $script:StyleCache[$Style] = Get-CachedStyle $StylesRoot $Style }
+  return $script:StyleCache[$Style]
+}
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Integrity = Join-Path $ScriptDir 'Test-SpeechIntegrity.ps1'
@@ -304,9 +305,19 @@ foreach ($id in $ids) {
     $segId = '{0}_{1:d2}' -f $id, $si
     $segDir = Join-Path $outRoot $segId
     $renderText = (Get-RenderText $text)
-    $segStyle = if ($isOwner) { $DefaultStyle } else { '' }
-    $segStyleWavSha = if ($isOwner) { $styleWavSha } else { '' }
-    $segStyleTextSha = if ($isOwner) { $styleTxtSha } else { '' }
+    $segStyle = ''
+    $segStyleWav = ''
+    $segStyleText = ''
+    $segStyleWavSha = ''
+    $segStyleTextSha = ''
+    if ($isOwner) {
+      $segStyle = Resolve-RequestedStyle $scene $DefaultStyle $allow
+      $bundle = Get-StyleBundle $segStyle
+      $segStyleWav = $bundle.Wav
+      $segStyleText = $bundle.Text
+      $segStyleWavSha = $bundle.WavSha
+      $segStyleTextSha = $bundle.TextSha
+    }
     New-Item -ItemType Directory -Force -Path $segDir | Out-Null
     $segments.Add([pscustomobject]@{
         id           = $segId
@@ -317,6 +328,10 @@ foreach ($id in $ids) {
         text         = $text
         renderText   = $renderText
         style        = $segStyle
+        styleWav     = $segStyleWav
+        styleText    = $segStyleText
+        styleWavSha  = $segStyleWavSha
+        styleTextSha = $segStyleTextSha
         fingerprint  = (Get-SegmentFingerprint $text $renderText $(if ($isOwner) { 'sarosh' } else { $roleSpeaker }) $segStyle $segStyleWavSha $segStyleTextSha)
         dir          = $segDir
         wav          = (Join-Path $segDir 'take.wav')
@@ -325,7 +340,8 @@ foreach ($id in $ids) {
   }
 }
 
-Write-Host ("Plan: {0} segments  style={1}  chunk={2}" -f $segments.Count, $DefaultStyle, $ChunkSize)
+$stylesUsed = (@($segments | Where-Object { $_.isOwner } | ForEach-Object { $_.style } | Select-Object -Unique) -join ',')
+Write-Host ("Plan: {0} segments  styles={1}  chunk={2}" -f $segments.Count, $stylesUsed, $ChunkSize)
 
 # --- Pronunciation risk (before any audio exists) ---
 # The manifest is what `ai.ps1 listen` judges against. Without it the listener hears fluent speech and
@@ -381,31 +397,36 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
   }
   # Record what each take is synthesized from, so a later re-gate can fingerprint the reading actually used.
   foreach ($s in $pendingAll) {
-    Write-TakeRenderRecord $s.dir $s.text $s.renderText $(if ($s.isOwner) { 'sarosh' } else { $s.roleSpeaker }) $s.style $(if ($s.isOwner) { $styleWavSha } else { '' }) $(if ($s.isOwner) { $styleTxtSha } else { '' })
+    Write-TakeRenderRecord $s.dir $s.text $s.renderText $(if ($s.isOwner) { 'sarosh' } else { $s.roleSpeaker }) $s.style $s.styleWavSha $s.styleTextSha
   }
   $pending = @($pendingAll | Where-Object { $_.isOwner })
   $pendingRole = @($pendingAll | Where-Object { -not $_.isOwner })
   Write-Host ("=== ROUND {0}/{1} pending={2} (owner={3} role={4}) premium={5} ===" -f $round, $MaxRounds, $pendingAll.Count, $pending.Count, $pendingRole.Count, $premium)
 
-  # --- TTS batch (resident clone) ---
-  $jsonlLines = @()
-  foreach ($s in $pending) {
-    $words = @($s.renderText -split '\s+' | Where-Object { $_ }).Count
-    $tokens = [Math]::Min(280, [Math]::Max(96, 40 + ($words * 8)))
-    $jsonlLines += (ConvertTo-Json -Compress @{
-        text           = $s.renderText
-        out            = $s.wav
-        language       = 'English'
-        seed           = $s.seed
-        max_new_tokens = $tokens
-        canonical_text = $s.text
-      })
-  }
-  for ($c = 0; $c -lt $jsonlLines.Count; $c += $ChunkSize) {
-    $chunk = @($jsonlLines[$c..([Math]::Min($c + $ChunkSize, $jsonlLines.Count) - 1)])
-    $receipt = Join-Path $receiptDir ("clone-r{0}-c{1}.stdout.jsonl" -f $round, $c)
-    Write-Host ("  TTS chunk {0}..{1} ({2} lines)" -f $c, ($c + $chunk.Count - 1), $chunk.Count)
-    Invoke-CloneBatch -JsonlLines $chunk -Reference $styleWav -RefText $styleTxt -Premium:$premium -ReceiptPath $receipt
+  # --- TTS batch (resident clone). One reference per style, so a quiet line is not fingerprinted as explaining.
+  foreach ($group in @($pending | Group-Object -Property style)) {
+    $members = @($group.Group)
+    $sample = $members[0]
+    if (-not $sample.styleWav -or -not $sample.styleText) { throw "Style '$($sample.style)' has no reference wav or transcript." }
+    $jsonlLines = @()
+    foreach ($s in $members) {
+      $words = @($s.renderText -split '\s+' | Where-Object { $_ }).Count
+      $tokens = [Math]::Min(280, [Math]::Max(96, 40 + ($words * 8)))
+      $jsonlLines += (ConvertTo-Json -Compress @{
+          text           = $s.renderText
+          out            = $s.wav
+          language       = 'English'
+          seed           = $s.seed
+          max_new_tokens = $tokens
+          canonical_text = $s.text
+        })
+    }
+    for ($c = 0; $c -lt $jsonlLines.Count; $c += $ChunkSize) {
+      $chunk = @($jsonlLines[$c..([Math]::Min($c + $ChunkSize, $jsonlLines.Count) - 1)])
+      $receipt = Join-Path $receiptDir ("clone-r{0}-{1}-c{2}.stdout.jsonl" -f $round, $sample.style, $c)
+      Write-Host ("  TTS {0} {1}..{2} ({3} lines)" -f $sample.style, $c, ($c + $chunk.Count - 1), $chunk.Count)
+      Invoke-CloneBatch -JsonlLines $chunk -Reference $sample.styleWav -RefText $sample.styleText -Premium:$premium -ReceiptPath $receipt
+    }
   }
 
   # --- Role voices (small; one-shot is fine) ---

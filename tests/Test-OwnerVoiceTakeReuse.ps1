@@ -89,6 +89,8 @@ function New-Seg([string]$Id, [string]$Text, [string]$Render = $Text, [string]$V
     [pscustomobject]@{
         id = $Id; sceneId = ($Id -replace '_\d+$', ''); isOwner = $Owner; speaker = $Speaker; roleSpeaker = $(if ($Owner) { $null } else { $Voice })
         text = $Text; renderText = $Render; style = $Style; dir = $dir
+        styleWav = $(if ($Owner) { 'style.wav' } else { '' }); styleText = $(if ($Owner) { 'style text' } else { '' })
+        styleWavSha = $WavSha; styleTextSha = $TxtSha
         wav = (Join-Path $dir 'take.wav'); seed = 1; redo = $false
         fingerprint = (Get-SegmentFingerprint $Text $Render $Voice $Style $WavSha $TxtSha)
     }

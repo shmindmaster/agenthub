@@ -104,7 +104,7 @@ function Assert-SafeRoot {
         Stop-Demo "Refusing '$Root': it is inside this checkout. The demo profile must never be written into a repository."
     }
     # Host config roots under the real profile are the real fleet.
-    foreach ($fleetDir in @('.claude', '.codex', '.agents', '.gemini', '.cursor', '.config', '.copilot', '.qwen', '.grok', '.factory', '.qoder', '.cline', '.codeium', '.warp', 'AppData\Roaming')) {
+    foreach ($fleetDir in @('.claude', '.codex', '.agents', '.gemini', '.cursor', '.config', '.copilot', '.grok', '.factory', '.cline', '.codeium', '.warp', 'AppData\Roaming')) {
         if (Test-IsSameOrUnder $Root (Join-Path $realHome $fleetDir)) {
             Stop-Demo "Refusing '$Root': it is inside a real host configuration root ($fleetDir)."
         }

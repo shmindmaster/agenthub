@@ -1,6 +1,6 @@
 ---
 name: coding-agent
-description: Dispatch a task to another coding-agent host through the fleet dispatcher. Use when the work should run on Codex, Cursor Agent, Grok, Gemini, Qwen, Copilot, Cline, OpenCode, Antigravity CLI, Factory Droid, Amp, Devin, Qoder, or local Warp/Oz.
+description: Dispatch a task to another coding-agent host through the fleet dispatcher. Use when the work should run on Codex, Cursor Agent, Grok, Gemini, Copilot, Cline, OpenCode, Antigravity CLI, Factory Droid, Amp, Devin, or local Warp/Oz.
 tools: Bash
 model: claude-sonnet-5-5
 effort: high

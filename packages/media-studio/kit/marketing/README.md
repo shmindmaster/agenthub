@@ -10,14 +10,51 @@ read-only inputs.
 # from the deployed kit (or kit\marketing in a checkout); plain `node`, no windows, no npm install needed for lint/voice/assets
 node mvg.mjs D:\...\abacare-marketing\specs\01-expired-authorization.json --stage lint
 node mvg.mjs <spec> --dry-run                 # plan, planned spend, no provider call
-node mvg.mjs <spec> --hosted-only             # lint, voice, timing, assets, capture check, compose PREPARE; no render, no local gates
-node mvg.mjs <spec>                           # everything up to qa; deliver only when every required gate passed
-node mvg.mjs <spec> --stage qa --local-gates  # adds local whisper + sync + Local-AI listen (GPU)
-node mvg.mjs <spec> --only deliver
+node mvg.mjs <spec> --stage capture --hosted-only --whisper-timing # explicit hosted fallback; no render
+node mvg.mjs <spec> --stage timing --whisper-timing # explicit fallback only when no forced aligner is available
+node mvg.mjs <spec> --stage compose --candidate-id cut-01 --no-line-chips
+node mvg.mjs <spec> --stage qa --candidate-id cut-01 --local-gates # never composes
+node mvg.mjs <spec> --stage deliver --candidate-id cut-01
 ```
 
 Exit 0 = ok, 1 = a stage failed closed (lint, budget, gate), 2 = usage. Every run writes `jobs\<spec id>\manifest.json`
-(stage status, hashes, cost) and `cost-ledger.json`.
+(stage status, hashes, cost) and `cost-ledger.json`, except external read-only QA, which writes only under `--qa-dir`.
+
+Compose reserves `compose/candidates/<id>` exclusively, even with `--force`. Recompose means a new ID.
+QA and delivery require that ID and its compose receipt. To gate an existing file without writing source evidence:
+
+```powershell
+node mvg.mjs <spec> --stage qa --candidate-id retained-01 --candidate <ad.mp4> --candidate-sha256 <sha256> --compose-dir <original-build-dir> --ratio 9x16 --qa-dir D:\Local-AI\data\artifacts\media\qa-retained-01 --local-gates
+```
+
+Read-only external QA is local-only: paid vision is refused before a provider call because its cumulative spend ledger
+would write the source workspace. Explicit paid fallback remains available for normal receipt-bound candidate QA.
+The QA directory must be outside the source job. Local-AI alignment outputs must be under its declared media artifact
+root (`D:\Local-AI\data\artifacts\media` on the reference host). No copying to the delivery library occurs in QA.
+`--no-line-chips`, `--no-captions`, or `render: { "lineChips": false }` disables burned caption chips, retaining the SRT.
+Vision defaults to the enabled existing Local-AI vision model. It never starts a service or downloads weights.
+Unavailable/retired local vision fails closed; paid OpenAI requires `--vision-provider openai` or explicit
+`brand.vision.provider: "openai"` and the normal budget ledger.
+
+QA containment resolves symlinks/junctions, even for a new output directory. Its receipt binds the sidecar SRT hash
+as well as the MP4; changed or missing subtitles block delivery. An unencoded prepared candidate writes pending gates.
+Isolated compose/QA/delivery dry runs are rejected; use `--stage capture --dry-run` for lint and planned-spend checks.
+
+Timing aligns each accepted narration take to its authored text with `ai.ps1 align`; its take/script-bound 80 ms-grid
+reports remain under the existing `timing\<cut>\asr` receipt paths and drive timelines, captions and action trims.
+`--whisper-timing` is the explicit compatibility fallback for a job without an aligner, including an existing 2.0.4 or
+2.0.5 timeline; compose otherwise refuses a non-aligned clock. Local QA independently aligns the exact encoded candidate.
+Whisper checks transcript text there and never supplies the default timing clock. The 80 ms output grid is not a claim
+of 40 ms acoustic accuracy. This is not the proposed 2.1 pixel/render sync audit.
+
+### Migrating a 2.0.4 runner or retained encode
+
+Replace no-stage or `--stage all` runners with separate preparation (`--stage capture`), compose, QA and delivery
+invocations. Give each new compose a fresh candidate ID; a prepared ID is reserved and cannot be composed again.
+For an existing encode without `candidate.json`, use the external QA command above with its exact SHA-256, original
+compose metadata and ratio. Keep the old job read-only. Old PASS receipts do not authorize release: rerun the required
+gates, including `wordSync` and `transcript`, and obtain exact-candidate reviews. QA measures existing captions; it does
+not retime them. The separate production timing-stage follow-up is not part of this repair.
 
 ## Writing a spec (`ad.schema.json`)
 
@@ -51,12 +88,12 @@ loudness targets, the vision and image models, the timing provider, the demo URL
 | --- | --- | --- | --- |
 | 1 | `lint` | Schema, claims and evidence, narration/on-screen coverage, figures, banned phrases, forbidden names, people/children b-roll, voice and music policy, label, clip validity, length estimate, planned spend vs caps. Fails closed before any paid call. | none |
 | 2 | `voice` | One line per narrated beat. ElevenLabs REST through the governed adapter (request stitching, versioned pronunciation dictionary, text normalization), OpenAI `gpt-4o-mini-tts` with `instructions`, or local Qwen (`ai.ps1 voice qwen-role`). Keyed by (text, voice, model, settings, neighbors). | ElevenLabs credits / OpenAI USD |
-| 3 | `timing` | Word timings per line (OpenAI `whisper-1` word timestamps, or local whisper), the authored script aligned onto them, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. Fails if a cut runs more than 1.5 s over target. | whisper-1 ~$0.006/min |
+| 3 | `timing` | Forced alignment of each accepted take and authored line, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. `--whisper-timing` explicitly selects the configured Whisper fallback. Fails if a cut runs more than 1.5 s over target. | local; fallback whisper-1 ~$0.006/min |
 | 4 | `assets` | ElevenLabs sound effects and one ducked music bed (governed ledger), OpenAI `gpt-image` abstract stills, ElevenLabs video only if the API exposes it (it does not: recorded as skipped with the reason). Every generated asset is `aiGenerated: true` in `assets\manifest.json`. | credits / USD |
 | 5 | `capture` | Reuses a receipt-bound clip (sha256 re-checked against its capture receipt) or records it with `record-job.mjs` (`ui.record` plus `--allow-capture`). | none |
 | 6 | `compose` | Per ratio: layout, focus-follow camera, captions, compose map, FFmpeg mix plan, Remotion render of the `MarketingAd` composition (picture only), audio mix with the bed ducked under the voice, two-pass loudnorm (-14 LUFS social, -16 web) and the encode. `--prepare-only` writes `props.json`, `compose-map.json`, `mix-plan.json` and `render-command.json` and stops. | none (local CPU) |
-| 7 | `qa` | On the exact encoded file: picture, picture integrity, pointer path, frame integrity, captions, loudness, sync and Local-AI listen (`--local-gates`), OpenAI vision QA, the marketing floor, the story score, `validate-viewer-release`. Anything that did not run on this candidate is `pending`, never a pass. | vision ~$0.1-0.3/ratio |
-| 8 | `deliver` | Only if every required gate passed on the current file: copies to the library as `NN - Title (ratio).mp4` + `.srt`, updates the folder README table and per-film section, sha256 every file, deletes reproducible intermediates. | none |
+| 7 | `qa` | Selects a named, hash-verified candidate without composing: picture, captions, loudness, forced word-sync, independent Whisper transcript, sync and listen (`--local-gates`), local vision, marketing, story and viewer-release. Missing checks stay pending. | local; explicit `--vision-provider openai` is paid |
+| 8 | `deliver` | Verifies the named candidate and every required gate's SHA, then copies MP4/SRT and updates the library index. Candidate evidence is retained. | none |
 
 The film number `NN` is computed at deliver time: one above every number used by a file, a README row or heading, or the
 brand's `reservedNumbers`. It is claimed with an exclusive create, so a number is never reused.
@@ -84,7 +121,7 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 | ElevenLabs `eleven_v4` (default) | Narration, request stitching works | 1 credit/char, reserved at 1.2x |
 | ElevenLabs sound effects | UI ticks, chimes | reserved max(200, 40/s) credits |
 | ElevenLabs Music `music_v2_5` | One instrumental bed per spec | 900 credits/min + 15% margin |
-| OpenAI `whisper-1` | Word timings (hosted fallback to local whisper) | $0.006/min |
+| OpenAI `whisper-1` | Transcript check; explicit `--whisper-timing` fallback when no aligner is available | $0.006/min |
 | OpenAI `gpt-image-2` | Abstract stills only (default quality medium) | ~$0.05 per 1536x1024 |
 | OpenAI `gpt-5.6-sol` (brand `vision.model`) | Vision QA on sampled frames | $4 / $20 per 1M tokens |
 | OpenAI `gpt-4o-mini-tts` | Optional narration with `instructions` | ~$0.02/min |
@@ -94,7 +131,8 @@ brand's `reservedNumbers`. It is claimed with an exclusive create, so a number i
 
 `ui.actions` names the receipt actions the voice talks about. The first one is cut onto its spoken keyword (digits and number
 words match: "twelve" finds "12"), so `ui.trimStart` is only a fallback; the beat is lengthened so the result holds at least
-1.6 s after the last narrated action. Every other receipt action inside the beat's window is written to the cue plan as
+1.6 s after the last narrated action. The compose map records the timeline word clock, timing receipt hash, trim source,
+and matched action/word anchor; unmatched-action fallback warnings are also persisted. Every other receipt action inside the beat's window is written to the cue plan as
 `narrated: false`. Caption cues are held or started earlier into the surrounding gaps so none exceeds 18 characters per second.
 A capture expectation ("the product responded") stands as a beat's result only if it is visible inside the beat and holds >= 1.5 s; one up to 0.5 s short lengthens the beat, any other is left out of the cue plan (so it is never stamped after the beat). The per-line ASR copy in the gate workspace is shifted by the lead-in so keyword times match where each line is placed. Vision frames are sampled at least 0.25 s from a caption cue start or end. A reviewer may add `qa/<ratio>/vision-arbitration.json` `{candidateSha256, reviewer, items:[{frame, category, verdict:"false-positive", reason}]}`; it counts only when it names the current candidate hash, is recorded in `gates.json`, and is never written by mvg. The listen gate follows the film chain: `releaseEligible` is the pass signal and any finding, a WARNING included, fails it.
 A focus window magnified by a Recast punch-in (`sourceZoom`) gets a wider crop so the total magnification stays at or under
@@ -139,9 +177,11 @@ narration that spends words on the demo data or on the film itself (`synthetic`,
 | `marketing` | `validate-marketing-readiness.mjs <ws> <candidate> --readiness <ws>/qa/marketing-readiness.json` (the ws `job.json` says `marketing: true`; `programForm` stays `outcome-workflow`). A reviewer writes `qa/<ratio>/marketing-readiness.json` (`skills/media-studio/references/marketing-readiness.md`, `candidate.sha256` and `bytes` of this exact `ad.mp4`); mvg never writes it, copies it into the ws only when it names this candidate, and reports `pending` (not fail) when it is absent or bound to another render. The floor includes the no-fluff rule, so mvg runs `validate-narration.mjs` on the ws first (`qa/narration-check.json`) | an agent review |
 | `captions` | 4-7 words per cue, <= 2 lines of 42 characters, <= 20 characters per second, ordered | none |
 | `loudness` | ffmpeg `loudnorm` on the exact file, within 1 LU of the target, true peak <= -1 dBTP | ffmpeg |
-| `sync` | `build-cue-sheet.mjs` + `validate-sync.mjs` after local whisper on the encoded file | `--local-gates` (GPU) |
+| `sync` | `build-cue-sheet.mjs` + `validate-sync.mjs` using forced-alignment word timings, never Whisper onsets | `--local-gates` (GPU) |
+| `wordSync` | Forced alignment bound to the exact encoded candidate and locked script, retaining the raw 80 ms grid and canonical 40 ms sync tolerance | `--local-gates` (GPU) |
+| `transcript` | Independent Whisper text compared with the locked script; numeric values preserved, onsets discarded | `--local-gates` (GPU) |
 | `listen` | `ai.ps1 listen` Local-AI gate. It refuses a speech review without a pronunciation-risk manifest, so mvg first runs `ai.ps1 voice pronunciation-risk` on `story/narration-segments.json` and passes `--pronunciation-manifest` and `--timeline` (`qa/listen-timeline.json`); the exit code and tail of the log are in the gate detail | `--local-gates` (GPU) |
-| `vision` | `vision-qa.mjs`: a frame every 1.5 s to an OpenAI vision model with a rubric (overlay typos, unreadable text at phone size, banned claims, prospect names, missing label, captions over the focal point, people/children, fabricated UI); any high finding or a missing label fails | OpenAI |
+| `vision` | `vision-qa.mjs`: a frame every 1.5 s to existing local vision by default, with a rubric (overlay typos, unreadable text at phone size, banned claims, prospect names, missing label, captions over the focal point, people/children, fabricated UI); any high finding or a missing label fails. Explicit paid OpenAI requires the governed ledger through `mvg --stage qa`; standalone paid CLI calls are refused | existing local vision; paid OpenAI is explicit opt-in |
 | `story` | `media-studio-qa` story-experience review score >= `qa.storyMin` (85) recorded in `qa/<ratio>/reviews.json` `storyReview` with a reviewer and `cta: true` | an agent review |
 | `viewerRelease` | `validate-viewer-release.mjs` on the gate workspace in `qa/<ratio>/ws`, from `reviews.json` PASS entries (`encodedVisualReview`, `titleReview`, `actionResultReview`, `storyReview`, `pronunciation`) bound to the candidate | the reviews above |
 

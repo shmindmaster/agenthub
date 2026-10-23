@@ -135,17 +135,24 @@ per-repo repowise MCP entries.
   Official Claude/Codex RepoWise marketplace plugins are forbidden: they
   register a second MCP at the nearest repo instead of `C:/Repos`.
 - **CLI (always available):** `repowise search "<q>"`, `repowise status -w`,
-  `repowise doctor -w`, `repowise update --repo <alias>` **from `C:\Repos`**.
-  Never `repowise update` from inside a member repo without `--no-agents`.
-  Measured 2026-09-10: `--no-agents` still writes `.vscode/mcp.json` pointed
-  at the member path. After a CLI upgrade, `repowise agents refresh
+  `repowise doctor -w` **from `C:\Repos`**. Updates use the bounded manual
+  entry point below, never a bare update or an automatic post-commit update.
+  Never run a bare `repowise update` from inside a member repo, and do not
+  treat `--no-agents` as a safe opt-out: in RepoWise 0.58.0 it persists
+  `editor_files.agents_md: false` into `.repowise/config.yaml` (the repository
+  is then configured never to generate that file), and measured 2026-09-10 an
+  earlier CLI with it still wrote `.vscode/mcp.json` pointed at the member
+  path. After a CLI upgrade, `repowise agents refresh
   --scope=both C:\Repos`. A member `.vscode/mcp.json` is allowed only as
   `repowise mcp C:/Repos`; `Check-RepoStandard.ps1` fails any other path.
 - **Human dashboard:** `repowise serve --host 127.0.0.1 --ui-port 7338` from
   `C:\Repos`. API is `http://127.0.0.1:7337`. Port 3000 is Duckie.
 - **Agent hosts:** skills + CLI everywhere; MCP only while `repowise@agenthub`
-  is enabled. Distill markers in `AGENTS.md` / Cursor rules. Post-commit
-  hooks on every member.
+  is enabled. Distill markers in `AGENTS.md` / Cursor rules. Do not restore
+  disabled unbounded post-commit hooks.
+- Workspace instructions live in `C:\Repos\.claude\CLAUDE.md` and
+  `C:\Repos\AGENTS.md`. Per-repo managed blocks sit between `REPOWISE:START`
+  markers — never hand-edit below them.
 
 ### MCP tools (call these instead of grep/read for exploration)
 
@@ -178,17 +185,57 @@ There is no marketplace plugin on this fleet. Behave as those skills:
 - **code-health** — debt, what to refactor → `get_health`
 - **dead-code-cleanup** — unused code → `get_dead_code`
 
-## Freshness contract
+## Bounded manual freshness
 
-- A post-commit hook in every workspace repo auto-syncs the index.
-- After material changes, verify: `repowise status -w` from `C:\Repos`. If
-  your repo is stale, run `repowise update --repo <alias>` (seconds).
-- First-time prose docs for a repo: from inside the repo,
-  `repowise update --full -y --no-workspace` (LLM spend; provider comes from
-  the environment — never write keys anywhere).
-- Workspace instructions live in `C:\Repos\.claude\CLAUDE.md` and
-  `C:\Repos\AGENTS.md`. Per-repo managed blocks sit between `REPOWISE:START`
-  markers — never hand-edit below them.
+After material changes, check freshness, then run
+`scripts/Invoke-RepoWiseBoundedIndex.ps1` from this package with absolute
+`-Workspace`, `-RepositoryRoot`, `-LeasePath`, `-OutputDirectory` and an
+explicit timezone-bearing `-Deadline`. Use the machine's shared heavy-work
+lease path. A foreign lease is a refusal, not a stale file to delete.
+
+The existing index is required. One repository runs index-only, without
+agent generation, under a Windows Job Object installed before the child
+executes. Defaults are an 8 GiB aggregate commit-memory ceiling, 900 seconds,
+and strictly more than 8 GiB free physical RAM. Free RAM below the selected
+floor stops only the owned job. A mandatory deadline shortens the budget.
+When the owner explicitly waives the free-RAM floor for a run, pass
+`-RamFloorWaiverReason` with that authorization (1–512 nonblank characters).
+It waives only the admission and runtime free-physical-RAM checks; the
+aggregate memory cap, timeout, deadline, lease, local-provider and source
+fences remain enforced. The lease and acceptance receipt record the waiver.
+Do not infer or reuse a waiver for another task without owner authorization.
+Follow the operator's closed heavy-work window; do not start in that window.
+No service is started or stopped and no scheduled work is registered.
+
+The child uses the shared server's actual local embedding probe, compatible
+model and placeholder key. Receipts and raw logs must resolve (junctions and
+symlinks followed) to a path beneath `%LOCALAPPDATA%\AgentHub` and outside the
+source workspace; any other `-OutputDirectory` is refused and gets no receipt.
+Python is launched hidden through `System.Diagnostics.Process`, never the call
+operator. RepoWise 0.58.0 `update` regenerates `.claude/CLAUDE.md` unless the
+repository's `.repowise/config.yaml` already sets `editor_files.claude_md:
+false`, regenerates AGENTS.md when `editor_files.agents_md` is true, and has
+no per-run switch. The wrapper therefore refuses before launch unless that
+opt-out is already configured (it never writes the config); making it is a
+deliberate owner decision per repository, outside this run. A submodule is
+fenced by its recorded gitlink commit and checked-out HEAD. Acceptance requires exit zero, no remaining owned descendants,
+the exact current HEAD in `state.last_sync_commit`, and unchanged HEAD,
+staged entries, tracked/nonignored source bytes and known agent config.
+An unexpected source edit fails acceptance; it is never silently reverted.
+The source fence covers Git-visible files (tracked and non-ignored untracked)
+plus a fixed list of agent config names (`.vscode/mcp.json`, `.mcp.json`,
+`AGENTS.md`, `CLAUDE.md`, `.claude/CLAUDE.md`, `.repowise/config.yaml`), not
+every ignored agent artifact.
+The wrapper removes its lease only once the run left no owned processes. If
+the job cannot be reconciled (exit 3) the lease stays on disk and an operator
+must verify the processes are gone before removing it. If the wrapper itself
+is killed, the job is terminated with it.
+This is an incremental update, not an embedding-provider migration or a
+forced full rebuild. A successful receipt does not prove semantic/vector
+retrieval quality. Check real queries separately.
+
+There is no automatic post-commit refresh. Do not run an unbounded update,
+`--full`, docs generation or first-time initialization through this wrapper.
 
 ## Standard enforcement
 

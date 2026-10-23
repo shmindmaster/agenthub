@@ -101,49 +101,52 @@
     {
       "productId": "upwork",
       "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/Upwork",
+      "reviewRoot": "F:/My Drive/Videos/Sarosh - Portfolio",
+      "privatePreparationRoot": "F:/My Drive/Videos/Sarosh - Private Prep",
       "kind": "career",
       "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     },
     {
       "productId": "proof-clips",
       "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/Proof Clips",
+      "reviewRoot": "F:/My Drive/Videos/Sarosh - Portfolio",
       "kind": "portfolio",
       "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     },
     {
       "productId": "showreel",
       "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/Showreel",
+      "reviewRoot": "F:/My Drive/Videos/Sarosh - Portfolio",
       "kind": "portfolio",
       "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     },
     {
       "productId": "deloitte",
       "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/Deloitte",
+      "reviewRoot": "F:/My Drive/Videos/Sarosh - Private Prep",
       "kind": "career",
       "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     },
     {
       "productId": "fedex",
       "repositoryRoot": null,
-      "reviewRoot": "F:/My Drive/Videos/FedEx",
+      "reviewRoot": "F:/My Drive/Videos/Sarosh - Private Prep",
       "kind": "career",
       "repositoryRootNote": "No product repository in C:\\Repos backs this folder; it holds delivered NN films only."
     }
   ],
   "excludedFolders": {
-    "recordedOn": "2026-10-21",
+    "recordedOn": "2026-10-22",
     "folders": [
       "Personal",
       "Personal Music",
       "Personal Recordings",
       "Private Reference",
-      "Gartner"
+      "Gartner",
+      "Personal - Family and Music",
+      "Learning - Licensed Research"
     ],
     "reason": "Personal or restricted (Gartner recordings are licensed and restricted). Never a delivery review root; validation fails if one is registered."
   },
-  "registrationNote": "2026-10-21: every F:/My Drive/Videos folder that holds delivered NN - Title.mp4 files and is not personal or restricted is registered. GentleNext stays registered although its folder does not exist yet (no film delivered)."
+  "registrationNote": "2026-10-22: portfolio introductions, proof clips and showreels share Sarosh - Portfolio; private career rehearsals share Sarosh - Private Prep unless a named existing organization folder is explicitly selected. Toptal stays in Toptal. Upwork service introductions use the portfolio root; private interview preparation uses privatePreparationRoot. All destinations are flat. File presence does not imply review approval. GentleNext remains registered before first delivery."
 }
