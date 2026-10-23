@@ -26,13 +26,13 @@ skill defaults to the current repo, point it at the external workspace first.
 Canonical source: `packages/media-studio/kit`  
 Runtime copy: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`
 
-Use the deployed runtime kit only when its package manifest matches this skill's 2.0.6 release. AgentHub's `Sync-MediaStudioKit.ps1` deploys that kit and the shared finishing helper; a loose skill does not include package-level scripts. If the kit is missing or stale, stop and sync from a verified 2.0.6 package source (native plugin cache or reviewed AgentHub checkout), then rerun the version check. Never resolve a source by defaulting to an unverified AgentHub checkout. Composition `Briefing` still hosts the program; each scene sets `archetype` from `scene-archetypes.md`. The briefing board remains 1600×1000 at 30 fps. The screencast compositor renders directly to `deliveryProfile`; portrait campaign clips require a bounded manifest `sourceRegion` so the important UI is intentionally framed. It applies timed campaign graphics only inside safe areas away from declared product controls and captions.
+Use the deployed runtime kit only when its package manifest matches this skill's 2.0.7 release. AgentHub's `Sync-MediaStudioKit.ps1` deploys that kit and the shared finishing helper; a loose skill does not include package-level scripts. If the kit is missing or stale, stop and sync from a verified 2.0.7 package source (native plugin cache or reviewed AgentHub checkout), then rerun the version check. Never resolve a source by defaulting to an unverified AgentHub checkout. Composition `Briefing` still hosts the program; each scene sets `archetype` from `scene-archetypes.md`. The briefing board remains 1600×1000 at 30 fps. The screencast compositor renders directly to `deliveryProfile`; portrait campaign clips require a bounded manifest `sourceRegion` so the important UI is intentionally framed. It applies timed campaign graphics only inside safe areas away from declared product controls and captions.
 
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
 $kitManifest = Join-Path $kit 'package.json'
-if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.6') {
-    throw 'Media Studio 2.0.6 runtime kit is missing or stale. Sync from a verified 2.0.6 package source before rendering.'
+if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.7') {
+    throw 'Media Studio 2.0.7 runtime kit is missing or stale. Sync from a verified 2.0.7 package source before rendering.'
 }
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
 ```
@@ -41,8 +41,8 @@ To repair a missing kit, set `MEDIA_STUDIO_PACKAGE_ROOT` to the actual installed
 
 ```powershell
 $package = $env:MEDIA_STUDIO_PACKAGE_ROOT
-if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.6') {
-    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.6 package.'
+if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.7') {
+    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.7 package.'
 }
 pwsh -NoProfile -File (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1')
 ```
@@ -59,8 +59,8 @@ Do not invent an FFmpeg graph. The helper is the provider:
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $toolsManifest = Join-Path $tools 'plugin.json'
 $Finish = Join-Path $tools 'Finish-Media.ps1'
-if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.6' -or -not (Test-Path -LiteralPath $Finish)) {
-    throw 'Media Studio 2.0.6 finishing helper is missing or stale in the deployed shared tools.'
+if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.7' -or -not (Test-Path -LiteralPath $Finish)) {
+    throw 'Media Studio 2.0.7 finishing helper is missing or stale in the deployed shared tools.'
 }
 pwsh -NoProfile -File $Finish -Action finish -Program <job>\candidate.mp4 -Output <job>\candidate-finished.mp4
 pwsh -NoProfile -File $Finish -Action finish -Speech <job>\voice.wav -Music <job>\bed.wav -Video <job>\picture.mp4 -Output <job>\candidate-finished.mp4
