@@ -76,7 +76,7 @@
       ],
       "status": "active",
       "versionObserved": "2026-10-14: verified installed launcher/file version 0.162.1. Manual forward update and launcher reconciliation; active sessions preserved.",
-      "headlessDispatchNote": "codex exec --skip-git-repo-check - reads stdin, including in a scratch cwd without a repository. Codex uses the single ~/.codex/config.toml (ChatGPT plan); there are no profiles."
+      "headlessDispatchNote": "codex exec --skip-git-repo-check - reads stdin, including in a scratch cwd without a repository. The installed shim selects cli-api; establish included allowance or explicitly authorize a credit budget before live dispatch."
     },
     {
       "id": "opencode",
