@@ -41,7 +41,7 @@ This is a pre-capture gate. A failed picker, contract mismatch, missing approval
 
 ## Exact encoded candidate
 
-Marketing 2.0.7 uses explicit isolated compose/QA/delivery stages and immutable candidate IDs. QA cannot compose.
+Marketing 2.0.8 uses explicit isolated compose/QA/delivery stages and immutable candidate IDs. QA cannot compose.
 Every top-level gate and delivery decision binds to the selected candidate SHA. External-candidate QA requires the
 expected SHA, original compose metadata directory and a separate `--qa-dir`; source job evidence stays read-only.
 Containment resolves junctions/symlinks, including nonexistent output tails. QA records the sidecar SRT hash;
