@@ -104,6 +104,25 @@ test("release gate rejects invalid minutes and overlapping caption cues", () => 
   const root = join(scratch, "caption-order"); job(root); const candidate = release(root), evidencePath = join(root, "qa", "viewer-release-evidence.json"), evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
   writeFileSync(join(root, "qa", "captions.srt"), "1\n00:00:61,000 --> 00:01:02,000\nInvalid clock.\n\n2\n00:00:01,000 --> 00:00:03,000\nOverlapping cue.\n"); evidence.captions.sha256 = sha(join(root, "qa", "captions.srt")); writeFileSync(evidencePath, JSON.stringify(evidence));
   const result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /invalid or nonpositive/); assert.match(result.output, /overlaps or is out of order/);
+});
+test("release gate accepts a fast intact cue only when the rate-bound report lists it", () => {
+  const root = join(scratch, "rate-bound"); job(root); const candidate = release(root), evidencePath = join(root, "qa", "viewer-release-evidence.json"), evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
+  const fast = "1\n00:00:00,000 --> 00:00:00,400\nabout four percent.\n";
+  writeFileSync(join(root, "qa", "captions.srt"), fast); evidence.captions.sha256 = sha(join(root, "qa", "captions.srt")); writeFileSync(evidencePath, JSON.stringify(evidence));
+  let result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /exceeds 20 characters per second/);
+  const reportPath = join(root, "qa", "caption-rate-bound.json");
+  const report = { generator: "media-studio/write-captions", cues: [1], texts: { "1": "about four percent." }, reason: "speech is faster than 20 characters a second and the next word starts immediately" };
+  writeFileSync(reportPath, JSON.stringify(report));
+  evidence.captions.rateBoundReport = { path: "qa/caption-rate-bound.json", sha256: sha(reportPath) }; writeFileSync(evidencePath, JSON.stringify(evidence));
+  result = run(releaseValidator, [root, candidate]); assert.equal(result.code, 0, result.output);
+  report.texts["1"] = "four percent."; writeFileSync(reportPath, JSON.stringify(report)); evidence.captions.rateBoundReport.sha256 = sha(reportPath); writeFileSync(evidencePath, JSON.stringify(evidence));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /exceeds 20 characters per second/);
+  const paragraph = "This is a very long paragraph subtitle that is deliberately too long for a viewer to read while the product action happens on screen.";
+  writeFileSync(join(root, "qa", "captions.srt"), `1\n00:00:00,000 --> 00:00:00,400\n${paragraph}\n`);
+  evidence.captions.sha256 = sha(join(root, "qa", "captions.srt"));
+  report.cues = [1]; report.texts["1"] = paragraph; writeFileSync(reportPath, JSON.stringify(report));
+  evidence.captions.rateBoundReport.sha256 = sha(reportPath); writeFileSync(evidencePath, JSON.stringify(evidence));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /paragraph/);
 });test("release gate passes only with candidate-bound analyzer and reviews", () => { const root = join(scratch, "pass"); job(root); const candidate = release(root); const result = run(releaseValidator, [root, candidate]); assert.equal(result.code, 0, result.output); });
 test('release gate consumes exact encoded-picture evidence and rejects lax thresholds', () => {
   const root = join(scratch, 'picture-report'); job(root); const candidate = release(root);

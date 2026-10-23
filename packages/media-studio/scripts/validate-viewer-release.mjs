@@ -179,13 +179,25 @@ if (evidence) {
     if (captionPath) {
       const cues = parseSrt(readFileSync(captionPath, "utf8"));
       if (!cues.length) errors.push("captions contain no readable cues.");
+      let rateBound = null;
+      const bound = captions.rateBoundReport;
+      if (bound?.path) {
+        const reportPath = workspaceFile(bound.path, "caption rate-bound report");
+        if (reportPath && digest(reportPath) !== bound.sha256) errors.push("caption rate-bound report hash does not match release evidence.");
+        else if (reportPath) rateBound = json(reportPath);
+      }
       let previousEnd = -1;
       for (const [index, cue] of cues.entries()) {
         if (!cue.words || !Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.start < 0 || cue.end <= cue.start) errors.push(`caption cue ${index + 1} has invalid or nonpositive timing.`);
         if (cue.start < previousEnd) errors.push(`caption cue ${index + 1} overlaps or is out of order.`);
         previousEnd = Math.max(previousEnd, cue.end);
         if (cue.lines.length > 2 || cue.lines.some((line) => line.length > 42) || cue.words.length > 84) errors.push(`caption cue ${index + 1} is a paragraph or exceeds readable line limits.`);
-        if (!Number.isFinite(cue.duration) || cue.duration <= 0 || cue.words.length / cue.duration > 20) errors.push(`caption cue ${index + 1} exceeds 20 characters per second.`);
+        if (Number.isFinite(cue.duration) && cue.duration > 0 && cue.words.length / cue.duration > 20) {
+          const key = String(index + 1);
+          const listed = Array.isArray(rateBound?.cues) && rateBound.cues.includes(index + 1);
+          const intact = listed && rateBound?.texts?.[key] === cue.words;
+          if (!intact) errors.push(`caption cue ${index + 1} exceeds 20 characters per second.`);
+        }
       }
     }
   }

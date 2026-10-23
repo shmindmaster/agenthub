@@ -104,7 +104,8 @@ if (Test-Path -LiteralPath $marketingSource) {
 # beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
 $gateScripts = @('validate-word-sync.mjs', 'validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
     # video standard (2026-10-20): record-job.mjs resolves validate-capture-preflight.mjs from _shared\tools; the rest are the release gates the skills cite
-    'validate-narration.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'build-contact-sheet.mjs')
+    'validate-narration.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'build-contact-sheet.mjs',
+    'picture-gates.mjs', 'validate-picture-inputs.mjs', 'render-program.mjs', 'lock-facts.mjs', 'write-captions.mjs', 'merge-designed-cuts.mjs')
 $sharedTools = Join-Path (Join-Path (Split-Path -Parent $RuntimeKit) '_shared') 'tools'
 New-Item -ItemType Directory -Force -Path $sharedTools | Out-Null
 foreach ($name in $gateScripts) {
