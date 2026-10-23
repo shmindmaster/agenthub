@@ -63,6 +63,18 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(self.ledger.lookup("account-a", "same")["state"], "submitted")
         self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 4)
 
+    def test_reject_releases_only_this_workers_submission(self):
+        claim = self.claim()
+        with self.assertRaisesRegex(RuntimeError, "submitted"):
+            self.ledger.reject(claim)
+        self.ledger.submitted(claim)
+        with self.assertRaisesRegex(RuntimeError, "submitted"):
+            self.ledger.reject({**claim, "token": "another worker"})
+        self.ledger.reject(claim)
+        self.assertIsNone(self.ledger.lookup("account-a", "same"))
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 0)
+        self.assertEqual(self.claim()["state"], "leader")
+
     def test_release_requires_expired_never_submitted_reservation(self):
         claim = self.claim()
         with self.assertRaisesRegex(RuntimeError, "expired"):

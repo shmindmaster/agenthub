@@ -88,7 +88,12 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, wit
                 elif not raw or not (ctype.startswith("audio/") or ctype == "application/octet-stream"):
                     raise RuntimeError("Provider returned no audio")
                 row = ledger.complete(row, raw, ctype, headers.get("request-id"))
-            except BaseException:
+            except BaseException as exc:
+                if getattr(exc, "status", None) == 429:
+                    # 429 is a rate/concurrency refusal before generation: nothing was produced or billed.
+                    ledger.reject(row)
+                    raise RuntimeError("ElevenLabs rate limited the request (HTTP 429); nothing was generated and the "
+                                       "reservation was released. Retry the same request later.") from None
                 if not ledger.unknown(row):
                     raise RuntimeError("Submission state changed; inspect its existing receipt before any retry.") from None
                 raise RuntimeError("Submission unresolved; reservation retained. Recover provider history before retrying.") from None

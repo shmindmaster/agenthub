@@ -29,6 +29,14 @@ MAX_DICTIONARY_LOCATORS = 3
 GOVERNED_POST_PREFIXES = ("/text-to-speech/", "/sound-generation", "/music")
 
 
+class ProviderHTTPError(RuntimeError):
+    """An HTTP error status from the provider; the message carries only the status and a sanitized code."""
+
+    def __init__(self, message: str, status: int):
+        super().__init__(message)
+        self.status = status
+
+
 def _request_full(path: str, method: str = "GET", body: bytes | None = None, content_type: str | None = None, timeout: int = 30, on_headers=None, governed_submission=False):
     if method != "GET" and not (governed_submission and method == "POST" and path.startswith(GOVERNED_POST_PREFIXES)):
         raise RuntimeError("Paid/unmetered requests require the shared broker; this route is disabled")
@@ -54,7 +62,7 @@ def _request_full(path: str, method: str = "GET", body: bytes | None = None, con
             code = code if re.fullmatch(r"[a-zA-Z0-9_\-]{1,80}", str(code)) else ""
         except Exception:  # noqa: BLE001 - detail is best-effort only
             code = ""
-        raise RuntimeError(f"ElevenLabs API returned HTTP {exc.code}" + (f" ({code})" if code else "")) from None
+        raise ProviderHTTPError(f"ElevenLabs API returned HTTP {exc.code}" + (f" ({code})" if code else ""), exc.code) from None
     except urllib.error.URLError as exc:
         raise RuntimeError("ElevenLabs API request failed") from exc
 

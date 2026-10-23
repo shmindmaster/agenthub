@@ -246,6 +246,25 @@ class GovernedRouting(unittest.TestCase):
         self.assertFalse(self.root.joinpath("a.mp3").exists())
         self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
 
+    def test_rate_limit_releases_reservation_and_allows_the_same_request_again(self):
+        limited = cli.ProviderHTTPError("ElevenLabs API returned HTTP 429 (rate_limited)", 429)
+        with patch.object(cli, "_request_full", side_effect=limited) as post, contextlib.redirect_stderr(io.StringIO()) as errors:
+            self.assertEqual(self.governed(self.root / "a.mp3", extra=["--with-timestamps"]), 2)
+        self.assertIn("reservation was released", errors.getvalue())
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 0)
+        with patch.object(cli, "_request_full", return_value=self.timestamped()) as post:
+            self.assertEqual(self.governed(self.root / "a.mp3", extra=["--with-timestamps"]), 0)
+            self.assertEqual(post.call_count, 1)
+
+    def test_other_http_errors_stay_unresolved(self):
+        with patch.object(cli, "_request_full", side_effect=cli.ProviderHTTPError("ElevenLabs API returned HTTP 500", 500)) as post:
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(self.governed(self.root / "a.mp3"), 2)
+                self.assertEqual(self.governed(self.root / "b.mp3"), 2)
+            self.assertEqual(post.call_count, 1)
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
+
     def test_unversioned_dictionary_and_missing_revision_never_post(self):
         with patch.object(cli, "_request_full") as post, contextlib.redirect_stderr(io.StringIO()):
             extra = ["--governed", "--cache-workspace", "fixture", "--max-credits", "10"]
