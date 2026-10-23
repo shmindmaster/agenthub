@@ -68,6 +68,35 @@ function Get-OwnerStyleContext([string]$StylesRoot, [string]$DefaultStyle) {
   }
 }
 
+# A scene may ask for an allowlisted style. voiceStyle wins over style. Anything else is the default.
+# An unlisted name throws: a quiet line must not be rendered on the explaining reference.
+function Resolve-RequestedStyle([object]$Scene, [string]$DefaultStyle, [string[]]$Allow) {
+  $style = $DefaultStyle
+  if ($null -ne $Scene) {
+    $names = @($Scene.PSObject.Properties.Name)
+    foreach ($key in @('voiceStyle', 'style')) {
+      if ($names -contains $key -and $Scene.$key) { $style = [string]$Scene.$key; break }
+    }
+  }
+  if ($Allow -notcontains $style) { throw "Style '$style' is not allowlisted ($($Allow -join ', '))." }
+  return $style
+}
+
+function Get-CachedStyle([string]$StylesRoot, [string]$Style) {
+  $wav = Join-Path $StylesRoot "$Style.wav"
+  $txtPath = Join-Path $StylesRoot "$Style.txt"
+  if (-not (Test-Path -LiteralPath $wav)) { throw "Missing style wav: $wav" }
+  if (-not (Test-Path -LiteralPath $txtPath)) { throw "Missing style transcript: $txtPath" }
+  $text = (Get-Content -LiteralPath $txtPath -Raw -Encoding UTF8).Trim()
+  return [pscustomobject]@{
+    Style   = $Style
+    Wav     = $wav
+    Text    = $text
+    WavSha  = (Get-Sha256 $wav)
+    TextSha = (Get-TextSha256 $text)
+  }
+}
+
 # Fingerprint of everything that decides what a take sounds like: the canonical sentence, the exact text sent to the
 # engine (after Get-RenderText normalisation), the voice, and the style reference (name, wav bytes, transcript).
 # Seed, round and premium are deliberately excluded: they vary between retries of the same content.

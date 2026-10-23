@@ -117,7 +117,14 @@ if (probe) {
 // ---- precision of the narration timing
 const degraded = beats.filter((b) => b.narration?.precision !== 'word');
 if (degraded.length) {
-  const msg = `narration timing is ${[...new Set(degraded.map((b) => b.narration?.precision))].join('/')} (not word-level) on ${degraded.length} beat(s): ${degraded.map((b) => b.beat).join(', ')}. Run word-level ASR per line (ai.ps1 transcribe <take.wav> --engine whisper --json-out voice\\asr\\<id>.json) and rebuild the cue sheet.`;
+  const kinds = [...new Set(degraded.map((b) => b.narration?.precision))].join('/');
+  const listed = degraded.map((b) => b.beat).join(', ');
+  const jobPath = join(root, 'job.json');
+  let syncClock = null;
+  if (existsSync(jobPath)) { try { syncClock = JSON.parse(readFileSync(jobPath, 'utf8')).syncClock; } catch { syncClock = null; } }
+  const msg = syncClock === 'forced-aligner'
+    ? `narration timing is ${kinds} (not word-level) on ${degraded.length} beat(s): ${listed}. word times must come from ai.ps1 align (voice/align/<id>.json, method forced-alignment). Whisper is a transcript check and cannot time the picture.`
+    : `narration timing is ${kinds} (not word-level) on ${degraded.length} beat(s): ${listed}. Run word-level ASR per line (ai.ps1 transcribe <take.wav> --engine whisper --json-out voice\\asr\\<id>.json) and rebuild the cue sheet.`;
   if (allowDegraded) warnings.push(`DEGRADED: ${msg}`); else fail(msg);
 }
 
