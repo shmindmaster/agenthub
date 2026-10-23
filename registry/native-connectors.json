@@ -28,6 +28,7 @@
     "defaultHostConfiguration": "shared-remote-only-persisted",
     "sharedRemoteTransport": "http",
     "onDemandLocalMcpIds": [
+      "arxiv-research",
       "appium-mobile",
       "playwright",
       "repowise-workspace",
@@ -45,6 +46,7 @@
     "localFanoutPolicy": "persist-only-reviewed-lightweight-provider-exceptions",
     "hostConfiguredLocalFanoutPolicy": "No on-demand-local stdio MCP is persisted in host config. Measured 2026-09-07: persisted playwright alone held 6 leaf processes (~201 MB) plus npx/mise wrappers (~598 MB) across Codex and Grok with no browser work in those sessions. A stdio server named in a host config is started at session start. Playwright and chrome-devtools ship only in the browser-toolkit plugin .mcp.json; enable the plugin when a headed browser is needed, disable when done. Same gate as appiumActivationRoute for mobile-development and repowiseActivationRoute for repowise-workspace.",
     "localActivationOwnerPolicy": "plugin-skill-or-reviewed-shared-gateway",
+    "arxivActivationRoute": "Use the managed loose skill use-arxiv-research. Its Invoke-ArxivResearch.ps1 client acquires one shared OS lock, starts the pinned upstream MCP only for a bounded research session and closes it on exit. Install dependencies explicitly through -Operation install. Never persist arxiv-research in a host MCP config or enable a duplicate native plugin.",
     "heldProviderPolicy": "configuration-may-converge-without-launching-or-probing-the-provider",
     "onDemandLocalCoverage": {
       "reconciledOn": "2026-09-17",

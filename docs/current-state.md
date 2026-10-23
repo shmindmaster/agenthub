@@ -1,5 +1,15 @@
 # Current State
 
+- **arXiv product research (2026-10-23):** `packages/arxiv-research` adds the
+  fleet skill `use-arxiv-research`, with an on-demand client for upstream
+  `arxiv-mcp-server[pdf]==0.8.2`. A machine-wide OS lock prevents overlapping
+  sessions; bounded MCP sessions close their child server and share a local
+  paper library. Live verification covered discovery, search, cached paper
+  retrieval, outlines, section reading, BibTeX export and prompt listing.
+  The workflow maps paper evidence to product hypotheses and measurable
+  experiments. Semantic model extras are omitted. Host mappings deploy the
+  shared loose skill; no persistent host MCP entry or schedule is installed.
+
 Verified 2026-08-08. This file records demonstrated reality, not intent.
 
 ## Operational today

@@ -576,6 +576,38 @@
       ],
       "hostScopeNote": "hosts[] is the deployed set. activationMode is on-demand-local because the process is a standing local container the owner starts, and the id is in native-connectors.json lifecyclePolicy.persistedOnDemandLocalMcpIds because persisting its HTTP entry starts no process at session start. Each listed host carries the entry in its MCP config as a shared-gateway exposure. claude is deliberately excluded: it already provides first-party connectors for the same providers and the routing policy prefers the connector the running surface provides. Windsurf is checked-absent in hostInventory.",
       "notes": "Registered 2026-09-12 as a pilot from the OpenConnector fit assessment (https://claude.ai/code/artifact/1c336229-6774-4e2b-9a20-139111ae1d22); persisted for codex, cursor, opencode and grok on 2026-09-13. Correction recorded the same day: the original purpose statement ('replace per-host stdio SaaS bridges') was wrong for this fleet -- github, linear, notion, context7, exa, firecrawl, railway and descript were already shared-remote HTTP on every non-Claude host with zero local processes. The only stdio SaaS bridge it could retire was brave-search (npx @brave/brave-search-mcp-server, declared by no host), which is removed from this registry on 2026-09-13 and served through the gateway's brave_search provider instead; BRAVE_API_KEY stays a User environment variable, entered into the gateway by the owner's own wrapper (packages/open-connector/scripts/Invoke-OpenConnector.ps1 connect -ApiKeyEnv BRAVE_API_KEY), never written to any repository. Not a product component and not a tenant credential store: the runtime is single-owner by schema (connections keyed by service + connection name, one encryption key, one admin token, connection requests owned by 'local-admin'), which is why Lawli SH-2748, LienWise external-platforms.policy.js and CoLedger ai-boundaries.md keep product integrations direct. Token model: the bootstrap OOMOL_CONNECT_RUNTIME_TOKEN in the runtime env file serves only the wrapper and the compose healthcheck; hosts authenticate with a minted, revocable runtime token carrying an explicit allowedActions list, stored in the User environment variable OPEN_CONNECTOR_AGENT_TOKEN -- a different name from the bootstrap so a User variable can never shadow the compose interpolation. Container policy defaults: explicit action allowlist, raw provider proxy blocked, private-network egress off."
+    },
+    {
+      "id": "arxiv-research",
+      "name": "arXiv research (upstream MCP, capability-invoked)",
+      "scope": "on-demand-desktop",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "arxiv-mcp-server[pdf]==0.8.2",
+        "arxiv-mcp-server"
+      ],
+      "providesCapabilities": [
+        "research.arxiv"
+      ],
+      "protocol": {
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-10-23",
+        "verification": "Initialized the installed unmodified upstream 0.8.2 server through the Python MCP SDK and enumerated 19 tools. Negotiated 2025-11-25. Capability client controls process lifetime and error propagation."
+      },
+      "localProcessPolicy": {
+        "instancing": "single-shared-process",
+        "note": "No persistent host registration. All mapped agents call the same deployed skill client; a nonblocking OS lock admits one research session at a time and the MCP SDK closes its process tree at completion or deadline. Hidden Windows launch. No background schedule or autostart."
+      },
+      "owner": {
+        "type": "capability",
+        "id": "arxiv-research"
+      },
+      "hosts": [],
+      "hostScopeNote": "Intentionally no direct host MCP registrations. Reachability is through capability arxiv-research hostMappings and the self-contained use-arxiv-research loose skill/launcher, deployed by Sync-Capabilities. This avoids starting one server per idle host. The command here identifies the upstream package, not an instruction to bypass the serialized client.",
+      "notes": "Public literature research only. Shared runtime under the user AgentHub runtime/arxiv-research. PDF fallback installed, pro/semantic extras excluded. The existing OpenConnector arXiv source remains a basic gateway search option; this route adds upstream full-paper, section, LaTeX, citation and prompt workflows without starting Docker."
     }
   ]
 }

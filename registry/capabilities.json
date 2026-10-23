@@ -1456,6 +1456,92 @@
       "maturity": "beta",
       "provenance": "agenthub-owned",
       "notes": "Regenerates a Markdown fleet board from configurable local status files, optional Codex rollouts, dispatcher logs, optional GitHub queries, an optional lease file, and running coding-host processes. Defaults to the user-local AgentHub runtime; exporting elsewhere requires an explicit path. Capability-invoked: no scheduled task, Run key, or auto-start. Tests use synthetic fixtures and skip live process, GitHub, and machine-state reads."
+    },
+    {
+      "id": "arxiv-research",
+      "owner": "personal-infrastructure",
+      "capabilityType": "skills+mcp",
+      "canonicalSource": "packages/arxiv-research",
+      "managedSkillNames": [
+        "use-arxiv-research"
+      ],
+      "contentHash": "BB71F17FF2257CE0CCED1F27DDB03ACAA2DFD9346E0AF4F744ED84BA818F967E",
+      "hashBasis": "packages/arxiv-research",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills"
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills"
+        }
+      ],
+      "dependencies": {
+        "requires": [],
+        "recommends": [
+          "repowise",
+          "product-experience-engineering"
+        ],
+        "optional": []
+      },
+      "kind": "tool",
+      "maturity": "beta",
+      "provenance": "agenthub-owned",
+      "notes": "Cross-project paper-to-product research workflow and bounded MCP client. Upstream blazickjp/arxiv-mcp-server owns the unmodified PyPI server, tools and prompts. One OS lock serializes explicit sessions across local hosts; each session closes its server. No per-host MCP entries, native-plugin replication, startup services, scheduled watches or semantic model downloads. Runtime papers stay outside repositories. A deployed skill is not proof an already-running host loaded it."
     }
   ],
   "lastValidatedAt": "2026-08-26T00:00:00Z",
