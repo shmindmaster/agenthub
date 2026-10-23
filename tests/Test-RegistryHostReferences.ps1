@@ -265,9 +265,18 @@ function Test-LiveHostAuthenticationMetadata {
         -not $profile.dispatchPolicy.amp.enabled) {
         $violations.Add('Gemini must remain disabled; verified Cursor Agent and Amp account smokes must remain enabled')
     }
-    if ($profile.dispatchPolicy.opencode.enabled -or
-        $profile.dispatchPolicy.opencode.reason -notmatch 'no Go-plan account entry') {
-        $violations.Add('OpenCode must remain disabled without a Go-plan account entry')
+    if (-not $profile.dispatchPolicy.opencode.enabled -or
+        $profile.hostSettings.opencode.authMode -ne 'account' -or
+        $profile.hostSettings.opencode.model -ne $profile.dispatchPolicy.opencode.model -or
+        $profile.dispatchPolicy.opencode.model -ne 'opencode/glm-5.3-flash' -or
+        $profile.dispatchPolicy.opencode.verifiedOn -ne '2026-10-23' -or
+        $null -ne $profile.dispatchPolicy.opencode.ownerAction) {
+        $violations.Add('Verified OpenCode Go account dispatch must remain enabled with its tested model and completed login gate')
+    }
+    if ($profile.hostSettings.cline.authMode -ne 'apiKey' -or
+        $profile.hostSettings.cline.provider -ne 'openai-compatible' -or
+        $profile.hostSettings.cline.model -ne 'qwen3.8-max') {
+        $violations.Add('Cline must retain the owner-authorized Alibaba Coding Plan provider settings')
     }
     if ($profile.dispatchPolicy.codex.enabled -ne $false -or
         $profile.dispatchPolicy.codex.knownIssue -notmatch 'no response text' -or

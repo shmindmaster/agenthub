@@ -76,14 +76,14 @@
       ],
       "status": "active",
       "versionObserved": "2026-10-14: verified installed launcher/file version 0.162.1. Manual forward update and launcher reconciliation; active sessions preserved.",
-      "headlessDispatchNote": "codex exec --skip-git-repo-check - reads stdin, including in a scratch cwd without a repository. The installed shim selects cli-api; establish included allowance or explicitly authorize a credit budget before live dispatch."
+      "headlessDispatchNote": "codex exec --skip-git-repo-check - reads stdin, including in a scratch cwd without a repository. Codex uses the single ~/.codex/config.toml (ChatGPT plan); there are no profiles."
     },
     {
       "id": "opencode",
       "name": "OpenCode",
-      "version": "1.19.3",
-      "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `opencode.cmd --version` printed 1.19.3. Earlier: 2026-10-14: `opencode.cmd --version` returned 1.19.0, and `opencode upgrade` reported that 1.19.0 is already installed. It also offered OpenCode 2 via `opencode upgrade --major`. That major upgrade was not run.",
-      "executable": "{userHome}/AppData/Roaming/npm/opencode.cmd",
+      "version": "2.1.4",
+      "versionObserved": "2026-10-23: bare opencode and the registered wrapper both returned opencode v2.1.4. The wrapper selects the newest installed Desktop-bundled 2.x x64 CLI numerically.",
+      "executable": "{userHome}/.local/bin/opencode.cmd",
       "nativePaths": {
         "config": "{userHome}/.config/opencode",
         "instructions": "{userHome}/.config/opencode/AGENTS.md",
@@ -109,16 +109,16 @@
       ],
       "status": "active",
       "notes": "Global skill path follows the official OpenCode ~/.config/opencode/skills contract.",
-      "headlessDispatchNote": "OpenCode 1.19.3 run --auto --dir <cwd> --model opencode/glm-5.3 <prompt> is headless. The paid-plan model is selected in registry/fleet-profile.json hostSettings and dispatchPolicy; read dispatchPolicy for current smoke readiness."
+      "headlessDispatchNote": "OpenCode 2.1.4 run --auto --model opencode/glm-5.3-flash <prompt> uses the child process working directory and the native shared service. Account OAuth and Go-only endpoint verified; see dispatchPolicy for readiness."
     },
     {
       "id": "opencode-desktop",
       "name": "OpenCode Desktop",
-      "version": "1.18.9",
-      "executable": "{userHome}/AppData/Local/Programs/@opencode-aidesktop/OpenCode.exe",
-      "executableNote": "UNVERIFIED and probably wrong in shape; the OpenCode DESKTOP app is not installed on this workstation, checked 2026-08-11. Neither the declared path nor any *opencode* directory exists under %LOCALAPPDATA%/Programs/. The literal '@opencode-aidesktop' segment reads like an npm package specifier rather than an installed-program directory name, so this looks derived from a package name instead of observed on disk -- treat it as a guess until a machine with the desktop app confirms it. Distinct from the `opencode` CLI host, which IS installed here and whose declared path resolves.",
-      "versionProbe": "none",
-      "versionProbeNote": "Added 2026-08-19: no installed binary to probe. Re-checked the declared path and every *opencode* directory under %LOCALAPPDATA%/Programs/ (per executableNote); none exist, so there is nothing to run --version against or read FileVersion from.",
+      "version": "2.1.4",
+      "executable": "{userHome}/AppData/Local/Programs/@opencodedesktop/OpenCode.exe",
+      "executableNote": "2026-10-23: installed executable and ProductVersion 2.1.4.0 verified on disk. Shared native 2.1.4 backend configuration and account inference verified without launching the GUI.",
+      "versionProbe": "file-version",
+      "versionProbeNote": "2026-10-23: read installed executable ProductVersion without starting Desktop.",
       "nativePaths": {
         "config": "{userHome}/.config/opencode",
         "instructions": "{userHome}/.config/opencode/AGENTS.md",
@@ -131,7 +131,7 @@
         "skills",
         "mcp"
       ],
-      "status": "unverified",
+      "status": "active",
       "surfaceType": "companion-desktop"
     },
     {
@@ -368,7 +368,7 @@
         "agentsDir": null,
         "pluginsDir": "{userHome}/.cline/plugins",
         "hooksDir": "{userHome}/.cline/hooks",
-        "pluginsDirNote": "Verified 2026-08-05 against docs.cline.bot/customization/plugins and docs.cline.bot/getting-started/config. ~/.cline/plugins/ is the global plugin directory, with installs nested under plugins/_installed/{npm,git,remote,local}/ and project-scoped plugins in .cline/plugins/. Scope matters here: the plugins page states verbatim that the feature applies to Cline SDK, CLI and Kanban and NOT to the VSCode or JetBrains extensions -- and this registry entry is the CLI (executable cline.cmd), so the path is correct for the surface actually registered. Absent only because no plugin is installed.",
+        "pluginsDirNote": "Verified 2026-10-23: the documented ~/.cline/plugins/ global SDK file-plugin directory is consumed by CLI 3.0.73 and Desktop 0.0.48. The optional Qwen tool-discovery plugin is maintained by coding-agent-dispatch; its manual installer audits or repairs only lightweight-chat.js. The official agent-browser plugin is also installed. SDK/CLI/Desktop evidence does not establish support in the separate VS Code or JetBrains extensions.",
         "hooksDirNote": "Verified 2026-08-05 against docs.cline.bot/getting-started/config, which lists ~/.cline/hooks/ as the global hooks directory for the SDK/CLI/Kanban surface this entry registers; hooks are implemented as a plugin capability (docs.cline.bot/sdk/plugins). Flagged conflict, recorded because it would otherwise be rediscovered as a bug: cline.bot/blog/cline-v3-36-hooks describes a DIFFERENT and older hooks system belonging to the VSCode extension, rooted at ~/Documents/Cline/Rules/Hooks/ with project .clinerules/hooks/, and states it is macOS and Linux only with no Windows support. Two systems share one feature name. If a VSCode Cline host is ever registered separately, it must not reuse this path.",
         "agentsDirNote": "Set to null 2026-08-05: NOT ESTABLISHED, which is different from absent. Previously asserted ~/.cline/agents. Research found two conflations and no resolution. (a) The shipped subagents feature (docs.cline.bot/features/subagents) is a built-in automatic use_subagents tool with no user-authored file or directory at all -- toggled in Settings, never defined on disk. (b) The custom multi-agent 'Agent Teams' feature, which would need a directory, is documented inconsistently by Cline itself: docs.cline.bot/getting-started/config shows 'agents/  # Global agent definitions' under ~/.cline/, while docs.cline.bot/cli/cli-reference shows definitions in a project-level file .cline/agents.yaml with no global equivalent, and docs.cline.bot/cli/agent-teams documents only runtime team STATE at ~/.cline/data/teams/[team-name]/, never where definitions are authored. Two official pages disagree on whether a global path exists. Resolve by installing an Agent Team and observing where Cline writes, not by picking the page that reads more confidently.",
         "desktopInstructionsNote": "Documents/Cline is a legacy additional search path. At the 2026-08-05 observation, Windows Known Folder Documents was redirected to D:/OneDrive - Maya Modest LLC/Documents. Owner direction on 2026-10-19 designates D:/OneDrive - MahumTech/Documents as the retained canonical document root; this does not establish the current Windows Known Folder mapping. The old OneDrive Documents/Cline tree (~135MB local MCP installs under MCP/context7-mcp and MCP/linear-mcp) was deleted 2026-08-05 so cloud sync drops it. desktopInstructions therefore points at %LOCALAPPDATA%/AgentHub/cline-documents/Rules (outside OneDrive), not at the Known Folder. Primary rules remain ~/.cline/data/settings/rules."

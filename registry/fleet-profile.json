@@ -260,9 +260,9 @@
   },
   "hostSettings": {
     "cline": {
-      "provider": "cline-pass",
-      "model": "cline-pass/qwen3.8-max",
-      "authMode": "account",
+      "provider": "openai-compatible",
+      "model": "qwen3.8-max",
+      "authMode": "apiKey",
       "loginCommand": "cline auth",
       "availableProviders": {
         "deepseek": {
@@ -271,16 +271,16 @@
       }
     },
     "opencode": {
-      "model": "opencode/glm-5.3",
+      "model": "opencode/glm-5.3-flash",
       "smallModel": "opencode/glm-5.3-flash",
       "authMode": "account",
-      "loginCommand": "opencode auth login",
+      "loginCommand": "opencode auth login opencode --method device",
       "availableProviders": {
         "deepseek": {
           "apiKeyEnv": "DEEPSEEK_API_KEY"
         }
       },
-      "modelNote": "2026-10-22: switched from the custom opencode-go provider (needs User env OPENCODE_GO_API_KEY, which the dispatcher strips by owner rule) to the built-in opencode provider, which bills the Go-plan account entry in auth.json. `opencode models` lists opencode/glm-5.3 and opencode/glm-5.3-flash; hy3 is not offered there."
+      "modelNote": "2026-10-23: OpenCode 2.1.4 native Console account OAuth, stored by its shared service. The built-in opencode provider is configured privately with the Go-only https://opencode.ai/inference/go/v1 endpoint and no API-key override. Exact-response inference passed in 3.8 seconds. CLI and Desktop share this service; title generation uses the same Go model."
     },
     "copilot": {
       "model": "auto",
@@ -414,11 +414,11 @@
       "verifiedOn": "2026-10-21"
     },
     "opencode": {
-      "enabled": false,
-      "model": "opencode/glm-5.3",
-      "reason": "2026-10-22 smoke (opencode run --model opencode/glm-5.3): the auth.json opencode entry written 07:23 CT returned 'This API key has expired. Create a new API key in OpenCode Console'. Dispatch stays disabled until a live key is in auth.json.",
-      "ownerAction": "Create a new key in the OpenCode Console (the key pasted into chat on 2026-10-22 is exposed and must not be reused), run `opencode auth login` alone, choose OpenCode and paste it; nothing else to set. Then one smoke: opencode run --model opencode/glm-5.3 'reply ok'.",
-      "verifiedOn": "2026-10-22"
+      "enabled": true,
+      "model": "opencode/glm-5.3-flash",
+      "reason": "2026-10-23: native Console account OAuth and Go-only inference verified. OpenCode 2 run uses process cwd; provider API-key overrides are removed. Bound task execution by the dispatcher timeout.",
+      "ownerAction": null,
+      "verifiedOn": "2026-10-23"
     },
     "antigravity": {
       "enabled": true,
@@ -428,10 +428,10 @@
     },
     "cline": {
       "enabled": true,
-      "reason": "Paid plan; model cline-pass/qwen3.8-max",
-      "verifiedOn": "2026-10-21",
+      "reason": "Owner-authorized Alibaba Coding Plan through saved OpenAI-compatible provider settings; qwen3.8-max. CLI and Desktop authenticated tool reads verified 2026-10-23.",
+      "verifiedOn": "2026-10-23",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
-      "knownIssue": "2026-10-14: after a useful 127-line review, cline called submit_and_exit, wrote the report, then did not exit; the dispatcher killed it at the 1500 s timeout (exit 4). Treat the report file as the result and check it before trusting exit 4."
+      "knownIssue": "Historical --yolo benchmark mode could hang at submit_and_exit. Normal --json mode with native timeout preserves plugins and MCP. Check the result before treating any timeout as success."
     },
     "copilot": {
       "enabled": true,

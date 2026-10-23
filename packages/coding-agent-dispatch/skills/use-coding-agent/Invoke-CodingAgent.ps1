@@ -171,7 +171,9 @@ function Get-DispatchTable {
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                $args = @('run', '--auto', '--dir', $Work)
+                # OpenCode 2 uses the child process working directory; --dir
+                # belonged to v1 and is rejected by the shared-service CLI.
+                $args = @('run', '--auto')
                 if ($fleet.dispatchPolicy.opencode.model) { $args += @('--model', [string]$fleet.dispatchPolicy.opencode.model) }
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
@@ -198,7 +200,14 @@ function Get-DispatchTable {
             Mode = 'argument'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('--yolo', $PromptText); Stdin = $null; PromptFile = $null }
+                # CLI 3.0.73: --yolo selects the restricted benchmark toolset.
+                # Normal JSON execution retains plugins, MCP and native skills.
+                $args = @('--json', '--cwd', $Work, '--timeout', [string]$TimeoutSec,
+                    '--auto-approve', 'true', '--thinking', 'low')
+                if ($fleet.hostSettings.cline.provider) { $args += @('--provider', [string]$fleet.hostSettings.cline.provider) }
+                if ($fleet.hostSettings.cline.model) { $args += @('--model', [string]$fleet.hostSettings.cline.model) }
+                $args += $PromptText
+                @{ Args = $args; Stdin = $null; PromptFile = $null }
             }
         }
         'copilot' = @{
@@ -427,8 +436,8 @@ $psi.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
 # OWNER RULE 2026-10-22: every agent runs on its account/plan login, never a provider API key.
 # Strip provider keys from the child environment so a key in the User environment cannot
 # override the account login (Devin used DEVIN_API_KEY; Codex's wrapper used OPENAI_API_KEY).
-# OpenCode's Go plan is the account entry written by `opencode auth login`; the env override
-# is stripped so the built-in opencode/* models always bill the account entry.
+# OpenCode 2 uses native Console account OAuth and a Go-only provider endpoint.
+# Remove both provider overrides so they cannot replace the stored account.
 $accountScrub = @{
     'claude'       = @('ANTHROPIC_API_KEY', 'ANTHROPIC_API_KEY_BACKUP')
     'codex'        = @('OPENAI_API_KEY')
@@ -442,7 +451,7 @@ $accountScrub = @{
     'cursor-agent' = @('CURSOR_API_KEY')
     'amp'          = @('AMP_API_KEY')
     'copilot'      = @('GH_TOKEN', 'GITHUB_TOKEN')
-    'opencode'     = @('OPENCODE_GO_API_KEY')
+    'opencode'     = @('OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY')
 }
 if ($accountScrub.ContainsKey($targetId)) {
     foreach ($name in $accountScrub[$targetId]) { [void]$psi.EnvironmentVariables.Remove($name) }

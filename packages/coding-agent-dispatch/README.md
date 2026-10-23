@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.2.5 (loose skill; version metadata lives in `SKILL.md`).
+Version 0.2.7 (loose skill; version metadata lives in `SKILL.md`).
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever
@@ -18,18 +18,44 @@ while the dispatcher supplies its explicit approval mode. `windsurf`
 routes to Devin. Readiness is additionally gated by
 `dispatchPolicy` and each host's autonomy profile. Devin uses its paid plan
 model recorded in `registry/fleet-profile.json`; OpenCode's Go model is
-selected there but dispatch remains disabled because no Go-plan account entry
-is configured.
+selected there. OpenCode 2.1.4 native Console account OAuth and Go-only
+inference passed on 2026-10-23 without an API-key override. Its CLI and Desktop
+share the native service; `run` uses the child process working directory.
 Windsurf shares Devin's model and command. Current host readiness is recorded
 in `registry/fleet-profile.json`; detailed runtime output stays outside this
 public repository.
+
+Cline uses normal JSON execution with its saved provider/model, low thinking,
+native timeout, plugins and MCP rather than the restricted `--yolo` benchmark
+toolset. The dispatcher starts bounded new tasks. Cline 3.0.73 resume via
+`--id` is interactive-only; use ACP `session/load` or Desktop attachment for
+existing history. Both passed a synthetic history check. An ACP client launches
+`cline --acp` on demand. No A2A bridge, background listener or concurrent writer
+is enabled by this capability. The owner's authorized Alibaba Coding Plan
+settings stay in the private Cline profile, never in the registry. OpenCode
+2.1.4 also passed native ACP initialization and synthetic session creation,
+listing and loading. Its on-demand private backend shares persisted account
+and configuration; an ACP client is still required for protocol handoff.
+
+The optional Cline Qwen tool-discovery plugin is maintained in this package's
+`skills/use-coding-agent/cline/lightweight-chat.js`. It uses documented SDK
+hooks to send only `find_tools` initially, loads a bounded selection when needed,
+and resets the selection for each user turn. Native tool implementations and
+approval choices remain intact. CLI 3.0.73 and Desktop 0.0.48 passed actual
+plain-chat and tool-discovery checks. This is separate from the VS Code extension.
+`Install-ClineToolDiscovery.ps1` audits by default; `-Apply` repairs only that
+file in the private Cline user directory, with hash readback. AgentHub skill
+sync supplies its canonical source and repair command; installation is explicit.
+It never starts Cline or registers background maintenance. User configuration
+lives outside the application installation and normally survives updates;
+future SDK compatibility still requires verification after an upgrade.
 
 Account-based authentication is recorded per CLI in `registry/fleet-profile.json`
 -> `hostSettings`. Gemini's settings select `oauth-personal`, but the latest
 account-mode smoke failed; Gemini remains disabled. The dispatcher removes
 host-specific API-key environment variables from account-authenticated
-children. OpenCode retains DeepSeek as a secondary provider while awaiting a
-Go-plan account entry. Follow the owner-only checklist at
+children. OpenCode's private provider settings pin the Go-only endpoint;
+Console account OAuth is stored by the native service. Follow the owner-only checklist at
 `docs/fleet/account-logins-2026-10-21.md`; do not log in or accept paid fallback
 automatically. Other gated CLIs need verified included allowance or an explicit
 task credit budget and one smoke before enabling. Model catalogs and help
