@@ -1541,8 +1541,8 @@ test('silent beats 1: a beat with no narration is not a narration row, so the cu
   ] };
   const asrB1 = join(root, 'silent-b1.json');
   const asrB3 = join(root, 'silent-b3.json');
-  writeFileSync(asrB1, JSON.stringify({ words: [{ word: 'Twelve', start: 0.1, end: 0.5 }, { word: 'days', start: 0.6, end: 1.0 }] }));
-  writeFileSync(asrB3, JSON.stringify({ words: [{ word: 'Try', start: 0.1, end: 0.3 }, { word: 'the', start: 0.3, end: 0.4 }, { word: 'live', start: 0.4, end: 0.6 }, { word: 'demo', start: 0.6, end: 1.0 }] }));
+  writeFileSync(asrB1, JSON.stringify({ clock: 'forced-aligner', words: [{ word: 'Twelve', start: 0.1, end: 0.5 }, { word: 'days', start: 0.6, end: 1.0 }] }));
+  writeFileSync(asrB3, JSON.stringify({ clock: 'forced-aligner', words: [{ word: 'Try', start: 0.1, end: 0.3 }, { word: 'the', start: 0.3, end: 0.4 }, { word: 'live', start: 0.4, end: 0.6 }, { word: 'demo', start: 0.6, end: 1.0 }] }));
   const composeMap = { groups: [
     { segments: ['T1'], startSeconds: 0, needSeconds: 2.2, clipId: 'T1', isImage: true, edit: null, sourceRegion: null },
     { segments: ['B1'], startSeconds: 2.2, needSeconds: 4, clipId: 'B1', edit, sourceRegion: { x: 0, y: 0, width: 0.5, height: 0.5 } },

@@ -98,7 +98,16 @@ function wordsFromAlign(seg) {
 const beatsWords = segs.map((seg, i) => {
   const aligned = wordsFromAlign(seg);
   if (aligned) return aligned;
-  if (forcedClock) {
+  if (forcedClock && String(seg.text || '').trim()) {
+    // mvg local gates write their forced-aligner words here, marked clock: 'forced-aligner'. Unmarked Whisper output stays refused.
+    const marked = join(root, 'voice', 'asr', `${seg.id}.json`);
+    if (existsSync(marked)) {
+      const payload = JSON.parse(readFileSync(marked, 'utf8').replace(/^\uFEFF/, ''));
+      if (payload?.clock === 'forced-aligner') {
+        const parsed = L.parseAsrWords(payload, { offset: seg.startSeconds });
+        if (parsed.words.length) return { ...parsed, source: `voice/asr/${seg.id}.json` };
+      }
+    }
     errors.push(`${seg.id}: word times must come from ai.ps1 align (voice/align/${seg.id}.json, method forced-alignment). Whisper is a transcript check and cannot time the picture.`);
     return { words: [], precision: 'refused', source: 'missing aligner report' };
   }
