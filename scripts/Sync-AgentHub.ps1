@@ -1569,7 +1569,10 @@ function Sync-HostMcp-ConvertedJsonFile {
 
     $root = @{}
     if (Test-Path -LiteralPath $Path) {
-        $root = ConvertTo-Hashtable (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
+        $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+        # An existing but empty host config (Warp creates one) parses to $null; treat it as an empty object.
+        if (-not [string]::IsNullOrWhiteSpace($raw)) { $root = ConvertTo-Hashtable ($raw | ConvertFrom-Json) }
+        if ($null -eq $root) { $root = @{} }
     }
     if (-not $root.ContainsKey($JsonProperty)) { $root[$JsonProperty] = @{} }
     elseif (-not ($root[$JsonProperty] -is [hashtable])) { $root[$JsonProperty] = ConvertTo-Hashtable $root[$JsonProperty] }
