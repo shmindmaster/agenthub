@@ -44,9 +44,20 @@ receipt paths are refused. Generation writes a hash-bound `.provenance.json`.
 
 Paid generation requires `--model-id` or `ELEVENLABS_MODEL_TTS_DEFAULT`; there is
 no implicit paid premium-model choice. Dry-run discovery defaults to `eleven_flash_v2_5`.
-This REST adapter refuses `eleven_v4_turbo`: its documented Text to Dialogue
-WebSocket endpoint needs a separate governed implementation; native generation stays blocked.
+`eleven_v4_turbo` runs on this REST endpoint: the official v4 launch page
+(https://elevenlabs.io/v4) lists REST and streaming access, and live `/v1/models`
+reported `can_do_text_to_speech` at a 0.5 multiplier on 2026-10-23. Its Text to
+Dialogue WebSocket is a separate surface this adapter does not implement.
 Always select a verified compatible model for a professional clone.
+
+`--with-timestamps` posts to `/v1/text-to-speech/{voice_id}/with-timestamps`
+(https://elevenlabs.io/docs/api-reference/text-to-speech/convert-with-timestamps).
+It writes the decoded audio to `--output` and `<output>.alignment.json` holding
+`alignment` and `normalized_alignment` (per-character start/end seconds). It uses
+the same preflight, reservation and exact cache; the flag is part of the cache
+key. The ledger keeps the provider's JSON body, so the receipt's `output_sha256`
+is the audio file and `ledger_asset_sha256` is what acceptance binds. History
+recovery returns audio only and cannot rebuild an alignment.
 `eleven_v4` exposes only stability and similarity: `--style` and `--speed` are still forwarded
 but the CLI warns they have no verified effect, so do not pass them with a v4 model. Output format defaults to
 `ELEVENLABS_OUTPUT_FORMAT` or `mp3_44100_192`; check tier support first.

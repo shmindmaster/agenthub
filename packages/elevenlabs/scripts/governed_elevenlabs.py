@@ -27,12 +27,12 @@ def new_ledger(root=None):
     return runtime_module().Ledger(root)
 
 
-def generate(cli, args, voice_id, model_id, output_format, payload):
+def generate(cli, args, voice_id, model_id, output_format, payload, with_timestamps=False):
     with new_ledger().session() as ledger:
-        return _generate(ledger, cli, args, voice_id, model_id, output_format, payload)
+        return _generate(ledger, cli, args, voice_id, model_id, output_format, payload, with_timestamps)
 
 
-def _generate(ledger, cli, args, voice_id, model_id, output_format, payload):
+def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, with_timestamps=False):
     if not args.cache_workspace or not args.cache_revision:
         raise RuntimeError("Paid generation requires --cache-workspace and --cache-revision")
     if args.max_credits is None or not args.max_credits.is_integer() or args.max_credits <= 0:
@@ -46,10 +46,14 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload):
     if not required <= payload.get("voice_settings", {}).keys() or "apply_text_normalization" not in payload:
         raise RuntimeError("Governed generation requires explicit voice settings and text normalization")
     namespace = ledger.namespace(os.environ.get("ELEVENLABS_API_KEY", ""), args.cache_workspace)
-    key = runtime_module().request_key({"provider": "elevenlabs/rest/v1", "voice_id": voice_id,
-                                      "model_id": model_id, "output_format": output_format,
-                                      "revision": args.cache_revision, "payload": payload,
-                                      "quality_policy": "owner-voice-five-gates-v1"})
+    request = {"provider": "elevenlabs/rest/v1", "voice_id": voice_id,
+               "model_id": model_id, "output_format": output_format,
+               "revision": args.cache_revision, "payload": payload,
+               "quality_policy": "owner-voice-five-gates-v1"}
+    if with_timestamps:
+        # Added only when set, so every existing audio-only key keeps resolving to its saved bytes.
+        request["endpoint"] = "with-timestamps"
+    key = runtime_module().request_key(request)
     maximum = int(args.max_credits)
     deadline = time.monotonic() + 610
     reused = True
@@ -70,13 +74,18 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload):
                     ledger.bind_receipt(row, headers.get("request-id"))
             try:
                 query = urllib.parse.urlencode({"output_format": output_format})
+                suffix = "/with-timestamps" if with_timestamps else ""
                 _, ctype, raw, headers = cli._request_full(
-                    f"/text-to-speech/{urllib.parse.quote(voice_id, safe='')}?{query}",
+                    f"/text-to-speech/{urllib.parse.quote(voice_id, safe='')}{suffix}?{query}",
                     method="POST", body=json.dumps(payload).encode("utf-8"),
                     content_type="application/json", timeout=300, on_headers=received,
                     governed_submission=True)
                 received(headers)
-                if not raw or not (ctype.startswith("audio/") or ctype == "application/octet-stream"):
+                if with_timestamps:
+                    if ctype != "application/json":
+                        raise RuntimeError("Provider returned no timestamped audio")
+                    cli.split_timestamped_response(raw)
+                elif not raw or not (ctype.startswith("audio/") or ctype == "application/octet-stream"):
                     raise RuntimeError("Provider returned no audio")
                 row = ledger.complete(row, raw, ctype, headers.get("request-id"))
             except BaseException:
