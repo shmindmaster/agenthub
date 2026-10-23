@@ -13,6 +13,7 @@
 //   --dry-run         plan only: lint, planned spend, no provider call, no render, no delivery
 //   --prepare-only    compose writes props / compose map / mix plan but does not render or encode
 //   --hosted-only     hosted providers only: implies --prepare-only (no render/encode), no recording, no local gates; deliver is skipped
+//   --whisper-timing  explicit compatibility fallback for jobs without the forced aligner
 //   --local-gates     forced word alignment, independent Whisper transcript and Local-AI listen (GPU)
 //   --allow-capture   permit ui.record clips to be (re)recorded through record-job.mjs
 //   --no-vision       skip vision QA (it stays `pending`, so deliver refuses)
@@ -63,7 +64,9 @@ export function selectedStages(flags) {
   if (!last || last === 'all') throw new Error('select an explicit --stage; compose, qa and deliver are separate steps');
   if (last !== 'all' && !names.includes(last)) throw new Error(`unknown stage ${last} (stages: ${names.join(', ')})`);
   if (flags.dryRun && (['compose', 'qa', 'deliver'].includes(last) || (flags.only && last === 'timing'))) throw new Error('isolated encoded stages cannot use --dry-run; use --stage capture --dry-run for lint and planned spend');
-  return flags.only || ['compose', 'qa', 'deliver'].includes(last) ? [last] : names.slice(0, names.indexOf(last) + 1);
+  const selected = flags.only || ['compose', 'qa', 'deliver'].includes(last) ? [last] : names.slice(0, names.indexOf(last) + 1);
+  if (flags.hostedOnly && selected.includes('timing') && !flags.whisperTiming) throw new Error('--hosted-only timing requires the explicit --whisper-timing fallback');
+  return selected;
 }
 
 export async function runPipeline(ctx, stages = STAGES) {
@@ -81,7 +84,7 @@ export async function runPipeline(ctx, stages = STAGES) {
 
 async function main() {
   const { specPath, flags } = parseArgs(process.argv.slice(2));
-  if (!specPath) { console.error('usage: node mvg.mjs <spec.json> [--stage lint|voice|timing|assets|capture|compose|qa|deliver|all] [--dry-run] [--prepare-only] [--hosted-only] [--local-gates] [--allow-capture] [--no-vision] [--force] [--workspace DIR]'); process.exit(2); }
+  if (!specPath) { console.error('usage: node mvg.mjs <spec.json> [--stage lint|voice|timing|assets|capture|compose|qa|deliver|all] [--dry-run] [--prepare-only] [--hosted-only] [--whisper-timing] [--local-gates] [--allow-capture] [--no-vision] [--force] [--workspace DIR]'); process.exit(2); }
   if (flags.hostedOnly) { flags.prepareOnly = true; flags.allowCapture = false; flags.localGates = false; }
   const ctx = loadContext({ specPath, flags });
   try {

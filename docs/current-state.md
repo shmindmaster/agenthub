@@ -44,8 +44,9 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   a focus-follow camera inside the platform-safe area; audio is mixed and
   loudness-normalized with FFmpeg. Paid ElevenLabs speech, sound effects and
   music go through the governed adapter (`packages/elevenlabs`:
-  `governed_audio.py`, `elevenlabs_cli.py sfx|music`); OpenAI supplies stills,
-  `whisper-1` word timing and vision QA. `validate-viewer-release.mjs` accepts
+  `governed_audio.py`, `elevenlabs_cli.py sfx|music`); Local-AI forced alignment
+  supplies take-bound word timing, while OpenAI supplies stills, the explicit
+  `--whisper-timing` fallback, and paid vision QA. `validate-viewer-release.mjs` accepts
   the mvg picture report for `generator: media-studio/mvg` jobs and a per-job
   `loudnessTargetLufs`. `Sync-MediaStudioKit.ps1` mirrors the runtime
   `briefing-kit\marketing` tree in place (robocopy /MIR, never emptied) and

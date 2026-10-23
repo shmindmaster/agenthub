@@ -1,0 +1,11 @@
+{
+  "script": "Open seventy-five — cases.",
+  "durationSeconds": 1.2,
+  "words": [
+    { "text": "Open", "start": 0.08, "end": 0.24 },
+    { "text": "seventy", "start": 0.32, "end": 0.56 },
+    { "text": "five", "start": 0.56, "end": 0.8 },
+    { "text": "cases", "start": 0.88, "end": 1.12 }
+  ],
+  "expectedOnsets": [0.08, 0.32, 0.88]
+}

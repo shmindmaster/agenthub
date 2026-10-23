@@ -148,7 +148,7 @@ A 15-30 s social or web ad uses the deployed `mvg.mjs` and `kit/marketing/README
 
 - Real captured UI (receipt-bound clips from the product's film workspaces) carries every credibility-bearing second. Generated stills, sound effects and music are abstract and assert nothing; no generated people or children, no invented figures, customers or testimonials, never "submitted to a payer".
 - Every narration sentence and on-screen text maps to a claim with evidence; `lint` fails closed before any paid call. Budgets are enforced per run and cumulatively; ElevenLabs goes only through the governed adapter in `packages/elevenlabs` (plain `python`, never `python -I`).
-- Owner approval (Sarosh, 2026-10-20) covers hosted ElevenLabs (speech, sound effects, music) and OpenAI (images, word timing, vision QA) inside the stated caps for marketing ads; the local-first rule above still governs films. The marketing narrator is never the owner clone or a celebrity sound-alike.
+- Owner approval (Sarosh, 2026-10-20) covers hosted ElevenLabs (speech, sound effects, music) and OpenAI (images, explicit `--whisper-timing` compatibility fallback, vision QA) inside the stated caps for marketing ads; the local-first rule above still governs films. The marketing narrator is never the owner clone or a celebrity sound-alike.
 - `deliver` only ships a ratio whose every required gate passed on the exact file (picture, captions, loudness, sync, listen, vision, story >= 85, viewer-release), as `NN - Title (ratio).mp4` with the README row, computing the next free `NN` at deliver time.
 
 ## 4. Stop

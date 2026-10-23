@@ -29,7 +29,7 @@ import { timingStage } from '../kit/marketing/lib/stages/timing.mjs';
 import { assetsStage, musicKey, musicLengthMs, sfxKey } from '../kit/marketing/lib/stages/assets.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
 import { cueTime, placeCaptions, validateProps } from '../kit/marketing/lib/stages/compose.mjs';
-import { parseArgs } from '../kit/marketing/mvg.mjs';
+import { parseArgs, selectedStages } from '../kit/marketing/mvg.mjs';
 import { alignBeat, chooseResult, expandKeywords, findWord, shiftAsr, unnarratedActions, RESULT_HOLD_SECONDS } from '../kit/marketing/lib/align.mjs';
 import { buildGateWorkspace } from '../kit/marketing/lib/gates.mjs';
 import { listenCommand, listenFindings } from '../kit/marketing/lib/local-gates.mjs';
@@ -290,7 +290,9 @@ test('planCost sums voice, sfx, music, stills and vision and is checked against 
   s.music = { provider: 'elevenlabs', prompt: 'calm sparse piano bed, instrumental', licenseBasis: 'owner-approved 2026-10-20' };
   const plan = planCost(s, brand);
   assert.ok(plan.elevenlabsCredits > 400, 'voice, one sfx and a music bed');
-  assert.ok(plan.openaiUsd > 0);
+  assert.equal(plan.openaiUsd, 0, 'the default forced aligner has no OpenAI timing spend');
+  assert.ok(planCost(s, brand, { whisperTiming: true }).openaiUsd > 0, 'the explicit hosted Whisper fallback is budgeted');
+  assert.ok(planCost(s, { ...brand, timing: { provider: 'local-whisper' } }, { whisperTiming: true, hostedOnly: true }).openaiUsd > 0, 'hosted-only overrides local Whisper and budgets OpenAI');
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_v4'), 120);
   assert.equal(estimateTtsCredits('x'.repeat(100), 'eleven_flash_v2_5'), 60);
   assert.ok(estimateImageUsd('gpt-image-2', 'medium') < estimateImageUsd('gpt-image-2', 'high'));
@@ -602,6 +604,7 @@ test('voice, timing and assets stages run on mock providers, cache on rerun and 
     probeDuration: async (f) => (readFileSync(f, 'utf8').length > 40 ? 4 : 2.5),
     transcribeWords: async () => ({ words: [{ word: 'hello', start: 0.05, end: 0.4 }] }),
   });
+  ctx.flags.whisperTiming = true;
   const voice = await voiceStage(ctx);
   assert.equal(seen.length, 3, 'one governed request per narrated beat');
   assert.equal(seen[0].previousText, undefined);
@@ -654,12 +657,15 @@ test('sfx cue timing resolves start, end, at and receipt action labels', () => {
 });
 
 test('mvg CLI argument parsing', () => {
-  const a = parseArgs(['spec.json', '--stage', 'voice', '--dry-run', '--local-gates', '--workspace', 'D:/w']);
+  const a = parseArgs(['spec.json', '--stage', 'voice', '--dry-run', '--whisper-timing', '--local-gates', '--workspace', 'D:/w']);
   assert.equal(a.specPath, 'spec.json');
   assert.equal(a.flags.stage, 'voice');
   assert.equal(a.flags.dryRun, true);
+  assert.equal(a.flags.whisperTiming, true);
   assert.equal(a.flags.localGates, true);
   assert.equal(a.flags.workspace, 'D:/w');
+  assert.throws(() => selectedStages({ stage: 'timing', hostedOnly: true }), /requires the explicit --whisper-timing/);
+  assert.deepEqual(selectedStages({ stage: 'timing', hostedOnly: true, whisperTiming: true }), ['lint', 'voice', 'timing']);
 });
 
 test('the CLI still runs when the kit is reached through a junction (the deployed runtime path is a link)', () => {
@@ -1309,12 +1315,14 @@ test('beat grid 4: the grid lives outside spec.music, so the bed key cannot chan
   };
   const providers = { elevenlabs, elevenCli: {}, probeDuration: async (f) => (readFileSync(f, 'utf8').length > 40 ? 4 : 2.5), transcribeWords: async () => ({ words: [{ word: 'hello', start: 0.05, end: 0.4 }] }) };
   const plain = stageCtx('stages-nogrid', baseSpec(), providers);
+  plain.flags.whisperTiming = true;
   await voiceStage(plain);
   await timingStage(plain);
   const plainTl = readJson(join(plain.jobDir, 'timing', 'main', 'timeline.json'));
   assert.equal(plainTl.beatGrid, undefined, 'no grid: the timeline is the voice-first one');
 
   const grid = stageCtx('stages-grid', { ...baseSpec(), edit: { beatGrid: { bpm: 120, offsetSeconds: 0.12 } } }, providers);
+  grid.flags.whisperTiming = true;
   await voiceStage(grid);
   const timed = await timingStage(grid);
   const tl = readJson(join(grid.jobDir, 'timing', 'main', 'timeline.json'));

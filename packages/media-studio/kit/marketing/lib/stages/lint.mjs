@@ -20,7 +20,7 @@ export function planCost(spec, brand, flags = {}) {
           lines.add(key);
           if (spec.voice.provider === 'elevenlabs') credits += estimateTtsCredits(b.narration, spec.voice.model);
           else if (spec.voice.provider === 'openai') usd += 0.02;
-          if (brand.timing?.provider !== 'local-whisper') usd += 0.002;
+          if (flags.whisperTiming && (flags.hostedOnly || brand.timing?.provider !== 'local-whisper')) usd += 0.002;
         }
       }
       if (b.broll?.provider === 'openai-image') usd += estimateImageUsd(brand.images?.model || 'gpt-image-2', b.broll.quality || brand.images?.quality || 'medium');
