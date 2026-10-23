@@ -47,9 +47,13 @@ stranger-safe first run. For this private fleet checkout, also use
   Qwen Code, and Hermes retirement record.
 - [account-logins-2026-10-21.md](./fleet/account-logins-2026-10-21.md) — host
   account-authentication commands and verified gates.
+- [goal-setting-by-host-2026-10-21.md](./fleet/goal-setting-by-host-2026-10-21.md) — per-host
+  goal and persistent-objective mechanisms, verified versions and sources.
 
 ## Proposals
 
 - [proposals/media-studio-2.1-sync-and-build.md](./proposals/media-studio-2.1-sync-and-build.md) —
   proposed media-studio 2.1: word-synced text, diagrams that build on narration
   beats, emphasis role tokens, and the word-sync gate (review only).
+- [proposals/windows-ui-automation-capability.md](./proposals/windows-ui-automation-capability.md) —
+  proposed Windows UI Automation capability and Windows-MCP evaluation (review only).
