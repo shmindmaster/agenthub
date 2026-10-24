@@ -25,11 +25,21 @@ $marketingTarget = [IO.Path]::GetFullPath((Join-Path $ExecutionContext.SessionSt
 if (-not $Force -and (Test-Path -LiteralPath $marketingTarget)) {
     $running = @()
     try {
-        $running = @(Get-CimInstance -ClassName Win32_Process -Filter "CommandLine LIKE '%mvg.mjs%'" -ErrorAction Stop |
+        $candidates = if ($env:OS -eq 'Windows_NT') {
+            Get-CimInstance -ClassName Win32_Process -Filter "CommandLine LIKE '%mvg.mjs%'" -ErrorAction Stop
+        } else {
+            # macOS and Linux: ps lists every process with its full command line.
+            $psLines = @(& ps -axo 'pid=,command=' 2>$null)
+            if ($LASTEXITCODE -ne 0) { throw 'ps could not list processes' }
+            foreach ($line in $psLines) {
+                if ($line -match '^\s*(\d+)\s+(.*mvg\.mjs.*)$') { [pscustomobject]@{ ProcessId = [int]$Matches[1]; CommandLine = $Matches[2] } }
+            }
+        }
+        $running = @($candidates |
             Where-Object {
                 if ($_.ProcessId -eq $PID -or -not $_.CommandLine) { return $false }
                 $commandLine = $_.CommandLine.Replace('/', '\')
-                $commandLine.IndexOf($marketingTarget, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+                $commandLine.IndexOf($marketingTarget.Replace('/', '\'), [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
                     $commandLine -match '(?:^|[\s"''])(?:\.\\)?mvg\.mjs(?=$|[\s"''])'
             })
     } catch {
