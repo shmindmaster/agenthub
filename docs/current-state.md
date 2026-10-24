@@ -174,17 +174,17 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   (FFmpeg `gdigrab`). Files go to `%LOCALAPPDATA%\AgentHub\evidence\<task>\`,
   never into a git repository.
 
-- **Local stdio MCP is plugin-gated (2026-09-07):** Playwright is not persisted
-  in host configs. Live inventory showed six Playwright leaves (~201 MB) plus
-  wrapper trees (~598 MB) at rest. `playwright --extension` and
-  `chrome-devtools --autoConnect` ship only in `browser-toolkit` `.mcp.json`.
-  Enable the plugin when a headed attach is needed; disable it when done.
-  Isolated Chromium-for-Testing is not the fleet MCP default.
+- **Browser provider retirement (owner direction 2026-10-23):** Chrome DevTools
+  MCP is removed from the registry, browser plugin and host configs. Codex,
+  Cursor and Claude use their native browser pane. Other hosts use Playwright;
+  `playwright --extension` stays plugin-gated and is not persisted as a
+  session-start launcher. Retired IDs and package names are rejected by sync
+  and validation; default apply removes stale IDs without broad pruning.
 
 - **LinkedIn MCP is plugin-gated (2026-09-07):** `mcp-server-linkedin@4.24.0`
   via `packages/linkedin`. Not persisted as session-start stdio. Claude/Grok
   plugins installed-disabled; Codex plugins `enabled = false`; OpenCode writes
-  `mcp.linkedin` / `mcp.playwright` / `mcp.chrome-devtools` with
+  `mcp.linkedin` / `mcp.playwright` with
   `enabled: false` (opencode.ai/docs/mcp-servers). Skills deploy to
   `~/.agents/skills`. Enable only for an explicit request.
 

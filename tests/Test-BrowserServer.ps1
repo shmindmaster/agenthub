@@ -4,15 +4,9 @@ Behavior tests for fleet browser MCP servers.
 
 2026-09-07: playwright is no longer persisted in host configs. Live inventory
 showed session-start fan-out (six Playwright leaves plus npx/mise wrappers)
-with no lazy path. Both playwright (--extension) and chrome-devtools
-(--autoConnect) are on-demand-local, plugin-gated via browser-toolkit, and
-must not appear in persistedOnDemandLocalMcpIds.
-
-The launched-profile chrome-devtools lock (one $HOME user-data-dir) still
-forbids persisting a launched Chrome DevTools profile. --autoConnect attach
-does not take that lock.
-
-Neither server may be --headless.
+with no lazy path. Playwright (--extension) remains on-demand-local for
+hosts without a native browser surface. Chrome DevTools MCP is retired.
+Playwright must not appear in persistedOnDemandLocalMcpIds or use --headless.
 
 Run: pwsh -NoProfile -File tests/Test-BrowserServer.ps1
 #>
@@ -37,8 +31,8 @@ $conn = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\native-connector
 $browser = @($mcp.mcpServers | Where-Object { ($_.args -join ' ') -match 'playwright/mcp|chrome-devtools-mcp' })
 $ids = @($browser | ForEach-Object { $_.id })
 
-Report 'playwright and chrome-devtools are both registered' `
-    (($ids -contains 'playwright') -and ($ids -contains 'chrome-devtools') -and $browser.Count -eq 2) `
+Report 'playwright is registered and chrome-devtools is not' `
+    (($ids -contains 'playwright') -and ($ids -notcontains 'chrome-devtools') -and $browser.Count -eq 1) `
     "Found $($browser.Count): $($ids -join ', ')."
 
 $persisted = @($conn.lifecyclePolicy.persistedOnDemandLocalMcpIds)
@@ -62,32 +56,26 @@ foreach ($b in $browser) {
 }
 
 $pw = @($browser | Where-Object { $_.id -eq 'playwright' })[0]
-$cd = @($browser | Where-Object { $_.id -eq 'chrome-devtools' })[0]
 if ($pw) {
     $pwArgs = ($pw.args -join ' ')
     Report 'playwright attaches via --extension' ($pwArgs -match '--extension') `
         "args are '$pwArgs'; isolated --browser chromium is the session-start lane that was withdrawn."
 }
-if ($cd) {
-    $cdArgs = ($cd.args -join ' ')
-    Report 'chrome-devtools attaches via --autoConnect' ($cdArgs -match '--autoConnect') `
-        "args are '$cdArgs'; launched-profile default reintroduces the user-data-dir lock."
-}
 
 $pluginMcp = Join-Path $pkgRoot '.mcp.json'
 $pluginText = Get-Content -LiteralPath $pluginMcp -Raw -Encoding UTF8
 Report 'browser-toolkit plugin declares playwright' ($pluginText -match '"playwright"') 'missing playwright in packages/browser-toolkit/.mcp.json'
-Report 'browser-toolkit plugin declares chrome-devtools' ($pluginText -match '"chrome-devtools"') 'missing chrome-devtools in packages/browser-toolkit/.mcp.json'
+Report 'browser-toolkit plugin does not declare chrome-devtools' ($pluginText -notmatch 'chrome-devtools') 'packages/browser-toolkit/.mcp.json still launches chrome-devtools'
 Report 'plugin playwright uses --extension' ($pluginText -match '--extension') 'plugin .mcp.json still launches isolated Chromium'
-Report 'plugin chrome-devtools uses --autoConnect' ($pluginText -match '--autoConnect') 'plugin .mcp.json would launch a locked profile'
+Report 'plugin does not launch chrome-devtools-mcp' ($pluginText -notmatch 'chrome-devtools-mcp') 'plugin .mcp.json still contains the npx launcher'
 
 $aliases = @{}
 if ($mcp.migrationAliases) { foreach ($p in $mcp.migrationAliases.PSObject.Properties) { $aliases[$p.Name] = [string]$p.Value } }
-Report 'chrome-devtools is a live id, not an alias to playwright' `
+Report 'retired chrome-devtools is not aliased to playwright' `
     (-not $aliases.ContainsKey('chrome-devtools')) `
     "migrationAliases still maps chrome-devtools to '$($aliases['chrome-devtools'])'."
-Report "retired id 'chrome-devtools-isolated' aliases to chrome-devtools" `
-    ($aliases.ContainsKey('chrome-devtools-isolated') -and $aliases['chrome-devtools-isolated'] -eq 'chrome-devtools') `
+Report "retired id 'chrome-devtools-isolated' is not aliased to a launcher" `
+    (-not $aliases.ContainsKey('chrome-devtools-isolated')) `
     "migrationAliases maps it to '$($aliases['chrome-devtools-isolated'])'."
 
 # Provider catalog must teach the live Microsoft Playwright MCP vocabulary.

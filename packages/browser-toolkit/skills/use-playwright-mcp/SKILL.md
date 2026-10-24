@@ -55,8 +55,7 @@ tabs and logged-in sessions.
 Do **not** add `--headless`. Do **not** persist this server in a host
 `mcpServers` / `mcp_servers` block: a stdio MCP in host config starts at
 session start. Enable `browser-toolkit` when a headed attach is needed;
-disable it when done. Sibling attach server: `chrome-devtools`
-(`chrome-devtools-mcp@1.8.0 --autoConnect`) for Lighthouse, traces, and heap.
+disable it when done.
 
 Isolated Chromium-for-Testing (`--browser chromium`) is not the fleet MCP
 default. Repeatable clean-profile QA is Playwright CLI / Test.
@@ -164,7 +163,7 @@ Fleet default args do **not** pass extra caps. Session video and traces are the
 Playwright CLI lane (`use-playwright-cli`), not an MCP cap. Do not add
 `--caps=devtools` to `registry/mcps.json` for ordinary evidence work.
 
-Microsoft Playwright MCP does **not** expose Chrome DevTools MCP names such as `list_pages`, `take_snapshot`, `fill_form`, or `lighthouse_audit`. Lighthouse, traces, and heap are the sibling `chrome-devtools` server, not this one.
+Microsoft Playwright MCP does **not** expose Chrome DevTools MCP names such as `list_pages`, `take_snapshot`, `fill_form`, or `lighthouse_audit`. Do not start a second browser server for those.
 
 ---
 

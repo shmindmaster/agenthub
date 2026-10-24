@@ -1,6 +1,6 @@
 # Browser automation (Playwright MCP) — fleet standard
 
-**Updated:** 2026-09-07  
+**Updated:** 2026-10-23
 **Official sources:**
 - https://github.com/microsoft/playwright-mcp
 - https://playwright.dev/docs/getting-started-cli
@@ -20,7 +20,9 @@
 
 Evidence files (browser and desktop) go to `%LOCALAPPDATA%\AgentHub\evidence\<task-slug>\`. Never commit them.
 
-Plugin package: `packages/browser-toolkit`.
+Plugin package: `packages/browser-toolkit`. Codex, Cursor and Claude use their
+native browser pane. Hosts without one use Playwright. Chrome DevTools MCP
+is retired; do not install or register it.
 
 ## Goal
 
@@ -43,10 +45,6 @@ needed; disable when done. Do not write these into host MCP config.
     "playwright": {
       "command": "npx",
       "args": ["-y", "@playwright/mcp@0.0.79", "--extension"]
-    },
-    "chrome-devtools": {
-      "command": "npx",
-      "args": ["-y", "chrome-devtools-mcp@1.8.0", "--autoConnect", "--no-usage-statistics"]
     }
   }
 }
@@ -54,15 +52,12 @@ needed; disable when done. Do not write these into host MCP config.
 
 Headed by default — do not add `--headless`. Registry of record:
 `registry/mcps.json`. Playwright Extension id
-`mmlmfjhmonkocbjadbfplnigmagldckm`. Chrome 144+ remote debugging at
-`chrome://inspect/#remote-debugging`, then Allow.
+`mmlmfjhmonkocbjadbfplnigmagldckm`.
 
 ## Profile semantics
 
-`--extension` reuses the owner's Chrome/Edge profile. `--autoConnect` attaches
-to the running Chrome after `chrome://inspect/#remote-debugging` and Allow.
-Neither is persisted in host config. The launched chrome-devtools user-data-dir
-under the user cache is not the fleet path.
+`--extension` reuses the owner's Chrome/Edge profile through the Playwright
+extension. It is not persisted as a session-start launcher in host config.
 
 ## Migration
 
@@ -70,9 +65,10 @@ under the user cache is not the fleet path.
 |---|---|
 | 2026-08-19 | Isolated chrome-devtools launched profile replaced by Playwright MCP (workspace profile) so hosts could fan out |
 | 2026-09-07 | Playwright withdrawn from persisted host config after session-start fan-out was measured live. Plugin-gated `playwright --extension` and `chrome-devtools --autoConnect` are the attach path. `chrome-devtools-isolated` aliases to `chrome-devtools`. Isolated Chromium launch is not the fleet MCP default |
+| 2026-10-23 | Owner retired Chrome DevTools MCP everywhere, including its old alias. Native browser panes serve Codex, Cursor and Claude; other hosts keep Playwright only. This supersedes the historical attach route above. |
 
-Do not persist a launched chrome-devtools user-data-dir: one shared profile
-directory still cannot fan out. `--autoConnect` attach does not use that path.
+Sync removes retired Chrome DevTools IDs without requiring broad prune and
+rejects the retired package even if it is registered under another name.
 
 ## CLI lane (coding agents)
 
@@ -83,6 +79,4 @@ npx -y @playwright/cli@0.1.17 install --skills
 
 Microsoft recommends CLI + Skills for coding agents (token-efficient) and MCP for
 specialized persistent exploratory loops. Fleet Playwright MCP args are
-`--extension` only in the plugin MCP. Session video stays the CLI lane. Chrome
-DevTools MCP is the sibling plugin server (`--autoConnect`), not a persisted
-host config entry.
+`--extension` only in the plugin MCP. Session video stays the CLI lane.

@@ -170,6 +170,25 @@ if (-not $agentsReg) { throw "Missing $AgentsFile" }
 if (-not $mcpsReg)   { throw "Missing $McpsFile" }
 if (-not $capReg)    { throw "Missing $CapabilitiesFile" }
 
+# Retired providers cannot be restored under a different ID or npm version.
+# Check before any host writes, including apply without -Validate.
+$retiredMcpKeys = @($mcpsReg.retiredMcpIds | Where-Object { $_ })
+$retiredMcpPackages = @($mcpsReg.retiredMcpPackages | Where-Object { $_ })
+foreach ($server in @($mcpsReg.mcpServers)) {
+    if ($server.id -in $retiredMcpKeys) { throw "Retired MCP id cannot be registered: $($server.id)" }
+    $launch = @([string]$server.command) + @($server.args)
+    foreach ($package in $retiredMcpPackages) {
+        if (($launch -join ' ') -match ('(?i)(?<![\w-])' + [regex]::Escape($package) + '(?![\w-])')) {
+            throw "Retired MCP package cannot be registered: $package"
+        }
+    }
+}
+foreach ($alias in @($mcpsReg.migrationAliases.PSObject.Properties)) {
+    if ($alias.Name -in $retiredMcpKeys -or $alias.Value -in $retiredMcpKeys) {
+        throw "Retired MCP id cannot be aliased: $($alias.Name)"
+    }
+}
+
 # An empty or wrong -RegistryRoot must never be reported as a successful,
 # zero-drift run. A directory can pass the file-existence checks above (an
 # agents.json/capabilities.json can exist but be empty, or -RegistryRoot can
@@ -2229,7 +2248,7 @@ foreach ($agent in $agentsToSync) {
     if ($agent.id -in $optInDisabledHosts) {
         $nonPersistedOnDemandLocalMcpKeys = @($nonPersistedOnDemandLocalMcpKeys | Where-Object { $_ -notin $optInDisabledLocalMcpKeys })
     }
-    $suppressedKeys = @($pluginOwnedKeys) + @($nonPersistedOnDemandLocalMcpKeys)
+    $suppressedKeys = @($pluginOwnedKeys) + @($nonPersistedOnDemandLocalMcpKeys) + @($retiredMcpKeys)
     if ($gatewayPlan) { $suppressedKeys += @($gatewayPlan.managedKeys) }
     $suppressedKeys = @($suppressedKeys | Sort-Object -Unique)
 

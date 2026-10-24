@@ -263,6 +263,46 @@ foreach ($capability in $effectiveCapabilities) {
 if (@($agents.activeAgents).Count -eq 0) { Fail 'agents registry has no active agents' }
 if (@($mcps.mcpServers).Count -eq 0) { Fail 'MCP registry is empty' }
 
+$retiredMcpIds = @($mcps.retiredMcpIds | Where-Object { $_ })
+$retiredMcpPackages = @($mcps.retiredMcpPackages | Where-Object { $_ })
+foreach ($alias in @($mcps.migrationAliases.PSObject.Properties)) {
+  if ($alias.Name -in $retiredMcpIds -or $alias.Value -in $retiredMcpIds) { Fail "retired MCP alias: $($alias.Name)" }
+}
+foreach ($server in @($mcps.mcpServers)) {
+  if ($server.id -in $retiredMcpIds) { Fail "retired MCP registered: $($server.id)" }
+  foreach ($package in $retiredMcpPackages) {
+    if ((@($server.command) + @($server.args) -join ' ') -match ('(?i)(?<![\w-])' + [regex]::Escape($package) + '(?![\w-])')) { Fail "retired MCP package registered: $package" }
+  }
+}
+function Test-RetiredMcpDocument($document, [string]$source) {
+  foreach ($entry in @($document.mcpServers.PSObject.Properties)) {
+    if ($entry.Name -in $retiredMcpIds) { Fail "retired MCP in plugin: $source" }
+    foreach ($package in $retiredMcpPackages) {
+      if (($entry.Value | ConvertTo-Json -Depth 20 -Compress) -match ('(?i)(?<![\w-])' + [regex]::Escape($package) + '(?![\w-])')) { Fail "retired MCP package in plugin: $source" }
+    }
+  }
+}
+$mcpPackageRoots = @($pluginRoot)
+if ($overlayRoot -and (Test-Path -LiteralPath $overlayPackagesRoot)) { $mcpPackageRoots += $overlayPackagesRoot }
+foreach ($packageTree in $mcpPackageRoots) {
+  foreach ($packageRoot in @(Get-ChildItem -LiteralPath $packageTree -Directory)) {
+    $mcpPaths = @((Join-Path $packageRoot.FullName '.mcp.json'))
+    foreach ($relative in @('plugin.json','.claude-plugin\plugin.json','.codex-plugin\plugin.json','.cursor-plugin\plugin.json')) {
+      $manifestPath = Join-Path $packageRoot.FullName $relative
+      if (-not (Test-Path -LiteralPath $manifestPath)) { continue }
+      $manifest = Read-Json $manifestPath
+      if ($manifest.mcpServers -is [string]) {
+        $mcpPaths += Join-Path $packageRoot.FullName $manifest.mcpServers
+      } elseif ($manifest.mcpServers) {
+        Test-RetiredMcpDocument $manifest $manifestPath
+      }
+    }
+    foreach ($path in @($mcpPaths | Sort-Object -Unique)) {
+      if (Test-Path -LiteralPath $path -PathType Leaf) { Test-RetiredMcpDocument (Read-Json $path) $path }
+    }
+  }
+}
+
 # MCP protocol revision and activation policy (registry/mcps.json).
 #
 # The 2026-07-28 revision made the core protocol stateless -- sessions and the

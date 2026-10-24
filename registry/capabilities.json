@@ -664,9 +664,10 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "79667ED888D1D6B5E5CD8B888C8E9166F61C69D9FAE452A798D085FA5DEBA5E7",
+      "contentHash": "084ED68EE1D16455078D494335D1B2E546B0A94ECFB96B59C7EBFA4C9781A7C2",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
+      "browserProviderPolicy": "Chrome DevTools MCP is retired by owner direction 2026-10-24, including the isolated alias. Codex, Cursor and Claude use their native browser surface; other hosts use Playwright MCP, CLI or Test. Never register the retired provider or recreate its skill.",
       "hostMappings": [
         {
           "hostId": "amp",

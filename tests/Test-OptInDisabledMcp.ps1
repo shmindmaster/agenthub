@@ -29,11 +29,15 @@ $optHosts = @($conn.lifecyclePolicy.optInDisabledHosts)
 foreach ($id in @('playwright', 'chrome-devtools', 'linkedin', 'slack', 'appium-mobile')) {
     Report "'$id' is not session-start persisted" ($id -notin $persisted) "still in persistedOnDemandLocalMcpIds"
 }
-foreach ($id in @('playwright', 'chrome-devtools', 'linkedin', 'slack')) {
+foreach ($id in @('playwright', 'linkedin', 'slack')) {
     Report "'$id' is opt-in-disabled" ($id -in $optIn) "missing from optInDisabledLocalMcpIds"
 }
 Report 'OpenCode is the opt-in-disabled host' ($optHosts -contains 'opencode') "optInDisabledHosts=$($optHosts -join ',')"
 Report 'Grok is not an opt-in-disabled host' ($optHosts -notcontains 'grok') 'Grok would start stdio MCP from config.toml'
+Report 'Chrome DevTools is retired, absent from live and opt-in registries' (
+    'chrome-devtools' -in @($mcp.retiredMcpIds) -and
+    'chrome-devtools' -notin @($mcp.mcpServers.id) -and
+    'chrome-devtools' -notin $optIn) 'retired provider may be reintroduced'
 
 $li = @($mcp.mcpServers | Where-Object id -eq 'linkedin')[0]
 Report 'linkedin MCP is registered' ($null -ne $li) 'missing from mcps.json'
@@ -79,7 +83,8 @@ Report 'sync reads optInDisabledHosts' ($sync -match 'optInDisabledHosts') 'Sync
 $oc = Join-Path $env:USERPROFILE '.config\opencode\opencode.json'
 if (Test-Path $oc) {
     $oj = Get-Content $oc -Raw -Encoding UTF8 | ConvertFrom-Json
-    foreach ($id in @('playwright', 'chrome-devtools', 'linkedin')) {
+    Report 'OpenCode has no retired Chrome DevTools entry' ($null -eq $oj.mcp.'chrome-devtools') 'retired entry remains'
+    foreach ($id in @('playwright', 'linkedin')) {
         $node = $oj.mcp.$id
         if ($null -eq $node) {
             Report "OpenCode config lists '$id'" $false 'absent — run Sync-AgentHub -Apply after registry change'

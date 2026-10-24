@@ -34,8 +34,8 @@ Evidence root for stills, traces, and recordings (browser and desktop):
   - **Desktop helper** — native Windows window or whole-desktop capture via `scripts/Capture-Screen.ps1`
 - Work that needs a signed-in automation profile uses the same `playwright` MCP
   id (`browser.authenticated`); the profile is per-workspace, not personal Chrome.
-- Resolution: surface-native browser first (`registry/fleet-profile.json` →
-  `hostSurfaces`), then the matching Playwright lane.
+- Codex, Cursor and Claude use their native browser surface. Other hosts use
+  the matching Playwright lane (`registry/fleet-profile.json` → `hostSurfaces`).
 - Playwright MCP is Microsoft `@playwright/mcp@0.0.79` (headed Chromium). It is
   **not** Chrome DevTools MCP; tool names are `browser_*`.
 
@@ -59,15 +59,15 @@ Do not fork the full schema; keep routing in skills and link upstream.
 
 | Item | Value |
 | --- | --- |
-| Package | `@playwright/mcp@0.0.79 --extension` plus `chrome-devtools-mcp@1.8.0 --autoConnect` |
-| Browser | Owner Chrome/Edge via Playwright Extension / Chrome 144+ remote debugging |
-| Registry | `registry/mcps.json` ids `playwright`, `chrome-devtools` (on-demand-local, not persisted) |
+| Package | `@playwright/mcp@0.0.79 --extension` |
+| Browser | Owner Chrome/Edge via Playwright Extension |
+| Registry | `registry/mcps.json` id `playwright` (on-demand-local, not persisted) |
 | Activation | `browser-toolkit` plugin `.mcp.json` only |
 | Docs | `docs/development/chrome-cdp.md` |
 
-**Do not** persist either server in host MCP config.  
+**Do not** persist Playwright MCP in host config. Chrome DevTools MCP is retired; never register it again.
 **Do not** put `--remote-debugging-port=9222` on the Default profile TaskBar shortcut (ignored since Chrome 136).  
-Playwright MCP tools stay `browser_*`. Chrome DevTools MCP tools stay on the `chrome-devtools` server.
+Playwright MCP tools stay `browser_*`.
 
 ## Resolution-step markers
 
