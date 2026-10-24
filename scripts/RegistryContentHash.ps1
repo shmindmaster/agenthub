@@ -5,7 +5,7 @@ function Get-AgentHubStableFileHash {
 
     $textExtensions = @(
         '.cjs', '.cmd', '.css', '.cts', '.csv', '.editorconfig', '.eslintrc',
-        '.example', '.gitattributes', '.html', '.js', '.json', '.map',
+        '.example', '.gitattributes', '.gitignore', '.html', '.js', '.json', '.map',
         '.markdown', '.md', '.mdc', '.mjs', '.mts', '.npmignore', '.nycrc',
         '.ps1', '.psm1', '.py', '.sh', '.svg', '.toml', '.ts', '.tsx', '.txt',
         '.xml', '.yaml', '.yml'

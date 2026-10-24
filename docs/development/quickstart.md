@@ -1,7 +1,8 @@
 # Quickstart (public core)
 
 Get from clone to a useful drift audit in a few minutes. PowerShell 7+
-(`pwsh`) is required on Windows, macOS, and Linux.
+(`pwsh`) is required on Windows, macOS, and Linux, and `validate` needs
+[ripgrep](https://github.com/BurntSushi/ripgrep#installation) (`rg`) on PATH.
 
 ## 1. Install the CLI wrapper (optional)
 
