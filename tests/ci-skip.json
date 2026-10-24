@@ -1,0 +1,89 @@
+{
+  "description": "Tests that CI skips because they read the owner's machine or private overlay, or fail on main pending a fix. Used only by Run-AllTests.ps1 -SkipListPath; local runs execute everything.",
+  "skip": [
+    {
+      "file": "tests/Test-AgentVersionAccuracy.ps1",
+      "reason": "Probes the installed host CLIs (copilot, grok, cursor, code-insiders, ...) with --version; CI runners have none of them."
+    },
+    {
+      "file": "tests/Test-MobileDevelopment.ps1",
+      "reason": "One assertion reads the mobile catalog deployed into the live user profile, which only exists after sync --apply on the owner's machine."
+    },
+    {
+      "file": "tests/Test-MobileScope.ps1",
+      "reason": "Scans the owner's local fleet clone root and requires the mobile-scope section that lives in the private overlay policy."
+    },
+    {
+      "file": "tests/Test-MediaStudioRepositoryBoundary.ps1",
+      "reason": "Requires the fleet-wide repository boundary from the private overlay policy (overlays/personal/global-agent-policy.md)."
+    },
+    {
+      "file": "tests/Test-SaroshAudioVoice.ps1",
+      "reason": "Requires the private overlay package overlays/personal/packages/sarosh-audio-voice and the overlay policy."
+    },
+    {
+      "file": "tests/Test-SaroshCommunication.ps1",
+      "reason": "Requires the private overlay package overlays/personal/packages/sarosh-communication and the overlay policy."
+    },
+    {
+      "file": "tests/Test-SaroshWriting.ps1",
+      "reason": "Requires the private overlay package overlays/personal/packages/sarosh-writing and the overlay policy."
+    },
+    {
+      "file": "tests/Test-CodingAgentDispatch.ps1",
+      "reason": "One case launches a Copilot child through the owner's gh account; a CI runner has no such account."
+    },
+    {
+      "file": "tests/Test-DeclaredExecutableAccountability.ps1",
+      "reason": "Checks that each host executable in registry/agents.json resolves on this machine; CI runners have none of the agents installed."
+    },
+    {
+      "file": "tests/Test-DeclaredPathAccountability.ps1",
+      "reason": "Checks declared host paths against the live user profile, which on a CI runner has no deployed host config."
+    },
+    {
+      "file": "tests/Test-DeclaredVsDeployedMcp.ps1",
+      "reason": "Compares registry MCP declarations with each host's deployed config in the live user profile."
+    },
+    {
+      "file": "tests/Test-DeployedEvidenceFinish.ps1",
+      "reason": "Requires media-studio skills and plugin caches deployed into the live user profile."
+    },
+    {
+      "file": "tests/Test-InstalledPluginFreshness.ps1",
+      "reason": "Reads the installed plugin caches in the live user profile."
+    },
+    {
+      "file": "tests/Test-LocalMcpHostScope.ps1",
+      "reason": "Reads the deployed ~/.claude/settings.json."
+    },
+    {
+      "file": "tests/Test-McpLauncherDirectness.ps1",
+      "reason": "Examines MCP entries in the deployed host configs of the live user profile."
+    },
+    {
+      "file": "tests/Test-OptInDisabledMcp.ps1",
+      "reason": "Reads the deployed OpenCode config in the live user profile."
+    },
+    {
+      "file": "tests/Test-PruneProtection.ps1",
+      "reason": "Reads the deployed Codex and Grok configs in the live user profile."
+    },
+    {
+      "file": "tests/Test-RetiredSkillRemoval.ps1",
+      "reason": "Scans the deployed host skills directories in the live user profile."
+    },
+    {
+      "file": "tests/Test-TomlEmission.ps1",
+      "reason": "Reads the deployed Codex and Grok configs in the live user profile."
+    },
+    {
+      "file": "tests/Test-RepoWiseBoundedIndex.ps1",
+      "reason": "Its Unicode-environment subprocess case fails under the GitHub Windows runner's Python; it passes on the owner's machine."
+    },
+    {
+      "file": "tests/Test-RegistryHostReferences.ps1",
+      "reason": "Fails on main since #70 (dispatch only to Cursor, Grok and Codex): its dispatch-policy case still expects Cursor Agent, Amp and OpenCode enabled and Codex disabled. Remove this entry once the test matches the new policy."
+    }
+  ]
+}

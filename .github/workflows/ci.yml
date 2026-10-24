@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The PowerShell suite exercises the sync engine end to end. Many of its
+  # tests still assume Windows paths and tools, so it runs on Windows; see
+  # tests/ci-skip.json for the tests that need the owner's machine.
+  powershell-tests:
+    name: PowerShell tests (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+
+      - name: Install ripgrep and ffmpeg
+        run: choco install ripgrep ffmpeg -y --no-progress
+
+      - name: Install the Claude Code CLI (plugin schema validator)
+        run: npm install -g @anthropic-ai/claude-code@2.1.310
+
+      - name: Validate registry
+        shell: pwsh
+        run: pwsh -NoProfile -File ./scripts/AgentHub.ps1 validate
+
+      - name: Run tests
+        shell: pwsh
+        run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json
+
+  validate:
+    name: Validate (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install ripgrep
+        shell: bash
+        run: |
+          if command -v rg >/dev/null 2>&1; then rg --version; exit 0; fi
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update -q && sudo apt-get install -y -q ripgrep ;;
+            macOS) brew install ripgrep ;;
+          esac
+          rg --version
+
+      - name: Validate registry
+        shell: pwsh
+        run: pwsh -NoProfile -File ./scripts/AgentHub.ps1 validate
