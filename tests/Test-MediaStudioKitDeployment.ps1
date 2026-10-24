@@ -104,7 +104,14 @@ try {
     New-Item -ItemType Directory -Force -Path $staleDir | Out-Null
     Set-Content -LiteralPath (Join-Path $staleDir 'old.mjs') -Value '// stale' -Encoding ascii
     Set-Content -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs') -Value '// stale' -Encoding ascii
-    $createdBefore = (Get-Item -LiteralPath $marketingTarget).CreationTimeUtc
+    # Directory identity: creation time on Windows; the inode elsewhere, since Linux reports a change time as
+    # CreationTimeUtc when the filesystem has no birth time.
+    function Get-DirectoryIdentity([string]$Path) {
+        $item = Get-Item -LiteralPath $Path
+        if ($env:OS -eq 'Windows_NT') { return $item.CreationTimeUtc }
+        return $item.UnixStat.Inode
+    }
+    $createdBefore = Get-DirectoryIdentity $marketingTarget
     # Robocopy keeps source timestamps, so a rewrite would not show in LastWriteTime. Hold an unchanged file open
     # without write sharing instead: a rewrite fails with a sharing violation (exit 8, the sync throws); a skip passes.
     $keepFile = Join-Path $marketingTarget (Get-ChildItem -LiteralPath $marketingSource -File | Select-Object -First 1).Name
@@ -118,7 +125,7 @@ try {
     $checks++
     if (Test-Path -LiteralPath (Join-Path $marketingTarget 'stale-top.mjs')) { throw 'Marketing kit sync left a stale top-level file behind' }
     $checks++
-    if ((Get-Item -LiteralPath $marketingTarget).CreationTimeUtc -ne $createdBefore) { throw 'Marketing target directory was deleted and recreated during sync' }
+    if ($null -eq $createdBefore -or (Get-DirectoryIdentity $marketingTarget) -ne $createdBefore) { throw 'Marketing target directory was deleted and recreated during sync' }
     $checks++
     # A successful robocopy (exit codes 1-7) must not leak as a failing script exit code.
     $pwshExe = (Get-Process -Id $PID).Path

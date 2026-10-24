@@ -96,7 +96,7 @@ AgentHub was built by Sarosh Hussain as the control plane for his own machine. T
 
 ## Sync engine quickstart
 
-You need [PowerShell 7+](https://aka.ms/powershell) (`pwsh`), Git and [ripgrep](https://github.com/BurntSushi/ripgrep#installation) (`rg`, used by `validate`). Node 20+ is optional and provides the `npx agenthub` wrapper. The sync engine runs from a clone; the npm package carries only `doctor`.
+You need [PowerShell 7+](https://aka.ms/powershell) (`pwsh`), Git, [ripgrep](https://github.com/BurntSushi/ripgrep#installation) (`rg`, used by `validate`) and Python 3.11+ (`python3`, or `py`/`python` on Windows; `sync --apply` parses the TOML it writes for Codex and Grok with `tomllib`). Node 20+ is optional and provides the `npx agenthub` wrapper. The sync engine runs from a clone; the npm package carries only `doctor`.
 
 ```bash
 git clone https://github.com/shmindmaster/agenthub

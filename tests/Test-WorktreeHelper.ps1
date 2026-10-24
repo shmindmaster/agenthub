@@ -419,7 +419,10 @@ function Test-ShippedGitWrapperSurvivesStderrProgressInBothShells {
     }
 
     $shells = [ordered]@{}
-    foreach ($shellName in @('pwsh', 'powershell')) {
+    # Windows PowerShell 5.1 (the mandated Windows invocation) exists only on
+    # Windows; on macOS and Linux pwsh is the only shell to exercise.
+    $shellNames = if ($env:OS -eq 'Windows_NT') { @('pwsh', 'powershell') } else { @('pwsh') }
+    foreach ($shellName in $shellNames) {
         $path = Resolve-ShellPath -Name $shellName
         if (-not $path) {
             return @{ Passed = $false; Detail = "$shellName is not on PATH; this defect is defined by the disagreement BETWEEN the two shells, so it cannot be verified in only one" }
@@ -527,7 +530,10 @@ function Test-MandatedInvocationCreatesWorktreeEndToEnd {
     }
 
     $shells = [ordered]@{}
-    foreach ($shellName in @('pwsh', 'powershell')) {
+    # Windows PowerShell 5.1 (the mandated Windows invocation) exists only on
+    # Windows; on macOS and Linux pwsh is the only shell to exercise.
+    $shellNames = if ($env:OS -eq 'Windows_NT') { @('pwsh', 'powershell') } else { @('pwsh') }
+    foreach ($shellName in $shellNames) {
         $path = Resolve-ShellPath -Name $shellName
         if (-not $path) {
             return @{ Passed = $false; Detail = "$shellName is not on PATH; the mandated invocation is powershell.exe and the defect is defined by the disagreement BETWEEN the two shells, so it cannot be verified in only one" }
