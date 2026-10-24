@@ -1,5 +1,8 @@
 # AgentHub
 
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
+[![CI](https://github.com/shmindmaster/agenthub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shmindmaster/agenthub/actions/workflows/ci.yml)
+
 If you run more than one AI coding agent, you end up with several copies of the same instructions, skills and MCP server settings, and they slowly stop matching. AgentHub keeps one canonical copy, writes it into each agent's own configuration format, and tells you when an agent has drifted from it.
 
 It targets Claude Code, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot CLI and the other agents listed in [`registry/agents.json`](./registry/agents.json). It is a set of PowerShell scripts over plain JSON and Markdown, and it runs on Windows, macOS and Linux. Nothing is written to an agent's configuration until you run `sync --apply`.

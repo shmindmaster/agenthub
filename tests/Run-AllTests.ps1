@@ -17,11 +17,20 @@ and report an N-passed/M-failed summary on stdout. All are run as child
 processes under the appropriate executable, so `pwsh tests/Run-AllTests.ps1`
 runs PowerShell tests under pwsh and Node tests under node.
 
+-SkipListPath names a JSON file of { "skip": [ { "file", "reason",
+"platforms"? } ] } entries. A listed file is reported as SKIP with its reason
+instead of being run. CI passes tests/ci-skip.json, which lists the tests that
+read the owner's machine or private overlay. An entry naming a file that does
+not exist fails the run, so the list cannot silently go stale.
+
 Run: pwsh -NoProfile -File tests/Run-AllTests.ps1
      powershell.exe -NoProfile -File tests/Run-AllTests.ps1
+     pwsh -NoProfile -File tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json
 #>
 [CmdletBinding()]
-param()
+param(
+    [string]$SkipListPath
+)
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
@@ -54,12 +63,44 @@ if ($allFiles.Count -eq 0) {
 Write-Host "Discovered $($testFiles.Count) test file(s), $($validatorFiles.Count) package validator(s), and $($nodeTestFiles.Count) Node test file(s)."
 Write-Host ''
 
+$platform = if ($IsLinux) { 'linux' } elseif ($IsMacOS) { 'macos' } else { 'windows' }
+$skipReasons = @{}
+if (-not [string]::IsNullOrWhiteSpace($SkipListPath)) {
+    $skipListFull = if ([IO.Path]::IsPathRooted($SkipListPath)) { $SkipListPath } else { Join-Path $repoRoot $SkipListPath }
+    if (-not (Test-Path -LiteralPath $skipListFull)) {
+        Write-Host "FAIL: skip list not found: $skipListFull" -ForegroundColor Red
+        exit 1
+    }
+    $skipDoc = Get-Content -LiteralPath $skipListFull -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($entry in @($skipDoc.skip)) {
+        $entryFile = ([string]$entry.file).Replace('\', '/')
+        if (-not (Test-Path -LiteralPath (Join-Path $repoRoot $entryFile))) {
+            Write-Host "FAIL: skip list names '$entryFile', which does not exist. Remove the stale entry." -ForegroundColor Red
+            exit 1
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$entry.reason)) {
+            Write-Host "FAIL: skip list entry '$entryFile' has no reason." -ForegroundColor Red
+            exit 1
+        }
+        $platforms = @($entry.platforms | Where-Object { $_ })
+        if ($platforms.Count -eq 0 -or $platform -in $platforms) {
+            $skipReasons[$entryFile] = [string]$entry.reason
+        }
+    }
+}
+
 $results = [Collections.Generic.List[object]]::new()
 $totalPassed = 0
 $totalFailed = 0
+$skippedFiles = [Collections.Generic.List[object]]::new()
 
 foreach ($file in $allFiles) {
     $relative = $file.Substring($repoRoot.Length).TrimStart('\', '/')
+    $relativeKey = $relative.Replace('\', '/')
+    if ($skipReasons.ContainsKey($relativeKey)) {
+        $skippedFiles.Add([pscustomobject]@{ File = $relative; Reason = $skipReasons[$relativeKey] })
+        continue
+    }
     Write-Host "=== $relative ===" -ForegroundColor Cyan
     $previousEap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
@@ -110,10 +151,14 @@ foreach ($r in $results) {
     $color = if ($r.Ok) { 'Green' } else { 'Red' }
     Write-Host ("{0}: {1} (exit={2}, passed={3}, failed={4})" -f $marker, $r.File, $r.ExitCode, $r.Passed, $r.Failed) -ForegroundColor $color
 }
+foreach ($s in $skippedFiles) {
+    Write-Host ("SKIP: {0} -- {1}" -f $s.File, $s.Reason) -ForegroundColor Yellow
+}
 
 $failedFiles = @($results | Where-Object { -not $_.Ok })
 Write-Host ''
-Write-Host "TOTAL: $totalPassed passed, $totalFailed failed across $($allFiles.Count) file(s) ($($failedFiles.Count) file(s) exited non-zero)." -ForegroundColor $(if ($failedFiles.Count -gt 0) { 'Red' } else { 'Green' })
+$skipNote = if ($skippedFiles.Count -gt 0) { ", $($skippedFiles.Count) skipped by $SkipListPath" } else { '' }
+Write-Host "TOTAL: $totalPassed passed, $totalFailed failed across $($results.Count) file(s) run ($($failedFiles.Count) file(s) exited non-zero$skipNote)." -ForegroundColor $(if ($failedFiles.Count -gt 0) { 'Red' } else { 'Green' })
 
 if ($failedFiles.Count -gt 0) {
     exit 1
