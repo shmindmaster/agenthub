@@ -33,15 +33,15 @@ Missing required file → remit. Do not generate a generic bed and skip the bibl
 
 Hosted: use `elevenlabs` (`references/tts.md`). Lock segments, check credits/clone/model readiness and budgets; reuse accepted matching preview or generate one small preview. Save provider receipts under job workspace; run local integrity, ASR, pronunciation, and dual-backend identity gates before selecting owner takes. Decode and gate exact delivery spans again. `Generate-OwnerVoice.ps1` implements the **local backend only**; its receipt format is not a hosted adapter—never fabricate PASS receipts for hosted audio. If assembly requires local receipts, keep that path local until a verified provider receipt adapter exists; report the limitation.
 
-Local viewer-facing speech uses AgentHub-deployed shared tools. `plugin.json` must match 2.0.16. Missing or stale tools block generation until AgentHub syncs from a verified 2.0.16 package; do not default to unknown version.
+Local viewer-facing speech uses AgentHub-deployed shared tools. `plugin.json` must match 2.0.17. Missing or stale tools block generation until AgentHub syncs from a verified 2.0.17 package; do not default to unknown version.
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $manifest = Join-Path $tools 'plugin.json'
 $generator = Join-Path $tools 'Generate-OwnerVoice.ps1'
 $integrity = Join-Path $tools 'Test-SpeechIntegrity.ps1'
-if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '2.0.16' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
-    throw 'Media Studio 2.0.16 voice tools are missing or stale. Deploy them from a verified package before generation.'
+if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '2.0.17' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
+    throw 'Media Studio 2.0.17 voice tools are missing or stale. Deploy them from a verified package before generation.'
 }
 & pwsh -NoProfile -File $generator -Job $Job
 ```
@@ -107,3 +107,5 @@ Write artifacts and generation scripts/config only into external job workspace. 
 - [ ] Bed only if beat asked; stings short; silence beats have no music file
 - [ ] Bible B-roll generated with refuse honored
 - [ ] Receipt binds every plate compose will mux
+
+Approved Sienna role narration uses the canonical scripts/deepgram_cli.py governed route described in ../media-studio/references/content-controls.md. Quote first; narrator/story approval does not configure a paid budget. Do not execute legacy job-local Deepgram runners or substitute a voice. All five acceptance gates and accepted word alignment still apply.
