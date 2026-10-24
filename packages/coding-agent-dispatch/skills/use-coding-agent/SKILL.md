@@ -2,7 +2,7 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.9"
+  version: "0.2.11"
 ---
 
 For OpenCode 2 tool discovery, run `Install-OpenCodeToolDiscovery.ps1` to audit
@@ -16,6 +16,10 @@ caller-owned streams. It awaits initialization, history loading and the new
 prompt reply; it cancels permission requests and starts no process. Its
 synthetic tests do not verify a live Cline session. Cline dispatch stays
 disabled under the owner's Cursor/Grok/Codex-only policy.
+The dispatcher exposes this transport with `-HostId cline -SessionId <id>`.
+It launches a windowless ACP child only after the normal policy gates pass,
+keeps task/session text on stdin, cancels permission requests, and stops its
+owned child tree on completion. Other hosts refuse `-SessionId`.
 
 # Use a coding agent from another coding agent
 
@@ -90,7 +94,8 @@ Every child is windowless. Warp sets child-only `WARP_CLI_MODE=1`; it never
 opens the terminal GUI. Account-authenticated children use their account login: the provider
 API-key variables for Claude, Codex, Cline, Devin, Gemini, Antigravity, Warp,
 Grok, Factory, Cursor Agent, Amp and Copilot are removed before launch (owner
-rule 2026-10-22). Cline uses the owner's explicitly authorized saved provider
+rule 2026-10-22). The single exception is an explicit `-HostId claude
+-AnthropicApiKey` run (owner direction 2026-10-24; see below). Cline uses the owner's explicitly authorized saved provider
 settings for the Alibaba Coding Plan; keys and endpoint configuration remain
 in the private Cline profile. OpenCode 2 uses native Console account OAuth
 and a privately configured Go-only endpoint. OPENCODE_GO_API_KEY and
@@ -136,9 +141,13 @@ plugins and MCP. Avoid `--yolo`: its benchmark toolset is a different execution
 mode. The existing repo-autonomous policy controls unattended tool approval.
 
 Cline CLI 3.0.73's `--id` resume flag forces interactive mode and cannot be
-combined with JSON execution. The dispatcher therefore starts a bounded new
-task. To continue existing history, use an ACP client's `session/load` or
-Desktop's native session attachment. Both loaded the same synthetic CLI history
+combined with JSON execution. The dispatcher starts a bounded new task unless
+`-SessionId <id>` is supplied; that path uses ACP `session/load` and returns
+JSON containing `sessionId`, the new assistant `text`, and `stopReason`.
+Permission requests are cancelled, so tasks needing permission can stop early.
+Dispatcher wiring is verified with a synthetic executable; a live resumed
+prompt remains unverified while owner policy excludes Cline. ACP loading and
+Desktop's native session attachment loaded the same synthetic CLI history
 successfully on 2026-10-23. Stop the previous writer before handing off and
 follow the one-host resource policy. History sharing does not authorize
 concurrent edits, client access, external messages or deployment.
@@ -161,6 +170,38 @@ on 2026-10-23 without sending a model prompt. An ACP client owns permission
 handling; stop the previous writer before handing off. This does not install
 an ACP client into Codex or enable an A2A/AMCP bridge. Native documentation:
 <https://dev.opencode.ai/v2/docs/cli/acp/>.
+
+## Anthropic credit (expires 2026-10-27) — opt-in only
+
+The org's `ANTHROPIC_API_KEY` carries promotional credit until 2026-10-27 UTC.
+The key is **shared** with other agents: use it sparingly and only when Claude
+is clearly the best tool for the task. Nothing uses it by default; do not move
+existing work onto it. Prefer the Message Batches API (50% cheaper) for any
+bulk non-interactive job, and check Console spend before a large run.
+
+- Claude Code through this dispatcher, one explicit run at a time:
+
+  ```powershell
+  pwsh -NoProfile -File "$env:USERPROFILE\.agents\skills\use-coding-agent\Invoke-CodingAgent.ps1" -HostId claude -AnthropicApiKey -PromptFile .\task.txt -Cwd C:\Repos\example
+  ```
+
+  `dispatchPolicy.claude` stays disabled; `-AnthropicApiKey` admits only that
+  run, keeps `ANTHROPIC_API_KEY` (the `_BACKUP` variable is still removed) and
+  passes `apiKeyOptIn.model` (`claude-sonnet-5-5`; override with `-Model`).
+  It refuses after `apiKeyOptIn.expiresUtc` and for every other host.
+- Codex on Claude, through a local LiteLLM Responses bridge that is not left
+  running:
+
+  ```powershell
+  pwsh -NoProfile -File D:\Local-AI\runtimes\litellm-anthropic\Start-LiteLLMAnthropic.ps1
+  codex --profile claude
+  pwsh -NoProfile -File D:\Local-AI\runtimes\litellm-anthropic\Stop-LiteLLMAnthropic.ps1
+  ```
+
+  The profile (`~/.codex/claude.config.toml`) disables apps, plugins, MCP
+  servers and multi-agent tools, because the bridge sends every tool schema
+  inline: the full surface measured about 1.4M tokens; the lean profile is
+  about 16k per request. Shell function calling was verified on 2026-10-24.
 
 ## 3. What the orchestrator owns
 

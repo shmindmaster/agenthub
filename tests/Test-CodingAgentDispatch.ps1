@@ -30,7 +30,7 @@ function Run([string[]]$Arguments) {
 }
 $oldRoot = $env:AGENTHUB_ROOT; $oldLocal = $env:LOCALAPPDATA
 $oldApiKeyVars = @{}
-foreach ($name in @('ANTHROPIC_API_KEY','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY')) {
+foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY')) {
     $oldApiKeyVars[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     [Environment]::SetEnvironmentVariable($name, 'synthetic-dispatch-fixture', 'Process')
 }
@@ -52,7 +52,7 @@ for (const arg of args) {
 }
 const settingsIndex = args.indexOf('--settings-file');
 if (settingsIndex >= 0 && fs.existsSync(args[settingsIndex + 1])) ampSettings = JSON.parse(fs.readFileSync(args[settingsIndex + 1], 'utf8'));
-console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
+console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
 if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
     $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
@@ -124,7 +124,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         if ($id -eq 'warp') { Check 'warp receives CLI environment' ($d.WarpMode -eq '1' -and $d.Arguments[0] -eq 'agent' -and $d.Arguments[1] -eq 'run') }
         if ($id -eq 'devin') { Check 'Devin receives prompt file and paid model' ($d.PromptContents -contains 'ok' -and $d.Arguments -contains '--prompt-file' -and $d.Arguments -contains 'swe-2-medium-lightning') }
         if ($id -eq 'devin') { Check 'Devin uses account auth without its API key' (-not $d.ApiKeyVars.DEVIN_API_KEY) }
-        if ($id -eq 'claude') { Check 'Claude uses account auth without its API key' (-not $d.ApiKeyVars.ANTHROPIC_API_KEY) }
+        if ($id -eq 'claude') { Check 'Claude uses account auth without its API key' (-not $d.ApiKeyVars.ANTHROPIC_API_KEY -and -not $d.ApiKeyVars.ANTHROPIC_API_KEY_BACKUP -and $d.Arguments -notcontains '--model') }
         if ($id -eq 'codex') { Check 'Codex uses account auth without its API key' (-not $d.ApiKeyVars.OPENAI_API_KEY) }
         if ($id -eq 'cline') {
             Check 'Cline excludes unrelated provider key overrides' (-not $d.ApiKeyVars.ANTHROPIC_API_KEY -and -not $d.ApiKeyVars.OPENAI_API_KEY)
@@ -160,6 +160,30 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
         Check "$id preserves UTF-8 task through stdin or file" ($r.Exit -eq 0 -and ($d.Input -eq $text -or $d.PromptContents -contains $text)) $r.Err
     }
+    $fleet.dispatchPolicy['claude'] = @{ enabled = $false; reason = 'weekly account limit' }; Save-Fixture
+    $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch)
+    Check 'disabled Claude still refuses without the per-call opt-in' ($r.Exit -eq 3 -and $r.Err -match 'weekly account limit')
+    $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch,'-AnthropicApiKey')
+    Check 'Claude API-key opt-in refuses without a recorded authorization' ($r.Exit -eq 3 -and $r.Err -match 'apiKeyOptIn is not recorded')
+    $fleet.dispatchPolicy.claude['apiKeyOptIn'] = @{ model = 'claude-sonnet-5-5'; expiresUtc = '2020-01-01T00:00:00Z' }; Save-Fixture
+    $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch,'-AnthropicApiKey')
+    Check 'expired Claude API-key opt-in refuses' ($r.Exit -eq 3 -and $r.Err -match 'expired')
+    $fleet.dispatchPolicy.claude.apiKeyOptIn.expiresUtc = '2999-01-01T00:00:00Z'; Save-Fixture
+    $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch,'-AnthropicApiKey')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Claude API-key opt-in keeps only the primary key and passes the recorded model' ($null -ne $d -and $d.ApiKeyVars.ANTHROPIC_API_KEY -and -not $d.ApiKeyVars.ANTHROPIC_API_KEY_BACKUP -and $d.Arguments -contains '--model' -and $d.Arguments -contains 'claude-sonnet-5-5') $r.Err
+    $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch,'-AnthropicApiKey','-Model','claude-haiku-5-5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Claude API-key opt-in honours an explicit model' ($null -ne $d -and $d.Arguments -contains 'claude-haiku-5-5' -and $d.Arguments -notcontains 'claude-sonnet-5-5') $r.Err
+    $r = Run @('-HostId','claude','-Prompt','ok','-Cwd',$scratch)
+    Check 'recorded opt-in is not applied without the switch' ($r.Exit -eq 3 -and $r.Err -match 'weekly account limit')
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-AnthropicApiKey')
+    Check 'Anthropic API-key opt-in is refused for other hosts' ($r.Exit -eq 3 -and $r.Err -match 'applies only to -HostId claude')
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-Model','x')
+    Check 'model override requires the API-key opt-in' ($r.Exit -eq 3 -and $r.Err -match '-Model applies only')
+    $r = Run @('-List')
+    Check 'list keeps disabled Claude refused despite the opt-in record' ($r.Out -match "(?m)^claude\trefused\t")
+    $fleet.dispatchPolicy.Remove('claude'); Save-Fixture
     $r = Run @('-HostId','windsurf','-Prompt','ok','-Cwd',$scratch)
     Check 'Windsurf executes the Devin file contract' ($r.Exit -eq 0 -and $r.Out -match 'routed: windsurf -> devin' -and $r.Out -match 'swe-2-medium-lightning') $r.Err
     $r = Run @('-HostId','gemini','-Prompt','--dash & echo %PATH%','-ShowCommand')

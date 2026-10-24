@@ -19,7 +19,8 @@
   -PromptFile.
 
   Account-authenticated hosts do not inherit their API key environment
-  variables. Explicit API-key runs use their own configuration.
+  variables. Explicit API-key runs use their own configuration. The only
+  dispatcher API-key route is -HostId claude -AnthropicApiKey, per call.
 
   Paths come from registry/agents.json. Flags that a ~/bin shim already
   applies are not repeated. This script does not invent a flag, open a
@@ -46,6 +47,18 @@
 .PARAMETER TimeoutSec
   Kill the child and its process tree after this many seconds. Default 1800.
 
+.PARAMETER AnthropicApiKey
+  Per-call opt-in for -HostId claude only: keep ANTHROPIC_API_KEY in the child
+  so this one run bills the shared Anthropic API key instead of the account
+  login. Requires dispatchPolicy.claude.apiKeyOptIn and refuses after its
+  expiresUtc. Never applied without this switch.
+
+.PARAMETER Model
+  Model for an -AnthropicApiKey run. Defaults to apiKeyOptIn.model.
+
+.PARAMETER SessionId
+  Continue an existing Cline session through ACP. Policy gates still apply.
+
 #>
 [CmdletBinding()]
 param(
@@ -54,6 +67,9 @@ param(
     [string]$PromptFile,
     [string]$Cwd,
     [int]$TimeoutSec = 1800,
+    [switch]$AnthropicApiKey,
+    [string]$Model,
+    [string]$SessionId,
     [switch]$List,
     [switch]$ShowCommand
 )
@@ -125,7 +141,9 @@ function Get-DispatchTable {
             Mode = 'stdin'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('--print', '--permission-mode', 'bypassPermissions'); Stdin = $PromptText; PromptFile = $null }
+                $args = @('--print', '--permission-mode', 'bypassPermissions')
+                if ($script:ClaudeApiKeyModel) { $args += @('--model', $script:ClaudeApiKeyModel) }
+                @{ Args = $args; Stdin = $PromptText; PromptFile = $null }
             }
         }
         'codex' = @{
@@ -272,9 +290,12 @@ foreach ($profile in @($fleet.autonomyProfiles.profiles)) {
 $table = Get-DispatchTable
 $routes = @{ 'cursor' = 'cursor-agent'; 'windsurf' = 'devin' }
 $dispatchPolicy = $fleet.dispatchPolicy
+$script:ClaudeApiKeyOptIn = $false
+$script:ClaudeApiKeyModel = $null
 
 function Test-PolicyDisabled {
     param([string]$Id)
+    if ($Id -eq 'claude' -and $script:ClaudeApiKeyOptIn) { return $false }
     if ($null -eq $dispatchPolicy) { return $false }
     $entry = $dispatchPolicy.PSObject.Properties[$Id]
     if ($null -eq $entry) { return $false }
@@ -368,8 +389,34 @@ if ($requested -in @('devin-cloud', 'jules', 'cursor-cloud', 'copilot-agent')) {
 $agent = Get-AgentRecord -Agents $agents -Id $requested
 if (-not $agent) { Write-Refusal 3 "refused ${requested}: unknown host" }
 
+if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
+    Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run.'
+}
+if ($AnthropicApiKey) {
+    # OWNER DIRECTION 2026-10-24: the Anthropic key is shared promotional credit.
+    # It is used only when a caller passes this switch for this one run.
+    if ($requested -ne 'claude') { Write-Refusal 3 "refused ${requested}: -AnthropicApiKey applies only to -HostId claude" }
+    $optIn = $null
+    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties['claude']) { $optIn = $dispatchPolicy.claude.apiKeyOptIn }
+    if (-not $optIn) { Write-Refusal 3 'refused claude: dispatchPolicy.claude.apiKeyOptIn is not recorded; the API-key route is not authorized' }
+    $expires = [DateTimeOffset]::MinValue
+    if (-not [DateTimeOffset]::TryParse([string]$optIn.expiresUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal, [ref]$expires)) {
+        Write-Refusal 3 'refused claude: apiKeyOptIn.expiresUtc is missing or invalid'
+    }
+    if ([DateTimeOffset]::UtcNow -ge $expires) {
+        Write-Refusal 3 "refused claude: the API-key opt-in expired at $($expires.ToString('u')); the owner must re-authorize it"
+    }
+    if ([string]::IsNullOrWhiteSpace($env:ANTHROPIC_API_KEY)) { Write-Refusal 3 'refused claude: ANTHROPIC_API_KEY is not set in this environment' }
+    $script:ClaudeApiKeyModel = if (-not [string]::IsNullOrWhiteSpace($Model)) { $Model.Trim() } else { [string]$optIn.model }
+    if ([string]::IsNullOrWhiteSpace($script:ClaudeApiKeyModel)) { Write-Refusal 3 'refused claude: no model; pass -Model or record apiKeyOptIn.model' }
+    $script:ClaudeApiKeyOptIn = $true
+}
+
 $row = Get-HostRow -Agent $agent
 if ($row.State -eq 'refused') { Write-Refusal 3 "refused ${requested}: $($row.Detail)" }
+if ($PSBoundParameters.ContainsKey('SessionId') -and ($requested -ne 'cline' -or [string]::IsNullOrWhiteSpace($SessionId))) {
+    Write-Refusal 3 '-SessionId requires -HostId cline and a non-empty session id.'
+}
 
 $targetId = if ($row.State -eq 'routed') { $row.Detail } else { $requested }
 $targetAgent = Get-AgentRecord -Agents $agents -Id $targetId
@@ -400,7 +447,7 @@ if ($TimeoutSec -lt 1) { Write-Refusal 3 '-TimeoutSec must be at least 1.' }
 
 $contract = $table[$targetId]
 if (-not $contract) { Write-Refusal 3 "refused ${targetId}: no verified headless contract" }
-$pointer = $contract.Mode -eq 'argument' -and ($PromptFile -or -not (Test-ArgumentPrompt $Prompt))
+$pointer = -not $SessionId -and $contract.Mode -eq 'argument' -and ($PromptFile -or -not (Test-ArgumentPrompt $Prompt))
 
 $runDir = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\runtime\coding-agent-dispatch'
 $promptFile = $null
@@ -416,6 +463,16 @@ if ($contract.Mode -eq 'file' -or $pointer) {
 if ($pointer) { $Prompt = "Read the task from this UTF-8 file and carry it out: $promptFile" }
 
 $built = & $contract.Build $Prompt $Cwd $promptFile
+if ($SessionId) {
+    $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $node) { Write-Refusal 2 'Cline ACP resume requires Node.js.' }
+    $built = @{
+        Args = @((Join-Path $PSScriptRoot 'cline\acp-dispatch.mjs'))
+        Stdin = (@{ executable = $executable; sessionId = $SessionId; cwd = $Cwd; prompt = $Prompt; timeoutMs = ($TimeoutSec * 1000) } | ConvertTo-Json -Compress)
+        PromptFile = $null
+    }
+    $executable = [string]$node.Source
+}
 if ($row.State -eq 'routed') { Write-Output ("routed: {0} -> {1}" -f $requested, $targetId) }
 if ($ShowCommand) {
     Write-Output ("file={0}" -f $executable)
@@ -445,6 +502,8 @@ $psi.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
 # override the account login (Devin used DEVIN_API_KEY; Codex's wrapper used OPENAI_API_KEY).
 # OpenCode 2 uses native Console account OAuth and a Go-only provider endpoint.
 # Remove both provider overrides so they cannot replace the stored account.
+# Exception (owner direction 2026-10-24): an explicit -AnthropicApiKey claude run keeps
+# ANTHROPIC_API_KEY; ANTHROPIC_API_KEY_BACKUP is still removed.
 $accountScrub = @{
     'claude'       = @('ANTHROPIC_API_KEY', 'ANTHROPIC_API_KEY_BACKUP')
     'codex'        = @('OPENAI_API_KEY')
@@ -461,7 +520,10 @@ $accountScrub = @{
     'opencode'     = @('OPENCODE_GO_API_KEY', 'OPENCODE_API_KEY')
 }
 if ($accountScrub.ContainsKey($targetId)) {
-    foreach ($name in $accountScrub[$targetId]) { [void]$psi.EnvironmentVariables.Remove($name) }
+    foreach ($name in $accountScrub[$targetId]) {
+        if ($script:ClaudeApiKeyOptIn -and $targetId -eq 'claude' -and $name -eq 'ANTHROPIC_API_KEY') { continue }
+        [void]$psi.EnvironmentVariables.Remove($name)
+    }
 }
 # Copilot runs on the sh-pendoah GitHub account (owner direction 2026-10-22). The token is read
 # from gh's keyring at launch, placed only in the child environment, and never printed.

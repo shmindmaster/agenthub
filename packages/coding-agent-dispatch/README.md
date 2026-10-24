@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.2.9 (loose skill; version metadata lives in `SKILL.md`).
+Version 0.2.11 (loose skill; version metadata lives in `SKILL.md`).
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever
@@ -27,9 +27,11 @@ public repository.
 
 Cline uses normal JSON execution with its saved provider/model, low thinking,
 native timeout, plugins and MCP rather than the restricted `--yolo` benchmark
-toolset. The dispatcher starts bounded new tasks. Cline 3.0.73 resume via
-`--id` is interactive-only; use ACP `session/load` or Desktop attachment for
-existing history. Both passed a synthetic history check. An ACP client launches
+toolset. The dispatcher starts bounded new tasks by default. For existing
+Cline history, pass `-HostId cline -SessionId <id> -Prompt <task>`; this
+uses ACP `session/load` and awaits the new reply. Cline 3.0.73's `--id` is
+interactive-only. ACP loading and Desktop attachment previously passed a
+synthetic history check. An ACP client launches
 `cline --acp` on demand. No A2A bridge, background listener or concurrent writer
 is enabled by this capability. The owner's authorized Alibaba Coding Plan
 settings stay in the private Cline profile, never in the registry. OpenCode
@@ -42,7 +44,12 @@ and configuration; an ACP client is still required for protocol handoff.
 reply without replayed history, bounds requests, and cancels permission
 requests. Its stream tests launch no host. It does not enable Cline dispatch:
 the current owner policy permits only Cursor, Grok and Codex agent work.
-Live Cline resume remains unverified under that restriction.
+`cline/acp-dispatch.mjs` connects this client to a windowless, on-demand
+`cline --acp --auto-approve false` child. Session and task text travel over
+stdin, permissions are cancelled, and only the owned child tree is stopped.
+The dispatcher retains its policy and autonomy gates and outer timeout.
+Offline tests cover the full dispatcher with a synthetic ACP executable;
+live Cline resume remains unverified under the current restriction.
 
 The optional Cline Qwen tool-discovery plugin is maintained in this package's
 `skills/use-coding-agent/cline/lightweight-chat.js`. It uses documented SDK
@@ -77,6 +84,13 @@ Console account OAuth is stored by the native service. Follow the owner-only che
 automatically. Other gated CLIs need verified included allowance or an explicit
 task credit budget and one smoke before enabling. Model catalogs and help
 output alone do not prove working inference.
+
+`-HostId claude -AnthropicApiKey` is a per-call opt-in (owner direction
+2026-10-24) that keeps `ANTHROPIC_API_KEY` for that one run while
+`dispatchPolicy.claude` stays disabled. It requires
+`dispatchPolicy.claude.apiKeyOptIn`, refuses after its `expiresUtc`, passes its
+`model` unless `-Model` is given, and is refused for every other host. The key
+is shared promotional credit; the skill documents when to use it.
 
 Codex accepts non-repository working directories without creating Git state.
 Antigravity uses attached `--print=<prompt>`. Long or shell-sensitive argument
