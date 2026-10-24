@@ -83,4 +83,3 @@ test('dispatcher SessionId wiring and refusal use synthetic registry only', { sk
     assert.equal(existsSync(marker), false, 'refused calls must not launch the fixture');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
-
