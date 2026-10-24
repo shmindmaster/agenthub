@@ -354,14 +354,16 @@
       "verifiedOn": "2026-10-22"
     },
     "factory": {
-      "enabled": true,
+      "enabled": false,
       "reason": "Paid plan; model openai-latest-balanced",
-      "verifiedOn": "2026-10-21"
+      "verifiedOn": "2026-10-21",
+      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "amp": {
-      "enabled": true,
+      "enabled": false,
       "reason": "account smoke ok 2026-10-22",
-      "verifiedOn": "2026-10-22"
+      "verifiedOn": "2026-10-22",
+      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "claude": {
       "enabled": false,
@@ -408,41 +410,47 @@
       "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget before implementing and enabling a cloud adapter."
     },
     "devin": {
-      "enabled": true,
+      "enabled": false,
       "model": "swe-2-medium-lightning",
       "reason": "Paid plan; model swe-2-medium-lightning",
-      "verifiedOn": "2026-10-21"
+      "verifiedOn": "2026-10-21",
+      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "opencode": {
-      "enabled": true,
+      "enabled": false,
       "model": "opencode/glm-5.3-flash",
       "reason": "2026-10-23: native Console account OAuth and Go-only inference verified. OpenCode 2 run uses process cwd; provider API-key overrides are removed. Bound task execution by the dispatcher timeout.",
       "ownerAction": null,
-      "verifiedOn": "2026-10-23"
+      "verifiedOn": "2026-10-23",
+      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "antigravity": {
-      "enabled": true,
+      "enabled": false,
       "reason": "2026-10-14 bounded dispatcher smoke: exit 0 in 9 s, returned ok; G1 credits stay off.",
       "verifiedOn": "2026-10-14",
-      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
+      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
+      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "cline": {
-      "enabled": true,
+      "enabled": false,
       "reason": "Owner-authorized Alibaba Coding Plan through saved OpenAI-compatible provider settings; qwen3.8-max. CLI and Desktop authenticated tool reads verified 2026-10-23.",
       "verifiedOn": "2026-10-23",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
-      "knownIssue": "Historical --yolo benchmark mode could hang at submit_and_exit. Normal --json mode with native timeout preserves plugins and MCP. Check the result before treating any timeout as success."
+      "knownIssue": "Historical --yolo benchmark mode could hang at submit_and_exit. Normal --json mode with native timeout preserves plugins and MCP. Check the result before treating any timeout as success.",
+      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "copilot": {
-      "enabled": true,
+      "enabled": false,
       "reason": "Paid plan; model auto",
       "verifiedOn": "2026-10-21",
-      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements."
+      "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
+      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "windsurf": {
-      "enabled": true,
+      "enabled": false,
       "reason": "Paid plan; model swe-2-medium-lightning",
-      "verifiedOn": "2026-10-21"
+      "verifiedOn": "2026-10-21",
+      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "grok": {
       "enabled": true,
