@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,12 +31,22 @@ function fixture(t, installed = true) {
   return { root, repo, sha: git(repo, 'rev-parse', 'HEAD') };
 }
 function run(repo, sha, overrides = {}) {
-  const env = { ...process.env, ...overrides };
+  // MSYS mktemp cannot reliably use a junction-backed inherited TMPDIR.
+  // Keep each hook invocation's scratch space physical and fixture-owned.
+  const hookTmp = mkdtempSync(join(realpathSync(tmpdir()), 'agenthub-hook-env-'));
+  const env = { ...process.env, ...overrides, TMPDIR: realpathSync(hookTmp).replaceAll('\\', '/') };
   if (!Object.hasOwn(overrides, 'AGENTHUB_HOME')) delete env.AGENTHUB_HOME;
-  return spawnSync(shell, [hook.replaceAll('\\', '/')], {
-    cwd: repo, env, encoding: 'utf8', windowsHide: true,
-    input: `refs/heads/main ${sha} refs/heads/main ${'0'.repeat(40)}\n`,
-  });
+  try {
+    const result = spawnSync(shell, [hook.replaceAll('\\', '/')], {
+      cwd: repo, env, encoding: 'utf8', windowsHide: true, timeout: 120000,
+      input: `refs/heads/main ${sha} refs/heads/main ${'0'.repeat(40)}\n`,
+    });
+    assert.equal(result.error, undefined, result.error?.message);
+    assert.equal(Number.isInteger(result.status), true, 'hook must exit normally');
+    return result;
+  } finally {
+    rmSync(hookTmp, { recursive: true, force: true });
+  }
 }
 test('required scanner absence blocks a push', t => {
   const f = fixture(t, false); const r = run(f.repo, f.sha);
@@ -44,7 +54,8 @@ test('required scanner absence blocks a push', t => {
 });
 test('normal checkout and linked worktree resolve the same canonical scanner', t => {
   const f = fixture(t);
-  assert.equal(run(f.repo, f.sha).status, 0);
+  const normal = run(f.repo, f.sha);
+  assert.equal(normal.status, 0, normal.stderr || normal.error?.message || normal.stdout);
   const wt = join(f.root, 'wt', 'app', 'task');
   git(f.repo, 'worktree', 'add', '--detach', wt);
   const r = run(wt, f.sha); assert.equal(r.status, 0, r.stderr);
