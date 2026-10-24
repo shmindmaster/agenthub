@@ -3,11 +3,68 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![CI](https://github.com/shmindmaster/agenthub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shmindmaster/agenthub/actions/workflows/ci.yml)
 
+**Works in Claude Code but not in Codex? `npx agenthub doctor` shows every MCP server, skill and instruction file each of your coding agents actually loads, and what's broken, in about 10 seconds. Read-only. No account. No PowerShell.**
+
+```bash
+npx agenthub doctor
+```
+
+```text
+AgentHub doctor 0.1.0 · read-only · no network
+Home: /home/you   Registry: none, comparing agents with each other
+
+AGENT             MCP  SKILLS  INSTRUCTIONS        ISSUES
+Claude Code         3       2  CLAUDE.md ~684 tok  1 high · 2 warn
+OpenAI Codex        2       2  AGENTS.md ~10 tok   2 warn
+Gemini CLI          1       2  -                   1 warn
+Cursor              2       2  -                   1 high
+Cursor Agent CLI    2       2  -                   1 high
+
+HIGH  MCP server 'postgres' has a GitHub token written into env.PG_TOKEN. Anything that reads, backs up or syncs this file can copy it.
+      agents: claude · ~/.claude.json
+      fix: Move it to an environment variable or the OS keychain and reference it, then rotate the exposed value.
+HIGH  MCP server 'docs' talks to a remote host over plain http://, so requests and any credentials travel unencrypted.
+      agents: cursor, cursor-agent · ~/.cursor/mcp.json
+WARN  MCP server 'postgres' is configured differently across agents: claude -> stdio:node pg-mcp.js --readonly; codex -> stdio:node pg-mcp.js.
+      agents: claude, codex
+WARN  Two different copies of skill 'review-pr' are visible (~/.codex/skills and ~/.agents/skills); one shadows the other.
+      agents: codex
+INFO  MCP server 'filesystem' runs '@modelcontextprotocol/server-filesystem' through npx without a version, so every start can fetch and run a different release.
+      agents: claude · ~/.claude.json
+
+Summary: 5 of 21 agents found, 8 MCP server entries, 2 skills. 2 high, 3 warn, 8 info. Nothing was written.
+```
+
+That output is from a test fixture home, trimmed. Run it against your own machine to see yours.
+
+## What doctor checks
+
+- **Which agents are set up**, from their config files: Claude Code, Claude Desktop, OpenAI Codex, Cursor and the Cursor CLI, Gemini CLI, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp, Windsurf, VS Code and VS Code Insiders. Paths come from [`registry/agents.json`](./registry/agents.json) and resolve per OS.
+- **What each one loads**: its MCP servers (JSON, JSONC and TOML configs in each agent's own dialect), its skills including the shared `~/.agents/skills` library, and its global instruction files with a rough token count.
+- **Risky MCP configs**: API keys and tokens written into a config (the value is never printed), remote servers over plain `http://`, remote servers with no credentials configured, commands that are not on `PATH` so the server cannot start, and `npx`/`uvx` packages with no pinned version.
+- **Drift**: the same server defined differently in two agents, servers set up in some agents but not others, two different copies of one skill, skills without `name`/`description` frontmatter, and instruction files that differ between agents. Inside an AgentHub checkout, or with `--registry <dir>`, it also compares each agent with the registry.
+
+It never writes a file, starts a server or opens a network connection. `--probe-remote` is the one exception you opt into: it sends a single MCP `initialize` request, with no credentials, to each remote server that has none configured, and reports the ones that answer anyway.
+
+| Option | What it does |
+| --- | --- |
+| `--json` | Full report as JSON, with secret values redacted |
+| `--host codex,cursor` | Only check these agents |
+| `--home <dir>` | Inspect another home directory, such as a fixture or a teammate's copied config |
+| `--probe-remote` | Check whether remote MCP servers without credentials answer anyway |
+| `--strict` | Exit 1 when there is any high-severity finding, for CI |
+| `--no-registry` | Compare agents with each other even inside an AgentHub checkout |
+| `--verbose` | List every info finding |
+
+`agenthub doctor --help` lists the rest. It needs Node 20+ and runs on Windows, macOS and Linux.
+
+## Keeping them in sync
+
 If you run more than one AI coding agent, you end up with several copies of the same instructions, skills and MCP server settings, and they slowly stop matching. AgentHub keeps one canonical copy, writes it into each agent's own configuration format, and tells you when an agent has drifted from it.
 
-It targets Claude Code, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot CLI and the other agents listed in [`registry/agents.json`](./registry/agents.json). It is a set of PowerShell scripts over plain JSON and Markdown, and it runs on Windows, macOS and Linux. Nothing is written to an agent's configuration until you run `sync --apply`.
+It targets Claude Code, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot CLI and the other agents listed in [`registry/agents.json`](./registry/agents.json). The sync engine is a set of PowerShell scripts over plain JSON and Markdown. It is developed and tested on Windows; on macOS and Linux `validate` passes, but the `sync` audit and most of the test suite do not run yet ([#72](https://github.com/shmindmaster/agenthub/issues/72)). Nothing is written to an agent's configuration until you run `sync --apply`.
 
-## What it keeps in sync
+### What it keeps in sync
 
 You describe your setup once, in this repository. AgentHub works out what each host needs.
 
@@ -23,7 +80,7 @@ A host with no documented location for one of these is skipped rather than guess
 
 The registry describes Claude Code, OpenAI Codex, Cursor and Cursor Agent, Gemini CLI, GitHub Copilot CLI, OpenCode, Cline, Amp, Devin, Factory Droid, Grok CLI, Google Antigravity, Warp and VS Code Insiders. Windsurf and OpenCode Desktop are marked unverified.
 
-## Why you can trust it with your agents' config
+### Why you can trust it with your agents' config
 
 AgentHub edits files your agents read at startup, so its defaults are cautious.
 
@@ -37,9 +94,9 @@ AgentHub edits files your agents read at startup, so its defaults are cautious.
 
 AgentHub was built by Sarosh Hussain as the control plane for his own machine. The registry, scripts and tests in this repository are the ones he runs, with his private overlay left out.
 
-## Quickstart
+## Sync engine quickstart
 
-You need [PowerShell 7+](https://aka.ms/powershell) (`pwsh`), Git and [ripgrep](https://github.com/BurntSushi/ripgrep#installation) (`rg`, used by `validate`). Node 18+ is optional and only provides the `npx agenthub` wrapper. AgentHub is not published to npm, so run it from a clone.
+You need [PowerShell 7+](https://aka.ms/powershell) (`pwsh`), Git and [ripgrep](https://github.com/BurntSushi/ripgrep#installation) (`rg`, used by `validate`). Node 20+ is optional and provides the `npx agenthub` wrapper. The sync engine runs from a clone; the npm package carries only `doctor`.
 
 ```bash
 git clone https://github.com/shmindmaster/agenthub
@@ -108,7 +165,13 @@ pwsh -NoProfile -File .\scripts\Validate-AgentHub.ps1
 pwsh -NoProfile -File .\scripts\Sync-AgentHub.ps1 -Audit -Validate
 pwsh -NoProfile -File .\tests\Run-AllTests.ps1
 pwsh -NoProfile -File .\scripts\Check-RepoStandard.ps1 -All
+
+npm ci                     # doctor's dev tooling: TypeScript checking only
+npm test                   # doctor unit and fixture-home tests
+npm run typecheck
 ```
+
+`doctor` lives in `src/doctor/` as dependency-free JavaScript checked by TypeScript (`checkJs`), so `npx` runs it without a build step.
 
 `Check-RepoStandard.ps1` checks the repositories named in `registry/repo-standard.json` against the repository standard. That roster is the author's; edit it, or pass `-ConfigPath`, to check your own.
 

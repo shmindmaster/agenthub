@@ -66,3 +66,42 @@ jobs:
       - name: Validate registry
         shell: pwsh
         run: pwsh -NoProfile -File ./scripts/AgentHub.ps1 validate
+
+  doctor:
+    name: Doctor (${{ matrix.os }}, Node ${{ matrix.node }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [lts/*]
+        include:
+          - os: ubuntu-latest
+            node: '20'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+
+      - run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Unit and fixture-home tests
+        run: node --test test/doctor/*.test.mjs
+
+      - name: Smoke run against the runner's own home
+        run: |
+          node scripts/agenthub-cli.mjs doctor --no-registry --all
+          node scripts/agenthub-cli.mjs doctor --no-registry --json > "$RUNNER_TEMP/doctor.json"
+          node -e "const r = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')); if (r.readOnly !== true || r.network !== 'none') process.exit(1)" "$RUNNER_TEMP/doctor.json"
+
+      - name: Package contents
+        run: npm pack --dry-run
