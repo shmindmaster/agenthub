@@ -81,7 +81,7 @@ test('manual installer detects missing and changed files, repairs and reads back
     assert.equal(existsSync(settingsPath), false, 'Audit must not create settings');
     assert.equal(run('-Apply').status, 0);
     assert.equal(readFileSync(destination, 'utf8'), source);
-    assert.deepEqual(JSON.parse(readFileSync(settingsPath, 'utf8')), { compactionStrategy: 'basic', compactionEnabled: true });
+    assert.deepEqual(JSON.parse(readFileSync(settingsPath, 'utf8')), { compactionEnabled: false });
     assert.equal(run().status, 0);
     writeFileSync(destination, '// synthetic incompatible update\n');
     assert.equal(run().status, 1, 'Audit must fail on real drift');
@@ -90,23 +90,27 @@ test('manual installer detects missing and changed files, repairs and reads back
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
 
-test('native compaction repair preserves unrelated settings, repairs enabled state, and rejects corrupt JSON', () => {
+test('native compaction mitigation preserves strategy and UTF-8 settings, repairs enabled state, and rejects corrupt JSON', () => {
   const home = mkdtempSync(join(tmpdir(), 'cline-compaction-fixture-'));
   const settingsPath = join(home, 'data/settings/global-settings.json');
   const run = (...args) => spawnSync('pwsh', ['-NoProfile', '-File', join(skill, 'Install-ClineToolDiscovery.ps1'), '-ClineHome', home, ...args], { encoding: 'utf8', windowsHide: true });
-  const unrelated = { toolAutoApprove: false, disabledTools: ['delete_files'], tools: { web_search: { enabled: false } }, future: { nested: [1, 'synthetic', null] }, provider: 'synthetic-profile' };
+  const unrelated = { compactionStrategy: 'agentic', toolAutoApprove: false, disabledTools: ['delete_files'], tools: { web_search: { enabled: false } }, future: { nested: [1, 'synthetic café 日本語', null] }, provider: 'synthetic-profile' };
   try {
     mkdirSync(join(home, 'data/settings'), { recursive: true });
-    const initial = JSON.stringify({ ...unrelated, compactionStrategy: 'agentic', compactionEnabled: false });
+    const initial = JSON.stringify({ ...unrelated, compactionEnabled: true });
     writeFileSync(settingsPath, initial);
     assert.equal(run().status, 1);
     assert.equal(readFileSync(settingsPath, 'utf8'), initial, 'Audit must leave existing settings byte-identical');
     assert.equal(run('-Apply').status, 0);
-    assert.deepEqual(JSON.parse(readFileSync(settingsPath, 'utf8')), { ...unrelated, compactionStrategy: 'basic', compactionEnabled: true });
+    assert.deepEqual(JSON.parse(readFileSync(settingsPath, 'utf8')), { ...unrelated, compactionEnabled: false });
     assert.equal(run().status, 0);
     const repaired = readFileSync(settingsPath, 'utf8');
     assert.equal(run('-Apply').status, 0);
     assert.equal(readFileSync(settingsPath, 'utf8'), repaired, 'Current settings must not be rewritten');
+    writeFileSync(settingsPath, JSON.stringify({ ...unrelated, compactionEnabled: 'false' }));
+    assert.equal(run().status, 1, 'A string must not pass as the native boolean off setting');
+    assert.equal(run('-Apply').status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(settingsPath, 'utf8')), { ...unrelated, compactionEnabled: false });
     writeFileSync(settingsPath, '{invalid synthetic JSON');
     assert.notEqual(run('-Apply').status, 0);
     assert.equal(readFileSync(settingsPath, 'utf8'), '{invalid synthetic JSON');

@@ -19,12 +19,12 @@ if (-not $GlobalSettingsPath) {
     }
 }
 $settings = if (Test-Path -LiteralPath $GlobalSettingsPath -PathType Leaf) {
-    Get-Content -LiteralPath $GlobalSettingsPath -Raw | ConvertFrom-Json
+    Get-Content -LiteralPath $GlobalSettingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
 } else { [pscustomobject]@{} }
 if ($null -eq $settings -or $settings -isnot [pscustomobject]) {
     throw 'Cline global settings must be a JSON object; no settings were changed.'
 }
-$compactionState = if ($settings.compactionStrategy -eq 'basic' -and $settings.compactionEnabled -eq $true) { 'current' } else { 'drift' }
+$compactionState = if ($settings.compactionEnabled -is [bool] -and $settings.compactionEnabled -eq $false) { 'current' } else { 'drift' }
 $source = Join-Path $PSScriptRoot 'cline\lightweight-chat.js'
 $destination = Join-Path $ClineHome 'plugins\lightweight-chat.js'
 $expected = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
@@ -40,19 +40,19 @@ if ($state -ne 'current' -and $Apply -and $PSCmdlet.ShouldProcess($destination, 
     }
     $state = 'repaired'
 }
-if ($compactionState -ne 'current' -and $Apply -and $PSCmdlet.ShouldProcess($GlobalSettingsPath, 'Enable native basic compaction (global Cline default)')) {
-    # Native basic compaction preserves typed user prompts without an LLM
-    # summary. Preserve every other setting, including unknown future keys.
-    $settings | Add-Member -NotePropertyName compactionStrategy -NotePropertyValue 'basic' -Force
-    $settings | Add-Member -NotePropertyName compactionEnabled -NotePropertyValue $true -Force
+if ($compactionState -ne 'current' -and $Apply -and $PSCmdlet.ShouldProcess($GlobalSettingsPath, 'Disable native compaction for deferred tools (global Cline default)')) {
+    # The pre-hook full-catalog estimate can leave a one-token message budget.
+    # Both native strategies can then discard required tool results. Use the
+    # supported off setting, retaining the prior strategy and every other key.
+    $settings | Add-Member -NotePropertyName compactionEnabled -NotePropertyValue $false -Force
     $null = New-Item -ItemType Directory -Path (Split-Path -Parent $GlobalSettingsPath) -Force
     $temporary = $GlobalSettingsPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
         [IO.File]::WriteAllText($temporary, (($settings | ConvertTo-Json -Depth 100) + [Environment]::NewLine), (New-Object Text.UTF8Encoding $false))
         Move-Item -LiteralPath $temporary -Destination $GlobalSettingsPath -Force
     } finally { if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force } }
-    $readback = Get-Content -LiteralPath $GlobalSettingsPath -Raw | ConvertFrom-Json
-    if ($readback.compactionStrategy -ne 'basic' -or $readback.compactionEnabled -ne $true) {
+    $readback = Get-Content -LiteralPath $GlobalSettingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($readback.compactionEnabled -isnot [bool] -or $readback.compactionEnabled -ne $false) {
         throw 'Cline native compaction settings readback failed.'
     }
     $compactionState = 'repaired'
