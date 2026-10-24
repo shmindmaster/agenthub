@@ -48,8 +48,12 @@ def configure_local_embedder(base_url: str, model: str) -> None:
     except Exception:
         # Never echo response bodies, headers, keys or inherited configuration.
         raise RuntimeError('Local embedding request failed; refusing to serve') from None
+    # The local model alias need not have OpenAI's default width. Pin both
+    # supported overrides so stale inherited settings cannot resize queries.
     os.environ.update(OPENAI_BASE_URL=endpoint, OPENAI_API_KEY='local-retrieval',
-                      REPOWISE_EMBEDDER='openai', REPOWISE_EMBEDDING_MODEL=model)
+                      REPOWISE_EMBEDDER='openai', REPOWISE_EMBEDDING_MODEL=model,
+                      REPOWISE_EMBEDDING_DIMS=str(len(vector)),
+                      REPOWISE_EMBEDDING_DECLARED_DIMS=str(len(vector)))
 
 
 def create_app(upstream, *, server_version: str):

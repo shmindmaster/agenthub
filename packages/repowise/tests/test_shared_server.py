@@ -5,7 +5,9 @@ import json
 import os
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
+from types import SimpleNamespace
+import asyncio
 from io import BytesIO
 
 from mcp.server.fastmcp import FastMCP, Context
@@ -18,6 +20,27 @@ spec.loader.exec_module(shared)
 
 
 class LocalEmbeddingTest(unittest.TestCase):
+    def test_query_embedder_uses_probed_width_despite_stale_overrides(self):
+        from repowise.core.providers.embedding.openai import OpenAIEmbedder
+
+        vector = [1.0] + [0.0] * 1023
+        with patch.dict(os.environ, {'REPOWISE_EMBEDDING_DIMS': '1536',
+                                    'REPOWISE_EMBEDDING_DECLARED_DIMS': '3072'}):
+            with patch.object(shared, 'build_opener') as factory:
+                factory.return_value.open.return_value = BytesIO(json.dumps({
+                    'data': [{'embedding': vector}]}).encode())
+                shared.configure_local_embedder('http://localhost:8790/v1',
+                                                'text-embedding-3-small')
+            embedder = OpenAIEmbedder()
+            embedder._client = Mock()
+            embedder._client.embeddings.create.return_value = SimpleNamespace(
+                data=[SimpleNamespace(embedding=vector)])
+            result = asyncio.run(embedder.embed(['synthetic query']))
+            self.assertEqual(embedder.dimensions, 1024)
+            self.assertEqual(len(result[0]), 1024)
+            self.assertEqual(embedder._client.embeddings.create.call_args.kwargs[
+                'dimensions'], 1024)
+
     def test_actual_request_overrides_inherited_remote_route_and_key(self):
         with patch.dict(os.environ, {'OPENAI_BASE_URL': 'https://api.openai.com/v1',
                                     'OPENAI_API_KEY': 'fixture-remote-key'}):
