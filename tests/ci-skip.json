@@ -30,6 +30,58 @@
       "reason": "Requires the private overlay package overlays/personal/packages/sarosh-writing and the overlay policy."
     },
     {
+      "file": "tests/Test-CodingAgentDispatch.ps1",
+      "reason": "One case launches a Copilot child through the owner's gh account; a CI runner has no such account."
+    },
+    {
+      "file": "tests/Test-DeclaredExecutableAccountability.ps1",
+      "reason": "Checks that each host executable in registry/agents.json resolves on this machine; CI runners have none of the agents installed."
+    },
+    {
+      "file": "tests/Test-DeclaredPathAccountability.ps1",
+      "reason": "Checks declared host paths against the live user profile, which on a CI runner has no deployed host config."
+    },
+    {
+      "file": "tests/Test-DeclaredVsDeployedMcp.ps1",
+      "reason": "Compares registry MCP declarations with each host's deployed config in the live user profile."
+    },
+    {
+      "file": "tests/Test-DeployedEvidenceFinish.ps1",
+      "reason": "Requires media-studio skills and plugin caches deployed into the live user profile."
+    },
+    {
+      "file": "tests/Test-InstalledPluginFreshness.ps1",
+      "reason": "Reads the installed plugin caches in the live user profile."
+    },
+    {
+      "file": "tests/Test-LocalMcpHostScope.ps1",
+      "reason": "Reads the deployed ~/.claude/settings.json."
+    },
+    {
+      "file": "tests/Test-McpLauncherDirectness.ps1",
+      "reason": "Examines MCP entries in the deployed host configs of the live user profile."
+    },
+    {
+      "file": "tests/Test-OptInDisabledMcp.ps1",
+      "reason": "Reads the deployed OpenCode config in the live user profile."
+    },
+    {
+      "file": "tests/Test-PruneProtection.ps1",
+      "reason": "Reads the deployed Codex and Grok configs in the live user profile."
+    },
+    {
+      "file": "tests/Test-RetiredSkillRemoval.ps1",
+      "reason": "Scans the deployed host skills directories in the live user profile."
+    },
+    {
+      "file": "tests/Test-TomlEmission.ps1",
+      "reason": "Reads the deployed Codex and Grok configs in the live user profile."
+    },
+    {
+      "file": "tests/Test-RepoWiseBoundedIndex.ps1",
+      "reason": "Its Unicode-environment subprocess case fails under the GitHub Windows runner's Python; it passes on the owner's machine."
+    },
+    {
       "file": "tests/Test-FileEncodingDiscipline.ps1",
       "reason": "Fails on main: packages/fleet-board/Regenerate-FleetBoard.ps1 and tests/Test-FleetBoard.ps1 read files without -Encoding UTF8. Remove this entry once that fix lands."
     },
