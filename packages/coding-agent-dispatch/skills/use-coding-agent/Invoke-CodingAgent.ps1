@@ -56,6 +56,9 @@
 .PARAMETER Model
   Model for an -AnthropicApiKey run. Defaults to apiKeyOptIn.model.
 
+.PARAMETER SessionId
+  Continue an existing Cline session through ACP. Policy gates still apply.
+
 #>
 [CmdletBinding()]
 param(
@@ -66,6 +69,7 @@ param(
     [int]$TimeoutSec = 1800,
     [switch]$AnthropicApiKey,
     [string]$Model,
+    [string]$SessionId,
     [switch]$List,
     [switch]$ShowCommand
 )
@@ -403,6 +407,9 @@ if ($AnthropicApiKey) {
 
 $row = Get-HostRow -Agent $agent
 if ($row.State -eq 'refused') { Write-Refusal 3 "refused ${requested}: $($row.Detail)" }
+if ($PSBoundParameters.ContainsKey('SessionId') -and ($requested -ne 'cline' -or [string]::IsNullOrWhiteSpace($SessionId))) {
+    Write-Refusal 3 '-SessionId requires -HostId cline and a non-empty session id.'
+}
 
 $targetId = if ($row.State -eq 'routed') { $row.Detail } else { $requested }
 $targetAgent = Get-AgentRecord -Agents $agents -Id $targetId
@@ -433,7 +440,7 @@ if ($TimeoutSec -lt 1) { Write-Refusal 3 '-TimeoutSec must be at least 1.' }
 
 $contract = $table[$targetId]
 if (-not $contract) { Write-Refusal 3 "refused ${targetId}: no verified headless contract" }
-$pointer = $contract.Mode -eq 'argument' -and ($PromptFile -or -not (Test-ArgumentPrompt $Prompt))
+$pointer = -not $SessionId -and $contract.Mode -eq 'argument' -and ($PromptFile -or -not (Test-ArgumentPrompt $Prompt))
 
 $runDir = Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch'
 $promptFile = $null
@@ -449,6 +456,16 @@ if ($contract.Mode -eq 'file' -or $pointer) {
 if ($pointer) { $Prompt = "Read the task from this UTF-8 file and carry it out: $promptFile" }
 
 $built = & $contract.Build $Prompt $Cwd $promptFile
+if ($SessionId) {
+    $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $node) { Write-Refusal 2 'Cline ACP resume requires Node.js.' }
+    $built = @{
+        Args = @((Join-Path $PSScriptRoot 'cline\acp-dispatch.mjs'))
+        Stdin = (@{ executable = $executable; sessionId = $SessionId; cwd = $Cwd; prompt = $Prompt; timeoutMs = ($TimeoutSec * 1000) } | ConvertTo-Json -Compress)
+        PromptFile = $null
+    }
+    $executable = [string]$node.Source
+}
 if ($row.State -eq 'routed') { Write-Output ("routed: {0} -> {1}" -f $requested, $targetId) }
 if ($ShowCommand) {
     Write-Output ("file={0}" -f $executable)
