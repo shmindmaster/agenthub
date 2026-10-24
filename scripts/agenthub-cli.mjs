@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Thin cross-platform entry for AgentHub. Resolves pwsh/powershell and
- * delegates to scripts/AgentHub.ps1 (and Export-PublicCore.ps1 for export).
- * First-click UX only — lifecycle logic stays in PowerShell.
+ * Thin cross-platform entry for AgentHub. `doctor` runs in Node
+ * (src/doctor) and needs no PowerShell. Every other command resolves
+ * pwsh/powershell and delegates to scripts/AgentHub.ps1 (and
+ * Export-PublicCore.ps1 for export); lifecycle logic stays in PowerShell.
  */
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -20,6 +21,11 @@ Usage:
   agenthub <command> [options]
 
 Commands:
+  doctor               Show every agent's MCP servers, skills and instructions,
+                       and what's broken. Read-only, no PowerShell needed.
+                       Run 'agenthub doctor --help' for options.
+
+  These need a clone of the repository and PowerShell 7+:
   init                 Create local overlay + profile from examples (no host writes)
   validate             Run registry validation
   sync                 Read-only drift audit (default)
@@ -32,8 +38,16 @@ Options:
   --apply              Only for sync
   -h, --help           Show this help
 
-Requires PowerShell 7+ (pwsh) on Windows, macOS, and Linux.
-Docs: docs/development/quickstart.md
+Docs: https://github.com/shmindmaster/agenthub#readme
+`;
+
+const CLONE_HINT = `This command runs the PowerShell sync engine, which ships with the repository, not the npm package:
+
+  git clone https://github.com/shmindmaster/agenthub
+  cd agenthub
+  npx agenthub init
+
+'agenthub doctor' works from anywhere without it.
 `;
 
 function findShell() {
@@ -70,6 +84,11 @@ function run(shell, args) {
 
 async function main() {
   const argv = process.argv.slice(2);
+  if (argv[0] === "doctor") {
+    const { main: doctor } = await import("../src/doctor/cli.js");
+    process.exitCode = await doctor(argv.slice(1));
+    return;
+  }
   if (argv.length === 0 || argv.includes("-h") || argv.includes("--help")) {
     process.stdout.write(HELP);
     process.exit(0);
@@ -80,7 +99,7 @@ async function main() {
   const apply = rest.includes("--apply");
 
   if (!existsSync(agentHubPs1)) {
-    console.error(`Missing ${agentHubPs1}`);
+    process.stderr.write(CLONE_HINT);
     process.exit(1);
   }
 

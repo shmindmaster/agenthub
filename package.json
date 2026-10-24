@@ -1,20 +1,55 @@
 {
   "name": "agenthub",
   "version": "0.1.0",
-  "private": true,
-  "description": "Portable control plane for skills, plugins, MCP servers, and policy across coding agents",
+  "description": "See every MCP server, skill and instruction file your coding agents load, and what's broken. Read-only doctor plus a sync engine for Claude Code, Codex, Cursor, Gemini CLI, Copilot CLI and more.",
   "license": "Apache-2.0",
+  "author": "Sarosh Hussain (https://saroshhussain.com)",
+  "homepage": "https://github.com/shmindmaster/agenthub#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shmindmaster/agenthub.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shmindmaster/agenthub/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude-code",
+    "codex",
+    "cursor",
+    "gemini-cli",
+    "copilot",
+    "ai-agents",
+    "coding-agents",
+    "skills",
+    "doctor",
+    "developer-tools"
+  ],
   "type": "module",
   "bin": {
     "agenthub": "./scripts/agenthub-cli.mjs"
   },
+  "files": [
+    "scripts/agenthub-cli.mjs",
+    "src/doctor/",
+    "registry/agents.json",
+    "NOTICE"
+  ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
     "agenthub": "node ./scripts/agenthub-cli.mjs",
+    "doctor": "node ./scripts/agenthub-cli.mjs doctor",
     "init": "node ./scripts/agenthub-cli.mjs init",
     "validate": "node ./scripts/agenthub-cli.mjs validate",
-    "sync": "node ./scripts/agenthub-cli.mjs sync"
+    "sync": "node ./scripts/agenthub-cli.mjs sync",
+    "test": "node --test \"test/doctor/*.test.mjs\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
   }
 }
