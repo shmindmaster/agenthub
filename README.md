@@ -39,7 +39,7 @@ AgentHub was built by Sarosh Hussain as the control plane for his own machine. T
 
 ## Quickstart
 
-You need [PowerShell 7+](https://aka.ms/powershell) (`pwsh`) and Git. Node 18+ is optional and only provides the `npx agenthub` wrapper. AgentHub is not published to npm, so run it from a clone.
+You need [PowerShell 7+](https://aka.ms/powershell) (`pwsh`), Git and [ripgrep](https://github.com/BurntSushi/ripgrep#installation) (`rg`, used by `validate`). Node 18+ is optional and only provides the `npx agenthub` wrapper. AgentHub is not published to npm, so run it from a clone.
 
 ```bash
 git clone https://github.com/shmindmaster/agenthub
