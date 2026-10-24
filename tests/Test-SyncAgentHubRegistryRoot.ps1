@@ -273,7 +273,8 @@ function Test-UnrebasablePathShapeFailsLoudly {
         if ($result.ExitCode -eq 0) {
             return @{ Passed = $false; Detail = "exit code was 0 against a UNC nativePaths value that cannot be rebased. Output: $($result.Output)" }
         }
-        if ($result.Output -notmatch 'rebasing does not support') {
+        # pwsh's error view wraps long messages at the console width ("     | " continuation lines).
+        if ($result.Output -notmatch 'rebasing[\s|]+does[\s|]+not[\s|]+support') {
             return @{ Passed = $false; Detail = "failed, but not with the unrebasable-shape message -- it may have failed for an unrelated reason, which would make this assertion vacuous. Output: $($result.Output)" }
         }
         return @{ Passed = $true; Detail = $null }

@@ -99,8 +99,9 @@ if (Test-Path -LiteralPath $marketingSource) {
             throw ("Marketing kit mirror failed: robocopy exit code {0} ({1} -> {2}): {3}" -f $robocopyExit, $marketingSource, $marketingTarget, (($robocopyOutput | Select-Object -Last 5) -join ' | '))
         }
     } else {
-        # Same in-place mirror without robocopy: copy every source file, then remove destination entries the source no
-        # longer has. The target directory itself is never deleted.
+        # Same in-place mirror without robocopy: copy new or changed files (an unchanged file is never rewritten, so a
+        # running pipeline holding it open is undisturbed), then remove destination entries the source no longer has.
+        # The target directory itself is never deleted.
         $sourceRoot = (Get-Item -LiteralPath $marketingSource).FullName.TrimEnd('/')
         $targetRoot = (Get-Item -LiteralPath $marketingTarget).FullName.TrimEnd('/')
         $keep = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
@@ -108,8 +109,11 @@ if (Test-Path -LiteralPath $marketingSource) {
             $relative = $item.FullName.Substring($sourceRoot.Length + 1)
             [void]$keep.Add($relative)
             $destination = Join-Path $targetRoot $relative
-            if ($item.PSIsContainer) { New-Item -ItemType Directory -Force -Path $destination | Out-Null }
-            else { Copy-Item -LiteralPath $item.FullName -Destination $destination -Force }
+            if ($item.PSIsContainer) { New-Item -ItemType Directory -Force -Path $destination | Out-Null; continue }
+            $existing = Get-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+            if ($existing -and -not $existing.PSIsContainer -and $existing.Length -eq $item.Length -and
+                (Get-FileHash -LiteralPath $existing.FullName).Hash -eq (Get-FileHash -LiteralPath $item.FullName).Hash) { continue }
+            Copy-Item -LiteralPath $item.FullName -Destination $destination -Force
         }
         foreach ($item in @(Get-ChildItem -LiteralPath $targetRoot -Recurse -Force | Sort-Object { $_.FullName.Length } -Descending)) {
             if (-not $keep.Contains($item.FullName.Substring($targetRoot.Length + 1))) { Remove-Item -LiteralPath $item.FullName -Recurse -Force }

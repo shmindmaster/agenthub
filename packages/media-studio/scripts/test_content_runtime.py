@@ -144,7 +144,7 @@ class LedgerTests(unittest.TestCase):
         manifest.write_text(json.dumps(policy))
         path_class = type(self.root)
         with patch.dict(os.environ, {"LOCALAPPDATA": str(self.root)}), \
-                patch("content_runtime.os.name", "nt"), \
+                patch("content_runtime.running_on_windows", return_value=True), \
                 patch("content_runtime.secure_directory", side_effect=lambda p: p.mkdir(parents=True, exist_ok=True)):
             # Avoid platform-dependent Path construction while still exercising
             # the Windows default-root environment selection.
@@ -171,7 +171,7 @@ class LedgerTests(unittest.TestCase):
         manifest=self.root/'first.json'; manifest.write_text(json.dumps(policy))
         original_raw=manifest.read_bytes(); path_class=type(self.root)
         with patch.dict(os.environ,{"LOCALAPPDATA":str(self.root)}), \
-                patch("content_runtime.os.name","nt"), \
+                patch("content_runtime.running_on_windows",return_value=True), \
                 patch("content_runtime.secure_directory",side_effect=lambda p:p.mkdir(parents=True,exist_ok=True)), \
                 patch("content_runtime.pathlib.Path",path_class):
             first_ledger=recovery_epoch_ledger(manifest,"fixture",first,"eleven_flash_v2_5")

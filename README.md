@@ -62,7 +62,7 @@ It never writes a file, starts a server or opens a network connection. `--probe-
 
 If you run more than one AI coding agent, you end up with several copies of the same instructions, skills and MCP server settings, and they slowly stop matching. AgentHub keeps one canonical copy, writes it into each agent's own configuration format, and tells you when an agent has drifted from it.
 
-It targets Claude Code, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot CLI and the other agents listed in [`registry/agents.json`](./registry/agents.json). The sync engine is a set of PowerShell scripts over plain JSON and Markdown. It is developed and tested on Windows; on macOS and Linux `validate` passes, but the `sync` audit and most of the test suite do not run yet ([#72](https://github.com/shmindmaster/agenthub/issues/72)). Nothing is written to an agent's configuration until you run `sync --apply`.
+It targets Claude Code, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot CLI and the other agents listed in [`registry/agents.json`](./registry/agents.json). The sync engine is a set of PowerShell 7 scripts over plain JSON and Markdown. It runs on Windows, macOS (Apple silicon and Intel) and Linux: CI runs `validate`, the `sync` audit and the full test suite on all of them. Each host's paths follow its documented layout per OS, for example `~/.claude` everywhere, Cursor and VS Code settings under `%APPDATA%`, `~/Library/Application Support` or `~/.config`, and Devin under `%APPDATA%\devin` on Windows but `~/.config/devin` on macOS and Linux. A few owner-workstation integrations are Windows-only (see [Platform support](#platform-support)). Nothing is written to an agent's configuration until you run `sync --apply`.
 
 ### What it keeps in sync
 
@@ -156,7 +156,26 @@ Some of what you give your agents should not be public: owner-specific policy, p
 - `policy-core.md` and `global-agent-policy.md` are the portable policy that gets compiled into each host's instruction file.
 - `.agents/plugins/marketplace.json` is the plugin catalog. `.claude-plugin/marketplace.json` is its Claude-compatible projection.
 
-Runtime output goes under the OS local-data root (`%LOCALAPPDATA%\AgentHub` on Windows). Do not commit credentials, customer data or generated media.
+Runtime output goes under the OS local-data root: `%LOCALAPPDATA%\AgentHub` on Windows, `~/Library/Application Support/AgentHub` on macOS and `${XDG_DATA_HOME:-~/.local/share}/AgentHub` on Linux. Do not commit credentials, customer data or generated media.
+
+## Platform support
+
+| | Windows | macOS (Apple silicon, Intel) | Linux |
+| --- | --- | --- | --- |
+| `agenthub doctor` (Node 20+) | yes | yes | yes |
+| `validate`, `sync` audit, `sync --apply` (PowerShell 7+) | yes | yes | yes |
+| Coding-agent dispatch, fleet board, demo profile | yes | yes | yes |
+| Test suite in CI | full | full, minus Windows-host features | full, minus Windows-host features |
+
+A host whose config location differs by OS declares the macOS and Linux paths in `platformPaths` in [`registry/agents.json`](./registry/agents.json), with the vendor documentation each was checked against. A Windows install pin (`.exe`, `.cmd`, `AppData`) is never mapped onto another OS; for a CLI that installs onto `PATH`, its command name is looked up there instead.
+
+Windows-only by design, because they depend on Windows facilities with no macOS or Linux equivalent:
+
+- **desktop-evidence** screen capture uses FFmpeg `gdigrab` and GDI. Use browser-evidence for web pages on any OS.
+- **RepoWise bounded indexing** caps the indexer's memory with a Windows Job Object; the RepoWise bridge and its updater use the Windows `py` launcher and Task Scheduler.
+- **The mobile device lab** drives a VMware Workstation macOS guest and the Android emulator from a Windows host.
+
+[`tests/ci-skip.json`](./tests/ci-skip.json) lists every test CI does not run and why: tests that read the owner's own machine, and the Windows-host features above on macOS and Linux.
 
 ## Commands
 

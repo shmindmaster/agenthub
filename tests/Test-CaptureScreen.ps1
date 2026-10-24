@@ -167,7 +167,7 @@ try {
         # Desktop capture is a Windows capability (gdigrab/GDI). Elsewhere the
         # helper must refuse plainly and write nothing.
         $refusedOk = $live.ExitCode -ne 0 -and $live.Output -match 'not[\s|]+available[\s|]+on[\s|]+macOS' -and
-            -not (Test-Path -LiteralPath (Join-Path $scratch 'fixture-capture'))
+            -not (Test-Path -LiteralPath (Join-Path $scratch 'fixture-capture/live-still.png'))
         Report 'live capture refuses clearly off Windows and writes nothing' $refusedOk `
             "exit $($live.ExitCode) output=$($live.Output)"
     }

@@ -132,11 +132,11 @@ try {
     $fleetRoot = Invoke-Demo @('-Action', 'New', '-Root', (Join-Path $HOME '.claude\agenthub-demo'))
     $repoInside = Invoke-Demo @('-Action', 'New', '-Root', (Join-Path $repoRoot 'demo-profile'))
     Report 'New refuses the real profile, a real host config root, and the checkout' (
-        $realRoot.ExitCode -ne 0 -and $realRoot.Output -match 'real user profile' -and
-        $fleetRoot.ExitCode -ne 0 -and $fleetRoot.Output -match 'real host configuration root' -and
+        $realRoot.ExitCode -ne 0 -and $realRoot.Output -match 'real[\s|]+user[\s|]+profile' -and
+        $fleetRoot.ExitCode -ne 0 -and $fleetRoot.Output -match 'real[\s|]+host[\s|]+configuration[\s|]+root' -and
         -not (Test-Path -LiteralPath (Join-Path $HOME '.claude\agenthub-demo')) -and
         $repoInside.ExitCode -ne 0 -and -not (Test-Path -LiteralPath (Join-Path $repoRoot 'demo-profile'))
-    ) "real=$($realRoot.ExitCode) fleet=$($fleetRoot.ExitCode) repo=$($repoInside.ExitCode)"
+    ) "real=$($realRoot.ExitCode) fleet=$($fleetRoot.ExitCode) repo=$($repoInside.ExitCode) realOutput=$($realRoot.Output) fleetOutput=$($fleetRoot.Output)"
 
     $unmarked = Join-Path $env:AGENTHUB_TEST_SCRATCH ('agenthub-demo-unmarked-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $unmarked -Force | Out-Null

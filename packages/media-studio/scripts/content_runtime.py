@@ -35,8 +35,12 @@ def request_key(request: dict) -> str:
                                      ensure_ascii=False, allow_nan=False).encode("utf-8")).hexdigest()
 
 
+def running_on_windows() -> bool:
+    return os.name == "nt"
+
+
 def default_root() -> pathlib.Path:
-    base = os.environ.get("LOCALAPPDATA") if os.name == "nt" else str(pathlib.Path.home() / ".local/share")
+    base = os.environ.get("LOCALAPPDATA") if running_on_windows() else str(pathlib.Path.home() / ".local/share")
     if not base:
         raise RuntimeError("Cannot resolve private local runtime directory")
     return canonical_default_root(pathlib.Path(base) / "AgentHub/runtime/content-controls")
@@ -90,7 +94,7 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id):
             or any(not re.fullmatch(r"[0-9a-f]{64}", item) for item in allowed)
             or text_hash in policy.get("ambiguous_text_sha256", [])):
         raise RuntimeError("Speech is outside this recovery epoch's new/unsubmitted allowlist")
-    base = os.environ.get("LOCALAPPDATA") if os.name == "nt" else str(pathlib.Path.home() / ".local/share")
+    base = os.environ.get("LOCALAPPDATA") if running_on_windows() else str(pathlib.Path.home() / ".local/share")
     if not base:
         raise RuntimeError("Cannot resolve private local runtime directory")
     root = (pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs").resolve() / epoch
