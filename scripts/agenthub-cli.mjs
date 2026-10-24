@@ -58,9 +58,13 @@ function findShell() {
   return candidates[0];
 }
 
+const ENGINE_COMMANDS = new Set(["init", "validate", "sync", "drift", "inventory", "export"]);
+
+// -NonInteractive makes any prompt in a delegated script fail instead of
+// waiting on stdin, so an unattended or piped run cannot hang.
 function run(shell, args) {
   return new Promise((resolve) => {
-    const child = spawn(shell, args, {
+    const child = spawn(shell, ["-NonInteractive", ...args], {
       stdio: "inherit",
       shell: false,
       windowsHide: true,
@@ -97,6 +101,11 @@ async function main() {
   const command = argv[0];
   const rest = argv.slice(1);
   const apply = rest.includes("--apply");
+
+  if (!ENGINE_COMMANDS.has(command)) {
+    console.error(`Unknown command '${command}'. Run 'agenthub --help' for the list.`);
+    process.exit(2);
+  }
 
   if (!existsSync(agentHubPs1)) {
     process.stderr.write(CLONE_HINT);
