@@ -28,7 +28,10 @@ def new_ledger(root=None):
 
 
 def generate(cli, args, voice_id, model_id, output_format, payload, with_timestamps=False):
-    with new_ledger().session() as ledger:
+    recovery = getattr(args, "recovery_epoch_manifest", None)
+    ledger = (runtime_module().recovery_epoch_ledger(recovery, args.cache_workspace, args.text, model_id)
+              if recovery else new_ledger())
+    with ledger.session() as ledger:
         return _generate(ledger, cli, args, voice_id, model_id, output_format, payload, with_timestamps)
 
 
@@ -63,7 +66,10 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, wit
             try:
                 # A replacement of a never-submitted lease inherits its original
                 # reservation, even if this caller offers a larger maximum.
-                cli.tts_preflight(voice_id, model_id, args.text, row["maximum"])
+                preflight = cli.tts_preflight(voice_id, model_id, args.text, row["maximum"])
+                if recovery_epoch := getattr(ledger, "recovery_epoch", None):
+                    if preflight.get("can_extend_character_limit") is not False:
+                        raise RuntimeError("Recovery epoch requires live overages disabled")
             except BaseException:
                 ledger.cancel_prepared(row)
                 raise
@@ -104,6 +110,9 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, wit
                          "output_format": output_format, "output_sha256": row["sha256"],
                          "content_type": row["content_type"], "output_bytes": len(raw),
                          "maximum_reserved_credits": row["maximum"], "actual_credits": row["actual"],
+                         **({"recovery_epoch": ledger.recovery_epoch,
+                             "historical_accounting": "UNKNOWN", "historical_requests": "FENCED"}
+                            if getattr(ledger, "recovery_epoch", None) else {}),
                          "acceptance_state": row["state"], "acceptance": json.loads(row["acceptance"] or "null"),
                          "reused": reused, "text_sha256": hashlib.sha256(args.text.encode()).hexdigest()}
         if row["state"] == "unknown":

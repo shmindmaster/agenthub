@@ -126,6 +126,22 @@ class SpendingBoundaries(unittest.TestCase):
                 self.assertEqual(self.invoke(pathlib.Path(folder)/"take.mp3", []), 2)
             post.assert_not_called()
 
+    def test_recovery_epoch_refuses_unknown_or_enabled_overages_before_post(self):
+        self.ledger.recovery_epoch = "synthetic-authorized-epoch"
+        for value in (None, True):
+            self.subscription["can_extend_character_limit"] = value
+            with patch.object(cli, "_request_full") as post, contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(self.invoke(self.root / "blocked.mp3"), 2)
+                post.assert_not_called()
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 0)
+
+    def test_recovery_epoch_checks_live_allowance_before_post(self):
+        self.ledger.recovery_epoch = "synthetic-authorized-epoch"
+        self.subscription.update(can_extend_character_limit=False, character_limit=10)
+        with patch.object(cli, "_request_full") as post, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(self.invoke(self.root / "blocked.mp3"), 2)
+            post.assert_not_called()
+
     def test_missing_explicit_model_never_posts(self):
         argv = ["cli", "tts", "--voice-id", "fixture", "--text", "hello",
                 "--output", "unused.mp3", "--max-credits", "10"]

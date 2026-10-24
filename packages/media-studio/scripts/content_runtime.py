@@ -39,7 +39,123 @@ def default_root() -> pathlib.Path:
     base = os.environ.get("LOCALAPPDATA") if os.name == "nt" else str(pathlib.Path.home() / ".local/share")
     if not base:
         raise RuntimeError("Cannot resolve private local runtime directory")
-    return pathlib.Path(base) / "AgentHub/runtime/content-controls"
+    return canonical_default_root(pathlib.Path(base) / "AgentHub/runtime/content-controls")
+
+
+def canonical_default_root(root: pathlib.Path) -> pathlib.Path:
+    """Follow an OS runtime relocation only to an intact existing ledger.
+
+    Explicit caller-supplied roots still reject links in secure_directory. A
+    relocated default must never silently create a fresh accounting database or
+    namespace salt when an operator moved only part of the runtime tree.
+    """
+    root = root.absolute()
+    if not any(linked_path(path) for path in (root, *root.parents)):
+        return root
+    target = root.resolve()
+    if (not (target / "ledger.sqlite3").is_file()
+            or not (target / "namespace-salt").is_file()
+            or (target / "namespace-salt").stat().st_size != 32):
+        raise RuntimeError("Relocated content ledger is incomplete; restore the original "
+                           "ledger.sqlite3 and namespace-salt together before paid submissions")
+    # Check the resolved target with the normal local-disk and link safeguards.
+    # Do not call secure_directory here: resolving a path must not create state.
+    if any(linked_path(path) for path in (target, *target.parents)):
+        raise RuntimeError("Content ledger refuses linked directories")
+    return target
+
+
+def recovery_epoch_ledger(manifest_path, workspace, text, model_id):
+    """Explicit bounded new accounting epoch; never reconstructs old spend.
+
+    Operator authorization locks a small allowlist of demonstrably new/unsubmitted
+    speech. All historical requests remain unavailable, including ambiguous ones.
+    The normal lifetime ledger is neither created nor configured by this route.
+    """
+    manifest_path = pathlib.Path(manifest_path)
+    raw = manifest_path.read_bytes()
+    policy = json.loads(raw)
+    ceiling = integer(policy.get("maximum_credits"))
+    epoch = policy.get("epoch_id", "")
+    if (not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", epoch)
+            or ceiling > 1000 or policy.get("historical_accounting") != "UNKNOWN"
+            or policy.get("historical_requests") != "FENCED"
+            or not policy.get("owner_authorization")
+            or policy.get("workspace") != workspace
+            or model_id != "eleven_flash_v2_5"):
+        raise RuntimeError("Recovery epoch requires explicit bounded authorization and fenced history")
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    allowed = policy.get("allowed_text_sha256", [])
+    if (not allowed or len(allowed) > 20 or text_hash not in allowed
+            or any(not re.fullmatch(r"[0-9a-f]{64}", item) for item in allowed)
+            or text_hash in policy.get("ambiguous_text_sha256", [])):
+        raise RuntimeError("Speech is outside this recovery epoch's new/unsubmitted allowlist")
+    base = os.environ.get("LOCALAPPDATA") if os.name == "nt" else str(pathlib.Path.home() / ".local/share")
+    if not base:
+        raise RuntimeError("Cannot resolve private local runtime directory")
+    root = (pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs").resolve() / epoch
+    secure_directory(root)
+    lock = root / "authorization.json"
+    batch = policy.get("additional_batch_id")
+    if batch is not None:
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", batch) or not lock.is_file() or linked_path(lock):
+            raise RuntimeError("Additional batch requires an intact original epoch authorization")
+        original_raw = lock.read_bytes()
+        original = json.loads(original_raw)
+        if (policy.get("parent_authorization_sha256") != hashlib.sha256(original_raw).hexdigest()
+                or any(policy.get(k) != original.get(k) for k in
+                       ("epoch_id", "maximum_credits", "workspace", "historical_accounting", "historical_requests"))
+                or any(t in original.get("allowed_text_sha256", [])
+                       or t in original.get("ambiguous_text_sha256", []) for t in allowed)):
+            raise RuntimeError("Additional batch must preserve original cap/history and exclude prior requests")
+        batches = root / "additional-batches"
+        secure_directory(batches)
+        lock = batches / (batch + ".json")
+        registration = root / "batch-registration.lock"
+        try:
+            guard = registration.open("xb")
+        except FileExistsError:
+            raise RuntimeError("Additional batch registration busy or interrupted; inspect before retry") from None
+        try:
+            for prior_path in batches.glob("*.json"):
+                if prior_path == lock:
+                    continue
+                if linked_path(prior_path):
+                    raise RuntimeError("Linked additional batch refused")
+                prior = json.loads(prior_path.read_bytes())
+                if any(t in prior.get("allowed_text_sha256", [])
+                       or t in prior.get("ambiguous_text_sha256", []) for t in allowed):
+                    raise RuntimeError("Additional batch overlaps an existing batch; no repeat authorization")
+            try:
+                with lock.open("xb") as handle:
+                    handle.write(raw)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            except FileExistsError:
+                if linked_path(lock) or lock.read_bytes() != raw:
+                    raise RuntimeError("Recovery epoch authorization is immutable; no cap/allowlist reset")
+        finally:
+            guard.close()
+            registration.unlink()
+    if linked_path(lock):
+        raise RuntimeError("Linked recovery authorization refused")
+    try:
+        with lock.open("xb") as handle:
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except FileExistsError:
+        if lock.read_bytes() != raw:
+            raise RuntimeError("Recovery epoch authorization is immutable; no cap/allowlist reset")
+    ledger = Ledger(root)
+    with ledger.connect() as con:
+        budget = con.execute("SELECT ceiling FROM budgets WHERE bucket='elevenlabs/credits'").fetchone()
+    if budget is None:
+        ledger.configure("elevenlabs/credits", ceiling)
+    elif budget[0] != ceiling:
+        raise RuntimeError("Recovery epoch ceiling changed; inspect accounting before submission")
+    ledger.recovery_epoch = epoch
+    return ledger
 
 
 @lru_cache(maxsize=1)

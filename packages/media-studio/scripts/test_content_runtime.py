@@ -13,7 +13,7 @@ from content_runtime import Ledger, request_key
 from content_control import accept_manifest
 from unittest.mock import patch
 from types import SimpleNamespace
-from content_runtime import linked_path
+from content_runtime import linked_path, canonical_default_root, recovery_epoch_ledger
 
 
 class LedgerTests(unittest.TestCase):
@@ -107,6 +107,118 @@ class LedgerTests(unittest.TestCase):
         with patch.object(pathlib.Path, "lstat", return_value=SimpleNamespace(st_file_attributes=0x400, st_mode=0)):
             self.assertTrue(linked_path(self.root))
         self.assertFalse(linked_path(self.root / "absent"))
+
+    def test_default_relocation_reuses_existing_accounting_and_namespace(self):
+        salt = self.root / "namespace-salt"
+        salt.write_bytes(b"s" * 32)
+        self.claim()
+        alias = self.root.parent / (self.root.name + "-alias")
+        with patch("content_runtime.linked_path", side_effect=lambda path: path == alias), \
+                patch.object(pathlib.Path, "resolve", return_value=self.root):
+            self.assertEqual(canonical_default_root(alias), self.root)
+        self.assertEqual(salt.read_bytes(), b"s" * 32)
+        self.assertEqual(Ledger(self.root).status()["budgets"][0]["committed"], 4)
+
+    def test_default_relocation_refuses_missing_or_partial_accounting(self):
+        alias = self.root.parent / (self.root.name + "-alias")
+        absent = self.root / "absent-ledger"
+        for target in (absent, self.root):
+            with patch("content_runtime.linked_path", side_effect=lambda path: path == alias), \
+                    patch.object(pathlib.Path, "resolve", return_value=target):
+                with self.assertRaisesRegex(RuntimeError, "restore the original"):
+                    canonical_default_root(alias)
+        self.assertFalse(absent.exists())
+        (self.root / "namespace-salt").write_bytes(b"partial")
+        with patch("content_runtime.linked_path", side_effect=lambda path: path == alias), \
+                patch.object(pathlib.Path, "resolve", return_value=self.root):
+            with self.assertRaisesRegex(RuntimeError, "restore the original"):
+                canonical_default_root(alias)
+
+    def test_recovery_epoch_preserves_cap_and_fences_other_text(self):
+        text = "New synthetic sentence."
+        manifest = self.root / "authorization.json"
+        policy = {"epoch_id": "fixture-new-speech", "maximum_credits": 7,
+                  "historical_accounting": "UNKNOWN", "historical_requests": "FENCED",
+                  "owner_authorization": "Synthetic explicit test authorization",
+                  "workspace": "fixture", "allowed_text_sha256": [hashlib.sha256(text.encode()).hexdigest()]}
+        manifest.write_text(json.dumps(policy))
+        path_class = type(self.root)
+        with patch.dict(os.environ, {"LOCALAPPDATA": str(self.root)}), \
+                patch("content_runtime.os.name", "nt"), \
+                patch("content_runtime.secure_directory", side_effect=lambda p: p.mkdir(parents=True, exist_ok=True)):
+            # Avoid platform-dependent Path construction while still exercising
+            # the Windows default-root environment selection.
+            with patch("content_runtime.pathlib.Path", path_class):
+                ledger = recovery_epoch_ledger(manifest, "fixture", text, "eleven_flash_v2_5")
+                ledger.claim("fixture", "one", "elevenlabs/credits", 7)
+                again = recovery_epoch_ledger(manifest, "fixture", text, "eleven_flash_v2_5")
+                with self.assertRaisesRegex(RuntimeError, "ceiling"):
+                    again.claim("fixture", "two", "elevenlabs/credits", 1)
+                with self.assertRaisesRegex(RuntimeError, "allowlist"):
+                    recovery_epoch_ledger(manifest, "fixture", "Old ambiguous sentence.", "eleven_flash_v2_5")
+                policy["maximum_credits"] = 8
+                manifest.write_text(json.dumps(policy))
+                with self.assertRaisesRegex(RuntimeError, "immutable"):
+                    recovery_epoch_ledger(manifest, "fixture", text, "eleven_flash_v2_5")
+
+    def test_additional_batch_shares_cap_without_replacing_original_authorization(self):
+        first, second = "First new fixture.", "Second new fixture."
+        h = lambda s: hashlib.sha256(s.encode()).hexdigest()
+        policy = {"epoch_id":"fixture-batch", "maximum_credits":7,
+                  "historical_accounting":"UNKNOWN", "historical_requests":"FENCED",
+                  "owner_authorization":"Fixture authorization", "workspace":"fixture",
+                  "allowed_text_sha256":[h(first)]}
+        manifest=self.root/'first.json'; manifest.write_text(json.dumps(policy))
+        original_raw=manifest.read_bytes(); path_class=type(self.root)
+        with patch.dict(os.environ,{"LOCALAPPDATA":str(self.root)}), \
+                patch("content_runtime.os.name","nt"), \
+                patch("content_runtime.secure_directory",side_effect=lambda p:p.mkdir(parents=True,exist_ok=True)), \
+                patch("content_runtime.pathlib.Path",path_class):
+            first_ledger=recovery_epoch_ledger(manifest,"fixture",first,"eleven_flash_v2_5")
+            first_ledger.claim("fixture-a","first","elevenlabs/credits",4)
+            additional={**policy,"additional_batch_id":"second", "parent_authorization_sha256":hashlib.sha256(original_raw).hexdigest(),"allowed_text_sha256":[h(second)]}
+            other=self.root/'second.json';other.write_text(json.dumps(additional))
+            ledger=recovery_epoch_ledger(other,"fixture",second,"eleven_flash_v2_5")
+            self.assertEqual(ledger.root,first_ledger.root)
+            ledger.claim("fixture-b","second","elevenlabs/credits",3)
+            with self.assertRaisesRegex(RuntimeError,"ceiling"):
+                ledger.claim("fixture-b","third","elevenlabs/credits",1)
+            self.assertEqual((ledger.root/'authorization.json').read_bytes(),original_raw)
+            other.write_text(json.dumps({**additional,"additional_batch_id":"duplicate-other-batch"}))
+            with self.assertRaisesRegex(RuntimeError,"overlaps"):
+                recovery_epoch_ledger(other,"fixture",second,"eleven_flash_v2_5")
+            other.write_text(json.dumps(additional))
+            guard=ledger.root/'batch-registration.lock';guard.write_text("Interrupted fixture")
+            with self.assertRaisesRegex(RuntimeError,"registration busy"):
+                recovery_epoch_ledger(other,"fixture",second,"eleven_flash_v2_5")
+            guard.unlink()
+            for change in ({"maximum_credits":8},{"parent_authorization_sha256":"0"*64},{"allowed_text_sha256":[h(first)]}):
+                other.write_text(json.dumps({**additional,**change}))
+                with self.assertRaises(RuntimeError):recovery_epoch_ledger(other,"fixture",first if 'allowed_text_sha256' in change else second,"eleven_flash_v2_5")
+            other.write_text(json.dumps({**additional,"owner_authorization":"Changed"}))
+            with self.assertRaisesRegex(RuntimeError,"immutable"):
+                recovery_epoch_ledger(other,"fixture",second,"eleven_flash_v2_5")
+
+    def test_recovery_epoch_rejects_unsafe_policy_without_creating_state(self):
+        text = "Fresh fixture."
+        digest = hashlib.sha256(text.encode()).hexdigest()
+        policy = {"epoch_id": "fixture", "maximum_credits": 8,
+                  "historical_accounting": "UNKNOWN", "historical_requests": "FENCED",
+                  "owner_authorization": "Fixture authorization", "workspace": "fixture",
+                  "allowed_text_sha256": [digest]}
+        manifest = self.root / "recovery-policy.json"
+        variants = [{"maximum_credits":1001}, {"historical_accounting":"RESTORED"},
+                    {"historical_requests":"RETRY"}, {"owner_authorization":""},
+                    {"workspace":"other"}, {"ambiguous_text_sha256":[digest]}]
+        with patch("content_runtime.secure_directory") as secure:
+            for change in variants:
+                manifest.write_text(json.dumps({**policy, **change}))
+                with self.assertRaises(RuntimeError):
+                    recovery_epoch_ledger(manifest, "fixture", text, "eleven_flash_v2_5")
+            manifest.write_text(json.dumps(policy))
+            with self.assertRaises(RuntimeError):
+                recovery_epoch_ledger(manifest, "fixture", text, "eleven_v3")
+            secure.assert_not_called()
 
     def test_invalid_manifest_shapes_fail_with_controlled_error(self):
         manifest = self.root / "bad.json"

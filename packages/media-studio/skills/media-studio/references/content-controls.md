@@ -41,6 +41,34 @@ HMAC namespaces; raw credentials and prompts are not stored. Audio and private
 evidence stay local and outside Git. This storage is access-restricted, not
 encrypted. Don't move it to OneDrive or a network disk.
 
+The default OS runtime location may itself be relocated through a junction. In
+that case the runtime resolves the canonical local destination only if the
+original `ledger.sqlite3` and complete 32-byte `namespace-salt` already exist
+together there. A partial relocation fails before creating state or submitting
+content. Restore the original accounting directory as a unit; do not create a
+replacement salt or configure an empty ledger to bypass missing history.
+Explicit caller-supplied directories continue to reject linked ancestors.
+
+When the original accounting cannot be recovered, paid speech remains blocked
+unless the owner explicitly authorizes a new, bounded accounting epoch. The
+canonical TTS `--recovery-epoch-manifest` route records historical accounting as
+`UNKNOWN` and historical requests as `FENCED`; it never recreates lifetime
+headroom. Its immutable private JSON authorization requires `epoch_id`,
+`maximum_credits` (at most 1000), `owner_authorization`, `workspace`, and an
+`allowed_text_sha256` list of at most 20 demonstrably new or never-submitted
+sentences. Include any known ambiguous text hashes in `ambiguous_text_sha256`;
+they are refused even if allowlisted. Historical ambiguous work cannot be
+reclassified as new through this route. This explicit operator attestation is
+not automated proof of the completeness of historical evidence.
+
+The epoch lives in the same canonical local runtime under
+`content-recovery-epochs/<epoch_id>`, has its own aggregate reservation ceiling,
+and locks the exact authorization bytes against later cap/allowlist changes.
+Only Flash v2.5 TTS is supported. Every new submission requires live remaining
+allowance and live confirmation that overages are disabled. Normal exact-cache,
+singleflight, unknown-response fencing and receipt requirements remain active.
+The epoch does not claim an account-wide or restored historical billing ceiling.
+
 The single `elevenlabs/credits` bucket spans all credential/workspace namespaces.
 It is a lifetime aggregate ceiling, with no reset or automatic replenishment.
 Each purchase reserves the full integer `--max-credits` before provider POST.

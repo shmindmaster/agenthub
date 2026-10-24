@@ -101,7 +101,17 @@ if (job.syncClock === 'forced-aligner') {
   boundToInput(word, 'qa/word-sync.json', ['alignment'], 'forced alignment');
   boundToInput(word, 'qa/word-sync.json', ['cueSheet'], 'cue sheet');
   boundToInput(word, 'qa/word-sync.json', ['script'], 'locked alignment script');
-  if (word && (word.method !== 'forced-alignment-on-encoded' || word.gridMs !== 80)) errors.push('word-sync report must name its forced-aligner clock and 80 ms grid');
+  if (word?.method === 'verified-preserved-pcm-edit-map') {
+    boundToInput(word, 'qa/word-sync.json', ['editMap'], 'complete immutable edit map');
+    try {
+      const { readVerifiedMap, measureMappedClock } = await import('./edit-map-clock.mjs');
+      const proof = json(resolve(root, word.inputs.alignment.path));
+      const mapped = readVerifiedMap(root, proof, {takeSha256:candidateSha,scriptSha256:digest(join(root,'story','locked-script.txt')),editMapSha256:word.inputs.editMap.sha256});
+      const measured = measureMappedClock(mapped, json(resolve(root,word.inputs.cueSheet.path)).beats.flatMap(b=>b.narration?.words||[]));
+      for (const key of ['ok','count','offsetMs','driftMs','p95AbsMs','words','changedWords']) if(JSON.stringify(measured[key])!==JSON.stringify(word[key]))throw Error(`mapped clock ${key} differs from current inputs`);
+      if(word.gridMs!==null||word.sourceGridMs!==80||word.sourceUncertaintyMs!==80||!Number.isFinite(word.offsetMs)||!Number.isFinite(word.driftMs)||Math.abs(word.offsetMs)>40||Math.abs(word.driftMs)>40)throw Error('mapped clock must retain80ms uncertainty and canonical40ms drift/offset limits');
+    } catch(e) { errors.push(`invalid verified edit-map provenance: ${e.message}`); }
+  } else if (word && (word.method !== 'forced-alignment-on-encoded' || word.gridMs !== 80)) errors.push('word-sync report must name its forced-aligner clock and80ms grid or verified preserved-PCM edit map');
 }
 // No fluff: the narration check on the locked script, bound to the script it read (the timeline when there is one).
 const narration = canonical(boundReport('qa/narration-check.json', 'media-studio/validate-narration', 'the locked script must pass the no-fluff check (validate-narration.mjs) before release'), 'qa/narration-check.json',

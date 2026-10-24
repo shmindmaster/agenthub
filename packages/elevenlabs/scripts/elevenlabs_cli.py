@@ -156,6 +156,7 @@ def tts_preflight(voice_id: str, model_id: str, text: str, max_credits: float | 
         raise RuntimeError("Estimated credits exceed --max-credits")
     return {"voice_id": voice_id, "model_id": model_id, "text_characters": len(text),
             "estimated_credits": estimate, "credits_remaining": summary["credits_remaining"],
+            "can_extend_character_limit": summary["can_extend_character_limit"],
             "text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
 
 
@@ -422,6 +423,7 @@ def main() -> int:
     p_tts.add_argument("--governed", action="store_true", help="Compatibility flag; all paid TTS is governed")
     p_tts.add_argument("--cache-workspace", help="Authorized project/access boundary, required for paid TTS")
     p_tts.add_argument("--cache-revision", help="Locked voice/model/reference revision, required for paid TTS")
+    p_tts.add_argument("--recovery-epoch-manifest", help="Explicit immutable bounded authorization when historical accounting is unavailable")
     p_tts.add_argument("--stability", type=float)
     p_tts.add_argument("--similarity-boost", type=float)
     p_tts.add_argument("--style", type=float)

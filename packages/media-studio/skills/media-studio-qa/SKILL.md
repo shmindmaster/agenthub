@@ -99,6 +99,11 @@ If fail: producer reruns `findings[].owner` on `reviseSceneIds` only, re-encodes
 
 ## 4. Final check
 
+For a deterministic edit of an already aligned film, see
+[verified edit maps](references/edit-map-clock.md). This preserves the source
+clock's uncertainty and requires exact final-file signal correspondence;
+it never claims a new forced alignment.
+
 - [ ] Encoded file, not proxy; `qa/encoded-picture.json`, `qa/sync.json`, `qa/frame-integrity.json`, `qa/picture-integrity.json` present and bound to this SHA-256
 - [ ] Every product clip unscaled, uncropped, unstretched, without bars; every ratio from its own viewport; declared zooms only, captured at DSF ≥ 2, named UI stays in frame (attested)
 - [ ] `qa/narration-check.json` PASS; `qa/pointer-path.json` PASS bound to receipt; `qa/capture-preflight.json` PASS
