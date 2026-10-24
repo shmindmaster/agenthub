@@ -347,7 +347,7 @@
       "managedSkillNames": [
         "elevenlabs"
       ],
-      "contentHash": "0C366F06D79EA1AC965EB8D25314CEEF4D40D72820DEB2FB182C52FB79D68B93",
+      "contentHash": "2928D2BD6FDE58647504318137664FE99E90E28978F4344090DB3BA4C94FF078",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
@@ -765,7 +765,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "828A5C76F2137D3534891ED4ADE8E2ED75AB782FB6F3998F4C4A8327AC667687",
+      "contentHash": "3891171EA9F924E4C07DD6908425D7044C43D6985B110C33AFF1B70A436A72D7",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [

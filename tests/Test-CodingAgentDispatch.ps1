@@ -76,6 +76,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Save-Fixture
     $env:AGENTHUB_ROOT = $fixture; $env:LOCALAPPDATA = Join-Path $fixture 'logs'
     $scratch = Join-Path $fixture 'scratch'
+    # A child reports its cwd with symlinks resolved (macOS temp lives under /var -> /private/var).
+    $scratchReal = (& $node -e 'process.stdout.write(require("fs").realpathSync(process.argv[1]))' $scratch)
     $r = Run @('-List')
     Check 'list succeeds' ($r.Exit -eq 0) $r.Err
     $fleet.dispatchPolicy['codex'] = @{ enabled = $false; reason = 'response capture is not verified'; ownerAction = 'run a bounded smoke after the output fix' }; Save-Fixture
@@ -136,7 +138,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         if ($id -eq 'opencode') {
             Check 'OpenCode receives paid plan model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'opencode/glm-5.3-flash')
             Check 'OpenCode Go account uses no API key override' (-not $d.ApiKeyVars.OPENCODE_GO_API_KEY -and -not $d.ApiKeyVars.OPENCODE_API_KEY)
-            Check 'OpenCode 2 uses native process cwd without obsolete flag' ($d.Cwd -eq $scratch -and $d.Arguments -notcontains '--dir')
+            Check 'OpenCode 2 uses native process cwd without obsolete flag' ($d.Cwd -in @($scratch, $scratchReal) -and $d.Arguments -notcontains '--dir')
         }
         if ($id -eq 'warp') { Check 'Warp account auth uses no API key override' (-not $d.ApiKeyVars.WARP_API_KEY) }
         if ($id -eq 'amp') {

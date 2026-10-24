@@ -61,17 +61,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.respond(RAW, "audio/mpeg", payload["text"] == "lost", receipt=payload["text"] != "no-id")
 
 
-def invoke(root, url, number, revision="v1", text="hello"):
+def invoke(root, url, number, revision="v1", text="hello", errors=None):
     argv = ["cli", "tts", "--voice-id", "fixture", "--model-id", "fixture", "--text", text,
             "--output", str(root / f"take-{number}.mp3"), "--max-credits", "10",
             "--cache-workspace", "synthetic-project", "--cache-revision", revision,
             "--stability", ".5", "--similarity-boost", ".75", "--style", "0", "--speed", "1",
             "--use-speaker-boost", "--text-normalization", "auto"]
-    with patch.object(cli, "BASE_URL", url), patch.object(cli.sys, "argv", argv), \
-         patch.object(governed, "new_ledger", return_value=governed.runtime_module().Ledger(root / "runtime")), \
-         patch.dict(os.environ, {"ELEVENLABS_API_KEY": "synthetic-fixture"}), \
-         contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        return cli.main()
+    stderr = io.StringIO()
+    try:
+        with patch.object(cli, "BASE_URL", url), patch.object(cli.sys, "argv", argv), \
+             patch.object(governed, "new_ledger", return_value=governed.runtime_module().Ledger(root / "runtime")), \
+             patch.dict(os.environ, {"ELEVENLABS_API_KEY": "synthetic-fixture"}), \
+             contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+            return cli.main()
+    finally:
+        if errors is not None:
+            errors.append(stderr.getvalue())
 
 
 class ProcessTests(unittest.TestCase):
@@ -94,16 +99,19 @@ class ProcessTests(unittest.TestCase):
                                        str(i) if distinct else "v1"], stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE, text=True,
                                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)) for i in range(8)]
-        results = []
+        results, self.worker_errors = [], []
         for process in processes:
             out, err = process.communicate(timeout=30)
             self.assertEqual(process.returncode, 0, err)
-            results.append(json.loads(out))
+            reply = json.loads(out)
+            results.append(reply["code"])
+            self.worker_errors.append(reply["stderr"])
         return results
 
     def test_eight_cli_processes_purchase_once_and_return_identical_bytes(self):
         results = self.workers()
-        self.assertTrue(all(result == 0 for result in results))
+        self.assertTrue(all(result == 0 for result in results),
+                        [(code, err) for code, err in zip(results, self.worker_errors) if code != 0])
         self.assertEqual(Handler.posts, 1)
         self.assertEqual(len({hashlib.sha256(path.read_bytes()).hexdigest() for path in self.root.glob("*.mp3")}), 1)
         self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
@@ -199,7 +207,9 @@ def benchmark(destination):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "worker":
-        print(json.dumps(invoke(pathlib.Path(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5])))
+        worker_errors = []
+        code = invoke(pathlib.Path(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5], errors=worker_errors)
+        print(json.dumps({"code": code, "stderr": worker_errors[0][-2000:]}))
     elif len(sys.argv) > 1 and sys.argv[1] == "--benchmark":
         benchmark(pathlib.Path(sys.argv[2]))
     else:
