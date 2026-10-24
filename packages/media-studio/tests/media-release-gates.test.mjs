@@ -263,6 +263,15 @@ test('release gate requires the video-standard reports bound to the script, rece
   // no fluff
   expectFail(() => rmSync(nc), /missing qa\/narration-check.json; the locked script must pass the no-fluff check/);
   expectFail(() => edit(nc, (r) => { r.ok = false; r.errors = ['S02: version: "since last time"']; }), /narration-check.json must be a PASS with no errors from validate-narration/);
+  const scope = join(root, 'qa', 'scope-review.json');
+  expectFail(() => {
+    writeFileSync(scope, '{}');
+    const evidence = { path: 'qa/scope-review.json', sha256: sha(scope) };
+    edit(nc, (r) => { r.inputs.job = { path: 'job.json', sha256: sha(join(root, 'job.json')) };
+      r.inputs.scopeQualification1 = evidence; r.fluff.scopeAdjudications = [{ evidence }]; });
+    writeFileSync(scope, '{"changed":true}');
+  }, /narration-check.json is stale: qa\/scope-review.json changed/);
+  expectFail(() => edit(nc, (r) => { r.fluff.scopeAdjudications = [{ evidence: { path: 'qa/scope-review.json', sha256: sha(scope) } }]; }), /does not record the scope qualification evidence/);
   expectFail(() => writeFileSync(join(root, 'story', 'screenplay.json'), JSON.stringify({ title: 't', scenes: [{ id: 'hero', narration: 'Welcome back. Since last time the plan is ready.' }] })), /narration-check.json is stale: story\/screenplay.json changed/);
   // frame integrity
   expectFail(() => rmSync(fi), /missing qa\/frame-integrity.json/);

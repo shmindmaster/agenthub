@@ -152,9 +152,40 @@ allowEntries.forEach((e, i) => {
   allow.set(phrase, flat(e.reason));
 });
 
+// Vocabulary reuse cannot establish semantic repetition: a proposal's client-validation
+// qualification changes its truth status even when its words occurred in separate lines.
+// An explicit, source-bound review may adjudicate only that narrow lexical finding.
+// It cannot excuse repetition of a whole earlier line or any banned/redundant hit.
+const scopeQualifications = new Map();
+for (const [i, e] of (job?.narrationScopeQualifications ?? []).entries()) {
+  const label = `narrationScopeQualifications[${i}]`;
+  const line = flat(e?.line);
+  const qualifies = /\b(?:proposed|proposal|proposals)\b/i.test(line)
+    && /\b(?:to be validated|subject to validation|pending validation)\b/i.test(line)
+    && /\b(?:client|customer|CTO|stakeholder)\b/i.test(line);
+  const evidencePath = typeof e?.evidence?.path === 'string' ? abs(e.evidence.path) : null;
+  const insideRoot = evidencePath && !relative(root, evidencePath).startsWith('..') && !isAbsolute(relative(root, evidencePath));
+  if (!qualifies || !flat(e?.sceneId) || !flat(e?.reason) || !lines.some((l) => String(l.sceneId) === String(e.sceneId) && l.line === line)
+      || !insideRoot || !existsSync(evidencePath)
+      || !/^[a-f0-9]{64}$/.test(e?.evidence?.sha256 ?? '') || sha(evidencePath) !== e.evidence.sha256) {
+    errors.push(`${label}: needs an exact proposal-validation line, scene, rationale and current in-job evidence SHA256`);
+    continue;
+  }
+  const evidence = loadJson(evidencePath, label);
+  if (evidence?.kind !== 'truthful-scope-qualification' || evidence?.verdict !== 'PASS'
+      || flat(evidence?.line) !== line || String(evidence?.sceneId) !== String(e.sceneId)
+      || evidence?.assertion !== 'proposed-not-client-confirmed' || !flat(evidence?.reason)) {
+    errors.push(`${label}: evidence must review this exact scene/line and its proposed-not-client-confirmed assertion`);
+    continue;
+  }
+  inputs[`scopeQualification${i + 1}`] = ref(evidencePath);
+  scopeQualifications.set(`${e.sceneId}\u0000${line}`, { sceneId: e.sceneId, line, reason: flat(e.reason), evidence: ref(evidencePath) });
+}
+
 // ---- fluff scan ----------------------------------------------------------------------------------------------------
 const hits = [];
 const allowlisted = [];
+const scopeAdjudications = [];
 const seen = [];          // content-word lists of earlier lines; seen[i] belongs to lines[i]
 const seenPool = [];      // every content word spoken so far
 for (const { sceneId, line } of lines) {
@@ -181,7 +212,10 @@ for (const { sceneId, line } of lines) {
   if (redundantWith >= 0) {
     hits.push({ sceneId, class: 'redundant', match: `${Math.round(overlap(cw, seen[redundantWith]) * 100)}% of its content words repeat ${lines[redundantWith].sceneId}`, line });
   } else if (cw.length >= NO_NEW_INFO_MIN_WORDS && cw.every((w) => seenPool.some((p) => L.wordMatches(w, p)))) {
-    hits.push({ sceneId, class: 'no-new-information', match: 'every content word was already spoken', line });
+    const adjudication = scopeQualifications.get(`${sceneId}\u0000${line}`);
+    const repeatedSentence = lines.slice(0, seen.length).some((previous) => phraseKey(previous.line) === phraseKey(line));
+    if (adjudication && !repeatedSentence) scopeAdjudications.push({ ...adjudication, class: 'no-new-information', finding: 'lexical reuse; reviewed truthful scope qualification' });
+    else hits.push({ sceneId, class: 'no-new-information', match: 'every content word was already spoken', line });
   }
   seen.push(cw);
   cw.forEach((w) => seenPool.push(w));
@@ -191,7 +225,7 @@ for (const h of hits) errors.push(`${h.sceneId} ${h.class}: "${h.match}" in "${h
 const hitLines = new Set(hits.map((h) => `${h.sceneId}\u0000${h.line}`));
 const secondsSpent = round([...hitLines].reduce((n, k) => n + L.textWords(k.split('\u0000')[1]).length, 0) / wpm * 60);
 const perMinute = runtimeSeconds > 0 ? round(hits.length / (runtimeSeconds / 60)) : 0;
-const fluff = { perMinute, count: hits.length, secondsSpent, hits, allowlisted };
+const fluff = { perMinute, count: hits.length, secondsSpent, hits, allowlisted, scopeAdjudications };
 
 // ---- hook and promise: the first five seconds -----------------------------------------------------------------------
 const hookMaxWords = Math.floor((HOOK_SECONDS * wpm) / 60); // 12 at 150 wpm (Math.round would give 13)

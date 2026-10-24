@@ -23,6 +23,8 @@ Canonical Remotion kit: `kit/` (scene-archetype library, plus `kit/screencast/` 
 
 Pre-capture screenplay lint: `scripts/validate-narration.mjs <jobRoot>` then `scripts/write-story-review.py <jobRoot>` (the sync script copies them to `_shared\tools`; the story review fails `no-fluff` without the narration check). It is not a craft pass and does not authorize compose or delivery. Product-screencast still requires `validate-product-picture.mjs`, `validate-demo-scenario.mjs`, `validate-viewer-release.mjs`, and encoded-file review (`product-picture.md`, `RELEASE-EVIDENCE.md`).
 
+Vocabulary reuse alone can misclassify a truth-status qualification. A job may declare `narrationScopeQualifications: [{sceneId, line, reason, evidence: {path, sha256}}]` for an exact sentence explicitly marking proposals as subject to client validation. The in-job JSON evidence must carry `kind: "truthful-scope-qualification"`, `verdict: "PASS"`, `assertion: "proposed-not-client-confirmed"`, the exact `sceneId` and `line`, and a substantive `reason`. This adjudicates only the cumulative vocabulary heuristic; banned language, single-line redundancy and repeated sentences still fail. The report exposes each adjudication and hashes its evidence; release rejects changed evidence or declarations. It does not establish client confirmation or owner approval.
+
 ## Product-repository boundary
 
 Product repositories are read-only inputs. Media Studio never adds or changes

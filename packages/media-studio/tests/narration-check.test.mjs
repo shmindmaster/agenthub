@@ -164,6 +164,55 @@ test("fails hook-5s when the first sentence needs more than five seconds", () =>
   assert.ok(rep.errors.some((e) => e.startsWith("hook-5s:")), JSON.stringify(rep.errors));
 });
 
+const SCOPE_LINE = "These are proposed decisions for this client, to be validated with the CTO.";
+function scopeFixture({ line = SCOPE_LINE, duplicate = false } = {}) {
+  // Reused words across separate claims; no single prior sentence dominates the qualifier.
+  const lines = ["The client needs resilient network routing.", "Proposed decisions protect billing records.",
+    "The CTO controls validated identity boundaries.", "Operations are to be measured against recovery targets.", line];
+  if (duplicate) lines.push(line);
+  const root = makeJob("scope", { sp: screenplay(lines, { viewerPromise: "resilient network routing" }) });
+  const sceneId = "S05";
+  const evidence = writeJson(root, "qa/scope-review.json", { kind: "truthful-scope-qualification", verdict: "PASS",
+    assertion: "proposed-not-client-confirmed", sceneId, line,
+    reason: "This sentence marks the proposals as subject to client validation; earlier statements name separate responsibilities." });
+  const job = { narrationScopeQualifications: [{ sceneId, line, reason: "Truth status qualification prevents an unconfirmed client claim.",
+    evidence: { path: "qa/scope-review.json", sha256: sha(evidence) } }] };
+  writeJson(root, "job.json", job);
+  return { root, evidence, job };
+}
+
+test("source-bound proposal qualification adjudicates lexical reuse and records its evidence", () => {
+  const { root, evidence } = scopeFixture();
+  assert.equal(run([root]).code, 0, run([root]).output);
+  const rep = report(root);
+  assert.equal(rep.fluff.scopeAdjudications.length, 1);
+  assert.equal(rep.inputs.scopeQualification1.sha256, sha(evidence));
+  assert.equal(rep.thresholds.noNewInformationMinContentWords, 4);
+});
+
+test("proposal qualification fails closed when its evidence changes", () => {
+  const { root, evidence } = scopeFixture();
+  writeFileSync(evidence, "{}");
+  const r = run([root]);
+  assert.equal(r.code, 1);
+  assert.match(r.output, /current in-job evidence SHA256/);
+  assert.ok(report(root).fluff.hits.some((h) => h.class === "no-new-information"));
+});
+
+test("proposal qualification cannot suppress a repeated sentence", () => {
+  const { root } = scopeFixture({ duplicate: true });
+  assert.equal(run([root]).code, 1);
+  assert.ok(report(root).fluff.hits.some((h) => h.class === "redundant" && h.sceneId === "S06"));
+});
+
+test("a scope receipt cannot exempt ordinary repetition or arbitrary nonqualification", () => {
+  const { root } = scopeFixture({ line: "The client needs resilient network routing." });
+  const r = run([root]);
+  assert.equal(r.code, 1);
+  assert.match(r.output, /exact proposal-validation line/);
+  assert.ok(report(root).fluff.hits.some((h) => h.class === "redundant"));
+});
+
 test("hook limit follows wpm: 12 words at 150, 10 words at 120", () => {
   const root = makeJob("hookwpm"); // clean hook is 9 words
   assert.equal(run([root, "--wpm", "120"]).code, 0);

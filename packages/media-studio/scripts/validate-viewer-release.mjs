@@ -104,8 +104,15 @@ if (job.syncClock === 'forced-aligner') {
   if (word && (word.method !== 'forced-alignment-on-encoded' || word.gridMs !== 80)) errors.push('word-sync report must name its forced-aligner clock and 80 ms grid');
 }
 // No fluff: the narration check on the locked script, bound to the script it read (the timeline when there is one).
-boundToInput(canonical(boundReport('qa/narration-check.json', 'media-studio/validate-narration', 'the locked script must pass the no-fluff check (validate-narration.mjs) before release'), 'qa/narration-check.json',
-  [['hookSeconds', 'max', 5], ['redundantOverlap', 'max', 0.7], ['redundantMinContentWords', 'max', 3], ['noNewInformationMinContentWords', 'max', 4]]), 'qa/narration-check.json', ['timeline', 'screenplay'], 'locked script');
+const narration = canonical(boundReport('qa/narration-check.json', 'media-studio/validate-narration', 'the locked script must pass the no-fluff check (validate-narration.mjs) before release'), 'qa/narration-check.json',
+  [['hookSeconds', 'max', 5], ['redundantOverlap', 'max', 0.7], ['redundantMinContentWords', 'max', 3], ['noNewInformationMinContentWords', 'max', 4]]);
+boundToInput(narration, 'qa/narration-check.json', ['timeline', 'screenplay'], 'locked script');
+for (const adjudication of narration?.fluff?.scopeAdjudications ?? []) {
+  boundToInput(narration, 'qa/narration-check.json', ['job'], 'scope qualification declaration');
+  const key = Object.keys(narration.inputs ?? {}).find((k) => k.startsWith('scopeQualification')
+    && narration.inputs[k]?.path === adjudication.evidence?.path && narration.inputs[k]?.sha256 === adjudication.evidence?.sha256);
+  boundToInput(narration, 'qa/narration-check.json', key ? [key] : [], 'scope qualification evidence');
+}
 // Frame integrity on the exact encoded picture.
 boundToCandidate(canonical(boundReport('qa/frame-integrity.json', 'media-studio/validate-frame-integrity', 'tiled frames and off-cut luma jumps must be checked on the exact candidate (validate-frame-integrity.mjs)'), 'qa/frame-integrity.json',
   [['tilePsnr', 'max', 32], ['lumaJump', 'max', 40], ['contrastFloor', 'max', 12], ['cutWindow', 'max', 0.25], ['sampleFps', 'min', 2]]), 'qa/frame-integrity.json');
