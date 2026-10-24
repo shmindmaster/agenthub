@@ -368,8 +368,18 @@
     "claude": {
       "enabled": false,
       "reason": "Account login is established (claude auth status: claude.ai, firstParty). 2026-10-22 smoke `claude -p` on claude-haiku-5-5 returned 'You've hit your weekly limit, resets Oct 26 9am America/Chicago'; no included allowance for dispatch until then.",
-      "ownerAction": "After 2026-10-26 09:00 CT run one smoke; enable only if it returns text. No API-key fallback.",
-      "verifiedOn": "2026-10-22"
+      "ownerAction": "Account route: after 2026-10-26 09:00 CT run one smoke; enable only if it returns text. API-key route: per-call opt-in only, pass -AnthropicApiKey; it is never automatic and never a fallback.",
+      "verifiedOn": "2026-10-22",
+      "apiKeyOptIn": {
+        "env": "ANTHROPIC_API_KEY",
+        "model": "claude-sonnet-5-5",
+        "expiresUtc": "2026-10-27T00:00:00Z",
+        "billing": "Shared org API key on promotional credit (applies to API, Batch API, Agent SDK); other agents use the same key. Use sparingly, only when Claude is clearly the best tool; prefer the Batch API for bulk jobs; check Console spend before large runs.",
+        "modelReason": "Strong coding model at about one third of Opus pricing; pass -Model claude-opus-5-5 only when the task needs it.",
+        "ownerDirection": "2026-10-24 00:28 CT allowed the Anthropic key for Anthropic-served work, superseding the 2026-10-22 account-only rule for Anthropic; 00:32 CT correction: opt-in only, never a default, do not burn the shared credit.",
+        "verifiedOn": "2026-10-24",
+        "smoke": "2026-10-24 one dispatcher run, -AnthropicApiKey -Model claude-haiku-5-5: returned READY in 48 s; claude auth status reported authMethod api_key, apiKeySource ANTHROPIC_API_KEY; 50,365 cache-write + 6 other tokens."
+      }
     },
     "codex": {
       "enabled": false,
