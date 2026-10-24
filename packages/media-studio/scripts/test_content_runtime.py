@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import pathlib
+import stat
 import subprocess
 import sys
 import tempfile
@@ -107,6 +108,18 @@ class LedgerTests(unittest.TestCase):
         with patch.object(pathlib.Path, "lstat", return_value=SimpleNamespace(st_file_attributes=0x400, st_mode=0)):
             self.assertTrue(linked_path(self.root))
         self.assertFalse(linked_path(self.root / "absent"))
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink ownership")
+    def test_root_owned_os_links_pass_but_user_or_writable_dir_links_are_refused(self):
+        def stats(link_uid, parent_mode):
+            return [SimpleNamespace(st_mode=stat.S_IFLNK | 0o755, st_uid=link_uid),
+                    SimpleNamespace(st_mode=stat.S_IFDIR | parent_mode, st_uid=0)]
+        with patch.object(pathlib.Path, "lstat", side_effect=stats(0, 0o755)):
+            self.assertFalse(linked_path(pathlib.Path("/var")))  # macOS /var -> private/var
+        with patch.object(pathlib.Path, "lstat", side_effect=stats(501, 0o755)):
+            self.assertTrue(linked_path(pathlib.Path("/var")))
+        with patch.object(pathlib.Path, "lstat", side_effect=stats(0, 0o1777)):
+            self.assertTrue(linked_path(pathlib.Path("/tmp/planted")))
 
     def test_default_relocation_reuses_existing_accounting_and_namespace(self):
         salt = self.root / "namespace-salt"

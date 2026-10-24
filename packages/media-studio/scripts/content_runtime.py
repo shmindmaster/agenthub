@@ -194,12 +194,30 @@ def windows_sid():
 
 
 def linked_path(path: pathlib.Path):
-    """Reject all Windows reparse points, including junctions on Python 3.11."""
+    """Reject all Windows reparse points, including junctions on Python 3.11, and symlinks.
+
+    A POSIX symlink owned by root in a root-owned directory nobody else can write is part of
+    the OS layout (macOS's /var -> private/var and /tmp -> private/tmp), not a redirection a
+    user could plant, so it does not count.
+    """
     try:
         info = path.lstat()
     except FileNotFoundError:
         return False
-    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & 0x400)
+    if getattr(info, "st_file_attributes", 0) & 0x400:
+        return True
+    return stat.S_ISLNK(info.st_mode) and not system_owned_link(path, info)
+
+
+def system_owned_link(path: pathlib.Path, info) -> bool:
+    if os.name == "nt" or getattr(info, "st_uid", None) != 0:
+        return False
+    try:
+        parent = path.parent.lstat()
+    except OSError:
+        return False
+    return (parent.st_uid == 0 and not stat.S_ISLNK(parent.st_mode)
+            and not parent.st_mode & (stat.S_IWGRP | stat.S_IWOTH))
 
 
 def secure_directory(root: pathlib.Path):
