@@ -5,6 +5,7 @@ import {mkdtempSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 const raw=()=>({loss:.01,characters:[{text:'Hello ',start:.02,end:.08},{text:'world',start:.12,end:.18}],words:[{text:'Hello',start:.02,end:.08,loss:.01},{text:'world',start:.12,end:.18,loss:.02}]});
 const cue=()=>[{w:'Hello',start:.02,end:.08},{w:'world',start:.12,end:.18}];
 test('hosted clock retains unknown uncertainty, real seconds and losses',()=>{
@@ -41,6 +42,17 @@ test('immutable bindings and exact decoded PCM reject changed audio/raw/script/c
  const manifest={schema:'media-studio/hosted-forced-alignment/1',provider:'elevenlabs',endpoint:'/v1/forced-alignment',units:'seconds',gridSeconds:null,uncertaintySeconds:null,durationSeconds:.25,candidate:{...ref('candidate.wav'),bytes:12044},script:ref('script.txt'),raw:ref('raw.json'),uploadedAudio:{...ref('upload.wav'),format:'pcm_s16le',sampleRate:24000,channels:1},request:{state:'completed',id:'provider-test',requestKey:'immutable-test'}};
  const bindings={takeSha256:manifest.candidate.sha256,scriptSha256:manifest.script.sha256};
  assert.equal(readHostedClock(root,manifest,bindings).pcmSamples,6000);
+ // A lossless container is transport only; it cannot change the exact PCM,
+ // sample rate, channels, provider clock or quality thresholds.
+ const encode=(input,output,args=[])=>{const r=spawnSync('ffmpeg',['-v','error','-nostdin','-threads','1','-filter_threads','1','-i',join(root,input),...args,'-c:a','flac','-y',join(root,output)],{windowsHide:true});assert.equal(r.status,0);};
+ encode('upload.wav','upload.flac');
+ const flac={...manifest,uploadedAudio:{...ref('upload.flac'),format:'flac',sampleRate:24000,channels:1}};
+ assert.equal(readHostedClock(root,flac,bindings).pcmSamples,6000);
+ assert.throws(()=>readHostedClock(root,{...flac,uploadedAudio:{...flac.uploadedAudio,format:'pcm_s16le'}},bindings),/codec/);
+ encode('upload.wav','wrong-rate.flac',['-ar','16000']);
+ assert.throws(()=>readHostedClock(root,{...flac,uploadedAudio:{...flac.uploadedAudio,...ref('wrong-rate.flac')}},bindings),/rate/);
+ const altered=wav();altered.writeInt16LE(100,100);writeFileSync(join(root,'changed.wav'),altered);encode('changed.wav','changed.flac');
+ assert.throws(()=>readHostedClock(root,{...flac,uploadedAudio:{...flac.uploadedAudio,...ref('changed.flac')}},bindings),/exact decoded/);
  for(const durationSeconds of [undefined,null,NaN,0,.3])assert.throws(()=>readHostedClock(root,{...manifest,durationSeconds},bindings),/duration/);
  for(const name of ['raw.json','script.txt','candidate.wav','upload.wav']){
   const before=readFileSync(join(root,name));writeFileSync(join(root,name),Buffer.concat([before,Buffer.from('changed')]));assert.throws(()=>readHostedClock(root,manifest,bindings));writeFileSync(join(root,name),before);

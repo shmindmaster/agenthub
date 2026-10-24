@@ -49,11 +49,12 @@ export function readHostedClock(root,manifest,bindings){
   if(manifest.candidate?.sha256!==bindings.takeSha256||manifest.script?.sha256!==bindings.scriptSha256)throw Error('hosted candidate/script binding differs');
   const candidate=bound(root,manifest.candidate),script=bound(root,manifest.script),raw=bound(root,manifest.raw),audio=bound(root,manifest.uploadedAudio);
   if(statSync(candidate).size!==manifest.candidate.bytes)throw Error('hosted candidate bytes differ');
-  if(manifest.uploadedAudio.format!=='pcm_s16le'||manifest.uploadedAudio.sampleRate!==24000||manifest.uploadedAudio.channels!==1)throw Error('unsupported uploaded audio format');
-  const probe=JSON.parse(run('ffprobe',['-v','error','-select_streams','a:0','-show_entries','stream=codec_name,sample_rate,channels','-of','json',audio]).toString()).streams?.[0];
-  if(probe?.codec_name!=='pcm_s16le'||probe.sample_rate!=='24000'||probe.channels!==1)throw Error('uploaded WAV is not mono24k PCM16');
+  if(!['pcm_s16le','flac'].includes(manifest.uploadedAudio.format)||manifest.uploadedAudio.sampleRate!==24000||manifest.uploadedAudio.channels!==1)throw Error('unsupported uploaded audio format');
+  const probe=JSON.parse(run('ffprobe',['-v','error','-select_streams','a:0','-show_entries','stream=codec_name,sample_rate,channels,bits_per_raw_sample','-of','json',audio]).toString()).streams?.[0];
+  if(probe?.codec_name!==manifest.uploadedAudio.format||probe.sample_rate!=='24000'||probe.channels!==1)throw Error('uploaded lossless audio codec/rate/channels differ from manifest');
+  if(manifest.uploadedAudio.format==='flac'&&Number(probe.bits_per_raw_sample)!==16)throw Error('uploaded FLAC is not PCM16');
   const expected=pcm(candidate),actual=pcm(audio);
-  if(!expected.length||!expected.equals(actual))throw Error('uploaded WAV is not the exact decoded candidate PCM');
+  if(!expected.length||!expected.equals(actual))throw Error('uploaded lossless audio is not the exact decoded candidate PCM');
   const duration=actual.length/48000;
   if(!Number.isFinite(manifest.durationSeconds)||manifest.durationSeconds<=0||Math.abs(manifest.durationSeconds-duration)>1/24000)throw Error('hosted duration differs from uploaded PCM');
   const clock=validateHostedRaw(read(raw),readFileSync(script,'utf8'),duration);

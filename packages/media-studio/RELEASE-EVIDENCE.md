@@ -1,5 +1,11 @@
 # Release evidence contract
 
+Exact-file hosted forced alignment may upload mono 24 kHz PCM16 as WAV or
+lossless FLAC. The gate probes the declared codec, rate, channels and FLAC
+bit depth, then compares every decoded PCM sample with the encoded candidate.
+Container compression does not change the provider's unknown timing uncertainty
+or the existing offset and drift thresholds.
+
 Use this external-workspace contract for every viewer-facing product screencast. It does not impose title or sequence rules on non-product media.
 
 ## Fleet deployment
