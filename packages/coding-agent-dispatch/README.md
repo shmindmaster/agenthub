@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.2.9 (loose skill; version metadata lives in `SKILL.md`).
+Version 0.2.10 (loose skill; version metadata lives in `SKILL.md`).
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever
@@ -77,6 +77,13 @@ Console account OAuth is stored by the native service. Follow the owner-only che
 automatically. Other gated CLIs need verified included allowance or an explicit
 task credit budget and one smoke before enabling. Model catalogs and help
 output alone do not prove working inference.
+
+`-HostId claude -AnthropicApiKey` is a per-call opt-in (owner direction
+2026-10-24) that keeps `ANTHROPIC_API_KEY` for that one run while
+`dispatchPolicy.claude` stays disabled. It requires
+`dispatchPolicy.claude.apiKeyOptIn`, refuses after its `expiresUtc`, passes its
+`model` unless `-Model` is given, and is refused for every other host. The key
+is shared promotional credit; the skill documents when to use it.
 
 Codex accepts non-repository working directories without creating Git state.
 Antigravity uses attached `--print=<prompt>`. Long or shell-sensitive argument
