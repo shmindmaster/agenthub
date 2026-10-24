@@ -25,7 +25,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 . (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
-$pathBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
+$pathBinding = New-AgentHubPathBindingContext -TargetUserProfile $HOME
 
 $failures = [Collections.Generic.List[string]]::new()
 function Report {
@@ -87,7 +87,7 @@ foreach ($a in @($agents.activeAgents)) {
         $resolved = if (Test-AgentHubPathTemplate $raw) {
             Resolve-AgentHubBoundPath -Declared $raw -Context $pathBinding
         } else {
-            $expanded = if ($raw.StartsWith('~')) { $env:USERPROFILE + $raw.Substring(1) } else { $raw }
+            $expanded = if ($raw.StartsWith('~')) { $HOME + $raw.Substring(1) } else { $raw }
             [Environment]::ExpandEnvironmentVariables($expanded)
         }
         if ((Test-Path -LiteralPath $resolved) -and $resolved -notin $roots) { $roots.Add($resolved) }

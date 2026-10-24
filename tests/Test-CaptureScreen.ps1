@@ -158,10 +158,19 @@ try {
     )
     $liveJson = ConvertFrom-HelperJson -Output $live.Output
     $livePath = if ($liveJson) { [string]$liveJson.output } else { '' }
-    $liveOk = $live.ExitCode -eq 0 -and $livePath -and (Test-Path -LiteralPath $livePath) -and ((Get-Item -LiteralPath $livePath).Length -gt 0)
-    Report 'live one-frame screenshot writes a non-empty PNG under the scratch evidence root' `
-        $liveOk `
-        "exit $($live.ExitCode) path='$livePath' output=$($live.Output)"
+    if ($env:OS -eq 'Windows_NT') {
+        $liveOk = $live.ExitCode -eq 0 -and $livePath -and (Test-Path -LiteralPath $livePath) -and ((Get-Item -LiteralPath $livePath).Length -gt 0)
+        Report 'live one-frame screenshot writes a non-empty PNG under the scratch evidence root' `
+            $liveOk `
+            "exit $($live.ExitCode) path='$livePath' output=$($live.Output)"
+    } else {
+        # Desktop capture is a Windows capability (gdigrab/GDI). Elsewhere the
+        # helper must refuse plainly and write nothing.
+        $refusedOk = $live.ExitCode -ne 0 -and $live.Output -match 'not[\s|]+available[\s|]+on[\s|]+macOS' -and
+            -not (Test-Path -LiteralPath (Join-Path $scratch 'fixture-capture/live-still.png'))
+        Report 'live capture refuses clearly off Windows and writes nothing' $refusedOk `
+            "exit $($live.ExitCode) output=$($live.Output)"
+    }
 } finally {
     if (Test-Path -LiteralPath $scratch) {
         Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue

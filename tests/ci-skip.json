@@ -1,5 +1,5 @@
 {
-  "description": "Tests that CI skips because they read the owner's machine or private overlay, or fail on main pending a fix. Used only by Run-AllTests.ps1 -SkipListPath; local runs execute everything.",
+  "description": "Tests CI does not run, each with the reason. Entries without 'platforms' read the owner's machine or private overlay and are skipped on every runner; entries with 'platforms' exercise a Windows-host feature and are skipped only on the listed operating systems. Used only by Run-AllTests.ps1 -SkipListPath; local runs execute everything.",
   "skip": [
     {
       "file": "tests/Test-AgentVersionAccuracy.ps1",
@@ -28,10 +28,6 @@
     {
       "file": "tests/Test-SaroshWriting.ps1",
       "reason": "Requires the private overlay package overlays/personal/packages/sarosh-writing and the overlay policy."
-    },
-    {
-      "file": "tests/Test-CodingAgentDispatch.ps1",
-      "reason": "One case launches a Copilot child through the owner's gh account; a CI runner has no such account."
     },
     {
       "file": "tests/Test-DeclaredExecutableAccountability.ps1",
@@ -78,12 +74,39 @@
       "reason": "Reads the deployed Codex and Grok configs in the live user profile."
     },
     {
-      "file": "tests/Test-RepoWiseBoundedIndex.ps1",
-      "reason": "Its Unicode-environment subprocess case fails under the GitHub Windows runner's Python; it passes on the owner's machine."
+      "file": "tests/Test-WindowsNodeMcpResolution.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "Covers the Windows-only MCP launcher rewrite (Program Files node.exe, %APPDATA%\\npm, Hide-Stdio.exe) that Sync-AgentHub.ps1 applies only when $env:OS is Windows_NT; on macOS and Linux the rewrite is intentionally a no-op."
     },
     {
-      "file": "tests/Test-RegistryHostReferences.ps1",
-      "reason": "Fails on main since #70 (dispatch only to Cursor, Grok and Codex): its dispatch-policy case still expects Cursor Agent, Amp and OpenCode enabled and Codex disabled. Remove this entry once the test matches the new policy."
+      "file": "tests/Test-RepoWiseBoundedIndex.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "Invoke-RepoWiseBoundedIndex.ps1 caps the indexer's memory with a Windows Job Object and refuses to run without one; macOS has no equivalent hard per-process-tree memory cap."
+    },
+    {
+      "file": "tests/Test-RepoWiseBridge.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "The RepoWise host plugin launches its bridge through the Windows py/pyw launcher and Start-RepoWiseShared.ps1 under Windows PowerShell 5.1, and the test inspects ports with Get-NetTCPConnection; the shared RepoWise service is a Windows-host integration."
+    },
+    {
+      "file": "tests/Test-UpdateRepoWise.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "Update-RepoWise.ps1 manages the RepoWise upgrade as a Windows Task Scheduler job (schtasks.exe) and resolves uv.exe from Windows install locations."
+    },
+    {
+      "file": "tests/Test-MobileLabGuestSetup.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "The mobile device lab drives a VMware Workstation macOS guest (vmrun.exe) and the Windows Android emulator from a Windows host."
+    },
+    {
+      "file": "tests/Test-MobileLabVmwareStartup.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "Exercises VMware Workstation guest bring-up through vmrun.exe on a Windows host."
+    },
+    {
+      "file": "tests/Test-SyncRepoToGuest.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "Syncs a Windows-host checkout into the VMware macOS guest over the mobile lab's SSH configuration, using Windows tar.exe."
     }
   ]
 }

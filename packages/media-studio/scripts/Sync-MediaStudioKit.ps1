@@ -25,11 +25,21 @@ $marketingTarget = [IO.Path]::GetFullPath((Join-Path $ExecutionContext.SessionSt
 if (-not $Force -and (Test-Path -LiteralPath $marketingTarget)) {
     $running = @()
     try {
-        $running = @(Get-CimInstance -ClassName Win32_Process -Filter "CommandLine LIKE '%mvg.mjs%'" -ErrorAction Stop |
+        $candidates = if ($env:OS -eq 'Windows_NT') {
+            Get-CimInstance -ClassName Win32_Process -Filter "CommandLine LIKE '%mvg.mjs%'" -ErrorAction Stop
+        } else {
+            # macOS and Linux: ps lists every process with its full command line.
+            $psLines = @(& ps -axo 'pid=,command=' 2>$null)
+            if ($LASTEXITCODE -ne 0) { throw 'ps could not list processes' }
+            foreach ($line in $psLines) {
+                if ($line -match '^\s*(\d+)\s+(.*mvg\.mjs.*)$') { [pscustomobject]@{ ProcessId = [int]$Matches[1]; CommandLine = $Matches[2] } }
+            }
+        }
+        $running = @($candidates |
             Where-Object {
                 if ($_.ProcessId -eq $PID -or -not $_.CommandLine) { return $false }
                 $commandLine = $_.CommandLine.Replace('/', '\')
-                $commandLine.IndexOf($marketingTarget, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+                $commandLine.IndexOf($marketingTarget.Replace('/', '\'), [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
                     $commandLine -match '(?:^|[\s"''])(?:\.\\)?mvg\.mjs(?=$|[\s"''])'
             })
     } catch {
@@ -88,14 +98,36 @@ foreach ($rel in $files) {
 $marketingSource = Join-Path $packageKit 'marketing'
 if (Test-Path -LiteralPath $marketingSource) {
     New-Item -ItemType Directory -Force -Path $marketingTarget | Out-Null
-    # Robocopy exit codes 0-7 are success (bit flags for what was copied/extra); 8 and above is failure. A caller with
-    # PSNativeCommandUseErrorActionPreference set would otherwise turn a success code into a terminating error here.
-    $PSNativeCommandUseErrorActionPreference = $false
-    $robocopyOutput = @(& robocopy.exe $marketingSource $marketingTarget /MIR /NJH /NJS /NDL /NP /R:2 /W:1 2>&1)
-    $robocopyExit = $LASTEXITCODE
-    $global:LASTEXITCODE = 0
-    if ($robocopyExit -ge 8) {
-        throw ("Marketing kit mirror failed: robocopy exit code {0} ({1} -> {2}): {3}" -f $robocopyExit, $marketingSource, $marketingTarget, (($robocopyOutput | Select-Object -Last 5) -join ' | '))
+    if ($env:OS -eq 'Windows_NT') {
+        # Robocopy exit codes 0-7 are success (bit flags for what was copied/extra); 8 and above is failure. A caller with
+        # PSNativeCommandUseErrorActionPreference set would otherwise turn a success code into a terminating error here.
+        $PSNativeCommandUseErrorActionPreference = $false
+        $robocopyOutput = @(& robocopy.exe $marketingSource $marketingTarget /MIR /NJH /NJS /NDL /NP /R:2 /W:1 2>&1)
+        $robocopyExit = $LASTEXITCODE
+        $global:LASTEXITCODE = 0
+        if ($robocopyExit -ge 8) {
+            throw ("Marketing kit mirror failed: robocopy exit code {0} ({1} -> {2}): {3}" -f $robocopyExit, $marketingSource, $marketingTarget, (($robocopyOutput | Select-Object -Last 5) -join ' | '))
+        }
+    } else {
+        # Same in-place mirror without robocopy: copy new or changed files (an unchanged file is never rewritten, so a
+        # running pipeline holding it open is undisturbed), then remove destination entries the source no longer has.
+        # The target directory itself is never deleted.
+        $sourceRoot = (Get-Item -LiteralPath $marketingSource).FullName.TrimEnd('/')
+        $targetRoot = (Get-Item -LiteralPath $marketingTarget).FullName.TrimEnd('/')
+        $keep = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($item in Get-ChildItem -LiteralPath $sourceRoot -Recurse -Force) {
+            $relative = $item.FullName.Substring($sourceRoot.Length + 1)
+            [void]$keep.Add($relative)
+            $destination = Join-Path $targetRoot $relative
+            if ($item.PSIsContainer) { New-Item -ItemType Directory -Force -Path $destination | Out-Null; continue }
+            $existing = Get-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+            if ($existing -and -not $existing.PSIsContainer -and $existing.Length -eq $item.Length -and
+                (Get-FileHash -LiteralPath $existing.FullName).Hash -eq (Get-FileHash -LiteralPath $item.FullName).Hash) { continue }
+            Copy-Item -LiteralPath $item.FullName -Destination $destination -Force
+        }
+        foreach ($item in @(Get-ChildItem -LiteralPath $targetRoot -Recurse -Force | Sort-Object { $_.FullName.Length } -Descending)) {
+            if (-not $keep.Contains($item.FullName.Substring($targetRoot.Length + 1))) { Remove-Item -LiteralPath $item.FullName -Recurse -Force }
+        }
     }
 }
 

@@ -12,7 +12,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 . (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
-$pathBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
+$pathBinding = New-AgentHubPathBindingContext -TargetUserProfile $HOME
 $packageRoot = Join-Path $repoRoot 'packages\mobile-development'
 $entrypoint = Join-Path $packageRoot 'mobile.ps1'
 $failures = [Collections.Generic.List[string]]::new()
@@ -47,12 +47,12 @@ function Test-ReadableSkillTree([string]$Source, [string]$Destination) {
     try {
         $sourceFiles = @(
             Get-ChildItem -LiteralPath $Source -Recurse -File -Force |
-                ForEach-Object { $_.FullName.Substring($Source.TrimEnd('\').Length + 1).Replace('\','/') } |
+                ForEach-Object { $_.FullName.Substring($Source.TrimEnd('\', '/').Length + 1).Replace('\','/') } |
                 Sort-Object
         )
         $destinationFiles = @(
             Get-ChildItem -LiteralPath $Destination -Recurse -File -Force |
-                ForEach-Object { $_.FullName.Substring($Destination.TrimEnd('\').Length + 1).Replace('\','/') } |
+                ForEach-Object { $_.FullName.Substring($Destination.TrimEnd('\', '/').Length + 1).Replace('\','/') } |
                 Sort-Object
         )
         if (-not (Test-Sequence $sourceFiles $destinationFiles)) { return $false }

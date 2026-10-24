@@ -79,7 +79,7 @@ function Get-DeployedIds([string]$McpPath, [string]$McpKey) {
     # separators, so it never failed -- it just emitted wrong paths in the
     # failure text a reader would then go chase. Substring avoids both the
     # escaping question and -replace's argument-separator parse trap.
-    $expanded = if ($McpPath.StartsWith('~')) { $env:USERPROFILE + $McpPath.Substring(1) } else { $McpPath }
+    $expanded = if ($McpPath.StartsWith('~')) { $HOME + $McpPath.Substring(1) } else { $McpPath }
     $expanded = $expanded -replace '/', '\'
     $p = [Environment]::ExpandEnvironmentVariables($expanded)
     if (-not (Test-Path -LiteralPath $p)) { return $null }          # null = could not check

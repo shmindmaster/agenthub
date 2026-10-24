@@ -72,14 +72,14 @@ function Get-AgentHubGitTrackedRelativeFiles {
 
 function Get-AgentHubFilesystemRelativeFiles {
     param([Parameter(Mandatory)][string]$Path)
-    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\')
+    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\', '/')
     $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force -ErrorAction SilentlyContinue |
         Where-Object {
             $full = $_.FullName
             # Skip common junk; keep everything else so hash matches disk content.
             $name = $_.Name
             if ($name -eq '.DS_Store' -or $name -eq 'Thumbs.db') { return $false }
-            if ($full -match '\\node_modules\\|\\\.git\\|\\__pycache__\\') { return $false }
+            if ($full -match '[\\/](node_modules|\.git|__pycache__)[\\/]') { return $false }
             return $true
         })
     $rel = foreach ($file in $files) {
@@ -99,7 +99,7 @@ function Get-AgentHubRegistryHashBasisValue {
     }
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return $null }
 
-    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\')
+    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\', '/')
     $normalized = $root.Replace('/', '\')
     $isPersonalOverlayPackage = $normalized -match '(?i)[\\/]overlays[\\/]personal[\\/]packages([\\/]|$)'
     [string[]]$relativePaths = @()

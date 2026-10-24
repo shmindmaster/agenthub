@@ -61,6 +61,70 @@ function Get-AgentHubDefaultHome {
     return $null
 }
 
+# The OS local-data root for the invoking user: %LOCALAPPDATA% on Windows,
+# ~/Library/Application Support on macOS, $XDG_DATA_HOME (~/.local/share)
+# on Linux. Use this instead of reading $env:LOCALAPPDATA directly, which is
+# unset off Windows.
+function Get-AgentHubDefaultLocalData {
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) { return $env:LOCALAPPDATA }
+    $userHome = Get-AgentHubDefaultHome
+    if ([string]::IsNullOrWhiteSpace($userHome)) { return $null }
+    $platformId = Get-AgentHubHostPlatformId
+    if ($platformId -eq 'linux' -and -not [string]::IsNullOrWhiteSpace($env:XDG_DATA_HOME)) { return $env:XDG_DATA_HOME }
+    return (Get-AgentHubPlatformDataRoots -Platform $platformId -UserHome $userHome).LocalData
+}
+
+# Applies an agent's platformPaths.<platform> block: 'executable' replaces the
+# declared executable and 'nativePaths' entries replace (or, when null,
+# clear) the matching nativePaths fields. Hosts whose layout differs by OS
+# record the macOS/Linux locations there; the top-level values stay the
+# Windows layout. Mutates and returns the document.
+function Use-AgentHubPlatformPaths {
+    param(
+        [Parameter(Mandatory)]$AgentsDocument,
+        [string]$Platform
+    )
+    $platformId = Get-AgentHubPlatformId $Platform
+    $hosts = @()
+    foreach ($listName in @('activeAgents', 'inactiveAgents')) {
+        if ($AgentsDocument.PSObject.Properties[$listName] -and $AgentsDocument.$listName) {
+            $hosts += @($AgentsDocument.$listName)
+        }
+    }
+    foreach ($agent in $hosts) {
+        if (-not $agent -or -not $agent.PSObject.Properties['platformPaths'] -or -not $agent.platformPaths) { continue }
+        $override = $agent.platformPaths.PSObject.Properties[$platformId]
+        if (-not $override -or -not $override.Value) { continue }
+        foreach ($prop in $override.Value.PSObject.Properties) {
+            if ($prop.Name -eq 'nativePaths') {
+                if (-not $agent.PSObject.Properties['nativePaths'] -or -not $agent.nativePaths) {
+                    $agent | Add-Member -NotePropertyName nativePaths -NotePropertyValue ([pscustomobject]@{}) -Force
+                }
+                foreach ($pathProp in $prop.Value.PSObject.Properties) {
+                    $agent.nativePaths | Add-Member -NotePropertyName $pathProp.Name -NotePropertyValue $pathProp.Value -Force
+                }
+            } else {
+                $agent | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $prop.Value -Force
+            }
+        }
+    }
+    return $AgentsDocument
+}
+
+# A Windows launcher (.exe/.cmd/.bat/.ps1) has no meaning on macOS or Linux,
+# but its command name does: the same CLI installs onto PATH there. Returns
+# that bare name for a PATH lookup, or $null for GUI app bundles whose names
+# are not commands (capitalized or containing spaces).
+function Get-AgentHubPortableCommandName {
+    param([string]$Executable)
+    if ([string]::IsNullOrWhiteSpace($Executable)) { return $null }
+    $leaf = ($Executable -split '[\\/]')[-1]
+    if ($leaf -notmatch '(?i)\.(exe|cmd|bat|ps1)$') { return $null }
+    $name = $leaf -replace '(?i)\.(exe|cmd|bat|ps1)$', ''
+    if (-not $name -or $name -match '\s' -or $name -cmatch '^[A-Z]') { return $null }
+    return $name
+}
+
 function Join-AgentHubPlatformPath {
     param(
         [string]$Platform,
@@ -70,8 +134,10 @@ function Join-AgentHubPlatformPath {
     $platformId = Get-AgentHubPlatformId $Platform
     if ([string]::IsNullOrWhiteSpace($Child)) { return $Base.TrimEnd('\', '/') }
     if ($platformId -eq 'windows') {
+        # String join, not Join-Path: on a macOS/Linux host Join-Path would
+        # rewrite a Windows target's separators to '/'.
         $relative = $Child.TrimStart('\', '/').Replace('/', '\')
-        return Join-Path ($Base.TrimEnd('\')) $relative
+        return $Base.TrimEnd('\', '/') + '\' + $relative
     }
     $relative = $Child.TrimStart('\', '/').Replace('\', '/')
     return ($Base.TrimEnd('/') + '/' + $relative)
@@ -87,8 +153,8 @@ function Get-AgentHubPlatformDataRoots {
     switch ($platformId) {
         'windows' {
             return [pscustomobject]@{
-                LocalData     = Join-Path $root 'AppData\Local'
-                RoamingConfig = Join-Path $root 'AppData\Roaming'
+                LocalData     = $root + '\AppData\Local'
+                RoamingConfig = $root + '\AppData\Roaming'
             }
         }
         'darwin' {
@@ -204,7 +270,7 @@ function New-AgentHubPathBindingContext {
         [Parameter(Mandatory)][string]$TargetUserProfile,
         [string]$InvokingUserProfile = $(Get-AgentHubDefaultHome),
         [string]$RegistryUserProfile,
-        [string]$LocalAppData = $env:LOCALAPPDATA,
+        [string]$LocalAppData = $(Get-AgentHubDefaultLocalData),
         [string]$RoamingConfig = $env:APPDATA,
         [string]$Platform
     )
@@ -267,7 +333,7 @@ function Get-AgentHubIsolatedLocalData {
     param(
         [Parameter(Mandatory)][string]$TargetUserProfile,
         [string]$InvokingUserProfile = $(Get-AgentHubDefaultHome),
-        [string]$LocalAppData = $env:LOCALAPPDATA,
+        [string]$LocalAppData = $(Get-AgentHubDefaultLocalData),
         [switch]$AlwaysIsolateOnOverride,
         [string]$Platform
     )
@@ -401,7 +467,9 @@ function Resolve-AgentHubBoundPath {
         return Resolve-AgentHubPrefixRebase -Full $Declared -Recorded $recorded -Target ([string]$Context.TargetUserProfile) -Platform $platform
     }
 
-    $full = Get-AgentHubNormalizedDirectory $Declared
+    # A Windows target bound from a macOS/Linux host must not pass through the
+    # host's GetFullPath, which would treat C:\... as a relative path.
+    $full = if ((Get-AgentHubHostPlatformId) -eq 'windows') { Get-AgentHubNormalizedDirectory $Declared } else { $Declared.TrimEnd('\', '/') }
     $target = [string]$Context.TargetUserProfile
     if ($full.Equals($target, [StringComparison]::OrdinalIgnoreCase)) { return $target }
     if ($full.StartsWith($target + '\', [StringComparison]::OrdinalIgnoreCase)) { return $full }
@@ -415,7 +483,7 @@ function Resolve-AgentHubBoundPath {
     if ($full.Equals($recorded, [StringComparison]::OrdinalIgnoreCase)) { return $target }
     $prefix = $recorded + '\'
     if ($full.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
-        return Join-Path $target $full.Substring($recorded.Length + 1)
+        return Join-AgentHubPlatformPath -Platform 'windows' -Base $target -Child $full.Substring($recorded.Length + 1)
     }
     return $full
 }

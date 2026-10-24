@@ -240,6 +240,10 @@ if ($PlanOnly) {
     return
 }
 
+if ($env:OS -ne 'Windows_NT') {
+    throw 'desktop-evidence captures the Windows desktop (FFmpeg gdigrab or GDI CopyFromScreen) and is not available on macOS or Linux. Use browser-evidence for web pages.'
+}
+
 New-Item -ItemType Directory -Path (Split-Path -Parent $outputPath) -Force | Out-Null
 
 if ($Action -eq 'record') {

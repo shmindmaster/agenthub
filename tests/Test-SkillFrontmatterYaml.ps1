@@ -28,7 +28,7 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 }
 
 function New-YamlScratch([string]$Body) {
-    $dir = Join-Path $env:TEMP ('agenthub-yamlfm-' + [guid]::NewGuid().ToString('N'))
+    $dir = Join-Path ([IO.Path]::GetTempPath()) ('agenthub-yamlfm-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
     $path = Join-Path $dir 'SKILL.md'
     [IO.File]::WriteAllText($path, $Body, [Text.UTF8Encoding]::new($false))
@@ -89,7 +89,7 @@ try {
 }
 
 # 6. Directory walk repairs unmanaged skills and skips managed destinations.
-$root = Join-Path $env:TEMP ('agenthub-yamlfm-root-' + [guid]::NewGuid().ToString('N'))
+$root = Join-Path ([IO.Path]::GetTempPath()) ('agenthub-yamlfm-root-' + [guid]::NewGuid().ToString('N'))
 try {
     $badDir = Join-Path $root 'use-railway'
     $goodDir = Join-Path $root 'sarosh-communication'
@@ -118,7 +118,7 @@ try {
 
 # 7. CLI wrapper exists and reports the PASS line.
 $cli = Join-Path $repoRoot 'scripts\Repair-SkillFrontmatterYaml.ps1'
-$cliDir = Join-Path $env:TEMP ('agenthub-yamlfm-cli-' + [guid]::NewGuid().ToString('N'))
+$cliDir = Join-Path ([IO.Path]::GetTempPath()) ('agenthub-yamlfm-cli-' + [guid]::NewGuid().ToString('N'))
 try {
     $skillDir = Join-Path $cliDir 'use-railway'
     New-Item -ItemType Directory -Path $skillDir -Force | Out-Null

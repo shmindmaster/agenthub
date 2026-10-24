@@ -215,10 +215,10 @@ $skillMarkdown = @(
 function Get-EffectiveDestination {
     param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$UserProfile)
     $full = [IO.Path]::GetFullPath($Path)
-    $realProfile = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
-    $effective = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+    $realProfile = [IO.Path]::GetFullPath($HOME).TrimEnd('\', '/')
+    $effective = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\', '/')
     if ($effective -eq $realProfile) { return $full }
-    if ($full.StartsWith($realProfile + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    if ($full.StartsWith($realProfile + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
         return Join-Path $effective $full.Substring($realProfile.Length + 1)
     }
     return $full

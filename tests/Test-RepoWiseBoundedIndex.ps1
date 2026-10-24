@@ -47,7 +47,7 @@ try {
     # low-RAM probe. The public waiver replaces the old test-only range edit.
     $stubRoot = Join-Path $scratch 'stub'
     $null = New-Item -ItemType Directory -Path $stubRoot
-    $shipped = [IO.File]::ReadAllText("$package\scripts\Invoke-RepoWiseBoundedIndex.ps1")
+    $shipped = [IO.File]::ReadAllText((Join-Path $package "scripts\Invoke-RepoWiseBoundedIndex.ps1"))
     $wrapper = Join-Path $stubRoot 'Invoke-RepoWiseBoundedIndex.ps1'
     [IO.File]::WriteAllText($wrapper, $shipped)
     function Get-CimInstance { [pscustomobject]@{ FreePhysicalMemory = 1024 } }

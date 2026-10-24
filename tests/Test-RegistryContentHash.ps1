@@ -126,9 +126,11 @@ function Test-UnavailableGitFailsLoudly {
     $packageDir = Join-Path $repoRoot 'packages\digitalocean'
     $originalPath = $env:PATH
     try {
-        $filtered = ($originalPath -split ';' | Where-Object {
-            $_ -and -not (Test-Path -LiteralPath (Join-Path $_ 'git.exe')) -and -not (Test-Path -LiteralPath (Join-Path $_ 'git.cmd'))
-        }) -join ';'
+        $sep = [IO.Path]::PathSeparator
+        $filtered = ($originalPath -split [regex]::Escape([string]$sep) | Where-Object {
+            $dir = $_
+            $dir -and -not (@('git.exe', 'git.cmd', 'git') | Where-Object { Test-Path -LiteralPath (Join-Path $dir $_) -PathType Leaf })
+        }) -join $sep
         $env:PATH = $filtered
         if (Get-Command git -CommandType Application -ErrorAction SilentlyContinue) {
             return @{ Passed = $false; Detail = 'test setup invalid: git is still resolvable on PATH after filtering' }

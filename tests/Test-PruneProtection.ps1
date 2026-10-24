@@ -54,7 +54,7 @@ Report 'the generic JSON prune keep-set is seeded from the list' $mergeSeeded `
     'Merge-McpServers prunes every JSON host; an unseeded keep-set removes host-owned servers there too.'
 
 # End state: the protected server is still present where its host wrote it.
-$codexConfig = Join-Path $env:USERPROFILE '.codex\config.toml'
+$codexConfig = Join-Path $HOME '.codex\config.toml'
 if (Test-Path -LiteralPath $codexConfig) {
     $cfgText = Get-Content -LiteralPath $codexConfig -Raw -Encoding UTF8
     foreach ($id in $hostOwned) {
@@ -109,7 +109,7 @@ Report 'the host-owned key list is alias-resolved where it is built' `
     ($hostOwnedBuild.Success -and $hostOwnedBuild.Value -match 'Resolve-McpAliasKey') `
     'The writers seed this list raw into their keep-sets, so if construction stops resolving, an aliased host-owned id is pruned.'
 
-$grokConfig = Join-Path $env:USERPROFILE '.grok\config.toml'
+$grokConfig = Join-Path $HOME '.grok\config.toml'
 Report 'deployed grok config is present to check' (Test-Path -LiteralPath $grokConfig) `
     "absent: $grokConfig -- a broken TOML write is one way it goes missing, so this is a failure, not a skip."
 if (Test-Path -LiteralPath $grokConfig) {

@@ -34,7 +34,7 @@ Or: `npx agenthub init` then `npx agenthub validate`.
 - Core must not import `overlays/personal` or a `visibility: private` package as a default dependency.
 - Use official host formats. Do not invent a plugin manifest for a host that has none.
 - Personal names, local runtime roots, and client document paths belong in the overlay, not in `policy-core.md` or tracked host templates.
-- Platforms are Windows, macOS, and Linux. Do not add a second path layout, and do not invent a mobile host path. A `.cmd` / `.exe` / `AppData` pin is Windows-only; do not map it onto `~/Library` or XDG.
+- Platforms are Windows, macOS, and Linux. Do not add a second path layout, and do not invent a mobile host path. A `.cmd` / `.exe` / `AppData` pin is Windows-only; do not map it onto `~/Library` or XDG. When a host's documented location differs by OS, record the macOS/Linux value under that host's `platformPaths.<darwin|linux>` in `registry/agents.json`, with a `note` citing the vendor page it was verified against. Tests and scripts must pass on all three: use `Join-Path`/`[IO.Path]` rather than `\` literals in .NET calls, `[IO.Path]::GetTempPath()` and `$HOME` rather than `$env:TEMP`/`$env:USERPROFILE`, and guard Windows-only cmdlet parameters such as `-WindowStyle`.
 
 ## Checks
 

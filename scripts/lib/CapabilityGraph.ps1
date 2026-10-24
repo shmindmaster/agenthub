@@ -25,7 +25,7 @@ function Get-AgentHubOverlayRoot {
         return $(if ($PassThru) { $resolution } else { $null })
     }
     if (-not [string]::IsNullOrWhiteSpace($env:AGENTHUB_OVERLAY)) {
-        $explicit = [System.IO.Path]::GetFullPath($env:AGENTHUB_OVERLAY).TrimEnd('\')
+        $explicit = [System.IO.Path]::GetFullPath($env:AGENTHUB_OVERLAY).TrimEnd('\', '/')
         if (-not (Test-Path -LiteralPath $explicit)) {
             throw "AGENTHUB_OVERLAY is '$explicit' but that directory does not exist. Pass a real overlay or AGENTHUB_OVERLAY=off."
         }
@@ -241,7 +241,7 @@ function Test-AgentHubOverlayRequired {
     On such a machine the public policy must never be deployed in place of the
     overlay policy: a sync that cannot resolve the overlay must stop.
     #>
-    param([string]$LocalAppData = $env:LOCALAPPDATA)
+    param([string]$LocalAppData = [Environment]::GetFolderPath('LocalApplicationData'))
     if ($env:AGENTHUB_OVERLAY_REQUIRED -eq '1') { return $true }
     if (-not [string]::IsNullOrWhiteSpace($LocalAppData)) {
         $marker = Join-Path $LocalAppData 'AgentHub\overlay-required'
@@ -263,7 +263,7 @@ function Resolve-AgentHubPolicyPath {
     param(
         [Parameter(Mandatory)][string]$RepositoryRoot,
         [switch]$ReportPrimaryCheckout,
-        [string]$LocalAppData = $env:LOCALAPPDATA
+        [string]$LocalAppData = [Environment]::GetFolderPath('LocalApplicationData')
     )
     $public = Join-Path $RepositoryRoot 'global-agent-policy.md'
     $core = Join-Path $RepositoryRoot 'policy-core.md'

@@ -191,8 +191,27 @@ export function buildHostCatalog(ctx, options = {}) {
   return hosts;
 }
 
-/** @param {any} entry @param {PathContext} ctx @returns {HostDescriptor} */
-function describeHost(entry, ctx) {
+/**
+ * Applies the entry's platformPaths.<platform> block, the same merge as
+ * Use-AgentHubPlatformPaths in scripts/lib/PathBinding.ps1: `executable`
+ * replaces the declared executable and `nativePaths` fields replace (or, when
+ * null, clear) the top-level ones.
+ * @param {any} entry @param {Platform} platform @returns {any}
+ */
+export function applyPlatformPaths(entry, platform) {
+  const override = entry?.platformPaths?.[platform];
+  if (!override || typeof override !== 'object') return entry;
+  const merged = { ...entry, nativePaths: { ...(entry.nativePaths ?? {}) } };
+  for (const [key, value] of Object.entries(override)) {
+    if (key === 'nativePaths' && value && typeof value === 'object') Object.assign(merged.nativePaths, value);
+    else merged[key] = value;
+  }
+  return merged;
+}
+
+/** @param {any} rawEntry @param {PathContext} ctx @returns {HostDescriptor} */
+function describeHost(rawEntry, ctx) {
+  const entry = applyPlatformPaths(rawEntry, ctx.platform);
   const paths = entry.nativePaths ?? {};
   const bind = (/** @type {unknown} */ v) => bindPath(v, ctx);
   const join2 = (/** @type {string} */ base, /** @type {string} */ child) =>

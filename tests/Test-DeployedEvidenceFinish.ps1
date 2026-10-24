@@ -17,7 +17,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 . (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
-$pathBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
+$pathBinding = New-AgentHubPathBindingContext -TargetUserProfile $HOME
 $hostExe = (Get-Process -Id $PID).Path
 
 $failures = [Collections.Generic.List[string]]::new()
@@ -37,7 +37,7 @@ function Expand-HomePath([string]$Raw) {
     if (Test-AgentHubPathTemplate $Raw) {
         return Resolve-AgentHubBoundPath -Declared $Raw -Context $pathBinding
     }
-    $x = if ($Raw.StartsWith('~')) { $env:USERPROFILE + $Raw.Substring(1) } else { $Raw }
+    $x = if ($Raw.StartsWith('~')) { $HOME + $Raw.Substring(1) } else { $Raw }
     $x = $x -replace '/', '\'
     return [Environment]::ExpandEnvironmentVariables($x)
 }
@@ -85,15 +85,15 @@ Report 'at least one deployed desktop-evidence copy exists on this workstation' 
 Report 'deployed desktop-evidence copies name Capture-Screen' ($staleDesktop.Count -eq 0) `
     ($staleDesktop -join '; ')
 
-$cursorDesktop = Join-Path $env:USERPROFILE '.cursor\skills\desktop-evidence\SKILL.md'
+$cursorDesktop = Join-Path $HOME '.cursor\skills\desktop-evidence\SKILL.md'
 Report 'Cursor skillsDir has desktop-evidence (cursor-agent reads this path, not only the plugin junction)' `
     (Test-Path -LiteralPath $cursorDesktop) `
     "missing $cursorDesktop"
 
 $pluginFinish = [Collections.Generic.List[string]]::new()
 foreach ($cacheRoot in @(
-        (Join-Path $env:USERPROFILE '.claude\plugins\cache\agenthub\media-studio'),
-        (Join-Path $env:USERPROFILE '.codex\plugins\cache\agenthub\media-studio')
+        (Join-Path $HOME '.claude\plugins\cache\agenthub\media-studio'),
+        (Join-Path $HOME '.codex\plugins\cache\agenthub\media-studio')
     )) {
     if (-not (Test-Path -LiteralPath $cacheRoot)) { continue }
     Get-ChildItem -LiteralPath $cacheRoot -Recurse -Filter 'Finish-Media.ps1' -File -ErrorAction SilentlyContinue |

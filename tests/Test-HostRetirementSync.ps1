@@ -1,6 +1,7 @@
 #Requires -Version 5.1
 # Synthetic active companion prevents a no-op implementation passing retirement.
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\TestPlatform.ps1')
 $root = Split-Path -Parent $PSScriptRoot
 $scratch = Join-Path ([IO.Path]::GetTempPath()) ('retired-sync-' + [Guid]::NewGuid().ToString('N'))
 $fixture = Join-Path $scratch 'source'
@@ -12,16 +13,16 @@ $live = @{ id='fixture-active'; status='active'; name='Synthetic Active'
     nativePaths=@{ instructions="$profile\active\AGENTS.md"; skillsDir="$profile\active\skills" } }
 $retired = @{ id='hermes'; status='retired'; name='Synthetic Retired'
     nativePaths=@{ instructions="$profile\retired\SOUL.md"; skillsDir="$profile\retired\skills" } }
-@{userProfile=$env:USERPROFILE; activeAgents=@($live,$retired); inactiveAgents=@()} |
+@{userProfile=$HOME; activeAgents=@($live,$retired); inactiveAgents=@()} |
     ConvertTo-Json -Depth 10 | Set-Content -LiteralPath "$registry\agents.json"
 @{capabilities=@(@{id='sample';owner='test';canonicalSource='packages/sample'
     hostMappings=@(@{hostId='fixture-active';deploymentStatus='managed'},@{hostId='hermes';deploymentStatus='managed'})})} |
     ConvertTo-Json -Depth 10 | Set-Content -LiteralPath "$registry\capabilities.json"
-[IO.File]::WriteAllText("$skill\SKILL.md", "---`nname: sample`ndescription: Synthetic`n---`nSynthetic.")
-[IO.File]::WriteAllText("$fixture\global-agent-policy.md", "# Synthetic policy`n")
+[IO.File]::WriteAllText((Join-Path $skill "SKILL.md"), "---`nname: sample`ndescription: Synthetic`n---`nSynthetic.")
+[IO.File]::WriteAllText((Join-Path $fixture "global-agent-policy.md"), "# Synthetic policy`n")
 $previous = $env:LOCALAPPDATA
 try {
-    $env:LOCALAPPDATA = Join-Path $profile 'AppData\Local'
+    $env:LOCALAPPDATA = (Get-TestProfileLocalData $profile)
     & (Get-Process -Id $PID).Path -NoProfile -File "$root\scripts\Sync-Capabilities.ps1" `
         -Apply -IncludeInactiveAgents -RepositoryRoot $fixture -UserProfile $profile *> $null
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath "$profile\active\skills\sample\SKILL.md") -or
@@ -32,14 +33,14 @@ try {
         (Test-Path -LiteralPath "$profile\retired")) { throw 'Retired instruction deployment guard failed.' }
     foreach ($schema in @(2,1)) {
         $retired.status = 'active'
-        @{userProfile=$env:USERPROFILE; activeAgents=@($live,$retired); inactiveAgents=@()} |
+        @{userProfile=$HOME; activeAgents=@($live,$retired); inactiveAgents=@()} |
             ConvertTo-Json -Depth 10 | Set-Content -LiteralPath "$registry\agents.json"
-        [IO.File]::WriteAllText("$skill\SKILL.md", "---`r`nname: sample`r`ndescription: Synthetic`r`n---`r`nSynthetic.")
+        [IO.File]::WriteAllText((Join-Path $skill "SKILL.md"), "---`r`nname: sample`r`ndescription: Synthetic`r`n---`r`nSynthetic.")
         & (Get-Process -Id $PID).Path -NoProfile -File "$root\scripts\Sync-Capabilities.ps1" `
             -Apply -RepositoryRoot $fixture -UserProfile $profile *> $null
         if ($LASTEXITCODE -ne 0) { throw 'Active retirement fixture setup failed.' }
-        $destination = "$profile\retired\skills\sample"
-        $statePath = "$env:LOCALAPPDATA\AgentHub\sync\managed-skills.json"
+        $destination = Join-Path $profile 'retired\skills\sample'
+        $statePath = Join-Path $env:LOCALAPPDATA 'AgentHub\sync\managed-skills.json'
         $state = Get-Content -LiteralPath $statePath -Encoding UTF8 -Raw | ConvertFrom-Json
         if ($schema -eq 1) {
             $sha = [Security.Cryptography.SHA256]::Create()
@@ -54,7 +55,7 @@ try {
         }
         $originalHash = $state.managed.PSObject.Properties[$destination].Value.hash
         $retired.status = 'retired'
-        @{userProfile=$env:USERPROFILE; activeAgents=@($live,$retired); inactiveAgents=@()} |
+        @{userProfile=$HOME; activeAgents=@($live,$retired); inactiveAgents=@()} |
             ConvertTo-Json -Depth 10 | Set-Content -LiteralPath "$registry\agents.json"
         & (Get-Process -Id $PID).Path -NoProfile -File "$root\scripts\Sync-Capabilities.ps1" `
             -Apply -RepositoryRoot $fixture -UserProfile $profile *> $null
@@ -63,7 +64,7 @@ try {
             $state.managed.PSObject.Properties[$destination].Value.hash -ne $originalHash) {
             throw "Retired ownership lost before prune (schema $schema)."
         }
-        $original = [IO.File]::ReadAllText("$destination\SKILL.md")
+        $original = [IO.File]::ReadAllText((Join-Path $destination "SKILL.md"))
         Add-Content -LiteralPath "$destination\SKILL.md" -Value 'owner edit'
         & (Get-Process -Id $PID).Path -NoProfile -File "$root\scripts\Sync-Capabilities.ps1" `
             -Apply -Prune -RepositoryRoot $fixture -UserProfile $profile *> $null
@@ -72,7 +73,7 @@ try {
             $state.managed.PSObject.Properties[$destination].Value.hash -ne $originalHash) {
             throw "Modified retired copy lost protection (schema $schema)."
         }
-        [IO.File]::WriteAllText("$destination\SKILL.md", $original)
+        [IO.File]::WriteAllText((Join-Path $destination "SKILL.md"), $original)
         & (Get-Process -Id $PID).Path -NoProfile -File "$root\scripts\Sync-Capabilities.ps1" `
             -Apply -Prune -RepositoryRoot $fixture -UserProfile $profile *> $null
         $state = Get-Content -LiteralPath $statePath -Encoding UTF8 -Raw | ConvertFrom-Json

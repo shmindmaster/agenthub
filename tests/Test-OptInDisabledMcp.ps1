@@ -80,7 +80,7 @@ $sync = Get-Content (Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1') -Raw -Enco
 Report 'sync reads optInDisabledLocalMcpIds' ($sync -match 'optInDisabledLocalMcpIds') 'Sync-AgentHub does not consume the list'
 Report 'sync reads optInDisabledHosts' ($sync -match 'optInDisabledHosts') 'Sync-AgentHub does not consume the host list'
 
-$oc = Join-Path $env:USERPROFILE '.config\opencode\opencode.json'
+$oc = Join-Path $HOME '.config\opencode\opencode.json'
 if (Test-Path $oc) {
     $oj = Get-Content $oc -Raw -Encoding UTF8 | ConvertFrom-Json
     Report 'OpenCode has no retired Chrome DevTools entry' ($null -eq $oj.mcp.'chrome-devtools') 'retired entry remains'

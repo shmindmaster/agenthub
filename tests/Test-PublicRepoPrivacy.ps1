@@ -57,7 +57,7 @@ foreach ($relative in Get-TrackedFiles) {
     if ($relative -notmatch $textExtensions -and (Split-Path -Leaf $relative) -notmatch '^(LICENSE|\.gitignore|\.gitattributes|\.env\.example)$') { continue }
     $full = Join-Path $repoRoot $relative
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { continue }
-    if ((Get-Item -LiteralPath $full).Length -gt 2MB) { continue }
+    if ((Get-Item -LiteralPath $full -Force).Length -gt 2MB) { continue }
     $files.Add([pscustomobject]@{ Relative = ($relative -replace '\\', '/'); Text = [IO.File]::ReadAllText($full) })
 }
 if ($files.Count -lt 50) { throw "Only $($files.Count) tracked text files were found under $repoRoot; the scan would be vacuous." }

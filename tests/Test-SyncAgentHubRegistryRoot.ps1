@@ -23,6 +23,7 @@ Run: pwsh -NoProfile -File tests/Test-SyncAgentHubRegistryRoot.ps1
 param()
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\TestPlatform.ps1')
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 . (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
 $syncScript = Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1'
@@ -162,7 +163,7 @@ function Test-NoRegistryRootSelfDerivesFromScriptLocation {
 # must actually redirect where runtime state (the drift report) is written. ---
 function Test-UserProfileOverrideRedirectsRuntimeState {
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-userprofile-override-" + [guid]::NewGuid())
-    $expectedDriftPath = Join-Path $userProfile 'AppData\Local\AgentHub\sync\latest-drift.json'
+    $expectedDriftPath = Join-Path (Get-TestProfileLocalData $userProfile) 'AgentHub\sync\latest-drift.json'
     try {
         $result = Invoke-SyncAgentHub -ExtraArgs @('-UserProfile', $userProfile)
         if ($result.ExitCode -ne 0) {
@@ -189,13 +190,13 @@ function Test-UserProfileOverrideRedirectsRuntimeState {
 function Test-UserProfileRebasesHostDestinations {
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-syncah-hostdest-" + [guid]::NewGuid())
     New-Item -ItemType Directory -Path $userProfile -Force | Out-Null
-    $realProfile = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
+    $realProfile = [IO.Path]::GetFullPath($HOME).TrimEnd('\', '/')
     try {
         $result = Invoke-SyncAgentHub -ExtraArgs @('-UserProfile', $userProfile)
         if ($result.ExitCode -ne 0) {
             return @{ Passed = $false; Detail = "-Audit exit code was $($result.ExitCode). Output: $($result.Output)" }
         }
-        $driftPath = Join-Path $userProfile 'AppData\Local\AgentHub\sync\latest-drift.json'
+        $driftPath = Join-Path (Get-TestProfileLocalData $userProfile) 'AgentHub\sync\latest-drift.json'
         if (-not (Test-Path -LiteralPath $driftPath)) {
             return @{ Passed = $false; Detail = "no drift report was written under the supplied profile (expected $driftPath)." }
         }
@@ -215,29 +216,30 @@ function Test-UserProfileRebasesHostDestinations {
         # flags correctly-rebased paths.
         $declared = @{}
         $agentsDoc = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        # Bind through the host catalog, as the sync engine does, so each host's
+        # per-OS platformPaths apply and Windows-only pins drop off Windows.
+        . (Join-Path $repoRoot 'scripts\lib\HostCatalog.ps1')
+        Import-AgentHubBoundHostCatalog -AgentsDocument $agentsDoc -Context (New-AgentHubPathBindingContext -TargetUserProfile $realProfile) | Out-Null
         foreach ($agent in @(@($agentsDoc.activeAgents) + @($agentsDoc.inactiveAgents))) {
             if (-not $agent.nativePaths) { continue }
             foreach ($property in @($agent.nativePaths.PSObject.Properties)) {
-                $candidate = $property.Value
-                # nativePaths also carries prose notes, so filter to
-                # rooted paths rather than calling GetFullPath on everything --
-                # .NET Framework throws "Illegal characters in path" on the rest.
-                if ($candidate -is [string] -and (Test-AgentHubBindablePathValue $candidate)) {
-                    $materialized = Resolve-AgentHubBoundPath -Declared $candidate -Context (New-AgentHubPathBindingContext -TargetUserProfile $realProfile)
-                    if ($materialized.Length -ge 3 -and $materialized[1] -eq ':' -and $materialized[2] -eq '\') {
-                        $declared[$materialized.TrimEnd('\')] = $true
-                    }
+                $materialized = $property.Value
+                # nativePaths also carries prose notes; keep only bound absolute paths.
+                $isDrivePath = $materialized -is [string] -and $materialized.Length -ge 3 -and $materialized[1] -eq ':' -and $materialized[2] -eq '\'
+                $isPosixPath = $materialized -is [string] -and $materialized.StartsWith('/') -and -not $materialized.StartsWith('//')
+                if ($isDrivePath -or $isPosixPath) {
+                    $declared[$materialized.TrimEnd('\', '/')] = $true
                 }
             }
         }
         if ($declared.Count -eq 0) {
             return @{ Passed = $false; Detail = 'registry/agents.json declared zero nativePaths, so this assertion checked nothing.' }
         }
-        $leaked = @($paths | Where-Object { $declared.ContainsKey($_.TrimEnd('\')) })
+        $leaked = @($paths | Where-Object { $declared.ContainsKey($_.TrimEnd('\', '/')) })
         if ($leaked.Count -gt 0) {
             return @{ Passed = $false; Detail = "-UserProfile did not rebase host destinations; $($leaked.Count) still point at the registry's real declared paths, e.g. $($leaked[0])" }
         }
-        $rebased = @($paths | Where-Object { $_.StartsWith($userProfile + '\', [StringComparison]::OrdinalIgnoreCase) })
+        $rebased = @($paths | Where-Object { $_.StartsWith($userProfile + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) })
         if ($rebased.Count -eq 0) {
             return @{ Passed = $false; Detail = "no destination path landed under the supplied -UserProfile, so nothing was actually rebased. Paths: $($paths -join '; ')" }
         }
@@ -271,7 +273,8 @@ function Test-UnrebasablePathShapeFailsLoudly {
         if ($result.ExitCode -eq 0) {
             return @{ Passed = $false; Detail = "exit code was 0 against a UNC nativePaths value that cannot be rebased. Output: $($result.Output)" }
         }
-        if ($result.Output -notmatch 'rebasing does not support') {
+        # pwsh's error view wraps long messages at the console width ("     | " continuation lines).
+        if ($result.Output -notmatch 'rebasing[\s|]+does[\s|]+not[\s|]+support') {
             return @{ Passed = $false; Detail = "failed, but not with the unrebasable-shape message -- it may have failed for an unrelated reason, which would make this assertion vacuous. Output: $($result.Output)" }
         }
         return @{ Passed = $true; Detail = $null }

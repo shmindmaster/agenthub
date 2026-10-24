@@ -7,6 +7,11 @@
       "name": "Claude Code",
       "version": "2.1.304",
       "executable": "{userHome}/.local/bin/claude.exe",
+      "platformPaths": {
+        "darwin": { "executable": "{userHome}/.local/bin/claude" },
+        "linux": { "executable": "{userHome}/.local/bin/claude" },
+        "note": "Verified 2026-10-24 against https://code.claude.com/docs/en/troubleshoot-install: the native installer places claude at ~/.local/bin/claude on macOS/Linux and %USERPROFILE%\\.local\\bin\\claude.exe on Windows. Config (~/.claude, ~/.claude.json) is in the home directory on every OS."
+      },
       "nativePaths": {
         "settings": "{userHome}/.claude/settings.json",
         "instructions": "{userHome}/.claude/CLAUDE.md",
@@ -238,7 +243,8 @@
       "versionProbe": "file-version",
       "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed 2.24.0.",
       "nativePaths": {
-        "configHome": "{userHome}/AppData/Roaming/Antigravity",
+        "configHome": "{roamingConfig}/Antigravity",
+        "configHomeNote": "Electron user-data directory: %APPDATA%\\Antigravity on Windows, ~/Library/Application Support/Antigravity on macOS, ~/.config/Antigravity on Linux (app.getPath('userData'); observed on all three by https://seanthegeek.net/doubleagent/collectors/research/antigravity.html, checked 2026-10-24).",
         "instructions": null,
         "instructionsOwnedBy": "gemini",
         "verification": "documented-shared-destination",
@@ -263,7 +269,7 @@
       "versionProbeNote": "No installed executable was located in the documented survey; version is unknown rather than the historical installed value. Restore file-version without launching the GUI when an actual installation is resolved.",
       "nativePaths": {
         "configHome": "{userHome}/.antigravity-ide",
-        "settings": "{userHome}/AppData/Roaming/Antigravity IDE/User/settings.json",
+        "settings": "{roamingConfig}/Antigravity IDE/User/settings.json",
         "instructions": null,
         "instructionsOwnedBy": "gemini",
         "verification": "documented-shared-destination",
@@ -320,6 +326,27 @@
       "name": "Warp / Oz",
       "version": "0.2026.10.14.08.27.stable_03",
       "executable": "{userHome}/AppData/Local/Programs/Warp/warp.exe",
+      "platformPaths": {
+        "windows": {
+          "nativePaths": {
+            "worktreeTabConfig": "{roamingConfig}/warp/Warp/data/tab_configs/agenthub_worktree.toml"
+          }
+        },
+        "darwin": {
+          "executable": "{userHome}/.local/bin/warp",
+          "nativePaths": {
+            "configHome": "{userHome}/.warp"
+          }
+        },
+        "linux": {
+          "executable": "{userHome}/.local/bin/warp",
+          "nativePaths": {
+            "configHome": "{roamingConfig}/warp-terminal",
+            "worktreeTabConfig": "{localData}/warp-terminal/tab_configs/agenthub_worktree.toml"
+          }
+        },
+        "note": "Verified 2026-10-24 against https://docs.warp.dev/terminal/settings/file-locations/: Windows reads tab configs only from %APPDATA%\\warp\\Warp\\data\\tab_configs (not ~/.warp/tab_configs); macOS keeps Warp files under ~/.warp (tab configs in ~/.warp/tab_configs); Linux uses ${XDG_CONFIG_HOME:-~/.config}/warp-terminal for config and ${XDG_DATA_HOME:-~/.local/share}/warp-terminal/tab_configs for tab configs; MCP config (~/.warp/.mcp.json) and skills (~/.warp/skills) are in the home directory on every OS; the Warp Agent CLI install script links ~/.local/bin/warp on macOS and Linux."
+      },
       "versionProbe": "file-version",
       "versionProbeNote": "This is a GUI terminal app whose declared executable is the main window binary with no separate CLI entry point. Read (Get-Item $exe).VersionInfo.FileVersion without launching the window; normalize the leading v. Current observed version is recorded in versionObserved.",
       "nativePaths": {
@@ -328,7 +355,7 @@
         "skillsDir": "{userHome}/.warp/skills",
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "sharedSkillsDirNote": "Added 2026-08-04 against docs.warp.dev/agent-platform/capabilities/skills (subject confirmed: skills, not the rules or MCP page). Warp documents a root-scope skill search that mirrors its project scope and names ~/.agents/skills first as the recommended directory, alongside ~/.warp/skills, ~/.claude/skills, ~/.codex/skills, ~/.cursor/skills, ~/.gemini/skills, ~/.copilot/skills, ~/.factory/skills, ~/.github/skills and ~/.opencode/skills. Warp is therefore the one host that already reads the other hosts' directories, so its private copy under ~/.warp/skills was redundant with skills it could already see. skillsDir is retained because it remains a documented Warp-native location; sharedSkillsDir records where AgentHub deploys.",
-        "configHome": "{userHome}/AppData/Roaming/warp",
+        "configHome": "{roamingConfig}/warp",
         "instructions": null,
         "verification": "documented-no-global-file",
         "instructionsNote": "Verified 2026-10-23 against https://docs.warp.dev/agents/capabilities/rules/: Global Rules are managed in Warp Drive > Personal > Rules; documented file-based AGENTS.md/WARP.md rules are project-scoped. No documented global file destination established. instructions remains null; this audit does not claim Warp Drive rules or an existing session received the canonical policy."
@@ -427,6 +454,17 @@
       "name": "Cursor Agent CLI",
       "version": "2026.10.19-6bbf2c4",
       "executable": "{userHome}/bin/cursor-agent.cmd",
+      "platformPaths": {
+        "darwin": {
+          "executable": "{userHome}/.local/bin/cursor-agent",
+          "nativePaths": { "vendorExecutable": "{userHome}/.local/bin/cursor-agent" }
+        },
+        "linux": {
+          "executable": "{userHome}/.local/bin/cursor-agent",
+          "nativePaths": { "vendorExecutable": "{userHome}/.local/bin/cursor-agent" }
+        },
+        "note": "Verified 2026-10-24 against https://cursor.com/docs/cli/installation and the install script it runs (https://cursor.com/install): on macOS and Linux the CLI unpacks into ~/.local/share/cursor-agent/versions/<build> and links ~/.local/bin/agent and ~/.local/bin/cursor-agent. ~/.cursor/cli-config.json is the same on every OS."
+      },
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/cursor-agent/cursor-agent.cmd",
         "config": "{userHome}/.cursor/cli-config.json",
@@ -489,6 +527,18 @@
       "name": "Devin Desktop / CLI",
       "version": "3000.11.92",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
+      "platformPaths": {
+        "darwin": {
+          "nativePaths": {
+            "config": "{userHome}/.config/devin/config.json",
+            "skillsDir": "{userHome}/.config/devin/skills",
+            "pluginsDir": "{userHome}/.config/devin/cli/plugins",
+            "agentsDir": "{userHome}/.config/devin/agents",
+            "instructions": "{userHome}/.config/devin/AGENTS.md"
+          }
+        },
+        "note": "Verified 2026-10-24 against https://docs.devin.ai/cli/reference/configuration/global-vs-local: user configuration is the XDG path ~/.config/devin on macOS and Linux and %APPDATA%\\devin on Windows. {roamingConfig} already resolves to %APPDATA% on Windows and ${XDG_CONFIG_HOME:-~/.config} on Linux; only macOS, where {roamingConfig} is ~/Library/Application Support, needs the explicit override."
+      },
       "nativePaths": {
         "config": "{roamingConfig}/devin/config.json",
         "skillsDir": "{roamingConfig}/devin/skills",

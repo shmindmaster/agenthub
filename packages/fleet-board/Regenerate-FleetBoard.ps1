@@ -22,13 +22,13 @@ passing -BoardExportPath explicitly.
 #>
 [CmdletBinding()]
 param(
-    [string]$GoalsRuntimeRoot = (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\goals'),
+    [string]$GoalsRuntimeRoot = '',
     [string]$CodexProgramsRoot = '',
-    [string]$CodexSessionsRoot = (Join-Path $env:USERPROFILE '.codex\sessions'),
-    [string]$DispatchLogRoot = (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch'),
+    [string]$CodexSessionsRoot = (Join-Path $HOME '.codex\sessions'),
+    [string]$DispatchLogRoot = '',
     [string]$LeasePath = '',
     [string]$FleetProfilePath = '',
-    [string]$BoardPath = (Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\fleet-board\FLEET-BOARD.md'),
+    [string]$BoardPath = '',
     [string]$BoardExportPath = '',
     [string[]]$Repositories = @(),
     [string[]]$ProcessNames = @('codex', 'claude', 'grok', 'agy', 'droid', 'cline', 'gemini', 'cursor-agent', 'amp', 'copilot'),
@@ -38,9 +38,15 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
-if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
-    throw 'LOCALAPPDATA is required for the default runtime output path.'
+# The AgentHub runtime lives under the OS local-data root: %LOCALAPPDATA% on
+# Windows, ~/Library/Application Support on macOS, ~/.local/share on Linux.
+$localData = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { [Environment]::GetFolderPath('LocalApplicationData') }
+if ([string]::IsNullOrWhiteSpace($localData)) {
+    throw 'Could not resolve the OS local-data directory for the default runtime output path.'
 }
+if ([string]::IsNullOrWhiteSpace($GoalsRuntimeRoot)) { $GoalsRuntimeRoot = Join-Path $localData 'AgentHub\runtime\goals' }
+if ([string]::IsNullOrWhiteSpace($DispatchLogRoot)) { $DispatchLogRoot = Join-Path $localData 'AgentHub\runtime\coding-agent-dispatch' }
+if ([string]::IsNullOrWhiteSpace($BoardPath)) { $BoardPath = Join-Path $localData 'AgentHub\runtime\fleet-board\FLEET-BOARD.md' }
 if ([string]::IsNullOrWhiteSpace($FleetProfilePath)) {
     $candidateRoot = $env:AGENTHUB_ROOT
     if ($candidateRoot -and (Test-Path -LiteralPath (Join-Path $candidateRoot 'registry\fleet-profile.json'))) {
@@ -198,10 +204,31 @@ $ramLine = 'not checked (SkipMachineState)'
 $gpuLine = 'not checked (SkipMachineState)'
 $procLine = 'not checked (SkipProcesses)'
 if (-not $SkipMachineState) {
-    $os = Get-CimInstance Win32_OperatingSystem
-    $freeGiB = [math]::Round($os.FreePhysicalMemory / 1MB, 2)
-    $totalGiB = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
-    $ramLine = "Free RAM: $freeGiB GiB of $totalGiB GiB (Win32_OperatingSystem). The heavy-work gate is 4 GiB."
+    if ($env:OS -eq 'Windows_NT') {
+        $os = Get-CimInstance Win32_OperatingSystem
+        $freeGiB = [math]::Round($os.FreePhysicalMemory / 1MB, 2)
+        $totalGiB = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
+        $ramSource = 'Win32_OperatingSystem'
+    } elseif (Test-Path -LiteralPath '/proc/meminfo') {
+        $meminfo = @{}
+        foreach ($line in [IO.File]::ReadAllLines('/proc/meminfo')) {
+            if ($line -match '^(\w+):\s+(\d+)\s+kB') { $meminfo[$Matches[1]] = [double]$Matches[2] }
+        }
+        $freeGiB = [math]::Round($meminfo['MemAvailable'] / 1MB, 2)
+        $totalGiB = [math]::Round($meminfo['MemTotal'] / 1MB, 2)
+        $ramSource = '/proc/meminfo MemAvailable'
+    } else {
+        # macOS: free + inactive pages from vm_stat, total from sysctl.
+        $pageSize = 4096; $pages = 0
+        foreach ($line in @(& vm_stat 2>$null)) {
+            if ($line -match 'page size of (\d+) bytes') { $pageSize = [int]$Matches[1] }
+            if ($line -match '^Pages (free|inactive|speculative):\s+(\d+)') { $pages += [double]$Matches[2] }
+        }
+        $freeGiB = [math]::Round($pages * $pageSize / 1GB, 2)
+        $totalGiB = [math]::Round([double](& sysctl -n hw.memsize 2>$null) / 1GB, 2)
+        $ramSource = 'vm_stat free+inactive'
+    }
+    $ramLine = "Free RAM: $freeGiB GiB of $totalGiB GiB ($ramSource). The heavy-work gate is 4 GiB."
     $smi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
     if ($smi) {
         $raw = & $smi.Source --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader 2>$null

@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import pathlib
+import stat
 import subprocess
 import sys
 import tempfile
@@ -108,6 +109,18 @@ class LedgerTests(unittest.TestCase):
             self.assertTrue(linked_path(self.root))
         self.assertFalse(linked_path(self.root / "absent"))
 
+    @unittest.skipIf(os.name == "nt", "POSIX symlink ownership")
+    def test_root_owned_os_links_pass_but_user_or_writable_dir_links_are_refused(self):
+        def stats(link_uid, parent_mode):
+            return [SimpleNamespace(st_mode=stat.S_IFLNK | 0o755, st_uid=link_uid),
+                    SimpleNamespace(st_mode=stat.S_IFDIR | parent_mode, st_uid=0)]
+        with patch.object(pathlib.Path, "lstat", side_effect=stats(0, 0o755)):
+            self.assertFalse(linked_path(pathlib.Path("/var")))  # macOS /var -> private/var
+        with patch.object(pathlib.Path, "lstat", side_effect=stats(501, 0o755)):
+            self.assertTrue(linked_path(pathlib.Path("/var")))
+        with patch.object(pathlib.Path, "lstat", side_effect=stats(0, 0o1777)):
+            self.assertTrue(linked_path(pathlib.Path("/tmp/planted")))
+
     def test_default_relocation_reuses_existing_accounting_and_namespace(self):
         salt = self.root / "namespace-salt"
         salt.write_bytes(b"s" * 32)
@@ -144,7 +157,7 @@ class LedgerTests(unittest.TestCase):
         manifest.write_text(json.dumps(policy))
         path_class = type(self.root)
         with patch.dict(os.environ, {"LOCALAPPDATA": str(self.root)}), \
-                patch("content_runtime.os.name", "nt"), \
+                patch("content_runtime.running_on_windows", return_value=True), \
                 patch("content_runtime.secure_directory", side_effect=lambda p: p.mkdir(parents=True, exist_ok=True)):
             # Avoid platform-dependent Path construction while still exercising
             # the Windows default-root environment selection.
@@ -171,7 +184,7 @@ class LedgerTests(unittest.TestCase):
         manifest=self.root/'first.json'; manifest.write_text(json.dumps(policy))
         original_raw=manifest.read_bytes(); path_class=type(self.root)
         with patch.dict(os.environ,{"LOCALAPPDATA":str(self.root)}), \
-                patch("content_runtime.os.name","nt"), \
+                patch("content_runtime.running_on_windows",return_value=True), \
                 patch("content_runtime.secure_directory",side_effect=lambda p:p.mkdir(parents=True,exist_ok=True)), \
                 patch("content_runtime.pathlib.Path",path_class):
             first_ledger=recovery_epoch_ledger(manifest,"fixture",first,"eleven_flash_v2_5")

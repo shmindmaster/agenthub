@@ -34,7 +34,7 @@ foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KE
     $oldApiKeyVars[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     [Environment]::SetEnvironmentVariable($name, 'synthetic-dispatch-fixture', 'Process')
 }
-$fixture = Join-Path $env:TEMP ('cad fixture ' + [guid]::NewGuid().ToString('n'))
+$fixture = Join-Path ([IO.Path]::GetTempPath()) ('cad fixture ' + [guid]::NewGuid().ToString('n'))
 try {
     foreach ($dir in @('registry','scripts\lib','scratch','logs')) { $null = New-Item -ItemType Directory -Path (Join-Path $fixture $dir) -Force }
     Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1') -Destination (Join-Path $fixture 'scripts\lib\PathBinding.ps1')
@@ -55,9 +55,17 @@ if (settingsIndex >= 0 && fs.existsSync(args[settingsIndex + 1])) ampSettings = 
 console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
 if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
-    $stub = Join-Path $fixture 'fake agent.cmd'
     $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
-    [IO.File]::WriteAllText($stub, "@echo off`r`n`"$node`" `"$recorder`" %*`r`n")
+    if ($env:OS -eq 'Windows_NT') {
+        $stub = Join-Path $fixture 'fake agent.cmd'
+        [IO.File]::WriteAllText($stub, "@echo off`r`n`"$node`" `"$recorder`" %*`r`n")
+    } else {
+        # An executable script stands in for the agent CLI; the space in its
+        # name keeps the argument-quoting coverage the .cmd stub has.
+        $stub = Join-Path $fixture 'fake agent'
+        [IO.File]::WriteAllText($stub, "#!/bin/sh`nexec '$node' '$recorder' `"`$@`"`n")
+        [IO.File]::SetUnixFileMode($stub, [IO.UnixFileMode]'UserRead, UserWrite, UserExecute')
+    }
     $ids = @('claude','codex','cursor','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
     $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium-lightning' }; opencode = @{ model = 'opencode/glm-5.3-flash' } } }
@@ -68,6 +76,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Save-Fixture
     $env:AGENTHUB_ROOT = $fixture; $env:LOCALAPPDATA = Join-Path $fixture 'logs'
     $scratch = Join-Path $fixture 'scratch'
+    # A child reports its cwd with symlinks resolved (macOS temp lives under /var -> /private/var).
+    $scratchReal = (& $node -e 'process.stdout.write(require("fs").realpathSync(process.argv[1]))' $scratch)
     $r = Run @('-List')
     Check 'list succeeds' ($r.Exit -eq 0) $r.Err
     $fleet.dispatchPolicy['codex'] = @{ enabled = $false; reason = 'response capture is not verified'; ownerAction = 'run a bounded smoke after the output fix' }; Save-Fixture
@@ -84,6 +94,12 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     foreach ($id in @('claude','codex','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp')) {
         $r = Run @('-HostId',$id,'-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+        if ($id -eq 'copilot' -and $r.Exit -eq 3 -and $r.Err -match 'gh has no token for account sh-pendoah') {
+            # Copilot dispatch reads the owner's sh-pendoah gh login; without it the
+            # dispatcher must refuse before launching anything.
+            Check 'copilot refuses without the owner gh account' $true
+            continue
+        }
         $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
         Check "$id launches synthetic child" ($r.Exit -eq 0 -and $null -ne $d) $r.Err
         if ($id -eq 'codex') {
@@ -122,7 +138,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         if ($id -eq 'opencode') {
             Check 'OpenCode receives paid plan model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'opencode/glm-5.3-flash')
             Check 'OpenCode Go account uses no API key override' (-not $d.ApiKeyVars.OPENCODE_GO_API_KEY -and -not $d.ApiKeyVars.OPENCODE_API_KEY)
-            Check 'OpenCode 2 uses native process cwd without obsolete flag' ($d.Cwd -eq $scratch -and $d.Arguments -notcontains '--dir')
+            Check 'OpenCode 2 uses native process cwd without obsolete flag' ($d.Cwd -in @($scratch, $scratchReal) -and $d.Arguments -notcontains '--dir')
         }
         if ($id -eq 'warp') { Check 'Warp account auth uses no API key override' (-not $d.ApiKeyVars.WARP_API_KEY) }
         if ($id -eq 'amp') {
@@ -183,7 +199,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $r = Run @('-HostId','amp','-Prompt','ok'); Check 'table cannot bypass interactive profile' ($r.Exit -eq 3 -and $r.Err -match 'interactive')
     ($fleet.autonomyProfiles.profiles | Where-Object hostId -eq 'windsurf').defaultProfile = 'interactive'; Save-Fixture
     $r = Run @('-HostId','windsurf','-Prompt','ok'); Check 'alias cannot bypass its interactive profile' ($r.Exit -eq 3 -and $r.Err -match 'interactive')
-    ($agents.activeAgents | Where-Object id -eq 'gemini').executable = Join-Path $fixture 'missing.exe'; Save-Fixture
+    ($agents.activeAgents | Where-Object id -eq 'gemini').executable = Join-Path $fixture 'missing-agent-binary'; Save-Fixture
     $r = Run @('-HostId','gemini','-Prompt','ok'); Check 'missing binary refuses' ($r.Exit -eq 3 -and $r.Err -match 'executable is absent')
     $env:CAD_FIXTURE_EXIT = '1'
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch); Check 'child exit code retained' ($r.Exit -eq 7)
@@ -198,7 +214,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $env:AGENTHUB_ROOT = $oldRoot; $env:LOCALAPPDATA = $oldLocal; $env:CAD_FIXTURE_EXIT = $null; $env:CAD_FIXTURE_SLEEP = $null
     foreach ($name in $oldApiKeyVars.Keys) { [Environment]::SetEnvironmentVariable($name, $oldApiKeyVars[$name], 'Process') }
     $resolved = [IO.Path]::GetFullPath($fixture)
-    if ($resolved.StartsWith([IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $resolved -Recurse -Force }
+    if ($resolved.StartsWith([IO.Path]::GetFullPath(([IO.Path]::GetTempPath())).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $resolved -Recurse -Force }
 }
 Write-Host ("RESULT: {0} passed, {1} failed" -f ($checked - $failed), $failed)
 if ($failed) { exit 1 }

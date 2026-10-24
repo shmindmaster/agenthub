@@ -36,6 +36,7 @@ Run: pwsh -NoProfile -File tests/Test-InactiveHostDeployment.ps1
 param()
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\TestPlatform.ps1')
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $syncScript = Join-Path $repoRoot 'scripts\Sync-Capabilities.ps1'
 $hostExe = (Get-Process -Id $PID).Path
@@ -80,10 +81,10 @@ function Invoke-SyncCapabilities {
 function Get-EffectiveDestination {
     param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$UserProfile)
     $full = [IO.Path]::GetFullPath($Path)
-    $realProfile = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
-    $effective = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+    $realProfile = [IO.Path]::GetFullPath($HOME).TrimEnd('\', '/')
+    $effective = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\', '/')
     if ($effective -eq $realProfile) { return $full }
-    if ($full.StartsWith($realProfile + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    if ($full.StartsWith($realProfile + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
         return Join-Path $effective $full.Substring($realProfile.Length + 1)
     }
     return $full
@@ -195,7 +196,7 @@ function Test-DefaultRunSkipsInactiveButDeploysActive {
             return @{ Passed = $false; Detail = "a host listed in inactiveAgents received a skill copy at $inactiveDestination on a default run. Inactive hosts are inventory, not deployment targets." }
         }
 
-        $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        $statePath = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\managed-skills.json'
         $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
         $managedCount = @($state.managed.PSObject.Properties).Count
         if ($managedCount -ne 1) {

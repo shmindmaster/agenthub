@@ -18,6 +18,8 @@ function Import-AgentHubBoundHostCatalog {
         [Parameter(Mandatory)]$AgentsDocument,
         [Parameter(Mandatory)]$Context
     )
+    $platform = if ($Context.PSObject.Properties['Platform'] -and $Context.Platform) { [string]$Context.Platform } else { 'windows' }
+    Use-AgentHubPlatformPaths -AgentsDocument $AgentsDocument -Platform $platform | Out-Null
     $hosts = @()
     if ($AgentsDocument.PSObject.Properties['activeAgents'] -and $AgentsDocument.activeAgents) {
         $hosts += @($AgentsDocument.activeAgents)
@@ -27,6 +29,10 @@ function Import-AgentHubBoundHostCatalog {
     }
     foreach ($agent in $hosts) {
         if (-not $agent) { continue }
+        if ($platform -ne 'windows' -and $agent.PSObject.Properties['executable'] -and $agent.executable -is [string]) {
+            $portable = Get-AgentHubPortableCommandName ([string]$agent.executable)
+            if ($portable) { $agent.executable = $portable }
+        }
         if ($agent.PSObject.Properties['executable'] -and $agent.executable -is [string] -and
             (Test-AgentHubBindablePathValue ([string]$agent.executable))) {
             try {

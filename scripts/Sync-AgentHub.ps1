@@ -35,7 +35,7 @@ param(
     [switch]$IncludeInactiveAgents,
     [switch]$QuietOverlayResolution,
     [string]$RegistryRoot,
-    [string]$UserProfile = $env:USERPROFILE
+    [string]$UserProfile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,7 +51,7 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($RegistryRoot)) {
     $RegistryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
-$RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot).TrimEnd('\')
+$RegistryRoot = [System.IO.Path]::GetFullPath($RegistryRoot).TrimEnd('\', '/')
 $RegistryDir       = Join-Path $RegistryRoot 'registry'
 . (Join-Path $PSScriptRoot 'lib\HostCatalog.ps1')
 . (Join-Path $PSScriptRoot 'lib\CapabilityGraph.ps1')
@@ -66,7 +66,7 @@ $targetUserProfile = Get-AgentHubNormalizedDirectory $UserProfile
 # A synthetic or alternate profile must not contaminate the invoking user's
 # live AgentHub state merely because LOCALAPPDATA was inherited.
 $requestedPlatform = Get-AgentHubRequestedPlatform -RepositoryRoot $RegistryRoot
-$effectiveLocalAppData = Get-AgentHubIsolatedLocalData -TargetUserProfile $targetUserProfile -InvokingUserProfile $invokingUserProfile -LocalAppData $env:LOCALAPPDATA -Platform $requestedPlatform
+$effectiveLocalAppData = Get-AgentHubIsolatedLocalData -TargetUserProfile $targetUserProfile -InvokingUserProfile $invokingUserProfile -LocalAppData (Get-AgentHubDefaultLocalData) -Platform $requestedPlatform
 $RuntimeDir        = Join-AgentHubPlatformPath -Platform (Get-AgentHubPlatformId $requestedPlatform) -Base $effectiveLocalAppData -Child 'AgentHub'
 $StateDir          = Join-Path $RuntimeDir 'sync'
 $DriftPath         = Join-Path $StateDir 'latest-drift.json'
@@ -83,7 +83,7 @@ if ($resolvedTarget -and -not $resolvedTarget.Equals($targetUserProfile, [String
     $targetUserProfile = $resolvedTarget
     $UserProfile = $resolvedTarget
     if ($invokingUserProfile -and -not $targetUserProfile.Equals($invokingUserProfile, [StringComparison]::OrdinalIgnoreCase)) {
-        $effectiveLocalAppData = Get-AgentHubIsolatedLocalData -TargetUserProfile $targetUserProfile -InvokingUserProfile $invokingUserProfile -LocalAppData $env:LOCALAPPDATA -Platform $requestedPlatform
+        $effectiveLocalAppData = Get-AgentHubIsolatedLocalData -TargetUserProfile $targetUserProfile -InvokingUserProfile $invokingUserProfile -LocalAppData (Get-AgentHubDefaultLocalData) -Platform $requestedPlatform
         $RuntimeDir = Join-AgentHubPlatformPath -Platform (Get-AgentHubPlatformId $requestedPlatform) -Base $effectiveLocalAppData -Child 'AgentHub'
         $StateDir = Join-Path $RuntimeDir 'sync'
         $DriftPath = Join-Path $StateDir 'latest-drift.json'
@@ -297,11 +297,14 @@ function Resolve-PythonExe {
     # to `python` on PATH only when it does not point at the Store alias.
     # Fail loudly (throw) rather than letting the caller silently skip TOML
     # validation when no real interpreter is present.
-    $py = Get-Command py -ErrorAction SilentlyContinue
+    # macOS and Linux ship python3 and often no bare `python` at all.
+    $py = Get-Command py -CommandType Application -ErrorAction SilentlyContinue
     if ($py) { return $py.Source }
-    $python = Get-Command python -ErrorAction SilentlyContinue
-    if ($python -and $python.Source -notmatch '(?i)\\WindowsApps\\python(3)?\.exe$') { return $python.Source }
-    throw "No usable Python interpreter found (checked the 'py' launcher and 'python' on PATH, excluding the Windows Store alias stub). Install Python or add it to PATH to validate TOML output."
+    foreach ($name in @('python3', 'python')) {
+        $python = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($python -and $python.Source -notmatch '(?i)\\WindowsApps\\python(3)?\.exe$') { return $python.Source }
+    }
+    throw "No usable Python interpreter found (checked the 'py' launcher, 'python3' and 'python' on PATH, excluding the Windows Store alias stub). Install Python 3.11+ or add it to PATH to validate TOML output."
 }
 
 function Test-TomlParse {
@@ -1209,7 +1212,7 @@ function Set-CodexManagedMarketplaceSources {
 
     $expectedSource = '\\?\' + [IO.Path]::GetFullPath(
         ([string]$agentHubRows[0].sourcePath).Replace('/', '\')
-    ).TrimEnd('\')
+    ).TrimEnd('\', '/')
     $sourceLine = "source = '$expectedSource'"
     $sectionPattern = '(?ms)^\[marketplaces\.agenthub\]\s*$.*?(?=^\[|\z)'
     if ($Toml -match $sectionPattern) {

@@ -21,6 +21,7 @@ Run: pwsh -NoProfile -File tests/Test-SyncInstructions.ps1
 param()
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\TestPlatform.ps1')
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $syncScript = Join-Path $repoRoot 'scripts\Sync-Instructions.ps1'
 $hostExe = (Get-Process -Id $PID).Path
@@ -180,7 +181,7 @@ function Test-RenderContractProducesExactBytes {
 # pass by both sides sharing the same bug. ---
 function Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd {
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-hermes-template-" + [guid]::NewGuid())
-    $hermesDest = Join-Path $userProfile 'AppData\Local\hermes\SOUL.md'
+    $hermesDest = Join-Path (Get-TestProfileLocalData $userProfile) 'hermes\SOUL.md'
     $fixtureRoot = Join-Path $userProfile 'fixture'
     New-Item -ItemType Directory -Path (Join-Path $fixtureRoot 'registry') -Force | Out-Null
     $registry = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Encoding UTF8 -Raw | ConvertFrom-Json
@@ -192,7 +193,7 @@ function Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd {
         $hermes = [pscustomobject]@{
             id = 'hermes'; name = 'Hermes Agent'; version = 'synthetic'; executable = $null; status = 'retired'
             nativePaths = [pscustomobject]@{
-                instructions = '{userHome}/AppData/Local/hermes/SOUL.md'
+                instructions = '{localData}/hermes/SOUL.md'
                 instructionHeader = '# Hermes Agent'
                 instructionFormat = 'markdown'
                 instructionBodyTemplate = "# Hermes Agent`n`nYou are Hermes Agent, an intelligent AI assistant created by Nous Research. Be helpful, knowledgeable, direct, targeted, and efficient. Admit uncertainty when appropriate and prioritize genuine usefulness.`n`n{{globalPolicy}}`n<!-- agenthub:managed -->`n"
@@ -201,7 +202,7 @@ function Test-HermesTemplateSubstitutionPreservesPreambleAndMarkerAtEnd {
         }
     }
     $hermes.status = 'active' # Synthetic template positive control, never the retired fleet entry.
-    @{ activeAgents = @($hermes); inactiveAgents = @(); userProfile = $env:USERPROFILE } |
+    @{ activeAgents = @($hermes); inactiveAgents = @(); userProfile = $HOME } |
         ConvertTo-Json -Depth 30 | Set-Content -LiteralPath (Join-Path $fixtureRoot 'registry\agents.json')
     Copy-Item -LiteralPath $canonicalPolicyPath -Destination (Join-Path $fixtureRoot 'global-agent-policy.md')
     try {
@@ -383,13 +384,13 @@ function Test-InstructionsReachInactiveHostsToo {
 
     # Registry destinations are absolute under the REAL profile and get rebased
     # onto -UserProfile, so these resolve into the synthetic profile on -Apply.
-    $activePath   = Join-Path $env:USERPROFILE '.agenthub-fixture-active\AGENTS.md'
-    $inactivePath = Join-Path $env:USERPROFILE '.agenthub-fixture-dormant\AGENTS.md'
+    $activePath   = Join-Path $HOME '.agenthub-fixture-active\AGENTS.md'
+    $inactivePath = Join-Path $HOME '.agenthub-fixture-dormant\AGENTS.md'
     $stubAgents = @{
         # Required: without it the rebase has no base to strip and every path
         # would resolve to the REAL profile. The script now refuses outright in
         # that state (see Behavior 6), which is how this omission was caught.
-        userProfile    = $env:USERPROFILE
+        userProfile    = $HOME
         activeAgents = @(
             @{ id = 'zz-instr-active'; name = 'Fixture Active'; status = 'active'
                nativePaths = @{ instructions = $activePath } }
@@ -409,7 +410,7 @@ function Test-InstructionsReachInactiveHostsToo {
             return @{ Passed = $false; Detail = "-Apply exited $($result.ExitCode). Output: $($result.Output)" }
         }
 
-        $rebase = { param($p) $p -replace [regex]::Escape($env:USERPROFILE), $userProfile }
+        $rebase = { param($p) $p -replace [regex]::Escape($HOME), $userProfile }
         $activeDest   = & $rebase $activePath
         $inactiveDest = & $rebase $inactivePath
 
@@ -442,7 +443,7 @@ function Test-MissingRegistryProfileStillIsolates {
     New-Item -ItemType Directory -Path $registryDir -Force | Out-Null
 
     $canaryName = '.agenthub-canary-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
-    $canary = Join-Path $env:USERPROFILE ($canaryName + '\AGENTS.md')
+    $canary = Join-Path $HOME ($canaryName + '\AGENTS.md')
     $canaryDir = Split-Path $canary -Parent
     $expected = Join-Path $userProfile ($canaryName + '\AGENTS.md')
     $stubAgents = @{
@@ -586,7 +587,8 @@ function Test-InvalidInstructionOwnerFails {
         $fixture | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixtureRoot 'registry/agents.json')
         Copy-Item $canonicalPolicyPath (Join-Path $fixtureRoot 'global-agent-policy.md')
         $result = Invoke-SyncInstructions -ExtraArgs @('-Audit', '-RepositoryRoot', $fixtureRoot, '-UserProfile', (Join-Path $scratch 'user'))
-        return @{ Passed = ($result.ExitCode -ne 0 -and $result.Output -match 'without one concrete destination'); Detail = $result.Output }
+        # pwsh's error view wraps long messages at the console width ("     | " continuation lines).
+        return @{ Passed = ($result.ExitCode -ne 0 -and $result.Output -match 'without one concrete[\s|]+destination'); Detail = $result.Output }
     } finally {
         # The GUID scratch is created above beneath the declared test root.
         if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force }

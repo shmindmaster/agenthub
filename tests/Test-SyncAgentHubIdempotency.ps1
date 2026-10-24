@@ -31,6 +31,7 @@ Run: pwsh -NoProfile -File tests/Test-SyncAgentHubIdempotency.ps1
 param()
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\TestPlatform.ps1')
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $syncScript = Join-Path $repoRoot 'scripts\Sync-AgentHub.ps1'
 $hostExe = (Get-Process -Id $PID).Path
@@ -180,7 +181,7 @@ function New-ReportingFixture {
     return [pscustomobject]@{
         Root      = $root
         Profile   = $profileDir
-        DriftPath = Join-Path $profileDir 'AppData\Local\AgentHub\sync\latest-drift.json'
+        DriftPath = Join-Path (Get-TestProfileLocalData $profileDir) 'AgentHub\sync\latest-drift.json'
         Args      = @('-Apply', '-RegistryRoot', $root, '-UserProfile', $profileDir)
     }
 }

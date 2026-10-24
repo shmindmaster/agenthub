@@ -20,6 +20,7 @@ Run: pwsh -NoProfile -File tests/Test-AgentHubEntryPoint.ps1
 param()
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\TestPlatform.ps1')
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $entryScript = Join-Path $repoRoot 'scripts\AgentHub.ps1'
 $hostExe = (Get-Process -Id $PID).Path
@@ -208,7 +209,7 @@ function Test-SyncWithoutApplyPerformsNoWrites {
     New-Item -ItemType Directory -Path $userProfile -Force | Out-Null
     $sentinel = Join-Path $userProfile 'sentinel.txt'
     Set-Content -LiteralPath $sentinel -Value 'untouched' -Encoding UTF8
-    $runtimeExclude = Join-Path $userProfile 'AppData\Local\AgentHub'
+    $runtimeExclude = Join-Path (Get-TestProfileLocalData $userProfile) 'AgentHub'
     try {
         $before = Get-DirectorySnapshot $userProfile -ExcludePrefix $runtimeExclude
         $result = Invoke-AgentHub -ExtraArgs @('sync', '-RepositoryRoot', $repoRoot, '-UserProfile', $userProfile)

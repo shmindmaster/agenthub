@@ -59,7 +59,9 @@ class BoundedJobTests(unittest.TestCase):
                    timeout_seconds=10, minimum_free_bytes=0, **kwargs)
 
     def test_success_redirection_argument_and_unicode_environment(self):
-        result = self.execute("import os,sys; print(os.environ['SYNTHETIC_VALUE']); print('private diagnostic',file=sys.stderr)",
+        # The child writes UTF-8 explicitly: a redirected stdout otherwise uses the host's
+        # ANSI code page (cp1252 on CI runners), which cannot encode the value under test.
+        result = self.execute("import os,sys; sys.stdout.reconfigure(encoding='utf-8'); print(os.environ['SYNTHETIC_VALUE']); print('private diagnostic',file=sys.stderr)",
                               environment={**os.environ, 'SYNTHETIC_VALUE': 'synthetic Ω with spaces'})
         self.assertEqual(result['exitCode'], 0)
         self.assertEqual(result['activeProcessesAfterCleanup'], 0)

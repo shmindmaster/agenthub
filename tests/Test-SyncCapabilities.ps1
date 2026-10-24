@@ -39,6 +39,7 @@ Run: pwsh -NoProfile -File tests/Test-SyncCapabilities.ps1
 param()
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\TestPlatform.ps1')
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $syncScript = Join-Path $repoRoot 'scripts\Sync-Capabilities.ps1'
 $hostExe = (Get-Process -Id $PID).Path
@@ -91,10 +92,10 @@ function Invoke-SyncCapabilities {
 function Get-EffectiveDestination {
     param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$UserProfile)
     $full = [IO.Path]::GetFullPath($Path)
-    $realProfile = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
-    $effective = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+    $realProfile = [IO.Path]::GetFullPath($HOME).TrimEnd('\', '/')
+    $effective = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\', '/')
     if ($effective -eq $realProfile) { return $full }
-    if ($full.StartsWith($realProfile + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    if ($full.StartsWith($realProfile + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
         return Join-Path $effective $full.Substring($realProfile.Length + 1)
     }
     return $full
@@ -352,7 +353,7 @@ function Test-ManagedRuntimeCatalogPackageConverges {
         Set-SyncCapabilitiesFixtureCapabilities -RegistryDir $fixture.RegistryDir -CapabilityId 'zz-catalog-cap' -HostId 'zz-catalog-host' -DeployCatalog
         $sourceEntrypoint = Join-Path $fixture.Root 'packages\zz-catalog-cap\mobile.ps1'
         [IO.File]::WriteAllText($sourceEntrypoint, 'catalog entrypoint v1', [Text.UTF8Encoding]::new($false))
-        $destinationRoot = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\capabilities\zz-catalog-cap'
+        $destinationRoot = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\capabilities\zz-catalog-cap'
         $destinationEntrypoint = Join-Path $destinationRoot 'mobile.ps1'
 
         $first = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
@@ -413,7 +414,7 @@ function Test-PartialApplyStillRecordsWhatItDeployed {
 
         # -UserProfile rebases the runtime root too (Behavior 7), so the state
         # file lands under the synthetic profile, not the overridden LOCALAPPDATA.
-        $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        $statePath = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\managed-skills.json'
         if (-not (Test-Path -LiteralPath $statePath)) {
             return @{ Passed = $false; Detail = "managed-skills.json was never written. The run copied a skill to disk and recorded nothing, so the next -Apply will see that skill as unowned and refuse to update it forever. Expected at: $statePath" }
         }
@@ -495,7 +496,7 @@ function Test-UserProfileRebasesDestinations {
         if ($declared -ne $fixture.SkillsDir -and (Test-Path -LiteralPath $declared)) {
             return @{ Passed = $false; Detail = "-UserProfile did not rebase: the script wrote to the registry-declared path $declared instead of under the supplied profile." }
         }
-        $rebasedState = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        $rebasedState = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\managed-skills.json'
         if (-not (Test-Path -LiteralPath $rebasedState)) {
             return @{ Passed = $false; Detail = "runtime state was not written under the supplied -UserProfile (expected $rebasedState)." }
         }
@@ -528,7 +529,7 @@ function Get-LegacyTreeHash([string]$Path) {
             Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|dist|coverage)[\\/]' } |
             Sort-Object FullName |
             ForEach-Object {
-                $relative = $_.FullName.Substring($Path.TrimEnd('\').Length + 1).Replace('\','/')
+                $relative = $_.FullName.Substring($Path.TrimEnd('\', '/').Length + 1).Replace('\','/')
                 "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
             }
         $bytes = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
@@ -551,7 +552,7 @@ function Initialize-LegacyStateFixture {
 
     $apply = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
     $skillFile = Join-Path $fixture.Destination 'SKILL.md'
-    $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+    $statePath = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\managed-skills.json'
     $setupError = if ($apply.ExitCode -ne 0) {
         "seed -Apply exit code was $($apply.ExitCode). Output: $($apply.Output)"
     } elseif (-not (Test-Path -LiteralPath $skillFile)) {
@@ -688,7 +689,7 @@ function Test-ScopedSyncPreservesUnselectedCapability {
         $otherDestination = Join-Path $fixture.SkillsDir 'zz-other-skill'
         $otherFile = Join-Path $otherDestination 'SKILL.md'
         $original = [IO.File]::ReadAllText($otherFile)
-        $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        $statePath = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\managed-skills.json'
         $before = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
         $priorOther = $before.managed.PSObject.Properties[$otherDestination].Value | ConvertTo-Json -Compress
         Set-Content -LiteralPath $otherSource -Value 'Unselected source changed' -Encoding UTF8
@@ -707,7 +708,7 @@ function Test-ScopedSyncRejectsUnsafeRequests {
         $args = @('-Apply','-RepositoryRoot',$fixture.Root,'-UserProfile',$fixture.UserProfile)
         $first = Invoke-SyncCapabilities -ExtraArgs $args -LocalAppData $fixture.LocalAppData
         if ($first.ExitCode -ne 0) { return @{Passed=$false; Detail=$first.Output} }
-        $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        $statePath = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\managed-skills.json'
         $before = [IO.File]::ReadAllText($statePath)
         foreach ($request in @(@('-CapabilityId','zz-unknown'), @('-CapabilityId','zz-scope','-Prune'))) {
             $result = Invoke-SyncCapabilities -ExtraArgs ($args + $request) -LocalAppData $fixture.LocalAppData
@@ -849,7 +850,7 @@ function Test-CliSkillsDirReparsePointWithRetiredNameSurvives {
 function Test-JunctionRuntimeWritesKeepLogicalLedger {
     $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-junction-cap' -HostId 'zz-junction-host' -SkillName 'sample-skill' -SkillContent 'v1'
     $physical = Join-Path $fixture.Root 'physical-runtime'
-    $link = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub'
+    $link = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub'
     try {
         New-Item -ItemType Directory -Path $physical -Force | Out-Null
         New-Item -ItemType Directory -Path (Split-Path -Parent $link) -Force | Out-Null
@@ -884,7 +885,7 @@ function Test-OperationalCopyFailurePreservesPartialLedger {
     $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-blocked-cap' -HostId 'zz-blocked-host' -SkillName 'sample-skill' -SkillContent 'v1'
     try {
         Set-SyncCapabilitiesFixtureCapabilities -RegistryDir $fixture.RegistryDir -CapabilityId 'zz-blocked-cap' -HostId 'zz-blocked-host' -DeployCatalog
-        $runtime = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub'
+        $runtime = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub'
         New-Item -ItemType Directory -Path $runtime -Force | Out-Null
         [IO.File]::WriteAllText((Join-Path $runtime 'capabilities'), 'blocked parent must survive')
         $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply','-RepositoryRoot',$fixture.Root,'-UserProfile',$fixture.UserProfile) -LocalAppData $fixture.LocalAppData

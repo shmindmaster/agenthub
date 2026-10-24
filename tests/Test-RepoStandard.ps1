@@ -27,7 +27,7 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
     }
 }
 
-$fixtureRoot = Join-Path $env:TEMP ("repo-standard-fixtures-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+$fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ("repo-standard-fixtures-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Force $fixtureRoot | Out-Null
 
 function New-FixtureRepo([string]$Name) {

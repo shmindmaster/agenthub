@@ -59,7 +59,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 . (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
-$executableBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
+$executableBinding = New-AgentHubPathBindingContext -TargetUserProfile $HOME
 
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0

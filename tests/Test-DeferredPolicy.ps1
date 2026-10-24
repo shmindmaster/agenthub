@@ -34,7 +34,7 @@ try {
     if ((Read-AgentHubTestPolicy -PolicyPath $policyFile -Domains mobile) -ne "INLINE_GUARD`r`n" -and (Read-AgentHubTestPolicy -PolicyPath $policyFile -Domains mobile).Trim() -ne 'INLINE_GUARD') { throw 'Inline policy changed' }
     Write-Host 'PASS: public inline policy remains supported'
 } finally {
-    $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     if (-not ([IO.Path]::GetFullPath($scratch)).StartsWith($temp, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe fixture path' }
     Remove-Item -LiteralPath $scratch -Recurse -Force
 }
