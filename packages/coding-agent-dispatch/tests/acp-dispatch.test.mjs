@@ -58,17 +58,19 @@ test('timeout attempts cleanup and cleanup failure cannot become success', async
   }
 });
 
-test('dispatcher SessionId wiring and refusal use synthetic registry only', { skip: process.platform !== 'win32', timeout: 60000 }, () => {
+test('dispatcher SessionId wiring and refusal use synthetic registry only', { timeout: 60000 }, () => {
   const root = mkdtempSync(join(tmpdir(), 'acp dispatch fixture '));
   const repo = fileURLToPath(new URL('../../../', import.meta.url));
   try {
     mkdirSync(join(root, 'registry')); mkdirSync(join(root, 'scripts/lib'), { recursive: true });
     copyFileSync(join(repo, 'scripts/lib/PathBinding.ps1'), join(root, 'scripts/lib/PathBinding.ps1'));
     const marker = join(root, 'launched');
-    const fake = join(root, 'fake host.cmd');
+    // A .cmd host on Windows; an executable script elsewhere. Both names keep a space.
+    const fake = join(root, process.platform === 'win32' ? 'fake host.cmd' : 'fake host');
     const responder = join(root, 'host.cjs');
     writeFileSync(responder, `const fs=require('node:fs'); fs.writeFileSync(${JSON.stringify(marker)},'yes'); const rl=require('node:readline').createInterface({input:process.stdin}); rl.on('line',line=>{ const m=JSON.parse(line); const send=x=>console.log(JSON.stringify(x)); if(m.method==='initialize')send({id:m.id,result:{agentCapabilities:{loadSession:true}}}); if(m.method==='session/load')send({id:m.id,result:{}}); if(m.method==='session/prompt'){send({method:'session/update',params:{sessionId:m.params.sessionId,update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:m.params.prompt[0].text}}}});send({id:m.id,result:{stopReason:'end_turn'}});} });`);
-    writeFileSync(fake, `@echo off\r\n"${process.execPath}" "${responder}" %*\r\n`);
+    if (process.platform === 'win32') writeFileSync(fake, `@echo off\r\n"${process.execPath}" "${responder}" %*\r\n`);
+    else writeFileSync(fake, `#!/bin/sh\nexec '${process.execPath}' '${responder}' "$@"\n`, { mode: 0o755 });
     writeFileSync(join(root, 'registry/agents.json'), JSON.stringify({ activeAgents: ['cline', 'codex'].map(id => ({ id, executable: fake })) }));
     const fleet = { autonomyProfiles: { profiles: [] }, hostSettings: {}, dispatchPolicy: {} };
     const save = () => writeFileSync(join(root, 'registry/fleet-profile.json'), JSON.stringify(fleet));
