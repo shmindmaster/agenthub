@@ -97,7 +97,8 @@ test('reads the MCP config of every host from its native location and format', a
     cline: () => h.write('.cline/data/settings/cline_mcp_settings.json', { mcpServers: { shared: stdio } }),
     cursor: () => h.write('.cursor/mcp.json', '// Cursor allows comments\n{ "mcpServers": { "shared": { "command": "node", "args": ["server.js"], }, }, }'),
     amp: () => h.write('.config/amp/settings.json', { 'amp.mcpServers': { shared: stdio } }),
-    devin: () => h.writeAbs(join(roaming, 'devin', 'mcp_config.json'), { mcpServers: { shared: stdio } }),
+    // Devin keeps user config in %APPDATA%\devin on Windows and the XDG path ~/.config/devin elsewhere.
+    devin: () => h.writeAbs(join(platform === 'windows' ? roaming : join(h.home, '.config'), 'devin', 'mcp_config.json'), { mcpServers: { shared: stdio } }),
     factory: () => h.write('.factory/mcp.json', { mcpServers: { shared: stdio } }),
     'vscode-insiders': () => h.writeAbs(join(roaming, 'Code - Insiders', 'User', 'mcp.json'), { servers: { shared: { type: 'stdio', ...stdio } } }),
     windsurf: () => h.write('.codeium/windsurf/mcp_config.json', { mcpServers: { shared: stdio } }),
