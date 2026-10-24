@@ -863,14 +863,14 @@ function Test-JunctionRuntimeWritesKeepLogicalLedger {
         $physicalDestination = Join-Path $physical 'capabilities\zz-junction-cap'
         if (-not (Test-Path -LiteralPath $physicalDestination -PathType Container)) { return @{Passed=$false;Detail='Runtime package is not a directory'} }
         $stateFile = Join-Path $physical 'sync\managed-skills.json'
-        $state = Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json
+        $state = Get-Content -LiteralPath $stateFile -Raw -Encoding UTF8 | ConvertFrom-Json
         $keys = @($state.managed.PSObject.Properties.Name)
         if ($logicalDestination -notin $keys -or $physicalDestination -in $keys) { return @{Passed=$false;Detail='Ledger lost canonical logical ownership key'} }
         $sourceSkill = Join-Path $fixture.Root 'packages\zz-junction-cap\skills\sample-skill\SKILL.md'
         Set-Content -LiteralPath $sourceSkill -Value 'v2' -NoNewline
         $second = Invoke-SyncCapabilities -ExtraArgs $arguments -LocalAppData $fixture.LocalAppData
         if ($second.ExitCode -ne 0) { return @{ Passed=$false; Detail=$second.Output } }
-        if ((Get-Content -LiteralPath (Join-Path $physicalDestination 'skills\sample-skill\SKILL.md') -Raw) -ne 'v2') { return @{Passed=$false;Detail='Owned update through junction failed'} }
+        if ((Get-Content -LiteralPath (Join-Path $physicalDestination 'skills\sample-skill\SKILL.md') -Raw -Encoding UTF8) -ne 'v2') { return @{Passed=$false;Detail='Owned update through junction failed'} }
         $third = Invoke-SyncCapabilities -ExtraArgs $arguments -LocalAppData $fixture.LocalAppData
         return @{Passed=($third.ExitCode -eq 0 -and $third.Output -match 'current=3');Detail=$third.Output}
     } finally {
@@ -889,7 +889,7 @@ function Test-OperationalCopyFailurePreservesPartialLedger {
         [IO.File]::WriteAllText((Join-Path $runtime 'capabilities'), 'blocked parent must survive')
         $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply','-RepositoryRoot',$fixture.Root,'-UserProfile',$fixture.UserProfile) -LocalAppData $fixture.LocalAppData
         if ($result.ExitCode -eq 0 -or $result.Output -notmatch 'failed to deploy runtime package') { return @{Passed=$false;Detail=$result.Output} }
-        $state = Get-Content -LiteralPath (Join-Path $runtime 'sync\managed-skills.json') -Raw | ConvertFrom-Json
+        $state = Get-Content -LiteralPath (Join-Path $runtime 'sync\managed-skills.json') -Raw -Encoding UTF8 | ConvertFrom-Json
         $keys = @($state.managed.PSObject.Properties.Name)
         $blocked = Join-Path $runtime 'capabilities\zz-blocked-cap'
         if ($blocked -in $keys -or $fixture.Destination -notin $keys -or (Join-Path $runtime 'registry') -notin $keys) {
