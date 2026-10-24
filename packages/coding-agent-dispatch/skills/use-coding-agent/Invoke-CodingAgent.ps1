@@ -191,7 +191,9 @@ function Get-DispatchTable {
                 param($PromptText, $Work, $File)
                 # OpenCode 2 uses the child process working directory; --dir
                 # belonged to v1 and is rejected by the shared-service CLI.
-                $args = @('run', '--auto')
+                # Native JSON events give callers reliable text/tool/usage
+                # boundaries without parsing terminal-rendered output.
+                $args = @('run', '--auto', '--format', 'json')
                 if ($fleet.dispatchPolicy.opencode.model) { $args += @('--model', [string]$fleet.dispatchPolicy.opencode.model) }
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }

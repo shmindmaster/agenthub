@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, existsSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, existsSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -73,16 +73,42 @@ test('low reasoning is a default; explicit reasoning, off and budgets remain int
 test('manual installer detects missing and changed files, repairs and reads back without host startup', () => {
   const home = mkdtempSync(join(tmpdir(), 'cline-plugin-fixture-'));
   const destination = join(home, 'plugins/lightweight-chat.js');
+  const settingsPath = join(home, 'data/settings/global-settings.json');
   const run = (...args) => spawnSync('pwsh', ['-NoProfile', '-File', join(skill, 'Install-ClineToolDiscovery.ps1'), '-ClineHome', home, ...args], { encoding: 'utf8', windowsHide: true });
   try {
     assert.equal(run().status, 1);
     assert.equal(existsSync(destination), false, 'Audit must not write');
+    assert.equal(existsSync(settingsPath), false, 'Audit must not create settings');
     assert.equal(run('-Apply').status, 0);
     assert.equal(readFileSync(destination, 'utf8'), source);
+    assert.deepEqual(JSON.parse(readFileSync(settingsPath, 'utf8')), { compactionStrategy: 'basic', compactionEnabled: true });
     assert.equal(run().status, 0);
     writeFileSync(destination, '// synthetic incompatible update\n');
     assert.equal(run().status, 1, 'Audit must fail on real drift');
     assert.equal(run('-Apply').status, 0);
     assert.equal(readFileSync(destination, 'utf8'), source);
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
+test('native compaction repair preserves unrelated settings, repairs enabled state, and rejects corrupt JSON', () => {
+  const home = mkdtempSync(join(tmpdir(), 'cline-compaction-fixture-'));
+  const settingsPath = join(home, 'data/settings/global-settings.json');
+  const run = (...args) => spawnSync('pwsh', ['-NoProfile', '-File', join(skill, 'Install-ClineToolDiscovery.ps1'), '-ClineHome', home, ...args], { encoding: 'utf8', windowsHide: true });
+  const unrelated = { toolAutoApprove: false, disabledTools: ['delete_files'], tools: { web_search: { enabled: false } }, future: { nested: [1, 'synthetic', null] }, provider: 'synthetic-profile' };
+  try {
+    mkdirSync(join(home, 'data/settings'), { recursive: true });
+    const initial = JSON.stringify({ ...unrelated, compactionStrategy: 'agentic', compactionEnabled: false });
+    writeFileSync(settingsPath, initial);
+    assert.equal(run().status, 1);
+    assert.equal(readFileSync(settingsPath, 'utf8'), initial, 'Audit must leave existing settings byte-identical');
+    assert.equal(run('-Apply').status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(settingsPath, 'utf8')), { ...unrelated, compactionStrategy: 'basic', compactionEnabled: true });
+    assert.equal(run().status, 0);
+    const repaired = readFileSync(settingsPath, 'utf8');
+    assert.equal(run('-Apply').status, 0);
+    assert.equal(readFileSync(settingsPath, 'utf8'), repaired, 'Current settings must not be rewritten');
+    writeFileSync(settingsPath, '{invalid synthetic JSON');
+    assert.notEqual(run('-Apply').status, 0);
+    assert.equal(readFileSync(settingsPath, 'utf8'), '{invalid synthetic JSON');
   } finally { rmSync(home, { recursive: true, force: true }); }
 });

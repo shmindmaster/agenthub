@@ -136,6 +136,8 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         }
         if ($id -eq 'gemini') { Check 'Gemini uses OAuth without API-key variables' (-not $d.ApiKeyVars.GOOGLE_API_KEY -and -not $d.ApiKeyVars.GEMINI_API_KEY) }
         if ($id -eq 'opencode') {
+            $formatIndex = [Array]::IndexOf($d.Arguments, '--format')
+            Check 'OpenCode uses native JSON events while keeping unattended run and prompt' ($d.Arguments[0] -eq 'run' -and $d.Arguments -contains '--auto' -and $formatIndex -ge 0 -and $d.Arguments[$formatIndex + 1] -eq 'json' -and $d.Arguments[-1] -eq 'ok')
             Check 'OpenCode receives paid plan model' ($d.Arguments -contains '--model' -and $d.Arguments -contains 'opencode/glm-5.3-flash')
             Check 'OpenCode Go account uses no API key override' (-not $d.ApiKeyVars.OPENCODE_GO_API_KEY -and -not $d.ApiKeyVars.OPENCODE_API_KEY)
             Check 'OpenCode 2 uses native process cwd without obsolete flag' ($d.Cwd -in @($scratch, $scratchReal) -and $d.Arguments -notcontains '--dir')

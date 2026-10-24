@@ -129,8 +129,17 @@ Audit the installed plugin manually after a Cline update:
 pwsh -NoProfile -File "$env:USERPROFILE\.agents\skills\use-coding-agent\Install-ClineToolDiscovery.ps1"
 ```
 
-Audit exits 1 on missing or changed content. Add `-Apply` to restore the
-canonical file and verify its hash. No host is launched or credentials changed.
+Audit exits 1 on missing or changed plugin content or compaction setting drift.
+Add `-Apply` to restore the canonical file, verify its hash, and set Cline's
+native global compaction default to `basic` with compaction enabled. This
+setting applies to other Cline profiles too; unrelated settings are preserved.
+No host is launched or credentials changed.
+In SDK 3.0.73, compaction estimates the full tool catalog before `beforeModel`
+can prune it. The plugin API has no earlier tool-budget hook. Native basic
+compaction preserves typed user prompts and avoids an LLM summary replacing
+the task; it does not correct the inflated catalog estimate. Compaction and
+native permissions stay enabled. A true budget correction requires upstream
+Cline support, and live file-read verification remains required.
 Application updates normally preserve the user directory, but plugin SDK
 compatibility is not guaranteed across future versions. Verify a plain response
 and a real discovered file read after an upgrade before claiming compatibility.
