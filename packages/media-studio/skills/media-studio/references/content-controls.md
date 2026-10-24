@@ -11,6 +11,7 @@ Python 3.11+ and the standard library are sufficient. No daemon or scheduler run
 | Route | Enforcement |
 | --- | --- |
 | Canonical ElevenLabs REST speech, sound effects (`sfx`) and music (`music`) on this OS account/disk | Required exact cache, singleflight, shared reservations and durable recovery |
+| Canonical Deepgram Flux Sienna REST TTS through `scripts/deepgram_cli.py` | Exact cache, shared microdollar reservations, receipt-first persistence; ambiguous submissions fenced with no automatic recovery/retry |
 | Canonical STT and other non-GET requests | Disabled until a conservative metered adapter exists |
 | Codex ElevenLabs app | `content_host_controls.py --apply` sets the documented app `enabled=false`; verify fresh native app readback |
 | Already-loaded native tools, other connectors, raw SDK/API/shell and provider UI | Not intercepted; cannot be represented as governed |
@@ -154,3 +155,15 @@ avoided POSTs. It is not provider latency, acoustic QA or invoice evidence.
 Batch discounts and token prompt caching are separate, unimplemented features.
 Live quality/cost testing needs a newly approved aggregate amount; never reuse a
 historical per-call preview allowance as that authority.
+
+## Governed Deepgram Sienna
+
+Run `scripts/deepgram_cli.py` from this canonical package. It quotes by default without credentials, network, or ledger creation. Supply `--text-file`, `--workspace`, `--revision`, `--dictionary-revision` and the exact approved `--expressivity`. Only `--execute` with distinct absent `--output`/`--receipt` files can submit. Model is fixed to `flux-sienna-en`, REST `/v2/speak`, mono linear16 WAV 48kHz, with data-improvement opt-out. No voice fallback, STT, generic provider proxy, redirects or automatic retry.
+
+Current conservative price policy reserves 45 integer microdollars per UTF-8 input byte in `deepgram/usd-micros`, across participating namespaces. This bounds the published PAYG rate of $0.045 per 1,000 characters without claiming invoice settlement or assuming discounts. Policy expires 2026-11-24; recheck official https://deepgram.com/pricing before updating it. Quotes exclude retakes and taxes. Budget authorization is separate from narrator approval. No budget row means paid use is disabled. The intact primary ledger and 32-byte namespace salt must already exist; the adapter never initializes missing primary accounting.
+
+If historical accounting is unavailable, a new epoch requires an explicit owner-approved aggregate ceiling, at most 3,000,000 microdollars ($3), and `--recovery-epoch-manifest`. It is never an inferred reset. Manifest fields: `epoch_id` (deepgram-prefixed), `maximum_usd_micros`, `owner_authorization` (actual owner direction), `workspace`, `price_policy`, `historical_accounting: UNKNOWN`, `historical_requests: FENCED`, `allowed_requests` containing exact `text_sha256`/`cache_key` pairs, and `inventory_proof` with absolute `path`/`sha256`. The external proof has `kind: deepgram-new-input-inventory`, `enumerated_scopes`, and complete `historical_rendered_text_sha256`, `ambiguous_rendered_text_sha256`, `new_rendered_text_sha256` lists. Only new rendered inputs disjoint from cached and ambiguous history qualify. Enumeration quality requires independent evidence review; a manifest is not provider proof of non-submission. No historical take may be repurchased through this route.
+
+Authorization is immutable at the canonical OS-local runtime's `content-recovery-epochs/<epoch_id>`. A stable epoch namespace prevents changing credentials from repurchasing an allowed request. Missing/incomplete existing epoch accounting fails closed. No additional-batch or ceiling-extension command is supplied. Interrupted initialization requires inspection/restoration, never a fresh empty retry. This is cooperating-process coordination, not tamper-proof enforcement against the OS user. Keep manifests and private inventories outside this public repository.
+
+Receipt IDs are durably bound before audio reads; valid WAV bytes become pending assets. All ambiguous failures, including 429, retain the maximum reservation and fence repurchase. No verified Deepgram history-recovery route is implemented. Do not use an unverified billing header to release funds. Exact pending/accepted cache reuse is allowed; five hash-bound acceptance gates still control selection. No raw API path is represented as governed.
