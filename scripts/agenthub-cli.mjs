@@ -19,6 +19,7 @@ const HELP = `AgentHub — portable control plane for skills, plugins, MCP, and 
 
 Usage:
   agenthub <command> [options]
+  npx @shmindmaster/agenthub <command> [options]
 
 Commands:
   doctor               Show every agent's MCP servers, skills and instructions,
@@ -45,9 +46,9 @@ const CLONE_HINT = `This command runs the PowerShell sync engine, which ships wi
 
   git clone https://github.com/shmindmaster/agenthub
   cd agenthub
-  npx agenthub init
+  npm run init
 
-'agenthub doctor' works from anywhere without it.
+'npx @shmindmaster/agenthub doctor' works from anywhere without it.
 `;
 
 function findShell() {

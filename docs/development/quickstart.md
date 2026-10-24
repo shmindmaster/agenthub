@@ -14,10 +14,14 @@ npm install -g .
 node ./scripts/agenthub-cli.mjs --help
 ```
 
+The commands below use the repository's npm scripts, which run this clone's
+wrapper. The published npm package (`npx @shmindmaster/agenthub`) carries only
+`doctor`, not the sync engine.
+
 ## 2. Initialize a local overlay
 
 ```bash
-npx agenthub init
+npm run init
 # equivalent:
 pwsh -NoProfile -File ./scripts/AgentHub.ps1 init
 ```
@@ -33,14 +37,14 @@ Public capabilities load without an overlay.
 ## 3. Validate, then audit
 
 ```bash
-npx agenthub validate
-npx agenthub sync
+npm run validate
+npm run sync
 ```
 
 `sync` without `--apply` is read-only drift. When the audit looks right:
 
 ```bash
-npx agenthub sync --apply
+npm run sync -- --apply
 ```
 
 ## 4. Private vs public
@@ -57,7 +61,7 @@ Turn the overlay off for a public-only graph:
 ```bash
 # PowerShell
 $env:AGENTHUB_OVERLAY = 'off'
-npx agenthub validate
+npm run validate
 ```
 
 ## Starter path

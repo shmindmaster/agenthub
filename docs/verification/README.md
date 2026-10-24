@@ -4,7 +4,7 @@ Evidence base: commit `5002737` (main, 2026-10-15 02:33 CT). Drafted 2026-10-15 
 
 ## Purpose
 
-AgentHub is a portable control plane for skills, plugins, MCP servers and policy across coding-agent hosts. A desired-state registry (`registry/*.json`) drives validate, drift audit and apply, so each host's skills, MCP config and instruction files stay in line with one source. Entry points: `npx agenthub` (`scripts/agenthub-cli.mjs`) and `scripts/AgentHub.ps1`. The repo is public (`github.com/shmindmaster/agenthub`, checked via `gh api` 2026-10-15). Existing docs: [AGENTS.md](../../AGENTS.md), [docs/current-state.md](../current-state.md), [docs/development/testing.md](../development/testing.md), [docs/runbooks/sync-and-validate.md](../runbooks/sync-and-validate.md).
+AgentHub is a portable control plane for skills, plugins, MCP servers and policy across coding-agent hosts. A desired-state registry (`registry/*.json`) drives validate, drift audit and apply, so each host's skills, MCP config and instruction files stay in line with one source. Entry points: `npx @shmindmaster/agenthub` (`scripts/agenthub-cli.mjs`) and `scripts/AgentHub.ps1`. The repo is public (`github.com/shmindmaster/agenthub`, checked via `gh api` 2026-10-15). Existing docs: [AGENTS.md](../../AGENTS.md), [docs/current-state.md](../current-state.md), [docs/development/testing.md](../development/testing.md), [docs/runbooks/sync-and-validate.md](../runbooks/sync-and-validate.md).
 
 ## Users
 
@@ -57,7 +57,7 @@ Showcase assessment (linked, not copied): `reports/showcase/agenthub.md` in the 
 | 2 | high | The only hook is a security scanner; the tests and the validator run only by hand, so a broken registry or Slack contract can be pushed | `packages/security/hooks/pre-push`; pack READINESS blockers ("no recorded run") | Add `pwsh scripts/Validate-AgentHub.ps1` (fast) to the hook, and `Run-AllTests.ps1` when `registry/` or `packages/slack/` changed | yes (extend `packages/security/scripts/pre-push.test.mjs`) |
 | 3 | medium | Slack server is on 2025-11-25 with no `server/discover`, `outputSchema` or conformance run | `slack-mcp.mjs:9`, `contract.mjs:52-58` | Carried from the audit (P1.3); do after rank 2 so the conformance run has a gate | no |
 | 4 | medium | `registry/*.json` has no JSON Schema | `registry/` listing; `Validate-AgentHub.ps1` | `registry/schemas/mcps.schema.json` and a validator step (audit P1.4) | yes (validator test with a bad fixture) |
-| 5 | low | `engines.node` is `>=18`, a release line that no longer gets security fixes | `package.json:11-13` | Raise to the current LTS floor in `package.json` | yes (one line; run `npx agenthub validate` once) |
+| 5 | low | `engines.node` is `>=18`, a release line that no longer gets security fixes | `package.json:11-13` | Raise to the current LTS floor in `package.json` | yes (one line; run `npm run validate` once) |
 | 6 | low | Slack tool list is not human-readable | `packages/slack/README.md:19-32` | Generated catalogue page (friction 2) | yes (drift test) |
 
 Skipped as already in the pack or README: no CI (owner decision), no recorded test run, installed state has no SHA, no demo, test-discovery gap, PR #16, Cursor autonomy conflict.

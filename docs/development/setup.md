@@ -6,7 +6,7 @@
 - PowerShell 7+ (`pwsh`). Windows PowerShell 5.1 works for many scripts on Windows only.
 - Git.
 - [ripgrep](https://github.com/BurntSushi/ripgrep#installation) (`rg`) on `PATH`; `validate` uses it, and `sync --apply` runs `validate` first.
-- Node 20+ optional, for `npx agenthub` / `npm install -g .`. `agenthub doctor` needs only Node.
+- Node 20+ optional, for `npm run <command>` / `npm install -g .`. `npx @shmindmaster/agenthub doctor` needs only Node.
 
 No package install step is required for the PowerShell lifecycle: this repo is
 scripts, registry JSON, and markdown.

@@ -47,7 +47,8 @@ const emptyPath = () => {
 test('the npm package does not ship the PowerShell engine', () => {
   const pkg = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
   assert.equal(pkg.private, undefined);
-  assert.equal(pkg.name, 'agenthub');
+  assert.equal(pkg.name, '@shmindmaster/agenthub');
+  assert.equal(pkg.bin.agenthub, './scripts/agenthub-cli.mjs');
   assert.equal(pkg.version, '0.1.0');
   assert.ok(!pkg.files.some((f) => /AgentHub\.ps1|^scripts\/$/.test(f)));
 });
@@ -59,7 +60,7 @@ for (const command of ['sync', 'sync --apply', 'validate', 'init', 'drift', 'inv
     assert.equal(r.error, undefined, `did not exit within ${TIMEOUT_MS} ms`);
     assert.equal(r.status, 1, r.stderr);
     assert.match(r.stderr, /git clone https:\/\/github\.com\/shmindmaster\/agenthub/);
-    assert.match(r.stderr, /'agenthub doctor' works from anywhere/);
+    assert.match(r.stderr, /'npx @shmindmaster\/agenthub doctor' works from anywhere/);
   });
 }
 

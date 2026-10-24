@@ -6,7 +6,7 @@ Commit `5002737`. Read-only pass. Existing architecture docs: [docs/architecture
 
 ```mermaid
 flowchart LR
-  CLI["npx agenthub<br/>scripts/agenthub-cli.mjs"] --> AH["scripts/AgentHub.ps1<br/>init / validate / sync / drift / inventory"]
+  CLI["npx @shmindmaster/agenthub<br/>scripts/agenthub-cli.mjs"] --> AH["scripts/AgentHub.ps1<br/>init / validate / sync / drift / inventory"]
   AH --> VAL["Validate-AgentHub.ps1<br/>hash + path checks"]
   AH --> ORCH["lib/SyncOrchestrator.ps1<br/>4 delegated steps"]
   ORCH --> SI["Sync-Instructions.ps1<br/>policy-core.md -> host files"]
@@ -73,7 +73,7 @@ None beyond files: `latest-drift.json` and console output. No logs, metrics or t
 
 No segment is simulated. Segments I could not follow to the end are marked.
 
-1. UI: terminal command `npx agenthub sync [--apply]`. Help text `scripts/agenthub-cli.mjs:17-35`.
+1. UI: terminal command `npm run sync [-- --apply]` in a clone. Help text `scripts/agenthub-cli.mjs:17-35`.
 2. Frontend wrapper: `main()` parses argv and builds `-File AgentHub.ps1 sync [-Apply]` (`agenthub-cli.mjs:71-120`), spawns `pwsh` hidden (`:47-55`).
 3. API (command dispatch): `switch ($Command)` at `scripts/AgentHub.ps1:335`; `'sync'` branch `:363`.
 4. Logic, gate: with `-Apply`, `Invoke-ValidateAgentHub` runs first; failure prints REFUSED and exits 1 (`AgentHub.ps1:364-373`). Validate compares each package's computed hash with `registry/capabilities.json` `contentHash` (`Validate-AgentHub.ps1:245-248`).

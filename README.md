@@ -3,11 +3,13 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![CI](https://github.com/shmindmaster/agenthub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shmindmaster/agenthub/actions/workflows/ci.yml)
 
-**Works in Claude Code but not in Codex? `npx agenthub doctor` shows every MCP server, skill and instruction file each of your coding agents actually loads, and what's broken, in about 10 seconds. Read-only. No account. No PowerShell.**
+**Works in Claude Code but not in Codex? `npx @shmindmaster/agenthub doctor` shows every MCP server, skill and instruction file each of your coding agents actually loads, and what's broken, in about 10 seconds. Read-only. No account. No PowerShell.**
 
 ```bash
-npx agenthub doctor
+npx @shmindmaster/agenthub doctor
 ```
+
+Or install it globally to get an `agenthub` command: `npm install -g @shmindmaster/agenthub`, then `agenthub doctor`.
 
 ```text
 AgentHub doctor 0.1.0 · read-only · no network
@@ -96,17 +98,16 @@ AgentHub was built by Sarosh Hussain as the control plane for his own machine. T
 
 ## Sync engine quickstart
 
-You need [PowerShell 7+](https://aka.ms/powershell) (`pwsh`), Git, [ripgrep](https://github.com/BurntSushi/ripgrep#installation) (`rg`, used by `validate`) and Python 3.11+ (`python3`, or `py`/`python` on Windows; `sync --apply` parses the TOML it writes for Codex and Grok with `tomllib`). Node 20+ is optional and provides the `npx agenthub` wrapper. The sync engine runs from a clone; the npm package carries only `doctor`.
+You need [PowerShell 7+](https://aka.ms/powershell) (`pwsh`), Git, [ripgrep](https://github.com/BurntSushi/ripgrep#installation) (`rg`, used by `validate`) and Python 3.11+ (`python3`, or `py`/`python` on Windows; `sync --apply` parses the TOML it writes for Codex and Grok with `tomllib`). Node 20+ is optional and provides the `agenthub` wrapper. The sync engine runs from a clone; the npm package `@shmindmaster/agenthub` carries only `doctor`, so in a clone run the wrapper through the repository's npm scripts (or `npm install -g .` for an `agenthub` command that points at the clone).
 
 ```bash
 git clone https://github.com/shmindmaster/agenthub
 cd agenthub
 
-npm install -g .           # optional
-npx agenthub init          # local overlay + profile from examples
-npx agenthub validate
-npx agenthub sync          # read-only drift audit
-# npx agenthub sync --apply
+npm run init               # local overlay + profile from examples
+npm run validate
+npm run sync               # read-only drift audit
+# npm run sync -- --apply
 ```
 
 `init` copies the example overlay and profile into place and writes nothing to any host.
@@ -194,7 +195,7 @@ npm run typecheck
 
 `Check-RepoStandard.ps1` checks the repositories named in `registry/repo-standard.json` against the repository standard. That roster is the author's; edit it, or pass `-ConfigPath`, to check your own.
 
-`npx agenthub export <dir>` writes a stripped copy of the public tree to an empty directory, as a residue audit. It does not push anything.
+`npm run agenthub -- export <dir>` writes a stripped copy of the public tree to an empty directory, as a residue audit. It does not push anything.
 
 ## Documentation
 
