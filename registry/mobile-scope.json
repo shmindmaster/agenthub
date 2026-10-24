@@ -31,6 +31,36 @@
   },
   "products": [
     {
+      "productId": "mahumtech-azure",
+      "repository": "shmindmaster/mahumtech-azure",
+      "bucket": "noNative",
+      "note": "Owner Azure inference infrastructure and inference-budget gateway, as declared by README and service runtime configuration; no native mobile product surface. Classified from repository evidence 2026-10-24."
+    },
+    {
+      "productId": "agent-prompt-safeguards-2026",
+      "repository": "shmindmaster/agent-prompt-safeguards-2026",
+      "bucket": "noNative",
+      "note": "Standalone public research dataset and Python scoring scripts; README and scoring entry points establish a research artifact, with no native product surface. Classified from repository evidence 2026-10-24."
+    },
+    {
+      "productId": "fakeplane",
+      "repository": "shmindmaster/fakeplane",
+      "bucket": "noNative",
+      "note": "Node CLI/library and local HTTP/MCP fake backends for agent CI testing, as declared by README and package.json; infrastructure with no native mobile surface. Classified from repository evidence 2026-10-24."
+    },
+    {
+      "productId": "replyonce",
+      "repository": "shmindmaster/replyonce",
+      "bucket": "noNative",
+      "note": "Node/Python side-effect idempotency and fencing library with CLI demonstrations and storage adapters, as declared by README and package.json; no native mobile surface. Classified from repository evidence 2026-10-24."
+    },
+    {
+      "productId": "subtext-scan",
+      "repository": "shmindmaster/subtext-scan",
+      "bucket": "noNative",
+      "note": "Local document scanning CLI/library/MCP server for PDF, DOCX and HTML, as declared by README and package.json; no native mobile surface. Classified from repository evidence 2026-10-24."
+    },
+    {
       "productId": "rexa",
       "repository": "shmindmaster/Rexa",
       "bucket": "include",

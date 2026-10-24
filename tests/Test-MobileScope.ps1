@@ -124,6 +124,30 @@ function Test-SchemaIsSound {
 # Behavior 2: every fleet repository is classified. This is the guard that
 # stops a new repository from silently defaulting into eligibility.
 # ---------------------------------------------------------------------------
+function Resolve-MobileCommonDirOwner {
+    param([string]$CommonGitDir, [hashtable]$ClassifiedCommonDirs)
+    if ([string]::IsNullOrWhiteSpace($CommonGitDir)) { return $null }
+    $normalized = [IO.Path]::GetFullPath($CommonGitDir).TrimEnd('\', '/')
+    if ($ClassifiedCommonDirs.ContainsKey($normalized)) { return $ClassifiedCommonDirs[$normalized] }
+    return $null
+}
+
+function Test-WorktreeOwnershipResolution {
+    $known = @{}
+    $owned = [IO.Path]::GetFullPath((Join-Path $repoRoot 'synthetic-owner/.git'))
+    $unknown = [IO.Path]::GetFullPath((Join-Path $repoRoot 'synthetic-other/.git'))
+    $known[$owned] = 'classified-owner'
+    if ((Resolve-MobileCommonDirOwner -CommonGitDir $owned -ClassifiedCommonDirs $known) -ne 'classified-owner') {
+        return @{ Passed = $false; Detail = 'An exact classified common Git directory failed to resolve.' }
+    }
+    foreach ($unowned in @($unknown, "$owned-extra", '')) {
+        if ($null -ne (Resolve-MobileCommonDirOwner -CommonGitDir $unowned -ClassifiedCommonDirs $known)) {
+            return @{ Passed = $false; Detail = 'An unknown, prefix-collision, or empty common Git directory inherited a classification.' }
+        }
+    }
+    return @{ Passed = $true; Detail = 'Exact ownership resolves; unknown, prefix-collision and empty owners remain unclassified.' }
+}
+
 function Test-EveryFleetRepoIsClassified {
     $classified = @{}
     foreach ($product in $products) { $classified[[string]$product.productId] = $true }
@@ -144,11 +168,27 @@ function Test-EveryFleetRepoIsClassified {
     $fleetRoot = [string]$standard.fleetRoot
     $excluded  = @($standard.excluded | ForEach-Object { [string]$_.name })
     if (Test-Path -LiteralPath $fleetRoot) {
+        # Linked worktrees share product identity, not their arbitrary checkout
+        # basename. Only an exact common-dir match to a classified primary
+        # checkout may inherit its existing bucket; this grants no eligibility.
+        $classifiedCommonDirs = @{}
+        foreach ($product in $products) {
+            $primaryGit = Join-Path (Join-Path $fleetRoot ([string]$product.productId)) '.git'
+            if (Test-Path -LiteralPath $primaryGit -PathType Container) {
+                $classifiedCommonDirs[[IO.Path]::GetFullPath($primaryGit).TrimEnd('\', '/')] = [string]$product.productId
+            }
+        }
         $children = @(Get-ChildItem -LiteralPath $fleetRoot -Directory -Force -ErrorAction SilentlyContinue)
         foreach ($child in $children) {
             if ($child.Name -in $excluded) { continue }
             if (-not (Test-Path -LiteralPath (Join-Path $child.FullName '.git'))) { continue }
             if (-not $classified.ContainsKey($child.Name)) {
+                $gitMarker = Join-Path $child.FullName '.git'
+                if (Test-Path -LiteralPath $gitMarker -PathType Leaf) {
+                    $commonDir = @(& git -C $child.FullName rev-parse --path-format=absolute --git-common-dir 2>$null)
+                    if ($LASTEXITCODE -eq 0 -and $commonDir.Count -eq 1 -and
+                        (Resolve-MobileCommonDirOwner -CommonGitDir ([string]$commonDir[0]) -ClassifiedCommonDirs $classifiedCommonDirs)) { continue }
+                }
                 $unclassified.Add("$($child.Name) (cloned at $fleetRoot)")
             }
         }
@@ -393,6 +433,7 @@ function Test-RecordedIdentifiersMatchDisk {
 }
 
 $behaviors = @(
+    @{ Name = 'worktree aliases require exact classified Git ownership'; Run = { Test-WorktreeOwnershipResolution } }
     @{ Name = 'mobile-scope.json is structurally sound';                 Run = { Test-SchemaIsSound } }
     @{ Name = 'every fleet repository carries a classification';         Run = { Test-EveryFleetRepoIsClassified } }
     @{ Name = 'empowera and documed are still frozen';                   Run = { Test-FrozenProductsStayFrozen } }
