@@ -151,10 +151,10 @@ Requires [PowerShell 7+](https://aka.ms/powershell) (`pwsh`) on Windows, macOS, 
 # optional wrapper
 npm install -g .
 
-npx agenthub init          # local overlay + profile from examples
-npx agenthub validate      # registry checks
-npx agenthub sync          # read-only drift audit
-# npx agenthub sync --apply  # deploy after validate passes
+npm run init               # local overlay + profile from examples
+npm run validate           # registry checks
+npm run sync               # read-only drift audit
+# npm run sync -- --apply  # deploy after validate passes
 ```
 
 Or call PowerShell directly:
@@ -228,7 +228,7 @@ $publicSetup = @'
 - Windows, macOS, or Linux.
 - PowerShell 7+ (`pwsh`). Windows PowerShell 5.1 works for many scripts on Windows only.
 - Git.
-- Node 18+ optional, for `npx agenthub` / `npm install -g .`.
+- Node 18+ optional, for `npm run <command>` / `npm install -g .`.
 
 No package install step is required for the PowerShell lifecycle: this repo is
 scripts, registry JSON, and markdown.

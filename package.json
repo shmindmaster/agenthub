@@ -1,5 +1,5 @@
 {
-  "name": "agenthub",
+  "name": "@shmindmaster/agenthub",
   "version": "0.1.0",
   "description": "See every MCP server, skill and instruction file your coding agents load, and what's broken. Read-only doctor plus a sync engine for Claude Code, Codex, Cursor, Gemini CLI, Copilot CLI and more.",
   "license": "Apache-2.0",
