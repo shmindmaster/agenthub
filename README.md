@@ -62,7 +62,7 @@ It never writes a file, starts a server or opens a network connection. `--probe-
 
 If you run more than one AI coding agent, you end up with several copies of the same instructions, skills and MCP server settings, and they slowly stop matching. AgentHub keeps one canonical copy, writes it into each agent's own configuration format, and tells you when an agent has drifted from it.
 
-It targets Claude Code, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot CLI and the other agents listed in [`registry/agents.json`](./registry/agents.json). The sync engine is a set of PowerShell scripts over plain JSON and Markdown, and it runs on Windows, macOS and Linux. Nothing is written to an agent's configuration until you run `sync --apply`.
+It targets Claude Code, OpenAI Codex, Cursor, Gemini CLI, GitHub Copilot CLI and the other agents listed in [`registry/agents.json`](./registry/agents.json). The sync engine is a set of PowerShell scripts over plain JSON and Markdown. It is developed and tested on Windows; on macOS and Linux `validate` passes, but the `sync` audit and most of the test suite do not run yet ([#72](https://github.com/shmindmaster/agenthub/issues/72)). Nothing is written to an agent's configuration until you run `sync --apply`.
 
 ### What it keeps in sync
 
