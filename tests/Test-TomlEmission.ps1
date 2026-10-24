@@ -184,6 +184,32 @@ Report 'the sync script defines a dedicated Python interpreter resolver (never b
     'Expected function Resolve-PythonExe in scripts/Sync-AgentHub.ps1, used instead of a bare `python` call.'
 if ($resolvePythonText) {
     . ([scriptblock]::Create($resolvePythonText))
+    # Get-Command can emit several ApplicationInfo matches even for one name.
+    # Keep the synthetic override local so real parser checks still use PATH.
+    $multipleLaunchers = & {
+        function Get-Command {
+            param($Name, $CommandType, $ErrorAction)
+            @('first-py.exe', 'second-py.exe', 'third-py.exe') |
+                ForEach-Object { [pscustomobject]@{ Source = $_ } }
+        }
+        @(Resolve-PythonExe)
+    }
+    Report 'multiple py launchers resolve to exactly one executable' `
+        (@($multipleLaunchers).Count -eq 1 -and @($multipleLaunchers)[0] -eq 'first-py.exe') `
+        'Expected the first launcher only; an array becomes a concatenated invalid command path.'
+    $fallbackPython = & {
+        function Get-Command {
+            param($Name, $CommandType, $ErrorAction)
+            if ($Name -eq 'python3') {
+                @('C:\Users\synthetic\AppData\Local\Microsoft\WindowsApps\python3.exe', 'usable-python3.exe') |
+                    ForEach-Object { [pscustomobject]@{ Source = $_ } }
+            }
+        }
+        @(Resolve-PythonExe)
+    }
+    Report 'a Store alias does not hide a later usable Python candidate' `
+        (@($fallbackPython).Count -eq 1 -and @($fallbackPython)[0] -eq 'usable-python3.exe') `
+        'Expected filtering of alias stubs before selecting one PATH candidate.'
     $previousPath = $env:PATH
     try {
         $env:PATH = [IO.Path]::GetTempPath().TrimEnd('\', '/')

@@ -298,11 +298,15 @@ function Resolve-PythonExe {
     # Fail loudly (throw) rather than letting the caller silently skip TOML
     # validation when no real interpreter is present.
     # macOS and Linux ship python3 and often no bare `python` at all.
-    $py = Get-Command py -CommandType Application -ErrorAction SilentlyContinue
+    # One name can still resolve to multiple ApplicationInfo matches. Select
+    # one before returning Source; an array is not an executable command path.
+    $py = Get-Command py -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($py) { return $py.Source }
     foreach ($name in @('python3', 'python')) {
-        $python = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($python -and $python.Source -notmatch '(?i)\\WindowsApps\\python(3)?\.exe$') { return $python.Source }
+        $python = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue |
+            Where-Object { $_.Source -notmatch '(?i)\\WindowsApps\\python(3)?\.exe$' } |
+            Select-Object -First 1
+        if ($python) { return $python.Source }
     }
     throw "No usable Python interpreter found (checked the 'py' launcher, 'python3' and 'python' on PATH, excluding the Windows Store alias stub). Install Python 3.11+ or add it to PATH to validate TOML output."
 }
