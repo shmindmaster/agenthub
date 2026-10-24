@@ -222,6 +222,25 @@ function Test-ReparsePoint([string]$Path) {
   return [bool]($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint))
 }
 
+# Resolve existing ancestor junctions only for I/O. Ledger keys stay logical.
+function Resolve-PhysicalWritePath([string]$Path, [int]$Depth = 0) {
+  if ($Depth -gt 64) { throw "Reparse-point cycle resolving '$Path'" }
+  $full = [IO.Path]::GetFullPath($Path)
+  $parent = Split-Path -Parent $full
+  if (-not $parent -or $parent -eq $full) { return $full }
+  $physicalParent = Resolve-PhysicalWritePath -Path $parent -Depth ($Depth + 1)
+  $item = Get-Item -LiteralPath $physicalParent -Force -ErrorAction SilentlyContinue
+  if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    $target = @($item.Target) | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($target)) { throw "Cannot resolve reparse point '$physicalParent'" }
+    if (-not [IO.Path]::IsPathRooted($target)) { $target = Join-Path (Split-Path -Parent $physicalParent) $target }
+    # Resolve the target itself too, including chained junctions.
+    $sentinel = Resolve-PhysicalWritePath -Path (Join-Path $target '.agenthub-resolve') -Depth ($Depth + 1)
+    $physicalParent = Split-Path -Parent $sentinel
+  }
+  return Join-Path $physicalParent (Split-Path -Leaf $full)
+}
+
 function Register-ManagedTree {
   param(
     [Parameter(Mandatory)][string]$Source,
@@ -234,6 +253,11 @@ function Register-ManagedTree {
   )
   $sourceHash = Get-TreeHash $Source
   $desired[$Destination] = @{ capability=$CapabilityId; kind=$Kind; name=$ItemName; hash=$sourceHash }
+  if ((Test-Path -LiteralPath $Destination) -and -not (Test-Path -LiteralPath $Destination -PathType Container)) {
+    $failures.Add("refusing non-directory managed ${Kind}: $Destination")
+    $refused[$Destination] = $true
+    return
+  }
   $currentHash = if (Test-Path -LiteralPath $Destination) { Get-TreeHash $Destination } else { $null }
   $status = if ($currentHash -eq $sourceHash) { 'current' } elseif ($currentHash) { 'drift' } else { 'missing' }
   $rows.Add([pscustomobject]@{ capability=$CapabilityId; host=$HostId; mode=$Mode; skill=$ItemName; status=$status })
@@ -252,9 +276,48 @@ function Register-ManagedTree {
     $refused[$Destination] = $true
     return
   }
-  if (Test-Path -LiteralPath $Destination) { Remove-Item -LiteralPath $Destination -Recurse -Force }
-  New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force | Out-Null
-  Copy-Item -LiteralPath $Source -Destination $Destination -Recurse
+  $stage = $null
+  $backup = $null
+  $verified = $false
+  try {
+    $physicalDestination = Resolve-PhysicalWritePath $Destination
+    $parent = Split-Path -Parent $physicalDestination
+    $stage = Join-Path $parent ('.agenthub-stage-' + [guid]::NewGuid())
+    $backup = Join-Path $parent ('.agenthub-backup-' + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    Copy-Item -LiteralPath $Source -Destination $stage -Recurse
+    if (-not (Test-Path -LiteralPath $stage -PathType Container) -or (Get-TreeHash $stage) -ne $sourceHash) {
+      throw 'Staged copy failed directory/content verification'
+    }
+    if (Test-Path -LiteralPath $physicalDestination) { Move-Item -LiteralPath $physicalDestination -Destination $backup }
+    Move-Item -LiteralPath $stage -Destination $physicalDestination
+    if (-not (Test-Path -LiteralPath $physicalDestination -PathType Container) -or (Get-TreeHash $physicalDestination) -ne $sourceHash) {
+      throw 'Deployed copy failed directory/content verification'
+    }
+    $verified = $true
+  } catch {
+    $failures.Add("failed to deploy ${Kind}: $Destination : $($_.Exception.Message)")
+    $refused[$Destination] = $true
+    if ($backup -and (Test-Path -LiteralPath $backup)) {
+      try {
+        if (Test-Path -LiteralPath $physicalDestination) { Remove-Item -LiteralPath $physicalDestination -Recurse -Force }
+        Move-Item -LiteralPath $backup -Destination $physicalDestination
+      } catch {
+        $failures.Add("rollback failed for '$Destination'; preserved backup '$backup': $($_.Exception.Message)")
+      }
+    }
+  } finally {
+    if ($stage -and (Test-Path -LiteralPath $stage)) {
+      try { Remove-Item -LiteralPath $stage -Recurse -Force }
+      catch { $failures.Add("staging cleanup failed for '$Destination': $($_.Exception.Message)") }
+    }
+  }
+  # Cleanup cannot initiate rollback after a verified deployment: a partially
+  # removed backup is no longer a safe source for restoring the old tree.
+  if ($verified -and (Test-Path -LiteralPath $backup)) {
+    try { Remove-Item -LiteralPath $backup -Recurse -Force }
+    catch { $failures.Add("backup cleanup failed for '$Destination': $($_.Exception.Message)") }
+  }
 }
 
 foreach ($capability in $capabilities.capabilities) {
@@ -371,7 +434,7 @@ if ($Apply -and $Prune) {
     if (-not (Test-Path -LiteralPath $destination)) { continue }
     if ($desired.ContainsKey($destination)) { continue }   # a live skill reclaimed the name
     if ($cliRetiredDestinations.ContainsKey($destination) -and (Test-ReparsePoint $destination)) { continue }
-    Remove-Item -LiteralPath $destination -Recurse -Force
+    Remove-Item -LiteralPath (Resolve-PhysicalWritePath $destination) -Recurse -Force
     $retiredPruned++
   }
 }
@@ -431,7 +494,7 @@ foreach ($entry in $cliDirs.Values) {
       Write-Host "CLI-SKILLS-DIR retired skill still present (drift; -Apply -Prune removes it): $path"
     } elseif ($entry.shipped.Contains($name)) {
       if ($Apply -and $Prune) {
-        Remove-Item -LiteralPath $path -Recurse -Force
+        Remove-Item -LiteralPath (Resolve-PhysicalWritePath $path) -Recurse -Force
         $cliShadowPruned++
         & $cliRow 'shadow-pruned'
         Write-Host "CLI-SKILLS-DIR shadow copy removed: $path"
@@ -459,7 +522,7 @@ if ($Apply -and $Prune) {
       $refused[$destination] = $true
       continue
     }
-    Remove-Item -LiteralPath $destination -Recurse -Force
+    Remove-Item -LiteralPath (Resolve-PhysicalWritePath $destination) -Recurse -Force
     $pruned++
   }
 }
@@ -551,14 +614,15 @@ if ($priorHashesAreLegacy) {
 }
 
 if ($Apply) {
-  New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
+  $physicalStatePath = Resolve-PhysicalWritePath $statePath
+  New-Item -ItemType Directory -Path (Split-Path -Parent $physicalStatePath) -Force | Out-Null
   # Not Set-Content -Encoding UTF8: that writes a BOM under Windows PowerShell
   # 5.1 and none under PowerShell 7, so the state file this run leaves behind
   # would differ by shell. The trailing CRLF reproduces what Set-Content
   # appended, keeping the emitted bytes identical to today's PowerShell 7 run.
   $stateJson = @{ schemaVersion=$StateSchemaVersion; updatedAt=(Get-Date).ToUniversalTime().ToString('o'); managed=$managedAfterRun } |
     ConvertTo-Json -Depth 6
-  [IO.File]::WriteAllText($statePath, ($stateJson + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
+  [IO.File]::WriteAllText($physicalStatePath, ($stateJson + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 }
 
 if ($failures.Count -gt 0) {

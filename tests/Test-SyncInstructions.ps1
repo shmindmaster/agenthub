@@ -147,6 +147,20 @@ function Test-RenderContractProducesExactBytes {
             return @{ Passed = $false; Detail = "expected 'claude ... current' in the post-apply audit. Output: $($after.Output)" }
         }
 
+        # Shared surfaces inherit the actual owner's audit state. VS Code's
+        # Copilot harness has its own documented file-discovery route.
+        if ($after.Output -notmatch '(?m)^antigravity\s+shared \(current\).*owner=gemini') {
+            return @{ Passed = $false; Detail = 'Antigravity did not report the concrete Gemini owner state' }
+        }
+        $editorPolicy = Join-Path $userProfile '.copilot\instructions\agenthub-global.instructions.md'
+        if (-not (Test-Path -LiteralPath $editorPolicy) -or
+            -not ([IO.File]::ReadAllText($editorPolicy).StartsWith("---`napplyTo: `"**`"`n---`n"))) {
+            return @{ Passed = $false; Detail = 'VS Code Copilot user policy missing or lacks applyTo frontmatter' }
+        }
+        if (Test-Path -LiteralPath (Join-Path $userProfile '.cursor\rules\agenthub-global-policy.mdc')) {
+            return @{ Passed = $false; Detail = 'unsupported Cursor home project-rule destination was written' }
+        }
+
         return @{ Passed = $true; Detail = $null }
     } finally {
         Remove-Item -LiteralPath $userProfile -Recurse -Force -ErrorAction SilentlyContinue
@@ -559,6 +573,27 @@ Report 'fail-closed: an overlay-required machine with no overlay refuses -Apply 
 
 $r8 = Test-OverlayRequiredMarkerAndPolicyResolution
 Report 'policy resolution prefers the overlay policy, honors the overlay-required marker, and falls back to the public file only when not required' $r8.Passed $r8.Detail
+
+function Test-InvalidInstructionOwnerFails {
+    $scratch = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-owner-" + [guid]::NewGuid())
+    $fixtureRoot = Join-Path $scratch 'repo'
+    try {
+        New-Item -ItemType Directory -Path (Join-Path $fixtureRoot 'registry') -Force | Out-Null
+        $fixture = @{ activeAgents = @(
+            @{ id = 'shared'; nativePaths = @{ instructions = $null; instructionsOwnedBy = 'absent' } },
+            @{ id = 'concrete'; name = 'Concrete'; nativePaths = @{ instructions = '{userHome}/policy.md' } }
+        ); inactiveAgents = @() }
+        $fixture | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixtureRoot 'registry/agents.json')
+        Copy-Item $canonicalPolicyPath (Join-Path $fixtureRoot 'global-agent-policy.md')
+        $result = Invoke-SyncInstructions -ExtraArgs @('-Audit', '-RepositoryRoot', $fixtureRoot, '-UserProfile', (Join-Path $scratch 'user'))
+        return @{ Passed = ($result.ExitCode -ne 0 -and $result.Output -match 'without one concrete destination'); Detail = $result.Output }
+    } finally {
+        # The GUID scratch is created above beneath the declared test root.
+        if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force }
+    }
+}
+$ownerCheck = Test-InvalidInstructionOwnerFails
+Report 'invalid shared instruction owner fails instead of implying coverage' $ownerCheck.Passed $ownerCheck.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red

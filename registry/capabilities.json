@@ -764,7 +764,7 @@
       "managedSkillNames": [
         "use-repowise"
       ],
-      "contentHash": "6ED86FAAF7590E96E11D38BEFC9CAD7811FBDADD44E1D4A0DC128BC69135A16C",
+      "contentHash": "828A5C76F2137D3534891ED4ADE8E2ED75AB782FB6F3998F4C4A8327AC667687",
       "hashBasis": "packages/repowise",
       "status": "active-canonical",
       "hostMappings": [
@@ -855,7 +855,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "BC822DFE5E7E96B7C5692D3CEF2EF6B8BC2758BCF8B99FFF91D539D5E74EBA79",
+      "contentHash": "DE979B22301DA1ED96023177381B62F53194887E2F5BFF93A84C6955FF9BF249",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -1028,7 +1028,7 @@
         "media-studio-compose",
         "media-studio-qa"
       ],
-      "contentHash": "48E3B4BD06FE4B56DE1D4091A899998621099CF3B83A8F6670FD8AE72B2EF7B1",
+      "contentHash": "3D1A3A42EEA960F8499B4F8687A62C61FFD67B44323DC68756475D59E50A56E1",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1287,7 +1287,7 @@
       "managedSkillNames": [
         "use-coding-agent"
       ],
-      "contentHash": "3B3A538B52643A4C00DE012A4279B50D398FC6B96498ADF81A0A7CBCB49CF83A",
+      "contentHash": "A15822CE3C2A190CA607734F13F94513BA1155C9BAB5969C0DA774DB13325A06",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [

@@ -30,6 +30,28 @@ Deploy canonical instruction changes with `Sync-Instructions.ps1 -Apply` and
 owned skills with `Sync-Capabilities.ps1 -Apply -Prune`. Audit both afterwards.
 Pruning only removes unchanged managed copies; a modified copy needs review.
 
+Instruction destinations are surface-specific. Antigravity CLI, Desktop and
+IDE share the Gemini-owned `~/.gemini/GEMINI.md`; the instruction audit reports
+the concrete owner's state for each shared surface and rejects an invalid owner.
+The [current Antigravity rules documentation](https://www.antigravity.google/docs/rules/)
+specifies 24,000 bytes per file after inline includes and a 20,000-token aggregate
+active-rules budget. File size alone does not establish the aggregate budget.
+
+VS Code's Copilot harness uses
+`~/.copilot/instructions/agenthub-global.instructions.md` with `applyTo: "**"`
+frontmatter, following its [user instructions documentation](https://code.visualstudio.com/docs/agent-customization/custom-instructions).
+Copilot CLI's single `copilot-instructions.md` is a separate discovery route.
+Claude and Codex harnesses use their own native sources; existing-session
+consumption and profile-specific discovery still need independent verification.
+
+[Cursor rules](https://cursor.com/docs/rules) under `.cursor/rules` are project
+rules; a file in the user's home directory does not establish global coverage.
+Global User Rules use editor settings. [Cursor Agent](https://cursor.com/docs/cli/using)
+documents project rules and project-root `AGENTS.md`/`CLAUDE.md`.
+[Warp Global Rules](https://docs.warp.dev/agents/capabilities/rules/) use Warp
+Drive; its file rules are project-scoped. These three registry surfaces have
+no established global file target and remain explicit deployment gaps.
+
 Cline and OpenCode have separate native tool-discovery plugins in the
 coding-agent-dispatch skill. Their manual installers audit by default and use
 `-Apply` for hash-verified repair. Each starts with one discovery tool and
@@ -47,6 +69,18 @@ of files does not guarantee compatibility with future SDK versions. After an
 update, audit the file and run a fresh chat plus a real tool-discovery check.
 Record provider input tokens separately from byte counts. A CLI check does
 not establish that Desktop rendered or consumed the change.
+Keep one measurement row per registry surface, including inactive surfaces.
+Label historical receipts separately from fresh before/after measurements.
+Mixed-task request usage and cache tokens cannot establish initial-context
+savings. When another host cannot be started under the one-host policy, record
+the fresh measurement as unknown rather than extrapolating from static bytes.
+
+Usage-based culling needs bounded, named evidence: enumerate log roots and
+selection limits, distinguish tool requests from successful execution, and
+record activation independently from observed use. No signal in a selected
+sample means usage is unknown. Identical hashes or old cache versions alone
+do not authorize removing a capability or a vendor cache. Retain unknown-use
+entries until the native lifecycle and actual need are established.
 
 Run `python -m unittest discover -s tests -p test_agent_context.py`, the package
 Node discovery tests, and the shared PowerShell suite after lifecycle changes.

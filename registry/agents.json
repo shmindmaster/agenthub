@@ -214,7 +214,7 @@
         "instructions": null,
         "instructionsOwnedBy": "gemini",
         "verification": "documented-shared-destination",
-        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today. Reconfirmed 2026-10-21 for the instruction-destination sweep: instructions stays null for the reason above.",
+        "instructionsNote": "Verified 2026-10-23 against https://www.antigravity.google/docs/rules/ (all three surfaces): ~/.gemini/GEMINI.md is an always-active global rule shared with the gemini entry. instructionsOwnedBy avoids competing writers. Current documented limit is 24,000 bytes per file after inline includes, plus a 20,000-token aggregate active-rules budget; the earlier 12,000-character claim is superseded. File deployment is not proof an already-running session consumed it.",
         "cliSkillsDirNote": "Verified 2026-08-05 against antigravity.google/docs/cli/plugins, which states directly that skills shared across all workstation workspaces go in ~/.gemini/antigravity-cli/skills/. Distinct from workspace .agents/skills/ and from the broader ~/.gemini/skills/ shared across all Antigravity tools rather than the CLI alone. Path correct; absent only because AgentHub deploys Antigravity capabilities as plugin bundles under ~/.gemini/antigravity-cli/plugins/ instead. Updated 2026-10-21: scripts/Sync-Capabilities.ps1 now manages this directory without deploying into it, because the CLI already reads the shared library ~/.agents/skills (sharedSkillsDir) and a copy here would load every skill twice. With -Apply -Prune it removes retired fleet skill names and shadow copies (entries named like a skill AgentHub ships to this host); without -Prune it reports them as drift. Entries AgentHub does not ship (third-party skills) are reported as unmanaged and never deleted, and a reparse point is never removed. Background: on 2026-10-20 this directory held 29 stale unmanaged skill copies (old media-studio skills and retired names) that the CLI loaded beside the managed set; they were backed up to antigravity-cli-skills-backup-20261020-2353.zip with a SHA-256 manifest in the orchestrator's shared notes and then removed. That removal was the owner's decision, relayed by the orchestrating session."
       },
       "supportedCapabilities": [
@@ -242,7 +242,7 @@
         "instructions": null,
         "instructionsOwnedBy": "gemini",
         "verification": "documented-shared-destination",
-        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today."
+        "instructionsNote": "Verified 2026-10-23 against https://www.antigravity.google/docs/rules/ (all three surfaces): ~/.gemini/GEMINI.md is an always-active global rule shared with the gemini entry. instructionsOwnedBy avoids competing writers. Current documented limit is 24,000 bytes per file after inline includes, plus a 20,000-token aggregate active-rules budget; the earlier 12,000-character claim is superseded. File deployment is not proof an already-running session consumed it."
       },
       "supportedCapabilities": [
         "skills",
@@ -267,7 +267,7 @@
         "instructions": null,
         "instructionsOwnedBy": "gemini",
         "verification": "documented-shared-destination",
-        "instructionsNote": "Researched 2026-08-04 against antigravity.google/docs/rules-workflows, /docs/ide/rules and /docs/cli/gcli-migration (subjects confirmed: the Rules feature, not MCP or plugins). All three Antigravity surfaces share ONE global rules file, ~/.gemini/GEMINI.md, applied across all workspaces. That exact file is already an AgentHub-managed destination owned by the 'gemini' registry entry, and its deployed header reads 'Gemini CLI and Antigravity Global Instructions'. instructions stays null here on purpose: four registry entries pointing at one file would have them overwrite each other. Antigravity is covered today, not skipped for lack of a destination. Format is plain Markdown with a documented 12,000-character cap; whether an embedded HTML comment survives the rules parser is not documented either way, though the marker is present in the deployed file today.",
+        "instructionsNote": "Verified 2026-10-23 against https://www.antigravity.google/docs/rules/ (all three surfaces): ~/.gemini/GEMINI.md is an always-active global rule shared with the gemini entry. instructionsOwnedBy avoids competing writers. Current documented limit is 24,000 bytes per file after inline includes, plus a 20,000-token aggregate active-rules budget; the earlier 12,000-character claim is superseded. File deployment is not proof an already-running session consumed it.",
         "configHomeNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated.",
         "settingsNote": "Checked 2026-10-21: the declared path is absent on this workstation. Retained as a host capability declaration; this observation does not establish that the vendor path is wrong. No configuration, credentials or installation were recreated."
       },
@@ -331,7 +331,7 @@
         "configHome": "{userHome}/AppData/Roaming/warp",
         "instructions": null,
         "verification": "documented-no-global-file",
-        "instructionsNote": "Researched 2026-08-04 against docs.warp.dev/agent-platform/capabilities/rules (subject confirmed: rules). Warp Global Rules are GUI-only -- Warp Drive, Command Palette, Settings > Agents > Knowledge -- with no documented on-disk path. Warp's file-based AGENTS.md and WARP.md rules are project-scoped, which this global-scope sync does not cover. Documented absence of a global FILE, not a failure to find the docs. Reconfirmed 2026-10-21 for the instruction-destination sweep: instructions stays null for the reason above."
+        "instructionsNote": "Verified 2026-10-23 against https://docs.warp.dev/agents/capabilities/rules/: Global Rules are managed in Warp Drive > Personal > Rules; documented file-based AGENTS.md/WARP.md rules are project-scoped. No documented global file destination established. instructions remains null; this audit does not claim Warp Drive rules or an existing session received the canonical policy."
       },
       "supportedCapabilities": [
         "rules",
@@ -403,13 +403,13 @@
         "agentsDir": "{userHome}/.cursor/agents",
         "rulesDir": "{userHome}/.cursor/rules",
         "instructions": null,
-        "instructionsDestinationKind": "directory",
         "instructionHeader": null,
         "instructionFormat": "mdc",
         "instructionFormatVerification": "documented-2026-08-04",
-        "instructionFormatNote": "Verified 2026-08-04 against cursor.com/docs/rules (subject confirmed: rules). The .mdc extension is required, not stylistic: the page states a plain .md file in .cursor/rules is ignored because it carries no frontmatter to specify description, globs and alwaysApply. Those three fields are the documented frontmatter schema. Scope caveat that this field does not by itself convey: .mdc applies to PROJECT rules under .cursor/rules. Cursor's global User Rules are GUI-only under Customize > Rules with no documented on-disk path, which is why nativePaths.instructions here is null and nothing global is deployed -- the same documented-absence this repository already recorded for cursor-agent.",
+        "instructionFormatNote": "Verified 2026-10-23 against https://cursor.com/docs/rules: .cursor/rules/*.mdc is project-scoped; global User Rules are configured in Cursor Settings > Rules. No documented user-global file destination was established. The home rulesDir is retained as inventory only and is not a deployment target. Existing home files are preserved; no inferred global coverage.",
         "pluginsDir": "{userHome}/.cursor/plugins",
-        "extensionsDir": "{userHome}/.cursor/extensions"
+        "extensionsDir": "{userHome}/.cursor/extensions",
+        "verification": "documented-no-global-file"
       },
       "supportedCapabilities": [
         "rules",
@@ -436,7 +436,7 @@
         "sharedSkillsDirNote": "Same junction as the cursor host: ~/.cursor/skills -> ~/.agents/skills. cursor-agent reads this path.",
         "instructions": null,
         "verification": "documented-no-global-file",
-        "instructionsNote": "Researched 2026-08-04 against cursor.com/docs/rules, cursor.com/docs/cli/using and cursor.com/docs/cli/reference/configuration (subjects confirmed: rules, CLI usage, CLI configuration). Cursor User Rules are global but live in GUI state under Customize > Rules with no documented file path, and the CLI reads AGENTS.md/CLAUDE.md only at the project root. The exhaustive cli-config.json key list contains no instructions field. This is a documented absence of a global FILE, not a failure to find the docs, so instructions stays null by design rather than pending discovery. Reconfirmed 2026-10-21 for the instruction-destination sweep: instructions stays null for the reason above."
+        "instructionsNote": "Verified 2026-10-23 against https://cursor.com/docs/cli/using and https://cursor.com/docs/rules: CLI loads project .cursor/rules plus project-root AGENTS.md/CLAUDE.md. User Rules are editor settings; no documented CLI global file destination was established. instructions remains null; project policy and injected dispatcher policy are separate coverage, not proof of global file discovery."
       },
       "supportedCapabilities": [
         "rules",
@@ -568,10 +568,12 @@
         "settings": "{roamingConfig}/Code - Insiders/User/settings.json",
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "sharedSkillsDirNote": "Verified 2026-08-20 against https://code.visualstudio.com/docs/agent-customization/agent-skills: VS Code supports personal Agent Skills under ~/.copilot/skills, ~/.claude/skills, and ~/.agents/skills. AgentHub already manages ~/.agents/skills as the shared user-level destination for Codex, Gemini, and Warp, so VS Code Insiders resolves to that same documented shared directory instead of inventing an AppData-private skills path.",
-        "instructions": null,
-        "instructionsOwnedBy": "copilot",
-        "verification": "documented-shared-destination",
-        "instructionsNote": "Re-verified 2026-10-21 against code.visualstudio.com/docs/agent-customization/custom-instructions (ms.date 2026-10-14): user-scope instructions for the Copilot harness default to ~/.copilot/instructions; profile-stored instructions are migrated there and chat.instructionsFilesLocations is deprecated. That folder belongs to the Copilot harness, whose AgentHub destination is the 'copilot' entry ({userHome}/.copilot/copilot-instructions.md); instructions stays null here so Sync never writes a second, competing policy file (a single-file destination cannot be a folder), and instructionsOwnedBy records the owner. History: 2026-08-04 the page said only 'your user data'."
+        "instructions": "{userHome}/.copilot/instructions/agenthub-global.instructions.md",
+        "verification": "documented-path",
+        "instructionsNote": "Verified 2026-10-23 against https://code.visualstudio.com/docs/agent-customization/custom-instructions: Copilot user instructions use ~/.copilot/instructions/*.instructions.md with applyTo frontmatter. The CLI single file ~/.copilot/copilot-instructions.md is a different discovery route and does not establish VS Code coverage. This file covers the Copilot harness; Claude/Codex harnesses use their native sources. Local harness profile storage and current-session consumption are not verified. chat.instructionsFilesLocations remains supported, not deprecated.",
+        "instructionHeader": "# VS Code Copilot Global Instructions",
+        "instructionFormat": "markdown",
+        "instructionBodyTemplate": "---\napplyTo: \"**\"\n---\n# VS Code Copilot Global Instructions\n\n<!-- agenthub:managed -->\n\n{{globalPolicy}}"
       },
       "supportedCapabilities": [
         "rules",

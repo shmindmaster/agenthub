@@ -1,6 +1,6 @@
 # coding-agent-dispatch
 
-Version 0.2.8 (loose skill; version metadata lives in `SKILL.md`).
+Version 0.2.9 (loose skill; version metadata lives in `SKILL.md`).
 
 Windowless runner so one coding agent can call another. Claude and Codex are
 the primary orchestrators. The callable set is whatever
@@ -36,6 +36,13 @@ settings stay in the private Cline profile, never in the registry. OpenCode
 2.1.4 also passed native ACP initialization and synthetic session creation,
 listing and loading. Its on-demand private backend shares persisted account
 and configuration; an ACP client is still required for protocol handoff.
+
+`cline/acp-session.mjs` supplies the transport-only resume client: it awaits
+`initialize`, `session/load`, then `session/prompt`, collects the new assistant
+reply without replayed history, bounds requests, and cancels permission
+requests. Its stream tests launch no host. It does not enable Cline dispatch:
+the current owner policy permits only Cursor, Grok and Codex agent work.
+Live Cline resume remains unverified under that restriction.
 
 The optional Cline Qwen tool-discovery plugin is maintained in this package's
 `skills/use-coding-agent/cline/lightweight-chat.js`. It uses documented SDK

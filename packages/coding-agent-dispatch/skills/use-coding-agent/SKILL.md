@@ -2,7 +2,7 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.8"
+  version: "0.2.9"
 ---
 
 For OpenCode 2 tool discovery, run `Install-OpenCodeToolDiscovery.ps1` to audit
@@ -10,6 +10,12 @@ or add `-Apply` to install the native global plugin. It defers schemas and
 skill/MCP catalogs until needed and preserves native approvals. Reload the
 shared OpenCode service after installing; verify after SDK updates. The
 installer never starts a host or creates automatic maintenance.
+
+`cline/acp-session.mjs` provides a transport-only ACP resume client for
+caller-owned streams. It awaits initialization, history loading and the new
+prompt reply; it cancels permission requests and starts no process. Its
+synthetic tests do not verify a live Cline session. Cline dispatch stays
+disabled under the owner's Cursor/Grok/Codex-only policy.
 
 # Use a coding agent from another coding agent
 

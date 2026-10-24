@@ -312,9 +312,10 @@ foreach ($agent in $allHosts) {
     $target = Resolve-HostTarget -Agent $agent
 
     if ($target.Kind -eq 'none') {
+        $ownerId = [string]$agent.nativePaths.instructionsOwnedBy
         $results.Add([pscustomobject]@{
-            HostId = $target.HostId; State = 'skipped (no destination)'
-            Path = $null; Action = 'none'; HeaderSource = $null
+            HostId = $target.HostId; State = if ($ownerId) { 'shared (pending owner)' } else { 'skipped (no destination)' }
+            Path = $null; Action = 'none'; HeaderSource = $null; OwnerId = $ownerId
         })
         continue
     }
@@ -387,6 +388,18 @@ foreach ($agent in $allHosts) {
     })
 }
 
+# Shared surfaces must report their real owner's state, never implied coverage
+# from a null destination. Validate the owner after the full pass so ordering
+# in agents.json cannot change the result.
+foreach ($shared in @($results | Where-Object State -eq 'shared (pending owner)')) {
+    $owner = @($results | Where-Object HostId -eq $shared.OwnerId)
+    if ($owner.Count -ne 1 -or -not $owner[0].Path -or $owner[0].State -like 'shared*') {
+        throw "Host '$($shared.HostId)' names instruction owner '$($shared.OwnerId)' without one concrete destination."
+    }
+    $shared.State = "shared ($($owner[0].State))"
+    $shared.Path = "$($owner[0].Path) [owner=$($shared.OwnerId)]"
+}
+
 if ($workSetCount -eq 0) {
     throw "Zero hosts resolved to a real instruction destination out of $(@($allHosts).Count) hosts in the registry. Refusing to report success against an empty work set."
 }
@@ -407,10 +420,12 @@ $counts = @{
     missing   = @($results | Where-Object State -eq 'missing').Count
     unmanaged = @($results | Where-Object State -eq 'unmanaged').Count
     skipped   = @($results | Where-Object State -eq 'skipped (no destination)').Count
+    shared    = @($results | Where-Object State -like 'shared (*)').Count
     updated   = @($results | Where-Object Action -eq 'updated').Count
 }
 Write-Host ("SUMMARY: current={0} drift={1} missing={2} unmanaged={3} skipped={4} updated={5} total={6} workSet={7}" -f `
     $counts.current, $counts.drift, $counts.missing, $counts.unmanaged, $counts.skipped, $counts.updated, $results.Count, $workSetCount)
+Write-Host "SHARED: $($counts.shared) surfaces report their instruction owner's state."
 
 if ($hasUnmanaged) {
     Write-Host "REFUSED: one or more hosts are unmanaged (a destination exists without the $Marker marker). Refusing to overwrite hand-written policy at those destinations. This run is a failure, not a partial success." -ForegroundColor Red

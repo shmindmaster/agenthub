@@ -846,6 +846,102 @@ function Test-CliSkillsDirReparsePointWithRetiredNameSurvives {
     }
 }
 
+function Test-JunctionRuntimeWritesKeepLogicalLedger {
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-junction-cap' -HostId 'zz-junction-host' -SkillName 'sample-skill' -SkillContent 'v1'
+    $physical = Join-Path $fixture.Root 'physical-runtime'
+    $link = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub'
+    try {
+        New-Item -ItemType Directory -Path $physical -Force | Out-Null
+        New-Item -ItemType Directory -Path (Split-Path -Parent $link) -Force | Out-Null
+        $linkType = if ($env:OS -eq 'Windows_NT') { 'Junction' } else { 'SymbolicLink' }
+        New-Item -ItemType $linkType -Path $link -Target $physical | Out-Null
+        Set-SyncCapabilitiesFixtureCapabilities -RegistryDir $fixture.RegistryDir -CapabilityId 'zz-junction-cap' -HostId 'zz-junction-host' -DeployCatalog
+        $arguments = @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile)
+        $first = Invoke-SyncCapabilities -ExtraArgs $arguments -LocalAppData $fixture.LocalAppData
+        if ($first.ExitCode -ne 0) { return @{ Passed=$false; Detail=$first.Output } }
+        $logicalDestination = Join-Path $link 'capabilities\zz-junction-cap'
+        $physicalDestination = Join-Path $physical 'capabilities\zz-junction-cap'
+        if (-not (Test-Path -LiteralPath $physicalDestination -PathType Container)) { return @{Passed=$false;Detail='Runtime package is not a directory'} }
+        $stateFile = Join-Path $physical 'sync\managed-skills.json'
+        $state = Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json
+        $keys = @($state.managed.PSObject.Properties.Name)
+        if ($logicalDestination -notin $keys -or $physicalDestination -in $keys) { return @{Passed=$false;Detail='Ledger lost canonical logical ownership key'} }
+        $sourceSkill = Join-Path $fixture.Root 'packages\zz-junction-cap\skills\sample-skill\SKILL.md'
+        Set-Content -LiteralPath $sourceSkill -Value 'v2' -NoNewline
+        $second = Invoke-SyncCapabilities -ExtraArgs $arguments -LocalAppData $fixture.LocalAppData
+        if ($second.ExitCode -ne 0) { return @{ Passed=$false; Detail=$second.Output } }
+        if ((Get-Content -LiteralPath (Join-Path $physicalDestination 'skills\sample-skill\SKILL.md') -Raw) -ne 'v2') { return @{Passed=$false;Detail='Owned update through junction failed'} }
+        $third = Invoke-SyncCapabilities -ExtraArgs $arguments -LocalAppData $fixture.LocalAppData
+        return @{Passed=($third.ExitCode -eq 0 -and $third.Output -match 'current=3');Detail=$third.Output}
+    } finally {
+        # Remove the fixture link itself before normal recursive fixture cleanup.
+        if (Test-Path -LiteralPath $link) { (Get-Item -LiteralPath $link -Force).Delete() }
+        Remove-SyncCapabilitiesFixture $fixture
+    }
+}
+
+function Test-OperationalCopyFailurePreservesPartialLedger {
+    $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-blocked-cap' -HostId 'zz-blocked-host' -SkillName 'sample-skill' -SkillContent 'v1'
+    try {
+        Set-SyncCapabilitiesFixtureCapabilities -RegistryDir $fixture.RegistryDir -CapabilityId 'zz-blocked-cap' -HostId 'zz-blocked-host' -DeployCatalog
+        $runtime = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub'
+        New-Item -ItemType Directory -Path $runtime -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $runtime 'capabilities'), 'blocked parent must survive')
+        $result = Invoke-SyncCapabilities -ExtraArgs @('-Apply','-RepositoryRoot',$fixture.Root,'-UserProfile',$fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($result.ExitCode -eq 0 -or $result.Output -notmatch 'failed to deploy runtime package') { return @{Passed=$false;Detail=$result.Output} }
+        $state = Get-Content -LiteralPath (Join-Path $runtime 'sync\managed-skills.json') -Raw | ConvertFrom-Json
+        $keys = @($state.managed.PSObject.Properties.Name)
+        $blocked = Join-Path $runtime 'capabilities\zz-blocked-cap'
+        if ($blocked -in $keys -or $fixture.Destination -notin $keys -or (Join-Path $runtime 'registry') -notin $keys) {
+            return @{Passed=$false;Detail='Failed copy acquired ownership or successful siblings lost ownership'}
+        }
+        if ([IO.File]::ReadAllText((Join-Path $runtime 'capabilities')) -ne 'blocked parent must survive') { return @{Passed=$false;Detail='Blocked parent changed'} }
+        return @{Passed=$true;Detail=$null}
+    } finally { Remove-SyncCapabilitiesFixture $fixture }
+}
+
+function Test-CopyVerificationRejectsBadCopies {
+    # Extract only functions; no sync top-level code or real deployment runs.
+    $ast = [Management.Automation.Language.Parser]::ParseFile($syncScript, [ref]$null, [ref]$null)
+    & {
+        foreach ($name in @('Get-TreeHash','Get-TreeHashLegacy','Test-LegacyManagedHash','Resolve-PhysicalWritePath','Register-ManagedTree')) {
+            $definition = $ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true)
+            . ([scriptblock]::Create($definition.Extent.Text))
+        }
+        . (Join-Path $repoRoot 'scripts\RegistryContentHash.ps1')
+        $fixture = New-SyncCapabilitiesFixture -CapabilityId 'zz-copy-cap' -HostId 'zz-copy-host' -SkillName 'sample-skill' -SkillContent 'v1'
+        try {
+            $Source = Join-Path $fixture.Root 'packages\zz-copy-cap\skills\sample-skill'
+            $Destination = $fixture.Destination
+            New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+            [IO.File]::WriteAllText((Join-Path $Destination 'keep.txt'), 'old managed bytes')
+            $originalHash = Get-TreeHash $Destination
+            $Apply=$true; $AdoptExisting=$false; $priorHashesAreLegacy=$false
+            $prior=@{managed=@{$Destination=@{hash=$originalHash}}}
+            foreach ($badType in @('file','hash')) {
+                $desired=@{}; $refused=@{}; $failures=[Collections.Generic.List[string]]::new(); $rows=[Collections.Generic.List[object]]::new()
+                function Copy-Item {
+                    param($LiteralPath,$Destination,[switch]$Recurse)
+                    if ($badType -eq 'file') { [IO.File]::WriteAllText($Destination, 'bad file') }
+                    else { New-Item -ItemType Directory -Path $Destination | Out-Null; [IO.File]::WriteAllText((Join-Path $Destination 'wrong.txt'), 'wrong content') }
+                }
+                Register-ManagedTree -Source $Source -Destination $Destination -CapabilityId 'zz-copy-cap' -ItemName 'sample-skill' -Mode 'managed' -Kind 'skill'
+                if ($failures.Count -ne 1 -or -not $refused.ContainsKey($Destination) -or (Get-TreeHash $Destination) -ne $originalHash) {
+                    return @{Passed=$false;Detail="Bad $badType copy was accepted or destroyed prior deployment"}
+                }
+            }
+            return @{Passed=$true;Detail=$null}
+        } finally { Remove-SyncCapabilitiesFixture $fixture }
+    }
+}
+
+$rJunction = Test-JunctionRuntimeWritesKeepLogicalLedger
+Report 'junction runtime writes preserve canonical ledger keys and converge' $rJunction.Passed $rJunction.Detail
+$rBadCopy = Test-CopyVerificationRejectsBadCopies
+Report 'file and hash-corrupt staged copies are refused while prior managed bytes survive' $rBadCopy.Passed $rBadCopy.Detail
+$rCopyFailure = Test-OperationalCopyFailurePreservesPartialLedger
+Report 'operational copy failure excludes failed ownership and persists successful siblings' $rCopyFailure.Passed $rCopyFailure.Detail
+
 $rScoped = Test-ScopedSyncPreservesUnselectedCapability
 Report 'scoped sync updates selected files and preserves unselected files and ledger ownership' $rScoped.Passed $rScoped.Detail
 $rUnsafe = Test-ScopedSyncRejectsUnsafeRequests
