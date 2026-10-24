@@ -25,11 +25,12 @@ export function validateHostedRaw(raw,script,duration){
   previous=0;
   for(const w of allWords){
     if(typeof w.w!=='string'||!w.w.length||!Number.isFinite(w.start)||!Number.isFinite(w.end)||!Number.isFinite(w.loss)||w.start<previous||w.end<w.start||w.end>duration)throw Error('invalid provider word intervals/loss');
-    previous=w.end;
+    previous=w.start;
   }
   // Eleven returns explicit whitespace entries in words; retain/validate their
   // intervals above, while comparison and cue clocks use lexical words only.
   const words=allWords.filter(w=>norm(w.w));
+  if(words.some((w,i)=>i&&w.start<words[i-1].end))throw Error('overlapping provider lexical words');
   if(words.length!==wanted.length||words.some((w,i)=>norm(w.w)!==wanted[i]))throw Error('provider words do not cover the complete ordered script');
   return {words,durationSeconds:duration,providerLoss:raw.loss,gridMs:null,uncertaintyMs:null};
 }

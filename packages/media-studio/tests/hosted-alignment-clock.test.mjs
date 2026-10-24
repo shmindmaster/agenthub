@@ -15,6 +15,10 @@ test('hosted clock retains unknown uncertainty, real seconds and losses',()=>{
 test('provider whitespace words are validated without inventing lexical words',()=>{
  const r=raw();r.words.splice(1,0,{text:' ',start:.08,end:.12,loss:.03});
  assert.equal(validateHostedRaw(r,'Hello world',.25).words.length,2);
+ r.words.splice(2,0,{text:'\n',start:.08,end:.081,loss:.03});
+ assert.equal(validateHostedRaw(r,'Hello world',.25).words.length,2);
+ const overlap=raw();overlap.words[1].start=.07;
+ assert.throws(()=>validateHostedRaw(overlap,'Hello world',.25),/overlapping/);
  r.words[1].loss=null;assert.throws(()=>validateHostedRaw(r,'Hello world',.25));
 });
 test('incomplete/reordered text, malformed/raw loss and bounds fail closed',()=>{
