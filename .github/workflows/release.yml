@@ -1,0 +1,48 @@
+name: Release
+
+# Pushing a v* tag runs the doctor's type check and tests, then publishes @shmindmaster/agenthub
+# to npm through npm trusted publishing (GitHub Actions OIDC, no stored token) with a provenance
+# attestation. The npm package carries only doctor and the CLI entry; ci.yml covers the
+# PowerShell sync engine on every OS before a commit reaches main.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  npm:
+    name: Test and publish @shmindmaster/agenthub to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: npm 11.5.1 or later (required for trusted publishing)
+        run: npm install -g npm@11 && npm --version
+      - name: Tag matches the package version
+        run: test "${GITHUB_REF_NAME}" = "v$(node -p 'require("./package.json").version')"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Smoke run against the runner's own home
+        run: node scripts/agenthub-cli.mjs doctor --no-registry --all
+      - run: npm pack --dry-run
+      - name: Publish with provenance (npm trusted publishing, no stored token)
+        run: npm publish --access public --provenance
