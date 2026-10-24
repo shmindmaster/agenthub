@@ -226,20 +226,22 @@ function Test-ReparsePoint([string]$Path) {
 # Resolve existing ancestor junctions only for I/O. Ledger keys stay logical.
 function Resolve-PhysicalWritePath([string]$Path, [int]$Depth = 0) {
   if ($Depth -gt 64) { throw "Reparse-point cycle resolving '$Path'" }
+  # [IO.Path] rather than Split-Path: on macOS and Linux, Split-Path -Parent '/var'
+  # returns '' instead of '/', and macOS's temp root sits under the /var symlink.
   $full = [IO.Path]::GetFullPath($Path)
-  $parent = Split-Path -Parent $full
+  $parent = [IO.Path]::GetDirectoryName($full)
   if (-not $parent -or $parent -eq $full) { return $full }
   $physicalParent = Resolve-PhysicalWritePath -Path $parent -Depth ($Depth + 1)
   $item = Get-Item -LiteralPath $physicalParent -Force -ErrorAction SilentlyContinue
   if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
     $target = @($item.Target) | Select-Object -First 1
     if ([string]::IsNullOrWhiteSpace($target)) { throw "Cannot resolve reparse point '$physicalParent'" }
-    if (-not [IO.Path]::IsPathRooted($target)) { $target = Join-Path (Split-Path -Parent $physicalParent) $target }
+    if (-not [IO.Path]::IsPathRooted($target)) { $target = [IO.Path]::Combine([IO.Path]::GetDirectoryName($physicalParent), $target) }
     # Resolve the target itself too, including chained junctions.
     $sentinel = Resolve-PhysicalWritePath -Path (Join-Path $target '.agenthub-resolve') -Depth ($Depth + 1)
-    $physicalParent = Split-Path -Parent $sentinel
+    $physicalParent = [IO.Path]::GetDirectoryName($sentinel)
   }
-  return Join-Path $physicalParent (Split-Path -Leaf $full)
+  return Join-Path $physicalParent ([IO.Path]::GetFileName($full))
 }
 
 function Register-ManagedTree {
