@@ -22,7 +22,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $mutexName = $MutexName
-$leaseRoot = Join-Path $env:LOCALAPPDATA 'AgentHub\mobile-lab\leases'
+$localData = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { [Environment]::GetFolderPath('LocalApplicationData') }
+$leaseRoot = Join-Path $localData 'AgentHub\mobile-lab\leases'
 
 function Write-LeaseResult {
     param([bool]$Ok, [string]$State, [string]$Id, [Nullable[int]]$HolderPid, [string]$ErrorMessage)
@@ -96,9 +97,10 @@ try {
         }
         $LeaseId = [guid]::NewGuid().ToString('N')
         $paths = Get-LeasePaths $LeaseId
-        $hostExe = if ($PSVersionTable.PSEdition -eq 'Core') { Join-Path $PSHOME 'pwsh.exe' } else { Join-Path $PSHOME 'powershell.exe' }
+        $hostExe = (Get-Process -Id $PID).Path
         $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, '-Action', 'Hold', '-LeaseId', $LeaseId, '-TimeoutMinutes', [string]$TimeoutMinutes, '-MutexName', $mutexName)
-        $holder = Start-Process -FilePath $hostExe -ArgumentList $arguments -WindowStyle Hidden -PassThru
+        $hidden = if ($env:OS -eq 'Windows_NT') { @{ WindowStyle = 'Hidden' } } else { @{} }
+        $holder = Start-Process -FilePath $hostExe -ArgumentList $arguments -PassThru @hidden
         $deadline = [DateTime]::UtcNow.AddSeconds(15)
         while ([DateTime]::UtcNow -lt $deadline -and -not (Test-Path -LiteralPath $paths.Status)) {
             if ($holder.HasExited) { break }

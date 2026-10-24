@@ -7,7 +7,9 @@ $ErrorActionPreference = 'Stop'
 $pluginRoot = Split-Path -Parent $PSScriptRoot
 $kits = Join-Path $pluginRoot 'kits'
 $node = (Get-Command node -ErrorAction Stop).Source
-$python = (Get-Command python -ErrorAction Stop).Source
+$pythonNames = if ($env:OS -eq 'Windows_NT') { @('python', 'python3') } else { @('python3', 'python') }
+$python = (Get-Command $pythonNames -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if (-not $python) { throw "Python 3 not found on PATH (looked for $($pythonNames -join ', '))." }
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ("pee-kits-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $temporary | Out-Null
 
@@ -95,7 +97,9 @@ try {
     $harnessFile = Join-Path $fixture 'demo\harness.json'
     $harnessText = (Get-Content -LiteralPath $harnessFile -Raw -Encoding UTF8) -replace '47613', [string]$port
     [IO.File]::WriteAllText($harnessFile, $harnessText, (New-Object System.Text.UTF8Encoding($false)))
-    $up = Start-Process -FilePath $node -ArgumentList @("`"$stack`"", 'up', '--repo', "`"$fixture`"") -WindowStyle Hidden -PassThru `
+    # -WindowStyle exists only on Windows; elsewhere there is no console window to hide.
+    $hidden = if ($env:OS -eq 'Windows_NT') { @{ WindowStyle = 'Hidden' } } else { @{} }
+    $up = Start-Process -FilePath $node -ArgumentList @("`"$stack`"", 'up', '--repo', "`"$fixture`"") -PassThru @hidden `
         -RedirectStandardOutput (Join-Path $temporary 'up.out') -RedirectStandardError (Join-Path $temporary 'up.err')
     $deadline = (Get-Date).AddSeconds(30)
     $isUp = $false

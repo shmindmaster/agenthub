@@ -68,7 +68,7 @@ if ([string]::IsNullOrWhiteSpace($realHome)) { throw 'Cannot resolve the invokin
 $realHome = [IO.Path]::GetFullPath($realHome).TrimEnd('\', '/')
 
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    $localData = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $realHome '.local/share' }
+    $localData = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { [Environment]::GetFolderPath('LocalApplicationData') }
     $Root = Join-Path $localData 'AgentHub\demo\agenthub-profile'
 }
 $Root = [IO.Path]::GetFullPath($Root).TrimEnd('\', '/')

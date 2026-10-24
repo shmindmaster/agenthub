@@ -52,7 +52,7 @@ function Resolve-LivePath([string]$Raw) {
     # backslashes survive literally into the result and yield C:\\Users\\... .
     # Win32 tolerates the doubled separators, so the damage shows up in error
     # text rather than as a failure. Substring has none of these hazards.
-    $expanded = if ($Raw.StartsWith('~')) { $env:USERPROFILE + $Raw.Substring(1) } else { $Raw }
+    $expanded = if ($Raw.StartsWith('~')) { $HOME + $Raw.Substring(1) } else { $Raw }
     $expanded = $expanded -replace '/', '\'
     return [Environment]::ExpandEnvironmentVariables($expanded)
 }

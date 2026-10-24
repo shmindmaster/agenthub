@@ -171,7 +171,7 @@ try {
         (Get-Content -LiteralPath (Join-Path $product 'sentinel.txt') -Raw -Encoding UTF8) -eq 'unchanged'
     ) "exit=$outsideExit files=$($productFiles -join ', ')"
 } finally {
-    $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     $scratchFull = [IO.Path]::GetFullPath($scratch)
     if ($scratchFull.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -and
         (Test-Path -LiteralPath $scratchFull)) {

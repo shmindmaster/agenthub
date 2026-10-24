@@ -43,9 +43,10 @@ Run: pwsh -NoProfile -File tests/Test-SharedSkillsDeployment.ps1
 param()
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\TestPlatform.ps1')
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 . (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
-$liveShadowScanBinding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
+$liveShadowScanBinding = New-AgentHubPathBindingContext -TargetUserProfile $HOME
 $syncScript = Join-Path $repoRoot 'scripts\Sync-Capabilities.ps1'
 $hostExe = (Get-Process -Id $PID).Path
 
@@ -89,10 +90,10 @@ function Invoke-SyncCapabilities {
 function Get-EffectiveDestination {
     param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$UserProfile)
     $full = [IO.Path]::GetFullPath($Path)
-    $realProfile = [IO.Path]::GetFullPath($env:USERPROFILE).TrimEnd('\')
-    $effective = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\')
+    $realProfile = [IO.Path]::GetFullPath($HOME).TrimEnd('\', '/')
+    $effective = [IO.Path]::GetFullPath($UserProfile).TrimEnd('\', '/')
     if ($effective -eq $realProfile) { return $full }
-    if ($full.StartsWith($realProfile + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    if ($full.StartsWith($realProfile + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
         return Join-Path $effective $full.Substring($realProfile.Length + 1)
     }
     return $full
@@ -209,7 +210,7 @@ function Test-SharedDirCollapsesToOneEntry {
         # whenever -UserProfile is overridden -- see Sync-Capabilities.ps1's
         # $runtimeRoot logic and Test-SyncCapabilities.ps1's equivalent
         # Test-UserProfileRebasesDestinations assertion.
-        $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        $statePath = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\managed-skills.json'
         if (-not (Test-Path -LiteralPath $statePath)) {
             return @{ Passed = $false; Detail = "runtime state file was not written at $statePath." }
         }
@@ -334,7 +335,7 @@ function Test-ApplyQuotesUnmanagedUnsafeFrontmatter {
         }
         $after = [IO.File]::ReadAllText($alienFile)
         $quoted = $after -match '(?m)^description: "Use when working with Railway infrastructure: signing up."\r?$'
-        $statePath = Join-Path $fixture.UserProfile 'AppData\Local\AgentHub\sync\managed-skills.json'
+        $statePath = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\managed-skills.json'
         $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
         $alienInLedger = $false
         foreach ($prop in @($state.managed.PSObject.Properties)) {
@@ -390,7 +391,7 @@ function Expand-HomePath([string]$Raw) {
     }
     # Not a regex-escaped -replace: escaping a REPLACEMENT operand leaves the
     # doubled backslashes in the result.
-    $x = if ($Raw.StartsWith('~')) { $env:USERPROFILE + $Raw.Substring(1) } else { $Raw }
+    $x = if ($Raw.StartsWith('~')) { $HOME + $Raw.Substring(1) } else { $Raw }
     # Assign before the call. Inside method parentheses the comma of -replace's
     # second operand is parsed as an argument separator, so the inline form dies
     # with "cannot find an overload ... argument count: 2".

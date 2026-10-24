@@ -26,7 +26,7 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
     }
 }
 
-$stateFile = Join-Path $env:TEMP ('repowise-cli-test-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json')
+$stateFile = Join-Path ([IO.Path]::GetTempPath()) ('repowise-cli-test-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.json')
 function Invoke-Updater {
     param([string[]]$UpdaterArgs)
     $all = @('-StateFile', $stateFile) + $UpdaterArgs
@@ -58,7 +58,7 @@ $missing = Invoke-Updater -UpdaterArgs @('-Audit', '-InstalledVersion', 'none', 
 Report 'audit-missing-exits-1' ($missing.ExitCode -eq 1) "exit=$($missing.ExitCode) output=$($missing.Output)"
 Report 'audit-missing-status' ($missing.Output -match 'status=missing') $missing.Output
 
-$scratch = Join-Path $env:TEMP ('repowise-uv-stub-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+$scratch = Join-Path ([IO.Path]::GetTempPath()) ('repowise-uv-stub-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Force $scratch | Out-Null
 $stub = Join-Path $scratch 'uv.cmd'
 $log = Join-Path $scratch 'uv.log'

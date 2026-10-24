@@ -59,7 +59,9 @@ function Get-SyncFunctionText([string]$Name) {
 }
 
 # A real parser is the only honest oracle here.
-$python = (Get-Command python -ErrorAction SilentlyContinue)
+# macOS and Linux ship python3; on Windows python3 can be the Store alias stub.
+$pythonNames = if ($env:OS -eq 'Windows_NT') { @('python', 'python3') } else { @('python3', 'python') }
+$python = Get-Command $pythonNames -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $python) {
     Report 'a TOML parser is available to verify emission' $false 'python (tomllib) not found on PATH.'
     Write-Host 'RESULT: aborted'; exit 1
@@ -81,7 +83,7 @@ function Test-TomlRoundTrip {
             'print(d.get("k", "__MISSING__"))'
         ) -join "`n"
         [IO.File]::WriteAllText($reader, $py, [Text.UTF8Encoding]::new($false))
-        $out = (& python $reader $tmp 2>&1 | Out-String).Trim()
+        $out = (& $python.Source $reader $tmp 2>&1 | Out-String).Trim()
         if ($out -eq '__INVALID__') { return $null }
         return $out
     } finally {
@@ -126,8 +128,8 @@ Report 'the env table header is emitted once, not once per variable' $headerOuts
 
 # 5. End state: every deployed TOML host config actually parses.
 $tomlHosts = @(
-    @{ Host = 'codex'; Path = (Join-Path $env:USERPROFILE '.codex\config.toml') }
-    @{ Host = 'grok';  Path = (Join-Path $env:USERPROFILE '.grok\config.toml') }
+    @{ Host = 'codex'; Path = (Join-Path $HOME '.codex\config.toml') }
+    @{ Host = 'grok';  Path = (Join-Path $HOME '.grok\config.toml') }
 )
 foreach ($h in $tomlHosts) {
     if (-not (Test-Path -LiteralPath $h.Path)) {
@@ -138,7 +140,7 @@ foreach ($h in $tomlHosts) {
     # document's validity, not the value of any particular key.
     $tmpReader = Join-Path ([IO.Path]::GetTempPath()) ("toml-host-" + [guid]::NewGuid().ToString('N') + ".py")
     [IO.File]::WriteAllText($tmpReader, "import sys, tomllib`ntry:`n    tomllib.load(open(sys.argv[1], 'rb'))`n    print('OK')`nexcept Exception as e:`n    print('INVALID: ' + str(e))", [Text.UTF8Encoding]::new($false))
-    $res = (& python $tmpReader $h.Path 2>&1 | Out-String).Trim()
+    $res = (& $python.Source $tmpReader $h.Path 2>&1 | Out-String).Trim()
     Remove-Item -LiteralPath $tmpReader -Force -ErrorAction SilentlyContinue
     Report "deployed $($h.Host) config parses" ($res -eq 'OK') $res
 }
@@ -184,7 +186,7 @@ if ($resolvePythonText) {
     . ([scriptblock]::Create($resolvePythonText))
     $previousPath = $env:PATH
     try {
-        $env:PATH = [IO.Path]::GetTempPath().TrimEnd('\')
+        $env:PATH = [IO.Path]::GetTempPath().TrimEnd('\', '/')
         $threw = $false
         $errorMessage = ''
         try {

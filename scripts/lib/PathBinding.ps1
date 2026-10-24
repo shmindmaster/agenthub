@@ -134,8 +134,10 @@ function Join-AgentHubPlatformPath {
     $platformId = Get-AgentHubPlatformId $Platform
     if ([string]::IsNullOrWhiteSpace($Child)) { return $Base.TrimEnd('\', '/') }
     if ($platformId -eq 'windows') {
+        # String join, not Join-Path: on a macOS/Linux host Join-Path would
+        # rewrite a Windows target's separators to '/'.
         $relative = $Child.TrimStart('\', '/').Replace('/', '\')
-        return Join-Path ($Base.TrimEnd('\')) $relative
+        return $Base.TrimEnd('\', '/') + '\' + $relative
     }
     $relative = $Child.TrimStart('\', '/').Replace('\', '/')
     return ($Base.TrimEnd('/') + '/' + $relative)
@@ -151,8 +153,8 @@ function Get-AgentHubPlatformDataRoots {
     switch ($platformId) {
         'windows' {
             return [pscustomobject]@{
-                LocalData     = Join-Path $root 'AppData\Local'
-                RoamingConfig = Join-Path $root 'AppData\Roaming'
+                LocalData     = $root + '\AppData\Local'
+                RoamingConfig = $root + '\AppData\Roaming'
             }
         }
         'darwin' {
@@ -465,7 +467,9 @@ function Resolve-AgentHubBoundPath {
         return Resolve-AgentHubPrefixRebase -Full $Declared -Recorded $recorded -Target ([string]$Context.TargetUserProfile) -Platform $platform
     }
 
-    $full = Get-AgentHubNormalizedDirectory $Declared
+    # A Windows target bound from a macOS/Linux host must not pass through the
+    # host's GetFullPath, which would treat C:\... as a relative path.
+    $full = if ((Get-AgentHubHostPlatformId) -eq 'windows') { Get-AgentHubNormalizedDirectory $Declared } else { $Declared.TrimEnd('\', '/') }
     $target = [string]$Context.TargetUserProfile
     if ($full.Equals($target, [StringComparison]::OrdinalIgnoreCase)) { return $target }
     if ($full.StartsWith($target + '\', [StringComparison]::OrdinalIgnoreCase)) { return $full }
@@ -479,7 +483,7 @@ function Resolve-AgentHubBoundPath {
     if ($full.Equals($recorded, [StringComparison]::OrdinalIgnoreCase)) { return $target }
     $prefix = $recorded + '\'
     if ($full.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
-        return Join-Path $target $full.Substring($recorded.Length + 1)
+        return Join-AgentHubPlatformPath -Platform 'windows' -Base $target -Child $full.Substring($recorded.Length + 1)
     }
     return $full
 }

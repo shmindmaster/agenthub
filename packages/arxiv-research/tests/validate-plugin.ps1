@@ -9,7 +9,11 @@ if (Get-Command uv -ErrorAction SilentlyContinue) {
     $candidate = Join-Path $toolRoot $relative
     if (Test-Path -LiteralPath $candidate) { $python = $candidate }
 }
-if (-not $python) { $python = (Get-Command python -ErrorAction Stop).Source }
+if (-not $python) {
+    $pythonNames = if ($IsWindows) { @('python', 'python3') } else { @('python3', 'python') }
+    $python = (Get-Command $pythonNames -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+    if (-not $python) { throw "Python 3 not found on PATH (looked for $($pythonNames -join ', '))." }
+}
 $start = [Diagnostics.ProcessStartInfo]::new($python)
 $start.UseShellExecute = $false
 $start.CreateNoWindow = $true

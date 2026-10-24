@@ -259,8 +259,10 @@ function Get-AgentRecord {
 
 $root = Find-AgentHubRoot
 . (Join-Path $root 'scripts\lib\PathBinding.ps1')
-$binding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
+$binding = New-AgentHubPathBindingContext -TargetUserProfile (Get-AgentHubDefaultHome)
+$isWindowsHost = $binding.Platform -eq 'windows'
 $agentsDoc = Get-Content -LiteralPath (Join-Path $root 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+Use-AgentHubPlatformPaths -AgentsDocument $agentsDoc -Platform $binding.Platform | Out-Null
 $agents = @($agentsDoc.activeAgents)
 $fleet = Get-Content -LiteralPath (Join-Path $root 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $interactive = @{}
@@ -290,6 +292,11 @@ function Resolve-DeclaredExecutable {
     param([string]$Declared)
     if ([string]::IsNullOrWhiteSpace($Declared)) { return $null }
     $text = $Declared
+    if (-not $isWindowsHost) {
+        # A Windows launcher path names a CLI that installs onto PATH elsewhere.
+        $portable = Get-AgentHubPortableCommandName $text
+        if ($portable) { $text = $portable }
+    }
     if ($text -match '[\\/]' -or (Test-AgentHubPathTemplate $text)) {
         if (Test-AgentHubPathTemplate $text) {
             $text = Resolve-AgentHubBoundPath -Declared $text -Context $binding
@@ -395,7 +402,7 @@ $contract = $table[$targetId]
 if (-not $contract) { Write-Refusal 3 "refused ${targetId}: no verified headless contract" }
 $pointer = $contract.Mode -eq 'argument' -and ($PromptFile -or -not (Test-ArgumentPrompt $Prompt))
 
-$runDir = Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\coding-agent-dispatch'
+$runDir = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\runtime\coding-agent-dispatch'
 $promptFile = $null
 if ($contract.Mode -eq 'file' -or $pointer) {
     if (-not $ShowCommand) {
@@ -422,7 +429,7 @@ $stamp = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString
 $stdoutPath = Join-Path $runDir "$stamp-$targetId.out"
 $stderrPath = Join-Path $runDir "$stamp-$targetId.err"
 $settingsFile = $built.SettingsFile
-$isBatch = $executable -match '\.(cmd|bat)$'
+$isBatch = $isWindowsHost -and $executable -match '\.(cmd|bat)$'
 $psi = [Diagnostics.ProcessStartInfo]::new()
 $psi.UseShellExecute = $false
 $psi.CreateNoWindow = $true
@@ -459,7 +466,7 @@ if ($accountScrub.ContainsKey($targetId)) {
 # Copilot runs on the sh-pendoah GitHub account (owner direction 2026-10-22). The token is read
 # from gh's keyring at launch, placed only in the child environment, and never printed.
 if ($targetId -eq 'copilot') {
-    $pendoahToken = (& gh auth token --user sh-pendoah 2>$null)
+    $pendoahToken = if (Get-Command gh -CommandType Application -ErrorAction SilentlyContinue) { (& gh auth token --user sh-pendoah 2>$null) } else { $null }
     if ($pendoahToken) { $psi.EnvironmentVariables['COPILOT_GITHUB_TOKEN'] = ([string]$pendoahToken).Trim() }
     else { Write-Refusal 3 'copilot: gh has no token for account sh-pendoah; run gh auth login for it.' }
 }
@@ -470,9 +477,13 @@ if ($isBatch) {
     $psi.FileName = Join-Path $env:SystemRoot 'System32\cmd.exe'
     $inner = (Format-WindowsArgument $executable) + ' ' + (Join-WindowsArguments $built.Args)
     $psi.Arguments = '/d /s /c "' + $inner + '"'
-} else {
+} elseif ($isWindowsHost) {
     $psi.FileName = $executable
     $psi.Arguments = Join-WindowsArguments $built.Args
+} else {
+    # macOS/Linux take an argv vector directly; no command-line quoting applies.
+    $psi.FileName = $executable
+    foreach ($argument in @($built.Args)) { $psi.ArgumentList.Add([string]$argument) }
 }
 
 $process = [Diagnostics.Process]::new()
@@ -492,17 +503,21 @@ try {
     $remaining = [Math]::Max(0, $TimeoutSec * 1000 - [int]$timer.ElapsedMilliseconds)
     $finished = $process.WaitForExit($remaining)
     if (-not $finished) {
-        $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
-        $killInfo = [Diagnostics.ProcessStartInfo]::new()
-        $killInfo.FileName = $taskkill
-        $killInfo.Arguments = "/PID $($process.Id) /T /F"
-        $killInfo.UseShellExecute = $false
-        $killInfo.CreateNoWindow = $true
-        $killInfo.RedirectStandardOutput = $true
-        $killInfo.RedirectStandardError = $true
-        $killer = [Diagnostics.Process]::Start($killInfo)
-        $null = $killer.WaitForExit(5000)
-        $killer.Dispose()
+        if ($isWindowsHost) {
+            $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+            $killInfo = [Diagnostics.ProcessStartInfo]::new()
+            $killInfo.FileName = $taskkill
+            $killInfo.Arguments = "/PID $($process.Id) /T /F"
+            $killInfo.UseShellExecute = $false
+            $killInfo.CreateNoWindow = $true
+            $killInfo.RedirectStandardOutput = $true
+            $killInfo.RedirectStandardError = $true
+            $killer = [Diagnostics.Process]::Start($killInfo)
+            $null = $killer.WaitForExit(5000)
+            $killer.Dispose()
+        } else {
+            try { $process.Kill($true) } catch [InvalidOperationException] { }
+        }
         $null = $process.WaitForExit(5000)
         [Console]::Error.WriteLine("timeout ${targetId} after ${TimeoutSec}s; process tree killed")
         $exitCode = 4

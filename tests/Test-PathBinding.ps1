@@ -27,7 +27,7 @@ function Report([string]$Name, [bool]$Passed, [string]$Detail) {
 }
 
 function Test-TemplateExpandsToTarget {
-    $context = New-AgentHubPathBindingContext -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
+    $context = New-AgentHubPathBindingContext -Platform windows -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
     $bound = Resolve-AgentHubBoundPath -Declared '{userProfile}\.claude\CLAUDE.md' -Context $context
     if ($bound -ne 'C:\synth\user\.claude\CLAUDE.md') {
         return @{ Passed = $false; Detail = "template expanded to '$bound'" }
@@ -36,7 +36,7 @@ function Test-TemplateExpandsToTarget {
 }
 
 function Test-RecordedAbsoluteRebasesFromRegistryProfile {
-    $context = New-AgentHubPathBindingContext -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
+    $context = New-AgentHubPathBindingContext -Platform windows -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
     $bound = Resolve-AgentHubBoundPath -Declared 'C:\real\user\.codex\config.toml' -Context $context
     if ($bound -ne 'C:\synth\user\.codex\config.toml') {
         return @{ Passed = $false; Detail = "absolute rebase produced '$bound'" }
@@ -45,7 +45,7 @@ function Test-RecordedAbsoluteRebasesFromRegistryProfile {
 }
 
 function Test-MissingRegistryProfileFallsBackToInvokingProfile {
-    $context = New-AgentHubPathBindingContext -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user'
+    $context = New-AgentHubPathBindingContext -Platform windows -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user'
     $bound = Resolve-AgentHubBoundPath -Declared 'C:\real\user\.agents\skills' -Context $context
     if ($bound -ne 'C:\synth\user\.agents\skills') {
         return @{ Passed = $false; Detail = "invoking-profile fallback produced '$bound'. Sync-Capabilities fixtures omit registry userProfile and still must isolate." }
@@ -54,7 +54,7 @@ function Test-MissingRegistryProfileFallsBackToInvokingProfile {
 }
 
 function Test-UnrebasableShapeIsRefused {
-    $context = New-AgentHubPathBindingContext -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
+    $context = New-AgentHubPathBindingContext -Platform windows -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
     try {
         Resolve-AgentHubBoundPath -Declared '\\fileserver\agents\codex\config.toml' -Context $context | Out-Null
         return @{ Passed = $false; Detail = 'UNC path was accepted' }
@@ -75,7 +75,7 @@ function Test-UnrebasableShapeIsRefused {
 }
 
 function Test-ForwardSlashHomeTemplateMatchesBackslashOnWindows {
-    $context = New-AgentHubPathBindingContext -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
+    $context = New-AgentHubPathBindingContext -Platform windows -TargetUserProfile 'C:\synth\user' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
     $bound = Resolve-AgentHubBoundPath -Declared '{userHome}/.claude/CLAUDE.md' -Context $context
     if ($bound -ne 'C:\synth\user\.claude\CLAUDE.md') {
         return @{ Passed = $false; Detail = "portable template expanded to '$bound'" }
@@ -147,8 +147,10 @@ function Test-WindowsOnlyLayoutIsNotWrittenOnUnix {
     . (Join-Path $repoRoot 'scripts\lib\HostCatalog.ps1')
     Import-AgentHubBoundHostCatalog -AgentsDocument $catalog -Context $context | Out-Null
     $agent = $catalog.activeAgents[0]
-    if ($null -ne $agent.executable) {
-        return @{ Passed = $false; Detail = "darwin catalog kept windows executable '$($agent.executable)'" }
+    # The Windows launcher path is meaningless on macOS, but its command name
+    # is what the same CLI installs onto PATH there.
+    if ($agent.executable -ne 'cursor') {
+        return @{ Passed = $false; Detail = "darwin catalog executable became '$($agent.executable)', expected the PATH command 'cursor'" }
     }
     if ($null -ne $agent.nativePaths.vendorExecutable) {
         return @{ Passed = $false; Detail = 'darwin catalog kept a windows-only vendor executable' }
@@ -173,7 +175,7 @@ function Test-UnsupportedPlatformIsRefused {
 }
 
 function Test-AlreadyTargetPathIsNotNested {
-    $context = New-AgentHubPathBindingContext -TargetUserProfile 'C:\real\user\AppData\Local\Temp\scratch' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
+    $context = New-AgentHubPathBindingContext -Platform windows -TargetUserProfile 'C:\real\user\AppData\Local\Temp\scratch' -InvokingUserProfile 'C:\real\user' -RegistryUserProfile 'C:\real\user'
     $bound = Resolve-AgentHubBoundPath -Declared 'C:\real\user\AppData\Local\Temp\scratch\.claude\CLAUDE.md' -Context $context
     if ($bound -ne 'C:\real\user\AppData\Local\Temp\scratch\.claude\CLAUDE.md') {
         return @{ Passed = $false; Detail = "already-isolated path was nested: '$bound'" }
@@ -181,8 +183,35 @@ function Test-AlreadyTargetPathIsNotNested {
     return @{ Passed = $true; Detail = $null }
 }
 
+function Test-RegistryPlatformPathsResolvePerOs {
+    . (Join-Path $repoRoot 'scripts\lib\HostCatalog.ps1')
+    $expectations = @(
+        @{ Platform = 'darwin'; Home = '/Users/synth'; Host = 'devin'; Field = 'config'; Expected = '/Users/synth/.config/devin/config.json' }
+        @{ Platform = 'linux'; Home = '/home/synth'; Host = 'devin'; Field = 'config'; Expected = '/home/synth/.config/devin/config.json' }
+        @{ Platform = 'windows'; Home = 'C:\synth'; Host = 'devin'; Field = 'config'; Expected = 'C:\synth\AppData\Roaming\devin\config.json' }
+        @{ Platform = 'darwin'; Home = '/Users/synth'; Host = 'warp'; Field = 'configHome'; Expected = '/Users/synth/.warp' }
+        @{ Platform = 'linux'; Home = '/home/synth'; Host = 'warp'; Field = 'configHome'; Expected = '/home/synth/.config/warp-terminal' }
+        @{ Platform = 'darwin'; Home = '/Users/synth'; Host = 'antigravity-desktop'; Field = 'configHome'; Expected = '/Users/synth/Library/Application Support/Antigravity' }
+        @{ Platform = 'linux'; Home = '/home/synth'; Host = 'vscode-insiders'; Field = 'settings'; Expected = '/home/synth/.config/Code - Insiders/User/settings.json' }
+        @{ Platform = 'darwin'; Home = '/Users/synth'; Host = 'claude'; Field = 'executable'; Expected = '/Users/synth/.local/bin/claude' }
+        @{ Platform = 'linux'; Home = '/home/synth'; Host = 'codex'; Field = 'executable'; Expected = 'codex' }
+    )
+    foreach ($case in $expectations) {
+        $doc = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        $context = New-AgentHubPathBindingContext -Platform $case.Platform -TargetUserProfile $case.Home -InvokingUserProfile '/nonexistent/invoker' -LocalAppData '' -RoamingConfig ''
+        Import-AgentHubBoundHostCatalog -AgentsDocument $doc -Context $context | Out-Null
+        $agent = @(@($doc.activeAgents) + @($doc.inactiveAgents) | Where-Object id -eq $case.Host)[0]
+        $actual = if ($case.Field -eq 'executable') { $agent.executable } else { $agent.nativePaths.($case.Field) }
+        if ($actual -ne $case.Expected) {
+            return @{ Passed = $false; Detail = "$($case.Host).$($case.Field) on $($case.Platform) resolved to '$actual', expected '$($case.Expected)'" }
+        }
+    }
+    return @{ Passed = $true; Detail = $null }
+}
+
 $behaviors = @(
     @{ Name = 'template expands to the target profile'; Run = { Test-TemplateExpandsToTarget } }
+    @{ Name = 'registry platformPaths resolve each host to its documented macOS, Linux and Windows location'; Run = { Test-RegistryPlatformPathsResolvePerOs } }
     @{ Name = 'recorded absolute path rebases from the registry profile'; Run = { Test-RecordedAbsoluteRebasesFromRegistryProfile } }
     @{ Name = 'missing registry profile still rebases from the invoking profile'; Run = { Test-MissingRegistryProfileFallsBackToInvokingProfile } }
     @{ Name = 'UNC and forward-slash absolutes are refused'; Run = { Test-UnrebasableShapeIsRefused } }

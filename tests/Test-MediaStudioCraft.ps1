@@ -47,7 +47,7 @@ $inspect = Join-Path $pkg 'scripts\Inspect-MediaVisualQuality.ps1'
 Report 'Sync-MediaStudioKit.ps1 exists' (Test-Path -LiteralPath $sync) 'missing kit sync script'
 Report 'Inspect-MediaVisualQuality.ps1 exists' (Test-Path -LiteralPath $inspect) 'missing visual inspect script'
 
-$scratchRoot = Join-Path $env:TEMP ("ms-craft-" + [guid]::NewGuid().ToString('N'))
+$scratchRoot = Join-Path ([IO.Path]::GetTempPath()) ("ms-craft-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $scratchRoot | Out-Null
 try {
     $runtime = Join-Path $scratchRoot 'briefing-kit'

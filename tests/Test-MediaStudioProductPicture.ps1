@@ -83,7 +83,7 @@ Report 'capture-plan interaction requires causal fields' (
 Report 'compose-screencast fails closed without its validator' ($compose -match 'validator not resolvable') 'compositor still skips silently when the validator is missing'
 Report 'compose-screencast caps hidden freezes' ($compose -match 'HOLD_PAD_MAX') 'compositor still freezes a short clip across a long paragraph'
 
-$scratch = Join-Path $env:TEMP ("ms-picture-" + [guid]::NewGuid().ToString('N'))
+$scratch = Join-Path ([IO.Path]::GetTempPath()) ("ms-picture-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $scratch | Out-Null
 try {
     function Write-Job([string]$Dir, [string]$Kind, [string]$Form, $Board, $Manifest, $Timeline, $Plan) {

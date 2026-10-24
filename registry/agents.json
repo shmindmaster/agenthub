@@ -355,7 +355,7 @@
         "skillsDir": "{userHome}/.warp/skills",
         "sharedSkillsDir": "{userHome}/.agents/skills",
         "sharedSkillsDirNote": "Added 2026-08-04 against docs.warp.dev/agent-platform/capabilities/skills (subject confirmed: skills, not the rules or MCP page). Warp documents a root-scope skill search that mirrors its project scope and names ~/.agents/skills first as the recommended directory, alongside ~/.warp/skills, ~/.claude/skills, ~/.codex/skills, ~/.cursor/skills, ~/.gemini/skills, ~/.copilot/skills, ~/.factory/skills, ~/.github/skills and ~/.opencode/skills. Warp is therefore the one host that already reads the other hosts' directories, so its private copy under ~/.warp/skills was redundant with skills it could already see. skillsDir is retained because it remains a documented Warp-native location; sharedSkillsDir records where AgentHub deploys.",
-        "configHome": "{userHome}/AppData/Roaming/warp",
+        "configHome": "{roamingConfig}/warp",
         "instructions": null,
         "verification": "documented-no-global-file",
         "instructionsNote": "Verified 2026-10-23 against https://docs.warp.dev/agents/capabilities/rules/: Global Rules are managed in Warp Drive > Personal > Rules; documented file-based AGENTS.md/WARP.md rules are project-scoped. No documented global file destination established. instructions remains null; this audit does not claim Warp Drive rules or an existing session received the canonical policy."

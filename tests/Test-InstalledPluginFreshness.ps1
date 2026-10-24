@@ -145,7 +145,7 @@ function Get-InstalledAgentHubPlugins {
     .SYNOPSIS
         Installed plugins whose marketplace is this repository's, with source paths.
     #>
-    $installedPath = Join-Path $env:USERPROFILE '.claude\plugins\installed_plugins.json'
+    $installedPath = Join-Path $HOME '.claude\plugins\installed_plugins.json'
     if (-not (Test-Path -LiteralPath $installedPath)) {
         throw "No installed_plugins.json at $installedPath. Cannot tell what any host loads, so nothing here may report success."
     }
@@ -331,11 +331,11 @@ $RetiredPluginNames = @(
 function Test-RetiredPluginIdentitiesAreAbsent {
     $hits = [Collections.Generic.List[string]]::new()
     $files = @(
-        (Join-Path $env:USERPROFILE '.claude\settings.json'),
-        (Join-Path $env:USERPROFILE '.claude\plugins\installed_plugins.json'),
-        (Join-Path $env:USERPROFILE '.codex\config.toml')
+        (Join-Path $HOME '.claude\settings.json'),
+        (Join-Path $HOME '.claude\plugins\installed_plugins.json'),
+        (Join-Path $HOME '.codex\config.toml')
     )
-    $codexPlugins = Join-Path $env:USERPROFILE '.codex\plugins'
+    $codexPlugins = Join-Path $HOME '.codex\plugins'
     $codexDirs = if (Test-Path -LiteralPath $codexPlugins) { @(Get-ChildItem -LiteralPath $codexPlugins -Directory -Recurse -Force -ErrorAction SilentlyContinue) } else { @() }
     foreach ($retiredName in $RetiredPluginNames) {
         $retiredId = "$retiredName@agenthub"
@@ -345,7 +345,7 @@ function Test-RetiredPluginIdentitiesAreAbsent {
                 $hits.Add("$retiredId registration/config: $file")
             }
         }
-        $claudeCache = Join-Path $env:USERPROFILE ".claude\plugins\cache\agenthub\$retiredName"
+        $claudeCache = Join-Path $HOME ".claude\plugins\cache\agenthub\$retiredName"
         if (Test-Path -LiteralPath $claudeCache) { $hits.Add("Claude cache: $claudeCache") }
         foreach ($directory in @($codexDirs | Where-Object Name -eq $retiredName)) {
             $hits.Add("Codex cache: $($directory.FullName)")
@@ -360,9 +360,9 @@ function Test-RetiredPluginIdentitiesAreAbsent {
 function Test-AppiumIsNotPersisted {
     $hits = [Collections.Generic.List[string]]::new()
     foreach ($file in @(
-        (Join-Path $env:USERPROFILE '.claude.json'),
-        (Join-Path $env:USERPROFILE '.claude\settings.json'),
-        (Join-Path $env:USERPROFILE '.codex\config.toml')
+        (Join-Path $HOME '.claude.json'),
+        (Join-Path $HOME '.claude\settings.json'),
+        (Join-Path $HOME '.codex\config.toml')
     )) {
         if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { continue }
         if (Select-String -LiteralPath $file -SimpleMatch -Quiet -Pattern 'appium-mobile') {

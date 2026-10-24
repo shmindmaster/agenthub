@@ -25,9 +25,12 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# The one worktree root: C:\wt on Windows, ~/wt on macOS and Linux.
+$script:AgentHubSoleWorktreeRoot = if ($env:OS -eq 'Windows_NT') { 'C:\wt' } else { Join-Path $HOME 'wt' }
+
 if ([string]::IsNullOrWhiteSpace($WorktreeRoot)) {
     $WorktreeRoot = if ([string]::IsNullOrWhiteSpace($env:AGENTHUB_WORKTREE_ROOT)) {
-        'C:\wt'
+        $script:AgentHubSoleWorktreeRoot
     } else {
         [string]$env:AGENTHUB_WORKTREE_ROOT
     }
@@ -145,15 +148,16 @@ function Get-AgentHubWorktreeTarget {
         [Parameter(Mandatory)][string]$Task
     )
 
-    $resolvedRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\')
-    if ($resolvedRoot -ne 'C:\wt') {
-        throw "AgentHub worktrees must use C:\wt; received '$resolvedRoot'."
+    $soleRoot = $script:AgentHubSoleWorktreeRoot
+    $resolvedRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
+    if ($resolvedRoot -ne $soleRoot) {
+        throw "AgentHub worktrees must use $soleRoot; received '$resolvedRoot'."
     }
 
     $target = [System.IO.Path]::GetFullPath((Join-Path $resolvedRoot (Join-Path $Repository $Task)))
-    $prefix = $resolvedRoot + '\'
+    $prefix = $resolvedRoot + [System.IO.Path]::DirectorySeparatorChar
     if (-not $target.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Resolved worktree target escapes C:\wt: $target"
+        throw "Resolved worktree target escapes ${soleRoot}: $target"
     }
     return $target
 }

@@ -169,7 +169,7 @@ $allTextFiles = Get-ChildItem -LiteralPath $pluginRoot -Recurse -File |
 $forbidden = '(?i)AI[- ]Native[- ]Freight|gentlenext|lawli|lexalign|lienwise|shwiki|subops|verigence|warrantygains|abacare|coledger|documed|empowera'
 foreach ($file in $allTextFiles) {
     $content = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
-    if ($file.FullName -notlike '*\tests\*') {
+    if ($file.FullName -notmatch '[\\/]tests[\\/]') {
         Assert-True ($content -notmatch '\[TODO:') "Unresolved scaffold TODO in $($file.FullName)."
         Assert-True ($content -notmatch $forbidden) "Repo-specific or freight content leaked into $($file.FullName)."
     }

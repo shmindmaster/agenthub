@@ -13,7 +13,7 @@ function Check([string]$Name, [bool]$Passed, [string]$Detail = '') {
     if ($Passed) { Write-Host "PASS: $Name" } else { $script:failed++; Write-Host "FAIL: $Name -- $Detail" }
 }
 
-$fixture = Join-Path $env:TEMP ('fleetboard fixture ' + [guid]::NewGuid().ToString('n'))
+$fixture = Join-Path ([IO.Path]::GetTempPath()) ('fleetboard fixture ' + [guid]::NewGuid().ToString('n'))
 try {
     $goals = Join-Path $fixture 'goals\relaunch-2026-10-21'
     $codexPrograms = Join-Path $fixture 'codex\programs'

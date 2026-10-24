@@ -24,10 +24,13 @@ try {
     New-Item -ItemType Directory -Path $target, $ordinary -Force | Out-Null
     $marker = Join-Path $target 'preserved.txt'
     [IO.File]::WriteAllText($marker, 'preserve target')
-    New-Item -ItemType Junction -Path $junction -Target $target | Out-Null
+    # Hosts link their skills directory to the shared library with a junction
+    # on Windows and a symbolic link on macOS and Linux.
+    $linkType = if ($env:OS -eq 'Windows_NT') { 'Junction' } else { 'SymbolicLink' }
+    New-Item -ItemType $linkType -Path $junction -Target $target | Out-Null
 
     Remove-ManagedJunction -Path $junction
-    if (Test-Path -LiteralPath $junction) { throw 'Managed junction entry still exists.' }
+    if (Get-Item -LiteralPath $junction -Force -ErrorAction SilentlyContinue) { throw 'Managed junction entry still exists.' }
     if (-not (Test-Path -LiteralPath $marker -PathType Leaf)) { throw 'Junction target was traversed or removed.' }
 
     $rejected = $false
@@ -37,6 +40,6 @@ try {
 
     Write-Output 'PASS: managed junction removal preserves its target and rejects ordinary directories.'
 } finally {
-    if (Test-Path -LiteralPath $junction) { [IO.Directory]::Delete($junction, $false) }
+    if (Get-Item -LiteralPath $junction -Force -ErrorAction SilentlyContinue) { [IO.Directory]::Delete($junction, $false) }
     if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force }
 }

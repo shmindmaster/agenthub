@@ -435,12 +435,12 @@ function Test-ScanTargetSetCoversEveryTrackedScript {
         return @{ Passed = $false; Detail = "scan target discovery yielded ZERO .ps1 files under $repoRoot -- a scanner that iterates nothing and reports success is the defect this file exists to prevent" }
     }
     $expectations = [ordered]@{
-        'scripts\'  = 'scripts/'
-        '\tests\'   = 'tests/ or packages/*/tests/'
-        'packages\' = 'packages/'
+        'scripts[\\/]'      = 'scripts/'
+        '[\\/]tests[\\/]'   = 'tests/ or packages/*/tests/'
+        'packages[\\/]'     = 'packages/'
     }
     foreach ($fragment in $expectations.Keys) {
-        $hits = @($targets | Where-Object { $_ -like "*$fragment*" })
+        $hits = @($targets | Where-Object { $_ -match $fragment })
         if ($hits.Count -eq 0) {
             return @{ Passed = $false; Detail = "scan target set reached no file matching '$fragment' ($($expectations[$fragment])); found $($targets.Count) file(s) overall" }
         }
@@ -454,9 +454,9 @@ function Test-ScanTargetSetCoversEveryTrackedScript {
     # tree changes -- but it does require such a file to exist, and says
     # so loudly if one stops existing, because then this assertion would
     # be proving nothing.
-    $packagesPrefix = [IO.Path]::GetFullPath((Join-Path $repoRoot 'packages')) + '\'
+    $packagesPrefix = [IO.Path]::GetFullPath((Join-Path $repoRoot 'packages')) + [IO.Path]::DirectorySeparatorChar
     $outsideTests = @($targets | Where-Object {
-        $_.StartsWith($packagesPrefix, [StringComparison]::OrdinalIgnoreCase) -and $_ -notlike '*\tests\*'
+        $_.StartsWith($packagesPrefix, [StringComparison]::OrdinalIgnoreCase) -and $_ -notmatch '[\\/]tests[\\/]'
     })
     if ($outsideTests.Count -eq 0) {
         return @{ Passed = $false; Detail = "the scan target set contains no tracked .ps1 under packages/ outside a tests/ directory. Either discovery has regressed to the old scripts//tests//packages/*/tests/ directory list, or the repository no longer holds such a file -- in which case this assertion proves nothing and must be revisited rather than left green." }
@@ -728,7 +728,11 @@ function Test-ValidateAgentHubSkillReadAgreesAcrossShells {
     }
 
     $shells = [ordered]@{}
-    foreach ($shellName in @('pwsh', 'powershell')) {
+    # Windows PowerShell 5.1 exists only on Windows. On macOS and Linux the only
+    # shell is pwsh, so the comparison is between pwsh's read and the file's
+    # actual UTF-8 content -- still the same defect, from the other side.
+    $shellNames = if ($env:OS -eq 'Windows_NT') { @('pwsh', 'powershell') } else { @('pwsh') }
+    foreach ($shellName in $shellNames) {
         $resolved = Get-Command -Name $shellName -CommandType Application -ErrorAction SilentlyContinue |
             Select-Object -First 1
         if (-not $resolved) {
@@ -760,6 +764,15 @@ function Test-ValidateAgentHubSkillReadAgreesAcrossShells {
                 $ErrorActionPreference = $previousEap
             }
             $results[$shellName] = $output.Trim()
+        }
+        if (-not $results.Contains('powershell')) {
+            $utf8Text = [IO.File]::ReadAllText($skillFile, [Text.UTF8Encoding]::new($false))
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try { $expected = (([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($utf8Text))) -replace '-','') + ':' + $utf8Text.Length) } finally { $sha.Dispose() }
+            if ($results['pwsh'] -cne $expected) {
+                return @{ Passed = $false; Detail = "reading $skillFile through the live Validate-AgentHub.ps1 call ``$readExpression`` in pwsh gave $($results['pwsh']), but the file's UTF-8 content is $expected" }
+            }
+            return @{ Passed = $true; Detail = $null }
         }
         if ($results['pwsh'] -cne $results['powershell']) {
             return @{ Passed = $false; Detail = "reading $skillFile through the live Validate-AgentHub.ps1 call ``$readExpression`` gave DIFFERENT content in the two shells -- pwsh 7: $($results['pwsh']) | Windows PowerShell 5.1: $($results['powershell']). The validator's verdict therefore depends on which shell ran it." }

@@ -31,7 +31,7 @@ this file enforces is only that the looking happened and left a trace.
 THIS TEST READS THE LOCAL FILESYSTEM, DELIBERATELY
 
 Destinations are portable templates. Materialization uses PathBinding and
-$env:USERPROFILE so the absence check still describes THIS machine. A pass
+$HOME so the absence check still describes THIS machine. A pass
 here is not a claim about anyone else's disk.
 
 Not a Pester suite: this repo carries no Pester dependency. Same
@@ -46,7 +46,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 . (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1')
-$binding = New-AgentHubPathBindingContext -TargetUserProfile $env:USERPROFILE
+$binding = New-AgentHubPathBindingContext -TargetUserProfile $HOME
 
 $failures = [Collections.Generic.List[string]]::new()
 $reported = 0

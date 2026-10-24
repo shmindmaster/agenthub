@@ -79,7 +79,7 @@ function Get-AgentHubFilesystemRelativeFiles {
             # Skip common junk; keep everything else so hash matches disk content.
             $name = $_.Name
             if ($name -eq '.DS_Store' -or $name -eq 'Thumbs.db') { return $false }
-            if ($full -match '\\node_modules\\|\\\.git\\|\\__pycache__\\') { return $false }
+            if ($full -match '[\\/](node_modules|\.git|__pycache__)[\\/]') { return $false }
             return $true
         })
     $rel = foreach ($file in $files) {

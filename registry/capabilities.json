@@ -347,7 +347,7 @@
       "managedSkillNames": [
         "elevenlabs"
       ],
-      "contentHash": "4E2CCEC5285DD9A917BDAB216B962DDE9AD4A504281FE083ACBDF2DCC355CF73",
+      "contentHash": "0C366F06D79EA1AC965EB8D25314CEEF4D40D72820DEB2FB182C52FB79D68B93",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
@@ -418,7 +418,7 @@
       "owner": "handoff",
       "capabilityType": "plugin+hooks",
       "canonicalSource": "packages/product-experience-engineering",
-      "contentHash": "650ECAE0E6C6EF8A2A592B9A577D9B462BC67EAB5FA170A0129E89B1FB3876E6",
+      "contentHash": "EDE81D78C09DB6C0776EE87B1C7E65E4D2F528C9F8A4E7F0FA8DEF3CF9AF186B",
       "hashBasis": "packages/product-experience-engineering",
       "status": "active-canonical",
       "notes": "2026-10-14: owner of the cross-portfolio execution-controls kit (kits/execution-controls: approval-capsule/v1 and receipt/v1 with OpenTelemetry GenAI span mapping; TypeScript and Python reference implementations held to shared vectors; adversarial suite for adopters) and the demo-harness/v1 contract (kits/demo-harness: demo/harness.json, one-command reset, synthetic-data label, Demonstrate now / Build next / Do not claim truth table, deployed-SHA endpoint, product-owned smoke spec; scripts/demo-stack.mjs windowless runner; scripts/validate-demo-harness.mjs). Products vendor the kit with scripts/vendor-execution-controls.mjs and check drift with --check. Capture code stays in media-studio, whose scaffold reads harness.json read-only.",
@@ -664,7 +664,7 @@
           "reason": "Merged into browser-debugging; exact loose copies are superseded."
         }
       ],
-      "contentHash": "084ED68EE1D16455078D494335D1B2E546B0A94ECFB96B59C7EBFA4C9781A7C2",
+      "contentHash": "B56B585B5C20518498091C1DDC7A03A05308CE608E354BDBA506040061726188",
       "hashBasis": "packages/browser-toolkit",
       "status": "active-canonical",
       "browserProviderPolicy": "Chrome DevTools MCP is retired by owner direction 2026-10-24, including the isolated alias. Codex, Cursor and Claude use their native browser surface; other hosts use Playwright MCP, CLI or Test. Never register the retired provider or recreate its skill.",
@@ -856,7 +856,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "01F5ADDC92ABC9D9C4EFC8D4EC72E1790CC8A9EAEB59A1238D8BF064FC381C5F",
+      "contentHash": "0D1D8C4B3D10AFFB2458F2CD6DB82D235BFCAEBEAC1E1449BFF58378238252E4",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -1029,7 +1029,7 @@
         "media-studio-compose",
         "media-studio-qa"
       ],
-      "contentHash": "44AAE0A6B294B9B9B3533F6A64FE6E4D548A83A704F306208C72C63142246030",
+      "contentHash": "7A51AFBB475AFD2D5C88074E5DD3468DF13E8DF35F4E7C20761BCF341E4385BF",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
@@ -1288,7 +1288,7 @@
       "managedSkillNames": [
         "use-coding-agent"
       ],
-      "contentHash": "A15822CE3C2A190CA607734F13F94513BA1155C9BAB5969C0DA774DB13325A06",
+      "contentHash": "BF1B51470CD0FA64ABCCE0E78D3B22F9081D4AA74A5A0E33184DF8590974135E",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
@@ -1373,7 +1373,7 @@
       "owner": "agenthub",
       "capabilityType": "script",
       "canonicalSource": "packages/fleet-board",
-      "contentHash": "46BDA59CF4EB52DFD82A039EDF20D5938F4F4A378993D77FE34223DDC3A7D5B4",
+      "contentHash": "F4BD936888D825FA63890125163D746AFB9AA43E61A72B79E69162C14AC01909",
       "hashBasis": "packages/fleet-board",
       "status": "active-canonical",
       "hostMappings": [],
@@ -1395,7 +1395,7 @@
       "managedSkillNames": [
         "use-arxiv-research"
       ],
-      "contentHash": "BB71F17FF2257CE0CCED1F27DDB03ACAA2DFD9346E0AF4F744ED84BA818F967E",
+      "contentHash": "3C2B60412E944F8F0F4937078D6E0DAC128ACBDA27CB45ADB0F55378D6D5138E",
       "hashBasis": "packages/arxiv-research",
       "status": "active-canonical",
       "hostMappings": [

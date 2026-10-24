@@ -165,7 +165,7 @@ $helperScript = [IO.Path]::GetFullPath($HelperScript)
 
 # The only root the helper accepts, and the only place under it this file
 # is ever allowed to write or delete.
-$script:LiveWorktreeRoot = 'C:\wt'
+$script:LiveWorktreeRoot = if ($env:OS -eq 'Windows_NT') { 'C:\wt' } else { Join-Path $HOME 'wt' }
 # The per-run salt is not cosmetic. Without it two concurrent runs -- which
 # this repository invites, since its whole workflow is parallel agents each
 # running Run-AllTests -- collide on one fixture path: the second run's
@@ -299,8 +299,8 @@ function Get-ReparsePointPath {
 # losing it. Two independent fences: path containment, then reparse points.
 function Remove-TreeUnderLiveRoot {
     param([string]$Path)
-    $full = [IO.Path]::GetFullPath($Path).TrimEnd('\')
-    $fixturePrefix = $script:FixtureRootPath + '\'
+    $full = [IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
+    $fixturePrefix = $script:FixtureRootPath + [IO.Path]::DirectorySeparatorChar
     if (-not $full.Equals($script:FixtureRootPath, [StringComparison]::OrdinalIgnoreCase) -and
         -not $full.StartsWith($fixturePrefix, [StringComparison]::OrdinalIgnoreCase)) {
         return "refusing to delete '$full': it is outside this test's own fixture root '$($script:FixtureRootPath)'. This file never sweeps $($script:LiveWorktreeRoot) broadly -- C:\wt\agenthub holds real human worktrees."
@@ -343,7 +343,7 @@ function Remove-StaleFixtureFamilyRoots {
         $name = [string]$candidate.Name
         if ($name.Length -le $script:FixtureFamilyPrefix.Length) { continue }
         if (-not $name.StartsWith($script:FixtureFamilyPrefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
-        if ($candidate.FullName.TrimEnd('\').Equals($script:FixtureRootPath, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        if ($candidate.FullName.TrimEnd('\', '/').Equals($script:FixtureRootPath, [StringComparison]::OrdinalIgnoreCase)) { continue }
         $reparse = @(Get-ReparsePointPath -Path $candidate.FullName)
         if ($reparse.Count -gt 0) {
             $findings.Add("refusing to remove stale fixture '$($candidate.FullName)': it contains reparse point(s) [$($reparse -join ', ')]")
@@ -497,7 +497,7 @@ function Test-MandatedInvocationCreatesWorktreeEndToEnd {
     # resolved root but C:\wt. A different value is a broken configuration,
     # not an excuse to skip.
     if (-not [string]::IsNullOrWhiteSpace($env:AGENTHUB_WORKTREE_ROOT)) {
-        $configuredRoot = [IO.Path]::GetFullPath([string]$env:AGENTHUB_WORKTREE_ROOT).TrimEnd('\')
+        $configuredRoot = [IO.Path]::GetFullPath([string]$env:AGENTHUB_WORKTREE_ROOT).TrimEnd('\', '/')
         if ($configuredRoot -ne $script:LiveWorktreeRoot) {
             return @{ Passed = $false; Detail = "AGENTHUB_WORKTREE_ROOT is '$configuredRoot', but the helper accepts only '$($script:LiveWorktreeRoot)' and would refuse every invocation. That is a broken worktree configuration on this machine, reported as a failure rather than skipped." }
         }
@@ -759,7 +759,8 @@ function Test-DeletionFenceRefusesOutsideFixtureRootAndThroughJunctions {
         # (b) reparse points. A tree containing a junction must be refused
         # whole, and the junction's TARGET must survive untouched.
         try {
-            New-Item -ItemType Junction -Path $junction -Value $protected -ErrorAction Stop | Out-Null
+            $linkType = if ($env:OS -eq 'Windows_NT') { 'Junction' } else { 'SymbolicLink' }
+            New-Item -ItemType $linkType -Path $junction -Value $protected -ErrorAction Stop | Out-Null
         } catch {
             return @{ Passed = $false; Detail = "could not create a junction fixture at '$junction': $($_.Exception.Message). This behavior cannot be verified without one, so it fails rather than passing over an untested guard." }
         }

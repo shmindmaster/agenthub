@@ -23,12 +23,12 @@ try {
     Save-Json "$profile\factory.json" @{mcpServers=$servers}
     Save-Json "$profile\warp.json" @{mcpServers=$servers}
     Save-Json "$profile\opencode.json" @{mcp=$servers}
-    [IO.File]::WriteAllText("$profile\codex.toml", "[mcp_servers.chrome-devtools]`ncommand = 'old.exe'`n[mcp_servers.chrome-devtools-isolated]`ncommand = 'old.exe'`n[mcp_servers.owner-custom]`ncommand = 'owner.exe'`n")
+    [IO.File]::WriteAllText((Join-Path $profile "codex.toml"), "[mcp_servers.chrome-devtools]`ncommand = 'old.exe'`n[mcp_servers.chrome-devtools-isolated]`ncommand = 'old.exe'`n[mcp_servers.owner-custom]`ncommand = 'owner.exe'`n")
     $exe = (Get-Process -Id $PID).Path
     & $exe -NoProfile -File "$root\scripts\Sync-AgentHub.ps1" -Apply -QuietOverlayResolution -RegistryRoot $scratch -UserProfile $profile *> "$scratch\sync.log"
     if ($LASTEXITCODE -ne 0) { throw 'Synthetic sync failed; inspect fixture setup.' }
     foreach ($file in @('codex.toml','factory.json','warp.json','opencode.json')) {
-        $text = [IO.File]::ReadAllText("$profile\$file")
+        $text = [IO.File]::ReadAllText((Join-Path $profile "$file"))
         if ($text -match 'chrome-devtools' -or $text -notmatch 'owner-custom' -or $text -notmatch 'fixture-active') { throw "Retirement/preservation failed: $file" }
     }
     Write-Host 'PASS: default apply removes retired IDs across TOML, JSON, converted JSON and OpenCode; preserves owner entries and adds active server'

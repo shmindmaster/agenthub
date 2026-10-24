@@ -115,7 +115,7 @@ if (Test-Path -LiteralPath $connPath) {
     foreach ($id in @($conn.lifecyclePolicy.hostConfiguredLocalMcpIds)) { if ($id) { $hostOwned[[string]$id] = $true } }
 }
 
-$claudeSettings = Join-Path $env:USERPROFILE '.claude\settings.json'
+$claudeSettings = Join-Path $HOME '.claude\settings.json'
 if (Test-Path -LiteralPath $claudeSettings) {
     $cs = Get-Content -LiteralPath $claudeSettings -Raw -Encoding UTF8 | ConvertFrom-Json
     $deployed = @()

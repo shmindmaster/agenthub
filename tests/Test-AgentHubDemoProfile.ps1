@@ -62,9 +62,10 @@ $cropOk = (Format-AgentHubDisplayText -Text 'C:\Users\Alex\.claude\CLAUDE.md' -H
 Report 'display cropping replaces the home directory with ~ and only at a path boundary' $cropOk `
     'Format-AgentHubDisplayText cropped the wrong span or missed a spelling'
 
-$realClaude = Join-Path $env:USERPROFILE '.claude\CLAUDE.md'
+$realClaude = Join-Path $HOME '.claude\CLAUDE.md'
 $realClaudeStamp = if (Test-Path -LiteralPath $realClaude) { (Get-Item -LiteralPath $realClaude).LastWriteTimeUtc } else { $null }
-$liveStaging = Join-Path $env:LOCALAPPDATA 'AgentHub\runtime\instructions\claude'
+$liveLocalData = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { [Environment]::GetFolderPath('LocalApplicationData') }
+$liveStaging = Join-Path $liveLocalData 'AgentHub\runtime\instructions\claude'
 $liveStagingStamp = if (Test-Path -LiteralPath $liveStaging) { (Get-ChildItem -LiteralPath $liveStaging -File | Measure-Object -Property LastWriteTimeUtc -Maximum).Maximum } else { $null }
 
 $root = Join-Path $env:AGENTHUB_TEST_SCRATCH ('agenthub-demo-profile-' + [guid]::NewGuid().ToString('N'))
@@ -116,8 +117,8 @@ try {
 
     $allOutput = ($new, $a1, $p1, $a2, $e1, $a3, $p2, $a4 | ForEach-Object { $_.Output }) -join "`n"
     Report 'every printed line is cropped: the invoking home never appears' (
-        $allOutput.IndexOf($env:USERPROFILE, [StringComparison]::OrdinalIgnoreCase) -lt 0 -and
-        ($root.StartsWith($env:USERPROFILE, [StringComparison]::OrdinalIgnoreCase) -eq ($allOutput -match '~[\\/]'))
+        $allOutput.IndexOf($HOME, [StringComparison]::OrdinalIgnoreCase) -lt 0 -and
+        ($root.StartsWith($HOME, [StringComparison]::OrdinalIgnoreCase) -eq ($allOutput -match '~[\\/]'))
     ) 'output still contains the real home directory'
 
     $realStampAfter = if (Test-Path -LiteralPath $realClaude) { (Get-Item -LiteralPath $realClaude).LastWriteTimeUtc } else { $null }
@@ -127,13 +128,13 @@ try {
     ) "real CLAUDE.md $realClaudeStamp -> $realStampAfter; live staging $liveStagingStamp -> $liveStagingAfter"
 
     # --- 3. Refusals. ---
-    $realRoot = Invoke-Demo @('-Action', 'New', '-Root', $env:USERPROFILE)
-    $fleetRoot = Invoke-Demo @('-Action', 'New', '-Root', (Join-Path $env:USERPROFILE '.claude\agenthub-demo'))
+    $realRoot = Invoke-Demo @('-Action', 'New', '-Root', $HOME)
+    $fleetRoot = Invoke-Demo @('-Action', 'New', '-Root', (Join-Path $HOME '.claude\agenthub-demo'))
     $repoInside = Invoke-Demo @('-Action', 'New', '-Root', (Join-Path $repoRoot 'demo-profile'))
     Report 'New refuses the real profile, a real host config root, and the checkout' (
         $realRoot.ExitCode -ne 0 -and $realRoot.Output -match 'real user profile' -and
         $fleetRoot.ExitCode -ne 0 -and $fleetRoot.Output -match 'real host configuration root' -and
-        -not (Test-Path -LiteralPath (Join-Path $env:USERPROFILE '.claude\agenthub-demo')) -and
+        -not (Test-Path -LiteralPath (Join-Path $HOME '.claude\agenthub-demo')) -and
         $repoInside.ExitCode -ne 0 -and -not (Test-Path -LiteralPath (Join-Path $repoRoot 'demo-profile'))
     ) "real=$($realRoot.ExitCode) fleet=$($fleetRoot.ExitCode) repo=$($repoInside.ExitCode)"
 
