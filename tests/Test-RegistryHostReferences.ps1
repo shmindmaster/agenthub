@@ -240,6 +240,25 @@ function Test-LiveCapabilitiesCanonicalSourcesAllExistOnDisk {
 # --- Behavior 6: every host configuration carries an explicit auth mode and
 # owner login command. Unverified account smokes remain gated; Codex stays
 # disabled until the dispatcher captures a standalone response. ---
+function Get-OwnerDispatchPolicyViolations($Policy) {
+    $violations = [Collections.Generic.List[string]]::new()
+    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex')
+    foreach ($id in $authorized) {
+        if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
+    }
+    foreach ($entry in $Policy.PSObject.Properties) {
+        if ($entry.Value.enabled -isnot [bool]) {
+            $violations.Add("$($entry.Name) must declare an explicit dispatch enabled boolean")
+        } elseif ($entry.Name -notin $authorized -and $entry.Value.enabled -ne $false) {
+            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok and Codex")
+        }
+    }
+    foreach ($id in @('cursor', 'cursor-agent', 'grok')) {
+        if ($Policy.PSObject.Properties[$id].Value.enabled -ne $true) { $violations.Add("Authorized verified host $id must remain enabled") }
+    }
+    return $violations
+}
+
 function Test-LiveHostAuthenticationMetadata {
     $profile = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $violations = [Collections.Generic.List[string]]::new()
@@ -260,18 +279,17 @@ function Test-LiveHostAuthenticationMetadata {
     if ($profile.hostSettings.gemini.authMode -ne 'account' -or
         $profile.hostSettings.gemini.settingsPath -ne 'security.auth.selectedType' -or
         $profile.hostSettings.gemini.settingsValue -ne 'oauth-personal' -or
-        $profile.dispatchPolicy.gemini.enabled -or
-        -not $profile.dispatchPolicy.'cursor-agent'.enabled -or
-        -not $profile.dispatchPolicy.amp.enabled) {
-        $violations.Add('Gemini must remain disabled; verified Cursor Agent and Amp account smokes must remain enabled')
+        $profile.dispatchPolicy.gemini.enabled -ne $false) {
+        $violations.Add('Gemini must retain account OAuth settings and remain disabled')
     }
-    if (-not $profile.dispatchPolicy.opencode.enabled -or
+    foreach ($violation in @(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy)) { $violations.Add($violation) }
+    if ($profile.dispatchPolicy.opencode.enabled -ne $false -or
         $profile.hostSettings.opencode.authMode -ne 'account' -or
         $profile.hostSettings.opencode.model -ne $profile.dispatchPolicy.opencode.model -or
         $profile.dispatchPolicy.opencode.model -ne 'opencode/glm-5.3-flash' -or
         $profile.dispatchPolicy.opencode.verifiedOn -ne '2026-10-23' -or
         $null -ne $profile.dispatchPolicy.opencode.ownerAction) {
-        $violations.Add('Verified OpenCode Go account dispatch must remain enabled with its tested model and completed login gate')
+        $violations.Add('OpenCode Go must remain disabled by owner direction while retaining its verified model and completed login gate')
     }
     if ($profile.hostSettings.cline.authMode -ne 'apiKey' -or
         $profile.hostSettings.cline.provider -ne 'openai-compatible' -or
@@ -310,6 +328,29 @@ function Test-LiveHostAuthenticationMetadata {
     return @{ Passed = $true; Detail = $null }
 }
 
+function Test-OwnerDispatchPolicyRejectsUnauthorizedChanges {
+    $profile = Get-Content -LiteralPath (Join-Path $repoRoot 'registry\fleet-profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (@(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy).Count -ne 0) {
+        return @{Passed=$false;Detail='Current authorized policy, including gated Codex, was rejected'}
+    }
+    foreach ($id in @('amp', 'opencode', 'new-unapproved-host')) {
+        $policy = $profile.dispatchPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        $policy | Add-Member -NotePropertyName $id -NotePropertyValue ([pscustomobject]@{enabled=$true}) -Force
+        if ((@(Get-OwnerDispatchPolicyViolations $policy) -join ';') -notmatch [regex]::Escape($id)) {
+            return @{Passed=$false;Detail="Unauthorized $id dispatch was accepted"}
+        }
+    }
+    $policy = $profile.dispatchPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $policy.grok.enabled = $false
+    $policy.amp.enabled = $null
+    $policy.PSObject.Properties.Remove('codex')
+    $violations = @(Get-OwnerDispatchPolicyViolations $policy) -join ';'
+    foreach ($id in @('grok','amp','codex')) {
+        if ($violations -notmatch $id) { return @{Passed=$false;Detail="Missing/invalid authorized-policy guard for $id"} }
+    }
+    return @{Passed=$true;Detail=$null}
+}
+
 $r1 = Test-CollectorFlagsUnknownHostId
 Report 'an unresolved hostId (hostId property or bare hosts[] string) is flagged by name' $r1.Passed $r1.Detail
 
@@ -327,6 +368,9 @@ Report 'every live capability canonicalSource exists on disk' $r5.Passed $r5.Det
 
 $r6 = Test-LiveHostAuthenticationMetadata
 Report 'dispatch hosts have auth records; retired ids are absent and unverified paid routes remain gated' $r6.Passed $r6.Detail
+
+$r7 = Test-OwnerDispatchPolicyRejectsUnauthorizedChanges
+Report 'owner dispatch whitelist rejects unauthorized hosts and missing or invalid policy entries' $r7.Passed $r7.Detail
 
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $($failures.Count) failed, $($reported - $failures.Count) passed" -ForegroundColor Red
