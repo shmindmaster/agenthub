@@ -54,6 +54,28 @@ test('the catalog covers every host in registry/agents.json plus Claude Desktop 
   assert.ok(catalog.includes('claude-desktop') && catalog.includes('vscode'));
 });
 
+test('hosts whose layout differs by OS resolve to their documented macOS and Linux locations', () => {
+  const host = (ctx, id) => buildHostCatalog(ctx).find((h) => h.id === id);
+  const mac = createPathContext({ platform: 'darwin', home: '/Users/dev', env: {} });
+  const linux = createPathContext({ platform: 'linux', home: '/home/dev', env: {} });
+  const win = createPathContext({ platform: 'windows', home: 'C:\\Users\\dev', env: {}, homeOverridden: true });
+
+  assert.ok(host(mac, 'devin').markers.includes('/Users/dev/.config/devin/config.json'), 'Devin is ~/.config/devin on macOS');
+  assert.ok(host(linux, 'devin').markers.includes('/home/dev/.config/devin/config.json'));
+  assert.ok(host(win, 'devin').markers.includes('C:\\Users\\dev\\AppData\\Roaming\\devin\\config.json'));
+
+  assert.ok(host(mac, 'warp').markers.includes('/Users/dev/.warp'), 'Warp config home is ~/.warp on macOS');
+  assert.ok(host(linux, 'warp').markers.includes('/home/dev/.config/warp-terminal'));
+
+  assert.ok(host(mac, 'antigravity-desktop').markers.includes('/Users/dev/Library/Application Support/Antigravity'));
+  assert.ok(host(linux, 'antigravity-desktop').markers.includes('/home/dev/.config/Antigravity'));
+  assert.ok(host(mac, 'cursor').markers.includes('/Users/dev/Library/Application Support/Cursor/User/settings.json'));
+  assert.ok(host(linux, 'vscode-insiders').markers.includes('/home/dev/.config/Code - Insiders/User/settings.json'));
+
+  assert.deepEqual(host(mac, 'claude').executables, ['claude']);
+  assert.deepEqual(host(linux, 'cursor-agent').executables, ['cursor-agent']);
+});
+
 // ---------------------------------------------------------------------------
 // One fixture home per host: every MCP dialect and location is read
 // ---------------------------------------------------------------------------

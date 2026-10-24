@@ -53,7 +53,7 @@ param(
     [switch]$Apply,
     [switch]$QuietOverlayResolution,
     [string]$RepositoryRoot,
-    [string]$UserProfile = $env:USERPROFILE
+    [string]$UserProfile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -72,7 +72,7 @@ if (-not $Apply) { $Audit = $true }
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
-$RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
+$RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
 
 . (Join-Path $PSScriptRoot 'lib\PathBinding.ps1')
 if ([string]::IsNullOrWhiteSpace($UserProfile)) {
@@ -91,7 +91,7 @@ $UserProfile = Get-AgentHubNormalizedDirectory $UserProfile
 # inherited from the actual process environment.
 $invokingUserProfile = Get-AgentHubNormalizedDirectory (Get-AgentHubDefaultHome)
 $requestedPlatform = Get-AgentHubRequestedPlatform -RepositoryRoot $RepositoryRoot
-$effectiveLocalAppData = Get-AgentHubIsolatedLocalData -TargetUserProfile $UserProfile -InvokingUserProfile $invokingUserProfile -LocalAppData $env:LOCALAPPDATA -Platform $requestedPlatform
+$effectiveLocalAppData = Get-AgentHubIsolatedLocalData -TargetUserProfile $UserProfile -InvokingUserProfile $invokingUserProfile -LocalAppData (Get-AgentHubDefaultLocalData) -Platform $requestedPlatform
 
 $RegistryDir = Join-Path $RepositoryRoot 'registry'
 $AgentsFile  = Join-Path $RegistryDir 'agents.json'

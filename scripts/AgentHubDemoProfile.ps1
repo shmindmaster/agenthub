@@ -55,7 +55,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
+$repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\', '/')
 . (Join-Path $PSScriptRoot 'lib\DisplayPath.ps1')
 
 $MarkerName = '.agenthub-demo-profile.json'

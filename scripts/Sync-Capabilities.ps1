@@ -9,7 +9,7 @@ param(
   [switch]$QuietOverlayResolution,
   [string[]]$CapabilityId,
   [string]$RepositoryRoot,
-  [string]$UserProfile = $env:USERPROFILE
+  [string]$UserProfile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,7 +17,7 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
   $RepositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
 if (-not $Apply) { $Audit = $true }
-$root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
+$root = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
 # Dot-sourced for Get-AgentHubStableFileHash (see Get-TreeHash below).
 # RegistryContentHash.ps1 defines functions only -- no top-level side effects
 # -- which is why scripts/Validate-AgentHub.ps1 loads it the same way.
@@ -50,12 +50,13 @@ function Resolve-UnderUserProfile([string]$Path) {
 }
 
 $requestedPlatform = Get-AgentHubRequestedPlatform -RepositoryRoot $root
-$agentHubLocalData = Get-AgentHubIsolatedLocalData -TargetUserProfile $UserProfile -InvokingUserProfile $realProfile -LocalAppData $env:LOCALAPPDATA -AlwaysIsolateOnOverride -Platform $requestedPlatform
+$agentHubLocalData = Get-AgentHubIsolatedLocalData -TargetUserProfile $UserProfile -InvokingUserProfile $realProfile -LocalAppData (Get-AgentHubDefaultLocalData) -AlwaysIsolateOnOverride -Platform $requestedPlatform
 $agentHubRuntimeRoot = Join-AgentHubPlatformPath -Platform (Get-AgentHubPlatformId $requestedPlatform) -Base $agentHubLocalData -Child 'AgentHub'
 $runtimeRoot = Join-Path $agentHubRuntimeRoot 'sync'
 $statePath = Join-Path $runtimeRoot 'managed-skills.json'
 $capabilities = Get-Content (Join-Path $root 'registry\capabilities.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $agentsDocument = Get-Content (Join-Path $root 'registry\agents.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+Use-AgentHubPlatformPaths -AgentsDocument $agentsDocument -Platform $requestedPlatform | Out-Null
 $script:skillPathBinding = New-AgentHubPathBindingContext -TargetUserProfile $UserProfile -InvokingUserProfile $realProfile -RegistryUserProfile (Get-AgentHubRecordedUserProfile $agentsDocument) -Platform $requestedPlatform
 $overlayRoot = Get-AgentHubOverlayRoot -RepositoryRoot $root -ReportPrimaryCheckout:(-not $QuietOverlayResolution)
 $capabilities.capabilities = @(Get-AgentHubEffectiveCapabilities -CapabilitiesDocument $capabilities -OverlayRoot $overlayRoot)
@@ -127,7 +128,7 @@ function Get-TreeHash([string]$Path) {
       Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|dist|coverage)[\\/]' } |
       Sort-Object FullName |
       ForEach-Object {
-        $relative = $_.FullName.Substring($Path.TrimEnd('\').Length + 1).Replace('\','/')
+        $relative = $_.FullName.Substring($Path.TrimEnd('\', '/').Length + 1).Replace('\','/')
         "${relative}:$(Get-AgentHubStableFileHash -Path $_.FullName)"
       }
     $bytes = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
@@ -150,7 +151,7 @@ function Get-TreeHashLegacy([string]$Path) {
       Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|dist|coverage)[\\/]' } |
       Sort-Object FullName |
       ForEach-Object {
-        $relative = $_.FullName.Substring($Path.TrimEnd('\').Length + 1).Replace('\','/')
+        $relative = $_.FullName.Substring($Path.TrimEnd('\', '/').Length + 1).Replace('\','/')
         "${relative}:$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
       }
     $bytes = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
@@ -210,7 +211,7 @@ function Resolve-AgentHubRuntimeDestination([string]$RelativePath) {
     throw "Managed runtime path must be non-empty and relative to '$agentHubRuntimeRoot': '$RelativePath'"
   }
   $destination = [IO.Path]::GetFullPath((Join-Path $agentHubRuntimeRoot $RelativePath))
-  $prefix = $agentHubRuntimeRoot.TrimEnd('\') + '\'
+  $prefix = $agentHubRuntimeRoot.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
   if (-not $destination.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Managed runtime path escapes '$agentHubRuntimeRoot': '$RelativePath'"
   }
@@ -331,7 +332,7 @@ foreach ($capability in $capabilities.capabilities) {
     Register-ManagedTree -Source $sourceRoot -Destination $catalogDestination -CapabilityId ([string]$capability.id) `
       -ItemName ([string]$capability.deployedCatalog.entrypoint) -Mode 'managed-runtime-package' -Kind 'runtime package'
     $authoritySource = [IO.Path]::GetFullPath((Join-Path $root ([string]$capability.deployedCatalog.authoritySource)))
-    $rootPrefix = $root.TrimEnd('\') + '\'
+    $rootPrefix = $root.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     if (-not $authoritySource.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
       throw "Deployed catalog authority source escapes repository root: '$($capability.deployedCatalog.authoritySource)'"
     }

@@ -76,7 +76,7 @@ param(
     [switch]$Apply,
     [switch]$QuietOverlayResolution,
     [string]$RepositoryRoot,
-    [string]$UserProfile = $env:USERPROFILE
+    [string]$UserProfile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -92,7 +92,7 @@ if (-not $Apply) { $Audit = $true }
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
-$RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
+$RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
 
 . (Join-Path $PSScriptRoot 'lib\PathBinding.ps1')
 if ([string]::IsNullOrWhiteSpace($UserProfile)) {

@@ -72,7 +72,7 @@ function Get-AgentHubGitTrackedRelativeFiles {
 
 function Get-AgentHubFilesystemRelativeFiles {
     param([Parameter(Mandatory)][string]$Path)
-    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\')
+    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\', '/')
     $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force -ErrorAction SilentlyContinue |
         Where-Object {
             $full = $_.FullName
@@ -99,7 +99,7 @@ function Get-AgentHubRegistryHashBasisValue {
     }
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return $null }
 
-    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\')
+    $root = (Get-Item -LiteralPath $Path).FullName.TrimEnd('\', '/')
     $normalized = $root.Replace('/', '\')
     $isPersonalOverlayPackage = $normalized -match '(?i)[\\/]overlays[\\/]personal[\\/]packages([\\/]|$)'
     [string[]]$relativePaths = @()

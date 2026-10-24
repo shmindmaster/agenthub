@@ -71,7 +71,7 @@ param(
     [string]$Command,
     [switch]$Apply,
     [string]$RepositoryRoot,
-    [string]$UserProfile = $env:USERPROFILE
+    [string]$UserProfile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -86,7 +86,7 @@ $ValidCommands = @('init', 'inventory', 'validate', 'sync', 'drift')
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
-$RepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
+$RepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/')
 
 . (Join-Path $PSScriptRoot 'lib\PathBinding.ps1')
 if ([string]::IsNullOrWhiteSpace($UserProfile)) {
