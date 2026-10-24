@@ -34,6 +34,10 @@ Screen accuracy: every spoken product claim visible in that beat's frames (`qa/s
 
 ## 2. Other kinds
 
+Hosted exact-file forced alignment may use the explicit verified
+[hosted encoded alignment contract](references/hosted-alignment-clock.md).
+Its provider uncertainty remains unknown; it does not claim the native80ms grid.
+
 Briefings, training, explainers, talking-heads, animation, audio-only do **not** run the four-domain screencast gate. They inherit no-fluff and cursor rules unchanged.
 
 0. `scripts/validate-narration.mjs <jobRoot>` on locked script before voice is rendered; a hit is a block.

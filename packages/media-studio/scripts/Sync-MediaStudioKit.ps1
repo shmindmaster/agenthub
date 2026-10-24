@@ -102,7 +102,7 @@ if (Test-Path -LiteralPath $marketingSource) {
 # Capture and product-picture gates travel with the compositor so each host resolves the same scripts.
 # A missing validator is a hard stop, never a silent skip. The existing scripts are copied
 # beside the kit's screencast tools; _shared\tools gets the same canonical compositor so no stale copy survives.
-$gateScripts = @('validate-edit-map.mjs', 'edit-map-clock.mjs', 'validate-word-sync.mjs', 'validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
+$gateScripts = @('hosted-alignment-clock.mjs', 'validate-edit-map.mjs', 'edit-map-clock.mjs', 'validate-word-sync.mjs', 'validate-storyboard.mjs', 'validate-capture-manifest.mjs', 'backfill-capture-receipt.mjs', 'validate-demo-scenario.mjs', 'validate-product-picture.mjs', 'validate-encoded-picture.mjs', 'validate-sync.mjs', 'build-cue-sheet.mjs', 'backfill-head-trim.mjs', 'validate-viewer-release.mjs',
     # video standard (2026-10-20): record-job.mjs resolves validate-capture-preflight.mjs from _shared\tools; the rest are the release gates the skills cite
     'validate-narration.mjs', 'validate-capture-preflight.mjs', 'validate-pointer-path.mjs', 'validate-frame-integrity.mjs', 'validate-picture-integrity.mjs', 'validate-marketing-readiness.mjs', 'build-contact-sheet.mjs',
     'picture-gates.mjs', 'validate-picture-inputs.mjs', 'render-program.mjs', 'lock-facts.mjs', 'write-captions.mjs', 'merge-designed-cuts.mjs')

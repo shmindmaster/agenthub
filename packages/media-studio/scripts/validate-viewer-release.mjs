@@ -111,7 +111,15 @@ if (job.syncClock === 'forced-aligner') {
       for (const key of ['ok','count','offsetMs','driftMs','p95AbsMs','words','changedWords']) if(JSON.stringify(measured[key])!==JSON.stringify(word[key]))throw Error(`mapped clock ${key} differs from current inputs`);
       if(word.gridMs!==null||word.sourceGridMs!==80||word.sourceUncertaintyMs!==80||!Number.isFinite(word.offsetMs)||!Number.isFinite(word.driftMs)||Math.abs(word.offsetMs)>40||Math.abs(word.driftMs)>40)throw Error('mapped clock must retain80ms uncertainty and canonical40ms drift/offset limits');
     } catch(e) { errors.push(`invalid verified edit-map provenance: ${e.message}`); }
-  } else if (word && (word.method !== 'forced-alignment-on-encoded' || word.gridMs !== 80)) errors.push('word-sync report must name its forced-aligner clock and80ms grid or verified preserved-PCM edit map');
+  } else if(word?.method==='hosted-forced-alignment-on-encoded'){
+    try{
+      const {readHostedClock,measureHostedClock}=await import('./hosted-alignment-clock.mjs');
+      const clock=readHostedClock(root,json(resolve(root,word.inputs.alignment.path)),{takeSha256:candidateSha,scriptSha256:digest(join(root,'story','locked-script.txt'))});
+      const measured=measureHostedClock(clock,json(resolve(root,word.inputs.cueSheet.path)).beats.flatMap(b=>b.narration?.words||[]));
+      for(const key of ['ok','count','offsetMs','driftMs','p95AbsMs','words','pcmSha256','pcmSamples','providerLoss'])if(JSON.stringify(measured[key])!==JSON.stringify(word[key]))throw Error(`hosted clock ${key} differs from current inputs`);
+      if(word.gridMs!==null||word.uncertaintyMs!==null||word.provider!=='elevenlabs'||measured.ok!==true)throw Error('hosted clock must preserve unknown uncertainty and canonical40ms offset/drift limits');
+    }catch(e){errors.push(`invalid hosted alignment provenance: ${e.message}`);}
+  } else if (word && (word.method !== 'forced-alignment-on-encoded' || word.gridMs !== 80)) errors.push('word-sync report must name its native forced clock, verified preserved-PCM edit map, or verified hosted encoded alignment');
 }
 // No fluff: the narration check on the locked script, bound to the script it read (the timeline when there is one).
 const narration = canonical(boundReport('qa/narration-check.json', 'media-studio/validate-narration', 'the locked script must pass the no-fluff check (validate-narration.mjs) before release'), 'qa/narration-check.json',
