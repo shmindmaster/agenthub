@@ -295,7 +295,7 @@ export function bindHelpers(page, log, beats, opts = {}) {
   async function pointAt(locator, o = {}) {
     const r = await approach(locator, o);
     // A cursor-led highlight for a read beat (dashboards, diagrams): the arrival is the action the narration names.
-    log.push('point', { x: Math.round(r.x * k), y: Math.round(r.y * k), label: o.label || null, target: o.target || o.label || describe(locator), tStart: log.now() });
+    log.push('point', { x: Math.round(r.x * k), y: Math.round(r.y * k), targetBox: { x: r.box.x * k, y: r.box.y * k, w: r.box.width * k, h: r.box.height * k }, label: o.label || null, target: o.target || o.label || describe(locator), tStart: log.now() });
     if (o.label) beats.mark(o.label, { box: { x: Math.round(r.box.x), y: Math.round(r.box.y), w: Math.round(r.box.width), h: Math.round(r.box.height) } });
     await wait(o.hold ?? 900);
     return r;
@@ -325,15 +325,23 @@ export function bindHelpers(page, log, beats, opts = {}) {
   async function expect(locator, label, o = {}) {
     const t = log.now();
     let observed = false;
+    const target = o.text ? locator.filter({ hasText: o.text }).first() : locator.first();
+    const state = o.text ? 'visible' : o.state || 'visible';
+    const alreadyVisible = state === 'visible' ? await target.isVisible().catch(() => false) : false;
+    let targetBox = null;
     try {
       if (o.text) await locator.filter({ hasText: o.text }).first().waitFor({ state: 'visible', timeout: o.timeout ?? TIMING.expectTimeoutMs });
       else await locator.first().waitFor({ state: o.state || 'visible', timeout: o.timeout ?? TIMING.expectTimeoutMs });
       observed = true;
+      if (state === 'visible') {
+        const b = await target.boundingBox();
+        if (b) targetBox = { x: b.x * k, y: b.y * k, w: b.width * k, h: b.height * k };
+      }
     } catch (e) {
       observed = false;
       log.push('expect-failed', { label, error: String(e.message).split('\n')[0] });
     }
-    log.expectations.push({ label, observed, at: t, observedAt: observed ? log.now() : null });
+    log.expectations.push({ label, observed, at: t, observedAt: observed ? log.now() : null, state, alreadyVisible, targetBox });
     if (observed) log.push('expect', { label });
     if (observed) beats.mark('result: ' + label);
     if (!observed && !o.soft) throw new Error('expected product response not observed: ' + label);

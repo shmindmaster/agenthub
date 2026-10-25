@@ -385,6 +385,82 @@ test('expected-change points and freeze classification: stalled where change is 
 const holdFixture = (name, v = {}) => gateFixture(name, { cuts: [0, 3, 8, 16, 19], s04at: 16.4, stillFrom: 10.4, gop: 1000, ...v });
 const editCue = (f, fn) => { const p = join(f.root, 'plan', 'cue-sheet.json'); const c = JSON.parse(readFileSync(p, 'utf8')); fn(c); write(p, c); };
 
+test('receipt-proved pointer arrival and existing-state observation do not promise a pixel transition', () => {
+  const point = { type: 'point', t: 2, tStart: 2, x: 100, y: 100, label: 'Balance', target: 'Balance' };
+  const capture = { clips: { C: { recast: 'skipped', actions: [{ type: 'move', t: 1.5, x: 50, y: 50 }, { type: 'move', t: 1.7, x: 100, y: 100 }, point],
+    beats: [{ label: 'Balance', approxStartSeconds: 2, box: { x: 80, y: 80, w: 40, h: 40 } }],
+    expectations: [{ label: 'Balance visible', at: 3, observedAt: 3.01, observed: true, alreadyVisible: true, state: 'visible', targetBox: { x: 80, y: 80, w: 40, h: 40 } }] } } };
+  const b = hb('S01', { until: 8, changes: false, actions: [{ kind: 'point', target: 'Balance', receipt_event_index: 2, clip_time: 2, action_time: 2 }],
+    result: { label: 'Balance visible', receipt_expectation_index: 0, clip_time: 3.01, visible_at: 3.01 } });
+  b.screen.clip = 'C';
+  assert.equal(L.receiptSemantics(b, b.actions[0], capture), 'pointer-arrival');
+  assert.equal(L.receiptSemantics(b, b.result, capture, true), 'observation');
+  assert.deepEqual(L.expectedChangePoints([b], [], capture), []);
+  assert.equal(L.declaredHold(b, capture).from, 0, 'a receipt-proved read beat holds throughout, including pointer travel');
+  assert.equal(L.classifyFreeze({ start: 1.9, end: 8, duration: 6.1 }, { beats: [b], receipt: capture }).verdict, 'declared-hold');
+  assert.equal(L.classifyFreeze({ start: 1.9, end: 9, duration: 7.1 }, { beats: [{ ...b, slot_end: 9 }], receipt: capture }).verdict, 'overlong-hold');
+  for (const mutate of [
+    (r) => { r.clips.C.beats = []; },
+    (r) => { r.clips.C.beats[0].box.x = 200; },
+    (r) => { r.clips.C.actions[1].x = 99; },
+    (r) => { r.clips.C.actions[0].x = 100; r.clips.C.actions[0].y = 100; },
+  ]) { const bad = structuredClone(capture); mutate(bad); assert.equal(L.receiptSemantics(b, b.actions[0], bad), null); }
+  const legacy = structuredClone(capture); delete legacy.clips.C.expectations[0].alreadyVisible;
+  assert.equal(L.receiptSemantics(b, b.result, legacy, true), null, 'label/time only cannot prove existing state');
+  assert.equal(L.receiptSemantics(b, { ...b.actions[0], clip_time: 2.1 }, capture), null, 'wrong event clock rejected');
+  assert.equal(L.receiptSemantics(b, { ...b.actions[0], kind: 'click' }, capture), null, 'click cannot borrow point semantics');
+  assert.equal(L.expectedChangePoints([{ ...b, actions: [{ ...b.actions[0], visual_semantics: 'pointer-arrival' }] }]).length, 2, 'authored waiver without receipt is ignored');
+  const observation = { ...b, actions: [] };
+  assert.equal(L.declaredHold(observation, capture).from, 0, 'observation does not postpone an already-visible hold');
+  assert.equal(L.expectedChangePoints([b], [{ startSeconds: 4 }], capture).length, 1, 'actual cut still requires picture change');
+});
+
+test('encoded freeze uses hash-bound receipt proof, rejects receipt/clip changes and insufficient legacy observations', { skip: !hasFfmpeg, timeout: 240000 }, () => {
+  const f = holdFixture('receipt-static-target', { stillFrom: 8.2 });
+  const receiptPath = join(f.root, 'capture', 'receipt.json');
+  const capture = { clips: { S03: { file: 'candidate.mp4', sha256: sha(f.candidate), recast: 'skipped',
+    actions: [{ type: 'move', t: 1.5, x: 40, y: 50 }, { type: 'move', t: 1.8, x: 100, y: 100 }, { type: 'point', t: 2, tStart: 2, x: 100, y: 100, label: 'Send', target: 'Send' }],
+    beats: [{ label: 'Send', approxStartSeconds: 2, box: { x: 80, y: 80, w: 40, h: 40 } }],
+    expectations: [{ label: 'Report sent', at: 3, observedAt: 3.01, observed: true, state: 'visible', alreadyVisible: true, targetBox: { x: 80, y: 80, w: 40, h: 40 } }] } } };
+  write(receiptPath, capture);
+  const bind = () => editCue(f, (c) => { c.inputs.receipt = { path: 'capture/receipt.json', sha256: sha(receiptPath) }; const b = c.beats[2]; b.actions[0].kind = 'point'; b.actions[0].receipt_event_index = 2; b.result.receipt_expectation_index = 0; b.result.clip_time = 3.01; });
+  bind();
+  let r = gate(f); assert.equal(r.code, 1, 'overlong hold must remain blocked');
+  assert.ok(r.report.errors.some((e) => e.includes('longer than the 6.5s max hold')), r.out);
+  const good = holdFixture('receipt-static-target-pass', { cuts: [0, 3, 8, 14, 17], s04at: 14.4, stillFrom: 8.2 });
+  const goodReceiptPath = join(good.root, 'capture', 'receipt.json');
+  const goodCapture = structuredClone(capture); goodCapture.clips.S03.sha256 = sha(good.candidate);
+  write(goodReceiptPath, goodCapture);
+  editCue(good, (c) => { c.inputs.receipt = { path: 'capture/receipt.json', sha256: sha(goodReceiptPath) }; const b = c.beats[2]; b.actions[0].kind = 'point'; b.actions[0].receipt_event_index = 2; b.result.receipt_expectation_index = 0; b.result.clip_time = 3.01; });
+  r = gate(good); assert.equal(r.code, 0, r.out);
+  capture.clips.S03.expectations[0].alreadyVisible = false;
+  write(receiptPath, capture); bind();
+  r = gate(f); assert.equal(r.code, 1); assert.ok(r.report.errors.some((e) => e.includes('expects result')));
+  capture.clips.S03.expectations[0].alreadyVisible = true;
+  write(receiptPath, capture); // deliberately do not rebuild bound hash
+  r = gate(f); assert.equal(r.code, 1); assert.ok(r.report.errors.some((e) => e.includes('capture receipt missing or changed')));
+  capture.clips.S03.sha256 = '0'.repeat(64); write(receiptPath, capture); bind();
+  r = gate(f); assert.equal(r.code, 1); assert.ok(r.report.errors.some((e) => e.includes('evidence clip S03 is missing or changed')));
+});
+
+test('recording derives existing-state evidence from the actual locator and scales target boxes', async () => {
+  const { bindHelpers, EventLog, BeatTracker } = await import('../kit/screencast/record-lib.mjs');
+  const log = new EventLog(Date.now()); const beats = new BeatTracker(Date.now());
+  const page = { waitForTimeout: async () => {}, viewportSize: () => ({ width: 100, height: 100 }), mouse: { move: async () => {} } };
+  let visible = true;
+  const loc = { first: () => loc, scrollIntoViewIfNeeded: async () => {}, isVisible: async () => visible,
+    boundingBox: async () => ({ x: 10, y: 20, width: 30, height: 40 }), waitFor: async () => {} };
+  const h = bindHelpers(page, log, beats, { videoSize: { width: 200 }, viewport: { width: 100 } });
+  await h.pointAt(loc, { label: 'Target', hold: 0 });
+  assert.deepEqual(log.events.at(-1).targetBox, { x: 20, y: 40, w: 60, h: 80 });
+  await h.expect(loc, 'Target visible', { hold: 0 });
+  assert.equal(log.expectations[0].alreadyVisible, true);
+  assert.deepEqual(log.expectations[0].targetBox, { x: 20, y: 40, w: 60, h: 80 });
+  visible = false;
+  await h.expect(loc, 'Target appears', { hold: 0 });
+  assert.equal(log.expectations[1].alreadyVisible, false, 'wait success cannot invent prior visibility');
+});
+
 test('sync gate passes a 5.6 s picture hold after the result is visible as a declared hold, and records it', { skip: !hasFfmpeg, timeout: 240000 }, () => {
   const f = holdFixture('hold-declared');
   const r = gate(f); assert.equal(r.code, 0, r.out);

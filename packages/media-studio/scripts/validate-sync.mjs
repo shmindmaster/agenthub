@@ -17,7 +17,9 @@
 //   dropped-frames  pts gaps in the video packets
 //   frozen-frames   a freeze is a stalled picture while the cue sheet expects change; a hold the cue sheet declares is not a freeze
 //                   stalled         an exact-frame freeze (any length, freezedetect reports >= 2 s) covering +-0.25 s of a screen cut,
-//                                   an action_time, a result's visible_at or an edl clip start fails: the picture did not change
+//                                   an unproved/state-changing action_time, result's visible_at or an edl clip start fails.
+//                                   Hash-bound receipt target/motion proof can establish a pointer-only read beat; recorder-measured
+//                                   prior visibility and target box can establish an existing-state observation. Neither promises a pixel transition.
 //                                   where the sheet says it does
 //                   declared hold   from max(last action_time, result.visible_at) to the beat's slot_end (a beat with no action and no
 //                                   result, such as a card, holds from its slot_start). A freeze wholly inside it passes as a
@@ -90,7 +92,7 @@ let candidateSha = null; let candidateBytes = null;
 if (!existsSync(candidate)) fail(`candidate does not exist: ${candidate}`);
 else { candidateSha = sha(candidate); candidateBytes = statSync(candidate).size; }
 
-let cueSheet = null; let probe = null; let avReport = null; let freezeReport = null;
+let cueSheet = null; let probe = null; let avReport = null; let freezeReport = null; let captureReceipt = null;
 if (!existsSync(cuePath)) fail(`missing ${relative(root, cuePath).replace(/\\/g, '/')}: build it with build-cue-sheet.mjs (locked narration -> ASR -> compose -> build-cue-sheet).`);
 else { try { cueSheet = JSON.parse(readFileSync(cuePath, 'utf8').replace(/^﻿/, '')); } catch (e) { fail(`cannot read cue sheet: ${e.message}`); } }
 
@@ -100,6 +102,22 @@ if (candidateSha && cueSheet) {
   const tlPath = join(root, 'story', 'narration-timeline.json');
   if (existsSync(tlPath) && cueSheet.inputs?.timeline?.sha256 !== sha(tlPath)) fail('cue sheet is stale: story/narration-timeline.json changed since it was built.');
   if (cueSheet.inputs?.composeMap?.path) { const cm = join(root, cueSheet.inputs.composeMap.path); if (!existsSync(cm) || sha(cm) !== cueSheet.inputs.composeMap.sha256) fail('cue sheet is stale: the compose map changed since it was built; rerun build-cue-sheet.mjs after the last compose.'); }
+  const receiptRef = cueSheet.inputs?.receipt;
+  const receiptPath = join(root, 'capture', 'receipt.json');
+  if (receiptRef || existsSync(receiptPath)) {
+    if (receiptRef?.path !== 'capture/receipt.json' || !existsSync(receiptPath) || sha(receiptPath) !== receiptRef.sha256) fail('cue sheet is stale: capture receipt missing or changed; rebuild from the current capture receipt.');
+    else {
+      try { captureReceipt = JSON.parse(readFileSync(receiptPath, 'utf8').replace(/^\uFEFF/, '')); }
+      catch { fail('cannot read hash-bound capture receipt.'); }
+      for (const b of cueSheet.beats || []) {
+        const evidenceUsed = (b.actions || []).some((a) => L.receiptSemantics(b, a, captureReceipt)) || L.receiptSemantics(b, b.result, captureReceipt, true);
+        if (!evidenceUsed) continue;
+        const clip = captureReceipt.clips[b.screen.clip];
+        const clipPath = typeof clip.file === 'string' ? resolve(root, clip.file) : null;
+        if (!clipPath || !existsSync(clipPath) || sha(clipPath) !== clip.sha256) { fail(`capture evidence clip ${b.screen.clip} is missing or changed.`); captureReceipt = null; break; }
+      }
+    }
+  }
   const pr = run('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', candidate]);
   try { probe = JSON.parse(pr.stdout); } catch { fail('ffprobe cannot read the candidate.'); }
 }
@@ -148,7 +166,7 @@ if (candidateSha && cueSheet && probe && video) {
   const fmt = (f) => `${f.start.toFixed(2)}-${f.end.toFixed(2)}s`;
   const where = (beat, check, status, msg, expected, measured) => { if (beat) finding(beat, check, status, msg, expected, measured); else if (status === 'fail') fail(msg); };
   for (const f of freezes) {
-    const v = L.classifyFreeze(f, { beats, edl: cueSheet.edl, maxFreezeSeconds: T.maxFreezeSeconds, maxHoldSeconds: T.maxHoldSeconds });
+    const v = L.classifyFreeze(f, { beats, edl: cueSheet.edl, receipt: captureReceipt, maxFreezeSeconds: T.maxFreezeSeconds, maxHoldSeconds: T.maxHoldSeconds });
     freezeVerdicts.push({ start: f.start, end: f.end, duration: f.duration, verdict: v.verdict, hold: v.hold });
     const b = beats.find((x) => f.start < x.slot_end && f.end > x.slot_start);
     if (v.verdict === 'stalled') {

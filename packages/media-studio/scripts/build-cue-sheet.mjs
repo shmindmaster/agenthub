@@ -187,6 +187,7 @@ const beats = segs.map((seg, i) => {
     const keyword = narrated ? L.findKeywordWord(bw.words, keywords) : null;
     actions.push({
       kind: x.e.type, label, target: x.e.target || label || null, narrated, keywords,
+      receipt_event_index: clipRec.actions.indexOf(x.e),
       clip_time: L.round(x.clipTime), cursor: Number.isFinite(x.e.x) ? { x: x.e.x, y: x.e.y } : null,
       action_time: mapped ? x.program : null,
       action_time_natural: g.mappable ? round(g.start + (L.clipToSlot({ ...g.edit, headHold: 0 }, x.clipTime) ?? NaN)) : null,
@@ -210,7 +211,7 @@ const beats = segs.map((seg, i) => {
     const keywords = resSpec?.keywords?.length ? resSpec.keywords : L.keywordsFromLabel(label);
     const kw = L.findKeywordWord(bw.words, keywords, { last: true });
     const expClip = exp ? L.toClipTime(clipRec, exp.observedAt) : null;
-    result = { label, clip_time: expClip, visible_at: expClip !== null && mapped ? toProgram(expClip) : null, keywords, keyword: kw ? { w: kw.w, start: kw.start, end: kw.end, matched: kw.keyword } : null };
+    result = { label, receipt_expectation_index: exp ? clipRec.expectations.indexOf(exp) : null, clip_time: expClip, visible_at: expClip !== null && mapped ? toProgram(expClip) : null, keywords, keyword: kw ? { w: kw.w, start: kw.start, end: kw.end, matched: kw.keyword } : null };
   }
   const prevGroup = i > 0 ? groupFor(segs[i - 1]) : null;
   const cameraDefault = clipRec?.recast === 'full' ? 'Recast punch-in on clicks' : clipRec?.recast ? `Recast ${clipRec.recast}` : 'static';

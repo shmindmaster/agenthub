@@ -261,30 +261,59 @@ export const FREEZE_EDGE_SECONDS = 0.25; // tolerance around an expected change 
 
 /**
  * Where the picture is declared to stay still in one mapped cue-sheet beat, or null when the sheet cannot place it.
- * From max(last action_time, result.visible_at) to slot_end; a beat with no actions and no result (a card, a static read
+ * From max(last transition action_time, transition result.visible_at) to slot_end; a beat with no transitions (a card, a proved read
  * beat) holds from its slot_start. Actions or a result without a program time declare nothing.
  */
-export function declaredHold(beat) {
+// Recompute semantics from capture evidence, never a cue-plan declaration. Legacy
+// observations without a saved visible target remain conservative change points.
+export function receiptSemantics(beat, item, receipt, result = false) {
+  const clip = receipt?.clips?.[beat.screen?.clip];
+  const index = result ? item?.receipt_expectation_index : item?.receipt_event_index;
+  if (!clip || !Number.isInteger(index) || index < 0) return null;
+  const event = (result ? clip.expectations : clip.actions)?.[index];
+  if (!event) return null;
+  const time = toClipTime(clip, result ? event.observedAt : event.tStart ?? event.t);
+  if (!Number.isFinite(time) || !Number.isFinite(item.clip_time) || Math.abs(time - item.clip_time) > 0.0011) return null;
+  const boxValid = (b) => b && [b.x, b.y, b.w, b.h].every(Number.isFinite) && b.w > 0 && b.h > 0;
+  if (result) {
+    if (event.observed === true && event.alreadyVisible === true && event.state === 'visible' && boxValid(event.targetBox)
+      && typeof item.label === 'string' && item.label.length > 0 && String(event.label).toLowerCase().includes(item.label.toLowerCase())
+      && event.observedAt >= event.at && !(clip.actions || []).some((a) => ['click', 'tap', 'type', 'wheel', 'goto'].includes(a.type) && a.t >= event.at && a.t <= event.observedAt)) return 'observation';
+    return null;
+  }
+  if (event.type !== 'point' || item.kind !== 'point' || !event.label || event.target !== item.target) return null;
+  const mark = (clip.beats || []).find((b) => b.label === event.label && Number.isFinite(b.approxStartSeconds) && Math.abs(b.approxStartSeconds - event.t) <= 0.1 && boxValid(b.box));
+  const box = boxValid(event.targetBox) ? event.targetBox : mark?.box;
+  const moves = (clip.actions || []).slice(0, index).filter((a) => a.type === 'move' && Number.isFinite(a.t) && a.t <= event.t && a.t >= event.t - 2);
+  const last = moves.at(-1);
+  if (!box || ![event.x, event.y].every(Number.isFinite) || !last || last.x !== event.x || last.y !== event.y
+    || !moves.some((m) => Number.isFinite(m.x) && Number.isFinite(m.y) && (m.x !== last.x || m.y !== last.y))) return null;
+  if (event.x < box.x || event.x > box.x + box.w || event.y < box.y || event.y > box.y + box.h) return null;
+  return 'pointer-arrival';
+}
+
+export function declaredHold(beat, receipt = null) {
   const end = [beat.slot_end, beat.screen?.visible_until].find(Number.isFinite);
   const begin = [beat.slot_start, beat.screen?.visible_from].find(Number.isFinite);
   if (!Number.isFinite(end)) return null;
-  const actions = beat.actions || [];
+  const actions = (beat.actions || []).filter((a) => receiptSemantics(beat, a, receipt) !== 'pointer-arrival');
   const times = actions.map((a) => a.action_time).filter(Number.isFinite);
-  const visible = beat.result?.visible_at;
+  const observation = receiptSemantics(beat, beat.result, receipt, true) === 'observation';
+  const visible = observation ? null : beat.result?.visible_at;
   const resultTimed = Number.isFinite(visible);
   if (resultTimed) times.push(visible);
   if (times.length) { const from = Math.max(...times); return from < end ? { beat: beat.beat, from, until: end, kind: resultTimed ? 'after-result' : 'after-action' } : null; }
-  if (!actions.length && !beat.result && Number.isFinite(begin)) return { beat: beat.beat, from: begin, until: end, kind: 'static-beat' };
+  if (!actions.length && (!beat.result || observation) && Number.isFinite(begin)) return { beat: beat.beat, from: begin, until: end, kind: 'static-beat' };
   return null;
 }
 
-/** Program times at which the cue sheet expects the picture to change: screen cuts, actions, results, edl clip starts. */
-export function expectedChangePoints(beats, edl = null) {
+/** Conservative transition times, excluding only receipt-proved pointer arrivals / existing-state observations. */
+export function expectedChangePoints(beats, edl = null, receipt = null) {
   const pts = [];
   (beats || []).forEach((b, i) => {
     if (i > 0 && b.screen?.changes_from_previous && b.screen.kind !== 'hold' && Number.isFinite(b.screen.visible_from)) pts.push({ beat: b.beat, t: b.screen.visible_from, what: `screen "${b.beat}"` });
-    for (const a of b.actions || []) if (Number.isFinite(a.action_time)) pts.push({ beat: b.beat, t: a.action_time, what: `${a.kind} "${a.label || a.target}"` });
-    if (Number.isFinite(b.result?.visible_at)) pts.push({ beat: b.beat, t: b.result.visible_at, what: `result "${b.result.label}"` });
+    for (const a of b.actions || []) if (Number.isFinite(a.action_time) && receiptSemantics(b, a, receipt) !== 'pointer-arrival') pts.push({ beat: b.beat, t: a.action_time, what: `${a.kind} "${a.label || a.target}"` });
+    if (Number.isFinite(b.result?.visible_at) && receiptSemantics(b, b.result, receipt, true) !== 'observation') pts.push({ beat: b.beat, t: b.result.visible_at, what: `result "${b.result.label}"` });
   });
   for (const e of edl || []) {
     const t = Number(e.startSeconds);
@@ -303,12 +332,12 @@ export function expectedChangePoints(beats, edl = null) {
  *   overlong-hold  wholly inside a declared hold, but longer than maxHoldSeconds
  *   undeclared     longer than maxFreezeSeconds and outside every declared hold
  */
-export function classifyFreeze(freeze, { beats, edl = null, maxFreezeSeconds = SYNC_DEFAULTS.maxFreezeSeconds, maxHoldSeconds = SYNC_DEFAULTS.maxHoldSeconds } = {}) {
+export function classifyFreeze(freeze, { beats, edl = null, receipt = null, maxFreezeSeconds = SYNC_DEFAULTS.maxFreezeSeconds, maxHoldSeconds = SYNC_DEFAULTS.maxHoldSeconds } = {}) {
   const e = FREEZE_EDGE_SECONDS;
-  const stalled = expectedChangePoints(beats, edl).filter((p) => freeze.start <= p.t - e && freeze.end >= p.t + e);
+  const stalled = expectedChangePoints(beats, edl, receipt).filter((p) => freeze.start <= p.t - e && freeze.end >= p.t + e);
   if (stalled.length) return { verdict: 'stalled', stalled, hold: null };
   if (!(freeze.duration > maxFreezeSeconds)) return { verdict: 'ignore', stalled, hold: null };
-  const hold = (beats || []).map(declaredHold).filter(Boolean).find((h) => freeze.start >= h.from - e && freeze.end <= h.until + e) || null;
+  const hold = (beats || []).map((b) => declaredHold(b, receipt)).filter(Boolean).find((h) => freeze.start >= h.from - e && freeze.end <= h.until + e) || null;
   if (!hold) return { verdict: 'undeclared', stalled, hold: null };
   return { verdict: freeze.duration > maxHoldSeconds ? 'overlong-hold' : 'declared-hold', stalled, hold };
 }

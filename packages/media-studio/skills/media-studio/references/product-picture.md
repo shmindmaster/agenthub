@@ -25,6 +25,8 @@ The compositor overlay (`render-overlay.mjs`) owns dim / box / arrow / label / f
 
 A `hold` is the last frame of the preceding WebM, or a storyboard-declared result hold on that video. It is not a PNG still and not `interaction.kind: none` posing as the picture.
 
+Sync freeze accounting distinguishes a captured pointer arrival from a picture transition. The mapped cue builder saves receipt indices; the validator checks the receipt hash and the referenced clip hash, then derives semantics from the capture evidence. A point needs a real preceding motion path ending inside its saved target box (or a matching timed legacy beat box). An existing-state observation needs recorder-measured prior visibility, a visible target box and no intervening mutating action. Legacy assertions containing only label/time cannot establish that evidence and remain conservative change points. Cue-plan fields cannot waive a transition. A beat containing only proved points/observations may hold its background from the slot start; the existing 6.5-second maximum still applies. Clicks, typing, unproved results and cuts retain transition checks. This conservative fallback does not assert that every native click changes pixels. Receipt evidence also does not establish perceptual cursor visibility or replace continuous audiovisual review.
+
 ## End-to-end demonstration
 
 The picture **proves** the workflow. A muted viewer must still follow:
