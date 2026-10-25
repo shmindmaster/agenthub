@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import pathlib
+import struct
 import tempfile
 import threading
 import unittest
@@ -27,6 +28,13 @@ def audio():
         w.setframerate(48000)
         w.writeframes(b"\0\0" * 100)
     return stream.getvalue()
+
+
+def streaming_audio():
+    raw = bytearray(audio())
+    struct.pack_into("<I", raw, 4, 0x7FFF0024)
+    struct.pack_into("<I", raw, 40, 0x7FFF0000)
+    return bytes(raw)
 
 
 class AdapterTests(unittest.TestCase):
@@ -114,6 +122,186 @@ class AdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "no repeat purchase"):
             adapter._generate(ledger, p, "synthetic-test", "fake", lambda *a: self.fail("unknown repurchased"))
         self.assertEqual(ledger.status()["budgets"][0]["committed"], p["maximum_usd_micros"])
+        directory = ledger.root / "response-evidence" / ledger.namespace("fake", "synthetic-test") / p["cache_key"]
+        diagnostic = json.loads((directory / "diagnostic.json").read_text())
+        self.assertEqual(diagnostic["stage"], "response_headers_received")
+        self.assertEqual(diagnostic["request_id"], "synthetic-request-2")
+        self.assertFalse((directory / "response.bin").exists())
+
+    def test_streaming_header_normalization_preserves_pcm_and_raw_provenance(self):
+        ledger, p = self.ledger(), plan()
+        original = streaming_audio()
+        def streaming(*args):
+            headers, _ = self.send(*args)
+            return headers, original
+        finalized, receipt = adapter._generate(ledger, p, "synthetic-test", "fake", streaming)
+        self.assertEqual(finalized, audio())
+        self.assertEqual(finalized[44:], original[44:])
+        directory = ledger.root / "response-evidence" / receipt["namespace"] / receipt["cache_key"]
+        self.assertEqual((directory / "response.bin").read_bytes(), original)
+        diagnostic = json.loads((directory / "diagnostic.json").read_text())
+        self.assertEqual(diagnostic["response_sha256"], hashlib.sha256(original).hexdigest())
+        self.assertEqual(diagnostic["output_sha256"], receipt["output_sha256"])
+        self.assertEqual(diagnostic["normalization"], "pcm48k-mono16-streaming-7fff0000-v1")
+        self.assertEqual(diagnostic["stage"], "pending")
+        self.assertEqual(receipt["response_provenance"]["response_sha256"], diagnostic["response_sha256"])
+        self.assertNotEqual(diagnostic["response_sha256"], diagnostic["output_sha256"])
+        self.assertEqual(receipt["acceptance_state"], "pending")
+        _, reused = adapter._generate(ledger, p, "synthetic-test", "fake", lambda *a: self.fail("repurchased"))
+        self.assertTrue(reused["reused"])
+        self.assertEqual(reused["response_provenance"], receipt["response_provenance"])
+
+    def test_pre_submission_evidence_failure_cancels_only_never_submitted_claim(self):
+        ledger, p = self.ledger(), plan()
+        with patch.object(adapter, "_write_diagnostic", side_effect=OSError("private")):
+            with self.assertRaisesRegex(RuntimeError, "no submission made"):
+                adapter._generate(ledger, p, "synthetic-test", "fake", lambda *a: self.fail("must not submit"))
+        self.assertIsNone(ledger.lookup(ledger.namespace("fake", "synthetic-test"), p["cache_key"]))
+        self.assertEqual(ledger.status()["budgets"][0]["committed"], 0)
+
+    def test_post_completion_diagnostic_failure_does_not_change_pending_asset(self):
+        ledger, p = self.ledger(), plan()
+        original_write = adapter._write_diagnostic
+        def fail_pending(directory, diagnostic):
+            if diagnostic["stage"] == "pending":
+                raise OSError("private")
+            return original_write(directory, diagnostic)
+        with patch.object(adapter, "_write_diagnostic", side_effect=fail_pending):
+            raw, receipt = adapter._generate(ledger, p, "synthetic-test", "fake", self.send)
+        self.assertEqual(raw, audio())
+        self.assertEqual(receipt["acceptance_state"], "pending")
+        self.assertEqual(receipt["response_provenance"]["output_sha256"], receipt["output_sha256"])
+
+    def test_streaming_and_finalized_malformed_audio_remain_rejected(self):
+        bad = [audio()[:-2], streaming_audio()[:44], streaming_audio()[:-1]]
+        for offset, fmt, value in ((40, "<I", 0x7FFF0001), (16, "<I", 18),
+                                   (20, "<H", 3), (22, "<H", 2), (24, "<I", 44100),
+                                   (28, "<I", 1), (32, "<H", 1), (34, "<H", 8)):
+            raw = bytearray(streaming_audio())
+            struct.pack_into(fmt, raw, offset, value)
+            bad.append(bytes(raw))
+        for raw in bad:
+            with self.subTest(header=raw[:44]), self.assertRaises((RuntimeError, wave.Error, EOFError)):
+                adapter._prepare_audio(raw, "audio/wav")
+        with self.assertRaises(RuntimeError):
+            adapter._prepare_audio(streaming_audio(), "application/octet-stream")
+        with patch.object(adapter, "MAX_RESPONSE_BYTES", 128), self.assertRaises(RuntimeError):
+            adapter._prepare_audio(streaming_audio(), "audio/wav")
+        self.assertEqual(adapter._prepare_audio(audio(), "audio/wav"), (audio(), None))
+
+    def test_invalid_mime_keeps_raw_response_and_unknown_without_retry(self):
+        ledger, p = self.ledger(), plan()
+        def wrong_mime(request, credential, received):
+            headers = {"dg-request-id": "synthetic-mime", "content-type": "application/octet-stream"}
+            received(headers)
+            return headers, audio()
+        with self.assertRaisesRegex(RuntimeError, "audio_validation"):
+            adapter._generate(ledger, p, "synthetic-test", "fake", wrong_mime)
+        namespace = ledger.namespace("fake", "synthetic-test")
+        directory = ledger.root / "response-evidence" / namespace / p["cache_key"]
+        self.assertEqual((directory / "response.bin").read_bytes(), audio())
+        diagnostic = json.loads((directory / "diagnostic.json").read_text())
+        self.assertEqual(diagnostic["content_type"], "application/octet-stream")
+        self.assertEqual(ledger.lookup(namespace, p["cache_key"])["state"], "unknown")
+        with self.assertRaisesRegex(RuntimeError, "no repeat purchase"):
+            adapter._generate(ledger, p, "synthetic-test", "fake", lambda *a: self.fail("repurchased"))
+
+    def test_quarantine_write_failure_retains_receipt_and_reservation(self):
+        ledger, p = self.ledger(), plan()
+        original_write = adapter._durable_evidence
+        def fail_raw(path, raw):
+            if path.name == "response.bin":
+                raise OSError("private diagnostic must not leak")
+            return original_write(path, raw)
+        with patch.object(adapter, "_durable_evidence", side_effect=fail_raw):
+            with self.assertRaisesRegex(RuntimeError, "response_quarantine"):
+                adapter._generate(ledger, p, "synthetic-test", "fake", self.send)
+        row = ledger.lookup(ledger.namespace("fake", "synthetic-test"), p["cache_key"])
+        self.assertEqual(row["state"], "unknown")
+        self.assertEqual(row["receipt"], "synthetic-request-1")
+        self.assertIsNone(row["sha256"])
+        self.assertEqual(ledger.status()["budgets"][0]["committed"], p["maximum_usd_micros"])
+
+    def test_transport_body_read_failure_binds_receipt_and_never_retries(self):
+        ledger, p = self.ledger(), plan()
+        class Response:
+            headers = {"dg-request-id": "synthetic-interrupted", "content-type": "audio/wav"}
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, limit):
+                raise ConnectionError("private provider detail")
+        with patch.object(adapter.urllib.request, "build_opener") as factory:
+            factory.return_value.open.return_value = Response()
+            with self.assertRaisesRegex(RuntimeError, "response_headers_received"):
+                adapter._generate(ledger, p, "synthetic-test", "fake", adapter.transport)
+            self.assertEqual(factory.return_value.open.call_count, 1)
+        row = ledger.lookup(ledger.namespace("fake", "synthetic-test"), p["cache_key"])
+        self.assertEqual((row["state"], row["receipt"]), ("unknown", "synthetic-interrupted"))
+
+    def test_asset_persistence_failure_keeps_quarantined_body_and_unknown(self):
+        ledger, p = self.ledger(), plan()
+        with patch.object(ledger, "complete", side_effect=OSError("private failure")):
+            with self.assertRaisesRegex(RuntimeError, "asset_persistence"):
+                adapter._generate(ledger, p, "synthetic-test", "fake", self.send)
+        namespace = ledger.namespace("fake", "synthetic-test")
+        directory = ledger.root / "response-evidence" / namespace / p["cache_key"]
+        self.assertEqual((directory / "response.bin").read_bytes(), audio())
+        self.assertEqual(ledger.lookup(namespace, p["cache_key"])["state"], "unknown")
+
+    def test_transport_short_content_length_never_normalizes_partial_pcm(self):
+        ledger, p = self.ledger(), plan()
+        class Response:
+            headers = {"dg-request-id": "synthetic-short-body", "content-type": "audio/wav",
+                       "content-length": str(len(streaming_audio()) + 2)}
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, limit):
+                return streaming_audio()
+        with patch.object(adapter.urllib.request, "build_opener") as factory:
+            factory.return_value.open.return_value = Response()
+            with self.assertRaisesRegex(RuntimeError, "http_body_validation"):
+                adapter._generate(ledger, p, "synthetic-test", "fake", adapter.transport)
+        namespace = ledger.namespace("fake", "synthetic-test")
+        row = ledger.lookup(namespace, p["cache_key"])
+        self.assertEqual(row["state"], "unknown")
+        self.assertIsNone(row["sha256"])
+        directory = ledger.root / "response-evidence" / namespace / p["cache_key"]
+        self.assertEqual((directory / "response.bin").read_bytes(), streaming_audio())
+        diagnostic = json.loads((directory / "diagnostic.json").read_text())
+        self.assertEqual(diagnostic["declared_response_bytes"], len(streaming_audio()) + 2)
+        self.assertEqual(diagnostic["response_bytes"], len(streaming_audio()))
+        self.assertEqual(diagnostic["response_sha256"], hashlib.sha256(streaming_audio()).hexdigest())
+        with self.assertRaisesRegex(RuntimeError, "no repeat purchase"):
+            adapter._generate(ledger, p, "synthetic-test", "fake", lambda *a: self.fail("repurchased"))
+
+    def test_cached_provenance_wrong_json_types_do_not_break_asset_reuse(self):
+        ledger, p = self.ledger(), plan()
+        _, receipt = adapter._generate(ledger, p, "synthetic-test", "fake", self.send)
+        evidence_path = ledger.root / "response-evidence" / receipt["namespace"] / receipt["cache_key"] / "diagnostic.json"
+        for value in (None, [], ["unexpected"], 12, "unexpected"):
+            with self.subTest(value=value):
+                evidence_path.write_text(json.dumps(value))
+                raw, reused = adapter._generate(ledger, p, "synthetic-test", "fake", lambda *a: self.fail("repurchased"))
+                self.assertEqual(raw, audio())
+                self.assertTrue(reused["reused"])
+                self.assertIsNone(reused["response_provenance"])
+
+    def test_cached_provenance_parent_link_is_not_read(self):
+        ledger, p = self.ledger(), plan()
+        _, receipt = adapter._generate(ledger, p, "synthetic-test", "fake", self.send)
+        evidence_root = ledger.root / "response-evidence"
+        original_linked = self.runtime.linked_path
+        def linked(path):
+            return pathlib.Path(path) == evidence_root or original_linked(path)
+        with patch.object(self.runtime, "linked_path", side_effect=linked):
+            raw, reused = adapter._generate(ledger, p, "synthetic-test", "fake", lambda *a: self.fail("repurchased"))
+        self.assertEqual(raw, audio())
+        self.assertTrue(reused["reused"])
+        self.assertIsNone(reused["response_provenance"])
 
     def test_invalid_audio_missing_receipt_and_429_retain_reservation(self):
         for mode in ("audio", "receipt", "429"):

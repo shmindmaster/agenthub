@@ -11,6 +11,8 @@ import os
 import pathlib
 import re
 import sqlite3
+import struct
+import uuid
 import urllib.parse
 import urllib.request
 import wave
@@ -20,6 +22,7 @@ BUCKET = "deepgram/usd-micros"
 PRICE_POLICY = "flux-payg-2026-10-24-45-microusd-per-utf8-byte"
 PRICE_VALID_THROUGH = datetime.date(2026, 11, 24)
 ENDPOINT = "https://api.deepgram.com/v2/speak"
+MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 
 
 @lru_cache(maxsize=1)
@@ -90,9 +93,8 @@ def transport(request, credential, received):
     with urllib.request.build_opener(_NoRedirect()).open(req, timeout=300) as response:
         headers = {k.lower(): v for k, v in response.headers.items()}
         received(headers)
-        raw = response.read(64 * 1024 * 1024 + 1)
-        if len(raw) > 64 * 1024 * 1024:
-            raise RuntimeError("Audio response exceeded limit")
+        raw = response.read(MAX_RESPONSE_BYTES + 1)
+        # The caller quarantines these bounded bytes before body/format checks.
         return headers, raw
 
 
@@ -105,6 +107,61 @@ def _audio(raw, content_type):
         expected = audio.getnframes() * 2
         if not expected or len(audio.readframes(audio.getnframes())) != expected:
             raise RuntimeError("Empty or truncated WAV")
+
+
+def _prepare_audio(raw, content_type):
+    """Finalize only the evidenced 44-byte PCM streaming-header convention.
+
+    A completed HTTP read establishes the payload boundary, not its audible
+    quality. All five acceptance gates still apply to this finalized output.
+    Ordinary WAVs (including truncated declared lengths) retain strict checks.
+    """
+    normalized = raw
+    convention = None
+    if (len(raw) >= 44 and raw[:4] == b"RIFF" and raw[8:12] == b"WAVE"
+            and struct.unpack_from("<I", raw, 4)[0] == 0x7FFF0024):
+        expected_header = (b"fmt " + struct.pack("<IHHIIHH", 16, 1, 1, 48000, 96000, 2, 16)
+                           + b"data" + struct.pack("<I", 0x7FFF0000))
+        pcm_bytes = len(raw) - 44
+        if raw[12:44] != expected_header or not 0 < pcm_bytes <= MAX_RESPONSE_BYTES - 44 or pcm_bytes % 2:
+            raise RuntimeError("Malformed streaming WAV")
+        normalized = (raw[:4] + struct.pack("<I", len(raw) - 8) + raw[8:40]
+                      + struct.pack("<I", pcm_bytes) + raw[44:])
+        convention = "pcm48k-mono16-streaming-7fff0000-v1"
+    _audio(normalized, content_type)
+    return normalized, convention
+
+
+def _evidence_directory(ledger, namespace, key):
+    path = ledger.root / "response-evidence" / namespace / key
+    runtime_module().secure_directory(path)
+    return path
+
+
+def _durable_evidence(path, raw):
+    """Atomic private runtime evidence; never an accepted asset or a retry."""
+    if any(runtime_module().linked_path(p) for p in (path, *path.parents)):
+        raise RuntimeError("Linked response evidence refused")
+    temporary = path.with_name(uuid.uuid4().hex + ".tmp")
+    try:
+        with temporary.open("xb") as handle:
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _write_diagnostic(directory, diagnostic):
+    _durable_evidence(directory / "diagnostic.json",
+                      json.dumps(diagnostic, sort_keys=True).encode("utf-8"))
+
+
+def _safe_mime(value):
+    # No arbitrary headers or provider error bodies in diagnostics.
+    mime = value.split(";", 1)[0].strip().lower() if isinstance(value, str) else ""
+    return mime if re.fullmatch(r"[a-z0-9.+-]{1,64}/[a-z0-9.+-]{1,64}", mime) else "unrecognized"
 
 
 def recovery_epoch_ledger(manifest_path, workspace, planned):
@@ -201,6 +258,14 @@ def _generate(ledger, planned, workspace, credential, send):
     row = ledger.claim(namespace, key, BUCKET, planned["maximum_usd_micros"])
     reused = row["state"] != "leader"
     if row["state"] == "leader":
+        try:
+            directory = _evidence_directory(ledger, namespace, key)
+            diagnostic = {"namespace": namespace, "cache_key": key, "stage": "before_submission"}
+            _write_diagnostic(directory, diagnostic)
+        except BaseException:
+            # This worker has not crossed submitted or called transport.
+            ledger.cancel_prepared(row)
+            raise RuntimeError("Private response evidence unavailable; no submission made.") from None
         ledger.submitted(row)
         receipt = None
         def received(headers):
@@ -212,18 +277,60 @@ def _generate(ledger, planned, workspace, credential, send):
                 raise RuntimeError("Provider receipt changed")
             ledger.bind_receipt(row, value)
             receipt = value
+            diagnostic.update(request_id=value, stage="response_headers_received",
+                              content_type=_safe_mime(headers.get("content-type", "")))
+            _write_diagnostic(directory, diagnostic)
         try:
+            diagnostic["stage"] = "transport"
+            _write_diagnostic(directory, diagnostic)
             headers, raw = send(planned["request"], credential, received)
             received(headers)
             ctype = headers.get("content-type", "")
-            _audio(raw, ctype)
-            row = ledger.complete(row, raw, ctype, receipt, actual=None)
+            diagnostic.update(stage="response_quarantine", response_bytes=len(raw),
+                              response_sha256=hashlib.sha256(raw).hexdigest())
+            _write_diagnostic(directory, diagnostic)
+            _durable_evidence(directory / "response.bin", raw)
+            diagnostic["stage"] = "http_body_validation"
+            length = headers.get("content-length")
+            valid_length = isinstance(length, str) and re.fullmatch(r"[0-9]{1,20}", length)
+            diagnostic["declared_response_bytes"] = int(length) if valid_length else (None if length is None else "invalid")
+            _write_diagnostic(directory, diagnostic)
+            if len(raw) > MAX_RESPONSE_BYTES:
+                raise RuntimeError("Audio response exceeded limit")
+            if length is not None and (not valid_length or int(length) != len(raw)):
+                raise RuntimeError("Incomplete HTTP audio response")
+            diagnostic["stage"] = "audio_validation"
+            _write_diagnostic(directory, diagnostic)
+            finalized, normalization = _prepare_audio(raw, ctype)
+            diagnostic.update(stage="asset_persistence", normalization=normalization,
+                              output_sha256=hashlib.sha256(finalized).hexdigest())
+            _write_diagnostic(directory, diagnostic)
+            row = ledger.complete(row, finalized, ctype, receipt, actual=None)
         except BaseException:
             ledger.unknown(row)
-            raise RuntimeError("Submission unresolved; reservation retained. No automatic retry or repeat purchase.") from None
+            raise RuntimeError("Submission unresolved at " + diagnostic["stage"]
+                               + "; reservation retained. No automatic retry or repeat purchase.") from None
+        # Completion is authoritative. A later diagnostic-write failure must
+        # never relabel a successfully persisted pending asset as UNKNOWN.
+        diagnostic["stage"] = "pending"
+        try:
+            _write_diagnostic(directory, diagnostic)
+        except Exception:
+            pass
     if row["state"] not in ("pending", "accepted"):
         raise RuntimeError("Existing submission is active or unresolved; no repeat purchase allowed")
     raw = ledger.read_asset(row)
+    provenance = None
+    evidence_path = ledger.root / "response-evidence" / namespace / key / "diagnostic.json"
+    if not any(runtime_module().linked_path(p) for p in (evidence_path, *evidence_path.parents)):
+        try:
+            evidence = json.loads(evidence_path.read_bytes())
+            if (isinstance(evidence, dict) and evidence.get("namespace") == namespace and evidence.get("cache_key") == key
+                    and evidence.get("request_id") == row["receipt"]
+                    and evidence.get("output_sha256") == row["sha256"]):
+                provenance = {k: evidence[k] for k in ("response_sha256", "response_bytes", "output_sha256", "normalization")}
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
     return raw, {"provider": "deepgram", "model": "flux-sienna-en", "namespace": namespace,
                  "cache_key": key, "request_id": row["receipt"], "reused": reused,
                  "output_sha256": hashlib.sha256(raw).hexdigest(), "content_type": row["content_type"],
@@ -231,5 +338,6 @@ def _generate(ledger, planned, workspace, credential, send):
                  "maximum_reserved_usd_micros": row["maximum"], "actual_usd_micros": row["actual"],
                  "acceptance_state": row["state"], "acceptance": json.loads(row["acceptance"] or "null"),
                  "price_policy": PRICE_POLICY,
+                 "response_provenance": provenance,
                  **({"recovery_epoch": ledger.recovery_epoch, "historical_accounting": "UNKNOWN",
                      "historical_requests": "FENCED"} if hasattr(ledger, "recovery_epoch") else {})}
