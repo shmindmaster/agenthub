@@ -113,7 +113,9 @@ if (candidateSha && cueSheet) {
         const evidenceUsed = (b.actions || []).some((a) => L.receiptSemantics(b, a, captureReceipt)) || L.receiptSemantics(b, b.result, captureReceipt, true);
         if (!evidenceUsed) continue;
         const clip = captureReceipt.clips[b.screen.clip];
-        const clipPath = typeof clip.file === 'string' ? resolve(root, clip.file) : null;
+        // record-job writes clip.file relative to capture/receipt.json, not the job root.
+        // Do not search alternate locations: only the receipt's named artifact can prove semantics.
+        const clipPath = typeof clip.file === 'string' ? resolve(dirname(receiptPath), clip.file) : null;
         if (!clipPath || !existsSync(clipPath) || sha(clipPath) !== clip.sha256) { fail(`capture evidence clip ${b.screen.clip} is missing or changed.`); captureReceipt = null; break; }
       }
     }

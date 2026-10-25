@@ -418,7 +418,9 @@ test('receipt-proved pointer arrival and existing-state observation do not promi
 test('encoded freeze uses hash-bound receipt proof, rejects receipt/clip changes and insufficient legacy observations', { skip: !hasFfmpeg, timeout: 240000 }, () => {
   const f = holdFixture('receipt-static-target', { stillFrom: 8.2 });
   const receiptPath = join(f.root, 'capture', 'receipt.json');
-  const capture = { clips: { S03: { file: 'candidate.mp4', sha256: sha(f.candidate), recast: 'skipped',
+  const captureClip = join(f.root, 'capture', 'clips', 'S03.webm');
+  mkdirSync(dirname(captureClip), { recursive: true }); writeFileSync(captureClip, readFileSync(f.candidate));
+  const capture = { clips: { S03: { file: 'clips/S03.webm', sha256: sha(captureClip), recast: 'skipped',
     actions: [{ type: 'move', t: 1.5, x: 40, y: 50 }, { type: 'move', t: 1.8, x: 100, y: 100 }, { type: 'point', t: 2, tStart: 2, x: 100, y: 100, label: 'Send', target: 'Send' }],
     beats: [{ label: 'Send', approxStartSeconds: 2, box: { x: 80, y: 80, w: 40, h: 40 } }],
     expectations: [{ label: 'Report sent', at: 3, observedAt: 3.01, observed: true, state: 'visible', alreadyVisible: true, targetBox: { x: 80, y: 80, w: 40, h: 40 } }] } } };
@@ -429,10 +431,19 @@ test('encoded freeze uses hash-bound receipt proof, rejects receipt/clip changes
   assert.ok(r.report.errors.some((e) => e.includes('longer than the 6.5s max hold')), r.out);
   const good = holdFixture('receipt-static-target-pass', { cuts: [0, 3, 8, 14, 17], s04at: 14.4, stillFrom: 8.2 });
   const goodReceiptPath = join(good.root, 'capture', 'receipt.json');
+  const goodClip = join(good.root, 'capture', 'clips', 'S03.webm');
+  mkdirSync(dirname(goodClip), { recursive: true }); writeFileSync(goodClip, readFileSync(good.candidate));
   const goodCapture = structuredClone(capture); goodCapture.clips.S03.sha256 = sha(good.candidate);
   write(goodReceiptPath, goodCapture);
   editCue(good, (c) => { c.inputs.receipt = { path: 'capture/receipt.json', sha256: sha(goodReceiptPath) }; const b = c.beats[2]; b.actions[0].kind = 'point'; b.actions[0].receipt_event_index = 2; b.result.receipt_expectation_index = 0; b.result.clip_time = 3.01; });
   r = gate(good); assert.equal(r.code, 0, r.out);
+  // A matching job-root decoy must not rescue missing or modified capture evidence.
+  const decoy = join(good.root, 'clips', 'S03.webm');
+  mkdirSync(dirname(decoy), { recursive: true }); writeFileSync(decoy, readFileSync(good.candidate));
+  rmSync(goodClip);
+  r = gate(good); assert.equal(r.code, 1); assert.ok(r.report.errors.some((e) => e.includes('evidence clip S03 is missing or changed')));
+  writeFileSync(goodClip, 'modified capture evidence');
+  r = gate(good); assert.equal(r.code, 1); assert.ok(r.report.errors.some((e) => e.includes('evidence clip S03 is missing or changed')));
   capture.clips.S03.expectations[0].alreadyVisible = false;
   write(receiptPath, capture); bind();
   r = gate(f); assert.equal(r.code, 1); assert.ok(r.report.errors.some((e) => e.includes('expects result')));
