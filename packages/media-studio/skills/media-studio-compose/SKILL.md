@@ -21,7 +21,7 @@ Use official Remotion skills; do not vendor their rules here. Forced alignment o
 
 Canonical: `packages/media-studio/kit`. Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`.
 
-Use the runtime kit only when its manifest matches 2.0.17. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.18 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
+Use the runtime kit only when its manifest matches 2.0.18. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.18 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
 
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'

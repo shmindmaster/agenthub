@@ -33,7 +33,7 @@ Missing required file → remit. Do not generate a generic bed and skip the bibl
 
 Hosted: use `elevenlabs` (`references/tts.md`). Lock segments, check credits/clone/model readiness and budgets; reuse accepted matching preview or generate one small preview. Save provider receipts under job workspace; run local integrity, ASR, pronunciation, and dual-backend identity gates before selecting owner takes. Decode and gate exact delivery spans again. `Generate-OwnerVoice.ps1` implements the **local backend only**; its receipt format is not a hosted adapter—never fabricate PASS receipts for hosted audio. If assembly requires local receipts, keep that path local until a verified provider receipt adapter exists; report the limitation.
 
-Local viewer-facing speech uses AgentHub-deployed shared tools. `plugin.json` must match 2.0.17. Missing or stale tools block generation until AgentHub syncs from a verified 2.0.18 package; do not default to unknown version.
+Local viewer-facing speech uses AgentHub-deployed shared tools. `plugin.json` must match 2.0.18. Missing or stale tools block generation until AgentHub syncs from a verified 2.0.18 package; do not default to unknown version.
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
