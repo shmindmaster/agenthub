@@ -32,6 +32,136 @@ test('parses a code shot with defaults and a paced event timeline', () => {
   assert.deepEqual(filesToRead(p).map((f) => f.file), ['src/gate.py', 'web/Button.tsx']);
 });
 
+test('normalizes representative code and diagram shots to a literal result', () => {
+  const parsed = parseShotList({
+    repo: 'C:/repo',
+    ref: 'main',
+    title: 'Review flow',
+    shots: [
+      {
+        id: 'S01',
+        file: 'src\\gate.py',
+        lines: [2, 4],
+        highlight: [[3, 3]],
+        callout: { line: 3, text: 'require approval' },
+        pointer: [{ line: 2 }],
+        crossRef: { file: 'docs\\policy.md', lines: [1, 2], label: 'Policy' },
+        cues: [{ event: 'callout', at: 1.25 }],
+      },
+      {
+        id: 'D01',
+        nodes: [{ id: 'evidence', label: 'Evidence' }, { id: 'rule', label: 'Rule' }],
+        lit: 'rule',
+      },
+    ],
+  });
+
+  assert.deepEqual(parsed, {
+    schemaVersion: '1.0.0',
+    repo: 'C:/repo',
+    ref: 'main',
+    refLabel: null,
+    viewport: { width: 1280, height: 800 },
+    title: 'Review flow',
+    shots: [
+      {
+        id: 'S01',
+        kind: 'code',
+        holdSeconds: 1.5,
+        targetSeconds: null,
+        file: 'src/gate.py',
+        ref: 'main',
+        lines: [2, 4],
+        startLine: null,
+        highlight: [[3, 3]],
+        callout: { line: 3, text: 'require approval' },
+        zoom: 1.4,
+        pointer: [{ line: 2, click: true }],
+        crossRefs: [{
+          file: 'docs/policy.md',
+          ref: 'main',
+          lines: [1, 2],
+          highlight: [[1, 2]],
+          callout: null,
+          label: 'Policy',
+        }],
+        events: [
+          { event: 'reveal', t: 0.4 },
+          { event: 'callout', t: 1.25 },
+          { event: 'pointer:0', t: 2 },
+          { event: 'highlight:0', t: 3.2 },
+          { event: 'crossref:0', t: 8.2 },
+          { event: 'crossref:0:highlight', t: 10.399999999999999 },
+        ],
+        durationSeconds: 11.9,
+      },
+      {
+        id: 'D01',
+        kind: 'diagram',
+        holdSeconds: 1.5,
+        targetSeconds: null,
+        title: '',
+        kicker: '',
+        footer: '',
+        nodes: [
+          { id: 'evidence', label: 'Evidence', sub: '' },
+          { id: 'rule', label: 'Rule', sub: '' },
+        ],
+        edges: [{ from: 'evidence', to: 'rule', label: '' }],
+        lit: 'rule',
+        litChip: null,
+        events: [
+          { event: 'node:evidence', t: 0.5 },
+          { event: 'node:rule', t: 1.5 },
+          { event: 'lit', t: 2.9 },
+        ],
+        durationSeconds: 4.4,
+      },
+    ],
+  });
+});
+
+test('reports literal document, shot, and directive errors in order', () => {
+  const input = {
+    schemaVersion: '2.0.0',
+    repo: '',
+    viewport: { width: 0, height: 800 },
+    shots: [
+      null,
+      { id: 'dup', kind: 'mystery', holdSeconds: 9 },
+      {
+        id: 'dup',
+        kind: 'code',
+        file: '../outside.py',
+        lines: [4, 2],
+        highlight: [[1, 3]],
+        callout: { line: 9, text: 'x' },
+        zoom: 3,
+        cues: [{ event: 'bogus', at: 1 }],
+      },
+    ],
+  };
+
+  assert.throws(() => parseShotList(input), (error) => {
+    assert.ok(error instanceof ShotListError);
+    assert.deepEqual(error.errors, [
+      'schemaVersion 2.0.0 is not compatible with 1.0.0',
+      'repo (absolute path to the git repository, read-only) is required for code shots',
+      'viewport must be {width, height}',
+      'shots[0] must be an object',
+      'shots[1] (dup).holdSeconds must be 0-8 (visual bible: no dead hold over 8 s)',
+      'shots[1] (dup).kind must be "code" or "diagram"',
+      'shots[2] (dup).id is duplicated',
+      'shots[2] (dup).file must be a repo-relative path without ".." (got "../outside.py")',
+      'shots[2] (dup).lines must be [start, end] 1-based with start <= end',
+      'shots[2] (dup).zoom must be 1.0-2.2',
+      'shots[2] (dup).cues[0].event "bogus" is not an event of this shot (reveal, highlight:0, callout)',
+    ]);
+    assert.equal(error.message, 'invalid shot list:\n  - schemaVersion 2.0.0 is not compatible with 1.0.0\n  - repo (absolute path to the git repository, read-only) is required for code shots\n  - viewport must be {width, height}\n  - shots[0] must be an object\n  - shots[1] (dup).holdSeconds must be 0-8 (visual bible: no dead hold over 8 s)\n  - shots[1] (dup).kind must be "code" or "diagram"\n  - shots[2] (dup).id is duplicated\n  - shots[2] (dup).file must be a repo-relative path without ".." (got "../outside.py")\n  - shots[2] (dup).lines must be [start, end] 1-based with start <= end\n  - shots[2] (dup).zoom must be 1.0-2.2\n  - shots[2] (dup).cues[0].event "bogus" is not an event of this shot (reveal, highlight:0, callout)');
+    return true;
+  });
+});
+
 test('accepts the owner spelling "cross-ref" and Windows separators', () => {
   const p = parseShotList(doc([code({ file: 'src\\gate.py', 'cross-ref': { file: 'web\\Button.tsx', lines: [1, 2] } })]));
   assert.equal(p.shots[0].file, 'src/gate.py');
