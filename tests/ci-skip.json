@@ -79,6 +79,11 @@
       "reason": "Covers the Windows-only MCP launcher rewrite (Program Files node.exe, %APPDATA%\\npm, Hide-Stdio.exe) that Sync-AgentHub.ps1 applies only when $env:OS is Windows_NT; on macOS and Linux the rewrite is intentionally a no-op."
     },
     {
+      "file": "tests/Test-RemoveStaleAgentSessions.ps1",
+      "platforms": ["linux", "macos"],
+      "reason": "Remove-StaleAgentSessions.ps1 sends files to the Windows Recycle Bin (Microsoft.VisualBasic FileSystem) and scans Windows profile paths; there is no Recycle Bin on Linux or macOS runners."
+    },
+    {
       "file": "tests/Test-RepoWiseBoundedIndex.ps1",
       "platforms": ["linux", "macos"],
       "reason": "Invoke-RepoWiseBoundedIndex.ps1 caps the indexer's memory with a Windows Job Object and refuses to run without one; macOS has no equivalent hard per-process-tree memory cap."

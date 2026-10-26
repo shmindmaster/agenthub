@@ -35,6 +35,9 @@ stranger-safe first run. For this private fleet checkout, also use
   audit, deploy, validate, and fleet standard sweep procedures.
 - [runbooks/demo-profile.md](./runbooks/demo-profile.md) — throwaway profile
   for an on-camera audit -> apply -> audit, with home paths cropped to `~`.
+- [runbooks/stale-agent-sessions.md](./runbooks/stale-agent-sessions.md) —
+  on-demand recycle of coding-agent sessions older than seven days, and where
+  each agent keeps them.
 
 ## Execution
 
