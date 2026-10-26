@@ -67,6 +67,15 @@ Account-mode readiness recorded in this repair:
 | Warp | No supported account-status command or local-only execution mode was verified; keep disabled unless both are established. |
 | Other gated CLIs | Confirm included allowance for the configured provider/model or obtain an explicit task credit budget, then one smoke before enabling. |
 
+Factory dispatch is governed even while the host stays `enabled: false` until
+the owner reauthorizes it: `exec --auto` runs at low or medium only (`high`
+permits git push and `--skip-permissions-unsafe` is never emitted), `-o json`
+yields a session id and credit usage, `-m` defaults to
+`dispatchPolicy.factory.model` and `-Model` refuses anything outside
+`dispatchPolicy.factory.allowedModels`, and `--settings` points at the
+repo-owned `factory/runtime-settings.json` permission rules verified with
+`droid rules check`.
+
 If a Factory auth check fails, keep dispatch disabled and have the owner run
 `droid` and `/login` in their own terminal.
 

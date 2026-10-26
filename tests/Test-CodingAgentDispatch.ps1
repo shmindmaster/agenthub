@@ -39,6 +39,9 @@ $fixture = Join-Path ([IO.Path]::GetTempPath()) ('cad fixture ' + [guid]::NewGui
 try {
     foreach ($dir in @('registry','scripts\lib','scratch','logs')) { $null = New-Item -ItemType Directory -Path (Join-Path $fixture $dir) -Force }
     Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\lib\PathBinding.ps1') -Destination (Join-Path $fixture 'scripts\lib\PathBinding.ps1')
+    $fixtureFactorySettings = Join-Path $fixture 'packages\coding-agent-dispatch\skills\use-coding-agent\factory'
+    $null = New-Item -ItemType Directory -Path $fixtureFactorySettings -Force
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'packages\coding-agent-dispatch\skills\use-coding-agent\factory\runtime-settings.json') -Destination $fixtureFactorySettings
     $recorder = Join-Path $fixture 'record.cjs'
     @'
 const fs = require('node:fs');
@@ -69,7 +72,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     }
     $ids = @('claude','codex','cursor','cursor-agent','gemini','grok','opencode','antigravity','factory','cline','copilot','amp','devin','warp','windsurf','antigravity-desktop')
     $agents = @{ activeAgents = @($ids | ForEach-Object { @{ id = $_; executable = $stub; surfaceType = $(if ($_ -eq 'antigravity-desktop') { 'companion-desktop' } else { 'cli' }) } }) }
-    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium-lightning' }; opencode = @{ model = 'opencode/glm-5.3-flash' }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') } } }
+    $fleet = @{ hostSettings = @{ cline = @{ provider = 'openai-compatible'; model = 'qwen3.8-max' } }; autonomyProfiles = @{ profiles = @($ids | ForEach-Object { @{ hostId = $_; defaultProfile = 'repo-autonomous' } }) }; dispatchPolicy = @{ devin = @{ model = 'swe-2-medium-lightning' }; opencode = @{ model = 'opencode/glm-5.3-flash' }; warp = @{ model = 'glm-5.3-flash-fireworks'; allowedModels = @('glm-5.3-flash-fireworks', 'glm-5.3-fireworks') }; factory = @{ model = 'gpt-6-luna'; allowedModels = @('gpt-6-luna', 'glm-5.3-flash', 'gpt-6-sol'); autonomy = 'medium'; runtimeSettings = 'packages/coding-agent-dispatch/skills/use-coding-agent/factory/runtime-settings.json' } } }
     function Save-Fixture {
         $agents | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\agents.json') -Encoding UTF8
         $fleet | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'registry\fleet-profile.json') -Encoding UTF8
@@ -109,12 +112,14 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
         }
         if ($id -eq 'antigravity') { Check 'agy attaches print value after permissions' ($d.Arguments -contains '--print=ok' -and $d.Arguments[0] -eq '--dangerously-skip-permissions') }
         if ($id -eq 'factory') {
-            $factoryOrder = @('--cwd', $scratch, 'exec', '--auto', 'high', '-f')
-            $factoryArgsMatch = $d.Arguments.Count -eq 7
+            $settingsIndex = [Array]::IndexOf($d.Arguments, '--settings')
+            $factoryOrder = @('exec', '--cwd', $scratch, '--auto', 'medium', '-o', 'json', '--settings')
+            $factoryArgsMatch = $d.Arguments.Count -eq 13
             for ($i = 0; $i -lt $factoryOrder.Count; $i++) {
                 if ($d.Arguments[$i] -ne $factoryOrder[$i]) { $factoryArgsMatch = $false }
             }
-            Check 'Factory places global auto mode after exec' ($factoryArgsMatch -and $d.PromptContents -contains 'ok')
+            Check 'Factory runs exec with medium autonomy, JSON output and rule settings' ($factoryArgsMatch -and $settingsIndex -ge 0 -and $d.Arguments[$settingsIndex + 1] -like '*runtime-settings.json' -and $d.Arguments -contains '-m' -and $d.Arguments -contains 'gpt-6-luna' -and $d.Arguments[-2] -eq '-f' -and $d.PromptContents -contains 'ok')
+            Check 'Factory never requests unsafe permissions' ($d.Arguments -notcontains 'high' -and $d.Arguments -notcontains '--skip-permissions-unsafe')
         }
         if ($id -eq 'gemini') {
             $promptIndex = [Array]::IndexOf($d.Arguments, '--prompt')
@@ -157,6 +162,19 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'Amp dispatch-only settings file is removed' ($settingsPath -and -not (Test-Path -LiteralPath $settingsPath))
         }
     }
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','gpt-6-sol')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Factory honours an allowed explicit model' ($null -ne $d -and $d.Arguments -contains 'gpt-6-sol' -and $d.Arguments -notcontains 'gpt-6-luna') $r.Err
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5','-Model','gpt-6.1-sol')
+    Check 'Factory refuses a model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'is not in dispatchPolicy\.factory\.allowedModels')
+    $fleet.dispatchPolicy.factory.autonomy = 'high'; Save-Fixture
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    Check 'Factory refuses high autonomy' ($r.Exit -eq 3 -and $r.Err -match 'only low or medium')
+    $fleet.dispatchPolicy.factory.autonomy = 'medium'
+    $fleet.dispatchPolicy.factory.enabled = $false; $fleet.dispatchPolicy.factory.reason = 'synthetic factory block'; Save-Fixture
+    $r = Run @('-HostId','factory','-Prompt','ok','-Cwd',$scratch)
+    Check 'disabled Factory policy still refuses a dispatch' ($r.Exit -eq 3 -and $r.Err -match 'synthetic factory block')
+    $fleet.dispatchPolicy.factory.Remove('enabled'); $fleet.dispatchPolicy.factory.Remove('reason'); Save-Fixture
     $text = "quoted `"text`" café`n& echo %PATH% !name! " + ('x' * 9000)
     $taskFile = Join-Path $fixture 'task.txt'; [IO.File]::WriteAllText($taskFile, $text)
     foreach ($id in @('gemini','antigravity')) {

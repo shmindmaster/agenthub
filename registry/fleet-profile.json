@@ -355,6 +355,18 @@
     },
     "factory": {
       "enabled": false,
+      "model": "gpt-6-luna",
+      "allowedModels": [
+        "gpt-6-luna",
+        "glm-5.3-flash",
+        "gemini-3.8-flash",
+        "gpt-5.4-mini",
+        "claude-sonnet-5",
+        "gpt-6-sol"
+      ],
+      "autonomy": "medium",
+      "autonomyNote": "Dispatch runs `--auto` at low or medium only. `--auto high` permits git push, and --skip-permissions-unsafe is never emitted; the dispatcher refuses any autonomy value outside low or medium. Outward-action rules live in the repo-owned runtimeSettings file, verified with `droid rules check` 2026-10-26.",
+      "runtimeSettings": "packages/coding-agent-dispatch/skills/use-coding-agent/factory/runtime-settings.json",
       "reason": "Paid plan; model openai-latest-balanced",
       "verifiedOn": "2026-10-21",
       "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."

@@ -63,6 +63,8 @@
   For -HostId warp, a model listed in dispatchPolicy.warp.allowedModels (every
   Warp-hosted model spends Warp credits); anything else is refused. Defaults to
   dispatchPolicy.warp.model.
+  For -HostId factory, a model listed in dispatchPolicy.factory.allowedModels;
+  anything else is refused. Defaults to dispatchPolicy.factory.model.
 
 .PARAMETER Title
   Session title for -HostId opencode, so the run is findable in the shared
@@ -231,7 +233,24 @@ function Get-DispatchTable {
             Mode = 'file'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('--cwd', $Work, 'exec', '--auto', 'high', '-f', $File); Stdin = $null; PromptFile = $File }
+                # Governed dispatch: autonomy is capped at medium (`high` permits
+                # git push and --skip-permissions-unsafe is never emitted), JSON
+                # output yields a session id and credit usage, and the repo-owned
+                # rules file is the permission policy verified with `droid rules check`.
+                $factoryPolicy = $fleet.dispatchPolicy.factory
+                $autonomy = [string]$factoryPolicy.autonomy
+                if ($autonomy -notin @('low', 'medium')) {
+                    Write-Refusal 3 "refused factory: dispatchPolicy.factory.autonomy '$autonomy' is not permitted for dispatch; only low or medium"
+                }
+                $runtimeSettings = Join-Path $root ([string]$factoryPolicy.runtimeSettings)
+                if (-not (Test-Path -LiteralPath $runtimeSettings -PathType Leaf)) {
+                    Write-Refusal 3 "refused factory: dispatchPolicy.factory.runtimeSettings not found: $runtimeSettings"
+                }
+                $args = @('exec', '--cwd', $Work, '--auto', $autonomy, '-o', 'json', '--settings', $runtimeSettings)
+                $factoryModel = if ($script:FactoryModel) { $script:FactoryModel } else { [string]$factoryPolicy.model }
+                if ($factoryModel) { $args += @('-m', $factoryModel) }
+                $args += @('-f', $File)
+                @{ Args = $args; Stdin = $null; PromptFile = $File }
             }
         }
         'cline' = @{
@@ -472,15 +491,16 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $r
     $script:ClineProvider = $choice.Substring(0, $split)
     $script:ClineModel = $choice.Substring($split + 1)
 } elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
-    if ($requested -ne 'opencode') { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline or Warp model.' }
-    # OpenCode routing is per task, but only within the owner's recorded
-    # allowlist: a model outside it could bill beyond the Go allowance.
+    if ($requested -notin @('opencode', 'factory')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp or Factory model.' }
+    # Governed routing is per task, but only within the owner's recorded
+    # allowlist: a model outside it could bill beyond the recorded allowance.
     $allowedModels = @()
-    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties['opencode'] -and $dispatchPolicy.opencode.PSObject.Properties['allowedModels']) {
-        $allowedModels = @($dispatchPolicy.opencode.allowedModels | ForEach-Object { [string]$_ })
+    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties[$requested] -and $dispatchPolicy.$requested.PSObject.Properties['allowedModels']) {
+        $allowedModels = @($dispatchPolicy.$requested.allowedModels | ForEach-Object { [string]$_ })
     }
-    if ($Model.Trim() -notin $allowedModels) { Write-Refusal 3 "refused opencode: $($Model.Trim()) is not in dispatchPolicy.opencode.allowedModels" }
-    $script:OpenCodeModel = $Model.Trim()
+    if ($Model.Trim() -notin $allowedModels) { Write-Refusal 3 "refused ${requested}: $($Model.Trim()) is not in dispatchPolicy.${requested}.allowedModels" }
+    if ($requested -eq 'opencode') { $script:OpenCodeModel = $Model.Trim() }
+    if ($requested -eq 'factory') { $script:FactoryModel = $Model.Trim() }
 }
 if (-not [string]::IsNullOrWhiteSpace($Title) -and $requested -ne 'opencode') {
     Write-Refusal 3 '-Title applies only to -HostId opencode.'
@@ -548,14 +568,21 @@ if ($contract.Mode -eq 'file' -or $pointer) {
     if (-not $ShowCommand) {
         New-Item -ItemType Directory -Force -Path $runDir | Out-Null
         $promptFile = Join-Path $runDir ("prompt-{0}-{1}.txt" -f $targetId, ([guid]::NewGuid().ToString('n')))
-        [IO.File]::WriteAllText($promptFile, $Prompt, [Text.UTF8Encoding]::new($false))
     } else {
         $promptFile = Join-Path $runDir 'prompt-show.txt'
     }
 }
+$taskText = $Prompt
 if ($pointer) { $Prompt = "Read the task from this UTF-8 file and carry it out: $promptFile" }
 
 $built = & $contract.Build $Prompt $Cwd $promptFile
+# Write the task only after Build has accepted the policy: a refusing Build
+# must not leave a prompt file behind, and the run's finally block below does
+# not exist yet at that point. Pointer hosts write the task text captured
+# before the pointer substitution above replaced $Prompt.
+if (-not $ShowCommand -and $promptFile -and ($contract.Mode -eq 'file' -or $pointer)) {
+    [IO.File]::WriteAllText($promptFile, $taskText, [Text.UTF8Encoding]::new($false))
+}
 if ($SessionId) {
     $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $node) { Write-Refusal 2 'Cline ACP resume requires Node.js.' }

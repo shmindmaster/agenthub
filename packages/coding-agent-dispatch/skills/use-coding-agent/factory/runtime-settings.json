@@ -1,0 +1,205 @@
+{
+  "permissionRules": {
+    "version": 1,
+    "rules": [
+      {
+        "id": "agenthub/no-git-push",
+        "decision": "block",
+        "reason": "Peer agents never push; the owner integrates.",
+        "match": {
+          "prefix": [
+            "git",
+            "push"
+          ]
+        },
+        "tests": {
+          "match": [
+            "git push",
+            "git push origin main",
+            "git push --force"
+          ],
+          "noMatch": [
+            "git status",
+            "git commit -m x"
+          ]
+        }
+      },
+      {
+        "id": "agenthub/no-reset-hard",
+        "decision": "block",
+        "reason": "Preserve local work.",
+        "match": {
+          "prefix": [
+            "git",
+            "reset",
+            "--hard"
+          ]
+        },
+        "tests": {
+          "match": [
+            "git reset --hard HEAD"
+          ],
+          "noMatch": [
+            "git reset HEAD file"
+          ]
+        }
+      },
+      {
+        "id": "agenthub/no-destructive-git",
+        "decision": "block",
+        "reason": "Preserve local work and the shared stash.",
+        "match": {
+          "prefix": [
+            "git",
+            [
+              "clean",
+              "stash",
+              "filter-branch",
+              "update-ref"
+            ]
+          ]
+        },
+        "tests": {
+          "match": [
+            "git clean -fdx",
+            "git stash",
+            "git stash pop"
+          ],
+          "noMatch": [
+            "git status",
+            "git commit -m x"
+          ]
+        }
+      },
+      {
+        "id": "agenthub/no-branch-delete",
+        "decision": "block",
+        "reason": "Preserve branches.",
+        "match": {
+          "prefix": [
+            "git",
+            "branch",
+            [
+              "-D",
+              "-d",
+              "--delete"
+            ]
+          ]
+        },
+        "tests": {
+          "match": [
+            "git branch -D x"
+          ],
+          "noMatch": [
+            "git branch --show-current"
+          ]
+        }
+      },
+      {
+        "id": "agenthub/no-gh-writes",
+        "decision": "block",
+        "reason": "No PR, issue, release or API writes from peers.",
+        "match": {
+          "prefix": [
+            "gh",
+            [
+              "pr",
+              "issue",
+              "release",
+              "api",
+              "repo",
+              "auth",
+              "secret"
+            ]
+          ]
+        },
+        "tests": {
+          "match": [
+            "gh pr create",
+            "gh auth token",
+            "gh api /user"
+          ],
+          "noMatch": [
+            "git log"
+          ]
+        }
+      },
+      {
+        "id": "agenthub/no-publish",
+        "decision": "block",
+        "reason": "No package publishing.",
+        "match": {
+          "prefix": [
+            [
+              "npm",
+              "pnpm",
+              "yarn"
+            ],
+            "publish"
+          ]
+        },
+        "tests": {
+          "match": [
+            "npm publish",
+            "pnpm publish"
+          ],
+          "noMatch": [
+            "npm test",
+            "pnpm install"
+          ]
+        }
+      },
+      {
+        "id": "agenthub/no-cloud-cli",
+        "decision": "block",
+        "reason": "No cloud changes from peers.",
+        "match": {
+          "prefix": [
+            [
+              "az",
+              "doctl",
+              "railway",
+              "vercel",
+              "aws",
+              "gcloud"
+            ]
+          ]
+        },
+        "tests": {
+          "match": [
+            "az login",
+            "railway up"
+          ],
+          "noMatch": [
+            "node --test"
+          ]
+        }
+      },
+      {
+        "id": "agenthub/no-persistence",
+        "decision": "block",
+        "reason": "Owner rule: no scheduled tasks, services or Run keys.",
+        "match": {
+          "prefix": [
+            [
+              "schtasks",
+              "Register-ScheduledTask",
+              "New-Service",
+              "sc.exe",
+              "New-ScheduledTaskAction"
+            ]
+          ]
+        },
+        "tests": {
+          "match": [
+            "schtasks /create /tn x",
+            "Register-ScheduledTask -TaskName x"
+          ],
+          "noMatch": [
+            "Get-ScheduledTask"
+          ]
+        }
+      }
+    ]
+  }
+}
