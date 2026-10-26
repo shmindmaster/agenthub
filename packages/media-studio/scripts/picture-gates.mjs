@@ -111,9 +111,19 @@ export function factDrift(lockedText, narrationText) {
   return { ok: missing.length === 0 && added.length === 0, missing, added, locked, narration };
 }
 
-export function clockAccepted(report) {
+/** A job opts in to the cloud ASR-anchored clock explicitly: job.json { "clockPolicy": { "allowAsrAnchored": true } }. */
+export function asrAnchoredAllowed(jobDoc) {
+  return jobDoc?.clockPolicy?.allowAsrAnchored === true;
+}
+
+export function clockAccepted(report, { allowAsrAnchored = false } = {}) {
   const method = String(report?.method || '');
   if (method === 'forced-alignment' || method === 'forced-alignment-on-encoded') return { ok: true, method };
+  // Hosted ASR word times anchored to the locked script (kit/cloud/cloud-ai.mjs align). Not forced alignment, so it
+  // times the picture only where the job opted in; the default rule (ASR is a transcript check) stands.
+  if (method === 'asr-anchored-alignment') {
+    return allowAsrAnchored ? { ok: true, method } : { ok: false, method, reason: 'timing method asr-anchored-alignment (cloud ASR anchored to the locked script) drives the picture only when job.json sets clockPolicy.allowAsrAnchored: true; otherwise use ai.ps1 align' };
+  }
   return { ok: false, method, reason: method ? `timing method ${method} cannot drive the picture; Whisper is a transcript check` : 'timing method is missing; the picture clock is ai.ps1 align' };
 }
 

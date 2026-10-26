@@ -209,9 +209,10 @@ export function cloudAlignCoverage(words) {
   return { exact, total: words.length, exactRatio: words.length ? exact / words.length : 0, longestUnmatchedRun: longest };
 }
 
-export function forcedWordOnsets(report, expected, { takeSha256, scriptSha256 }) {
+export function forcedWordOnsets(report, expected, { takeSha256, scriptSha256, allowAsrAnchored = false }) {
+  if (report?.schema === CLOUD_ALIGN_SCHEMA && !allowAsrAnchored) throw new Error('cloud asr-anchored alignment is not forced alignment; it clocks the picture only where job.json sets clockPolicy.allowAsrAnchored: true');
   const forcedSchemas = ['local-ai/forced-alignment/1', CLOUD_ALIGN_SCHEMA];
-  if (!forcedSchemas.includes(report?.schema) || report.units !== 'seconds' || report.gridSeconds !== 0.08) throw new Error('requires Local-AI forced alignment or cloud script alignment in seconds on the 80 ms grid');
+  if (!forcedSchemas.includes(report?.schema) || report.units !== 'seconds' || report.gridSeconds !== 0.08) throw new Error('requires Local-AI forced alignment (or an opted-in cloud asr-anchored alignment) in seconds on the 80 ms grid');
   if (report.schema === CLOUD_ALIGN_SCHEMA && Array.isArray(report.words)) {
     const c = cloudAlignCoverage(report.words);
     if (c.exactRatio < CLOUD_ALIGN_LIMITS.minExactRatio || c.longestUnmatchedRun > CLOUD_ALIGN_LIMITS.maxUnmatchedRun) throw new Error(`cloud script alignment too loose for a picture clock: ${c.exact}/${c.total} exact onsets, longest precision-limited run ${c.longestUnmatchedRun}`);
@@ -247,7 +248,8 @@ export function measureWordSync(report, cueWords, bindings, maxMs = SYNC_DEFAULT
     if (Math.abs(stats.offsetMs) > maxMs) errors.push(`encoded audio is ${stats.offsetMs} ms off the cue-sheet words (max +-${maxMs} ms; forced-aligner 80 ms grid).`);
     if (Math.abs(stats.driftMs) > maxMs) errors.push(`A/V drift ${stats.driftMs} ms from the start of the program to its end (max +-${maxMs} ms).`);
   }
-  return { ok: !errors.length, errors, method: 'forced-alignment-on-encoded', gridMs: 80, ...stats, words };
+  const method = report?.schema === CLOUD_ALIGN_SCHEMA ? 'asr-anchored-alignment-on-encoded' : 'forced-alignment-on-encoded';
+  return { ok: !errors.length, errors, method, gridMs: 80, ...stats, words };
 }
 
 /** silence_end markers from ffmpeg silencedetect stderr = speech onsets, seconds. */

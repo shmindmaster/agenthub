@@ -69,13 +69,25 @@ test('alignScript bounds a misheard word by its neighbours and flags it', () => 
 
 const cloudReport = (words) => ({ schema: 'cloud-speech/script-alignment/1', units: 'seconds', gridSeconds: 0.08, durationSeconds: 10, take: { sha256: 't' }, script: { sha256: 's' }, words });
 
+test('sync gate refuses cloud alignment unless the job opted in', () => {
+  const words = [{ text: 'a', start: 0, end: 0.08, precisionLimited: false }];
+  assert.throws(() => forcedWordOnsets(cloudReport(words), [{ w: 'a', start: 0 }], { takeSha256: 't', scriptSha256: 's' }), /not forced alignment/);
+});
+
+test('picture clock: asr-anchored accepted only with the job opt-in', async () => {
+  const { clockAccepted, asrAnchoredAllowed } = await import(pathToFileURL(join(pkg, 'scripts', 'picture-gates.mjs')).href);
+  assert.equal(clockAccepted({ method: 'asr-anchored-alignment' }).ok, false);
+  assert.equal(clockAccepted({ method: 'asr-anchored-alignment' }, { allowAsrAnchored: asrAnchoredAllowed({ clockPolicy: { allowAsrAnchored: true } }) }).ok, true);
+  assert.equal(clockAccepted({ method: 'forced-alignment' }).ok, true);
+});
+
 test('sync gate accepts a tight cloud alignment and refuses a loose one', () => {
   const tight = Array.from({ length: 10 }, (_, i) => ({ text: `w${i}`, start: +(i * 0.16).toFixed(2), end: +(i * 0.16 + 0.08).toFixed(2), precisionLimited: i === 4 }));
   const cue = tight.map((w) => ({ w: w.text, start: w.start }));
-  assert.equal(forcedWordOnsets(cloudReport(tight), cue, { takeSha256: 't', scriptSha256: 's' }).length, 10);
+  assert.equal(forcedWordOnsets(cloudReport(tight), cue, { takeSha256: 't', scriptSha256: 's', allowAsrAnchored: true }).length, 10);
   const loose = tight.map((w, i) => ({ ...w, precisionLimited: i < 3 }));
   assert.equal(cloudAlignCoverage(loose).exactRatio, 0.7);
-  assert.throws(() => forcedWordOnsets(cloudReport(loose), cue, { takeSha256: 't', scriptSha256: 's' }), /too loose/);
-  assert.throws(() => forcedWordOnsets({ ...cloudReport(tight), schema: 'whisper/1' }, cue, { takeSha256: 't', scriptSha256: 's' }), /80 ms grid/);
-  assert.throws(() => forcedWordOnsets(cloudReport(tight), cue, { takeSha256: 'other', scriptSha256: 's' }), /SHA-256 mismatch/);
+  assert.throws(() => forcedWordOnsets(cloudReport(loose), cue, { takeSha256: 't', scriptSha256: 's', allowAsrAnchored: true }), /too loose/);
+  assert.throws(() => forcedWordOnsets({ ...cloudReport(tight), schema: 'whisper/1' }, cue, { takeSha256: 't', scriptSha256: 's', allowAsrAnchored: true }), /80 ms grid/);
+  assert.throws(() => forcedWordOnsets(cloudReport(tight), cue, { takeSha256: 'other', scriptSha256: 's', allowAsrAnchored: true }), /SHA-256 mismatch/);
 });

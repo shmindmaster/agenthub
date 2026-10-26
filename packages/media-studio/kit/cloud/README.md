@@ -31,15 +31,17 @@ node cloud-ai.mjs review --files <script.md> [...] --rubric <text|file> --thresh
 node cloud-ai.mjs qa     --images <contact-sheet.jpg> [...] --prompt <context> --out qa.json [--client]
 ```
 
-* **align**: Azure fast transcription (sh-speech F0, then sh-azai S0, then Deepgram) word times, anchored token by token
-  to the locked script. Exact matches keep the acoustic onset. Numbers, currency, contractions and hyphenated
+* **align**: Azure fast transcription (sh-speech F0, then sh-azai S0, then Deepgram) word times, anchored token by
+  token to the locked script. Exact matches keep the acoustic onset. Numbers, currency, contractions and hyphenated
   compounds are matched by spoken form. A word the ASR heard differently gets a precisionLimited onset bounded by
-  its neighbours. The report (`cloud-speech/script-alignment/1`) uses the native aligner's 80 ms grid and take/script
-  SHA-256 binding, so the picture, cue-sheet and word-sync gates accept it. The sync gate re-checks coverage from
-  the words: at least 90% exact onsets, no precisionLimited run over 6.
+  its neighbours. The report is `cloud-speech/script-alignment/1` with method **`asr-anchored-alignment`**, on the
+  native 80 ms grid with take/script SHA-256 binding and an `agreement` block. It is not forced alignment: the
+  picture, cue-sheet, word-sync and release gates refuse it unless the job opts in with
+  `job.json` `"clockPolicy": { "allowAsrAnchored": true }`. Even then the sync gate re-checks at least 90% exact
+  onsets and no precisionLimited run over 6. Without the opt-in, treat it as a cross-check.
   * Measured 2026-10-26 against Local-AI forced alignment: exact-word onsets agreed to a median of 0–80 ms, p90 80 ms.
   * Coverage: 214/232 exact on an 89 s narration, and 100% on two lab takes.
-  * Word-sync gate: offset 0 ms and drift 0 ms against the native clock.
+  * Word-sync: offset 0 ms and drift 0 ms.
 * **review / qa**: Anthropic (latest Opus) first, then Azure OpenAI (gpt-5-mini in this resource group, Entra auth,
   key auth disabled), then Gemini on rate limits or exhausted quota. `--client` material never goes to Anthropic and
   defaults to Azure OpenAI in the owner's tenant. The report has score 0–100, pass, findings with fixes, provider,

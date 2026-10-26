@@ -446,7 +446,17 @@ async function align(opts) {
   const ok = coverage.exactRatio >= ALIGN_LIMITS.minExactRatio && coverage.longestUnmatchedRun <= ALIGN_LIMITS.maxUnmatchedRun;
   return {
     schema: ALIGN_SCHEMA,
-    method: 'forced-alignment',
+    // Honest label: hosted ASR word times anchored to the script, not forced alignment. Gates accept it only where
+    // job.json opts in (clockPolicy.allowAsrAnchored); see `agreement` for how it compared with Local-AI alignment.
+    method: 'asr-anchored-alignment',
+    agreement: {
+      measuredAgainst: 'Local-AI forced alignment (Qwen3-ForcedAligner), 3 owner takes, 2026-10-26',
+      exactOnsetMedianMs: '0-80',
+      exactOnsetP90Ms: 80,
+      wordSyncOffsetMs: 0,
+      wordSyncDriftMs: 0,
+      note: 'precisionLimited onsets (words the ASR heard differently) are bounded by neighbours, not measured',
+    },
     ok,
     errors: ok ? [] : [`script coverage too low for a picture clock: ${coverage.exact}/${coverage.total} exact, longest unmatched run ${coverage.longestUnmatchedRun}`],
     createdAt: new Date().toISOString(),
