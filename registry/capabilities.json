@@ -776,7 +776,7 @@
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Loose skills always; MCP only when `claude plugin enable repowise@agenthub`. Same split as browser-toolkit ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â disabling the plugin gates the stdio process without stranding CLI guidance."
+          "deploymentStatusNote": "Loose skills always; MCP only when `claude plugin enable repowise@agenthub`. Same split as browser-toolkit: disabling the plugin gates the stdio process without stranding CLI guidance. While the plugin is enabled, Sync-Capabilities hides the loose use-repowise from Claude through skillOverrides (registry/agents.json claude.skillOverrides), because the plugin already lists repowise:use-repowise."
         },
         {
           "hostId": "codex",

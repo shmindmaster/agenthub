@@ -115,24 +115,39 @@ function New-SharedSkillsFixture {
     $userProfile = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-sharedskills-profile-" + [guid]::NewGuid())
 
     $activeAgents = @()
-    $hostMappings = @()
+    $statuses = @{}
     $effectiveHosts = @{}
     foreach ($descriptor in $HostDescriptors) {
         $nativePaths = @{ skillsDir = $descriptor.SkillsDir }
         if ($descriptor.ContainsKey('SharedSkillsDir') -and -not [string]::IsNullOrWhiteSpace($descriptor.SharedSkillsDir)) {
             $nativePaths.sharedSkillsDir = $descriptor.SharedSkillsDir
         }
-        $activeAgents += @{ id = $descriptor.Id; name = "Fixture Host $($descriptor.Id)"; status = 'active'; nativePaths = $nativePaths }
-        $hostMappings += @{ hostId = $descriptor.Id; deploymentStatus = 'managed' }
+        # Optional: Settings (a hashtable written as the host's settings file),
+        # SkillOverrides (the agents.json block) and DeploymentStatus.
+        $settingsPath = $null
+        if ($descriptor.ContainsKey('Settings')) {
+            $settingsPath = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-sharedskills-settings-" + [guid]::NewGuid() + '\settings.json')
+            $nativePaths.settings = $settingsPath
+        }
+        $agent = @{ id = $descriptor.Id; name = "Fixture Host $($descriptor.Id)"; status = 'active'; nativePaths = $nativePaths }
+        if ($descriptor.ContainsKey('SkillOverrides')) { $agent.skillOverrides = $descriptor.SkillOverrides }
+        $activeAgents += $agent
+        $statuses[$descriptor.Id] = if ($descriptor.ContainsKey('DeploymentStatus')) { $descriptor.DeploymentStatus } else { 'managed' }
+        $effectiveSettings = if ($settingsPath) { Get-EffectiveDestination -Path $settingsPath -UserProfile $userProfile } else { $null }
+        if ($effectiveSettings) {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $effectiveSettings) -Force | Out-Null
+            [IO.File]::WriteAllText($effectiveSettings, ($descriptor.Settings | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
+        }
         $effectiveHosts[$descriptor.Id] = [pscustomobject]@{
             SkillsDir       = Get-EffectiveDestination -Path $descriptor.SkillsDir -UserProfile $userProfile
             SharedSkillsDir = if ($descriptor.SharedSkillsDir) { Get-EffectiveDestination -Path $descriptor.SharedSkillsDir -UserProfile $userProfile } else { $null }
+            Settings        = $effectiveSettings
         }
     }
     (@{ activeAgents = $activeAgents; inactiveAgents = @() } | ConvertTo-Json -Depth 10) |
         Set-Content -LiteralPath (Join-Path $registryDir 'agents.json') -Encoding UTF8 -NoNewline
 
-    Set-SharedSkillsFixtureCapabilities -RegistryDir $registryDir -CapabilityId $CapabilityId -HostIds @($HostDescriptors | ForEach-Object { $_.Id })
+    Set-SharedSkillsFixtureCapabilities -RegistryDir $registryDir -CapabilityId $CapabilityId -HostIds @($HostDescriptors | ForEach-Object { $_.Id }) -Statuses $statuses
 
     $skillRoot = Join-Path $root "packages\$CapabilityId\skills\$SkillName"
     New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
@@ -149,8 +164,10 @@ function New-SharedSkillsFixture {
 }
 
 function Set-SharedSkillsFixtureCapabilities {
-    param([string]$RegistryDir, [string]$CapabilityId, [string[]]$HostIds, [switch]$DropAllHostMappings)
-    $hostMappings = if ($DropAllHostMappings) { @() } else { @($HostIds | ForEach-Object { @{ hostId = $_; deploymentStatus = 'managed' } }) }
+    param([string]$RegistryDir, [string]$CapabilityId, [string[]]$HostIds, [hashtable]$Statuses = @{}, [switch]$DropAllHostMappings)
+    $hostMappings = if ($DropAllHostMappings) { @() } else {
+        @($HostIds | ForEach-Object { @{ hostId = $_; deploymentStatus = $(if ($Statuses.ContainsKey($_)) { $Statuses[$_] } else { 'managed' }) } })
+    }
     $capabilities = @{
         schemaVersion = 2
         capabilities = @(
@@ -174,6 +191,7 @@ function Remove-SharedSkillsFixture {
     foreach ($hostEntry in $Fixture.Hosts.Values) {
         Remove-Item -LiteralPath $hostEntry.SkillsDir -Recurse -Force -ErrorAction SilentlyContinue
         if ($hostEntry.SharedSkillsDir) { Remove-Item -LiteralPath $hostEntry.SharedSkillsDir -Recurse -Force -ErrorAction SilentlyContinue }
+        if ($hostEntry.Settings) { Remove-Item -LiteralPath (Split-Path -Parent $hostEntry.Settings) -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -358,6 +376,112 @@ function Test-ApplyQuotesUnmanagedUnsafeFrontmatter {
 
 $r4 = Test-ApplyQuotesUnmanagedUnsafeFrontmatter
 Report '-Apply quotes unmanaged unsafe YAML frontmatter in the shared library without taking ownership' $r4.Passed $r4.Detail
+
+# --- native-plugin skip. A host whose mapping is native-plugin-installed
+# receives the capability from its plugin, so sync must deploy nothing for it:
+# no copy in its own skillsDir, no shared-library copy on its behalf, no
+# ledger entry. A managed host sharing the library still gets its copy. ---
+function Test-NativePluginHostIsSkipped {
+    $sharedDir = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-sharedskills-native-" + [guid]::NewGuid())
+    $nativeHost = @{ Id = 'zz-native-host'; SkillsDir = (Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-sharedskills-nh-" + [guid]::NewGuid())); SharedSkillsDir = $sharedDir; DeploymentStatus = 'native-plugin-installed' }
+    $fixture = New-SharedSkillsFixture -CapabilityId 'zz-native-cap' -SkillName 'sample-skill' -SkillContent 'canonical content v1' -HostDescriptors @($nativeHost)
+    try {
+        $only = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-Verbose', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($only.ExitCode -ne 0) {
+            return @{ Passed = $false; Detail = "-Apply exit code was $($only.ExitCode). Output: $($only.Output)" }
+        }
+        $sharedDestination = Join-Path $fixture.Hosts['zz-native-host'].SharedSkillsDir 'sample-skill'
+        $ownDestination = Join-Path $fixture.Hosts['zz-native-host'].SkillsDir 'sample-skill'
+        if ((Test-Path -LiteralPath $sharedDestination) -or (Test-Path -LiteralPath $ownDestination)) {
+            return @{ Passed = $false; Detail = "a native-plugin-installed host received a loose copy ($sharedDestination or $ownDestination). Output: $($only.Output)" }
+        }
+        if ($only.Output -notmatch 'zz-native-cap\s+zz-native-host\s+native-plugin\s+host-managed' -or $only.Output -notmatch 'host-managed=1') {
+            return @{ Passed = $false; Detail = "the run did not report the native-plugin row as host-managed. Output: $($only.Output)" }
+        }
+        $statePath = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\managed-skills.json'
+        $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if (@($state.managed.PSObject.Properties).Count -ne 0) {
+            return @{ Passed = $false; Detail = "the ledger recorded a destination for a native-plugin-only capability: $(@($state.managed.PSObject.Properties.Name) -join ', ')" }
+        }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SharedSkillsFixture -Fixture $fixture
+    }
+}
+
+$r5 = Test-NativePluginHostIsSkipped
+Report 'a native-plugin-installed host gets no loose copy and no ledger entry' $r5.Passed $r5.Detail
+
+# --- skillOverrides. The skip above cannot help a host whose skillsDir IS the
+# shared library (Claude's junction): the managed host's copy lands there
+# anyway. Here the plugin host reads the shared directory directly, the same
+# effect. Sync must hide the duplicate in the host settings, keep every other
+# settings key, leave owner entries alone, and withdraw only what it wrote. ---
+function Test-SkillOverridesHideSharedDuplicates {
+    $sharedDir = Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-sharedskills-ovr-" + [guid]::NewGuid())
+    $settings = [ordered]@{
+        theme = 'dark'
+        hooks = @{ PreToolUse = @(@{ matcher = 'Bash'; hooks = @(@{ type = 'command'; command = 'pwsh -File "C:\hooks\guard.ps1"' }) }) }
+        enabledPlugins = @{ 'zz-ovr-cap@agenthub' = $true; 'other@agenthub' = $false }
+        skillOverrides = @{ 'owner-skill' = 'name-only' }
+    }
+    $pluginHost = @{
+        Id = 'zz-ovr-plugin'; SkillsDir = $sharedDir; SharedSkillsDir = $sharedDir; DeploymentStatus = 'native-plugin-installed'
+        Settings = $settings
+        SkillOverrides = @{ pluginMarketplace = 'agenthub'; duplicateOfHostBuiltIns = @('docx', 'absent-builtin') }
+    }
+    $looseHost = @{ Id = 'zz-ovr-loose'; SkillsDir = (Join-Path $env:AGENTHUB_TEST_SCRATCH ("agenthub-sharedskills-ovl-" + [guid]::NewGuid())); SharedSkillsDir = $sharedDir }
+    $fixture = New-SharedSkillsFixture -CapabilityId 'zz-ovr-cap' -SkillName 'plugin-skill' -SkillContent 'canonical content v1' -HostDescriptors @($pluginHost, $looseHost)
+    try {
+        $effectiveShared = $fixture.Hosts['zz-ovr-loose'].SharedSkillsDir
+        New-Item -ItemType Directory -Path (Join-Path $effectiveShared 'docx') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $effectiveShared 'docx\SKILL.md') -Value "---`nname: docx`ndescription: third-party copy`n---`n" -Encoding UTF8 -NoNewline
+        $settingsPath = $fixture.Hosts['zz-ovr-plugin'].Settings
+        $original = [IO.File]::ReadAllText($settingsPath)
+        $statePath = Join-Path (Get-TestProfileLocalData $fixture.UserProfile) 'AgentHub\sync\skill-overrides.json'
+
+        $audit = Invoke-SyncCapabilities -ExtraArgs @('-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($audit.ExitCode -ne 0) { return @{ Passed = $false; Detail = "audit exit code was $($audit.ExitCode). Output: $($audit.Output)" } }
+        if ([IO.File]::ReadAllText($settingsPath) -ne $original) { return @{ Passed = $false; Detail = 'an audit run rewrote the host settings file.' } }
+        if ($audit.Output -notmatch 'skill-override-hosts-changed=1') { return @{ Passed = $false; Detail = "audit did not report the pending override. Output: $($audit.Output)" } }
+
+        $apply = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($apply.ExitCode -ne 0) { return @{ Passed = $false; Detail = "-Apply exit code was $($apply.ExitCode). Output: $($apply.Output)" } }
+        if (-not (Test-Path -LiteralPath (Join-Path $effectiveShared 'plugin-skill\SKILL.md'))) {
+            return @{ Passed = $false; Detail = 'the loose host lost its shared copy; hiding must not undeploy.' }
+        }
+        $after = Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $o = $after.skillOverrides
+        if ($o.'plugin-skill' -ne 'off' -or $o.docx -ne 'off' -or $o.'owner-skill' -ne 'name-only' -or $o.PSObject.Properties['absent-builtin']) {
+            return @{ Passed = $false; Detail = "unexpected skillOverrides after -Apply: $($o | ConvertTo-Json -Compress)" }
+        }
+        if ($after.theme -ne 'dark' -or $after.hooks.PreToolUse[0].hooks[0].command -ne 'pwsh -File "C:\hooks\guard.ps1"' -or $after.enabledPlugins.'other@agenthub' -ne $false) {
+            return @{ Passed = $false; Detail = "-Apply changed settings outside skillOverrides: $($after | ConvertTo-Json -Depth 10 -Compress)" }
+        }
+        $owned = @((Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json).hosts.'zz-ovr-plugin'.owned)
+        if (($owned -join ',') -ne 'docx,plugin-skill') { return @{ Passed = $false; Detail = "override ledger owned '$($owned -join ',')', expected 'docx,plugin-skill'." } }
+
+        # Owner flips docx back on and disables the plugin.
+        $after.skillOverrides.docx = 'on'
+        $after.enabledPlugins.'zz-ovr-cap@agenthub' = $false
+        [IO.File]::WriteAllText($settingsPath, ($after | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
+        $second = Invoke-SyncCapabilities -ExtraArgs @('-Apply', '-RepositoryRoot', $fixture.Root, '-UserProfile', $fixture.UserProfile) -LocalAppData $fixture.LocalAppData
+        if ($second.ExitCode -ne 0) { return @{ Passed = $false; Detail = "second -Apply exit code was $($second.ExitCode). Output: $($second.Output)" } }
+        $final = (Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json).skillOverrides
+        if ($final.PSObject.Properties['plugin-skill']) { return @{ Passed = $false; Detail = 'disabling the plugin did not withdraw the override sync wrote.' } }
+        if ($final.docx -ne 'on' -or $final.'owner-skill' -ne 'name-only') {
+            return @{ Passed = $false; Detail = "sync changed an owner-set override: $($final | ConvertTo-Json -Compress)" }
+        }
+        $owned = @((Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json).hosts.'zz-ovr-plugin'.owned | Where-Object { $_ })
+        if ($owned.Count -ne 0) { return @{ Passed = $false; Detail = "override ledger still owns '$($owned -join ',')' after the owner took docx and the plugin was disabled." } }
+        return @{ Passed = $true; Detail = $null }
+    } finally {
+        Remove-SharedSkillsFixture -Fixture $fixture
+    }
+}
+
+$r6 = Test-SkillOverridesHideSharedDuplicates
+Report 'skillOverrides hides plugin and built-in duplicates, preserves other settings and owner entries, and withdraws only its own' $r6.Passed $r6.Detail
 
 # --- live end-state check, added 2026-08-20 -------------------------------
 # The three fixture tests above prove the COLLAPSE works. They cannot see the
