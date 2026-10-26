@@ -75,6 +75,128 @@ function checkSpan(o, where, errors) {
   return highlight;
 }
 
+function checkDocument(doc, errors) {
+  if (doc.schemaVersion && String(doc.schemaVersion).split('.')[0] !== SCHEMA_VERSION.split('.')[0]) errors.push(`schemaVersion ${doc.schemaVersion} is not compatible with ${SCHEMA_VERSION}`);
+  const needsRepo = (doc.shots || []).some((s) => s && (s.kind || (s.nodes ? 'diagram' : 'code')) === 'code');
+  if (needsRepo && (typeof doc.repo !== 'string' || !doc.repo)) errors.push('repo (absolute path to the git repository, read-only) is required for code shots');
+  const ref = doc.ref || 'HEAD';
+  const viewport = doc.viewport || { width: 1280, height: 800 };
+  if (!isInt(viewport.width) || !isInt(viewport.height)) errors.push('viewport must be {width, height}');
+  if (!Array.isArray(doc.shots) || !doc.shots.length) errors.push('shots must be a non-empty array');
+  return { ref, viewport };
+}
+
+function classifyShot(shot) {
+  return shot.kind || (shot.nodes ? 'diagram' : 'code');
+}
+
+function handleCodeShot(shot, out, where, ref, errors, defaults) {
+  out.file = typeof shot.file === 'string' ? normPath(shot.file) : shot.file;
+  out.ref = shot.ref || ref;
+  out.lines = shot.lines;
+  out.startLine = shot.startLine ?? null;
+  if (out.startLine != null && !isInt(out.startLine)) errors.push(`${where}.startLine must be a 1-based line number`);
+  out.highlight = checkSpan(shot, where, errors);
+  out.callout = checkCallout(shot.callout, range(shot.lines) ? shot.lines : null, where, errors);
+  out.zoom = shot.zoom ?? 1.4;
+  if (typeof out.zoom !== 'number' || out.zoom < 1 || out.zoom > 2.2) errors.push(`${where}.zoom must be 1.0-2.2`);
+  out.pointer = Array.isArray(shot.pointer) ? shot.pointer.map((p) => ({ line: p && p.line, click: p && p.click !== false })) : null;
+  const lo = Math.min(range(shot.lines) ? shot.lines[0] : 1, isInt(shot.startLine) ? shot.startLine : Infinity);
+  if (out.pointer) out.pointer.forEach((p, i) => { if (!isInt(p.line) || (range(shot.lines) && (p.line < lo || p.line > shot.lines[1]))) errors.push(`${where}.pointer[${i}] needs a line between startLine/lines start and lines end`); });
+  const xr = shot.crossRef ?? shot['cross-ref'];
+  const xrs = xr == null ? [] : Array.isArray(xr) ? xr : [xr];
+  out.crossRefs = xrs.map((x, i) => {
+    const w = `${where}.crossRef[${i}]`;
+    if (!x || typeof x !== 'object') { errors.push(`${w} must be an object`); return null; }
+    const highlight = checkSpan(x, w, errors);
+    return {
+      file: typeof x.file === 'string' ? normPath(x.file) : x.file,
+      ref: x.ref || out.ref,
+      lines: x.lines,
+      highlight: highlight.length ? highlight : (range(x.lines) ? [[x.lines[0], x.lines[1]]] : []),
+      callout: checkCallout(x.callout, range(x.lines) ? x.lines : null, w, errors),
+      label: x.label || null,
+    };
+  }).filter(Boolean);
+  // Default pace: reveal, then each highlight, the callout, then each cross-ref with its highlight and callout.
+  let t = 0.4;
+  defaults.push(['reveal', t]); t += 1.6;
+  (out.pointer || []).forEach((_, k) => { defaults.push([`pointer:${k}`, t]); t += 1.2; });
+  out.highlight.forEach((_, i) => { defaults.push([`highlight:${i}`, t]); t += 2.5; });
+  if (out.callout) { defaults.push(['callout', t]); t += 2.5; }
+  out.crossRefs.forEach((x, i) => {
+    defaults.push([`crossref:${i}`, t]); t += 2.2;
+    defaults.push([`crossref:${i}:highlight`, t]); t += 1.8;
+    if (x.callout) { defaults.push([`crossref:${i}:callout`, t]); t += 2.5; }
+  });
+}
+
+function handleDiagramShot(shot, out, where, errors, defaults) {
+  out.title = shot.title || '';
+  out.kicker = shot.kicker || '';
+  out.footer = shot.footer || '';
+  if (!Array.isArray(shot.nodes) || shot.nodes.length < 2 || shot.nodes.length > 8) errors.push(`${where}.nodes must hold 2-8 nodes`);
+  out.nodes = (Array.isArray(shot.nodes) ? shot.nodes : []).map((n, i) => {
+    if (!n || !ID.test(String(n.id || ''))) errors.push(`${where}.nodes[${i}].id must match ${ID}`);
+    if (!n || typeof n.label !== 'string' || !n.label.trim()) errors.push(`${where}.nodes[${i}].label is required`);
+    else if (n.label.trim().split(/\s+/).length > 3) errors.push(`${where}.nodes[${i}].label "${n.label}" is over 3 words`);
+    return { id: n && n.id, label: n && n.label, sub: (n && n.sub) || '' };
+  });
+  const ids = new Set(out.nodes.map((n) => n.id));
+  out.edges = (shot.edges || out.nodes.slice(1).map((n, i) => [out.nodes[i].id, n.id])).map((e, i) => {
+    if (!Array.isArray(e) || !ids.has(e[0]) || !ids.has(e[1])) errors.push(`${where}.edges[${i}] must be [fromId, toId, label?] of known nodes`);
+    return { from: e && e[0], to: e && e[1], label: (e && e[2]) || '' };
+  });
+  out.lit = shot.lit ?? null;
+  out.litChip = shot.litChip || null;
+  if (out.lit != null && !ids.has(out.lit)) errors.push(`${where}.lit "${out.lit}" is not a node id`);
+  let t = 0.5;
+  out.nodes.forEach((n) => { defaults.push([`node:${n.id}`, t]); t += 1.0; });
+  if (out.lit) defaults.push(['lit', t + 0.4]);
+}
+
+function applyCues(shot, out, defaults, shotWords, where, errors) {
+  const known = new Map(defaults);
+  (Array.isArray(shot.cues) ? shot.cues : []).forEach((cue, i) => {
+    const cueWhere = `${where}.cues[${i}]`;
+    if (!cue || typeof cue.event !== 'string') { errors.push(`${cueWhere}.event is required`); return; }
+    if (!known.has(cue.event)) { errors.push(`${cueWhere}.event "${cue.event}" is not an event of this shot (${[...known.keys()].join(', ')})`); return; }
+    try { known.set(cue.event, resolveCue(cue, shotWords, cueWhere)); } catch (e) { errors.push(e.message); }
+  });
+  out.events = [...known.entries()].map(([event, t]) => ({ event, t })).sort((a, b) => a.t - b.t);
+}
+
+function checkEventOrder(out, where, errors) {
+  // A cross-ref highlight or callout cannot play before its file is opened; a diagram cannot light a node before it appears.
+  for (const event of out.events) {
+    const match = /^crossref:(\d+):(highlight|callout)$/.exec(event.event);
+    if (match) { const open = out.events.find((x) => x.event === `crossref:${match[1]}`); if (open && open.t > event.t) errors.push(`${where}: ${event.event} at ${event.t}s precedes crossref:${match[1]} at ${open.t}s`); }
+    if (event.event === 'lit') { const node = out.events.find((x) => x.event === `node:${out.lit}`); if (node && node.t > event.t) errors.push(`${where}: lit at ${event.t}s precedes node:${out.lit} at ${node.t}s`); }
+  }
+}
+
+function parseShot(shot, idx, { ref, words, errors, seen }) {
+  const where = `shots[${idx}]${shot && shot.id ? ' (' + shot.id + ')' : ''}`;
+  if (!shot || typeof shot !== 'object') { errors.push(`${where} must be an object`); return null; }
+  if (!ID.test(String(shot.id || ''))) errors.push(`${where}.id must match ${ID}`);
+  else if (seen.has(shot.id)) errors.push(`${where}.id is duplicated`);
+  seen.add(shot.id);
+  const kind = classifyShot(shot);
+  const holdSeconds = shot.holdSeconds ?? 1.5;
+  if (typeof holdSeconds !== 'number' || holdSeconds < 0 || holdSeconds > 8) errors.push(`${where}.holdSeconds must be 0-8 (visual bible: no dead hold over 8 s)`);
+  const shotWords = shot.words || words[shot.id] || [];
+  const out = { id: shot.id, kind, holdSeconds, targetSeconds: shot.targetSeconds ?? null };
+  const defaults = [];
+  if (kind === 'code') handleCodeShot(shot, out, where, ref, errors, defaults);
+  else if (kind === 'diagram') handleDiagramShot(shot, out, where, errors, defaults);
+  else { errors.push(`${where}.kind must be "code" or "diagram"`); return null; }
+  applyCues(shot, out, defaults, shotWords, where, errors);
+  checkEventOrder(out, where, errors);
+  const last = out.events.length ? out.events[out.events.length - 1].t : 0;
+  out.durationSeconds = Math.round(Math.max(last + holdSeconds, out.targetSeconds || 0) * 100) / 100;
+  return out;
+}
+
 /**
  * Validate and normalize a shot list. `words` maps shot id -> word timings (optional).
  * Returns { schemaVersion, repo, ref, viewport, shots:[{..., events:[{t, event}], durationSeconds}] } or throws ShotListError.
@@ -83,109 +205,12 @@ export function parseShotList(input, { words = {} } = {}) {
   const errors = [];
   const doc = typeof input === 'string' ? JSON.parse(input.replace(/^﻿/, '')) : input;
   if (!doc || typeof doc !== 'object') throw new ShotListError(['shot list must be a JSON object']);
-  if (doc.schemaVersion && String(doc.schemaVersion).split('.')[0] !== SCHEMA_VERSION.split('.')[0]) errors.push(`schemaVersion ${doc.schemaVersion} is not compatible with ${SCHEMA_VERSION}`);
-  const needsRepo = (doc.shots || []).some((s) => s && (s.kind || (s.nodes ? 'diagram' : 'code')) === 'code');
-  if (needsRepo && (typeof doc.repo !== 'string' || !doc.repo)) errors.push('repo (absolute path to the git repository, read-only) is required for code shots');
-  const ref = doc.ref || 'HEAD';
-  const viewport = doc.viewport || { width: 1280, height: 800 };
-  if (!isInt(viewport.width) || !isInt(viewport.height)) errors.push('viewport must be {width, height}');
-  if (!Array.isArray(doc.shots) || !doc.shots.length) errors.push('shots must be a non-empty array');
+  const { ref, viewport } = checkDocument(doc, errors);
   const seen = new Set();
   const shots = [];
-  (Array.isArray(doc.shots) ? doc.shots : []).forEach((s, idx) => {
-    const where = `shots[${idx}]${s && s.id ? ' (' + s.id + ')' : ''}`;
-    if (!s || typeof s !== 'object') { errors.push(`${where} must be an object`); return; }
-    if (!ID.test(String(s.id || ''))) errors.push(`${where}.id must match ${ID}`);
-    else if (seen.has(s.id)) errors.push(`${where}.id is duplicated`);
-    seen.add(s.id);
-    const kind = s.kind || (s.nodes ? 'diagram' : 'code');
-    const holdSeconds = s.holdSeconds ?? 1.5;
-    if (typeof holdSeconds !== 'number' || holdSeconds < 0 || holdSeconds > 8) errors.push(`${where}.holdSeconds must be 0-8 (visual bible: no dead hold over 8 s)`);
-    const shotWords = s.words || words[s.id] || [];
-    const out = { id: s.id, kind, holdSeconds, targetSeconds: s.targetSeconds ?? null };
-    const defaults = [];
-    if (kind === 'code') {
-      out.file = typeof s.file === 'string' ? normPath(s.file) : s.file;
-      out.ref = s.ref || ref;
-      out.lines = s.lines;
-      out.startLine = s.startLine ?? null;
-      if (out.startLine != null && !isInt(out.startLine)) errors.push(`${where}.startLine must be a 1-based line number`);
-      out.highlight = checkSpan(s, where, errors);
-      out.callout = checkCallout(s.callout, range(s.lines) ? s.lines : null, where, errors);
-      out.zoom = s.zoom ?? 1.4;
-      if (typeof out.zoom !== 'number' || out.zoom < 1 || out.zoom > 2.2) errors.push(`${where}.zoom must be 1.0-2.2`);
-      out.pointer = Array.isArray(s.pointer) ? s.pointer.map((p) => ({ line: p && p.line, click: p && p.click !== false })) : null;
-      const lo = Math.min(range(s.lines) ? s.lines[0] : 1, isInt(s.startLine) ? s.startLine : Infinity);
-      if (out.pointer) out.pointer.forEach((p, i) => { if (!isInt(p.line) || (range(s.lines) && (p.line < lo || p.line > s.lines[1]))) errors.push(`${where}.pointer[${i}] needs a line between startLine/lines start and lines end`); });
-      const xr = s.crossRef ?? s['cross-ref'];
-      const xrs = xr == null ? [] : Array.isArray(xr) ? xr : [xr];
-      out.crossRefs = xrs.map((x, i) => {
-        const w = `${where}.crossRef[${i}]`;
-        if (!x || typeof x !== 'object') { errors.push(`${w} must be an object`); return null; }
-        const highlight = checkSpan(x, w, errors);
-        return {
-          file: typeof x.file === 'string' ? normPath(x.file) : x.file,
-          ref: x.ref || out.ref,
-          lines: x.lines,
-          highlight: highlight.length ? highlight : (range(x.lines) ? [[x.lines[0], x.lines[1]]] : []),
-          callout: checkCallout(x.callout, range(x.lines) ? x.lines : null, w, errors),
-          label: x.label || null,
-        };
-      }).filter(Boolean);
-      // Default pace: reveal, then each highlight, the callout, then each cross-ref with its highlight and callout.
-      let t = 0.4;
-      defaults.push(['reveal', t]); t += 1.6;
-      (out.pointer || []).forEach((_, k) => { defaults.push([`pointer:${k}`, t]); t += 1.2; });
-      out.highlight.forEach((_, i) => { defaults.push([`highlight:${i}`, t]); t += 2.5; });
-      if (out.callout) { defaults.push(['callout', t]); t += 2.5; }
-      out.crossRefs.forEach((x, i) => {
-        defaults.push([`crossref:${i}`, t]); t += 2.2;
-        defaults.push([`crossref:${i}:highlight`, t]); t += 1.8;
-        if (x.callout) { defaults.push([`crossref:${i}:callout`, t]); t += 2.5; }
-      });
-    } else if (kind === 'diagram') {
-      out.title = s.title || '';
-      out.kicker = s.kicker || '';
-      out.footer = s.footer || '';
-      if (!Array.isArray(s.nodes) || s.nodes.length < 2 || s.nodes.length > 8) errors.push(`${where}.nodes must hold 2-8 nodes`);
-      out.nodes = (Array.isArray(s.nodes) ? s.nodes : []).map((n, i) => {
-        if (!n || !ID.test(String(n.id || ''))) errors.push(`${where}.nodes[${i}].id must match ${ID}`);
-        if (!n || typeof n.label !== 'string' || !n.label.trim()) errors.push(`${where}.nodes[${i}].label is required`);
-        else if (n.label.trim().split(/\s+/).length > 3) errors.push(`${where}.nodes[${i}].label "${n.label}" is over 3 words`);
-        return { id: n && n.id, label: n && n.label, sub: (n && n.sub) || '' };
-      });
-      const ids = new Set(out.nodes.map((n) => n.id));
-      out.edges = (s.edges || out.nodes.slice(1).map((n, i) => [out.nodes[i].id, n.id])).map((e, i) => {
-        if (!Array.isArray(e) || !ids.has(e[0]) || !ids.has(e[1])) errors.push(`${where}.edges[${i}] must be [fromId, toId, label?] of known nodes`);
-        return { from: e && e[0], to: e && e[1], label: (e && e[2]) || '' };
-      });
-      out.lit = s.lit ?? null;
-      out.litChip = s.litChip || null;
-      if (out.lit != null && !ids.has(out.lit)) errors.push(`${where}.lit "${out.lit}" is not a node id`);
-      let t = 0.5;
-      out.nodes.forEach((n) => { defaults.push([`node:${n.id}`, t]); t += 1.0; });
-      if (out.lit) defaults.push(['lit', t + 0.4]);
-    } else {
-      errors.push(`${where}.kind must be "code" or "diagram"`);
-      return;
-    }
-    const known = new Map(defaults);
-    (Array.isArray(s.cues) ? s.cues : []).forEach((c, i) => {
-      const w = `${where}.cues[${i}]`;
-      if (!c || typeof c.event !== 'string') { errors.push(`${w}.event is required`); return; }
-      if (!known.has(c.event)) { errors.push(`${w}.event "${c.event}" is not an event of this shot (${[...known.keys()].join(', ')})`); return; }
-      try { known.set(c.event, resolveCue(c, shotWords, w)); } catch (e) { errors.push(e.message); }
-    });
-    out.events = [...known.entries()].map(([event, t]) => ({ event, t })).sort((a, b) => a.t - b.t);
-    // A cross-ref highlight or callout cannot play before its file is opened; a diagram cannot light a node before it appears.
-    for (const e of out.events) {
-      const m = /^crossref:(\d+):(highlight|callout)$/.exec(e.event);
-      if (m) { const open = out.events.find((x) => x.event === `crossref:${m[1]}`); if (open && open.t > e.t) errors.push(`${where}: ${e.event} at ${e.t}s precedes crossref:${m[1]} at ${open.t}s`); }
-      if (e.event === 'lit') { const n = out.events.find((x) => x.event === `node:${out.lit}`); if (n && n.t > e.t) errors.push(`${where}: lit at ${e.t}s precedes node:${out.lit} at ${n.t}s`); }
-    }
-    const last = out.events.length ? out.events[out.events.length - 1].t : 0;
-    out.durationSeconds = Math.round(Math.max(last + holdSeconds, out.targetSeconds || 0) * 100) / 100;
-    shots.push(out);
+  (Array.isArray(doc.shots) ? doc.shots : []).forEach((shot, idx) => {
+    const parsed = parseShot(shot, idx, { ref, words, errors, seen });
+    if (parsed) shots.push(parsed);
   });
   if (errors.length) throw new ShotListError(errors);
   return { schemaVersion: SCHEMA_VERSION, repo: doc.repo || null, ref, refLabel: typeof doc.refLabel === 'string' ? doc.refLabel : null, viewport, title: doc.title || '', shots };
