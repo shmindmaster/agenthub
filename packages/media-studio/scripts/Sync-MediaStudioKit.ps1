@@ -82,7 +82,14 @@ $files = @(
     'code-stage\verify-receipt.mjs',
     'code-stage\editor.html',
     'code-stage\diagram.html',
-    'code-stage\README.md'
+    'code-stage\README.md',
+    # Shared cloud render path (Azure Container Apps job): upload -> render -> download.
+    'cloud\cloud-render.mjs',
+    'cloud\blob.mjs',
+    'cloud\worker.mjs',
+    'cloud\recast-run.mjs',
+    'cloud\Provision-CloudRender.ps1',
+    'cloud\README.md'
 )
 foreach ($rel in $files) {
     $from = Join-Path $packageKit $rel
