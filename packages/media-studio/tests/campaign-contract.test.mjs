@@ -118,6 +118,37 @@ test('legacy jobs remain outside the campaign contract', () => {
   assert.deepEqual(check({ kind: 'product-screencast', programForm: 'role-demo' }), []);
 });
 
+test('campaign findings are exact and ordered for valid and invalid campaigns', () => {
+  assert.deepEqual(check(), []);
+
+  assert.deepEqual(
+    validateCampaign(root, { kind: 'other', programForm: 'campaign-flagship' }, timeline),
+    ['campaign-flagship requires kind product-screencast.', 'campaign contract is required.'],
+  );
+
+  const j = job();
+  const t = structuredClone(timeline);
+  const g = graphic();
+  j.kind = 'other';
+  delete j.deliveryProfile;
+  t.durationSeconds = 55;
+  j.campaign.continuity.scenarioId = 'other';
+  j.campaign.claims[0].segmentIds = ['S99'];
+  j.campaign.assets[0].origin = 'licensed';
+  g[0].x = 0;
+  assert.deepEqual(check(j, t, g), [
+    'campaign-flagship requires kind product-screencast.',
+    'campaign requires an explicit deliveryProfile.',
+    'campaign-flagship timeline must be 60–70 seconds.',
+    'single-record continuity differs from the proven scenario or record.',
+    'single-record scenarioId differs from the storyboard.',
+    'claim claim-01 must cite campaign segmentIds.',
+    'screen capture clip ui must have captured-ui asset provenance.',
+    'captionRegion crosses the delivery-profile safe area.',
+    'timed graphic 1 crosses the briefing-board safe area.',
+  ]);
+});
+
 test('source crop is bounded and has one shared FFmpeg transform', () => {
   const region = { x: .275, y: 0, width: .45, height: 1 };
   assert.equal(sourceRegionError(region), null);
