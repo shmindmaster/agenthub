@@ -7,6 +7,8 @@ command the test controls. Run: py -3 -m unittest packages/repowise/tests/test_r
 
 from __future__ import annotations
 
+import http.client
+import io
 import json
 import os
 import queue
@@ -107,10 +109,16 @@ class BridgeHarness:
 
     def close(self) -> None:
         try:
-            self.proc.stdin.close()
+            if self.proc.stdin and not self.proc.stdin.closed:
+                self.proc.stdin.close()
             self.proc.wait(timeout=10)
         except Exception:
             self.proc.kill()
+        finally:
+            if self.proc.stdout and not self.proc.stdout.closed:
+                self.proc.stdout.close()
+            if self.proc.stderr and not self.proc.stderr.closed:
+                self.proc.stderr.close()
 
 
 class BridgeTests(unittest.TestCase):
@@ -373,6 +381,92 @@ class SpawnFlagTests(unittest.TestCase):
         self.assertIn("-NonInteractive", command)
         self.assertTrue(command[-1].endswith("Start-RepoWiseShared.ps1"))
         self.assertTrue(Path(command[-1]).exists())
+
+
+class BridgeHardeningTests(unittest.TestCase):
+    def test_partial_read_raises_upstream_lost(self) -> None:
+        up = repowise_bridge.Upstream("http://127.0.0.1:9999", lambda m: None, None, repowise_bridge.Log(repowise_bridge.runtime_dir() / "test.log"))
+
+        class FakeResp:
+            headers = {"content-type": "application/json"}
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+            def read(self):
+                raise http.client.IncompleteRead(b"part", 50)
+
+        with self.assertRaises(repowise_bridge.UpstreamLost):
+            up._read_response(FakeResp(), {"id": 1, "method": "tools/call"})
+
+    def test_invalid_jsonrpc_request_returns_invalid_request_error(self) -> None:
+        out = io.BytesIO()
+        bridge = repowise_bridge.Bridge(io.BytesIO(b"[]\n123\n"), out)
+        bridge.run()
+        lines = [json.loads(line) for line in out.getvalue().splitlines() if line.strip()]
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0]["error"]["code"], -32600)
+        self.assertEqual(lines[1]["error"]["code"], -32600)
+
+    def test_broken_stdout_pipe_handled_cleanly(self) -> None:
+        class BrokenStream:
+            def write(self, b):
+                raise BrokenPipeError("Broken pipe")
+
+            def flush(self):
+                raise BrokenPipeError("Broken pipe")
+
+        bridge = repowise_bridge.Bridge(io.BytesIO(), BrokenStream())
+        bridge.write({"jsonrpc": "2.0", "id": 1, "result": {}})
+        self.assertTrue(bridge._stop.is_set())
+
+    def test_open_session_cleans_up_on_failed_initialized_notification(self) -> None:
+        up = repowise_bridge.Upstream("http://127.0.0.1:9999", lambda m: None, None, repowise_bridge.Log(repowise_bridge.runtime_dir() / "test.log"))
+
+        def mock_post(msg, timeout):
+            if msg.get("method") == "initialize":
+                return {"result": {"protocolVersion": "2025-06-18"}}, {"mcp-session-id": "sess-123"}
+            raise repowise_bridge.UpstreamDown("dropped on initialized notification")
+
+        up.post = mock_post
+        with self.assertRaises(repowise_bridge.UpstreamDown):
+            up.open_session(1, {}, 5.0)
+        self.assertIsNone(up.session_id)
+
+    def test_corrupted_state_and_cache_files_handled_gracefully(self) -> None:
+        tmp = Path(tempfile.mkdtemp())
+        os.environ["REPOWISE_BRIDGE_RUNTIME"] = str(tmp)
+        cache_file = tmp / "bridge-cache.json"
+        cache_file.write_text("null", encoding="utf-8")
+        c = repowise_bridge.Cache(cache_file)
+        self.assertIsNone(c.get("tools/list"))
+        c.put("tools/list", {"tools": []})
+        self.assertEqual(c.get("tools/list"), {"tools": []})
+
+        state_file = tmp / "launcher.state.json"
+        state_file.write_text("null", encoding="utf-8")
+        self.assertIsNone(repowise_bridge.wait_for_launch_probe(0, lambda m: None))
+        state_file.write_text('{"state": "starting", "pid": "bad_pid"}', encoding="utf-8")
+        self.assertIsNone(repowise_bridge.wait_for_launch_probe(0, lambda m: None))
+
+    def test_forward_respects_expired_deadline_without_posting(self) -> None:
+        up = repowise_bridge.Upstream("http://127.0.0.1:9999", lambda m: None, None, repowise_bridge.Log(repowise_bridge.runtime_dir() / "test.log"))
+        up.session_id = "sess-1"
+        posted = False
+
+        def mock_post(msg, timeout):
+            nonlocal posted
+            posted = True
+            return {"result": {}}, {}
+
+        up.post = mock_post
+        with self.assertRaises(TimeoutError):
+            up.forward({"id": 1, "method": "tools/list"}, deadline=time.monotonic() - 1.0)
+        self.assertFalse(posted)
 
 
 if __name__ == "__main__":
