@@ -73,7 +73,10 @@ implementer; never use a model outside `dispatchPolicy.cline.allowedModels`.
   `CLINE_SESSION_BACKEND_MODE=local` are set. Verified live: hub mode, push went
   through to a scratch bare remote; local mode, push blocked and remote empty.
   Interactive TUI/Desktop sessions are unaffected.
-- Known gaps: literal-text matching (compound commands can evade it); hook
+- Known gaps: literal-text matching (compound commands can evade it, and a shell
+  here-doc that writes a file whose content contains a denied string, such as the
+  guard's own test file, is blocked: observed twice in CL-1 run 2; write such files
+  with the editor tool); hook
   errors fail open (`hookErrorMode` default `ignore`); not yet AgentHub-owned
   (CL-1 packages it); `Invoke-CodingAgent.ps1`'s Cline contract does not set the
   two variables yet. Until it does, launch Cline only through
@@ -113,6 +116,22 @@ jobs are not holding memory.
   23/23 (2 new ACP refusals), `Test-RegistryHostReferences.ps1` 7/7 (Cline authorized, with
   a guard that only `:free` models may appear on the `cline` provider), `Validate-AgentHub` PASS.
 - Deployed as single-file copies to `~/.agents/skills/use-coding-agent/` (backups `*.bak-cline-20261026`).
+
+## Interactive surfaces (verified 2026-10-26)
+
+- TUI: `cline -i -P cline -m nvidia/nemotron-3-ultra-550b-a55b:free --thinking none "<prompt>"` in a
+  Terminal-panel tab rendered the Cline Dark theme, status line "Nemotron 3 Ultra (free) ... $0.00",
+  Plan/Act toggle, branch and diff summary, auto-approve indicator; the reply `tui-ok` arrived with
+  120,869 context tokens at $0.00. A "Get Cline Desktop" promo overlays the first start.
+- Desktop (`%LOCALAPPDATA%\Cline\cline-app.exe`): launches signed in; its session list is shared with
+  the CLI (headless CLI runs, the TUI run and the CL task runs all appear). The owner was using it live
+  during the check, so no prompt was sent from its window. Verified headless instead: Desktop's bundled
+  runtime `%LOCALAPPDATA%\Cline\cline-cli.exe` (3.0.74, newer than the npm CLI's 3.0.71) answered
+  `desktop-runtime-ok` on `cline:nemotron-3-ultra:free` at $0 with the same `~/.cline` config and lists the
+  same plugins (agent-browser, lightweight-chat, peer-guard). `sessions.db` records Desktop runs with
+  `source = 'desktop'` (one so far: 2026-10-26 01:02Z, opencode-go/gemini-4-argon, failed, $2.33).
+  Prefer this headless check over driving the app's window. Its composer offered Anthropic and OpenAI-compatible
+  (Alibaba, exhausted) selections; pick a `:free` model or ClinePass explicitly there too.
 
 ## Capability matrix (Cline CLI; evidence from this session unless noted)
 
