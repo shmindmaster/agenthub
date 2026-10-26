@@ -58,7 +58,7 @@ Empty findings only when the candidate is persuasive, coherent, polished, **and*
 
 Start at 100. Subtract:
 
-- 20 for a missing hook, missing hero, or feature-tour opening
+- 20 for a missing hook, a hero count other than exactly one (missing or duplicate), or feature-tour opening
 - 15 for wall-to-wall static, rushed payoff, or no before-state
 - 10 per filler beat or consecutive accidental archetype repeat
 - 10 for narration that reads on-screen type
