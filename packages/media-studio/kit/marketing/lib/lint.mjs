@@ -132,19 +132,13 @@ export function checkEvidence(claim, io) {
   return 'evidence must start with file:, clip: or approved:';
 }
 
-export function lintSpec(spec, brand, options = {}) {
-  const errors = [];
-  const warnings = [];
-  const err = (code, message, where) => errors.push({ code, message, where });
-  const warn = (code, message, where) => warnings.push({ code, message, where });
-  const io = options.io || defaultIo(options.specDir);
+function lintSchemas(spec, brand, options, err) {
   const adSchema = options.adSchema;
   if (adSchema) for (const m of validate(adSchema, spec)) err('schema', m);
   if (options.brandSchema && brand) for (const m of validate(options.brandSchema, brand)) err('brand-schema', m);
-  if (errors.length) return { ok: false, errors, warnings, estimates: [] };
+}
 
-  const cuts = normalizeCuts(spec);
-  const seenRatios = new Set();
+function lintClaims(spec, io, err) {
   const claimsById = new Map();
   for (const c of spec.claims) {
     if (claimsById.has(c.id)) err('claim-duplicate', `duplicate claim id ${c.id}`, c.id);
@@ -152,14 +146,19 @@ export function lintSpec(spec, brand, options = {}) {
     const problem = checkEvidence(c, io);
     if (problem) err('evidence', `${c.id}: ${problem}`, c.id);
   }
+  return claimsById;
+}
+
+function createTextScanner(brand, err) {
   const banned = resolveBannedPatterns(brand);
   const forbidden = (brand?.forbiddenNames || []).map((n) => ({ name: n, re: new RegExp(`(^|[^A-Za-z0-9])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^A-Za-z0-9])`, 'i') }));
-  const scanText = (text, where) => {
+  return (text, where) => {
     for (const h of bannedHits(text, banned)) err('banned-phrase', `"${h.match}" (${h.id}): ${h.reason || 'banned'} — "${h.sentence}"`, where);
     for (const f of forbidden) if (f.re.test(text)) err('forbidden-name', `names "${f.name}", which must never appear in an ad`, where);
   };
+}
 
-  // Voice, music, CTA, label policy.
+function lintVoice(spec, err, warn) {
   const v = spec.voice;
   if (v.ownerVoice === true) err('owner-voice', 'marketing narration is never the owner voice clone', 'voice');
   if (/\b(sh|sarosh)\b/i.test(v.name || '') || CELEBRITY.test(`${v.name || ''} ${v.instructions || ''}`)) err('voice-policy', 'owner clone names and celebrity sound-alikes are not allowed', 'voice');
@@ -173,12 +172,17 @@ export function lintSpec(spec, brand, options = {}) {
     if (v.stitching && v.model === 'eleven_v3') err('voice-settings', 'request stitching is not available on eleven_v3', 'voice');
     if (!v.pronunciationDictionaries?.length) warn('pronunciation', 'no pronunciation dictionary: the product name may be mispronounced; the listen gate must confirm', 'voice');
   }
-  const m = spec.music;
-  if (m && m.provider === 'elevenlabs') {
-    if (!m.prompt) err('music', 'music.prompt is required when music.provider is elevenlabs', 'music');
-    if (!m.licenseBasis) err('music', 'music.licenseBasis is required (Eleven Music terms limit paid-ad use by plan)', 'music');
-    if (m.prompt && /\b(in the style of|sounds? like|reminiscent of|feat\.?|by [A-Z][a-z]+ [A-Z][a-z]+)\b/.test(m.prompt)) err('music', 'music prompts must not name artists, songs or labels', 'music');
+}
+
+function lintMusic(music, err) {
+  if (music && music.provider === 'elevenlabs') {
+    if (!music.prompt) err('music', 'music.prompt is required when music.provider is elevenlabs', 'music');
+    if (!music.licenseBasis) err('music', 'music.licenseBasis is required (Eleven Music terms limit paid-ad use by plan)', 'music');
+    if (music.prompt && /\b(in the style of|sounds? like|reminiscent of|feat\.?|by [A-Z][a-z]+ [A-Z][a-z]+)\b/.test(music.prompt)) err('music', 'music prompts must not name artists, songs or labels', 'music');
   }
+}
+
+function lintLabelsAndCta(spec, brand, claimsById, err, warn, scanText) {
   if (!/synthetic/i.test(spec.labels) || !/no phi/i.test(spec.labels)) err('label', 'labels must state SYNTHETIC and NO PHI', 'labels');
   scanText(spec.labels, 'labels');
   scanText(`${spec.cta.text}`, 'cta');
@@ -188,64 +192,106 @@ export function lintSpec(spec, brand, options = {}) {
   if (spec.cta.claim && !claimsById.has(spec.cta.claim)) err('claim-missing', `cta.claim ${spec.cta.claim} is not a claim id`, 'cta');
   if (!spec.cta.claim) warn('cta-claim', 'cta has no claim id; its wording is not mapped to evidence', 'cta');
   else scanText(spec.cta.text, 'cta');
+}
 
-  const estimates = [];
-  for (const cut of cuts) {
-    const where = (id) => `${cut.id}/${id}`;
-    for (const r of cut.ratios) { if (seenRatios.has(r)) err('ratio-repeat', `ratio ${r} appears in more than one cut`, cut.id); seenRatios.add(r); }
-    const beatIds = new Set();
-    for (const beat of cut.beats) {
-      if (beatIds.has(beat.id)) err('beat-duplicate', `duplicate beat id ${beat.id}`, where(beat.id));
-      beatIds.add(beat.id);
-      const w = where(beat.id);
-      if (beat.kind === 'ui' && !beat.ui) err('beat-shape', 'ui beats need a ui source clip', w);
-      if (beat.kind === 'broll' && !beat.broll) err('beat-shape', 'broll beats need a broll block', w);
-      if (beat.kind !== 'ui' && beat.ui) err('beat-shape', `${beat.kind} beats must not carry a ui clip`, w);
-      const texts = [...sentences(beat.narration || ''), ...(beat.onScreenText ? [beat.onScreenText] : [])];
-      for (const t of texts) scanText(t, w);
-      // Owner rule (2026-10-20): no spoken time on synthetic/demo data or on the film itself; the disclosure is an end-card line.
-      const fluff = FLUFF.exec(beat.narration || '');
-      if (fluff) err('narration-fluff', `narration spends words on "${fluff[0]}"; say what the viewer gains, and leave the data disclosure to the end card`, w);
-      if (beat.onScreenText && words(beat.onScreenText).length > 8) warn('on-screen-length', 'on-screen text longer than 8 words will not survive phone-size reading', w);
-      const refs = (beat.claims || []).map((id) => claimsById.get(id));
-      (beat.claims || []).forEach((id) => { if (!claimsById.has(id)) err('claim-missing', `beat references unknown claim ${id}`, w); });
-      const known = refs.filter(Boolean);
-      if (texts.length && !known.length) err('claim-unmapped', 'beat speaks or shows text but references no claim', w);
-      for (const t of texts) {
-        if (known.length && !known.some((c) => claimCovers(c, t))) err('claim-uncovered', `"${t}" is not covered by any referenced claim (add a phrase or reword)`, w);
-        for (const token of numericTokens(t)) if (!claimMentions(known, token)) err('figure-unsupported', `"${token}" in "${t}" is a figure no referenced claim states; invented or unsupported figures fail`, w);
-      }
-      if (beat.broll) {
-        if (PEOPLE.test(beat.broll.prompt)) err('broll-people', 'b-roll prompts must not describe people, faces, children or clinicians', w);
-        if (!/\bno (text|words|letters|logos)\b/i.test(beat.broll.prompt)) warn('broll-text', 'add "no text" to the b-roll prompt; generated text is unreliable', w);
-        if (beat.claims?.length) warn('broll-claims', 'generated b-roll must assert nothing; remove claim references from it', w);
-        scanText(beat.broll.prompt, w);
-        if (beat.broll.provider === 'stock') warn('stock', 'stock footage needs a recorded licence; prefer abstract generated stills', w);
-      }
-      if (beat.ui) {
-        const receiptPath = join(isAbsolute(beat.ui.sourceJob) ? beat.ui.sourceJob : resolve(io.specDir || '.', beat.ui.sourceJob), 'capture', 'receipt.json');
-        if (!io.exists(receiptPath)) err('clip-missing', `capture receipt not found: ${receiptPath}`, w);
-        else {
-          const clip = io.readJson(receiptPath).clips?.[beat.ui.clipId];
-          if (!clip) err('clip-missing', `clip ${beat.ui.clipId} not in ${receiptPath}`, w);
-          else {
-            if (clip.valid === false) err('clip-invalid', 'clip is marked invalid in its capture receipt', w);
-            const needsFocus = cut.ratios.some((r) => r !== '16x9') && Number(clip.events?.clicks || 0) > 0 && clip.recast !== 'noZoom';
-            if (needsFocus && !beat.ui.focus?.length) err('focus-required', 'clip has clicks (Recast zoom): pointer coordinates cannot be trusted for a 4:5 / 9:16 crop; add ui.focus', w);
-            if (beat.ui.trimEnd && Number(beat.ui.trimEnd) > Number(clip.clipSeconds) + 0.05) err('clip-range', `trimEnd ${beat.ui.trimEnd} is beyond the ${clip.clipSeconds}s clip`, w);
-          }
-        }
-        if (beat.ui.freshness === 'recapture-recommended') warn('clip-stale', `recapture recommended: ${beat.ui.freshnessNote || 'the clip predates a product change on this screen'}`, w);
-      }
-      for (const s of beat.sfx || []) if (!/^action:|^at:|^start$|^end$/.test(s.cue)) err('sfx-cue', `unsupported cue ${s.cue}`, w);
-    }
-    const estimate = estimateCutSeconds(cut);
-    estimates.push({ cut: cut.id, estimateSeconds: Number(estimate.toFixed(1)), targetSeconds: cut.targetSeconds });
-    if (estimate > cut.targetSeconds + 4) err('too-long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target; trim the script before spending on voice`, cut.id);
-    else if (estimate > cut.targetSeconds + 1.5) warn('long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
-    else if (estimate < cut.targetSeconds * 0.6) warn('short', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
-    if (m?.provider === 'elevenlabs' && m.lengthSeconds !== undefined && m.lengthSeconds < cut.targetSeconds + 2) err('music-length', `music.lengthSeconds ${m.lengthSeconds} s is shorter than cut ${cut.id} (${cut.targetSeconds} s target) plus 2 s; the bed must outlast the program (the assets stage re-checks against the measured length)`, 'music');
-    if (!cut.beats.some((b) => b.kind === 'ui')) err('no-ui', `cut ${cut.id} has no real UI beat; credibility-bearing seconds must be captured product UI`, cut.id);
+function lintBeatShape(beat, where, err) {
+  if (beat.kind === 'ui' && !beat.ui) err('beat-shape', 'ui beats need a ui source clip', where);
+  if (beat.kind === 'broll' && !beat.broll) err('beat-shape', 'broll beats need a broll block', where);
+  if (beat.kind !== 'ui' && beat.ui) err('beat-shape', `${beat.kind} beats must not carry a ui clip`, where);
+}
+
+function lintBeatText(beat, where, claimsById, err, warn, scanText) {
+  const texts = [...sentences(beat.narration || ''), ...(beat.onScreenText ? [beat.onScreenText] : [])];
+  for (const t of texts) scanText(t, where);
+  // Owner rule (2026-10-20): no spoken time on synthetic/demo data or on the film itself; the disclosure is an end-card line.
+  const fluff = FLUFF.exec(beat.narration || '');
+  if (fluff) err('narration-fluff', `narration spends words on "${fluff[0]}"; say what the viewer gains, and leave the data disclosure to the end card`, where);
+  if (beat.onScreenText && words(beat.onScreenText).length > 8) warn('on-screen-length', 'on-screen text longer than 8 words will not survive phone-size reading', where);
+  const refs = (beat.claims || []).map((id) => claimsById.get(id));
+  (beat.claims || []).forEach((id) => { if (!claimsById.has(id)) err('claim-missing', `beat references unknown claim ${id}`, where); });
+  const known = refs.filter(Boolean);
+  if (texts.length && !known.length) err('claim-unmapped', 'beat speaks or shows text but references no claim', where);
+  for (const t of texts) {
+    if (known.length && !known.some((c) => claimCovers(c, t))) err('claim-uncovered', `"${t}" is not covered by any referenced claim (add a phrase or reword)`, where);
+    for (const token of numericTokens(t)) if (!claimMentions(known, token)) err('figure-unsupported', `"${token}" in "${t}" is a figure no referenced claim states; invented or unsupported figures fail`, where);
   }
-  return { ok: errors.length === 0, errors, warnings, estimates };
+}
+
+function lintBroll(beat, where, err, warn, scanText) {
+  if (beat.broll) {
+    if (PEOPLE.test(beat.broll.prompt)) err('broll-people', 'b-roll prompts must not describe people, faces, children or clinicians', where);
+    if (!/\bno (text|words|letters|logos)\b/i.test(beat.broll.prompt)) warn('broll-text', 'add "no text" to the b-roll prompt; generated text is unreliable', where);
+    if (beat.claims?.length) warn('broll-claims', 'generated b-roll must assert nothing; remove claim references from it', where);
+    scanText(beat.broll.prompt, where);
+    if (beat.broll.provider === 'stock') warn('stock', 'stock footage needs a recorded licence; prefer abstract generated stills', where);
+  }
+}
+
+function lintUi(beat, cut, where, io, err, warn) {
+  if (beat.ui) {
+    const receiptPath = join(isAbsolute(beat.ui.sourceJob) ? beat.ui.sourceJob : resolve(io.specDir || '.', beat.ui.sourceJob), 'capture', 'receipt.json');
+    if (!io.exists(receiptPath)) err('clip-missing', `capture receipt not found: ${receiptPath}`, where);
+    else {
+      const clip = io.readJson(receiptPath).clips?.[beat.ui.clipId];
+      if (!clip) err('clip-missing', `clip ${beat.ui.clipId} not in ${receiptPath}`, where);
+      else {
+        if (clip.valid === false) err('clip-invalid', 'clip is marked invalid in its capture receipt', where);
+        const needsFocus = cut.ratios.some((r) => r !== '16x9') && Number(clip.events?.clicks || 0) > 0 && clip.recast !== 'noZoom';
+        if (needsFocus && !beat.ui.focus?.length) err('focus-required', 'clip has clicks (Recast zoom): pointer coordinates cannot be trusted for a 4:5 / 9:16 crop; add ui.focus', where);
+        if (beat.ui.trimEnd && Number(beat.ui.trimEnd) > Number(clip.clipSeconds) + 0.05) err('clip-range', `trimEnd ${beat.ui.trimEnd} is beyond the ${clip.clipSeconds}s clip`, where);
+      }
+    }
+    if (beat.ui.freshness === 'recapture-recommended') warn('clip-stale', `recapture recommended: ${beat.ui.freshnessNote || 'the clip predates a product change on this screen'}`, where);
+  }
+}
+
+function lintSfx(beat, where, err) {
+  for (const s of beat.sfx || []) if (!/^action:|^at:|^start$|^end$/.test(s.cue)) err('sfx-cue', `unsupported cue ${s.cue}`, where);
+}
+
+function lintBeat(beat, cut, where, state) {
+  lintBeatShape(beat, where, state.err);
+  lintBeatText(beat, where, state.claimsById, state.err, state.warn, state.scanText);
+  lintBroll(beat, where, state.err, state.warn, state.scanText);
+  lintUi(beat, cut, where, state.io, state.err, state.warn);
+  lintSfx(beat, where, state.err);
+}
+
+function lintCut(cut, state) {
+  const where = (id) => `${cut.id}/${id}`;
+  for (const r of cut.ratios) { if (state.seenRatios.has(r)) state.err('ratio-repeat', `ratio ${r} appears in more than one cut`, cut.id); state.seenRatios.add(r); }
+  const beatIds = new Set();
+  for (const beat of cut.beats) {
+    if (beatIds.has(beat.id)) state.err('beat-duplicate', `duplicate beat id ${beat.id}`, where(beat.id));
+    beatIds.add(beat.id);
+    lintBeat(beat, cut, where(beat.id), state);
+  }
+  const estimate = estimateCutSeconds(cut);
+  state.estimates.push({ cut: cut.id, estimateSeconds: Number(estimate.toFixed(1)), targetSeconds: cut.targetSeconds });
+  if (estimate > cut.targetSeconds + 4) state.err('too-long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target; trim the script before spending on voice`, cut.id);
+  else if (estimate > cut.targetSeconds + 1.5) state.warn('long', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
+  else if (estimate < cut.targetSeconds * 0.6) state.warn('short', `cut ${cut.id} is estimated at ${estimate.toFixed(1)} s against a ${cut.targetSeconds} s target`, cut.id);
+  if (state.music?.provider === 'elevenlabs' && state.music.lengthSeconds !== undefined && state.music.lengthSeconds < cut.targetSeconds + 2) state.err('music-length', `music.lengthSeconds ${state.music.lengthSeconds} s is shorter than cut ${cut.id} (${cut.targetSeconds} s target) plus 2 s; the bed must outlast the program (the assets stage re-checks against the measured length)`, 'music');
+  if (!cut.beats.some((b) => b.kind === 'ui')) state.err('no-ui', `cut ${cut.id} has no real UI beat; credibility-bearing seconds must be captured product UI`, cut.id);
+}
+
+export function lintSpec(spec, brand, options = {}) {
+  const errors = [];
+  const warnings = [];
+  const err = (code, message, where) => errors.push({ code, message, where });
+  const warn = (code, message, where) => warnings.push({ code, message, where });
+  const io = options.io || defaultIo(options.specDir);
+  lintSchemas(spec, brand, options, err);
+  if (errors.length) return { ok: false, errors, warnings, estimates: [] };
+
+  const cuts = normalizeCuts(spec);
+  const claimsById = lintClaims(spec, io, err);
+  const scanText = createTextScanner(brand, err);
+  lintVoice(spec, err, warn);
+  const music = spec.music;
+  lintMusic(music, err);
+  lintLabelsAndCta(spec, brand, claimsById, err, warn, scanText);
+  const state = { seenRatios: new Set(), claimsById, scanText, io, err, warn, music, estimates: [] };
+  for (const cut of cuts) lintCut(cut, state);
+  return { ok: errors.length === 0, errors, warnings, estimates: state.estimates };
 }
