@@ -2,7 +2,7 @@
 // cloud-render: upload -> render in Azure -> download. One shared path for every film session.
 //
 //   node cloud-render.mjs ffmpeg [opts] -- <ffmpeg args...>            last arg is the local output file
-//   node cloud-render.mjs remotion [opts] --comp <id> --out <mp4> [--props <json>] [--public-dir <dir>] [-- <remotion flags>]
+//   node cloud-render.mjs remotion [opts] --comp <id> --out <mp4> [--props <json>] [--public-dir <dir>] [--chunks N] [-- <remotion flags>]
 //   node cloud-render.mjs recast [opts] --raw <rawDir> --out <file.webm> [--recast-opts <json>]
 //   node cloud-render.mjs exec [opts] --out <file> [--out <file>...] -- <cmd> <args...>
 //   node cloud-render.mjs bootstrap | doctor | status <jobId> | logs <jobId>
@@ -231,6 +231,7 @@ function buildCommand(sub, opts, rest, plan) {
     plan.addKitOverlay(opts.kit || DEFAULT_KIT);
     const out = plan.addOutput(opts.out[0]);
     const raw = mapArgs([path.resolve(opts.raw)], ctx)[0];
+    plan.addFile(path.join(HERE, 'recast-run.mjs'), '/opt/rt/kit/cloud/recast-run.mjs');
     return { cmd: 'node', args: ['cloud/recast-run.mjs', raw, out, ...(opts.recastOpts ? [opts.recastOpts] : [])], cwd: '/opt/rt/kit' };
   }
   if (sub === 'exec') {
@@ -330,7 +331,79 @@ function costOf(cfg, exec, resources) {
   return { billedSeconds: seconds, usd, perMinute: 60 * (cpu * rate.vcpuSecond + mem * rate.gibSecond) };
 }
 
+/**
+ * remotion --chunks N: one upload, N parallel executions each rendering a frame range (cloud/chunk-render.mjs reads the
+ * length through the Remotion CLI), then a local stream-copy concat. Render picture muted and mux audio separately:
+ * per-chunk AAC does not join gaplessly.
+ */
+async function runChunked(opts, rest, cfg) {
+  const count = Math.floor(Number(opts.chunks));
+  if (!(count >= 2 && count <= 16)) throw new Error('--chunks must be 2-16');
+  const tStart = Date.now();
+  const plan = new JobPlan(process.cwd());
+  const command = buildCommand('remotion', opts, rest, plan);
+  if (opts.fonts) plan.addDir(path.resolve(opts.fonts), '/job/fonts');
+  if (!command.args.some((a) => a === '--muted')) process.stderr.write('  warning: chunked renders should be --muted; per-chunk audio does not join gaplessly\n');
+  // The wrapper ships from beside this CLI: a custom --kit has no cloud/ folder of its own.
+  plan.addFile(path.join(HERE, 'chunk-render.mjs'), '/opt/rt/kit/cloud/chunk-render.mjs');
+  const outLocal = path.resolve(opts.out[0]);
+  const [cli, , entry, comp, , ...flags] = command.args;
+  const base = `${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}-${slug(opts.name || 'remotion')}-${randomBytes(2).toString('hex')}`;
+  const c = clients(cfg);
+  const files = plan.allLocalFiles();
+  process.stderr.write(`cloud-render ${base}: ${count} chunks, ${files.length} input files\n`);
+  const up = await uploadAll(c.storage, files);
+  const tUploaded = Date.now();
+  process.stderr.write(`  uploaded ${up.uploaded}/${up.unique} new blobs (${fmtMB(up.uploadedBytes)}) in ${((tUploaded - tStart) / 1000).toFixed(1)}s\n`);
+  if (cli !== 'node_modules/@remotion/cli/remotion-cli.js' || entry !== 'src/index.ts') throw new Error('unexpected remotion command shape');
+  const chunks = await Promise.all(Array.from({ length: count }, async (_, k) => {
+    const jobId = `${base}-c${String(k + 1).padStart(2, '0')}`;
+    const file = `/job/out/chunk-${String(k).padStart(2, '0')}.mp4`;
+    const outputs = [file, `${file}.range.json`].map((p) => ({ path: p, blob: `jobs/${jobId}/out/${path.basename(p)}` }));
+    const manifest = { mode: 'render', jobId, cmd: 'node', args: ['cloud/chunk-render.mjs', String(k), String(count), comp, file, ...flags], cwd: '/opt/rt/kit', inputs: up.inputs, outputs, createdAt: new Date().toISOString(), host: os.hostname() };
+    await c.storage.putText(`jobs/${jobId}/job.json`, JSON.stringify(manifest, null, 2));
+    const exec = await startExecution(cfg, c, jobId, { cpu: opts.cpu, memory: opts.memory });
+    process.stderr.write(`  chunk ${k + 1}/${count}: ${jobId} on ${exec.name}\n`);
+    const { result, exec: execInfo } = await waitForResult(cfg, c, jobId, exec.name);
+    return { k, jobId, outputs, result, cost: costOf(cfg, execInfo, exec.resources) };
+  }));
+  const tDone = Date.now();
+  const failed = chunks.filter((ch) => !ch.result.ok);
+  const tmp = fs.mkdtempSync(path.join(path.dirname(outLocal), '.cloud-render-chunks-'));
+  for (const ch of chunks) {
+    const log = await c.storage.getText(`jobs/${ch.jobId}/log.txt`);
+    if (log) fs.writeFileSync(path.join(tmp, `chunk-${ch.k}.log`), log);
+  }
+  if (failed.length) throw new Error(`chunks failed: ${failed.map((ch) => `${ch.k + 1} (${ch.jobId}): ${String(ch.result.error).slice(-300)}`).join(' | ')}; logs in ${tmp}`);
+  const ranges = [];
+  for (const ch of chunks) {
+    ch.local = path.join(tmp, path.basename(ch.outputs[0].path));
+    await c.storage.getFile(ch.outputs[0].blob, ch.local);
+    ranges.push(JSON.parse((await c.storage.getText(ch.outputs[1].blob)) || 'null'));
+  }
+  const expected = ranges.reduce((n, r) => n + (r.last - r.first + 1), 0);
+  const list = path.join(tmp, 'concat.txt');
+  fs.writeFileSync(list, chunks.map((ch) => `file '${ch.local.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`).join('\n'));
+  const ff = spawnSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', outLocal], { encoding: 'utf8', windowsHide: true });
+  if (ff.status !== 0) throw new Error(`concat failed: ${ff.stderr || ff.error}`);
+  const probe = spawnSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-count_packets', '-show_entries', 'stream=nb_read_packets', '-of', 'csv=p=0', outLocal], { encoding: 'utf8', windowsHide: true });
+  const frames = parseInt(String(probe.stdout), 10); // csv output can carry a trailing comma
+  const tJoined = Date.now();
+  const usd = chunks.reduce((s, ch) => s + (ch.cost?.usd || 0), 0);
+  const summary = {
+    base, ok: frames === expected, error: frames === expected ? undefined : `joined ${frames} frames, expected ${expected}`,
+    outputs: [outLocal], frames, expectedFrames: expected, total: ranges[0]?.total, chunks: chunks.map((ch, i) => ({ jobId: ch.jobId, range: ranges[i], runSeconds: ch.result.timings?.runSeconds, cost: ch.cost })),
+    wallSeconds: { total: (tJoined - tStart) / 1000, upload: (tUploaded - tStart) / 1000, cloud: (tDone - tUploaded) / 1000, downloadAndJoin: (tJoined - tDone) / 1000 },
+    cost: { usd: +usd.toFixed(4) }, logs: tmp,
+  };
+  fs.writeFileSync(`${outLocal}.cloud-render.json`, JSON.stringify(summary, null, 2));
+  for (const ch of chunks) fs.rmSync(ch.local, { force: true });
+  console.log(JSON.stringify(summary, null, 2));
+  return summary.ok ? 0 : 1;
+}
+
 async function runJob(sub, opts, rest, cfg) {
+  if (sub === 'remotion' && Number(opts.chunks) > 1 && !opts.dryRun) return runChunked(opts, rest, cfg);
   const tStart = Date.now();
   const plan = new JobPlan(process.cwd());
   const command = buildCommand(sub, opts, rest, plan);

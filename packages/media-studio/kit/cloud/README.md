@@ -15,6 +15,8 @@ node "%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit\cloud\cloud-render.mjs" 
 | `recast` | The kit's `renderRecast` (cursor, click ripple, auto-zoom) over a raw Playwright capture directory. | `cloud-render.mjs recast --raw capture\take-01 --out capture\take-01\recast.webm` |
 | `exec` | Any command (`ffmpeg`, `ffprobe`, `node ...`) with explicit outputs. | `cloud-render.mjs exec --out mix.wav -- ffmpeg -i a.wav -i b.wav -filter_complex amix=inputs=2 mix.wav` |
 
+**Long Remotion films: `--chunks N` (2-16).** Each chunk is its own execution and renders one frame range. The ranges come from the Remotion CLI, so the kit's own `remotion.config.ts` applies. The CLI joins the chunks with a stream-copy concat and checks the joined frame count against the ranges. Render the picture `--muted` and mux audio afterwards with `cloud-render ffmpeg`, because per-chunk AAC does not join gaplessly. Measured 2026-10-26 on a 1,920-frame Briefing: 4 chunks took 96 s end to end against 160 s for one job, at the same cost (/usr/bin/bash.04). Across seams the result matches a single render (SSIM 0.995 or higher). A 9-minute 1080p film (~16k frames) at about 6 chunks should take roughly 12-15 min instead of about an hour.
+
 Options: `--name <label>` (job id label), `--cpu <1-4>` and `--memory <Gi>` (default 4 vCPU / 8 GiB),
 `--kit <dir>` (kit to overlay; defaults to the kit this file sits in), `--dry-run` (print the plan, no cloud calls),
 `--keep` (keep the local temp dir). Housekeeping: `doctor`, `status <jobId>`, `logs <jobId>`, `bootstrap`, `sync-worker`.

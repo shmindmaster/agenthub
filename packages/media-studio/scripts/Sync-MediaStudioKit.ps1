@@ -89,6 +89,7 @@ $files = @(
     'cloud\worker.mjs',
     'cloud\recast-run.mjs',
     'cloud\cloud-ai.mjs',
+    'cloud\chunk-render.mjs',
     'cloud\Provision-CloudRender.ps1',
     'cloud\README.md'
 )
