@@ -109,7 +109,7 @@ Credits ≈ tokens × the documented multiplier. `droid exec` has no spend or tu
 |---|---|---|---|
 | F-1 | Running (mission `mis_712d158d`) | 2 commits on the branch | When the mission ends: read `F-1-report.md`, then rerun `node --test packages/media-studio/tests/` in the worktree |
 | F-2 | Running | no commits yet | If there is no commit by timeout: narrow the brief, escalate to gpt-6-sol |
-| F-3 | Running (resumed once) | 1 commit, 5 smoke screenshots in `F-3-artifacts` | Read the report; rerun the chromium + mobile-chrome suite |
+| F-3 | **Review** (Factory reports 168→172 pass, 0 fail; orchestrator confirmed no visible-copy change) | `d45fc0b`, `a403a4a`, `a91df6c`, `eff2662`; 5 screenshots in `F-3-artifacts`; 79,506 credits | Owner: rerun the suite, review site-wide `prefetch={false}`, push/PR |
 | F-4 | **Verified** (orchestrator reran the tests: 84/84, 7/7, Validate PASS) | `90ce0bd`, `4f4925b`, rebased on `ba45c6a`, not pushed; 168,731 credits | Owner: fast-forward main and push; enabling dispatch is a separate decision |
 
 - **Progress:** `pwsh -NoProfile -File D:\AgentHub\runtime\orchestration\Get-FactoryTaskStatus.ps1`.
@@ -123,6 +123,7 @@ Credits ≈ tokens × the documented multiplier. `droid exec` has no spend or tu
   - mission state readable from `~/.factory/missions/<session>/state.json`
 - **Readiness:** agenthub Level 2 (21/57); the report was uploaded to the Factory dashboard. `vcs_cli_tools` and `unit_tests_runnable` failed because of how it was run (gh blocked, `--auto low`).
 - **User settings:** `~/.factory/settings.json` has an output style, status line, compaction and mission models, and ask/block rules. A backup sits beside it as `settings.json.bak-agenthub-*`.
+- **Factory Desktop 0.206.0:** reinstalled 2026-10-26 (signed installer); signed in, Local connected.
 - **Not done:**
   - theme (IDs undocumented; pick in `/themes`)
   - Droid Computers and Environments (paid compute, needs owner approval)
