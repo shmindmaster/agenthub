@@ -200,14 +200,14 @@ for that session and makes it the default again.
 
 ## Not changed — follow-ups
 
-- **duckie-app `.claude/rules` (≈41k tokens per Duckie session, the largest
-  single item).** Claude Code scopes a rule file only with a `paths:`
-  frontmatter list. The repository's rules use Cursor's `globs:` key, which
-  Claude Code ignores, so all 37 files load in every session. Converting
-  `globs:` to `paths:` and adding `paths:` to the long unscoped rules
-  (`workflow-runbook-content-edits` 7.5k, `stack-parallel-tool-writes` 3.9k,
-  `workflow-app-tool-params` 3.6k, `workflow-rpc-scan-budget` 2.9k) is a
-  team-shared change and needs a Duckie PR.
+- **duckie-app `.claude/rules` — done in musa-dev-team/duckie-app#1721.**
+  Claude Code scopes a rule file only with `paths:`; the repository's rules
+  used Cursor's `globs:`, so all 37 loaded in every session. The PR adds
+  `paths:` to 23 rules (mirroring `globs:`, which stays for Cursor) and leaves
+  14 short repo-wide rules always-on. Fresh `/context` in a `dev` worktree:
+  109.7k → 79.7k tokens (memory files 53.4k → 23.8k). Reading a
+  `supabase/migrations/` file loads the six database rules; before any read,
+  none are in context.
 - **Shared skills directory.** `~/.claude/skills` is a link to
   `~/.agents/skills`. That makes Claude load loose copies of skills it already
   receives as plugins:
@@ -222,8 +222,12 @@ for that session and makes it the default again.
   also block re-enabling them for a single session if the Desktop app honours
   that list. Not established either way, so they were left allowed in the CLI.
 - **Optional, owner decision:**
-  - Datadog (≈10.6k name tokens) could also be off by default and switched on
-    only in Duckie sessions. It stays on while Duckie work is the top priority.
+  - Datadog (≈10.6k name tokens) stays on globally. Decision 2026-10-26:
+    keep it only for Duckie folders if per-project scoping exists. It does not:
+    the Desktop connector switch sets one global default, and
+    `deniedMcpServers` merges across settings scopes, so a project cannot
+    re-allow a server denied at user scope. Non-Duckie sessions can switch it
+    off per session from **+ → Connectors**.
 - **Local services:** the only MCP started at session start is the RepoWise
   bridge (kept). No Local-AI MCP loads by default, which already matches the
   2026-10-26 cloud-first rule.
