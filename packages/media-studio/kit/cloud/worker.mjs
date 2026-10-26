@@ -79,6 +79,33 @@ async function must(cmd, args, opts) {
   return r;
 }
 
+// Open fonts the kits' font stacks name after their Windows-only first choices (Segoe UI -> Inter,
+// Consolas/Cascadia -> Cascadia Code, Segoe UI Emoji -> Noto Color Emoji). Proprietary Windows fonts are never shipped.
+const GF = 'https://raw.githubusercontent.com/google/fonts/main/ofl';
+const FONTS = {
+  'Inter[opsz,wght].ttf': `${GF}/inter/Inter%5Bopsz,wght%5D.ttf`,
+  'Inter-Italic[opsz,wght].ttf': `${GF}/inter/Inter-Italic%5Bopsz,wght%5D.ttf`,
+  'CascadiaCode[wght].ttf': `${GF}/cascadiacode/CascadiaCode%5Bwght%5D.ttf`,
+  'NotoColorEmoji-Regular.ttf': `${GF}/notocoloremoji/NotoColorEmoji-Regular.ttf`,
+};
+
+/** Install runtime fonts and any job fonts (--fonts) into fontconfig before the command runs. */
+async function installFonts() {
+  const dest = '/usr/local/share/fonts/cloud-render';
+  let n = 0;
+  for (const dir of [path.join(RT, 'fonts'), path.join(JOB, 'fonts')]) {
+    if (!fs.existsSync(dir)) continue;
+    fs.mkdirSync(dest, { recursive: true });
+    for (const f of fs.readdirSync(dir, { recursive: true })) {
+      if (!/\.(ttf|otf|ttc|woff2?)$/i.test(f)) continue;
+      fs.copyFileSync(path.join(dir, f), path.join(dest, path.basename(f)));
+      n++;
+    }
+  }
+  if (n) await sh('fc-cache', ['-f', dest]);
+  log(`fonts installed: ${n}`);
+}
+
 async function placeInputs(inputs) {
   // Each unique blob downloads once; every container path that needs it gets a hard link (or a copy across devices).
   const unique = [...new Set(inputs.map((i) => i.blob))];
@@ -132,6 +159,14 @@ async function bootstrap(manifest) {
   fs.rmSync('/tmp/ffmpeg.tar.xz', { force: true });
   const ver = await must(path.join(ffDir, 'bin', 'ffmpeg'), ['-hide_banner', '-version']);
   await must('sh', ['-c', `${ffDir}/bin/ffmpeg -hide_banner -filters | grep -q loudnorm && ${ffDir}/bin/ffmpeg -hide_banner -encoders | grep -q libx264`]);
+  const fontDir = path.join(RT, 'fonts');
+  fs.mkdirSync(fontDir, { recursive: true });
+  for (const [file, url] of Object.entries(FONTS)) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`font ${file}: HTTP ${r.status}`);
+    fs.writeFileSync(path.join(fontDir, file), Buffer.from(await r.arrayBuffer()));
+  }
+  log(`fonts: ${Object.keys(FONTS).join(', ')}`);
   const tgz = '/tmp/runtime.tgz';
   await must('tar', ['-czf', tgz, '-C', RT, '.']);
   const kitLockSha = lockFingerprint(fs.readFileSync(path.join(kit, 'package-lock.json'), 'utf8'));
@@ -153,7 +188,8 @@ async function render(manifest) {
   t.inputSeconds = (Date.now() - s) / 1000;
   log(`inputs: ${placed.files} paths, ${placed.unique} blobs, ${(placed.bytes / 1e6).toFixed(1)} MB in ${t.inputSeconds}s`);
   for (const o of manifest.outputs) fs.mkdirSync(path.dirname(o.path), { recursive: true });
-  const env = { ...process.env, PATH: `${RT}/ffmpeg/bin:${RT}/kit/node_modules/.bin:${process.env.PATH}`, ...(manifest.env || {}) };
+  await installFonts();
+  const env ={ ...process.env, PATH: `${RT}/ffmpeg/bin:${RT}/kit/node_modules/.bin:${process.env.PATH}`, ...(manifest.env || {}) };
   s = Date.now();
   const r = await sh(manifest.cmd, manifest.args, { cwd: manifest.cwd || JOB, env });
   t.runSeconds = (Date.now() - s) / 1000;

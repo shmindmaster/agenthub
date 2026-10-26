@@ -88,6 +88,7 @@ $files = @(
     'cloud\blob.mjs',
     'cloud\worker.mjs',
     'cloud\recast-run.mjs',
+    'cloud\cloud-ai.mjs',
     'cloud\Provision-CloudRender.ps1',
     'cloud\README.md'
 )

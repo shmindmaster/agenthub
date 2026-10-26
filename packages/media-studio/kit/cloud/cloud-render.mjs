@@ -7,7 +7,7 @@
 //   node cloud-render.mjs exec [opts] --out <file> [--out <file>...] -- <cmd> <args...>
 //   node cloud-render.mjs bootstrap | doctor | status <jobId> | logs <jobId>
 //
-// opts: --name <label> --cpu <n> --memory <Gi> --kit <dir> --dry-run --config <file>
+// opts: --name <label> --cpu <n> --memory <Gi> --kit <dir> --fonts <dir> --dry-run --config <file>
 // Local files named in the arguments (and the files an ffmpeg concat list names) are uploaded content-addressed,
 // so a card or WAV already in the cloud is not uploaded again. See README.md beside this file.
 import fs from 'node:fs';
@@ -334,6 +334,7 @@ async function runJob(sub, opts, rest, cfg) {
   const tStart = Date.now();
   const plan = new JobPlan(process.cwd());
   const command = buildCommand(sub, opts, rest, plan);
+  if (opts.fonts) plan.addDir(path.resolve(opts.fonts), '/job/fonts');
   const jobId = `${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}-${slug(opts.name || sub)}-${randomBytes(2).toString('hex')}`;
   const files = plan.allLocalFiles();
   const outputs = [...plan.outputs].map(([local, cpath]) => ({ local, path: cpath, blob: `jobs/${jobId}/out/${path.basename(cpath)}` }));
