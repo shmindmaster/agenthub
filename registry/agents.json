@@ -253,7 +253,7 @@
     {
       "id": "antigravity-desktop",
       "name": "Antigravity Desktop",
-      "version": "2.25.0",
+      "version": "2.26.0",
       "executable": "{userHome}/AppData/Local/Programs/antigravity/Antigravity.exe",
       "versionProbe": "file-version",
       "versionProbeNote": "Corrected 2026-10-14. The GUI executable is present. Read (Get-Item).VersionInfo.FileVersion and do not launch the window. FileVersion on this date was 2.23.0. No upgrade or downgrade was performed by this inventory correction. Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `(Get-Item).VersionInfo.FileVersion` printed 2.24.0.",
@@ -306,7 +306,7 @@
     {
       "id": "grok",
       "name": "Grok CLI",
-      "version": "1.0.67",
+      "version": "1.0.70",
       "versionObserved": "2026-10-23: read-only installed CLI --version probe; no agent run.",
       "versionNote": "Corrected 2026-08-19. This is NOT a version bump: the previously recorded 0.2.114 belongs to a different product line entirely and was never an observation of this install. Every artifact this install owns agrees on the 1.0.x scheme of xai-org/grok-build -- the binary's own `grok --version` (returned `grok 1.0.5 (5115b46bc9) [stable]`), the previous binary grok.exe.old at 1.0.4, ~/.grok/version.json, and ~/.grok/CHANGELOG.json. Nothing on this machine contains the string 0.2.114. What product 0.2.114 actually named was NOT determined and is recorded here as unresolved rather than guessed at.",
       "executable": "{userHome}/.grok/bin/grok.exe",
@@ -391,7 +391,7 @@
     {
       "id": "cline",
       "name": "Cline CLI / ACP / Kanban",
-      "version": "3.0.73",
+      "version": "3.0.74",
       "versionObserved": "Observed 2026-10-21 by tests/Test-AgentVersionAccuracy.ps1: `cline.cmd --version` printed 3.0.73. Earlier: 2026-10-14: bounded read-only probe of the declared executable reported 3.0.71. `cline update` reported already on cline 3.0.71 and kanban 0.1.70. No upgrade or downgrade was performed by this inventory correction.",
       "executable": "{userHome}/.local/bin/cline.cmd",
       "executableNote": "Corrected 2026-08-11: the declaration read {userHome}/bin/cline.cmd, which does not exist. Cline installs to %USERPROFILE%/.local/bin, the same root `claude` uses, and ships both cline.cmd and cline.ps1 there; PowerShell's Get-Command resolves the .ps1 first, so a check that compares against Get-Command output alone will disagree with this declaration even though both are the same install. .cmd is declared because it is the form callable from any shell.",
@@ -433,7 +433,7 @@
     {
       "id": "cursor",
       "name": "Cursor",
-      "version": "3.27.12",
+      "version": "3.27.14",
       "executable": "{userHome}/bin/cursor.cmd",
       "nativePaths": {
         "vendorExecutable": "{userHome}/AppData/Local/Programs/cursor/resources/app/bin/cursor.cmd",
@@ -540,7 +540,7 @@
     {
       "id": "devin",
       "name": "Devin Desktop / CLI",
-      "version": "3000.11.92",
+      "version": "3000.11.205",
       "executable": "{userHome}/AppData/Local/Microsoft/WinGet/Links/devin.exe",
       "platformPaths": {
         "darwin": {

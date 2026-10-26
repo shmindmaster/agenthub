@@ -18,6 +18,10 @@ from unittest.mock import patch
 import elevenlabs_cli as cli
 import governed_elevenlabs as governed
 
+# The content ledger refuses linked directories by design. Resolve the temp root once so
+# fixtures stay valid when TMPDIR sits under a junction (e.g. %LOCALAPPDATA%\AgentHub).
+tempfile.tempdir = os.path.realpath(tempfile.gettempdir())
+
 
 RAW = b"synthetic exact content -- not an owner voice or listening-quality sample"
 

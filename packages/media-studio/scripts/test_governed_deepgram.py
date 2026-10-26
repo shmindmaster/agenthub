@@ -12,6 +12,11 @@ from unittest.mock import patch
 
 import governed_deepgram as adapter
 import deepgram_cli
+import os
+
+# The content ledger refuses linked directories by design. Resolve the temp root once so
+# fixtures stay valid when TMPDIR sits under a junction (e.g. %LOCALAPPDATA%\AgentHub).
+tempfile.tempdir = os.path.realpath(tempfile.gettempdir())
 
 
 def plan(text="A new clinical observation.", **changes):

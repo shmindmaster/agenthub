@@ -11,6 +11,11 @@ import urllib.error
 
 import elevenlabs_cli as cli
 import governed_elevenlabs as governed
+import os
+
+# The content ledger refuses linked directories by design. Resolve the temp root once so
+# fixtures stay valid when TMPDIR sits under a junction (e.g. %LOCALAPPDATA%\AgentHub).
+tempfile.tempdir = os.path.realpath(tempfile.gettempdir())
 
 
 class SpendingBoundaries(unittest.TestCase):

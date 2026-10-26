@@ -16,6 +16,10 @@ from unittest.mock import patch
 from types import SimpleNamespace
 from content_runtime import linked_path, canonical_default_root, recovery_epoch_ledger
 
+# The content ledger refuses linked directories by design. Resolve the temp root once so
+# fixtures stay valid when TMPDIR sits under a junction (e.g. %LOCALAPPDATA%\AgentHub).
+tempfile.tempdir = os.path.realpath(tempfile.gettempdir())
+
 
 class LedgerTests(unittest.TestCase):
     def setUp(self):
