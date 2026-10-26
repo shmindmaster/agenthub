@@ -20,7 +20,7 @@
         "rulesDir": "{userHome}/.claude/rules",
         "skillsDir": "{userHome}/.claude/skills",
         "sharedSkillsDir": "{userHome}/.agents/skills",
-        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Claude does not natively read ~/.agents/skills. AgentHub deploys once to the master library; ~/.claude/skills is a directory junction to that library so Claude still loads the same files.",
+        "sharedSkillsDirNote": "Owner-authorized 2026-09-02: Claude does not natively read ~/.agents/skills. AgentHub deploys once to the master library; ~/.claude/skills is a directory junction to that library so Claude still loads the same files. Because of the junction Claude also sees loose copies deployed for other hosts; the skillOverrides block below hides the ones Claude already receives another way.",
         "agentsDir": "{userHome}/.claude/agents",
         "hooksDir": "{userHome}/.claude/hooks",
         "pluginsDir": "{userHome}/.claude/plugins",
@@ -32,6 +32,21 @@
         "tasksDirNote": "Verified 2026-09-12 against code.claude.com/docs/en/claude-directory (global tree). ~/.claude/tasks is the documented user-level tasks directory. Path correct; absent on this machine because no tasks are saved. CLAUDE_CONFIG_DIR relocates it, same caveat as rulesDir.",
         "rulesDirNote": "Verified 2026-08-05 against code.claude.com/docs/en/claude-directory (global tree, id global-rules) and /en/memory. ~/.claude/rules is the documented user-level rules directory: files without paths: frontmatter load at session start, files with paths: load only when a matching file enters context. Path correct; absent only because no global rules are deployed. Setting CLAUDE_CONFIG_DIR relocates this, so an absence here is not proof of absence everywhere.",
         "workflowsDirNote": "Verified 2026-08-05 against code.claude.com/docs/en/claude-directory (global tree, id global-workflows) and /en/workflows. ~/.claude/workflows holds personal dynamic workflow scripts available in every project; a project .claude/workflows/ entry of the same name takes precedence. Path correct; absent only because none are saved. CLAUDE_CONFIG_DIR relocates it, same caveat as rulesDir."
+      },
+      "skillOverrides": {
+        "pluginMarketplace": "agenthub",
+        "duplicateOfHostBuiltIns": [
+          "canvas-design",
+          "deep-research",
+          "doc-coauthoring",
+          "docx",
+          "mcp-builder",
+          "pdf",
+          "pptx",
+          "web-artifacts-builder",
+          "xlsx"
+        ],
+        "note": "Added 2026-10-26. ~/.claude/skills is a junction onto the shared library, so Claude lists every loose copy there. Sync-Capabilities writes \"off\" into skillOverrides in nativePaths.settings for each loose skill whose <capability>@agenthub plugin is enabled there, and for each name in duplicateOfHostBuiltIns. Claude Code documents skillOverrides at https://code.claude.com/docs/en/skills#override-skill-visibility-from-settings: \"off\" hides the skill from Claude's listing and the / menu, and plugin skills are not affected. The duplicateOfHostBuiltIns names are third-party copies, installed by the skills CLI, of Anthropic skills Claude already loads from claude.ai sync as anthropic-skills:<name>. Sync records which entries it wrote in %LOCALAPPDATA%/AgentHub/sync/skill-overrides.json. It removes only an \"off\" it wrote, and it never changes an entry the owner set. Other hosts read the shared library unchanged."
       },
       "supportedCapabilities": [
         "rules",
