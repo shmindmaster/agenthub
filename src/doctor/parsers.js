@@ -97,260 +97,321 @@ export class TomlError extends Error {
  * @returns {Record<string, any>}
  */
 export function parseToml(text) {
-  const src = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-  /** @type {Record<string, any>} */
   const root = {};
-  let current = root;
-  let pos = 0;
+  /** @type {TomlCursor} */
+  const c = {
+    src: text.charCodeAt(0) === 0xfeff ? text.slice(1) : text,
+    pos: 0,
+    root,
+    current: root,
+  };
+  parseTomlDocument(c);
+  return c.root;
+}
 
-  const line = () => src.slice(0, pos).split('\n').length;
-  const fail = (/** @type {string} */ message) => {
-    throw new TomlError(message, line());
-  };
+/**
+ * Shared mutable parse state for the TOML helpers below: the source text,
+ * the read position, the document root, and the table that key/value pairs
+ * are currently written into.
+ * @typedef {Object} TomlCursor
+ * @property {string} src
+ * @property {number} pos
+ * @property {Record<string, any>} root
+ * @property {Record<string, any>} current
+ */
 
-  const skipWs = () => {
-    while (pos < src.length && (src[pos] === ' ' || src[pos] === '\t')) pos++;
-  };
-  const skipWsNewlinesComments = () => {
-    for (;;) {
-      while (pos < src.length && /[ \t\r\n]/.test(src[pos])) pos++;
-      if (src[pos] === '#') {
-        while (pos < src.length && src[pos] !== '\n') pos++;
-        continue;
-      }
-      return;
-    }
-  };
-  const expectLineEnd = () => {
-    skipWs();
-    if (src[pos] === '#') {
-      while (pos < src.length && src[pos] !== '\n') pos++;
-    }
-    if (src[pos] === '\r') pos++;
-    if (pos < src.length && src[pos] !== '\n') fail(`unexpected '${src[pos]}'`);
-    pos++;
-  };
+/** Throws the parser's TomlError, stamped with the line at the cursor. @param {TomlCursor} c @param {string} message @returns {never} */
+function tomlFail(c, message) {
+  throw new TomlError(message, c.src.slice(0, c.pos).split('\n').length);
+}
 
-  const readBasicString = () => {
-    pos++;
-    let s = '';
-    while (pos < src.length && src[pos] !== '"') {
-      if (src[pos] === '\n') fail('newline in string');
-      if (src[pos] === '\\') {
-        s += readEscape();
-        continue;
-      }
-      s += src[pos++];
-    }
-    if (src[pos] !== '"') fail('unterminated string');
-    pos++;
-    return s;
-  };
-  const readEscape = () => {
-    pos++;
-    const c = src[pos++];
-    /** @type {Record<string, string>} */
-    const simple = { b: '\b', t: '\t', n: '\n', f: '\f', r: '\r', '"': '"', '\\': '\\', e: '\x1b' };
-    if (c in simple) return simple[c];
-    if (c === 'u' || c === 'U') {
-      const len = c === 'u' ? 4 : 8;
-      const hex = src.slice(pos, pos + len);
-      pos += len;
-      return String.fromCodePoint(parseInt(hex, 16));
-    }
-    if (c === '\r' || c === '\n' || c === ' ' || c === '\t') {
-      while (pos < src.length && /[ \t\r\n]/.test(src[pos])) pos++;
-      return '';
-    }
-    return fail(`bad escape \\${c}`);
-  };
-  const readMultilineBasic = () => {
-    pos += 3;
-    if (src[pos] === '\r') pos++;
-    if (src[pos] === '\n') pos++;
-    let s = '';
-    while (pos < src.length && !src.startsWith('"""', pos)) {
-      if (src[pos] === '\\') {
-        s += readEscape();
-        continue;
-      }
-      s += src[pos++];
-    }
-    pos += 3;
-    while (src[pos] === '"') s += src[pos++];
-    return s;
-  };
-  const readLiteral = () => {
-    pos++;
-    const end = src.indexOf("'", pos);
-    if (end < 0) fail('unterminated literal string');
-    const s = src.slice(pos, end);
-    pos = end + 1;
-    return s;
-  };
-  const readMultilineLiteral = () => {
-    pos += 3;
-    if (src[pos] === '\r') pos++;
-    if (src[pos] === '\n') pos++;
-    const end = src.indexOf("'''", pos);
-    if (end < 0) fail('unterminated literal string');
-    let s = src.slice(pos, end);
-    pos = end + 3;
-    while (src[pos] === "'") s += src[pos++];
-    return s;
-  };
+/** Skips spaces and tabs. @param {TomlCursor} c */
+function skipTomlWhitespace(c) {
+  while (c.pos < c.src.length && (c.src[c.pos] === ' ' || c.src[c.pos] === '\t')) c.pos++;
+}
 
-  const readKeyPart = () => {
-    skipWs();
-    if (src.startsWith('"', pos)) return readBasicString();
-    if (src.startsWith("'", pos)) return readLiteral();
-    const start = pos;
-    while (pos < src.length && /[A-Za-z0-9_-]/.test(src[pos])) pos++;
-    if (start === pos) fail(`expected a key, found '${src[pos] ?? 'end of file'}'`);
-    return src.slice(start, pos);
-  };
-  const readKey = () => {
-    const parts = [readKeyPart()];
-    skipWs();
-    while (src[pos] === '.') {
-      pos++;
-      parts.push(readKeyPart());
-      skipWs();
-    }
-    return parts;
-  };
-
-  /** @returns {any} */
-  const readValue = () => {
-    skipWs();
-    if (src.startsWith('"""', pos)) return readMultilineBasic();
-    if (src.startsWith("'''", pos)) return readMultilineLiteral();
-    const c = src[pos];
-    if (c === '"') return readBasicString();
-    if (c === "'") return readLiteral();
-    if (c === '[') return readArray();
-    if (c === '{') return readInlineTable();
-    const m = /^[^\s,\]}#]+(?: [0-9:.+\-Z]+)?/.exec(src.slice(pos));
-    if (!m) return fail('expected a value');
-    const raw = m[0];
-    pos += raw.length;
-    if (raw === 'true') return true;
-    if (raw === 'false') return false;
-    if (/^[+-]?(inf|nan)$/.test(raw)) return Number(raw.replace('inf', 'Infinity').replace('nan', 'NaN'));
-    const num = raw.replace(/_/g, '');
-    if (/^[+-]?(0x[0-9a-fA-F]+|0o[0-7]+|0b[01]+)$/.test(num)) return Number(num.replace(/^\+/, ''));
-    if (/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(num)) return Number(num);
-    return raw;
-  };
-  const readArray = () => {
-    pos++;
-    /** @type {any[]} */
-    const arr = [];
-    for (;;) {
-      skipWsNewlinesComments();
-      if (src[pos] === ']') {
-        pos++;
-        return arr;
-      }
-      arr.push(readValue());
-      skipWsNewlinesComments();
-      if (src[pos] === ',') {
-        pos++;
-        continue;
-      }
-      if (src[pos] === ']') {
-        pos++;
-        return arr;
-      }
-      fail('expected , or ] in array');
-    }
-  };
-  const readInlineTable = () => {
-    pos++;
-    /** @type {Record<string, any>} */
-    const table = {};
-    skipWsNewlinesComments();
-    if (src[pos] === '}') {
-      pos++;
-      return table;
-    }
-    for (;;) {
-      skipWsNewlinesComments();
-      const key = readKey();
-      skipWs();
-      if (src[pos] !== '=') fail('expected = in inline table');
-      pos++;
-      assign(table, key, readValue());
-      skipWsNewlinesComments();
-      if (src[pos] === ',') {
-        pos++;
-        skipWsNewlinesComments();
-        if (src[pos] === '}') {
-          pos++;
-          return table;
-        }
-        continue;
-      }
-      if (src[pos] === '}') {
-        pos++;
-        return table;
-      }
-      fail('expected , or } in inline table');
-    }
-  };
-
-  /** @param {Record<string, any>} table @param {string[]} key @param {any} value */
-  const assign = (table, key, value) => {
-    let t = table;
-    for (const part of key.slice(0, -1)) {
-      if (t[part] === undefined) t[part] = {};
-      if (typeof t[part] !== 'object' || Array.isArray(t[part])) fail(`key '${part}' is not a table`);
-      t = t[part];
-    }
-    t[key[key.length - 1]] = value;
-  };
-  /** @param {string[]} path @param {boolean} arrayOfTables */
-  const openTable = (path, arrayOfTables) => {
-    /** @type {Record<string, any>} */
-    let t = root;
-    path.forEach((part, index) => {
-      const last = index === path.length - 1;
-      if (last && arrayOfTables) {
-        if (t[part] === undefined) t[part] = [];
-        if (!Array.isArray(t[part])) fail(`'${part}' is not an array of tables`);
-        const entry = {};
-        t[part].push(entry);
-        t = entry;
-        return;
-      }
-      if (t[part] === undefined) t[part] = {};
-      const node = t[part];
-      t = Array.isArray(node) ? node[node.length - 1] : node;
-      if (typeof t !== 'object' || t === null) fail(`'${part}' is not a table`);
-    });
-    current = t;
-  };
-
-  while (pos < src.length) {
-    skipWsNewlinesComments();
-    if (pos >= src.length) break;
-    if (src[pos] === '[') {
-      const arrayOfTables = src[pos + 1] === '[';
-      pos += arrayOfTables ? 2 : 1;
-      const path = readKey();
-      skipWs();
-      if (src[pos] !== ']' || (arrayOfTables && src[pos + 1] !== ']')) fail('unterminated table header');
-      pos += arrayOfTables ? 2 : 1;
-      openTable(path, arrayOfTables);
-      expectLineEnd();
+/** Skips whitespace, newlines and # comments. @param {TomlCursor} c */
+function skipTomlWhitespaceAndComments(c) {
+  for (;;) {
+    while (c.pos < c.src.length && /[ \t\r\n]/.test(c.src[c.pos])) c.pos++;
+    if (c.src[c.pos] === '#') {
+      while (c.pos < c.src.length && c.src[c.pos] !== '\n') c.pos++;
       continue;
     }
-    const key = readKey();
-    skipWs();
-    if (src[pos] !== '=') fail('expected =');
-    pos++;
-    assign(current, key, readValue());
-    expectLineEnd();
+    return;
   }
-  return root;
+}
+
+/** Consumes trailing whitespace or comment plus the line end. @param {TomlCursor} c */
+function expectTomlLineEnd(c) {
+  skipTomlWhitespace(c);
+  if (c.src[c.pos] === '#') {
+    while (c.pos < c.src.length && c.src[c.pos] !== '\n') c.pos++;
+  }
+  if (c.src[c.pos] === '\r') c.pos++;
+  if (c.pos < c.src.length && c.src[c.pos] !== '\n') tomlFail(c, `unexpected '${c.src[c.pos]}'`);
+  c.pos++;
+}
+
+/** Reads a "basic" string, resolving escapes. @param {TomlCursor} c @returns {string} */
+function readTomlBasicString(c) {
+  c.pos++;
+  let s = '';
+  while (c.pos < c.src.length && c.src[c.pos] !== '"') {
+    if (c.src[c.pos] === '\n') tomlFail(c, 'newline in string');
+    if (c.src[c.pos] === '\\') {
+      s += readTomlEscape(c);
+      continue;
+    }
+    s += c.src[c.pos++];
+  }
+  if (c.src[c.pos] !== '"') tomlFail(c, 'unterminated string');
+  c.pos++;
+  return s;
+}
+
+/** Reads what follows a backslash inside a string. @param {TomlCursor} c @returns {string} */
+function readTomlEscape(c) {
+  c.pos++;
+  const esc = c.src[c.pos++];
+  /** @type {Record<string, string>} */
+  const simple = { b: '\b', t: '\t', n: '\n', f: '\f', r: '\r', '"': '"', '\\': '\\', e: '\x1b' };
+  if (esc in simple) return simple[esc];
+  if (esc === 'u' || esc === 'U') return readTomlUnicodeEscape(c, esc);
+  if (esc === '\r' || esc === '\n' || esc === ' ' || esc === '\t') {
+    while (c.pos < c.src.length && /[ \t\r\n]/.test(c.src[c.pos])) c.pos++;
+    return '';
+  }
+  return tomlFail(c, `bad escape \\${esc}`);
+}
+
+/** Reads the hex digits of a \u or \U escape whose marker is already consumed. @param {TomlCursor} c @param {'u' | 'U'} esc @returns {string} */
+function readTomlUnicodeEscape(c, esc) {
+  const len = esc === 'u' ? 4 : 8;
+  const hex = c.src.slice(c.pos, c.pos + len);
+  c.pos += len;
+  return String.fromCodePoint(parseInt(hex, 16));
+}
+
+/** Skips a single newline directly after a multi-line string delimiter. @param {TomlCursor} c */
+function skipFirstTomlNewline(c) {
+  if (c.src[c.pos] === '\r') c.pos++;
+  if (c.src[c.pos] === '\n') c.pos++;
+}
+
+/** Reads a """multi-line""" basic string. @param {TomlCursor} c @returns {string} */
+function readTomlMultilineBasicString(c) {
+  c.pos += 3;
+  skipFirstTomlNewline(c);
+  let s = '';
+  while (c.pos < c.src.length && !c.src.startsWith('"""', c.pos)) {
+    if (c.src[c.pos] === '\\') {
+      s += readTomlEscape(c);
+      continue;
+    }
+    s += c.src[c.pos++];
+  }
+  c.pos += 3;
+  while (c.src[c.pos] === '"') s += c.src[c.pos++];
+  return s;
+}
+
+/** Reads a 'literal' string with no escapes. @param {TomlCursor} c @returns {string} */
+function readTomlLiteralString(c) {
+  c.pos++;
+  const end = c.src.indexOf("'", c.pos);
+  if (end < 0) tomlFail(c, 'unterminated literal string');
+  const s = c.src.slice(c.pos, end);
+  c.pos = end + 1;
+  return s;
+}
+
+/** Reads a '''multi-line''' literal string. @param {TomlCursor} c @returns {string} */
+function readTomlMultilineLiteralString(c) {
+  c.pos += 3;
+  skipFirstTomlNewline(c);
+  const end = c.src.indexOf("'''", c.pos);
+  if (end < 0) tomlFail(c, 'unterminated literal string');
+  let s = c.src.slice(c.pos, end);
+  c.pos = end + 3;
+  while (c.src[c.pos] === "'") s += c.src[c.pos++];
+  return s;
+}
+
+/** Reads one bare or quoted part of a (possibly dotted) key. @param {TomlCursor} c @returns {string} */
+function readTomlKeyPart(c) {
+  skipTomlWhitespace(c);
+  if (c.src.startsWith('"', c.pos)) return readTomlBasicString(c);
+  if (c.src.startsWith("'", c.pos)) return readTomlLiteralString(c);
+  const start = c.pos;
+  while (c.pos < c.src.length && /[A-Za-z0-9_-]/.test(c.src[c.pos])) c.pos++;
+  if (start === c.pos) tomlFail(c, `expected a key, found '${c.src[c.pos] ?? 'end of file'}'`);
+  return c.src.slice(start, c.pos);
+}
+
+/** Reads a dotted key as its parts, e.g. a."b c" -> ['a', 'b c']. @param {TomlCursor} c @returns {string[]} */
+function readTomlKey(c) {
+  const parts = [readTomlKeyPart(c)];
+  skipTomlWhitespace(c);
+  while (c.src[c.pos] === '.') {
+    c.pos++;
+    parts.push(readTomlKeyPart(c));
+    skipTomlWhitespace(c);
+  }
+  return parts;
+}
+
+/** Reads any value: string, array, inline table, boolean, number or bare word. @param {TomlCursor} c @returns {any} */
+function readTomlValue(c) {
+  skipTomlWhitespace(c);
+  if (c.src.startsWith('"""', c.pos)) return readTomlMultilineBasicString(c);
+  if (c.src.startsWith("'''", c.pos)) return readTomlMultilineLiteralString(c);
+  const ch = c.src[c.pos];
+  if (ch === '"') return readTomlBasicString(c);
+  if (ch === "'") return readTomlLiteralString(c);
+  if (ch === '[') return readTomlArray(c);
+  if (ch === '{') return readTomlInlineTable(c);
+  return readTomlScalar(c);
+}
+
+/**
+ * Reads an unquoted value: booleans, numbers (with _ separators, 0x/0o/0b
+ * radixes, inf and nan), and anything else kept as the raw string (dates,
+ * times and unknown tokens).
+ * @param {TomlCursor} c @returns {any}
+ */
+function readTomlScalar(c) {
+  const m = /^[^\s,\]}#]+(?: [0-9:.+\-Z]+)?/.exec(c.src.slice(c.pos));
+  if (!m) return tomlFail(c, 'expected a value');
+  const raw = m[0];
+  c.pos += raw.length;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  if (/^[+-]?(inf|nan)$/.test(raw)) return Number(raw.replace('inf', 'Infinity').replace('nan', 'NaN'));
+  const num = raw.replace(/_/g, '');
+  if (/^[+-]?(0x[0-9a-fA-F]+|0o[0-7]+|0b[01]+)$/.test(num)) return Number(num.replace(/^\+/, ''));
+  if (/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(num)) return Number(num);
+  return raw;
+}
+
+/** Reads [ an, array, possibly across lines and comments ]. @param {TomlCursor} c @returns {any[]} */
+function readTomlArray(c) {
+  c.pos++;
+  /** @type {any[]} */
+  const arr = [];
+  for (;;) {
+    skipTomlWhitespaceAndComments(c);
+    if (c.src[c.pos] === ']') {
+      c.pos++;
+      return arr;
+    }
+    arr.push(readTomlValue(c));
+    skipTomlWhitespaceAndComments(c);
+    if (c.src[c.pos] === ',') {
+      c.pos++;
+      continue;
+    }
+    if (c.src[c.pos] === ']') {
+      c.pos++;
+      return arr;
+    }
+    tomlFail(c, 'expected , or ] in array');
+  }
+}
+
+/** Reads { an = inline, table }, which may span lines and comments here. @param {TomlCursor} c @returns {Record<string, any>} */
+function readTomlInlineTable(c) {
+  c.pos++;
+  /** @type {Record<string, any>} */
+  const table = {};
+  skipTomlWhitespaceAndComments(c);
+  if (c.src[c.pos] === '}') {
+    c.pos++;
+    return table;
+  }
+  for (;;) {
+    skipTomlWhitespaceAndComments(c);
+    const key = readTomlKey(c);
+    skipTomlWhitespace(c);
+    if (c.src[c.pos] !== '=') tomlFail(c, 'expected = in inline table');
+    c.pos++;
+    assignTomlValue(c, table, key, readTomlValue(c));
+    skipTomlWhitespaceAndComments(c);
+    if (c.src[c.pos] === ',') {
+      c.pos++;
+      skipTomlWhitespaceAndComments(c);
+      if (c.src[c.pos] === '}') {
+        c.pos++;
+        return table;
+      }
+      continue;
+    }
+    if (c.src[c.pos] === '}') {
+      c.pos++;
+      return table;
+    }
+    tomlFail(c, 'expected , or } in inline table');
+  }
+}
+
+/** Assigns value at the (possibly dotted) key inside table, creating intermediate tables. @param {TomlCursor} c @param {Record<string, any>} table @param {string[]} key @param {any} value */
+function assignTomlValue(c, table, key, value) {
+  let t = table;
+  for (const part of key.slice(0, -1)) {
+    if (t[part] === undefined) t[part] = {};
+    if (typeof t[part] !== 'object' || Array.isArray(t[part])) tomlFail(c, `key '${part}' is not a table`);
+    t = t[part];
+  }
+  t[key[key.length - 1]] = value;
+}
+
+/** Points c.current at a [table] or [[array of tables]] target, creating intermediates. @param {TomlCursor} c @param {string[]} path @param {boolean} arrayOfTables */
+function openTomlTable(c, path, arrayOfTables) {
+  let t = c.root;
+  path.forEach((part, index) => {
+    const last = index === path.length - 1;
+    if (last && arrayOfTables) {
+      if (t[part] === undefined) t[part] = [];
+      if (!Array.isArray(t[part])) tomlFail(c, `'${part}' is not an array of tables`);
+      const entry = {};
+      t[part].push(entry);
+      t = entry;
+      return;
+    }
+    if (t[part] === undefined) t[part] = {};
+    const node = t[part];
+    t = Array.isArray(node) ? node[node.length - 1] : node;
+    if (typeof t !== 'object' || t === null) tomlFail(c, `'${part}' is not a table`);
+  });
+  c.current = t;
+}
+
+/** Reads a [table] or [[array of tables]] header line. @param {TomlCursor} c */
+function readTomlHeader(c) {
+  const arrayOfTables = c.src[c.pos + 1] === '[';
+  c.pos += arrayOfTables ? 2 : 1;
+  const path = readTomlKey(c);
+  skipTomlWhitespace(c);
+  if (c.src[c.pos] !== ']' || (arrayOfTables && c.src[c.pos + 1] !== ']')) tomlFail(c, 'unterminated table header');
+  c.pos += arrayOfTables ? 2 : 1;
+  openTomlTable(c, path, arrayOfTables);
+  expectTomlLineEnd(c);
+}
+
+/** Parses the document body into c.root: headers plus key/value lines. @param {TomlCursor} c */
+function parseTomlDocument(c) {
+  while (c.pos < c.src.length) {
+    skipTomlWhitespaceAndComments(c);
+    if (c.pos >= c.src.length) break;
+    if (c.src[c.pos] === '[') {
+      readTomlHeader(c);
+      continue;
+    }
+    const key = readTomlKey(c);
+    skipTomlWhitespace(c);
+    if (c.src[c.pos] !== '=') tomlFail(c, 'expected =');
+    c.pos++;
+    assignTomlValue(c, c.current, key, readTomlValue(c));
+    expectTomlLineEnd(c);
+  }
 }
