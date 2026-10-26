@@ -294,6 +294,23 @@ function Get-DispatchTable {
                 $args = @('agent', 'run', '--prompt', $PromptText, '-C', $Work, '--no-snapshot', '--output-format', 'ndjson')
                 $warpModel = if ($script:WarpModel) { $script:WarpModel } else { [string]$fleet.dispatchPolicy.warp.model }
                 if ($warpModel) { $args += @('--model', $warpModel) }
+                # settings.toml agents.mcp_servers.file_based_mcp_enabled = false keeps
+                # Warp from loading ~/.warp/.mcp.json on its own, so a recorded
+                # dispatchPolicy.warp.mcpConfig is passed per run through the
+                # documented repeatable --mcp flag with a bounded startup timeout.
+                # The template resolves through the same PathBinding that resolves
+                # executable paths. The file may hold auth headers, so it is never
+                # read or printed here; a missing file skips both flags with one
+                # stderr warning and the run continues without MCP.
+                $warpMcpConfig = [string]$fleet.dispatchPolicy.warp.mcpConfig
+                if (-not [string]::IsNullOrWhiteSpace($warpMcpConfig)) {
+                    $warpMcpPath = Resolve-AgentHubBoundPath -Declared $warpMcpConfig.Trim() -Context $binding
+                    if (Test-Path -LiteralPath $warpMcpPath -PathType Leaf) {
+                        $args += @('--mcp', $warpMcpPath, '--mcp-startup-timeout', '30s')
+                    } else {
+                        [Console]::Error.WriteLine("warp dispatch: mcpConfig file not found, continuing without --mcp: $warpMcpPath")
+                    }
+                }
                 # Warp syncs ExecutionProfiles from the cloud and its CLI profile cannot
                 # be edited, so a command denylist does not hold. The guard lives in the
                 # child environment: every push URL is rewritten to a scheme git has no

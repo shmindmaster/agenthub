@@ -2,7 +2,7 @@
 name: use-coding-agent
 description: Use when a coding agent should run a task on another coding-agent host. Claude and Codex are the primary orchestrators and can call any host this dispatcher lists as callable.
 metadata:
-  version: "0.2.11"
+  version: "0.2.12"
 ---
 
 For OpenCode 2 tool discovery, run `Install-OpenCodeToolDiscovery.ps1` to audit
@@ -91,7 +91,12 @@ task directly. Gemini admits that runtime directory with
 an attached `--print=<prompt>` after its permissions flag.
 
 Every child is windowless. Warp sets child-only `WARP_CLI_MODE=1`; it never
-opens the terminal GUI. Account-authenticated children use their account login: the provider
+opens the terminal GUI. Warp's file-based MCP setting is off, so a recorded
+`dispatchPolicy.warp.mcpConfig` is passed per run as `--mcp` with
+`--mcp-startup-timeout 30s` after resolving its `{userHome}`-style template; a
+missing file skips both flags with one stderr warning, and the config file is
+never read or printed.
+Account-authenticated children use their account login: the provider
 API-key variables for Claude, Codex, Cline, Devin, Gemini, Antigravity, Warp,
 Grok, Factory, Cursor Agent, Amp and Copilot are removed before launch (owner
 rule 2026-10-22). The single exception is an explicit `-HostId claude

@@ -29,6 +29,7 @@ function Run([string[]]$Arguments) {
     $p.Dispose(); return $result
 }
 $oldRoot = $env:AGENTHUB_ROOT; $oldLocal = $env:LOCALAPPDATA
+$oldWindowsHome = $env:USERPROFILE; $oldPosixHome = $env:HOME
 $oldApiKeyVars = @{}
 foreach ($name in @('ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY','GH_TOKEN')) {
     $oldApiKeyVars[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -127,6 +128,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'warp receives CLI environment' ($d.WarpMode -eq '1' -and $d.Arguments[0] -eq 'agent' -and $d.Arguments[1] -eq 'run')
             Check 'warp runs locally without a workspace snapshot on the policy model' ($d.Arguments -contains '--no-snapshot' -and $d.Arguments -notcontains 'run-cloud' -and $d.Arguments -notcontains '--environment' -and $d.Arguments -contains 'glm-5.3-flash-fireworks')
             Check 'warp child cannot push or call gh' ($d.WarpGuard.gitCount -eq '3' -and $d.WarpGuard.pushRewrite -match 'pushInsteadOf$' -and $d.WarpGuard.ghConfigDir -match 'warp-peer-gh$' -and -not $d.WarpGuard.ghToken)
+            Check 'warp passes no MCP flags while mcpConfig is unrecorded' ($d.Arguments -notcontains '--mcp' -and $d.Arguments -notcontains '--mcp-startup-timeout')
         }
         if ($id -eq 'devin') { Check 'Devin receives prompt file and paid model' ($d.PromptContents -contains 'ok' -and $d.Arguments -contains '--prompt-file' -and $d.Arguments -contains 'swe-2-medium-lightning') }
         if ($id -eq 'devin') { Check 'Devin uses account auth without its API key' (-not $d.ApiKeyVars.DEVIN_API_KEY) }
@@ -216,6 +218,30 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
     $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
     Check 'Warp routes an allowed model per task' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'glm-5.3-fireworks') $r.Err
+    # dispatchPolicy.warp.mcpConfig is a {userHome} template resolved against the
+    # invoking user's home, so the synthetic home points at the fixture for these
+    # runs and is restored after. The fixture file is deliberately not a real MCP
+    # config; nothing may ever read or print it.
+    $mcpFixtureFile = Join-Path $fixture 'warp-mcp-fixture.json'
+    [IO.File]::WriteAllText($mcpFixtureFile, '{"mcpServers":{"fixture":{"token":"cad-mcp-never-printed"}}}')
+    if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $fixture } else { $env:HOME = $fixture }
+    $fleet.dispatchPolicy.warp['mcpConfig'] = '{userHome}/warp-mcp-fixture.json'; Save-Fixture
+    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $mcpIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--mcp') } else { -1 }
+    $mcpTimeoutIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--mcp-startup-timeout') } else { -1 }
+    Check 'Warp passes the resolved mcpConfig path with a bounded startup timeout' ($mcpIndex -ge 0 -and $d.Arguments[$mcpIndex + 1] -eq $mcpFixtureFile -and $mcpTimeoutIndex -ge 0 -and $d.Arguments[$mcpTimeoutIndex + 1] -eq '30s') $r.Err
+    Check 'Warp MCP run never prints the config file contents' ($r.Out -notmatch 'cad-mcp-never-printed' -and $r.Err -notmatch 'cad-mcp-never-printed')
+    $fleet.dispatchPolicy.warp['mcpConfig'] = '{userHome}/warp-mcp-fixture-absent.json'; Save-Fixture
+    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Warp still launches without MCP flags when the config file is missing' ($r.Exit -eq 0 -and $null -ne $d -and $d.Arguments -notcontains '--mcp' -and $d.Arguments -notcontains '--mcp-startup-timeout') $r.Err
+    Check 'Missing mcpConfig warns once on stderr with the resolved path' ((@(($r.Err -split '\r?\n') -match 'mcpConfig')).Count -eq 1 -and $r.Err -match 'warp-mcp-fixture-absent\.json') $r.Err
+    $fleet.dispatchPolicy.warp.Remove('mcpConfig'); Save-Fixture
+    $r = Run @('-HostId','warp','-Prompt','ok','-Cwd',$scratch,'-TimeoutSec','5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    Check 'Warp passes no MCP flags once mcpConfig is removed even with the file present' ($r.Exit -eq 0 -and $null -ne $d -and $d.Arguments -notcontains '--mcp') $r.Err
+    if ($env:OS -eq 'Windows_NT') { $env:USERPROFILE = $oldWindowsHome } else { $env:HOME = $oldPosixHome }
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-Title','x')
     Check 'session title is refused for other hosts' ($r.Exit -eq 3 -and $r.Err -match '-Title applies only')
     $r = Run @('-List')
@@ -247,6 +273,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'temporary prompt files cleaned' ($left.Count -eq 0)
 } finally {
     $env:AGENTHUB_ROOT = $oldRoot; $env:LOCALAPPDATA = $oldLocal; $env:CAD_FIXTURE_EXIT = $null; $env:CAD_FIXTURE_SLEEP = $null
+    $env:USERPROFILE = $oldWindowsHome; $env:HOME = $oldPosixHome
     foreach ($name in $oldApiKeyVars.Keys) { [Environment]::SetEnvironmentVariable($name, $oldApiKeyVars[$name], 'Process') }
     $resolved = [IO.Path]::GetFullPath($fixture)
     if ($resolved.StartsWith([IO.Path]::GetFullPath(([IO.Path]::GetTempPath())).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $resolved -Recurse -Force }
