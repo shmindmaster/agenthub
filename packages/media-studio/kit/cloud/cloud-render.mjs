@@ -444,6 +444,21 @@ async function main() {
   if (sub === 'bootstrap') return bootstrap(opts, cfg);
   if (sub === 'sync-worker') return syncWorker(cfg);
   if (sub === 'doctor') return doctor(cfg, opts);
+  if (sub === 'fetch') {
+    // Recover a finished job's output when the waiting CLI was interrupted (the cloud job keeps running).
+    if (!rest[0] || !opts.out.length) throw new Error('fetch: cloud-render.mjs fetch <jobId> --out <local file> [--out ...]');
+    const c = clients(cfg);
+    const result = JSON.parse((await c.storage.getText(`jobs/${rest[0]}/result.json`)) || 'null');
+    if (!result) throw new Error(`job ${rest[0]} has no result yet`);
+    if (!result.ok) throw new Error(`job ${rest[0]} failed: ${String(result.error).slice(-400)}`);
+    for (const local of opts.out) {
+      const abs = path.resolve(local);
+      fs.mkdirSync(path.dirname(abs), { recursive: true });
+      await c.storage.getFile(`jobs/${rest[0]}/out/${path.basename(abs)}`, abs);
+      console.log(`fetched ${abs}`);
+    }
+    return 0;
+  }
   if (sub === 'logs' || sub === 'status') {
     const c = clients(cfg);
     const name = sub === 'logs' ? 'log.txt' : 'result.json';

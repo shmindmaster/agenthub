@@ -193,8 +193,29 @@ export function offsetStats(deltasMs, times) {
 }
 
 /** The forced aligner's raw clock, bound to exact inputs. Split punctuation/hyphen tokens share their true onset. */
+// Cloud script alignment (kit/cloud/cloud-ai.mjs align): hosted ASR word times anchored to the locked script, on the
+// same 80 ms grid and SHA-256 bindings. Words the ASR heard differently carry precisionLimited onsets; the clock is
+// accepted only while the exact share and the longest precisionLimited run stay inside these limits, recomputed here
+// from the report's own words rather than trusted from its summary.
+export const CLOUD_ALIGN_SCHEMA = 'cloud-speech/script-alignment/1';
+export const CLOUD_ALIGN_LIMITS = Object.freeze({ minExactRatio: 0.9, maxUnmatchedRun: 6 });
+
+export function cloudAlignCoverage(words) {
+  let run = 0, longest = 0, exact = 0;
+  for (const w of words) {
+    if (w.precisionLimited) longest = Math.max(longest, ++run);
+    else { run = 0; exact++; }
+  }
+  return { exact, total: words.length, exactRatio: words.length ? exact / words.length : 0, longestUnmatchedRun: longest };
+}
+
 export function forcedWordOnsets(report, expected, { takeSha256, scriptSha256 }) {
-  if (report?.schema !== 'local-ai/forced-alignment/1' || report.units !== 'seconds' || report.gridSeconds !== 0.08) throw new Error('requires Local-AI forced alignment in seconds on the 80 ms grid');
+  const forcedSchemas = ['local-ai/forced-alignment/1', CLOUD_ALIGN_SCHEMA];
+  if (!forcedSchemas.includes(report?.schema) || report.units !== 'seconds' || report.gridSeconds !== 0.08) throw new Error('requires Local-AI forced alignment or cloud script alignment in seconds on the 80 ms grid');
+  if (report.schema === CLOUD_ALIGN_SCHEMA && Array.isArray(report.words)) {
+    const c = cloudAlignCoverage(report.words);
+    if (c.exactRatio < CLOUD_ALIGN_LIMITS.minExactRatio || c.longestUnmatchedRun > CLOUD_ALIGN_LIMITS.maxUnmatchedRun) throw new Error(`cloud script alignment too loose for a picture clock: ${c.exact}/${c.total} exact onsets, longest precision-limited run ${c.longestUnmatchedRun}`);
+  }
   if (!takeSha256 || report.take?.sha256 !== takeSha256 || !scriptSha256 || report.script?.sha256 !== scriptSha256) throw new Error('forced alignment input SHA-256 mismatch');
   if (!Number.isFinite(report.durationSeconds) || !(report.durationSeconds > 0) || !Array.isArray(report.words) || !report.words.length) throw new Error('empty forced alignment');
   let previous = 0;

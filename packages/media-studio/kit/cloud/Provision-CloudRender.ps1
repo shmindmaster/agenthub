@@ -8,6 +8,7 @@ Creates, in one resource group:
   - a consumption-only Container Apps environment (no Log Analytics: the worker writes its own log to Blob);
   - a manual-trigger Container Apps job on mcr.microsoft.com/playwright (scale to zero: it bills only while running);
   - Storage Blob Data Contributor for the job's managed identity and for the signed-in user;
+  - an Azure OpenAI (AIServices) account with a gpt-5-mini deployment, key auth disabled, for cloud-ai.mjs;
   - a monthly cost budget on the resource group with e-mail alerts.
 Writes the non-secret resource names and list prices to %LOCALAPPDATA%\AgentHub\media-studio\cloud-render.json.
 
@@ -23,6 +24,8 @@ param(
     [double]$Cpu = 4,
     [string]$Memory = '8Gi',
     [int]$BudgetUsd = 20,
+    [string]$AoaiLocation = 'eastus2',
+    [string]$AoaiModel = 'gpt-5-mini',
     [string]$ConfigPath = (Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\cloud-render.json')
 )
 
@@ -146,6 +149,22 @@ Invoke-Arm PUT "$rgPath/providers/Microsoft.Consumption/budgets/media-render-mon
 } | Out-Null
 } catch { Write-Warning "Budget not created ($($_.Exception.Message)). Create it in Cost Management for $ResourceGroup." }
 
+# Azure OpenAI for cloud-ai.mjs (client-safe QA/review in this tenant). Pay per token, nothing idle; key auth is
+# disabled, so callers use Entra tokens. Only gpt-5-mini has GlobalStandard quota on this subscription (2026-10-26).
+$aoai = "aoai-mrender-$suffix"
+if (-not (Invoke-Az cognitiveservices account list -g $ResourceGroup --subscription $SubscriptionId --query "[?name=='$aoai'].name" -o tsv)) {
+    Invoke-Az cognitiveservices account create -n $aoai -g $ResourceGroup -l $AoaiLocation --kind AIServices --sku S0 --custom-domain $aoai --subscription $SubscriptionId --tags purpose=media-render owner=sarosh --yes -o none
+}
+$aoaiId = "$rgPath/providers/Microsoft.CognitiveServices/accounts/$aoai"
+Invoke-Az resource update --ids $aoaiId --set properties.disableLocalAuth=true -o none
+if (-not (Invoke-Az cognitiveservices account deployment list -n $aoai -g $ResourceGroup --subscription $SubscriptionId --query "[?name=='$AoaiModel'].name" -o tsv)) {
+    $aoaiVersion = (Invoke-Az cognitiveservices model list -l $AoaiLocation --subscription $SubscriptionId -o json | ConvertFrom-Json | Where-Object { $_.model.name -eq $AoaiModel -and $_.model.format -eq 'OpenAI' } | Select-Object -First 1).model.version
+    Invoke-Az cognitiveservices account deployment create -n $aoai -g $ResourceGroup --subscription $SubscriptionId --deployment-name $AoaiModel --model-name $AoaiModel --model-version $aoaiVersion --model-format OpenAI --sku-name GlobalStandard --sku-capacity 100 -o none
+}
+if (-not (Invoke-Az role assignment list --scope $aoaiId --assignee-object-id $userId --role 'Cognitive Services OpenAI User' --subscription $SubscriptionId --query '[].id' -o tsv)) {
+    Invoke-Az role assignment create --scope $aoaiId --assignee-object-id $userId --assignee-principal-type User --role 'Cognitive Services OpenAI User' --subscription $SubscriptionId -o none
+}
+
 # List prices for the cost estimate (consumption plan, this region).
 $filter = [uri]::EscapeDataString("serviceName eq 'Azure Container Apps' and armRegionName eq '$Location' and priceType eq 'Consumption'")
 $items = (Invoke-RestMethod "https://prices.azure.com/api/retail/prices?`$filter=$filter").Items
@@ -161,6 +180,7 @@ $pricing = [ordered]@{
 $config = [ordered]@{
     subscriptionId = $SubscriptionId; tenantId = $TenantId; resourceGroup = $ResourceGroup; location = $Location
     storageAccount = $storage; environment = $envName; jobName = $jobName; image = $Image
+    azureOpenAI = [ordered]@{ account = $aoai; endpoint = "https://$aoai.cognitiveservices.azure.com/"; deployment = $AoaiModel; location = $AoaiLocation; auth = 'entra' }
     pricing = $pricing; provisionedAt = (Get-Date).ToString('o')
 }
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ConfigPath) | Out-Null

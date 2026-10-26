@@ -3,15 +3,19 @@
 //
 //   node cloud-ai.mjs qa     --images <a.jpg> [<b.jpg>...] [--prompt <text|file>] --out <report.json>
 //   node cloud-ai.mjs review --files <script.md> [<more>...] [--rubric <text|file>] [--threshold 85] --out <review.json>
+//   node cloud-ai.mjs align  --take <take.wav> --script <locked-script.txt> --out <voice/align/<id>.json | qa/encoded-alignment.json>
+//                            [--provider azure|azure-s0|deepgram]   (default Azure F0, then Azure S0, then Deepgram)
 //
-// opts: --provider anthropic|openai|gemini (default: anthropic, then openai, then gemini on rate limits, exhausted quota or outages)
-//       --model <id>   --client (client material: Anthropic is refused; pass --provider openai explicitly)
+// opts: --provider anthropic|azure-openai|gemini|openai (default: anthropic, then azure-openai, then gemini on rate limits, exhausted quota or outages)
+//       --model <id>   --client (client material: never Anthropic; defaults to Azure OpenAI in the owner tenant)
 // Keys come from ANTHROPIC_API_KEY / OPENAI_API_KEY (process env, then the Windows user environment). Never printed.
 // Output: one JSON report (score 0-100, pass, findings, summary, provider, model, usage). Exit 0 = report written and pass.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { CLOUD_ALIGN_LIMITS, CLOUD_ALIGN_SCHEMA, cloudAlignCoverage } from '../screencast/sync-lib.mjs';
 
 const ANTHROPIC_MODEL = 'claude-opus-5-5';
 const OPENAI_PREFERRED = /^gpt-(\d+)(?:\.(\d+))?$/;
@@ -145,19 +149,55 @@ async function callGemini({ system, text, images, model }) {
   return { text: j.candidates[0].content.parts.map((p) => p.text || '').join(''), model: chosen, usage: j.usageMetadata };
 }
 
-/** Anthropic first, then OpenAI and Gemini on rate limits, exhausted quota or outages. --client refuses Anthropic (client material stays off that org). */
+// Azure OpenAI in the owner's tenant (Entra token, key auth disabled). Endpoint and deployment come from the
+// cloud-render config written by Provision-CloudRender.ps1.
+function azureOpenAiConfig() {
+  const file = path.join(process.env.LOCALAPPDATA || '', 'AgentHub', 'media-studio', 'cloud-render.json');
+  const cfg = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+  if (!cfg.azureOpenAI?.endpoint) throw new Error(`no azureOpenAI endpoint in ${file}; run Provision-CloudRender.ps1`);
+  return { ...cfg.azureOpenAI, subscriptionId: cfg.subscriptionId };
+}
+let azureToken = null;
+function azureOpenAiToken(subscriptionId) {
+  if (azureToken && azureToken.expires - 300 > Date.now() / 1000) return azureToken.value;
+  const r = spawnSync(process.platform === 'win32' ? 'az.cmd' : 'az', ['account', 'get-access-token', '--resource', 'https://cognitiveservices.azure.com', '--subscription', subscriptionId, '--query', '{t:accessToken,e:expires_on}', '-o', 'json'], { encoding: 'utf8', windowsHide: true, shell: process.platform === 'win32' });
+  if (r.status !== 0) throw new Error('az could not issue a Cognitive Services token (az login?)');
+  const j = JSON.parse(r.stdout);
+  azureToken = { value: j.t, expires: Number(j.e) };
+  return azureToken.value;
+}
+async function callAzureOpenAi({ system, text, images, model }) {
+  const cfg = azureOpenAiConfig();
+  const deployment = model || cfg.deployment;
+  const content = [
+    ...images.map((f) => ({ type: 'image_url', image_url: { url: `data:${mediaType(f)};base64,${fs.readFileSync(f).toString('base64')}` } })),
+    { type: 'text', text },
+  ];
+  const url = `${cfg.endpoint.replace(/\/$/, '')}/openai/deployments/${deployment}/chat/completions?api-version=2025-04-01-preview`;
+  const j = await postJson(url, { Authorization: `Bearer ${azureOpenAiToken(cfg.subscriptionId)}` }, { messages: [{ role: 'system', content: system }, { role: 'user', content }] });
+  return { text: j.choices[0].message.content, model: `azure:${j.model || deployment}`, usage: j.usage };
+}
+
+/**
+ * Anthropic first (today's expiring credit), then Azure OpenAI and Gemini on rate limits, exhausted quota or outages.
+ * The OpenAI platform org is reachable only with --provider openai. --client material never goes to Anthropic: it
+ * defaults to Azure OpenAI in the owner's tenant; another provider must be named explicitly.
+ */
 export function providerOrder(opts) {
-  if (opts.client && opts.provider !== 'openai') throw new Error('--client material may not go to Anthropic; pass --provider openai explicitly if that provider is approved for it');
-  if (opts.client && opts.provider === 'openai') return ['openai'];
+  if (opts.client) {
+    if (!opts.provider) return ['azure-openai'];
+    if (opts.provider === 'anthropic') throw new Error('--client material may not go to Anthropic; use the default (Azure OpenAI in the owner tenant) or name another provider');
+    return [opts.provider];
+  }
   if (opts.provider) return [opts.provider];
-  return ['anthropic', 'openai', 'gemini'];
+  return ['anthropic', 'azure-openai', 'gemini'];
 }
 
 async function ask(opts, request) {
   const errors = [];
   for (const p of providerOrder(opts)) {
     try {
-      const r = await { anthropic: callAnthropic, openai: callOpenAi, gemini: callGemini }[p]({ ...request, model: p === (opts.provider || 'anthropic') ? opts.model : undefined });
+      const r = await { anthropic: callAnthropic, 'azure-openai': callAzureOpenAi, openai: callOpenAi, gemini: callGemini }[p]({ ...request, model: p === (opts.provider || 'anthropic') ? opts.model : undefined });
       return { provider: p, ...r, spilled: errors };
     } catch (err) {
       errors.push(`${p}: ${err.message}`);
@@ -167,7 +207,264 @@ async function ask(opts, request) {
   throw new Error(`no provider answered: ${errors.join('; ')}`);
 }
 
-const REPORT_SHAPE = 'Reply with JSON only: {"score": <0-100 integer>, "pass": <boolean>, "summary": "<2-3 sentences>", "findings": [{"severity": "blocker|major|minor", "where": "<frame, timestamp, line or section>", "issue": "<what is wrong>", "fix": "<concrete fix>"}]}';
+// ---------------------------------------------------------------- align
+// Script-anchored cloud alignment. Hosted ASR word timestamps (Azure fast transcription, then the S0 Azure AI
+// resource, then Deepgram) are matched token-by-token to the locked script. Exact matches keep the acoustic times;
+// script words the ASR heard differently take times bounded by their matched neighbours and are flagged
+// precisionLimited. Times snap to the native aligner's 80 ms grid; take and script are SHA-256 bound. The
+// sync gate accepts the report only while the precisionLimited share and runs stay inside ALIGN_LIMITS.
+// The schema and acceptance limits live in the sync gate (kit/screencast/sync-lib.mjs), which re-checks them.
+const ALIGN_SCHEMA = CLOUD_ALIGN_SCHEMA;
+const ALIGN_LIMITS = CLOUD_ALIGN_LIMITS;
+const GRID = 0.08;
+const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
+export const normToken = (w) => String(w ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+const ONES = 'zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen'.split(' ');
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+function intWords(n) {
+  if (n < 20) return ONES[n];
+  if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? ONES[n % 10] : '');
+  if (n < 1000) return ONES[Math.floor(n / 100)] + 'hundred' + (n % 100 ? intWords(n % 100) : '');
+  for (const [size, name] of [[1e9, 'billion'], [1e6, 'million'], [1e3, 'thousand']]) {
+    if (n >= size) return intWords(Math.floor(n / size)) + name + (n % size ? intWords(n % size) : '');
+  }
+  return String(n);
+}
+
+/**
+ * Comparison key: normalized letters/digits, with numbers spoken out so the script's "thirty" or "one point seven
+ * one dollars" meets the ASR's "30" or "$1.71" ("$5M" -> fivemilliondollars, "10%" -> tenpercent, "1,200" -> onethousandtwohundred).
+ */
+const CONTRACTIONS = { im: 'iam', ive: 'ihave', ill: 'iwill', id: 'iwould', youre: 'youare', were: 'were', its: 'its', cant: 'cannot', dont: 'donot', wont: 'willnot', isnt: 'isnot', thats: 'thatis', lets: 'letus', theyre: 'theyare', weve: 'wehave', youll: 'youwill', doesnt: 'doesnot', didnt: 'didnot' };
+export function canonKey(text) {
+  const s = String(text ?? '').normalize('NFKC').toLowerCase().replace(/[‘’]/g, "'");
+  const m = s.match(/^[^\p{L}\p{N}$]*(\$)?([\d,]*\d)(?:\.(\d+))?([kmb]|%|percent)?[^\p{L}\p{N}]*$/u);
+  if (!m || /,\d{1,2}(?:\D|$)/.test(m[2])) {
+    // Contractions only when written with an apostrophe ("I'm" and "I am" meet; "ill" the adjective is untouched).
+    const key = normToken(s);
+    const expanded = /'/.test(s) && CONTRACTIONS[key] ? CONTRACTIONS[key] : key;
+    return expanded.replace(/\d+/g, (d) => (d.length < 10 ? intWords(Number(d)) : d));
+  }
+  const whole = Number(m[2].replace(/,/g, ''));
+  if (!Number.isSafeInteger(whole)) return normToken(s);
+  let out = intWords(whole) + (m[3] ? 'point' + [...m[3]].map((d) => ONES[+d]).join('') : '');
+  out += { k: 'thousand', m: 'million', b: 'billion', '%': 'percent', percent: 'percent' }[m[4]] || '';
+  return out + (m[1] ? 'dollars' : '');
+}
+
+/** Script tokens in reading order (whitespace-split, dropping tokens with no letters or digits). */
+export function scriptTokens(text) {
+  return String(text).split(/\s+/).filter((t) => normToken(t)).map((t) => ({ text: t, key: canonKey(t) }));
+}
+
+/**
+ * Times for script tokens that spell the same characters as a run of heard words ("language-model" = "language" +
+ * "model", "one percent" = "1%"). A currency word the ASR repeats or moves ("$800 million" for "eight hundred million")
+ * is ignored on both sides. A token is precisionLimited when its onset falls inside a heard word, not on its edge.
+ */
+function compoundTimes(scriptRun, heard) {
+  const bare = (k) => k.replace(/dollars?$/, '');
+  if (!heard.length || scriptRun.map((t) => bare(t.key)).join('') !== heard.map((h) => bare(h.key)).join('')) return null;
+  const edges = [];
+  let pos = 0;
+  for (const h of heard) {
+    const len = bare(h.key).length;
+    if (len) edges.push({ from: pos, until: pos + len, start: h.start, end: h.end });
+    pos += len;
+  }
+  if (!edges.length) return null;
+  const timeAt = (c, side) => {
+    const e = edges.find((x) => (side === 'start' ? c >= x.from && c < x.until : c > x.from && c <= x.until)) || edges.at(-1);
+    if (side === 'start' && c === e.from) return { t: e.start, exact: true };
+    if (side === 'end' && c >= e.until) return { t: e.end, exact: true };
+    return { t: e.start + ((e.end - e.start) * (c - e.from)) / (e.until - e.from), exact: false };
+  };
+  pos = 0;
+  return scriptRun.map((t) => {
+    const len = bare(t.key).length;
+    if (!len) {
+      // A bare currency word ("dollars") spoken after the number: it sits at the end of the run's last heard word.
+      const end = edges.at(-1).end;
+      return { text: t.text, start: end, end, precisionLimited: true };
+    }
+    const s = timeAt(pos, 'start');
+    pos += len;
+    const e = timeAt(pos, 'end');
+    return { text: t.text, start: s.t, end: e.t, precisionLimited: !s.exact };
+  });
+}
+
+/** Levenshtein alignment of script keys to ASR keys. Returns, per script index, the matched ASR index or -1. */
+export function matchTokens(script, asr) {
+  const n = script.length, m = asr.length;
+  const cost = new Uint32Array((n + 1) * (m + 1));
+  const at = (i, j) => i * (m + 1) + j;
+  for (let i = 0; i <= n; i++) cost[at(i, 0)] = i;
+  for (let j = 0; j <= m; j++) cost[at(0, j)] = j;
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      const sub = cost[at(i - 1, j - 1)] + (script[i - 1].key === asr[j - 1].key ? 0 : 1);
+      cost[at(i, j)] = Math.min(sub, cost[at(i - 1, j)] + 1, cost[at(i, j - 1)] + 1);
+    }
+  }
+  const match = new Array(n).fill(-1);
+  for (let i = n, j = m; i > 0 && j > 0; ) {
+    const same = script[i - 1].key === asr[j - 1].key;
+    if (cost[at(i, j)] === cost[at(i - 1, j - 1)] + (same ? 0 : 1)) {
+      if (same) match[i - 1] = j - 1;
+      i--;
+      j--;
+    } else if (cost[at(i, j)] === cost[at(i - 1, j)] + 1) i--;
+    else j--;
+  }
+  return match;
+}
+
+/** Script words with times: exact matches keep ASR times, gaps are spread by character length inside their bounds. */
+export function alignScript(script, asr, durationSeconds) {
+  const match = matchTokens(script, asr);
+  const words = script.map((t, i) => (match[i] >= 0 ? { text: t.text, start: asr[match[i]].start, end: asr[match[i]].end, precisionLimited: false } : null));
+  for (let i = 0; i < script.length; ) {
+    if (words[i]) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < script.length && !words[j]) j++;
+    const lo = i > 0 ? words[i - 1].end : 0;
+    const hi = j < script.length ? words[j].start : durationSeconds;
+    const prevAsr = i > 0 ? match[i - 1] : -1;
+    const nextAsr = j < script.length ? match[j] : asr.length;
+    const heard = asr.slice(prevAsr + 1, nextAsr);
+    const compound = compoundTimes(script.slice(i, j), heard);
+    if (compound) {
+      compound.forEach((w, k) => (words[i + k] = w));
+      i = j;
+      continue;
+    }
+    const from = heard.length ? Math.max(lo, heard[0].start) : lo;
+    const until = heard.length ? Math.min(hi, heard.at(-1).end) : hi;
+    const chars = script.slice(i, j).reduce((s, t) => s + t.key.length, 0);
+    let cursor = from;
+    for (let k = i; k < j; k++) {
+      const span = ((until - from) * script[k].key.length) / chars;
+      words[k] = { text: script[k].text, start: cursor, end: cursor + span, precisionLimited: true };
+      cursor += span;
+    }
+    i = j;
+  }
+  // Snap to the 80 ms grid without reordering or overlapping.
+  const last = Math.floor(durationSeconds / GRID + 1e-9);
+  let prev = 0;
+  for (const w of words) {
+    let s = Math.min(Math.max(Math.round(w.start / GRID), prev), last);
+    const e = Math.min(Math.max(Math.round(w.end / GRID), s), last);
+    w.start = +(s * GRID).toFixed(2);
+    w.end = +(e * GRID).toFixed(2);
+    prev = e;
+  }
+  const c = cloudAlignCoverage(words);
+  return { words, coverage: { ...c, exactRatio: +c.exactRatio.toFixed(4), ...ALIGN_LIMITS } };
+}
+
+function wavSeconds(buf) {
+  if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') return null;
+  let byteRate = 0;
+  for (let off = 12; off + 8 <= buf.length; ) {
+    const id = buf.toString('ascii', off, off + 4);
+    const size = buf.readUInt32LE(off + 4);
+    if (id === 'fmt ') byteRate = buf.readUInt32LE(off + 16);
+    if (id === 'data' && byteRate) return Math.min(size, buf.length - off - 8) / byteRate;
+    off += 8 + size + (size % 2);
+  }
+  return null;
+}
+
+/** Comparison keys for heard words. "$800 million" is spoken "eight hundred million dollars": move the currency after the scale word. */
+export function heardKeys(words) {
+  const out = words.map((w) => ({ key: canonKey(w.text), start: w.start, end: w.end, currency: /^\W*\$/.test(w.text) }));
+  out.forEach((w, i) => {
+    const next = out[i + 1];
+    if (w.currency && next && ['thousand', 'million', 'billion', 'trillion'].includes(next.key)) {
+      w.key = w.key.replace(/dollars$/, '');
+      next.key += 'dollars';
+    }
+  });
+  return out.map(({ currency, ...w }) => w);
+}
+
+async function azureWords(buf, keyVar, regionVar) {
+  const key = userEnv(keyVar), region = userEnv(regionVar);
+  if (!key || !region) throw new Error(`${keyVar}/${regionVar} not set`);
+  const fd = new FormData();
+  fd.append('audio', new Blob([buf]), 'take.wav');
+  fd.append('definition', JSON.stringify({ locales: ['en-US'] }));
+  const res = await fetch(`https://${region}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2024-11-15`, { method: 'POST', headers: { 'Ocp-Apim-Subscription-Key': key }, body: fd });
+  const text = await res.text();
+  if (res.status === 429 || res.status === 403 || res.status >= 500) throw new RateLimited(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  const j = JSON.parse(text);
+  const words = j.phrases.flatMap((p) => p.words || []).map((w) => ({ text: w.text, start: w.offsetMilliseconds / 1000, end: (w.offsetMilliseconds + w.durationMilliseconds) / 1000 }));
+  return { words: heardKeys(words), durationSeconds: j.durationMilliseconds / 1000, provider: { name: 'azure-fast-transcription', region, apiVersion: '2024-11-15', keyVar } };
+}
+
+async function deepgramWords(buf) {
+  const key = userEnv('DEEPGRAM_API_KEY');
+  if (!key) throw new Error('DEEPGRAM_API_KEY not set');
+  const res = await fetch('https://api.deepgram.com/v1/listen?model=nova-3&language=en&punctuate=false&smart_format=false', { method: 'POST', headers: { Authorization: `Token ${key}`, 'Content-Type': 'audio/wav' }, body: buf });
+  const text = await res.text();
+  if (res.status === 429 || res.status === 402 || res.status >= 500) throw new RateLimited(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  const j = JSON.parse(text);
+  const words = j.results.channels[0].alternatives[0].words.map((w) => ({ text: w.word, start: w.start, end: w.end }));
+  return { words: heardKeys(words), durationSeconds: j.metadata?.duration, provider: { name: 'deepgram', model: 'nova-3' } };
+}
+
+async function align(opts) {
+  if (!opts.take || !opts.script) throw new Error('align: --take <audio> and --script <locked script> are required');
+  const take = fs.readFileSync(opts.take);
+  const scriptBytes = fs.readFileSync(opts.script);
+  const scriptText = scriptBytes.toString('utf8').replace(/^﻿/, '');
+  const order = opts.provider ? [opts.provider] : ['azure', 'azure-s0', 'deepgram'];
+  const errors = [];
+  let heard = null;
+  for (const p of order) {
+    try {
+      heard = p === 'azure' ? await azureWords(take, 'AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION')
+        : p === 'azure-s0' ? await azureWords(take, 'AZURE_AI_SERVICES_KEY', 'AZURE_AI_SERVICES_REGION')
+        : await deepgramWords(take);
+      break;
+    } catch (err) {
+      errors.push(`${p}: ${err.message}`);
+      if (!(err instanceof RateLimited) && !/not set/.test(err.message)) break;
+    }
+  }
+  if (!heard) throw new Error(`no speech provider answered: ${errors.join('; ')}`);
+  const durationSeconds = wavSeconds(take) ?? heard.durationSeconds;
+  const { words, coverage } = alignScript(scriptTokens(scriptText), heard.words.filter((w) => w.key), durationSeconds);
+  const ok = coverage.exactRatio >= ALIGN_LIMITS.minExactRatio && coverage.longestUnmatchedRun <= ALIGN_LIMITS.maxUnmatchedRun;
+  return {
+    schema: ALIGN_SCHEMA,
+    method: 'forced-alignment',
+    ok,
+    errors: ok ? [] : [`script coverage too low for a picture clock: ${coverage.exact}/${coverage.total} exact, longest unmatched run ${coverage.longestUnmatchedRun}`],
+    createdAt: new Date().toISOString(),
+    units: 'seconds',
+    gridSeconds: GRID,
+    durationSeconds: +durationSeconds.toFixed(3),
+    script: { path: path.resolve(opts.script), sha256: sha256(scriptBytes), text: scriptText },
+    take: { path: path.resolve(opts.take), sha256: sha256(take) },
+    provider: { ...heard.provider, spilled: errors },
+    clock: { policy: 'asr-anchored-script-alignment-80ms-grid', note: 'exact token matches carry hosted ASR word times; precisionLimited words are bounded by matched neighbours' },
+    coverage,
+    independentContentReviewRequired: true,
+    words,
+    heard: heard.words.map((w) => ({ key: w.key, start: +w.start.toFixed(3), end: +w.end.toFixed(3) })),
+  };
+}
+
+const REPORT_SHAPE ='Reply with JSON only: {"score": <0-100 integer>, "pass": <boolean>, "summary": "<2-3 sentences>", "findings": [{"severity": "blocker|major|minor", "where": "<frame, timestamp, line or section>", "issue": "<what is wrong>", "fix": "<concrete fix>"}]}';
 
 const QA_SYSTEM = `You are a strict film QA reviewer for product and training videos. You inspect contact sheets and frames.
 Fail on: blank or black frames, frozen or duplicated frames where motion is expected, clipped or overlapping text, text running off-frame,
@@ -181,9 +478,16 @@ Quote the exact line for each finding and give a rewritten line as the fix. ${RE
 
 async function main() {
   const { sub, opts } = parseArgs(process.argv.slice(2));
-  if (!['qa', 'review'].includes(sub) || !opts.out) {
-    console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 11).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+  if (!['qa', 'review', 'align'].includes(sub) || !opts.out) {
+    console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 14).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     return sub ? 2 : 0;
+  }
+  if (sub === 'align') {
+    const report = await align(opts);
+    fs.mkdirSync(path.dirname(path.resolve(opts.out)), { recursive: true });
+    fs.writeFileSync(opts.out, `${JSON.stringify(report, null, 2)}\n`);
+    console.log(JSON.stringify({ out: opts.out, ok: report.ok, errors: report.errors, coverage: report.coverage, provider: report.provider.name, words: report.words.length }, null, 2));
+    return report.ok ? 0 : 1;
   }
   const threshold = Number(opts.threshold ?? 85);
   let request;
