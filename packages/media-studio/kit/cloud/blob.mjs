@@ -8,13 +8,16 @@ import { pipeline } from 'node:stream/promises';
 
 const API = '2023-11-03';
 const BLOCK = 8 * 1024 * 1024;
+// Every request carries a wall-clock timeout (it also bounds reading the response body) so a stalled socket cannot hang a render.
+const REQUEST_TIMEOUT_MS = 120_000;
+const TRANSFER_TIMEOUT_MS = 30 * 60_000; // whole-file downloads (runtime tarball ~1 GB) and uploads
 const SINGLE_PUT_MAX = 64 * 1024 * 1024;
 
 export function blobClient(account, getToken) {
   const base = `https://${account}.blob.core.windows.net`;
   const url = (name) => `${base}/${name.split('/').map(encodeURIComponent).join('/')}`;
 
-  async function req(method, name, { query = '', headers = {}, body, ok = [200, 201, 202, 206], retries = 4 } = {}) {
+  async function req(method, name, { query = '', headers = {}, body, ok = [200, 201, 202, 206], retries = 4, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
     for (let attempt = 0; ; attempt++) {
       let res;
       try {
@@ -23,6 +26,7 @@ export function blobClient(account, getToken) {
           body,
           duplex: body && typeof body.pipe === 'function' ? 'half' : undefined,
           headers: { Authorization: `Bearer ${await getToken()}`, 'x-ms-version': API, ...headers },
+          signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {
         if (attempt >= retries || (body && typeof body.pipe === 'function')) throw err;
@@ -55,7 +59,7 @@ export function blobClient(account, getToken) {
     async putFile(name, file) {
       const size = fs.statSync(file).size;
       if (size <= SINGLE_PUT_MAX) {
-        await req('PUT', name, { headers: { 'x-ms-blob-type': 'BlockBlob' }, body: fs.readFileSync(file) });
+        await req('PUT', name, { headers: { 'x-ms-blob-type': 'BlockBlob' }, body: fs.readFileSync(file), timeoutMs: TRANSFER_TIMEOUT_MS });
         return size;
       }
       const fd = fs.openSync(file, 'r');
@@ -77,7 +81,7 @@ export function blobClient(account, getToken) {
       return size;
     },
     async getFile(name, file) {
-      const res = await req('GET', name);
+      const res = await req('GET', name, { timeoutMs: TRANSFER_TIMEOUT_MS });
       await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(file));
       return fs.statSync(file).size;
     },

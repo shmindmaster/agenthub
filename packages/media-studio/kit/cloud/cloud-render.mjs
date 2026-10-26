@@ -285,6 +285,9 @@ async function uploadAll(storage, files) {
 export function jobResources(cpu, memory, base = { cpu: 4, memory: '8Gi' }) {
   const c = Number(cpu || (memory ? parseFloat(memory) / 2 : base.cpu));
   const m = memory ? parseFloat(memory) : cpu ? c * 2 : parseFloat(base.memory);
+  // The job definition's own size (Provision-CloudRender.ps1 -Cpu, default 4) is the ceiling: a typo such as
+  // --cpu 16 --chunks 16 must not request 256 vCPUs.
+  if (c > Number(base.cpu)) throw new Error(`${c} vCPU exceeds the job definition's maximum of ${base.cpu} vCPU (README: --cpu <1-${base.cpu}>); raise it by re-provisioning with -Cpu`);
   if (!(c > 0) || Math.abs(c * 2 - m) > 1e-9) throw new Error(`invalid size ${c} vCPU / ${m} GiB: consumption jobs need memory = 2 x vCPU (e.g. --cpu 4 = 8 GiB, --cpu 8 = 16 GiB)`);
   return { cpu: c, memory: `${m}Gi` };
 }
@@ -296,14 +299,23 @@ async function startExecution(cfg, c, jobId, { cpu, memory }) {
   const resources = jobResources(cpu, memory, base.resources);
   const container = { ...base, env, resources };
   const res = await c.arm('POST', `${c.jobUrl}/start?api-version=${ARM_API}`, { containers: [container] });
-  return { name: res.name || res.id?.split('/').pop(), resources: container.resources };
+  const replicaTimeout = job.properties.configuration?.replicaTimeout ?? 7200;
+  const deadlineMs = Date.now() + (replicaTimeout + 600) * 1000;
+  return { name: res.name || res.id?.split('/').pop(), resources: container.resources, deadlineMs };
 }
 
-async function waitForResult(cfg, c, jobId, execName) {
+export async function stopExecution(cfg, c, execName) {
+  await c.arm('POST', `${c.jobUrl}/executions/${execName}/stop?api-version=${ARM_API}`);
+}
+
+const DEFAULT_DEADLINE_MS = 7_800_000; // 7200s replicaTimeout + 600s grace
+
+export async function waitForResult(cfg, c, jobId, execName, deadlineMs = Date.now() + DEFAULT_DEADLINE_MS) {
   const t0 = Date.now();
   let lastStatus = '';
   let exec = null;
   for (;;) {
+    if (Date.now() > deadlineMs) throw new Error(`deadline exceeded waiting for result of ${jobId}${execName ? ` / ${execName}` : ''}`);
     const text = await c.storage.getText(`jobs/${jobId}/result.json`);
     if (text) {
       const result = JSON.parse(text);
@@ -349,7 +361,7 @@ function costOf(cfg, exec, resources) {
  * length through the Remotion CLI), then a local stream-copy concat. Render picture muted and mux audio separately:
  * per-chunk AAC does not join gaplessly.
  */
-async function runChunked(opts, rest, cfg) {
+export async function runChunked(opts, rest, cfg, deps = {}) {
   const count = Math.floor(Number(opts.chunks));
   if (!(count >= 2 && count <= 16)) throw new Error('--chunks must be 2-16');
   const tStart = Date.now();
@@ -362,23 +374,46 @@ async function runChunked(opts, rest, cfg) {
   const outLocal = path.resolve(opts.out[0]);
   const [cli, , entry, comp, , ...flags] = command.args;
   const base = `${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}-${slug(opts.name || 'remotion')}-${randomBytes(2).toString('hex')}`;
-  const c = clients(cfg);
+  const c = deps.clients ? deps.clients(cfg) : clients(cfg);
+  const stopExec = deps.stopExecution || stopExecution;
+  const waitFor = deps.waitForResult || waitForResult;
   const files = plan.allLocalFiles();
   process.stderr.write(`cloud-render ${base}: ${count} chunks, ${files.length} input files\n`);
   const up = await uploadAll(c.storage, files);
   const tUploaded = Date.now();
   process.stderr.write(`  uploaded ${up.uploaded}/${up.unique} new blobs (${fmtMB(up.uploadedBytes)}) in ${((tUploaded - tStart) / 1000).toFixed(1)}s\n`);
   if (cli !== 'node_modules/@remotion/cli/remotion-cli.js' || entry !== 'src/index.ts') throw new Error('unexpected remotion command shape');
+  // Any chunk that fails (throws, or reports ok: false) stops its still-running siblings: without this up to 15
+  // 4-8 vCPU executions keep billing until their 2 h replicaTimeout. Stops are best effort and never mask the error.
+  const active = new Set();
+  let aborted = false;
+  const stopOne = (name) => Promise.resolve().then(() => stopExec(cfg, c, name)).catch((e) => process.stderr.write(`  could not stop ${name}: ${e.message}
+`));
+  const abortAll = () => {
+    aborted = true;
+    return Promise.all([...active].map(stopOne));
+  };
   const chunks = await Promise.all(Array.from({ length: count }, async (_, k) => {
     const jobId = `${base}-c${String(k + 1).padStart(2, '0')}`;
     const file = `/job/out/chunk-${String(k).padStart(2, '0')}.mp4`;
     const outputs = [file, `${file}.range.json`].map((p) => ({ path: p, blob: `jobs/${jobId}/out/${path.basename(p)}` }));
-    const manifest = { mode: 'render', jobId, cmd: 'node', args: ['cloud/chunk-render.mjs', String(k), String(count), comp, file, ...flags], cwd: '/opt/rt/kit', inputs: up.inputs, outputs, createdAt: new Date().toISOString(), host: os.hostname() };
-    await c.storage.putText(`jobs/${jobId}/job.json`, JSON.stringify(manifest, null, 2));
-    const exec = await startExecution(cfg, c, jobId, { cpu: opts.cpu, memory: opts.memory });
-    process.stderr.write(`  chunk ${k + 1}/${count}: ${jobId} on ${exec.name}\n`);
-    const { result, exec: execInfo } = await waitForResult(cfg, c, jobId, exec.name);
-    return { k, jobId, outputs, result, cost: costOf(cfg, execInfo, exec.resources) };
+    try {
+      const manifest = { mode: 'render', jobId, cmd: 'node', args: ['cloud/chunk-render.mjs', String(k), String(count), comp, file, ...flags], cwd: '/opt/rt/kit', inputs: up.inputs, outputs, createdAt: new Date().toISOString(), host: os.hostname() };
+      await c.storage.putText(`jobs/${jobId}/job.json`, JSON.stringify(manifest, null, 2));
+      const exec = await startExecution(cfg, c, jobId, { cpu: opts.cpu, memory: opts.memory });
+      active.add(exec.name);
+      // A sibling failed while this one was starting: stop it too.
+      if (aborted) await stopOne(exec.name);
+      process.stderr.write(`  chunk ${k + 1}/${count}: ${jobId} on ${exec.name}
+`);
+      const { result, exec: execInfo } = await waitFor(cfg, c, jobId, exec.name, exec.deadlineMs);
+      active.delete(exec.name);
+      if (!result.ok) await abortAll();
+      return { k, jobId, outputs, result, cost: costOf(cfg, execInfo, exec.resources) };
+    } catch (err) {
+      await abortAll();
+      throw err;
+    }
   }));
   const tDone = Date.now();
   const failed = chunks.filter((ch) => !ch.result.ok);
@@ -437,7 +472,7 @@ async function runJob(sub, opts, rest, cfg) {
   await c.storage.putText(`jobs/${jobId}/job.json`, JSON.stringify(manifest, null, 2));
   const exec = await startExecution(cfg, c, jobId, { cpu: opts.cpu, memory: opts.memory });
   process.stderr.write(`  started ${exec.name} (${exec.resources.cpu} vCPU, ${exec.resources.memory})\n`);
-  const { result, exec: execInfo } = await waitForResult(cfg, c, jobId, exec.name);
+  const { result, exec: execInfo } = await waitForResult(cfg, c, jobId, exec.name, exec.deadlineMs);
   const tDone = Date.now();
   for (const o of outputs) {
     const r = (result.outputs || []).find((x) => x.blob === o.blob);
@@ -488,7 +523,7 @@ async function bootstrap(opts, cfg) {
   await c.storage.putText(`jobs/${jobId}/job.json`, JSON.stringify({ mode: 'bootstrap', jobId, inputs: up.inputs, createdAt: new Date().toISOString() }, null, 2));
   const exec = await startExecution(cfg, c, jobId, {});
   process.stderr.write(`bootstrap ${jobId}: started ${exec.name}\n`);
-  const { result, exec: execInfo } = await waitForResult(cfg, c, jobId, exec.name);
+  const { result, exec: execInfo } = await waitForResult(cfg, c, jobId, exec.name, exec.deadlineMs);
   console.log(JSON.stringify({ jobId, ...result, cost: costOf(cfg, execInfo, exec.resources) }, null, 2));
   if (!result.ok) console.error((await c.storage.getText(`jobs/${jobId}/log.txt`))?.slice(-3000));
   return result.ok ? 0 : 1;

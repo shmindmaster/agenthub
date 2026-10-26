@@ -33,19 +33,21 @@ node cloud-ai.mjs review --files <script.md> [...] --rubric <text|file> --thresh
 node cloud-ai.mjs qa     --images <contact-sheet.jpg> [...] --prompt <context> --out qa.json [--client]
 ```
 
-* **align**: Azure fast transcription (sh-speech F0, then sh-azai S0, then Deepgram) word times, anchored token by
+* **align**: Azure fast transcription (sh-speech F0 by default; `--provider azure-s0|deepgram` only when named) word times, anchored token by
   token to the locked script. Exact matches keep the acoustic onset. Numbers, currency, contractions and hyphenated
   compounds are matched by spoken form. A word the ASR heard differently gets a precisionLimited onset bounded by
   its neighbours. The report is `cloud-speech/script-alignment/1` with method **`asr-anchored-alignment`**, on the
   native 80 ms grid with take/script SHA-256 binding and an `agreement` block. It is not forced alignment: the
   picture, cue-sheet, word-sync and release gates refuse it unless the job opts in with
   `job.json` `"clockPolicy": { "allowAsrAnchored": true }`. Even then the sync gate re-checks at least 90% exact
-  onsets and no precisionLimited run over 6. Without the opt-in, treat it as a cross-check.
+  onsets and no precisionLimited run over 6. Without the opt-in, treat it as a cross-check. A report below those limits is written to `<out>.failed.json`, never to `--out`, and the command exits 1.
   * Measured 2026-10-26 against Local-AI forced alignment: exact-word onsets agreed to a median of 0–80 ms, p90 80 ms.
   * Coverage: 214/232 exact on an 89 s narration, and 100% on two lab takes.
   * Word-sync: offset 0 ms and drift 0 ms.
-* **review / qa**: Anthropic (latest Opus) first, then Azure OpenAI (gpt-5-mini in this resource group, Entra auth,
-  key auth disabled), then Gemini on rate limits or exhausted quota. `--client` material never goes to Anthropic and
+* **review / qa**: Anthropic (latest Opus) only by default. There is no automatic fallback to a different paid
+  provider: exhausted credit, an auth failure or a free-tier quota refusal stops with the blocker named, and
+  `--provider azure-openai|gemini|openai` must be passed to use another (Azure OpenAI is gpt-5-mini in this resource
+  group, Entra auth, key auth disabled). Rate-limit retries stay on the same provider. `--client` material never goes to Anthropic and
   defaults to Azure OpenAI in the owner's tenant. The report has score 0–100, pass, findings with fixes, provider,
   model and usage. Exit 0 means pass.
 * Keys are read by name from the environment, then the Windows user environment, and are never printed.

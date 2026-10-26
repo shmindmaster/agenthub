@@ -4,9 +4,9 @@
 //   node cloud-ai.mjs qa     --images <a.jpg> [<b.jpg>...] [--prompt <text|file>] --out <report.json>
 //   node cloud-ai.mjs review --files <script.md> [<more>...] [--rubric <text|file>] [--threshold 85] --out <review.json>
 //   node cloud-ai.mjs align  --take <take.wav> --script <locked-script.txt> --out <voice/align/<id>.json | qa/encoded-alignment.json>
-//                            [--provider azure|azure-s0|deepgram]   (default Azure F0, then Azure S0, then Deepgram)
+//                            [--provider azure|azure-s0|deepgram]   (default Azure F0 only; name another provider explicitly to use it)
 //
-// opts: --provider anthropic|azure-openai|gemini|openai (default: anthropic, then azure-openai, then gemini on rate limits, exhausted quota or outages)
+// opts: --provider anthropic|azure-openai|gemini|openai (default: anthropic only; name another provider explicitly to use it)
 //       --model <id>   --client (client material: never Anthropic; defaults to Azure OpenAI in the owner tenant)
 // Keys come from ANTHROPIC_API_KEY / OPENAI_API_KEY (process env, then the Windows user environment). Never printed.
 // Output: one JSON report (score 0-100, pass, findings, summary, provider, model, usage). Exit 0 = report written and pass.
@@ -73,7 +73,7 @@ async function postJson(url, headers, body) {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
     if (res.ok) return res.json();
     const text = await res.text();
-    // An exhausted balance never clears by waiting: spill to the next provider at once.
+    // An exhausted balance never clears by waiting: stop at once (ask/align never spill to another paid provider).
     if (/insufficient_quota|credit_balance|RESOURCE_EXHAUSTED|billing/i.test(text)) throw new RateLimited(`HTTP ${res.status} quota exhausted`);
     const transient = res.status === 429 || res.status === 529 || res.status >= 500;
     if (transient && attempt < 2) {
@@ -127,11 +127,11 @@ async function callOpenAi({ system, text, images, model }) {
 }
 
 let geminiModel = null;
-async function callGemini({ system, text, images, model }) {
+export async function callGemini({ system, text, images, model }) {
   const key = userEnv('GEMINI_API_KEY');
   if (!key) throw new Error('GEMINI_API_KEY is not set');
   if (!model && !geminiModel) {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${key}`);
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
     if (!res.ok) throw new Error(`Gemini models: HTTP ${res.status}`);
     const rx = /^models\/gemini-(\d+)(?:\.(\d+))?-(pro|flash)$/;
     const ids = (await res.json()).models.map((m) => m.name).filter((n) => rx.test(n));
@@ -179,7 +179,8 @@ async function callAzureOpenAi({ system, text, images, model }) {
 }
 
 /**
- * Anthropic first (today's expiring credit), then Azure OpenAI and Gemini on rate limits, exhausted quota or outages.
+ * Anthropic by default (today's expiring credit). There is no spillover: on exhausted credit, auth failure or an outage
+ * ask() stops with the blocker named, and another paid provider is used only when the caller names it with --provider.
  * The OpenAI platform org is reachable only with --provider openai. --client material never goes to Anthropic: it
  * defaults to Azure OpenAI in the owner's tenant; another provider must be named explicitly.
  */
@@ -190,26 +191,35 @@ export function providerOrder(opts) {
     return [opts.provider];
   }
   if (opts.provider) return [opts.provider];
-  return ['anthropic', 'azure-openai', 'gemini'];
+  return ['anthropic'];
 }
 
-async function ask(opts, request) {
-  const errors = [];
-  for (const p of providerOrder(opts)) {
-    try {
-      const r = await { anthropic: callAnthropic, 'azure-openai': callAzureOpenAi, openai: callOpenAi, gemini: callGemini }[p]({ ...request, model: p === (opts.provider || 'anthropic') ? opts.model : undefined });
-      return { provider: p, ...r, spilled: errors };
-    } catch (err) {
-      errors.push(`${p}: ${err.message}`);
-      if (!(err instanceof RateLimited)) break;
-    }
+/** One-line blocker for a provider that cannot answer. Never retried into a different paid provider. */
+function blocker(provider, err, hint) {
+  const kind = /not set/.test(err.message) ? 'credential missing'
+    : /quota exhausted|insufficient_quota|credit_balance/i.test(err.message) ? 'credit or quota exhausted'
+    : /HTTP (401|403)\b/.test(err.message) ? 'authentication or free-tier quota refused'
+    : err instanceof RateLimited ? 'still rate limited or unavailable after retries'
+    : 'failed';
+  return new Error(`${provider} blocked (${kind}): ${err.message}. Not falling through to another provider; ${hint}`);
+}
+
+export async function ask(opts, request) {
+  // Never spill from one paid provider to another. providerOrder() yields the caller's --provider, or the default
+  // (Anthropic; Azure OpenAI for --client) and enforces the client guard. postJson already retries transient
+  // rate limits on that same provider; credit exhaustion, auth failure and outages stop here with the blocker named.
+  const [p] = providerOrder(opts);
+  try {
+    const r = await { anthropic: callAnthropic, 'azure-openai': callAzureOpenAi, openai: callOpenAi, gemini: callGemini }[p]({ ...request, model: opts.model });
+    return { provider: p, ...r, spilled: [] };
+  } catch (err) {
+    throw blocker(p, err, 'name another provider explicitly with --provider to use it.');
   }
-  throw new Error(`no provider answered: ${errors.join('; ')}`);
 }
 
 // ---------------------------------------------------------------- align
-// Script-anchored cloud alignment. Hosted ASR word timestamps (Azure fast transcription, then the S0 Azure AI
-// resource, then Deepgram) are matched token-by-token to the locked script. Exact matches keep the acoustic times;
+// Script-anchored cloud alignment. Hosted ASR word timestamps (Azure fast transcription by default; other providers
+// only when named explicitly with --provider) are matched token-by-token to the locked script. Exact matches keep the acoustic times;
 // script words the ASR heard differently take times bounded by their matched neighbours and are flagged
 // precisionLimited. Times snap to the native aligner's 80 ms grid; take and script are SHA-256 bound. The
 // sync gate accepts the report only while the precisionLimited share and runs stay inside ALIGN_LIMITS.
@@ -421,30 +431,27 @@ async function deepgramWords(buf) {
   return { words: heardKeys(words), durationSeconds: j.metadata?.duration, provider: { name: 'deepgram', model: 'nova-3' } };
 }
 
-async function align(opts) {
+export const alignOutPath = (out, ok) => (ok ? out : `${out}.failed.json`);
+
+export async function align(opts) {
   if (!opts.take || !opts.script) throw new Error('align: --take <audio> and --script <locked script> are required');
   const take = fs.readFileSync(opts.take);
   const scriptBytes = fs.readFileSync(opts.script);
   const scriptText = scriptBytes.toString('utf8').replace(/^﻿/, '');
-  const order = opts.provider ? [opts.provider] : ['azure', 'azure-s0', 'deepgram'];
-  const errors = [];
-  let heard = null;
-  for (const p of order) {
-    try {
-      heard = p === 'azure' ? await azureWords(take, 'AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION')
-        : p === 'azure-s0' ? await azureWords(take, 'AZURE_AI_SERVICES_KEY', 'AZURE_AI_SERVICES_REGION')
-        : await deepgramWords(take);
-      break;
-    } catch (err) {
-      errors.push(`${p}: ${err.message}`);
-      if (!(err instanceof RateLimited) && !/not set/.test(err.message)) break;
-    }
+  // Stay on the default free-tier provider unless the caller named another one explicitly.
+  const p = opts.provider || 'azure';
+  let heard;
+  try {
+    heard = p === 'azure' ? await azureWords(take, 'AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION')
+      : p === 'azure-s0' ? await azureWords(take, 'AZURE_AI_SERVICES_KEY', 'AZURE_AI_SERVICES_REGION')
+      : await deepgramWords(take);
+  } catch (err) {
+    throw blocker(p, err, 'name a paid speech provider explicitly with --provider azure-s0|deepgram to use it.');
   }
-  if (!heard) throw new Error(`no speech provider answered: ${errors.join('; ')}`);
   const durationSeconds = wavSeconds(take) ?? heard.durationSeconds;
   const { words, coverage } = alignScript(scriptTokens(scriptText), heard.words.filter((w) => w.key), durationSeconds);
   const ok = coverage.exactRatio >= ALIGN_LIMITS.minExactRatio && coverage.longestUnmatchedRun <= ALIGN_LIMITS.maxUnmatchedRun;
-  return {
+  const report = {
     schema: ALIGN_SCHEMA,
     // Honest label: hosted ASR word times anchored to the script, not forced alignment. Gates accept it only where
     // job.json opts in (clockPolicy.allowAsrAnchored); see `agreement` for how it compared with Local-AI alignment.
@@ -465,13 +472,20 @@ async function align(opts) {
     durationSeconds: +durationSeconds.toFixed(3),
     script: { path: path.resolve(opts.script), sha256: sha256(scriptBytes), text: scriptText },
     take: { path: path.resolve(opts.take), sha256: sha256(take) },
-    provider: { ...heard.provider, spilled: errors },
+    provider: { ...heard.provider, spilled: [] },
     clock: { policy: 'asr-anchored-script-alignment-80ms-grid', note: 'exact token matches carry hosted ASR word times; precisionLimited words are bounded by matched neighbours' },
     coverage,
     independentContentReviewRequired: true,
     words,
     heard: heard.words.map((w) => ({ key: w.key, start: +w.start.toFixed(3), end: +w.end.toFixed(3) })),
   };
+
+  // A report that fails the coverage limits never lands at the requested path: gates and cue-sheet builders read
+  // that path as the picture clock. It is kept beside it as <out>.failed.json for diagnosis.
+  const outPath = path.resolve(alignOutPath(opts.out, ok));
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`);
+  return report;
 }
 
 const REPORT_SHAPE ='Reply with JSON only: {"score": <0-100 integer>, "pass": <boolean>, "summary": "<2-3 sentences>", "findings": [{"severity": "blocker|major|minor", "where": "<frame, timestamp, line or section>", "issue": "<what is wrong>", "fix": "<concrete fix>"}]}';
@@ -494,9 +508,7 @@ async function main() {
   }
   if (sub === 'align') {
     const report = await align(opts);
-    fs.mkdirSync(path.dirname(path.resolve(opts.out)), { recursive: true });
-    fs.writeFileSync(opts.out, `${JSON.stringify(report, null, 2)}\n`);
-    console.log(JSON.stringify({ out: opts.out, ok: report.ok, errors: report.errors, coverage: report.coverage, provider: report.provider.name, words: report.words.length }, null, 2));
+    console.log(JSON.stringify({ out: alignOutPath(opts.out, report.ok), ok: report.ok, errors: report.errors, coverage: report.coverage, provider: report.provider.name, words: report.words.length }, null, 2));
     return report.ok ? 0 : 1;
   }
   const threshold = Number(opts.threshold ?? 85);

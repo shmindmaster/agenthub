@@ -27,6 +27,12 @@ const captionLib = findCaptionLib(dirname(fileURLToPath(import.meta.url)));
 if (!captionLib) throw new Error('marketing caption chunker not found beside picture-gates.mjs');
 const { chunkWords } = await import(pathToFileURL(captionLib).href);
 
+// sync-lib.mjs sits beside the synced copy of this script, or under ../kit/screencast in the package.
+const here = dirname(fileURLToPath(import.meta.url));
+const syncLib = [join(here, 'sync-lib.mjs'), join(here, '..', 'kit', 'screencast', 'sync-lib.mjs')].find((path) => existsSync(path));
+if (!syncLib) throw new Error('sync-lib.mjs not found beside picture-gates.mjs or in ../kit/screencast');
+const { cloudAlignCoverage, CLOUD_ALIGN_LIMITS } = await import(pathToFileURL(syncLib).href);
+
 export const MOUNT_LEAD = 0.25;
 export const SPOT_HOLD = 0.45;
 export const DURATION_TOLERANCE = 1.5;
@@ -118,11 +124,17 @@ export function asrAnchoredAllowed(jobDoc) {
 
 export function clockAccepted(report, { allowAsrAnchored = false } = {}) {
   const method = String(report?.method || '');
+  if (report?.ok === false) return { ok: false, method, reason: report?.reason || 'alignment report marked not ok' };
   if (method === 'forced-alignment' || method === 'forced-alignment-on-encoded') return { ok: true, method };
   // Hosted ASR word times anchored to the locked script (kit/cloud/cloud-ai.mjs align). Not forced alignment, so it
   // times the picture only where the job opted in; the default rule (ASR is a transcript check) stands.
   if (method === 'asr-anchored-alignment') {
-    return allowAsrAnchored ? { ok: true, method } : { ok: false, method, reason: 'timing method asr-anchored-alignment (cloud ASR anchored to the locked script) drives the picture only when job.json sets clockPolicy.allowAsrAnchored: true; otherwise use ai.ps1 align' };
+    if (!allowAsrAnchored) return { ok: false, method, reason: 'timing method asr-anchored-alignment (cloud ASR anchored to the locked script) drives the picture only when job.json sets clockPolicy.allowAsrAnchored: true; otherwise use ai.ps1 align' };
+    const coverage = cloudAlignCoverage(Array.isArray(report.words) ? report.words : []);
+    if (coverage.exactRatio < CLOUD_ALIGN_LIMITS.minExactRatio || coverage.longestUnmatchedRun > CLOUD_ALIGN_LIMITS.maxUnmatchedRun) {
+      return { ok: false, method, reason: `cloud script alignment too loose for a picture clock: ${coverage.exact}/${coverage.total} exact onsets, longest precision-limited run ${coverage.longestUnmatchedRun}` };
+    }
+    return { ok: true, method };
   }
   return { ok: false, method, reason: method ? `timing method ${method} cannot drive the picture; Whisper is a transcript check` : 'timing method is missing; the picture clock is ai.ps1 align' };
 }
