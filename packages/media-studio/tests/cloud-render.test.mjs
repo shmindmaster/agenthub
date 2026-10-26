@@ -57,3 +57,12 @@ test('mapArgs leaves a missing path untouched', () => {
   const ctx = { cwd: tmpdir(), outputs: new Map(), addFile: () => assert.fail('no upload'), addDir: () => assert.fail('no upload'), addConcat: () => null };
   assert.deepEqual(mapArgs(['nope/missing.mp4'], ctx), ['nope/missing.mp4']);
 });
+
+test('jobResources gives --cpu its matching memory and refuses mismatched sizes', async () => {
+  const { jobResources } = await import(pathToFileURL(join(pkg, 'kit', 'cloud', 'cloud-render.mjs')).href);
+  assert.deepEqual(jobResources(undefined, undefined), { cpu: 4, memory: '8Gi' });
+  assert.deepEqual(jobResources('8', undefined), { cpu: 8, memory: '16Gi' });
+  assert.deepEqual(jobResources(undefined, '16'), { cpu: 8, memory: '16Gi' });
+  assert.deepEqual(jobResources('2', '4Gi'), { cpu: 2, memory: '4Gi' });
+  assert.throws(() => jobResources('4', '16'), /memory = 2 x vCPU/);
+});

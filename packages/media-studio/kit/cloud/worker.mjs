@@ -201,11 +201,23 @@ async function render(manifest) {
       outputs.push({ ...o, missing: true });
       continue;
     }
+    // A media output must decode: a killed encoder can leave a file with no moov atom or zero duration.
+    if (/\.(mp4|mov|m4v|webm|mkv|wav|m4a|mp3|aac|flac)$/i.test(o.path)) {
+      const probe = await sh(`${RT}/ffmpeg/bin/ffprobe`, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', o.path]);
+      const duration = parseFloat(probe.tail);
+      if (probe.code !== 0 || !(duration > 0)) {
+        log(`output ${o.path} is not a readable media file (ffprobe exit ${probe.code}, duration ${probe.tail.trim() || 'none'})`);
+        outputs.push({ ...o, missing: true, unreadable: true });
+        continue;
+      }
+    }
     outputs.push({ ...o, bytes: await blob.putFile(o.blob, o.path) });
   }
   t.outputSeconds = (Date.now() - s) / 1000;
   const ok = r.code === 0 && outputs.every((o) => !o.missing);
-  return { ok, exitCode: r.code, error: ok ? undefined : r.tail.slice(-1500) || 'output missing', outputs, timings: t, runtime: runtime.blob };
+  const bad = outputs.filter((o) => o.missing).map((o) => `${path.basename(o.path)} ${o.unreadable ? 'unreadable' : 'missing'}`);
+  const error = ok ? undefined : r.code !== 0 ? r.tail.slice(-1500) || `exit ${r.code}` : `command exited 0 but output ${bad.join(', ')}`;
+  return { ok, exitCode: r.code, error, outputs, timings: t, runtime: runtime.blob };
 }
 
 const started = Date.now();

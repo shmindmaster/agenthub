@@ -277,11 +277,24 @@ async function uploadAll(storage, files) {
   return { inputs: hashed.map((h) => ({ blob: `cas/${h.sha}`, path: h.cpath })), unique: unique.length, uploaded, uploadedBytes, totalBytes };
 }
 
+/**
+ * Consumption containers take memory = 2 GiB per vCPU (0.5 vCPU steps: 0.5/1Gi ... 4/8Gi; larger sizes where the
+ * environment allows, e.g. 8/16Gi). --cpu alone gets its matching memory; a mismatched pair is refused up front
+ * instead of failing at Azure. Memory-heavy jobs (many-input ffmpeg compositions) need more vCPU to get more memory.
+ */
+export function jobResources(cpu, memory, base = { cpu: 4, memory: '8Gi' }) {
+  const c = Number(cpu || (memory ? parseFloat(memory) / 2 : base.cpu));
+  const m = memory ? parseFloat(memory) : cpu ? c * 2 : parseFloat(base.memory);
+  if (!(c > 0) || Math.abs(c * 2 - m) > 1e-9) throw new Error(`invalid size ${c} vCPU / ${m} GiB: consumption jobs need memory = 2 x vCPU (e.g. --cpu 4 = 8 GiB, --cpu 8 = 16 GiB)`);
+  return { cpu: c, memory: `${m}Gi` };
+}
+
 async function startExecution(cfg, c, jobId, { cpu, memory }) {
   const job = await c.arm('GET', `${c.jobUrl}?api-version=${ARM_API}`);
   const base = job.properties.template.containers[0];
   const env = (base.env || []).filter((e) => e.name !== 'JOB_ID').concat([{ name: 'JOB_ID', value: jobId }]);
-  const container = { ...base, env, resources: { cpu: Number(cpu || base.resources.cpu), memory: memory ? `${memory}Gi`.replace(/GiGi$/, 'Gi') : base.resources.memory } };
+  const resources = jobResources(cpu, memory, base.resources);
+  const container = { ...base, env, resources };
   const res = await c.arm('POST', `${c.jobUrl}/start?api-version=${ARM_API}`, { containers: [container] });
   return { name: res.name || res.id?.split('/').pop(), resources: container.resources };
 }
