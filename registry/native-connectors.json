@@ -1224,7 +1224,7 @@
           "writing.creative-enhancement"
         ],
         "required": false,
-        "note": "Optional writers-room enhancement on Claude. story-series-studio must not hard-depend on it.",
+        "note": "Optional writers-room enhancement on Claude. media-studio must not hard-depend on it.",
         "observedAt": "2026-08-21",
         "hostChannels": [
           {

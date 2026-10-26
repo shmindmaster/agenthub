@@ -192,7 +192,7 @@ registry/mobile-scope.json                                          new
 registry/capabilities.json                                          managedSkillNames + contentHash
 global-agent-policy.md                                              ## Mobile scope
 tests/Test-MobileScope.ps1                                          new
-packages/portfolio-engineering/skills/mobile-platform-standard/     new (SKILL.md + 2 references)
+packages/mobile-development/skills/mobile-platform-standard/     new (SKILL.md + 2 references)
 docs/plans/active/mobile-scope-guard.md                             this file
 rexa/app.json                                                       M6 only: extra.eas.projectId
 ```
