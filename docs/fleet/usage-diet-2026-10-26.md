@@ -198,6 +198,30 @@ for that session and makes it the default again.
   Firecrawl, Claude in Chrome, the built-in browser, and
   `product-experience-engineering@agenthub`.
 
+## Standing pattern: bulk work goes to API workers, not subagents
+
+Every interactive subagent pays the session's full startup context (about
+68–110k tokens here) before it does any work, and that cost comes out of Max
+usage. For bulk, self-contained work, prefer a headless API or Batch worker:
+
+- **Use a worker for:** review or QA passes over many files or frames,
+  research summaries, transcript and script scoring, and classification or
+  extraction over a list of inputs. The work must not need this session's
+  tools or conversation.
+- **Keep subagents for:** work that needs repository tools, file edits, MCP
+  connectors or the conversation's context.
+- **How to call it:** call the Anthropic Messages API directly (or the Message
+  Batches API for large non-urgent sets). Read `ANTHROPIC_API_KEY` by name and
+  never print it. Send only the inputs the task needs, with a small system
+  prompt and no host instruction files.
+- **Boundaries** (global policy):
+  - Owner business work and public or synthetic inputs only. Never send
+    Duckie, Pendoah or other client data.
+  - Stop on errors, exhausted credit or expiry; do not retry into charges.
+  - No extra calls just to verify.
+  - The 2026-10-26 credit window and its shared worker are tracked by the
+    orchestration ledger, not here.
+
 ## Not changed — follow-ups
 
 - **duckie-app `.claude/rules` — done in musa-dev-team/duckie-app#1721.**
