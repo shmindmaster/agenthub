@@ -561,6 +561,161 @@ foreach ($dir in $sharedRoots) {
   }
 }
 
+# Host skill-visibility overrides. The native-plugin skip above withholds a
+# host's own deployment, but a host whose skillsDir is a junction onto the
+# shared library still loads every loose copy deployed there for OTHER hosts.
+# On 2026-10-26 Claude listed media-studio (x5), product-experience-engineering
+# (x11) and use-repowise twice: once from its plugin, once as a loose copy.
+# Claude Code documents skillOverrides in settings.json: "off" hides a skill
+# from the model listing and the / menu, and plugin skills are unaffected. So
+# the junction stays (no swap under running sessions) and this pass hides the
+# loose duplicate by name instead.
+#
+# A host opts in with an agents.json skillOverrides block. A loose skill is
+# hidden when the host's settings enable the plugin shipping it, or when the
+# block names it as a duplicate of a host built-in. Ownership is recorded in a
+# separate state file: Sync removes only an "off" it wrote, and never changes
+# an entry the owner set. Disabling the plugin restores the loose copy.
+$overrideStatePath = Join-Path $runtimeRoot 'skill-overrides.json'
+$priorOverrides = @{}
+if (Test-Path -LiteralPath $overrideStatePath) {
+  $overrideDocument = Get-Content -LiteralPath $overrideStatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+  foreach ($property in @($overrideDocument.hosts.PSObject.Properties)) { $priorOverrides[$property.Name] = $property.Value }
+}
+$overridesAfterRun = @{}
+foreach ($hostId in $priorOverrides.Keys) { $overridesAfterRun[$hostId] = $priorOverrides[$hostId] }
+$overridesChanged = 0
+# Unlike the passes above, this one also runs under -CapabilityId: it reads the
+# whole registry and the host settings, never the scoped deployment set.
+foreach ($agent in $agents) {
+  $overrideConfig = $agent.skillOverrides
+  if (-not $overrideConfig) { continue }
+  $hostId = [string]$agent.id
+  $settingsPath = Resolve-UnderUserProfile ([string]$agent.nativePaths.settings)
+  $hostSkillsDir = Resolve-UnderUserProfile ([string]$agent.nativePaths.skillsDir)
+  if ([string]::IsNullOrWhiteSpace($settingsPath) -or [string]::IsNullOrWhiteSpace($hostSkillsDir)) {
+    $failures.Add("skillOverrides on '$hostId' needs nativePaths.settings and nativePaths.skillsDir")
+    continue
+  }
+  $overrideRow = { param($Capability, $Name, $Status) $rows.Add([pscustomobject]@{ capability=$Capability; host=$hostId; mode='host-skill-override'; skill=$Name; status=$Status }) }
+  if (-not (Test-Path -LiteralPath $settingsPath -PathType Leaf)) {
+    & $overrideRow '<host-settings>' '<settings>' 'settings-absent'
+    continue
+  }
+  try {
+    $settingsText = [IO.File]::ReadAllText($settingsPath)
+    $settings = $settingsText | ConvertFrom-Json
+  } catch {
+    $failures.Add("cannot parse '$settingsPath' for skillOverrides: $($_.Exception.Message)")
+    continue
+  }
+
+  # Desired hides: name -> owning capability (or the built-in marker).
+  $desiredHides = [ordered]@{}
+  $marketplace = [string]$overrideConfig.pluginMarketplace
+  foreach ($capability in $capabilities.capabilities) {
+    $pluginKey = "$($capability.id)@$marketplace"
+    $pluginEnabled = $settings.enabledPlugins -and $settings.enabledPlugins.PSObject.Properties[$pluginKey] -and
+      ($settings.enabledPlugins.$pluginKey -eq $true)
+    if (-not $pluginEnabled) { continue }
+    try { $pkgRoot = Resolve-AgentHubPackageRoot -RepositoryRoot $root -Capability $capability -OverlayRoot $overlayRoot } catch { continue }
+    $pkgSkills = Join-Path $pkgRoot 'skills'
+    if (-not (Test-Path -LiteralPath $pkgSkills)) { continue }
+    foreach ($skill in @(Get-ChildItem -LiteralPath $pkgSkills -Directory)) {
+      if (Test-Path -LiteralPath (Join-Path $hostSkillsDir $skill.Name) -PathType Container) {
+        $desiredHides[$skill.Name] = [string]$capability.id
+      }
+    }
+  }
+  foreach ($name in @($overrideConfig.duplicateOfHostBuiltIns)) {
+    if ([string]::IsNullOrWhiteSpace($name)) { continue }
+    if ($shippedAnywhere.ContainsKey($name)) {
+      $failures.Add("skillOverrides on '$hostId' names '$name' as a host built-in duplicate, but packages/$($shippedAnywhere[$name]) ships it")
+      continue
+    }
+    if (Test-Path -LiteralPath (Join-Path $hostSkillsDir $name) -PathType Container) {
+      $desiredHides[$name] = '<host-built-in>'
+    }
+  }
+
+  $current = [ordered]@{}
+  if ($settings.PSObject.Properties['skillOverrides'] -and $settings.skillOverrides) {
+    foreach ($property in @($settings.skillOverrides.PSObject.Properties)) { $current[$property.Name] = $property.Value }
+  }
+  # Ownership only carries for the same settings file; a moved profile starts clean.
+  $priorOwned = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+  $priorHost = $priorOverrides[$hostId]
+  if ($priorHost -and [string]$priorHost.settings -eq $settingsPath) {
+    foreach ($name in @($priorHost.owned)) { if ($name) { [void]$priorOwned.Add([string]$name) } }
+  }
+  $owned = [Collections.Generic.List[string]]::new()
+  $changed = $false
+  foreach ($name in $priorOwned) {
+    if ($desiredHides.Contains($name)) { continue }
+    if ($current.Contains($name) -and $current[$name] -eq 'off') {
+      $current.Remove($name)
+      $changed = $true
+      & $overrideRow '<stale-override>' $name 'stale'
+    }
+    # Otherwise the owner changed or removed it: no longer ours to touch.
+  }
+  foreach ($name in $desiredHides.Keys) {
+    if ($current.Contains($name)) {
+      if ($priorOwned.Contains($name) -and $current[$name] -eq 'off') {
+        $owned.Add($name)
+        & $overrideRow $desiredHides[$name] $name 'current'
+      } else {
+        & $overrideRow $desiredHides[$name] $name 'owner-set'
+      }
+      continue
+    }
+    $current[$name] = 'off'
+    $owned.Add($name)
+    $changed = $true
+    & $overrideRow $desiredHides[$name] $name 'missing'
+  }
+
+  if ($changed) { $overridesChanged++ }
+  if (-not $Apply) { continue }
+  if ($changed) {
+    $updated = [ordered]@{}
+    foreach ($property in @($settings.PSObject.Properties)) {
+      if ($property.Name -ne 'skillOverrides') { $updated[$property.Name] = $property.Value }
+    }
+    if ($current.Count -gt 0) { $updated['skillOverrides'] = [pscustomobject]$current }
+    # Keep the file's own line endings; ConvertTo-Json emits the platform's.
+    $newText = (([pscustomobject]$updated | ConvertTo-Json -Depth 64) -replace "`r`n", "`n") + "`n"
+    if ($settingsText.Contains("`r`n")) { $newText = $newText -replace "`n", "`r`n" }
+    # Refuse a write that would change anything but skillOverrides.
+    $before = [ordered]@{}
+    foreach ($property in @($settings.PSObject.Properties)) { if ($property.Name -ne 'skillOverrides') { $before[$property.Name] = $property.Value } }
+    $after = [ordered]@{}
+    foreach ($property in @(($newText | ConvertFrom-Json).PSObject.Properties)) { if ($property.Name -ne 'skillOverrides') { $after[$property.Name] = $property.Value } }
+    if (([pscustomobject]$before | ConvertTo-Json -Depth 64 -Compress) -ne ([pscustomobject]$after | ConvertTo-Json -Depth 64 -Compress)) {
+      $failures.Add("refusing to write '$settingsPath': the round-trip would change keys other than skillOverrides")
+      continue
+    }
+    $stageSettings = $null
+    try {
+      $physicalSettings = Resolve-PhysicalWritePath $settingsPath
+      $stageSettings = "$physicalSettings.agenthub-stage-$([guid]::NewGuid())"
+      [IO.File]::WriteAllText($stageSettings, $newText, (New-Object System.Text.UTF8Encoding($false)))
+      Move-Item -LiteralPath $stageSettings -Destination $physicalSettings -Force
+    } catch {
+      $failures.Add("failed to write skillOverrides to '$settingsPath': $($_.Exception.Message)")
+      if ($stageSettings -and (Test-Path -LiteralPath $stageSettings)) { Remove-Item -LiteralPath $stageSettings -Force }
+      continue
+    }
+  }
+  $overridesAfterRun[$hostId] = [pscustomobject]@{ settings=$settingsPath; owned=@($owned | Sort-Object) }
+}
+if ($Apply) {
+  $physicalOverrideState = Resolve-PhysicalWritePath $overrideStatePath
+  New-Item -ItemType Directory -Path (Split-Path -Parent $physicalOverrideState) -Force | Out-Null
+  $overrideJson = @{ schemaVersion=1; updatedAt=(Get-Date).ToUniversalTime().ToString('o'); hosts=$overridesAfterRun } | ConvertTo-Json -Depth 6
+  [IO.File]::WriteAllText($physicalOverrideState, ($overrideJson + "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
+}
+
 # The ledger records what this run actually manages, and it is written BEFORE
 # the failure gate below -- deliberately, and this ordering is load-bearing.
 #
@@ -643,4 +798,4 @@ if ($rows.Count -eq 0 -and $pruned -eq 0) {
 }
 
 $counts = $rows | Group-Object status | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Count)" }
-Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; retired-pruned=$retiredPruned; cli-shadow-pruned=$cliShadowPruned; yaml-repaired=$yamlRepaired; yaml-needs-repair=$yamlNeedsRepair; apply=$Apply."
+Write-Output "PASS: capability parity $($rows.Count) host mappings checked; $($counts -join ', '); pruned=$pruned; retired-pruned=$retiredPruned; cli-shadow-pruned=$cliShadowPruned; yaml-repaired=$yamlRepaired; yaml-needs-repair=$yamlNeedsRepair; skill-override-hosts-changed=$overridesChanged; apply=$Apply."

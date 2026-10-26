@@ -97,3 +97,30 @@ Claude Code host settings that Sync does not manage (`enabledPlugins`,
 `deniedMcpServers`, Desktop connector defaults) and the 2026-10-26 measured
 cut with per-change rollback are recorded in
 [usage-diet-2026-10-26.md](./usage-diet-2026-10-26.md).
+
+Claude reads the shared library through the `~/.claude/skills` junction. It
+therefore also lists loose copies that Sync deploys for other hosts, including
+skills of a capability Claude receives as a plugin. The native-plugin skip
+withholds only Claude's own deployment, so it cannot remove those copies. The
+junction and the junction-safety rules above stay unchanged. Instead, the
+`skillOverrides` block on the Claude row of `registry/agents.json` makes
+`Sync-Capabilities.ps1` write `"off"` into `skillOverrides` in
+`~/.claude/settings.json` for two kinds of loose skill:
+
+- every loose skill whose `<capability>@agenthub` plugin is enabled there;
+- every loose skill named in `duplicateOfHostBuiltIns`, for third-party copies
+  of skills claude.ai sync already provides.
+
+[Claude Code documents](https://code.claude.com/docs/en/skills#override-skill-visibility-from-settings)
+that `"off"` hides a skill from the listing and the `/` menu, and does not
+affect plugin skills. The pass also runs under `-CapabilityId`, and the
+settings write refuses to change any other key. Ownership is tracked in
+`%LOCALAPPDATA%\AgentHub\sync\skill-overrides.json`. Sync removes only an
+`"off"` it wrote, never an entry the owner set, so disabling a plugin brings
+its loose copies back. Other hosts still read the full shared library. The
+junction is never swapped, so a running session keeps every skill file it
+loaded. It has not been checked whether a running session applies a
+`skillOverrides` change without a restart. Measure in a new session, with a
+fresh `claude -p "/context"` (in Git Bash, set
+`MSYS_NO_PATHCONV=1`). Count the entries as well as the tokens: the listing is
+capped near 1% of the window.

@@ -232,15 +232,24 @@ usage. For bulk, self-contained work, prefer a headless API or Batch worker:
   109.7k → 79.7k tokens (memory files 53.4k → 23.8k). Reading a
   `supabase/migrations/` file loads the six database rules; before any read,
   none are in context.
-- **Shared skills directory.** `~/.claude/skills` is a link to
-  `~/.agents/skills`. That makes Claude load loose copies of skills it already
-  receives as plugins:
+- **Shared skills directory — done the same day.** `~/.claude/skills` is a
+  link to `~/.agents/skills`. That made Claude load loose copies of skills it
+  already receives another way:
   - media-studio ×5, product-experience-engineering ×11, use-repowise.
-  - Anthropic document skills that claude.ai already provides.
+  - Nine Anthropic document skills that claude.ai sync already provides.
 
-  `Sync-Capabilities.ps1` skips the loose copy for a host marked
-  `native-plugin-installed`. It cannot do that through a shared directory, so
-  this needs a Claude-specific skills root.
+  The link stays. `Sync-Capabilities.ps1` now writes `"off"` entries into
+  `skillOverrides` in `~/.claude/settings.json`, which is Claude Code's
+  documented way to hide a skill without moving it. See
+  [context-reduction.md](./context-reduction.md). A fresh `claude -p "/context"`
+  showed 205 → 179 skill entries, with loose entries going from 108 to 82. The
+  skills listing stayed at 9.9k because of the 1% cap. Entries cut to under 20
+  tokens went from 126 to 101.
+  Rollback: `claude plugin disable` brings a plugin's loose copies back on the
+  next sync. To restore all 26 at once, delete the `skillOverrides` key from
+  `~/.claude/settings.json` and clear `hosts.claude.owned` in
+  `%LOCALAPPDATA%\AgentHub\sync\skill-overrides.json`. If you only delete the
+  key, the next sync writes it again.
 - **CLI connector parity.** Desktop connector defaults do not reach the CLI or
   `claude -p` dispatch. Denying the same connectors in `deniedMcpServers` would
   also block re-enabling them for a single session if the Desktop app honours
