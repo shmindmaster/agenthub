@@ -50,7 +50,7 @@ node cloud-ai.mjs qa     --images <contact-sheet.jpg> [...] --prompt <context> -
 
 Screen capture (Playwright WebM, mouse movement) stays local: it needs the signed-in browser and the real screen.
 Everything after the capture (Recast finishing, Remotion composition, FFmpeg encode/mix/loudnorm) can run here.
-Voice stays on Azure HD TTS (`deloitte-drills-20261026\azure.mjs`); this tool does not synthesize speech.
+Voice stays on the Azure HD TTS voice kit; this tool does not synthesize speech.
 
 ## Cost
 
@@ -68,9 +68,9 @@ $0.000024 per vCPU-second + $0.000003 per GiB-second, billed only while a job ru
 ## How it works
 
 ```
-this machine                               Azure (MahumTech tenant, rg-media-render, Central US)
+this machine                               Azure (owner tenant, rg-media-render, Central US)
 -----------                                ------------------------------------------------------
-cloud-render.mjs                           Storage stmrender4e123a95 (shared key off, no public access)
+cloud-render.mjs                           Storage stmrender<sub8> (shared key off, no public access)
   hash + upload inputs  ────────────────▶    cas/<sha256>           content-addressed inputs
   write jobs/<id>/job.json ─────────────▶    jobs/<id>/             manifest, outputs, log, result
   ARM: start job execution ─────────────▶  Container Apps job caj-media-render (manual trigger, 0 replicas idle)
@@ -89,7 +89,8 @@ cloud-render.mjs                           Storage stmrender4e123a95 (shared key
 
 ## Setup and maintenance
 
-1. `pwsh -File Provision-CloudRender.ps1` (idempotent; refuses any subscription outside the MahumTech tenant).
+1. `pwsh -File Provision-CloudRender.ps1` (idempotent). Pass `-SubscriptionId`/`-TenantId` or set
+   `CLOUD_RENDER_SUBSCRIPTION_ID`/`CLOUD_RENDER_TENANT_ID`; it refuses a subscription outside that tenant.
    Writes the non-secret config to `%LOCALAPPDATA%\AgentHub\media-studio\cloud-render.json`.
 2. `node cloud-render.mjs bootstrap` builds the runtime tarball in the cloud (about 2 minutes, about $0.02).
    Re-run it when the kit's `package-lock.json` changes; `doctor` reports `kitLockMatchesRuntime`.

@@ -1,6 +1,8 @@
 #Requires -Version 7
 <#
-Provision (idempotently) the shared cloud render path in Sarosh's own MahumTech Azure tenant.
+Provision (idempotently) the shared cloud render path in the owner's own Azure tenant.
+Subscription and tenant come from -SubscriptionId/-TenantId or CLOUD_RENDER_SUBSCRIPTION_ID/CLOUD_RENDER_TENANT_ID;
+they are never written into this public repository.
 
 Creates, in one resource group:
   - a StorageV2 account (Standard_LRS, shared-key access off, no public blob access) with containers
@@ -16,8 +18,8 @@ Nothing here bills while idle except Blob capacity (cents per GB-month).
 #>
 [CmdletBinding()]
 param(
-    [string]$SubscriptionId = '4e123a95-c99f-4816-81ba-8adc55583cfe',
-    [string]$TenantId = '71f8de90-0c77-41a1-9592-d1b104c46c24',
+    [string]$SubscriptionId = $env:CLOUD_RENDER_SUBSCRIPTION_ID,
+    [string]$TenantId = $env:CLOUD_RENDER_TENANT_ID,
     [string]$ResourceGroup = 'rg-media-render',
     [string]$Location = 'centralus',
     [string]$Image = 'mcr.microsoft.com/playwright:v1.63.0-noble',
@@ -47,8 +49,9 @@ function Invoke-Arm([string]$Method, [string]$Path, $Body) {
     } finally { Remove-Item -LiteralPath $tmp -Force }
 }
 
+if (-not $SubscriptionId -or -not $TenantId) { throw 'Set -SubscriptionId and -TenantId (or CLOUD_RENDER_SUBSCRIPTION_ID / CLOUD_RENDER_TENANT_ID) to the owner subscription and tenant.' }
 $account = Invoke-Az account show --subscription $SubscriptionId -o json | ConvertFrom-Json
-if ($account.tenantId -ne $TenantId) { throw "Subscription $SubscriptionId is in tenant $($account.tenantId), not the MahumTech tenant $TenantId. Refusing." }
+if ($account.tenantId -ne $TenantId) { throw "Subscription $SubscriptionId is in tenant $($account.tenantId), not the owner tenant $TenantId. Refusing." }
 $user = $account.user.name
 $userId = Invoke-Az ad signed-in-user show --query id -o tsv
 Write-Host "Subscription: $($account.name) ($SubscriptionId) as $user"
@@ -64,7 +67,7 @@ $envName = 'cae-media-render'
 $jobName = 'caj-media-render'
 $rgPath = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup"
 
-Invoke-Az group create -n $ResourceGroup -l $Location --subscription $SubscriptionId --tags purpose=media-render owner=sarosh -o none
+Invoke-Az group create -n $ResourceGroup -l $Location --subscription $SubscriptionId --tags purpose=media-render owner=owner -o none
 
 if (-not (Invoke-Az storage account list -g $ResourceGroup --subscription $SubscriptionId --query "[?name=='$storage'].name" -o tsv)) {
     Invoke-Az storage account create -n $storage -g $ResourceGroup -l $Location --subscription $SubscriptionId `
@@ -153,7 +156,7 @@ Invoke-Arm PUT "$rgPath/providers/Microsoft.Consumption/budgets/media-render-mon
 # disabled, so callers use Entra tokens. Only gpt-5-mini has GlobalStandard quota on this subscription (2026-10-26).
 $aoai = "aoai-mrender-$suffix"
 if (-not (Invoke-Az cognitiveservices account list -g $ResourceGroup --subscription $SubscriptionId --query "[?name=='$aoai'].name" -o tsv)) {
-    Invoke-Az cognitiveservices account create -n $aoai -g $ResourceGroup -l $AoaiLocation --kind AIServices --sku S0 --custom-domain $aoai --subscription $SubscriptionId --tags purpose=media-render owner=sarosh --yes -o none
+    Invoke-Az cognitiveservices account create -n $aoai -g $ResourceGroup -l $AoaiLocation --kind AIServices --sku S0 --custom-domain $aoai --subscription $SubscriptionId --tags purpose=media-render owner=owner --yes -o none
 }
 $aoaiId = "$rgPath/providers/Microsoft.CognitiveServices/accounts/$aoai"
 Invoke-Az resource update --ids $aoaiId --set properties.disableLocalAuth=true -o none

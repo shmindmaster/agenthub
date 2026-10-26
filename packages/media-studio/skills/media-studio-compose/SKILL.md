@@ -46,7 +46,7 @@ Viewer-facing `briefing`, `training`, `explainer`, `series-episode`, `webcast`, 
 
 Load official Remotion skills (`remotion-markup`, `remotion-render`) when editing the kit. FFmpeg mux when picture is already stills/clips, then finish with helper. Recast/Motif only if those plates exist.
 
-**Render in the cloud by default** (owner direction 2026-10-26: cloud for voice and rendering, local only for screen capture and mouse movement). `<kit>\cloud\cloud-render.mjs` runs the same FFmpeg, Remotion and Recast commands in Sarosh's Azure (Container Apps job, scale to zero, about $0.0072 per job-minute) and downloads the result into the job folder:
+**Render in the cloud by default** (owner direction 2026-10-26: cloud for voice and rendering, local only for screen capture and mouse movement). `<kit>\cloud\cloud-render.mjs` runs the same FFmpeg, Remotion and Recast commands in the owner's own Azure tenant (Container Apps job, scale to zero, about $0.0072 per job-minute) and downloads the result into the job folder:
 
 ```powershell
 $cr = Join-Path $kit 'cloud\cloud-render.mjs'
