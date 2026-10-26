@@ -173,7 +173,7 @@ A host whose config location differs by OS declares the macOS and Linux paths in
 Windows-only by design, because they depend on Windows facilities with no macOS or Linux equivalent:
 
 - **desktop-evidence** screen capture uses FFmpeg `gdigrab` and GDI. Use browser-evidence for web pages on any OS.
-- **RepoWise bounded indexing** caps the indexer's memory with a Windows Job Object; the RepoWise bridge and its updater use the Windows `py` launcher and Task Scheduler.
+- **RepoWise bounded indexing** caps the indexer's memory with a Windows Job Object; the RepoWise bridge and its updater use the Windows `py` launcher.
 - **The mobile device lab** drives a VMware Workstation macOS guest and the Android emulator from a Windows host.
 
 [`tests/ci-skip.json`](./tests/ci-skip.json) lists every test CI does not run and why: tests that read the owner's own machine, and the Windows-host features above on macOS and Linux.

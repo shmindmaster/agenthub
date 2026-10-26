@@ -72,7 +72,7 @@ $lock = $null
 try {
     $dryManifest = Join-Path $root 'dry.json'
     & $script @common -ManifestPath $dryManifest *> $null
-    $dry = Get-Content -LiteralPath $dryManifest -Raw | ConvertFrom-Json
+    $dry = Get-Content -LiteralPath $dryManifest -Raw -Encoding UTF8 | ConvertFrom-Json
     $byUnit = @{}; foreach ($u in $dry.units) { $byUnit[[string]$u.unit] = $u }
     Report 'dry run changes nothing' ((Test-Path "$proj\aaaa.jsonl") -and -not $dry.apply) 'dry run removed a file'
     Report 'stem grouping folds <id>.jsonl, <id>/ and <id>.*.json into one unit' (@($byUnit["$proj\aaaa"].paths).Count -eq 3) "paths: $($byUnit["$proj\aaaa"].paths -join ', ')"
@@ -87,7 +87,7 @@ try {
     $applyManifest = Join-Path $root 'apply.json'
     & $script @common -ManifestPath $applyManifest -Apply *> $null
     $lock.Dispose(); $lock = $null
-    $applied = Get-Content -LiteralPath $applyManifest -Raw | ConvertFrom-Json
+    $applied = Get-Content -LiteralPath $applyManifest -Raw -Encoding UTF8 | ConvertFrom-Json
 
     Report 'apply recycles the stale Claude session and its folder' (-not (Test-Path "$proj\aaaa.jsonl") -and -not (Test-Path "$proj\aaaa")) 'aaaa survived'
     Report 'apply keeps the recent Claude session' (Test-Path "$proj\bbbb.jsonl") 'bbbb was removed'
@@ -106,7 +106,7 @@ try {
     }
     else { Write-Host 'SKIP: python not found; SQLite assertions not run' -ForegroundColor Yellow }
 
-    $text = Get-Content -LiteralPath $script -Raw
+    $text = Get-Content -LiteralPath $script -Raw -Encoding UTF8
     Report 'the script never schedules itself' ($text -notmatch 'Register-ScheduledTask|schtasks') 'scheduling call found'
     Report 'the script never erases permanently' ($text -notmatch 'Remove-Item|DeletePermanently|\.Delete\(') 'permanent delete call found'
 }
