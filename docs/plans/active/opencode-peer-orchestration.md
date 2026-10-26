@@ -103,6 +103,33 @@ Factory credit probe (one-line prompt, ~14–17k tokens of system context) on 20
 
 Credits ≈ tokens × the documented multiplier. `droid exec` has no spend or turn flag, so each run is bounded by `timeout` (F-1: 7200 s; the others: 5400 s) and by the low-multiplier model choice. Escalate one tier only after a demonstrated failure.
 
+#### Factory status at session handoff (2026-10-26 18:25 CT)
+
+| ID | Status | Evidence | Next action |
+|---|---|---|---|
+| F-1 | Running (mission `mis_712d158d`) | 2 commits on the branch | When the mission ends: read `F-1-report.md`, then rerun `node --test packages/media-studio/tests/` in the worktree |
+| F-2 | Running | no commits yet | If there is no commit by timeout: narrow the brief, escalate to gpt-6-sol |
+| F-3 | Running (resumed once) | 1 commit, 5 smoke screenshots in `F-3-artifacts` | Read the report; rerun the chromium + mobile-chrome suite |
+| F-4 | **Verified** (orchestrator reran the tests: 84/84, 7/7, Validate PASS) | `90ce0bd`, `4f4925b`, rebased on `ba45c6a`, not pushed; 168,731 credits | Owner: fast-forward main and push; enabling dispatch is a separate decision |
+
+- **Progress:** `pwsh -NoProfile -File D:\AgentHub\runtime\orchestration\Get-FactoryTaskStatus.ps1`.
+- **Resume any task in the TUI:** `droid --resume <session>` from its worktree. The orchestrator must stop the headless writer first, so there is one writer per session.
+- **Verified integrations:**
+  - auth: `droid doctor` passes
+  - RepoWise MCP via `repowise@agenthub`: a real call matched a direct call
+  - ACP: initialize and `session/new` succeed
+  - session resume: `exec -s`, used for F-3 and F-4
+  - permissionRules: blocks fired live
+  - mission state readable from `~/.factory/missions/<session>/state.json`
+- **Readiness:** agenthub Level 2 (21/57); the report was uploaded to the Factory dashboard. `vcs_cli_tools` and `unit_tests_runnable` failed because of how it was run (gh blocked, `--auto low`).
+- **User settings:** `~/.factory/settings.json` has an output style, status line, compaction and mission models, and ask/block rules. A backup sits beside it as `settings.json.bak-agenthub-*`.
+- **Not done:**
+  - theme (IDs undocumented; pick in `/themes`)
+  - Droid Computers and Environments (paid compute, needs owner approval)
+  - Agent Effectiveness
+  - Droid 0.249.0 update (manual)
+  - 34 duplicate-skill warnings from `~/.agents/skills/synced`
+
 ## Model routing and cost policy
 
 Verified 2026-10-26 by a one-word prompt per model through the configured Go
