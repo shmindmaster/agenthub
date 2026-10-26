@@ -454,12 +454,24 @@
       "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "cline": {
-      "enabled": false,
-      "reason": "Owner-authorized Alibaba Coding Plan through saved OpenAI-compatible provider settings; qwen3.8-max. CLI and Desktop authenticated tool reads verified 2026-10-23.",
-      "verifiedOn": "2026-10-23",
+      "enabled": true,
+      "reason": "2026-10-26 (CLI 3.0.71): one-word and small-coding-task probes. openai-compatible qwen3.8-max (Alibaba Model Studio) answered, cost 0, then at 23:07Z returned 'The free quota has been exhausted' after ~400k tokens: the endpoint runs a free-tier quota in free-tier-only mode and fails closed. Free models on provider cline passed a write-and-test task at totalCost 0: nvidia/nemotron-3-ultra-550b-a55b:free, poolside/laguna-s-2.1:free, cohere/north-mini-code:free; thinkingmachines/inkling:free returned 429 (daily cap). cline-pass returned 'weekly Clinepass limit reached, resets in 2d 1h' at 2026-10-26 22:45Z; its suggested fallback (--provider cline with a paid model) is usage-billed and must not be used. Unattended runs need AGENTHUB_PEER_GUARD=1 and CLINE_SESSION_BACKEND_MODE=local so ~/.cline/plugins/peer-guard.js runs in-process; in hub mode the guard never sees the variable (verified: push went through).",
+      "allowedModels": [
+        "openai-compatible:qwen3.8-max",
+        "cline:nvidia/nemotron-3-ultra-550b-a55b:free",
+        "cline:poolside/laguna-s-2.1:free",
+        "cline:cohere/north-mini-code:free",
+        "cline-pass:cline-pass/glm-5.3",
+        "cline-pass:cline-pass/glm-5.3-flash",
+        "cline-pass:cline-pass/kimi-k3",
+        "cline-pass:cline-pass/deepseek-v4-pro",
+        "cline-pass:cline-pass/qwen3.8-max"
+      ],
+      "allowedModelsNote": "provider:model. Free ids carry ':free' and price 0 in https://api.cline.bot/api/v1/ai/cline/models; any other model on provider cline is usage-billed and is not allowed. cline-pass entries are subscription-allowance only and fail closed when the weekly limit is reached.",
+      "verifiedOn": "2026-10-26",
       "ownerAuthorization": "2026-10-14 ~21:30 CT: owner directed using the other coding agents as reinforcements.",
-      "knownIssue": "Historical --yolo benchmark mode could hang at submit_and_exit. Normal --json mode with native timeout preserves plugins and MCP. Check the result before treating any timeout as success.",
-      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
+      "knownIssue": "Historical --yolo benchmark mode could hang at submit_and_exit. Normal --json mode with native timeout preserves plugins and MCP. Check the result before treating any timeout as success. A headless run starts a background cline-hub-daemon that inherits stdout; never read a run's output through a pipe that waits for EOF.",
+      "ownerDirection": "2026-10-26: owner asked in the Claude session to make Cline a first-class execution peer and to delegate 3-4 substantial engineering tasks to it. This supersedes, for Cline only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
     "copilot": {
       "enabled": false,

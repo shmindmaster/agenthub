@@ -52,7 +52,7 @@ for (const arg of args) {
 }
 const settingsIndex = args.indexOf('--settings-file');
 if (settingsIndex >= 0 && fs.existsSync(args[settingsIndex + 1])) ampSettings = JSON.parse(fs.readFileSync(args[settingsIndex + 1], 'utf8'));
-console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
+console.log(JSON.stringify({Arguments: args, Cwd: process.cwd(), Input: fs.readFileSync(0, 'utf8'), WarpMode: process.env.WARP_CLI_MODE, PeerGuard: process.env.AGENTHUB_PEER_GUARD ?? null, ClineBackend: process.env.CLINE_SESSION_BACKEND_MODE ?? null, PromptContents: contents, AmpSettingsLoaded: ampSettings !== null, AmpMcpServerCount: Object.keys(ampSettings?.['amp.mcpServers'] ?? {}).length, ApiKeyVars: Object.fromEntries(['ANTHROPIC_API_KEY','ANTHROPIC_API_KEY_BACKUP','DEVIN_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','OPENAI_API_KEY','OPENCODE_GO_API_KEY','OPENCODE_API_KEY','WARP_API_KEY'].map(name => [name, Object.hasOwn(process.env, name)]))}));
 if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
 '@ | Set-Content -LiteralPath $recorder -Encoding UTF8
     $node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
@@ -133,6 +133,7 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
             Check 'Cline keeps its full toolset and explicit provider' ($d.Arguments -contains '--json' -and $d.Arguments -notcontains '--yolo' -and $d.Arguments -contains 'openai-compatible' -and $d.Arguments -contains 'qwen3.8-max')
             $timeoutIndex = [Array]::IndexOf($d.Arguments, '--timeout')
             Check 'Cline receives bounded cwd and reasoning' ($d.Arguments -contains $scratch -and $d.Arguments -contains 'low' -and $timeoutIndex -ge 0 -and $d.Arguments[$timeoutIndex + 1] -eq '5')
+            Check 'Cline runs the peer guard in-process' ($d.PeerGuard -eq '1' -and $d.ClineBackend -eq 'local' -and $d.Arguments -contains '--compaction')
         }
         if ($id -eq 'gemini') { Check 'Gemini uses OAuth without API-key variables' (-not $d.ApiKeyVars.GOOGLE_API_KEY -and -not $d.ApiKeyVars.GEMINI_API_KEY) }
         if ($id -eq 'opencode') {
@@ -196,6 +197,15 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     $agentIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--agent') } else { -1 }
     Check 'OpenCode unattended runs use the policy-named agent' ($agentIndex -ge 0 -and $d.Arguments[$agentIndex + 1] -eq 'peer') $r.Err
     $fleet.dispatchPolicy.opencode.Remove('allowedModels'); $fleet.dispatchPolicy.opencode.Remove('agent'); Save-Fixture
+    $fleet.dispatchPolicy['cline'] = @{ allowedModels = @('openai-compatible:qwen3.8-max', 'cline:poolside/laguna-s-2.1:free') }; Save-Fixture
+    $r = Run @('-HostId','cline','-Prompt','ok','-Cwd',$scratch,'-Model','cline:anthropic/claude-sonnet-5.5','-TimeoutSec','5')
+    Check 'Cline refuses a usage-billed model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy.cline.allowedModels')
+    $r = Run @('-HostId','cline','-Prompt','ok','-Cwd',$scratch,'-Model','cline:poolside/laguna-s-2.1:free','-TimeoutSec','5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $providerIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--provider') } else { -1 }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    Check 'Cline routes an allowed provider:model per task' ($providerIndex -ge 0 -and $d.Arguments[$providerIndex + 1] -eq 'cline' -and $modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'poolside/laguna-s-2.1:free' -and $d.PeerGuard -eq '1') $r.Err
+    $fleet.dispatchPolicy.Remove('cline'); Save-Fixture
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-Title','x')
     Check 'session title is refused for other hosts' ($r.Exit -eq 3 -and $r.Err -match '-Title applies only')
     $r = Run @('-List')

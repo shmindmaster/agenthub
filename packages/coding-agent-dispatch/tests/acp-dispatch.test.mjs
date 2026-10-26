@@ -19,6 +19,7 @@ test('ACP transport keeps session and prompt out of command arguments', async ()
       const reply = value => child.stdout.write(JSON.stringify(value) + '\n');
       if (m.method === 'initialize') reply({ id: m.id, result: { agentCapabilities: { loadSession: true } } });
       if (m.method === 'session/load') reply({ id: m.id, result: {} });
+      if (m.method === 'session/set_config_option') reply({ id: m.id, result: { configOptions: [{ id: m.params.configId, currentValue: m.params.value }] } });
       if (m.method === 'session/prompt') {
         reply({ method: 'session/update', params: { sessionId: 'synthetic', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'reply' } } } });
         reply({ id: m.id, result: { stopReason: 'end_turn' } });
@@ -26,15 +27,16 @@ test('ACP transport keeps session and prompt out of command arguments', async ()
     }); done();
   } });
   let stopped = false;
-  const result = await resumeDispatch({ executable: 'synthetic.exe', cwd: tmpdir(), sessionId: 'synthetic', prompt: 'quoted " task\nnext', timeoutMs: 1000 }, {
+  const result = await resumeDispatch({ executable: 'synthetic.exe', cwd: tmpdir(), sessionId: 'synthetic', prompt: 'quoted " task\nnext', timeoutMs: 1000, provider: 'cline', model: 'synthetic/model:free' }, {
     spawnHost(file, args, options) {
       assert.equal(file, 'synthetic.exe'); assert.deepEqual(args, ['--acp', '--auto-approve', 'false']);
       assert.equal(options.windowsHide, true); assert.equal(options.shell, false); return child;
     }, stopHost: async value => { assert.equal(value, child); stopped = true; }
   });
   assert.equal(result.text, 'reply'); assert.equal(stopped, true);
-  assert.deepEqual(methods.map(m => m.method), ['initialize', 'session/load', 'session/prompt']);
-  assert.equal(methods[2].params.prompt[0].text, 'quoted " task\nnext');
+  assert.deepEqual(methods.map(m => m.method), ['initialize', 'session/load', 'session/set_config_option', 'session/set_config_option', 'session/prompt']);
+  assert.deepEqual(methods.slice(2, 4).map(m => [m.params.configId, m.params.value]), [['provider', 'cline'], ['model', 'synthetic/model:free']]);
+  assert.equal(methods[4].params.prompt[0].text, 'quoted " task\nnext');
 });
 
 test('batch transport permits spaces and rejects cmd expansion characters', () => {
@@ -50,7 +52,7 @@ test('timeout attempts cleanup and cleanup failure cannot become success', async
     child.stdout = new PassThrough(); child.stderr = new PassThrough();
     child.stdin = new Writable({ write(chunk, encoding, done) { done(); } });
     let stopped = false;
-    await assert.rejects(resumeDispatch({ executable: 'synthetic.exe', cwd: tmpdir(), sessionId: 'synthetic', prompt: 'task', timeoutMs: 10 }, {
+    await assert.rejects(resumeDispatch({ executable: 'synthetic.exe', cwd: tmpdir(), sessionId: 'synthetic', prompt: 'task', timeoutMs: 10, provider: 'cline', model: 'synthetic/model:free' }, {
       spawnHost: () => child,
       stopHost: async () => { stopped = true; if (cleanupFails) throw new Error('synthetic cleanup failed'); }
     }), cleanupFails ? /synthetic cleanup failed/ : /ACP timeout/);
@@ -68,11 +70,11 @@ test('dispatcher SessionId wiring and refusal use synthetic registry only', { ti
     // A .cmd host on Windows; an executable script elsewhere. Both names keep a space.
     const fake = join(root, process.platform === 'win32' ? 'fake host.cmd' : 'fake host');
     const responder = join(root, 'host.cjs');
-    writeFileSync(responder, `const fs=require('node:fs'); fs.writeFileSync(${JSON.stringify(marker)},'yes'); const rl=require('node:readline').createInterface({input:process.stdin}); rl.on('line',line=>{ const m=JSON.parse(line); const send=x=>console.log(JSON.stringify(x)); if(m.method==='initialize')send({id:m.id,result:{agentCapabilities:{loadSession:true}}}); if(m.method==='session/load')send({id:m.id,result:{}}); if(m.method==='session/prompt'){send({method:'session/update',params:{sessionId:m.params.sessionId,update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:m.params.prompt[0].text}}}});send({id:m.id,result:{stopReason:'end_turn'}});} });`);
+    writeFileSync(responder, `const fs=require('node:fs'); fs.writeFileSync(${JSON.stringify(marker)},'yes'); const rl=require('node:readline').createInterface({input:process.stdin}); rl.on('line',line=>{ const m=JSON.parse(line); const send=x=>console.log(JSON.stringify(x)); if(m.method==='initialize')send({id:m.id,result:{agentCapabilities:{loadSession:true}}}); if(m.method==='session/load')send({id:m.id,result:{}}); if(m.method==='session/set_config_option')send({id:m.id,result:{configOptions:[{id:m.params.configId,currentValue:m.params.value}]}}); if(m.method==='session/prompt'){send({method:'session/update',params:{sessionId:m.params.sessionId,update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:m.params.prompt[0].text}}}});send({id:m.id,result:{stopReason:'end_turn'}});} });`);
     if (process.platform === 'win32') writeFileSync(fake, `@echo off\r\n"${process.execPath}" "${responder}" %*\r\n`);
     else writeFileSync(fake, `#!/bin/sh\nexec '${process.execPath}' '${responder}' "$@"\n`, { mode: 0o755 });
     writeFileSync(join(root, 'registry/agents.json'), JSON.stringify({ activeAgents: ['cline', 'codex'].map(id => ({ id, executable: fake })) }));
-    const fleet = { autonomyProfiles: { profiles: [] }, hostSettings: {}, dispatchPolicy: {} };
+    const fleet = { autonomyProfiles: { profiles: [] }, hostSettings: { cline: { provider: 'cline', model: 'synthetic/model:free' } }, dispatchPolicy: {} };
     const save = () => writeFileSync(join(root, 'registry/fleet-profile.json'), JSON.stringify(fleet));
     const run = (host, extra = []) => spawnSync('pwsh', ['-NoProfile', '-File', resolve(repo, 'packages/coding-agent-dispatch/skills/use-coding-agent/Invoke-CodingAgent.ps1'), '-HostId', host, '-SessionId', 'synthetic', '-Prompt', 'synthetic "task"\nnext', '-Cwd', root, '-TimeoutSec', '15', ...extra], { encoding: 'utf8', windowsHide: true, timeout: 25000, env: { ...process.env, AGENTHUB_ROOT: root, LOCALAPPDATA: join(root, 'runtime') } });
     save();

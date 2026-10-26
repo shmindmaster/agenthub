@@ -243,8 +243,8 @@ function Test-LiveCapabilitiesCanonicalSourcesAllExistOnDisk {
 function Get-OwnerDispatchPolicyViolations($Policy) {
     $violations = [Collections.Generic.List[string]]::new()
     # 2026-10-23 restricted dispatch to Cursor, Grok and Codex; 2026-10-26 the
-    # owner re-admitted OpenCode as an execution peer (fleet-profile ownerDirection).
-    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode')
+    # owner re-admitted OpenCode, then Cline, as execution peers (fleet-profile ownerDirection).
+    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -252,7 +252,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
         if ($entry.Value.enabled -isnot [bool]) {
             $violations.Add("$($entry.Name) must declare an explicit dispatch enabled boolean")
         } elseif ($entry.Name -notin $authorized -and $entry.Value.enabled -ne $false) {
-            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok, Codex and OpenCode")
+            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok, Codex, OpenCode and Cline")
         }
     }
     foreach ($id in @('cursor', 'cursor-agent', 'grok')) {
@@ -301,6 +301,19 @@ function Test-LiveHostAuthenticationMetadata {
         $profile.hostSettings.cline.model -ne 'qwen3.8-max') {
         $violations.Add('Cline must retain the owner-authorized Alibaba Coding Plan provider settings')
     }
+    # Every model on provider 'cline' except ':free' ids bills usage credit, and
+    # the default dispatch model must itself be allowlisted.
+    $cline = $profile.dispatchPolicy.cline
+    if ($cline.enabled -eq $true) {
+        $clineModels = @($cline.allowedModels | ForEach-Object { [string]$_ })
+        $paid = @($clineModels | Where-Object { $_ -like 'cline:*' -and $_ -notlike '*:free' })
+        if ($clineModels.Count -eq 0 -or
+            $clineModels -notcontains "$($profile.hostSettings.cline.provider):$($profile.hostSettings.cline.model)" -or
+            $paid.Count -gt 0 -or
+            @($clineModels | Where-Object { $_ -notmatch '^[a-z0-9-]+:.+' }).Count -gt 0) {
+            $violations.Add('Cline dispatch must list provider:model allowedModels including its default, with only :free models on the usage-billed cline provider')
+        }
+    }
     if ($profile.dispatchPolicy.codex.enabled -ne $false -or
         $profile.dispatchPolicy.codex.knownIssue -notmatch 'no response text' -or
         $profile.dispatchPolicy.codex.knownIssue -notmatch 'quota was exhausted') {
@@ -338,7 +351,7 @@ function Test-OwnerDispatchPolicyRejectsUnauthorizedChanges {
     if (@(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy).Count -ne 0) {
         return @{Passed=$false;Detail='Current authorized policy, including gated Codex, was rejected'}
     }
-    foreach ($id in @('amp', 'cline', 'new-unapproved-host')) {
+    foreach ($id in @('amp', 'gemini', 'new-unapproved-host')) {
         $policy = $profile.dispatchPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
         $policy | Add-Member -NotePropertyName $id -NotePropertyValue ([pscustomobject]@{enabled=$true}) -Force
         if ((@(Get-OwnerDispatchPolicyViolations $policy) -join ';') -notmatch [regex]::Escape($id)) {

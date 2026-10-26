@@ -57,6 +57,9 @@
   Model for an -AnthropicApiKey run. Defaults to apiKeyOptIn.model.
   For -HostId opencode, a model listed in dispatchPolicy.opencode.allowedModels;
   anything else is refused. Defaults to dispatchPolicy.opencode.model.
+  For -HostId cline, provider:model listed in dispatchPolicy.cline.allowedModels
+  (for example cline:poolside/laguna-s-2.1:free); anything else is refused, so a
+  run cannot select a usage-billed model. Defaults to hostSettings.cline.
 
 .PARAMETER Title
   Session title for -HostId opencode, so the run is findable in the shared
@@ -235,11 +238,16 @@ function Get-DispatchTable {
                 # CLI 3.0.73: --yolo selects the restricted benchmark toolset.
                 # Normal JSON execution retains plugins, MCP and native skills.
                 $args = @('--json', '--cwd', $Work, '--timeout', [string]$TimeoutSec,
-                    '--auto-approve', 'true', '--thinking', 'low')
-                if ($fleet.hostSettings.cline.provider) { $args += @('--provider', [string]$fleet.hostSettings.cline.provider) }
-                if ($fleet.hostSettings.cline.model) { $args += @('--model', [string]$fleet.hostSettings.cline.model) }
+                    '--auto-approve', 'true', '--thinking', 'low', '--compaction', 'agentic')
+                $clineProvider = if ($script:ClineProvider) { $script:ClineProvider } else { [string]$fleet.hostSettings.cline.provider }
+                $clineModel = if ($script:ClineModel) { $script:ClineModel } else { [string]$fleet.hostSettings.cline.model }
+                if ($clineProvider) { $args += @('--provider', $clineProvider) }
+                if ($clineModel) { $args += @('--model', $clineModel) }
                 $args += $PromptText
-                @{ Args = $args; Stdin = $null; PromptFile = $null }
+                # --auto-approve approves every tool call. The peer-guard plugin
+                # (~/.cline/plugins/peer-guard.js) denies outward and destructive
+                # actions, but only in-process: in hub mode it never sees the flag.
+                @{ Args = $args; Stdin = $null; PromptFile = $null; Env = $script:ClineGuardEnv }
             }
         }
         'copilot' = @{
@@ -403,8 +411,21 @@ if ($requested -in @('devin-cloud', 'jules', 'cursor-cloud', 'copilot-agent')) {
 $agent = Get-AgentRecord -Agents $agents -Id $requested
 if (-not $agent) { Write-Refusal 3 "refused ${requested}: unknown host" }
 
-if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
-    if ($requested -ne 'opencode') { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode model.' }
+$script:ClineGuardEnv = @{ AGENTHUB_PEER_GUARD = '1'; CLINE_SESSION_BACKEND_MODE = 'local' }
+if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $requested -eq 'cline') {
+    # Provider id plus model: on provider cline only ':free' ids are recorded,
+    # because every other model there bills usage credit.
+    $allowedModels = @()
+    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties['cline'] -and $dispatchPolicy.cline.PSObject.Properties['allowedModels']) {
+        $allowedModels = @($dispatchPolicy.cline.allowedModels | ForEach-Object { [string]$_ })
+    }
+    $choice = $Model.Trim()
+    if ($choice -notin $allowedModels) { Write-Refusal 3 "refused cline: $choice is not in dispatchPolicy.cline.allowedModels (use provider:model)" }
+    $split = $choice.IndexOf(':')
+    $script:ClineProvider = $choice.Substring(0, $split)
+    $script:ClineModel = $choice.Substring($split + 1)
+} elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
+    if ($requested -ne 'opencode') { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode or Cline model.' }
     # OpenCode routing is per task, but only within the owner's recorded
     # allowlist: a model outside it could bill beyond the Go allowance.
     $allowedModels = @()
@@ -493,8 +514,11 @@ if ($SessionId) {
     if (-not $node) { Write-Refusal 2 'Cline ACP resume requires Node.js.' }
     $built = @{
         Args = @((Join-Path $PSScriptRoot 'cline\acp-dispatch.mjs'))
-        Stdin = (@{ executable = $executable; sessionId = $SessionId; cwd = $Cwd; prompt = $Prompt; timeoutMs = ($TimeoutSec * 1000) } | ConvertTo-Json -Compress)
+        Stdin = (@{ executable = $executable; sessionId = $SessionId; cwd = $Cwd; prompt = $Prompt; timeoutMs = ($TimeoutSec * 1000)
+            provider = $(if ($script:ClineProvider) { $script:ClineProvider } else { [string]$fleet.hostSettings.cline.provider })
+            model = $(if ($script:ClineModel) { $script:ClineModel } else { [string]$fleet.hostSettings.cline.model }) } | ConvertTo-Json -Compress)
         PromptFile = $null
+        Env = $script:ClineGuardEnv
     }
     $executable = [string]$node.Source
 }

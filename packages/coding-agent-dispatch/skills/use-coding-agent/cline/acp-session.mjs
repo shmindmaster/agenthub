@@ -46,12 +46,21 @@ export function createAcpSession(input, output, { timeoutMs = 30000 } = {}) {
     });
   }
   return {
-    async resume({ sessionId, cwd, prompt }) {
+    async resume({ sessionId, cwd, prompt, provider, model }) {
       if (!sessionId || !cwd || typeof prompt !== 'string' || !prompt.trim()) throw new Error('sessionId, cwd and prompt are required');
+      if (!provider || !model) throw new Error('provider and model are required');
       const initialized = await request('initialize', { protocolVersion: 1, clientCapabilities: {}, clientInfo: { name: 'agenthub', version: '1' } });
       if (!initialized.agentCapabilities?.loadSession) throw new Error('ACP agent does not support session/load');
       // session/load replays old history; collect only updates after loading.
       await request('session/load', { sessionId, cwd, mcpServers: [] });
+      // Cline 3.0.74 reloads a session on its account default model (a
+      // usage-billed one), not the model the session ran on. Select the
+      // allowlisted model and refuse to prompt unless the agent confirms it.
+      for (const [configId, value] of [['provider', provider], ['model', model]]) {
+        const selected = await request('session/set_config_option', { sessionId, configId, value });
+        const current = selected?.configOptions?.find(option => option.id === configId)?.currentValue;
+        if (current !== value) throw new Error(`ACP agent did not confirm ${configId} ${value}; refusing to prompt`);
+      }
       let text = '';
       const collect = message => {
         const update = message.params?.update;
