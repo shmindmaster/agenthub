@@ -452,7 +452,15 @@ async function main() {
   return runJob(sub, opts, rest, cfg);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// realpath on both sides: the deployed briefing-kit is a junction, so argv[1] and import.meta.url can name different paths.
+const realpath = (p) => {
+  try {
+    return fs.realpathSync.native(p).toLowerCase();
+  } catch {
+    return path.resolve(p).toLowerCase();
+  }
+};
+if (process.argv[1] && realpath(process.argv[1]) === realpath(fileURLToPath(import.meta.url))) {
   main().then(
     (code) => process.exit(code),
     (err) => {
