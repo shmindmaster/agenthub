@@ -427,12 +427,24 @@
       "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
     },
     "opencode": {
-      "enabled": false,
+      "enabled": true,
       "model": "opencode/glm-5.3-flash",
-      "reason": "2026-10-23: native Console account OAuth and Go-only inference verified. OpenCode 2 run uses process cwd; provider API-key overrides are removed. Bound task execution by the dispatcher timeout.",
+      "agent": "peer",
+      "agentNote": "~/.config/opencode/agents/peer.md: allow-all local development, deny .env/auth reads, edits under D:/Local-AI, questions, git push, gh pr/issue/release/api/repo, npm publish, railway, az, doctl, vercel and opencode auth. Needed because run --auto approves every ask rule. Global opencode.json policies additionally deny force-push, reset --hard, git clean, branch -D, recursive root deletes, disk formatting, scheduled-task/service/Run-key creation, cloud deletes and credential export for every agent.",
+      "allowedModels": [
+        "opencode/glm-5.3-flash",
+        "opencode/qwen3.8-flash",
+        "opencode/deepseek-v4.1-flash",
+        "opencode/minimax-m3",
+        "opencode/glm-5.3",
+        "opencode/kimi-k2.7-code",
+        "opencode/deepseek-v4-pro",
+        "opencode/gemini-4-argon"
+      ],
+      "reason": "2026-10-26: one-word prompts returned the expected text through the Go-only endpoint for every allowedModels entry. The free models (glm-5.3-flash-free, deepseek-v4.1-flash-free, mimo-v2.6-flash-free, big-pickle) and claude-sonnet-5-5 and gpt-6.1-sol returned 'Model is unavailable' (HTTP 400) on that endpoint. -Model routes per task only within allowedModels; the extra-usage credit is $0, so no overage can bill. Bound task execution by the dispatcher timeout.",
       "ownerAction": null,
-      "verifiedOn": "2026-10-23",
-      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
+      "verifiedOn": "2026-10-26",
+      "ownerDirection": "2026-10-26: owner asked in the Claude session to make OpenCode a first-class execution peer and to delegate 3-4 substantial engineering tasks to it. This supersedes, for OpenCode only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
     "antigravity": {
       "enabled": false,

@@ -185,6 +185,19 @@ if (process.env.CAD_FIXTURE_EXIT) process.exit(7);
     Check 'Anthropic API-key opt-in is refused for other hosts' ($r.Exit -eq 3 -and $r.Err -match 'applies only to -HostId claude')
     $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-Model','x')
     Check 'model override requires the API-key opt-in' ($r.Exit -eq 3 -and $r.Err -match '-Model applies only')
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-Model','opencode/kimi-k3')
+    Check 'OpenCode refuses a model outside the allowlist' ($r.Exit -eq 3 -and $r.Err -match 'not in dispatchPolicy.opencode.allowedModels')
+    $fleet.dispatchPolicy.opencode['allowedModels'] = @('opencode/glm-5.3-flash', 'opencode/glm-5.3'); $fleet.dispatchPolicy.opencode['agent'] = 'peer'; Save-Fixture
+    $r = Run @('-HostId','opencode','-Prompt','ok','-Cwd',$scratch,'-Model','opencode/glm-5.3','-Title','T1 task','-TimeoutSec','5')
+    $d = if ($r.Exit -eq 0) { $r.Out | ConvertFrom-Json } else { $null }
+    $modelIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--model') } else { -1 }
+    $titleIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--title') } else { -1 }
+    Check 'OpenCode routes an allowed model and session title per task' ($modelIndex -ge 0 -and $d.Arguments[$modelIndex + 1] -eq 'opencode/glm-5.3' -and $titleIndex -ge 0 -and $d.Arguments[$titleIndex + 1] -eq 'T1 task' -and $d.Arguments[-1] -eq 'ok') $r.Err
+    $agentIndex = if ($d) { [Array]::IndexOf($d.Arguments, '--agent') } else { -1 }
+    Check 'OpenCode unattended runs use the policy-named agent' ($agentIndex -ge 0 -and $d.Arguments[$agentIndex + 1] -eq 'peer') $r.Err
+    $fleet.dispatchPolicy.opencode.Remove('allowedModels'); $fleet.dispatchPolicy.opencode.Remove('agent'); Save-Fixture
+    $r = Run @('-HostId','codex','-Prompt','ok','-Cwd',$scratch,'-Title','x')
+    Check 'session title is refused for other hosts' ($r.Exit -eq 3 -and $r.Err -match '-Title applies only')
     $r = Run @('-List')
     Check 'list keeps disabled Claude refused despite the opt-in record' ($r.Out -match "(?m)^claude\trefused\t")
     $fleet.dispatchPolicy.Remove('claude'); Save-Fixture

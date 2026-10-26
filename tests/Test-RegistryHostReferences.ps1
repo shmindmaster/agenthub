@@ -242,7 +242,9 @@ function Test-LiveCapabilitiesCanonicalSourcesAllExistOnDisk {
 # disabled until the dispatcher captures a standalone response. ---
 function Get-OwnerDispatchPolicyViolations($Policy) {
     $violations = [Collections.Generic.List[string]]::new()
-    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex')
+    # 2026-10-23 restricted dispatch to Cursor, Grok and Codex; 2026-10-26 the
+    # owner re-admitted OpenCode as an execution peer (fleet-profile ownerDirection).
+    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -250,7 +252,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
         if ($entry.Value.enabled -isnot [bool]) {
             $violations.Add("$($entry.Name) must declare an explicit dispatch enabled boolean")
         } elseif ($entry.Name -notin $authorized -and $entry.Value.enabled -ne $false) {
-            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok and Codex")
+            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok, Codex and OpenCode")
         }
     }
     foreach ($id in @('cursor', 'cursor-agent', 'grok')) {
@@ -283,13 +285,16 @@ function Test-LiveHostAuthenticationMetadata {
         $violations.Add('Gemini must retain account OAuth settings and remain disabled')
     }
     foreach ($violation in @(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy)) { $violations.Add($violation) }
-    if ($profile.dispatchPolicy.opencode.enabled -ne $false -or
+    $openCode = $profile.dispatchPolicy.opencode
+    if ($openCode.enabled -ne $true -or
         $profile.hostSettings.opencode.authMode -ne 'account' -or
-        $profile.hostSettings.opencode.model -ne $profile.dispatchPolicy.opencode.model -or
-        $profile.dispatchPolicy.opencode.model -ne 'opencode/glm-5.3-flash' -or
-        $profile.dispatchPolicy.opencode.verifiedOn -ne '2026-10-23' -or
-        $null -ne $profile.dispatchPolicy.opencode.ownerAction) {
-        $violations.Add('OpenCode Go must remain disabled by owner direction while retaining its verified model and completed login gate')
+        $profile.hostSettings.opencode.model -ne $openCode.model -or
+        $openCode.model -ne 'opencode/glm-5.3-flash' -or
+        $openCode.verifiedOn -ne '2026-10-26' -or
+        @($openCode.allowedModels) -notcontains $openCode.model -or
+        $openCode.agent -ne 'peer' -or
+        $null -ne $openCode.ownerAction) {
+        $violations.Add('OpenCode Go dispatch must keep its account login, verified default model inside allowedModels, and the outward-action-denying peer agent')
     }
     if ($profile.hostSettings.cline.authMode -ne 'apiKey' -or
         $profile.hostSettings.cline.provider -ne 'openai-compatible' -or
@@ -333,7 +338,7 @@ function Test-OwnerDispatchPolicyRejectsUnauthorizedChanges {
     if (@(Get-OwnerDispatchPolicyViolations $profile.dispatchPolicy).Count -ne 0) {
         return @{Passed=$false;Detail='Current authorized policy, including gated Codex, was rejected'}
     }
-    foreach ($id in @('amp', 'opencode', 'new-unapproved-host')) {
+    foreach ($id in @('amp', 'cline', 'new-unapproved-host')) {
         $policy = $profile.dispatchPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
         $policy | Add-Member -NotePropertyName $id -NotePropertyValue ([pscustomobject]@{enabled=$true}) -Force
         if ((@(Get-OwnerDispatchPolicyViolations $policy) -join ';') -notmatch [regex]::Escape($id)) {

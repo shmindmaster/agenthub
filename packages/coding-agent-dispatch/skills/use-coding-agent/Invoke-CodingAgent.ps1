@@ -55,6 +55,12 @@
 
 .PARAMETER Model
   Model for an -AnthropicApiKey run. Defaults to apiKeyOptIn.model.
+  For -HostId opencode, a model listed in dispatchPolicy.opencode.allowedModels;
+  anything else is refused. Defaults to dispatchPolicy.opencode.model.
+
+.PARAMETER Title
+  Session title for -HostId opencode, so the run is findable in the shared
+  service from the TUI and Desktop. Refused for other hosts.
 
 .PARAMETER SessionId
   Continue an existing Cline session through ACP. Policy gates still apply.
@@ -69,6 +75,7 @@ param(
     [int]$TimeoutSec = 1800,
     [switch]$AnthropicApiKey,
     [string]$Model,
+    [string]$Title,
     [string]$SessionId,
     [switch]$List,
     [switch]$ShowCommand
@@ -194,7 +201,12 @@ function Get-DispatchTable {
                 # Native JSON events give callers reliable text/tool/usage
                 # boundaries without parsing terminal-rendered output.
                 $args = @('run', '--auto', '--format', 'json')
-                if ($fleet.dispatchPolicy.opencode.model) { $args += @('--model', [string]$fleet.dispatchPolicy.opencode.model) }
+                $openCodeModel = if ($script:OpenCodeModel) { $script:OpenCodeModel } else { [string]$fleet.dispatchPolicy.opencode.model }
+                if ($openCodeModel) { $args += @('--model', $openCodeModel) }
+                # --auto approves every action a rule leaves at ask, so unattended
+                # runs use the policy-named agent whose rules deny outward actions.
+                if ($fleet.dispatchPolicy.opencode.agent) { $args += @('--agent', [string]$fleet.dispatchPolicy.opencode.agent) }
+                if (-not [string]::IsNullOrWhiteSpace($Title)) { $args += @('--title', $Title.Trim()) }
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
             }
@@ -392,7 +404,18 @@ $agent = Get-AgentRecord -Agents $agents -Id $requested
 if (-not $agent) { Write-Refusal 3 "refused ${requested}: unknown host" }
 
 if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
-    Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run.'
+    if ($requested -ne 'opencode') { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode model.' }
+    # OpenCode routing is per task, but only within the owner's recorded
+    # allowlist: a model outside it could bill beyond the Go allowance.
+    $allowedModels = @()
+    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties['opencode'] -and $dispatchPolicy.opencode.PSObject.Properties['allowedModels']) {
+        $allowedModels = @($dispatchPolicy.opencode.allowedModels | ForEach-Object { [string]$_ })
+    }
+    if ($Model.Trim() -notin $allowedModels) { Write-Refusal 3 "refused opencode: $($Model.Trim()) is not in dispatchPolicy.opencode.allowedModels" }
+    $script:OpenCodeModel = $Model.Trim()
+}
+if (-not [string]::IsNullOrWhiteSpace($Title) -and $requested -ne 'opencode') {
+    Write-Refusal 3 '-Title applies only to -HostId opencode.'
 }
 if ($AnthropicApiKey) {
     # OWNER DIRECTION 2026-10-24: the Anthropic key is shared promotional credit.

@@ -1288,7 +1288,7 @@
       "managedSkillNames": [
         "use-coding-agent"
       ],
-      "contentHash": "669722B5D0A1C3BE18E42B962D641B5052AE96578FA33484774EF1C8D9B93CDD",
+      "contentHash": "74FFC4CAED9099AE9C9AC2025235C57F81FB2191E3F55DF71E706E147492D4CF",
       "hashBasis": "packages/coding-agent-dispatch",
       "status": "active-canonical",
       "hostMappings": [
