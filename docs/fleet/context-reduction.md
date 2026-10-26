@@ -92,3 +92,8 @@ Keep separate evidence for CLI execution, Desktop rendering, tool execution,
 and each host's supported deployment destinations. Restart existing chats to
 measure the new initial context. Future vendor imports may recreate duplicates;
 rerun the manual audit after imports or updates rather than adding a watcher.
+
+Claude Code host settings that Sync does not manage (`enabledPlugins`,
+`deniedMcpServers`, Desktop connector defaults) and the 2026-10-26 measured
+cut with per-change rollback are recorded in
+[usage-diet-2026-10-26.md](./usage-diet-2026-10-26.md).
