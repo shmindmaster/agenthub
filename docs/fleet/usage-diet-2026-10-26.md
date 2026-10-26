@@ -142,6 +142,11 @@ connector switch, which also sets the default:
 - Duplicates: Exa, Context7, Firecrawl.
 - Unused: n8n, Lovable, Replit, Twilio, PostHog, Granola, CourtListener,
   SNOMED CT Terminology, ICD-10 Codes.
+- Media, off by default later the same day under the orchestrator's authority:
+  ElevenLabs (150 tools; paid generation stays on the governed CLI, and
+  ElevenLabs is last in the cloud-provider order) and Adobe for creativity
+  (113 tools, unused). Both keep their `mediaConnectorRoles`; enable them per
+  session when a media step needs them.
 
 The connectors stay connected on the account. Rollback, or one-off use: the
 composer's **+ → Connectors** menu in any session. That turns the connector on
@@ -183,8 +188,8 @@ for that session and makes it the default again.
     `typescript-lsp`.
 - **Media:**
   - `media-studio@agenthub`.
-  - Connectors Descript, ElevenLabs, Canva and Adobe (owner decision
-    2026-10-21, `mediaConnectorRoles`).
+  - Connectors Descript and Canva on by default; ElevenLabs and Adobe are
+    available per session (all four keep their 2026-10-21 `mediaConnectorRoles`).
   - Account plugins `canva`, `adobe-for-creativity`, `design` (its skills are
     in use).
 - **Career:** job-board connectors Indeed, Dice, ZipRecruiter, Upwork.
@@ -217,8 +222,10 @@ for that session and makes it the default again.
   also block re-enabling them for a single session if the Desktop app honours
   that list. Not established either way, so they were left allowed in the CLI.
 - **Optional, owner decision:**
-  - Datadog (≈10.6k name tokens) and the media connectors (ElevenLabs, Adobe,
-    Canva; ≈6k together) could also be off by default and switched on only in
-    Duckie or media sessions.
+  - Datadog (≈10.6k name tokens) could also be off by default and switched on
+    only in Duckie sessions. It stays on while Duckie work is the top priority.
+- **Local services:** the only MCP started at session start is the RepoWise
+  bridge (kept). No Local-AI MCP loads by default, which already matches the
+  2026-10-26 cloud-first rule.
   - Raising `cleanupPeriodDays` above 7 would give a longer usage window for
     the next review.
