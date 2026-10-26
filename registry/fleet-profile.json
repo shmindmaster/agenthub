@@ -394,10 +394,22 @@
       "verifiedOn": "2026-10-22"
     },
     "warp": {
-      "enabled": false,
-      "reason": "2026-10-21: no auth-status command is exposed; Oz CLI help identifies agent management and cloud runs, so local-only execution and account authentication remain unverified.",
-      "ownerAction": "Verify a supported local account-authenticated run mode before enabling; cloud execution remains prohibited.",
-      "verifiedOn": "2026-10-21"
+      "enabled": true,
+      "scope": "local-only: oz agent run with --no-snapshot. run-cloud, cloud environments, schedules, handoff and Factories stay prohibited.",
+      "model": "glm-5.3-flash-fireworks",
+      "allowedModels": [
+        "glm-5.3-flash-fireworks",
+        "deepseek-v4.1-flash-fireworks",
+        "glm-5.3-fireworks",
+        "gemini-3.8-flash",
+        "claude-5-5-haiku-medium",
+        "claude-5-5-sonnet-medium"
+      ],
+      "allowedModelsNote": "Every Warp-hosted model, Auto included, spends Warp credits (docs.warp.dev/agents/cli/models-and-usage); there is no free tier to route to. Only glm-5.3-flash-fireworks was smoke-tested. Per-model credit rates are not established: oz exposes no usage command, and /usage exists only in the interactive Warp Agent CLI, which is not installed on Windows.",
+      "reason": "2026-10-26 (Oz v0.2026.10.14.08.27.stable_03): `oz whoami` succeeds with WARP_API_KEY removed, so the stored account login authenticates. One local smoke, `agent run -C <empty scratch dir> --model glm-5.3-flash-fireworks --no-snapshot --output-format ndjson`, exited 0 in 30 s and returned READY (run 01a17a80-1423-7e43-bb96-7aafdd060bc1, conversation 653d2c55-b99d-46bb-8f7f-709c1509af30). A local run still registers a run record and cloud conversation on oz.warp.dev (agents.cloud_conversation_storage_enabled = true).",
+      "guard": "Warp's default execution profile auto-approves commands, code diffs, MCP and child agents with an empty denylist. The ExecutionProfiles preference is cloud-synced: a local settings.toml denylist was overwritten on the next launch, and the Oz log reports 'Attempted to edit CLI default profile, which is not yet supported.' The dispatcher therefore guards through the child environment: GIT_CONFIG_* rewrites https://, git@ and ssh:// push URLs to an unhandled scheme, GH_CONFIG_DIR points at an empty directory, and GH_TOKEN/GITHUB_TOKEN are removed. Verified on a scratch repo: push aborts, fetch URL unchanged, gh reports not logged in. Not guarded: local destructive commands and other cloud CLIs (railway, az, doctl); run Warp only in C:\\wt worktrees. settings.toml agents.warp_agent.other.auto_approve_bypasses_command_denylist = false (backup settings.toml.bak-agenthub-peer-20261026).",
+      "verifiedOn": "2026-10-26",
+      "ownerDirection": "2026-10-26: owner asked in the Claude session to enable Warp dispatch local-only (no cloud), run one smoke test with an economical model, and start Warp tasks only after machine load drops. This supersedes, for Warp local runs only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
     "devin-cloud": {
       "enabled": false,
@@ -753,7 +765,7 @@
         },
         "verifiedOn": "2026-09-02",
         "verification": "Official Warp Computer Use page withholds the capability from local interactive terminal sessions. Local Warp therefore stays a Playwright MCP host.",
-        "dispatchNote": "WARP_CLI_MODE=1 exposes Oz agent run. Local headless help verified 2026-10-14; no cloud smoke performed."
+        "dispatchNote": "WARP_CLI_MODE=1 exposes Oz agent run. Local account-auth smoke passed 2026-10-26 (see dispatchPolicy.warp); settings.toml has agents.mcp_servers.file_based_mcp_enabled = false, so whether runs load ~/.warp/.mcp.json is unverified; agent run --mcp <path> is the documented per-run route. No cloud smoke performed."
       },
       {
         "hostId": "warp",

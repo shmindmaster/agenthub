@@ -243,8 +243,9 @@ function Test-LiveCapabilitiesCanonicalSourcesAllExistOnDisk {
 function Get-OwnerDispatchPolicyViolations($Policy) {
     $violations = [Collections.Generic.List[string]]::new()
     # 2026-10-23 restricted dispatch to Cursor, Grok and Codex; 2026-10-26 the
-    # owner re-admitted OpenCode, then Cline, as execution peers (fleet-profile ownerDirection).
-    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline')
+    # owner re-admitted OpenCode, then Cline, as execution peers (fleet-profile ownerDirection),
+    # and the same day admitted Warp for local runs only.
+    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -295,6 +296,14 @@ function Test-LiveHostAuthenticationMetadata {
         $openCode.agent -ne 'peer' -or
         $null -ne $openCode.ownerAction) {
         $violations.Add('OpenCode Go dispatch must keep its account login, verified default model inside allowedModels, and the outward-action-denying peer agent')
+    }
+    $warpPolicy = $profile.dispatchPolicy.warp
+    if ($warpPolicy.enabled -eq $true -and (
+        $profile.hostSettings.warp.authMode -ne 'account' -or
+        @($warpPolicy.allowedModels) -notcontains $warpPolicy.model -or
+        [string]$warpPolicy.scope -notmatch '^local-only' -or
+        [string]$warpPolicy.guard -notmatch 'GIT_CONFIG')) {
+        $violations.Add('Warp dispatch must stay local-only on its account login, with its default model inside allowedModels and the recorded child-environment guard')
     }
     if ($profile.hostSettings.cline.authMode -ne 'apiKey' -or
         $profile.hostSettings.cline.provider -ne 'openai-compatible' -or

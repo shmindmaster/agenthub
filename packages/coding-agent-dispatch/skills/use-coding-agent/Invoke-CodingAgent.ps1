@@ -60,6 +60,9 @@
   For -HostId cline, provider:model listed in dispatchPolicy.cline.allowedModels
   (for example cline:poolside/laguna-s-2.1:free); anything else is refused, so a
   run cannot select a usage-billed model. Defaults to hostSettings.cline.
+  For -HostId warp, a model listed in dispatchPolicy.warp.allowedModels (every
+  Warp-hosted model spends Warp credits); anything else is refused. Defaults to
+  dispatchPolicy.warp.model.
 
 .PARAMETER Title
   Session title for -HostId opencode, so the run is findable in the shared
@@ -285,8 +288,26 @@ function Get-DispatchTable {
             Build = {
                 param($PromptText, $Work, $File)
                 # warp.exe with WARP_CLI_MODE=1 is the oz CLI (oz.cmd sets the same
-                # variable). `agent run --prompt` runs one task, -C sets the cwd.
-                @{ Args = @('agent', 'run', '--prompt', $PromptText, '-C', $Work, '--output-format', 'text'); Stdin = $null; PromptFile = $null; Env = @{ WARP_CLI_MODE = '1' } }
+                # variable). `agent run --prompt` runs one local task, -C sets the cwd;
+                # run-cloud is never built. --no-snapshot keeps the workspace off
+                # Warp's servers, and ndjson carries the run and conversation ids.
+                $args = @('agent', 'run', '--prompt', $PromptText, '-C', $Work, '--no-snapshot', '--output-format', 'ndjson')
+                $warpModel = if ($script:WarpModel) { $script:WarpModel } else { [string]$fleet.dispatchPolicy.warp.model }
+                if ($warpModel) { $args += @('--model', $warpModel) }
+                # Warp syncs ExecutionProfiles from the cloud and its CLI profile cannot
+                # be edited, so a command denylist does not hold. The guard lives in the
+                # child environment: every push URL is rewritten to a scheme git has no
+                # helper for, and gh reads an empty config directory, so pushes and
+                # gh pr/release/api calls fail closed while fetch and local git work.
+                $ghDir = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\runtime\coding-agent-dispatch\warp-peer-gh'
+                New-Item -ItemType Directory -Force -Path $ghDir | Out-Null
+                $guard = @{ WARP_CLI_MODE = '1'; GH_CONFIG_DIR = $ghDir; GIT_CONFIG_COUNT = '3' }
+                $schemes = @('https://', 'git@', 'ssh://')
+                for ($i = 0; $i -lt $schemes.Count; $i++) {
+                    $guard["GIT_CONFIG_KEY_$i"] = 'url.agenthub-peer-no-push://blocked/.pushInsteadOf'
+                    $guard["GIT_CONFIG_VALUE_$i"] = $schemes[$i]
+                }
+                @{ Args = $args; Stdin = $null; PromptFile = $null; Env = $guard }
             }
         }
     }
@@ -412,7 +433,16 @@ $agent = Get-AgentRecord -Agents $agents -Id $requested
 if (-not $agent) { Write-Refusal 3 "refused ${requested}: unknown host" }
 
 $script:ClineGuardEnv = @{ AGENTHUB_PEER_GUARD = '1'; CLINE_SESSION_BACKEND_MODE = 'local' }
-if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $requested -eq 'cline') {
+if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $requested -eq 'warp') {
+    # Every Warp-hosted model spends Warp credits, so only the recorded
+    # economical allowlist may be selected per task.
+    $allowedModels = @()
+    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties['warp'] -and $dispatchPolicy.warp.PSObject.Properties['allowedModels']) {
+        $allowedModels = @($dispatchPolicy.warp.allowedModels | ForEach-Object { [string]$_ })
+    }
+    if ($Model.Trim() -notin $allowedModels) { Write-Refusal 3 "refused warp: $($Model.Trim()) is not in dispatchPolicy.warp.allowedModels" }
+    $script:WarpModel = $Model.Trim()
+} elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $requested -eq 'cline') {
     # Provider id plus model: on provider cline only ':free' ids are recorded,
     # because every other model there bills usage credit.
     $allowedModels = @()
@@ -425,7 +455,7 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $r
     $script:ClineProvider = $choice.Substring(0, $split)
     $script:ClineModel = $choice.Substring($split + 1)
 } elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
-    if ($requested -ne 'opencode') { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode or Cline model.' }
+    if ($requested -ne 'opencode') { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline or Warp model.' }
     # OpenCode routing is per task, but only within the owner's recorded
     # allowlist: a model outside it could bill beyond the Go allowance.
     $allowedModels = @()
@@ -560,7 +590,7 @@ $accountScrub = @{
     'devin'        = @('DEVIN_API_KEY', 'DEVIN_API_TOKEN', 'DEVIN_SERVICE_USER_TOKEN', 'DEVIN_ORG_ID')
     'gemini'       = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
-    'warp'         = @('WARP_API_KEY')
+    'warp'         = @('WARP_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'grok'         = @('XAI_API_KEY')
     'factory'      = @('FACTORY_API_KEY')
     'cursor-agent' = @('CURSOR_API_KEY')
