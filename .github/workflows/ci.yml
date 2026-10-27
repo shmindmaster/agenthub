@@ -64,7 +64,6 @@ jobs:
         shell: pwsh
         run: pwsh -NoProfile -File ./tests/Run-AllTests.ps1 -SkipListPath tests/ci-skip.json
 
-<<<<<<< HEAD
   doctor:
     name: Doctor (${{ matrix.os }}, Node ${{ matrix.node }})
     strategy:
