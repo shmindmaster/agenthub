@@ -33,6 +33,7 @@ bodies.
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import socket
@@ -157,7 +158,13 @@ def wait_for_launch_probe(deadline: float, log: Callable[[str], None]) -> None:
             state = json.loads(path.read_text(encoding="utf-8-sig"))
         except (OSError, ValueError):
             return
-        if state.get("state") != "starting" or not pid_alive(int(state.get("pid") or 0)):
+        if not isinstance(state, dict):
+            return
+        try:
+            pid = int(state.get("pid") or 0)
+        except (TypeError, ValueError):
+            pid = 0
+        if state.get("state") != "starting" or not pid_alive(pid):
             return
         if not logged:
             log(f"waiting for launcher pid {state.get('pid')} to finish its embedder probe")
@@ -286,17 +293,11 @@ class Upstream:
             headers["MCP-Protocol-Version"] = self.protocol
         return headers
 
-    def post(self, message: dict, timeout: float) -> tuple[dict | None, dict[str, str]]:
-        """POST one message. Returns (response for its id or None, headers).
-
-        Server notifications and requests that arrive on the same stream are
-        delivered to the client as they come.
-        """
-        body = json.dumps(message).encode("utf-8")
-        sent_session = self.session_id
-        request = urllib.request.Request(self.url, data=body, headers=self._headers(), method="POST")
+    def _execute_post(
+        self, request: urllib.request.Request, timeout: float, sent_session: str | None
+    ) -> Any:
         try:
-            response = urllib.request.urlopen(request, timeout=max(timeout, 1.0))
+            return urllib.request.urlopen(request, timeout=max(timeout, 1.0))
         except urllib.error.HTTPError as exc:
             if exc.code == 404 and sent_session:
                 raise SessionExpired(sent_session) from exc
@@ -316,15 +317,24 @@ class Upstream:
             raise UpstreamSlow(str(exc)) from exc
         except ConnectionRefusedError as exc:
             raise UpstreamDown(str(exc)) from exc
-        except (ConnectionResetError, ConnectionAbortedError) as exc:
-            # Includes http.client.RemoteDisconnected: the request was sent.
+        except (http.client.HTTPException, ConnectionResetError, ConnectionAbortedError) as exc:
             raise UpstreamLost(str(exc)) from exc
 
+    def post(self, message: dict, timeout: float) -> tuple[dict | None, dict[str, str]]:
+        """POST one message. Returns (response for its id or None, headers).
+
+        Server notifications and requests that arrive on the same stream are
+        delivered to the client as they come.
+        """
+        body = json.dumps(message).encode("utf-8")
+        sent_session = self.session_id
+        request = urllib.request.Request(self.url, data=body, headers=self._headers(), method="POST")
+        response = self._execute_post(request, timeout, sent_session)
         try:
             return self._read_response(response, message)
         except (socket.timeout, TimeoutError) as exc:
             raise UpstreamSlow(str(exc)) from exc
-        except (ConnectionResetError, ConnectionAbortedError) as exc:
+        except (http.client.HTTPException, ConnectionResetError, ConnectionAbortedError) as exc:
             raise UpstreamLost(str(exc)) from exc
 
     def _read_response(self, response: Any, message: dict) -> tuple[dict | None, dict[str, str]]:
@@ -335,7 +345,10 @@ class Upstream:
             content_type = headers.get("content-type", "")
             if content_type.startswith("text/event-stream"):
                 return self._read_sse(response, message.get("id")), headers
-            raw = response.read()
+            try:
+                raw = response.read()
+            except (http.client.HTTPException, ConnectionResetError, ConnectionAbortedError) as exc:
+                raise UpstreamLost(str(exc)) from exc
             if not raw:
                 return None, headers
             return self._pick(json.loads(raw), message.get("id")), headers
@@ -352,17 +365,20 @@ class Upstream:
 
     def _read_sse(self, response: Any, wanted: Any) -> dict | None:
         data: list[str] = []
-        for raw in response:
-            line = raw.decode("utf-8").rstrip("\r\n")
-            if line.startswith("data:"):
-                data.append(line[5:].lstrip(" "))
-                continue
-            if line == "" and data:
-                message = json.loads("\n".join(data))
-                data = []
-                found = self._pick(message, wanted)
-                if found is not None:
-                    return found
+        try:
+            for raw in response:
+                line = raw.decode("utf-8").rstrip("\r\n")
+                if line.startswith("data:"):
+                    data.append(line[5:].lstrip(" "))
+                    continue
+                if line == "" and data:
+                    message = json.loads("\n".join(data))
+                    data = []
+                    found = self._pick(message, wanted)
+                    if found is not None:
+                        return found
+        except (http.client.HTTPException, ConnectionResetError, ConnectionAbortedError) as exc:
+            raise UpstreamLost(str(exc)) from exc
         if data:
             return self._pick(json.loads("\n".join(data)), wanted)
         return None
@@ -384,7 +400,12 @@ class Upstream:
         if "result" in reply:
             self.session_id = headers.get("mcp-session-id")
             self.protocol = str(reply["result"].get("protocolVersion") or "") or None
-            self.post({"jsonrpc": "2.0", "method": "notifications/initialized"}, timeout)
+            try:
+                self.post({"jsonrpc": "2.0", "method": "notifications/initialized"}, timeout)
+            except Exception:
+                self.session_id = None
+                self.protocol = None
+                raise
         return reply
 
     def ensure_session(self, deadline: float) -> None:
@@ -417,7 +438,7 @@ class Upstream:
                 time.sleep(min(1.0, max(deadline - time.monotonic(), 0)))
 
     def _down_reason(self) -> str:
-        code = self._launcher.last_exit
+        code = self._launcher.last_exit if self._launcher else None
         log = runtime_dir() / "launcher.log"
         if self._slow:
             return f"RepoWise shared server at {self.url} is up but did not answer in time"
@@ -432,34 +453,44 @@ class Upstream:
             if self.session_id == sent:
                 self.session_id = None
 
+    def _handle_forward_error(self, exc: Exception, message: dict, sent: str | None) -> None:
+        if isinstance(exc, SessionExpired):
+            self._log("session expired upstream; re-initializing")
+            self._drop_session(exc.sent_session)
+        elif isinstance(exc, UpstreamLost):
+            self._drop_session(sent)
+            if message.get("method") in NOT_RESENT_METHODS:
+                raise TimeoutError(
+                    f"connection to RepoWise was lost during {message.get('method')}; not resent because it may already have run ({exc})"
+                ) from exc
+            self._log("upstream connection lost; retrying")
+        elif isinstance(exc, UpstreamDown):
+            self._log("upstream down mid-session; restarting")
+            self._drop_session(sent)
+        elif isinstance(exc, UpstreamSlow):
+            # The request reached the server and may have run; never resend it.
+            raise TimeoutError(
+                f"RepoWise shared server did not answer {message.get('method')} in time ({exc})"
+            ) from exc
+        else:
+            raise exc
+
     def forward(self, message: dict, deadline: float) -> dict | None:
         while True:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(self._down_reason())
             self.ensure_session(deadline)
             # A server whose launcher is still probing it may be running on mock
             # vectors; hold real traffic until the probe has passed.
             wait_for_launch_probe(deadline, self._log)
+            if time.monotonic() >= deadline:
+                raise TimeoutError(self._down_reason())
             sent = self.session_id
             try:
                 reply, _ = self.post(message, max(deadline - time.monotonic(), 1.0))
                 return reply
-            except SessionExpired as exc:
-                self._log("session expired upstream; re-initializing")
-                self._drop_session(exc.sent_session)
-            except UpstreamLost as exc:
-                self._drop_session(sent)
-                if message.get("method") in NOT_RESENT_METHODS:
-                    raise TimeoutError(
-                        f"connection to RepoWise was lost during {message.get('method')}; not resent because it may already have run ({exc})"
-                    ) from exc
-                self._log("upstream connection lost; retrying")
-            except UpstreamDown:
-                self._log("upstream down mid-session; restarting")
-                self._drop_session(sent)
-            except UpstreamSlow as exc:
-                # The request reached the server and may have run; never resend it.
-                raise TimeoutError(f"RepoWise shared server did not answer {message.get('method')} in time ({exc})") from exc
-            if time.monotonic() >= deadline:
-                raise TimeoutError(self._down_reason())
+            except Exception as exc:
+                self._handle_forward_error(exc, message, sent)
 
     def close(self) -> None:
         if not self.session_id:
@@ -476,19 +507,20 @@ class Cache:
         self._path = path
         self._lock = threading.Lock()
 
-    def get(self, method: str) -> Any:
+    def _read_data(self) -> dict[str, Any]:
         try:
             data = json.loads(self._path.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
         except (OSError, ValueError):
-            return None
+            return {}
+
+    def get(self, method: str) -> Any:
+        data = self._read_data()
         return data.get(method)
 
     def put(self, method: str, result: Any) -> None:
         with self._lock:
-            try:
-                data = json.loads(self._path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                data = {}
+            data = self._read_data()
             data[method] = result
             data["savedAt"] = time.strftime("%Y-%m-%dT%H:%M:%S")
             tmp = self._path.with_name(f"{self._path.name}.{os.getpid()}.tmp")
@@ -498,6 +530,12 @@ class Cache:
                 os.replace(tmp, self._path)
             except OSError:
                 pass
+            finally:
+                if tmp.exists():
+                    try:
+                        tmp.unlink()
+                    except OSError:
+                        pass
 
 
 class Bridge:
@@ -505,6 +543,7 @@ class Bridge:
         self._stdin = stdin
         self._stdout = stdout
         self._out_lock = threading.Lock()
+        self._stop = threading.Event()
         runtime = runtime_dir()
         self.log = Log(runtime / "bridge.log")
         self.cache = Cache(runtime / "bridge-cache.json")
@@ -522,10 +561,18 @@ class Bridge:
         self._warming = False
 
     def write(self, message: dict) -> None:
-        line = json.dumps(message, separators=(",", ":")).encode("utf-8") + b"\n"
+        try:
+            line = json.dumps(message, separators=(",", ":")).encode("utf-8") + b"\n"
+        except Exception as exc:
+            self.log(f"write serialize error: {exc}")
+            return
         with self._out_lock:
-            self._stdout.write(line)
-            self._stdout.flush()
+            try:
+                self._stdout.write(line)
+                self._stdout.flush()
+            except (BrokenPipeError, OSError) as exc:
+                self.log(f"stdout pipe broken: {exc}")
+                self._stop.set()
 
     def error(self, message_id: Any, text: str, code: int = -32603) -> None:
         self.write({"jsonrpc": "2.0", "id": message_id, "error": {"code": code, "message": text}})
@@ -557,34 +604,27 @@ class Bridge:
         # No cache yet: keep waiting for the real server rather than failing.
         self.handle_request(message, wait=self.call_wait)
 
-    def handle_request(self, message: dict, wait: float | None = None) -> None:
-        method = message.get("method")
-        message_id = message.get("id")
-        if method == "ping":
-            self.write({"jsonrpc": "2.0", "id": message_id, "result": {}})
-            return
-        # Only the first page of a list: a cursor request would overwrite it.
-        cacheable = method in CACHED_METHODS and not (message.get("params") or {}).get("cursor")
-        if cacheable and method != "initialize" and not self.upstream.session_id:
-            # initialize was answered from cache, so no upstream session exists
-            # yet, and opening one costs a cold RepoWise several seconds. Hosts
-            # time the tool fetch tighter than that (seen 2026-10-15: "tools
-            # fetch failed — Request timed out"). Answer from cache now and open
-            # the session in the background for the calls that follow.
-            cached = self.cache.get(method)
-            if cached is not None:
-                self.write({"jsonrpc": "2.0", "id": message_id, "result": cached})
-                self._schedule_warm_up()
-                return
-        if wait is None:
-            wait = self.handshake_wait if cacheable else self.call_wait
-        deadline = time.monotonic() + wait
+    def _try_answer_from_cache(self, method: str, message_id: Any, params: dict | None) -> bool:
+        if (params or {}).get("cursor") or self.upstream.session_id:
+            return False
+        cached = self.cache.get(method)
+        if cached is None:
+            return False
+        self.write({"jsonrpc": "2.0", "id": message_id, "result": cached})
+        self._schedule_warm_up()
+        return True
+
+    def _forward_request(
+        self, message: dict, message_id: Any, method: str, deadline: float, cacheable: bool
+    ) -> None:
         try:
             if method == "initialize":
                 with self.upstream._session_lock:
                     reply = self.upstream._until_up(
                         deadline,
-                        lambda remaining: self.upstream.open_session(message_id, message.get("params") or {}, remaining),
+                        lambda remaining: self.upstream.open_session(
+                            message_id, message.get("params") or {}, remaining
+                        ),
                     )
             else:
                 reply = self.upstream.forward(message, deadline)
@@ -607,6 +647,22 @@ class Bridge:
         if cacheable and "result" in reply:
             self.cache.put(method, reply["result"])
         self.write(reply)
+
+    def handle_request(self, message: dict, wait: float | None = None) -> None:
+        method = message.get("method")
+        message_id = message.get("id")
+        if method == "ping":
+            self.write({"jsonrpc": "2.0", "id": message_id, "result": {}})
+            return
+        # Only the first page of a list: a cursor request would overwrite it.
+        params = message.get("params") or {}
+        cacheable = method in CACHED_METHODS and not params.get("cursor")
+        if cacheable and method != "initialize" and self._try_answer_from_cache(method, message_id, params):
+            return
+        if wait is None:
+            wait = self.handshake_wait if cacheable else self.call_wait
+        deadline = time.monotonic() + wait
+        self._forward_request(message, message_id, method, deadline, cacheable)
 
     def handle_notification(self, message: dict) -> None:
         if message.get("method") == "notifications/initialized":
@@ -661,6 +717,8 @@ class Bridge:
     def run(self) -> int:
         self.log(f"start upstream={self.upstream.url}")
         for raw in self._stdin:
+            if self._stop.is_set():
+                break
             line = raw.strip()
             if not line:
                 continue
@@ -669,9 +727,20 @@ class Bridge:
             except ValueError:
                 self.error(None, "parse error", code=-32700)
                 continue
-            for item in message if isinstance(message, list) else [message]:
-                if isinstance(item, dict):
-                    self.dispatch(item)
+            if isinstance(message, list):
+                if not message:
+                    self.error(None, "invalid request: batch is empty", code=-32600)
+                    continue
+                for item in message:
+                    if isinstance(item, dict):
+                        self.dispatch(item)
+                    else:
+                        self.error(None, "invalid request: expected JSON-RPC object", code=-32600)
+                continue
+            if not isinstance(message, dict):
+                self.error(None, "invalid request: expected JSON-RPC object", code=-32600)
+                continue
+            self.dispatch(message)
         # The host is gone; do not keep this process alive for up to the call
         # wait just to finish answering nobody.
         self._pool.shutdown(wait=False, cancel_futures=True)
