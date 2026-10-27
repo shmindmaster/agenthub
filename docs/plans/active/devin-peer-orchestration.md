@@ -90,7 +90,7 @@ Verified -> Integrated -> Done (plus Blocked / Stalled / Failed / Superseded).
 | DV-1 | A: code health | Split `qaStage` (`packages/media-studio/kit/marketing/lib/stages/qa.mjs`) into helpers behind existing tests. Taken over from Warp W-3 (Discovered, never started). | swe-2-medium | **Integrated** (run 1 20:58 stopped by the memory guard; run 2 21:01-21:15 committed `d74af67` characterization tests + `602de12` split into `qaCandidate` and nine gate helpers, max helper complexity about 11 from about 50; run 3 21:26-21:31 found the work done and re-verified 278/278 covering tests, $0). Orchestrator: full media-studio suite `node --test packages/media-studio/tests/*.test.mjs` exit 0 (172 s); independent line-by-line review found no behaviour change (gate order, awaits, SHA guards, gates.json write unchanged). Cherry-picked to main as `a294265` + `510dc04`, media-studio hash recomputed. Coverage gap: the new tests reach only the pending/prepareOnly path; the encoded-candidate chain is guarded by the review and `mvg.test.mjs` source assertions. | `C:\wt\agenthub\devin-qa-stage` (removable) | met | none |
 | DV-2 | D: reliability | Read-only audit of `C:\wt` worktrees: unmerged commits, dirty files, merged-and-removable, owner. Taken over from Cline CL-4 (stalled by the memory guard). | swe-2-medium | **Verified** (run 1 stopped by the memory guard 20:36, vmware-vmx at 7.15 GB; run 2 20:53-20:58, 5.5 min, $0). Report covers 19 linked worktrees, 6 unregistered clones, 23 non-git dirs, 4 client skips. Orchestrator re-checked three claims: OC-3 `fee8a00` dangling on no branch, `cloud-render` 8 unapplied commits, `warp-parse-toml` 6/6 patch-applied: all true. | `...\devin\DV-2-report.md` | met | orchestrator pinned `fee8a00` to tgiagency `rescue/oc3-repo-standard-20261026`; owner decides cleanup of the merged-removable and non-git entries (incl. `lawli/private-beta`, 669 MB) |
 | DV-3 | A/D: reconcile | Classify the 7 commits on local-ai-platform `wip/hidden-descendants-20261026` (2), `wip/scheduler-repair-main-20261026` (3), `wip/service-reservation-race-20261026` (2) against `origin/main` `ba86076` (which replaced scheduled tasks, #43): already landed / superseded / still needed, with tests. Backlog A9b (unassigned, stalled). | fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium | **Done** (21:25-21:26 CT). Devin: 6 landed (`e483df1`/`fba17b7` = main `0633152`, PR #40; `03e4ac5`=`e74a2da`, `7ff13f5`=`ce7b102` = main `8dae276`, PR #39), `f1c903d` superseded (manifest digest only); none policy-conflicting; tests not run (no pytest in the available Python). Orchestrator verified: every code file of every commit is byte-identical to `origin/main` `ba86076` ignoring CR; only the generated `manifests/source-manifest.json` differs. Branches deleted by the orchestrator on owner direction "don't leave anything pending"; tips `fba17b7d`, `f1c903d4`, `ce7b102d` | `...\devin\DV-3-report.md` | met | none (worktree `C:\wt\local-ai-platform\devin-wip-reconcile` is clean and removable) |
-| DV-4 | C: browser QA | Real browser workflow with evidence (screenshots, console) on a local dev server. CL-2 (Cline, saroshhussain site) is stalled; reassign only after its owner releases it. | adaptive | Discovered | — | interactions, expected/actual, screenshots, console log | owner: release CL-2 to Devin or name another app |
+| DV-4 | C: browser QA | Real-Chromium QA of the saroshhussain site at 1280x800 and 375x812 on `next dev` 127.0.0.1:4311, at `origin/main` `3505733` (which carries CL-2's contact heading-order fix), so it doubles as an independent post-fix regression check of CL-2. | adaptive | **Verified** (runs 1-2 stopped by the memory guard, run 2 partly by the orchestrator's own test run; run 3 stopped itself on a real brief conflict: repo AGENTS.md requires commits on `main`, the brief named a branch; brief changed to "no commits, fixes as a patch for the orchestrator"; run 4 21:41-21:44). Result: 6 nav pages and 2 case studies (clicked from listings) load with one h1, no console errors, no 4xx/5xx; contact form keyboard-traversable, empty submit shows all 4 validation messages, no filled submit; axe 0 violations on home, case study and contact at both sizes; no 375 px overflow. One nav click flake (hydration race) re-checked as working. No defects, no patch. Orchestrator viewed the mobile contact and home screenshots and the console/network log. | `...\devin\DV-4-report.md`, `DV-4-evidence\` (26 screenshots, axe + console JSON) | met | none (worktree `C:\wt\saroshhussain\devin-browser-qa` clean at `3505733`, removable) |
 | X-81 | review follow-up | agenthub#81 review findings (OC-4) after merge | — | Verified (orchestrator) | `main` `cfebd89` | F-01 `validate-sync.mjs:272` passes `allowAsrAnchored`; F-02 `picture-gates.mjs:127` returns not-ok on `report.ok === false`; no `key=` in `cloud-ai.mjs`; `cloud-render.mjs:388-395` stops siblings on failure; `cloud-ai.mjs:182-214` never spills to another paid provider | none |
 
 ## Runbook
@@ -121,12 +121,34 @@ Verified -> Integrated -> Done (plus Blocked / Stalled / Failed / Superseded).
   `DV-n.dispatch.log`; reports: `DV-n-report.md`. Restart a subset with
   `-Only DV-1,DV-3`.
 
-## Open owner decisions
+## Batch outcome (2026-10-26, closed 21:45 CT)
 
-1. Devin Cloud budget (task, model, per-session `max_acu_limit`, stop condition).
+All four tasks met their acceptance criteria and were verified by the
+orchestrator: DV-1 integrated on agenthub `main`, DV-2 and DV-4 reports
+verified, DV-3 branches retired. Models: `swe-2-medium` (Free) for DV-1/DV-2,
+the Sonnet 5.5 + SWE-2 Fusion pair for DV-3 (about 1 minute), `adaptive` for
+DV-4. Paid usage was small but is not measured here: `-p` runs print no
+usage, and `/session-stats` is interactive only; check Settings > Usage &
+limits. Lessons: memory, not the model, was the limiting factor (5 of 9 runs
+were stopped or blocked before finishing); a stopped runner can leave its
+dispatched Devin run going, so stop the process tree; exit 0 with empty output
+happened once and must count as a failure; Devin stopped correctly on a brief
+that contradicted a repository AGENTS.md.
+
+Worktrees `devin-qa-stage`, `devin-wip-reconcile` and `devin-browser-qa` were
+removed after integration.
+
+## Owner decisions
+
+Recorded 2026-10-26: no cloud budget (devin-cloud stays disabled); serial local
+runs gated on free RAM; permissions left as they are.
+
+Still open (none blocks Devin local dispatch):
+1. A Devin Cloud budget, if cloud runs are wanted later (task, model,
+   per-session `max_acu_limit`, stop condition).
 2. Concurrency cap across peers (also open in the Cline plan).
-3. `DEVIN_PERMISSION_MODE=dangerous` with no deny rules: any dispatched run can
-   push or call `gh`. Recommended: `smart` plus deny rules in `%APPDATA%\devin\config.json`.
-4. `DEVIN_API_KEY` org differs from `DEVIN_ORG_ID`; a user PAT is needed to list
-   the personal org's cloud sessions.
-5. DV-4 target app.
+3. `DEVIN_PERMISSION_MODE=dangerous` with no deny rules lets a dispatched run
+   push or call `gh`; recommended `smart` plus deny rules.
+4. `DEVIN_API_KEY` belongs to a different org than `DEVIN_ORG_ID`; a user PAT is
+   needed to list the personal org's cloud sessions.
+5. Cleanup of the `C:\wt` leftovers DV-2 classified as removable.
