@@ -11,7 +11,7 @@ import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = "3.1.2"
+EXPECTED_VERSION = "3.1.3"
 MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",

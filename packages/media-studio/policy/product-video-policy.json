@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "capabilityId": "media-studio",
-  "capabilityVersion": "2.0.25",
+  "capabilityVersion": "2.0.26",
   "canonicalOwner": "personal-media",
   "toolRouting": {
     "productReadiness": "product-experience-engineering:prepare-product-for-demo",
@@ -14,7 +14,7 @@
     "exceptionalComposition": "remotion:remotion-best-practices",
     "ownerVoiceProvider": "local-ai",
     "ownerVoiceRoute": "ai.ps1 voice qwen-clone --voice sarosh",
-    "ownerVoiceGate": "media/qa/score_identity.py",
+    "ownerVoiceAdvisoryScore": "media/qa/score_identity.py",
     "audioPerceptionRoute": "ai.ps1 listen",
     "elevenLabsProvider": "elevenlabs",
     "editorialFinish": "media-studio-compose",
@@ -86,7 +86,8 @@
       "humanPlaybackClaimAllowed": false,
       "ownerApprovalRequired": false,
       "asrContentCheckRequired": true,
-      "dualSpeakerIdentityGateRequired": true,
+      "dualSpeakerIdentityGateRequired": false,
+      "speakerIdentityAdvisoryOnly": true,
       "captionSynchronizationRequired": true,
       "loudnessAndTruePeakGateRequired": true
     }

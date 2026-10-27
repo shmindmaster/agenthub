@@ -408,20 +408,20 @@ D:\Local-AI\ai.ps1 voice qwen-clone --voice sarosh --text "..." --out <segment.w
 For viewer-facing jobs, use the deployed `Generate-OwnerVoice.ps1` in
 `%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools` as directed by
 `media-studio-generate`. It handles Local-AI invocation, segment integrity,
-speaker identity, and pronunciation gates. There is no `generate-narration.mjs`
+and pronunciation gates; speaker identity is advisory only. There is no `generate-narration.mjs`
 entry point in this package.
 
-Every owner-voice segment is scored against an enrolled speaker profile before
-it ships — `ai.ps1 voice score --voice sarosh <file>` — on two independent
-embedders, against a floor derived from the owner's own recordings. Retro-scoring
-148 already-delivered segments found 6 below that floor, one at less than half
-of it.
+Speaker identity is **advisory only** (owner direction 2026-10-27: identity is
+advisory only; never fail, block or re-voice on speaker similarity). `ai.ps1 voice
+score --voice sarosh <file>` prints a similarity number for information; it never
+gates a take, a release or a regeneration, and a low number is never a reason to
+re-voice. The gates that fail a segment are real defects: clipping/level, dead
+air, truncation, wrong words (ASR vs script), pace and loudness.
 
-Do not fix a mispronounced name by respelling it. Of five orthography variants
-measured on this speaker, phonetic respelling was the **only** one to fail the
-identity floor on both backends: changing the spelling to change the vowel
-changes the speaker. Pronunciation belongs in a dictionary layer applied at
-render time.
+Do not fix a mispronounced name by respelling it. Phonetic respelling of the
+input text was measured to move the similarity score on this speaker; the
+canonical text stays as written and pronunciation belongs in a dictionary layer
+applied at render time.
 
 Everything else in Part 5 — voice selection, `instructions` steering, the pinned
 `gpt-4o-mini-tts-2025-12-15` snapshot — continues to apply to every non-owner

@@ -5,7 +5,7 @@ description: Use when assembled video needs FFmpeg, Recast pointer/click finishi
 
 # Media studio compose
 
-Assemble locked plates, audio, and motion into a candidate. Do not rewrite the screenplay or waive identity gates.
+Assemble locked plates, audio, and motion into a candidate. Do not rewrite the screenplay. Speaker identity is advisory only (owner direction 2026-10-27): identity is advisory only; never fail, block or re-voice on speaker similarity.
 
 Marketing compose requires `--stage compose --candidate-id <new-id>` and reserves that candidate directory. QA is a separate `--stage qa` call; never invokes compose. Use `--no-line-chips` or `--no-captions` (or `render.lineChips: false`) for clean picture; keep sidecar SRT. A changed encode needs a new ID and fresh candidate-SHA-bound gates. Never overwrite a reviewed candidate with `--force`.
 
@@ -21,13 +21,13 @@ Use official Remotion skills; do not vendor their rules here. Forced alignment o
 
 Canonical: `packages/media-studio/kit`. Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`.
 
-Use the runtime kit only when its manifest matches 2.0.25. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.25 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
+Use the runtime kit only when its manifest matches 2.0.26. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.26 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
 
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
 $kitManifest = Join-Path $kit 'package.json'
-if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.25') {
-    throw 'Media Studio 2.0.25 runtime kit is missing or stale. Sync from a verified 2.0.25 package source before rendering.'
+if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.26') {
+    throw 'Media Studio 2.0.26 runtime kit is missing or stale. Sync from a verified 2.0.26 package source before rendering.'
 }
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
 ```
@@ -36,8 +36,8 @@ To repair, set `MEDIA_STUDIO_PACKAGE_ROOT` to the verified package; check its `p
 
 ```powershell
 $package = $env:MEDIA_STUDIO_PACKAGE_ROOT
-if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.25') {
-    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.25 package.'
+if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.26') {
+    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.26 package.'
 }
 pwsh -NoProfile -File (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1')
 ```
@@ -65,8 +65,8 @@ Do not invent an FFmpeg graph. The helper is the provider:
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $toolsManifest = Join-Path $tools 'plugin.json'
 $Finish = Join-Path $tools 'Finish-Media.ps1'
-if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.25' -or -not (Test-Path -LiteralPath $Finish)) {
-    throw 'Media Studio 2.0.25 finishing helper is missing or stale in the deployed shared tools.'
+if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.26' -or -not (Test-Path -LiteralPath $Finish)) {
+    throw 'Media Studio 2.0.26 finishing helper is missing or stale in the deployed shared tools.'
 }
 pwsh -NoProfile -File $Finish -Action finish -Program <job>\candidate.mp4 -Output <job>\candidate-finished.mp4
 pwsh -NoProfile -File $Finish -Action finish -Speech <job>\voice.wav -Music <job>\bed.wav -Video <job>\picture.mp4 -Output <job>\candidate-finished.mp4
@@ -113,7 +113,7 @@ Official Remotion skills installed globally under `~/.agents/skills`, symlinked 
 
 - New id + checksum each render; never overwrite.
 - Captions from final spoken wording.
-- Owner-voice programs need identity score + local `ai.ps1 listen` on exact encoded file before done.
+- Owner-voice programs need local `ai.ps1 listen` on the exact encoded file before done. No identity score is required (advisory only; never fail, block or re-voice on speaker similarity).
 - Output stays in job workspace. Accepted masters may copy to owner's Videos tree; never into git.
 - Delivered names: `NN - Title.mp4`, no product prefix. Series carries `README.md` index. Each product has one flat folder directly under `F:\My Drive\Videos`; never deliver into subfolders.
 - Superseded master: delete old master and every reproducible intermediate. No `_retired`, `_old`, or archive folders.

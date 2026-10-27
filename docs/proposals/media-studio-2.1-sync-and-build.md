@@ -154,7 +154,7 @@ text-to-word or diagram-to-word sync.
   compose skill names `remotion-captions` (display-captions, `createTikTokStyleCaptions`) and `remotion-markup`
   (`text-highlights.md`, `timing.md`) as the ones to load for these components.
 - `sarosh-audio-voice` lives in the private overlay; its matching one-line change (align against the authored script
-  on the accepted take; identity gate unchanged) is made there, outside this public PR.
+  on the accepted take; identity is advisory only since 2026-10-27) is made there, outside this public PR.
 - `browser-toolkit` `desktop-evidence`: optional preflight for native-window recordings, see §8.3. `browser-evidence`:
   no change.
 

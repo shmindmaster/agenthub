@@ -20,7 +20,11 @@ import time
 import uuid
 from functools import lru_cache
 
-VOICE_GATES = ("identity", "content", "pronunciation", "listening", "artifact")
+# Owner direction 2026-10-27: "identity is advisory only; never fail, block or re-voice on speaker similarity".
+# Speaker identity is no longer a required acceptance gate. A manifest may still carry an "identity" entry for
+# information; it is never required, never inspected and cannot reject an acceptance.
+ADVISORY_GATES = frozenset({"identity"})
+VOICE_GATES = ("content", "pronunciation", "listening", "artifact")
 MAX_INTEGER = 2 ** 53 - 1
 
 
@@ -356,13 +360,15 @@ class Ledger:
         integer(maximum)
         if not namespace or not key or not 0 < lease_seconds <= 3600 or not required_gates:
             raise ValueError("Request identity, finite lease and required gates needed")
-        gates = json.dumps(sorted(set(required_gates)))
+        gates = json.dumps(sorted(set(required_gates) - ADVISORY_GATES))
         now = time.time()
         with self.connect(True) as con:
             row = con.execute("SELECT * FROM requests WHERE namespace=? AND key=?", (namespace, key)).fetchone()
             if row:
                 result = dict(row)
-                if row["bucket"] != bucket or row["gates"] != gates:
+                # Rows written before identity became advisory still list it; compare without it.
+                stored = json.dumps(sorted(set(json.loads(row["gates"])) - ADVISORY_GATES))
+                if row["bucket"] != bucket or stored != gates:
                     raise RuntimeError("Request budget/gate policy changed; use a new request revision")
                 if row["state"] == "prepared" and row["lease"] < now:
                     token = uuid.uuid4().hex
@@ -516,6 +522,8 @@ class Ledger:
             if not row or row["state"] not in ("pending", "accepted"):
                 raise RuntimeError("Only generated pending content can pass acceptance gates")
             for name in json.loads(row["gates"]):
+                if name in ADVISORY_GATES:
+                    continue
                 gate = gates.get(name, {})
                 if gate.get("pass") is not True or gate.get("output_sha256") != row["sha256"] or not re.fullmatch("[0-9a-f]{64}", str(gate.get("evidence_sha256", ""))):
                     raise RuntimeError("Missing passing, hash-bound acceptance gate: " + name)
