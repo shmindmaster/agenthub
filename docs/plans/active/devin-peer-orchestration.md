@@ -95,6 +95,13 @@ Verified -> Integrated -> Done (plus Blocked / Stalled / Failed / Superseded).
   tests yourself. Push/PR only with owner approval.
 - **No monitoring daemon** by policy. A batch runner is a bounded foreground
   job of the orchestrator session and stops before 01:00 CT.
+- **This batch:** `D:\AgentHub\runtime\orchestration\2026-10-26\devin\Start-DevinBatch.ps1`
+  runs DV-0 (one-line smoke on `swe-2-medium`, aborts the batch unless it returns
+  READY), then DV-2, DV-1, DV-3 in order. It waits for free RAM >= 6 GB before each
+  start, kills the run's process tree below 1.5 GB, starts nothing after 00:30 and
+  stops everything at 01:00. Events: `DV-batch.events.jsonl`; per-task output:
+  `DV-n.dispatch.log`; reports: `DV-n-report.md`. Restart a subset with
+  `-Only DV-1,DV-3`.
 
 ## Open owner decisions
 
