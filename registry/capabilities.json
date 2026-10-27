@@ -347,7 +347,7 @@
       "managedSkillNames": [
         "elevenlabs"
       ],
-      "contentHash": "594A1DF900E6048AB23F2D47C62FD25CB8C0990B804428F26D3F0C7CB4EF2C9A",
+      "contentHash": "C18C8F430A694DFA6BE6B68BE5FFA6C95AF934C4E31A95AD29E46EB3664E61E9",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [
@@ -1029,7 +1029,7 @@
         "media-studio-compose",
         "media-studio-qa"
       ],
-      "contentHash": "DBFD5E426D588445B89DF4FA9822B4851F93559686AC04D7526F050B462FC7DC",
+      "contentHash": "CAD7407CA60ACA742984592E81D57BEA96CDC9C2D06BEC44B43969BC223D0491",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
