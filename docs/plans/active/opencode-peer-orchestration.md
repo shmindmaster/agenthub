@@ -103,14 +103,16 @@ Factory credit probe (one-line prompt, ~14–17k tokens of system context) on 20
 
 Credits ≈ tokens × the documented multiplier. `droid exec` has no spend or turn flag, so each run is bounded by `timeout` (F-1: 7200 s; the others: 5400 s) and by the low-multiplier model choice. Escalate one tier only after a demonstrated failure.
 
-#### Factory status at session handoff (2026-10-26 18:25 CT)
+#### Factory status at session close (2026-10-26 19:15 CT)
 
-| ID | Status | Evidence | Next action |
+| ID | Status | Evidence | Where |
 |---|---|---|---|
-| F-1 | Running (mission `mis_712d158d`) | 2 commits on the branch | When the mission ends: read `F-1-report.md`, then rerun `node --test packages/media-studio/tests/` in the worktree |
-| F-2 | Running | no commits yet | If there is no commit by timeout: narrow the brief, escalate to gpt-6-sol |
-| F-3 | **Review** (Factory reports 168→172 pass, 0 fail; orchestrator confirmed no visible-copy change) | `d45fc0b`, `a403a4a`, `a91df6c`, `eff2662`; 5 screenshots in `F-3-artifacts`; 79,506 credits | Owner: rerun the suite, review site-wide `prefetch={false}`, push/PR |
-| F-4 | **Verified** (orchestrator reran the tests: 84/84, 7/7, Validate PASS) | `90ce0bd`, `4f4925b`, rebased on `ba45c6a`, not pushed; 168,731 credits | Owner: fast-forward main and push; enabling dispatch is a separate decision |
+| F-1 | **Integrated: in main, pushed** | 6 commits (characterization tests, then a refactor, per function); orchestrator reran all media-studio tests: 342/342 (base 337/337) | agenthub `a3417d8` |
+| F-2 | **Stopped, not integrated** | 1 test commit `96b55b0` plus an uncommitted bridge edit; no verified fix | `C:\wt\agenthub\factory-repowise-bridge`; resume with `droid --resume b71bd10b-018f-4fb6-ab37-e51684fe4daa` |
+| F-3 | **Deployed, live** | shmindmaster/saroshhussain#29 squash `4d7a34a`; orchestrator rerun: build OK, chromium 87 passed, 1 flaky on retry; DigitalOcean deployment `e9948a1b` ACTIVE; live pages return 200 | saroshhussain.com |
+| F-4 | **Integrated: in main, pushed** | merged with the Cline and Warp model gates; dispatch tests 97/97; Validate PASS; `dispatchPolicy.factory.enabled` is still false (owner decision) | agenthub `a3417d8` |
+
+The AgentHub fleet deploy (`Sync-AgentHub -Apply`) was not run, because the main checkout holds another session's uncommitted dispatcher work. The Factory runtime was set up directly: RepoWise plugin, user settings, Desktop 0.206.0.
 
 - **Progress:** `pwsh -NoProfile -File D:\AgentHub\runtime\orchestration\Get-FactoryTaskStatus.ps1`.
 - **Resume any task in the TUI:** `droid --resume <session>` from its worktree. The orchestrator must stop the headless writer first, so there is one writer per session.
