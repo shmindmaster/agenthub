@@ -856,7 +856,7 @@
         "mobile-device-lab",
         "mobile-platform-standard"
       ],
-      "contentHash": "0D1D8C4B3D10AFFB2458F2CD6DB82D235BFCAEBEAC1E1449BFF58378238252E4",
+      "contentHash": "69183C94890634BC21677D642A2C1D5EA64A547E72397055CE90389717DA2C90",
       "hashBasis": "packages/mobile-development",
       "status": "active-canonical",
       "catalogEntrypoint": "packages/mobile-development/mobile.ps1 catalog",
@@ -1029,7 +1029,7 @@
         "media-studio-compose",
         "media-studio-qa"
       ],
-      "contentHash": "ADD633355D21FB10ECA39D52A7937E2FF550727B41FF5E25E544C06227B4702A",
+      "contentHash": "DBFD5E426D588445B89DF4FA9822B4851F93559686AC04D7526F050B462FC7DC",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
