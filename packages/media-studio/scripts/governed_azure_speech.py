@@ -26,33 +26,45 @@ PRICE_POLICY = "azure-eastus2-neural-hd-20261026-22-microusd-per-utf8-byte"
 VALID_THROUGH = datetime.date(2026, 11, 24)
 MAX_BYTES = 64 * 1024 * 1024
 VOICES = {"en-US-Ava:DragonHDLatestNeural", "en-US-Andrew:DragonHDLatestNeural"}
+STANDARD_VOICE = "en-US-JennyNeural"
+STANDARD_PRICE_POLICY = "azure-eastus2-standard-neural-20261027-15-microusd-per-utf8-byte"
 APPROVAL = "Authorize Azure, $1 total"
 
 
-def quote(text, *, workspace, revision, dictionary_revision, voice="en-US-Ava:DragonHDLatestNeural"):
+def quote(text, *, workspace, revision, dictionary_revision, voice="en-US-Ava:DragonHDLatestNeural", style=None):
     if (not isinstance(text, str) or not text.strip() or len(text) > 6000
             or any(ord(c) < 32 and c not in "\n\r\t" for c in text)
             or not all(isinstance(v, str) and v.strip() for v in (workspace, revision, dictionary_revision))
-            or voice not in VOICES):
+            or voice not in VOICES | {STANDARD_VOICE}
+            or (voice == STANDARD_VOICE and style != "friendly")
+            or (voice in VOICES and style is not None)):
         raise ValueError("Explicit workspace/revisions, allowlisted GA voice and 1-6000 text characters required")
     if datetime.datetime.now(datetime.timezone.utc).date() > VALID_THROUGH:
         raise RuntimeError("Price policy expired")
     ssml = ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">'
             '<voice name="' + voice + '">' + escape(text) + '</voice></speak>')
+    standard = voice == STANDARD_VOICE
+    if standard:
+        ssml = ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
+                'xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">'
+                '<voice name="en-US-JennyNeural"><mstts:express-as style="friendly">'
+                + escape(text) + '</mstts:express-as></voice></speak>')
     request = {"provider": "azure-speech", "region": "eastus2", "voice": voice,
                "endpoint": "https://eastus2.tts.speech.microsoft.com/cognitiveservices/v1",
                "format": "riff-48khz-16bit-mono-pcm", "ssml": ssml,
                "revision": revision, "dictionary_revision": dictionary_revision,
-               "workspace": workspace, "price_policy": PRICE_POLICY,
+               "workspace": workspace, "price_policy": STANDARD_PRICE_POLICY if standard else PRICE_POLICY,
                "identity": "rehearsal-narrator-not-owner-voice"}
     return {"request": request, "cache_key": shared.runtime_module().request_key(request),
-            "maximum_usd_micros": len(ssml.encode("utf-8")) * 22,
+            "maximum_usd_micros": len(ssml.encode("utf-8")) * (15 if standard else 22),
             "text_sha256": hashlib.sha256(text.encode()).hexdigest()}
 
 
 def authorized_ledger(manifest, workspace, planned):
     """An immutable explicit $1 NEW Azure job, separate from lost accounting."""
     runtime = shared.runtime_module()
+    if planned.get("request", {}).get("price_policy", PRICE_POLICY) != PRICE_POLICY:
+        raise RuntimeError("Standard speech requires supplemental same-ledger authority")
     path = Path(manifest).absolute()
     if any(runtime.linked_path(p) for p in (path, *path.parents)):
         raise RuntimeError("Authorization must be on an unlinked private local path")
@@ -239,7 +251,7 @@ def _generate(ledger, planned, workspace, credential, send=transport):
                  "duration_seconds": duration, "sample_rate": 48000, "word_boundaries": clock,
                  "alignment_status": "AZURE_SDK_EVENTS" if clock else "NOT_PERFORMED", "acceptance_state": row["state"],
                  "maximum_reserved_usd_micros": row["maximum"], "actual_usd_micros": None,
-                 "price_policy": PRICE_POLICY, "authorization_sha256": ledger.azure_authorization_hash,
+                 "price_policy": planned["request"]["price_policy"], "authorization_sha256": ledger.azure_authorization_hash,
                  "historical_accounting": "UNKNOWN_NOT_RESTORED"}
 
 
@@ -252,6 +264,106 @@ def generate(text, *, authorization_manifest, workspace, revision, dictionary_re
     ledger = authorized_ledger(authorization_manifest, workspace, planned)
     with ledger.session():
         return _generate(ledger, planned, workspace, credential, sdk_transport if use_sdk else transport)
+
+
+def authorized_standard_ledger(authorization_manifest, extension_manifest, workspace, planned):
+    """Pin exact additional requests to an EXISTING $1 ledger, never a fresh budget.
+
+    The extension has at most $0.69 of requests including any explicit retakes.
+    The ledger's atomic claim still enforces the original aggregate $1 ceiling.
+    """
+    runtime = shared.runtime_module()
+    original = Path(authorization_manifest).absolute()
+    extension = Path(extension_manifest).absolute()
+    if any(runtime.linked_path(p) for path in (original, extension) for p in (path, *path.parents)):
+        raise RuntimeError("Linked supplemental authority refused")
+    original_raw, raw = original.read_bytes(), extension.read_bytes()
+    original_policy, grant = json.loads(original_raw), json.loads(raw)
+    entries = grant.get("requests")
+    if (grant.get("kind") != "azure-standard-same-ledger-extension"
+            or grant.get("owner_authorization") != APPROVAL
+            or grant.get("workspace") != workspace
+            or grant.get("original_authorization_sha256") != hashlib.sha256(original_raw).hexdigest()
+            or grant.get("maximum_aggregate_usd_micros") != 1_000_000
+            or grant.get("preserve_all_existing_reservations") is not True
+            or grant.get("price_policy") != STANDARD_PRICE_POLICY
+            or not isinstance(entries, list) or not 1 <= len(entries) <= 128):
+        raise RuntimeError("Exact supplemental same-ledger authority required")
+    try:
+        stamp = datetime.datetime.fromisoformat(grant["authorized_at_utc"].replace("Z", "+00:00"))
+        if stamp.utcoffset() != datetime.timedelta(0):
+            raise ValueError()
+        keys = [e["cache_key"] for e in entries]
+        if len(set(keys)) != len(keys):
+            raise ValueError()
+        for e in entries:
+            if (set(e) != {"cache_key", "text_sha256", "ssml_utf8_bytes", "maximum_usd_micros"}
+                    or not all(isinstance(e[k], str) and re.fullmatch(r"[a-f0-9]{64}", e[k])
+                               for k in ("cache_key", "text_sha256"))
+                    or type(e["ssml_utf8_bytes"]) is not int or e["ssml_utf8_bytes"] <= 0
+                    or type(e["maximum_usd_micros"]) is not int
+                    or e["maximum_usd_micros"] != e["ssml_utf8_bytes"] * 15):
+                raise ValueError()
+        total = sum(e["maximum_usd_micros"] for e in entries)
+        if not 0 < total <= 690_000 or grant.get("maximum_new_usd_micros") != total:
+            raise ValueError()
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise RuntimeError("Malformed or excessive supplemental request quote") from None
+    expected = {"cache_key": planned["cache_key"], "text_sha256": planned["text_sha256"],
+                "ssml_utf8_bytes": len(planned["request"]["ssml"].encode("utf-8")),
+                "maximum_usd_micros": planned["maximum_usd_micros"]}
+    if (planned["request"]["price_policy"] != STANDARD_PRICE_POLICY
+            or expected not in entries):
+        raise RuntimeError("Request not approved in immutable extension")
+    base = os.environ.get("LOCALAPPDATA")
+    if not base:
+        raise RuntimeError("Private local runtime unavailable")
+    root = ((Path(base) / "AgentHub/runtime/azure-speech-jobs").resolve()
+            / hashlib.sha256(workspace.encode()).hexdigest())
+    if not (root / "ledger.sqlite3").is_file():
+        raise RuntimeError("Existing original ledger required; no fresh budget")
+    allowed = original_policy.get("allowed_cache_keys", [])
+    if not allowed:
+        raise RuntimeError("Original authority missing")
+    ledger = authorized_ledger(original, workspace, {"cache_key": allowed[0]})
+    with ledger.session():
+        pinned = ledger.root / "standard-extension-authorization.json"
+        if runtime.linked_path(pinned):
+            raise RuntimeError("Linked pinned authority refused")
+        if "parent_standard_extension_sha256" in grant:
+            # Later exact requests may extend the same aggregate budget, but
+            # can never replace the original pinned standard grant. The parent
+            # is deliberately the original grant, not an arbitrary ancestor.
+            parent_hash = grant["parent_standard_extension_sha256"]
+            if (not isinstance(parent_hash, str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", parent_hash)
+                    or not pinned.is_file()
+                    or hashlib.sha256(pinned.read_bytes()).hexdigest() != parent_hash):
+                raise RuntimeError("Supplemental parent authority mismatch")
+            pinned = ledger.root / ("standard-extension-" + hashlib.sha256(raw).hexdigest() + ".json")
+            if runtime.linked_path(pinned):
+                raise RuntimeError("Linked pinned authority refused")
+        if pinned.exists():
+            if pinned.read_bytes() != raw:
+                raise RuntimeError("Supplemental authority immutable; no reset")
+        else:
+            shared._durable_evidence(pinned, raw)
+    ledger.azure_extension_authorization_hash = hashlib.sha256(raw).hexdigest()
+    return ledger
+
+
+def generate_standard(text, *, authorization_manifest, extension_manifest, workspace,
+                      revision, dictionary_revision):
+    planned = quote(text, workspace=workspace, revision=revision, dictionary_revision=dictionary_revision,
+                    voice=STANDARD_VOICE, style="friendly")
+    ledger = authorized_standard_ledger(authorization_manifest, extension_manifest, workspace, planned)
+    credential = os.environ.get("AZURE_SPEECH_KEY")
+    if not credential:
+        raise RuntimeError("AZURE_SPEECH_KEY unset")
+    with ledger.session():
+        audio, receipt = _generate(ledger, planned, workspace, credential, sdk_transport)
+        receipt["extension_authorization_sha256"] = ledger.azure_extension_authorization_hash
+        return audio, receipt
 
 
 def generate_manual_retake(text, *, authorization_manifest, supplemental_manifest, workspace,
