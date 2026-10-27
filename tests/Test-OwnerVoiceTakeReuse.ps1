@@ -422,8 +422,7 @@ try {
     $genSrc = Get-Content -LiteralPath $scriptPath -Raw -Encoding UTF8
     $regSrc = Get-Content -LiteralPath $regatePath -Raw -Encoding UTF8
     Report 'Generate-OwnerVoice.ps1: the PASS verdict is integrity and ASR only' (($genSrc -match '\$pass\s*=\s*\$integOk\s+-and\s+\$asrOk\s+-and\s+\(Test-Path') -and ($genSrc -notmatch '\$idOk')) 'identity is still part of the verdict'
-    Report 'ReGate-OwnerVoice.ps1: the PASS verdict is integrity and ASR only' (($regSrc -match '\$ok\s*=\s*\$integOk\s+-and\s+\$asrOk\s*?
-') -and ($regSrc -notmatch '\$idOk')) 'identity is still part of the re-gate verdict'
+    Report 'ReGate-OwnerVoice.ps1: the PASS verdict is integrity and ASR only' (($regSrc -match '(?m)\$ok\s*=\s*\$integOk\s+-and\s+\$asrOk\s*$') -and ($regSrc -notmatch '\$idOk')) 'identity is still part of the re-gate verdict'
     Report 'Generate and ReGate document the owner direction' (($genSrc -match 'never fail, block or re-voice on speaker similarity') -and ($regSrc -match 'never fail, block or re-voice on speaker similarity')) 'the rule is not stated in the scripts'
 
     # 9. ReGate-OwnerVoice.ps1 receipts
