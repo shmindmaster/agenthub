@@ -430,6 +430,41 @@ class AdapterTests(unittest.TestCase):
         with patch.dict("os.environ", {"LOCALAPPDATA": str(self.root)}), patch.object(self.runtime, "running_on_windows", return_value=True):
             yield
 
+    def test_legacy_parent_scope_receipts_preserved_but_not_new_batches(self):
+        p, new = plan(), plan("New words after a structured parent inventory.")
+        original, policy, proof, proof_path = self.policy(p)
+        legacy = {"path": str(self.root), "exists": True, "enumeration": "Complete synthetic enumeration",
+                  "filesEnumerated": 4, "deepgramEvidenceFiles": 1}
+        proof["enumerated_scopes"] = [legacy]
+        proof_path.write_text(json.dumps(proof), encoding="utf-8")
+        policy["inventory_proof"]["sha256"] = hashlib.sha256(proof_path.read_bytes()).hexdigest()
+        original.write_text(json.dumps(policy), encoding="utf-8")
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            parent_bytes = (ledger.root / "authorization.json").read_bytes()
+            proof_bytes = proof_path.read_bytes()
+            batch, batch_policy = self.batch_policy(original, new)
+            adapter.recovery_epoch_ledger(batch, "synthetic-test", new)
+            self.assertEqual((ledger.root / "authorization.json").read_bytes(), parent_bytes)
+            self.assertEqual(proof_path.read_bytes(), proof_bytes)
+            batch_proof_path = pathlib.Path(batch_policy["inventory_proof"]["path"])
+            batch_proof = json.loads(batch_proof_path.read_bytes())
+            batch_proof["enumerated_scopes"] = [legacy]
+            batch_proof_path.write_text(json.dumps(batch_proof), encoding="utf-8")
+            batch_policy["inventory_proof"]["sha256"] = hashlib.sha256(batch_proof_path.read_bytes()).hexdigest()
+            with self.assertRaises(RuntimeError):
+                adapter._epoch_policy(json.dumps(batch_policy).encode(), "synthetic-test")
+        for invalid in ({}, {**legacy, "exists": 1}, {**legacy, "path": " "},
+                        {**legacy, "enumeration": ""}, {**legacy, "filesEnumerated": -1},
+                        {**legacy, "deepgramEvidenceFiles": True},
+                        {**legacy, "deepgramEvidenceFiles": 5}, {**legacy, "extra": "unrecognized"}):
+            with self.subTest(invalid=invalid):
+                proof["enumerated_scopes"] = [invalid]
+                proof_path.write_text(json.dumps(proof), encoding="utf-8")
+                policy["inventory_proof"]["sha256"] = hashlib.sha256(proof_path.read_bytes()).hexdigest()
+                with self.assertRaises(RuntimeError):
+                    adapter._epoch_policy(json.dumps(policy).encode(), "synthetic-test")
+
     def batch_policy(self, parent, p, batch="new-words", prior=()):
         original = json.loads(parent.read_bytes())
         original_proof = json.loads(pathlib.Path(original["inventory_proof"]["path"]).read_bytes())

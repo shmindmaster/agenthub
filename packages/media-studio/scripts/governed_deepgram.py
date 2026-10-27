@@ -200,10 +200,23 @@ def _epoch_policy(raw, workspace):
     if hashlib.sha256(proof_raw).hexdigest() != proof_ref.get("sha256"):
         raise RuntimeError("Inventory proof changed")
     proof = json.loads(proof_raw)
+    def scope(value):
+        if isinstance(value, str):
+            return bool(value.strip())
+        # The immutable first-epoch inventory used structured enumeration
+        # receipts. Preserve that exact legacy shape only for the parent;
+        # additional batches retain the canonical string-scope contract.
+        return ("additional_batch_id" not in policy and isinstance(value, dict)
+                and set(value) == {"path", "exists", "enumeration", "filesEnumerated", "deepgramEvidenceFiles"}
+                and all(isinstance(value[k], str) and value[k].strip() for k in ("path", "enumeration"))
+                and type(value["exists"]) is bool
+                and all(type(value[k]) is int and value[k] >= 0
+                        for k in ("filesEnumerated", "deepgramEvidenceFiles"))
+                and value["deepgramEvidenceFiles"] <= value["filesEnumerated"])
     old, ambiguous, new = (proof.get(k) for k in ("historical_rendered_text_sha256", "ambiguous_rendered_text_sha256", "new_rendered_text_sha256"))
     if (proof.get("kind") != "deepgram-new-input-inventory" or not isinstance(proof.get("enumerated_scopes"), list)
             or not proof["enumerated_scopes"]
-            or not all(isinstance(v, str) and v.strip() for v in proof["enumerated_scopes"])
+            or not all(scope(v) for v in proof["enumerated_scopes"])
             or not all(hashes(v) for v in (old, ambiguous, new))
             or not set(texts) <= set(new) or set(texts) & (set(old) | set(ambiguous))):
         raise RuntimeError("Inventory must establish new inputs disjoint from cached or ambiguous history")
