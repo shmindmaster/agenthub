@@ -69,6 +69,29 @@ test('Whisper cannot drive the picture clock', () => {
   assert.match(clockAccepted({}).reason, /picture clock is ai.ps1 align/);
 });
 
+test('clockAccepted rejects reports marked not ok', () => {
+  assert.equal(clockAccepted({ ok: false, method: 'forced-alignment' }).ok, false);
+  const asr = clockAccepted({ ok: false, method: 'asr-anchored-alignment' }, { allowAsrAnchored: true });
+  assert.equal(asr.ok, false);
+  assert.match(asr.reason, /not ok/);
+});
+
+test('clockAccepted enforces coverage limits on asr-anchored-alignment', () => {
+  const makeWords = (limitedRun, exactCount) => {
+    const words = [];
+    for (let i = 0; i < limitedRun; i += 1) words.push({ text: `l${i}`, start: i * 0.08, end: i * 0.08 + 0.08, precisionLimited: true });
+    for (let i = 0; i < exactCount; i += 1) words.push({ text: `e${i}`, start: (limitedRun + i) * 0.08, end: (limitedRun + i) * 0.08 + 0.08 });
+    return words;
+  };
+  assert.equal(clockAccepted({ method: 'asr-anchored-alignment', words: makeWords(0, 10) }, { allowAsrAnchored: true }).ok, true);
+  const lowRatio = clockAccepted({ method: 'asr-anchored-alignment', words: makeWords(5, 1) }, { allowAsrAnchored: true });
+  assert.equal(lowRatio.ok, false);
+  assert.match(lowRatio.reason, /exact onsets/);
+  const longRun = clockAccepted({ method: 'asr-anchored-alignment', words: makeWords(7, 70) }, { allowAsrAnchored: true });
+  assert.equal(longRun.ok, false);
+  assert.match(longRun.reason, /longest precision-limited run/);
+});
+
 test('props are one argument, and a missing or empty props file is refused', () => {
   assert.throws(() => propsArg(''), /props file is required/);
   const argv = renderArgv({ cli: 'cli.js', composition: 'Meeting', propsPath: 'C:\\films\\props.json', outFile: 'out.mp4' });

@@ -268,8 +268,10 @@ if (candidateSha && cueSheet && probe && video) {
     const alignmentPath = join(root, 'qa', 'encoded-alignment.json');
     if (existsSync(alignmentPath)) {
       try {
+        const jobPath = join(root, 'job.json');
+        const allowAsrAnchored = existsSync(jobPath) && JSON.parse(readFileSync(jobPath, 'utf8'))?.clockPolicy?.allowAsrAnchored === true;
         const measured = L.measureWordSync(JSON.parse(readFileSync(alignmentPath, 'utf8')), flat, {
-          takeSha256: candidateSha, scriptSha256: sha(join(root, 'story', 'locked-script.txt')),
+          takeSha256: candidateSha, scriptSha256: sha(join(root, 'story', 'locked-script.txt')), allowAsrAnchored,
         }, T.driftMaxMs);
         Object.assign(av, measured, { alignment: { path: 'qa/encoded-alignment.json', sha256: sha(alignmentPath) } });
         measured.errors.forEach(fail);

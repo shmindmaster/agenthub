@@ -334,6 +334,23 @@ test('sync gate uses bound forced alignment, ignores Whisper onset jitter, and f
   assert.match(r.report.errors.join(' '), /input SHA-256 mismatch/);
 });
 
+test('sync gate accepts an opted-in cloud asr-anchored alignment with valid coverage and bindings', { skip: !hasFfmpeg, timeout: 180000 }, () => {
+  const f = gateFixture('gate-cloud-align');
+  const cue = JSON.parse(readFileSync(join(f.root, 'plan', 'cue-sheet.json'), 'utf8'));
+  const words = cue.beats.flatMap((b) => b.narration.words);
+  write(join(f.root, 'story', 'locked-script.txt'), words.map((w) => w.w).join(' '));
+  const cloudAligned = {
+    schema: 'cloud-speech/script-alignment/1', units: 'seconds', gridSeconds: 0.08, durationSeconds: 20,
+    take: { sha256: sha(f.candidate) }, script: { sha256: sha(join(f.root, 'story', 'locked-script.txt')) },
+    words: words.map((w) => ({ text: w.w, start: Math.round(w.start / 0.08) * 0.08, end: Math.round(w.end / 0.08) * 0.08 })),
+  };
+  write(join(f.root, 'qa', 'encoded-alignment.json'), cloudAligned);
+  write(join(f.root, 'job.json'), { clockPolicy: { allowAsrAnchored: true } });
+  const r = gate(f);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.report.av.method, 'asr-anchored-alignment-on-encoded');
+});
+
 test('sync gate fails a long exact-frame freeze, degraded timing, a stale or plan-mode cue sheet, and a film with no narrated action', { skip: !hasFfmpeg, timeout: 240000 }, () => {
   const frozen = gate(gateFixture('gate-freeze', { cuts: [0, 3, 8, 12, 19] })); assert.equal(frozen.code, 1, frozen.out);
   assert.match(frozen.report.errors.join(' '), /exact-frame freeze .* A static scene needs a moving cursor/);

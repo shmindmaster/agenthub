@@ -31,7 +31,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSy
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { clockAccepted, designedCuts, normalizeAlignWords, pictureScripts } from './picture-gates.mjs';
+import { asrAnchoredAllowed, clockAccepted, designedCuts, normalizeAlignWords, pictureScripts } from './picture-gates.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
@@ -85,7 +85,7 @@ function wordsFromAlign(seg) {
   const alignPath = join(root, 'voice', 'align', `${seg.id}.json`);
   if (!existsSync(alignPath)) return null;
   const report = JSON.parse(readFileSync(alignPath, 'utf8').replace(/^\uFEFF/, ''));
-  const clock = clockAccepted(report);
+  const clock = clockAccepted(report, { allowAsrAnchored: asrAnchoredAllowed(jobDoc) });
   if (!clock.ok) {
     errors.push(`${seg.id}: ${clock.reason}`);
     return { words: [], precision: 'refused', source: `voice/align/${seg.id}.json` };

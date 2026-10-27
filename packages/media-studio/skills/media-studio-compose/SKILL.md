@@ -21,13 +21,13 @@ Use official Remotion skills; do not vendor their rules here. Forced alignment o
 
 Canonical: `packages/media-studio/kit`. Runtime: `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit`.
 
-Use the runtime kit only when its manifest matches 2.0.20. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.20 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
+Use the runtime kit only when its manifest matches 2.0.25. `Sync-MediaStudioKit.ps1` deploys the kit and shared finishing helper. If missing or stale, stop and sync from a verified 2.0.25 package source (native plugin cache or reviewed AgentHub checkout), then rerun version check. Never default to an unverified checkout. Composition `Briefing` hosts the program; each scene sets `archetype` from `scene-archetypes.md`. Board: 1600×1000, 30 fps. Screencast compositor renders to `deliveryProfile`; portrait clips require bounded `sourceRegion`. Timed campaign graphics apply only inside safe areas away from declared product controls and captions.
 
 ```powershell
 $kit = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\briefing-kit'
 $kitManifest = Join-Path $kit 'package.json'
-if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.20') {
-    throw 'Media Studio 2.0.20 runtime kit is missing or stale. Sync from a verified 2.0.20 package source before rendering.'
+if (-not (Test-Path -LiteralPath $kitManifest) -or (Get-Content -LiteralPath $kitManifest -Raw | ConvertFrom-Json).version -ne '2.0.25') {
+    throw 'Media Studio 2.0.25 runtime kit is missing or stale. Sync from a verified 2.0.25 package source before rendering.'
 }
 npx remotion render --props <job>\scenes.json Briefing <job>\briefing.mp4
 ```
@@ -36,8 +36,8 @@ To repair, set `MEDIA_STUDIO_PACKAGE_ROOT` to the verified package; check its `p
 
 ```powershell
 $package = $env:MEDIA_STUDIO_PACKAGE_ROOT
-if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.20') {
-    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.20 package.'
+if (-not $package -or -not (Test-Path -LiteralPath (Join-Path $package 'plugin.json')) -or (Get-Content -LiteralPath (Join-Path $package 'plugin.json') -Raw | ConvertFrom-Json).version -ne '2.0.25') {
+    throw 'Set MEDIA_STUDIO_PACKAGE_ROOT to a verified Media Studio 2.0.25 package.'
 }
 pwsh -NoProfile -File (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1')
 ```
@@ -45,6 +45,17 @@ pwsh -NoProfile -File (Join-Path $package 'scripts\Sync-MediaStudioKit.ps1')
 Viewer-facing `briefing`, `training`, `explainer`, `series-episode`, `webcast`, `webinar`, `keynote`, `documentary`, `teaser` **require Remotion** unless `intent: draft` or user asked for proxy. Do not silently emit static slides.
 
 Load official Remotion skills (`remotion-markup`, `remotion-render`) when editing the kit. FFmpeg mux when picture is already stills/clips, then finish with helper. Recast/Motif only if those plates exist.
+
+**Render in the cloud by default** (owner direction 2026-10-26: cloud for voice and rendering, local only for screen capture and mouse movement). `<kit>\cloud\cloud-render.mjs` runs the same FFmpeg, Remotion and Recast commands in the owner's own Azure tenant (Container Apps job, scale to zero, about $0.0072 per job-minute) and downloads the result into the job folder:
+
+```powershell
+$cr = Join-Path $kit 'cloud\cloud-render.mjs'
+node $cr ffmpeg --name <job> -- <ffmpeg args...> <job>\out.mp4          # last arg is the local output
+node $cr remotion --comp Briefing --props <job>\scenes.json --public-dir <job>\public --out <job>\briefing.mp4
+node $cr recast --raw <job>\capture\take-01 --out <job>\capture\take-01\recast.webm
+```
+
+Read `<kit>\cloud\README.md` for path-rewriting limits and fonts. Render locally only when the cloud path fails or a deadline cannot absorb the ~1 minute job start; say so in the job notes.
 
 ## 2. Delivery loudness (required)
 
@@ -54,8 +65,8 @@ Do not invent an FFmpeg graph. The helper is the provider:
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $toolsManifest = Join-Path $tools 'plugin.json'
 $Finish = Join-Path $tools 'Finish-Media.ps1'
-if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.20' -or -not (Test-Path -LiteralPath $Finish)) {
-    throw 'Media Studio 2.0.20 finishing helper is missing or stale in the deployed shared tools.'
+if (-not (Test-Path -LiteralPath $toolsManifest) -or (Get-Content -LiteralPath $toolsManifest -Raw | ConvertFrom-Json).version -ne '2.0.25' -or -not (Test-Path -LiteralPath $Finish)) {
+    throw 'Media Studio 2.0.25 finishing helper is missing or stale in the deployed shared tools.'
 }
 pwsh -NoProfile -File $Finish -Action finish -Program <job>\candidate.mp4 -Output <job>\candidate-finished.mp4
 pwsh -NoProfile -File $Finish -Action finish -Speech <job>\voice.wav -Music <job>\bed.wav -Video <job>\picture.mp4 -Output <job>\candidate-finished.mp4

@@ -3,7 +3,7 @@
 // Usage: node validate-picture-inputs.mjs <jobRoot> [--props kit/props.json]
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { anchorMisses, clockAccepted, factDrift, pictureScripts, roleProblems, takeProblems } from './picture-gates.mjs';
+import { anchorMisses, asrAnchoredAllowed, clockAccepted, factDrift, pictureScripts, roleProblems, takeProblems } from './picture-gates.mjs';
 
 const argv = process.argv.slice(2);
 const flag = (name) => { const index = argv.indexOf(name); return index >= 0 ? argv[index + 1] : null; };
@@ -44,7 +44,7 @@ if (scripts.length) {
     const path = join(root, rel);
     if (!existsSync(path)) { fail(`${line.id} has no aligner report at voice/align/${line.id}.json`); continue; }
     const report = JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
-    const clock = clockAccepted(report);
+    const clock = clockAccepted(report, { allowAsrAnchored: asrAnchoredAllowed(existsSync(join(root, 'job.json')) ? readJson('job.json') : null) });
     if (!clock.ok) { fail(`${line.id}: ${clock.reason}`); continue; }
     timing[line.id] = { s: Number(report.lineStart ?? 0), words: report.words || [] };
   }

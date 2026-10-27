@@ -119,6 +119,11 @@ if (job.syncClock === 'forced-aligner') {
       for(const key of ['ok','count','offsetMs','driftMs','p95AbsMs','words','pcmSha256','pcmSamples','providerLoss'])if(JSON.stringify(measured[key])!==JSON.stringify(word[key]))throw Error(`hosted clock ${key} differs from current inputs`);
       if(word.gridMs!==null||word.uncertaintyMs!==null||word.provider!=='elevenlabs'||measured.ok!==true)throw Error('hosted clock must preserve unknown uncertainty and canonical40ms offset/drift limits');
     }catch(e){errors.push(`invalid hosted alignment provenance: ${e.message}`);}
+  } else if (word?.method === 'asr-anchored-alignment-on-encoded') {
+    // Cloud ASR-anchored clock: release-eligible only where the job opted in (job.json clockPolicy.allowAsrAnchored).
+    let job = null;
+    try { job = json(join(root, 'job.json')); } catch { job = null; }
+    if (job?.clockPolicy?.allowAsrAnchored !== true || word.gridMs !== 80) errors.push('word-sync report uses the cloud asr-anchored clock, which this job has not opted in to (job.json clockPolicy.allowAsrAnchored)');
   } else if (word && (word.method !== 'forced-alignment-on-encoded' || word.gridMs !== 80)) errors.push('word-sync report must name its native forced clock, verified preserved-PCM edit map, or verified hosted encoded alignment');
 }
 // No fluff: the narration check on the locked script, bound to the script it read (the timeline when there is one).

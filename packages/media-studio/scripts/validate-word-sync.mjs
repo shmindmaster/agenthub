@@ -24,7 +24,9 @@ try {
   const scriptSha256 = digest(join(root, 'story', 'locked-script.txt'));
   inputs = { cueSheet: { path: 'plan/cue-sheet.json', sha256: digest(cue) }, alignment: { path: alignment === hostedAlignment ? 'qa/hosted-encoded-alignment.json' : alignment === nativeAlignment ? 'qa/encoded-alignment.json' : 'qa/encoded-edit-map.json', sha256: digest(alignment) }, script: { path: 'story/locked-script.txt', sha256: scriptSha256 } };
   const words = json(cue).beats.flatMap((b) => b.narration?.words || []);
-  const bindings = { takeSha256: sha256, scriptSha256, ...(alignment !== nativeAlignment && alignment !== hostedAlignment ? {editMapSha256:digest(join(root,'plan','edit-map.json'))} : {}) };
+  const jobPath = join(root, 'job.json');
+  const allowAsrAnchored = existsSync(jobPath) && json(jobPath)?.clockPolicy?.allowAsrAnchored === true;
+  const bindings = { takeSha256: sha256, scriptSha256, allowAsrAnchored,...(alignment !== nativeAlignment && alignment !== hostedAlignment ? {editMapSha256:digest(join(root,'plan','edit-map.json'))} : {}) };
   result = alignment === hostedAlignment ? measureHostedClock(readHostedClock(root,json(alignment),bindings),words)
     : alignment === nativeAlignment ? measureWordSync(json(alignment), words, bindings)
     : measureMappedClock(readVerifiedMap(root, json(alignment), bindings), words);
