@@ -422,13 +422,16 @@
         "claude": "repowise@agenthub",
         "codex": "repowise@agenthub",
         "cursor": "repowise@agenthub",
-        "grok": "repowise@agenthub"
+        "grok": "repowise@agenthub",
+        "factory": "repowise@agenthub"
       },
+      "pluginOwnersByHostNote": "factory added 2026-10-26: `droid plugin install repowise@agenthub` from the registered local agenthub marketplace; `droid mcp list` shows repowise-workspace stdio connected, and a `droid exec --only-tools MCP:repowise-workspace` list_repos call returned 115 repos (matching a direct call).",
       "hosts": [
         "claude",
         "codex",
         "cursor",
         "grok",
+        "factory",
         "cline",
         "opencode",
         "vscode-insiders"

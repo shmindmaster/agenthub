@@ -49,32 +49,18 @@ export function probeVideo(file) {
   return { width: Number(video?.width), height: Number(video?.height), duration: Number(data.format?.duration) };
 }
 
-export function validateCampaign(root, job, timeline, graphics = []) {
-  const errors = [];
-  const form = job.programForm;
-  if (!Object.hasOwn(CAMPAIGN_FORMS, form)) return errors;
-  const campaign = job.campaign;
-  if (job.kind !== 'product-screencast') errors.push(`${form} requires kind product-screencast.`);
-  if (!campaign || typeof campaign !== 'object') return [...errors, 'campaign contract is required.'];
-  if (!job.deliveryProfile) errors.push('campaign requires an explicit deliveryProfile.');
-  if (!Array.isArray(graphics)) return [...errors, 'timed-graphics.json overlays must be an array.'];
-  const frame = frameFor(job);
-  const range = CAMPAIGN_FORMS[form];
-  if (!Number.isFinite(timeline?.durationSeconds) || timeline.durationSeconds < range[0] || timeline.durationSeconds > range[1]) errors.push(`${form} timeline must be ${range[0]}–${range[1]} seconds.`);
-  const segments = timeline?.segments || [];
-  const segmentIds = new Set(segments.map((s) => s.id));
-  const rootPath = resolve(root);
-  const fileAt = (ref, label) => {
-    if (!ref?.path || !/^[a-f0-9]{64}$/i.test(ref.sha256 || '')) { errors.push(`${label} requires path and SHA-256.`); return null; }
-    const file = resolve(rootPath, ref.path);
-    const rel = relative(rootPath, file);
-    if (isAbsolute(rel) || rel === '..' || rel.startsWith('../') || rel.startsWith('..\\')) { errors.push(`${label} escapes the external job workspace.`); return null; }
-    if (!existsSync(file)) { errors.push(`${label} file is missing.`); return null; }
-    const actual = createHash('sha256').update(readFileSync(file)).digest('hex');
-    if (actual !== ref.sha256.toLowerCase()) errors.push(`${label} SHA-256 does not match the file.`);
-    return file;
-  };
-  const continuity = campaign.continuity;
+function validateCampaignFile(rootPath, ref, label, errors) {
+  if (!ref?.path || !/^[a-f0-9]{64}$/i.test(ref.sha256 || '')) { errors.push(`${label} requires path and SHA-256.`); return null; }
+  const file = resolve(rootPath, ref.path);
+  const rel = relative(rootPath, file);
+  if (isAbsolute(rel) || rel === '..' || rel.startsWith('../') || rel.startsWith('..\\')) { errors.push(`${label} escapes the external job workspace.`); return null; }
+  if (!existsSync(file)) { errors.push(`${label} file is missing.`); return null; }
+  const actual = createHash('sha256').update(readFileSync(file)).digest('hex');
+  if (actual !== ref.sha256.toLowerCase()) errors.push(`${label} SHA-256 does not match the file.`);
+  return file;
+}
+
+function validateCampaignContinuity(rootPath, continuity, segmentIds, errors) {
   const proofPath = resolve(rootPath, 'evidence/demo-scenario-proof.json');
   const proof = existsSync(proofPath) ? JSON.parse(readFileSync(proofPath, 'utf8')) : null;
   if (!proof) errors.push('campaign requires evidence/demo-scenario-proof.json for record continuity.');
@@ -96,22 +82,32 @@ export function validateCampaign(root, job, timeline, graphics = []) {
     if (segmentIds.size && seen.size !== segmentIds.size) errors.push('every campaign segment must belong to one labeled vignette.');
     if (new Set((vignettes || []).map((v) => v.recordId)).size !== (vignettes || []).length) errors.push('labeled vignettes must name distinct records.');
   } else errors.push('campaign continuity mode must be single-record or labeled-vignettes.');
-  if (!Array.isArray(campaign.claims) || !campaign.claims.length) errors.push('campaign requires dated claims.');
-  for (const claim of campaign.claims || []) {
+}
+
+function validateCampaignClaims(rootPath, claims, segmentIds, errors) {
+  if (!Array.isArray(claims) || !claims.length) errors.push('campaign requires dated claims.');
+  for (const claim of claims || []) {
     if (!claim.id || !claim.text || !/^\d{4}-\d{2}-\d{2}$/.test(claim.asOf || '') || !Number.isFinite(Date.parse(claim.asOf)) || Date.parse(claim.asOf) > Date.now()) errors.push(`claim ${claim.id || '?'} needs text and a valid, nonfuture asOf date.`);
     if (!Array.isArray(claim.segmentIds) || !claim.segmentIds.length || claim.segmentIds.some((id) => !segmentIds.has(id))) errors.push(`claim ${claim.id || '?'} must cite campaign segmentIds.`);
-    fileAt(claim.evidence, `claim ${claim.id || '?'} evidence`);
+    validateCampaignFile(rootPath, claim.evidence, `claim ${claim.id || '?'} evidence`, errors);
   }
-  if (!Array.isArray(campaign.assets) || !campaign.assets.length) errors.push('campaign requires asset provenance.');
+}
+
+function validateCampaignAssets(rootPath, campaignAssets, errors) {
   const assets = new Map();
   const assetFiles = new Map();
-  for (const asset of campaign.assets || []) {
+  if (!Array.isArray(campaignAssets) || !campaignAssets.length) errors.push('campaign requires asset provenance.');
+  for (const asset of campaignAssets || []) {
     if (!asset.id || !asset.origin || !asset.rights || !['captured-ui', 'authored-graphic', 'licensed', 'generated'].includes(asset.origin)) errors.push(`asset ${asset.id || '?'} needs origin and rights.`);
-    const file = fileAt(asset, `asset ${asset.id || '?'}`);
+    const file = validateCampaignFile(rootPath, asset, `asset ${asset.id || '?'}`, errors);
     if (file) assetFiles.set(file, asset);
     if (assets.has(asset.id)) errors.push(`duplicate asset id ${asset.id}.`);
     assets.set(asset.id, asset);
   }
+  return { assets, assetFiles };
+}
+
+function validateCampaignCaptureProvenance(rootPath, segments, segmentIds, assetFiles, errors) {
   // Match the compositor's segment/scene assignment. Only clips that enter the picture
   // (including extras) are required; unused captured takes may remain in the manifest.
   const manifestPath = resolve(rootPath, 'capture/manifest.json');
@@ -172,17 +168,22 @@ export function validateCampaign(root, job, timeline, graphics = []) {
       else if ([...ids].some(isScreen) && /\.(webm|mp4|mov)$/i.test(clip.file) && assetFiles.get(source).origin !== 'captured-ui') errors.push(`screen capture clip ${clip.id} must have captured-ui asset provenance.`);
     }
   }
-  if (job.sourceJobId || campaign.derivative) {
-    const derivative = campaign.derivative;
-    if (!job.sourceJobId || !derivative || derivative.parentJobId !== job.sourceJobId) errors.push('derivative parentJobId must match sourceJobId.');
-    fileAt(derivative?.parentCandidate, 'parent candidate');
+}
+
+function validateCampaignDerivative(rootPath, sourceJobId, derivative, campaignAssets, errors) {
+  if (sourceJobId || derivative) {
+    if (!sourceJobId || !derivative || derivative.parentJobId !== sourceJobId) errors.push('derivative parentJobId must match sourceJobId.');
+    validateCampaignFile(rootPath, derivative?.parentCandidate, 'parent candidate', errors);
     if (!Array.isArray(derivative?.sourceAssets) || !derivative.sourceAssets.length) errors.push('derivative requires source asset hashes.');
     for (const [index, asset] of (derivative?.sourceAssets || []).entries()) {
-      fileAt(asset, `derivative source asset ${index + 1}`);
-      if (!(campaign.assets || []).some((item) => item.path === asset.path && item.sha256?.toLowerCase() === asset.sha256?.toLowerCase())) errors.push(`derivative source asset ${index + 1} is not recorded in campaign asset provenance.`);
+      validateCampaignFile(rootPath, asset, `derivative source asset ${index + 1}`, errors);
+      if (!(campaignAssets || []).some((item) => item.path === asset.path && item.sha256?.toLowerCase() === asset.sha256?.toLowerCase())) errors.push(`derivative source asset ${index + 1} is not recorded in campaign asset provenance.`);
     }
-    for (const asset of (campaign.assets || []).filter((item) => item.origin === 'captured-ui')) if (!(derivative?.sourceAssets || []).some((source) => source.path === asset.path && source.sha256?.toLowerCase() === asset.sha256?.toLowerCase())) errors.push(`captured UI asset ${asset.id} is missing from derivative source lineage.`);
+    for (const asset of (campaignAssets || []).filter((item) => item.origin === 'captured-ui')) if (!(derivative?.sourceAssets || []).some((source) => source.path === asset.path && source.sha256?.toLowerCase() === asset.sha256?.toLowerCase())) errors.push(`captured UI asset ${asset.id} is missing from derivative source lineage.`);
   }
+}
+
+function validateCampaignGeometry(frame, campaign, timeline, graphics, assets, errors) {
   const safe = { left: Math.ceil(frame.width * .05), right: Math.ceil(frame.width * .05), top: Math.ceil(frame.height * .08), bottom: Math.ceil(frame.height * (frame.height > frame.width ? .20 : .12)) };
   const rects = campaign.protectedRegions || [];
   for (const rect of rects) if (![rect.x, rect.y, rect.width, rect.height].every(Number.isFinite) || rect.width <= 0 || rect.height <= 0 || rect.x < 0 || rect.y < 0 || rect.x + rect.width > frame.width || rect.y + rect.height > frame.height) errors.push('protectedRegion must be a valid rectangle in the delivery frame.');
@@ -203,6 +204,9 @@ export function validateCampaign(root, job, timeline, graphics = []) {
     if (caption && overlaps(graphic, caption)) errors.push(`${label} covers the captionRegion.`);
   }
   if (graphics.length && (!Array.isArray(rects) || !rects.length)) errors.push('timed graphics require protectedRegions for visible product controls.');
+}
+
+function validateCampaignVignetteTiming(continuity, segments, graphics, errors) {
   if (continuity?.mode === 'labeled-vignettes') {
     for (const vignette of continuity.vignettes || []) {
       const labels = graphics.filter((graphic) => graphic.vignetteId === vignette.id && graphic.visibleLabel === vignette.label);
@@ -217,5 +221,30 @@ export function validateCampaign(root, job, timeline, graphics = []) {
       }
     }
   }
+}
+
+export function validateCampaign(root, job, timeline, graphics = []) {
+  const errors = [];
+  const form = job.programForm;
+  if (!Object.hasOwn(CAMPAIGN_FORMS, form)) return errors;
+  const campaign = job.campaign;
+  if (job.kind !== 'product-screencast') errors.push(`${form} requires kind product-screencast.`);
+  if (!campaign || typeof campaign !== 'object') return [...errors, 'campaign contract is required.'];
+  if (!job.deliveryProfile) errors.push('campaign requires an explicit deliveryProfile.');
+  if (!Array.isArray(graphics)) return [...errors, 'timed-graphics.json overlays must be an array.'];
+  const frame = frameFor(job);
+  const range = CAMPAIGN_FORMS[form];
+  if (!Number.isFinite(timeline?.durationSeconds) || timeline.durationSeconds < range[0] || timeline.durationSeconds > range[1]) errors.push(`${form} timeline must be ${range[0]}–${range[1]} seconds.`);
+  const segments = timeline?.segments || [];
+  const segmentIds = new Set(segments.map((s) => s.id));
+  const rootPath = resolve(root);
+  const continuity = campaign.continuity;
+  validateCampaignContinuity(rootPath, continuity, segmentIds, errors);
+  validateCampaignClaims(rootPath, campaign.claims, segmentIds, errors);
+  const { assets, assetFiles } = validateCampaignAssets(rootPath, campaign.assets, errors);
+  validateCampaignCaptureProvenance(rootPath, segments, segmentIds, assetFiles, errors);
+  validateCampaignDerivative(rootPath, job.sourceJobId, campaign.derivative, campaign.assets, errors);
+  validateCampaignGeometry(frame, campaign, timeline, graphics, assets, errors);
+  validateCampaignVignetteTiming(continuity, segments, graphics, errors);
   return errors;
 }

@@ -2,6 +2,11 @@ import unittest
 import tempfile
 import pathlib
 from content_host_controls import blocked, codex_block, ELEVENLABS_APP, run
+import os
+
+# The content ledger refuses linked directories by design. Resolve the temp root once so
+# fixtures stay valid when TMPDIR sits under a junction (e.g. %LOCALAPPDATA%\AgentHub).
+tempfile.tempdir = os.path.realpath(tempfile.gettempdir())
 
 
 class HostControls(unittest.TestCase):

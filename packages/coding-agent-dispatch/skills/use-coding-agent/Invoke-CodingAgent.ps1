@@ -55,6 +55,20 @@
 
 .PARAMETER Model
   Model for an -AnthropicApiKey run. Defaults to apiKeyOptIn.model.
+  For -HostId opencode, a model listed in dispatchPolicy.opencode.allowedModels;
+  anything else is refused. Defaults to dispatchPolicy.opencode.model.
+  For -HostId cline, provider:model listed in dispatchPolicy.cline.allowedModels
+  (for example cline:poolside/laguna-s-2.1:free); anything else is refused, so a
+  run cannot select a usage-billed model. Defaults to hostSettings.cline.
+  For -HostId warp, a model listed in dispatchPolicy.warp.allowedModels (every
+  Warp-hosted model spends Warp credits); anything else is refused. Defaults to
+  dispatchPolicy.warp.model.
+  For -HostId factory, a model listed in dispatchPolicy.factory.allowedModels;
+  anything else is refused. Defaults to dispatchPolicy.factory.model.
+
+.PARAMETER Title
+  Session title for -HostId opencode, so the run is findable in the shared
+  service from the TUI and Desktop. Refused for other hosts.
 
 .PARAMETER SessionId
   Continue an existing Cline session through ACP. Policy gates still apply.
@@ -69,6 +83,7 @@ param(
     [int]$TimeoutSec = 1800,
     [switch]$AnthropicApiKey,
     [string]$Model,
+    [string]$Title,
     [string]$SessionId,
     [switch]$List,
     [switch]$ShowCommand
@@ -194,7 +209,12 @@ function Get-DispatchTable {
                 # Native JSON events give callers reliable text/tool/usage
                 # boundaries without parsing terminal-rendered output.
                 $args = @('run', '--auto', '--format', 'json')
-                if ($fleet.dispatchPolicy.opencode.model) { $args += @('--model', [string]$fleet.dispatchPolicy.opencode.model) }
+                $openCodeModel = if ($script:OpenCodeModel) { $script:OpenCodeModel } else { [string]$fleet.dispatchPolicy.opencode.model }
+                if ($openCodeModel) { $args += @('--model', $openCodeModel) }
+                # --auto approves every action a rule leaves at ask, so unattended
+                # runs use the policy-named agent whose rules deny outward actions.
+                if ($fleet.dispatchPolicy.opencode.agent) { $args += @('--agent', [string]$fleet.dispatchPolicy.opencode.agent) }
+                if (-not [string]::IsNullOrWhiteSpace($Title)) { $args += @('--title', $Title.Trim()) }
                 $args += $PromptText
                 @{ Args = $args; Stdin = $null; PromptFile = $null }
             }
@@ -213,7 +233,24 @@ function Get-DispatchTable {
             Mode = 'file'
             Build = {
                 param($PromptText, $Work, $File)
-                @{ Args = @('--cwd', $Work, 'exec', '--auto', 'high', '-f', $File); Stdin = $null; PromptFile = $File }
+                # Governed dispatch: autonomy is capped at medium (`high` permits
+                # git push and --skip-permissions-unsafe is never emitted), JSON
+                # output yields a session id and credit usage, and the repo-owned
+                # rules file is the permission policy verified with `droid rules check`.
+                $factoryPolicy = $fleet.dispatchPolicy.factory
+                $autonomy = [string]$factoryPolicy.autonomy
+                if ($autonomy -notin @('low', 'medium')) {
+                    Write-Refusal 3 "refused factory: dispatchPolicy.factory.autonomy '$autonomy' is not permitted for dispatch; only low or medium"
+                }
+                $runtimeSettings = Join-Path $root ([string]$factoryPolicy.runtimeSettings)
+                if (-not (Test-Path -LiteralPath $runtimeSettings -PathType Leaf)) {
+                    Write-Refusal 3 "refused factory: dispatchPolicy.factory.runtimeSettings not found: $runtimeSettings"
+                }
+                $args = @('exec', '--cwd', $Work, '--auto', $autonomy, '-o', 'json', '--settings', $runtimeSettings)
+                $factoryModel = if ($script:FactoryModel) { $script:FactoryModel } else { [string]$factoryPolicy.model }
+                if ($factoryModel) { $args += @('-m', $factoryModel) }
+                $args += @('-f', $File)
+                @{ Args = $args; Stdin = $null; PromptFile = $File }
             }
         }
         'cline' = @{
@@ -223,11 +260,16 @@ function Get-DispatchTable {
                 # CLI 3.0.73: --yolo selects the restricted benchmark toolset.
                 # Normal JSON execution retains plugins, MCP and native skills.
                 $args = @('--json', '--cwd', $Work, '--timeout', [string]$TimeoutSec,
-                    '--auto-approve', 'true', '--thinking', 'low')
-                if ($fleet.hostSettings.cline.provider) { $args += @('--provider', [string]$fleet.hostSettings.cline.provider) }
-                if ($fleet.hostSettings.cline.model) { $args += @('--model', [string]$fleet.hostSettings.cline.model) }
+                    '--auto-approve', 'true', '--thinking', 'low', '--compaction', 'agentic')
+                $clineProvider = if ($script:ClineProvider) { $script:ClineProvider } else { [string]$fleet.hostSettings.cline.provider }
+                $clineModel = if ($script:ClineModel) { $script:ClineModel } else { [string]$fleet.hostSettings.cline.model }
+                if ($clineProvider) { $args += @('--provider', $clineProvider) }
+                if ($clineModel) { $args += @('--model', $clineModel) }
                 $args += $PromptText
-                @{ Args = $args; Stdin = $null; PromptFile = $null }
+                # --auto-approve approves every tool call. The peer-guard plugin
+                # (~/.cline/plugins/peer-guard.js) denies outward and destructive
+                # actions, but only in-process: in hub mode it never sees the flag.
+                @{ Args = $args; Stdin = $null; PromptFile = $null; Env = $script:ClineGuardEnv }
             }
         }
         'copilot' = @{
@@ -265,8 +307,43 @@ function Get-DispatchTable {
             Build = {
                 param($PromptText, $Work, $File)
                 # warp.exe with WARP_CLI_MODE=1 is the oz CLI (oz.cmd sets the same
-                # variable). `agent run --prompt` runs one task, -C sets the cwd.
-                @{ Args = @('agent', 'run', '--prompt', $PromptText, '-C', $Work, '--output-format', 'text'); Stdin = $null; PromptFile = $null; Env = @{ WARP_CLI_MODE = '1' } }
+                # variable). `agent run --prompt` runs one local task, -C sets the cwd;
+                # run-cloud is never built. --no-snapshot keeps the workspace off
+                # Warp's servers, and ndjson carries the run and conversation ids.
+                $args = @('agent', 'run', '--prompt', $PromptText, '-C', $Work, '--no-snapshot', '--output-format', 'ndjson')
+                $warpModel = if ($script:WarpModel) { $script:WarpModel } else { [string]$fleet.dispatchPolicy.warp.model }
+                if ($warpModel) { $args += @('--model', $warpModel) }
+                # settings.toml agents.mcp_servers.file_based_mcp_enabled = false keeps
+                # Warp from loading ~/.warp/.mcp.json on its own, so a recorded
+                # dispatchPolicy.warp.mcpConfig is passed per run through the
+                # documented repeatable --mcp flag with a bounded startup timeout.
+                # The template resolves through the same PathBinding that resolves
+                # executable paths. The file may hold auth headers, so it is never
+                # read or printed here; a missing file skips both flags with one
+                # stderr warning and the run continues without MCP.
+                $warpMcpConfig = [string]$fleet.dispatchPolicy.warp.mcpConfig
+                if (-not [string]::IsNullOrWhiteSpace($warpMcpConfig)) {
+                    $warpMcpPath = Resolve-AgentHubBoundPath -Declared $warpMcpConfig.Trim() -Context $binding
+                    if (Test-Path -LiteralPath $warpMcpPath -PathType Leaf) {
+                        $args += @('--mcp', $warpMcpPath, '--mcp-startup-timeout', '30s')
+                    } else {
+                        [Console]::Error.WriteLine("warp dispatch: mcpConfig file not found, continuing without --mcp: $warpMcpPath")
+                    }
+                }
+                # Warp syncs ExecutionProfiles from the cloud and its CLI profile cannot
+                # be edited, so a command denylist does not hold. The guard lives in the
+                # child environment: every push URL is rewritten to a scheme git has no
+                # helper for, and gh reads an empty config directory, so pushes and
+                # gh pr/release/api calls fail closed while fetch and local git work.
+                $ghDir = Join-Path (Get-AgentHubDefaultLocalData) 'AgentHub\runtime\coding-agent-dispatch\warp-peer-gh'
+                New-Item -ItemType Directory -Force -Path $ghDir | Out-Null
+                $guard = @{ WARP_CLI_MODE = '1'; GH_CONFIG_DIR = $ghDir; GIT_CONFIG_COUNT = '3' }
+                $schemes = @('https://', 'git@', 'ssh://')
+                for ($i = 0; $i -lt $schemes.Count; $i++) {
+                    $guard["GIT_CONFIG_KEY_$i"] = 'url.agenthub-peer-no-push://blocked/.pushInsteadOf'
+                    $guard["GIT_CONFIG_VALUE_$i"] = $schemes[$i]
+                }
+                @{ Args = $args; Stdin = $null; PromptFile = $null; Env = $guard }
             }
         }
     }
@@ -391,8 +468,42 @@ if ($requested -in @('devin-cloud', 'jules', 'cursor-cloud', 'copilot-agent')) {
 $agent = Get-AgentRecord -Agents $agents -Id $requested
 if (-not $agent) { Write-Refusal 3 "refused ${requested}: unknown host" }
 
-if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
-    Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run.'
+$script:ClineGuardEnv = @{ AGENTHUB_PEER_GUARD = '1'; CLINE_SESSION_BACKEND_MODE = 'local' }
+if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $requested -eq 'warp') {
+    # Every Warp-hosted model spends Warp credits, so only the recorded
+    # economical allowlist may be selected per task.
+    $allowedModels = @()
+    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties['warp'] -and $dispatchPolicy.warp.PSObject.Properties['allowedModels']) {
+        $allowedModels = @($dispatchPolicy.warp.allowedModels | ForEach-Object { [string]$_ })
+    }
+    if ($Model.Trim() -notin $allowedModels) { Write-Refusal 3 "refused warp: $($Model.Trim()) is not in dispatchPolicy.warp.allowedModels" }
+    $script:WarpModel = $Model.Trim()
+} elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $requested -eq 'cline') {
+    # Provider id plus model: on provider cline only ':free' ids are recorded,
+    # because every other model there bills usage credit.
+    $allowedModels = @()
+    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties['cline'] -and $dispatchPolicy.cline.PSObject.Properties['allowedModels']) {
+        $allowedModels = @($dispatchPolicy.cline.allowedModels | ForEach-Object { [string]$_ })
+    }
+    $choice = $Model.Trim()
+    if ($choice -notin $allowedModels) { Write-Refusal 3 "refused cline: $choice is not in dispatchPolicy.cline.allowedModels (use provider:model)" }
+    $split = $choice.IndexOf(':')
+    $script:ClineProvider = $choice.Substring(0, $split)
+    $script:ClineModel = $choice.Substring($split + 1)
+} elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
+    if ($requested -notin @('opencode', 'factory')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp or Factory model.' }
+    # Governed routing is per task, but only within the owner's recorded
+    # allowlist: a model outside it could bill beyond the recorded allowance.
+    $allowedModels = @()
+    if ($dispatchPolicy -and $dispatchPolicy.PSObject.Properties[$requested] -and $dispatchPolicy.$requested.PSObject.Properties['allowedModels']) {
+        $allowedModels = @($dispatchPolicy.$requested.allowedModels | ForEach-Object { [string]$_ })
+    }
+    if ($Model.Trim() -notin $allowedModels) { Write-Refusal 3 "refused ${requested}: $($Model.Trim()) is not in dispatchPolicy.${requested}.allowedModels" }
+    if ($requested -eq 'opencode') { $script:OpenCodeModel = $Model.Trim() }
+    if ($requested -eq 'factory') { $script:FactoryModel = $Model.Trim() }
+}
+if (-not [string]::IsNullOrWhiteSpace($Title) -and $requested -ne 'opencode') {
+    Write-Refusal 3 '-Title applies only to -HostId opencode.'
 }
 if ($AnthropicApiKey) {
     # OWNER DIRECTION 2026-10-24: the Anthropic key is shared promotional credit.
@@ -457,21 +568,31 @@ if ($contract.Mode -eq 'file' -or $pointer) {
     if (-not $ShowCommand) {
         New-Item -ItemType Directory -Force -Path $runDir | Out-Null
         $promptFile = Join-Path $runDir ("prompt-{0}-{1}.txt" -f $targetId, ([guid]::NewGuid().ToString('n')))
-        [IO.File]::WriteAllText($promptFile, $Prompt, [Text.UTF8Encoding]::new($false))
     } else {
         $promptFile = Join-Path $runDir 'prompt-show.txt'
     }
 }
+$taskText = $Prompt
 if ($pointer) { $Prompt = "Read the task from this UTF-8 file and carry it out: $promptFile" }
 
 $built = & $contract.Build $Prompt $Cwd $promptFile
+# Write the task only after Build has accepted the policy: a refusing Build
+# must not leave a prompt file behind, and the run's finally block below does
+# not exist yet at that point. Pointer hosts write the task text captured
+# before the pointer substitution above replaced $Prompt.
+if (-not $ShowCommand -and $promptFile -and ($contract.Mode -eq 'file' -or $pointer)) {
+    [IO.File]::WriteAllText($promptFile, $taskText, [Text.UTF8Encoding]::new($false))
+}
 if ($SessionId) {
     $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $node) { Write-Refusal 2 'Cline ACP resume requires Node.js.' }
     $built = @{
         Args = @((Join-Path $PSScriptRoot 'cline\acp-dispatch.mjs'))
-        Stdin = (@{ executable = $executable; sessionId = $SessionId; cwd = $Cwd; prompt = $Prompt; timeoutMs = ($TimeoutSec * 1000) } | ConvertTo-Json -Compress)
+        Stdin = (@{ executable = $executable; sessionId = $SessionId; cwd = $Cwd; prompt = $Prompt; timeoutMs = ($TimeoutSec * 1000)
+            provider = $(if ($script:ClineProvider) { $script:ClineProvider } else { [string]$fleet.hostSettings.cline.provider })
+            model = $(if ($script:ClineModel) { $script:ClineModel } else { [string]$fleet.hostSettings.cline.model }) } | ConvertTo-Json -Compress)
         PromptFile = $null
+        Env = $script:ClineGuardEnv
     }
     $executable = [string]$node.Source
 }
@@ -513,7 +634,7 @@ $accountScrub = @{
     'devin'        = @('DEVIN_API_KEY', 'DEVIN_API_TOKEN', 'DEVIN_SERVICE_USER_TOKEN', 'DEVIN_ORG_ID')
     'gemini'       = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
     'antigravity'  = @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY')
-    'warp'         = @('WARP_API_KEY')
+    'warp'         = @('WARP_API_KEY', 'GH_TOKEN', 'GITHUB_TOKEN')
     'grok'         = @('XAI_API_KEY')
     'factory'      = @('FACTORY_API_KEY')
     'cursor-agent' = @('CURSOR_API_KEY')

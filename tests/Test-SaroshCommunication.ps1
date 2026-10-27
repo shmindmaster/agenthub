@@ -96,15 +96,18 @@ Report 'registry has one owner, all 14 non-retired managed host mappings, no sar
     ($registryOk -and $hostSetOk -and $mappingModesOk -and $noSaroshWriting) `
     "owners=$($owners.Count), hosts=$($actualHosts.Count), expected owner=personal-communication, managed-loose-skills, and no sarosh-writing entry"
 
-# 3. Global instructions require the full skill for every user-facing message.
+# 3. The skill applies to authored communication, not routine owner chat.
 $policyOk = $policy -and
     $policy -match '(?m)^## Sarosh communication, writing, and audio voice\s*$' -and
-    $policy -match '(?is)every user-facing written interaction with Sarosh.*`sarosh-communication`' -and
+    $policy -match '(?is)drafting, editing, or reviewing communication on Sarosh''s behalf or to\s+other people.*`sarosh-communication`' -and
+    $policy -match '(?is)Routine direct\s+conversation, progress updates, and task handoffs to Sarosh do not require\s+this skill' -and
+    $policy -notmatch '(?is)Before producing every user-facing written interaction with Sarosh' -and
+    $skill -match '(?is)Routine direct conversation, progress updates, and task handoffs\s+to Sarosh do not require this skill' -and
     $policy -match '(?is)substantial authored artifacts.*`sarosh-writing`' -and
     $policy -match '(?is)generated speech in Sarosh''s voice.*`sarosh-audio-voice`'
 Report 'global policy routes communication, writing, and audio separately' `
     $policyOk `
-    'expected mandatory loading for replies, progress commentary, final task reports, and drafts'
+    'expected authored communication scope and explicit routine owner-chat exclusion'
 
 # The everyday entry stays small and requires the retained professional
 # reference only for recipient-specific work. Test safeguards, not templates.

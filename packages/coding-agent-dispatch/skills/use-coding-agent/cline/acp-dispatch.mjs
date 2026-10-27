@@ -27,7 +27,7 @@ export async function resumeDispatch(config, { spawnHost = spawn, stopHost } = {
   const onError = error => child.stdout.destroy(error);
   child.on('error', onError);
   try {
-    return await client.resume({ sessionId, cwd, prompt });
+    return await client.resume({ sessionId, cwd, prompt, provider: config.provider, model: config.model });
   } finally {
     client.close();
     child.removeListener('error', onError);
