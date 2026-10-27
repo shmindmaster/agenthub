@@ -1,4 +1,4 @@
-﻿// AgentHub peer guard for unattended Cline runs.
+// AgentHub peer guard for unattended Cline runs.
 // Active only when the launcher sets AGENTHUB_PEER_GUARD=1, so interactive
 // TUI/Desktop sessions keep their normal approvals. --auto-approve true
 // approves every tool call; this hook is the deny list that replaces the
@@ -79,7 +79,3 @@ export default {
     },
   },
 };
-
-
-
-
