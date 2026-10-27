@@ -354,7 +354,7 @@
       "verifiedOn": "2026-10-22"
     },
     "factory": {
-      "enabled": false,
+      "enabled": true,
       "model": "gpt-6-luna",
       "allowedModels": [
         "gpt-6-luna",
@@ -367,9 +367,9 @@
       "autonomy": "medium",
       "autonomyNote": "Dispatch runs `--auto` at low or medium only. `--auto high` permits git push, and --skip-permissions-unsafe is never emitted; the dispatcher refuses any autonomy value outside low or medium. Outward-action rules live in the repo-owned runtimeSettings file, verified with `droid rules check` 2026-10-26.",
       "runtimeSettings": "packages/coding-agent-dispatch/skills/use-coding-agent/factory/runtime-settings.json",
-      "reason": "Paid plan; model openai-latest-balanced",
-      "verifiedOn": "2026-10-21",
-      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
+      "reason": "2026-10-26: team-tier account login verified (droid doctor). Live probes returned the expected text: gpt-6-luna 651 credits, glm-5.3-flash 827, gemini-3.8-flash 4,382, gpt-6-sol 14,089 for a one-line prompt. Four headless tasks (F-1..F-4) were completed and integrated under these rules. There is no spend flag, so the dispatcher timeout bounds each run.",
+      "verifiedOn": "2026-10-26",
+      "ownerDirection": "2026-10-26: owner asked in the Claude session to make Factory Droid a first-class execution peer, then to commit, merge and deploy everything. This supersedes, for Factory only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
     "amp": {
       "enabled": false,

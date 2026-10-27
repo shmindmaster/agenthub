@@ -244,8 +244,9 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     $violations = [Collections.Generic.List[string]]::new()
     # 2026-10-23 restricted dispatch to Cursor, Grok and Codex; 2026-10-26 the
     # owner re-admitted OpenCode, then Cline, as execution peers (fleet-profile ownerDirection),
-    # and the same day admitted Warp for local runs only.
-    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp')
+    # and the same day admitted Warp for local runs only, then Factory Droid (allowlisted
+    # models, medium autonomy, runtime permission rules).
+    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -253,7 +254,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
         if ($entry.Value.enabled -isnot [bool]) {
             $violations.Add("$($entry.Name) must declare an explicit dispatch enabled boolean")
         } elseif ($entry.Name -notin $authorized -and $entry.Value.enabled -ne $false) {
-            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok, Codex, OpenCode and Cline")
+            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok, Codex, OpenCode, Cline, Warp and Factory")
         }
     }
     foreach ($id in @('cursor', 'cursor-agent', 'grok')) {
@@ -304,6 +305,14 @@ function Test-LiveHostAuthenticationMetadata {
         [string]$warpPolicy.scope -notmatch '^local-only' -or
         [string]$warpPolicy.guard -notmatch 'GIT_CONFIG')) {
         $violations.Add('Warp dispatch must stay local-only on its account login, with its default model inside allowedModels and the recorded child-environment guard')
+    }
+    $factoryPolicy = $profile.dispatchPolicy.factory
+    if ($factoryPolicy.enabled -eq $true -and (
+        $profile.hostSettings.factory.authMode -ne 'account' -or
+        @($factoryPolicy.allowedModels) -notcontains $factoryPolicy.model -or
+        [string]$factoryPolicy.autonomy -notin @('low', 'medium') -or
+        -not (Test-Path -LiteralPath (Join-Path $repoRoot ([string]$factoryPolicy.runtimeSettings))))) {
+        $violations.Add('Factory dispatch must stay on its account login at low or medium autonomy, with its default model inside allowedModels and a present runtime rules file')
     }
     if ($profile.hostSettings.cline.authMode -ne 'apiKey' -or
         $profile.hostSettings.cline.provider -ne 'openai-compatible' -or
