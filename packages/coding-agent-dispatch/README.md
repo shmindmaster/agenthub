@@ -64,6 +64,24 @@ It never starts Cline or registers background maintenance. User configuration
 lives outside the application installation and normally survives updates;
 future SDK compatibility still requires verification after an upgrade.
 
+The optional Cline peer guard plugin is maintained in this package's
+`skills/use-coding-agent/cline/peer-guard.js`. It uses the Cline SDK `beforeTool`
+hook to block a deny-list of dangerous commands when running unattended with
+`--auto-approve true`. The guard activates only when the launcher sets
+`AGENTHUB_PEER_GUARD=1` and the session runs in-process (`CLINE_SESSION_BACKEND_MODE=local`);
+in hub mode the variable never reaches the plugin, so it fails open. It is a deny list,
+not a sandbox: it blocks git push, git reset --hard, git clean -f, gh mutating
+operations, npm/pnpm publish, cloud CLIs (az, aws, gcloud, terraform, etc.),
+scheduled task/service creation, agent host administration (cline, opencode, codex
+auth), credential dumps, disk/power operations, recursive root/home deletes,
+and writes to protected paths (D:\Local-AI runtime, ~/.cline/data/settings,
+~/.codex/auth). Allowed developer commands (git status/commit with "push" in
+message, gh pr view/diff/api GET, npm/pnpm test/build, npx playwright test,
+Remove-Item of relative build dirs, git branch -d) are not blocked.
+`Install-ClinePeerGuard.ps1` audits by default; `-Apply` copies the package file
+to `~/.cline/plugins/peer-guard.js` with hash readback. It never starts Cline or
+registers background maintenance.
+
 OpenCode 2.1.4 has the equivalent native plugin in
 `skills/use-coding-agent/opencode/lightweight-chat.js`. It defers tool schemas,
 skill descriptions and MCP instructions until `find_tools` selects them, then

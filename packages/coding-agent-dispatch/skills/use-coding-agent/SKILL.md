@@ -11,6 +11,23 @@ skill/MCP catalogs until needed and preserves native approvals. Reload the
 shared OpenCode service after installing; verify after SDK updates. The
 installer never starts a host or creates automatic maintenance.
 
+For Cline peer guard, run `Install-ClinePeerGuard.ps1` to audit or add `-Apply`
+to install the guard plugin at `~/.cline/plugins/peer-guard.js`. The guard uses
+the Cline SDK `beforeTool` hook to block a deny-list of dangerous commands when
+running unattended with `--auto-approve true`. It activates only when
+`AGENTHUB_PEER_GUARD=1` and the session runs in-process
+(`CLINE_SESSION_BACKEND_MODE=local`); in hub mode the variable never reaches
+the plugin, so it fails open. It is a deny list, not a sandbox: it blocks git
+push, git reset --hard, git clean -f, gh mutating operations, npm/pnpm publish,
+cloud CLIs (az, aws, gcloud, terraform, etc.), scheduled task/service creation,
+agent host administration (cline, opencode, codex auth), credential dumps,
+disk/power operations, recursive root/home deletes, and writes to protected
+paths (D:\Local-AI runtime, ~/.cline/data/settings, ~/.codex/auth). Allowed
+developer commands (git status/commit with "push" in message, gh pr view/diff/api
+GET, npm/pnpm test/build, npx playwright test, Remove-Item of relative build
+dirs, git branch -d) are not blocked. The installer never starts Cline or
+registers background maintenance.
+
 `cline/acp-session.mjs` provides a transport-only ACP resume client for
 caller-owned streams. It awaits initialization, history loading and the new
 prompt reply; it cancels permission requests and starts no process. Its
