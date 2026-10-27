@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { join, resolve } from 'node:path';
 import { lintSpec } from '../kit/marketing/lib/lint.mjs';
 
+// Absolute on every platform, so path resolution inside lintSpec is a no-op.
+const SYNTHETIC = resolve('/synthetic');
+
 const io = (receiptExists) => ({
-  specDir: 'C:\\synthetic',
+  specDir: SYNTHETIC,
   exists: () => receiptExists,
   readJson: () => ({ clips: { C1: { valid: true, clipSeconds: 10, events: { clicks: 0 } } } }),
 });
@@ -33,7 +37,7 @@ const validSpec = () => ({
       kind: 'ui',
       narration: 'The dashboard tracks open cases.',
       claims: ['c1'],
-      ui: { sourceJob: 'C:\\synthetic\\film', clipId: 'C1' },
+      ui: { sourceJob: join(SYNTHETIC, 'film'), clipId: 'C1' },
     }],
   }],
 });
@@ -70,7 +74,7 @@ test('lintSpec preserves exact ordered findings and estimates for an invalid syn
         narration: '90 cases remain.',
         onScreenText: 'The clinic dashboard updates each case throughout every workday',
         claims: ['unknown'],
-        ui: { sourceJob: 'C:\\synthetic\\ghost', clipId: 'missing' },
+        ui: { sourceJob: join(SYNTHETIC, 'ghost'), clipId: 'missing' },
         sfx: [{ cue: 'later' }],
       }],
     }],
@@ -102,7 +106,7 @@ test('lintSpec preserves exact ordered findings and estimates for an invalid syn
         { code: 'claim-missing', message: 'beat references unknown claim unknown', where: 'main/B1' },
         { code: 'claim-unmapped', message: 'beat speaks or shows text but references no claim', where: 'main/B1' },
         { code: 'figure-unsupported', message: '"90" in "90 cases remain." is a figure no referenced claim states; invented or unsupported figures fail', where: 'main/B1' },
-        { code: 'clip-missing', message: 'capture receipt not found: C:\\synthetic\\ghost\\capture\\receipt.json', where: 'main/B1' },
+        { code: 'clip-missing', message: `capture receipt not found: ${join(SYNTHETIC, 'ghost', 'capture', 'receipt.json')}`, where: 'main/B1' },
         { code: 'sfx-cue', message: 'unsupported cue later', where: 'main/B1' },
         { code: 'music-length', message: 'music.lengthSeconds 1 s is shorter than cut main (4 s target) plus 2 s; the bed must outlast the program (the assets stage re-checks against the measured length)', where: 'music' },
         { code: 'no-ui', message: 'cut main has no real UI beat; credibility-bearing seconds must be captured product UI', where: 'main' },
