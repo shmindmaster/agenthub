@@ -151,3 +151,49 @@ test('paid library and CLI vision refuse missing ledgers before decoding or cont
   assert.match(result.stderr, /cost ledger/);
   assert.equal(existsSync(report), false);
 });
+
+test('QA with --prepare-only publishes pending gates even for a verified encoded candidate', async () => {
+  const job = join(root, 'prepare-only-verified');
+  const ctx = { jobDir: job, spec: { id: 'spec-one', ratios: ['9x16'], beats: [] },
+    specSha: 'a'.repeat(64), brandSha: 'b'.repeat(64),
+    flags: { candidateId: 'one', prepareOnly: true, qaDir: join(root, 'prepare-only-qa') } };
+  const paths = candidatePaths(ctx, '9x16');
+  mkdirSync(paths.dir, { recursive: true });
+  mkdirSync(join(job, 'timing', 'main'), { recursive: true });
+  write(join(job, 'timing', 'main', 'timeline.json'), { durationSeconds: 1 });
+  writeFileSync(paths.ad, 'synthetic encoded bytes');
+  write(join(paths.dir, 'candidate.json'), { id: 'one', ratio: '9x16', sha256: fileSha(paths.ad),
+    specSha256: ctx.specSha, brandSha256: ctx.brandSha });
+  const result = await qaStage(ctx);
+  assert.equal(result['9x16'].ok, false);
+  const receipt = JSON.parse(readFileSync(join(ctx.flags.qaDir, '9x16', 'gates.json')));
+  assert.equal(receipt.candidate, null);
+  assert.ok(Object.values(receipt.gates).every(gate => gate.status === 'pending'));
+});
+
+test('QA records a pending-or-fail stage in the job manifest when no --qa-dir is given', async () => {
+  const job = join(root, 'stage-record');
+  mkdirSync(join(job, 'timing', 'main'), { recursive: true });
+  write(join(job, 'timing', 'main', 'timeline.json'), { durationSeconds: 1 });
+  const ctx = { jobDir: job, spec: { id: 'spec-two', ratios: ['9x16', '16x9'], beats: [] },
+    specSha: 'a'.repeat(64), brandSha: 'b'.repeat(64), runId: 'run-1',
+    ledger: { summary: () => ({ usd: 0 }) }, flags: { candidateId: 'one' } };
+  const result = await qaStage(ctx);
+  assert.deepEqual(Object.keys(result).sort(), ['16x9', '9x16']);
+  const manifest = JSON.parse(readFileSync(join(job, 'manifest.json')));
+  assert.equal(manifest.stages.qa.status, 'pending-or-fail');
+  assert.equal(manifest.stages.qa.ratios['9x16'].ok, false);
+  assert.ok(result['9x16'].failing.every(f => /pending/.test(f)));
+});
+
+test('a narrowed qa.required still publishes the film-chain and transcript pendings for an unencoded candidate', async () => {
+  const job = join(root, 'narrowed');
+  mkdirSync(join(job, 'timing', 'main'), { recursive: true });
+  write(join(job, 'timing', 'main', 'timeline.json'), { durationSeconds: 1 });
+  const ctx = { jobDir: job, spec: { ratios: ['9x16'], beats: [], qa: { required: ['picture', 'captions'] } },
+    flags: { candidateId: 'one', qaDir: join(root, 'narrowed-qa') } };
+  const result = await qaStage(ctx);
+  assert.deepEqual(Object.keys(result['9x16'].gates).sort(),
+    ['captions', 'frameIntegrity', 'integrity', 'marketing', 'picture', 'pointer', 'transcript', 'wordSync']);
+  assert.equal(result['9x16'].failing.length, 8);
+});
