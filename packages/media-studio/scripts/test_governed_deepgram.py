@@ -1,5 +1,6 @@
 """Offline synthetic fixtures only. Never contact a provider or the real ledger."""
 import hashlib
+import contextlib
 import io
 import json
 import pathlib
@@ -423,6 +424,304 @@ class AdapterTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Restore intact"):
                 adapter.recovery_epoch_ledger(manifest, "synthetic-test", p)
             self.assertFalse((root / "ledger.sqlite3").exists())
+
+    @contextlib.contextmanager
+    def epoch_environment(self):
+        with patch.dict("os.environ", {"LOCALAPPDATA": str(self.root)}), patch.object(self.runtime, "running_on_windows", return_value=True):
+            yield
+
+    def batch_policy(self, parent, p, batch="new-words", prior=()):
+        original = json.loads(parent.read_bytes())
+        original_proof = json.loads(pathlib.Path(original["inventory_proof"]["path"]).read_bytes())
+        historical = set(original_proof["historical_rendered_text_sha256"])
+        ambiguous = set(original_proof["ambiguous_rendered_text_sha256"])
+        historical.update(r["text_sha256"] for r in original["allowed_requests"])
+        for previous in prior:
+            previous_policy = json.loads(previous.read_bytes())
+            previous_proof = json.loads(pathlib.Path(previous_policy["inventory_proof"]["path"]).read_bytes())
+            historical.update(previous_proof["historical_rendered_text_sha256"])
+            historical.update(r["text_sha256"] for r in previous_policy["allowed_requests"])
+            ambiguous.update(previous_proof["ambiguous_rendered_text_sha256"])
+        text_hash = hashlib.sha256(p["request"]["text"].encode()).hexdigest()
+        proof = {"kind": "deepgram-new-input-inventory", "enumerated_scopes": ["complete isolated synthetic fixtures"],
+                 "historical_rendered_text_sha256": sorted(historical), "ambiguous_rendered_text_sha256": sorted(ambiguous),
+                 "new_rendered_text_sha256": [text_hash]}
+        proof_path = self.root / (batch + ".proof.json")
+        proof_path.write_text(json.dumps(proof), encoding="utf-8")
+        policy = {**original, "additional_batch_id": batch,
+                  "parent_authorization_sha256": hashlib.sha256(parent.read_bytes()).hexdigest(),
+                  "allowed_requests": [{"text_sha256": text_hash, "cache_key": p["cache_key"]}],
+                  "inventory_proof": {"path": str(proof_path), "sha256": hashlib.sha256(proof_path.read_bytes()).hexdigest()}}
+        manifest = self.root / (batch + ".manifest.json")
+        manifest.write_text(json.dumps(policy), encoding="utf-8")
+        return manifest, policy
+
+    def test_additional_batch_preserves_original_namespace_salt_cap_and_unknown(self):
+        p, new = plan(), plan("A genuinely new synthetic passage.", revision="test-2")
+        original, _, _, _ = self.policy(p)
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            namespace = ledger.namespace(ledger.deepgram_epoch_namespace, "synthetic-test")
+            claim = ledger.claim(namespace, p["cache_key"], adapter.BUCKET, p["maximum_usd_micros"])
+            ledger.submitted(claim)
+            ledger.unknown(claim)
+            before = {name: (ledger.root / name).read_bytes() for name in ("authorization.json", "namespace-salt")}
+            manifest, _ = self.batch_policy(original, new)
+            batch_ledger = adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertEqual(batch_ledger.root, ledger.root)
+            self.assertEqual(batch_ledger.deepgram_epoch_namespace, ledger.deepgram_epoch_namespace)
+            _, receipt = adapter._generate(batch_ledger, new, "synthetic-test", "different-credential", self.send)
+            self.assertEqual(receipt["namespace"], namespace)
+            self.assertEqual(batch_ledger.lookup(namespace, p["cache_key"])["state"], "unknown")
+            self.assertEqual(batch_ledger.status()["budgets"][0]["ceiling"], 3_000_000)
+            self.assertEqual(batch_ledger.status()["budgets"][0]["committed"], p["maximum_usd_micros"] + new["maximum_usd_micros"])
+            for name, raw in before.items():
+                self.assertEqual((ledger.root / name).read_bytes(), raw)
+            again = adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            _, reused = adapter._generate(again, new, "synthetic-test", "another-credential", lambda *a: self.fail("repurchase"))
+            self.assertTrue(reused["reused"])
+
+    def test_additional_batch_never_initializes_absent_or_incomplete_epoch(self):
+        p, new = plan(), plan("Never initialize a batch epoch.")
+        original, _, _, _ = self.policy(p)
+        manifest, _ = self.batch_policy(original, new)
+        root = self.root / "AgentHub/runtime/content-recovery-epochs/deepgram-offline-test"
+        with self.epoch_environment(), self.assertRaises(RuntimeError):
+            adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+        self.assertFalse(root.exists())
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            (root / "namespace-salt").unlink()
+            with self.assertRaises(RuntimeError):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertFalse((root / "namespace-salt").exists())
+            self.assertFalse((ledger.root / "additional-batches").exists())
+
+    def test_additional_batch_budget_exhausted_does_not_submit_or_reset(self):
+        p, new = plan(), plan("No extra budget.")
+        original, policy, _, _ = self.policy(p)
+        policy["maximum_usd_micros"] = p["maximum_usd_micros"]
+        original.write_text(json.dumps(policy), encoding="utf-8")
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            adapter._generate(ledger, p, "synthetic-test", "fake", self.send)
+            manifest, _ = self.batch_policy(original, new)
+            batch = adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            with self.assertRaises(RuntimeError):
+                adapter._generate(batch, new, "synthetic-test", "other", lambda *a: self.fail("over cap"))
+            self.assertEqual(batch.status()["budgets"][0]["committed"], p["maximum_usd_micros"])
+            self.assertEqual(batch.status()["budgets"][0]["ceiling"], p["maximum_usd_micros"])
+
+    def test_additional_batch_fences_unsubmitted_original_and_prior_batch_under_new_settings(self):
+        p, new, newer = plan(), plan("New batch words."), plan("Later batch words.")
+        original, _, _, _ = self.policy(p)
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            for text in (p["request"]["text"],):
+                changed = plan(text, expressivity=1)
+                manifest, _ = self.batch_policy(original, changed, "overlap-original")
+                with self.assertRaises(RuntimeError):
+                    adapter.recovery_epoch_ledger(manifest, "synthetic-test", changed)
+            first, _ = self.batch_policy(original, new, "first")
+            adapter.recovery_epoch_ledger(first, "synthetic-test", new)
+            changed = plan(new["request"]["text"], dictionary_revision="changed")
+            overlap, _ = self.batch_policy(original, changed, "overlap-prior", prior=(first,))
+            with self.assertRaises(RuntimeError):
+                adapter.recovery_epoch_ledger(overlap, "synthetic-test", changed)
+            omitted, _ = self.batch_policy(original, newer, "omitted-prior")
+            with self.assertRaises(RuntimeError):
+                adapter.recovery_epoch_ledger(omitted, "synthetic-test", newer)
+            second, _ = self.batch_policy(original, newer, "second", prior=(first,))
+            adapter.recovery_epoch_ledger(second, "synthetic-test", newer)
+            adapter.recovery_epoch_ledger(first, "synthetic-test", new)  # old immutable batch still reusable
+            self.assertEqual(ledger.status()["budgets"][0]["committed"], 0)
+
+    def test_additional_batch_changed_parent_policy_proof_and_registration_refused(self):
+        p, new = plan(), plan("Tamper check words.")
+        original, _, _, _ = self.policy(p)
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            manifest, policy = self.batch_policy(original, new)
+            raw = manifest.read_bytes()
+            for field, value in (("parent_authorization_sha256", "0" * 64),
+                                 ("maximum_usd_micros", 2_000_000),
+                                 ("owner_authorization", "Changed authorization")):
+                manifest.write_text(json.dumps({**policy, field: value}), encoding="utf-8")
+                with self.assertRaises(RuntimeError):
+                    adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            manifest.write_bytes(raw)
+            adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            manifest.write_bytes(raw + b" ")
+            with self.assertRaisesRegex(RuntimeError, "immutable"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            manifest.write_bytes(raw)
+            stored = ledger.root / "additional-batches/new-words.json"
+            stored.write_bytes(raw + b" ")
+            with self.assertRaisesRegex(RuntimeError, "changed"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            stored.write_bytes(raw)
+            proof = pathlib.Path(policy["inventory_proof"]["path"])
+            proof.write_bytes(proof.read_bytes() + b" ")
+            with self.assertRaisesRegex(RuntimeError, "proof changed"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+
+    def test_additional_batch_checks_other_registrations_and_interrupted_pair(self):
+        p, new, newer = plan(), plan("First isolated batch."), plan("Second isolated batch.")
+        original, _, _, _ = self.policy(p)
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            first, _ = self.batch_policy(original, new, "first")
+            adapter.recovery_epoch_ledger(first, "synthetic-test", new)
+            second, _ = self.batch_policy(original, newer, "second", prior=(first,))
+            adapter.recovery_epoch_ledger(second, "synthetic-test", newer)
+            digest = ledger.root / "additional-batches/second.sha256"
+            digest.unlink()
+            with self.assertRaisesRegex(RuntimeError, "Incomplete"):
+                adapter.recovery_epoch_ledger(first, "synthetic-test", new)
+            self.assertFalse(digest.exists())
+
+    def test_additional_batch_registration_serialization_and_stale_lock(self):
+        p, new = plan(), plan("Concurrent batch registration.")
+        original, _, _, _ = self.policy(p)
+        entered, release = threading.Event(), threading.Event()
+        failures = []
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            manifest, _ = self.batch_policy(original, new)
+            secure = self.runtime.secure_directory
+            def paused(path):
+                if path.name == "additional-batches":
+                    entered.set()
+                    if not release.wait(5):
+                        raise RuntimeError("test timeout")
+                return secure(path)
+            def register():
+                try:
+                    adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+                except Exception as error:
+                    failures.append(error)
+            with patch.object(self.runtime, "secure_directory", side_effect=paused):
+                thread = threading.Thread(target=register)
+                thread.start()
+                try:
+                    self.assertTrue(entered.wait(5))
+                    with self.assertRaisesRegex(RuntimeError, "busy or interrupted"):
+                        adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+                finally:
+                    release.set()
+                    thread.join(5)
+            self.assertFalse(thread.is_alive())
+            self.assertEqual(failures, [])
+            guard = ledger.root / "batch-registration.lock"
+            guard.write_bytes(b"interrupted")
+            with self.assertRaisesRegex(RuntimeError, "busy or interrupted"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertEqual(guard.read_bytes(), b"interrupted")
+
+    def test_additional_batch_rejects_linked_inventory_ancestor_before_registration(self):
+        p, new = plan(), plan("Linked inventory test.")
+        original, _, _, _ = self.policy(p)
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            manifest, policy = self.batch_policy(original, new)
+            proof_parent = pathlib.Path(policy["inventory_proof"]["path"]).parent
+            with patch.object(self.runtime, "linked_path", side_effect=lambda path: path == proof_parent):
+                with self.assertRaises(RuntimeError):
+                    adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertFalse((ledger.root / "additional-batches").exists())
+
+    def test_additional_batch_missing_pair_directory_or_index_mismatch_blocks_reuse(self):
+        p, new = plan(), plan("Registry completeness check.")
+        original, _, _, _ = self.policy(p)
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            manifest, _ = self.batch_policy(original, new)
+            adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            directory = ledger.root / "additional-batches"
+            raw_pair = {path.name: path.read_bytes() for path in directory.iterdir()}
+            for path in directory.iterdir():
+                path.unlink()
+            with self.assertRaisesRegex(RuntimeError, "Incomplete"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            for name, raw in raw_pair.items():
+                (directory / name).write_bytes(raw)
+            moved = ledger.root / "removed-batch-directory"
+            directory.rename(moved)
+            with self.assertRaisesRegex(RuntimeError, "Incomplete"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertFalse(directory.exists())
+            moved.rename(directory)
+            index = ledger.root / "additional-batches.index.json"
+            raw_index = index.read_bytes()
+            data = json.loads(raw_index)
+            data["batches"]["new-words"] = "0" * 64
+            index.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "changed"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            index.write_bytes(raw_index)
+            index.unlink()
+            with self.assertRaisesRegex(RuntimeError, "Incomplete"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertFalse(index.exists())
+
+    def test_additional_batch_interrupted_index_write_is_not_reconstructed(self):
+        p, new = plan(), plan("Interrupted registration check.")
+        original, _, _, _ = self.policy(p)
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            manifest, _ = self.batch_policy(original, new)
+            with patch.object(adapter, "_durable_evidence", side_effect=OSError("synthetic interruption")):
+                with self.assertRaises(OSError):
+                    adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertTrue((ledger.root / "additional-batches/new-words.json").exists())
+            self.assertFalse((ledger.root / "additional-batches.index.json").exists())
+            with self.assertRaisesRegex(RuntimeError, "Incomplete"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertEqual(ledger.status()["budgets"][0]["committed"], 0)
+
+    def test_additional_batch_missing_database_mutated_original_and_ceiling_fail_closed(self):
+        p, new = plan(), plan("Accounting intact check.")
+        original, _, _, _ = self.policy(p)
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            manifest, _ = self.batch_policy(original, new)
+            auth = ledger.root / "authorization.json"
+            original_raw = auth.read_bytes()
+            auth.write_bytes(original_raw + b" ")
+            with self.assertRaises(RuntimeError):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            auth.write_bytes(original_raw)
+            db = ledger.root / "ledger.sqlite3"
+            removed = ledger.root / "removed-ledger.sqlite3"
+            db.rename(removed)
+            with self.assertRaisesRegex(RuntimeError, "Restore intact"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertFalse(db.exists())
+            removed.rename(db)
+            with ledger.connect() as con:
+                con.execute("UPDATE budgets SET ceiling=1 WHERE bucket=?", (adapter.BUCKET,))
+            with self.assertRaisesRegex(RuntimeError, "ceiling differs"):
+                adapter.recovery_epoch_ledger(manifest, "synthetic-test", new)
+            self.assertFalse((ledger.root / "additional-batches").exists())
+
+    def test_additional_batch_cannot_reclassify_prior_unsubmitted_text_as_ambiguous(self):
+        p, new, newer = plan(), plan("Previously permitted but never submitted."), plan("Separate new passage.")
+        original, _, _, _ = self.policy(p)
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            first, _ = self.batch_policy(original, new, "first")
+            adapter.recovery_epoch_ledger(first, "synthetic-test", new)
+            second, policy = self.batch_policy(original, newer, "second", prior=(first,))
+            proof_path = pathlib.Path(policy["inventory_proof"]["path"])
+            proof = json.loads(proof_path.read_bytes())
+            proof["ambiguous_rendered_text_sha256"] = [hashlib.sha256(new["request"]["text"].encode()).hexdigest()]
+            proof_path.write_text(json.dumps(proof), encoding="utf-8")
+            policy["inventory_proof"]["sha256"] = hashlib.sha256(proof_path.read_bytes()).hexdigest()
+            second.write_text(json.dumps(policy), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "contradicts previously known"):
+                adapter.recovery_epoch_ledger(second, "synthetic-test", newer)
+            self.assertFalse((ledger.root / "additional-batches/second.json").exists())
+            self.assertIsNone(ledger.lookup(ledger.namespace(ledger.deepgram_epoch_namespace, "synthetic-test"), new["cache_key"]))
 
 
 if __name__ == "__main__":

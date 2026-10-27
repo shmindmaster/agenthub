@@ -164,14 +164,15 @@ def _safe_mime(value):
     return mime if re.fullmatch(r"[a-z0-9.+-]{1,64}/[a-z0-9.+-]{1,64}", mime) else "unrecognized"
 
 
-def recovery_epoch_ledger(manifest_path, workspace, planned):
-    """Explicit owner-bounded new epoch; old spend stays UNKNOWN and requests FENCED."""
+def _linked(path):
+    return any(runtime_module().linked_path(p) for p in (path, *path.parents))
+
+
+def _epoch_policy(raw, workspace):
     runtime = runtime_module()
-    manifest_path = pathlib.Path(manifest_path).absolute()
-    if runtime.linked_path(manifest_path):
-        raise RuntimeError("Linked authorization refused")
-    raw = manifest_path.read_bytes()
     policy = json.loads(raw)
+    if not isinstance(policy, dict):
+        raise RuntimeError("Object authorization required")
     ceiling = runtime.integer(policy.get("maximum_usd_micros"))
     epoch = policy.get("epoch_id", "")
     if (not re.fullmatch(r"deepgram-[a-z0-9][a-z0-9-]{0,54}", epoch) or ceiling > 3_000_000
@@ -193,19 +194,155 @@ def recovery_epoch_ledger(manifest_path, workspace, planned):
         raise RuntimeError("One exact request per new text required")
     proof_ref = policy.get("inventory_proof", {})
     proof_path = pathlib.Path(proof_ref.get("path", ""))
-    if not proof_path.is_absolute() or runtime.linked_path(proof_path):
+    if not proof_path.is_absolute() or _linked(proof_path):
         raise RuntimeError("Absolute unlinked inventory proof required")
     proof_raw = proof_path.read_bytes()
     if hashlib.sha256(proof_raw).hexdigest() != proof_ref.get("sha256"):
         raise RuntimeError("Inventory proof changed")
     proof = json.loads(proof_raw)
     old, ambiguous, new = (proof.get(k) for k in ("historical_rendered_text_sha256", "ambiguous_rendered_text_sha256", "new_rendered_text_sha256"))
-    if (proof.get("kind") != "deepgram-new-input-inventory" or not proof.get("enumerated_scopes")
+    if (proof.get("kind") != "deepgram-new-input-inventory" or not isinstance(proof.get("enumerated_scopes"), list)
+            or not proof["enumerated_scopes"]
+            or not all(isinstance(v, str) and v.strip() for v in proof["enumerated_scopes"])
             or not all(hashes(v) for v in (old, ambiguous, new))
             or not set(texts) <= set(new) or set(texts) & (set(old) | set(ambiguous))):
         raise RuntimeError("Inventory must establish new inputs disjoint from cached or ambiguous history")
+    return policy, proof
+
+
+def _proof_sets(policy, proof):
+    # All enumerated prior inputs are fenced, including allowed-but-unsubmitted
+    # and cached words, regardless of a later request's settings or credential.
+    return (set(proof["historical_rendered_text_sha256"])
+            | set(proof["new_rendered_text_sha256"])
+            | {a["text_sha256"] for a in policy["allowed_requests"]},
+            set(proof["ambiguous_rendered_text_sha256"]))
+
+
+def _batch_parent(policy, original, original_raw):
+    batch = policy.get("additional_batch_id")
+    if (not isinstance(batch, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", batch)
+            or policy.get("parent_authorization_sha256") != hashlib.sha256(original_raw).hexdigest()
+            or "additional_batch_id" in original or "parent_authorization_sha256" in original):
+        raise RuntimeError("Additional batch must bind the immutable original authorization")
+    varying = {"allowed_requests", "inventory_proof", "additional_batch_id", "parent_authorization_sha256"}
+    if {k: v for k, v in policy.items() if k not in varying} != {k: v for k, v in original.items() if k not in varying}:
+        raise RuntimeError("Additional batch cannot change authorization, workspace, history, price or ceiling")
+    return batch
+
+
+def _register_batch(root, raw, policy, proof, original_raw, workspace):
+    original, original_proof = _epoch_policy(original_raw, workspace)
+    batch = _batch_parent(policy, original, original_raw)
+    guard = root / "batch-registration.lock"
+    if _linked(guard):
+        raise RuntimeError("Linked registration refused")
+    try:
+        handle = guard.open("xb")
+    except FileExistsError:
+        raise RuntimeError("Batch registration busy or interrupted; inspect existing state") from None
+    try:
+        directory = root / "additional-batches"
+        if _linked(directory):
+            raise RuntimeError("Linked registration directory refused")
+        index_path = root / "additional-batches.index.json"
+        if _linked(index_path):
+            raise RuntimeError("Linked registration index refused")
+        if index_path.exists():
+            index = json.loads(index_path.read_bytes())
+            if (not isinstance(index, dict) or index.get("kind") != "deepgram-additional-batches-v1"
+                    or index.get("parent_authorization_sha256") != hashlib.sha256(original_raw).hexdigest()
+                    or not isinstance(index.get("batches"), dict)):
+                raise RuntimeError("Registration index changed")
+            registered = index["batches"]
+            if any(not isinstance(k, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", k)
+                   or not isinstance(v, str) or not re.fullmatch(r"[a-f0-9]{64}", v)
+                   for k, v in registered.items()):
+                raise RuntimeError("Registration index changed")
+            if not directory.is_dir():
+                raise RuntimeError("Incomplete registered batch directory; no reconstruction")
+        else:
+            registered = {}
+        if directory.exists():
+            entries = list(directory.iterdir())
+            expected = {name + suffix for name in registered for suffix in (".json", ".sha256")}
+            if {p.name for p in entries} != expected:
+                raise RuntimeError("Incomplete or unrecognized batch registration; no reconstruction")
+            if any(_linked(p) or not p.is_file() for p in entries):
+                raise RuntimeError("Linked or invalid batch registration")
+        runtime_module().secure_directory(directory)
+        known, ambiguous = _proof_sets(original, original_proof)
+        original_known, original_ambiguous = known.copy(), ambiguous.copy()
+        prior = []
+        current = None
+        for entry in sorted(directory.glob("*.json")):
+            stored = entry.read_bytes()
+            stored_hash = hashlib.sha256(stored).hexdigest()
+            if (entry.with_suffix(".sha256").read_bytes() != stored_hash.encode("ascii")
+                    or registered.get(entry.stem) != stored_hash):
+                raise RuntimeError("Registered batch changed")
+            previous, previous_proof = _epoch_policy(stored, workspace)
+            if _batch_parent(previous, original, original_raw) != entry.stem:
+                raise RuntimeError("Registered batch identity changed")
+            previous_new = set(previous_proof["new_rendered_text_sha256"])
+            if (not original_known <= set(previous_proof["historical_rendered_text_sha256"])
+                    or not original_ambiguous <= set(previous_proof["ambiguous_rendered_text_sha256"])
+                    or previous_new & (original_known | original_ambiguous)):
+                raise RuntimeError("Registered inventory does not cover original history")
+            if entry.stem == batch:
+                if stored != raw:
+                    raise RuntimeError("Additional batch authorization is immutable")
+                current = stored
+            prior.append((entry.stem, previous, previous_proof))
+        # Validate every registration, even when using an older batch. Each
+        # inventory's new set must be disjoint from every other batch's inputs.
+        for index, (_, previous, previous_proof) in enumerate(prior):
+            previous_new = set(previous_proof["new_rendered_text_sha256"])
+            for _, other, other_proof in prior[index + 1:]:
+                if (previous_new & (set(other_proof["new_rendered_text_sha256"])
+                                    | set(other_proof["ambiguous_rendered_text_sha256"]))
+                        or set(other_proof["new_rendered_text_sha256"])
+                        & set(previous_proof["ambiguous_rendered_text_sha256"])):
+                    raise RuntimeError("Registered batch inputs overlap or contradict ambiguity")
+            old, uncertain = _proof_sets(previous, previous_proof)
+            known.update(old)
+            ambiguous.update(uncertain)
+        if current is None:
+            new = set(proof["new_rendered_text_sha256"])
+            if known & set(proof["ambiguous_rendered_text_sha256"]):
+                raise RuntimeError("Inventory contradicts previously known inputs; reconcile history first")
+            if (new & (known | ambiguous)
+                    or not known <= set(proof["historical_rendered_text_sha256"])
+                    or not ambiguous <= set(proof["ambiguous_rendered_text_sha256"])):
+                raise RuntimeError("Complete inventory must fence all original and registered inputs")
+            # Exclusive files + a durable digest: interrupted pairs remain
+            # blocked; neither a missing digest nor a stale lock is repaired.
+            for path, content in ((directory / (batch + ".json"), raw),
+                                  (directory / (batch + ".sha256"), hashlib.sha256(raw).hexdigest().encode("ascii"))):
+                with path.open("xb") as output:
+                    output.write(content)
+                    output.flush()
+                    os.fsync(output.fileno())
+            registered[batch] = hashlib.sha256(raw).hexdigest()
+            _durable_evidence(index_path, json.dumps({"kind": "deepgram-additional-batches-v1",
+                "parent_authorization_sha256": hashlib.sha256(original_raw).hexdigest(),
+                "batches": registered}, sort_keys=True).encode("utf-8"))
+    finally:
+        handle.close()
+        guard.unlink()
+
+
+def recovery_epoch_ledger(manifest_path, workspace, planned):
+    """An immutable epoch or disjoint additional batch sharing its accounting."""
+    runtime = runtime_module()
+    manifest_path = pathlib.Path(manifest_path).absolute()
+    if _linked(manifest_path):
+        raise RuntimeError("Linked authorization refused")
+    raw = manifest_path.read_bytes()
+    policy, proof = _epoch_policy(raw, workspace)
+    ceiling, epoch = policy["maximum_usd_micros"], policy["epoch_id"]
     text_hash = hashlib.sha256(planned["request"]["text"].encode()).hexdigest()
-    if {"text_sha256": text_hash, "cache_key": planned["cache_key"]} not in allowed:
+    if {"text_sha256": text_hash, "cache_key": planned["cache_key"]} not in policy["allowed_requests"]:
         raise RuntimeError("Input/settings outside exact new/unsubmitted allowlist")
     base = os.environ.get("LOCALAPPDATA") if runtime.running_on_windows() else str(pathlib.Path.home() / ".local/share")
     if not base:
@@ -213,8 +350,16 @@ def recovery_epoch_ledger(manifest_path, workspace, planned):
     # Resolve the established OS runtime relocation, then reject further links.
     root = (pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs").resolve() / epoch
     lock = root / "authorization.json"
+    batch = "additional_batch_id" in policy or "parent_authorization_sha256" in policy
+    original_raw = raw
+    if batch:
+        if not root.is_dir() or _linked(root) or _linked(lock) or not lock.is_file():
+            raise RuntimeError("Additional batch requires an intact existing epoch")
+        original_raw = lock.read_bytes()
+        original, _ = _epoch_policy(original_raw, workspace)
+        _batch_parent(policy, original, original_raw)
     if root.exists():
-        if runtime.linked_path(lock) or not lock.is_file() or lock.read_bytes() != raw:
+        if _linked(lock) or not lock.is_file() or lock.read_bytes() != original_raw:
             raise RuntimeError("Epoch authorization is immutable; no cap/allowlist reset")
         ledger = existing_ledger(root)
         with ledger.connect() as con:
@@ -233,8 +378,10 @@ def recovery_epoch_ledger(manifest_path, workspace, planned):
         ledger = runtime.Ledger(root)
         ledger.namespace("deepgram-recovery-epoch:" + hashlib.sha256(raw).hexdigest(), workspace)
         ledger.configure(BUCKET, ceiling)
+    if batch:
+        _register_batch(root, raw, policy, proof, original_raw, workspace)
     ledger.recovery_epoch = epoch
-    ledger.deepgram_epoch_namespace = "deepgram-recovery-epoch:" + hashlib.sha256(raw).hexdigest()
+    ledger.deepgram_epoch_namespace = "deepgram-recovery-epoch:" + hashlib.sha256(original_raw).hexdigest()
     return ledger
 
 
