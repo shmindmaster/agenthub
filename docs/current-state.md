@@ -209,13 +209,25 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   composable personal skills: `sarosh-communication` for direct interactions
   and concise messaging, `sarosh-writing` for evidence-led long-form artifacts,
   and `sarosh-audio-voice` as a thin route into the existing Local-AI `sarosh`
-  clone and identity gates. Each has one global capability owner; none is
+  clone (speaker identity is advisory only, see the 2026-10-27 entry below). Each has one global capability owner; none is
   owned or deployed by a client or product repository.
 
-- **Owner-voice output is now measured, not assumed (2026-08-15):** until this
+- **Speaker identity is advisory only (owner direction, 2026-10-27):** identity is
+  advisory only; never fail, block or re-voice on speaker similarity. The identity
+  scoring that the next entry describes still exists as a measurement, but no AgentHub
+  script, skill, policy key or test uses it to fail a clip, block a release, reject an
+  acceptance or trigger regeneration. `Generate-OwnerVoice.ps1` and
+  `ReGate-OwnerVoice.ps1` score only under the opt-in `-AdvisoryIdentity` switch and
+  record the numbers in the receipt (`identityAdvisory: true`); a scoring error is
+  ignored. The shared content ledger no longer requires an `identity` acceptance gate
+  (`ADVISORY_GATES`). The gates that still fail a take are real defects: clipping and
+  level, silence, truncation, wrong words (ASR WER against the script), pace and
+  loudness. The entry below is retained as history of how the score was built.
+
+- **Owner-voice output was measured, not assumed (2026-08-15; advisory since 2026-10-27):** until this
   date the stack had no speaker-identity measurement at all, so the 2026-08-11
   selection above — and every reference change since — was a listening call on a
-  single candidate. `ai.ps1 voice score` gates any generation against an
+  single candidate. `ai.ps1 voice score` measured any generation against an
   enrolled profile using two independent embedders (ReDimNet2-B6 and CAM++),
   with the floor derived from the owner's own recordings rather than hard-coded.
   Backends were chosen by measured separation on real audio;

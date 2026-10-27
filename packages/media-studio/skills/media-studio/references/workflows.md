@@ -11,7 +11,7 @@ Evidence-led private briefings (a ledger plus captured/annotated screens): curat
 1. Writer (`writer.md`) locks `story/screenplay.json` (`story-craft.md`: sceneRole, WIIFM, hook, one hero).
 2. Storyboard (`storyboard.md`) locks `story/storyboard.json` (shot plan, archetype, sound, 2–3 scored hooks — pick internally).
 3. Visuals (`visuals.md`) locks `visual-bible.json`. Direction (`direction.md`) maps archetypes and registers.
-4. Generate owner voice through `ai.ps1 voice qwen-clone --voice sarosh`, identity-score, generate the bed unless `intent: draft`. Render composition `Briefing` from the house kit (do not `create-video` a new app). Sync kit source from `packages/media-studio/kit` first.
+4. Generate owner voice through `ai.ps1 voice qwen-clone --voice sarosh` (identity is advisory only; never gate on it), generate the bed unless `intent: draft`. Render composition `Briefing` from the house kit (do not `create-video` a new app). Sync kit source from `packages/media-studio/kit` first.
 5. `Finish-Media.ps1 -Speech -Music`. Craft critic (score ≥ 85) then QA. Exact logos, numbers, and legal text are compositor-set type, never diffusion.
 
 Remotion is required unless `intent: draft` or the user asked for a basic/proxy cut.

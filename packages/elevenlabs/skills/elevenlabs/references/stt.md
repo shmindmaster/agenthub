@@ -18,7 +18,7 @@ Preserve originals and provenance. For a TTS word gate, compare normalized ASR
 against approved text, require a normalized word error rate at or below 0.15
 and all key terms/numbers, and retain the exact output hash and evidence.
 Normalize both texts identically: lowercase, remove bracketed audio tags and
-punctuation, and collapse whitespace. A word pass is not a speaker-identity pass. Do not regenerate
+punctuation, and collapse whitespace. Speaker identity is advisory only and never a gate. Do not regenerate
 passing audio merely to rerun a local check.
 
 Endpoint reference for future adapter work:

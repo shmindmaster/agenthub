@@ -4,7 +4,7 @@ Behavior tests for the fleet-wide Sarosh audio-voice contract.
 
 sarosh-audio-voice is the audio counterpart to sarosh-communication: it
 governs Sarosh's spoken/cloned voice (local Qwen3-TTS clone, voice id
-`sarosh`, mandatory speaker-identity gate, dictionary-layer pronunciation),
+`sarosh`, speaker identity ADVISORY ONLY per owner direction 2026-10-27, dictionary-layer pronunciation),
 while sarosh-communication governs written tone and structure. These tests
 keep the skill identity, registry ownership, deployment reach, policy
 cross-reference, scope-separation language, and the approved-existing-clone boundary
@@ -119,16 +119,32 @@ Report 'skill limits hosted authority to the existing clone with cost and privac
     $routingOk `
     'expected existing-clone authorization, adequate local speech, readiness, identity, no new private uploads and no billing changes'
 
-# 5. The skill encodes the mandatory speaker-identity gate and expression vs.
-#    identity distinction.
-$identityGateOk = $skill -and
-    $skill -match '(?is)speaker-identity gate' -and
+# 5. Owner direction 2026-10-27: speaker identity is ADVISORY ONLY. The skill must say so, keep the
+#    informational command form, and must not carry any language that makes identity a gate or a re-voice trigger.
+$identityAdvisoryOk = $skill -and
+    $skill -match '(?is)identity is advisory only; never fail, block or re-voice on speaker similarity' -and
+    $skill -match '(?is)2026-10-27' -and
     $skill -match '(?i)voice score --voice sarosh' -and
+    $skill -match '(?is)optional, informational only' -and
     $skill -match '(?is)Expression, emotion, and pacing are adjustable' -and
-    $skill -match '(?is)Speaker identity is the fixed\s+constraint'
-Report 'skill states the mandatory speaker-identity gate' `
-    $identityGateOk `
-    'expected the identity-gate command form and the expression-adjustable/identity-fixed distinction'
+    $skill -match '(?is)never a failure class'
+Report 'skill states that speaker identity is advisory only' `
+    $identityAdvisoryOk `
+    'expected the owner-direction rule, the informational command form and the never-a-failure-class language'
+$identityGateGone = $skill -and
+    $skill -notmatch '(?i)passes a speaker-identity gate' -and
+    $skill -notmatch '(?i)(both|enrolled) identity backends' -and
+    $skill -notmatch '(?i)do not waive the identity gate' -and
+    $skill -notmatch '(?i)source-identity-passed' -and
+    $skill -notmatch '(?i)optimize order: 1 speaker identity' -and
+    $skill -notmatch '(?i)floors?:\s*ReDimNet'
+Report 'skill no longer treats speaker identity as a gate or a failure class' `
+    $identityGateGone `
+    'a speaker-identity gate, identity-backend proof step, identity release state or similarity floor is still in the skill'
+$guidanceMedia = Read-Utf8 (Join-Path $overlay.Root 'guidance\media.md')
+Report 'owner-voice media guidance states identity is advisory and does not demand an identity gate' `
+    ($guidanceMedia -and $guidanceMedia -match '(?is)identity is advisory only; never fail, block or re-voice on speaker similarity' -and $guidanceMedia -notmatch '(?i)passes a speaker-identity gate') `
+    'guidance/media.md still demands a speaker-identity gate'
 
 # 6. The skill states the pronunciation-is-a-dictionary-layer rule and never
 #    training data / benchmarking-needs-approval rules from global policy.
@@ -159,7 +175,6 @@ $patternOk = $skill -and
     $skill -match '(?m)^## 2\. Scope and routing\s*$' -and
     $skill -match '(?m)^## 11\. Final check\s*$' -and
     $skill -match '(?is)Prefer:.*Avoid:' -and
-    $skill -match '(?is)both enrolled identity backends' -and
     $skill -match '(?is)exact mixed and encoded delivery artifact' -and
     $skill -match '(?is)full-program `ai\.ps1 listen`'
 Report 'skill follows the shared pattern and proves the exact delivery artifact' `
