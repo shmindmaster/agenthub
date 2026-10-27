@@ -239,7 +239,7 @@ class LedgerTests(unittest.TestCase):
 
     def test_invalid_manifest_shapes_fail_with_controlled_error(self):
         manifest = self.root / "bad.json"
-        for value in ([], {"identity": []}, {"identity": {}}):
+        for value in ([], {"content": []}, {"content": {}}):
             manifest.write_text(json.dumps(value))
             with self.assertRaises((RuntimeError, ValueError)):
                 accept_manifest(self.ledger, "account-a", "same", manifest)
@@ -327,6 +327,64 @@ class LedgerTests(unittest.TestCase):
         accepted = self.ledger.accept("account-a", "same", gates)
         self.assertEqual(accepted["state"], "accepted")
         self.assertEqual(self.ledger.read_asset(self.claim()), b"exact fixture bytes")
+
+    def gate_set(self, sha, names):
+        return {name: {"pass": True, "output_sha256": sha, "evidence_sha256": "a" * 64} for name in names}
+
+    def test_speaker_identity_is_advisory_and_never_blocks_acceptance(self):
+        # Owner direction 2026-10-27: "identity is advisory only; never fail, block or re-voice on speaker similarity".
+        claim = self.claim()
+        with self.ledger.connect() as con:
+            self.assertNotIn("identity", con.execute("SELECT gates FROM requests WHERE key='same'").fetchone()[0])
+        result = self.finish(claim)
+        real = ("content", "pronunciation", "listening", "artifact")
+        self.assertNotIn("identity", real)
+        # no identity entry at all
+        accepted = self.ledger.accept("account-a", "same", self.gate_set(result["sha256"], real))
+        self.assertEqual(accepted["state"], "accepted")
+        # a failing, malformed or mismatched identity entry is carried along and ignored
+        for identity in ({"pass": False}, {"pass": False, "output_sha256": "0" * 64}, "not even an object", {}):
+            gates = {**self.gate_set(result["sha256"], real), "identity": identity}
+            self.assertEqual(self.ledger.accept("account-a", "same", gates)["state"], "accepted")
+        # the real gates still block
+        missing = self.gate_set(result["sha256"], ("content", "pronunciation", "artifact"))
+        with self.assertRaisesRegex(RuntimeError, "listening"):
+            self.ledger.accept("account-a", "same", {**missing, "identity": {"pass": True}})
+
+    def test_identity_is_not_a_required_gate_of_a_new_or_legacy_claim(self):
+        from content_runtime import ADVISORY_GATES, VOICE_GATES
+        self.assertIn("identity", ADVISORY_GATES)
+        self.assertNotIn("identity", VOICE_GATES)
+        legacy = self.ledger.claim("account-a", "legacy", "fixture/credits", 1, 1,
+                                   required_gates=("identity", "content", "pronunciation", "listening", "artifact"))
+        with self.ledger.connect() as con:
+            stored = json.loads(con.execute("SELECT gates FROM requests WHERE key='legacy'").fetchone()[0])
+        self.assertNotIn("identity", stored)
+        # a row written before the change still lists identity: a default claim must not report a policy change
+        with self.ledger.connect(True) as con:
+            con.execute("UPDATE requests SET gates=? WHERE key='legacy'",
+                        (json.dumps(["artifact", "content", "identity", "listening", "pronunciation"]),))
+        again = self.ledger.claim("account-a", "legacy", "fixture/credits", 1, 1)
+        self.assertEqual(again["key"], "legacy")
+        self.assertEqual(legacy["key"], "legacy")
+        done = self.finish(legacy)
+        legacy_gates = self.gate_set(done["sha256"], ("content", "pronunciation", "listening", "artifact"))
+        self.assertEqual(self.ledger.accept("account-a", "legacy", legacy_gates)["state"], "accepted")
+
+    def test_manifest_identity_entry_is_never_verified(self):
+        row = self.finish(self.claim(), 1)
+        evidence = self.root / "qa.json"
+        evidence.write_text('{"synthetic_review":true}')
+        real = {name: {"pass": True, "output_sha256": row["sha256"],
+                       "evidence_sha256": hashlib.sha256(evidence.read_bytes()).hexdigest(),
+                       "evidence_path": str(evidence), "reviewer": "synthetic-fixture"}
+                for name in ("content", "pronunciation", "listening", "artifact")}
+        # identity evidence is missing, relative and hash-mismatched: none of that may reject the acceptance
+        manifest = self.root / "gates-with-bad-identity.json"
+        manifest.write_text(json.dumps({**real, "identity": {"pass": False, "evidence_path": "relative.json",
+                                                              "evidence_sha256": "0" * 64}}))
+        accept_manifest(self.ledger, "account-a", "same", manifest)
+        self.assertEqual(self.claim()["state"], "accepted")
 
     def test_settlement_is_idempotent_and_never_resets_spent(self):
         self.finish(self.claim(), 2)

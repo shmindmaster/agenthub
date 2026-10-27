@@ -78,8 +78,8 @@ private recordings, replace a clone or start owner verification without authorit
 
 ## Efficiency and evidence
 
-- Start with one small representative preview; approve identity/content locally
-  before a long batch. Cache by the complete request: text, model, voice, settings,
+- Start with one small representative preview; approve content (integrity, ASR words) locally
+  before a long batch; speaker similarity is never part of that approval. Cache by the complete request: text, model, voice, settings,
   dictionaries, references, neighboring context and output format. Reuse accepted
   takes; regenerate only failing segments.
 - Fetch schemas once per workspace/session and reuse them until a relevant error
@@ -93,4 +93,4 @@ private recordings, replace a clone or start owner verification without authorit
 - Sarosh voice loads `sarosh-audio-voice`; private audio/transcription loads the
   applicable privacy route. Local-AI is an eligible primary route, including for
   adequate low-cost work, and the private/offline route. Keep
-  speaker identity, pronunciation, ASR and final artifact gates across providers.
+  pronunciation, ASR and final artifact gates across providers. Speaker identity is advisory only (owner direction 2026-10-27): identity is advisory only; never fail, block or re-voice on speaker similarity.

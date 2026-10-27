@@ -8,8 +8,12 @@
     1. Allowlisted style only (default 02_explaining from _identity_probe.json)
     2. qwen-clone-batch — one model load per chunk (not per sentence)
     3. Batch ASR (ai.ps1 transcribe / Qwen3-ASR-1.7B)
-    4. Batch identity (ai.ps1 voice score --voice sarosh <dir>)
-    5. Select only dual-pass; retry fail set with new seed then --premium
+    4. Speaker identity is ADVISORY ONLY and off by default (owner direction 2026-10-27: "identity is advisory
+       only; never fail, block or re-voice on speaker similarity"). -AdvisoryIdentity runs ai.ps1 voice score
+       --voice sarosh <dir> after the gate and records the numbers in the receipt for information. A low or
+       missing score, or a scoring error, never fails a take, never blocks a release, never triggers a re-voice.
+    5. Select on integrity + ASR only (real defects: dead air, clipping/level, truncation, wrong words); retry
+       the fail set with a new seed then --premium
     6. Pronunciation-risk manifest (ai.ps1 voice pronunciation-risk) before generation; a heteronym
        whose reading cannot be inferred stops the run until the writer records an override
     7. Per-scene ai.ps1 listen (Voxtral, local) on the concatenated scene audio with the canonical
@@ -31,7 +35,11 @@ param(
   [int]$MaxRounds = 3,
   [double]$AsrWerMax = 0.38,
   [switch]$SkipAsr,
+  # Retained so existing callers keep working. Speaker identity no longer gates anything (see .DESCRIPTION step 4),
+  # so this switch has no effect.
   [switch]$SkipIdentity,
+  # Opt-in: score owner takes with ai.ps1 voice score and record the numbers in the PASS receipt. Advisory only.
+  [switch]$AdvisoryIdentity,
   [switch]$QuarantineAllAttempts,
   [switch]$SkipPronunciationListen,
   [string]$PronunciationLexicon,
@@ -474,9 +482,10 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
     }
   }
 
-  # --- Batch identity ---
+  # --- Batch identity (ADVISORY ONLY: opt-in, recorded for information, never gates a take) ---
   $idMap = @{}
-  if (-not $SkipIdentity) {
+  if ($AdvisoryIdentity) {
+    try {
     $scoreDir = Join-Path $batchRoot ("score-r{0}" -f $round)
     if (Test-Path $scoreDir) { Remove-Item -LiteralPath $scoreDir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $scoreDir | Out-Null
@@ -499,6 +508,9 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
         }
       }
     }
+    } catch {
+      Write-Warning ("advisory identity scoring failed ({0}); ignored, identity never gates a take" -f $_.Exception.Message)
+    }
   }
 
   # --- Gate + PASS receipts ---
@@ -519,18 +531,17 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
       $hw = @((Normalize-ForAsr $hyp) -split '\s+' | Where-Object { $_ }).Count
       if ($hw -gt (([double]$rw * 1.6) + 4.0)) { $asrOk = $false }
     }
-    $idOk = $true; $idScores = $null
-    if ($s.isOwner -and -not $SkipIdentity) {
+    # Identity is advisory: the numbers (when -AdvisoryIdentity scored them) are written down and never read back
+    # into the verdict. A missing record, a low score or a scoring error leaves $pass untouched.
+    $idScores = $null; $idAdvisory = $null
+    if ($s.isOwner -and $AdvisoryIdentity -and $idMap.ContainsKey($s.id)) {
       $rec = $idMap[$s.id]
-      if ($null -eq $rec) { $idOk = $false }
-      else {
-        $idOk = [bool]$rec.pass
-        $idScores = $rec.scores
-        $rec | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $s.dir 'take.identity.json') -Encoding utf8
-      }
+      $idScores = $rec.scores
+      $idAdvisory = $rec.pass
+      $rec | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $s.dir 'take.identity.json') -Encoding utf8
     }
-    $pass = $integOk -and $asrOk -and $idOk -and (Test-Path $s.wav)
-    Write-Host ("  GATE {0} integ={1} asr={2}(wer={3}) id={4} => {5}" -f $s.id, $integOk, $asrOk, $wer, $idOk, $(if ($pass) { 'PASS' } else { 'FAIL' }))
+    $pass = $integOk -and $asrOk -and (Test-Path $s.wav)
+    Write-Host ("  GATE {0} integ={1} asr={2}(wer={3}) id=advisory({4}) => {5}" -f $s.id, $integOk, $asrOk, $wer, $(if ($null -eq $idAdvisory) { 'n/a' } else { $idAdvisory }), $(if ($pass) { 'PASS' } else { 'FAIL' }))
     if ($pass) {
       $dest = Join-Path $selectedRoot "$($s.id).wav"
       Copy-Item -LiteralPath $s.wav -Destination $dest -Force
@@ -539,7 +550,7 @@ for ($round = 1; $round -le $MaxRounds; $round++) {
         style = $s.style; text = $s.text; renderText = $s.renderText; fingerprint = $s.fingerprint
         fingerprintSchema = $script:FingerprintSchema; path = $dest
         sha256 = (Get-Sha256 $dest); round = $round; premium = [bool]$premium
-        asrWer = $wer; identityScores = $idScores
+        asrWer = $wer; identityScores = $idScores; identityAdvisory = $true
       } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $s.dir 'PASS.json') -Encoding utf8
       Remove-Item -LiteralPath (Join-Path $s.dir 'REJECTED.json') -Force -ErrorAction SilentlyContinue
     }

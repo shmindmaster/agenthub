@@ -5,15 +5,22 @@
 
 .DESCRIPTION
   Companion recovery tool for Generate-OwnerVoice.ps1. Does NOT regenerate TTS —
-  for identity-passing, digit-heavy lines that ASR orthography rejects (e.g. a
-  spelled-out number that already matched on identity but not on wording).
+  for digit-heavy lines that ASR orthography rejects (e.g. a spelled-out number
+  that the ASR wrote as digits).
+
+  Speaker identity is ADVISORY ONLY (owner direction 2026-10-27: "identity is
+  advisory only; never fail, block or re-voice on speaker similarity"). The
+  re-gate verdict is integrity + ASR wording. -AdvisoryIdentity records
+  ai.ps1 voice score numbers in the receipt for information; they never decide.
 #>
 [CmdletBinding()]
 param(
   [Parameter(Mandatory)][string]$Job,
   [string]$LocalAi = $(if ($env:LOCAL_AI_ROOT) { Join-Path $env:LOCAL_AI_ROOT 'ai.ps1' } else { 'D:\Local-AI\ai.ps1' }),
   [double]$AsrWerMax = 0.42,
-  [switch]$SkipFreshAsr
+  [switch]$SkipFreshAsr,
+  # Opt-in, advisory: record ai.ps1 voice score numbers in the receipt. Never part of the verdict.
+  [switch]$AdvisoryIdentity
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -121,6 +128,7 @@ function Write-RegatePass([object]$Segment, [string]$SelectedRoot, $Wer, $IdReco
   $receipt['sha256'] = (Get-Sha256 $dest)
   $receipt['asrWer'] = $Wer
   $receipt['identityScores'] = $(if ($null -ne $IdRecord) { $IdRecord.scores } else { $null })
+  $receipt['identityAdvisory'] = $true
   $receipt['regate'] = $true
   $receipt | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $Segment.dir 'PASS.json') -Encoding utf8
   # A replacement that passes the gate ends the listen rejection, as in Generate-OwnerVoice.ps1.
@@ -186,19 +194,25 @@ if ($asrJobs.Count) {
   & $LocalAi transcribe $manifest --batch 2>&1 | Out-Null
 }
 
-# Identity batch
-$scoreDir = Join-Path $batchRoot 'score-regate'
-if (Test-Path $scoreDir) { Remove-Item $scoreDir -Recurse -Force }
-New-Item -ItemType Directory -Force -Path $scoreDir | Out-Null
-foreach ($s in $need) { Copy-Item $s.wav (Join-Path $scoreDir "$($s.id).wav") -Force }
-$idJson = Join-Path $batchRoot 'identity-regate.json'
-& $LocalAi voice score --voice sarosh --quiet --json $idJson $scoreDir
+# Identity batch: ADVISORY ONLY, opt-in. Never part of the verdict below.
 $idMap = @{}
-if (Test-Path $idJson) {
-  $idObj = Get-Content $idJson -Raw -Encoding UTF8 | ConvertFrom-Json
-  foreach ($rec in @($idObj.records)) {
-    $stem = [IO.Path]::GetFileNameWithoutExtension([string]$rec.path)
-    $idMap[$stem] = $rec
+if ($AdvisoryIdentity) {
+  try {
+    $scoreDir = Join-Path $batchRoot 'score-regate'
+    if (Test-Path $scoreDir) { Remove-Item $scoreDir -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $scoreDir | Out-Null
+    foreach ($s in $need) { Copy-Item $s.wav (Join-Path $scoreDir "$($s.id).wav") -Force }
+    $idJson = Join-Path $batchRoot 'identity-regate.json'
+    & $LocalAi voice score --voice sarosh --quiet --json $idJson $scoreDir
+    if (Test-Path $idJson) {
+      $idObj = Get-Content $idJson -Raw -Encoding UTF8 | ConvertFrom-Json
+      foreach ($rec in @($idObj.records)) {
+        $stem = [IO.Path]::GetFileNameWithoutExtension([string]$rec.path)
+        $idMap[$stem] = $rec
+      }
+    }
+  } catch {
+    Write-Warning ("advisory identity scoring failed ({0}); ignored, identity never gates a take" -f $_.Exception.Message)
   }
 }
 
@@ -211,9 +225,8 @@ foreach ($s in $need) {
   $wer = Get-Wer $s.text $hyp
   $asrOk = ($wer -le $AsrWerMax)
   $rec = $idMap[$s.id]
-  $idOk = ($null -ne $rec) -and [bool]$rec.pass
-  $ok = $integOk -and $asrOk -and $idOk
-  Write-Host ("  {0} integ={1} asr={2}(wer={3:n3}) id={4} => {5}" -f $s.id, $integOk, $asrOk, $wer, $idOk, $(if ($ok) { 'PASS' } else { 'FAIL' }))
+  $ok = $integOk -and $asrOk
+  Write-Host ("  {0} integ={1} asr={2}(wer={3:n3}) id=advisory({4}) => {5}" -f $s.id, $integOk, $asrOk, $wer, $(if ($null -eq $rec) { 'n/a' } else { $rec.pass }), $(if ($ok) { 'PASS' } else { 'FAIL' }))
   Write-Host ("    ASR: {0}" -f $hyp)
   if ($ok) {
     Write-RegatePass $s $selectedRoot $wer $rec

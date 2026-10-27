@@ -5,16 +5,19 @@ import json
 import pathlib
 import sys
 
-from content_runtime import Ledger
+from content_runtime import ADVISORY_GATES, Ledger
 
 
 def accept_manifest(ledger, namespace, key, manifest):
     """Verify saved evidence files; human/tool reviewers remain responsible for QA."""
     gates = json.loads(manifest.read_text(encoding="utf-8"))
-    if not isinstance(gates, dict) or any(not isinstance(gate, dict) or not isinstance(gate.get("evidence_path"), str)
-                                          for gate in gates.values()):
+    if not isinstance(gates, dict):
         raise ValueError("Acceptance manifest requires gate objects with evidence paths")
-    for gate in gates.values():
+    # Advisory gates (speaker identity, owner direction 2026-10-27) are carried along but never verified or required.
+    checked = [gate for name, gate in gates.items() if name not in ADVISORY_GATES]
+    if any(not isinstance(gate, dict) or not isinstance(gate.get("evidence_path"), str) for gate in checked):
+        raise ValueError("Acceptance manifest requires gate objects with evidence paths")
+    for gate in checked:
         evidence = pathlib.Path(gate["evidence_path"])
         if not evidence.is_absolute() or not gate.get("reviewer"):
             raise RuntimeError("Acceptance requires absolute evidence paths and an identified reviewer")

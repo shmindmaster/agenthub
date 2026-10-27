@@ -292,7 +292,7 @@ try {
             if (-not $script:failSynth) { [IO.File]::WriteAllText($j.out, ('o' * 2000)) }
         }
     }
-    $MaxRounds = 3; $ChunkSize = 4; $styleWav = 'style.wav'; $styleTxt = 'style text'; $styleWavSha = 'wavsha-A'; $styleTxtSha = 'txtsha-A'; $SkipAsr = $true; $SkipIdentity = $true; $AsrWerMax = 0.38; $DefaultStyle = '02_explaining'
+    $MaxRounds = 3; $ChunkSize = 4; $styleWav = 'style.wav'; $styleTxt = 'style text'; $styleWavSha = 'wavsha-A'; $styleTxtSha = 'txtsha-A'; $SkipAsr = $true; $SkipIdentity = $true; $AdvisoryIdentity = $false; $AsrWerMax = 0.38; $DefaultStyle = '02_explaining'
     function Start-Rounds([object[]]$Segs, [bool]$Fail = $false) {
         $script:segments = @($Segs); $script:roleCalls = @(); $script:ownerCalls = @(); $script:failSynth = $Fail
         try { Invoke-GenerationRounds *>&1 | Out-Null } catch { $script:roundsError = $_.Exception.Message }
@@ -380,6 +380,51 @@ try {
     Start-Rounds @($sc1)
     $sidecar = Join-Path $sc1.dir 'take.render.json'
     Report 'generation records the synthesized render text beside the take' ((Test-Path $sidecar) -and ((Get-Content -LiteralPath $sidecar -Raw -Encoding UTF8 | ConvertFrom-Json).renderText -ceq 'Sidecar owner sentance.')) 'no take.render.json after synthesis'
+
+    # 8g. Owner direction 2026-10-27: "identity is advisory only; never fail, block or re-voice on speaker similarity".
+    #     A failing, missing or crashing similarity score must neither fail a take nor trigger another synthesis round.
+    $script:scoreCalls = 0; $script:scoreMode = 'fail'
+    $LocalAi = {
+        $a = @($args)
+        if ($a[0] -eq 'voice' -and $a[1] -eq 'score') {
+            $script:scoreCalls++
+            if ($script:scoreMode -eq 'crash') { throw 'scorer crashed' }
+            $dir = [string]$a[7]; $recs = @()
+            foreach ($f in @(Get-ChildItem -LiteralPath $dir -Filter '*.wav')) {
+                $recs += @{ path = $f.FullName; pass = $false; scores = @{ redimnet = 0.01; camplus = 0.01 } }
+            }
+            ConvertTo-Json -Depth 6 @{ records = $recs } | Set-Content -LiteralPath ([string]$a[6]) -Encoding utf8
+            $global:LASTEXITCODE = 1
+        }
+    }
+    $SkipAsr = $true
+    # 8g-1. advisory scoring on, every score failing: the take still passes in round 1 and is synthesized once
+    # SkipIdentity is cleared on purpose: a script that still gated on identity would score and fail these takes.
+    $SkipIdentity = $false; $AdvisoryIdentity = $true; $script:scoreMode = 'fail'
+    $id1 = New-Seg 'W20_L1_01' 'Owner line whose similarity score is terrible.'
+    Start-Rounds @($id1)
+    $idPass = Join-Path $id1.dir 'PASS.json'
+    $idRec = if (Test-Path $idPass) { Get-Content -LiteralPath $idPass -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
+    Report 'identity advisory: a failing similarity score does not fail the take' (Test-SegmentPass $id1) 'a take with a bad identity score did not pass'
+    Report 'identity advisory: a failing similarity score does not trigger re-voicing' ($script:ownerCalls.Count -eq 1) "ownerCalls=$($script:ownerCalls.Count)"
+    Report 'identity advisory: the score was computed and recorded for information only' ($script:scoreCalls -ge 1 -and $null -ne $idRec -and [bool]$idRec.identityAdvisory -and $null -ne $idRec.identityScores) "scoreCalls=$($script:scoreCalls)"
+    # 8g-2. the scorer crashes: ignored
+    $script:scoreMode = 'crash'; $script:scoreCalls = 0
+    $id2 = New-Seg 'W20_L2_01' 'Owner line whose scorer crashes.'
+    Start-Rounds @($id2)
+    Report 'identity advisory: a crashing scorer is ignored and the take passes' ((Test-SegmentPass $id2) -and $script:ownerCalls.Count -eq 1 -and $script:scoreCalls -ge 1) "ownerCalls=$($script:ownerCalls.Count)"
+    # 8g-3. default (advisory off): the scorer is never even called
+    $AdvisoryIdentity = $false; $script:scoreCalls = 0
+    $id3 = New-Seg 'W20_L3_01' 'Owner line with scoring off.'
+    Start-Rounds @($id3)
+    Report 'identity advisory: scoring is off by default and never called' ((Test-SegmentPass $id3) -and $script:scoreCalls -eq 0) "scoreCalls=$($script:scoreCalls)"
+    # 8g-4. wiring: the verdict expression no longer reads any identity result, in Generate and in ReGate
+    $genSrc = Get-Content -LiteralPath $scriptPath -Raw -Encoding UTF8
+    $regSrc = Get-Content -LiteralPath $regatePath -Raw -Encoding UTF8
+    Report 'Generate-OwnerVoice.ps1: the PASS verdict is integrity and ASR only' (($genSrc -match '\$pass\s*=\s*\$integOk\s+-and\s+\$asrOk\s+-and\s+\(Test-Path') -and ($genSrc -notmatch '\$idOk')) 'identity is still part of the verdict'
+    Report 'ReGate-OwnerVoice.ps1: the PASS verdict is integrity and ASR only' (($regSrc -match '\$ok\s*=\s*\$integOk\s+-and\s+\$asrOk\s*?
+') -and ($regSrc -notmatch '\$idOk')) 'identity is still part of the re-gate verdict'
+    Report 'Generate and ReGate document the owner direction' (($genSrc -match 'never fail, block or re-voice on speaker similarity') -and ($regSrc -match 'never fail, block or re-voice on speaker similarity')) 'the rule is not stated in the scripts'
 
     # 9. ReGate-OwnerVoice.ps1 receipts
     if ((Get-Command Write-RegatePass -ErrorAction SilentlyContinue) -and (Get-Command Write-TakeRenderRecord -ErrorAction SilentlyContinue)) {

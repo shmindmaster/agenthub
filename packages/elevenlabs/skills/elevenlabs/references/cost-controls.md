@@ -10,7 +10,7 @@ official docs rather than embedding a permanent cheapest-provider ranking.
 | --- | --- |
 | Unchanged accepted media or text | Reuse the exact validated artifact; remux/re-edit instead of regenerating. |
 | Text, extraction, classification, code, planning | Use the current host or an already-authorized adequate Local-AI, Anthropic, OpenAI or DeepSeek route. Bound context, output and tool loops; use stronger models only where the task needs them. |
-| Owner speech | Load sarosh-audio-voice. Use local speech when adequate; the existing hosted clone is permitted when its quality or delivery benefit justifies credits. Both require identity and artifact gates. |
+| Owner speech | Load sarosh-audio-voice. Use local speech when adequate; the existing hosted clone is permitted when its quality or delivery benefit justifies credits. Both require integrity, ASR and artifact gates; speaker identity is advisory only (never fail, block or re-voice on it). |
 | Speech/STT, music, SFX, images, video | Select a real modality-capable endpoint. Prefer adequate local generation or accepted assets; compare live hosted cost, queue time and quality. General LLM availability is not media generation entitlement. |
 | Private/regulated source material | Keep the established local/privacy route. A cost saving never authorizes disclosure. |
 

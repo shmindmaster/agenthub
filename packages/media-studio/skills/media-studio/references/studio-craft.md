@@ -28,7 +28,7 @@ Three layers. Voice is the anchor.
 
 | Layer | Level | Rule |
 | --- | --- | --- |
-| Voice | program | Intelligible. Identity-gated for Sarosh. |
+| Voice | program | Intelligible. Speaker identity is advisory only for Sarosh. |
 | Bed | ducked, felt not heard | `Finish-Media.ps1 -Speech -Music`. Never wall-to-wall under a hero. |
 | Sting / silence | sparse | Sting on a cut or reveal. `silenceOnReveal` is true quiet. |
 

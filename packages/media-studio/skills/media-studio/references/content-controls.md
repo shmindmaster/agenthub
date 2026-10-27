@@ -151,8 +151,11 @@ write failure leaves the generated asset reusable at a new output destination.
 
 Generation returns `pending` bytes and provenance for QA. Exact reuse preserves
 those bytes and their state; it does not grant delivery approval. Acceptance
-requires identity, content, pronunciation, listening and artifact checks. Supply
-a private JSON object keyed by those gate names. Each gate must include:
+requires content, pronunciation, listening and artifact checks. Speaker identity
+is advisory only (owner direction 2026-10-27: identity is advisory only; never fail,
+block or re-voice on speaker similarity): an `identity` entry may be supplied for
+information, is never required and is never verified. Supply a private JSON object
+keyed by the required gate names. Each gate must include:
 
 ```json
 {"pass":true,"output_sha256":"<exact-audio-sha256>","evidence_path":"<absolute-private-report-path>","evidence_sha256":"<report-sha256>","reviewer":"<identified-human-or-QA-tool>"}
@@ -164,7 +167,7 @@ python $Control accept --namespace <saved-namespace> --cache-key <saved-key> --m
 
 The command verifies actual evidence file hashes, output hashes and all required
 passes. Reviewers remain responsible for substantive QA; this records evidence,
-it does not compute speaker identity or listening quality itself. Assembly still
+it does not compute listening quality itself. Assembly still
 requires its exact encoded-delivery gates. Corrupt cached bytes fail without a
 new purchase. Never fabricate a PASS or treat pending audio as owner-approved.
 

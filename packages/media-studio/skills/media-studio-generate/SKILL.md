@@ -9,7 +9,7 @@ Choose by cost, latency, quality, privacy. Reuse accepted assets first. Load `el
 
 Load `../media-studio/references/engagement.md`. Viewer-facing jobs consume **locked** `storyboard.json`, `visual-bible.json`, `direction.json`. Do not invent plates the director did not call.
 
-Owner speech loads `sarosh-audio-voice`: local eligible when adequate; approved hosted clone permitted when ready and worth its cost. Both require identity gates. No new private recordings, clone replacement, or verification implied.
+Owner speech loads `sarosh-audio-voice`: local eligible when adequate; approved hosted clone permitted when ready and worth its cost. Speaker identity is advisory only (owner direction 2026-10-27): identity is advisory only; never fail, block or re-voice on speaker similarity. The takes still pass integrity and ASR. No new private recordings, clone replacement, or verification implied.
 
 ```powershell
 & $LocalAiControl status
@@ -31,28 +31,28 @@ Missing required file → remit. Do not generate a generic bed and skip the bibl
 
 ## 2. Voice
 
-Hosted: use `elevenlabs` (`references/tts.md`). Lock segments, check credits/clone/model readiness and budgets; reuse accepted matching preview or generate one small preview. Save provider receipts under job workspace; run local integrity, ASR, pronunciation, and dual-backend identity gates before selecting owner takes. Decode and gate exact delivery spans again. `Generate-OwnerVoice.ps1` implements the **local backend only**; its receipt format is not a hosted adapter—never fabricate PASS receipts for hosted audio. If assembly requires local receipts, keep that path local until a verified provider receipt adapter exists; report the limitation.
+Hosted: use `elevenlabs` (`references/tts.md`). Lock segments, check credits/clone/model readiness and budgets; reuse accepted matching preview or generate one small preview. Save provider receipts under job workspace; run local integrity, ASR and pronunciation gates before selecting owner takes (no identity gate: identity is advisory only). Decode and gate exact delivery spans again. `Generate-OwnerVoice.ps1` implements the **local backend only**; its receipt format is not a hosted adapter—never fabricate PASS receipts for hosted audio. If assembly requires local receipts, keep that path local until a verified provider receipt adapter exists; report the limitation.
 
-Local viewer-facing speech uses AgentHub-deployed shared tools. `plugin.json` must match 2.0.25. Missing or stale tools block generation until AgentHub syncs from a verified 2.0.25 package; do not default to unknown version.
+Local viewer-facing speech uses AgentHub-deployed shared tools. `plugin.json` must match 2.0.26. Missing or stale tools block generation until AgentHub syncs from a verified 2.0.26 package; do not default to unknown version.
 
 ```powershell
 $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $manifest = Join-Path $tools 'plugin.json'
 $generator = Join-Path $tools 'Generate-OwnerVoice.ps1'
 $integrity = Join-Path $tools 'Test-SpeechIntegrity.ps1'
-if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '2.0.25' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
-    throw 'Media Studio 2.0.25 voice tools are missing or stale. Deploy them from a verified package before generation.'
+if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '2.0.26' -or -not (Test-Path -LiteralPath $generator) -or -not (Test-Path -LiteralPath $integrity)) {
+    throw 'Media Studio 2.0.26 voice tools are missing or stale. Deploy them from a verified package before generation.'
 }
 & pwsh -NoProfile -File $generator -Job $Job
 ```
 
-Fail-closed pipeline: allowlisted style only (default `02_explaining` from `_identity_probe.json`) → integrity → `ai.ps1 transcribe` (Qwen3-ASR-1.7B) → dual-backend identity → retry → seed → `--premium` → STOP+LOG. Selection ledger before scene concat. Role voices (`ryan`/`vivian`/`aiden`/`joel` from scene `speaker`) get integrity + ASR only, no identity gate.
+Fail-closed pipeline: allowlisted style only (default `02_explaining` from `_identity_probe.json`) → integrity → `ai.ps1 transcribe` (Qwen3-ASR-1.7B) → retry on integrity/ASR failure only → seed → `--premium` → STOP+LOG. Selection ledger before scene concat. Role voices (`ryan`/`vivian`/`aiden`/`joel` from scene `speaker`) get integrity + ASR only, no identity gate.
 
-STOP+LOG from ASR misreading digits already in narration (identity passed): run `pwsh -NoProfile -File (Join-Path $tools 'ReGate-OwnerVoice.ps1') -Job $Job` after the same version check. It re-scores existing `take.wav` with number-normalized WER and looser integrity, writes fresh `PASS.json`—never re-synthesizes.
+STOP+LOG from ASR misreading digits already in narration (wrong-words rejection of a take that is audibly correct): run `pwsh -NoProfile -File (Join-Path $tools 'ReGate-OwnerVoice.ps1') -Job $Job` after the same version check. It re-scores existing `take.wav` with number-normalized WER and looser integrity, writes fresh `PASS.json`—never re-synthesizes. `-AdvisoryIdentity` (also on `Generate-OwnerVoice.ps1`) records `voice score` numbers in the receipt for information only.
 
-Script reads narration and `speaker` from `screenplay.json`; it does not parse `storyboard.json` or `visual-bible.json`. **Known gap:** renders whole job on default style, not per-beat `direction.register`. If a beat's register meaningfully differs, generate manually—`ai.ps1 voice qwen-clone --voice sarosh --reference <register-style.wav> --ref-text <sidecar> --text "…"`, gated through `Test-SpeechIntegrity.ps1` and `ai.ps1 voice score --voice sarosh`—splice into `voice/selected/` before scene concat. Do not claim register honored unless done by hand.
+Script reads narration and `speaker` from `screenplay.json`; it does not parse `storyboard.json` or `visual-bible.json`. **Known gap:** renders whole job on default style, not per-beat `direction.register`. If a beat's register meaningfully differs, generate manually—`ai.ps1 voice qwen-clone --voice sarosh --reference <register-style.wav> --ref-text <sidecar> --text "…"`, gated through `Test-SpeechIntegrity.ps1` and the ASR word check—splice into `voice/selected/` before scene concat. Do not claim register honored unless done by hand.
 
-**Banned:** inventing style IDs; using `03_firm`/others until allowlisted; GGUF talker/ASR forks; phonetic-respelling Sarosh input; assembling identity/ASR-failing segments.
+**Banned:** inventing style IDs; using `03_firm`/others until allowlisted; GGUF talker/ASR forks; phonetic-respelling Sarosh input; assembling integrity/ASR-failing segments; **regenerating, re-voicing or rejecting a take because a speaker-similarity score is low** (the voices are always correct; identity is advisory only, owner direction 2026-10-27).
 
 Pronunciation gate: before audio, runs `ai.ps1 voice pronunciation-risk`, writes `qa/pronunciation-risk.json` (heteronyms with POS reading per occurrence, stress-shift terms, names, acronyms, codes, symbols). Unresolvable heteronym stops run (`coverage.status: FAIL`); fix with `-PronunciationOverrides <json>` or reword. Pass lexicon via `-PronunciationLexicon` (ABACare: `skills/media-studio-capture/references/abacare-lexicon.json`). After integrity/ASR/identity pass, per-scene `ai.ps1 listen` on concatenated audio with canonical transcript and manifest slice; findings regenerate localized segment with new seed, listens again (`-ListenMaxRounds`, default 2), then STOP+LOG. `qa/pronunciation-listen.json` and ledger record reports by sha256. Extend `pronunciations.json` for recurring failures; never respell canonical narration.
 
@@ -87,7 +87,7 @@ Cloud music, SFX, dubbing, lipsync, video, editing need metered shared adapters 
 |---|---|---|
 | Owner/clone TTS | `ai.ps1 voice qwen-clone --voice <id>` | `references/voice.md` |
 | Role TTS | `ai.ps1 voice qwen-role` | `references/voice.md` |
-| Identity gate | `ai.ps1 voice score --voice sarosh <wav>` | `references/voice.md` |
+| Identity score (advisory, never gates) | `ai.ps1 voice score --voice sarosh <wav>` prints a number for information | `references/voice.md` |
 | Image | `ai.ps1 image single` | `references/image.md` |
 | Motif I2V | `ai.ps1 motif --reference <png> --prompt "…" --out <mp4>` | `references/video.md` |
 | Lipsync | `ai.ps1 lipsync <video> --audio <wav>` | `references/video.md` |
@@ -103,7 +103,7 @@ Write artifacts and generation scripts/config only into external job workspace. 
 ## 7. Final check
 
 - [ ] Default style unless beat's register deliberately overridden by hand and re-gated
-- [ ] Owner segments identity-scored
+- [ ] Owner segments passed integrity and ASR (identity not a gate)
 - [ ] Bed only if beat asked; stings short; silence beats have no music file
 - [ ] Bible B-roll generated with refuse honored
 - [ ] Receipt binds every plate compose will mux
