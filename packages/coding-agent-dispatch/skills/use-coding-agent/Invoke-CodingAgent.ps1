@@ -298,7 +298,8 @@ function Get-DispatchTable {
                 # the prompt. Flags are launchDefaults.devin; the registry points at
                 # the WinGet devin.exe, not the ~/bin shim that already adds them.
                 $args = @('--permission-mode', 'dangerous', '--respect-workspace-trust', 'false', '-p', '--prompt-file', $File)
-                if ($fleet.dispatchPolicy.devin.model) { $args += @('--model', [string]$fleet.dispatchPolicy.devin.model) }
+                $devinModel = if ($script:DevinModel) { $script:DevinModel } else { [string]$fleet.dispatchPolicy.devin.model }
+                if ($devinModel) { $args += @('--model', $devinModel) }
                 @{ Args = $args; Stdin = $null; PromptFile = $File }
             }
         }
@@ -491,7 +492,7 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $r
     $script:ClineProvider = $choice.Substring(0, $split)
     $script:ClineModel = $choice.Substring($split + 1)
 } elseif (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model)) {
-    if ($requested -notin @('opencode', 'factory')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp or Factory model.' }
+    if ($requested -notin @('opencode', 'factory', 'devin')) { Write-Refusal 3 '-Model applies only to an -AnthropicApiKey run or an allowed OpenCode, Cline, Warp, Factory or Devin model.' }
     # Governed routing is per task, but only within the owner's recorded
     # allowlist: a model outside it could bill beyond the recorded allowance.
     $allowedModels = @()
@@ -501,6 +502,7 @@ if (-not $AnthropicApiKey -and -not [string]::IsNullOrWhiteSpace($Model) -and $r
     if ($Model.Trim() -notin $allowedModels) { Write-Refusal 3 "refused ${requested}: $($Model.Trim()) is not in dispatchPolicy.${requested}.allowedModels" }
     if ($requested -eq 'opencode') { $script:OpenCodeModel = $Model.Trim() }
     if ($requested -eq 'factory') { $script:FactoryModel = $Model.Trim() }
+    if ($requested -eq 'devin') { $script:DevinModel = $Model.Trim() }
 }
 if (-not [string]::IsNullOrWhiteSpace($Title) -and $requested -ne 'opencode') {
     Write-Refusal 3 '-Title applies only to -HostId opencode.'

@@ -96,6 +96,12 @@ repo-owned `factory/runtime-settings.json` permission rules verified with
 If a Factory auth check fails, keep dispatch disabled and have the owner run
 `droid` and `/login` in their own terminal.
 
+Devin dispatch is local-only: `devin -p --prompt-file` with `--model`
+defaulting to `dispatchPolicy.devin.model` (free `swe-2-medium`); `-Model`
+refuses anything outside `dispatchPolicy.devin.allowedModels`. The dispatcher
+never emits `--cloud`. Permission mode stays `dangerous` by owner direction and
+Windows has no Devin sandbox, so run Devin only in `C:\wt` worktrees.
+
 Never log in, change credentials, or accept paid fallback automatically. A
 local headless command does not authorize cloud execution. `devin-cloud`,
 `jules`, `cursor-cloud` and `copilot-agent` are refused; no cloud adapter is

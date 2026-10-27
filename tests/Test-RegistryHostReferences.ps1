@@ -245,8 +245,8 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
     # 2026-10-23 restricted dispatch to Cursor, Grok and Codex; 2026-10-26 the
     # owner re-admitted OpenCode, then Cline, as execution peers (fleet-profile ownerDirection),
     # and the same day admitted Warp for local runs only, then Factory Droid (allowlisted
-    # models, medium autonomy, runtime permission rules).
-    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory')
+    # models, medium autonomy, runtime permission rules), then Devin for local runs only.
+    $authorized = @('cursor', 'cursor-agent', 'grok', 'codex', 'opencode', 'cline', 'warp', 'factory', 'devin')
     foreach ($id in $authorized) {
         if ($Policy.PSObject.Properties.Name -notcontains $id) { $violations.Add("Authorized host $id has no dispatch policy") }
     }
@@ -254,7 +254,7 @@ function Get-OwnerDispatchPolicyViolations($Policy) {
         if ($entry.Value.enabled -isnot [bool]) {
             $violations.Add("$($entry.Name) must declare an explicit dispatch enabled boolean")
         } elseif ($entry.Name -notin $authorized -and $entry.Value.enabled -ne $false) {
-            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok, Codex, OpenCode, Cline, Warp and Factory")
+            $violations.Add("$($entry.Name) dispatch violates the owner restriction to Cursor, Grok, Codex, OpenCode, Cline, Warp, Factory and Devin")
         }
     }
     foreach ($id in @('cursor', 'cursor-agent', 'grok')) {
@@ -313,6 +313,19 @@ function Test-LiveHostAuthenticationMetadata {
         [string]$factoryPolicy.autonomy -notin @('low', 'medium') -or
         -not (Test-Path -LiteralPath (Join-Path $repoRoot ([string]$factoryPolicy.runtimeSettings))))) {
         $violations.Add('Factory dispatch must stay on its account login at low or medium autonomy, with its default model inside allowedModels and a present runtime rules file')
+    }
+    # Devin: local runs on the account login with a free SWE-2 default; the
+    # high-cost Lightning tier stays out of the allowlist, and the cloud surface
+    # stays disabled until the owner records a cloud budget.
+    $devinPolicy = $profile.dispatchPolicy.devin
+    if ($devinPolicy.enabled -eq $true -and (
+        $profile.hostSettings.devin.authMode -ne 'account' -or
+        @($devinPolicy.allowedModels) -notcontains $devinPolicy.model -or
+        $devinPolicy.model -notlike 'swe-2-*' -or
+        @($devinPolicy.allowedModels | Where-Object { [string]$_ -like '*lightning*' }).Count -gt 0 -or
+        [string]$devinPolicy.scope -notmatch '^local-only' -or
+        $profile.dispatchPolicy.'devin-cloud'.enabled -ne $false)) {
+        $violations.Add('Devin dispatch must stay local-only on its account login, with a free SWE-2 default inside allowedModels, no Lightning tier, and devin-cloud disabled')
     }
     if ($profile.hostSettings.cline.authMode -ne 'apiKey' -or
         $profile.hostSettings.cline.provider -ne 'openai-compatible' -or

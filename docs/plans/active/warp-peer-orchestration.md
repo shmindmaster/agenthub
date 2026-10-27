@@ -34,7 +34,7 @@ Run one or two Warp tasks at a time, not four at once.
 |---|---|---|---|---|---|---|
 | W-1 | D: agent automation | Pass AgentHub MCP config to Warp runs via `--mcp`, add dispatcher tests | glm-5.3-fireworks | Integrated (e6f1094, 89/89 dispatch tests); live tool call not yet exercised | `C:\wt\agenthub\warp-mcp` (from `worktree-warp-peer`) | dispatch tests pass; one run's ndjson shows the tool call |
 | W-2 | A: code health | Characterization tests, then decompose `parseToml` (`src/doctor/parsers.js`, CCN 92) with no behaviour change | glm-5.3-fireworks | Integrated (ca82ec5; 22 tests added, 58 pass / 0 fail) | `C:\wt\agenthub\warp-parse-toml` | `node --test test/doctor` passes before and after; CCN lower |
-| W-3 | A: code health | Split `qaStage` (`packages/media-studio/kit/marketing/lib/stages/qa.mjs`, CCN 42) into helpers behind existing tests | glm-5.3-flash-fireworks | Discovered | `C:\wt\agenthub\warp-qa-stage` | `npm test -- packages/media-studio/tests/review-hardening.test.mjs` passes |
+| W-3 | A: code health | Split `qaStage` (`packages/media-studio/kit/marketing/lib/stages/qa.mjs`, CCN 42) into helpers behind existing tests | glm-5.3-flash-fireworks | Superseded: reassigned to Devin DV-1 on 2026-10-26 (never started here) | `C:\wt\agenthub\devin-qa-stage` | `npm test -- packages/media-studio/tests/review-hardening.test.mjs` passes |
 
 Not taken (already owned): `validateCampaign`, `lintSpec` (Factory F-1),
 `parseShotList` (F-1, Cline CL-3), `repowise_bridge.py` (F-2), `buildRatioPlan`

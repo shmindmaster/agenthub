@@ -293,7 +293,7 @@
       "loginCommand": "codex login"
     },
     "devin": {
-      "model": "swe-2-medium-lightning",
+      "model": "swe-2-medium",
       "authMode": "account",
       "loginCommand": "devin auth login"
     },
@@ -304,7 +304,7 @@
     },
     "windsurf": {
       "aliasOf": "devin",
-      "model": "swe-2-medium-lightning",
+      "model": "swe-2-medium",
       "authMode": "account",
       "loginCommand": "devin auth login"
     },
@@ -427,8 +427,8 @@
     },
     "devin-cloud": {
       "enabled": false,
-      "reason": "Hosted cloud execution is prohibited; no cloud adapter has been verified.",
-      "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget before implementing and enabling a cloud adapter."
+      "reason": "Hosted cloud execution is prohibited; no cloud adapter has been verified. 2026-10-26: the owner wants Devin Cloud as a peer surface but authorized no cloud budget for this batch. The user-scope DEVIN_API_KEY is a service-user key (principal 'SHMain') whose org differs from DEVIN_ORG_ID; it lists zero sessions in its own org and gets 403 ('_org.is_user') on the DEVIN_ORG_ID org, so earlier cloud history there is not established.",
+      "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget (the v3 API accepts a per-session max_acu_limit) before implementing and enabling a cloud adapter."
     },
     "jules": {
       "enabled": false,
@@ -446,11 +446,22 @@
       "ownerAction": "Explicitly authorize the specific task, model, cadence, stop condition and cost budget before implementing and enabling a cloud adapter."
     },
     "devin": {
-      "enabled": false,
-      "model": "swe-2-medium-lightning",
-      "reason": "Paid plan; model swe-2-medium-lightning",
-      "verifiedOn": "2026-10-21",
-      "ownerDirection": "2026-10-23 20:21 CT: only Cursor, Grok and Codex may run agent work; other hosts disabled."
+      "enabled": true,
+      "scope": "local-only: devin -p in C:\\wt worktrees. --cloud, /handoff, /cloud, devin connect (Local Hands) and the Devin API session routes stay prohibited while dispatchPolicy.devin-cloud is disabled.",
+      "model": "swe-2-medium",
+      "allowedModels": [
+        "swe-2-medium",
+        "swe-2-high",
+        "swe-2-max",
+        "adaptive",
+        "fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium"
+      ],
+      "allowedModelsNote": "devin models list --format json 2026-10-26 (CLI 3000.11.205, Devin Pro): swe-2-medium, swe-2-high and swe-2-max are cost_tier Free. adaptive is $0.5/$0.1/$2 per 1M input/cached/output; fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium is Med cost, $2/$0.1/$10 for the lead with a Free sidekick. Paid usage draws the Pro daily/weekly quota, then on-demand credits (docs.devin.ai/admin/billing/self-serve). The former default swe-2-medium-lightning is High cost ($1/$0.1/$5) and is excluded, as are Opus/Fable/GPT Fusion leads.",
+      "permissionMode": "dangerous",
+      "permissionNote": "Owner direction 2026-10-26: leave permissions as they are (user env DEVIN_PERMISSION_MODE=dangerous, launchDefaults.devin). Devin's OS sandbox and the autonomous mode that needs it are not supported on Windows (docs.devin.ai/cli/sandbox), and no deny rules are configured, so nothing blocks git push or gh calls from a dispatched run. Run Devin only in C:\\wt worktrees and review before integrating.",
+      "reason": "2026-10-26: account login verified (devin auth status: Devin Pro, team membership approved). The dispatcher strips DEVIN_API_KEY/DEVIN_API_TOKEN/DEVIN_ORG_ID so the stored login authenticates. read_config_from already disables claude, cursor, windsurf, copilot, opencode and zed imports (only agents_standard), so AgentHub-deployed MCP, skills and AGENTS.md are the only shared capability source. Headless dispatch smoke: not yet run (free RAM 1.2 GB, CPU 100% at 20:15 CT); see docs/plans/active/devin-peer-orchestration.md.",
+      "verifiedOn": "2026-10-26",
+      "ownerDirection": "2026-10-26: owner asked in the Claude session to make Devin a first-class execution peer (local and cloud), with no cloud budget for this batch, local tasks run one at a time once free RAM allows, and permissions left as they are. This supersedes, for Devin local runs only, 2026-10-23 20:21 CT ('only Cursor, Grok and Codex may run agent work')."
     },
     "opencode": {
       "enabled": true,
