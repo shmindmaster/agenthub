@@ -55,7 +55,7 @@ qa/story-judgments.json shape:
      "findings": [{"id": "J-1", "severity": "minor|major|block", "location": "S25", "evidence": "...",
                    "fix": "...", "owner": "media-storyboard", "points": 5}]}
 
-Scoring follows the rubric, in the open: start 100; -20 missing hook / missing hero / greeting or feature-tour opening;
+Scoring follows the rubric, in the open: start 100; -20 missing hook / hero count other than exactly one / greeting or feature-tour opening;
 -15 no before-state; -10 per filler beat or accidental consecutive repeat; -10 once when narration reads on-screen
 type; -5 per type-density miss; judgment findings deduct their `points` (default minor 5, major 15; block forces
 fail). A failed check the rubric gives no arithmetic for (trust, designed-frames, no-fluff, platform, or a failed judgment)
