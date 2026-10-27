@@ -44,7 +44,7 @@ not inspected).
 | A7 | 30 synthetic rules-eval cases | not recorded | OpenCode OC-2 | Running | subops `chore/synthetic-rules-eval-cases`, local only | glm-5.3-flash | `20c634e3` | see OC-2 |
 | A8 | private-beta gate | not recorded | unassigned | Stalled | subops `wip/private-beta-20261026` (local), coledger `wip/private-beta` | — | WIP snapshots | scope with owner |
 | A9 | retrieval OSS resource contract | not recorded | OpenCode OC-1 | Running | local-ai-platform `fix/retrieval-oss-resource-contract` (13 commits, 41 files) | deepseek-v4-pro | no PR; overlaps merged #41 | see OC-1 |
-| A9b | scheduler / lock / hidden-descendant fixes | not recorded | unassigned | Stalled | local-ai-platform `wip/*-20261026` (3 branches) | — | pushed, no PR | reconcile after OC-1 |
+| A9b | scheduler / lock / hidden-descendant fixes | not recorded | Devin DV-3 | Done 2026-10-26: all 7 commits already on main or superseded; branches deleted (see devin-peer-orchestration.md) | local-ai-platform `wip/*-20261026` (3 branches) | — | pushed, no PR | reconcile after OC-1 |
 | A10 | rexa vlc-v2 review fix | not recorded | unassigned | Stalled | rexa `fix/vlc-v2-review-fixes-20261026` | — | pushed, 1 file, no PR | owner (rexa mobile-deferred) |
 | A11 | Sienna narration + API-key + resume validation | not recorded | owner | Stalled | agenthub local `main` has unpushed `9417f2f`; `wip/agenthub-claude-apikey`, `wip/resume-validation`, `wip/cloud-render` | — | not on origin/main | owner: push or branch |
 | A12 | fleet repo-standard migration (milestone 4) | DeepSeek workers planned | OpenCode OC-3 | Running | `docs/plans/active/fleet-repo-standardization.md` | minimax-m3 | 1 of 16 done | see OC-3 |
