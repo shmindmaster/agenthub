@@ -248,5 +248,127 @@ class AzureTests(unittest.TestCase):
             self.assertEqual(con.execute("SELECT ceiling FROM budgets").fetchone()[0], 1_000_000)
 
 
+class StandardExtensionTests(AzureTests):
+    def standard(self):
+        return az.quote("Synthetic friendly answer.", workspace="synthetic-job", revision="standard-v1",
+                        dictionary_revision="v1", voice=az.STANDARD_VOICE, style="friendly")
+
+    def extension(self, plan):
+        entry = {"cache_key": plan["cache_key"], "text_sha256": plan["text_sha256"],
+                 "ssml_utf8_bytes": len(plan["request"]["ssml"].encode()),
+                 "maximum_usd_micros": plan["maximum_usd_micros"]}
+        grant = {"kind": "azure-standard-same-ledger-extension", "owner_authorization": az.APPROVAL,
+                 "workspace": "synthetic-job", "original_authorization_sha256": hashlib.sha256(self.manifest.read_bytes()).hexdigest(),
+                 "maximum_aggregate_usd_micros": 1_000_000, "preserve_all_existing_reservations": True,
+                 "price_policy": az.STANDARD_PRICE_POLICY, "authorized_at_utc": "2026-10-27T05:00:00Z",
+                 "maximum_new_usd_micros": entry["maximum_usd_micros"], "requests": [entry]}
+        path = self.base / "extension.json"
+        path.write_text(json.dumps(grant))
+        return path, grant
+
+    def test_standard_quote_and_original_hd_key_stable(self):
+        plan = self.standard()
+        self.assertIn('mstts:express-as style="friendly"', plan["request"]["ssml"])
+        self.assertEqual(plan["maximum_usd_micros"], len(plan["request"]["ssml"].encode()) * 15)
+        self.assertEqual(self.plan, az.quote("Synthetic rehearsal <answer> & example.", workspace="synthetic-job", revision="v1", dictionary_revision="v1"))
+        with self.assertRaises(ValueError):
+            az.quote("x", workspace="j", revision="1", dictionary_revision="1", voice=az.STANDARD_VOICE)
+
+    def test_standard_cannot_create_fresh_budget_or_use_original_authority(self):
+        plan = self.standard()
+        path, grant = self.extension(plan)
+        with self.assertRaises(RuntimeError):
+            az.authorized_standard_ledger(self.manifest, path, "synthetic-job", plan)
+        self.assertFalse((self.base / "AgentHub").exists())
+        with self.assertRaises(RuntimeError):
+            az.authorized_ledger(self.manifest, "synthetic-job", plan)
+
+    def test_extension_reuses_ledger_preserves_unknown_and_immutable_grant(self):
+        ledger = self.ledger()
+        namespace = ledger.namespace("azure-job:" + ledger.azure_authorization_hash, "synthetic-job")
+        row = ledger.claim(namespace, self.plan["cache_key"], az.BUCKET, 999_000)
+        ledger.submitted(row)
+        ledger.unknown(row)
+        plan = self.standard()
+        path, grant = self.extension(plan)
+        original_bytes = (ledger.root / "authorization.json").read_bytes()
+        extended = az.authorized_standard_ledger(self.manifest, path, "synthetic-job", plan)
+        self.assertEqual(extended.root, ledger.root)
+        self.assertEqual(ledger.lookup(namespace, self.plan["cache_key"])["state"], "unknown")
+        calls = []
+        with self.assertRaises(Exception):
+            az._generate(extended, plan, "synthetic-job", "synthetic", lambda *a: calls.append(a))
+        self.assertEqual(calls, [])
+        self.assertEqual((ledger.root / "authorization.json").read_bytes(), original_bytes)
+        grant["authorized_at_utc"] = "2026-10-27T05:01:00Z"
+        path.write_text(json.dumps(grant))
+        with self.assertRaises(RuntimeError):
+            az.authorized_standard_ledger(self.manifest, path, "synthetic-job", plan)
+
+    def test_extension_fences_changed_quote_and_overcap(self):
+        self.ledger()
+        plan = self.standard()
+        path, grant = self.extension(plan)
+        grant["requests"][0]["maximum_usd_micros"] += 1
+        path.write_text(json.dumps(grant))
+        with self.assertRaises(RuntimeError):
+            az.authorized_standard_ledger(self.manifest, path, "synthetic-job", plan)
+        self.assertFalse((self.ledger().root / "standard-extension-authorization.json").exists())
+        path, grant = self.extension(plan)
+        grant["requests"][0].update(ssml_utf8_bytes=46001, maximum_usd_micros=690015)
+        grant["maximum_new_usd_micros"] = 690015
+        path.write_text(json.dumps(grant))
+        with self.assertRaises(RuntimeError):
+            az.authorized_standard_ledger(self.manifest, path, "synthetic-job", plan)
+
+    def test_chained_grant_pins_by_hash_preserves_parent_unknown_and_cap(self):
+        ledger = self.ledger()
+        plan = self.standard()
+        path, _ = self.extension(plan)
+        az.authorized_standard_ledger(self.manifest, path, "synthetic-job", plan)
+        parent = (ledger.root / "standard-extension-authorization.json").read_bytes()
+        namespace = ledger.namespace("azure-job:" + ledger.azure_authorization_hash, "synthetic-job")
+        row = ledger.claim(namespace, self.plan["cache_key"], az.BUCKET, 999_000)
+        ledger.submitted(row)
+        ledger.unknown(row)
+        new = az.quote("Additional synthetic fact.", workspace="synthetic-job", revision="repair-v1",
+                       dictionary_revision="v1", voice=az.STANDARD_VOICE, style="friendly")
+        path, grant = self.extension(new)
+        grant["parent_standard_extension_sha256"] = hashlib.sha256(parent).hexdigest()
+        path.write_text(json.dumps(grant))
+        raw = path.read_bytes()
+        extended = az.authorized_standard_ledger(self.manifest, path, "synthetic-job", new)
+        az.authorized_standard_ledger(self.manifest, path, "synthetic-job", new)
+        pin = ledger.root / ("standard-extension-" + hashlib.sha256(raw).hexdigest() + ".json")
+        self.assertEqual(pin.read_bytes(), raw)
+        self.assertEqual((ledger.root / "standard-extension-authorization.json").read_bytes(), parent)
+        self.assertEqual(ledger.lookup(namespace, self.plan["cache_key"])["state"], "unknown")
+        calls = []
+        with self.assertRaises(RuntimeError):
+            az._generate(extended, new, "synthetic-job", "synthetic", lambda *a: calls.append(a))
+        self.assertEqual(calls, [])
+        with ledger.connect() as con:
+            self.assertEqual(con.execute("SELECT ceiling FROM budgets").fetchone()[0], 1_000_000)
+
+    def test_chained_grant_requires_exact_existing_original_parent(self):
+        ledger = self.ledger()
+        plan = self.standard()
+        path, grant = self.extension(plan)
+        parent_raw = path.read_bytes()
+        grant["parent_standard_extension_sha256"] = hashlib.sha256(parent_raw).hexdigest()
+        path.write_text(json.dumps(grant))
+        with self.assertRaises(RuntimeError):
+            az.authorized_standard_ledger(self.manifest, path, "synthetic-job", plan)
+        self.assertFalse((ledger.root / "standard-extension-authorization.json").exists())
+        path.write_bytes(parent_raw)
+        az.authorized_standard_ledger(self.manifest, path, "synthetic-job", plan)
+        for value in (None, "bad", "0" * 64):
+            grant["parent_standard_extension_sha256"] = value
+            path.write_text(json.dumps(grant))
+            with self.assertRaises(RuntimeError):
+                az.authorized_standard_ledger(self.manifest, path, "synthetic-job", plan)
+        self.assertEqual((ledger.root / "standard-extension-authorization.json").read_bytes(), parent_raw)
+
+
 if __name__ == "__main__":
     unittest.main()
