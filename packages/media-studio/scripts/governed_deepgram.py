@@ -322,7 +322,11 @@ def _register_batch(root, raw, policy, proof, original_raw, workspace):
             ambiguous.update(uncertain)
         if current is None:
             new = set(proof["new_rendered_text_sha256"])
-            if known & set(proof["ambiguous_rendered_text_sha256"]):
+            # The immutable parent may conservatively classify historical
+            # hashes as ambiguous too. Carry that exact overlap forward;
+            # newly introduced ambiguity still contradicts known inputs.
+            inherited_overlap = original_known & original_ambiguous
+            if (known & set(proof["ambiguous_rendered_text_sha256"])) - inherited_overlap:
                 raise RuntimeError("Inventory contradicts previously known inputs; reconcile history first")
             if (new & (known | ambiguous)
                     or not known <= set(proof["historical_rendered_text_sha256"])

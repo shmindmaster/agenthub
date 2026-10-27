@@ -465,6 +465,42 @@ class AdapterTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     adapter._epoch_policy(json.dumps(policy).encode(), "synthetic-test")
 
+    def test_inherited_historical_ambiguity_empty_registration_recovery(self):
+        p, new = plan(), plan("New words after conservative historical ambiguity.")
+        original, policy, proof, proof_path = self.policy(p)
+        historical = hashlib.sha256(b"historical uncertain content").hexdigest()
+        proof["historical_rendered_text_sha256"] = [historical]
+        proof["ambiguous_rendered_text_sha256"] = [historical]
+        proof_path.write_text(json.dumps(proof), encoding="utf-8")
+        policy["inventory_proof"]["sha256"] = hashlib.sha256(proof_path.read_bytes()).hexdigest()
+        original.write_text(json.dumps(policy), encoding="utf-8")
+        with self.epoch_environment():
+            ledger = adapter.recovery_epoch_ledger(original, "synthetic-test", p)
+            parent_bytes = (ledger.root / "authorization.json").read_bytes()
+            proof_bytes = proof_path.read_bytes()
+            batch, batch_policy = self.batch_policy(original, new)
+            # Preserve a real first-attempt failure's empty directory. No
+            # index/pair/reservation was written; recovery must be append-only.
+            directory = ledger.root / "additional-batches"
+            directory.mkdir()
+            adapter.recovery_epoch_ledger(batch, "synthetic-test", new)
+            self.assertEqual((ledger.root / "authorization.json").read_bytes(), parent_bytes)
+            self.assertEqual(proof_path.read_bytes(), proof_bytes)
+            self.assertEqual(len(list(directory.iterdir())), 2)
+            self.assertTrue((ledger.root / "additional-batches.index.json").is_file())
+            # Prior allowed/unsubmitted input cannot newly become ambiguous.
+            next_plan = plan("Second new input.")
+            next_batch, next_policy = self.batch_policy(original, next_plan, batch="later", prior=(batch,))
+            next_proof_path = pathlib.Path(next_policy["inventory_proof"]["path"])
+            next_proof = json.loads(next_proof_path.read_bytes())
+            next_proof["ambiguous_rendered_text_sha256"].append(hashlib.sha256(new["request"]["text"].encode()).hexdigest())
+            next_proof_path.write_text(json.dumps(next_proof), encoding="utf-8")
+            next_policy["inventory_proof"]["sha256"] = hashlib.sha256(next_proof_path.read_bytes()).hexdigest()
+            next_batch.write_text(json.dumps(next_policy), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "contradicts"):
+                adapter.recovery_epoch_ledger(next_batch, "synthetic-test", next_plan)
+            self.assertFalse((directory / "later.json").exists())
+
     def batch_policy(self, parent, p, batch="new-words", prior=()):
         original = json.loads(parent.read_bytes())
         original_proof = json.loads(pathlib.Path(original["inventory_proof"]["path"]).read_bytes())
