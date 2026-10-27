@@ -244,6 +244,76 @@ class LedgerTests(unittest.TestCase):
             with self.assertRaises((RuntimeError, ValueError)):
                 accept_manifest(self.ledger, "account-a", "same", manifest)
 
+    def project_fixture(self):
+        text = "New complete synthetic interview story."
+        digest = hashlib.sha256(text.encode()).hexdigest()
+        request = {"voice_id":"fixture-professional-clone", "model_id":"eleven_flash_v2_5",
+                   "output_format":"pcm_44100", "revision":"fixture-v3",
+                   "payload":{"text":text,"pronunciation_dictionary_locators":[]}}
+        proof = {"kind":"elevenlabs-new-input-inventory", "enumerated_scopes":["Synthetic fixture inventory"],
+                 "new_text_sha256":[digest], "historical_text_sha256":[], "ambiguous_text_sha256":[]}
+        inventory = self.root/'inventory.json'; inventory.write_text(json.dumps(proof))
+        policy = {"kind":"elevenlabs-owner-authorized-project-epoch-v1", "epoch_id":"elevenlabs-project-fixture",
+                  "maximum_credits":12000, "owner_authorized_maximum_credits":12000,
+                  "owner_authorization":"Authorize 12,000 existing credits", "workspace":"fixture",
+                  "historical_accounting":"UNKNOWN", "historical_requests":"FENCED",
+                  "voice_id":request['voice_id'],"output_format":request['output_format'],
+                  "request_revision":request['revision'],"pronunciation_locators_sha256":request_key([]),
+                  "allowed_text_sha256":[digest],
+                  "allowed_requests":[{"text_sha256":digest,"request_sha256":request_key(request)}],
+                  "inventory_proof":{"path":str(inventory),"sha256":hashlib.sha256(inventory.read_bytes()).hexdigest()}}
+        manifest=self.root/'project.json';manifest.write_text(json.dumps(policy))
+        return text, request, proof, inventory, policy, manifest
+
+    def test_project_epoch_preserves_aggregate_unknown_and_immutable_authority(self):
+        text,request,proof,inventory,policy,manifest=self.project_fixture()
+        original=manifest.read_bytes()
+        with patch.dict(os.environ,{"LOCALAPPDATA":str(self.root)}), \
+                patch("content_runtime.running_on_windows",return_value=True), \
+                patch("content_runtime.secure_directory",side_effect=lambda p:p.mkdir(parents=True,exist_ok=True)):
+            ledger=recovery_epoch_ledger(manifest,'fixture',text,'eleven_flash_v2_5',request=request)
+            claim=ledger.claim('one','one','elevenlabs/credits',11000)
+            ledger.submitted(claim);ledger.unknown(claim)
+            again=recovery_epoch_ledger(manifest,'fixture',text,'eleven_flash_v2_5',request=request)
+            again.claim('two','two','elevenlabs/credits',1000)
+            with self.assertRaisesRegex(RuntimeError,'ceiling'):
+                again.claim('three','three','elevenlabs/credits',1)
+            self.assertEqual((ledger.root/'authorization.json').read_bytes(),original)
+            policy['maximum_credits']=11999;manifest.write_text(json.dumps(policy))
+            with self.assertRaisesRegex(RuntimeError,'immutable'):
+                recovery_epoch_ledger(manifest,'fixture',text,'eleven_flash_v2_5',request=request)
+
+    def test_project_epoch_rejects_changed_approval_request_and_limits_before_state(self):
+        text,request,proof,inventory,policy,manifest=self.project_fixture()
+        variants=[{'maximum_credits':12001},{'owner_authorized_maximum_credits':13000},
+                  {'owner_authorization':'Inferred approval'}, {'voice_id':'other'},
+                  {'output_format':'other'}, {'request_revision':'other'},
+                  {'pronunciation_locators_sha256':request_key(['other'])},
+                  {'allowed_requests':[]},{'additional_batch_id':'second'},
+                  {'kind':'generic','maximum_credits':1001}]
+        with patch('content_runtime.secure_directory') as secure:
+            for variant in variants:
+                manifest.write_text(json.dumps({**policy,**variant}))
+                with self.assertRaises(RuntimeError):
+                    recovery_epoch_ledger(manifest,'fixture',text,'eleven_flash_v2_5',request=request)
+            manifest.write_text(json.dumps(policy))
+            with self.assertRaises(RuntimeError):
+                recovery_epoch_ledger(manifest,'fixture',text,'eleven_flash_v2_5',request={**request,'payload':{'text':text,'speed':1.1}})
+            secure.assert_not_called()
+
+    def test_project_epoch_fences_ambiguous_and_tampered_inventory(self):
+        text,request,proof,inventory,policy,manifest=self.project_fixture()
+        with patch('content_runtime.secure_directory') as secure:
+            proof['ambiguous_text_sha256']=proof['new_text_sha256']
+            inventory.write_text(json.dumps(proof))
+            with self.assertRaisesRegex(RuntimeError,'inventory proof'):
+                recovery_epoch_ledger(manifest,'fixture',text,'eleven_flash_v2_5',request=request)
+            policy['inventory_proof']['sha256']=hashlib.sha256(inventory.read_bytes()).hexdigest()
+            manifest.write_text(json.dumps(policy))
+            with self.assertRaisesRegex(RuntimeError,'fence'):
+                recovery_epoch_ledger(manifest,'fixture',text,'eleven_flash_v2_5',request=request)
+            secure.assert_not_called()
+
     def test_unknown_billing_retains_reservation_and_acceptance_requires_gates(self):
         claim = self.claim()
         result = self.finish(claim)

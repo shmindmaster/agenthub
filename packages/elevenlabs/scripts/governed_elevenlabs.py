@@ -29,10 +29,21 @@ def new_ledger(root=None):
 
 def generate(cli, args, voice_id, model_id, output_format, payload, with_timestamps=False):
     recovery = getattr(args, "recovery_epoch_manifest", None)
-    ledger = (runtime_module().recovery_epoch_ledger(recovery, args.cache_workspace, args.text, model_id)
+    request = speech_request(args, voice_id, model_id, output_format, payload, with_timestamps)
+    ledger = (runtime_module().recovery_epoch_ledger(recovery, args.cache_workspace, args.text, model_id, request=request)
               if recovery else new_ledger())
     with ledger.session() as ledger:
         return _generate(ledger, cli, args, voice_id, model_id, output_format, payload, with_timestamps)
+
+
+def speech_request(args, voice_id, model_id, output_format, payload, with_timestamps=False):
+    request = {"provider": "elevenlabs/rest/v1", "voice_id": voice_id,
+               "model_id": model_id, "output_format": output_format,
+               "revision": args.cache_revision, "payload": payload,
+               "quality_policy": "owner-voice-five-gates-v1"}
+    if with_timestamps:
+        request["endpoint"] = "with-timestamps"
+    return request
 
 
 def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, with_timestamps=False):
@@ -49,13 +60,7 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, wit
     if not required <= payload.get("voice_settings", {}).keys() or "apply_text_normalization" not in payload:
         raise RuntimeError("Governed generation requires explicit voice settings and text normalization")
     namespace = ledger.namespace(os.environ.get("ELEVENLABS_API_KEY", ""), args.cache_workspace)
-    request = {"provider": "elevenlabs/rest/v1", "voice_id": voice_id,
-               "model_id": model_id, "output_format": output_format,
-               "revision": args.cache_revision, "payload": payload,
-               "quality_policy": "owner-voice-five-gates-v1"}
-    if with_timestamps:
-        # Added only when set, so every existing audio-only key keeps resolving to its saved bytes.
-        request["endpoint"] = "with-timestamps"
+    request = speech_request(args, voice_id, model_id, output_format, payload, with_timestamps)
     key = runtime_module().request_key(request)
     maximum = int(args.max_credits)
     deadline = time.monotonic() + 610

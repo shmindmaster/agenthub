@@ -70,6 +70,28 @@ allowance and live confirmation that overages are disabled. Normal exact-cache,
 singleflight, unknown-response fencing and receipt requirements remain active.
 The epoch does not claim an account-wide or restored historical billing ceiling.
 
+A separately approved full-project epoch may use
+`kind: elevenlabs-owner-authorized-project-epoch-v1`, capped at 12,000 existing
+credits. This does not raise the generic 1,000-credit recovery cap. It requires
+the explicit owner direction `Authorize 12,000 existing credits`,
+`owner_authorized_maximum_credits: 12000`, an `elevenlabs-project-` epoch ID,
+and the same UNKNOWN/FENCED historical accounting. Its immutable authorization
+pins `voice_id`, `output_format`, `request_revision`, and
+`pronunciation_locators_sha256` (the canonical request hash of the locator list).
+`allowed_requests` contains exact `text_sha256`/`request_sha256` pairs; request
+hashes cover the voice, model, settings, normalization, dictionaries, format and
+timestamp endpoint. No additional-batch registration is supported in this mode.
+
+The external `inventory_proof` requires an absolute path and SHA256. Its JSON has
+`kind: elevenlabs-new-input-inventory`, nonempty `enumerated_scopes`, and complete
+`new_text_sha256`, `historical_text_sha256`, `ambiguous_text_sha256` lists for the
+enumerated evidence. New inputs must exactly match the authorization allowlist
+and be disjoint from historical and ambiguous inputs. Independent evidence
+review remains required; this attestation does not restore missing history.
+All requests and any separately authorized retake remain inside the one project
+ceiling, with live overages disabled. Unknown reservations remain charged against
+the ceiling. Existing epochs and original authorization files remain untouched.
+
 The single `elevenlabs/credits` bucket spans all credential/workspace namespaces.
 It is a lifetime aggregate ceiling, with no reset or automatic replenishment.
 Each purchase reserves the full integer `--max-credits` before provider POST.

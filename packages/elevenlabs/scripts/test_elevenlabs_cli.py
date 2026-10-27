@@ -114,6 +114,27 @@ class SpendingBoundaries(unittest.TestCase):
             self.assertFalse(target.exists())
             post.assert_not_called()
 
+    def test_cli_exact_request_hash_preserves_parsed_numeric_types(self):
+        captured = {}
+        def intercept(_cli, args, voice_id, model_id, output_format, payload, with_timestamps=False):
+            captured['request'] = governed.speech_request(args, voice_id, model_id, output_format, payload, with_timestamps)
+            raise RuntimeError('Synthetic offline request capture')
+        with patch.object(governed, 'generate', side_effect=intercept), \
+                patch.object(cli, '_request_full') as post, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(self.invoke(self.root/'capture.mp3', ['--max-credits','10','--with-timestamps']), 2)
+            post.assert_not_called()
+        actual = captured['request']
+        self.assertIs(type(actual['payload']['voice_settings']['style']), float)
+        self.assertIs(type(actual['payload']['voice_settings']['speed']), float)
+        expected = {**actual, 'payload':{**actual['payload'], 'voice_settings':{
+            'stability':0.5, 'similarity_boost':0.75, 'style':0.0, 'speed':1.0, 'use_speaker_boost':True}}}
+        self.assertEqual(governed.runtime_module().request_key(actual), governed.runtime_module().request_key(expected))
+        integers = {**actual, 'payload':{**actual['payload'], 'voice_settings':{
+            **actual['payload']['voice_settings'], 'style':0, 'speed':1}}}
+        self.assertNotEqual(governed.runtime_module().request_key(actual), governed.runtime_module().request_key(integers))
+        self.assertEqual(actual['endpoint'], 'with-timestamps')
+        self.assertFalse((self.root/'capture.mp3').exists())
+
     def test_render_receipt_binds_bytes(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", b"synthetic audio", {"request-id": "fixture-request"})) as post:
             target = pathlib.Path(folder)/"take.mp3"

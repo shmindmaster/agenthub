@@ -69,7 +69,7 @@ def canonical_default_root(root: pathlib.Path) -> pathlib.Path:
     return target
 
 
-def recovery_epoch_ledger(manifest_path, workspace, text, model_id):
+def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None):
     """Explicit bounded new accounting epoch; never reconstructs old spend.
 
     Operator authorization locks a small allowlist of demonstrably new/unsubmitted
@@ -81,8 +81,46 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id):
     policy = json.loads(raw)
     ceiling = integer(policy.get("maximum_credits"))
     epoch = policy.get("epoch_id", "")
+    project = policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v1"
+    if project:
+        # A separate, explicitly approved project authorization never raises the
+        # generic recovery ceiling or rewrites an existing epoch's authority.
+        if (ceiling > 12000 or policy.get("owner_authorized_maximum_credits") != 12000
+                or policy.get("owner_authorization") != "Authorize 12,000 existing credits"
+                or not epoch.startswith("elevenlabs-project-")
+                or policy.get("additional_batch_id") is not None
+                or not isinstance(request, dict)
+                or request.get("voice_id") != policy.get("voice_id")
+                or not policy.get("voice_id")
+                or request.get("output_format") != policy.get("output_format")
+                or request.get("model_id") != model_id
+                or request.get("revision") != policy.get("request_revision")
+                or request.get("payload", {}).get("text") != text
+                or request_key(request.get("payload", {}).get("pronunciation_dictionary_locators", []))
+                   != policy.get("pronunciation_locators_sha256")):
+            raise RuntimeError("Project epoch requires exact owner approval and pinned speech request")
+        allowed_requests = policy.get("allowed_requests", [])
+        text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        if (not isinstance(allowed_requests, list) or not 1 <= len(allowed_requests) <= 20
+                or not any(isinstance(r, dict) and r.get("text_sha256") == text_hash
+                           and r.get("request_sha256") == request_key(request) for r in allowed_requests)):
+            raise RuntimeError("Speech request is outside the project epoch allowlist")
+        proof_ref = policy.get("inventory_proof", {})
+        proof_path = pathlib.Path(proof_ref.get("path", ""))
+        if (not proof_path.is_absolute() or not proof_path.is_file() or linked_path(proof_path)
+                or hashlib.sha256(proof_path.read_bytes()).hexdigest() != proof_ref.get("sha256")):
+            raise RuntimeError("Project epoch requires intact external new-input inventory proof")
+        proof = json.loads(proof_path.read_bytes())
+        if (proof.get("kind") != "elevenlabs-new-input-inventory"
+                or not proof.get("enumerated_scopes")
+                or not all(isinstance(proof.get(k), list) for k in
+                           ("new_text_sha256", "historical_text_sha256", "ambiguous_text_sha256"))
+                or set(policy.get("allowed_text_sha256", [])) != set(proof["new_text_sha256"])
+                or set(proof["new_text_sha256"]) &
+                   (set(proof["historical_text_sha256"]) | set(proof["ambiguous_text_sha256"]))):
+            raise RuntimeError("Project inventory must fence historical and ambiguous inputs")
     if (not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", epoch)
-            or ceiling > 1000 or policy.get("historical_accounting") != "UNKNOWN"
+            or ceiling > (12000 if project else 1000) or policy.get("historical_accounting") != "UNKNOWN"
             or policy.get("historical_requests") != "FENCED"
             or not policy.get("owner_authorization")
             or policy.get("workspace") != workspace
