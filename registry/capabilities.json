@@ -1029,7 +1029,7 @@
         "media-studio-compose",
         "media-studio-qa"
       ],
-      "contentHash": "ADD633355D21FB10ECA39D52A7937E2FF550727B41FF5E25E544C06227B4702A",
+      "contentHash": "3B069D5072E8B4B488FFA8674A49D615CED6E127C5DF1F0E599DBEB5B40096A0",
       "hashBasis": "packages/media-studio",
       "status": "active-canonical",
       "hostMappings": [
