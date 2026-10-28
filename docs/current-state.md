@@ -1,5 +1,18 @@
 # Current State
 
+- **RepoWise bridge remote mode (2026-10-28):** plugin 1.2.12 lets the
+  `repowise@agenthub` stdio bridge forward to a self-hosted RepoWise endpoint
+  when `AGENTHUB_REPOWISE_MODE=remote`, with the URL in
+  `AGENTHUB_REPOWISE_REMOTE_URL` (https only) and the bearer token read from the
+  env var named by `AGENTHUB_REPOWISE_REMOTE_TOKEN_ENV`. Local mode stays the
+  default; the switch, URL and token live only in the private overlay. Remote
+  mode never runs the local launcher and never falls back to local; a missing,
+  refused or unreachable remote returns a JSON-RPC error. The token is never
+  logged, and the handshake cache is kept per mode. Synthetic tests in
+  `packages/repowise/tests/test_repowise_bridge.py` cover forwarding with a
+  bearer, no-launch, no-fallback, missing and wrong tokens, and URL rules. No
+  host has been switched; that is a separate overlay cutover.
+
 - **arXiv product research (2026-10-23):** `packages/arxiv-research` adds the
   fleet skill `use-arxiv-research`, with an on-demand client for upstream
   `arxiv-mcp-server[pdf]==0.8.2`. A machine-wide OS lock prevents overlapping
