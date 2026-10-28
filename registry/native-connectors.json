@@ -38,7 +38,8 @@
       "windows-mcp"
     ],
     "persistedOnDemandLocalMcpIds": [
-      "open-connector"
+      "open-connector",
+      "windows-mcp"
     ],
     "hostConfiguredLocalMcpIds": [
       "node_repl"
@@ -55,7 +56,8 @@
         "appium-mobile": "Registered 2026-08-10 with activationMode on-demand-local; ownership is now consolidated under capability mobile-development. It is an on-demand-desktop stdio process started by its owning capability, so this policy governs it on the same terms as other gated local providers.",
         "slack": "Registered 2026-09-10 as the AgentHub-owned Slack Web API bridge (packages/slack). on-demand-local, plugin-gated, not persisted. Not Slack hosted MCP and not the retired claude.ai Slack connector.",
         "open-connector": "Registered 2026-09-12 with activationMode on-demand-local and transport http, owned by capability open-connector. Persisted 2026-09-13 for codex, cursor, opencode and grok (see persistedOnDemandLocalMcpIds). Unlike every other id in this list it is not a host-spawned stdio process -- it is a standing Docker container on 127.0.0.1:3400 started by the owning capability's script, so persisting its HTTP entry starts no process at session start. Recorded here so the lifecycle list covers every on-demand-local server in registry/mcps.json as of this date.",
-        "repowise-workspace": "Resolved 2026-09-17. Measured: C:/Repos/.cursor/mcp.json persisted the stdio server as a workspace-open fallback and Cursor agent sessions each spawned a `repowise mcp C:/Repos` process tree (multiple hundred MB aggregate) with no plugin enable step. Correct shape matches browser-toolkit: plugin-gated .mcp.json on packages/repowise, never persisted in host or workspace MCP config. scope remains global-default for eligibility; activationMode stays on-demand-local; not in persistedOnDemandLocalMcpIds."
+        "repowise-workspace": "Resolved 2026-09-17. Measured: C:/Repos/.cursor/mcp.json persisted the stdio server as a workspace-open fallback and Cursor agent sessions each spawned a `repowise mcp C:/Repos` process tree (multiple hundred MB aggregate) with no plugin enable step. Correct shape matches browser-toolkit: plugin-gated .mcp.json on packages/repowise, never persisted in host or workspace MCP config. scope remains global-default for eligibility; activationMode stays on-demand-local; not in persistedOnDemandLocalMcpIds.",
+        "windows-mcp": "Registered 2026-10-28 (capability windows-desktop). Plugin-gated on Claude and Codex. Persisted for Cursor as an always-on owner exception and for OpenCode with enabled=false; see persistedOnDemandLocalMcpIdsNote."
       },
       "notAdded": {
         "railway": "Was on-demand-local stdio from 2026-08-19 to 2026-08-20. Moved to shared-remote https://mcp.railway.com (OAuth, no local process) on 2026-08-20 after Cursor's official plugin spawned two `railway mcp` process trees. No longer belongs in this on-demand-local coverage list."
@@ -66,13 +68,13 @@
         "brave-search": "Removed from registry/mcps.json on 2026-09-13. It was an on-demand-local npx stdio bridge (@brave/brave-search-mcp-server, unpinned) declared by no host and carried by no host config since at least 2026-08-20, so removal changed no deployment. Brave Search is now served by the open-connector gateway's brave_search provider under the same BRAVE_API_KEY User environment variable. It was never in onDemandLocalMcpIds, which is why it appears here rather than as a removal from that list."
       }
     },
-    "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. 2026-09-13: open-connector added as the one exception, and it is a different shape -- transport http to a standing Docker container on 127.0.0.1:3400 that only the owner's wrapper starts. A host carrying its entry spawns nothing at session start; the fan-out this list guards against cannot occur. Exposure recorded as shared-gateway on codex, cursor, opencode and grok.",
+    "persistedOnDemandLocalMcpIdsNote": "Emptied 2026-09-07. The playwright exception is withdrawn: live inventory showed session-start fan-out (Grok config.toml plus Codex plugin copies) with no lazy path. Default remains: do not write on-demand-local stdio servers into host configs. 2026-09-13: open-connector added as the one exception, and it is a different shape -- transport http to a standing Docker container on 127.0.0.1:3400 that only the owner's wrapper starts. A host carrying its entry spawns nothing at session start; the fan-out this list guards against cannot occur. Exposure recorded as shared-gateway on codex, cursor, opencode and grok. 2026-10-28: windows-mcp added as an owner-decided exception of the stdio shape this list normally refuses. Scope is enforced by its mcps.json hosts plus plugin-owned exposures: claude and codex stay plugin-gated (no persisted entry), opencode gets enabled=false, and only cursor runs it at session start. Owner decision 2026-10-28, chosen in an AskUserQuestion relayed by the coordinating session: 'Cursor always-on' -- \"Install Windows-MCP in Cursor even though Cursor can't ship it disabled -- it will start in every Cursor session until you toggle it off\" -- and \"everything we need to do should be possible with commands\".",
     "onDemandLocalMcpIdsNote": "Refreshed 2026-10-24. Chrome DevTools MCP is retired; do not register it. playwright is --extension attach for hosts without a native browser pane, plugin-gated and never persisted. slack is the AgentHub Slack bridge, plugin-gated, never persisted. repowise-workspace is plugin-gated (repowise@agenthub), never persisted. appium-mobile and linkedin stay on-demand-local and unpersisted.",
     "slackActivationRoute": "Slack MCP is plugin-gated. On claude: install slack@agenthub when absent, then claude plugin enable slack@agenthub; cleanup is claude plugin disable slack@agenthub. On codex: codex plugin add slack@agenthub and codex plugin remove slack@agenthub. On grok: grok plugin install the agenthub slack path when needed, grok plugin disable slack when done. OpenCode may write mcp.slack with enabled=false. Do not write slack into host MCP config as a session-start stdio server. Native slackapi/slack-skills-plugin is optional UX, not read/write authority.",
     "appiumActivationRoute": "Mobile work enables the capability explicitly, then disables it when done. On claude: install `mobile-development@agenthub` when absent, then `claude plugin enable mobile-development@agenthub`; cleanup is `claude plugin disable mobile-development@agenthub`, leaving the canonical plugin installed-disabled for on-demand reuse. On codex: `codex plugin add mobile-development@agenthub` and `codex plugin remove mobile-development@agenthub`. Start a new task after either change because MCP loading is task-scoped. Product eligibility remains solely in registry/mobile-scope.json.",
     "browserActivationRoute": "Codex, Cursor and Claude use their native browser surface. Other hosts use Playwright MCP, CLI or Test through browser-toolkit when the task needs it. Playwright MCP is plugin-gated and never persisted as a session-start stdio entry. On grok: install the agenthub browser-toolkit plugin when needed, disable it when done. Chrome DevTools MCP is retired: never register or enable chrome-devtools or chrome-devtools-isolated.",
     "repowiseActivationRoute": "RepoWise MCP is plugin-gated. Skills (use-repowise) and CLI stay available without the process. On claude: install `repowise@agenthub` when absent, then `claude plugin enable repowise@agenthub` only for MCP tool calls; cleanup is `claude plugin disable repowise@agenthub`. On codex: `codex plugin add repowise@agenthub` / `codex plugin remove repowise@agenthub`. On cursor: install the AgentHub repowise plugin when MCP is needed; do not write `C:/Repos/.cursor/mcp.json` or any host MCP entry. Official RepoWise marketplace plugins are forbidden. Never persist this stdio server.",
-    "windowsDesktopActivationRoute": "Windows-MCP is plugin-gated and rests installed-disabled. On claude: `claude plugin install windows-desktop@agenthub` installs ENABLED and reloads into every running session, so follow it immediately with `claude plugin disable windows-desktop@agenthub`; enable only for a desktop-control task and disable after. Disable does not stop servers already running; they exit with their sessions. A one-off task can use `claude -p --plugin-dir <agenthub>/packages/windows-desktop` instead. On codex: `codex plugin add windows-desktop@agenthub` once, then rest with [plugins.\"windows-desktop@agenthub\"] enabled = false in ~/.codex/config.toml; flip to true for a task. On the Cursor IDE: copy the package as a real folder to ~/.cursor/plugins/local/windows-desktop for the task and delete it after (links to outside targets are skipped). The Cursor CLI does not load local plugins, so there is no CLI route. OpenCode may write mcp.windows-mcp with enabled=false. Never persist this stdio server as a session-start entry, never start it from a logon or scheduled task, and never widen the --tools allowlist without owner approval.",
+    "windowsDesktopActivationRoute": "Windows-MCP is plugin-gated and rests installed-disabled. On claude: `claude plugin install windows-desktop@agenthub` installs ENABLED and reloads into every running session, so follow it immediately with `claude plugin disable windows-desktop@agenthub`; enable only for a desktop-control task and disable after. Disable does not stop servers already running; they exit with their sessions. A one-off task can use `claude -p --plugin-dir <agenthub>/packages/windows-desktop` instead. On codex: `codex plugin add windows-desktop@agenthub` once, then rest with [plugins.\"windows-desktop@agenthub\"] enabled = false in ~/.codex/config.toml; flip to true for a task. On cursor (IDE and cursor-agent): always-on by owner decision 2026-10-28; sync persists windows-mcp in ~/.cursor/mcp.json. Off switch, per workspace: `cursor-agent mcp disable windows-mcp` run from that workspace folder writes ~/.cursor/projects/<workspace>/mcp-disabled.json ('will not be loaded or prompted for approval'); `cursor-agent mcp enable windows-mcp` reverses it. The state lives outside ~/.cursor/mcp.json, so AgentHub sync never clears it (measured 2026-10-28). The Cursor IDE also has a per-server toggle in Customize. Do not also place the plugin under ~/.cursor/plugins/local. OpenCode may write mcp.windows-mcp with enabled=false. Never persist this stdio server as a session-start entry, never start it from a logon or scheduled task, and never widen the --tools allowlist without owner approval.",
     "optInDisabledLocalMcpIds": [
       "playwright",
       "linkedin",
@@ -315,7 +317,8 @@
           "linear",
           "notion",
           "linkedin",
-          "slack"
+          "slack",
+          "windows-mcp"
         ],
         "native-connector": [
           "github"
@@ -348,7 +351,8 @@
           "appium-mobile",
           "github",
           "linkedin",
-          "slack"
+          "slack",
+          "windows-mcp"
         ],
         "native-connector": [
           "descript",
@@ -408,7 +412,9 @@
           "notion",
           "open-connector"
         ],
-        "local-only": []
+        "local-only": [
+          "windows-mcp"
+        ]
       },
       "evidence": [
         "open-connector added to shared-gateway exposure on 2026-09-13: an HTTP entry for the local gateway at http://127.0.0.1:3400/mcp with a bearer read from the User environment variable OPEN_CONNECTOR_AGENT_TOKEN, written by Sync-AgentHub.ps1 -Apply. No process is spawned by the host."
@@ -469,7 +475,9 @@
           "notion",
           "open-connector"
         ],
-        "local-only": []
+        "local-only": [
+          "windows-mcp"
+        ]
       },
       "evidence": [
         "open-connector added to shared-gateway exposure on 2026-09-13: an HTTP entry for the local gateway at http://127.0.0.1:3400/mcp with a bearer read from the User environment variable OPEN_CONNECTOR_AGENT_TOKEN, written by Sync-AgentHub.ps1 -Apply. No process is spawned by the host."
