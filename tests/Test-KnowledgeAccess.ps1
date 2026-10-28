@@ -218,6 +218,19 @@ Report 'package no longer ships New-KnowledgeMap.ps1' (
     -not (Test-Path -LiteralPath (Join-Path $pkg 'scripts\New-KnowledgeMap.ps1'))
 ) 'New-KnowledgeMap.ps1 is the old 6k-line map writer; New-KnowledgeIndex.ps1 replaced it'
 
+$replyTests = Join-Path $pkg 'scripts\test_reply_preflight.py'
+Report 'reply preflight behavior tests exist' (Test-Path -LiteralPath $replyTests -PathType Leaf) `
+    'the opportunity reply gate needs executable synthetic regression cases'
+if ($pythonCommand -and (Test-Path -LiteralPath $replyTests -PathType Leaf)) {
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $pythonCommand.Source -B $replyTests
+        Report 'reply preflight synthetic behavior regressions pass' ($LASTEXITCODE -eq 0) `
+            'closed-role, freshness, identity, duplicate and valid-reply cases must pass'
+    } finally { $ErrorActionPreference = $previousEap }
+}
+
 Write-Host ''
 if ($failures.Count -gt 0) {
     Write-Host "RESULT: $passed passed, $($failures.Count) failed" -ForegroundColor Red
