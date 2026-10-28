@@ -29,30 +29,35 @@ types lands in whichever window has focus. There is no sandbox.
 ## 2. Enable only for the task, disable after
 
 An enabled plugin starts one server in **every** host session that loads it,
-and that server lives as long as the session does. Nothing is persisted in host
-MCP config, and there is no logon, Run-key or scheduled start.
+and that server lives as long as the session does. There is no logon, Run-key
+or scheduled start.
 
-Rest state is installed-disabled. Enable for the task, then disable:
+Claude and Codex rest installed-disabled; enable for the task, then disable.
+Cursor is **always on** by owner decision (2026-10-28): AgentHub sync keeps
+`windows-mcp` in `~/.cursor/mcp.json`, so every Cursor IDE window and
+`cursor-agent` session starts it until it is switched off for that workspace.
 
 | Host | Enable | Disable |
 | --- | --- | --- |
 | Claude Code | `claude plugin enable windows-desktop@agenthub` | `claude plugin disable windows-desktop@agenthub` |
 | Codex | in `~/.codex/config.toml`, set `[plugins."windows-desktop@agenthub"]` `enabled = true`, then start a new session | set it back to `enabled = false` |
-| Cursor IDE | copy (not link) `packages/windows-desktop` to `~/.cursor/plugins/local/windows-desktop`, then **Developer: Reload Window** | delete that copied folder |
+| Cursor (IDE and `cursor-agent`) | on by default; `cursor-agent mcp enable windows-mcp` in the workspace folder | `cursor-agent mcp disable windows-mcp` in the workspace folder, or the toggle in Customize |
 
 Codex rest state is installed-disabled. Run `codex plugin add windows-desktop@agenthub`
 once, then set `enabled = false`. That key is Codex's documented switch for
 disabling a plugin without uninstalling it, and `codex plugin list` then shows
-`installed, disabled`. A per-run `-c plugins."windows-desktop@agenthub".enabled=true`
-override did not load the server on 2026-10-28 (Codex 0.162.1), so flip the key.
+`installed, disabled`. Re-running `codex plugin add` sets it back to `true`. A
+per-run `-c plugins."windows-desktop@agenthub".enabled=true` override did not
+load the server on 2026-10-28 (Codex 0.162.1), so flip the key. With it on,
+invoke the skill in the prompt (`$use-windows-mcp ...`): in a live `codex exec`
+run the `windows_mcp` tools were exposed and called only when the prompt named
+the skill.
 
-Cursor skips any symlink or junction in `~/.cursor/plugins/local` whose target
-is outside that folder (cursor.com/docs/plugins), so the folder must be a real
-copy. The Cursor CLI (`cursor-agent`) does not load local plugins:
-`cursor-agent mcp list` did not show the server with the copy in place
-(2026-10-28). Windows-MCP is therefore discovery-required on the CLI. Whether
-the IDE starts a local plugin's MCP before approval was not verified, so do not
-leave the copy in place between tasks.
+The Cursor off switch is per workspace. `cursor-agent mcp disable windows-mcp`
+writes `~/.cursor/projects/<workspace>/mcp-disabled.json` for the folder it runs
+in. That state is outside `~/.cursor/mcp.json`, so sync never clears it.
+`cursor-agent mcp list` shows `windows-mcp: ready` or `disabled`. Do not also put
+the package under `~/.cursor/plugins/local`: that would start a second server.
 
 On Claude, `claude plugin install` installs **enabled**. If the plugin is not
 installed yet, run `claude plugin install windows-desktop@agenthub` and

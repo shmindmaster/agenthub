@@ -765,7 +765,7 @@
       "managedSkillNames": [
         "use-windows-mcp"
       ],
-      "contentHash": "BF54FA8492CB3E759891B5BA9AAB2F107B1AEFCE539EBBCBE01C7BC070D5F5C4",
+      "contentHash": "02799FE8F0252A19A087035116DE69B576974CA94A4B44DDB01D28CF507B97C9",
       "hashBasis": "packages/windows-desktop",
       "status": "active-canonical",
       "hostMappings": [
@@ -785,16 +785,16 @@
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated. Rest state: `codex plugin add windows-desktop@agenthub` once, then [plugins.\"windows-desktop@agenthub\"] enabled = false in ~/.codex/config.toml (Codex's documented disable-without-uninstall switch; `codex plugin list` shows installed, disabled). Flip to true for a task, new session, flip back after."
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated. Rest state: `codex plugin add windows-desktop@agenthub` once, then [plugins.\"windows-desktop@agenthub\"] enabled = false in ~/.codex/config.toml (Codex's documented disable-without-uninstall switch; `codex plugin list` shows installed, disabled). Flip to true for a task, new session, flip back after. Live 2026-10-28: with the key true, `codex exec` exposed the windows_mcp tools and made a DisplayInventory call only when the prompt invoked $use-windows-mcp."
         },
         {
           "hostId": "cursor",
-          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatus": "managed-native-mcp",
           "components": [
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Skills deploy loosely. Cursor IDE: copy packages/windows-desktop as a real folder to ~/.cursor/plugins/local/windows-desktop for a task and delete it after; Cursor skips links whose target is outside that folder, and .cursor-plugin/plugin.json names .mcp.json because Cursor otherwise looks for mcp.json. Cursor CLI (cursor-agent): MCP discovery-required, because it does not load local plugins (cursor-agent mcp list, 2026-10-28)."
+          "deploymentStatusNote": "Skills deploy loosely. MCP is ALWAYS-ON by owner decision 2026-10-28: AgentHub sync persists windows-mcp in ~/.cursor/mcp.json (persistedOnDemandLocalMcpIds), so it serves both the Cursor IDE and cursor-agent. Per-workspace off switch: `cursor-agent mcp disable windows-mcp` / `cursor-agent mcp enable windows-mcp`. No Cursor local plugin copy; that would start a second server."
         },
         {
           "hostId": "opencode",

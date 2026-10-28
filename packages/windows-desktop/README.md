@@ -8,11 +8,14 @@ not copy upstream code.
 
 ## Activation
 
-Plugin-gated, like `repowise` and `slack`. The MCP entry lives only in this
-package's `.mcp.json` (Claude, Cursor) and `mcp.codex.json` (Codex). Sync does
-not write it into any host MCP config, because a stdio server named there starts
-at every session. Enable the plugin for a desktop task and disable it after.
-Nothing is registered as a logon task, Run key or service.
+Plugin-gated on Claude and Codex, like `repowise` and `slack`: the MCP entry
+lives in this package's `.mcp.json` and `mcp.codex.json`, and sync writes it into
+neither host's config. Enable the plugin for a desktop task and disable it after.
+**Cursor is the exception:** by owner decision on 2026-10-28, sync persists
+`windows-mcp` in `~/.cursor/mcp.json`, so it is always on in the Cursor IDE and
+`cursor-agent` until switched off per workspace with
+`cursor-agent mcp disable windows-mcp`. Nothing is registered as a logon task,
+Run key or service.
 
 ```powershell
 claude plugin install windows-desktop@agenthub   # once; installs ENABLED
@@ -27,10 +30,10 @@ headless `--plugin-dir` alternative.
 
 Codex: `codex plugin add windows-desktop@agenthub` once, then set
 `[plugins."windows-desktop@agenthub"] enabled = false` in `~/.codex/config.toml`
-(installed-disabled). Flip it to `true` for a task. Cursor IDE: a real copy (not
-a link) under `~/.cursor/plugins/local/windows-desktop` for the task only;
-`.cursor-plugin/plugin.json` points Cursor at `.mcp.json`. The Cursor CLI does
-not load local plugins. Details: `skills/use-windows-mcp/SKILL.md`.
+(installed-disabled). Flip it to `true` for a task and name `$use-windows-mcp` in
+the prompt. Cursor: always on through `~/.cursor/mcp.json`; switch it off per
+workspace with `cursor-agent mcp disable windows-mcp`. Don't also install it
+as a Cursor local plugin. Details: `skills/use-windows-mcp/SKILL.md`.
 
 Each enabled host session runs its own `uvx` → Python process. A single shared
 HTTP server was rejected on purpose: it would keep a localhost listener open

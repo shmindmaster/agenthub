@@ -564,7 +564,7 @@
           "browser.authenticated": "The same quoted sentence. What the documentation withholds from this surface is Browser itself, so it covers the authenticated variant and the isolated one alike."
         },
         "capabilityNotEstablished": {
-          "computer.gui": "Computer Use was not probed from this surface. The documented evidence here covers Browser availability only and says nothing about first-party control of native desktop applications. Recorded false until 2026-08-05 on the strength of that Browser sentence, which is the assumption this table exists to forbid; demoted to null rather than backfilled with a finding nobody made.",
+          "computer.gui": "Computer Use was not probed from this surface. The documented evidence here covers Browser availability only and says nothing about first-party control of native desktop applications. Recorded false until 2026-08-05 on the strength of that Browser sentence, which is the assumption this table exists to forbid; demoted to null rather than backfilled with a finding nobody made. 2026-10-28: computer-use@openai-bundled and unified-computer-use@openai-bundled are installed and enabled (codex plugin list; cua_repl in codex mcp list, whose Auth column reads Unsupported, which is an auth status, not a runtime verdict). Not live-probed, so still null. The windows-desktop plugin is the fleet provider here and was exercised live through codex exec.",
           "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
         },
@@ -608,7 +608,7 @@
         },
         "capabilityNotEstablished": {
           "browser.authenticated": "2026-09-02 disk probe: ChatGPT/Codex extension hehggadaopoacecdllhhajmbjkdcmajg is installed on Chrome Default and Edge Default. That is the product on disk, not a live Computer Use / @Chrome / @Edge session from the ChatGPT desktop app. Connection was not probed this visit, so it stays null rather than assumed.",
-          "computer.gui": "Computer Use is documented on the desktop app (learn.chatgpt.com/docs/browser, 'Computer Use in the browser') but was not live-probed from this machine this visit, so it is recorded null rather than assumed.",
+          "computer.gui": "Computer Use is documented on the desktop app (learn.chatgpt.com/docs/browser, 'Computer Use in the browser') but was not live-probed from this machine this visit, so it is recorded null rather than assumed. 2026-10-28: computer-use@openai-bundled and unified-computer-use@openai-bundled are installed and enabled (codex plugin list; cua_repl in codex mcp list, whose Auth column reads Unsupported, which is an auth status, not a runtime verdict). Not live-probed, so still null. The windows-desktop plugin is the fleet provider here and was exercised live through codex exec.",
           "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP (registry/mcps.json); whether this surface offers Android device control natively was never probed.",
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP, whose iOS half is a remote client to the macOS guest; whether this surface offers iOS Simulator control natively was never probed."
         },
@@ -652,7 +652,7 @@
         },
         "capabilityNotEstablished": {
           "browser.authenticated": "Workspace cookies persist per Cursor workspace. That is still an isolated profile, not the owner's personal Chrome. A connected Chrome/Edge extension was not probed, so authenticated stays null.",
-          "computer.gui": "Cursor changelog mentions self-hosted machines that can click, type, take screenshots, and drive the browser. That worker path was not probed from this IDE surface.",
+          "computer.gui": "Cursor changelog mentions self-hosted machines that can click, type, take screenshots, and drive the browser. That worker path was not probed from this IDE surface. Provider, not first-party: since 2026-10-28 the windows-mcp MCP is persisted always-on in ~/.cursor/mcp.json by owner decision, and cursor-agent mcp list reports it ready. That does not make this surface's own computer use established, so the value stays null.",
           "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
         },
@@ -674,7 +674,7 @@
           "browser.authenticated": "The same CLI pages withhold a headed browser from this surface entirely, so they cover the authenticated variant and the isolated one alike."
         },
         "capabilityNotEstablished": {
-          "computer.gui": "CLI changelog mentions --computer-use on self-hosted workers, which is a different surface. Local cursor-agent Computer Use was not probed.",
+          "computer.gui": "CLI changelog mentions --computer-use on self-hosted workers, which is a different surface. Local cursor-agent Computer Use was not probed. Provider, not first-party: since 2026-10-28 the windows-mcp MCP is persisted always-on in ~/.cursor/mcp.json by owner decision, and cursor-agent mcp list reports it ready. That does not make this surface's own computer use established, so the value stays null.",
           "mobile.android.local": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP.",
           "mobile.ios.simulated": "Entered the vocabulary on 2026-08-13 and recorded null, not backfilled. The only fleet provider is the appium-mobile MCP."
         },
@@ -869,7 +869,8 @@
           "mobile.ios.simulated": null
         },
         "verifiedOn": "2026-10-14",
-        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
+        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately.",
+        "capabilityNotEstablished": {}
       },
       {
         "hostId": "amp",
@@ -882,7 +883,8 @@
           "mobile.ios.simulated": null
         },
         "verifiedOn": "2026-10-14",
-        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
+        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately.",
+        "capabilityNotEstablished": {}
       },
       {
         "hostId": "opencode",
@@ -895,7 +897,8 @@
           "mobile.ios.simulated": null
         },
         "verifiedOn": "2026-10-14",
-        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately."
+        "verification": "Installed binary --help verifies a local non-interactive prompt contract only. Browser, desktop and mobile capabilities were not assessed in this repair; dispatchPolicy records readiness separately.",
+        "capabilityNotEstablished": {}
       }
     ],
     "note": "null means not established, never 'assumed false'. Every true and every false must carry its own sentence under this surface's capabilityEvidence, keyed by the capability it backs -- one shared paragraph cannot answer for three capabilities, which is how a false about GUI control once rode on evidence that only discussed browsers. A null carries no writing cost at all: registry/mcps.json requires a null protocol revision to say why, and this table deliberately does not, because charging the honest value a cost that false does not pay is the incentive being inverted here. A capabilityNotEstablished entry is optional, is never read as evidence, and must name a capability this surface still records as null. Enforced by tests/Test-HostSurfaces.ps1."
