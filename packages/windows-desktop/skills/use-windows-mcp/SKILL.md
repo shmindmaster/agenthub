@@ -37,8 +37,22 @@ Rest state is installed-disabled. Enable for the task, then disable:
 | Host | Enable | Disable |
 | --- | --- | --- |
 | Claude Code | `claude plugin enable windows-desktop@agenthub` | `claude plugin disable windows-desktop@agenthub` |
-| Codex | `codex plugin add windows-desktop@agenthub`, new session | `codex plugin remove windows-desktop@agenthub` |
-| Cursor | junction `~/.cursor/plugins/local/windows-desktop` → `packages/windows-desktop`, restart Cursor | delete the junction (never its target) |
+| Codex | in `~/.codex/config.toml`, set `[plugins."windows-desktop@agenthub"]` `enabled = true`, then start a new session | set it back to `enabled = false` |
+| Cursor IDE | copy (not link) `packages/windows-desktop` to `~/.cursor/plugins/local/windows-desktop`, then **Developer: Reload Window** | delete that copied folder |
+
+Codex rest state is installed-disabled. Run `codex plugin add windows-desktop@agenthub`
+once, then set `enabled = false`. That key is Codex's documented switch for
+disabling a plugin without uninstalling it, and `codex plugin list` then shows
+`installed, disabled`. A per-run `-c plugins."windows-desktop@agenthub".enabled=true`
+override did not load the server on 2026-10-28 (Codex 0.162.1), so flip the key.
+
+Cursor skips any symlink or junction in `~/.cursor/plugins/local` whose target
+is outside that folder (cursor.com/docs/plugins), so the folder must be a real
+copy. The Cursor CLI (`cursor-agent`) does not load local plugins:
+`cursor-agent mcp list` did not show the server with the copy in place
+(2026-10-28). Windows-MCP is therefore discovery-required on the CLI. Whether
+the IDE starts a local plugin's MCP before approval was not verified, so do not
+leave the copy in place between tasks.
 
 On Claude, `claude plugin install` installs **enabled**. If the plugin is not
 installed yet, run `claude plugin install windows-desktop@agenthub` and
