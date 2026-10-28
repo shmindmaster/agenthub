@@ -765,7 +765,7 @@
       "managedSkillNames": [
         "use-windows-mcp"
       ],
-      "contentHash": "EA46D5C5F50D19D494AAC9C957870C6194C8CBA29A07AA79226F102F89E8B6E8",
+      "contentHash": "7D82F3B9DBF582B47779220CD0C16962303BF5B8CE13E69615B1B1C4B88AFA8B",
       "hashBasis": "packages/windows-desktop",
       "status": "active-canonical",
       "hostMappings": [

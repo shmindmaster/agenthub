@@ -15,10 +15,15 @@ at every session. Enable the plugin for a desktop task and disable it after.
 Nothing is registered as a logon task, Run key or service.
 
 ```powershell
-claude plugin install windows-desktop@agenthub   # once; installs enabled
-claude plugin disable windows-desktop@agenthub   # when the task is done
-claude plugin enable windows-desktop@agenthub    # next desktop task, new session
+claude plugin install windows-desktop@agenthub   # once; installs ENABLED
+claude plugin disable windows-desktop@agenthub   # immediately: rest state is installed-disabled
+claude plugin enable windows-desktop@agenthub    # for a desktop task; disable again after
 ```
+
+Enabling loads the server into every running Claude session, not only the one
+doing the task. Disabling does not stop servers that are already running; they
+exit with their sessions. See the skill for the measured fan-out and the
+headless `--plugin-dir` alternative.
 
 Codex: `codex plugin add windows-desktop@agenthub`, then
 `codex plugin remove windows-desktop@agenthub`. Other hosts:

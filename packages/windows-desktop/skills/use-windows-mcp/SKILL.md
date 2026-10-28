@@ -28,15 +28,29 @@ types lands in whichever window has focus. There is no sandbox.
 
 ## 2. Enable only for the task, disable after
 
-The server starts when a host session loads the enabled plugin, and stops when
-that session ends. Nothing is persisted in host MCP config, and there is no
-logon, Run-key or scheduled start.
+An enabled plugin starts one server in **every** host session that loads it,
+and that server lives as long as the session does. Nothing is persisted in host
+MCP config, and there is no logon, Run-key or scheduled start.
+
+Rest state is installed-disabled. Enable for the task, then disable:
 
 | Host | Enable | Disable |
 | --- | --- | --- |
-| Claude Code | `claude plugin install windows-desktop@agenthub` (first time) or `claude plugin enable windows-desktop@agenthub`, then start a new session | `claude plugin disable windows-desktop@agenthub` |
+| Claude Code | `claude plugin enable windows-desktop@agenthub` | `claude plugin disable windows-desktop@agenthub` |
 | Codex | `codex plugin add windows-desktop@agenthub`, new session | `codex plugin remove windows-desktop@agenthub` |
-| Cursor | local plugin from `packages/windows-desktop` | remove the local plugin |
+| Cursor | junction `~/.cursor/plugins/local/windows-desktop` → `packages/windows-desktop`, restart Cursor | delete the junction (never its target) |
+
+On Claude, `claude plugin install` installs **enabled**. If the plugin is not
+installed yet, run `claude plugin install windows-desktop@agenthub` and
+immediately `claude plugin disable windows-desktop@agenthub`.
+
+Measured on 2026-10-28: install or enable reloads the plugin into every running
+Claude session. In the Claude Desktop app, each open Code session then started
+its own server (3 sessions gave 3 trees and 15 processes), each with global input
+hooks. Disabling stops new loads but does **not** stop servers that are already
+running. They exit with their session, or you stop their `uvx` process tree.
+For one task with no open sessions affected, prefer a headless run:
+`claude -p --plugin-dir <agenthub>/packages/windows-desktop`.
 
 Other hosts: see `hostMappings` for capability `windows-desktop` in
 `registry/capabilities.json`. A host recorded `discovery-required` has no
