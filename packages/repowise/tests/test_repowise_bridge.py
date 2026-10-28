@@ -168,6 +168,75 @@ class BridgeTests(unittest.TestCase):
         self.assertIn("notifications/progress", [m.get("method") for m in others], "server notifications must pass through")
         self.assertFalse(self.marker.exists(), "launcher must not run while the port is served")
 
+    # ------------------------------------------------------------ remote mode
+    def remote_env(self, token: str | None = "remote-test-token", **extra: str) -> dict:
+        env = {
+            "AGENTHUB_REPOWISE_MODE": "remote",
+            "AGENTHUB_REPOWISE_REMOTE_URL": f"http://127.0.0.1:{self.port}/mcp",
+            "AGENTHUB_REPOWISE_REMOTE_TOKEN_ENV": "RW_TEST_REMOTE_TOKEN",
+            "REPOWISE_BRIDGE_CALL_WAIT": "3",
+        }
+        if token is not None:
+            env["RW_TEST_REMOTE_TOKEN"] = token
+        env.update(extra)
+        return env
+
+    def test_remote_mode_forwards_with_bearer_and_never_launches(self) -> None:
+        self.start_server("--require-bearer", "remote-test-token")
+        # The local URL points at a dead port: remote mode must ignore it.
+        env = self.remote_env(REPOWISE_BRIDGE_URL=f"http://127.0.0.1:{free_port()}/mcp")
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp, env)
+        self.assertEqual(self.handshake()["result"]["serverInfo"]["name"], "fake-repowise")
+        self.harness.send({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "list_repos", "arguments": {}}})
+        reply, _ = self.harness.recv_id(2)
+        self.assertFalse(reply["result"]["isError"])
+        self.assertFalse(self.marker.exists(), "remote mode must never run the local launcher")
+        self.assertTrue((self.tmp / "bridge-cache-remote.json").exists(), "remote handshake cache is kept apart")
+        log = (self.tmp / "bridge.log").read_text(encoding="utf-8")
+        self.assertNotIn("remote-test-token", log, "the bearer token must never be logged")
+        self.assertIn("remote http://127.0.0.1", log)
+
+    def test_remote_mode_down_does_not_fall_back_or_launch(self) -> None:
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp,
+                                     self.remote_env(REPOWISE_BRIDGE_HANDSHAKE_WAIT="1"))
+        self.harness.send(INIT)
+        reply, _ = self.harness.recv_id(1, timeout=20)
+        self.assertIn("error", reply)
+        self.assertIn("never falls back", reply["error"]["message"])
+        self.assertFalse(self.marker.exists(), "remote mode must never run the local launcher")
+
+    def test_remote_mode_without_token_fails_closed(self) -> None:
+        self.start_server("--require-bearer", "remote-test-token")
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp, self.remote_env(token=None))
+        self.harness.send(INIT)
+        reply, _ = self.harness.recv_id(1, timeout=10)
+        self.assertIn("RW_TEST_REMOTE_TOKEN", reply["error"]["message"])
+        self.harness.send({"jsonrpc": "2.0", "id": 9, "method": "ping"})
+        pong, _ = self.harness.recv_id(9, timeout=10)
+        self.assertIn("result", pong, "ping still answers so the host can show the error")
+
+    def test_remote_mode_wrong_token_reports_refusal(self) -> None:
+        self.start_server("--require-bearer", "remote-test-token")
+        self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp, self.remote_env(token="bad-token-123"))
+        self.harness.send(INIT)
+        reply, _ = self.harness.recv_id(1, timeout=20)
+        self.assertIn("refused the bearer token", reply["error"]["message"])
+        self.assertNotIn("bad-token-123", json.dumps(reply), "the token must never be echoed")
+
+    def test_resolve_upstream_rules(self) -> None:
+        r = repowise_bridge.resolve_upstream
+        self.assertFalse(r({}).remote)
+        self.assertEqual(r({}).url, repowise_bridge.DEFAULT_URL)
+        self.assertIsNone(r({"AGENTHUB_REPOWISE_MODE": "local"}).error)
+        base = {"AGENTHUB_REPOWISE_MODE": "remote", "REPOWISE_REMOTE_TOKEN": "t"}
+        self.assertIn("https", r({**base, "AGENTHUB_REPOWISE_REMOTE_URL": "http://example.test/mcp"}).error)
+        self.assertIn("credentials", r({**base, "AGENTHUB_REPOWISE_REMOTE_URL": "https://u:p@example.test/mcp"}).error)
+        ok = r({**base, "AGENTHUB_REPOWISE_REMOTE_URL": "https://example.test/mcp"})
+        self.assertIsNone(ok.error)
+        self.assertEqual(ok.authorization, "Bearer t")
+        self.assertEqual(ok.label, "remote https://example.test")
+        self.assertIn("not 'local' or 'remote'", r({"AGENTHUB_REPOWISE_MODE": "hosted"}).error)
+
     def test_json_responses_are_proxied(self) -> None:
         self.start_server("--json")
         self.harness = BridgeHarness(self.port, self.server_launcher(), self.tmp)

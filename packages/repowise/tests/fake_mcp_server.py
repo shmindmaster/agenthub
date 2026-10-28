@@ -6,7 +6,7 @@ notifications get 202, tools/call answers over SSE with a progress notification
 ahead of the result. GET /v1/models answers 200 so the same process can stand
 in for the embedder.
 
-Usage: fake_mcp_server.py --port N [--degraded] [--json] [--marker PATH]
+Usage: fake_mcp_server.py --port N [--degraded] [--json] [--marker PATH] [--require-bearer TOKEN]
        (also accepts the real repowise argv: <workspace> --transport ... --port N)
 """
 
@@ -21,7 +21,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
-def build_handler(degraded: bool, json_mode: bool, slow_init: float = 0.0):
+def build_handler(degraded: bool, json_mode: bool, slow_init: float = 0.0, bearer: str | None = None):
     sessions: set[str] = set()
 
     class Handler(BaseHTTPRequestHandler):
@@ -57,6 +57,9 @@ def build_handler(degraded: bool, json_mode: bool, slow_init: float = 0.0):
         def do_POST(self):
             length = int(self.headers.get("Content-Length", "0"))
             msg = json.loads(self.rfile.read(length))
+            if bearer is not None and self.headers.get("Authorization") != f"Bearer {bearer}":
+                self._send(401, b'{"error":"bearer required"}')
+                return
             method = msg.get("method")
             sid = self.headers.get("Mcp-Session-Id")
             if method == "initialize":
@@ -115,6 +118,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--marker")
     parser.add_argument("--slow-init", type=float, default=0.0)
+    parser.add_argument("--require-bearer", help="answer 401 unless this bearer token is sent (remote-mode tests)")
     args, _unknown = parser.parse_known_args(argv)
     # The launcher test runs this file in place of repowise.exe, whose argv it
     # cannot extend, so it takes these two switches from the environment too.
@@ -123,7 +127,7 @@ def main(argv: list[str]) -> int:
     if args.marker:
         with open(args.marker, "a", encoding="utf-8") as handle:
             handle.write("started\n")
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), build_handler(args.degraded, args.json, args.slow_init))
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), build_handler(args.degraded, args.json, args.slow_init, args.require_bearer))
     server.serve_forever()
     return 0
 

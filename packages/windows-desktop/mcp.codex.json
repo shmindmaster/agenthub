@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "windows-mcp": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "windows-mcp==0.8.8",
+        "serve",
+        "--tools",
+        "Screenshot,Snapshot,DisplayInventory,ControlStatus,Wait,WaitFor,Click,Type,Scroll,Move,Shortcut,App,MultiSelect,MultiEdit,Notification"
+      ],
+      "env": {
+        "ANONYMIZED_TELEMETRY": "false",
+        "WINDOWS_MCP_DISABLE_FLASH": "true"
+      }
+    }
+  }
+}

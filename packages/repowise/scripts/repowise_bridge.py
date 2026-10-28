@@ -26,9 +26,19 @@ Behaviour:
     ready, rather than serving mock vectors), pending requests get a JSON-RPC
     error naming the launcher log instead of hanging.
 
+Remote mode (2026-10-28): with AGENTHUB_REPOWISE_MODE=remote the bridge
+forwards to a hosted RepoWise endpoint instead of the local shared server. The
+URL comes from AGENTHUB_REPOWISE_REMOTE_URL (https, or loopback for tests) and
+the bearer token from the environment variable named by
+AGENTHUB_REPOWISE_REMOTE_TOKEN_ENV (default REPOWISE_REMOTE_TOKEN). In remote
+mode the local launcher never runs and there is no silent fallback to the local
+server: an unreachable or misconfigured remote is reported as an error. The
+handshake cache is kept per mode. Local mode stays the default; the private
+overlay owns the switch, the URL and the token.
+
 Stdlib only. Never writes anything but protocol messages to stdout; diagnostics
 go to bridge.log under the shared runtime directory and never contain message
-bodies.
+bodies or credentials.
 """
 
 from __future__ import annotations
@@ -42,12 +52,17 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable
 
 DEFAULT_URL = "http://127.0.0.1:7339/mcp"
+MODE_ENV = "AGENTHUB_REPOWISE_MODE"
+REMOTE_URL_ENV = "AGENTHUB_REPOWISE_REMOTE_URL"
+REMOTE_TOKEN_ENV_ENV = "AGENTHUB_REPOWISE_REMOTE_TOKEN_ENV"
+DEFAULT_REMOTE_TOKEN_ENV = "REPOWISE_REMOTE_TOKEN"
 CACHED_METHODS = ("initialize", "tools/list", "prompts/list", "resources/list")
 # Requests with possible side effects (RepoWise has write tools such as
 # update_decision_records): never resent after the connection dropped mid-call.
@@ -100,6 +115,54 @@ def runtime_dir() -> Path:
         return Path(override)
     base = os.environ.get("LOCALAPPDATA") or str(Path.home())
     return Path(base) / "AgentHub" / "runtime" / "repowise-shared"
+
+
+class UpstreamConfig:
+    """Where the bridge forwards, and whether it may start a local server."""
+
+    def __init__(self, url: str, remote: bool, authorization: str | None = None,
+                 error: str | None = None) -> None:
+        self.url = url
+        self.remote = remote
+        self.authorization = authorization
+        self.error = error  # set when remote mode is requested but unusable
+
+    @property
+    def label(self) -> str:
+        if not self.remote:
+            return self.url
+        try:
+            parsed = urllib.parse.urlsplit(self.url)
+            return f"remote {parsed.scheme}://{parsed.hostname}"
+        except ValueError:
+            return "remote (invalid url)"
+
+
+def resolve_upstream(env: dict[str, str] | None = None) -> UpstreamConfig:
+    env = os.environ if env is None else env
+    mode = (env.get(MODE_ENV) or "local").strip().lower()
+    if mode in ("", "local"):
+        return UpstreamConfig(env.get("REPOWISE_BRIDGE_URL", DEFAULT_URL), remote=False)
+    if mode != "remote":
+        return UpstreamConfig(DEFAULT_URL, remote=True, error=f"{MODE_ENV}={mode!r} is not 'local' or 'remote'")
+    url = (env.get(REMOTE_URL_ENV) or "").strip()
+    if not url:
+        return UpstreamConfig("", remote=True, error=f"remote mode needs {REMOTE_URL_ENV}")
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        host = parsed.hostname or ""
+    except ValueError:
+        return UpstreamConfig(url, remote=True, error=f"{REMOTE_URL_ENV} is not a valid URL")
+    loopback = host in ("127.0.0.1", "localhost", "::1")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        return UpstreamConfig(url, remote=True, error=f"{REMOTE_URL_ENV} must not carry credentials, a query or a fragment")
+    if parsed.scheme != "https" and not (parsed.scheme == "http" and loopback):
+        return UpstreamConfig(url, remote=True, error=f"{REMOTE_URL_ENV} must use https")
+    token_env = (env.get(REMOTE_TOKEN_ENV_ENV) or DEFAULT_REMOTE_TOKEN_ENV).strip()
+    token = env.get(token_env) or ""
+    if not token:
+        return UpstreamConfig(url, remote=True, error=f"remote mode needs the bearer token in {token_env}")
+    return UpstreamConfig(url, remote=True, authorization=f"Bearer {token}")
 
 
 def default_launcher_command() -> list[str]:
@@ -200,9 +263,11 @@ class Log:
 class Launcher:
     """Starts Start-RepoWiseShared.ps1 at most once at a time."""
 
-    def __init__(self, command: list[str], log: Log) -> None:
+    def __init__(self, command: list[str], log: Log, enabled: bool = True) -> None:
         self._command = command
         self._log = log
+        # False in remote mode: the hosted server is not ours to start.
+        self.enabled = enabled
         self._lock = threading.Lock()
         self._process: subprocess.Popen | None = None
         self.last_exit: int | None = None
@@ -238,12 +303,16 @@ class Launcher:
             return time.monotonic() - self._finished_at < self.failure_cooldown
 
     def may_start(self) -> bool:
+        if not self.enabled:
+            return False
         with self._lock:
             if self._poll_locked():
                 return False
             return self._finished_at is None or time.monotonic() - self._finished_at >= self.min_interval
 
     def start(self) -> None:
+        if not self.enabled:
+            return
         with self._lock:
             if self._poll_locked():
                 return
@@ -269,8 +338,10 @@ class Launcher:
 
 
 class Upstream:
-    def __init__(self, url: str, deliver: Callable[[dict], None], launcher: Launcher, log: Log) -> None:
+    def __init__(self, url: str, deliver: Callable[[dict], None], launcher: Launcher, log: Log,
+                 config: UpstreamConfig | None = None) -> None:
         self.url = url
+        self.config = config or UpstreamConfig(url, remote=False)
         self._deliver = deliver
         self._launcher = launcher
         self._log = log
@@ -287,6 +358,8 @@ class Upstream:
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
         }
+        if self.config.authorization:
+            headers["Authorization"] = self.config.authorization
         if self.session_id:
             headers["Mcp-Session-Id"] = self.session_id
         if self.protocol:
@@ -303,6 +376,9 @@ class Upstream:
                 raise SessionExpired(sent_session) from exc
             if exc.code in (502, 503, 504):
                 raise UpstreamDown(f"http {exc.code}") from exc
+            if exc.code in (401, 403) and self.config.remote:
+                raise RuntimeError(f"remote RepoWise refused the bearer token (http {exc.code}); "
+                                   "check the token named by " + REMOTE_TOKEN_ENV_ENV) from exc
             detail = exc.read(512).decode("utf-8", "replace")
             raise RuntimeError(f"upstream http {exc.code}: {detail}") from exc
         except urllib.error.URLError as exc:
@@ -438,6 +514,11 @@ class Upstream:
                 time.sleep(min(1.0, max(deadline - time.monotonic(), 0)))
 
     def _down_reason(self) -> str:
+        if self.config.remote:
+            if self._slow:
+                return f"RepoWise ({self.config.label}) is up but did not answer in time"
+            return (f"RepoWise ({self.config.label}) is not reachable; remote mode never falls back to "
+                    f"the local server. Set {MODE_ENV}=local to use the local index.")
         code = self._launcher.last_exit if self._launcher else None
         log = runtime_dir() / "launcher.log"
         if self._slow:
@@ -546,16 +627,16 @@ class Bridge:
         self._stop = threading.Event()
         runtime = runtime_dir()
         self.log = Log(runtime / "bridge.log")
-        self.cache = Cache(runtime / "bridge-cache.json")
+        self.config = resolve_upstream()
+        self.cache = Cache(runtime / ("bridge-cache-remote.json" if self.config.remote else "bridge-cache.json"))
         # Hosts give the whole handshake (initialize, then tools/list) about 30 s.
         # Each cached step waits this long for a live answer before using the
         # cache, so both together stay well inside that budget.
         self.handshake_wait = _env_float("REPOWISE_BRIDGE_HANDSHAKE_WAIT", 4.0)
         self.call_wait = _env_float("REPOWISE_BRIDGE_CALL_WAIT", 300.0)
-        self.launcher = Launcher(launcher_command(), self.log)
-        self.upstream = Upstream(
-            os.environ.get("REPOWISE_BRIDGE_URL", DEFAULT_URL), self.write, self.launcher, self.log
-        )
+        self.launcher = Launcher([] if self.config.remote else launcher_command(), self.log,
+                                 enabled=not self.config.remote)
+        self.upstream = Upstream(self.config.url, self.write, self.launcher, self.log, self.config)
         self._pool = ThreadPoolExecutor(max_workers=8)
         self._warm_lock = threading.Lock()
         self._warming = False
@@ -682,6 +763,10 @@ class Bridge:
         if "id" not in message:
             self.handle_notification(message)
             return
+        if self.config.error and message["method"] != "ping":
+            # Misconfigured remote mode fails closed with a reason the host can show.
+            self.error(message.get("id"), f"RepoWise bridge remote mode is misconfigured: {self.config.error}")
+            return
         if message["method"] == "initialize":
             # Synchronous: the client sends nothing else until it is answered.
             self.handle_initialize(message)
@@ -715,7 +800,7 @@ class Bridge:
             self.error(message.get("id"), f"repowise bridge: {type(exc).__name__}")
 
     def run(self) -> int:
-        self.log(f"start upstream={self.upstream.url}")
+        self.log(f"start upstream={self.config.label}" + (f" config-error={self.config.error}" if self.config.error else ""))
         for raw in self._stdin:
             if self._stop.is_set():
                 break

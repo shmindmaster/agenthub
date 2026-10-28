@@ -24,7 +24,7 @@ Unfamiliar repo/module entry, cross-cutting changes, blast-radius assessment, hi
 | Question | Store |
 |---|---|
 | Symbol location, authorship, change impact | RepoWise |
-| What we've done/built/proposed about X | Qdrant `knowledge` via `use-knowledge-access` |
+| What we've done/built/proposed about X | Qdrant `knowledge` via `use-knowledge-access` (local or hosted, whichever the overlay selects; the hosted store holds only register-cleared sources) |
 | Legal matters | Qdrant `legal` via Local-AI `query.ps1` only |
 
 Embeddings: `http://127.0.0.1:8790/v1`, model `text-embedding-3-small` alias, non-secret local placeholder key. Overrides inherited remote routing. Probe must return finite nonzero embedding before serving; HTTP models response or `embedder_degraded: false` alone insufficient—check real search results for vector source and relevance. CLI indexing needs same local base URL and model; preserve existing vector config. Change providers only through explicit compatible reindex. Empty result is unknown; try another query or `rg`. Do not fold stores; `legal` walled at collection level.
@@ -33,13 +33,30 @@ Embeddings: `http://127.0.0.1:8790/v1`, model `text-embedding-3-small` alias, no
 
 ## 4. Local-only constraints
 
+These apply in the default **local** mode. Section 4a covers the hosted mode.
+
 - Workspace graph in `C:\Repos\.repowise-workspace\`.
-- ONE shared server: `repowise mcp C:/Repos --transport streamable-http --port 7339 --host 127.0.0.1` (`repowise-workspace`), started by `packages/repowise/scripts/Start-RepoWiseShared.ps1`. Hosts reach via `repowise@agenthub` stdio bridge (`scripts/repowise_bridge.py`), launches hidden when 7339 down. Launcher fails closed: starts retrieval via `D:\Local-AI\ai.ps1` if embedder (8790) down; exits 2 if embedder still not ready. Never register logon/scheduled task (owner 2026-10-13: Task Scheduler `powershell.exe` opens window, takes focus). Never bind beyond loopback, never point at hosted URL, never add `repowise mcp` stdio entry to host config.
+- ONE shared server: `repowise mcp C:/Repos --transport streamable-http --port 7339 --host 127.0.0.1` (`repowise-workspace`), started by `packages/repowise/scripts/Start-RepoWiseShared.ps1`. Hosts reach via `repowise@agenthub` stdio bridge (`scripts/repowise_bridge.py`), launches hidden when 7339 down. Launcher fails closed: starts retrieval via `D:\Local-AI\ai.ps1` if embedder (8790) down; exits 2 if embedder still not ready. Never register logon/scheduled task (owner 2026-10-13: Task Scheduler `powershell.exe` opens window, takes focus). Never bind beyond loopback, never point the local server or a host config at a hosted URL (hosted access goes only through the bridge remote mode in 4a), never add `repowise mcp` stdio entry to host config.
 - `repowise whoami` must stay **Not signed in**. No `repowise login`, no `rw_live_` token.
 - Telemetry **disabled** (`repowise telemetry disable`; check `repowise telemetry status`).
 - Default update: `--index-only`/`--no-docs` (parse, graph, git; no LLM/key).
 - Optional wiki prose (`--full`/`--docs`) uses `REPOWISE_PROVIDER`/`REPOWISE_MODEL` from environment, never key in AgentHub. Never `--full` against `portfolio-records` or private evidence. No `--save-key`.
 - No per-repo MCP entries. No indexing `D:\OneDrive`.
+
+## 4a. Hosted mode (bridge remote mode)
+
+The same `repowise@agenthub` bridge can forward to a self-hosted RepoWise endpoint instead of the local shared server. It is off by default and owned by the private overlay, which sets the switch, URL and token outside this repository:
+
+| Variable | Meaning |
+|---|---|
+| `AGENTHUB_REPOWISE_MODE` | `local` (default) or `remote` |
+| `AGENTHUB_REPOWISE_REMOTE_URL` | hosted MCP URL, https only |
+| `AGENTHUB_REPOWISE_REMOTE_TOKEN_ENV` | name of the env var that holds the bearer token (default `REPOWISE_REMOTE_TOKEN`) |
+
+- In remote mode the bridge never starts the local launcher and never falls back to local: an unreachable remote, a missing token or a refused token returns a JSON-RPC error naming the cause. Switch back with `AGENTHUB_REPOWISE_MODE=local` and restart the host session.
+- The handshake cache is per mode (`bridge-cache.json` / `bridge-cache-remote.json`). The token is never logged or echoed.
+- The hosted index only contains repositories its owner has cleared for off-machine hosting. A repo missing from `list_repos` in remote mode is a scope decision, not an indexing fault: use local mode or `rg` for it.
+- Still forbidden in either mode: `repowise login`, `rw_live_` tokens, hosted RepoWise accounts, persisting a remote URL or token in any tracked file or host config.
 
 ## 5. Access
 

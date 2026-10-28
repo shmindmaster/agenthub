@@ -1,0 +1,34 @@
+{
+  "name": "windows-desktop",
+  "description": "Windows desktop control through the pinned upstream Windows-MCP server. Plugin-gated: enable only for a desktop-control task, disable when done. Shell, registry, filesystem, process, clipboard and scrape tools are not exposed.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "windows",
+    "desktop",
+    "computer-use",
+    "ui-automation"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./mcp.codex.json",
+  "interface": {
+    "displayName": "Windows Desktop",
+    "shortDescription": "Drive native Windows apps: screenshot, UI tree, click, type, shortcuts, window switching.",
+    "longDescription": "Runs the upstream CursorTouch Windows-MCP server, pinned to windows-mcp==0.8.8 and launched through uvx only while this plugin is enabled. Telemetry is off. The server is started with a tool allowlist, so its PowerShell, Registry, FileSystem, Process, Clipboard and Scrape tools are never exposed; use the host's own shell and file tools, which keep their permission prompts. The remaining tools still move the real mouse and keyboard on the owner's desktop. Enable it for one desktop-control task and disable it afterwards.",
+    "developerName": "Sarosh Hussain",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Take a screenshot of the desktop and list the open windows.",
+      "Switch to the named app and read its visible UI elements.",
+      "Type this text into the focused field of the named app."
+    ]
+  },
+  "version": "1.0.0"
+}
