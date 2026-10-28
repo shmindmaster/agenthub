@@ -483,6 +483,90 @@
       "notes": "Registered 2026-08-10. Windows-host only: it needs adb for Android, and its iOS half is a remote client to the macOS guest rather than a local driver, because Xcode and simctl do not exist on Windows. packages/mobile-development/mobile.ps1 and its retained lab scripts resolve guest and runtime expectations from registry/mobile-development.json. NO_UI is set per the package guidance to cut generated-UI token overhead."
     },
     {
+      "id": "windows-mcp",
+      "name": "Windows-MCP (native Windows desktop control, plugin-gated)",
+      "scope": "on-demand-desktop",
+      "transport": "stdio",
+      "activationMode": "on-demand-local",
+      "startupEnabled": false,
+      "command": "uvx",
+      "args": [
+        "windows-mcp==0.8.8",
+        "serve",
+        "--tools",
+        "Screenshot,Snapshot,DisplayInventory,ControlStatus,Wait,WaitFor,Click,Type,Scroll,Move,Shortcut,App,MultiSelect,MultiEdit,Notification"
+      ],
+      "env": {
+        "ANONYMIZED_TELEMETRY": "false",
+        "WINDOWS_MCP_DISABLE_FLASH": "true"
+      },
+      "hosts": [
+        "claude",
+        "codex",
+        "cursor",
+        "opencode"
+      ],
+      "credentialPolicy": "none-in-config; no account, token or API key. stdio only, so upstream's --auth-key, --ip-allowlist and TLS options for HTTP transports do not apply and are not used.",
+      "providesCapabilities": [
+        "computer.gui"
+      ],
+      "providesCapabilitiesNote": "computer.gui through UI Automation plus synthesized mouse and keyboard input on the owner's interactive Windows session. This is the fleet provider for surfaces whose hostSurfaces value is not true. It does not change any surface value, which records first-party support only.",
+      "protocol": {
+        "revision": "2025-11-25",
+        "verifiedOn": "2026-10-28",
+        "verification": "Launched the exact packages/windows-desktop/.mcp.json entry (uvx windows-mcp==0.8.8 serve --tools <allowlist>) through the Python MCP SDK stdio client: protocolVersion 2025-11-25, serverInfo windows-mcp 4.1.4, tools/list returned exactly the 15 allowlisted tools. A read-only Screenshot returned an inline PNG (392,617 bytes, written to the AgentHub evidence root, not committed) after its USER_CONTROL guard waited out live owner input; the foreground window was unchanged. Then claude -p --plugin-dir packages/windows-desktop loaded the server as plugin:windows-desktop and called DisplayInventory successfully. Afterwards no windows-mcp process remained, and no Run key, scheduled task, startup entry or service referenced it."
+      },
+      "localProcessPolicy": {
+        "instancing": "one-process-per-plugin-enable",
+        "declaredByHostCount": 0,
+        "note": "The exact windows-mcp==0.8.8 argument is the sole pin authority; an unpinned or @latest spec is prohibited. Not persisted as a session-start stdio server: the server exists only while a host session has windows-desktop@agenthub enabled and ends with that session. A single shared streamable-http process was rejected on purpose: it would hold a localhost listener that lets any local process drive the mouse and keyboard, and the owner runs one coding host at a time, so per-session stdio costs one process while the plugin is on.",
+        "versionPinVerifiedOn": "2026-10-28",
+        "launchNote": "uvx resolves the pinned package from the uv cache and provisions Python 3.14 (upstream requires-python >=3.14). Hosts spawn plugin stdio servers without a console window.",
+        "visibleWindowNote": "While it holds control the server draws its own 'agent in control' border: layered, click-through, topmost, non-activating windows titled windows-mcp-flash that are excluded from screen capture. They never took focus in verification and exist only while a desktop-control session is live; they are upstream's takeover cue, so AgentHub keeps them. WINDOWS_MCP_DISABLE_FLASH=true only removes the per-screenshot flash. Upstream installs low-level mouse and keyboard hooks to detect owner takeover."
+      },
+      "owner": {
+        "type": "capability",
+        "id": "windows-desktop"
+      },
+      "pluginOwnersByHost": {
+        "claude": "windows-desktop@agenthub",
+        "codex": "windows-desktop@agenthub",
+        "cursor": "windows-desktop@agenthub"
+      },
+      "toolPolicy": {
+        "mode": "allowlist",
+        "enabled": [
+          "Screenshot",
+          "Snapshot",
+          "DisplayInventory",
+          "ControlStatus",
+          "Wait",
+          "WaitFor",
+          "Click",
+          "Type",
+          "Scroll",
+          "Move",
+          "Shortcut",
+          "App",
+          "MultiSelect",
+          "MultiEdit",
+          "Notification"
+        ],
+        "excluded": [
+          "PowerShell",
+          "Registry",
+          "FileSystem",
+          "Process",
+          "Clipboard",
+          "Scrape"
+        ],
+        "note": "Upstream enables all tools by default and recommends no restriction; its README shows excluding PowerShell and Registry only as a config example. AgentHub passes --tools, an allowlist, so a tool added in a later release stays off until the pin moves. Excluded tools duplicate host shell and file tools and would bypass host permission prompts; Clipboard reads can expose secrets; Scrape duplicates web tools and makes network calls. Re-enabling any excluded tool needs explicit owner approval."
+      },
+      "securityNote": "Upstream: 'Windows-MCP operates with full system access and can perform irreversible operations.' Even with the allowlist, Click, Type, Shortcut and App act on whatever window has focus, as the owner, with no sandbox; on-screen text is untrusted input. Its user-takeover pause is best-effort, not a lock. Telemetry is PostHog by default; ANONYMIZED_TELEMETRY=false is set in every launch.",
+      "hostScopeNote": "hosts[] is eligibility, not deployment. Delivery is plugin-gated (windows-desktop@agenthub: .mcp.json for Claude Code and Cursor, mcp.codex.json for Codex); OpenCode receives it with enabled=false through optInDisabledLocalMcpIds. Claude Desktop's Code tab reads the same ~/.claude plugins. Claude Desktop chat (claude_desktop_config.json), Gemini CLI, Grok, Factory, Devin, Copilot, Antigravity, Amp, Cline, Warp, VS Code Insiders and Windsurf have no AgentHub-managed opt-in route for a local stdio server: writing it into their config would start it at every session. They are discovery-required for this MCP and receive only the use-windows-mcp skill. Do not hand-write a persisted entry for them.",
+      "notes": "Registered 2026-10-28. Upstream CursorTouch/Windows-MCP (PyPI windows-mcp, MIT, status Beta), unmodified. Windows 10/11 only; must run on the Windows side, not inside WSL."
+    },
+    {
       "id": "railway",
       "name": "Railway (deploy and infrastructure)",
       "scope": "global-default",

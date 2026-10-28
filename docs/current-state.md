@@ -1,5 +1,21 @@
 # Current State
 
+- **Windows desktop control (2026-10-28):** `packages/windows-desktop` is the
+  first owner of `computer.gui` as a provider. It ships the
+  `windows-desktop@agenthub` plugin (Claude, Codex, Cursor) and the loose skill
+  `use-windows-mcp`, and runs upstream `windows-mcp==0.8.8` through `uvx` only
+  while the plugin is enabled. The launch passes a `--tools` allowlist, so
+  PowerShell, Registry, FileSystem, Process, Clipboard and Scrape are never
+  exposed. Telemetry and the capture flash are off. OpenCode gets the entry with
+  `enabled=false`. Every other host gets the skill only: the MCP is
+  discovery-required there, because a persisted stdio entry would start with
+  every session. Verified on this branch: a stdio handshake returned exactly 15
+  tools, and a read-only Screenshot wrote a PNG to the evidence root without
+  changing the foreground window. A `claude -p --plugin-dir` run then called
+  DisplayInventory. No Run key, scheduled task, service or host MCP entry was
+  created. Live deployment to hosts waits for merge, because the `agenthub`
+  marketplaces read the main checkout.
+
 - **RepoWise bridge remote mode (2026-10-28):** plugin 1.2.12 lets the
   `repowise@agenthub` stdio bridge forward to a self-hosted RepoWise endpoint
   when `AGENTHUB_REPOWISE_MODE=remote`, with the URL in
