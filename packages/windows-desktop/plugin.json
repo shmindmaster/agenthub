@@ -1,6 +1,6 @@
 {
   "$schema": "https://agentplugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "windows-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Windows desktop control through the pinned upstream Windows-MCP server. Plugin-gated: enable only for a desktop-control task, disable when done. Shell, registry, filesystem, process, clipboard and scrape tools are not exposed."
 }

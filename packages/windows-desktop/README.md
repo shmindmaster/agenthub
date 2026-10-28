@@ -25,9 +25,12 @@ doing the task. Disabling does not stop servers that are already running; they
 exit with their sessions. See the skill for the measured fan-out and the
 headless `--plugin-dir` alternative.
 
-Codex: `codex plugin add windows-desktop@agenthub`, then
-`codex plugin remove windows-desktop@agenthub`. Other hosts:
-`skills/use-windows-mcp/SKILL.md`.
+Codex: `codex plugin add windows-desktop@agenthub` once, then set
+`[plugins."windows-desktop@agenthub"] enabled = false` in `~/.codex/config.toml`
+(installed-disabled). Flip it to `true` for a task. Cursor IDE: a real copy (not
+a link) under `~/.cursor/plugins/local/windows-desktop` for the task only;
+`.cursor-plugin/plugin.json` points Cursor at `.mcp.json`. The Cursor CLI does
+not load local plugins. Details: `skills/use-windows-mcp/SKILL.md`.
 
 Each enabled host session runs its own `uvx` → Python process. A single shared
 HTTP server was rejected on purpose: it would keep a localhost listener open

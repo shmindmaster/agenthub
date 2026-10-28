@@ -765,7 +765,7 @@
       "managedSkillNames": [
         "use-windows-mcp"
       ],
-      "contentHash": "7D82F3B9DBF582B47779220CD0C16962303BF5B8CE13E69615B1B1C4B88AFA8B",
+      "contentHash": "BF54FA8492CB3E759891B5BA9AAB2F107B1AEFCE539EBBCBE01C7BC070D5F5C4",
       "hashBasis": "packages/windows-desktop",
       "status": "active-canonical",
       "hostMappings": [
@@ -785,7 +785,7 @@
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated: `codex plugin add windows-desktop@agenthub`, remove when done."
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated. Rest state: `codex plugin add windows-desktop@agenthub` once, then [plugins.\"windows-desktop@agenthub\"] enabled = false in ~/.codex/config.toml (Codex's documented disable-without-uninstall switch; `codex plugin list` shows installed, disabled). Flip to true for a task, new session, flip back after."
         },
         {
           "hostId": "cursor",
@@ -794,7 +794,7 @@
             "skills",
             "mcp"
           ],
-          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated (windows-desktop@agenthub); enable for a desktop-control task, disable when done."
+          "deploymentStatusNote": "Skills deploy loosely. Cursor IDE: copy packages/windows-desktop as a real folder to ~/.cursor/plugins/local/windows-desktop for a task and delete it after; Cursor skips links whose target is outside that folder, and .cursor-plugin/plugin.json names .mcp.json because Cursor otherwise looks for mcp.json. Cursor CLI (cursor-agent): MCP discovery-required, because it does not load local plugins (cursor-agent mcp list, 2026-10-28)."
         },
         {
           "hostId": "opencode",
