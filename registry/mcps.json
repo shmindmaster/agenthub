@@ -518,8 +518,8 @@
       },
       "localProcessPolicy": {
         "instancing": "one-process-per-plugin-enable",
-        "declaredByHostCount": 0,
-        "note": "The exact windows-mcp==0.8.8 argument is the sole pin authority; an unpinned or @latest spec is prohibited. Not persisted as a session-start stdio server: the server exists only while a host session has windows-desktop@agenthub enabled and ends with that session. A single shared streamable-http process was rejected on purpose: it would hold a localhost listener that lets any local process drive the mouse and keyboard, and the owner runs one coding host at a time, so per-session stdio costs one process while the plugin is on.",
+        "declaredByHostCount": 2,
+        "note": "The exact windows-mcp==0.8.8 argument is the sole pin authority; an unpinned or @latest spec is prohibited. Not persisted as a session-start stdio server: the server exists only while a host session has windows-desktop@agenthub enabled and ends with that session. A single shared streamable-http process was rejected on purpose: it would hold a localhost listener that lets any local process drive the mouse and keyboard, and the owner runs one coding host at a time, so per-session stdio costs one process while the plugin is on. Cursor exception 2026-10-28: always-on by owner decision, so each Cursor session holds one server (and its global input hooks) until disabled for that workspace.",
         "versionPinVerifiedOn": "2026-10-28",
         "launchNote": "uvx resolves the pinned package from the uv cache and provisions Python 3.14 (upstream requires-python >=3.14). Hosts spawn plugin stdio servers without a console window.",
         "visibleWindowNote": "While it holds control the server draws its own 'agent in control' border: layered, click-through, topmost, non-activating windows titled windows-mcp-flash that are excluded from screen capture. They never took focus in verification and exist only while a desktop-control session is live; they are upstream's takeover cue, so AgentHub keeps them. WINDOWS_MCP_DISABLE_FLASH=true only removes the per-screenshot flash. Upstream installs low-level mouse and keyboard hooks to detect owner takeover.",
@@ -531,8 +531,7 @@
       },
       "pluginOwnersByHost": {
         "claude": "windows-desktop@agenthub",
-        "codex": "windows-desktop@agenthub",
-        "cursor": "windows-desktop@agenthub"
+        "codex": "windows-desktop@agenthub"
       },
       "toolPolicy": {
         "mode": "allowlist",
@@ -564,8 +563,14 @@
         "note": "Upstream enables all tools by default and recommends no restriction; its README shows excluding PowerShell and Registry only as a config example. AgentHub passes --tools, an allowlist, so a tool added in a later release stays off until the pin moves. Excluded tools duplicate host shell and file tools and would bypass host permission prompts; Clipboard reads can expose secrets; Scrape duplicates web tools and makes network calls. Re-enabling any excluded tool needs explicit owner approval."
       },
       "securityNote": "Upstream: 'Windows-MCP operates with full system access and can perform irreversible operations.' Even with the allowlist, Click, Type, Shortcut and App act on whatever window has focus, as the owner, with no sandbox; on-screen text is untrusted input. Its user-takeover pause is best-effort, not a lock. Telemetry is PostHog by default; ANONYMIZED_TELEMETRY=false is set in every launch.",
-      "hostScopeNote": "hosts[] is eligibility, not deployment. Delivery is plugin-gated (windows-desktop@agenthub: .mcp.json for Claude Code and the Cursor IDE, the latter through .cursor-plugin/plugin.json mcpServers; mcp.codex.json for Codex). Codex rests installed with [plugins.\"windows-desktop@agenthub\"] enabled = false. The Cursor IDE loads only a real copy under ~/.cursor/plugins/local, because links to outside targets are skipped; the copy is placed for a task and removed after, since whether the IDE starts a plugin MCP before approval is unverified. The Cursor CLI (cursor-agent) does not load local plugins (verified 2026-10-28), so the MCP is discovery-required there; OpenCode receives it with enabled=false through optInDisabledLocalMcpIds. Claude Desktop's Code tab reads the same ~/.claude plugins. Claude Desktop chat (claude_desktop_config.json), Gemini CLI, Grok, Factory, Devin, Copilot, Antigravity, Amp, Cline, Warp, VS Code Insiders and Windsurf have no AgentHub-managed opt-in route for a local stdio server: writing it into their config would start it at every session. They are discovery-required for this MCP and receive only the use-windows-mcp skill. Do not hand-write a persisted entry for them.",
-      "notes": "Registered 2026-10-28. Upstream CursorTouch/Windows-MCP (PyPI windows-mcp, MIT, status Beta), unmodified. Windows 10/11 only; must run on the Windows side, not inside WSL."
+      "hostScopeNote": "hosts[] is eligibility; hostActivation is the per-host contract. Claude Code and Codex are plugin-gated (windows-desktop@agenthub: .mcp.json and mcp.codex.json) and carry no persisted entry. Cursor is the one always-on exception: windows-mcp is in native-connectors lifecyclePolicy.persistedOnDemandLocalMcpIds, so sync writes it into ~/.cursor/mcp.json and keeps it; it starts in every Cursor IDE window and cursor-agent session until disabled per workspace with `cursor-agent mcp disable windows-mcp`. Do not also install the plugin as a Cursor local plugin, which would start a second server. OpenCode receives it with enabled=false. Claude Desktop chat, Gemini CLI, Grok, Factory, Devin, Copilot, Antigravity, Amp, Cline, Warp, VS Code Insiders and Windsurf get the use-windows-mcp skill only; the MCP is discovery-required there. Do not hand-write persisted entries for them.",
+      "notes": "Registered 2026-10-28. Upstream CursorTouch/Windows-MCP (PyPI windows-mcp, MIT, status Beta), unmodified. Windows 10/11 only; must run on the Windows side, not inside WSL.",
+      "hostActivation": {
+        "claude": "plugin-gated; rests installed-disabled",
+        "codex": "plugin-gated; rests installed with [plugins.\"windows-desktop@agenthub\"] enabled = false",
+        "cursor": "always-on: persisted stdio entry in ~/.cursor/mcp.json, written and kept by AgentHub sync. Owner decision 2026-10-28, chosen in an AskUserQuestion relayed by the coordinating session: 'Cursor always-on' -- \"Install Windows-MCP in Cursor even though Cursor can't ship it disabled -- it will start in every Cursor session until you toggle it off\" -- and \"everything we need to do should be possible with commands\". Off switch, per workspace: `cursor-agent mcp disable windows-mcp` run from that workspace folder writes ~/.cursor/projects/<workspace>/mcp-disabled.json ('will not be loaded or prompted for approval'); `cursor-agent mcp enable windows-mcp` reverses it. The state lives outside ~/.cursor/mcp.json, so AgentHub sync never clears it (measured 2026-10-28). The Cursor IDE also has a per-server toggle in Customize.",
+        "opencode": "persisted with enabled = false (optInDisabledLocalMcpIds)"
+      }
     },
     {
       "id": "railway",
