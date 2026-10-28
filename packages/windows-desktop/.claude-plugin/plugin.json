@@ -1,0 +1,17 @@
+{
+  "name": "windows-desktop",
+  "description": "Windows desktop control through the pinned upstream Windows-MCP server. Plugin-gated: enable only for a desktop-control task, disable when done. Shell, registry, filesystem, process, clipboard and scrape tools are not exposed.",
+  "author": {
+    "name": "Sarosh Hussain"
+  },
+  "license": "MIT",
+  "keywords": [
+    "windows",
+    "desktop",
+    "computer-use",
+    "ui-automation"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "version": "1.0.0"
+}

@@ -758,6 +758,125 @@
       "provenance": "agenthub-owned"
     },
     {
+      "id": "windows-desktop",
+      "owner": "packages/windows-desktop",
+      "capabilityType": "plugin+mcp+skills",
+      "canonicalSource": "packages/windows-desktop",
+      "managedSkillNames": [
+        "use-windows-mcp"
+      ],
+      "contentHash": "EA46D5C5F50D19D494AAC9C957870C6194C8CBA29A07AA79226F102F89E8B6E8",
+      "hashBasis": "packages/windows-desktop",
+      "status": "active-canonical",
+      "hostMappings": [
+        {
+          "hostId": "claude",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated (windows-desktop@agenthub); enable for a desktop-control task, disable when done. Covers Claude Code CLI and the Claude Desktop Code tab, which read the same ~/.claude plugins. Prefer first-party computer use where the session has it loaded."
+        },
+        {
+          "hostId": "codex",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated: `codex plugin add windows-desktop@agenthub`, remove when done."
+        },
+        {
+          "hostId": "cursor",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP is plugin-gated (windows-desktop@agenthub); enable for a desktop-control task, disable when done."
+        },
+        {
+          "hostId": "opencode",
+          "deploymentStatus": "managed-loose-skills",
+          "components": [
+            "skills",
+            "mcp"
+          ],
+          "deploymentStatusNote": "Skills deploy loosely. MCP written as mcp.windows-mcp with enabled=false (optInDisabledLocalMcpIds); enable per session when needed."
+        },
+        {
+          "hostId": "amp",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "antigravity",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "cline",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "copilot",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "devin",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "factory",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "gemini",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "grok",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "vscode-insiders",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "warp",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        },
+        {
+          "hostId": "windsurf",
+          "deploymentStatus": "managed-loose-skills",
+          "deploymentStatusNote": "Skill only. Windows-MCP is discovery-required on this host: AgentHub has no opt-in route for a local stdio server here, and a persisted entry would start at every session."
+        }
+      ],
+      "provides": [
+        "computer.gui"
+      ],
+      "dependencies": {
+        "requires": [],
+        "recommends": [
+          "browser-toolkit"
+        ],
+        "optional": []
+      },
+      "notes": "Fleet owner of native Windows desktop control. Before 2026-10-28 no capability owned computer.gui: browser-toolkit's desktop-evidence captures screenshots and recordings but cannot click or type, and claude-cli's first-party computer use is not loaded in every session. Owns registry/mcps.json#windows-mcp, delivered only by this package's plugin manifests, plus the use-windows-mcp loose skill. desktop-evidence stays the owner of written evidence files.",
+      "kind": "provider",
+      "maturity": "beta",
+      "provenance": "upstream-pinned"
+    },
+    {
       "id": "repowise",
       "owner": "fleet-intelligence",
       "capabilityType": "plugin+mcp+skills",

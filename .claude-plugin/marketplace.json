@@ -40,6 +40,10 @@
     {
       "name": "repowise",
       "source": "./packages/repowise"
+    },
+    {
+      "name": "windows-desktop",
+      "source": "./packages/windows-desktop"
     }
   ]
 }
