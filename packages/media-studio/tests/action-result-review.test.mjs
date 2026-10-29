@@ -112,3 +112,19 @@ const invalidConcepts = {
   'default action rule still applies without explicit mode': f => { delete f.review.mode; },
 };
 for (const [name, mutate] of Object.entries(invalidConcepts)) test(`conceptual-animation: ${name}`, () => { const f = conceptualFixture(); mutate(f); assert.ok(validate(f).length > 0); });
+
+// A teaser is a format, not permission to invent enacted application actions.
+function teaserFixture() {
+  const f = fixture(); f.job.kind = f.storyboard.kind = 'teaser'; return f;
+}
+test('settled-state teaser retains its honest format and concrete per-beat proof', () => assert.deepEqual(validate(teaserFixture()), []));
+for (const [name, mutate] of Object.entries(invalid)) test(`settled-state teaser: ${name}`, () => { const f = teaserFixture(); mutate(f); assert.ok(validate(f).length > 0); });
+test('settled-state teaser cannot mix storyboard classification', () => {
+  const f = teaserFixture(); f.storyboard.kind = 'explainer'; assert.ok(validate(f).length > 0);
+});
+test('settled-state explainer cannot relabel its storyboard as teaser', () => {
+  const f = fixture(); f.storyboard.kind = 'teaser'; assert.ok(validate(f).length > 0);
+});
+test('teaser classification does not establish whole-film conceptual animation', () => {
+  const f = conceptualFixture(); f.job.kind = f.storyboard.kind = 'teaser'; assert.ok(validate(f).length > 0);
+});

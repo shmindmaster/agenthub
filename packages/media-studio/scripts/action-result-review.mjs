@@ -13,7 +13,7 @@ export function validateActionResultReview({job, storyboard, timeline, review, c
     }
     return errors;
   }
-  if (job?.kind !== 'explainer' || job.noEnactedActions !== true || storyboard?.kind !== 'explainer' || storyboard.noEnactedActions !== true) errors.push('settled-state review requires an explainer and explicit noEnactedActions=true in both job and storyboard.');
+  if (!['explainer', 'teaser'].includes(job?.kind) || storyboard?.kind !== job.kind || job.noEnactedActions !== true || storyboard.noEnactedActions !== true) errors.push('settled-state review requires matching explainer or teaser kinds and explicit noEnactedActions=true in both job and storyboard.');
   if (review.status !== 'PASS' || !/^[a-f0-9]{64}$/.test(candidateSha256 ?? '') || review.candidateSha256 !== candidateSha256) errors.push('settled-state review must be a PASS bound to the exact encoded candidate.');
   if (review.independent !== true || !text(review.reviewer)) errors.push('settled-state review requires an identified independent reviewer.');
   if (review.events !== undefined && (!Array.isArray(review.events) || review.events.length)) errors.push('settled-state review cannot contain enacted-action events.');
