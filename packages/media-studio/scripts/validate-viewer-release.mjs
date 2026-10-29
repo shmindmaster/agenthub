@@ -271,11 +271,12 @@ if (evidence) {
   const actions = requireBoundPass("actionResultReview");
   if (actions) {
     const storyboardPath = join(root, 'story', 'storyboard.json');
-    const storyboard = actions.mode === 'settled-state' && existsSync(storyboardPath) ? json(storyboardPath) : null;
+    const stateReview = ['settled-state', 'conceptual-animation'].includes(actions.mode);
+    const storyboard = stateReview && existsSync(storyboardPath) ? json(storyboardPath) : null;
     let candidateDurationSeconds;
-    if (actions.mode === 'settled-state') {
+    if (stateReview) {
       try { candidateDurationSeconds = probeVideo(candidate).duration; }
-      catch { errors.push('cannot measure the encoded program duration for settled-state review.'); }
+      catch { errors.push('cannot measure the encoded program duration for state/concept review.'); }
     }
     errors.push(...validateActionResultReview({job, storyboard, timeline, review: actions, candidateSha256: candidateSha, candidateDurationSeconds}));
   }

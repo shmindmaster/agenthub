@@ -336,3 +336,31 @@ test('release gate refuses video-standard reports run with loosened thresholds',
   assert.match(run(releaseValidator, [root, candidate]).output, /frame-integrity.json was not run at the canonical thresholds: tilePsnr missing/);
   writeFileSync(fi, original);
 });
+
+
+test('aggregate conceptual animation measures encoded duration and requires whole-film applicability', { skip: spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' }).status !== 0 }, () => {
+  const root = join(scratch, 'conceptual-animation'); job(root); const candidate = release(root);
+  const encoded = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=blue:s=160x90:r=10:d=2', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', candidate], { encoding: 'utf8' });
+  assert.equal(encoded.status, 0, encoded.stderr);
+  // Rebind fixture evidence after replacing its placeholder with a real encoded file.
+  const evidencePath = join(root, 'qa', 'viewer-release-evidence.json');
+  const evidence = JSON.parse(readFileSync(evidencePath));
+  evidence.candidate.sha256 = sha(candidate);
+  for (const value of Object.values(evidence)) if (value?.candidateSha256) value.candidateSha256 = sha(candidate);
+  writeFileSync(join(root, 'qa', 'loudness.json'), JSON.stringify({ tool: 'ffmpeg-loudnorm', candidateSha256: sha(candidate), integratedLufs: -16, truePeakDbtp: -1.5 }));
+  evidence.audio.analyzerReport.sha256 = sha(join(root, 'qa', 'loudness.json'));
+  writePictureReport(root, candidate); writeSyncReport(root, candidate); writeStandardReports(root, candidate);
+  writeFileSync(join(root, 'job.json'), JSON.stringify({ kind: 'animation', producer: 'producer', noEnactedActions: true, noCompletedResultClaims: true }));
+  writeFileSync(join(root, 'story', 'storyboard.json'), JSON.stringify({ kind: 'animation', noEnactedActions: true, noCompletedResultClaims: true, beats: [{ id: 'hero', provesClaim: 'Source traceability is the question.' }] }));
+  writeFileSync(join(root, 'story', 'narration-timeline.json'), JSON.stringify({ segments: [{ id: 'hero', text: 'What connects the number to its source?' }] }));
+  evidence.actionResultReview = { status: 'PASS', candidateSha256: sha(candidate), mode: 'conceptual-animation', independent: true, reviewer: 'independent-reviewer', noCompletedResultClaims: true, narrationAssessment: 'Whole film is a conceptual question, without completed application results.', observedConcepts: [{ segmentId: 'hero', concept: 'Traceability question', evidence: 'The encoded blue diagram is visible at zero seconds.', narrationRole: 'question', narrationExcerpt: 'What connects', visibleAtSeconds: 0, narrationAtSeconds: 1 }] };
+  writeFileSync(evidencePath, JSON.stringify(evidence));
+  let result = run(releaseValidator, [root, candidate]); assert.equal(result.code, 0, result.output);
+  evidence.actionResultReview.observedConcepts[0].narrationAtSeconds = 3;
+  writeFileSync(evidencePath, JSON.stringify(evidence));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /in-program/);
+  evidence.actionResultReview.observedConcepts[0].narrationAtSeconds = 1;
+  writeFileSync(evidencePath, JSON.stringify(evidence));
+  writeFileSync(join(root, 'story', 'storyboard.json'), JSON.stringify({ kind: 'animation', noEnactedActions: true, beats: [{ id: 'hero', provesClaim: 'Question' }] }));
+  result = run(releaseValidator, [root, candidate]); assert.notEqual(result.code, 0); assert.match(result.output, /noCompletedResultClaims/);
+});

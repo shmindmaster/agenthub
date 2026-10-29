@@ -66,3 +66,49 @@ test('default enacted action still rejects speech before result', () => {
 test('default enacted action still rejects nonfinite action time', () => {
   assert.ok(validate({ review: { events: [{ segmentId: 'click', actionAtSeconds: Infinity, resultVisibleAtSeconds: 3, spokenResultAtSeconds: 4 }] } }).length > 0);
 });
+
+function conceptualFixture() {
+  return {
+    candidateSha256: sha, candidateDurationSeconds: 12,
+    job: { kind: 'animation', producer: 'film-producer', noEnactedActions: true, noCompletedResultClaims: true },
+    storyboard: { kind: 'animation', noEnactedActions: true, noCompletedResultClaims: true, beats: [{ id: 'question', provesClaim: 'Source traceability is the question.' }, { id: 'intent', provesClaim: 'Retaining sources is the intended workflow.' }] },
+    timeline: { segments: [{ id: 'question', text: 'What connects the numbers to their source?' }, { id: 'intent', text: 'Retain the source. The intent is traceability.' }] },
+    review: { mode: 'conceptual-animation', status: 'PASS', candidateSha256: sha, independent: true, reviewer: 'independent-reviewer', noCompletedResultClaims: true, narrationAssessment: 'Reviewed the whole encoded film: the opening poses a question and the closing describes intent, without asserting completed application results.', observedConcepts: [
+      { segmentId: 'question', concept: 'Source and number diagram', evidence: 'At 1s the source card connects to a number card.', narrationRole: 'question', narrationExcerpt: 'What connects the numbers', visibleAtSeconds: 1, narrationAtSeconds: 2 },
+      { segmentId: 'intent', concept: 'Intended source retention', evidence: 'At 6s a source card remains connected to its record.', narrationRole: 'imperative', narrationExcerpt: 'Retain the source.', visibleAtSeconds: 6, narrationAtSeconds: 7 },
+    ] },
+  };
+}
+test('explicit conceptual animation uses actual concepts and narration references without invented results', () => assert.deepEqual(validate(conceptualFixture()), []));
+const invalidConcepts = {
+  'animation alone is not an exemption': f => { delete f.job.noEnactedActions; },
+  'whole-film result declaration is required': f => { delete f.storyboard.noCompletedResultClaims; },
+  'enacted screencast cannot opt in': f => { f.job.kind = 'product-screencast'; },
+  'storyboard cannot relabel the film': f => { f.storyboard.kind = 'explainer'; },
+  'wrong candidate is rejected': f => { f.review.candidateSha256 = 'b'.repeat(64); },
+  'failed review rejected': f => { f.review.status = 'FAIL'; },
+  'self review rejected': f => { f.review.reviewer = f.job.producer; },
+  'unnamed producer rejected': f => { delete f.job.producer; },
+  'independence required': f => { f.review.independent = false; },
+  'whole-film narration assessment required': f => { delete f.review.narrationAssessment; },
+  'reviewer must assess no completed claims': f => { f.review.noCompletedResultClaims = false; },
+  'empty observations rejected': f => { f.review.observedConcepts = []; },
+  'uncovered narration rejected': f => { f.timeline.segments.push({ id: 'unreviewed', text: 'Additional claim.' }); },
+  'uncovered storyboard rejected': f => { f.storyboard.beats.push({ id: 'unreviewed' }); },
+  'duplicate observations rejected': f => { f.review.observedConcepts.push(f.review.observedConcepts[0]); },
+  'ambiguous segments rejected': f => { f.timeline.segments.push(f.timeline.segments[0]); },
+  'completed-result role rejected': f => { f.review.observedConcepts[0].narrationRole = 'completed-result'; },
+  'invented narration excerpt rejected': f => { f.review.observedConcepts[0].narrationExcerpt = 'The export completed.'; },
+  'concrete picture evidence required': f => { f.review.observedConcepts[0].evidence = ''; },
+  'concept required': f => { f.review.observedConcepts[0].concept = ''; },
+  'declared concept required': f => { delete f.storyboard.beats[0].provesClaim; },
+  'invented result clock rejected': f => { f.review.observedConcepts[0].resultVisibleAtSeconds = 1; },
+  'enacted events rejected': f => { f.review.events = [{ segmentId: 'question' }]; },
+  'nonfinite times rejected': f => { f.review.observedConcepts[0].narrationAtSeconds = NaN; },
+  'negative times rejected': f => { f.review.observedConcepts[0].visibleAtSeconds = -1; },
+  'out of program times rejected': f => { f.review.observedConcepts[0].narrationAtSeconds = 13; },
+  'visual after narration rejected': f => { f.review.observedConcepts[0].visibleAtSeconds = 3; },
+  'missing measured duration rejected': f => { delete f.candidateDurationSeconds; },
+  'default action rule still applies without explicit mode': f => { delete f.review.mode; },
+};
+for (const [name, mutate] of Object.entries(invalidConcepts)) test(`conceptual-animation: ${name}`, () => { const f = conceptualFixture(); mutate(f); assert.ok(validate(f).length > 0); });
