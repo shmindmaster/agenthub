@@ -88,3 +88,10 @@ Encoded input failures write a fail-closed JSON report, including missing candid
 ### Native file selection
 
 `h.uploadFile(fileInputLocator, filePath, { label })` records a distinct `upload` action only after Playwright's native `locator.setInputFiles` succeeds. The receipt carries ordered recording-clock `tStart`, `tEnd`, `t`, the actual input target and `file: { name, bytes, sha256, mimeType }` for the exact submitted bytes. It has no synthetic click, cursor position or target box. Cue generation retains the file identity and maps `tStart` through the usual capture/compose clocks; narrated uploads use the same word/action sync tolerance. Product-picture admission requires a valid upload action and matching `events.uploads` count in the hash-bound capture receipt. A summary count alone cannot admit an upload. Existing pointer/touch, Recast and observed-response requirements remain: file selection is not proof of a successful preview/import, which needs a separate `h.expect` on the visible product response.
+
+
+### Native controlled-value admission
+
+`h.fillValue(locator, value, { label, hold })` supports native nonsecret text, month/date/time and numeric inputs and textareas. It uses a unique real locator, pointer approach, `locator.fill` and exact `inputValue` readback. A successful `fill` action records finite ordered recording-clock `tStart`, `tEnd`, `t`, a nonempty label/target, `method: locator.fill`, actual `inputType`, string `value` and measured positive `targetBox` in recorded pixels. It has no click coordinates or keystroke count. Use synthetic values only; password/file/hidden controls are excluded.
+
+The product-picture gate requires `events.fills` to match valid fill actions and retains pointer-motion, observed-response and capture-hash requirements. Cue sheets bind the receipt event index and map the fill start through the existing edit clock without inventing a click. Filling changes state, so an expectation spanning a fill cannot count as an unchanged already-visible observation. A separate observed preview/result remains required; the readback proves the field value only.

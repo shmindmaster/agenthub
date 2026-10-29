@@ -500,3 +500,20 @@ test('plan gate: native upload requires valid action evidence, matching summary,
     const bad = structuredClone(receipt); change(bad); r = check(bad); assert.notEqual(r.code, 0, r.out);
   }
 });
+
+
+test('plan gate: native fill requires matching summary, real bounds, observed response and bound capture', { skip: !ffmpegAvailable }, () => {
+  const root = join(scratch, 'native-fill'); writeJob(root, { screenSeconds: 2, cardSeconds: 0 });
+  const clip = join(root, 'capture', 'clips', 'S02.webm'); movingClip(clip, 2);
+  const fill = { type: 'fill', tStart: 0.4, tEnd: 0.5, t: 0.5, label: 'Set month', target: 'month control', method: 'locator.fill', inputType: 'month', value: '2026-09', targetBox: { x: 20, y: 40, w: 100, h: 30 } };
+  const receipt = goodReceipt('clips/S02.webm', sha(clip), { actions: [fill], events: { pointerMoves: 2, fills: 1, expectationsObserved: 1 } });
+  const path = join(root, 'capture', 'receipt.json');
+  const check = (r) => { writeFileSync(path, JSON.stringify(r)); return run(validator, [root]); };
+  let r = check(receipt); assert.equal(r.code, 0, r.out);
+  for (const change of [r => delete r.clips.S02.actions, r => r.clips.S02.events.fills = 2,
+    r => r.clips.S02.actions[0].method = 'synthetic-change', r => r.clips.S02.actions[0].inputType = 'password',
+    r => delete r.clips.S02.actions[0].targetBox, r => r.clips.S02.actions[0].tStart = -1, r => r.clips.S02.actions[0].chars = 7,
+    r => r.clips.S02.events.expectationsObserved = 0, r => r.clips.S02.events.pointerMoves = 0, r => r.clips.S02.sha256 = 'b'.repeat(64)]) {
+    const bad = structuredClone(receipt); change(bad); r = check(bad); assert.notEqual(r.code, 0, r.out);
+  }
+});

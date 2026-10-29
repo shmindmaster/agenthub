@@ -50,6 +50,7 @@ export class EventLog {
       clicks: count('click'),
       taps: count('tap'),
       uploads: count('upload'),
+      fills: count('fill'),
       keystrokes: this.events.filter((e) => e.type === 'type').reduce((n, e) => n + (e.chars || 0), 0),
       scrolls: count('wheel'),
       navigations: count('goto'),
@@ -318,6 +319,27 @@ export function bindHelpers(page, log, beats, opts = {}) {
     return event;
   }
 
+  /** Native value entry for controlled inputs (including month/date), never claimed as keystrokes. */
+  async function fillValue(locator, value, o = {}) {
+    if (typeof o.label !== 'string' || !o.label.trim()) throw new Error('fillValue requires a nonempty action label');
+    if (typeof value !== 'string') throw new Error('fillValue requires a string value');
+    if (!locator || typeof locator.count !== 'function' || typeof locator.fill !== 'function' || typeof locator.inputValue !== 'function') throw new Error('fillValue requires an input locator');
+    if (await locator.count() !== 1) throw new Error('fillValue locator must resolve to exactly one input');
+    const inputType = await locator.evaluate((el) => el.tagName === 'TEXTAREA' ? 'textarea' : el.tagName === 'INPUT' ? el.type : null);
+    if (!['text', 'search', 'email', 'url', 'tel', 'number', 'date', 'datetime-local', 'time', 'month', 'week', 'textarea'].includes(inputType)) throw new Error('fillValue requires a supported nonsecret editable input');
+    const { box } = await approach(locator, o);
+    const tStart = log.now();
+    await locator.fill(value, { timeout: o.timeout ?? 15000 });
+    const actual = await locator.inputValue();
+    if (actual !== value) throw new Error('fillValue input readback does not match requested value');
+    const tEnd = log.now();
+    const event = log.push('fill', { label: o.label, target: o.target || describe(locator), method: 'locator.fill', inputType, value: actual, tStart, tEnd,
+      targetBox: { x: box.x * k, y: box.y * k, w: box.width * k, h: box.height * k } });
+    beats.mark(o.label);
+    await wait(o.hold ?? TIMING.clickHoldMs);
+    return event;
+  }
+
   /** Pointer lead without a click, for a read beat. */
   async function pointAt(locator, o = {}) {
     const r = await approach(locator, o);
@@ -388,5 +410,5 @@ export function bindHelpers(page, log, beats, opts = {}) {
   /** Result hold (≥500 ms; longer when the viewer must read). */
   const hold = (ms = 1500) => wait(ms);
 
-  return { approach, click, tap, typeText, uploadFile, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
+  return { approach, click, tap, typeText, uploadFile, fillValue, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
 }

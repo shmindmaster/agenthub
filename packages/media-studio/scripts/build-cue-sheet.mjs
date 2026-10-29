@@ -190,9 +190,9 @@ const beats = segs.map((seg, i) => {
 
   // actions
   const events = (clipRec?.actions || []).filter((e) => {
-    if (e.type !== 'upload') return ['click', 'tap', 'type', 'point'].includes(e.type);
-    const problems = L.uploadEventProblems(e);
-    if (problems.length) errors.push(`${seg.id}: invalid upload receipt event: ${problems.join('; ')}`);
+    if (!['upload', 'fill'].includes(e.type)) return ['click', 'tap', 'type', 'point'].includes(e.type);
+    const problems = e.type === 'upload' ? L.uploadEventProblems(e) : L.fillEventProblems(e);
+    if (problems.length) errors.push(`${seg.id}: invalid ${e.type} receipt event: ${problems.join('; ')}`);
     return problems.length === 0;
   });
   const owned = events.map((e) => { const clipTime = L.toClipTime(clipRec, e.tStart ?? e.t); return { e, clipTime, program: toProgram(clipTime) }; }).filter((x) => x.clipTime !== null).filter((x) => g.segments.length === 1 || (x.program !== null ? inBeat(x.program) : g.segments[0] === seg.id));
@@ -207,6 +207,7 @@ const beats = segs.map((seg, i) => {
       kind: x.e.type, label, target: x.e.target || label || null, narrated, keywords,
       receipt_event_index: clipRec.actions.indexOf(x.e),
       ...(x.e.type === 'upload' ? { method: x.e.method, file: { ...x.e.file } } : {}),
+      ...(x.e.type === 'fill' ? { method: x.e.method, inputType: x.e.inputType, value: x.e.value, targetBox: { ...x.e.targetBox } } : {}),
       clip_time: L.round(x.clipTime), cursor: Number.isFinite(x.e.x) ? { x: x.e.x, y: x.e.y } : null,
       action_time: mapped ? x.program : null,
       action_time_natural: g.mappable && !g.hasPiecewise ? round(g.start + (L.clipToSlot({ ...g.edit, headHold: 0 }, x.clipTime) ?? NaN)) : null,
@@ -216,7 +217,7 @@ const beats = segs.map((seg, i) => {
   if (planned) {
     for (const spec of planned) {
       const x = owned.find((o) => String(o.e.label || '').toLowerCase() === String(spec.label || '').toLowerCase()) || owned.find((o) => String(o.e.target || '').toLowerCase().includes(String(spec.label || '').toLowerCase()));
-      if (x) take(x, spec); else warnings.push(`${seg.id}: cue-plan action "${spec.label}" has no matching captured click/tap/type/point/upload event`);
+      if (x) take(x, spec); else warnings.push(`${seg.id}: cue-plan action "${spec.label}" has no matching captured click/tap/type/point/upload/fill event`);
     }
   } else for (const x of owned) take(x, null);
 

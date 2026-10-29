@@ -147,3 +147,40 @@ test('record-job --ratio picks options.viewports[r] and writes ratio, device, vi
   assert.match(src, /videoSize: capture\.videoSize/);
   assert.doesNotMatch(src, /options\.viewport\b(?!s)[^;\n]*resolution|resolution: options\.viewport/, 'no remaining direct use of options.viewport for recording');
 });
+
+
+function fillLocator(overrides = {}) {
+  return { ...fakeLocator(), count: async () => 1, evaluate: async () => 'month',
+    fill: async () => {}, inputValue: async () => '2026-09', ...overrides };
+}
+test('native fill records actual month readback and scaled bounds without a click or keystrokes', async () => {
+  const { log, beats, h } = setup({ videoSize: { width: 780 }, viewport: { width: 390 } });
+  log.now = (() => { let n = 0; return () => ++n; })();
+  const calls = [];
+  const loc = fillLocator({ fill: async (...args) => { assert.equal(log.events.some(e => e.type === 'fill'), false); calls.push(args); } });
+  const event = await h.fillValue(loc, '2026-09', { label: 'Declared reporting month', target: 'month control', hold: 0 });
+  assert.deepEqual(calls, [['2026-09', { timeout: 15000 }]]);
+  assert.equal(event.method, 'locator.fill'); assert.equal(event.inputType, 'month'); assert.equal(event.value, '2026-09');
+  assert.equal(event.target, 'month control');
+  assert.deepEqual(event.targetBox, { x: 200, y: 400, w: 160, h: 80 });
+  assert.ok(event.tStart < event.tEnd && event.tEnd <= event.t);
+  assert.equal(log.summary().fills, 1); assert.equal(log.summary().clicks, 0); assert.equal(log.summary().keystrokes, 0);
+  assert.ok(log.summary().pointerMoves > 0); assert.equal(beats.marks.length, 1);
+  for (const key of ['x', 'y', 'chars']) assert.equal(Object.hasOwn(event, key), false);
+});
+test('native fill rejects ambiguous, secret, unsupported and unlabelled controls before execution', async () => {
+  const { log, beats, h } = setup({}); let calls = 0;
+  const loc = fillLocator({ fill: async () => { calls++; } });
+  await assert.rejects(h.fillValue(loc, '2026-09'), /nonempty action label/);
+  await assert.rejects(h.fillValue(loc, 202609, { label: 'Month' }), /string value/);
+  for (const count of [0, 2]) await assert.rejects(h.fillValue({ ...loc, count: async () => count }, '2026-09', { label: 'Month' }), /exactly one/);
+  for (const kind of ['password', 'file', 'hidden', 'button', null]) await assert.rejects(h.fillValue({ ...loc, evaluate: async () => kind }, '2026-09', { label: 'Month' }), /nonsecret editable/);
+  assert.equal(calls, 0); assert.deepEqual(log.events, []); assert.deepEqual(beats.marks, []);
+});
+test('native fill records no success or beat after native failure or mismatched readback', async () => {
+  for (const changes of [{ fill: async () => { throw new Error('detached field'); } }, { inputValue: async () => '2026-08' }]) {
+    const { log, beats, h } = setup({});
+    await assert.rejects(h.fillValue(fillLocator(changes), '2026-09', { label: 'Month', hold: 0 }), /detached field|readback/);
+    assert.equal(log.summary().fills, 0); assert.deepEqual(beats.marks, []);
+  }
+});

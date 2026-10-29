@@ -415,6 +415,9 @@ test('receipt-proved pointer arrival and existing-state observation do not promi
   const uploading = structuredClone(capture);
   uploading.clips.C.actions.push({ type: 'upload', t: 3.005, tStart: 3, tEnd: 3.005 });
   assert.equal(L.receiptSemantics(b, b.result, uploading, true), null, 'native upload during the wait can change an already-visible state');
+  const filling = structuredClone(capture);
+  filling.clips.C.actions.push({ type: 'fill', t: 3.005, tStart: 3, tEnd: 3.005 });
+  assert.equal(L.receiptSemantics(b, b.result, filling, true), null, 'native fill during the wait can change an already-visible state');
   assert.deepEqual(L.expectedChangePoints([b], [], capture), []);
   assert.equal(L.declaredHold(b, capture).from, 0, 'a receipt-proved read beat holds throughout, including pointer travel');
   assert.equal(L.classifyFreeze({ start: 1.9, end: 8, duration: 6.1 }, { beats: [b], receipt: capture }).verdict, 'declared-hold');
@@ -544,5 +547,31 @@ test('cue sheet maps a real upload action on recording clock without inventing a
   assert.equal(action.method, 'locator.setInputFiles');
   receipt.clips.S02.actions[0].file.sha256 = 'fabricated'; write(path, receipt);
   const rejected = run(cueBuilder, [root]); assert.notEqual(rejected.code, 0); assert.match(rejected.out, /invalid upload receipt/);
+  assert.equal(readCue(root).beats[1].actions.length, 0);
+});
+
+
+const nativeFill = () => ({ type: 'fill', tStart: 2.1, tEnd: 2.14, t: 2.15, label: 'Approve', target: 'month control', method: 'locator.fill', inputType: 'month', value: '2026-09', targetBox: { x: 10, y: 20, w: 80, h: 40 } });
+test('native fill admission rejects fabricated methods, timestamps, controls, geometry and keystrokes', () => {
+  assert.deepEqual(L.fillEventProblems(nativeFill()), []);
+  for (const change of [e => delete e.method, e => e.tStart = null, e => e.tEnd = Infinity, e => e.tEnd = 1, e => e.t = 0,
+    e => e.label = '', e => e.target = '', e => e.inputType = 'password', e => delete e.value,
+    e => delete e.targetBox, e => e.targetBox.w = 0, e => e.targetBox.x = NaN, e => e.x = 1, e => e.chars = 7]) {
+    const event = nativeFill(); change(event); assert.ok(L.fillEventProblems(event).length, JSON.stringify(event));
+  }
+});
+test('cue sheet maps a native fill on the recording clock and preserves its readback without a click', () => {
+  const root = cueJob('cue-fill', { mapped: true, headTrim: 0.1 });
+  const path = join(root, 'capture', 'receipt.json');
+  const receipt = JSON.parse(readFileSync(path, 'utf8'));
+  receipt.clips.S02.actions = [nativeFill()]; write(path, receipt);
+  const result = run(cueBuilder, [root]); assert.equal(result.code, 0, result.out);
+  const action = readCue(root).beats[1].actions[0];
+  assert.equal(action.kind, 'fill'); assert.equal(action.cursor, null);
+  assert.equal(action.receipt_event_index, 0); assert.equal(action.clip_time, 2); assert.equal(action.action_time, 5.5);
+  assert.equal(action.method, 'locator.fill'); assert.equal(action.inputType, 'month'); assert.equal(action.value, '2026-09');
+  assert.deepEqual(action.targetBox, nativeFill().targetBox);
+  receipt.clips.S02.actions[0].method = 'synthetic-change'; write(path, receipt);
+  const rejected = run(cueBuilder, [root]); assert.notEqual(rejected.code, 0); assert.match(rejected.out, /invalid fill receipt/);
   assert.equal(readCue(root).beats[1].actions.length, 0);
 });

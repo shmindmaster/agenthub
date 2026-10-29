@@ -22,7 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
 if (!libPath) { console.error('sync-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
-const { uploadEventProblems } = await import(pathToFileURL(libPath).href);
+const { uploadEventProblems, fillEventProblems } = await import(pathToFileURL(libPath).href);
 
 export const SCREEN_DURATION_MIN = 0.7;
 export const CARD_MAX_SECONDS = 8;
@@ -185,10 +185,17 @@ for (const [clip, { need, segments: segIds }] of needByClip) {
     }
     if ((ev.uploads !== undefined || uploads.length) && (!Number.isSafeInteger(ev.uploads) || ev.uploads !== uploads.length)) fail(`clip ${label}: upload summary does not match native upload receipt actions`);
     const validUploads = uploads.filter((e) => uploadEventProblems(e).length === 0).length;
+    const fills = (entry.actions || []).filter((e) => e.type === 'fill');
+    for (const fill of fills) {
+      const problems = fillEventProblems(fill);
+      if (problems.length) fail(`clip ${label}: invalid fill receipt event: ${problems.join('; ')}`);
+    }
+    if ((ev.fills !== undefined || fills.length) && (!Number.isSafeInteger(ev.fills) || ev.fills !== fills.length)) fail(`clip ${label}: fill summary does not match native fill receipt actions`);
+    const validFills = fills.filter((e) => fillEventProblems(e).length === 0).length;
     if (!(ev.pointerMoves > 0 || ev.taps > 0)) fail(`clip ${label}: receipt records no pointer motion and no touch taps; a screen beat needs a visible pointer lead or a touch path`);
     const interactive = segIds.some((s) => interactionScenes.has(s) || interactionScenes.has(String(s).replace(/[a-z]$/, '')));
     if (interactive) {
-      if (!((ev.clicks || 0) + (ev.taps || 0) + (ev.keystrokes || 0) + (ev.scrolls || 0) + validUploads > 0)) fail(`clip ${label}: interaction beat with no click/tap/type/scroll or valid upload in the receipt`);
+      if (!((ev.clicks || 0) + (ev.taps || 0) + (ev.keystrokes || 0) + (ev.scrolls || 0) + validUploads + validFills > 0)) fail(`clip ${label}: interaction beat with no click/tap/type/scroll or valid upload/fill in the receipt`);
       if (!(ev.expectationsObserved > 0)) {
         // A trace-backfilled receipt (backfill-capture-receipt.mjs) proves a live session and real clicks from the
         // Playwright trace but cannot prove the scene waited for the product's response. Accept it only when the

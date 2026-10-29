@@ -303,7 +303,7 @@ export function receiptSemantics(beat, item, receipt, result = false) {
   if (result) {
     if (event.observed === true && event.alreadyVisible === true && event.state === 'visible' && boxValid(event.targetBox)
       && typeof item.label === 'string' && item.label.length > 0 && String(event.label).toLowerCase().includes(item.label.toLowerCase())
-      && event.observedAt >= event.at && !(clip.actions || []).some((a) => ['click', 'tap', 'type', 'upload', 'wheel', 'goto'].includes(a.type) && a.t >= event.at && a.t <= event.observedAt)) return 'observation';
+      && event.observedAt >= event.at && !(clip.actions || []).some((a) => ['click', 'tap', 'type', 'upload', 'fill', 'wheel', 'goto'].includes(a.type) && a.t >= event.at && a.t <= event.observedAt)) return 'observation';
     return null;
   }
   if (event.type !== 'point' || item.kind !== 'point' || !event.label || event.target !== item.target) return null;
@@ -408,5 +408,19 @@ export function uploadEventProblems(event) {
       || !/^[a-f0-9]{64}$/.test(file?.sha256 || '')
       || typeof file?.mimeType !== 'string' || !file.mimeType.trim()) problems.push('upload file identity missing or malformed');
   if (['x', 'y', 'targetBox'].some((key) => event && Object.hasOwn(event, key))) problems.push('upload must not invent pointer geometry');
+  return problems;
+}
+
+export function fillEventProblems(event) {
+  const problems = [];
+  if (event?.type !== 'fill' || event.method !== 'locator.fill') problems.push('native fill method missing');
+  if (![event?.tStart, event?.tEnd, event?.t].every((t) => Number.isFinite(t) && t >= 0)
+      || event.tStart > event.tEnd || event.tEnd > event.t) problems.push('fill timestamps must be finite, nonnegative and ordered');
+  if (typeof event?.label !== 'string' || !event.label.trim() || typeof event?.target !== 'string' || !event.target.trim()) problems.push('fill label or target missing');
+  if (!['text', 'search', 'email', 'url', 'tel', 'number', 'date', 'datetime-local', 'time', 'month', 'week', 'textarea'].includes(event?.inputType)
+      || typeof event?.value !== 'string') problems.push('fill input type or readback value invalid');
+  const box = event?.targetBox;
+  if (!box || ![box.x, box.y, box.w, box.h].every(Number.isFinite) || box.w <= 0 || box.h <= 0) problems.push('fill target bounds missing or invalid');
+  if (['x', 'y', 'chars'].some((key) => event && Object.hasOwn(event, key))) problems.push('fill must not claim a click or keystrokes');
   return problems;
 }
