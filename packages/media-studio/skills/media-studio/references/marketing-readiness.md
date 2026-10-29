@@ -22,9 +22,9 @@ a passing check. Below the floor is a fail. There is no score to average it away
 | hook-2s | The pain or the payoff is on screen inside **two seconds**. Not a logo, not a title, not a nav tour. | `hook.atSeconds` ≤ 2.0 on the encoded file |
 | one-promise | The film makes one promise and keeps it. A second promise splits the cut. | `promise.count` = 1 with scene-cited evidence |
 | designed-motion | Type and picture are designed to move: builds, wipes, cuts, a punch-in. No static hold a thumb would scroll past. | timestamped evidence |
-| sound-design | A music bed under the voice and at least one designed cue (riser into the reveal, hit on a cut, sting under the end card). The bed carries the pace. | `sound.bed` true, `designCues` ≥ 1 |
+| sound-design | Default music mode: a music bed under the voice and at least one designed cue (riser into the reveal, hit on a cut, sting under the end card). The bed carries the pace. | `sound.bed` true, `designCues` ≥ 1; explicit speech-only alternative below |
 | brand-end-card | End card from the brand kit with one CTA, inside the last eight seconds. | `brand.endCardAtSeconds` inside the last 8 s of the file |
-| cuts-on-beat | Cuts land on the bed's grid: ≥ 90 % within 80 ms of the beat. | edit decision list vs `cutsOnBeat.bpm` / `offsetSeconds` |
+| cuts-on-beat | Default music mode: cuts land on the bed's grid: ≥ 90 % within 80 ms of the beat. | edit decision list vs `cutsOnBeat.bpm` / `offsetSeconds`; explicit speech-only cut adjudication below |
 | references | Three reference ads this cut competes against, each with title, source and one sentence on why it wins attention. | exactly 3 entries |
 | feed-test | The reviewer's answer to "would this win the viewer in a feed next to those three?" is **yes**, with evidence from the first five seconds. | `attentionCompetition.winsAgainstReferences` true |
 | no-fluff | The narration check passed on this script (`qa/narration-check.json` ok). Fluff is a feed loss. | `validate-narration.mjs` |
@@ -70,3 +70,43 @@ recut the scenes the finding names, re-encode, rerun every gate.
 The rhythm receipt may declare `cutsOnBeat.subdivision` as the integer `1`, `2` or `4` for quarter, eighth or sixteenth notes; omission retains quarter-note behavior. Keep the actual bed BPM (40–220), declare the audible grid honestly, and retain the 80 ms / 90% floor. The validator records BPM, subdivision and grid period separately; a subdivision is not evidence that the mixed cue is audible.
 
 Declare the subdivision from the actual audible score and retain its provenance, never choose one merely to fit the edit. The grid period must exceed twice the fixed 80 ms tolerance, so the rhythm test can reject off-grid cuts; overly dense grids fail even when the supplied cuts lie on them.
+## Explicit speech-only creative mode
+
+The default remains `music`: omission never waives a bed or the audible beat-grid floor. Unknown modes fail.
+An intentional speech-only film may opt in with BOTH `job.soundMode: "speech-only"` and
+`readiness.sound.mode: "speech-only"`. `job.producer` names its actual editor/producer. Keep
+`sound.bed:false` and `sound.designCues:0` truthful; do not invent music, cues or BPM.
+
+The sound object references three job-relative evidence files as `{path, sha256}`:
+
+- `authorization`: schema `media-studio/speech-only-authorization/1`, `soundMode:"speech-only"`,
+  actual `authorizedBy`, concrete `reason`, and hash-bound `creativeSource:{path,sha256}` pointing
+  to the original creative direction. A reviewer cannot infer authorization from missing music.
+- `clock`: schema `media-studio/speech-edit-clock/1`, exact `candidateSha256`, actual `method`,
+  `uncertaintyMs` (nonnegative measured precision, or null when unknown), hash-bound UTF-8 locked
+  `script`, hash-bound original timing evidence `source:{path,sha256}`, and ordered `phrases:[{startSeconds,endSeconds,text}]`. All script text is preserved;
+  zero-duration raw function words may remain. Never fabricate clocks or precision.
+- `review`: schema `media-studio/speech-only-review/1`, exact `candidate:{sha256,bytes}`, independent
+  `reviewer` distinct from `job.producer`, `independentOf` naming that producer,
+  `wholeFileSoundReviewed:true`, `wholeFileEditRhythmReviewed:true`, full contiguous
+  `coverage:[{startSeconds:0,endSeconds:<exact duration>}]`, explicit `uncertainties:[]`, and
+  `clarity`, `pauses`, `pacing`, `transitions` each with `verdict:"pass"` and concrete timestamped
+  `evidence`. Unknown clock precision must appear in uncertainties. Preserve actual limitations.
+
+Review also binds the same `authorization` and `clock` file references and their exact hashes.
+Review `edl:{path,sha256}` binds the actual cue-sheet/compose-map used by the gate. Its `cuts`
+array enumerates EVERY actual EDL start after frame zero, in order, exactly once:
+`{atSeconds,verdict,reason,observedEffect,relationship,phraseIndices}`. Times must equal actual
+EDL starts. Reasons and effects cite what the reviewer observed at that cut. Relationships are
+`phrase-boundary`, `continuous-speech`, `pause`, or `visual-transition`. Zero-based phrase indices
+refer to the bound measured clock; they are required when speech timing is relevant (the first
+three relationships), optional for an independent visual transition. The gate checks provenance,
+ordered/in-range clocks, script coverage, exact-file review coverage and exhaustive cut enumeration.
+It does NOT decide artistic timing or manufacture a universal speech beat threshold. A cut during
+continuous speech can pass when an independent reviewer judges its actual effect intentionally good.
+
+The report writes `speechOnly` evidence and `speech-edit-rhythm` checks; `cutsOnBeat` stays null.
+This branch replaces ONLY music-bed/cue and musical-grid criteria. Hook, promise, designed motion,
+CTA, references, feed competition, narration and all separate release gates remain unchanged.
+A complete provenance record is not proof that the reviewer actually watched/listened: the review
+must truthfully record that act, not extrapolate it from a render or sampled stills.

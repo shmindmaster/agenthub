@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync, existsSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,25 @@ const hasFfmpeg = (() => { try { execFileSync('ffmpeg', ['-version'], { stdio: '
 const scratch = mkdtempSync(join(tmpdir(), 'mkt-ready-'));
 test.after(async () => { await new Promise((d) => setTimeout(d, 1000)); rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); });
 const writeJson = (p, v) => { mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, JSON.stringify(v, null, 2)); };
+
+test('managed runtime gate list ships the speech helper beside both validator copies', () => {
+  const sync = readFileSync(join(pkg, 'scripts/Sync-MediaStudioKit.ps1'), 'utf8');
+  const block = sync.match(/\$gateScripts\s*=\s*@\(([\s\S]*?)\)\s*\$sharedTools/);
+  assert.ok(block, 'native managed gate list must be discoverable');
+  const names = [...block[1].matchAll(/'([^']+\.mjs)'/g)].map(m => m[1]);
+  for (const name of ['validate-marketing-readiness.mjs', 'speech-only-readiness.mjs']) assert.ok(names.includes(name), `${name} must travel through the native gate-copy loop`);
+  // Exercise adjacent resolution in both deployment layouts. The PowerShell deployment suite separately runs the actual sync and checks destination hashes.
+  for (const target of ['briefing-kit/screencast', '_shared/tools']) {
+    const destination = join(scratch, 'packaged', target); mkdirSync(destination, { recursive: true });
+    for (const name of names.filter(n => ['validate-marketing-readiness.mjs', 'speech-only-readiness.mjs'].includes(n))) copyFileSync(join(pkg, 'scripts', name), join(destination, name));
+    const deployedGate = join(destination, 'validate-marketing-readiness.mjs');
+    let result = spawnSync(process.execPath, [deployedGate], { encoding: 'utf8', windowsHide: true });
+    assert.equal(result.status, 1); assert.match(result.stderr, /Usage: node validate-marketing-readiness/); assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND/);
+    rmSync(join(destination, 'speech-only-readiness.mjs'));
+    result = spawnSync(process.execPath, [deployedGate], { encoding: 'utf8', windowsHide: true });
+    assert.notEqual(result.status, 0); assert.match(result.stderr, /ERR_MODULE_NOT_FOUND/, 'negative control must reproduce the original missing-helper failure');
+  }
+});
 
 let sharedCandidate = null;
 function candidateFor(root) {
@@ -145,5 +164,98 @@ test('rhythmic grids must remain discriminating at the fixed tolerance', { skip:
     const period = 60 / (grid.bpm * grid.subdivision);
     writeJson(join(root, 'plan', 'cue-sheet.json'), { mode: 'mapped', edl: [0, period * 5, period * 10].map((startSeconds) => ({ startSeconds })), beats: [] });
     const r = run([root, candidate]); assert.notEqual(r.code, 0); assert.match(r.out, /too dense for the fixed tolerance/);
+  }
+});
+function speechJob(root) {
+  const candidate = job(root, { soundMode: 'speech-only', producer: 'fixture editor' });
+  const file = (name, value, raw = false) => { const path = join(root, name); if (raw) { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, value); } else writeJson(path, value); return { path: name, sha256: sha(path) }; };
+  const script = file('story/locked.txt', 'First phrase. Second phrase. Third phrase.', true);
+  const creativeSource = file('originals/creative.txt', 'Owner creative brief: speech only, deliberate pauses.', true);
+  const authorization = file('originals/speech-authorization.json', { schema: 'media-studio/speech-only-authorization/1', soundMode: 'speech-only', authorizedBy: 'fixture owner', reason: 'Deliberate speech-only creative intent from original brief.', creativeSource });
+  const source = file('originals/alignment.json', { method: 'fixture measured alignment', phraseTimes: [[0,3],[3.2,6],[6.2,9.5]] });
+  const clock = file('qa/speech-clock.json', { schema: 'media-studio/speech-edit-clock/1', candidateSha256: sha(candidate), method: 'measured accepted phrase alignment', uncertaintyMs: null, source, script, phrases: [{ startSeconds: 0, endSeconds: 3, text: 'First phrase.' }, { startSeconds: 3.2, endSeconds: 6, text: 'Second phrase.' }, { startSeconds: 6.2, endSeconds: 9.5, text: 'Third phrase.' }] });
+  const observation = { verdict: 'pass', evidence: '0–10s whole file reviewed; deliberate speech remains clear and the transition does not mask words.' };
+  const review = file('qa/speech-review.json', { schema: 'media-studio/speech-only-review/1', reviewer: 'independent fixture critic', independentOf: 'fixture editor', authorization, clock, candidate: { sha256: sha(candidate), bytes: statSync(candidate).size }, wholeFileSoundReviewed: true, wholeFileEditRhythmReviewed: true, coverage: [{ startSeconds: 0, endSeconds: 10 }], uncertainties: ['Phrase clock precision is unknown; no universal beat tolerance is asserted.'], clarity: observation, pauses: observation, pacing: observation, transitions: observation, edl: { path: 'plan/cue-sheet.json', sha256: sha(join(root, 'plan/cue-sheet.json')) }, cuts: [2, 4, 6.5].map((atSeconds, i) => ({ atSeconds, verdict: 'pass', relationship: 'continuous-speech', phraseIndices: [i], reason: 'Intentional visual progression within this continuing spoken phrase.', observedEffect: 'The exact cut preserves the thought and makes its next visual relationship readable.' })) });
+  const r = readiness(candidate, { sound: { mode: 'speech-only', bed: false, designCues: 0, authorization, clock, review } }); delete r.cutsOnBeat;
+  writeJson(join(root, 'qa/marketing-readiness.json'), r);
+  return { candidate, r };
+}
+
+test('explicit authorized speech-only uses independent whole-file cut adjudication, not BPM', { skip: !hasFfmpeg }, () => {
+  const root = join(scratch, 'speech-pass'); const { candidate } = speechJob(root);
+  const r = run([root, candidate]); assert.equal(r.code, 0, r.out);
+  const report = JSON.parse(readFileSync(join(root, 'qa/marketing-readiness-check.json')));
+  assert.equal(report.cutsOnBeat, null); assert.equal(report.checks['cuts-on-beat'], undefined);
+  assert.equal(report.checks['speech-edit-rhythm'], 'pass'); assert.equal(report.speechOnly.uncertaintyMs, null);
+});
+
+test('speech-only fails closed on authorization, provenance, coverage, clocks and cut adjudication', { skip: !hasFfmpeg }, () => {
+  const mutations = [
+    ['no-job-mode', (r, root) => { const j = JSON.parse(readFileSync(join(root, 'job.json'))); delete j.soundMode; writeJson(join(root, 'job.json'), j); }],
+    ['no-authority', r => { delete r.sound.authorization; }],
+    ['stale-authority', r => { r.sound.authorization.sha256 = '0'.repeat(64); }],
+    ['stale-creative', (r, root) => { writeFileSync(join(root, 'originals/creative.txt'), 'changed'); }],
+    ['stale-candidate', (r, root, v) => { v.candidate.sha256 = '0'.repeat(64); }],
+    ['self-review', (r, root, v) => { v.reviewer = 'fixture editor'; }],
+    ['partial-coverage', (r, root, v) => { v.coverage[0].endSeconds = 9; }],
+    ['not-whole-rhythm', (r, root, v) => { v.wholeFileEditRhythmReviewed = false; }],
+    ['hidden-uncertainty', (r, root, v) => { v.uncertainties = []; }],
+    ['missing-cut', (r, root, v) => { v.cuts.pop(); }],
+    ['wrong-cut', (r, root, v) => { v.cuts[0].atSeconds = 2.1; }],
+    ['bad-phrase', (r, root, v) => { v.cuts[0].phraseIndices = [99]; }],
+    ['failed-effect', (r, root, v) => { v.cuts[0].verdict = 'fail'; }],
+    ['no-reason', (r, root, v) => { v.cuts[0].reason = ''; }],
+    ['stale-clock', r => { r.sound.clock.sha256 = '0'.repeat(64); }],
+    ['stale-edl', (r, root, v) => { v.edl.sha256 = '0'.repeat(64); }],
+    ['missing-edl', (r, root) => { rmSync(join(root, 'plan/cue-sheet.json')); }],
+    ['bad-clock', (r, root, v) => { const p = join(root, 'qa/speech-clock.json'); const c = JSON.parse(readFileSync(p)); c.phrases[1].startSeconds = -1; writeJson(p, c); r.sound.clock.sha256 = sha(p); v.clock = { ...r.sound.clock }; }],
+    ['no-cta', r => { r.brand.cta = ''; }],
+    ['lost-feed', r => { r.attentionCompetition.winsAgainstReferences = false; }],
+    ['two-refs', r => { r.references.pop(); }],
+    ['failed-narration', (r, root) => { writeJson(join(root, 'qa/narration-check.json'), { ok: false }); }],
+    ['unknown-mode', r => { r.sound.mode = 'silent-waiver'; }],
+  ];
+  for (const [name, mutate] of mutations) {
+    const root = join(scratch, `speech-${name}`); const { candidate, r } = speechJob(root);
+    const p = join(root, 'qa/speech-review.json'), v = JSON.parse(readFileSync(p));
+    mutate(r, root, v); writeJson(p, v); r.sound.review.sha256 = sha(p); writeJson(join(root, 'qa/marketing-readiness.json'), r);
+    const result = run([root, candidate]); assert.notEqual(result.code, 0, `${name} must reject: ${result.out}`);
+    const report = JSON.parse(readFileSync(join(root, 'qa/marketing-readiness-check.json')));
+    const expected = { 'no-cta': 'brand-end-card', 'lost-feed': 'feed-test', 'two-refs': 'references', 'failed-narration': 'no-fluff', 'unknown-mode': 'sound-mode' }[name] ?? 'speech-edit-rhythm';
+    assert.equal(report.checks[expected], 'fail', `${name} must fail its intended gate`);
+    if (name === 'bad-clock') assert.match(report.errors.join('\n'), /invalid or overlapping phrase clocks/);
+  }
+});
+
+test('speech-only rejects non-object roots in every mandatory evidence document', { skip: !hasFfmpeg }, () => {
+  for (const document of ['authorization', 'clock', 'review']) for (const [kind, value] of [['null', null], ['false', false], ['zero', 0], ['array', []], ['string', '']]) {
+    const root = join(scratch, `speech-root-${document}-${kind}`); const { candidate, r } = speechJob(root);
+    const path = join(root, r.sound[document].path); writeJson(path, value); r.sound[document].sha256 = sha(path);
+    if (document !== 'review') {
+      const reviewPath = join(root, r.sound.review.path), review = JSON.parse(readFileSync(reviewPath));
+      review[document] = { ...r.sound[document] }; writeJson(reviewPath, review); r.sound.review.sha256 = sha(reviewPath);
+    }
+    writeJson(join(root, 'qa/marketing-readiness.json'), r);
+    const result = run([root, candidate]); assert.notEqual(result.code, 0, `${document}/${kind} must reject`);
+    const report = JSON.parse(readFileSync(join(root, 'qa/marketing-readiness-check.json')));
+    assert.match(report.errors.join('\n'), /evidence must be a JSON object/);
+    assert.equal(report.checks['speech-edit-rhythm'], 'fail');
+  }
+});
+
+test('speech-only rejects empty original direction, timing evidence and script', { skip: !hasFfmpeg }, () => {
+  for (const document of ['creativeSource', 'source', 'script']) for (const [kind, value] of [['empty', ''], ['whitespace', ' \n\t']]) {
+    const root = join(scratch, `speech-empty-${document}-${kind}`); const { candidate, r } = speechJob(root);
+    const parent = document === 'creativeSource' ? 'authorization' : 'clock';
+    const parentPath = join(root, r.sound[parent].path), evidence = JSON.parse(readFileSync(parentPath));
+    const sourcePath = join(root, evidence[document].path); writeFileSync(sourcePath, value); evidence[document].sha256 = sha(sourcePath);
+    writeJson(parentPath, evidence); r.sound[parent].sha256 = sha(parentPath);
+    const reviewPath = join(root, r.sound.review.path), review = JSON.parse(readFileSync(reviewPath));
+    review[parent] = { ...r.sound[parent] }; writeJson(reviewPath, review); r.sound.review.sha256 = sha(reviewPath);
+    writeJson(join(root, 'qa/marketing-readiness.json'), r);
+    const result = run([root, candidate]); assert.notEqual(result.code, 0, `${document}/${kind} must reject`);
+    const report = JSON.parse(readFileSync(join(root, 'qa/marketing-readiness-check.json')));
+    assert.match(report.errors.join('\n'), /original evidence must not be empty/);
+    assert.equal(report.checks['speech-edit-rhythm'], 'fail');
   }
 });

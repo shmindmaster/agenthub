@@ -14,6 +14,7 @@
 // campaign-outreach | marketing-cutdown | social-clip | hero, kind teaser, or marketing: true. Otherwise the report
 // says applies: false and exits 0; explainers and technical stories keep the story rubric and inherit the no-fluff and
 // cursor rules through validate-narration.mjs and validate-pointer-path.mjs.
+import { validateSpeechOnly } from './speech-only-readiness.mjs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -47,7 +48,7 @@ const text = (v, min = 1) => typeof v === 'string' && v.trim().length >= min;
 
 const job = existsSync(join(root, 'job.json')) ? readJson(join(root, 'job.json')) : {};
 const applies = isMarketingCut(job);
-let candidateRec = null; let duration = null; let readiness = null; let cueSheet = null; let beatMeasurement = null;
+let candidateRec = null; let duration = null; let readiness = null; let cueSheet = null; let beatMeasurement = null; let speechMeasurement = null;
 
 if (applies) {
   if (!existsSync(candidate)) fail('candidate', `candidate does not exist: ${candidate}`);
@@ -87,11 +88,16 @@ if (applies && readiness && candidateRec) {
   if (R.motion?.verdict !== 'pass' || !text(R.motion?.evidence, 20)) fail('designed-motion', 'motion needs verdict pass and timestamped evidence (type builds, moves, no static hold a feed would scroll past).');
   else pass('designed-motion');
 
+  const soundMode = R.sound?.mode ?? 'music';
+  if (!['music', 'speech-only'].includes(soundMode)) fail('sound-mode', 'unknown sound.mode; use music or speech-only.');
+  if (soundMode !== 'speech-only') {
   // 4. Music bed and sound design carrying the pace.
   if (R.sound?.bed !== true) fail('sound-design', 'sound.bed must be true: a marketing cut carries a music bed under the voice.');
   else if (!(Number(R.sound?.designCues) >= 1)) fail('sound-design', 'sound.designCues must count at least one designed cue (sting, riser, hit on a cut).');
   else if (R.sound?.verdict !== 'pass' || !text(R.sound?.evidence, 10)) fail('sound-design', 'sound needs verdict pass and evidence that the bed and cues carry the pace.');
   else pass('sound-design');
+
+  }
 
   // 5. Brand kit with end card and CTA, measured inside the last window of the file.
   const endAt = Number(R.brand?.endCardAtSeconds);
@@ -109,6 +115,17 @@ if (applies && readiness && candidateRec) {
   if (cueSheet?.edl?.length) { cutTimes = cueSheet.edl.map((g) => Number(g.startSeconds)).filter((t) => Number.isFinite(t) && t > 0.05); cutSource = ref(cuePath); }
   else if (typeof opt['--compose-map'] === 'string' && existsSync(resolve(root, opt['--compose-map']))) { const cm = readJson(resolve(root, opt['--compose-map'])); cutTimes = (cm.groups || []).map((g) => Number(g.startSeconds)).filter((t) => Number.isFinite(t) && t > 0.05); cutSource = ref(resolve(root, opt['--compose-map'])); }
   let beatResult = null;
+  if (soundMode === 'speech-only') {
+    const raw = cueSheet?.edl ?? (typeof opt['--compose-map'] === 'string' && existsSync(resolve(root, opt['--compose-map'])) ? readJson(resolve(root, opt['--compose-map'])).groups : null);
+    if (!Array.isArray(raw) || !raw.length || raw[0]?.startSeconds !== 0 || raw.some((g, i) => typeof g.startSeconds !== 'number' || !Number.isFinite(g.startSeconds) || g.startSeconds < 0 || g.startSeconds >= duration || (i > 0 && g.startSeconds <= raw[i - 1].startSeconds))) fail('speech-edit-rhythm', 'actual EDL starts must be numeric, strictly ordered, in range and start at zero.');
+    else {
+      cutTimes = raw.slice(1).map(g => g.startSeconds);
+      speechMeasurement = validateSpeechOnly({ root, job, sound: R.sound, candidate: candidateRec, duration, cutTimes, cutSource });
+      if (!speechMeasurement.ok) { for (const e of speechMeasurement.errors) fail('speech-edit-rhythm', e); }
+      else { pass('sound-design', 'Explicit authorized speech-only; whole-file independent sound review.'); pass('speech-edit-rhythm', 'Every actual EDL cut independently adjudicated; no BPM claimed.'); }
+    }
+  } else {
+
   if (!(bpm >= 40 && bpm <= 220)) fail('cuts-on-beat', 'cutsOnBeat.bpm must be the bed tempo between 40 and 220.');
   else if (!Number.isInteger(subdivision) || ![1, 2, 4].includes(subdivision)) fail('cuts-on-beat', 'cutsOnBeat.subdivision must be the integer 1, 2 or 4 (quarter, eighth or sixteenth notes).');
   else if (60 / (bpm * subdivision) <= 2 * T.beatToleranceMs / 1000) fail('cuts-on-beat', 'The declared rhythmic grid is too dense for the fixed tolerance to distinguish an off-grid cut.');
@@ -122,6 +139,8 @@ if (applies && readiness && candidateRec) {
     if (hits / cutTimes.length < T.beatHitRatio) fail('cuts-on-beat', `${hits}/${cutTimes.length} cuts land within ${T.beatToleranceMs} ms of the ${bpm} bpm grid (subdivision ${subdivision}); the floor is ${Math.round(T.beatHitRatio * 100)}%.`);
     else if (R.cutsOnBeat?.verdict !== 'pass') fail('cuts-on-beat', 'cutsOnBeat needs verdict pass once the measurement passes.');
     else pass('cuts-on-beat', `${hits}/${cutTimes.length} on the ${bpm} bpm grid (subdivision ${subdivision})`);
+  }
+
   }
 
   // 7. Three cited reference ads: what this cut is competing against, by name.
@@ -148,7 +167,7 @@ const report = {
   generator: 'media-studio/validate-marketing-readiness', schemaVersion: '1.0.0', ok: errors.length === 0, applies,
   errors, warnings, candidate: candidateRec, durationSeconds: duration,
   inputs: { job: ref(join(root, 'job.json')), readiness: ref(readinessPath), cueSheet: ref(cuePath) },
-  thresholds: T, checks, cutsOnBeat: beatMeasurement,
+  thresholds: T, checks, cutsOnBeat: beatMeasurement, speechOnly: speechMeasurement,
   reason: applies ? (errors.length ? 'below the marketing floor' : 'at or above the marketing floor on this exact candidate') : `not a marketing cut (programForm ${job.programForm ?? 'none'}, kind ${job.kind ?? 'none'}); story rubric applies`,
 };
 mkdirSync(dirname(outPath), { recursive: true });
