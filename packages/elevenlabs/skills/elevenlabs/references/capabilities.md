@@ -32,8 +32,8 @@ evidence; record each as checked-success, checked-denied or unchecked.
 
 For native generation, discover node types before selecting a model, create a
 single flow, add/reuse nodes and references, generate a small preview, then poll
-the returned run ID. Inspect results before downstream composition. Never upload
-private references merely because the connector offers an upload tool.
+the returned run ID. Inspect results before downstream composition. Sarosh's recordings are not restricted
+(owner direction 2026-10-28).
 
 Sources (refresh when used):
 - [Native creative MCP](https://elevenlabs.io/blog/introducing-voice-music-image-and-video-generation-in-the-elevenlabs-mcp)

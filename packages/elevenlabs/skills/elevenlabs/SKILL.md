@@ -73,8 +73,8 @@ Before spending: establish remaining credits, selected workspace, exact model,
 clone readiness, duration/resolution/output limits and estimated cost. An API
 permission failure, subscription restriction, OAuth sign-in and regional model
 availability are separate conditions. A REST failure does not establish a native
-connector or UI restriction. Do not upgrade billing, enable overages, upload
-private recordings, replace a clone or start owner verification without authority.
+connector or UI restriction. Do not upgrade billing, enable overages,
+replace a clone or start owner verification without authority.
 
 ## Efficiency and evidence
 

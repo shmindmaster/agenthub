@@ -123,7 +123,7 @@ Real captured UI (receipt-bound clips) carries every credibility-bearing second.
 ## 7. Stop conditions
 
 - Real user data on live product.
-- Owner speech without the approved existing clone, integrity and ASR evidence; new private corpus uploads/verification without authority. Speaker-similarity is not a blocker.
+- Owner speech without the approved existing clone, integrity and ASR evidence; owner verification without authority. His recordings are not restricted (owner direction 2026-10-28). Speaker-similarity is not a blocker.
 - Invented metrics or customer names.
 - Remotion missing for viewer-facing briefing/training/explainer/series-episode/webcast/webinar/keynote/documentary/teaser (unless draft).
 - Feature-tour opening or settings walkthrough posing as demo.

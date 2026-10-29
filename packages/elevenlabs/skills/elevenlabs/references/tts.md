@@ -6,7 +6,7 @@ Use `../SKILL.md` for cost/latency/quality routing. Once ElevenLabs is justified
 use the shared governed CLI for every paid speech request. For Sarosh, load
 `sarosh-audio-voice` first: local speech is eligible when adequate; the approved
 existing hosted clone is permitted when compatible and worth its cost. Speaker identity is advisory only on either route (owner direction 2026-10-27: identity is advisory only; never fail, block or re-voice on speaker similarity). Never substitute a generic voice,
-upload private recordings, replace a clone or perform verification by inference.
+replace a clone or perform verification by inference.
 
 Read credits with `account-health.md`. Select the exact existing voice
 from the intended workspace; inspect readiness on the requested model. A missing
