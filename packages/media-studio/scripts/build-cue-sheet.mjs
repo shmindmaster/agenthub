@@ -33,6 +33,7 @@ import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { asrAnchoredAllowed, clockAccepted, designedCuts, normalizeAlignWords, pictureScripts } from './picture-gates.mjs';
 import { piecewiseCaptureClock } from './piecewise-capture-clock.mjs';
+import { readPhysicalResultObservations, applyPhysicalResultObservations } from './physical-result-observations.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
@@ -288,6 +289,15 @@ const sheet = {
   errors,
   beats,
 };
+const physicalPath = flag('--physical-results');
+if (physicalPath) {
+  try {
+    if (!mapped) throw new Error('physical result observations require mapped compose');
+    const proof = readPhysicalResultObservations({ root, path: resolve(root, physicalPath), inputs: sheet.inputs, beats });
+    applyPhysicalResultObservations(beats, proof);
+    sheet.inputs.physicalResults = proof.ref;
+  } catch (e) { errors.push(e.message); }
+}
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, JSON.stringify(sheet, null, 2));
 const acts = beats.reduce((n, b) => n + b.actions.filter((a) => a.narrated).length, 0);

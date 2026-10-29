@@ -136,7 +136,7 @@ try {
         $speech = Join-Path $scratch 'speech.wav'
         $music = Join-Path $scratch 'music.wav'
         Copy-Item -LiteralPath $sine -Destination $speech -Force
-        Copy-Item -LiteralPath $sine -Destination $music -Force
+        & $ffmpeg.Source -hide_banner -loglevel error -f lavfi -i 'sine=frequency=660:duration=4' -ar 48000 -ac 2 -y $music | Out-Null
         $duckPlan = Invoke-FinishHelper -Arguments @(
             '-Action', 'finish', '-Speech', $speech, '-Music', $music,
             '-Output', (Join-Path $scratch 'ducked.m4a'), '-PlanOnly'
@@ -146,6 +146,59 @@ try {
         Report 'PlanOnly stem finish includes sidechain ducking' `
             ($duckPlan.ExitCode -eq 0 -and $duckFilter -match 'sidechaincompress') `
             "exit $($duckPlan.ExitCode) duckFilter=$duckFilter"
+
+        # Execute both shipped graphs: a plan-only string check cannot detect
+        # FFmpeg's single-consumer filter labels. The old graph must fail too.
+        $briefingHelper = Join-Path $repoRoot 'packages\media-studio\scripts\Finish-BriefingStems.ps1'
+        $briefingText = [IO.File]::ReadAllText($briefingHelper)
+        $briefingMatch = [regex]::Match($briefingText, "-filter_complex '([^']+)'")
+        $graphs = @{
+            canonical = $duckFilter
+            briefing = $briefingMatch.Groups[1].Value
+        }
+        foreach ($name in @('canonical', 'briefing')) {
+            $graph = $graphs[$name]
+            $mix = Join-Path $scratch ($name + '-mix.wav')
+            $previousEap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $graphOutput = & $ffmpeg.Source -hide_banner -loglevel error -i $speech -i $music `
+                    -filter_complex $graph -map '[mix]' -ar 48000 -ac 2 -y $mix 2>&1 | Out-String
+                $graphCode = $LASTEXITCODE
+                # Restore the original consumed-label graph as a negative control.
+                $oldGraph = $graph.Replace(',asplit=2[speech_mix][speech_sidechain]', '[speech]').Replace('[speech_sidechain]', '[speech]').Replace('[speech_mix]', '[speech]')
+                $oldOutput = & $ffmpeg.Source -hide_banner -loglevel error -i $speech -i $music `
+                    -filter_complex $oldGraph -map '[mix]' -f null - 2>&1 | Out-String
+                $oldCode = $LASTEXITCODE
+            } finally {
+                $ErrorActionPreference = $previousEap
+            }
+            Report "$name duck graph produces a real PCM mix" `
+                ($graphCode -eq 0 -and (Test-Path -LiteralPath $mix) -and (Get-Item -LiteralPath $mix).Length -gt 44) `
+                "exit $graphCode output=$graphOutput"
+            if ($graphCode -eq 0 -and (Test-Path -LiteralPath $mix)) {
+                $probe = (& ffprobe -v error -show_entries 'stream=sample_rate,channels:format=duration' -of json $mix | Out-String) | ConvertFrom-Json
+                Report "$name mix is stereo 48 kHz and ends with the shorter speech" `
+                    ($LASTEXITCODE -eq 0 -and [int]$probe.streams[0].sample_rate -eq 48000 -and
+                        [int]$probe.streams[0].channels -eq 2 -and [math]::Abs([double]$probe.format.duration - 3) -lt 0.05) `
+                    ($probe | ConvertTo-Json -Compress -Depth 4)
+            } else {
+                Report "$name mix is stereo 48 kHz and ends with the shorter speech" $false 'mix failed'
+            }
+            Report "$name old consumed-label graph is a failing regression control" `
+                ($oldGraph -ne $graph -and $oldCode -ne 0 -and $oldOutput -match 'Invalid stream specifier|matches no streams') `
+                "exit $oldCode output=$oldOutput"
+        }
+
+        $stemOutput = Join-Path $scratch 'stems-finished.m4a'
+        $stemLive = Invoke-FinishHelper -Arguments @(
+            '-Action', 'finish', '-Speech', $speech, '-Music', $music, '-Output', $stemOutput
+        )
+        $stemJson = ConvertFrom-HelperJson -Output $stemLive.Output
+        Report 'live stem finish ducks and writes a two-pass linear AAC program' `
+            ($stemLive.ExitCode -eq 0 -and (Test-Path -LiteralPath $stemOutput) -and $null -ne $stemJson -and
+                $stemJson.executed -and (Test-ApplyIsTwoPassLinear -Filter ([string]$stemJson.applyFilter))) `
+            "exit $($stemLive.ExitCode) output=$($stemLive.Output)"
 
         $live = Invoke-FinishHelper -Arguments @(
             '-Action', 'finish', '-Program', $sine, '-Output', $out

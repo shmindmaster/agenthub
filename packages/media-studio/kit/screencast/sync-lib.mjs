@@ -290,6 +290,8 @@ export const FREEZE_EDGE_SECONDS = 0.25; // tolerance around an expected change 
 // Recompute semantics from capture evidence, never a cue-plan declaration. Legacy
 // observations without a saved visible target remain conservative change points.
 export function receiptSemantics(beat, item, receipt, result = false) {
+  // Encoded first-visible evidence declares a transition, never a static-state waiver.
+  if (result && item?.physical_observation) return null;
   const clip = receipt?.clips?.[beat.screen?.clip];
   const index = result ? item?.receipt_expectation_index : item?.receipt_event_index;
   if (!clip || !Number.isInteger(index) || index < 0) return null;

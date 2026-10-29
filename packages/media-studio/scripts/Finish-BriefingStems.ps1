@@ -67,7 +67,7 @@ Write-Warning 'Falling back to linear volume + sidechain duck (speech-only preco
 $mix = Join-Path $Scratch 'final-mix.wav'
 ffmpeg -y -hide_banner -loglevel error `
   -i $hot -i $bedQuiet `
-  -filter_complex '[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[music];[0:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[speech];[music][speech]sidechaincompress=threshold=0.06:ratio=10:attack=150:release=800:detection=rms[ducked];[speech][ducked]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.89:attack=5:release=50:level=disabled[mix]' `
+  -filter_complex '[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[music];[0:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,asplit=2[speech_mix][speech_sidechain];[music][speech_sidechain]sidechaincompress=threshold=0.06:ratio=10:attack=150:release=800:detection=rms[ducked];[speech_mix][ducked]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.89:attack=5:release=50:level=disabled[mix]' `
   -map '[mix]' -ar 48000 -ac 2 $mix
 
 if ($picture) {

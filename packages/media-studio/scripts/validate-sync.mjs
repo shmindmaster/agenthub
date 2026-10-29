@@ -36,6 +36,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import os from 'node:os';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readPhysicalResultObservations, applyPhysicalResultObservations } from './physical-result-observations.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
@@ -131,6 +132,16 @@ if (probe) {
   video = probe.streams.find((s) => s.codec_type === 'video'); audio = probe.streams.find((s) => s.codec_type === 'audio');
   duration = Number(probe.format.duration); W = video?.width || 0; H = video?.height || 0;
   const [n, d] = String(video?.avg_frame_rate || video?.r_frame_rate || '30/1').split('/').map(Number); fps = d ? n / d : 30;
+  try {
+    const ref = cueSheet.inputs?.physicalResults;
+    if (ref) {
+      const path = resolve(root, ref.path);
+      if (!existsSync(path) || sha(path) !== ref.sha256) throw new Error('physical result observations missing or stale');
+      const proof = readPhysicalResultObservations({ root, path, candidatePath: candidate, inputs: cueSheet.inputs, beats, probe });
+      applyPhysicalResultObservations(beats, proof, { verify: true });
+      performed.add('physical-result-observations');
+    } else applyPhysicalResultObservations(beats, null, { verify: true });
+  } catch (e) { fail(e.message); }
   if (!video) fail('candidate has no video stream.');
   if (Math.abs(duration - cueSheet.durationSeconds) > 1) fail(`candidate is ${duration.toFixed(2)}s but the cue sheet timeline is ${Number(cueSheet.durationSeconds).toFixed(2)}s.`);
 }

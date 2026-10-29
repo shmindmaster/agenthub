@@ -183,7 +183,7 @@ if (-not $ffmpeg) { throw 'FFmpeg is required for Finish-Media and was not found
 $ffprobe = Get-FfprobePath
 
 $measureFilter = Get-MeasureFilter -I $Integrated -Tp $TruePeak -Lra $LoudnessRange
-$duckFilter = '[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[music];[0:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[speech];[music][speech]sidechaincompress=threshold=0.05:ratio=8:attack=200:release=800:detection=rms[ducked];[speech][ducked]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[mix]'
+$duckFilter = '[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo[music];[0:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,asplit=2[speech_mix][speech_sidechain];[music][speech_sidechain]sidechaincompress=threshold=0.05:ratio=8:attack=200:release=800:detection=rms[ducked];[speech_mix][ducked]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[mix]'
 
 $useStems = -not [string]::IsNullOrWhiteSpace($Speech) -or -not [string]::IsNullOrWhiteSpace($Music)
 if ($useStems) {
