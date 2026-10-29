@@ -303,7 +303,7 @@ export function receiptSemantics(beat, item, receipt, result = false) {
   if (result) {
     if (event.observed === true && event.alreadyVisible === true && event.state === 'visible' && boxValid(event.targetBox)
       && typeof item.label === 'string' && item.label.length > 0 && String(event.label).toLowerCase().includes(item.label.toLowerCase())
-      && event.observedAt >= event.at && !(clip.actions || []).some((a) => ['click', 'tap', 'type', 'wheel', 'goto'].includes(a.type) && a.t >= event.at && a.t <= event.observedAt)) return 'observation';
+      && event.observedAt >= event.at && !(clip.actions || []).some((a) => ['click', 'tap', 'type', 'upload', 'wheel', 'goto'].includes(a.type) && a.t >= event.at && a.t <= event.observedAt)) return 'observation';
     return null;
   }
   if (event.type !== 'point' || item.kind !== 'point' || !event.label || event.target !== item.target) return null;
@@ -392,4 +392,21 @@ export function clippedWords(tsv, width, height, { edge = 3, minConf = 60 } = {}
     if (left <= edge || top <= edge || right >= width - edge || bottom >= height - edge) out.push({ text, left, top, right, bottom });
   }
   return out;
+}
+
+// Native file selection is an action, not a pointer click or proof of successful import.
+// Validate the recorder's success-only receipt before admitting it to either gate.
+export function uploadEventProblems(event) {
+  const problems = [];
+  if (event?.type !== 'upload' || event.method !== 'locator.setInputFiles') problems.push('native upload method missing');
+  if (![event?.tStart, event?.tEnd, event?.t].every((t) => Number.isFinite(t) && t >= 0)
+      || event.tStart > event.tEnd || event.tEnd > event.t) problems.push('upload timestamps must be finite, nonnegative and ordered');
+  if (typeof event?.target !== 'string' || !event.target.trim()) problems.push('upload target missing');
+  const file = event?.file;
+  if (typeof file?.name !== 'string' || !file.name.trim() || /[\\/]/.test(file.name)
+      || !Number.isSafeInteger(file?.bytes) || file.bytes <= 0
+      || !/^[a-f0-9]{64}$/.test(file?.sha256 || '')
+      || typeof file?.mimeType !== 'string' || !file.mimeType.trim()) problems.push('upload file identity missing or malformed');
+  if (['x', 'y', 'targetBox'].some((key) => event && Object.hasOwn(event, key))) problems.push('upload must not invent pointer geometry');
+  return problems;
 }

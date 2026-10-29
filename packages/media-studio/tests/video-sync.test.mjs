@@ -412,6 +412,9 @@ test('receipt-proved pointer arrival and existing-state observation do not promi
   b.screen.clip = 'C';
   assert.equal(L.receiptSemantics(b, b.actions[0], capture), 'pointer-arrival');
   assert.equal(L.receiptSemantics(b, b.result, capture, true), 'observation');
+  const uploading = structuredClone(capture);
+  uploading.clips.C.actions.push({ type: 'upload', t: 3.005, tStart: 3, tEnd: 3.005 });
+  assert.equal(L.receiptSemantics(b, b.result, uploading, true), null, 'native upload during the wait can change an already-visible state');
   assert.deepEqual(L.expectedChangePoints([b], [], capture), []);
   assert.equal(L.declaredHold(b, capture).from, 0, 'a receipt-proved read beat holds throughout, including pointer travel');
   assert.equal(L.classifyFreeze({ start: 1.9, end: 8, duration: 6.1 }, { beats: [b], receipt: capture }).verdict, 'declared-hold');
@@ -516,4 +519,30 @@ test('sync gate still fails a long still outside every declared hold, and a hold
   assert.equal(gate(g).code, 0);
   r = gate(g, ['--max-hold', '3']); assert.equal(r.code, 1, r.out);
   assert.match(r.report.errors.join('\n'), /beat S03: frozen-frames: exact-frame freeze 10\.\d\d-16\.00s \(5\.\ds > 4s\) is inside a declared hold but longer than the 3s max hold\. A static scene needs a moving cursor/);
+});
+
+
+const nativeUpload = () => ({ type: 'upload', tStart: 2.1, tEnd: 2.14, t: 2.15, label: 'Approve', target: 'input[type=file]', method: 'locator.setInputFiles', file: { name: 'synthetic.csv', bytes: 12, sha256: 'a'.repeat(64), mimeType: 'text/csv' } });
+test('native upload receipt identity rejects malformed times, missing identity and invented pointer evidence', () => {
+  assert.deepEqual(L.uploadEventProblems(nativeUpload()), []);
+  for (const change of [e => delete e.method, e => e.tStart = null, e => e.tEnd = Infinity, e => e.tEnd = 1, e => e.t = 0,
+    e => delete e.file, e => e.file.sha256 = 'fake', e => e.file.bytes = 0, e => e.file.bytes = 1.5,
+    e => e.file.name = '../synthetic.csv', e => e.file.mimeType = '', e => e.target = '', e => e.x = 1, e => e.targetBox = {}]) {
+    const event = nativeUpload(); change(event); assert.ok(L.uploadEventProblems(event).length, JSON.stringify(event));
+  }
+});
+test('cue sheet maps a real upload action on recording clock without inventing a cursor', () => {
+  const root = cueJob('cue-upload', { mapped: true, headTrim: 0.1 });
+  const path = join(root, 'capture', 'receipt.json');
+  const receipt = JSON.parse(readFileSync(path, 'utf8'));
+  receipt.clips.S02.actions = [nativeUpload()]; write(path, receipt);
+  const result = run(cueBuilder, [root]); assert.equal(result.code, 0, result.out);
+  const action = readCue(root).beats[1].actions[0];
+  assert.equal(action.kind, 'upload'); assert.equal(action.cursor, null);
+  assert.equal(action.receipt_event_index, 0); assert.equal(action.clip_time, 2);
+  assert.equal(action.action_time, 5.5); assert.deepEqual(action.file, nativeUpload().file);
+  assert.equal(action.method, 'locator.setInputFiles');
+  receipt.clips.S02.actions[0].file.sha256 = 'fabricated'; write(path, receipt);
+  const rejected = run(cueBuilder, [root]); assert.notEqual(rejected.code, 0); assert.match(rejected.out, /invalid upload receipt/);
+  assert.equal(readCue(root).beats[1].actions.length, 0);
 });

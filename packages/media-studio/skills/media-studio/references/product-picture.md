@@ -83,3 +83,8 @@ Missing `visualMode` on a `product-screencast` beat **defaults to `screen`**, no
 - Recast (`playwright-recast@0.21.0`, declared in `kit/package.json`) is required pointer finishing (`policy/product-video-policy.json` `pointerFinishing`). If its ffmpeg render fails on a long many-click clip, `record-job.mjs` retries without `autoZoom`, then records `recast: fallback`; the validator accepts a fallback only when `job.json` says `recastFallbackAllowed: true` with a reason. Split the take instead.
 
 Encoded input failures write a fail-closed JSON report, including missing candidate or narration timeline. The `square-1x1` delivery profile is 1080 × 1080 at 30 fps; all source-integrity thresholds apply unchanged.
+
+
+### Native file selection
+
+`h.uploadFile(fileInputLocator, filePath, { label })` records a distinct `upload` action only after Playwright's native `locator.setInputFiles` succeeds. The receipt carries ordered recording-clock `tStart`, `tEnd`, `t`, the actual input target and `file: { name, bytes, sha256, mimeType }` for the exact submitted bytes. It has no synthetic click, cursor position or target box. Cue generation retains the file identity and maps `tStart` through the usual capture/compose clocks; narrated uploads use the same word/action sync tolerance. Product-picture admission requires a valid upload action and matching `events.uploads` count in the hash-bound capture receipt. A summary count alone cannot admit an upload. Existing pointer/touch, Recast and observed-response requirements remain: file selection is not proof of a successful preview/import, which needs a separate `h.expect` on the visible product response.

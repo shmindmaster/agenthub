@@ -2,7 +2,9 @@
 // Run: node --test tests/record-lib.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -25,6 +27,58 @@ const setup = (opts) => {
 test('importing record-lib needs no playwright install', () => {
   assert.equal(typeof bindHelpers, 'function');
   assert.equal(typeof setup({}).h.tap, 'function');
+});
+
+function uploadFixture(t) {
+  const dir = mkdtempSync(join(tmpdir(), 'record-upload-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, 'synthetic.csv');
+  writeFileSync(file, 'period,amount\nSeptember,42\n');
+  return { dir, file };
+}
+
+test('upload selects exact hashed bytes on a hidden file input and logs only a completed upload', async (t) => {
+  const { file } = uploadFixture(t), { log, beats, h } = setup({});
+  let selected;
+  log.now = (() => { let n = 0; return () => ++n; })();
+  const loc = { count: async () => 1, evaluate: async (fn) => fn({ tagName: 'INPUT', type: 'file' }),
+    setInputFiles: async (payload) => { assert.equal(log.events.length, 0); selected = payload; writeFileSync(file, 'changed'); },
+    toString: () => 'modal.locator(input[type=file])' };
+  const event = await h.uploadFile(loc, file, { label: 'Select synthetic September CSV', hold: 0 });
+  assert.equal(selected.buffer.toString(), 'period,amount\nSeptember,42\n');
+  assert.deepEqual(event.file, { name: 'synthetic.csv', bytes: selected.buffer.length,
+    sha256: createHash('sha256').update(selected.buffer).digest('hex'), mimeType: 'text/csv' });
+  assert.equal(event.method, 'locator.setInputFiles');
+  assert.equal(event.target, 'modal.locator(input[type=file])');
+  assert.ok(event.tStart < event.tEnd && event.tEnd <= event.t);
+  assert.deepEqual(log.events.map(e => e.type), ['upload']);
+  assert.equal(log.summary().uploads, 1);
+  assert.equal(log.summary().clicks, 0);
+  assert.equal(log.summary().pointerMoves, 0);
+  assert.equal(beats.marks.length, 1);
+  assert.ok(!JSON.stringify(log.events).includes(file), 'receipt omits private source path');
+});
+
+test('upload rejects missing or directory sources, ambiguous/non-file locators and unlabelled actions', async (t) => {
+  const { dir, file } = uploadFixture(t), { log, beats, h } = setup({});
+  let calls = 0;
+  const loc = { count: async () => 1, evaluate: async () => true, setInputFiles: async () => { calls++; } };
+  const o = { label: 'Select CSV', hold: 0 };
+  await assert.rejects(h.uploadFile(loc, file), /nonempty action label/);
+  await assert.rejects(h.uploadFile(loc, '', o), /local file path/);
+  await assert.rejects(h.uploadFile(loc, join(dir, 'missing.csv'), o));
+  await assert.rejects(h.uploadFile(loc, dir, o), /regular file/);
+  for (const count of [0, 2]) await assert.rejects(h.uploadFile({ ...loc, count: async () => count }, file, o), /exactly one/);
+  await assert.rejects(h.uploadFile({ ...loc, evaluate: async () => false }, file, o), /input\[type=file\]/);
+  await assert.rejects(h.uploadFile(loc, file, { ...o, mimeType: '' }), /mimeType/);
+  assert.equal(calls, 0); assert.deepEqual(log.events, []); assert.deepEqual(beats.marks, []);
+});
+
+test('failed native upload never records success or a beat', async (t) => {
+  const { file } = uploadFixture(t), { log, beats, h } = setup({});
+  const loc = { count: async () => 1, evaluate: async () => true, setInputFiles: async () => { throw new Error('detached input'); } };
+  await assert.rejects(h.uploadFile(loc, file, { label: 'Select CSV' }), /detached input/);
+  assert.deepEqual(log.events, []); assert.deepEqual(beats.marks, []);
 });
 
 test('tap on a touch context calls locator.tap, logs one tap event and no pointer moves', async () => {

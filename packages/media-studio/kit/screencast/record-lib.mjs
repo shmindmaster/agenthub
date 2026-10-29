@@ -11,6 +11,7 @@
 // playwright is loaded inside startRecording, so the helpers below (bindHelpers, EventLog, resolveDevice) import and unit-test without a browser install.
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 export const TIMING = Object.freeze({
   pointerMoveMsMin: 400,
@@ -48,6 +49,7 @@ export class EventLog {
       pointerMoves: count('move'),
       clicks: count('click'),
       taps: count('tap'),
+      uploads: count('upload'),
       keystrokes: this.events.filter((e) => e.type === 'type').reduce((n, e) => n + (e.chars || 0), 0),
       scrolls: count('wheel'),
       navigations: count('goto'),
@@ -291,6 +293,31 @@ export function bindHelpers(page, log, beats, opts = {}) {
     await wait(o.hold ?? 600);
   }
 
+  /** Select one local file through a real file input, including hidden dropzone inputs. No synthetic click. */
+  async function uploadFile(locator, filePath, o = {}) {
+    if (typeof o.label !== 'string' || !o.label.trim()) throw new Error('uploadFile requires a nonempty action label');
+    if (typeof filePath !== 'string' || !filePath.trim()) throw new Error('uploadFile requires a local file path');
+    if (!locator || typeof locator.count !== 'function' || typeof locator.setInputFiles !== 'function') throw new Error('uploadFile requires a file-input locator');
+    if (await locator.count() !== 1) throw new Error('uploadFile locator must resolve to exactly one file input');
+    const isFileInput = await locator.evaluate((el) => el.tagName === 'INPUT' && el.type === 'file');
+    if (!isFileInput) throw new Error('uploadFile locator must target input[type=file]');
+    // Read once, then pass those exact bytes to Playwright: later disk changes cannot invalidate the receipt hash.
+    const resolved = path.resolve(filePath);
+    if (!fs.statSync(resolved).isFile()) throw new Error('uploadFile source must be a regular file');
+    const buffer = fs.readFileSync(resolved);
+    const name = path.basename(resolved);
+    const mimeType = o.mimeType ?? (path.extname(name).toLowerCase() === '.csv' ? 'text/csv' : 'application/octet-stream');
+    if (typeof mimeType !== 'string' || !mimeType.trim()) throw new Error('uploadFile mimeType must be nonempty');
+    const file = { name, bytes: buffer.length, sha256: createHash('sha256').update(buffer).digest('hex'), mimeType };
+    const tStart = log.now();
+    await locator.setInputFiles({ name, mimeType, buffer }, { timeout: o.timeout ?? 15000 });
+    const tEnd = log.now();
+    const event = log.push('upload', { label: o.label, target: o.target || describe(locator), method: 'locator.setInputFiles', file, tStart, tEnd });
+    beats.mark(o.label);
+    await wait(o.hold ?? TIMING.clickHoldMs);
+    return event;
+  }
+
   /** Pointer lead without a click, for a read beat. */
   async function pointAt(locator, o = {}) {
     const r = await approach(locator, o);
@@ -361,5 +388,5 @@ export function bindHelpers(page, log, beats, opts = {}) {
   /** Result hold (≥500 ms; longer when the viewer must read). */
   const hold = (ms = 1500) => wait(ms);
 
-  return { approach, click, tap, typeText, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
+  return { approach, click, tap, typeText, uploadFile, pointAt, hoverHold, smoothScroll, expect, go, hold, wait, mark: (l, x) => beats.mark(l, x), page };
 }

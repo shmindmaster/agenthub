@@ -483,3 +483,20 @@ test('voice-first compose: stops with a recapture message instead of squeezing t
   const off = run(compose, [voiceFirstJob('vf-off', { keywordStart: 13 }), 'vf', '--no-voice-first']);
   assert.equal(off.code, 0, '--no-voice-first composes the legacy fixed-slot picture: ' + off.out);
 });
+
+
+test('plan gate: native upload requires valid action evidence, matching summary, response and bound capture', { skip: !ffmpegAvailable }, () => {
+  const root = join(scratch, 'upload'); writeJob(root, { screenSeconds: 2, cardSeconds: 0 });
+  const clip = join(root, 'capture', 'clips', 'S02.webm'); movingClip(clip, 2);
+  const upload = { type: 'upload', tStart: 0.4, tEnd: 0.5, t: 0.5, label: 'Select CSV', target: 'input[type=file]', method: 'locator.setInputFiles', file: { name: 'synthetic.csv', bytes: 12, sha256: 'a'.repeat(64), mimeType: 'text/csv' } };
+  const receipt = goodReceipt('clips/S02.webm', sha(clip), { actions: [upload], events: { pointerMoves: 2, uploads: 1, expectationsObserved: 1 } });
+  const path = join(root, 'capture', 'receipt.json');
+  const check = (r) => { writeFileSync(path, JSON.stringify(r)); return run(validator, [root]); };
+  let r = check(receipt); assert.equal(r.code, 0, r.out);
+  for (const change of [r => delete r.clips.S02.actions, r => r.clips.S02.events.uploads = 2,
+    r => r.clips.S02.actions[0].method = 'synthetic-click', r => delete r.clips.S02.actions[0].file,
+    r => r.clips.S02.actions[0].tStart = -1, r => r.clips.S02.actions[0].x = 1,
+    r => r.clips.S02.events.expectationsObserved = 0, r => r.clips.S02.sha256 = 'b'.repeat(64)]) {
+    const bad = structuredClone(receipt); change(bad); r = check(bad); assert.notEqual(r.code, 0, r.out);
+  }
+});
