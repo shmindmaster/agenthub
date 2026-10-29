@@ -19,6 +19,8 @@ Read [architecture-decisions.md](./references/architecture-decisions.md) before
 changing any version, address, or device name — several obvious-looking
 "upgrades" are already recorded there as measured dead ends.
 
+**Physical iPhone attached to Windows:** launch, screenshot, tap, swipe, type, hardware buttons, a clickable live view, on-screen text, files, logs and location all work from Windows with no Mac, WDA or signing. See [physical-iphone-windows.md](./references/physical-iphone-windows.md).
+
 ## Read this first: do not rebuild to test a JavaScript change
 
 The single most expensive mistake in this lab is treating a full native build
