@@ -123,7 +123,7 @@ if (supportedWordClocks.includes(job.syncClock) || job.clockPolicy?.allowAsrAnch
       const {readQueueQwenClock,measureQueueQwenClock}=await import('./queue-qwen-alignment-clock.mjs');
       const clock=readQueueQwenClock(root,json(resolve(root,word.inputs.alignment.path)),{takeSha256:candidateSha,scriptSha256:digest(join(root,'story','locked-script.txt'))});
       const measured=measureQueueQwenClock(clock,json(resolve(root,word.inputs.cueSheet.path)).beats.flatMap(b=>b.narration?.words||[]));
-      for(const key of ['ok','count','offsetMs','driftMs','p95AbsMs','words','pcmSha256','pcmSamples','requestId','sessionId','gridMs','uncertaintyMs','modelRevision','rawTimestampMilliseconds'])if(JSON.stringify(measured[key])!==JSON.stringify(word[key]))throw Error(`queue Qwen clock ${key} differs from current inputs`);
+    for(const key of ['ok','count','offsetMs','driftMs','p95AbsMs','words','pcmSha256','pcmSamples','requestId','sessionId','engineName','executionPrecision','terminalEndpointToleranceMs','terminalEndpointOvershootMs','gridMs','uncertaintyMs','modelRevision','rawTimestampMilliseconds'])if(JSON.stringify(measured[key])!==JSON.stringify(word[key]))throw Error(`queue Qwen clock ${key} differs from current inputs`);
       if(measured.ok!==true)throw Error('queue Qwen clock exceeds canonical40ms limits');
     }catch(e){errors.push(`invalid queue Qwen provenance: ${e.message}`);}
   } else if(word?.method==='hosted-forced-alignment-on-encoded'){

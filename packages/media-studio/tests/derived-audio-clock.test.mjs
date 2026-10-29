@@ -82,7 +82,7 @@ test('declared deployment ships helper and executes exact PCM clock from both ru
  copyFileSync(new URL('../kit/cloud/cloud-ai.mjs',import.meta.url),join(kit,'cloud/cloud-ai.mjs'));
  copyFileSync(new URL('../kit/screencast/sync-lib.mjs',import.meta.url),join(kit,'screencast/sync-lib.mjs'));
  copyFileSync(new URL('../kit/screencast/sync-lib.mjs',import.meta.url),join(shared,'sync-lib.mjs'));
- const gates=['derived-audio-clock.mjs','edit-map-clock.mjs','hosted-alignment-clock.mjs','validate-word-sync.mjs'];
+ const gates=['derived-audio-clock.mjs','edit-map-clock.mjs','hosted-alignment-clock.mjs','queue-qwen-alignment-clock.mjs','validate-word-sync.mjs'];
  for(const target of [join(kit,'screencast'),shared])for(const name of gates)copyFileSync(new URL('../scripts/'+name,import.meta.url),join(target,name));
  writeFileSync(join(f.root,'story/locked-script.txt'),readFileSync(join(f.root,'script.txt')));f.manifest.script=f.ref('story/locked-script.txt');f.report.script=f.manifest.script;f.put('alignment.json',f.report);f.manifest.sourceAlignment=f.ref('alignment.json');
  f.put('job.json',{clockPolicy:{allowAsrAnchored:true}});f.put('qa/derived-audio-clock.json',f.manifest);f.put('plan/cue-sheet.json',{beats:[{narration:{words:f.cue}}]});
