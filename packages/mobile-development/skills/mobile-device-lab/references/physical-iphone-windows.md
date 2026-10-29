@@ -11,7 +11,7 @@ open a no-root userspace tunnel by themselves on iOS 17+; you don't need `remote
 
 - Hold the named mutex `Global\AgentHub.MobileDeviceLab.ForegroundMutation` around every sequence that
   changes the foreground (launch, tap, type, buttons, screenshots taken mid-flow).
-- The phone must be unlocked. Never enter, guess or type the passcode; ask the owner to unlock.
+- The phone must be unlocked. The owner set Auto-Lock to Never on 2026-10-28, so it stays unlocked while plugged in. Never enter, guess or type the passcode; if it's locked, ask the owner.
 - Bind the live viewer to `127.0.0.1` only. Its touch, button and key endpoints have no authentication.
 - Leave tunnels and viewers you didn't start alone.
 
