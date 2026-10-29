@@ -73,6 +73,8 @@ test('marketing floor passes with a complete, candidate-bound rubric and cuts on
   assert.equal(report.ok, true); assert.equal(report.applies, true);
   assert.equal(report.candidate.sha256, sha(candidate));
   assert.equal(report.cutsOnBeat.onBeat, 3);
+  assert.equal(report.cutsOnBeat.subdivision, 1);
+  assert.equal(report.cutsOnBeat.gridPeriodSeconds, 0.5);
   for (const c of ['hook-2s', 'one-promise', 'designed-motion', 'sound-design', 'brand-end-card', 'cuts-on-beat', 'references', 'feed-test', 'no-fluff', 'candidate-binding']) assert.equal(report.checks[c], 'pass', c);
 });
 
@@ -111,4 +113,37 @@ test('marketing floor fails closed on each criterion', { skip: !hasFfmpeg }, () 
   rmSync(rp);
   r = run([root, candidate]); assert.notEqual(r.code, 0); assert.match(r.out, /Silence is not readiness/);
   assert.equal(existsSync(join(root, 'qa', 'marketing-readiness-check.json')), true);
+});
+
+
+test('explicit eighth-note grid preserves bed tempo, and still rejects off-grid cuts', { skip: !hasFfmpeg }, () => {
+  const root = join(scratch, 'eighth'); const candidate = job(root);
+  const rp = join(root, 'qa', 'marketing-readiness.json');
+  const grid = { bpm: 112.5, subdivision: 2, offsetSeconds: 0, verdict: 'pass' };
+  writeJson(rp, readiness(candidate, { cutsOnBeat: grid }));
+  const cuts = [0, 0.8, 1.6, 2.4, 4.533333, 6.4];
+  const cue = (times) => writeJson(join(root, 'plan', 'cue-sheet.json'), { mode: 'mapped', edl: times.map((startSeconds) => ({ startSeconds })), beats: [] });
+  cue(cuts); let r = run([root, candidate]); assert.equal(r.code, 0, r.out);
+  let report = JSON.parse(readFileSync(join(root, 'qa', 'marketing-readiness-check.json'), 'utf8'));
+  assert.equal(report.cutsOnBeat.bpm, 112.5); assert.equal(report.cutsOnBeat.subdivision, 2);
+  assert.equal(report.cutsOnBeat.gridPeriodSeconds, 60 / 225); assert.equal(report.cutsOnBeat.onBeat, 5);
+  assert.equal(report.thresholds.beatToleranceMs, 80); assert.equal(report.thresholds.beatHitRatio, 0.9);
+  cue([0, 0.8 + 0.12, 1.6 + 0.12, 2.4 + 0.12]);
+  r = run([root, candidate]); assert.notEqual(r.code, 0); assert.match(r.out, /0\/3 cuts land within 80 ms/);
+  cue(cuts);
+  for (const subdivision of [0, 3, 8, 1.5, null, '2', 'NaN']) {
+    writeJson(rp, readiness(candidate, { cutsOnBeat: { ...grid, subdivision } }));
+    r = run([root, candidate]); assert.notEqual(r.code, 0, String(subdivision)); assert.match(r.out, /subdivision must be the integer 1, 2 or 4/);
+  }
+});
+
+
+test('rhythmic grids must remain discriminating at the fixed tolerance', { skip: !hasFfmpeg }, () => {
+  const root = join(scratch, 'dense-grid'); const candidate = job(root);
+  for (const grid of [{ bpm: 112.5, subdivision: 4 }, { bpm: 220, subdivision: 2 }]) {
+    writeJson(join(root, 'qa', 'marketing-readiness.json'), readiness(candidate, { cutsOnBeat: { ...grid, offsetSeconds: 0, verdict: 'pass' } }));
+    const period = 60 / (grid.bpm * grid.subdivision);
+    writeJson(join(root, 'plan', 'cue-sheet.json'), { mode: 'mapped', edl: [0, period * 5, period * 10].map((startSeconds) => ({ startSeconds })), beats: [] });
+    const r = run([root, candidate]); assert.notEqual(r.code, 0); assert.match(r.out, /too dense for the fixed tolerance/);
+  }
 });

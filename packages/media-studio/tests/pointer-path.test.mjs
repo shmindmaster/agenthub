@@ -281,6 +281,21 @@ function mappedFixture(name, { trimStart = 0, early = null } = {}) {
   return root;
 }
 
+test('piecewise mapped cue sheets refuse heuristic pointer windows, including a legacy edit fallback', () => {
+  for(const keepLegacyEdit of [false,true]) {
+    const root=mappedFixture('piecewise-'+keepLegacyEdit);
+    const path=join(root,'plan/cue-sheet.json');
+    const sheet=JSON.parse(readFileSync(path,'utf8'));
+    sheet.edl[0].actualCaptureWindow={piecewise_time_map:[{output_frame:0,source_seconds:2},{output_frame:30,source_seconds:3}]};
+    if(!keepLegacyEdit) sheet.edl[0].edit=null;
+    write(path,sheet);
+    const r=run(root);
+    assert.equal(r.code,1,r.out);
+    assert.match(r.report.errors.join('\n'),/piecewise picture clock is not supported/);
+    assert.equal(r.report.windows.length,0,'must not judge unseen source events using heuristic beat windows');
+  }
+});
+
 test('mapped cue sheet: one clip split into two beats, the reversal is attributed to the right beat', () => {
   const root = mappedFixture('mapped');
   const r = run(root);

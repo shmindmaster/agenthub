@@ -253,6 +253,13 @@ if (mapped) {
   }
   const perBeat = new Map();   // beat id -> { events, approachOf, clipId }
   for (const [clipId, beats] of beatsByClip) {
+    // Piecewise cue clocks cannot use the legacy no-edit heuristic: it would
+    // judge footage cut out of the rendered window and misassign beat ownership.
+    // Until this gate supports verified piecewise event windows, refuse them.
+    if ((sheet.edl || []).some((g) => g.clip === clipId && g.actualCaptureWindow?.piecewise_time_map) || beats.some((b) => b.picture_clock?.kind === 'receipt-to-piecewise-picture')) {
+      errors.push(`${clipId}: piecewise picture clock is not supported by pointer-path validation; source events and beat windows cannot be judged safely`);
+      continue;
+    }
     const rec = clips[clipId];
     if (!rec) { if (receipt) warnings.push(`${clipId}: cue sheet shows this clip but the receipt has no entry for it; not judged`); continue; }
     if (!hasLog(clipId, rec)) continue;

@@ -104,21 +104,24 @@ if (applies && readiness && candidateRec) {
 
   // 6. Cuts on the beat: measured from the real edit decision list against the declared grid.
   const bpm = Number(R.cutsOnBeat?.bpm); const offset = Number(R.cutsOnBeat?.offsetSeconds ?? 0);
+  const subdivision = R.cutsOnBeat?.subdivision === undefined ? 1 : R.cutsOnBeat.subdivision;
   let cutTimes = null; let cutSource = null;
   if (cueSheet?.edl?.length) { cutTimes = cueSheet.edl.map((g) => Number(g.startSeconds)).filter((t) => Number.isFinite(t) && t > 0.05); cutSource = ref(cuePath); }
   else if (typeof opt['--compose-map'] === 'string' && existsSync(resolve(root, opt['--compose-map']))) { const cm = readJson(resolve(root, opt['--compose-map'])); cutTimes = (cm.groups || []).map((g) => Number(g.startSeconds)).filter((t) => Number.isFinite(t) && t > 0.05); cutSource = ref(resolve(root, opt['--compose-map'])); }
   let beatResult = null;
   if (!(bpm >= 40 && bpm <= 220)) fail('cuts-on-beat', 'cutsOnBeat.bpm must be the bed tempo between 40 and 220.');
+  else if (!Number.isInteger(subdivision) || ![1, 2, 4].includes(subdivision)) fail('cuts-on-beat', 'cutsOnBeat.subdivision must be the integer 1, 2 or 4 (quarter, eighth or sixteenth notes).');
+  else if (60 / (bpm * subdivision) <= 2 * T.beatToleranceMs / 1000) fail('cuts-on-beat', 'The declared rhythmic grid is too dense for the fixed tolerance to distinguish an off-grid cut.');
   else if (!cutTimes) fail('cuts-on-beat', 'no edit decision list: build plan/cue-sheet.json in mapped mode (or pass --compose-map) so cut times are measured, not asserted.');
   else if (!cutTimes.length) fail('cuts-on-beat', 'the edit decision list has no cuts after the first frame; a single-shot marketing cut has no rhythm to judge.');
   else {
-    const period = 60 / bpm;
+    const period = 60 / (bpm * subdivision);
     const deltas = cutTimes.map((t) => { const k = Math.round((t - offset) / period); return Math.abs(t - (offset + k * period)) * 1000; });
     const hits = deltas.filter((d) => d <= T.beatToleranceMs).length;
-    beatResult = { bpm, offsetSeconds: offset, cuts: cutTimes.length, onBeat: hits, ratio: Number((hits / cutTimes.length).toFixed(3)), deltasMs: deltas.map((d) => Math.round(d)), source: cutSource };
-    if (hits / cutTimes.length < T.beatHitRatio) fail('cuts-on-beat', `${hits}/${cutTimes.length} cuts land within ${T.beatToleranceMs} ms of the ${bpm} bpm grid; the floor is ${Math.round(T.beatHitRatio * 100)}%.`);
+    beatResult = { bpm, subdivision, gridPeriodSeconds: period, offsetSeconds: offset, cuts: cutTimes.length, onBeat: hits, ratio: Number((hits / cutTimes.length).toFixed(3)), deltasMs: deltas.map((d) => Math.round(d)), source: cutSource };
+    if (hits / cutTimes.length < T.beatHitRatio) fail('cuts-on-beat', `${hits}/${cutTimes.length} cuts land within ${T.beatToleranceMs} ms of the ${bpm} bpm grid (subdivision ${subdivision}); the floor is ${Math.round(T.beatHitRatio * 100)}%.`);
     else if (R.cutsOnBeat?.verdict !== 'pass') fail('cuts-on-beat', 'cutsOnBeat needs verdict pass once the measurement passes.');
-    else pass('cuts-on-beat', `${hits}/${cutTimes.length} on the ${bpm} bpm grid`);
+    else pass('cuts-on-beat', `${hits}/${cutTimes.length} on the ${bpm} bpm grid (subdivision ${subdivision})`);
   }
 
   // 7. Three cited reference ads: what this cut is competing against, by name.

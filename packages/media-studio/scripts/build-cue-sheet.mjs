@@ -32,6 +32,7 @@ import { createHash } from 'node:crypto';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { asrAnchoredAllowed, clockAccepted, designedCuts, normalizeAlignWords, pictureScripts } from './picture-gates.mjs';
+import { piecewiseCaptureClock } from './piecewise-capture-clock.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', 'screencast', 'sync-lib.mjs')].find(existsSync);
@@ -133,11 +134,22 @@ const sceneOf = (seg) => seg.scene || String(seg.id).replace(/[a-z]$/, '');
 const clipForSegment = (seg) => manifestClips.find((c) => c.segments.includes(seg.id)) || manifestClips.find((c) => c.segments.includes(sceneOf(seg)) || c.segments.includes(String(seg.id).replace(/[a-z]$/, ''))) || null;
 // Plan mode has no compose map, so the clip length comes from the receipt (unknown = unbounded, never a silent null mapping).
 const editOf = (src) => ({ trimStart: Number(src?.trimStart || 0), trimEnd: src?.trimEnd ? Number(src.trimEnd) : null, speed: Number(src?.speed || 1), skip: src?.skip || [], headHold: Number(src?.headHold || 0), srcSeconds: Number(src?.srcSeconds || receipt?.clips?.[src?.id]?.clipSeconds || 1e6) });
+const piecewiseClocks = new Map();
+const piecewiseSourceHashes = new Map();
+for (const g of composeMap?.groups || []) {
+  if (!g.actualCaptureWindow?.piecewise_time_map) continue;
+  try {
+    if (g.isImage || g.heldFromPrevious || g.extras || g.fit === 'fit') throw Error('unsupported transformed capture group');
+    const file = resolve(root, g.file || '');
+    if (!piecewiseSourceHashes.has(file)) piecewiseSourceHashes.set(file, sha(file));
+    piecewiseClocks.set(g, piecewiseCaptureClock(g, { sourceSha256: piecewiseSourceHashes.get(file), receiptSha256: receipt?.clips?.[g.clipId]?.sha256 }));
+  } catch (e) { errors.push(`${g.clipId}: ${e.message}`); }
+}
 
 function groupFor(seg) {
   if (mapped) {
     const g = composeMap.groups.find((x) => (x.segments || []).includes(seg.id));
-    if (g) return { clipId: g.clipId, kind: g.isImage ? 'card' : g.heldFromPrevious ? 'hold' : 'screen', start: g.startSeconds, until: round(g.startSeconds + g.needSeconds), edit: g.edit || editOf({ ...g, srcSeconds: g.srcSeconds }), segments: g.segments, fit: g.fit, file: g.file, mappable: !!(g.clipId && g.edit && !g.isImage && !g.heldFromPrevious && !g.extras && g.fit !== 'fit') };
+    if (g) return { clipId: g.clipId, kind: g.isImage ? 'card' : g.heldFromPrevious ? 'hold' : 'screen', start: g.startSeconds, until: round(g.startSeconds + g.needSeconds), edit: g.edit || editOf({ ...g, srcSeconds: g.srcSeconds }), segments: g.segments, fit: g.fit, file: g.file, piecewise: piecewiseClocks.get(g), hasPiecewise: !!g.actualCaptureWindow?.piecewise_time_map, mappable: g.actualCaptureWindow?.piecewise_time_map ? piecewiseClocks.has(g) : !!(g.clipId && g.edit && !g.isImage && !g.heldFromPrevious && !g.extras && g.fit !== 'fit') };
     warnings.push(`${seg.id}: segment is not in the compose map`);
   }
   const c = clipForSegment(seg);
@@ -170,7 +182,7 @@ const beats = segs.map((seg, i) => {
   // Receipt times are on the raw recording clock; the clip starts after Recast's blank lead-in trim.
   const clock = L.clipClock(clipRec);
   if (clipRec && clock.offset === null && ((clipRec.actions || []).length || (clipRec.expectations || []).length)) errors.push(`${seg.id}: clip ${g.clipId}: ${clock.source}`);
-  const toProgram = (ts) => { if (!Number.isFinite(ts) || !g.mappable) return null; const t = L.clipToSlot(g.edit, ts); return t === null ? null : round(g.start + t); };
+  const toProgram = (ts) => { if (!Number.isFinite(ts) || !g.mappable) return null; if (g.piecewise) { const t = g.piecewise.sourceToProgram(ts); return t === null ? null : round(t); } const t = L.clipToSlot(g.edit, ts); return t === null ? null : round(g.start + t); };
   const beatEnd = slotEnd;
   const beatStart = slotStart;
   const inBeat = (pt) => pt !== null && pt >= beatStart - 0.001 && pt < beatEnd - 0.001;
@@ -190,7 +202,7 @@ const beats = segs.map((seg, i) => {
       receipt_event_index: clipRec.actions.indexOf(x.e),
       clip_time: L.round(x.clipTime), cursor: Number.isFinite(x.e.x) ? { x: x.e.x, y: x.e.y } : null,
       action_time: mapped ? x.program : null,
-      action_time_natural: g.mappable ? round(g.start + (L.clipToSlot({ ...g.edit, headHold: 0 }, x.clipTime) ?? NaN)) : null,
+      action_time_natural: g.mappable && !g.hasPiecewise ? round(g.start + (L.clipToSlot({ ...g.edit, headHold: 0 }, x.clipTime) ?? NaN)) : null,
       keyword: keyword ? { w: keyword.w, start: keyword.start, end: keyword.end, matched: keyword.keyword } : null,
     });
   };
@@ -223,6 +235,7 @@ const beats = segs.map((seg, i) => {
     slot_end: slotEnd,
     narration: { text: seg.text, words: bw.words, precision: bw.precision, source: bw.source, firstContentWord: fcw[i] },
     clip_clock: clipRec ? { offset_seconds: clock.offset, source: clock.source } : null,
+    picture_clock: g.piecewise?.evidence || null,
     screen: { clip: g.clipId, kind: g.kind, file: g.file, visible_from: slotStart, visible_until: g.until, changes_from_previous: !prevGroup || prevGroup.clipId !== g.clipId || prevGroup.start !== g.start },
     actions,
     result,
@@ -248,7 +261,7 @@ if (flatScripts.length) {
 }
 const degraded = beats.filter((b) => b.narration.precision !== 'word').map((b) => ({ beat: b.beat, precision: b.narration.precision }));
 if (degraded.length) warnings.push(`degraded timing precision on ${degraded.length} beat(s): ${degraded.map((d) => `${d.beat}=${d.precision}`).join(', ')}; the sync gate fails these. Run ai.ps1 align and write voice/align/<id>.json. Whisper cannot time the picture.`);
-const composeEdl = mapped ? composeMap.groups.map((g) => ({ segments: g.segments, clip: g.clipId, startSeconds: g.startSeconds, needSeconds: g.needSeconds, fit: g.fit, edit: g.edit || null })) : null;
+const composeEdl = mapped ? composeMap.groups.map((g) => ({ segments: g.segments, clip: g.clipId, startSeconds: g.startSeconds, needSeconds: g.needSeconds, fit: g.fit, edit: g.actualCaptureWindow?.piecewise_time_map ? null : g.edit || null, actualCaptureWindow: g.actualCaptureWindow || null })) : null;
 let edl = composeEdl;
 if (designed) {
   const existing = Array.isArray(composeEdl) ? [...composeEdl] : [];

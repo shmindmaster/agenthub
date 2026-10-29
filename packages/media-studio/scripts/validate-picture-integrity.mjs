@@ -27,6 +27,8 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { validateFinalEncoderTransform, cropGray, meanAbsoluteDifference } from './final-encoder-transform.mjs';
+import { productPanelGeometry, panelSourceSample, cropPanelGray, panelReferenceFilter } from './product-panel-geometry.mjs';
 
 const USAGE = 'Usage: node validate-picture-integrity.mjs <jobRoot> <candidate.mp4> [--compose-map output/<base>-compose-map.json] [--out qa/picture-integrity.json] [--scale-tolerance 0.005] [--bar-variance 4] [--bar-min-px 6]';
 const VALUE_FLAGS = new Set(['--compose-map', '--out', '--scale-tolerance', '--bar-variance', '--bar-min-px']);
@@ -161,9 +163,10 @@ if (ratio.skipped) { if (!ratio.exception && !portraitOrSquare) ratio.note = 'la
 else performed.push('ratio');
 
 // ---- decoding helpers ----
-function grayFrameAt(file, t, w, h) {
+function grayFrameAt(file, t, w, h, scale = false) {
   try {
-    const buf = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-threads', '2', '-ss', Math.max(0, t).toFixed(3), '-i', file, '-frames:v', '1', '-vf', 'format=gray', '-f', 'rawvideo', 'pipe:1'], { windowsHide: true, maxBuffer: 1 << 28 });
+    const filter = typeof scale === 'string' ? scale : (scale ? `scale=${w}:${h}:flags=lanczos,` : '') + 'format=gray';
+    const buf = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-threads', '2', '-filter_threads', '1', '-ss', Math.max(0, t).toFixed(6), '-i', file, '-frames:v', '1', '-vf', filter, '-f', 'rawvideo', 'pipe:1'], { windowsHide: true, maxBuffer: 1 << 28 });
     return buf.length >= w * h ? buf.subarray(0, w * h) : null;
   } catch { return null; }
 }
@@ -205,6 +208,18 @@ const cropReason = (id) => {
 };
 
 // ---- per-group judgement ----
+let encoderTransform = null;
+if (composeMap.finalEncoderTransform) {
+  try {
+    encoderTransform = validateFinalEncoderTransform(composeMap.finalEncoderTransform, report.candidate.sha256, W, H);
+    const source = resolve(jobRoot, encoderTransform.sourceFile);
+    if (!existsSync(source) || sha256(source) !== encoderTransform.sourceSha256) throw new Error('pre-caption master source hash mismatch');
+    const size = probeVideo(source);
+    if (size.width !== W || size.height !== H || Math.abs(size.duration - candidateSize.duration) > 0.05) throw new Error('pre-caption source dimensions or duration mismatch');
+    bind('finalEncoderMaster', source);
+    report.finalEncoderTransform = encoderTransform;
+  } catch (e) { stop(`[final-encoder-transform] ${e.message}`); }
+}
 const receiptClips = receipt.clips || {};
 const receiptFor = (group) => (group.clipId && receiptClips[group.clipId]) || Object.values(receiptClips).find((e) => e.file === group.file) || null;
 let zoomGroups = 0, decodedFrames = 0;
@@ -223,22 +238,32 @@ for (const group of composeMap.groups) {
   const region = group.sourceRegion || null;
   const rx = region?.x ?? 0, ry = region?.y ?? 0, rw = region?.width ?? 1, rh = region?.height ?? 1;
   const cropBox = { x: round(native.width * rx, 2), y: round(native.height * ry, 2), w: round(native.width * rw, 2), h: round(native.height * rh, 2) };
-  const s = Math.min(W / cropBox.w, H / cropBox.h);
+  let panel = null;
+  if (group.destinationRect != null) {
+    try {
+      if (![rx, ry, rw, rh].every(Number.isFinite) || rx < 0 || ry < 0 || rw <= 0 || rh <= 0 || rx + rw > 1 || ry + rh > 1) throw new Error('sourceRegion must remain inside the native capture');
+      panel = productPanelGeometry(group.destinationRect, W, H, cropBox.w, cropBox.h, encoderTransform);
+      if (!Number.isFinite(group.startSeconds) || group.startSeconds < 0 || !Number.isFinite(group.needSeconds) || group.needSeconds <= 0 || group.startSeconds + group.needSeconds > candidateSize.duration + 0.05) throw new Error('panel group must declare a positive interval inside the candidate');
+    } catch (e) { addError('destination-rect', label, e.message); continue; }
+  }
+  const pictureW = panel?.encoded.width || encoderTransform?.scaleWidth || W, pictureH = panel?.encoded.height || encoderTransform?.scaleHeight || H;
+  const s = Math.min(pictureW / cropBox.w, pictureH / cropBox.h);
   const fitted = { w: cropBox.w * s, h: cropBox.h * s };
-  const bars = { left: Math.round((W - fitted.w) / 2), right: Math.round((W - fitted.w) / 2), top: Math.round((H - fitted.h) / 2), bottom: Math.round((H - fitted.h) / 2) };
+  const bars = { left: Math.round((pictureW - fitted.w) / 2), right: Math.round((pictureW - fitted.w) / 2), top: Math.round((pictureH - fitted.h) / 2), bottom: Math.round((pictureH - fitted.h) / 2) };
   for (const k of Object.keys(bars)) if (bars[k] < 0) bars[k] = 0;
   const viewport = entry.viewport || null;
   const dsf = Number(entry.deviceScaleFactor) || 1;
   const row = {
     segments: segs, clip: group.clipId, file: group.file,
     native: { w: native.width, h: native.height }, viewport, deviceScaleFactor: dsf,
-    region, scaleX: round(fitted.w / cropBox.w, 4), scaleY: round(fitted.h / cropBox.h, 4), cropBox, bars,
+    region, scaleX: round(panel ? panel.scale : fitted.w / cropBox.w, 4), scaleY: round(panel ? panel.scale : fitted.h / cropBox.h, 4), cropBox, bars,
     barsMeasured: null, measured: null, recast: entry.recast ?? null, zoomDeclared: null, verdict: 'pass', findings: [],
   };
   const finding = (check, status, message, extra = {}) => { row.findings.push({ check, status, message, ...extra }); };
   const fail = (check, message, extra) => { addError(check, `${label} (${group.file})`, message); finding(check, 'fail', message, extra); };
   const warn = (check, message, extra) => { addWarning(check, `${label} (${group.file})`, message); finding(check, 'warn', message, extra); };
   const pass = (check, message, extra) => finding(check, 'pass', message, extra);
+  if (panel) row.destinationRect = panel;
 
   // upscale: planned scale of the capture into the frame
   if (row.scaleX > 1 + SCALE_TOLERANCE) fail('upscale', `upscales beyond the capture's native ${native.width}x${native.height} by ${row.scaleX.toFixed(3)}x (${cropBox.w}x${cropBox.h} drawn at ${Math.round(fitted.w)}x${Math.round(fitted.h)}); capture at the delivery frame or larger`, { measured: row.scaleX, allowed: 1 + SCALE_TOLERANCE });
@@ -253,8 +278,37 @@ for (const group of composeMap.groups) {
 
   // encoded middle frame: bars and stretch
   const mid = Number(group.startSeconds || 0) + Number(group.needSeconds || 0) / 2;
-  const cw = candidateSize?.width, ch = candidateSize?.height;
-  const frameBuf = cw > 0 ? grayFrameAt(candidate, Math.min(mid, Math.max(0, (candidateSize.duration || mid) - 0.1)), cw, ch) : null;
+  let cw = candidateSize?.width, ch = candidateSize?.height;
+  const sampleAt = Math.min(mid, Math.max(0, (candidateSize.duration || mid) - 0.1));
+  let frameBuf = cw > 0 ? grayFrameAt(candidate, sampleAt, cw, ch) : null;
+  const candidateFrame = frameBuf;
+  if (encoderTransform && frameBuf) {
+    const t = encoderTransform;
+    frameBuf = cropGray(frameBuf, cw, t.padX, t.padY, t.scaleWidth, t.scaleHeight);
+    cw = t.scaleWidth; ch = t.scaleHeight;
+    const reference = grayFrameAt(resolve(jobRoot, t.sourceFile), sampleAt, cw, ch, true);
+    const difference = meanAbsoluteDifference(frameBuf, reference);
+    row.finalEncoderMasterDifference = difference;
+    // Compression is tolerated, while an incorrect rectangle, replaced UI or internal captions fail.
+    if (difference > 4) fail('final-encoder-transform', `encoded product rectangle differs from full-master source: mean luma error ${difference.toFixed(3)} exceeds 4`);
+    else pass('final-encoder-transform', 'exact source master matches encoded product rectangle', { measured: difference, allowed: 4 });
+  }
+  if (panel) {
+    try {
+      const sourceHash = sha256(file);
+      const sourceSeconds = panelSourceSample(group.sourceBinding, { candidateSha256: report.candidate.sha256, sourceSha256: sourceHash, groupStartSeconds: group.startSeconds, sampleSeconds: sampleAt, sourceDuration: native.duration });
+      // Validate the entire declared interval, not merely one convenient sample.
+      panelSourceSample(group.sourceBinding, { candidateSha256: report.candidate.sha256, sourceSha256: sourceHash, groupStartSeconds: group.startSeconds, sampleSeconds: group.startSeconds + group.needSeconds - Math.min(0.001, group.needSeconds / 2), sourceDuration: native.duration });
+      bind(`panelSource:${group.clipId}`, file);
+      frameBuf = cropPanelGray(candidateFrame, candidateSize.width, candidateSize.height, panel);
+      cw = panel.raster.width; ch = panel.raster.height;
+      const reference = grayFrameAt(file, sourceSeconds, cw, ch, panelReferenceFilter(cropBox, panel));
+      const difference = meanAbsoluteDifference(frameBuf, reference);
+      row.panelSource = { sha256: sourceHash, sourceSeconds, candidateSeconds: sampleAt, difference, binding: group.sourceBinding };
+      if (difference > 4) fail('panel-source', `encoded panel differs from its exact capture/time/fit: mean luma error ${difference.toFixed(3)} exceeds 4`, { measured: difference, allowed: 4 });
+      else pass('panel-source', 'encoded panel matches hash-bound capture at the declared source time', { measured: difference, allowed: 4 });
+    } catch (e) { fail('panel-source', e.message); frameBuf = null; }
+  }
   let content = null;
   if (frameBuf) {
     decodedFrames++;

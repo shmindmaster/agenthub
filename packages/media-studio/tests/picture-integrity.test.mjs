@@ -7,6 +7,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = resolve(here, '..');
@@ -16,6 +17,36 @@ const hasFfmpeg = (() => {
   try { execFileSync('ffmpeg', ['-version'], { windowsHide: true, timeout: 10000, stdio: 'ignore' }); execFileSync('ffprobe', ['-version'], { windowsHide: true, timeout: 10000, stdio: 'ignore' }); return true; } catch { return false; }
 })();
 const opts = { skip: !hasFfmpeg && 'ffmpeg/ffprobe not on PATH' };
+
+test('external caption canvas binds master and validates actual product rectangle', opts, () => {
+  let source;
+  const { root, cand } = buildJob({ clip: [1600, 1000], frame: [1600, 1000], candidate: (r, c, out) => {
+    source = c;
+    ff(['-i', c, '-vf', 'scale=1280:800:flags=lanczos,pad=1600:1000:160:0:color=0x101524', '-c:v', 'libx264', '-preset', 'ultrafast', out]);
+  }});
+  const sha = p => createHash('sha256').update(readFileSync(p)).digest('hex');
+  const mapFile = join(root, 'output', 'film-compose-map.json');
+  const map = JSON.parse(readFileSync(mapFile));
+  map.finalEncoderTransform = { candidateSha256: sha(cand), sourceFile: 'capture/clips/W01.mp4', sourceSha256: sha(source), sourceWidth: 1600, sourceHeight: 1000, outputWidth: 1600, outputHeight: 1000, scaleWidth: 1280, scaleHeight: 800, padX: 160, padY: 0, crop: false, purpose: 'external-caption-band' };
+  writeFileSync(mapFile, JSON.stringify(map));
+  assert.equal(runGate(root, cand).report.ok, true);
+  writeFileSync(join(root, 'story', 'narration-timeline.json'), JSON.stringify({ durationSeconds: 2, segments: [{ id: 'W01', startSeconds: 0, durationSeconds: 2 }] }));
+  writeFileSync(join(root, 'capture', 'manifest.json'), JSON.stringify({ clips: [{ id: 'W01', file: 'clips/W01.mp4', segments: ['W01'] }] }));
+  const encoded = () => {
+    const r = spawnSync(process.execPath, [join(pkg, 'scripts', 'validate-encoded-picture.mjs'), root, cand], { windowsHide: true, encoding: 'utf8' });
+    return { code: r.status, output: r.stdout + r.stderr };
+  };
+  assert.equal(encoded().code, 0, encoded().output);
+  map.finalEncoderTransform.padY = 100;
+  writeFileSync(mapFile, JSON.stringify(map));
+  assert.equal(runGate(root, cand).report.ok, false, 'incorrect rectangle must fail against encoded master pixels');
+  assert.notEqual(encoded().code, 0, 'encoded binding rejects incorrect product rectangle');
+  map.finalEncoderTransform.padY = 0;
+  map.finalEncoderTransform.sourceSha256 = '0'.repeat(64);
+  writeFileSync(mapFile, JSON.stringify(map));
+  assert.equal(runGate(root, cand).report.ok, false, 'stale master must fail');
+  assert.notEqual(encoded().code, 0, 'encoded binding rejects stale master');
+});
 
 const roots = [];
 test.after(() => { for (const r of roots) rmSync(r, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); });

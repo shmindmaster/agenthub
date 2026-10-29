@@ -7,6 +7,8 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { validateActionResultReview } from "./action-result-review.mjs";
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const campaignHelper = existsSync(join(scriptDir, "campaign-contract.mjs"))
   ? join(scriptDir, "campaign-contract.mjs")
@@ -95,10 +97,15 @@ const canonical = (report, relPath, rules) => {
   if (off.length) errors.push(`${relPath} was not run at the canonical thresholds: ${off.map(([key, dir, value]) => `${key} ${th[key] ?? 'missing'} (${dir === 'max' ? 'at most' : 'at least'} ${value})`).join(', ')}.`);
   return report;
 };
-if (job.syncClock === 'forced-aligner') {
-  const word = canonical(boundReport('qa/word-sync.json', 'media-studio/validate-word-sync', 'word onsets require ai.ps1 align on the exact candidate'), 'qa/word-sync.json', [['driftMaxMs', 'max', 40]]);
+// The selector requires verification; the report records the actual timing method.
+// ASR opt-in must never silently skip the same candidate/input provenance checks.
+const supportedWordClocks = ['forced-aligner', 'asr-anchored'];
+if (job.syncClock != null && !supportedWordClocks.includes(job.syncClock)) errors.push('unsupported syncClock; use forced-aligner or explicitly opted-in asr-anchored.');
+if (job.syncClock === 'asr-anchored' && job.clockPolicy?.allowAsrAnchored !== true) errors.push('asr-anchored syncClock requires clockPolicy.allowAsrAnchored: true.');
+if (supportedWordClocks.includes(job.syncClock) || job.clockPolicy?.allowAsrAnchored === true) {
+  const word = canonical(boundReport('qa/word-sync.json', 'media-studio/validate-word-sync', 'word onsets require verified encoded word-clock evidence on the exact candidate'), 'qa/word-sync.json', [['driftMaxMs', 'max', 40]]);
   boundToCandidate(word, 'qa/word-sync.json');
-  boundToInput(word, 'qa/word-sync.json', ['alignment'], 'forced alignment');
+  boundToInput(word, 'qa/word-sync.json', ['alignment'], 'alignment evidence');
   boundToInput(word, 'qa/word-sync.json', ['cueSheet'], 'cue sheet');
   boundToInput(word, 'qa/word-sync.json', ['script'], 'locked alignment script');
   if (word?.method === 'verified-preserved-pcm-edit-map') {
@@ -119,6 +126,15 @@ if (job.syncClock === 'forced-aligner') {
       for(const key of ['ok','count','offsetMs','driftMs','p95AbsMs','words','pcmSha256','pcmSamples','providerLoss'])if(JSON.stringify(measured[key])!==JSON.stringify(word[key]))throw Error(`hosted clock ${key} differs from current inputs`);
       if(word.gridMs!==null||word.uncertaintyMs!==null||word.provider!=='elevenlabs'||measured.ok!==true)throw Error('hosted clock must preserve unknown uncertainty and canonical40ms offset/drift limits');
     }catch(e){errors.push(`invalid hosted alignment provenance: ${e.message}`);}
+  } else if(word?.method==='asr-anchored-identity-pcm-on-encoded'){
+    try{
+      const {readDerivedAudioClock,measureDerivedAudioClock}=await import('./derived-audio-clock.mjs');
+      const job=json(join(root,'job.json'));
+      const clock=readDerivedAudioClock(root,json(resolve(root,word.inputs.alignment.path)),{takeSha256:candidateSha,scriptSha256:digest(join(root,'story','locked-script.txt')),allowAsrAnchored:job?.clockPolicy?.allowAsrAnchored===true});
+      const measured=measureDerivedAudioClock(clock,json(resolve(root,word.inputs.cueSheet.path)).beats.flatMap(b=>b.narration?.words||[]));
+      for(const key of ['ok','count','offsetMs','driftMs','p95AbsMs','words','pcmSha256','pcmSamples','pcmSampleRate','sourceAudioSha256'])if(JSON.stringify(measured[key])!==JSON.stringify(word[key]))throw Error(`derived ASR clock ${key} differs from current inputs`);
+      if(word.gridMs!==80||measured.ok!==true)throw Error('derived ASR clock must retain80ms grid and40ms offset/drift limits');
+    }catch(e){errors.push(`invalid derived ASR provenance: ${e.message}`);}
   } else if (word?.method === 'asr-anchored-alignment-on-encoded') {
     // Cloud ASR-anchored clock: release-eligible only where the job opted in (job.json clockPolicy.allowAsrAnchored).
     let job = null;
@@ -253,11 +269,15 @@ if (evidence) {
   const titles = requireBoundPass("titleReview");
   if (titles && (!Number.isInteger(titles.titleCount) || titles.titleCount < 0 || titles.titleCount > 1)) errors.push("exact encoded title review must confirm no more than one opening title treatment.");
   const actions = requireBoundPass("actionResultReview");
-  if (actions && (!Array.isArray(actions.events) || !actions.events.length)) errors.push("action-result review needs observed events.");
-  for (const event of actions?.events ?? []) {
-    const times = [event.actionAtSeconds, event.resultVisibleAtSeconds, event.spokenResultAtSeconds];
-    if (!event.segmentId || times.some((time) => !Number.isFinite(time) || time < 0)) errors.push("action-result event must include finite nonnegative action, visible-result, and spoken-result timing.");
-    else if (event.resultVisibleAtSeconds < event.actionAtSeconds || event.spokenResultAtSeconds < event.resultVisibleAtSeconds) errors.push(`action-result event ${event.segmentId} announces a result before the picture proves it.`);
+  if (actions) {
+    const storyboardPath = join(root, 'story', 'storyboard.json');
+    const storyboard = actions.mode === 'settled-state' && existsSync(storyboardPath) ? json(storyboardPath) : null;
+    let candidateDurationSeconds;
+    if (actions.mode === 'settled-state') {
+      try { candidateDurationSeconds = probeVideo(candidate).duration; }
+      catch { errors.push('cannot measure the encoded program duration for settled-state review.'); }
+    }
+    errors.push(...validateActionResultReview({job, storyboard, timeline, review: actions, candidateSha256: candidateSha, candidateDurationSeconds}));
   }
   const story = requireBoundPass("storyReview");
   if (story && !story.cta) errors.push("story review must confirm a concrete CTA.");

@@ -66,3 +66,7 @@ node <tools>/validate-marketing-readiness.mjs <jobRoot> <candidate.mp4>
 writes `qa/marketing-readiness-check.json` with per-criterion pass/fail and the measured cut grid. The
 viewer-release gate requires it to be a PASS bound to the exact candidate for every marketing cut. On a fail,
 recut the scenes the finding names, re-encode, rerun every gate.
+
+The rhythm receipt may declare `cutsOnBeat.subdivision` as the integer `1`, `2` or `4` for quarter, eighth or sixteenth notes; omission retains quarter-note behavior. Keep the actual bed BPM (40–220), declare the audible grid honestly, and retain the 80 ms / 90% floor. The validator records BPM, subdivision and grid period separately; a subdivision is not evidence that the mixed cue is audible.
+
+Declare the subdivision from the actual audible score and retain its provenance, never choose one merely to fit the edit. The grid period must exceed twice the fixed 80 ms tolerance, so the rhythm test can reject off-grid cuts; overly dense grids fail even when the supplied cuts lie on them.

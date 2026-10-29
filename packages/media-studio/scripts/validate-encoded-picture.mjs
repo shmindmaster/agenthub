@@ -12,6 +12,7 @@
 //      (default 6; a beat may declare resultHoldSeconds up to 8). Measured on decoded frames, 2 fps, 32×20 gray.
 //   4. Cards ≤ 8 s; screen ratio ≥ 70% of the encoded timeline; designed first/last frames (not black).
 // Writes qa/encoded-picture.json bound to the candidate's sha256 and byte count. QA and the release ledger cite it.
+import { validateFinalEncoderTransform, meanAbsoluteDifference } from './final-encoder-transform.mjs';
 import { existsSync, readFileSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -65,8 +66,8 @@ function grayFrames(file, w, h, fps, extra = []) {
   for (let i = 0; i < n; i++) frames.push(buf.subarray(i * w * h, (i + 1) * w * h));
   return frames;
 }
-function grayFrameAt(file, t, w, h) {
-  const buf = run(['-ss', t.toFixed(3), '-i', file, '-frames:v', '1', '-vf', `scale=${w}:${h}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1']);
+function grayFrameAt(file, t, w, h, extra = []) {
+  const buf = run(['-ss', t.toFixed(3), '-i', file, '-frames:v', '1', '-vf', `${extra.length ? extra.join(',') + ',' : ''}scale=${w}:${h}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1']);
   return buf.length >= w * h ? buf.subarray(0, w * h) : null;
 }
 function dhash(gray9x8) { // 9x8 gray -> 64-bit as BigInt
@@ -142,8 +143,22 @@ report = {
 };
 if (Math.abs(duration - Number(tl.durationSeconds || 0)) > 1.0) fail(`candidate is ${duration.toFixed(2)}s but the narration timeline is ${Number(tl.durationSeconds).toFixed(2)}s`);
 
+// An external caption canvas must be bound to its exact pre-caption master.
+let productFilters = [], transform = null, transformMaster = null;
+if (composeMap?.finalEncoderTransform) {
+  try {
+    transform = validateFinalEncoderTransform(composeMap.finalEncoderTransform, report.candidate.sha256, deliveryFrame.width, deliveryFrame.height);
+    transformMaster = resolve(jobRoot, transform.sourceFile);
+    if (!existsSync(transformMaster) || createHash('sha256').update(readFileSync(transformMaster)).digest('hex') !== transform.sourceSha256) throw new Error('pre-caption source SHA mismatch');
+    const dims = JSON.parse(execFileSync('ffprobe', ['-v','error','-select_streams','v:0','-show_entries','stream=width,height','-of','json',transformMaster]).toString()).streams[0];
+    if (dims.width !== transform.sourceWidth || dims.height !== transform.sourceHeight || Math.abs(probeDuration(transformMaster) - duration) > 0.05) throw new Error('pre-caption source dimensions or duration mismatch');
+    productFilters = [`crop=${transform.scaleWidth}:${transform.scaleHeight}:${transform.padX}:${transform.padY}`];
+    report.finalEncoderTransform = { ...transform, masterPixelChecks: [] };
+  } catch (error) { fail(`finalEncoderTransform: ${error.message}`); finish(); }
+}
+
 // 3. dead-screen scan on the decoded candidate
-const frames = grayFrames(candidate, STATIC_W, STATIC_H, FPS);
+const frames = grayFrames(candidate, STATIC_W, STATIC_H, FPS, productFilters);
 const staticFlags = frames.map((f, i) => (i === 0 ? false : changedFraction(frames[i - 1], f) < STATIC_CHANGED_FRACTION));
 const runs = [];
 let runStart = null;
@@ -225,8 +240,16 @@ for (const seg of tl.segments) {
   const hs = clipHashes(src.file, src.sourceRegion);
   if (!hs || !hs.length) { fail(`segment ${seg.id}: cannot decode source clip ${src.file}`); continue; }
   const mid = seg.startSeconds + Math.min(dur / 2, Math.max(0.5, dur / 2));
-  const fr = grayFrameAt(candidate, Math.min(mid, duration - 0.2), 9, 8);
+  const fr = grayFrameAt(candidate, Math.min(mid, duration - 0.2), 9, 8, productFilters);
   if (!fr) { fail(`segment ${seg.id}: cannot decode candidate frame at ${mid.toFixed(2)}s`); continue; }
+  if (transform) {
+    const t = Math.min(mid, duration - 0.2);
+    const actual = grayFrameAt(candidate, t, 160, 100, productFilters);
+    const expected = grayFrameAt(transformMaster, t, 160, 100, [`scale=${transform.scaleWidth}:${transform.scaleHeight}:flags=lanczos`]);
+    const error = meanAbsoluteDifference(actual, expected);
+    report.finalEncoderTransform.masterPixelChecks.push({ segment: seg.id, timeSeconds: t, meanAbsoluteLumaError: error, allowed: 4 });
+    if (error > 4) fail(`segment ${seg.id}: transformed product rectangle does not match exact bound master (luma error ${error} > 4)`);
+  }
   const h = dhash(fr);
   let best = 64;
   for (const c of hs) { const d = hamming(h, c); if (d < best) best = d; if (best === 0) break; }

@@ -6,6 +6,8 @@ Applies when `job.kind` is `product-screencast`, when `programForm` defaults to 
 
 Validators, both fail closed:
 
+`validate-picture-integrity.mjs` also supports a compose-map `finalEncoderTransform` for an external caption band. It binds `candidateSha256` and the exact pre-caption `sourceFile`/`sourceSha256`, uses integer `sourceWidth`/`sourceHeight`, `outputWidth`/`outputHeight`, `scaleWidth`/`scaleHeight`, `padX`/`padY`, and requires `crop: false` and `purpose: external-caption-band`. The master and output canvas must match; the full master may only shrink uniformly into that canvas. Each decoded product rectangle must match the same-time full-master frame (mean grayscale error at most 4); incorrect geometry, stale bytes, replacement pictures and internal captions fail. Existing crop, stretch, native viewport ratio, upscale and bar checks still run inside the product rectangle. This does not exempt bars embedded in the master, authorize desktop footage for portrait, or replace independent caption/readability review.
+
 | Gate | Runs | Proves |
 | --- | --- | --- |
 | `scripts/validate-product-picture.mjs <jobRoot>` | `compose-screencast.mjs` runs it first and refuses to compose if it cannot find it | Every screen beat maps to a real clip on disk (ffprobe) that `kit/screencast/record-job.mjs` recorded from a live Playwright session: `capture/receipt.json` binds the clip's sha256 to pointer motion, actions, observed product responses and Recast status. No receipt, no pointer motion, a still, a re-encoded plate, a Recast fallback nobody accepted, or a clip that would be frozen more than 2 s to reach the narration length all fail. `intent: draft` relaxes only the Recast requirement. |

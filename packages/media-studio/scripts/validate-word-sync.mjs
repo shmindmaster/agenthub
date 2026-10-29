@@ -9,6 +9,7 @@ const library = [join(here, 'sync-lib.mjs'), join(here, '..', 'kit', 'screencast
 const { measureWordSync } = await import(pathToFileURL(library).href);
 const { readVerifiedMap, measureMappedClock } = await import('./edit-map-clock.mjs');
 const { readHostedClock, measureHostedClock } = await import('./hosted-alignment-clock.mjs');
+const { readDerivedAudioClock, measureDerivedAudioClock } = await import('./derived-audio-clock.mjs');
 const [rootArg, candidateArg] = process.argv.slice(2);
 if (!rootArg || !candidateArg) { console.error('usage: validate-word-sync.mjs <jobRoot> <candidate>'); process.exit(2); }
 const root = resolve(rootArg), candidate = resolve(candidateArg);
@@ -17,20 +18,23 @@ const json = (p) => JSON.parse(readFileSync(p, 'utf8').replace(/^\uFEFF/, ''));
 const cue = join(root, 'plan', 'cue-sheet.json'), nativeAlignment = join(root, 'qa', 'encoded-alignment.json');
 // Explicit graph selects the separate verification route; never an automatic fallback.
 const hostedAlignment=join(root,'qa','hosted-encoded-alignment.json');
-const alignment = existsSync(hostedAlignment) ? hostedAlignment : existsSync(join(root,'plan','edit-map.json')) ? join(root,'qa','encoded-edit-map.json') : nativeAlignment;
+const derivedAlignment=join(root,'qa','derived-audio-clock.json');
+const alignment = existsSync(derivedAlignment) ? derivedAlignment : existsSync(hostedAlignment) ? hostedAlignment : existsSync(join(root,'plan','edit-map.json')) ? join(root,'qa','encoded-edit-map.json') : nativeAlignment;
 let result, sha256, bytes, inputs;
 try {
   sha256 = digest(candidate); bytes = statSync(candidate).size;
   const scriptSha256 = digest(join(root, 'story', 'locked-script.txt'));
-  inputs = { cueSheet: { path: 'plan/cue-sheet.json', sha256: digest(cue) }, alignment: { path: alignment === hostedAlignment ? 'qa/hosted-encoded-alignment.json' : alignment === nativeAlignment ? 'qa/encoded-alignment.json' : 'qa/encoded-edit-map.json', sha256: digest(alignment) }, script: { path: 'story/locked-script.txt', sha256: scriptSha256 } };
+  inputs = { cueSheet: { path: 'plan/cue-sheet.json', sha256: digest(cue) }, alignment: { path: alignment === derivedAlignment ? 'qa/derived-audio-clock.json' : alignment === hostedAlignment ? 'qa/hosted-encoded-alignment.json' : alignment === nativeAlignment ? 'qa/encoded-alignment.json' : 'qa/encoded-edit-map.json', sha256: digest(alignment) }, script: { path: 'story/locked-script.txt', sha256: scriptSha256 } };
   const words = json(cue).beats.flatMap((b) => b.narration?.words || []);
   const jobPath = join(root, 'job.json');
   const allowAsrAnchored = existsSync(jobPath) && json(jobPath)?.clockPolicy?.allowAsrAnchored === true;
-  const bindings = { takeSha256: sha256, scriptSha256, allowAsrAnchored,...(alignment !== nativeAlignment && alignment !== hostedAlignment ? {editMapSha256:digest(join(root,'plan','edit-map.json'))} : {}) };
-  result = alignment === hostedAlignment ? measureHostedClock(readHostedClock(root,json(alignment),bindings),words)
+  const isEditMap=alignment!==nativeAlignment && alignment!==hostedAlignment && alignment!==derivedAlignment;
+  const bindings = { takeSha256: sha256, scriptSha256, allowAsrAnchored,...(isEditMap ? {editMapSha256:digest(join(root,'plan','edit-map.json'))} : {}) };
+  result = alignment === derivedAlignment ? measureDerivedAudioClock(readDerivedAudioClock(root,json(alignment),bindings),words)
+    : alignment === hostedAlignment ? measureHostedClock(readHostedClock(root,json(alignment),bindings),words)
     : alignment === nativeAlignment ? measureWordSync(json(alignment), words, bindings)
     : measureMappedClock(readVerifiedMap(root, json(alignment), bindings), words);
-  if (alignment !== nativeAlignment && alignment !== hostedAlignment) inputs.editMap = { path:'plan/edit-map.json', sha256:digest(join(root,'plan','edit-map.json')) };
+  if (isEditMap) inputs.editMap = { path:'plan/edit-map.json', sha256:digest(join(root,'plan','edit-map.json')) };
   if (digest(candidate) !== sha256) throw new Error('candidate changed during word-sync QA');
 } catch (e) { result = { ok: false, errors: [e.message] }; }
 const report = { generator: 'media-studio/validate-word-sync', ...result, candidate: { path: candidate, sha256, bytes }, inputs, thresholds: { driftMaxMs: 40 }, limitations: ['80 ms aligner grid is not 40 ms acoustic accuracy', 'verified edit maps preserve source uncertainty; they are not a new forced alignment', 'alignment constrains text, independent transcript/listen review required', 'rendered word/diagram pixel timing is not measured by this patch'] };
