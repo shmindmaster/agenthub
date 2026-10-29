@@ -43,6 +43,7 @@ const libPath = [join(scriptDir, 'sync-lib.mjs'), join(scriptDir, '..', 'kit', '
 if (!libPath) { console.error('sync-lib.mjs not found beside this script or in ../kit/screencast'); process.exit(2); }
 const L = await import(pathToFileURL(libPath).href);
 const {readDerivedAudioClock,measureDerivedAudioClock}=await import('./derived-audio-clock.mjs');
+const {readQueueQwenClock,measureQueueQwenClock}=await import('./queue-qwen-alignment-clock.mjs');
 
 const argv = process.argv.slice(2);
 const VALUE_FLAGS = new Set(['--cue-sheet', '--asr', '--out', '--action-tolerance-ms', '--screen-tolerance-ms', '--result-hold', '--drift-ms', '--scene-threshold', '--max-freeze', '--max-hold', '--max-dropped']);
@@ -278,7 +279,8 @@ if (candidateSha && cueSheet && probe && video) {
     if (startOff > T.driftMaxMs) fail(`audio and video streams start ${startOff.toFixed(0)} ms apart (max ${T.driftMaxMs} ms).`);
     if (lenOff > 250) fail(`audio and video stream lengths differ by ${lenOff.toFixed(0)} ms (max 250 ms).`);
     const derivedPath=join(root,'qa','derived-audio-clock.json');
-    const alignmentPath = existsSync(derivedPath) ? derivedPath : join(root, 'qa', 'encoded-alignment.json');
+    const queuePath=join(root,'qa','queue-qwen-alignment.json');
+    const alignmentPath = existsSync(queuePath) ? queuePath : existsSync(derivedPath) ? derivedPath : join(root, 'qa', 'encoded-alignment.json');
     if (existsSync(alignmentPath)) {
       try {
         const jobPath = join(root, 'job.json');
@@ -287,8 +289,8 @@ if (candidateSha && cueSheet && probe && video) {
           takeSha256: candidateSha, scriptSha256: sha(join(root, 'story', 'locked-script.txt')), allowAsrAnchored,
         };
         const document=JSON.parse(readFileSync(alignmentPath,'utf8'));
-        const measured=alignmentPath===derivedPath ? measureDerivedAudioClock(readDerivedAudioClock(root,document,bindings),flat,T.driftMaxMs) : L.measureWordSync(document,flat,bindings,T.driftMaxMs);
-        Object.assign(av, measured, { alignment: { path: alignmentPath===derivedPath?'qa/derived-audio-clock.json':'qa/encoded-alignment.json', sha256: sha(alignmentPath) } });
+        const measured=alignmentPath===queuePath ? measureQueueQwenClock(readQueueQwenClock(root,document,bindings),flat,T.driftMaxMs) : alignmentPath===derivedPath ? measureDerivedAudioClock(readDerivedAudioClock(root,document,bindings),flat,T.driftMaxMs) : L.measureWordSync(document,flat,bindings,T.driftMaxMs);
+        Object.assign(av, measured, { alignment: { path: alignmentPath===queuePath?'qa/queue-qwen-alignment.json':alignmentPath===derivedPath?'qa/derived-audio-clock.json':'qa/encoded-alignment.json', sha256: sha(alignmentPath) } });
         measured.errors.forEach(fail);
       } catch (e) { fail(`forced alignment: ${e.message}`); }
     } else {
