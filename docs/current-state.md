@@ -454,7 +454,7 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   distributions the fleet uses but does not own. Tracked today:
   **superpowers** (obra/superpowers; Claude observed at 6.3.0), **firecrawl**
   (firecrawl/skills), **clerk-skills**, **railway**, **framer-agent**,
-  **elevenlabs-skills**, **do-app-platform-skills**, **remotion**, and
+  **elevenlabs-skills**, **do-app-platform-skills**, **remotion**, **daytona**, and
   optional **creative-writing-skills**. AgentHub overlays may add fleet
   policy (Firecrawl ingestion governance, owner-voice routing, DigitalOcean
   portfolio map) but must not republish upstream skill names. Measured
@@ -466,7 +466,12 @@ Verified 2026-08-08. This file records demonstrated reality, not intent.
   fails if a lagging host names no fix, if an absent host explains no
   reason, or if a tracked extension is ever republished from AgentHub's own
   marketplace. `hostPrivateExtensionPolicy` withholds install authority for
-  claude and codex.
+  claude and codex. The owner-authorized Daytona skill was installed directly
+  into the shared Codex USER skill library on 2026-10-29, pinned to upstream
+  commit `3d6d2395d6da59888851b68cba64a0697cd35ced`. It adds SDK reference
+  material without adding a managed capability, CLI, or MCP server. Other
+  hosts were not inspected. Snapshot guidance is version-sensitive; check
+  the installed SDK and current runtime before selecting snapshot APIs.
 - **Shared-library YAML safety (2026-09-08):** Zed loads `~/.agents/skills`
   and refuses a skill whose frontmatter is invalid YAML (`Invalid YAML
   frontmatter`). Railway's `use-railway` (installed by `railway setup agent`,

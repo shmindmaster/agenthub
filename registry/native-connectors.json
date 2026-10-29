@@ -1160,6 +1160,35 @@
         ]
       },
       {
+        "extensionId": "daytona",
+        "kind": "skills-package",
+        "provenance": "official-upstream",
+        "maturity": "stable",
+        "upstream": "https://github.com/daytona/skills",
+        "maintainer": "Daytona",
+        "license": "See upstream",
+        "install": {
+          "command": "npx skills add https://github.com/daytona/skills --skill daytona",
+          "docs": "https://www.daytona.io/docs/en/agent-skills/"
+        },
+        "provides": [
+          "compute.daytona-sandboxes"
+        ],
+        "required": false,
+        "note": "Owner authorized the official upstream skill for the four coordinated Codex product sessions on 2026-10-29. Installed directly from upstream with Codex skill-installer into ~/.agents/skills/daytona; AgentHub records provenance only and does not vendor or publish this skill. Existing SDK execution remains the compute route; this observation does not install the Daytona CLI or MCP server. The pinned skill's no-live-snapshot statement is version-sensitive and differs from newer documentation: verify the installed SDK and runtime before using snapshot APIs. Other hosts were not inspected or changed.",
+        "observedAt": "2026-10-29",
+        "hostChannels": [
+          {
+            "hostId": "codex",
+            "channel": "upstream-skills",
+            "installedVersion": "3d6d2395d6da59888851b68cba64a0697cd35ced",
+            "current": true,
+            "updateCommand": "npx skills add https://github.com/daytona/skills -g -y -a codex --skill daytona",
+            "note": "Owner-authorized direct upstream install, pinned to the observed main commit on 2026-10-29. Shared ~/.agents/skills directory is Codex USER tier. Existing sessions must read SKILL.md explicitly; installation does not establish consumption. Currency is an observation at this commit and date."
+          }
+        ]
+      },
+      {
         "extensionId": "remotion",
         "kind": "skills-package",
         "provenance": "official-upstream",
