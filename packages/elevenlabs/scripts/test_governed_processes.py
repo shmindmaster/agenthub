@@ -163,6 +163,147 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 5)
 
 
+class EpochReconciliationTests(unittest.TestCase):
+    setUp = ProcessTests.setUp
+
+    def epoch(self, state="unknown"):
+        self.epoch_parent = self.root / "epochs"
+        self.epoch_root = self.epoch_parent / "fixture-original"
+        self.ledger = governed.new_ledger(self.epoch_root)
+        self.ledger.configure("elevenlabs/credits", 20)
+        namespace = self.ledger.namespace("synthetic-fixture", "synthetic-project")
+        claim = self.ledger.claim(namespace, "fixture-key", "elevenlabs/credits", 10)
+        self.ledger.submitted(claim)
+        self.ledger.bind_receipt(claim, "fixture-request")
+        if state == "pending":
+            self.ledger.complete(claim, RAW, "audio/mpeg", "fixture-request")
+        else:
+            self.ledger.unknown(claim)
+        policy = {"epoch_id": "fixture-original", "workspace": "synthetic-project",
+                  "owner_authorization": "Synthetic existing authorization", "maximum_credits": 20,
+                  "historical_accounting": "UNKNOWN", "historical_requests": "FENCED"}
+        self.manifest = self.root / "original-authorization.json"
+        self.manifest.write_text(json.dumps(policy))
+        (self.epoch_root / "authorization.json").write_bytes(self.manifest.read_bytes())
+        return cli.argparse.Namespace(namespace=namespace, cache_key="fixture-key", cache_workspace="synthetic-project",
+                                      history_id="fixture-history", recovery_epoch_manifest=str(self.manifest))
+
+    def reconcile(self, args):
+        with patch.object(cli, "BASE_URL", self.url), \
+             patch.object(governed, "reconciliation_epoch_parent", return_value=self.epoch_parent), \
+             patch.dict(os.environ, {"ELEVENLABS_API_KEY": "synthetic-fixture"}), contextlib.redirect_stdout(io.StringIO()):
+            return governed.reconcile(cli, args)
+
+    def test_existing_epoch_recovers_without_purchase_or_primary_initialization(self):
+        args = self.epoch()
+        salt = (self.epoch_root / "namespace-salt").read_bytes()
+        with patch.object(governed, "new_ledger", wraps=governed.new_ledger) as opened:
+            self.assertEqual(self.reconcile(args), 0)
+        opened.assert_called_once_with(self.epoch_root)
+        self.assertEqual(Handler.posts, 0)
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 5)
+        self.assertEqual((self.epoch_root / "namespace-salt").read_bytes(), salt)
+        row = self.ledger.lookup(args.namespace, args.cache_key)
+        self.assertEqual(self.ledger.read_asset(row), RAW)
+        self.assertEqual(row["state"], "pending")
+
+    def test_pending_epoch_settlement_preserves_asset_and_authorization(self):
+        args = self.epoch("pending")
+        before = self.ledger.lookup(args.namespace, args.cache_key)
+        authorization = (self.epoch_root / "authorization.json").read_bytes()
+        self.assertEqual(self.reconcile(args), 0)
+        after = self.ledger.lookup(args.namespace, args.cache_key)
+        self.assertEqual(after["sha256"], before["sha256"])
+        self.assertEqual(after["actual"], 5)
+        self.assertEqual((self.epoch_root / "authorization.json").read_bytes(), authorization)
+        self.assertEqual(Handler.posts, 0)
+
+    def test_missing_original_files_fail_before_ledger_or_provider(self):
+        args = self.epoch()
+        for name in ("ledger.sqlite3", "namespace-salt", "authorization.json"):
+            missing = self.epoch_root / name
+            original = missing.read_bytes()
+            missing.unlink()
+            try:
+                with patch.object(governed, "new_ledger") as opened, patch.object(cli, "_get_json") as provider:
+                    with self.assertRaisesRegex(RuntimeError, "incomplete"):
+                        self.reconcile(args)
+                opened.assert_not_called()
+                provider.assert_not_called()
+                self.assertFalse(missing.exists())
+            finally:
+                missing.write_bytes(original)
+
+    def test_authorization_salt_workspace_namespace_and_budget_mismatches_fail_closed(self):
+        args = self.epoch()
+        authorization = self.epoch_root / "authorization.json"
+        salt = self.epoch_root / "namespace-salt"
+        cases = [(authorization, b"{}"), (salt, b"partial"), (salt, b"z" * 32)]
+        for path, replacement in cases:
+            original = path.read_bytes()
+            path.write_bytes(replacement)
+            try:
+                with patch.object(governed, "new_ledger") as opened, patch.object(cli, "_get_json") as provider:
+                    with self.assertRaises(RuntimeError):
+                        self.reconcile(args)
+                opened.assert_not_called()
+                provider.assert_not_called()
+                self.assertEqual(path.read_bytes(), replacement)
+            finally:
+                path.write_bytes(original)
+        for field in ("cache_workspace", "namespace", "cache_key"):
+            bad = cli.argparse.Namespace(**{**vars(args), field: "incorrect"})
+            with patch.object(cli, "_get_json") as provider:
+                with self.assertRaises(RuntimeError):
+                    self.reconcile(bad)
+            provider.assert_not_called()
+        self.ledger.configure("elevenlabs/credits", 21)
+        with patch.object(cli, "_get_json") as provider:
+            with self.assertRaisesRegex(RuntimeError, "ceiling"):
+                self.reconcile(args)
+        provider.assert_not_called()
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
+
+    def test_provider_mismatch_or_unknown_billing_retains_maximum(self):
+        args = self.epoch()
+        good = {"request_id": "fixture-request", "history_item_id": "fixture-history",
+                "character_count_change_from": 0, "character_count_change_to": 5}
+        for change in ({"request_id": "wrong"}, {"history_item_id": "wrong"},
+                       {"character_count_change_to": None}, {"character_count_change_to": -1}):
+            with patch.object(cli, "_get_json", return_value={**good, **change}), patch.object(cli, "request") as audio:
+                with self.assertRaises(RuntimeError):
+                    self.reconcile(args)
+            audio.assert_not_called()
+            self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
+            self.assertIsNone(self.ledger.lookup(args.namespace, args.cache_key)["actual"])
+        self.assertEqual(Handler.posts, 0)
+
+    def test_missing_receipt_and_linked_accounting_fail_before_provider(self):
+        args = self.epoch()
+        runtime = governed.runtime_module()
+        with patch.object(runtime, "linked_path", side_effect=lambda path: path == self.epoch_root / "ledger.sqlite3"), \
+             patch.object(cli, "_get_json") as provider:
+            with self.assertRaisesRegex(RuntimeError, "incomplete"):
+                self.reconcile(args)
+        provider.assert_not_called()
+        with self.ledger.connect(True) as con:
+            con.execute("UPDATE requests SET receipt=NULL")
+        with patch.object(cli, "_get_json") as provider:
+            with self.assertRaisesRegex(RuntimeError, "receipt-bound"):
+                self.reconcile(args)
+        provider.assert_not_called()
+        self.assertEqual(self.ledger.status()["budgets"][0]["committed"], 10)
+
+    def test_cli_routes_original_epoch_manifest(self):
+        args = self.epoch()
+        argv = ["cli", "reconcile", "--namespace", args.namespace, "--cache-key", args.cache_key,
+                "--cache-workspace", args.cache_workspace, "--history-id", args.history_id,
+                "--recovery-epoch-manifest", args.recovery_epoch_manifest]
+        with patch.object(cli.sys, "argv", argv), patch.object(governed, "reconcile", return_value=0) as call:
+            self.assertEqual(cli.main(), 0)
+        self.assertEqual(call.call_args.args[1].recovery_epoch_manifest, str(self.manifest))
+
+
 def benchmark(destination):
     fixture = ProcessTests()
     fixture.setUp()

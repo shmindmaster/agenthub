@@ -103,6 +103,18 @@ paths. Pending content still needs QA. Expired submitted leases retain their
 reservation and block resubmission. Recovery uses the saved request ID and exact
 provider history, never prompt similarity. See
 `packages/media-studio/skills/media-studio/references/content-controls.md`.
+For an intact historical recovery epoch, `packages/elevenlabs/scripts/elevenlabs_cli.py
+reconcile --namespace <original-namespace> --cache-workspace <original-workspace>
+--cache-key <saved-request-key> --history-id <saved-history-id> --recovery-epoch-manifest <absolute-original-manifest>`
+selects the existing epoch under the canonical runtime recovery-epochs directory.
+It requires the byte-identical persisted authorization, original ledger and
+32-byte namespace salt, matching workspace/key HMAC, unchanged ceiling and saved
+receipt. Missing, linked or mismatched accounting fails closed; this route never
+initializes or replaces accounting. Provider requests are GET-only and must match
+both saved request ID and history item ID. Unknown billing retains the full
+reservation. Recovery or settlement preserves historical authorization and does
+not authorize another generation or change its generation policy. Omit the
+selector to reconcile the primary ledger as before.
 Native connectors and unsupported paid endpoints remain disabled in governed
 mode. Provider batch and token prompt-cache discounts are not implemented by
 this asset broker; do not infer invoiced savings from fixture tests.

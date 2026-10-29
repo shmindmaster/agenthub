@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import importlib.util
 import json
 import os
 import pathlib
+import re
+import sqlite3
 import time
 import urllib.parse
+from contextlib import closing
 from functools import lru_cache
 
 
@@ -127,10 +131,68 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, wit
         time.sleep(.05)
 
 
+def reconciliation_epoch_parent():
+    """Resolve the canonical epoch relocation without creating directories."""
+    runtime = runtime_module()
+    base = os.environ.get("LOCALAPPDATA") if runtime.running_on_windows() else str(pathlib.Path.home() / ".local/share")
+    if not base:
+        raise RuntimeError("Cannot resolve private local runtime directory")
+    return (pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs").resolve()
+
+
+def reconciliation_epoch(args):
+    """Open intact original epoch accounting; never initialize or authorize speech."""
+    runtime = runtime_module()
+    manifest = pathlib.Path(args.recovery_epoch_manifest)
+    if not manifest.is_absolute() or not manifest.is_file() or runtime.linked_path(manifest):
+        raise RuntimeError("Reconciliation requires the original absolute epoch authorization")
+    raw = manifest.read_bytes()
+    policy = json.loads(raw)
+    epoch = policy.get("epoch_id", "")
+    if (not isinstance(epoch, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", epoch)
+            or policy.get("workspace") != args.cache_workspace
+            or not policy.get("owner_authorization")
+            or type(policy.get("maximum_credits")) is not int or policy["maximum_credits"] <= 0
+            or policy.get("historical_accounting") != "UNKNOWN"
+            or policy.get("historical_requests") != "FENCED"):
+        raise RuntimeError("Reconciliation epoch authorization/workspace mismatch")
+    root = reconciliation_epoch_parent() / epoch
+    if any(runtime.linked_path(path) for path in (root, *root.parents)):
+        raise RuntimeError("Reconciliation refuses linked epoch accounting")
+    files = [root / name for name in ("authorization.json", "ledger.sqlite3", "namespace-salt")]
+    if (not root.is_dir() or not all(path.is_file() and not runtime.linked_path(path) for path in files)
+            or not (root / "assets").is_dir() or runtime.linked_path(root / "assets")):
+        raise RuntimeError("Existing epoch accounting incomplete; restore originals without initialization")
+    authorization, database, salt_path = files
+    salt = salt_path.read_bytes()
+    if authorization.read_bytes() != raw or len(salt) != 32:
+        raise RuntimeError("Existing epoch authorization or namespace salt mismatch")
+    credential = os.environ.get("ELEVENLABS_API_KEY", "")
+    if not credential or not args.cache_workspace:
+        raise RuntimeError("Explicit credential and authorized cache workspace required")
+    namespace = hmac.new(salt, (credential + "\0" + args.cache_workspace).encode(), hashlib.sha256).hexdigest()
+    if namespace != args.namespace:
+        raise RuntimeError("Recovery credential/workspace does not match this request namespace")
+    # Inspect with SQLite read-only first: Ledger's constructor must not repair
+    # a missing schema, create a budget, or replace a missing accounting file.
+    with closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as con:
+        if con.execute("PRAGMA quick_check").fetchone() != ("ok",):
+            raise RuntimeError("Existing epoch ledger failed integrity check")
+        budget = con.execute("SELECT ceiling FROM budgets WHERE bucket='elevenlabs/credits'").fetchone()
+        row = con.execute("SELECT bucket,receipt,state FROM requests WHERE namespace=? AND key=?",
+                          (args.namespace, args.cache_key)).fetchone()
+        if budget != (policy["maximum_credits"],):
+            raise RuntimeError("Existing epoch ceiling does not match immutable authorization")
+        if not row or row[0] != "elevenlabs/credits" or not row[1] or row[2] not in ("submitted", "unknown", "pending", "accepted"):
+            raise RuntimeError("Recovery requires an existing receipt-bound epoch submission")
+    return new_ledger(root)
+
+
 def reconcile(cli, args):
-    """Read-only provider reconciliation; no POST and no similarity-based matching."""
-    ledger = new_ledger()
-    if ledger.namespace(os.environ.get("ELEVENLABS_API_KEY", ""), args.cache_workspace) != args.namespace:
+    """Provider GET-only reconciliation; settles existing local accounting."""
+    epoch = getattr(args, "recovery_epoch_manifest", None)
+    ledger = reconciliation_epoch(args) if epoch else new_ledger()
+    if not epoch and ledger.namespace(os.environ.get("ELEVENLABS_API_KEY", ""), args.cache_workspace) != args.namespace:
         raise RuntimeError("Recovery credential/workspace does not match this request namespace")
     row = ledger.lookup(args.namespace, args.cache_key)
     if not row or not row["receipt"]:
