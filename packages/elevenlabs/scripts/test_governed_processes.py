@@ -298,10 +298,55 @@ class EpochReconciliationTests(unittest.TestCase):
         args = self.epoch()
         argv = ["cli", "reconcile", "--namespace", args.namespace, "--cache-key", args.cache_key,
                 "--cache-workspace", args.cache_workspace, "--history-id", args.history_id,
-                "--recovery-epoch-manifest", args.recovery_epoch_manifest]
+                "--recovery-epoch-manifest", args.recovery_epoch_manifest,
+                "--existing-epoch-parent", str(self.epoch_parent)]
         with patch.object(cli.sys, "argv", argv), patch.object(governed, "reconcile", return_value=0) as call:
             self.assertEqual(cli.main(), 0)
         self.assertEqual(call.call_args.args[1].recovery_epoch_manifest, str(self.manifest))
+        self.assertEqual(call.call_args.args[1].existing_epoch_parent, str(self.epoch_parent))
+
+    def test_explicit_original_parent_reconciles_without_default_root(self):
+        args = self.epoch("pending")
+        args.existing_epoch_parent = str(self.epoch_parent)
+        salt = (self.epoch_root / "namespace-salt").read_bytes()
+        with patch.object(cli, "BASE_URL", self.url), \
+             patch.dict(os.environ, {"ELEVENLABS_API_KEY": "synthetic-fixture", "LOCALAPPDATA": str(self.root / "absent")}), \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(governed.reconcile(cli, args), 0)
+        self.assertEqual(self.ledger.lookup(args.namespace, args.cache_key)["actual"], 5)
+        self.assertEqual((self.epoch_root / "namespace-salt").read_bytes(), salt)
+        self.assertFalse((self.root / "absent").exists())
+        self.assertEqual(Handler.posts, 0)
+
+    def test_explicit_parent_requires_existing_absolute_unlinked_directory(self):
+        args = self.epoch()
+        runtime = governed.runtime_module()
+        for parent in ("relative-epochs", str(self.root / "absent"), str(self.manifest)):
+            args.existing_epoch_parent = parent
+            with patch.object(governed, "new_ledger") as opened, patch.object(cli, "_get_json") as provider:
+                with self.assertRaisesRegex(RuntimeError, "absolute existing unlinked"):
+                    governed.reconcile(cli, args)
+            opened.assert_not_called()
+            provider.assert_not_called()
+        self.assertFalse((self.root / "absent").exists())
+        args.existing_epoch_parent = str(self.epoch_parent)
+        for linked in (self.epoch_parent, self.root):
+            with patch.object(runtime, "linked_path", side_effect=lambda path: path == linked), \
+                 patch.object(governed, "new_ledger") as opened, patch.object(cli, "_get_json") as provider:
+                with self.assertRaisesRegex(RuntimeError, "absolute existing unlinked"):
+                    governed.reconcile(cli, args)
+            opened.assert_not_called()
+            provider.assert_not_called()
+
+    def test_explicit_parent_without_authorization_never_opens_primary(self):
+        args = self.epoch()
+        args.recovery_epoch_manifest = None
+        args.existing_epoch_parent = str(self.epoch_parent)
+        with patch.object(governed, "new_ledger") as opened, patch.object(cli, "_get_json") as provider:
+            with self.assertRaisesRegex(RuntimeError, "requires the original"):
+                governed.reconcile(cli, args)
+        opened.assert_not_called()
+        provider.assert_not_called()
 
 
 def benchmark(destination):

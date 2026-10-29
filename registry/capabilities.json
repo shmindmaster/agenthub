@@ -347,7 +347,7 @@
       "managedSkillNames": [
         "elevenlabs"
       ],
-      "contentHash": "3E545497EF3B4BE49C8FE63B193E46442C1C2D18E950CF2E0B2475B17C9092A1",
+      "contentHash": "0C15E9C545D9A41F38E65696C786317C4ABAB4EB84AE5044F3CB06EC7CECD8E3",
       "hashBasis": "packages/elevenlabs",
       "status": "active-canonical",
       "hostMappings": [

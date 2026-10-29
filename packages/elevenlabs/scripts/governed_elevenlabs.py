@@ -131,9 +131,16 @@ def _generate(ledger, cli, args, voice_id, model_id, output_format, payload, wit
         time.sleep(.05)
 
 
-def reconciliation_epoch_parent():
-    """Resolve the canonical epoch relocation without creating directories."""
+def reconciliation_epoch_parent(existing=None):
+    """Select existing original accounting without creating or relocating it."""
     runtime = runtime_module()
+    if existing is not None:
+        parent = pathlib.Path(existing)
+        # Check lexical ancestors before resolve can hide a symlink/junction.
+        if (not parent.is_absolute() or not parent.is_dir()
+                or any(runtime.linked_path(path) for path in (parent, *parent.parents))):
+            raise RuntimeError("Reconciliation requires an absolute existing unlinked epoch parent")
+        return parent.resolve()
     base = os.environ.get("LOCALAPPDATA") if runtime.running_on_windows() else str(pathlib.Path.home() / ".local/share")
     if not base:
         raise RuntimeError("Cannot resolve private local runtime directory")
@@ -156,7 +163,7 @@ def reconciliation_epoch(args):
             or policy.get("historical_accounting") != "UNKNOWN"
             or policy.get("historical_requests") != "FENCED"):
         raise RuntimeError("Reconciliation epoch authorization/workspace mismatch")
-    root = reconciliation_epoch_parent() / epoch
+    root = reconciliation_epoch_parent(getattr(args, "existing_epoch_parent", None)) / epoch
     if any(runtime.linked_path(path) for path in (root, *root.parents)):
         raise RuntimeError("Reconciliation refuses linked epoch accounting")
     files = [root / name for name in ("authorization.json", "ledger.sqlite3", "namespace-salt")]
@@ -191,6 +198,8 @@ def reconciliation_epoch(args):
 def reconcile(cli, args):
     """Provider GET-only reconciliation; settles existing local accounting."""
     epoch = getattr(args, "recovery_epoch_manifest", None)
+    if getattr(args, "existing_epoch_parent", None) is not None and not epoch:
+        raise RuntimeError("An existing epoch parent requires the original epoch authorization")
     ledger = reconciliation_epoch(args) if epoch else new_ledger()
     if not epoch and ledger.namespace(os.environ.get("ELEVENLABS_API_KEY", ""), args.cache_workspace) != args.namespace:
         raise RuntimeError("Recovery credential/workspace does not match this request namespace")

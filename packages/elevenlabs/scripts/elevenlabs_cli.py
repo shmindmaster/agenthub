@@ -479,6 +479,7 @@ def main() -> int:
     p_transcribe.set_defaults(func=transcribe)
     p_reconcile = sub.add_parser("reconcile", help="Provider GET-only history recovery/local settlement; never resubmits")
     p_reconcile.add_argument("--recovery-epoch-manifest", help="Select intact original epoch accounting by immutable authorization; never initializes an epoch")
+    p_reconcile.add_argument("--existing-epoch-parent", help="Absolute existing original epoch parent for reconciliation only; requires --recovery-epoch-manifest")
     p_reconcile.add_argument("--namespace", required=True)
     p_reconcile.add_argument("--cache-workspace", required=True)
     p_reconcile.add_argument("--cache-key", required=True)

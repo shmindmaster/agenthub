@@ -107,6 +107,12 @@ For an intact historical recovery epoch, `packages/elevenlabs/scripts/elevenlabs
 reconcile --namespace <original-namespace> --cache-workspace <original-workspace>
 --cache-key <saved-request-key> --history-id <saved-history-id> --recovery-epoch-manifest <absolute-original-manifest>`
 selects the existing epoch under the canonical runtime recovery-epochs directory.
+If the original accounting remains at a recorded earlier runtime location, add
+`--existing-epoch-parent <absolute-original-parent>`. This reconciliation-only
+option requires the original manifest and an already existing directory with no
+linked ancestors. It selects the validated epoch ID beneath that parent without
+searching, creating, copying or relocating accounting. Generation routing is
+unchanged; this option grants no new spending authority.
 It requires the byte-identical persisted authorization, original ledger and
 32-byte namespace salt, matching workspace/key HMAC, unchanged ceiling and saved
 receipt. Missing, linked or mismatched accounting fails closed; this route never
