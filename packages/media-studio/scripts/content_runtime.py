@@ -73,6 +73,59 @@ def canonical_default_root(root: pathlib.Path) -> pathlib.Path:
     return target
 
 
+def project_correction_entries(raw, parent_sha):
+    amendment = json.loads(raw)
+    entries = amendment.get("allowed_requests", [])
+    if (set(amendment) != {"kind", "parent_authorization", "owner_authorization", "purpose", "amendment_id", "allowed_requests", "model_id"}
+            or amendment.get("kind") != "elevenlabs-project-delivery-correction-v1"
+            or amendment.get("parent_authorization", {}).get("sha256") != parent_sha
+            or amendment.get("owner_authorization") != "Approve 4,200 existing credits"
+            or amendment.get("purpose") != "owner-requested-delivery-correction"
+            or amendment.get("model_id") not in ("eleven_multilingual_v2", "eleven_v4")
+            or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", amendment.get("amendment_id", ""))
+            or not isinstance(entries, list) or not 1 <= len(entries) <= 4
+            or any(not isinstance(e, dict) or set(e) != {"text_sha256", "request_sha256"}
+                   or any(not isinstance(v, str) or not re.fullmatch(r"[0-9a-f]{64}", v)
+                          for v in e.values()) for e in entries)):
+        raise RuntimeError("Correction requires immutable parent and exact owner-approved requests")
+    return amendment, entries
+
+
+def project_correction_inventory(root, original, parent_sha, pending_raw):
+    # Read-only until the original accounting has passed all existing integrity checks.
+    pending, entries = project_correction_entries(pending_raw, parent_sha)
+    originals = original.get("allowed_requests", [])
+    combined = list(originals)
+    seen = {e["text_sha256"] for e in originals}
+    corrections = root / "delivery-corrections"
+    if linked_path(corrections):
+        raise RuntimeError("Linked correction directory refused")
+    registered = []
+    if corrections.exists():
+        if not corrections.is_dir():
+            raise RuntimeError("Correction registry is not a directory")
+        for path in sorted(corrections.glob("*.json")):
+            if linked_path(path):
+                raise RuntimeError("Linked correction authorization refused")
+            content = path.read_bytes()
+            item, rows = project_correction_entries(content, parent_sha)
+            if path.name != item["amendment_id"] + ".json":
+                raise RuntimeError("Correction registration identity mismatch")
+            if item["amendment_id"] == pending["amendment_id"]:
+                if content != pending_raw:
+                    raise RuntimeError("Correction registration is immutable")
+                continue
+            registered.extend(rows)
+    for entry in registered + entries:
+        if entry["text_sha256"] in seen:
+            raise RuntimeError("Correction overlaps original or another registered request")
+        seen.add(entry["text_sha256"])
+        combined.append(entry)
+    if len(combined) > 20 or len(combined) - len(originals) > 4:
+        raise RuntimeError("Project correction inventory exceeds four corrections or twenty requests")
+    return combined
+
+
 def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None):
     """Explicit bounded new accounting epoch; never reconstructs old spend.
 
@@ -83,6 +136,19 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
     manifest_path = pathlib.Path(manifest_path)
     raw = manifest_path.read_bytes()
     policy = json.loads(raw)
+    correction_raw = None
+    if policy.get("kind") == "elevenlabs-project-delivery-correction-v1":
+        correction_raw = raw
+        parent_ref = policy.get("parent_authorization", {})
+        parent_path = pathlib.Path(parent_ref.get("path", ""))
+        if not parent_path.is_absolute() or not parent_path.is_file() or linked_path(parent_path):
+            raise RuntimeError("Correction requires intact original absolute authorization")
+        raw = parent_path.read_bytes()
+        if hashlib.sha256(raw).hexdigest() != parent_ref.get("sha256"):
+            raise RuntimeError("Correction parent authorization hash changed")
+        policy = json.loads(raw)
+        if policy.get("kind") != "elevenlabs-owner-authorized-project-epoch-v2":
+            raise RuntimeError("Delivery corrections require original project v2 authority")
     ceiling = integer(policy.get("maximum_credits"))
     epoch = policy.get("epoch_id", "")
     project_v2 = policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v2"
@@ -109,6 +175,18 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
                    != policy.get("pronunciation_locators_sha256")):
             raise RuntimeError("Project epoch requires exact owner approval and pinned speech request")
         allowed_requests = policy.get("allowed_requests", [])
+        if correction_raw is not None:
+            base = os.environ.get("LOCALAPPDATA") if running_on_windows() else str(pathlib.Path.home() / ".local/share")
+            if not base:
+                raise RuntimeError("Cannot resolve correction accounting")
+            correction_root = pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs" / epoch
+            if not correction_root.is_dir() or not (correction_root / "authorization.json").is_file():
+                raise RuntimeError("Corrections never initialize missing original accounting")
+            allowed_requests = project_correction_inventory(correction_root, policy, hashlib.sha256(raw).hexdigest(), correction_raw)
+            amendment, _ = project_correction_entries(correction_raw, hashlib.sha256(raw).hexdigest())
+            selected_model = amendment["model_id"]
+            if selected_model == "eleven_v4" and request.get("payload", {}).get("model_id") != selected_model:
+                raise RuntimeError("Correction payload must pin the approved v4 model")
         text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
         if (not isinstance(allowed_requests, list) or not 1 <= len(allowed_requests) <= 20
                 or not any(isinstance(r, dict) and r.get("text_sha256") == text_hash
@@ -125,6 +203,9 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
                 or not all(isinstance(proof.get(k), list) for k in
                            ("new_text_sha256", "historical_text_sha256", "ambiguous_text_sha256"))
                 or set(policy.get("allowed_text_sha256", [])) != set(proof["new_text_sha256"])
+                or (correction_raw is not None and
+                    {r["text_sha256"] for r in allowed_requests} &
+                    (set(proof["historical_text_sha256"]) | set(proof["ambiguous_text_sha256"])))
                 or set(proof["new_text_sha256"]) &
                    (set(proof["historical_text_sha256"]) | set(proof["ambiguous_text_sha256"]))):
             raise RuntimeError("Project inventory must fence historical and ambiguous inputs")
@@ -136,7 +217,8 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
             or model_id != selected_model):
         raise RuntimeError("Recovery epoch requires explicit bounded authorization and fenced history")
     text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    allowed = policy.get("allowed_text_sha256", [])
+    allowed = ([r["text_sha256"] for r in allowed_requests] if correction_raw is not None
+               else policy.get("allowed_text_sha256", []))
     if (not allowed or len(allowed) > 20 or text_hash not in allowed
             or any(not re.fullmatch(r"[0-9a-f]{64}", item) for item in allowed)
             or text_hash in policy.get("ambiguous_text_sha256", [])):
@@ -226,6 +308,31 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
             raise RuntimeError("Recovery epoch authorization is immutable; no cap/allowlist reset")
         if project_v2 and not existing_v2:
             raise RuntimeError("Project v2 initialization busy or interrupted; inspect before retry")
+    if correction_raw is not None:
+        # Never configure/recreate: original lock, ledger, salt, assets and budget
+        # have already passed the immutable project-v2 reopen checks above.
+        registration = root / "correction-registration.lock"
+        try:
+            guard = registration.open("xb")
+        except FileExistsError:
+            raise RuntimeError("Correction registration busy or interrupted; inspect before retry") from None
+        try:
+            project_correction_inventory(root, policy, hashlib.sha256(raw).hexdigest(), correction_raw)
+            corrections = root / "delivery-corrections"
+            secure_directory(corrections)
+            amendment, _ = project_correction_entries(correction_raw, hashlib.sha256(raw).hexdigest())
+            target = corrections / (amendment["amendment_id"] + ".json")
+            try:
+                with target.open("xb") as handle:
+                    handle.write(correction_raw)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            except FileExistsError:
+                if linked_path(target) or target.read_bytes() != correction_raw:
+                    raise RuntimeError("Correction authorization is immutable")
+        finally:
+            guard.close()
+            registration.unlink()
     ledger = Ledger(root)
     with ledger.connect() as con:
         budget = con.execute("SELECT ceiling FROM budgets WHERE bucket='elevenlabs/credits'").fetchone()

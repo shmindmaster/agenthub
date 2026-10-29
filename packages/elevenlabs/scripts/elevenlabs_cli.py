@@ -236,6 +236,18 @@ def tts(args: argparse.Namespace) -> int:
         raise RuntimeError("Paid generation requires an explicitly selected --model-id or ELEVENLABS_MODEL_TTS_DEFAULT")
     output_format = args.output_format or os.environ.get("ELEVENLABS_OUTPUT_FORMAT", DEFAULT_OUTPUT_FORMAT)
     locators = _dictionary_locators(args.pronunciation_dictionary)
+    if args.clone_strength is not None and (not math.isfinite(args.clone_strength) or not 0 <= args.clone_strength <= 1):
+        raise RuntimeError("--clone-strength must be finite and between zero and one")
+    if args.clone_strength is not None and not model_id.startswith("eleven_v4"):
+        raise RuntimeError("--clone-strength requires a selected v4 model and its ready professional voice")
+    if model_id.startswith("eleven_v4") and any(value is not None for value in (args.style, args.speed, args.use_speaker_boost)):
+        raise RuntimeError("v4 does not support --style, --speed or --use-speaker-boost; omit these settings")
+    if args.clone_strength is not None:
+        # Validate the PVC-only setting before any governed reservation. The ordinary
+        # spending preflight repeats live readiness immediately before submission.
+        voice = _voice_summary(_get_json("/voices/" + urllib.parse.quote(voice_id, safe="")))
+        if voice["category"] != "professional" or (voice["model_states"] or {}).get(model_id) != "fine_tuned":
+            raise RuntimeError("--clone-strength requires a professional voice fine_tuned on the selected v4 model")
     if args.dry_run:
         preflight = tts_preflight(voice_id, model_id, args.text, args.max_credits)
         print(json.dumps({"dry_run": True, "with_timestamps": args.with_timestamps, **preflight}))
@@ -254,9 +266,6 @@ def tts(args: argparse.Namespace) -> int:
         output.unlink()
     except OSError:
         raise RuntimeError("Output destination is not writable; no generation was requested") from None
-    if model_id.startswith("eleven_v4") and (args.style is not None or args.speed is not None):
-        # 2026-10-13 live A/B: v4 accepted style/use_speaker_boost silently with no measurable change.
-        print("warning: eleven_v4 exposes only stability and similarity; --style/--speed have no verified effect", file=sys.stderr)
     voice_settings = {
         key: value
         for key, value in {
@@ -265,6 +274,7 @@ def tts(args: argparse.Namespace) -> int:
             "style": args.style,
             "speed": args.speed,
             "use_speaker_boost": args.use_speaker_boost,
+            "clone_strength": args.clone_strength,
         }.items()
         if value is not None
     }
@@ -426,6 +436,7 @@ def main() -> int:
     p_tts.add_argument("--recovery-epoch-manifest", help="Explicit immutable bounded authorization when historical accounting is unavailable")
     p_tts.add_argument("--stability", type=float)
     p_tts.add_argument("--similarity-boost", type=float)
+    p_tts.add_argument("--clone-strength", type=float, help="v4 fine-tuned professional voice only, zero to one; zero permits more expressive polish")
     p_tts.add_argument("--style", type=float)
     p_tts.add_argument("--speed", type=float)
     p_tts.add_argument(

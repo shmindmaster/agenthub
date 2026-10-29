@@ -135,6 +135,44 @@ class SpendingBoundaries(unittest.TestCase):
         self.assertEqual(actual['endpoint'], 'with-timestamps')
         self.assertFalse((self.root/'capture.mp3').exists())
 
+    def v4_invoke(self, extra):
+        argv = ['cli', 'tts', '--voice-id', 'fixture', '--model-id', 'eleven_v4',
+                '--text', 'hello', '--output', str(self.root/'v4.mp3'), '--max-credits', '10',
+                '--cache-workspace', 'fixture', '--cache-revision', 'locked', *extra]
+        with patch.object(cli.sys, 'argv', argv), patch.object(cli, '_get_json', side_effect=self.metadata), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            return cli.main()
+
+    def test_v4_clone_strength_payload_is_exact_and_unsupported_controls_refused(self):
+        self.voice["fine_tuning"]["state"]["eleven_v4"] = "fine_tuned"
+        captured = {}
+        def intercept(_cli, args, voice_id, model_id, output_format, payload, with_timestamps=False):
+            captured.update(payload)
+            raise RuntimeError('Synthetic offline capture')
+        with patch.object(governed, 'generate', side_effect=intercept) as generate, patch.object(cli, '_request_full') as post:
+            self.assertEqual(self.v4_invoke(['--clone-strength', '0', '--stability', '.5', '--similarity-boost', '.75']), 2)
+            self.assertEqual(captured['voice_settings'], {'clone_strength': 0.0, 'stability': .5, 'similarity_boost': .75})
+            self.assertIs(type(captured['voice_settings']['clone_strength']), float)
+            self.assertEqual(captured['model_id'], 'eleven_v4')
+            generate.reset_mock()
+            for flags in (['--speed', '.88'], ['--style', '.15'], ['--use-speaker-boost'], ['--no-use-speaker-boost'],
+                          ['--clone-strength', 'nan'], ['--clone-strength', '1.1'], ['--clone-strength', '-.1']):
+                with self.subTest(flags=flags): self.assertEqual(self.v4_invoke(flags), 2)
+            generate.assert_not_called(); post.assert_not_called()
+
+    def test_v4_missing_professional_readiness_denies_before_post(self):
+        with patch.object(cli, '_request_full') as post:
+            self.assertEqual(self.v4_invoke(['--clone-strength', '0']), 2)
+            post.assert_not_called()
+
+    def test_clone_strength_nonprofessional_denied_before_reservation_or_post(self):
+        self.model["model_id"] = "eleven_v4"
+        for category in ("instant", "generated", "premade", None):
+            self.voice = {"category": category, "fine_tuning": {"state": {"eleven_v4": "fine_tuned"}}}
+            with self.subTest(category=category), patch.object(governed, "generate") as generate, patch.object(cli, "_request_full") as post:
+                self.assertEqual(self.v4_invoke(["--clone-strength", "0"]), 2)
+                generate.assert_not_called(); post.assert_not_called()
+
     def test_render_receipt_binds_bytes(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(cli, "_request_full", return_value=(200, "audio/mpeg", b"synthetic audio", {"request-id": "fixture-request"})) as post:
             target = pathlib.Path(folder)/"take.mp3"

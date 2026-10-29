@@ -211,3 +211,28 @@ Authorization is immutable at the canonical OS-local runtime's `content-recovery
 Receipt IDs are durably bound before audio reads. Completed responses are quarantined privately with their original hash, byte count and safe failure stage before validation. Only the evidenced 44-byte mono 16-bit 48 kHz PCM streaming header with RIFF size `0x7fff0024` and data size `0x7fff0000` is finalized from the complete response length; PCM bytes remain unchanged, and receipts bind raw and finalized hashes. Ordinary truncated or malformed WAVs remain rejected. Valid finalized WAV bytes become pending assets, subject to all five acceptance gates.
 
 All ambiguous failures, including 429, retain the maximum reservation and fence repurchase. No verified Deepgram history-recovery route is implemented. Response evidence assists diagnosis; it does not authorize resubmission or fabricate provider billing verification. Do not use an unverified billing header to release funds. Exact pending/accepted cache reuse is allowed; five hash-bound acceptance gates still control selection. No raw API path is represented as governed.
+
+
+### Append-only project-v2 delivery corrections
+
+An owner-requested delivery correction can register an immutable
+`elevenlabs-project-delivery-correction-v1` manifest against an existing project-v2
+ledger. It never creates an epoch, increases the 4,200-credit ceiling, resets
+history, edits the original authorization/salt, or permits a different speaker,
+revision or output format. Existing unknown charges remain reserved. A correction
+explicitly pins `model_id` to the original `eleven_multilingual_v2` or the
+owner-approved expressive `eleven_v4`; other models are refused. This model
+amendment grants no training entitlement or readiness bypass: the normal live
+professional-voice `fine_tuned` preflight remains mandatory.
+
+The correction manifest has exactly `kind`, `parent_authorization` (absolute
+original manifest path and SHA256), `owner_authorization` (the original exact
+approval), `purpose` (`owner-requested-delivery-correction`), `amendment_id`, `model_id`, and
+`allowed_requests` (exact text/request SHA256 pairs). The caller passes it through
+`--recovery-epoch-manifest` with the reviewed full request/settings. The original
+inventory proof still fences historical and ambiguous inputs. At most four
+correction requests and twenty total requests can be registered across the
+original allowlist and immutable `delivery-corrections/*.json` files. Registration
+uses an exclusive guard and refuses changed manifests, overlap and missing or
+damaged original accounting. An exact correction reopens the same ledger/cache;
+it never authorizes a second paid submission for an existing request.

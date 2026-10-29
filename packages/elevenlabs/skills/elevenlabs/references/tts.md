@@ -61,8 +61,16 @@ recovery returns audio only and cannot rebuild an alignment.
 HTTP 429 (rate or concurrency limit) releases that request's reservation, because
 nothing was generated; back off and retry the identical request. Every other
 failure keeps the reservation and blocks a repeat purchase until reconciled.
-`eleven_v4` exposes only stability and similarity: `--style` and `--speed` are still forwarded
-but the CLI warns they have no verified effect, so do not pass them with a v4 model. Output format defaults to
+For v4, the CLI accepts stability, similarity and `--clone-strength` (finite 0–1,
+only for a professional voice fine-tuned on the selected v4 model). Official
+October 26 guidance recommends starting at zero: lower strength permits smoother,
+more flexible performance while higher strength follows training delivery more
+closely. It does not establish voice readiness or guarantee an expressive result.
+The CLI refuses v4 `--style`, `--speed` and speaker-boost flags instead of silently
+forwarding unsupported controls. Do not use SSML breaks with v4. See
+https://elevenlabs.io/docs/changelog/2026/10/26 and
+https://elevenlabs.io/docs/api-reference/text-to-speech/convert.
+Output format defaults to
 `ELEVENLABS_OUTPUT_FORMAT` or `mp3_44100_192`; check tier support first.
 
 Run `tts --help` for voice settings, normalization, seed, language, output format,

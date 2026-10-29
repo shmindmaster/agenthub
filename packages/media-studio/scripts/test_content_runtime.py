@@ -316,6 +316,130 @@ class LedgerTests(unittest.TestCase):
                 recovery_epoch_ledger(manifest,'fixture',text,'eleven_flash_v2_5',request=request)
             secure.assert_not_called()
 
+    def correction_fixture(self):
+        text, request, proof, inventory, policy, manifest = self.project_v2_fixture()
+        corrected = json.loads(json.dumps(request))
+        corrected['payload']['text'] = 'The corrected financial explanation.'
+        corrected['payload']['voice_settings'].update(speed=.88, stability=.4, style=.15)
+        entry = dict(text_sha256=hashlib.sha256(corrected['payload']['text'].encode()).hexdigest(),
+                     request_sha256=request_key(corrected))
+        amendment = dict(kind='elevenlabs-project-delivery-correction-v1',
+                         parent_authorization=dict(path=str(manifest), sha256=hashlib.sha256(manifest.read_bytes()).hexdigest()),
+                         owner_authorization='Approve 4,200 existing credits',
+                         purpose='owner-requested-delivery-correction', amendment_id='correction-one',
+                         model_id='eleven_multilingual_v2',
+                         allowed_requests=[entry])
+        amendment_path = self.root / 'correction.json'
+        amendment_path.write_text(json.dumps(amendment))
+        return text, request, manifest, corrected, amendment, amendment_path, proof, inventory
+
+    def test_v4_delivery_correction_pins_model_and_preserves_original_accounting(self):
+        text, request, manifest, corrected, amendment, path, _, _ = self.correction_fixture()
+        corrected['model_id'] = corrected['payload']['model_id'] = 'eleven_v4'
+        corrected['payload']['voice_settings'] = {'stability': .5, 'similarity_boost': .75, 'clone_strength': 0.0}
+        amendment['model_id'] = 'eleven_v4'
+        amendment['allowed_requests'][0]['request_sha256'] = request_key(corrected)
+        path.write_text(json.dumps(amendment))
+        with self.project_v2_environment():
+            original = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            salt = (original.root / 'namespace-salt').read_bytes()
+            ns = original.namespace('synthetic-v2-fixture', 'fixture')
+            claim = original.claim(ns, 'held-preview', 'elevenlabs/credits', 270)
+            original.submitted(claim); original.unknown(claim)
+            ledger = recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], 'eleven_v4', request=corrected)
+            self.assertEqual(ledger.root, original.root)
+            self.assertEqual((ledger.root / 'namespace-salt').read_bytes(), salt)
+            self.assertEqual(json.loads((ledger.root / 'authorization.json').read_bytes())['model_id'], 'eleven_multilingual_v2')
+            ledger.claim(ns, request_key(corrected), 'elevenlabs/credits', 200)
+            self.assertEqual(ledger.status()['budgets'][0]['committed'], 470)
+            for model in ('eleven_v4_turbo', 'eleven_multilingual_v2'):
+                drift = json.loads(json.dumps(corrected)); drift['model_id'] = model
+                with self.subTest(model=model), self.assertRaises(RuntimeError):
+                    recovery_epoch_ledger(path, 'fixture', drift['payload']['text'], model, request=drift)
+            with self.assertRaisesRegex(RuntimeError, 'ceiling'):
+                ledger.claim(ns, 'over-cap', 'elevenlabs/credits', 3731)
+
+    def test_delivery_correction_same_ledger_history_cap_and_immutable_reopen(self):
+        text, request, manifest, corrected, amendment, path, _, _ = self.correction_fixture()
+        with self.project_v2_environment():
+            ledger = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            protected = {name: (ledger.root / name).read_bytes() for name in ('authorization.json', 'namespace-salt')}
+            ns = ledger.namespace('synthetic-v2-fixture', 'fixture')
+            claim = ledger.claim(ns, 'historical-preview', 'elevenlabs/credits', 270)
+            ledger.submitted(claim); ledger.unknown(claim)
+            again = recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], corrected['model_id'], request=corrected)
+            self.assertEqual(again.root, ledger.root)
+            again.claim(ns, request_key(corrected), 'elevenlabs/credits', 153)
+            again = recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], corrected['model_id'], request=corrected)
+            self.assertEqual(again.status()['budgets'][0]['committed'], 423)
+            self.assertEqual(again.lookup(ns, 'historical-preview')['state'], 'unknown')
+            with self.assertRaisesRegex(RuntimeError, 'ceiling'):
+                again.claim(ns, 'over', 'elevenlabs/credits', 3778)
+            for name, value in protected.items(): self.assertEqual((ledger.root / name).read_bytes(), value)
+            amendment['allowed_requests'][0]['request_sha256'] = 'f' * 64
+            path.write_text(json.dumps(amendment))
+            with self.assertRaises(RuntimeError):
+                recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], corrected['model_id'], request=corrected)
+
+    def test_delivery_correction_missing_parent_accounting_and_drift_denied(self):
+        text, request, manifest, corrected, amendment, path, _, _ = self.correction_fixture()
+        with self.project_v2_environment():
+            with self.assertRaisesRegex(RuntimeError, 'never initialize'):
+                recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], corrected['model_id'], request=corrected)
+            ledger = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            for field, value in [('voice_id', 'wrong'), ('model_id', 'wrong'), ('revision', 'wrong'), ('output_format', 'wrong')]:
+                changed = json.loads(json.dumps(corrected)); changed[field] = value
+                with self.subTest(field=field), self.assertRaises(RuntimeError):
+                    recovery_epoch_ledger(path, 'fixture', changed['payload']['text'], changed['model_id'], request=changed)
+            for field, value in [('maximum_credits', 4201), ('owner_authorization', 'unapproved')]:
+                changed = dict(amendment); changed[field] = value; path.write_text(json.dumps(changed))
+                with self.subTest(field=field), self.assertRaises(RuntimeError):
+                    recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], corrected['model_id'], request=corrected)
+            path.write_text(json.dumps(amendment))
+            (ledger.root / 'namespace-salt').unlink()
+            with self.assertRaises(RuntimeError):
+                recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], corrected['model_id'], request=corrected)
+            self.assertFalse((ledger.root / 'namespace-salt').exists())
+
+    def test_delivery_correction_intact_historical_and_ambiguous_fences(self):
+        text, request, manifest, corrected, amendment, path, proof, inventory = self.correction_fixture()
+        forbidden = ['Historical speech.', 'Ambiguous speech.']
+        for field, value in zip(('historical_text_sha256', 'ambiguous_text_sha256'), forbidden):
+            proof[field].append(hashlib.sha256(value.encode()).hexdigest())
+        inventory.write_text(json.dumps(proof))
+        policy = json.loads(manifest.read_bytes())
+        policy['inventory_proof']['sha256'] = hashlib.sha256(inventory.read_bytes()).hexdigest()
+        manifest.write_text(json.dumps(policy))
+        amendment['parent_authorization']['sha256'] = hashlib.sha256(manifest.read_bytes()).hexdigest()
+        with self.project_v2_environment():
+            ledger = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            for value in forbidden:
+                changed = json.loads(json.dumps(corrected)); changed['payload']['text'] = value
+                amendment['allowed_requests'] = [dict(text_sha256=hashlib.sha256(value.encode()).hexdigest(), request_sha256=request_key(changed))]
+                path.write_text(json.dumps(amendment))
+                with self.subTest(value=value), self.assertRaisesRegex(RuntimeError, 'fence'):
+                    recovery_epoch_ledger(path, 'fixture', value, changed['model_id'], request=changed)
+            self.assertFalse((ledger.root / 'delivery-corrections').exists())
+
+    def test_delivery_correction_rejects_fifth_and_duplicate_text(self):
+        text, request, manifest, corrected, amendment, path, _, _ = self.correction_fixture()
+        with self.project_v2_environment():
+            ledger = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            for index in range(4):
+                changed = json.loads(json.dumps(corrected)); changed['payload']['text'] += str(index)
+                current = json.loads(json.dumps(amendment)); current['amendment_id'] = 'correction-' + str(index)
+                current['allowed_requests'] = [dict(text_sha256=hashlib.sha256(changed['payload']['text'].encode()).hexdigest(), request_sha256=request_key(changed))]
+                path.write_text(json.dumps(current))
+                recovery_epoch_ledger(path, 'fixture', changed['payload']['text'], changed['model_id'], request=changed)
+            path.write_text(json.dumps(amendment))
+            with self.assertRaisesRegex(RuntimeError, 'four corrections'):
+                recovery_epoch_ledger(path, 'fixture', corrected['payload']['text'], corrected['model_id'], request=corrected)
+            duplicate = json.loads(json.dumps(amendment))
+            duplicate['allowed_requests'] = [dict(text_sha256=hashlib.sha256(text.encode()).hexdigest(), request_sha256=request_key(request))]
+            path.write_text(json.dumps(duplicate))
+            with self.assertRaisesRegex(RuntimeError, 'overlaps'):
+                recovery_epoch_ledger(path, 'fixture', text, request['model_id'], request=request)
+
     def project_v2_fixture(self):
         text, request, proof, inventory, policy, manifest = self.project_fixture()
         request['model_id'] = 'eleven_multilingual_v2'
