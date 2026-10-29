@@ -9,6 +9,7 @@ export const PROFILES = Object.freeze({
   'youtube-16x9': { width: 1920, height: 1080, fps: 30 },
   linkedin: { width: 1920, height: 1080, fps: 30 },
   'linkedin-4x5': { width: 1080, height: 1350, fps: 30 },
+  'square-1x1': { width: 1080, height: 1080, fps: 30 },
   'vertical-9x16': { width: 1080, height: 1920, fps: 30 },
   presentation: { width: 1920, height: 1080, fps: 30 },
   webcast: { width: 1920, height: 1080, fps: 30 },

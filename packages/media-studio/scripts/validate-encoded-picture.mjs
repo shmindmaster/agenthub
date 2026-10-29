@@ -48,6 +48,7 @@ const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 const candidate = resolve(candidateArg);
 const outPath = resolve(jobRoot, flag('--out', 'qa/encoded-picture.json'));
 function readJson(rel) { const p = join(jobRoot, rel); if (!existsSync(p)) return null; return JSON.parse(readFileSync(p, 'utf8').replace(/^﻿/, '')); }
+let report = { schemaVersion: '1.0.0', generator: 'media-studio/validate-encoded-picture', candidate: { path: candidate, sha256: null, bytes: null }, segments: [], staticRuns: [], screenRatio: null };
 const errors = [];
 const fail = (m) => { console.error(`[encoded-picture] ${m}`); errors.push(m); };
 const run = (args, opts = {}) => execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', ...args], { maxBuffer: 1 << 30, ...opts });
@@ -127,7 +128,7 @@ if (composeMap?.groups) {
 }
 
 const duration = probeDuration(candidate);
-const report = {
+report = {
   schemaVersion: '1.0.0',
   generator: 'media-studio/validate-encoded-picture',
   candidate: { path: candidate, sha256: createHash('sha256').update(readFileSync(candidate)).digest('hex'), bytes: statSync(candidate).size, durationSeconds: Number(duration.toFixed(3)) },

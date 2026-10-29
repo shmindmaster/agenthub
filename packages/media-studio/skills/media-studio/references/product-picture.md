@@ -79,3 +79,5 @@ Missing `visualMode` on a `product-screencast` beat **defaults to `screen`**, no
 - Motif / image-to-video of a product screenshot is refused (`local-ai-stack` `references/video.md`).
 - Card / `slide` / `diagram` beats on a `product-screencast` are each ≤8s.
 - Recast (`playwright-recast@0.21.0`, declared in `kit/package.json`) is required pointer finishing (`policy/product-video-policy.json` `pointerFinishing`). If its ffmpeg render fails on a long many-click clip, `record-job.mjs` retries without `autoZoom`, then records `recast: fallback`; the validator accepts a fallback only when `job.json` says `recastFallbackAllowed: true` with a reason. Split the take instead.
+
+Encoded input failures write a fail-closed JSON report, including missing candidate or narration timeline. The `square-1x1` delivery profile is 1080 × 1080 at 30 fps; all source-integrity thresholds apply unchanged.
