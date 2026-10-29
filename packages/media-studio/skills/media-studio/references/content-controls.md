@@ -92,6 +92,23 @@ All requests and any separately authorized retake remain inside the one project
 ceiling, with live overages disabled. Unknown reservations remain charged against
 the ceiling. Existing epochs and original authorization files remain untouched.
 
+A separate `elevenlabs-owner-authorized-project-epoch-v2` contract recognizes the
+actual approval `Approve 4,200 existing credits`, with both `maximum_credits`
+and `owner_authorized_maximum_credits` exactly 4200. It requires the authorization
+`model_id` and exact request model to be `eleven_multilingual_v2`. All v1 pinned
+voice, settings, revision, format, dictionary, request-hash and independently
+reviewed new-input inventory requirements remain mandatory. It has no additional
+batches, does not reuse historical authority, and leaves historical accounting
+UNKNOWN/FENCED. The provider credential must be present before initialization;
+live remaining credits and disabled overages are still checked before submission.
+An existing v2 authorization requires its original database, complete 32-byte
+salt, assets directory, valid request schema and matching budget. Missing or
+damaged accounting fails before initialization rather than recreating headroom.
+Interrupted first initialization requires inspection/restoration, not a fresh
+epoch retry. V1 remains the exact approved 12,000-credit Flash contract; generic
+recovery remains capped at 1,000 and Flash-only. These are explicit bounded
+operator-authority contracts, not a replacement for missing lifetime history.
+
 The single `elevenlabs/credits` bucket spans all credential/workspace namespaces.
 It is a lifetime aggregate ceiling, with no reset or automatic replenishment.
 Each purchase reserves the full integer `--max-credits` before provider POST.

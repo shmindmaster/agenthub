@@ -1,8 +1,10 @@
 """Offline, independent-process tests. Fixtures never contact a provider."""
+import contextlib
 import hashlib
 import json
 import os
 import pathlib
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -312,6 +314,170 @@ class LedgerTests(unittest.TestCase):
             manifest.write_text(json.dumps(policy))
             with self.assertRaisesRegex(RuntimeError,'fence'):
                 recovery_epoch_ledger(manifest,'fixture',text,'eleven_flash_v2_5',request=request)
+            secure.assert_not_called()
+
+    def project_v2_fixture(self):
+        text, request, proof, inventory, policy, manifest = self.project_fixture()
+        request['model_id'] = 'eleven_multilingual_v2'
+        request['payload']['voice_settings'] = {'stability': 0.5, 'similarity_boost': 0.75}
+        policy.update(kind='elevenlabs-owner-authorized-project-epoch-v2',
+                      epoch_id='elevenlabs-project-v2-fixture', maximum_credits=4200,
+                      owner_authorized_maximum_credits=4200,
+                      owner_authorization='Approve 4,200 existing credits',
+                      model_id=request['model_id'])
+        policy['allowed_requests'][0]['request_sha256'] = request_key(request)
+        manifest.write_text(json.dumps(policy))
+        return text, request, proof, inventory, policy, manifest
+
+    @contextlib.contextmanager
+    def project_v2_environment(self):
+        with patch.dict(os.environ, {'LOCALAPPDATA': str(self.root),
+                                    'ELEVENLABS_API_KEY': 'synthetic-v2-fixture'}), \
+             patch('content_runtime.running_on_windows', return_value=True), \
+             patch('content_runtime.secure_directory', side_effect=lambda p: p.mkdir(parents=True, exist_ok=True)):
+            yield
+
+    def test_project_v2_reopen_preserves_authority_salt_and_aggregate_ceiling(self):
+        text, request, _, _, _, manifest = self.project_v2_fixture()
+        with self.project_v2_environment():
+            ledger = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            original = (ledger.root / 'authorization.json').read_bytes()
+            salt = (ledger.root / 'namespace-salt').read_bytes()
+            namespace = ledger.namespace('synthetic-v2-fixture', 'fixture')
+            claim = ledger.claim(namespace, 'one', 'elevenlabs/credits', 4000)
+            ledger.submitted(claim)
+            ledger.unknown(claim)
+            again = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            again.claim(namespace, 'two', 'elevenlabs/credits', 200)
+            with self.assertRaisesRegex(RuntimeError, 'ceiling'):
+                again.claim(namespace, 'three', 'elevenlabs/credits', 1)
+            self.assertEqual((ledger.root / 'authorization.json').read_bytes(), original)
+            self.assertEqual((ledger.root / 'namespace-salt').read_bytes(), salt)
+            self.assertEqual(again.lookup(namespace, 'one')['state'], 'unknown')
+            self.assertEqual(again.status()['budgets'][0]['committed'], 4200)
+
+    def test_project_v2_rejects_unapproved_authority_and_requests_before_state(self):
+        text, request, _, _, policy, manifest = self.project_v2_fixture()
+        variants = [{'maximum_credits': 4199}, {'maximum_credits': 4201},
+                    {'owner_authorized_maximum_credits': 12000},
+                    {'owner_authorization': 'Authorize 12,000 existing credits'},
+                    {'model_id': 'eleven_flash_v2_5'}, {'workspace': 'other'},
+                    {'voice_id': 'other'}, {'output_format': 'other'},
+                    {'request_revision': 'other'}, {'additional_batch_id': 'second'},
+                    {'historical_accounting': 'KNOWN'}, {'historical_requests': 'RETRY'},
+                    {'pronunciation_locators_sha256': request_key(['other'])},
+                    {'allowed_requests': []}]
+        with patch('content_runtime.secure_directory') as secure:
+            for variant in variants:
+                with self.subTest(variant=variant):
+                    manifest.write_text(json.dumps({**policy, **variant}))
+                    with self.assertRaises(RuntimeError):
+                        recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            manifest.write_text(json.dumps(policy))
+            for changed in ({**request, 'model_id': 'eleven_flash_v2_5'},
+                            {**request, 'voice_id': 'other'},
+                            {**request, 'payload': {**request['payload'], 'voice_settings': {'stability': 0.9}}}):
+                with self.assertRaises(RuntimeError):
+                    recovery_epoch_ledger(manifest, 'fixture', text, changed['model_id'], request=changed)
+            secure.assert_not_called()
+
+    def test_project_v2_fences_historical_ambiguous_and_tampered_proof(self):
+        text, request, proof, inventory, policy, manifest = self.project_v2_fixture()
+        original_proof = json.dumps(proof)
+        with patch('content_runtime.secure_directory') as secure:
+            inventory.write_text('{}')
+            with self.assertRaisesRegex(RuntimeError, 'inventory proof'):
+                recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            for field in ('historical_text_sha256', 'ambiguous_text_sha256'):
+                changed = {**json.loads(original_proof), field: proof['new_text_sha256']}
+                inventory.write_text(json.dumps(changed))
+                policy['inventory_proof']['sha256'] = hashlib.sha256(inventory.read_bytes()).hexdigest()
+                manifest.write_text(json.dumps(policy))
+                with self.assertRaisesRegex(RuntimeError, 'fence'):
+                    recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            secure.assert_not_called()
+
+    def test_project_v2_missing_accounting_never_recreates_originals(self):
+        text, request, _, _, _, manifest = self.project_v2_fixture()
+        with self.project_v2_environment():
+            ledger = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            for name in ('ledger.sqlite3', 'namespace-salt', 'assets'):
+                path = ledger.root / name
+                saved = path.with_name(name + '.saved')
+                path.rename(saved)
+                try:
+                    with patch('content_runtime.Ledger') as opened:
+                        with self.assertRaisesRegex(RuntimeError, 'incomplete'):
+                            recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+                    opened.assert_not_called()
+                    self.assertFalse(path.exists())
+                finally:
+                    saved.rename(path)
+            with ledger.connect(True) as con:
+                con.execute("DELETE FROM budgets WHERE bucket='elevenlabs/credits'")
+            with patch('content_runtime.Ledger') as opened:
+                with self.assertRaisesRegex(RuntimeError, 'budget missing'):
+                    recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            opened.assert_not_called()
+            with ledger.connect() as con:
+                self.assertIsNone(con.execute("SELECT ceiling FROM budgets WHERE bucket='elevenlabs/credits'").fetchone())
+
+    def test_project_v2_orphan_root_and_changed_authorization_fail_closed(self):
+        text, request, _, _, policy, manifest = self.project_v2_fixture()
+        epoch_root = self.root / 'AgentHub/runtime/content-recovery-epochs' / policy['epoch_id']
+        epoch_root.mkdir(parents=True)
+        with self.project_v2_environment():
+            with self.assertRaisesRegex(RuntimeError, 'initialization incomplete'):
+                recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            self.assertEqual(list(epoch_root.iterdir()), [])
+            epoch_root.rmdir()
+            ledger = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            original = (ledger.root / 'authorization.json').read_bytes()
+            policy['owner_note'] = 'Changed bytes remain unauthorized'
+            manifest.write_text(json.dumps(policy))
+            with self.assertRaisesRegex(RuntimeError, 'immutable'):
+                recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            self.assertEqual((ledger.root / 'authorization.json').read_bytes(), original)
+
+    def test_project_v2_damaged_schema_salt_and_missing_credential_fail_closed(self):
+        text, request, _, _, _, manifest = self.project_v2_fixture()
+        with self.project_v2_environment():
+            with patch.dict(os.environ, {'ELEVENLABS_API_KEY': ''}):
+                with patch('content_runtime.secure_directory') as secure:
+                    with self.assertRaisesRegex(RuntimeError, 'credential'):
+                        recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+                    secure.assert_not_called()
+            ledger = recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+            salt_path = ledger.root / 'namespace-salt'
+            salt = salt_path.read_bytes()
+            salt_path.write_bytes(salt[:16])
+            with patch('content_runtime.Ledger') as opened:
+                with self.assertRaisesRegex(RuntimeError, 'incomplete'):
+                    recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+                opened.assert_not_called()
+            self.assertEqual(salt_path.read_bytes(), salt[:16])
+            salt_path.write_bytes(salt)
+            with ledger.connect(True) as con:
+                con.execute('DROP TABLE requests')
+            with patch('content_runtime.Ledger') as opened:
+                with self.assertRaises(sqlite3.OperationalError):
+                    recovery_epoch_ledger(manifest, 'fixture', text, request['model_id'], request=request)
+                opened.assert_not_called()
+            with ledger.connect() as con:
+                self.assertIsNone(con.execute("SELECT name FROM sqlite_master WHERE name='requests'").fetchone())
+
+    def test_v1_and_generic_epochs_remain_flash_only(self):
+        text, request, _, _, policy, manifest = self.project_fixture()
+        with patch('content_runtime.secure_directory') as secure:
+            for kind, ceiling in (('elevenlabs-owner-authorized-project-epoch-v1', 12000), ('generic', 1000)):
+                changed = {**request, 'model_id': 'eleven_multilingual_v2'}
+                changed_policy = {**policy, 'kind': kind, 'maximum_credits': ceiling,
+                                  'model_id': changed['model_id'],
+                                  'allowed_requests': [{'text_sha256': policy['allowed_text_sha256'][0],
+                                                        'request_sha256': request_key(changed)}]}
+                manifest.write_text(json.dumps(changed_policy))
+                with self.assertRaises(RuntimeError):
+                    recovery_epoch_ledger(manifest, 'fixture', text, changed['model_id'], request=changed)
             secure.assert_not_called()
 
     def test_unknown_billing_retains_reservation_and_acceptance_requires_gates(self):

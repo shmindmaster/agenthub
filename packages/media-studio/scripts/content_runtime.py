@@ -85,12 +85,17 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
     policy = json.loads(raw)
     ceiling = integer(policy.get("maximum_credits"))
     epoch = policy.get("epoch_id", "")
-    project = policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v1"
+    project_v2 = policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v2"
+    project = project_v2 or policy.get("kind") == "elevenlabs-owner-authorized-project-epoch-v1"
+    project_limit = 4200 if project_v2 else 12000
+    project_approval = "Approve 4,200 existing credits" if project_v2 else "Authorize 12,000 existing credits"
+    selected_model = "eleven_multilingual_v2" if project_v2 else "eleven_flash_v2_5"
     if project:
         # A separate, explicitly approved project authorization never raises the
         # generic recovery ceiling or rewrites an existing epoch's authority.
-        if (ceiling > 12000 or policy.get("owner_authorized_maximum_credits") != 12000
-                or policy.get("owner_authorization") != "Authorize 12,000 existing credits"
+        if (ceiling > project_limit or policy.get("owner_authorized_maximum_credits") != project_limit
+                or policy.get("owner_authorization") != project_approval
+                or (project_v2 and (ceiling != project_limit or policy.get("model_id") != selected_model))
                 or not epoch.startswith("elevenlabs-project-")
                 or policy.get("additional_batch_id") is not None
                 or not isinstance(request, dict)
@@ -124,11 +129,11 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
                    (set(proof["historical_text_sha256"]) | set(proof["ambiguous_text_sha256"]))):
             raise RuntimeError("Project inventory must fence historical and ambiguous inputs")
     if (not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", epoch)
-            or ceiling > (12000 if project else 1000) or policy.get("historical_accounting") != "UNKNOWN"
+            or ceiling > (project_limit if project else 1000) or policy.get("historical_accounting") != "UNKNOWN"
             or policy.get("historical_requests") != "FENCED"
             or not policy.get("owner_authorization")
             or policy.get("workspace") != workspace
-            or model_id != "eleven_flash_v2_5"):
+            or model_id != selected_model):
         raise RuntimeError("Recovery epoch requires explicit bounded authorization and fenced history")
     text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
     allowed = policy.get("allowed_text_sha256", [])
@@ -139,9 +144,35 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
     base = os.environ.get("LOCALAPPDATA") if running_on_windows() else str(pathlib.Path.home() / ".local/share")
     if not base:
         raise RuntimeError("Cannot resolve private local runtime directory")
-    root = (pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs").resolve() / epoch
+    parent = pathlib.Path(base) / "AgentHub/runtime/content-recovery-epochs"
+    if project_v2 and any(linked_path(p) for p in (parent, *parent.parents)):
+        raise RuntimeError("Project v2 refuses linked epoch accounting")
+    root = parent.resolve() / epoch
+    if project_v2 and not os.environ.get("ELEVENLABS_API_KEY"):
+        raise RuntimeError("Project v2 requires its explicit provider credential before initialization")
+    if project_v2 and root.exists() and not (root / "authorization.json").exists():
+        raise RuntimeError("Project v2 initialization incomplete; inspect existing accounting")
     secure_directory(root)
     lock = root / "authorization.json"
+    existing_v2 = project_v2 and lock.exists()
+    if existing_v2:
+        files = [root / name for name in ("ledger.sqlite3", "namespace-salt")]
+        if (not all(p.is_file() and not linked_path(p) for p in files)
+                or files[1].stat().st_size != 32
+                or not (root / "assets").is_dir() or linked_path(root / "assets")):
+            raise RuntimeError("Existing project v2 accounting incomplete; restore originals without initialization")
+        with contextlib.closing(sqlite3.connect(files[0].as_uri() + "?mode=ro", uri=True)) as con:
+            if con.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise RuntimeError("Existing project v2 accounting integrity failed")
+            # Validate both schemas before Ledger's CREATE IF NOT EXISTS can mask
+            # an interrupted or damaged accounting file.
+            con.execute("SELECT namespace,key,bucket,maximum,actual,state,token,lease,sha256,"
+                        "content_type,receipt,gates,acceptance FROM requests LIMIT 0")
+            if con.execute("PRAGMA foreign_key_check").fetchone() is not None:
+                raise RuntimeError("Existing project v2 accounting references are invalid")
+            budget = con.execute("SELECT ceiling FROM budgets WHERE bucket='elevenlabs/credits'").fetchone()
+            if budget is None or budget[0] != ceiling:
+                raise RuntimeError("Existing project v2 budget missing or changed; restore original accounting")
     batch = policy.get("additional_batch_id")
     if batch is not None:
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", batch) or not lock.is_file() or linked_path(lock):
@@ -193,6 +224,8 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
     except FileExistsError:
         if lock.read_bytes() != raw:
             raise RuntimeError("Recovery epoch authorization is immutable; no cap/allowlist reset")
+        if project_v2 and not existing_v2:
+            raise RuntimeError("Project v2 initialization busy or interrupted; inspect before retry")
     ledger = Ledger(root)
     with ledger.connect() as con:
         budget = con.execute("SELECT ceiling FROM budgets WHERE bucket='elevenlabs/credits'").fetchone()
@@ -200,6 +233,8 @@ def recovery_epoch_ledger(manifest_path, workspace, text, model_id, request=None
         ledger.configure("elevenlabs/credits", ceiling)
     elif budget[0] != ceiling:
         raise RuntimeError("Recovery epoch ceiling changed; inspect accounting before submission")
+    if project_v2:
+        ledger.namespace(os.environ["ELEVENLABS_API_KEY"], workspace)
     ledger.recovery_epoch = epoch
     return ledger
 
