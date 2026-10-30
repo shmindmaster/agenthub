@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import sys
 
-from shared_server import configure_local_embedder
+from shared_server import configure_remote_embedder
 from source_fence import source_fence
 from windows_job import LeaseRetentionError, free_memory, run
 
@@ -222,9 +222,9 @@ def main(argv=None) -> int:
         raise
     receipt_error = None
     try:
-        # Reuse the shared server's loopback-only validation and actual embedding
-        # probe. Never inherit a paid endpoint or forward a real key locally.
-        configure_local_embedder("http://127.0.0.1:8790/v1", "text-embedding-3-small")
+        # Reuse the shared server's Azure endpoint validation and actual embedding
+        # probe so indexing and querying use the same deployment and width.
+        configure_remote_embedder()
         require_lease(args.lease, args.lease_token)
         result = run(
             [executable, "update", "--no-workspace", "--index-only",

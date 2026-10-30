@@ -3,7 +3,7 @@
 Behavior test: the shared RepoWise server comes back when a host connects, and
 never comes back on a mock embedder.
 
-Why: on 2026-10-14 a hard reset took down the Local-AI embedder (8790) and the
+Why: on 2026-10-14 a hard reset took down the (then local) embedder and the
 shared RepoWise server (7339). Hosts carried a bare HTTP entry, so every host
 got ECONNREFUSED and nothing on the RepoWise path could restart the server (the
 no-autostart policy forbids logon/scheduled jobs). When an operator did restart
@@ -16,10 +16,11 @@ Covers:
      restart and from an expired session, answers the handshake from cache and
      errors fast when the launcher fails closed, spawns windowless.
   2. The launcher, run under Windows PowerShell exactly as the bridge runs it:
-     exits 2 and starts nothing when the embedder is down (with and without an
-     embedder-start attempt), starts and verifies a healthy server, stops a
-     server that reports embedder_degraded, and exits 0 untouched when the port
-     is already served.
+     exits 2 and starts nothing when the Azure embedder environment is missing
+     or its probe fails, starts and verifies a healthy server, stops a server
+     that reports embedder_degraded, and exits 0 untouched when the port is
+     already served. No test reaches Azure: the embedder environment is cleared
+     and a fake stands in for the probe.
   3. Every host manifest launches the bridge, and no HTTP-only entry remains.
 
 Run: pwsh -NoProfile -File tests/Test-RepoWiseBridge.ps1
@@ -70,22 +71,25 @@ New-Item -ItemType Directory -Force -Path $workspace | Out-Null
 # A public entry-point override lets the launcher exercise a synthetic server.
 Copy-Item -LiteralPath $fake -Destination (Join-Path $workspace 'mcp')
 $marker = Join-Path $scratch 'server-started.txt'
-$embedderStub = Join-Path $scratch 'ai.ps1'
-$embedderMarker = Join-Path $scratch 'embedder-start-called.txt'
-"param([string]`$Action, [string]`$Target) ""`$Action `$Target"" | Set-Content -LiteralPath '$embedderMarker'; exit 0" |
-    Set-Content -LiteralPath $embedderStub -Encoding UTF8
+$checkMarker = Join-Path $scratch 'embedder-check-called.txt'
+# The launcher reads the embedder from the environment. Clear every name it
+# could read so no test ever reaches Azure; the fake stands in for the probe.
+$embedderEnvNames = @('FOUNDRY_OPENAI_BASE_URL', 'FOUNDRY_API_KEY', 'AZURE_AI_SERVICES_KEY', 'FOUNDRY_EMBEDDING_DEPLOYMENT')
 
 function Invoke-Launcher {
-    param([int]$Port, [string]$EmbedderUrl, [string[]]$Extra = @(), [switch]$Degraded, [switch]$DefaultSharedServer)
+    param([int]$Port, [switch]$EmbedderDown, [switch]$Degraded, [switch]$DefaultSharedServer)
     $runtime = Join-Path $scratch ("rt-" + [Guid]::NewGuid().ToString('N'))
     $env:FAKE_MCP_MARKER = $marker
     $env:FAKE_MCP_DEGRADED = if ($Degraded) { '1' } else { '0' }
+    $env:FAKE_EMBEDDER_OK = if ($EmbedderDown) { '0' } else { '1' }
+    $env:FAKE_EMBEDDER_CHECK_MARKER = $checkMarker
+    $saved = @{}
+    foreach ($n in $embedderEnvNames) { $saved[$n] = [Environment]::GetEnvironmentVariable($n, 'Process'); [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
     try {
         $argv = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $launcher,
-            '-Port', $Port, '-Workspace', $workspace, '-EmbedderUrl', $EmbedderUrl, '-EmbedderWaitSeconds', 3,
-            '-ServerWaitSeconds', 30, '-RepoWiseExe', $py, '-RepoWisePython', $py, '-RuntimeDir', $runtime, '-LocalAiCli', $embedderStub)
+            '-Port', $Port, '-Workspace', $workspace, '-EmbedderCheckSeconds', 30,
+            '-ServerWaitSeconds', 30, '-RepoWiseExe', $py, '-RepoWisePython', $py, '-RuntimeDir', $runtime)
         if (-not $DefaultSharedServer) { $argv += @('-SharedServer', $fake) }
-        $argv += $Extra
         # Files, not a pipe: the server the launcher starts inherits its std
         # handles, so a piped launcher never reaches EOF. The bridge passes
         # DEVNULL for the same reason.
@@ -94,7 +98,10 @@ function Invoke-Launcher {
             -RedirectStandardOutput (Join-Path $scratch 'launcher.out') -RedirectStandardError (Join-Path $scratch 'launcher.err')
         if (-not $p.WaitForExit(120000)) { $p.Kill(); $code = -1 } else { $code = $p.ExitCode }
     }
-    finally { Remove-Item Env:\FAKE_MCP_MARKER, Env:\FAKE_MCP_DEGRADED -ErrorAction SilentlyContinue }
+    finally {
+        foreach ($n in 'FAKE_MCP_MARKER', 'FAKE_MCP_DEGRADED', 'FAKE_EMBEDDER_OK', 'FAKE_EMBEDDER_CHECK_MARKER') { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
+        foreach ($n in $embedderEnvNames) { [Environment]::SetEnvironmentVariable($n, $saved[$n], 'Process') }
+    }
     $logPath = Join-Path $runtime 'launcher.log'
     $logText = if (Test-Path -LiteralPath $logPath) { Get-Content -LiteralPath $logPath -Raw -Encoding UTF8 } else { '' }
     $statePath = Join-Path $runtime 'launcher.state.json'
@@ -102,45 +109,40 @@ function Invoke-Launcher {
     [pscustomobject]@{ Code = $code; Log = $logText; State = $state }
 }
 
-$embedderPort = Get-FreePort
-$deadEmbedder = "http://127.0.0.1:$(Get-FreePort)/v1/models"
-$liveEmbedder = "http://127.0.0.1:$embedderPort/v1/models"
-$embedderProc = $null
 try {
-    # 2a. Embedder down, no start allowed: fail closed, start nothing.
+    # 2a. Embedder missing or failing: fail closed, start nothing. The default
+    # entry point runs the real shared_server.py check with the embedder
+    # environment cleared, so it must refuse without any network call.
     $port = Get-FreePort
-    $r = Invoke-Launcher -Port $port -EmbedderUrl $deadEmbedder -Extra @('-NoEmbedderStart') -DefaultSharedServer
-    Report 'Windows PowerShell binds the default shared server before failing closed' ($r.Code -eq 2 -and $r.Log -match 'FAIL-CLOSED: embedder') "exit=$($r.Code) log=$($r.Log)"
-    Report 'default entry point starts nothing on a down embedder' (-not (Test-Path -LiteralPath $marker) -and -not (Test-Listening $port)) 'server marker present or port served'
-    $r = Invoke-Launcher -Port $port -EmbedderUrl $deadEmbedder -Extra @('-NoEmbedderStart')
-    Report 'launcher exits 2 when the embedder is down' ($r.Code -eq 2) "exit=$($r.Code) log=$($r.Log)"
-    Report 'launcher logs FAIL-CLOSED' ($r.Log -match 'FAIL-CLOSED: embedder') $r.Log
-    Report 'launcher does not start repowise on a down embedder' (-not (Test-Path -LiteralPath $marker) -and -not (Test-Listening $port)) 'server marker present or port served'
+    $r = Invoke-Launcher -Port $port -EmbedderDown -DefaultSharedServer
+    Report 'Windows PowerShell binds the default shared server before failing closed' ($r.Code -eq 2 -and $r.Log -match 'FAIL-CLOSED: Azure embedder') "exit=$($r.Code) log=$($r.Log)"
+    Report 'default entry point starts nothing on a missing embedder environment' (-not (Test-Path -LiteralPath $marker) -and -not (Test-Listening $port)) 'server marker present or port served'
+    $r = Invoke-Launcher -Port $port -EmbedderDown
+    Report 'launcher exits 2 when the embedder probe fails' ($r.Code -eq 2) "exit=$($r.Code) log=$($r.Log)"
+    Report 'launcher logs FAIL-CLOSED' ($r.Log -match 'FAIL-CLOSED: Azure embedder') $r.Log
+    Report 'launcher ran the embedder probe before deciding' (Test-Path -LiteralPath $checkMarker) 'embedder check was not invoked'
+    Report 'launcher does not start repowise on a failing embedder' (-not (Test-Path -LiteralPath $marker) -and -not (Test-Listening $port)) 'server marker present or port served'
 
-    # 2b. Embedder down, start attempted through ai.ps1, still down: fail closed.
-    $r = Invoke-Launcher -Port $port -EmbedderUrl $deadEmbedder
-    Report 'launcher asks ai.ps1 to start retrieval when the embedder is down' ((Test-Path -LiteralPath $embedderMarker) -and ((Get-Content -LiteralPath $embedderMarker -Raw -Encoding UTF8) -match 'start retrieval')) "log=$($r.Log)"
-    Report 'launcher still fails closed when the embedder start does not help' ($r.Code -eq 2 -and -not (Test-Path -LiteralPath $marker)) "exit=$($r.Code)"
+    # 2b. The launcher never starts a local embedder on its own behalf.
+    $launcherSource = Get-Content -LiteralPath $launcher -Raw -Encoding UTF8
+    Report 'launcher starts no local embedder' ($launcherSource -notmatch 'ai\.ps1|8790|start retrieval') 'a local embedder dependency remains'
 
-    # 2c. Embedder up: start, wait for the port, confirm not degraded.
-    $embedderProc = Start-Process -FilePath $py -ArgumentList '-3', '-I', "`"$fake`"", '--port', $embedderPort -PassThru -WindowStyle Hidden
-    $deadline = (Get-Date).AddSeconds(15)
-    while (-not (Test-Listening $embedderPort) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 200 }
-    $r = Invoke-Launcher -Port $port -EmbedderUrl $liveEmbedder
-    Report 'launcher starts repowise when the embedder is ready' ($r.Code -eq 0 -and (Test-Listening $port)) "exit=$($r.Code) log=$($r.Log)"
+    # 2c. Embedder probe passes: start, wait for the port, confirm not degraded.
+    $r = Invoke-Launcher -Port $port
+    Report 'launcher starts repowise when the embedder probe passes' ($r.Code -eq 0 -and (Test-Listening $port)) "exit=$($r.Code) log=$($r.Log)"
     Report 'launcher verifies the started server is not degraded' ($r.Log -match 'embedder probe: not degraded') $r.Log
     Report 'launcher marks a verified server ready for bridges' ($r.State -eq 'ready') "state=$($r.State)"
 
     # 2d. Port already served: exit 0 without touching anything, embedder or not.
     Remove-Item -LiteralPath $marker -Force
-    $r = Invoke-Launcher -Port $port -EmbedderUrl $deadEmbedder -Extra @('-NoEmbedderStart')
+    $r = Invoke-Launcher -Port $port -EmbedderDown
     Report 'launcher exits 0 when the port is already served' ($r.Code -eq 0 -and $r.Log -match 'already served') "exit=$($r.Code) log=$($r.Log)"
     Report 'launcher starts no second server' (-not (Test-Path -LiteralPath $marker)) 'a second server was started'
     Stop-PortOwner $port
 
     # 2e. Server comes up degraded: stop it and fail closed.
     $port2 = Get-FreePort
-    $r = Invoke-Launcher -Port $port2 -EmbedderUrl $liveEmbedder -Degraded
+    $r = Invoke-Launcher -Port $port2 -Degraded
     Report 'launcher exits 2 when the server reports embedder_degraded' ($r.Code -eq 2 -and $r.Log -match 'embedder_degraded=true') "exit=$($r.Code) log=$($r.Log)"
     Start-Sleep -Seconds 1
     Report 'launcher stops a degraded server' (-not (Test-Listening $port2)) "port $port2 still served"
@@ -148,7 +150,6 @@ try {
     Stop-PortOwner $port2
 }
 finally {
-    if ($embedderProc) { & (Join-Path $env:SystemRoot 'System32\taskkill.exe') /PID $embedderProc.Id /T /F *> $null }
     Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
 }
 

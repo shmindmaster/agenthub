@@ -19,66 +19,141 @@ shared = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(shared)
 
 
-class LocalEmbeddingTest(unittest.TestCase):
+AZURE_URL = 'https://aoai-mrender-4e123a95.openai.azure.com/openai/v1/'
+FIXTURE_KEY = 'fixture-azure-key'
+
+
+def azure_env(**extra):
+    env = {'FOUNDRY_OPENAI_BASE_URL': AZURE_URL, 'FOUNDRY_API_KEY': FIXTURE_KEY,
+           'FOUNDRY_EMBEDDING_DEPLOYMENT': 'text-embedding-3-small'}
+    env.update(extra)
+    return env
+
+
+class RemoteEmbeddingTest(unittest.TestCase):
     def test_query_embedder_uses_probed_width_despite_stale_overrides(self):
         from repowise.core.providers.embedding.openai import OpenAIEmbedder
 
-        vector = [1.0] + [0.0] * 1023
-        with patch.dict(os.environ, {'REPOWISE_EMBEDDING_DIMS': '1536',
-                                    'REPOWISE_EMBEDDING_DECLARED_DIMS': '3072'}):
+        vector = [1.0] + [0.0] * 1535
+        with patch.dict(os.environ, azure_env(REPOWISE_EMBEDDING_DIMS='1024',
+                                              REPOWISE_EMBEDDING_DECLARED_DIMS='3072'),
+                        clear=True):
             with patch.object(shared, 'build_opener') as factory:
                 factory.return_value.open.return_value = BytesIO(json.dumps({
                     'data': [{'embedding': vector}]}).encode())
-                shared.configure_local_embedder('http://localhost:8790/v1',
-                                                'text-embedding-3-small')
+                shared.configure_remote_embedder()
             embedder = OpenAIEmbedder()
             embedder._client = Mock()
             embedder._client.embeddings.create.return_value = SimpleNamespace(
                 data=[SimpleNamespace(embedding=vector)])
             result = asyncio.run(embedder.embed(['synthetic query']))
-            self.assertEqual(embedder.dimensions, 1024)
-            self.assertEqual(len(result[0]), 1024)
+            self.assertEqual(embedder.dimensions, 1536)
+            self.assertEqual(len(result[0]), 1536)
             self.assertEqual(embedder._client.embeddings.create.call_args.kwargs[
-                'dimensions'], 1024)
+                'dimensions'], 1536)
 
-    def test_actual_request_overrides_inherited_remote_route_and_key(self):
-        with patch.dict(os.environ, {'OPENAI_BASE_URL': 'https://api.openai.com/v1',
-                                    'OPENAI_API_KEY': 'fixture-remote-key'}):
+    def test_probe_goes_only_to_azure_and_pins_the_environment(self):
+        with patch.dict(os.environ, azure_env(OPENAI_BASE_URL='https://api.openai.com/v1',
+                                              OPENAI_API_KEY='fixture-other-key'),
+                        clear=True):
             with patch.object(shared, 'build_opener') as factory:
                 factory.return_value.open.return_value = BytesIO(json.dumps({
                     'data': [{'embedding': [0.2, -0.7]}]}).encode())
-                shared.configure_local_embedder('http://127.0.0.1:8790/v1/', 'fixture')
+                shared.configure_remote_embedder()
+                factory.assert_called_once()
                 request = factory.return_value.open.call_args.args[0]
-                self.assertEqual(request.full_url, 'http://127.0.0.1:8790/v1/embeddings')
-                self.assertNotIn('fixture-remote-key', str(request.headers))
-                self.assertEqual(os.environ['OPENAI_BASE_URL'], 'http://127.0.0.1:8790/v1')
-                self.assertEqual(os.environ['OPENAI_API_KEY'], 'local-retrieval')
+                self.assertEqual(request.full_url, AZURE_URL + 'embeddings')
+                self.assertEqual(request.headers['Authorization'], f'Bearer {FIXTURE_KEY}')
+                self.assertNotIn('fixture-other-key', str(request.headers))
+                self.assertEqual(json.loads(request.data)['model'], 'text-embedding-3-small')
+                self.assertEqual(os.environ['OPENAI_BASE_URL'], AZURE_URL.rstrip('/'))
+                self.assertEqual(os.environ['OPENAI_API_KEY'], FIXTURE_KEY)
                 self.assertEqual(os.environ['REPOWISE_EMBEDDER'], 'openai')
-                self.assertEqual(os.environ['REPOWISE_EMBEDDING_MODEL'], 'fixture')
+                self.assertEqual(os.environ['REPOWISE_EMBEDDING_MODEL'], 'text-embedding-3-small')
+                self.assertEqual(os.environ['REPOWISE_EMBEDDING_DIMS'], '2')
+                self.assertEqual(os.environ['REPOWISE_EMBEDDING_DECLARED_DIMS'], '2')
 
-    def test_remote_and_credential_urls_are_rejected_without_network(self):
-        for url in ('https://api.openai.com/v1', 'http://example.com/v1',
-                    'http://127.0.0.1.evil.test/v1', 'http://u:p@localhost/v1',
-                    'http://localhost/v1?secret=x', 'http://localhost/other'):
-            with self.subTest(url=url), patch.object(shared, 'build_opener') as factory:
-                with self.assertRaises(ValueError):
-                    shared.configure_local_embedder(url, 'fixture')
+    def test_second_key_name_is_accepted_and_azure_openai_env_is_never_read(self):
+        env = azure_env(AZURE_AI_SERVICES_KEY='fixture-services-key')
+        env.pop('FOUNDRY_API_KEY')
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(shared, 'build_opener') as factory:
+            factory.return_value.open.return_value = BytesIO(json.dumps({
+                'data': [{'embedding': [0.2, -0.7]}]}).encode())
+            shared.configure_remote_embedder()
+            self.assertEqual(os.environ['OPENAI_API_KEY'], 'fixture-services-key')
+        client_only = {'FOUNDRY_OPENAI_BASE_URL': AZURE_URL,
+                       'FOUNDRY_EMBEDDING_DEPLOYMENT': 'text-embedding-3-small',
+                       'AZURE_OPENAI_API_KEY': 'fixture-client-key',
+                       'AZURE_OPENAI_ENDPOINT': 'https://client-pndh.openai.azure.com/'}
+        with patch.dict(os.environ, client_only, clear=True), \
+                patch.object(shared, 'build_opener') as factory:
+            with self.assertRaises(ValueError):
+                shared.configure_remote_embedder()
+            factory.assert_not_called()
+
+    def test_missing_environment_is_rejected_without_network(self):
+        for missing in ('FOUNDRY_OPENAI_BASE_URL', 'FOUNDRY_API_KEY',
+                        'FOUNDRY_EMBEDDING_DEPLOYMENT'):
+            env = azure_env()
+            env.pop(missing)
+            with self.subTest(missing=missing), patch.dict(os.environ, env, clear=True), \
+                    patch.object(shared, 'build_opener') as factory:
+                with self.assertRaises(ValueError) as error:
+                    shared.configure_remote_embedder()
+                self.assertNotIn(FIXTURE_KEY, str(error.exception))
+                factory.assert_not_called()
+
+    def test_other_hosts_and_credential_urls_are_rejected_without_network(self):
+        for url in ('https://api.openai.com/v1',
+                    'http://aoai-mrender-4e123a95.openai.azure.com/openai/v1',
+                    'https://aoai.openai.azure.com.evil.test/openai/v1',
+                    'https://evil-openai.azure.com/openai/v1x',
+                    'https://pndh-aoai.openai.azure.com/openai/v1',
+                    'https://.openai.azure.com/openai/v1',
+                    'https://aoai-mrender-4e123a95.openai.azure.com:8443/openai/v1',
+                    'https://u:p@aoai-mrender-4e123a95.openai.azure.com/openai/v1',
+                    'https://aoai-mrender-4e123a95.openai.azure.com/openai/v1?api-version=x',
+                    'https://aoai-mrender-4e123a95.openai.azure.com/openai/other',
+                    'https://127.0.0.1/openai/v1'):
+            with self.subTest(url=url), \
+                    patch.dict(os.environ, azure_env(FOUNDRY_OPENAI_BASE_URL=url), clear=True), \
+                    patch.object(shared, 'build_opener') as factory:
+                with self.assertRaises(ValueError) as error:
+                    shared.configure_remote_embedder()
+                self.assertNotIn(FIXTURE_KEY, str(error.exception))
                 factory.assert_not_called()
 
     def test_failure_or_bad_vectors_fail_closed_and_preserve_environment(self):
         for payload in ({}, {'data': [{'embedding': [0, 0]}]},
                         {'data': [{'embedding': [float('nan'), 1]}]},
                         {'data': [{'embedding': ['secret', 1]}]}):
-            with self.subTest(payload=payload), patch.dict(os.environ, {}, clear=True):
+            with self.subTest(payload=payload), patch.dict(os.environ, azure_env(), clear=True):
                 with patch.object(shared, 'build_opener') as factory:
                     factory.return_value.open.return_value = BytesIO(json.dumps(payload).encode())
                     with self.assertRaisesRegex(RuntimeError, 'refusing to serve'):
-                        shared.configure_local_embedder('http://localhost:8790/v1', 'fixture')
+                        shared.configure_remote_embedder()
                     self.assertNotIn('OPENAI_BASE_URL', os.environ)
-        with patch.object(shared, 'build_opener', side_effect=RuntimeError('private-response')):
+                    self.assertNotIn('OPENAI_API_KEY', os.environ)
+        with patch.dict(os.environ, azure_env(), clear=True), \
+                patch.object(shared, 'build_opener', side_effect=RuntimeError('private-response')):
             with self.assertRaises(RuntimeError) as error:
-                shared.configure_local_embedder('http://localhost:8790/v1', 'fixture')
+                shared.configure_remote_embedder()
             self.assertNotIn('private-response', str(error.exception))
+            self.assertNotIn(FIXTURE_KEY, str(error.exception))
+
+    def test_check_embedder_exits_2_without_starting_a_server(self):
+        argv = ['shared_server.py', 'unused-workspace', '--check-embedder']
+        with patch.dict(os.environ, {}, clear=True), patch.object(shared.sys, 'argv', argv):
+            with self.assertRaises(SystemExit) as stop:
+                shared.main()
+            self.assertEqual(stop.exception.code, 2)
+        with patch.dict(os.environ, azure_env(), clear=True), \
+                patch.object(shared.sys, 'argv', argv), \
+                patch.object(shared, 'build_opener') as factory:
+            factory.return_value.open.return_value = BytesIO(json.dumps({
+                'data': [{'embedding': [0.2, -0.7]}]}).encode())
+            self.assertIsNone(shared.main())
 
 
 class SharedLifetimeTest(unittest.TestCase):

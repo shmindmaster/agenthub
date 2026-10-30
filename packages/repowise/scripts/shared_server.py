@@ -14,30 +14,58 @@ from importlib.metadata import version
 import json
 import math
 import os
+import sys
 from urllib.parse import urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
 
 
-def configure_local_embedder(base_url: str, model: str) -> None:
-    """Pin the query process to the same local provider used by indexing.
+#: Environment names the fleet embedder is read from. Values are never
+#: persisted; AZURE_OPENAI_* is deliberately not read (that account is a client's).
+EMBEDDER_BASE_URL_ENV = 'FOUNDRY_OPENAI_BASE_URL'
+EMBEDDER_KEY_ENVS = ('FOUNDRY_API_KEY', 'AZURE_AI_SERVICES_KEY')
+EMBEDDER_DEPLOYMENT_ENV = 'FOUNDRY_EMBEDDING_DEPLOYMENT'
+EMBEDDER_HOST_SUFFIX = '.openai.azure.com'
 
-    A provider constructor can succeed with an invalid remote key. Probe a real
-    embedding before serving; never trust that constructor as retrieval health.
-    This process must not inherit a remote endpoint or send its key locally.
+
+def configure_remote_embedder(environ=None) -> None:
+    """Pin the query process to the MahumTech Azure OpenAI embedding deployment.
+
+    Reads FOUNDRY_OPENAI_BASE_URL (https, *.openai.azure.com, /openai/v1), the
+    key from FOUNDRY_API_KEY or AZURE_AI_SERVICES_KEY, and the deployment name
+    from FOUNDRY_EMBEDDING_DEPLOYMENT. A provider constructor can succeed with
+    an invalid key, so probe a real embedding before serving; never trust that
+    constructor as retrieval health. The key only ever goes to the validated
+    Azure host, over https, and only into this process's environment.
     """
+    env = os.environ if environ is None else environ
+    base_url = (env.get(EMBEDDER_BASE_URL_ENV) or '').strip()
+    key = next((env[name].strip() for name in EMBEDDER_KEY_ENVS
+                if (env.get(name) or '').strip()), '')
+    model = (env.get(EMBEDDER_DEPLOYMENT_ENV) or '').strip()
+    if not (base_url and key and model):
+        raise ValueError(f'RepoWise embeddings need {EMBEDDER_BASE_URL_ENV}, '
+                         f'{" or ".join(EMBEDDER_KEY_ENVS)} and '
+                         f'{EMBEDDER_DEPLOYMENT_ENV}')
     parsed = urlsplit(base_url)
-    if (parsed.scheme != 'http' or parsed.hostname not in
-            {'127.0.0.1', 'localhost', '::1'} or parsed.username or
-            parsed.password or parsed.query or parsed.fragment or
-            parsed.path.rstrip('/') != '/v1'):
-        raise ValueError('RepoWise embeddings require a loopback HTTP /v1 endpoint')
+    host = (parsed.hostname or '').lower()
+    try:
+        port = parsed.port
+    except ValueError:
+        port = -1
+    if (parsed.scheme != 'https' or not host.endswith(EMBEDDER_HOST_SUFFIX) or
+            len(host) == len(EMBEDDER_HOST_SUFFIX) or 'pndh' in host or
+            port not in (None, 443) or parsed.username or parsed.password or
+            parsed.query or parsed.fragment or
+            parsed.path.rstrip('/') != '/openai/v1'):
+        raise ValueError('RepoWise embeddings require an https Azure OpenAI '
+                         '/openai/v1 endpoint')
     endpoint = base_url.rstrip('/')
     request = Request(endpoint + '/embeddings', data=json.dumps({
-        'model': model, 'input': ['RepoWise local retrieval readiness']
+        'model': model, 'input': ['RepoWise retrieval readiness']
     }).encode(), headers={'Content-Type': 'application/json',
-                         'Authorization': 'Bearer local-retrieval'})
+                         'Authorization': f'Bearer {key}'})
     try:
-        # Local requests must not leave the machine through an inherited proxy.
+        # Direct connection to the validated host only; no inherited proxy.
         with build_opener(ProxyHandler({})).open(request, timeout=30) as response:
             payload = json.load(response)
         vector = payload['data'][0]['embedding']
@@ -47,10 +75,9 @@ def configure_local_embedder(base_url: str, model: str) -> None:
             raise ValueError('invalid embedding')
     except Exception:
         # Never echo response bodies, headers, keys or inherited configuration.
-        raise RuntimeError('Local embedding request failed; refusing to serve') from None
-    # The local model alias need not have OpenAI's default width. Pin both
-    # supported overrides so stale inherited settings cannot resize queries.
-    os.environ.update(OPENAI_BASE_URL=endpoint, OPENAI_API_KEY='local-retrieval',
+        raise RuntimeError('Remote embedding request failed; refusing to serve') from None
+    # Pin both width overrides so stale inherited settings cannot resize queries.
+    os.environ.update(OPENAI_BASE_URL=endpoint, OPENAI_API_KEY=key,
                       REPOWISE_EMBEDDER='openai', REPOWISE_EMBEDDING_MODEL=model,
                       REPOWISE_EMBEDDING_DIMS=str(len(vector)),
                       REPOWISE_EMBEDDING_DECLARED_DIMS=str(len(vector)))
@@ -98,14 +125,22 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('workspace')
     parser.add_argument('--port', type=int, default=7339)
-    parser.add_argument('--embedding-base-url', default='http://127.0.0.1:8790/v1')
-    parser.add_argument('--embedding-model', default='text-embedding-3-small')
+    parser.add_argument('--check-embedder', action='store_true',
+                        help='probe the Azure embedder and exit 0, or 2 when it '
+                             'is missing or failing (no server is started)')
     args = parser.parse_args()
     # This fleet endpoint is loopback-only. Never silently bypass the vendor's
     # bearer/principal middleware if an operator later enables HTTP auth.
     if os.environ.get('REPOWISE_API_KEY') or os.environ.get('REPOWISE_HTTP_PRINCIPALS'):
         raise RuntimeError('Authenticated serving requires the vendor HTTP gateway')
-    configure_local_embedder(args.embedding_base_url, args.embedding_model)
+    if args.check_embedder:
+        try:
+            configure_remote_embedder()
+        except (ValueError, RuntimeError) as error:
+            print(f'FAIL-CLOSED: {error}', file=sys.stderr)
+            raise SystemExit(2) from None
+        return
+    configure_remote_embedder()
     from repowise.server.mcp_server import create_mcp_server
     import uvicorn
     upstream = create_mcp_server(repo_path=args.workspace, workspace_mode=True)

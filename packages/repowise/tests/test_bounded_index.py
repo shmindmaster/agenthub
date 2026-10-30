@@ -80,7 +80,7 @@ class AdmissionTests(unittest.TestCase):
                     patch("bounded_index.git_head", return_value="synthetic-head"), \
                     patch("bounded_index.state_commit", side_effect=commits or ["old", "synthetic-head"]), \
                     patch("bounded_index.source_fence", side_effect=fences or [{"sha256": "same"}] * 2), \
-                    patch("bounded_index.configure_local_embedder") as embedder, \
+                    patch("bounded_index.configure_remote_embedder") as embedder, \
                     patch("bounded_index.run", return_value=child or successful) as job:
                 argv = ["--workspace", folder, "--repo-root", folder,
                                "--lease", str(Path(folder) / "lease"),
@@ -102,8 +102,7 @@ class AdmissionTests(unittest.TestCase):
                 self.assertEqual(kwargs["minimum_free_bytes"], 0 if waiver else 8 * 1024**3)
                 self.assertLessEqual(kwargs["timeout_seconds"], 900)
                 self.assertEqual(kwargs["parent_pid"], os.getppid())
-                embedder.assert_called_once_with("http://127.0.0.1:8790/v1",
-                                                 "text-embedding-3-small")
+                embedder.assert_called_once_with()
                 receipt = json.loads((output / "acceptance.json").read_text())
                 self.assertEqual(receipt["ramFloorPolicy"]["waived"], waiver is not None)
                 self.assertEqual(receipt["ramFloorPolicy"]["waiverReason"], waiver)
@@ -156,7 +155,7 @@ class AdmissionTests(unittest.TestCase):
                        patch("bounded_index.git_head", return_value="synthetic-head"),
                        patch("bounded_index.state_commit", return_value="synthetic-head"),
                        patch("bounded_index.source_fence", return_value={"sha256": "same"}),
-                       patch("bounded_index.configure_local_embedder")]
+                       patch("bounded_index.configure_remote_embedder")]
             if stage == "run":
                 patches += [patch("bounded_index.validate_paths"),
                             patch("bounded_index.require_editor_files_opt_out"),
