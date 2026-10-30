@@ -161,7 +161,10 @@ foreach ($name in @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-o
     Copy-Item -LiteralPath $from -Destination (Join-Path $sharedTools $name) -Force
 }
 Copy-Item -LiteralPath (Join-Path $packageKit 'screencast\campaign-contract.mjs') -Destination (Join-Path $sharedTools 'campaign-contract.mjs') -Force
-foreach ($name in @('Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Generate-OwnerVoice.ps1', 'ReGate-OwnerVoice.ps1', 'OwnerVoice-TakeReuse.ps1', 'Test-SpeechIntegrity.ps1')) {
+# Finishing helpers and the ffmpeg speech-integrity gate. Narration is hosted (governed Azure/ElevenLabs adapters); the
+# retired local owner-voice generator, re-gate and take-reuse scripts are no longer deployed.
+$mediaHelpers = @('Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Test-SpeechIntegrity.ps1')
+foreach ($name in $mediaHelpers) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $sharedTools $name) -Force
 }
 # Skills cite these by name from the deployed shared tools: the visual-quality inspector (media-studio-qa, the story
@@ -183,6 +186,13 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\RELEASE-EVIDENCE.md') -Desti
 # product-screencast; the receipt requirement already rejects its output, and the file is removed from the kit.
 $stills = Join-Path $sharedTools 'animate-stills.mjs'
 if (Test-Path -LiteralPath $stills) { Remove-Item -LiteralPath $stills -Force; Write-Host "Removed $stills (stills animation is not product footage)" }
+# Local AI is retired (owner direction 2026-10-29): the owner-voice generator, re-gate and take-reuse helpers started a
+# local TTS/ASR runtime. Earlier syncs deployed them here; their source lives on in git history, so the deployed copies
+# are retired rather than reported as unmanaged.
+foreach ($retired in @('Generate-OwnerVoice.ps1', 'ReGate-OwnerVoice.ps1', 'OwnerVoice-TakeReuse.ps1')) {
+    $retiredPath = Join-Path $sharedTools $retired
+    if (Test-Path -LiteralPath $retiredPath) { Remove-Item -LiteralPath $retiredPath -Force; Write-Host "Removed $retiredPath (local AI runtime is retired)" }
+}
 
 
 # Optional screenplay lint (not a craft pass). Product-screencast still needs product-picture.
@@ -199,9 +209,9 @@ if (Test-Path -LiteralPath $gate) {
 # The deploy list above is the whole managed content of _shared\tools. Anything else there is a one-off script,
 # backup or working copy that belongs in its job folder. It is reported, never deleted: an unmatched file may be the
 # only copy, so the move is a reviewed step (global policy: delete nothing unmatched), not a sync side effect.
-$managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs',
-    'Finish-Media.ps1', 'Finish-BriefingStems.ps1', 'Generate-OwnerVoice.ps1', 'ReGate-OwnerVoice.ps1', 'OwnerVoice-TakeReuse.ps1', 'Test-SpeechIntegrity.ps1',
-    'Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs', 'demo-stack.mjs', 'plugin.json', 'RELEASE-EVIDENCE.md', 'write-story-review.py',
+$managedTools = @($gateScripts) + @('compose-screencast.mjs', 'campaign-contract.mjs', 'render-overlay.mjs', 'render-code.mjs', 'render-html.mjs', 'render-card.mjs', 'record-job.mjs', 'record-lib.mjs', 'sync-lib.mjs') +
+    @($mediaHelpers) +
+    @('Inspect-MediaVisualQuality.ps1', 'scaffold-video-workspace.mjs', 'demo-stack.mjs', 'plugin.json', 'RELEASE-EVIDENCE.md', 'write-story-review.py',
     'node_modules')  # node_modules is the capture-lib dependency link the screencast tools resolve from, not a script
 $unmanaged = @(Get-ChildItem -LiteralPath $sharedTools -Force | Where-Object { $_.Name -notin $managedTools } | ForEach-Object Name)
 if ($unmanaged.Count -gt 0) {

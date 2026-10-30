@@ -2,7 +2,7 @@
 
 Step 3 of the crew in `SKILL.md`. Art direction for the job. You do not generate TTS, compose the program, or invent product UI.
 
-Read with this step: `engagement.md` and `scene-archetypes.md`. Local images: `ai.ps1 image` / Visual Bank (`local-ai-stack` `references/image.md`). Exact logos and legal text are compositor type.
+Read with this step: `engagement.md` and `scene-archetypes.md`. Generated stills: accepted plates first, else Azure `gpt-image-2.5-flare` (`media-studio-generate` §4). Exact logos and legal text are compositor type.
 
 Screencast visual contract (kind `product-screencast`): `Visual-Asset-Guide.md` plus `product-picture.md`. Product UI is captured video, not a bible still.
 

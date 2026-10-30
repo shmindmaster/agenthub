@@ -96,15 +96,23 @@
     "durationSeconds": { "type": "number", "minimum": 1 },
     "voice": {
       "type": "string",
-      "description": "Local-AI voice library id (sarosh, role-*, narrator-*). Never a cloud speaker for owner voice."
+      "description": "Program narrator voice: an Azure Speech voice name from the media-studio-generate voice cast (for example en-US-AriaNeural or en-US-Ava:DragonHDLatestNeural). No Sarosh voice clone in films. Historical jobs may carry a retired local voice id (sarosh, role-*, narrator-*); they stay read-only evidence."
     },
     "workspace": {
       "type": "string",
-      "description": "Absolute path under %LOCALAPPDATA%\\AgentHub\\media-studio or D:\\Local-AI\\data\\artifacts. Never a product repo."
+      "description": "Absolute path under %LOCALAPPDATA%\\AgentHub\\media-studio or MEDIA_STUDIO_ROOT (default D:\\Media-Studio). Never a product repo."
     },
     "repositoryWritePolicy": {
       "const": "read-only",
       "description": "Media workflows may inspect a source repository but never create, edit, delete, stage, or commit files there."
+    },
+    "clockPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowAsrAnchored": { "type": "boolean", "description": "Accept the hosted cloud-ai.mjs align report (method asr-anchored-alignment) as the picture word clock. Without it the gates refuse that report; the sync gate still requires at least 90% exact onsets." }
+      },
+      "description": "Word-clock acceptance policy read by build-cue-sheet.mjs, the sync gates and mvg."
     },
     "sourceRepository": {
       "type": "string",
@@ -126,7 +134,7 @@
     "intent": {
       "type": "string",
       "enum": ["draft", "viewer-facing"],
-      "description": "viewer-facing (default) applies references/engagement.md. draft skips GPU plates but still writes for the ear."
+      "description": "viewer-facing (default) applies references/engagement.md. draft skips generated plates but still writes for the ear."
     },
     "emotionalTarget": {
       "type": "string",

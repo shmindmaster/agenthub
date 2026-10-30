@@ -42,7 +42,7 @@ Do not cut start → result. Keep the states that cause the outcome (hover, menu
 - **Operate.** Pointer lead → hover → click → native response. Recast owns cursor/ripple/punch-in. Native loading/toast is the proof. Every shot establishes context, shows an action, exposes config, shows system behavior, or proves an outcome — else cut it.
 - **Frame.** Wide to establish → punch-in on the control → hold through the response → pull back when context is needed. One snap-to-region per beat. Readable labels and results; dense UI is a zoom.
 - **One session.** Same user, workspace, selections, and data unless the flow changes them. Setup and runtime: configure → save → initiate → execute → response → result.
-- **Sync.** Picture matches the current sentence. Name the result after it appears. Holds cover the wait; Local-AI speaks the locked script and does not rewrite it.
+- **Sync.** Picture matches the current sentence. Name the result after it appears. Holds cover the wait; the voice speaks the locked script and does not rewrite it.
 
 Scene: `context → correct screen → control → action → visible response → hold on the change → next`.
 
@@ -78,7 +78,7 @@ Missing `visualMode` on a `product-screencast` beat **defaults to `screen`**, no
 - `validate-encoded-picture.mjs` on the candidate: dead screen > 6 s in a screen beat fails; a segment whose frames do not come from the receipt-bound clip fails.
 - `Inspect-MediaVisualQuality.ps1` flags `ken-burns-on-still` (tiny grayscale hash frozen while full-frame hashes change).
 - The story-experience review (`media-studio-qa`) refuses a `kind: product-screencast` without the encoded candidate (`MALFORMED_INPUT`). Story review runs on the **encoded** file only. A pre-capture text score is not a craft pass.
-- Motif / image-to-video of a product screenshot is refused (`local-ai-stack` `references/video.md`).
+- Motif / image-to-video of a product screenshot is refused (`media-studio-generate` §4).
 - Card / `slide` / `diagram` beats on a `product-screencast` are each ≤8s.
 - Recast (`playwright-recast@0.21.0`, declared in `kit/package.json`) is required pointer finishing (`policy/product-video-policy.json` `pointerFinishing`). If its ffmpeg render fails on a long many-click clip, `record-job.mjs` retries without `autoZoom`, then records `recast: fallback`; the validator accepts a fallback only when `job.json` says `recastFallbackAllowed: true` with a reason. Split the take instead.
 

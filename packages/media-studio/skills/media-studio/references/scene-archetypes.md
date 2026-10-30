@@ -35,13 +35,13 @@ Cast for stakeholder Q&A cards (Remotion 1600×1000). Technical-story films whos
 
 | `speaker` | Voice | On-screen card |
 | --- | --- | --- |
-| omit / `sarosh` | Owner clone (`qwen-clone`) | Host narration — normal answer / diagram slide |
-| `ryan` | `qwen-role` Ryan | Question card: **RYAN** · Engineering skeptic + short Q |
-| `vivian` | `qwen-role` Vivian | Question card: **VIVIAN** · Product · CSM + short Q |
-| `aiden` | `qwen-role` Aiden | Question card: **AIDEN** · Ops · Audience + short Q |
+| omit / `sarosh` | Host narrator: the job's Azure cast voice (no Sarosh voice clone in films) | Host narration — normal answer / diagram slide |
+| `ryan` | Distinct Azure cast voice | Question card: **RYAN** · Engineering skeptic + short Q |
+| `vivian` | Distinct Azure cast voice | Question card: **VIVIAN** · Product · CSM + short Q |
+| `aiden` | Distinct Azure cast voice | Question card: **AIDEN** · Ops · Audience + short Q |
 | `joel` | legacy → Ryan role | Same family as Ryan (kept for older scene JSON) |
 
-Target mix: Sarosh ~70–80% of lines; stakeholders ask short questions between host answers.
+Target mix: host ~70–80% of lines; stakeholders ask short questions between host answers.
 
 Scene JSON fields for a Q card:
 

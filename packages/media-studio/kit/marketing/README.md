@@ -3,7 +3,7 @@
 One ad spec file in, gated 16:9 / 4:5 / 9:16 ads out. Source of truth: this folder. The runtime copy is
 `%LOCALAPPDATA%\AgentHub\media-studio\briefing-kit\marketing` (replaced, never merged, by
 `scripts\Sync-MediaStudioKit.ps1`). Product-specific data (brand tokens, claim ledger, specs, job folders) lives in the
-external media workspace, for ABACare `D:\Local-AI\data\artifacts\media-studio\abacare-marketing\`; product repositories are
+external media workspace under `MEDIA_STUDIO_ROOT` (default `D:\Media-Studio`), for ABACare `<MEDIA_STUDIO_ROOT>\abacare-marketing\`; product repositories are
 read-only inputs.
 
 ```powershell
@@ -13,7 +13,7 @@ node mvg.mjs <spec> --dry-run                 # plan, planned spend, no provider
 node mvg.mjs <spec> --stage capture --hosted-only --whisper-timing # explicit hosted fallback; no render
 node mvg.mjs <spec> --stage timing --whisper-timing # explicit fallback only when no forced aligner is available
 node mvg.mjs <spec> --stage compose --candidate-id cut-01 --no-line-chips
-node mvg.mjs <spec> --stage qa --candidate-id cut-01 --local-gates # never composes
+node mvg.mjs <spec> --stage qa --candidate-id cut-01 # never composes
 node mvg.mjs <spec> --stage deliver --candidate-id cut-01
 ```
 
@@ -24,28 +24,31 @@ Compose reserves `compose/candidates/<id>` exclusively, even with `--force`. Rec
 QA and delivery require that ID and its compose receipt. To gate an existing file without writing source evidence:
 
 ```powershell
-node mvg.mjs <spec> --stage qa --candidate-id retained-01 --candidate <ad.mp4> --candidate-sha256 <sha256> --compose-dir <original-build-dir> --ratio 9x16 --qa-dir D:\Local-AI\data\artifacts\media\qa-retained-01 --local-gates
+node mvg.mjs <spec> --stage qa --candidate-id retained-01 --candidate <ad.mp4> --candidate-sha256 <sha256> --compose-dir <original-build-dir> --ratio 9x16 --qa-dir <MEDIA_STUDIO_ROOT>\qa\qa-retained-01
 ```
 
-Read-only external QA is local-only: paid vision is refused before a provider call because its cumulative spend ledger
-would write the source workspace. Explicit paid fallback remains available for normal receipt-bound candidate QA.
-The QA directory must be outside the source job. Local-AI alignment outputs must be under its declared media artifact
-root (`D:\Local-AI\data\artifacts\media` on the reference host). No copying to the delivery library occurs in QA.
+Read-only external QA makes no paid call: paid vision is refused before a provider call because its cumulative spend
+ledger would write the source workspace, so its vision gate stays pending. Explicit paid fallback remains available for
+normal receipt-bound candidate QA. The QA directory must be outside the source job; alignment outputs stay inside it.
+No copying to the delivery library occurs in QA.
 `--no-line-chips`, `--no-captions`, or `render: { "lineChips": false }` disables burned caption chips, retaining the SRT.
-Vision defaults to the enabled existing Local-AI vision model. It never starts a service or downloads weights.
-Unavailable/retired local vision fails closed; paid OpenAI requires `--vision-provider openai` or explicit
+Local AI is off (owner direction 2026-10-29): there is no local vision model, and the `local` vision default fails
+closed (the gate stays pending). Vision QA uses paid OpenAI through `--vision-provider openai` or explicit
 `brand.vision.provider: "openai"` and the normal budget ledger.
 
 QA containment resolves symlinks/junctions, even for a new output directory. Its receipt binds the sidecar SRT hash
 as well as the MP4; changed or missing subtitles block delivery. An unencoded prepared candidate writes pending gates.
 Isolated compose/QA/delivery dry runs are rejected; use `--stage capture --dry-run` for lint and planned-spend checks.
 
-Timing aligns each accepted narration take to its authored text with `ai.ps1 align`; its take/script-bound 80 ms-grid
-reports remain under the existing `timing\<cut>\asr` receipt paths and drive timelines, captions and action trims.
-`--whisper-timing` is the explicit compatibility fallback for a job without an aligner, including an existing 2.0.4 or
-2.0.5 timeline; compose otherwise refuses a non-aligned clock. Local QA independently aligns the exact encoded candidate.
-Whisper checks transcript text there and never supplies the default timing clock. The 80 ms output grid is not a claim
-of 40 ms acoustic accuracy. This is not the proposed 2.1 pixel/render sync audit.
+Timing aligns each accepted narration take to its authored text with the forced-aligner provider. Local AI is off: the
+local aligner is retired and the default refuses, naming the hosted route (`kit/cloud/cloud-ai.mjs align`, an
+ASR-anchored report that clocks the picture only where `job.json` sets `clockPolicy.allowAsrAnchored: true`).
+Take/script-bound reports already on disk under the existing `timing\<cut>\asr` receipt paths are reused and still drive
+timelines, captions and action trims. `--whisper-timing` is the explicit hosted compatibility fallback (OpenAI
+`whisper-1`) for a job without an aligner, including an existing 2.0.4 or 2.0.5 timeline; compose otherwise refuses a
+non-aligned clock. QA independently aligns the exact encoded candidate only when an aligner is provided; otherwise the
+sync, word-sync and transcript gates stay pending. A transcript checks text and never supplies the default timing clock.
+The 80 ms output grid is not a claim of 40 ms acoustic accuracy. This is not the proposed 2.1 pixel/render sync audit.
 
 ### Migrating a 2.0.4 runner or retained encode
 
@@ -62,7 +65,7 @@ not retime them. The separate production timing-stage follow-up is not part of t
 | --- | --- |
 | `id`, `title`, `product`, `audience`, `objective`, `concept` | Identity. `title` becomes the delivered file name. |
 | `ratios`, `targetSeconds`, `beats` **or** `cuts[]` | One cut, or several cuts of the same ad with their own length and script (e.g. a 20 s `main` for 16x9 + 4x5 and a 12 s `vertical` for 9x16). A ratio belongs to exactly one cut. |
-| `voice` | `provider` `elevenlabs` / `openai` / `local`, `voiceId`, `model`, `settings` (ElevenLabs `voice_settings` + `apply_text_normalization`; `eleven_v4` takes only `stability` and `similarity_boost`), `instructions` (OpenAI), `stitching` (previous_text / next_text), `pronunciationDictionaries`, `disclosure`. |
+| `voice` | `provider` `elevenlabs` / `openai` (`local` is retired: Local AI is off and it refuses), `voiceId`, `model`, `settings` (ElevenLabs `voice_settings` + `apply_text_normalization`; `eleven_v4` takes only `stability` and `similarity_boost`), `instructions` (OpenAI), `stitching` (previous_text / next_text), `pronunciationDictionaries`, `disclosure`. |
 | `music` | `provider` `elevenlabs` / `none`, `prompt` (instrumental, never naming artists), `licenseBasis` (required), `bedDb` (default -24), `lengthSeconds` (optional, >= 3). By default the bed is the longest cut plus 2 s, so every job of a different length buys a new track; `lengthSeconds` fixes it, so jobs with the same prompt, model and length make an identical request and reuse one track in the governed adapter. It must be at least the longest cut plus 2 s (lint checks it against the target, the assets stage against the measured timeline); the mix trims the bed to the program (`atrim`) and fades it out inside it, so a longer bed never lengthens the film. |
 | `beats[]` | `id`, `kind` `ui` / `broll` / `card` / `title`, `narration`, `onScreenText`, `emphasis[]`, `claims[]`, `minSeconds`, `ui {sourceJob, clipId, trimStart, trimEnd, focus[], actions[], freshness, record}`, `broll {provider, prompt}`, `sfx[] {cue, prompt, durationSeconds}`. A final `card` beat is the CTA end card. |
 | `claims[]` | `id`, `text`, `phrases[]` (exact substrings of narration/on-screen text it substantiates), `kind`, `evidence`: `file:<path>[:line]`, `clip:<sourceJob>#<clipId>@<t0>-<t1>` (checked against the capture receipt) or `approved:<source>`. |
@@ -87,12 +90,12 @@ loudness targets, the vision and image models, the timing provider, the demo URL
 | # | Stage | What it does | Spend |
 | --- | --- | --- | --- |
 | 1 | `lint` | Schema, claims and evidence, narration/on-screen coverage, figures, banned phrases, forbidden names, people/children b-roll, voice and music policy, label, clip validity, length estimate, planned spend vs caps. Fails closed before any paid call. | none |
-| 2 | `voice` | One line per narrated beat. ElevenLabs REST through the governed adapter (request stitching, versioned pronunciation dictionary, text normalization), OpenAI `gpt-4o-mini-tts` with `instructions`, or local Qwen (`ai.ps1 voice qwen-role`). Keyed by (text, voice, model, settings, neighbors). | ElevenLabs credits / OpenAI USD |
-| 3 | `timing` | Forced alignment of each accepted take and authored line, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. `--whisper-timing` explicitly selects the configured Whisper fallback. Fails if a cut runs more than 1.5 s over target. | local; fallback whisper-1 ~$0.006/min |
+| 2 | `voice` | One line per narrated beat. ElevenLabs REST through the governed adapter (request stitching, versioned pronunciation dictionary, text normalization) or OpenAI `gpt-4o-mini-tts` with `instructions` (the retired `local` provider refuses). Keyed by (text, voice, model, settings, neighbors). | ElevenLabs credits / OpenAI USD |
+| 3 | `timing` | Forced alignment of each accepted take and authored line, the voice-first timeline (scene = narration span + 0.35 s lead + 0.45 s tail), 4-7 word caption chunks, an SRT; with `edit.beatGrid`, scene boundaries are then held to the bed's beats. `--whisper-timing` explicitly selects the configured Whisper fallback. Fails if a cut runs more than 1.5 s over target. | aligner provider; fallback whisper-1 ~$0.006/min |
 | 4 | `assets` | ElevenLabs sound effects and one ducked music bed (governed ledger), OpenAI `gpt-image` abstract stills, ElevenLabs video only if the API exposes it (it does not: recorded as skipped with the reason). Every generated asset is `aiGenerated: true` in `assets\manifest.json`. | credits / USD |
 | 5 | `capture` | Reuses a receipt-bound clip (sha256 re-checked against its capture receipt) or records it with `record-job.mjs` (`ui.record` plus `--allow-capture`). | none |
 | 6 | `compose` | Per ratio: layout, focus-follow camera, captions, compose map, FFmpeg mix plan, Remotion render of the `MarketingAd` composition (picture only), audio mix with the bed ducked under the voice, two-pass loudnorm (-14 LUFS social, -16 web) and the encode. `--prepare-only` writes `props.json`, `compose-map.json`, `mix-plan.json` and `render-command.json` and stops. | none (local CPU) |
-| 7 | `qa` | Selects a named, hash-verified candidate without composing: picture, captions, loudness, forced word-sync, independent Whisper transcript, sync and listen (`--local-gates`), local vision, marketing, story and viewer-release. Missing checks stay pending. | local; explicit `--vision-provider openai` is paid |
+| 7 | `qa` | Selects a named, hash-verified candidate without composing: picture, captions, loudness, sync, forced word-sync and independent transcript (only with a provided aligner and encoded transcript), listen (no runner: pending), vision, marketing, story and viewer-release. Missing checks stay pending. | explicit `--vision-provider openai` is paid |
 | 8 | `deliver` | Verifies the named candidate and every required gate's SHA, then copies MP4/SRT and updates the library index. Candidate evidence is retained. | none |
 
 The film number `NN` is computed at deliver time: one above every number used by a file, a README row or heading, or the
@@ -134,7 +137,7 @@ words match: "twelve" finds "12"), so `ui.trimStart` is only a fallback; the bea
 1.6 s after the last narrated action. The compose map records the timeline word clock, timing receipt hash, trim source,
 and matched action/word anchor; unmatched-action fallback warnings are also persisted. Every other receipt action inside the beat's window is written to the cue plan as
 `narrated: false`. Caption cues are held or started earlier into the surrounding gaps so none exceeds 18 characters per second.
-A capture expectation ("the product responded") stands as a beat's result only if it is visible inside the beat and holds >= 1.5 s; one up to 0.5 s short lengthens the beat, any other is left out of the cue plan (so it is never stamped after the beat). The per-line ASR copy in the gate workspace is shifted by the lead-in so keyword times match where each line is placed. Vision frames are sampled at least 0.25 s from a caption cue start or end. A reviewer may add `qa/<ratio>/vision-arbitration.json` `{candidateSha256, reviewer, items:[{frame, category, verdict:"false-positive", reason}]}`; it counts only when it names the current candidate hash, is recorded in `gates.json`, and is never written by mvg. The listen gate follows the film chain: `releaseEligible` is the pass signal and any finding, a WARNING included, fails it.
+A capture expectation ("the product responded") stands as a beat's result only if it is visible inside the beat and holds >= 1.5 s; one up to 0.5 s short lengthens the beat, any other is left out of the cue plan (so it is never stamped after the beat). The per-line ASR copy in the gate workspace is shifted by the lead-in so keyword times match where each line is placed. Vision frames are sampled at least 0.25 s from a caption cue start or end. A reviewer may add `qa/<ratio>/vision-arbitration.json` `{candidateSha256, reviewer, items:[{frame, category, verdict:"false-positive", reason}]}`; it counts only when it names the current candidate hash, is recorded in `gates.json`, and is never written by mvg. The listen gate has no runner while Local AI is off, so it stays pending (see QA gates).
 A focus window magnified by a Recast punch-in (`sourceZoom`) gets a wider crop so the total magnification stays at or under
 3x; any magnification of recorded pixels then still fails the integrity check unless the recording was made at device scale.
 
@@ -172,16 +175,16 @@ narration that spends words on the demo data or on the film itself (`synthetic`,
 | --- | --- | --- |
 | `picture` | `lib/picture-gate.mjs`: UI band binds to the receipt-bound clip (dHash <= 12), no dead screen > 6 s, UI >= 70% of the cut, designed first/last frame | ffmpeg |
 | `integrity` | `validate-picture-integrity.mjs <ws> <candidate> --compose-map <ws compose map> --out <ws>/qa/picture-integrity.json` (media-studio 2.0.0): every product clip at its native scale (no upscale, stretch, bars or undeclared crop or zoom), and a 4:5 / 9:16 cut recorded at its own frame. The ws `job.json` carries `deliveryProfile` and `captureViewports` (`4:5` 1080x1350, `9:16` 1080x1920; 16:9 is unconstrained); an authored `ui.focus[].declaredZoom` is declared in `story/cue-plan.json`, nothing else is. Pass or fail is the script's exit code and report | ffmpeg |
-| `pointer` | `validate-pointer-path.mjs <ws> --out <ws>/qa/pointer-path.json` on the ws `capture/receipt.json`, which carries each used clip's full action log. With `--local-gates` the freshly built mapped `plan/cue-sheet.json` is passed, so only the footage on screen is judged per beat; without it the whole clips are judged and the detail says so | none (more exact with `--local-gates`) |
-| `frameIntegrity` | `validate-frame-integrity.mjs <ws> <candidate> --out <ws>/qa/frame-integrity.json`: no tiled frame (the picture repeated in two halves) and no luma jump that is not a declared cut. Declared cuts come from the mapped `plan/cue-sheet.json` that `--local-gates` builds, else from mvg's own compose map (the cuts the edit plans), so a hard cut from a light title to dark UI is declared and a flash anywhere else fails. `validate-viewer-release` reads the report from the workspace `qa/` | ffmpeg |
+| `pointer` | `validate-pointer-path.mjs <ws> --out <ws>/qa/pointer-path.json` on the ws `capture/receipt.json`, which carries each used clip's full action log. When the sync gate ran, its freshly built mapped `plan/cue-sheet.json` is passed, so only the footage on screen is judged per beat; without it the whole clips are judged and the detail says so | none (more exact when the sync gate ran) |
+| `frameIntegrity` | `validate-frame-integrity.mjs <ws> <candidate> --out <ws>/qa/frame-integrity.json`: no tiled frame (the picture repeated in two halves) and no luma jump that is not a declared cut. Declared cuts come from the mapped `plan/cue-sheet.json` that the sync gate builds, else from mvg's own compose map (the cuts the edit plans), so a hard cut from a light title to dark UI is declared and a flash anywhere else fails. `validate-viewer-release` reads the report from the workspace `qa/` | ffmpeg |
 | `marketing` | `validate-marketing-readiness.mjs <ws> <candidate> --readiness <ws>/qa/marketing-readiness.json` (the ws `job.json` says `marketing: true`; `programForm` stays `outcome-workflow`). A reviewer writes `qa/<ratio>/marketing-readiness.json` (`skills/media-studio/references/marketing-readiness.md`, `candidate.sha256` and `bytes` of this exact `ad.mp4`); mvg never writes it, copies it into the ws only when it names this candidate, and reports `pending` (not fail) when it is absent or bound to another render. The floor includes the no-fluff rule, so mvg runs `validate-narration.mjs` on the ws first (`qa/narration-check.json`) | an agent review |
 | `captions` | 4-7 words per cue, <= 2 lines of 42 characters, <= 20 characters per second, ordered | none |
 | `loudness` | ffmpeg `loudnorm` on the exact file, within 1 LU of the target, true peak <= -1 dBTP | ffmpeg |
-| `sync` | `build-cue-sheet.mjs` + `validate-sync.mjs` using forced-alignment word timings, never Whisper onsets | `--local-gates` (GPU) |
-| `wordSync` | Forced alignment bound to the exact encoded candidate and locked script, retaining the raw 80 ms grid and canonical 40 ms sync tolerance | `--local-gates` (GPU) |
-| `transcript` | Independent Whisper text compared with the locked script; numeric values preserved, onsets discarded | `--local-gates` (GPU) |
-| `listen` | `ai.ps1 listen` Local-AI gate. It refuses a speech review without a pronunciation-risk manifest, so mvg first runs `ai.ps1 voice pronunciation-risk` on `story/narration-segments.json` and passes `--pronunciation-manifest` and `--timeline` (`qa/listen-timeline.json`); the exit code and tail of the log are in the gate detail | `--local-gates` (GPU) |
-| `vision` | `vision-qa.mjs`: a frame every 1.5 s to existing local vision by default, with a rubric (overlay typos, unreadable text at phone size, banned claims, prospect names, missing label, captions over the focal point, people/children, fabricated UI); any high finding or a missing label fails. Explicit paid OpenAI requires the governed ledger through `mvg --stage qa`; standalone paid CLI calls are refused | existing local vision; paid OpenAI is explicit opt-in |
+| `sync` | `build-cue-sheet.mjs` + `validate-sync.mjs` using aligned word timings, never transcript onsets | a provided aligner (hosted: `cloud-ai.mjs align` with the `clockPolicy` opt-in); pending otherwise |
+| `wordSync` | Alignment bound to the exact encoded candidate and locked script, retaining the raw 80 ms grid and canonical 40 ms sync tolerance | a provided aligner; pending otherwise |
+| `transcript` | Independent transcript text compared with the locked script; numeric values preserved, onsets discarded | a provided encoded transcript; pending otherwise |
+| `listen` | Retired with Local AI (owner direction 2026-10-29). mvg has no hosted listen runner, so the gate stays `pending` and `deliver` refuses a ratio that requires it | no runner |
+| `vision` | `vision-qa.mjs`: a frame every 1.5 s to the vision model, with a rubric (overlay typos, unreadable text at phone size, banned claims, prospect names, missing label, captions over the focal point, people/children, fabricated UI); any high finding or a missing label fails. Explicit paid OpenAI requires the governed ledger through `mvg --stage qa`; standalone paid CLI calls are refused. The `local` default fails closed (Local AI is off) | paid OpenAI, explicit opt-in |
 | `story` | `media-studio-qa` story-experience review score >= `qa.storyMin` (85) recorded in `qa/<ratio>/reviews.json` `storyReview` with a reviewer and `cta: true` | an agent review |
 | `viewerRelease` | `validate-viewer-release.mjs` on the gate workspace in `qa/<ratio>/ws`, from `reviews.json` PASS entries (`encodedVisualReview`, `titleReview`, `actionResultReview`, `storyReview`, `pronunciation`) bound to the candidate | the reviews above |
 
@@ -211,4 +214,4 @@ narration that spends words on the demo data or on the film itself (`synthetic`,
   sharpest vertical cut.
 - Vision models miss small text; the vision gate is evidence, not the final read. Watch and listen to every encoded file.
 - ElevenLabs `eleven_v4` ignores style and speed, so pacing comes from punctuation, the script and `stitching`.
-- Pronunciation: the ABACare dictionary (`ABACare` to "A B A Care") is attached; the listen gate confirms it.
+- Pronunciation: the ABACare dictionary (`ABACare` to "A B A Care") is attached; the transcript gate confirms it.

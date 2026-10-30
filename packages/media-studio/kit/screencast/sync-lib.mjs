@@ -49,8 +49,8 @@ export function spreadWords(text, start, end) {
 }
 
 /**
- * Words from one local-ASR payload. Accepts the faster-whisper payload `ai.ps1 transcribe --engine whisper --json-out`
- * writes ({ segments:[{ start, end, text, words:[{ start, end, word }] }] }), a flat { words:[{ word|w|text, start, end }] },
+ * Words from one ASR payload. Accepts the faster-whisper payload shape (historical receipts from the retired Local-AI
+ * transcriber: { segments:[{ start, end, text, words:[{ start, end, word }] }] }), a flat { words:[{ word|w|text, start, end }] },
  * or a bare array of either. `offset` shifts per-segment audio onto the program timeline.
  * precision: 'word' (real word timestamps) | 'segment' (segment times only; words spread inside each segment) | 'none'.
  */
@@ -211,8 +211,9 @@ export function cloudAlignCoverage(words) {
 
 export function forcedWordOnsets(report, expected, { takeSha256, scriptSha256, allowAsrAnchored = false }) {
   if (report?.schema === CLOUD_ALIGN_SCHEMA && !allowAsrAnchored) throw new Error('cloud asr-anchored alignment is not forced alignment; it clocks the picture only where job.json sets clockPolicy.allowAsrAnchored: true');
+  // 'local-ai/forced-alignment/1' stays readable: accepted films carry those receipts, though nothing produces new ones.
   const forcedSchemas = ['local-ai/forced-alignment/1', CLOUD_ALIGN_SCHEMA];
-  if (!forcedSchemas.includes(report?.schema) || report.units !== 'seconds' || report.gridSeconds !== 0.08) throw new Error('requires Local-AI forced alignment (or an opted-in cloud asr-anchored alignment) in seconds on the 80 ms grid');
+  if (!forcedSchemas.includes(report?.schema) || report.units !== 'seconds' || report.gridSeconds !== 0.08) throw new Error('requires a forced-alignment receipt (historical local-ai/forced-alignment/1) or an opted-in cloud asr-anchored alignment, in seconds on the 80 ms grid');
   if (report.schema === CLOUD_ALIGN_SCHEMA && Array.isArray(report.words)) {
     const c = cloudAlignCoverage(report.words);
     if (c.exactRatio < CLOUD_ALIGN_LIMITS.minExactRatio || c.longestUnmatchedRun > CLOUD_ALIGN_LIMITS.maxUnmatchedRun) throw new Error(`cloud script alignment too loose for a picture clock: ${c.exact}/${c.total} exact onsets, longest precision-limited run ${c.longestUnmatchedRun}`);

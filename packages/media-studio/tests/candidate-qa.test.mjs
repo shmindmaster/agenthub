@@ -13,11 +13,10 @@ import { deliverStage } from '../kit/marketing/lib/stages/deliver.mjs';
 import { fileSha } from '../kit/marketing/lib/util.mjs';
 import { forcedWordOnsets, measureWordSync } from '../kit/screencast/sync-lib.mjs';
 import { runVisionQa } from '../kit/marketing/vision-qa.mjs';
-import { localVisionJson, visionEndpoint } from '../kit/marketing/lib/providers/local.mjs';
 import { loadContext } from '../kit/marketing/lib/context.mjs';
 import { planCost } from '../kit/marketing/lib/stages/lint.mjs';
 import { requiredGates } from '../kit/marketing/lib/gates.mjs';
-import { transcriptKey } from '../kit/marketing/lib/local-gates.mjs';
+import { transcriptKey } from '../kit/marketing/lib/gate-runners.mjs';
 
 const root = mkdtempSync(join(tmpdir(), 'candidate-qa-'));
 test.after(() => rmSync(root, { recursive: true, force: true }));
@@ -200,23 +199,11 @@ test('local vision is the default, costs zero and never silently falls back to p
   assert.equal(paid, 0);
   await assert.rejects(runVisionQa({ ...options, localVision: async () => ({ text: verdict([]) }) }), /every sampled frame/);
 });
-test('local vision refuses retired providers or remote endpoints before any network call', async () => {
-  let requests = 0;
-  await assert.rejects(localVisionJson({ frames: [] }, { discover: async () => ({ id: 'provider.local', status: 'retired' }), fetchImpl: async () => { requests++; } }), /retired/);
-  assert.equal(requests, 0);
-  for (const serves of ['https://example.com/v1', 'http://example.com/v1', 'http://user:pass@127.0.0.1/v1']) assert.throws(() => visionEndpoint({ id: 'provider.local', status: 'enabled', required_files: ['mmproj.gguf'], serves }), /loopback/);
-});
-test('local vision uses the registered model and one image per serial request', async () => {
-  const calls = [];
-  const result = await localVisionJson({ frames: [{ label: 'F1', t: 1, dataUrl: 'data:image/jpeg;base64,AAAA' }], system: 'QA', instructions: 'Review', schema: {}, schemaName: 'qa' }, {
-    discover: async () => ({ id: 'provider.local', status: 'enabled', required_files: ['mmproj.gguf'], serves: 'http://127.0.0.1:10000/v1' }),
-    fetchImpl: async (url, options) => {
-      calls.push({ url, options });
-      return { ok: true, json: async () => url.endsWith('/models') ? { data: [{ id: 'registered-vision' }] } : { choices: [{ message: { content: verdict([{ label: 'F1' }]) } }] } };
-    },
-  });
-  assert.equal(result.model, 'registered-vision');
-  assert.equal(calls.length, 2);
-  assert.equal(JSON.parse(calls[1].options.body).model, 'registered-vision');
-  assert.equal(calls[1].options.redirect, 'error');
+test('Local AI is off: the default local vision refuses before decoding a frame or charging anything', async () => {
+  let decoded = 0;
+  const ledger = { check() { throw new Error('local must not charge'); }, charge() { throw new Error('local must not charge'); } };
+  const options = { candidate: join(root, 'not-a-real-video'), spec, ratio: '9x16', duration: 2, ledger, frames() { decoded++; return []; } };
+  await assert.rejects(runVisionQa(options), /local vision: Local AI is off; use the hosted route \(kit\/cloud\/cloud-ai\.mjs align, Azure TTS\/STT\)/);
+  await assert.rejects(runVisionQa({ ...options, brand: { vision: { provider: 'local' } } }), /Local AI is off/);
+  assert.equal(decoded, 0);
 });

@@ -11,7 +11,7 @@ Evidence-led private briefings (a ledger plus captured/annotated screens): curat
 1. Writer (`writer.md`) locks `story/screenplay.json` (`story-craft.md`: sceneRole, WIIFM, hook, one hero).
 2. Storyboard (`storyboard.md`) locks `story/storyboard.json` (shot plan, archetype, sound, 2–3 scored hooks — pick internally).
 3. Visuals (`visuals.md`) locks `visual-bible.json`. Direction (`direction.md`) maps archetypes and registers.
-4. Generate owner voice through `ai.ps1 voice qwen-clone --voice sarosh` (identity is advisory only; never gate on it), generate the bed unless `intent: draft`. Render composition `Briefing` from the house kit (do not `create-video` a new app). Sync kit source from `packages/media-studio/kit` first.
+4. Generate narration through `media-studio-generate` (Azure cast voice per role, no Sarosh voice clone in films; identity is advisory only, never gate on it), supply the bed from an accepted asset unless `intent: draft`. Render composition `Briefing` from the house kit (do not `create-video` a new app). Sync kit source from `packages/media-studio/kit` first.
 5. `Finish-Media.ps1 -Speech -Music`. Craft critic (score ≥ 85) then QA. Exact logos, numbers, and legal text are compositor-set type, never diffusion.
 
 Remotion is required unless `intent: draft` or the user asked for a basic/proxy cut.
@@ -26,15 +26,15 @@ Comprehension (`story-craft.md` → "Explainer path") comes first. Wrap it in th
 
 ## talking-head
 
-Voice first, then lipsync. `ai.ps1 lipsync <video> --audio <wav>` (LatentSync 1.5). LivePortrait (`ai.ps1 portrait`) is specialty still-to-motion, not the default talking-head path. Face must stay visible; anime faces are out of scope for LatentSync. Viewer-facing: bed + register change on the payoff line.
+Voice first, then the Azure TTS avatar batch API (prebuilt avatar, `subtitleType: none`) renders a lip-synced presenter. Lipsync of real footage and still-to-motion portraits have no active route (Local AI is off). Viewer-facing: bed + register change on the payoff line.
 
 ## animation
 
-Still from Visual Bank / Klein → Motif I2V (`ai.ps1 motif --reference --prompt --out`). Programmatic UI motion → Remotion, not Motif. Exact diagrams → SVG/Mermaid, never diffusion.
+Accepted or Azure-generated still → Remotion motion (image-to-video has no active route while Local AI is off). Programmatic UI motion → Remotion. Exact diagrams → SVG/Mermaid, never diffusion.
 
 ## audio-only
 
-Voice and/or ACE-Step music. Do not start ComfyUI for music. Mix a bed under speech with `Finish-Media.ps1 -Speech -Music` (sidechain duck), then the same two-pass loudness finish. Silence on the key line.
+Voice and/or an accepted, licensed bed (cloud music disabled pending a metered adapter). Mix a bed under speech with `Finish-Media.ps1 -Speech -Music` (sidechain duck), then the same two-pass loudness finish. Silence on the key line.
 
 ## product-screencast
 

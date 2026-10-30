@@ -391,37 +391,25 @@ Quality tips: record in a quiet room with minimal echo; professional XLR mic; 7�
 
 **Never auto-clone a voice.** Owner consent is mandatory and the consent recording is the mechanism.
 
-This does not restrict the **owner's own local voice profile**, which is a
-consented, purpose-recorded capability rather than a clone of a third party. It
-is not produced here at all — see §5.8.
+The owner's own voice is not produced here at all — see §5.8.
 
-## 5.8 The owner's voice is local, not a provider choice
+## 5.8 No owner voice clone in films
 
-When the narration is the owner's own voice, no cloud provider is correct. They
-cannot produce that voice; they return a different speaker who merely sounds
-professional. The owner's speech also never leaves the machine.
-
-```powershell
-D:\Local-AI\ai.ps1 voice qwen-clone --voice sarosh --text "..." --out <segment.wav>
-```
-
-For viewer-facing jobs, use the deployed `Generate-OwnerVoice.ps1` in
-`%LOCALAPPDATA%\AgentHub\media-studio\_shared\tools` as directed by
-`media-studio-generate`. It handles Local-AI invocation, segment integrity,
-and pronunciation gates; speaker identity is advisory only. There is no `generate-narration.mjs`
-entry point in this package.
+Owner direction 2026-10-29: films cast a distinct, expressive Azure voice per
+scene and character, and never use a Sarosh voice clone. Local AI is off, so
+there is no local owner-voice route. Where the owner names his own voice for
+non-film work, load `sarosh-audio-voice`; `media-studio-generate` owns the
+provider routing and the integrity, ASR and pronunciation gates. There is no
+`generate-narration.mjs` entry point in this package.
 
 Speaker identity is **advisory only** (owner direction 2026-10-27: identity is
-advisory only; never fail, block or re-voice on speaker similarity). `ai.ps1 voice
-score --voice sarosh <file>` prints a similarity number for information; it never
-gates a take, a release or a regeneration, and a low number is never a reason to
-re-voice. The gates that fail a segment are real defects: clipping/level, dead
+advisory only; never fail, block or re-voice on speaker similarity). A similarity
+number is information only; it never gates a take, a release or a regeneration,
+and a low number is never a reason to re-voice. The gates that fail a segment are real defects: clipping/level, dead
 air, truncation, wrong words (ASR vs script), pace and loudness.
 
-Do not fix a mispronounced name by respelling it. Phonetic respelling of the
-input text was measured to move the similarity score on this speaker; the
-canonical text stays as written and pronunciation belongs in a dictionary layer
-applied at render time.
+Do not fix a mispronounced name by respelling it. The canonical text stays as written; pronunciation belongs in a lexicon or SSML
+layer applied in the synthesis input at render time, confirmed by the ASR check.
 
 Everything else in Part 5 — voice selection, `instructions` steering, the pinned
 `gpt-4o-mini-tts-2025-12-15` snapshot — continues to apply to every non-owner

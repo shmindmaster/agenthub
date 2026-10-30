@@ -1,5 +1,5 @@
 // Stage 2: voice. One file per narrated beat; ElevenLabs (governed ledger, request stitching), OpenAI
-// gpt-4o-mini-tts (instructions) or local Qwen (Local-AI) behind one interface. Cached by
+// gpt-4o-mini-tts (instructions) or an injected local voice (Local AI is off: the default refuses). Cached by
 // (text, voice, model, settings, neighbors), so an unchanged line never costs twice. A beat's `voiceTake` (1, 2, …) asks
 // for a fresh take of that one line (a new key and ledger revision) after a listen or review rejects the delivery.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -8,7 +8,7 @@ import { recordStage } from '../context.mjs';
 import { checkStage, stageKey, writeStage } from '../cache.mjs';
 import { normalizeCuts } from '../lint.mjs';
 import { estimateOpenAiSpeechUsd, estimateTtsCredits } from '../prices.mjs';
-import { fileSha, hashOf, writeJson } from '../util.mjs';
+import { fileSha, hashOf, localAiOff, writeJson } from '../util.mjs';
 
 export function lineKey(spec, text, prev, next, take = 0) {
   const v = spec.voice;
@@ -49,7 +49,7 @@ async function renderLine(ctx, { text, prev, next, out, key, take }) {
     return { receipt: { provider: 'openai', model: v.model, voice: v.voiceId, aiGenerated: true } };
   }
   if (v.provider === 'local') {
-    const local = P.localVoice || (await import('../providers/local.mjs')).qwenRole;
+    const local = P.localVoice || localAiOff('local voice');
     await local({ speaker: v.voiceId, instruction: v.instructions || '', text, out });
     return { receipt: { provider: 'local', speaker: v.voiceId } };
   }

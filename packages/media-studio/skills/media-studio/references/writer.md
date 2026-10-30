@@ -25,10 +25,10 @@ Synthetic data is a caption or end card: set `syntheticDisclosure: { mode: "capt
 2. **Hook and result in the first five seconds.** The first sentence fits five seconds (≤ 12 words at 150 wpm), says the payoff or the pain, and the promise is named inside those five seconds. No greeting, logo recap, agenda, or nav tour.
 3. Dramatic spine from `story-craft.md`. Exactly one `heroMoment: true`. Outcome-workflow / AI forms: pain → task → system acts → human reviews → result.
 4. Default truth `FACT` when the source is given; tag `DRAMATIZED` / `COMPOSITE` only when you heighten or merge.
-5. Owner-voice scripts stay canonical. Pronunciation is a Local-AI dictionary layer at render time — never respell.
+5. Owner-voice scripts stay canonical. Pronunciation is a lexicon/SSML layer in the synthesis input at render time — never respell the script.
 6. Do not invent metrics, customer names, or product behavior. Unsourced numbers are omitted, not guessed.
 7. On `product-screencast`, default `visualMode: screen` (`product-picture.md`). Write the causal chain as scenes; fill `uiProof` on every product claim. Do not jump start → payoff.
-8. Do not narrate chrome. Name the result after it appears. If VO names a config or integration, a scene must show it. Local-AI speaks this locked text. A line names only what the cursor will move to (`cursor-flow.md`): one target per beat.
+8. Do not narrate chrome. Name the result after it appears. If VO names a config or integration, a scene must show it. The voice speaks this locked text. A line names only what the cursor will move to (`cursor-flow.md`): one target per beat.
 9. Technical stories: the hook is the problem, not the UI. Every code, log, or diagram beat says what happened, why, and the consequence — then the human consequence (a customer waiting, a bill, an agent who cannot act). Code beats follow product behavior → question → code → explanation → product result. The story is what the change does for the user, never a changelog.
 
 Prefer:

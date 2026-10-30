@@ -1,5 +1,7 @@
 # Retained queue Qwen forced-alignment clock
 
+**Historical read-only evidence.** Local AI is off (owner direction 2026-10-29): no new queue or H100 alignment job can be produced. This clock only re-verifies receipts retained for already accepted films; a new film uses the hosted ASR-anchored clock under `clockPolicy.allowAsrAnchored` (`../SKILL.md` step 2b).
+
 `qa/queue-qwen-alignment.json` explicitly selects `media-studio/queue-qwen-forced-alignment/1` in the native word/sync gates. This imports existing `asr.align` output without inference. It is never `local-ai/forced-alignment/1`, hosted ElevenLabs, or ASR-anchored alignment.
 
 The manifest requires `units: seconds`, `gridSeconds: 0.08` (historical strict grid) or explicit `gridSeconds: null` (unmodified emitted model times; global grid unknown), `uncertaintySeconds: null`, `transform: identity-decoded-pcm`, and the complete decoded `durationSeconds`. Immutable `{path, sha256}` references are `candidate`, `script`, `sourceAudio`, `raw`, `job`, `submission`, `receipt`, `segments`, and `engineSource`. Keep the job beside its original relative audio upload tree. `submission` is the retained input binding containing `decodedAudioSha256` and `scriptSha256`; `receipt` is the queue completion status, and `segments` is its per-job result. `request` names the queue `project` (remote output prefix), job `id`, queue `sessionId`, job-relative `audio`, and exact remote `output` path.

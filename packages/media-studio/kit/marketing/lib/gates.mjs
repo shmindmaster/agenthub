@@ -82,8 +82,8 @@ export function buildGateWorkspace({ root, spec, cut, ratio, timeline, composeMa
     title: `${spec.title} - storyboard`, kind: 'product-screencast', deliveryProfile: frame.profile, scenarioId: spec.id,
     beats: cut.beats.map((b, i) => ({ id: b.id, order: i + 1, narration: b.narration || '', visualMode: b.kind === 'ui' ? 'screen' : b.kind === 'broll' ? 'broll' : 'card', resultHoldSeconds: 1.6 })),
   });
-  // Inputs the Local-AI listen gate requires for a speech review: the segments for the pronunciation-risk manifest, the
-  // reading overrides, and a timeline whose audioStart/audioEnd bound the spoken words inside each scene.
+  // Inputs a listen review of the speech needs (the retired Local-AI listen gate read the same files): the segments for a
+  // pronunciation-risk manifest, the reading overrides, and a timeline whose audioStart/audioEnd bound the spoken words.
   const narratedSegs = timeline.segments.filter((s) => s.text);
   writeJson(join(root, 'story', 'narration-segments.json'), { segments: narratedSegs.map((s) => ({ id: s.id, scene: s.id, text: s.text, wavSeconds: s.speechSeconds })) });
   writeJson(join(root, 'story', 'reading-overrides.json'), {});

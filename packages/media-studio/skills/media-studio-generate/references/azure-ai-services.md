@@ -4,7 +4,7 @@ Owner direction 2026-10-29: the MahumTech Azure resource is the **default** AI p
 
 - Resource: `aoai-mrender-4e123a95` (kind AIServices, S0, **eastus2**), resource group `rg-media-render`, subscription "MahumTech - Partner Azure (MCPP)". Billed to a $700 partner credit; budget alerts at $400 / $600 / $680.
 - **Never** use `AZURE_OPENAI_*` or `AZURE_OPENAI_PNDH_*` (Pendoah's `aif-pndh-*` platform is client infrastructure).
-- Artifact paths below are relative to `%MEDIA_STUDIO_ROOT%` (today `D:\Local-AI\data\artifacts\media-studio`, moving to `D:\Media-Studio`); keep paths configurable.
+- Artifact paths below are relative to `%MEDIA_STUDIO_ROOT%` (default `D:\Media-Studio`); keep paths configurable.
 - Credentials are environment variables only. Print a variable's name and whether it is set, never its value.
 - **Test-first gate (2026-10-29):** each capability was called from this PC with this resource's key before it was routed. Results, quality notes and prices vs what we pay today are in §6; only capabilities marked adopt or fallback there are routed to Azure.
 - Facts below were checked 2026-10-29 against Microsoft Learn, the Azure pricing page and the public Retail Prices API (`https://prices.azure.com/api/retail/prices`, filter `serviceName eq 'Foundry Tools' and armRegionName eq 'eastus2'`). Items marked **verified** were also exercised against this resource. **UNVERIFIED** means the source was silent or conflicting; do not budget on it without re-checking.

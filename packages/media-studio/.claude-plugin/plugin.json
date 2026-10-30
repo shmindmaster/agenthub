@@ -1,6 +1,6 @@
 {
   "name": "media-studio",
-  "description": "Local creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Uses Local-AI.",
+  "description": "Creative studio for all video and audio. Infer the form from the ask, including live-product screencasts. Azure AI Services for voice, transcription and images.",
   "author": {
     "name": "Sarosh Hussain"
   },
@@ -12,7 +12,6 @@
     "briefing",
     "training",
     "remotion",
-    "local-ai",
     "screenplay",
     "director"
   ],
@@ -20,5 +19,5 @@
   "commands": [
     "./commands/video.md"
   ],
-  "version": "2.0.43"
+  "version": "2.0.44"
 }

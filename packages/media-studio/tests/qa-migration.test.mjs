@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runPipeline } from '../kit/marketing/mvg.mjs';
 import { candidatePaths, verifiedCandidate } from '../kit/marketing/lib/candidate.mjs';
-import { runSyncGates } from '../kit/marketing/lib/local-gates.mjs';
+import { runSyncGates } from '../kit/marketing/lib/gate-runners.mjs';
 import { deliverStage } from '../kit/marketing/lib/stages/deliver.mjs';
 import { fileSha } from '../kit/marketing/lib/util.mjs';
 import { measureWordSync } from '../kit/screencast/sync-lib.mjs';
@@ -62,6 +62,7 @@ test('punctuation-only narration tokens do not invalidate successful take alignm
     });
     assert.equal(alignCalls, 2);
     assert.equal(result.wordSync, undefined, 'no failed alignment gate before the deliberate cue stop');
+    assert.match(result.transcript.detail, /encoded transcript: Local AI is off; use the hosted route/, 'the default transcript refuses instead of starting a local model');
     const words = JSON.parse(readFileSync(join(root, 'voice', 'asr', 'one.json'), 'utf8')).words;
     assert.deepEqual(words.map(word => word.w), ['Check', 'the', 'queue', 'then', 'approve.']);
     assert.equal(words[0].start, .35);

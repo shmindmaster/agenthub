@@ -220,7 +220,7 @@ Provider choice is swappable; use a tier by job rather than one tool for everyth
 - **Scaled / cost:** OpenAI Speech API, or Google Chirp 3 HD (has closed much of the quality gap cheaply).
 - **Emotion-forward:** Hume Octave 2.
 - **Real-time / interactive surfaces:** Cartesia Sonic 2 (~90ms).
-- **On-prem / data can't leave your infra (compliance):** use the approved Local-AI route and its named canonical profile; for Sarosh narration, that is transcript-conditioned Qwen3-TTS Base ICL through `ai.ps1 voice qwen-clone --voice sarosh`.
+- **House default (owner direction 2026-10-29):** Azure AI Speech through `media-studio-generate` (standard neural default, HD or MAI-Voice for principals), Deepgram then ElevenLabs as governed fallbacks. Local AI is off, so there is no on-prem voice route; no Sarosh voice clone in films.
 
 Pick a default, name it as *your* profile, and never switch providers silently. A common two-tier default: a premium voice for flagship hero demos, a cheaper API voice for the scaled/personalized long tail. The rest of this section is a fully worked reference implementation for one common choice (OpenAI Speech API); adapt the field names for whichever provider you standardize on.
 

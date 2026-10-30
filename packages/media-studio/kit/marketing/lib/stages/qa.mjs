@@ -1,17 +1,18 @@
-// Stage 7: qa, per ratio, on the exact encoded file. Gates: band-bound picture, captions, loudness, sync and Local-AI
-// listen (local, --local-gates), the film-chain gates (picture integrity, pointer path, frame integrity, marketing readiness), local-first vision QA,
-// the story score (reviewer file), and validate-viewer-release.
+// Stage 7: qa, per ratio, on the exact encoded file. Gates: band-bound picture, captions, loudness, sync / word-sync /
+// transcript (only with an injected aligner: Local AI is off), listen (no runner: pending), the film-chain gates (picture
+// integrity, pointer path, frame integrity, marketing readiness), vision QA, the story score (reviewer file), and
+// validate-viewer-release.
 // Anything that did not run on this exact candidate is `pending`, never a pass, and deliver refuses to ship it.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { MODULE_ROOT, recordStage } from '../context.mjs';
 import { runFrameIntegrityGate, runIntegrityGate, runMarketingGate, runPointerGate } from '../chain-gates.mjs';
 import { assembleEvidence, buildGateWorkspace, captionsCheck, readReviews, releasable, requiredGates } from '../gates.mjs';
-import { measureLoudness, gateScript, runSyncGates } from '../local-gates.mjs';
+import { measureLoudness, gateScript, runSyncGates } from '../gate-runners.mjs';
 import { loudnessTarget, run } from '../mix.mjs';
 import { runPictureGate } from '../picture-gate.mjs';
 import { normalizeCuts } from '../lint.mjs';
-import { fileSha, readJson, writeJson } from '../util.mjs';
+import { LOCAL_AI_OFF, fileSha, readJson, writeJson } from '../util.mjs';
 import { resolveClip } from './capture.mjs';
 import { runVisionQa } from '../../vision-qa.mjs';
 import { candidatePaths, selectedCuts, verifiedCandidate } from '../candidate.mjs';
@@ -64,17 +65,19 @@ async function avGates(ctx, { ad, srt, ws, qdir, gateSegments, target, gates }) 
 async function syncGates(ctx, { ws, candidate, cdir, gates }) {
   // A cue sheet in the workspace must belong to this candidate: the sync gate below rebuilds it, nothing else may leave one behind.
   rmSync(join(ws, 'plan', 'cue-sheet.json'), { force: true });
-  if (ctx.flags.localGates) {
-    const local = await runSyncGates({ ws, candidate, moduleRoot: MODULE_ROOT, composeMapRel: `output/${ctx.spec.id}-compose-map.json`, sourceRevision: ctx.spec.id, voiceLines: readJson(join(cdir, 'mix-plan.json')).lines });
-    gates.sync = local.sync;
-    gates.listen = local.listen;
-    gates.wordSync = local.wordSync || pending('word-sync did not run');
-    gates.transcript = local.transcript || pending('independent transcript did not run');
+  // mvg has no listen runner: the Local-AI listen gate is retired and nothing hosted replaces it here.
+  gates.listen = pending(`needs a listen review of this candidate; ${LOCAL_AI_OFF}`);
+  const P = ctx.providers || {};
+  if (P.alignWords) {
+    // Injected aligner (a hosted route or a test fake). The encoded transcript is injected the same way; absent, it is pending.
+    const hosted = await runSyncGates({ ws, candidate, moduleRoot: MODULE_ROOT, composeMapRel: `output/${ctx.spec.id}-compose-map.json`, voiceLines: readJson(join(cdir, 'mix-plan.json')).lines, align: P.alignWords, transcribe: P.encodedTranscript || null });
+    gates.sync = hosted.sync;
+    gates.wordSync = hosted.wordSync || pending('word-sync did not run');
+    gates.transcript = hosted.transcript || pending(`needs an independent transcript of this candidate; ${LOCAL_AI_OFF}`);
   } else {
-    gates.sync = pending('needs forced alignment; run with --local-gates');
-    gates.wordSync = pending('needs ai.ps1 align');
-    gates.transcript = pending('needs independent Whisper transcript');
-    gates.listen = pending('needs the Local-AI listen gate (GPU); run with --local-gates');
+    gates.sync = pending(`needs forced alignment of this candidate; ${LOCAL_AI_OFF}`);
+    gates.wordSync = pending(`needs a forced-alignment word clock; ${LOCAL_AI_OFF}`);
+    gates.transcript = pending(`needs an independent transcript of this candidate; ${LOCAL_AI_OFF}`);
   }
 }
 
@@ -96,6 +99,11 @@ function visionVerdict(v) {
 async function visionGate(ctx, { ad, qdir, ratio, cut, gateSegments, gates }) {
   if (ctx.flags.noVision) {
     gates.vision = pending('skipped by --no-vision');
+    return;
+  }
+  // The local reviewer is injected only: with Local AI off nothing reviewed the frames, so the gate is pending, not failed.
+  if ((ctx.flags.visionProvider || ctx.brand?.vision?.provider || 'local') === 'local' && !ctx.providers?.localVision) {
+    gates.vision = pending(`local vision: ${LOCAL_AI_OFF}; or --vision-provider openai (paid, ledger-governed)`);
     return;
   }
   try {
