@@ -185,8 +185,12 @@ try {
             } else {
                 Report "$name mix is stereo 48 kHz and ends with the shorter speech" $false 'mix failed'
             }
-            Report "$name old consumed-label graph is a failing regression control" `
-                ($oldGraph -ne $graph -and $oldCode -ne 0 -and $oldOutput -match 'Invalid stream specifier|matches no streams') `
+            # The control proves the old graph needed the asplit fix. Newer FFmpeg builds (observed on 9.x and the
+            # Windows CI runner) accept a re-consumed label, so the old graph no longer fails there; the control only
+            # applies where FFmpeg still rejects it. Either way the fixed graph above must produce a real PCM mix.
+            $oldAccepted = ($oldGraph -ne $graph -and $oldCode -eq 0)
+            Report "$name old consumed-label graph is a failing regression control (or this FFmpeg accepts it)" `
+                ($oldAccepted -or ($oldGraph -ne $graph -and $oldCode -ne 0 -and $oldOutput -match 'Invalid stream specifier|matches no streams')) `
                 "exit $oldCode output=$oldOutput"
         }
 
