@@ -4,6 +4,7 @@ Owner direction 2026-10-29: the MahumTech Azure resource is the **default** AI p
 
 - Resource: `aoai-mrender-4e123a95` (kind AIServices, S0, **eastus2**), resource group `rg-media-render`, subscription "MahumTech - Partner Azure (MCPP)". Billed to a $700 partner credit; budget alerts at $400 / $600 / $680.
 - **Never** use `AZURE_OPENAI_*` or `AZURE_OPENAI_PNDH_*` (Pendoah's `aif-pndh-*` platform is client infrastructure).
+- Artifact paths below are relative to `%MEDIA_STUDIO_ROOT%` (today `D:\Local-AI\data\artifacts\media-studio`, moving to `D:\Media-Studio`); keep paths configurable.
 - Credentials are environment variables only. Print a variable's name and whether it is set, never its value.
 - **Test-first gate (2026-10-29):** each capability was called from this PC with this resource's key before it was routed. Results, quality notes and prices vs what we pay today are in §6; only capabilities marked adopt or fallback there are routed to Azure.
 - Facts below were checked 2026-10-29 against Microsoft Learn, the Azure pricing page and the public Retail Prices API (`https://prices.azure.com/api/retail/prices`, filter `serviceName eq 'Foundry Tools' and armRegionName eq 'eastus2'`). Items marked **verified** were also exercised against this resource. **UNVERIFIED** means the source was silent or conflicting; do not budget on it without re-checking.
@@ -62,7 +63,8 @@ Docs: [flex](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/flex-
 9. **Images.** Azure is the default provider. `gpt-image-2.5` is token-billed with no per-image table, so measure the first result's `usage` before planning a batch. Use `low` or `medium` quality first and redraw only items that fail review. Capacity is 2 requests/min: queue small batches, and file the quota request before a large job. Gemini remains the fallback only when volume cannot wait for the quota, and its balance is low.
 10. **Video.** Sora 2 renders (verified 2026-10-29, $0.10 / s) but its inference ends 2026-11-02, so do not plan around it. For motion, use avatar clips and Remotion/Recast composition.
 11. **Fallbacks.** ElevenLabs (governed adapter, `packages/elevenlabs`), Deepgram (`scripts/deepgram_cli.py`) and Gemini are used only when Azure cannot do the job (a voice or language Azure lacks, a failed pronunciation gate, a quota wall) and only per line or per item.
-12. **Say the price basis** in every report: tier, rate, characters or minutes, and whether the figure came from the pricing page, the Retail API or a bill line.
+12. **Compute.** Azure covers the AI services; renders and encodes follow `media-studio-compose` (local NVENC when the PC is not taxed, else the Azure Container Apps job `caj-media-render` at about $0.0072 per job-minute, Daytona only with the orchestrator's OK). Local AI is off.
+13. **Say the price basis** in every report: tier, rate, characters or minutes, and whether the figure came from the pricing page, the Retail API or a bill line.
 
 ### Governance carried over from the plugin
 
@@ -81,7 +83,7 @@ Prebuilt voices, HD and MAI voices, and **standard and photo prebuilt avatars ne
 
 ## 4. Voice cast (eastus2, 2026-10-29)
 
-Samples: `D:\Local-AI\data\artifacts\media-studio\voice-cast\azure-20261029\samples\<id>.wav` (48 kHz mono WAV). Index with style, role fit and measured intelligibility: `…\azure-20261029\voice-cast.json`. Full catalog snapshot: `…\voices-list-raw.json`. Every sample passed an Azure STT round trip (see the index for each WER). The shortlist was chosen from catalog metadata and ASR; a human audition still decides the final cast.
+Samples: `%MEDIA_STUDIO_ROOT%\voice-cast\azure-20261029\samples\<id>.wav` (48 kHz mono WAV). Index with style, role fit and measured intelligibility: `…\azure-20261029\voice-cast.json`. Full catalog snapshot: `…\voices-list-raw.json`. Every sample passed an Azure STT round trip (see the index for each WER). The shortlist was chosen from catalog metadata and ASR; a human audition still decides the final cast.
 
 | Role | First choices | Tier |
 |---|---|---|
@@ -117,7 +119,7 @@ Avatar options: characters `harry`, `lisa`, `lori`, `max`, `meg`, `rowan`, `celi
 
 ## 6. Test-first gate results (2026-10-29)
 
-Every row was called from this PC with this resource's key and region. Evidence (scripts, JSON, images, clip) is under `D:\Local-AI\data\artifacts\media-studio\azure-gate-20261029\`; voice samples and the avatar test are under `D:\Local-AI\data\artifacts\media-studio\voice-cast\azure-20261029\`. "Current" is what we pay today: Deepgram Flux TTS $45 / 1M chars (Aura-2 $30, Aura-1 $15) and Nova-3 streaming $0.46 / hr; ElevenLabs v4 $80 / 1M chars (Turbo $40) and Scribe v2 $0.22 / hr; Gemini 2.5 Flash Image $0.039 ($0.0195 batch); Haiku 5.5 $0.10 / $0.50 per 1M tokens.
+Every row was called from this PC with this resource's key and region. Evidence (scripts, JSON, images, clip) is under `%MEDIA_STUDIO_ROOT%\azure-gate-20261029\`; voice samples and the avatar test are under `%MEDIA_STUDIO_ROOT%\voice-cast\azure-20261029\`. "Current" is what we pay today: Deepgram Flux TTS $45 / 1M chars (Aura-2 $30, Aura-1 $15) and Nova-3 streaming $0.46 / hr; ElevenLabs v4 $80 / 1M chars (Turbo $40) and Scribe v2 $0.22 / hr; Gemini 2.5 Flash Image $0.039 ($0.0195 batch); Haiku 5.5 $0.10 / $0.50 per 1M tokens.
 
 | Capability | Accessible | Quality | Azure vs current | Verdict |
 |---|---|---|---|---|
