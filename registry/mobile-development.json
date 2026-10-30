@@ -250,8 +250,9 @@
     {
       "id": "macos-guest-known-good-backup",
       "kind": "immutable-backup",
-      "path": "D:/VMs/macOS-Tahoe-AMD-Backup-2026-08-10",
-      "mutationAllowed": false
+      "path": "D:/VMs/macOS-Tahoe-AMD-Backup-2026-10-30",
+      "mutationAllowed": false,
+      "retention": "Exactly one external backup. The guest runs with no VMware snapshots; take a new dated copy before a risky change and delete the superseded one."
     },
     {
       "id": "android-avd",

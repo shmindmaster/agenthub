@@ -451,14 +451,14 @@ $vmxCpu = if ($vmxText -match '(?m)^numvcpus\s*=\s*"([0-9]+)"') { [int]$Matches[
 $vmxMemory = if ($vmxText -match '(?m)^memsize\s*=\s*"([0-9]+)"') { [int]$Matches[1] } else { $null }
 Report 'VMX and known-good backup paths resolve without touching either tree' (
     (Test-Path -LiteralPath $vmx -PathType Leaf) -and $backupResource.Count -eq 1 -and `
-    $backupResource[0].path -eq 'D:/VMs/macOS-Tahoe-AMD-Backup-2026-08-10' -and `
+    $backupResource[0].path -eq 'D:/VMs/macOS-Tahoe-AMD-Backup-2026-10-30' -and `
     (Test-Path -LiteralPath (([string]$backupResource[0].path -replace '/', '\')) -PathType Container)
 ) "vmx=$vmx backup=$($backupResource[0].path)"
 $vmReadmePath = 'D:\VMs\macOS-Tahoe-AMD\README.md'
 $vmReadmeText = if (Test-Path -LiteralPath $vmReadmePath) { Get-Content -LiteralPath $vmReadmePath -Raw -Encoding UTF8 } else { '' }
 Report 'VM README is a thin canonical pointer with no copied runtime contract' (
     $vmReadmeText -match [regex]::Escape('C:\Repos\shmindmaster\agenthub\packages\mobile-development\mobile.ps1') -and `
-    $vmReadmeText -match [regex]::Escape('D:\VMs\macOS-Tahoe-AMD-Backup-2026-08-10') -and `
+    $vmReadmeText -match [regex]::Escape('D:\VMs\macOS-Tahoe-AMD-Backup-2026-10-30') -and `
     $vmReadmeText -match 'must not modify VM disks' -and `
     $vmReadmeText -notmatch 'D:\\Downloads|boot entry|vCPU|GB RAM|fixed IP|192\.168\.'
 ) 'The external VM document copied mutable hardware/network facts or dead operational guidance.'
