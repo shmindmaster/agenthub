@@ -8,12 +8,16 @@
   http://127.0.0.1:7339/mcp.
 
   Fails closed on the embedder. RepoWise resolves its embedder once at startup
-  and serves mock vectors for the life of the process if the Local-AI embedder
-  (8790) is down, so starting it anyway produces a server that answers every
-  semantic query from noise. On 2026-10-14 the previous version of this script
-  did exactly that after a 180 s wait. Now: if 8790 is not answering, start the
-  retrieval service through D:\Local-AI\ai.ps1 (a capability-invoked start);
-  if it still is not ready, exit 2 with a FAIL-CLOSED log line and start nothing.
+  and serves mock vectors for the life of the process if the embedder is
+  unreachable, so starting it anyway produces a server that answers every
+  semantic query from noise (2026-10-14, after a 180 s wait on the old local
+  embedder). The embedder is the MahumTech Azure OpenAI text-embedding-3-small
+  deployment, read from FOUNDRY_OPENAI_BASE_URL, FOUNDRY_API_KEY (or
+  AZURE_AI_SERVICES_KEY) and FOUNDRY_EMBEDDING_DEPLOYMENT in the environment
+  and never persisted. Before starting RepoWise the launcher runs
+  `shared_server.py --check-embedder`, one real probe embedding; if the
+  environment is missing or the probe fails it exits 2 with a FAIL-CLOSED log
+  line and starts nothing. Nothing local is started on its behalf.
   After launch, one MCP tool call confirms the server did not come up degraded
   (`_meta.embedder_degraded`); a degraded server is stopped and the exit is 2.
 
@@ -34,10 +38,7 @@
 param(
     [int]$Port = 7339,
     [string]$Workspace = 'C:/Repos',
-    [string]$EmbedderUrl = 'http://127.0.0.1:8790/v1/models',
-    [int]$EmbedderWaitSeconds = 180,
-    [string]$LocalAiCli = 'D:\Local-AI\ai.ps1',
-    [switch]$NoEmbedderStart,
+    [int]$EmbedderCheckSeconds = 90,
     [int]$ServerWaitSeconds = 120,
     [switch]$SkipDegradedProbe,
     [string]$RepoWiseExe = (Join-Path $env:USERPROFILE '.local\bin\repowise.exe'),
@@ -74,46 +75,24 @@ function Test-PortServed {
     [bool](Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
 
+# One real probe embedding through shared_server.py --check-embedder. Returns
+# $true only on exit 0; a missing environment, a bad key, an unreachable host
+# or a timeout is $false. The child never echoes keys or response bodies.
 function Test-EmbedderReady {
-    try {
-        $r = Invoke-WebRequest -Uri $EmbedderUrl -TimeoutSec 5 -UseBasicParsing
-        return ($r.StatusCode -eq 200)
-    }
-    catch { return $false }
-}
-
-function Wait-EmbedderReady([int]$Seconds) {
-    $deadline = (Get-Date).AddSeconds($Seconds)
-    do {
-        if (Test-EmbedderReady) { return $true }
-        Start-Sleep -Seconds 5
-    } while ((Get-Date) -lt $deadline)
-    return (Test-EmbedderReady)
-}
-
-function Start-Embedder {
-    if ($NoEmbedderStart) { Write-Log 'embedder down and -NoEmbedderStart given; not starting it'; return }
-    if (-not (Test-Path -LiteralPath $LocalAiCli)) { Write-Log "embedder down and $LocalAiCli is missing; cannot start it"; return }
-    Write-Log "embedder down; starting retrieval via $LocalAiCli start retrieval"
-    $out = Join-Path $RuntimeDir 'embedder-start.log'
-    # ai.ps1 is maintained against pwsh 7; fall back to Windows PowerShell only
-    # when pwsh is absent. The child inherits this process's windowless
-    # console, and ai.ps1 starts the retrieval service with -WindowStyle Hidden.
-    $shell = Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    $shellPath = if ($shell) { $shell.Source } else { Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe' }
-    # Not Start-Process -Wait: that waits for the whole process tree, and the
-    # retrieval service ai.ps1 starts is meant to outlive it.
-    $p = Start-Process -FilePath $shellPath -PassThru -WindowStyle Hidden `
-        -ArgumentList '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', "`"$LocalAiCli`"", 'start', 'retrieval' `
+    $out = Join-Path $RuntimeDir 'embedder-check.log'
+    $p = Start-Process -FilePath $RepoWisePython -PassThru -WindowStyle Hidden `
+        -ArgumentList "`"$SharedServer`"", "`"$Workspace`"", '--check-embedder' `
         -RedirectStandardOutput $out -RedirectStandardError "$out.err"
     # Windows PowerShell reports no ExitCode unless the handle was opened
     # while the process was still running.
     $null = $p.Handle
-    if (-not $p.WaitForExit(($EmbedderWaitSeconds + 120) * 1000)) {
-        Write-Log 'ai.ps1 start retrieval still running past the wait; continuing to poll the embedder'
-        return
+    if (-not $p.WaitForExit($EmbedderCheckSeconds * 1000)) {
+        try { $p.Kill() } catch { }
+        Write-Log "embedder check still running after ${EmbedderCheckSeconds}s; killed PID $($p.Id)"
+        return $false
     }
-    Write-Log "ai.ps1 start retrieval exited $($p.ExitCode)"
+    if ($p.ExitCode -ne 0) { Write-Log "embedder check exited $($p.ExitCode)" }
+    return ($p.ExitCode -eq 0)
 }
 
 # One MCP round trip: initialize, then a cheap tool call whose `_meta` reports
@@ -150,7 +129,7 @@ function Test-ServerHealthy {
 $mutex = New-Object System.Threading.Mutex($false, 'Local\AgentHub-RepoWiseShared-Launcher')
 $owned = $false
 try {
-    try { $owned = $mutex.WaitOne([TimeSpan]::FromSeconds($EmbedderWaitSeconds + $ServerWaitSeconds + 120)) }
+    try { $owned = $mutex.WaitOne([TimeSpan]::FromSeconds($EmbedderCheckSeconds + $ServerWaitSeconds + 120)) }
     catch [System.Threading.AbandonedMutexException] { $owned = $true }
     if (-not $owned) { Write-Log 'another launcher held the lock past the wait; exiting'; exit 4 }
 
@@ -160,23 +139,20 @@ try {
         exit 0
     }
 
-    if (-not (Test-EmbedderReady)) {
-        Start-Embedder
-        if (-not (Wait-EmbedderReady $EmbedderWaitSeconds)) {
-            Write-Log "FAIL-CLOSED: embedder $EmbedderUrl not ready after ${EmbedderWaitSeconds}s; RepoWise NOT started (it would serve mock vectors for its whole life)"
-            exit 2
-        }
-    }
-    Write-Log 'embedder ready'
-
     if (-not (Test-Path -LiteralPath $RepoWiseExe)) { Write-Log "FAIL: $RepoWiseExe missing"; exit 3 }
     if (-not (Test-Path -LiteralPath $RepoWisePython)) { Write-Log 'FAIL: RepoWise tool Python missing'; exit 3 }
     if (-not (Test-Path -LiteralPath $SharedServer)) { Write-Log 'FAIL: shared server entry point missing'; exit 3 }
+
+    if (-not (Test-EmbedderReady)) {
+        Write-Log 'FAIL-CLOSED: Azure embedder environment missing or probe failed; RepoWise NOT started (it would serve mock vectors for its whole life)'
+        exit 2
+    }
+    Write-Log 'embedder ready'
     Write-Log "starting application-owned RepoWise workspace $Workspace on 127.0.0.1:$Port"
     Set-LaunchState 'starting'
     $launchStarted = $true
     $p = Start-Process -FilePath $RepoWisePython `
-        -ArgumentList "`"$SharedServer`"", "`"$Workspace`"", '--port', "$Port", '--embedding-base-url', "`"$($EmbedderUrl -replace '/models/?$', '')`"" `
+        -ArgumentList "`"$SharedServer`"", "`"$Workspace`"", '--port', "$Port" `
         -WorkingDirectory ($Workspace -replace '/', '\') -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $RuntimeDir 'stdout.log') `
         -RedirectStandardError (Join-Path $RuntimeDir 'stderr.log')

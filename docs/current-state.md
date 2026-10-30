@@ -1,5 +1,15 @@
 # Current State
 
+- **Local AI retired (2026-10-29):** owner direction turned local AI off: no
+  local models, embedders, rerankers or TTS/STT servers. The private `local-ai`
+  capability (`local-ai-stack`, `gpu-cluster-inference`) is unregistered and both
+  skills are in `retiredFleetSkills`. The H100 cluster is gone; compute is chosen
+  by capacity per the policy. Code retrieval is RepoWise, document retrieval is
+  `docwise` (in build). Older entries below that mention Local-AI describe history,
+  not the current route. The `packages/media-studio` pack still carries Local-AI
+  code paths and docs; retiring them needs a media-studio release that is
+  sequenced after the Azure routing release (PR 97).
+
 - **Windows desktop control (2026-10-28):** `packages/windows-desktop` is the
   first owner of `computer.gui` as a provider. It ships the
   `windows-desktop@agenthub` plugin (Claude, Codex, Cursor) and the loose skill
