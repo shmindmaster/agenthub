@@ -20,7 +20,7 @@ Load `references/azure-ai-services.md` before planning any generation. The Mahum
 
 Rules that apply to every Azure call: never use `AZURE_OPENAI_*` or the Pendoah endpoints; credentials stay in environment variables; hash inputs and reuse accepted takes; quote the price basis in the report; stay inside the credit budget alerts ($400 / $600 / $680). Films and cinematic work cast a distinct, expressive voice per scene and character; **no Sarosh voice clone in films** (owner direction 2026-10-29). Custom avatars, personal voice and professional voice are Limited Access; do not apply without an owner decision (steps are in the reference).
 
-The governed adapters (`scripts/governed_azure_speech.py` with `scripts/governed_azure_speech.md`, `scripts/deepgram_cli.py`, `packages/elevenlabs`) are the ledgered paths for paid speech. **Local AI is off (owner direction 2026-10-29):** never start local models, TTS/STT servers or embedders. The local voice pipeline (`Generate-OwnerVoice.ps1`, `ReGate-OwnerVoice.ps1`) is removed; there is no local voice, music, image, motion, lipsync or portrait route. Artifact paths resolve from `MEDIA_STUDIO_ROOT` (default `D:\Media-Studio`); never hard-code the drive path.
+The governed adapters (`scripts/governed_azure_speech.py` with `scripts/governed_azure_speech.md`, `scripts/deepgram_cli.py`, `packages/elevenlabs`) are the ledgered paths for paid speech. **Local AI is off (owner direction 2026-10-29):** never start local models, TTS/STT servers or embedders. The local owner-voice pipeline is removed; there is no local voice, music, image, motion, lipsync or portrait route. Artifact paths resolve from `MEDIA_STUDIO_ROOT` (default `D:\Media-Studio`); never hard-code the drive path.
 
 ## 0. Before generating
 
@@ -59,8 +59,8 @@ $tools = Join-Path $env:LOCALAPPDATA 'AgentHub\media-studio\_shared\tools'
 $manifest = Join-Path $tools 'plugin.json'
 $integrity = Join-Path $tools 'Test-SpeechIntegrity.ps1'
 $stems = Join-Path $tools 'Finish-BriefingStems.ps1'
-if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '2.0.41' -or -not (Test-Path -LiteralPath $integrity) -or -not (Test-Path -LiteralPath $stems)) {
-    throw 'Media Studio 2.0.41 speech tools are missing or stale. Deploy them from a verified package before generation.'
+if (-not (Test-Path -LiteralPath $manifest) -or (Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json).version -ne '2.0.44' -or -not (Test-Path -LiteralPath $integrity) -or -not (Test-Path -LiteralPath $stems)) {
+    throw 'Media Studio 2.0.44 speech tools are missing or stale. Deploy them from a verified package before generation.'
 }
 & pwsh -NoProfile -File $integrity -Path <take.wav> -Text '<locked line text>' -JsonOut <qa/integrity/<id>.json>
 ```

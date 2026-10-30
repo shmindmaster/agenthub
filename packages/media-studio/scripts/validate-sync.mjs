@@ -11,7 +11,7 @@
 //   action-timing   the click / typing / pointer arrival lands within +-300 ms of its spoken verb or object   receipt action time through the EDL
 //   result-hold     the resulting UI state stays up >= 1.5 s after the line names it (and after it appears)
 //   narration-order the line never names a result before the picture shows it, or after the screen is gone
-//   av-sync         encoded audio vs cue-sheet words, <= 40 ms drift: qa/encoded-alignment.json from ai.ps1 align.
+//   av-sync         encoded audio vs cue-sheet words, <= 40 ms drift: qa/encoded-alignment.json from kit/cloud/cloud-ai.mjs align.
 //                   The raw 80 ms grid is reported, not represented as 40 ms acoustic accuracy. Whisper is text only.
 //                   Legacy jobs without a forced-clock contract retain diagnostic speech-onset detection (120 ms).
 //   dropped-frames  pts gaps in the video packets
@@ -156,8 +156,8 @@ if (degraded.length) {
   let syncClock = null;
   if (existsSync(jobPath)) { try { syncClock = JSON.parse(readFileSync(jobPath, 'utf8')).syncClock; } catch { syncClock = null; } }
   const msg = syncClock === 'forced-aligner'
-    ? `narration timing is ${kinds} (not word-level) on ${degraded.length} beat(s): ${listed}. word times must come from ai.ps1 align (voice/align/<id>.json, method forced-alignment). Whisper is a transcript check and cannot time the picture.`
-    : `narration timing is ${kinds} (not word-level) on ${degraded.length} beat(s): ${listed}. Run word-level ASR per line (ai.ps1 transcribe <take.wav> --engine whisper --json-out voice\\asr\\<id>.json) and rebuild the cue sheet.`;
+    ? `narration timing is ${kinds} (not word-level) on ${degraded.length} beat(s): ${listed}. word times must come from kit/cloud/cloud-ai.mjs align (voice/align/<id>.json, method forced-alignment). Whisper is a transcript check and cannot time the picture.`
+    : `narration timing is ${kinds} (not word-level) on ${degraded.length} beat(s): ${listed}. Run word-level ASR per line (hosted word-level ASR: kit/cloud/cloud-ai.mjs align, writing voice/asr/<id>.json) and rebuild the cue sheet.`;
   if (allowDegraded) warnings.push(`DEGRADED: ${msg}`); else fail(msg);
 }
 
@@ -295,7 +295,7 @@ if (candidateSha && cueSheet && probe && video) {
       } catch (e) { fail(`forced alignment: ${e.message}`); }
     } else {
       const jobPath = join(root, 'job.json');
-      if (existsSync(jobPath) && JSON.parse(readFileSync(jobPath, 'utf8')).syncClock === 'forced-aligner') fail('missing qa/encoded-alignment.json; ai.ps1 align is required, Whisper is only a transcript check.');
+      if (existsSync(jobPath) && JSON.parse(readFileSync(jobPath, 'utf8')).syncClock === 'forced-aligner') fail('missing qa/encoded-alignment.json; kit/cloud/cloud-ai.mjs align is required, Whisper is only a transcript check.');
       const sd = await ffmpegAsync(['-i', candidate, '-vn', '-af', 'silencedetect=noise=-35dB:d=0.2', '-f', 'null', '-']);
       const onsets = L.parseSilenceEnds(sd.stderr);
       const deltas = []; const times = [];
@@ -307,12 +307,12 @@ if (candidateSha && cueSheet && probe && video) {
         if (near !== undefined) { deltas.push((near - w0.start) * 1000); times.push(w0.start); }
       });
       av.method = 'speech-onset'; av.anchors = deltas.length;
-      if (deltas.length < 3) { skip('av-sync-word-offset', `only ${deltas.length} speech onsets with a clear pause before them; run ASR on the encoded audio (ai.ps1 transcribe <candidate> --engine whisper --json-out qa\\encoded-asr.json) for a word-level A/V check.`); }
+      if (deltas.length < 3) { skip('av-sync-word-offset', `only ${deltas.length} speech onsets with a clear pause before them; run ASR on the encoded audio (hosted word-level ASR: kit/cloud/cloud-ai.mjs align, writing qa/encoded-asr.json) for a word-level A/V check.`); }
       else {
         const stats = L.offsetStats(deltas, times); Object.assign(av, stats);
         if (Math.abs(stats.offsetMs) > T.onsetOffsetMaxMs) fail(`speech onsets sit ${stats.offsetMs} ms from the cue-sheet words (onset estimate; max +-${T.onsetOffsetMaxMs} ms).`);
         if (Math.abs(stats.driftMs) > T.driftMaxMs) fail(`A/V drift ${stats.driftMs} ms from the start of the program to its end (max +-${T.driftMaxMs} ms).`);
-        skip('av-sync-asr-on-encoded', 'no forced alignment supplied; legacy diagnostic speech-onset estimate only (120 ms). Whisper timestamps are not a word clock; run ai.ps1 align for word-sync.');
+        skip('av-sync-asr-on-encoded', 'no forced alignment supplied; legacy diagnostic speech-onset estimate only (120 ms). Whisper timestamps are not a word clock; run kit/cloud/cloud-ai.mjs align for word-sync.');
       }
     }
   }

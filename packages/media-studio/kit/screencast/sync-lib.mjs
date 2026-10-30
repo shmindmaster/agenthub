@@ -304,7 +304,7 @@ export function receiptSemantics(beat, item, receipt, result = false) {
   if (result) {
     if (event.observed === true && event.alreadyVisible === true && event.state === 'visible' && boxValid(event.targetBox)
       && typeof item.label === 'string' && item.label.length > 0 && String(event.label).toLowerCase().includes(item.label.toLowerCase())
-      && event.observedAt >= event.at && !(clip.actions || []).some((a) => ['click', 'tap', 'type', 'upload', 'fill', 'wheel', 'goto'].includes(a.type) && a.t >= event.at && a.t <= event.observedAt)) return 'observation';
+      && event.observedAt >= event.at && !(clip.actions || []).some((a) => ['click', 'tap', 'type', 'upload', 'fill', 'select', 'wheel', 'goto'].includes(a.type) && a.t >= event.at && a.t <= event.observedAt)) return 'observation';
     return null;
   }
   if (event.type !== 'point' || item.kind !== 'point' || !event.label || event.target !== item.target) return null;
@@ -423,5 +423,27 @@ export function fillEventProblems(event) {
   const box = event?.targetBox;
   if (!box || ![box.x, box.y, box.w, box.h].every(Number.isFinite) || box.w <= 0 || box.h <= 0) problems.push('fill target bounds missing or invalid');
   if (['x', 'y', 'chars'].some((key) => event && Object.hasOwn(event, key))) problems.push('fill must not claim a click or keystrokes');
+  return problems;
+}
+
+/** A native select is neither a click nor keystrokes; retain its readback and before/after image identities. */
+export function selectEventProblems(event) {
+  const problems = [];
+  if (event?.type !== 'select' || event.method !== 'locator.selectOption') problems.push('native select method missing');
+  if (![event?.tStart, event?.tEnd, event?.t].every((t) => Number.isFinite(t) && t >= 0)
+      || event.tStart > event.tEnd || event.tEnd > event.t) problems.push('select timestamps must be finite, nonnegative and ordered');
+  for (const key of ['label', 'target', 'optionLabel']) if (typeof event?.[key] !== 'string' || !event[key].trim()) problems.push(`select ${key} missing`);
+  for (const key of ['value', 'beforeValue']) if (typeof event?.[key] !== 'string') problems.push(`select ${key} readback missing`);
+  const box = event?.targetBox;
+  if (!box || ![box.x, box.y, box.w, box.h].every(Number.isFinite) || box.w <= 0 || box.h <= 0) problems.push('select target bounds missing or invalid');
+  if (![event?.x, event?.y].every(Number.isFinite) || (box && (event.x < box.x || event.x > box.x + box.w || event.y < box.y || event.y > box.y + box.h))) problems.push('select approach target missing or outside bounds');
+  for (const [key, suffix] of [['beforeImage', 'before'], ['afterImage', 'after']]) {
+    const image = event?.[key];
+    if (typeof image?.path !== 'string' || !new RegExp(`^select-\\d+-${suffix}\\.png$`).test(image.path)
+        || typeof image?.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(image.sha256)) problems.push(`select ${key} identity missing or invalid`);
+  }
+  if (typeof event?.beforeImage?.path === 'string' && typeof event?.afterImage?.path === 'string'
+      && event.beforeImage.path.replace('-before.png', '') !== event.afterImage.path.replace('-after.png', '')) problems.push('select image pair differs');
+  if (event && Object.hasOwn(event, 'chars')) problems.push('select must not claim keystrokes');
   return problems;
 }

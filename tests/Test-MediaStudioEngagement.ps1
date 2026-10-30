@@ -62,8 +62,8 @@ Report 'engagement.md exists' (-not [string]::IsNullOrWhiteSpace($engagement)) '
 Report 'engagement.md diagnoses wall-to-wall speech and static picture' (
     $engagement -match 'Wall-to-wall speech' -and $engagement -match 'One visual held'
 ) 'Diagnose first must name those failure modes'
-Report 'engagement.md maps music to ai.ps1 music and Finish-Media duck' (
-    $engagement -match 'ai\.ps1 music' -and $engagement -match 'Finish-Media'
+Report 'engagement.md maps music to accepted assets and Finish-Media duck' (
+    $engagement -match 'Accepted, licensed bed asset' -and $engagement -match 'Finish-Media'
 ) 'Tools table must name the actual providers'
 Report 'engagement.md sends product-screencast to the PDS killer-demo guide' (
     $engagement -match 'killer-demo-production-guide' -and $engagement -match 'Do not invent another overlay stack'

@@ -8,7 +8,7 @@
 //
 // Inputs (all under <jobRoot>; the product repository is never read):
 //   story/narration-timeline.json  required  { durationSeconds, segments:[{ id, scene, text, startSeconds, durationSeconds }] }
-//   voice/align/<segmentId>.json  picture clock. ai.ps1 align, method forced-alignment. Take-relative words, offset by startSeconds.
+//   voice/align/<segmentId>.json  picture clock. kit/cloud/cloud-ai.mjs align, method forced-alignment. Take-relative words, offset by startSeconds.
 //                                  When job.json syncClock is forced-aligner, a missing align report is an error.
 //                                  Whisper (voice/asr or narration-words) is a transcript check and cannot time that picture.
 //   voice/asr/<segmentId>.json     legacy screencast word timestamps, seconds into that line's audio (offset by startSeconds).
@@ -110,7 +110,7 @@ const beatsWords = segs.map((seg, i) => {
         if (parsed.words.length) return { ...parsed, source: `voice/asr/${seg.id}.json` };
       }
     }
-    errors.push(`${seg.id}: word times must come from ai.ps1 align (voice/align/${seg.id}.json, method forced-alignment). Whisper is a transcript check and cannot time the picture.`);
+    errors.push(`${seg.id}: word times must come from kit/cloud/cloud-ai.mjs align (voice/align/${seg.id}.json, method forced-alignment). Whisper is a transcript check and cannot time the picture.`);
     return { words: [], precision: 'refused', source: 'missing aligner report' };
   }
   const next = segs[i + 1];
@@ -190,8 +190,8 @@ const beats = segs.map((seg, i) => {
 
   // actions
   const events = (clipRec?.actions || []).filter((e) => {
-    if (!['upload', 'fill'].includes(e.type)) return ['click', 'tap', 'type', 'point'].includes(e.type);
-    const problems = e.type === 'upload' ? L.uploadEventProblems(e) : L.fillEventProblems(e);
+    if (!['upload', 'fill', 'select'].includes(e.type)) return ['click', 'tap', 'type', 'point'].includes(e.type);
+    const problems = e.type === 'upload' ? L.uploadEventProblems(e) : e.type === 'fill' ? L.fillEventProblems(e) : L.selectEventProblems(e);
     if (problems.length) errors.push(`${seg.id}: invalid ${e.type} receipt event: ${problems.join('; ')}`);
     return problems.length === 0;
   });
@@ -208,6 +208,7 @@ const beats = segs.map((seg, i) => {
       receipt_event_index: clipRec.actions.indexOf(x.e),
       ...(x.e.type === 'upload' ? { method: x.e.method, file: { ...x.e.file } } : {}),
       ...(x.e.type === 'fill' ? { method: x.e.method, inputType: x.e.inputType, value: x.e.value, targetBox: { ...x.e.targetBox } } : {}),
+      ...(x.e.type === 'select' ? { method: x.e.method, value: x.e.value, beforeValue: x.e.beforeValue, optionLabel: x.e.optionLabel, targetBox: { ...x.e.targetBox }, beforeImage: { ...x.e.beforeImage }, afterImage: { ...x.e.afterImage } } : {}),
       clip_time: L.round(x.clipTime), cursor: Number.isFinite(x.e.x) ? { x: x.e.x, y: x.e.y } : null,
       action_time: mapped ? x.program : null,
       action_time_natural: g.mappable && !g.hasPiecewise ? round(g.start + (L.clipToSlot({ ...g.edit, headHold: 0 }, x.clipTime) ?? NaN)) : null,
@@ -217,7 +218,7 @@ const beats = segs.map((seg, i) => {
   if (planned) {
     for (const spec of planned) {
       const x = owned.find((o) => String(o.e.label || '').toLowerCase() === String(spec.label || '').toLowerCase()) || owned.find((o) => String(o.e.target || '').toLowerCase().includes(String(spec.label || '').toLowerCase()));
-      if (x) take(x, spec); else warnings.push(`${seg.id}: cue-plan action "${spec.label}" has no matching captured click/tap/type/point/upload/fill event`);
+      if (x) take(x, spec); else warnings.push(`${seg.id}: cue-plan action "${spec.label}" has no matching captured click/tap/type/point/upload/fill/select event`);
     }
   } else for (const x of owned) take(x, null);
 
@@ -268,7 +269,7 @@ if (flatScripts.length) {
   for (const miss of designed.misses) errors.push(miss);
 }
 const degraded = beats.filter((b) => b.narration.precision !== 'word').map((b) => ({ beat: b.beat, precision: b.narration.precision }));
-if (degraded.length) warnings.push(`degraded timing precision on ${degraded.length} beat(s): ${degraded.map((d) => `${d.beat}=${d.precision}`).join(', ')}; the sync gate fails these. Run ai.ps1 align and write voice/align/<id>.json. Whisper cannot time the picture.`);
+if (degraded.length) warnings.push(`degraded timing precision on ${degraded.length} beat(s): ${degraded.map((d) => `${d.beat}=${d.precision}`).join(', ')}; the sync gate fails these. Run kit/cloud/cloud-ai.mjs align and write voice/align/<id>.json. Whisper cannot time the picture.`);
 const composeEdl = mapped ? composeMap.groups.map((g) => ({ segments: g.segments, clip: g.clipId, startSeconds: g.startSeconds, needSeconds: g.needSeconds, fit: g.fit, edit: g.actualCaptureWindow?.piecewise_time_map ? null : g.edit || null, actualCaptureWindow: g.actualCaptureWindow || null })) : null;
 let edl = composeEdl;
 if (designed) {

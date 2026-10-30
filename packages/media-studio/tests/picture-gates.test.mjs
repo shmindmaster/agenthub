@@ -66,7 +66,7 @@ test('Whisper cannot drive the picture clock', () => {
   const refused = clockAccepted({ method: 'faster-whisper' });
   assert.equal(refused.ok, false);
   assert.match(refused.reason, /Whisper is a transcript check/);
-  assert.match(clockAccepted({}).reason, /picture clock is ai.ps1 align/);
+  assert.match(clockAccepted({}).reason, /picture clock is kit/cloud/cloud-ai.mjs align/);
 });
 
 test('clockAccepted rejects reports marked not ok', () => {

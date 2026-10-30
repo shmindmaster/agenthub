@@ -4,9 +4,11 @@ Speaks just enough of the 2025-06-18 transport: initialize issues an
 Mcp-Session-Id, unknown sessions get 404 (what a restarted server returns),
 notifications get 202, tools/call answers over SSE with a progress notification
 ahead of the result. GET /v1/models answers 200 so the same process can stand
-in for the embedder.
+in for a local embedder (bridge tests). `--check-embedder` stands in for the
+real shared server's embedder probe.
 
 Usage: fake_mcp_server.py --port N [--degraded] [--json] [--marker PATH] [--require-bearer TOKEN]
+       fake_mcp_server.py <workspace> --check-embedder
        (also accepts the real repowise argv: <workspace> --transport ... --port N)
 """
 
@@ -112,6 +114,15 @@ def build_handler(degraded: bool, json_mode: bool, slow_init: float = 0.0, beare
 
 
 def main(argv: list[str]) -> int:
+    if "--check-embedder" in argv:
+        # Stands in for `shared_server.py --check-embedder`: exit 0 when the
+        # embedder probe passes, 2 when it fails closed. FAKE_EMBEDDER_OK=0
+        # makes it fail; FAKE_EMBEDDER_CHECK_MARKER records that it ran.
+        marker = os.environ.get("FAKE_EMBEDDER_CHECK_MARKER")
+        if marker:
+            with open(marker, "a", encoding="utf-8") as handle:
+                handle.write("checked\n")
+        return 0 if os.environ.get("FAKE_EMBEDDER_OK", "1") == "1" else 2
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--degraded", action="store_true")

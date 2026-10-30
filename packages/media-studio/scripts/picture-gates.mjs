@@ -129,14 +129,14 @@ export function clockAccepted(report, { allowAsrAnchored = false } = {}) {
   // Hosted ASR word times anchored to the locked script (kit/cloud/cloud-ai.mjs align). Not forced alignment, so it
   // times the picture only where the job opted in; the default rule (ASR is a transcript check) stands.
   if (method === 'asr-anchored-alignment') {
-    if (!allowAsrAnchored) return { ok: false, method, reason: 'timing method asr-anchored-alignment (cloud ASR anchored to the locked script) drives the picture only when job.json sets clockPolicy.allowAsrAnchored: true; otherwise use ai.ps1 align' };
+    if (!allowAsrAnchored) return { ok: false, method, reason: 'timing method asr-anchored-alignment (cloud ASR anchored to the locked script) drives the picture only when job.json sets clockPolicy.allowAsrAnchored: true; otherwise use kit/cloud/cloud-ai.mjs align' };
     const coverage = cloudAlignCoverage(Array.isArray(report.words) ? report.words : []);
     if (coverage.exactRatio < CLOUD_ALIGN_LIMITS.minExactRatio || coverage.longestUnmatchedRun > CLOUD_ALIGN_LIMITS.maxUnmatchedRun) {
       return { ok: false, method, reason: `cloud script alignment too loose for a picture clock: ${coverage.exact}/${coverage.total} exact onsets, longest precision-limited run ${coverage.longestUnmatchedRun}` };
     }
     return { ok: true, method };
   }
-  return { ok: false, method, reason: method ? `timing method ${method} cannot drive the picture; Whisper is a transcript check` : 'timing method is missing; the picture clock is ai.ps1 align' };
+  return { ok: false, method, reason: method ? `timing method ${method} cannot drive the picture; Whisper is a transcript check` : 'timing method is missing; the picture clock is kit/cloud/cloud-ai.mjs align' };
 }
 
 export function normalizeAlignWords(raw) {
