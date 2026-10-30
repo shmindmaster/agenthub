@@ -12,11 +12,11 @@ Load `references/azure-ai-services.md` before planning any generation. The Mahum
 | Need | Default | Fallback, only when Azure cannot do it or a gate failed |
 |---|---|---|
 | Narration and character voices | Azure Speech TTS: standard neural, Neural HD for cinematic and principal roles, MAI-Voice where per-line emotion decides the scene. Cast from the voice cast in the reference | ElevenLabs governed adapter; Deepgram governed adapter |
-| Transcription and ASR gates | Azure batch transcription (backlogs), fast transcription (one file), short-audio STT (≤60 s clips) | Deepgram pre-recorded; Local-AI `ai.ps1 transcribe` |
+| Transcription and ASR gates | Azure batch transcription for backlogs (private blob + SAS) and fast transcription for one file. Real-time and streaming STT stay on Deepgram (Azure is $1 / hr vs $0.46 / hr) | Deepgram Nova-3; Local-AI `ai.ps1 transcribe` |
 | Images | Azure `gpt-image-2.5` deployments, low or medium quality first, capacity 2 | Gemini batch (balance is low), OpenAI |
 | Avatar presenter clips | Azure TTS avatar, batch API, prebuilt avatars | none; use Remotion/Recast composition instead |
-| Video generation | Sora 2 is retired (listed retirement 2026-10-15): do not plan around it | Local-AI Comfy, Remotion/Recast |
-| Chat, QA, embeddings, OCR | Azure `gpt-5-mini` (nano where it passes), `text-embedding-3-small`, Document Intelligence | Anthropic for bulk LLM work |
+| Video generation | Sora 2 works but its inference ends 2026-11-02: do not plan around it | Local-AI Comfy, Remotion/Recast |
+| Chat, QA, embeddings, OCR | Embeddings `text-embedding-3-small` and Document Intelligence on Azure. For chat and QA, Anthropic Haiku 5.5 is cheaper than `gpt-5-mini`; keep `gpt-5-mini` as the credit-funded fallback; Flex only on `gpt-6-luna` once its price is confirmed | Anthropic for bulk LLM work |
 
 Rules that apply to every Azure call: never use `AZURE_OPENAI_*` or the Pendoah endpoints; credentials stay in environment variables; hash inputs and reuse accepted takes; quote the price basis in the report; stay inside the credit budget alerts ($400 / $600 / $680). Films and cinematic work cast a distinct, expressive voice per scene and character; **no Sarosh voice clone in films** (owner direction 2026-10-29). Custom avatars, personal voice and professional voice are Limited Access; do not apply without an owner decision (steps are in the reference).
 
