@@ -240,7 +240,7 @@
       "name": "local-ai-stack",
       "retiredOn": "2026-10-29",
       "supersededBy": "media-studio",
-      "reason": "Owner direction 2026-10-29: local AI is off. No local models, embedders, rerankers or TTS/STT servers; remote APIs only (MahumTech Azure first). Retrieval moves to RepoWise for code and docwise for documents; media production moves to media-studio under D:/Media-Studio.",
+      "reason": "Owner direction 2026-10-29: local AI is off. No local models, embedders, rerankers or TTS/STT servers; remote APIs only (owner Azure first). Retrieval moves to RepoWise for code and docwise for documents; media production moves to media-studio under D:/Media-Studio.",
       "whyFleetScoped": "Was deployed as a loose skill on the eight-host tier and inside native plugins; the overlay capability row is removed, so only a fleet retirement sweeps the copies."
     },
     {
