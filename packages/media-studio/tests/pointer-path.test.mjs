@@ -349,3 +349,14 @@ test('mapped mode refuses a clip whose clock the receipt cannot state', () => {
   assert.equal(r.code, 1, r.out);
   assert.match(r.report.errors.join('\n'), /C1: .*recastHeadTrimSeconds/);
 });
+
+test('native select names its real approach without claiming a click', () => {
+  const t = new Take().approach({ x: 900, y: 500 });
+  t.events.push({ type: 'select', method: 'locator.selectOption', t: t.t, tStart: t.t, x: 900, y: 500, label: 'Reviewer', target: 'persona select' });
+  const r = run(job('native-select', { clips: { C1: clipRec(t) } }));
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.report.windows[0].namedApproaches, 1);
+  assert.equal(r.report.windows[0].unnamedMoves, 0);
+  assert.ok(r.report.windows[0].travelRatio <= 1.05);
+  assert.equal(t.events.some(e => e.type === 'click'), false);
+});
