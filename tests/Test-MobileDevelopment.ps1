@@ -260,13 +260,14 @@ Report 'every service declares activation, invocation, and readiness metadata' (
 
 $appium = @($mcps.mcpServers | Where-Object id -eq 'appium-mobile')
 $pinArgs = if ($appium.Count) { @($appium[0].args | Where-Object { [string]$_ -match '^appium-mcp@[0-9]+\.[0-9]+\.[0-9]+' }) } else { @() }
-$manifestPin = @($mcpManifest.mcpServers.'appium-mobile'.args | Where-Object { [string]$_ -match '^appium-mcp@' })
+$pluginServerCount = @($mcpManifest.mcpServers.PSObject.Properties).Count
 $pinRegistryShape = ($appium.Count -eq 1 -and $pinArgs.Count -eq 1 -and $appium[0].command -eq 'npx')
-$pinManifestParity = ($manifestPin.Count -eq 1 -and (($manifestPin -join '') -ceq ($pinArgs -join '')))
+# 2026-10-29: plugin manifests carry no MCP servers; the registry is the only pin.
+$pinManifestParity = ($pluginServerCount -eq 0)
 $pinResolverPresent = $moduleText -match "Read-AgentHubJson -RelativePath 'registry/mcps\.json'"
 $pinAbsentFromClient = $mcpSmokeText -notmatch 'appium-mcp@[0-9]'
 $pinOk = [bool]($pinRegistryShape -and $pinManifestParity -and $pinResolverPresent -and $pinAbsentFromClient)
-Report 'registry/mcps.json is the sole Appium MCP pin authority' $pinOk "shape=$pinRegistryShape parity=$pinManifestParity resolver=$pinResolverPresent clientDynamic=$pinAbsentFromClient registry=$($pinArgs -join ',') manifest=$($manifestPin -join ',')"
+Report 'registry/mcps.json is the sole Appium MCP pin authority' $pinOk "shape=$pinRegistryShape pluginServers=$pluginServerCount resolver=$pinResolverPresent clientDynamic=$pinAbsentFromClient registry=$($pinArgs -join ',')"
 Report 'deep smoke receives the resolved pin and emits the resolved version' (
     $gateText -match '--appium-package\s+\$appiumMcp\.Package' -and `
     $gateText -match '\[''appiumMcpVersion''\]\s*=\s*\$appiumMcp\.Version' -and `
